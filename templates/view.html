@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sensor Data</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Sensor Data</h1>
+    <form method="get" action="/view">
+        <label for="source">Source:</label>
+        <input type="text" name="source" id="source">
+        <label for="date">Date (YYYY-MM-DD):</label>
+        <input type="text" name="date" id="date">
+        <button type="submit">Filter</button>
+        <a href="/export?source=" id="download">Download CSV</a>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Temperature</th>
+                <th>Humidity</th>
+                <th>Timestamp</th>
+                <th>Source</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data %}
+            <tr>
+                <td>{{ row.id }}</td>
+                <td>{{ row.temperature }}</td>
+                <td>{{ row.humidity }}</td>
+                <td>{{ row.timestamp }}</td>
+                <td>{{ row.source }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
