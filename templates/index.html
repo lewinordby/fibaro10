@@ -1,29 +1,71 @@
 
-<!DOCTYPE html>
 <html>
 <head>
     <title>Sensor Data</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }}
+        h1 {{
+            color: #333;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+        }}
+        th, td {{
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }}
+        th {{
+            background-color: #f0f0f0;
+        }}
+        tr:hover {{
+            background-color: #f5f5f5;
+        }}
+        .filter {{
+            margin-bottom: 20px;
+        }}
+        input {{
+            padding: 5px;
+            margin-right: 10px;
+        }}
+        a.button {{
+            background-color: #007BFF;
+            color: white;
+            padding: 6px 12px;
+            text-decoration: none;
+            border-radius: 4px;
+        }}
+    </style>
 </head>
 <body>
-    <h1>Siste Sensorverdier</h1>
-    <table border="1">
+    <h1>Sensor Data</h1>
+    <form method="get" class="filter">
+        <label>Kilde: <input type="text" name="source" value="{{{{ source or '' }}}}"></label>
+        <label>Start: <input type="datetime-local" name="start" value="{{{{ start or '' }}}}"></label>
+        <label>Slutt: <input type="datetime-local" name="end" value="{{{{ end or '' }}}}"></label>
+        <input type="submit" value="Filtrer">
+        <a class="button" href="/csv">Last ned CSV</a>
+    </form>
+    <table>
         <tr>
-            <th>ID</th>
-            <th>Temperatur</th>
-            <th>Fuktighet</th>
-            <th>Timestamp</th>
-            <th>Kilde</th>
+            <th>ID</th><th>Temperatur</th><th>Fuktighet</th><th>Tid</th><th>Kilde</th>
         </tr>
-        {% for entry in entries %}
-        <tr>
-            <td>{{ entry.id }}</td>
-            <td>{{ entry.temperature }}</td>
-            <td>{{ entry.humidity or "" }}</td>
-            <td>{{ entry.timestamp }}</td>
-            <td>{{ entry.source or "" }}</td>
-        </tr>
-        {% endfor %}
+        {{{{% for row in data %}}}}
+            <tr>
+                <td>{{{{ row.id }}}}</td>
+                <td>{{{{ row.temperature }}}}</td>
+                <td>{{{{ row.humidity }}}}</td>
+                <td>{{{{ row.timestamp }}}}</td>
+                <td>{{{{ row.source }}}}</td>
+            </tr>
+        {{{{% endfor %}}}}
     </table>
-    <p><a href="/download">Last ned som CSV</a></p>
 </body>
 </html>
