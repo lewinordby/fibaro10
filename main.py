@@ -1,63 +1,48 @@
-from fastapi import FastAPI, Request, HTTPException
-from pydantic import BaseModel
-from typing import List
-from datetime import datetime
 import os
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import Column, Integer, Float, String, DateTime
+import logging
+from datetime import datetime, timezone
+from typing import List, Optional
 
-DATABASE_URL = (
-    f"postgresql+asyncpg://{os.getenv('DB_USER')}:{os.getenv('DB_PASS')}@"
-    f"{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}"
-)
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import Float, String, Column, Integer, DateTime
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.exc import SQLAlchemyError
 
-# DB setup
+# --- Logging ---
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# --- Environment ---
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    logger.error("Environment variable DATABASE_URL is missing.")
+    raise RuntimeError("DATABASE_URL is not set in environment variables.")
+
+# --- Database setup ---
 engine = create_async_engine(DATABASE_URL, echo=False)
-async_session = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-Base = declarative_base()
+async_session = async_sessionmaker(engine, expire_on_commit=False)
 
-# DB model
+class Base(DeclarativeBase):
+    pass
+
 class SensorData(Base):
     __tablename__ = "sensor_data"
+
     id = Column(Integer, primary_key=True, index=True)
     temperature = Column(Float)
     humidity = Column(Float)
-    timestamp = Column(DateTime)  # naive datetime
+    timestamp = Column(DateTime(timezone=False))  # naive datetime
     source = Column(String)
 
-# Request schema
-class SensorDataIn(BaseModel):
+# --- Pydantic model ---
+class SensorReading(BaseModel):
     temperature: float
-    humidity: float
-    timestamp: str
+    humidity: Optional[float] = Field(None)
+    timestamp: datetime
     source: str
 
-app = FastAPI()
-
-@app.post("/log")
-async def log_data(payload: List[SensorDataIn]):
-    try:
-        records = []
-        for entry in payload:
-            try:
-                # Fjern 'Z' og gjør timestamp offset-naiv
-                ts = datetime.fromisoformat(entry.timestamp.replace("Z", "")).replace(tzinfo=None)
-            except Exception:
-                raise HTTPException(status_code=400, detail=f"Ugyldig timestamp: {entry.timestamp}")
-
-            record = SensorData(
-                temperature=entry.temperature,
-                humidity=entry.humidity,
-                timestamp=ts,
-                source=entry.source
-            )
-            records.append(record)
-
-        async with async_session() as session:
-            session.add_all(records)
-            await session.commit()
-
-        return {"status": "ok", "saved": len(records)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    def to_naive_utc(self) -> "SensorReading":
+        ts = self.timestamp
+        if
