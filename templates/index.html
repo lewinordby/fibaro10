@@ -3,37 +3,27 @@
 <html>
 <head>
     <title>Sensor Data</title>
-    <style>
-        body { font-family: sans-serif; padding: 2em; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ccc; padding: 8px; }
-        th { background-color: #f5f5f5; }
-    </style>
 </head>
 <body>
-    <h1>Sensor Data</h1>
-    <a href="/download">Last ned som CSV</a>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Temperatur</th>
-                <th>Fuktighet</th>
-                <th>Timestamp</th>
-                <th>Kilde</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in data %}
-            <tr>
-                <td>{{ row.id }}</td>
-                <td>{{ row.temperature }}</td>
-                <td>{{ row.humidity }}</td>
-                <td>{{ row.timestamp }}</td>
-                <td>{{ row.source }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
+    <h1>Siste Sensorverdier</h1>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Temperatur</th>
+            <th>Fuktighet</th>
+            <th>Timestamp</th>
+            <th>Kilde</th>
+        </tr>
+        {% for entry in entries %}
+        <tr>
+            <td>{{ entry.id }}</td>
+            <td>{{ entry.temperature }}</td>
+            <td>{{ entry.humidity or "" }}</td>
+            <td>{{ entry.timestamp }}</td>
+            <td>{{ entry.source or "" }}</td>
+        </tr>
+        {% endfor %}
     </table>
+    <p><a href="/download">Last ned som CSV</a></p>
 </body>
 </html>
