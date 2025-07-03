@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 1rem;
+            background: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-size: 0.9rem;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+        @media (max-width: 600px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+            thead tr {
+                display: none;
+            }
+            td {
+                position: relative;
+                padding-left: 50%;
+                border: none;
+                border-bottom: 1px solid #ddd;
+            }
+            td::before {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 45%;
+                padding-left: 0.75rem;
+                font-weight: bold;
+                white-space: nowrap;
+            }
+            td:nth-of-type(1)::before { content: "ID"; }
+            td:nth-of-type(2)::before { content: "Temp"; }
+            td:nth-of-type(3)::before { content: "Fukt"; }
+            td:nth-of-type(4)::before { content: "Tid"; }
+            td:nth-of-type(5)::before { content: "Kilde"; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Sensor Data</h1>
+
+    <form method="get" action="/">
+        <input type="text" name="source" placeholder="Filter på kilde..." value="{{ source }}">
+        <button type="submit">Filtrer</button>
+        <a href="/" style="padding: 0.5rem;">Nullstill</a>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Temp</th>
+                <th>Fukt</th>
+                <th>Tid</th>
+                <th>Kilde</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row.id }}</td>
+                <td>{{ "%.1f"|format(row.temperature or 0) }}</td>
+                <td>{{ "%.1f"|format(row.humidity or 0) }}</td>
+                <td>{{ row.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+                <td>{{ row.source }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
