@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sensor Data</title>
+</head>
+<body>
+    <h1>Sensor Data</h1>
+    <form method="get">
+        Source: <input type="text" name="source" value="{{ source }}">
+        From: <input type="date" name="from_date" value="{{ from_date }}">
+        To: <input type="date" name="to_date" value="{{ to_date }}">
+        <button type="submit">Filter</button>
+    </form>
+    <a href="/export?source={{ source }}&from_date={{ from_date }}&to_date={{ to_date }}">Download CSV</a>
+    <table border="1">
+        <tr>
+            <th>ID</th><th>Temperature</th><th>Humidity</th><th>Timestamp</th><th>Source</th>
+        </tr>
+        {% for entry in data %}
+        <tr>
+            <td>{{ entry.id }}</td>
+            <td>{{ entry.temperature }}</td>
+            <td>{{ entry.humidity }}</td>
+            <td>{{ entry.timestamp }}</td>
+            <td>{{ entry.source }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
