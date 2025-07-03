@@ -17,22 +17,36 @@ async def startup():
 
 @app.post("/log")
 async def log_data(request: Request):
-    data = await request.json()
+    try:
+        data = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
 
     source = data.get("source")
     timestamp = data.get("timestamp")
     temperatures = data.get("temperatures", [])
     humidities = data.get("humidities", [])
 
-    if not source or len(temperatures) != 5 or len(humidities) != 5:
-        raise HTTPException(status_code=400, detail="Invalid data format")
+    if not source:
+        raise HTTPException(status_code=400, detail="Missing 'source'")
+    if not timestamp:
+        raise HTTPException(status_code=400, detail="Missing 'timestamp'")
+    if not isinstance(temperatures, list) or len(temperatures) != 5:
+        raise HTTPException(status_code=400, detail="Expected 5 temperature values")
+    if not isinstance(humidities, list) or len(humidities) != 5:
+        raise HTTPException(status_code=400, detail="Expected 5 humidity values")
+
+    try:
+        parsed_timestamp = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid timestamp format: {e}")
 
     async with async_session() as session:
         for i in range(5):
             entry = SensorData(
-                temperature=temperatures[i],
-                humidity=humidities[i],
-                timestamp=datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00")),
+                temperature=float(temperatures[i]),
+                humidity=float(humidities[i]),
+                timestamp=parsed_timestamp,
                 source=source
             )
             session.add(entry)

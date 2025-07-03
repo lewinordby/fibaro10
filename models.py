@@ -1,13 +1,13 @@
-from sqlalchemy import Column, Float, String, DateTime, Integer
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import Column, Integer, Float, String, DateTime
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 class SensorData(Base):
-    __tablename__ = 'sensor_data'
-
+    __tablename__ = "sensor_data"
     id = Column(Integer, primary_key=True, index=True)
     temperature = Column(Float)
     humidity = Column(Float)
     timestamp = Column(DateTime)
-    source = Column(String, index=True)
+    source = Column(String)
