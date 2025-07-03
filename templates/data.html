@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sensor Data</title>
+</head>
+<body>
+    <h1>Sensor Data</h1>
+    <form method="get">
+        Source: <input type="text" name="source" value="{{ source or '' }}">
+        <input type="submit" value="Filter">
+    </form>
+    <a href="/export{% if source %}?source={{ source }}{% endif %}">Download CSV</a>
+    <table border="1">
+        <tr><th>ID</th><th>Temperature</th><th>Humidity</th><th>Timestamp</th><th>Source</th></tr>
+        {% for d in data %}
+        <tr>
+            <td>{{ d.id }}</td>
+            <td>{{ d.temperature }}</td>
+            <td>{{ d.humidity }}</td>
+            <td>{{ d.timestamp }}</td>
+            <td>{{ d.source }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
