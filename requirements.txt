@@ -2,5 +2,5 @@ fastapi
 uvicorn
 sqlalchemy
 asyncpg
-python-dotenv
 jinja2
+python-dotenv
