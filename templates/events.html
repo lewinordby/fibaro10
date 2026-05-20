@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strukturerte events</title>
+    <title>Fibaro10 eventlogg</title>
     <style>
         body {
             font-family: sans-serif;
             margin: 0;
             padding: 1rem;
             background: #f7f8f9;
+            color: #17202a;
         }
-        h1 { text-align: center; }
+        h1 { text-align: center; margin: 0.5rem 0 1rem; }
         .nav, form {
             display: flex;
             justify-content: center;
@@ -22,6 +23,9 @@
         input, select {
             padding: 0.45rem;
             min-width: 8rem;
+            border: 1px solid #c9d1d9;
+            border-radius: 4px;
+            background: white;
         }
         button, a.button {
             padding: 0.5rem 0.75rem;
@@ -30,6 +34,7 @@
             color: #111;
             text-decoration: none;
             border-radius: 4px;
+            cursor: pointer;
         }
         table {
             width: 100%;
@@ -43,6 +48,7 @@
             border-bottom: 1px solid #e1e4e8;
             font-size: 0.82rem;
             vertical-align: top;
+            white-space: nowrap;
         }
         th {
             background-color: #edf2f7;
@@ -52,28 +58,32 @@
         .reason {
             max-width: 24rem;
             overflow-wrap: anywhere;
+            white-space: normal;
         }
-        @media (max-width: 900px) {
+        .table-wrap {
+            overflow-x: auto;
+        }
+        @media (max-width: 1100px) {
             .wide { display: none; }
         }
     </style>
 </head>
 <body>
-    <h1>Strukturerte events</h1>
+    <h1>Fibaro10 eventlogg</h1>
 
     <div class="nav">
-        <a class="button" href="/">Gammel logg</a>
+        <a class="button" href="/events">Oversikt</a>
         <a class="button" href="/events/download?system={{ filters.system }}&event_type={{ filters.event_type }}&action={{ filters.action }}&device_id={{ filters.device_id }}&mode={{ filters.mode }}&source={{ filters.source }}&source_contains={{ filters.source_contains }}&from={{ filters.from }}&to={{ filters.to }}">Last ned CSV</a>
         <a class="button" href="/events/json?system={{ filters.system }}&event_type={{ filters.event_type }}&action={{ filters.action }}&device_id={{ filters.device_id }}&mode={{ filters.mode }}&source={{ filters.source }}&source_contains={{ filters.source_contains }}&from={{ filters.from }}&to={{ filters.to }}&limit={{ filters.limit }}">JSON</a>
     </div>
 
     <form method="get" action="/events">
         <input type="text" name="system" placeholder="system" value="{{ filters.system }}">
-        <input type="text" name="event_type" placeholder="event_type" value="{{ filters.event_type }}">
-        <input type="text" name="action" placeholder="action" value="{{ filters.action }}">
-        <input type="number" name="device_id" placeholder="device_id" value="{{ filters.device_id }}">
-        <input type="text" name="mode" placeholder="mode" value="{{ filters.mode }}">
-        <input type="text" name="source_contains" placeholder="source inneholder" value="{{ filters.source_contains }}">
+        <input type="text" name="event_type" placeholder="type" value="{{ filters.event_type }}">
+        <input type="text" name="action" placeholder="handling" value="{{ filters.action }}">
+        <input type="number" name="device_id" placeholder="device id" value="{{ filters.device_id }}">
+        <input type="text" name="mode" placeholder="modus" value="{{ filters.mode }}">
+        <input type="text" name="source_contains" placeholder="søk i kilde/tekst" value="{{ filters.source_contains }}">
         <input type="datetime-local" name="from" value="{{ filters.from }}">
         <input type="datetime-local" name="to" value="{{ filters.to }}">
         <input type="number" name="limit" min="1" max="5000" value="{{ filters.limit }}">
@@ -81,47 +91,55 @@
         <a class="button" href="/events">Nullstill</a>
     </form>
 
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Tid</th>
-                <th>System</th>
-                <th>Type</th>
-                <th>Handling</th>
-                <th>Modus</th>
-                <th>Enhet</th>
-                <th>1.etg</th>
-                <th>2.etg</th>
-                <th>VIP</th>
-                <th>Ute</th>
-                <th>Loft</th>
-                <th>Diff W</th>
-                <th class="wide">Vifter</th>
-                <th>Årsak</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in rows %}
-            <tr>
-                <td>{{ row.id }}</td>
-                <td>{{ row.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
-                <td>{{ row.system }}</td>
-                <td>{{ row.event_type }}</td>
-                <td>{{ row.action or "" }}</td>
-                <td>{{ row.mode or "" }}</td>
-                <td>{% if row.device_id %}{{ row.device_id }}{% endif %}{% if row.device_name %} {{ row.device_name }}{% endif %}</td>
-                <td>{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}{% endif %}</td>
-                <td>{% if row.temp_2etg is not none %}{{ "%.1f"|format(row.temp_2etg) }}{% endif %}</td>
-                <td>{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}{% endif %}</td>
-                <td>{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}{% endif %}</td>
-                <td>{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}{% endif %}</td>
-                <td>{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% endif %}</td>
-                <td class="wide">VIP={{ row.fan_vip }} 2.etg={{ row.fan_2etg }} tak={{ row.fan_tak }}</td>
-                <td class="reason">{{ row.reason or row.source or "" }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tid</th>
+                    <th>System</th>
+                    <th>Type</th>
+                    <th>Handling</th>
+                    <th>Modus</th>
+                    <th>Enhet</th>
+                    <th>Lux</th>
+                    <th>Verdi</th>
+                    <th>1.etg</th>
+                    <th>2.etg</th>
+                    <th>VIP</th>
+                    <th>Ute</th>
+                    <th>Loft</th>
+                    <th>Diff W</th>
+                    <th>Effekt W</th>
+                    <th class="wide">Vifter</th>
+                    <th>Tekst</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.id }}</td>
+                    <td>{{ row.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+                    <td>{{ row.system }}</td>
+                    <td>{{ row.event_type }}</td>
+                    <td>{{ row.action or "" }}</td>
+                    <td>{{ row.mode or "" }}</td>
+                    <td>{% if row.device_id %}{{ row.device_id }}{% endif %}{% if row.device_name %} {{ row.device_name }}{% endif %}</td>
+                    <td>{% if row.lux is not none %}{{ "%.0f"|format(row.lux) }}{% endif %}</td>
+                    <td>{% if row.value is not none %}{{ "%.1f"|format(row.value) }}{% endif %}</td>
+                    <td>{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}{% endif %}</td>
+                    <td>{% if row.temp_2etg is not none %}{{ "%.1f"|format(row.temp_2etg) }}{% endif %}</td>
+                    <td>{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}{% endif %}</td>
+                    <td>{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}{% endif %}</td>
+                    <td>{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}{% endif %}</td>
+                    <td>{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% endif %}</td>
+                    <td>{% if row.power_w is not none %}{{ "%.0f"|format(row.power_w) }}{% endif %}</td>
+                    <td class="wide">VIP={{ row.fan_vip }} 2.etg={{ row.fan_2etg }} tak={{ row.fan_tak }}</td>
+                    <td class="reason">{{ row.reason or row.source or "" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>
