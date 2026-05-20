@@ -586,6 +586,49 @@ def lux_tick_label(value: int) -> str:
     return str(value)
 
 
+def temp_axis(values):
+    valid_values = [float(value) for value in values if value is not None]
+    if not valid_values:
+        return {"min": 0.0, "max": 30.0, "step": 5.0}
+
+    raw_min = min(valid_values)
+    raw_max = max(valid_values)
+    lower = math.floor(raw_min - 1)
+    upper = math.ceil(raw_max + 1)
+    if upper - lower < 4:
+        center = (upper + lower) / 2
+        lower = math.floor(center - 2)
+        upper = math.ceil(center + 2)
+
+    span = upper - lower
+    if span <= 8:
+        step = 1.0
+    elif span <= 16:
+        step = 2.0
+    else:
+        step = 5.0
+
+    lower = math.floor(lower / step) * step
+    upper = math.ceil(upper / step) * step
+    return {"min": float(lower), "max": float(upper), "step": step}
+
+
+def temp_y(value: float, axis_min: float, axis_max: float) -> float:
+    graph_top = 22
+    graph_bottom = 278
+    usable = graph_bottom - graph_top
+    if axis_max <= axis_min:
+        return graph_bottom
+    ratio = (value - axis_min) / (axis_max - axis_min)
+    return round(graph_bottom - max(0, min(1, ratio)) * usable, 2)
+
+
+def temp_label(value) -> str:
+    if value is None:
+        return "-"
+    return f"{float(value):.1f}°"
+
+
 def light_status_text(row: OutdoorLightSample) -> str:
     active = []
     for device in LIGHT_TIMELINE_DEVICES:
@@ -892,6 +935,91 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
     return {
         "points": points,
         "polyline": polyline,
+        "y_ticks": y_ticks,
+        "samples_desc": list(reversed(samples)),
+        "summary": summary,
+    }
+
+
+async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: datetime):
+    series_config = [
+        {"key": "temp_yr", "label": "Yr", "class": "yr"},
+        {"key": "temp_1etg", "label": "1.etg", "class": "one"},
+    ]
+
+    async with async_session() as session:
+        sample_result = await session.execute(
+            select(VentilationSample)
+            .where(VentilationSample.timestamp >= day_start)
+            .where(VentilationSample.timestamp < timeline_end)
+            .order_by(VentilationSample.timestamp.asc())
+        )
+        sample_rows = dedupe_samples_by_bucket(sample_result.scalars().all())
+
+    samples = []
+    all_values = []
+    for row in sample_rows:
+        sample_time = row.bucket_start or row.timestamp
+        if sample_time is None:
+            continue
+
+        sample = {
+            "time_dt": sample_time,
+            "time": sample_time.strftime("%H:%M"),
+            "mode": row.mode or "",
+            "source": row.source or "",
+        }
+        has_value = False
+        for series in series_config:
+            value = getattr(row, series["key"], None)
+            sample[series["key"]] = value
+            sample[f"{series['key']}_label"] = temp_label(value)
+            if value is not None:
+                has_value = True
+                all_values.append(value)
+        if has_value:
+            samples.append(sample)
+
+    axis = temp_axis(all_values)
+    series_items = []
+    for series in series_config:
+        points = []
+        values = []
+        for sample in samples:
+            value = sample[series["key"]]
+            if value is None:
+                continue
+            values.append(value)
+            points.append(
+                {
+                    "x": percent_between(sample["time_dt"], day_start, day_end) * 10,
+                    "y": temp_y(float(value), axis["min"], axis["max"]),
+                }
+            )
+        series_items.append(
+            {
+                **series,
+                "polyline": " ".join(f"{point['x']:.2f},{point['y']:.2f}" for point in points),
+                "latest": temp_label(values[-1]) if values else "-",
+                "min": temp_label(min(values)) if values else "-",
+                "max": temp_label(max(values)) if values else "-",
+            }
+        )
+
+    y_ticks = []
+    tick = axis["min"]
+    while tick <= axis["max"] + 0.001:
+        y_ticks.append({"label": temp_label(tick), "y": temp_y(tick, axis["min"], axis["max"])})
+        tick += axis["step"]
+
+    summary = {
+        "count": len(samples),
+        "latest_time": samples[-1]["time"] if samples else "-",
+        "axis_min": temp_label(axis["min"]),
+        "axis_max": temp_label(axis["max"]),
+    }
+    return {
+        "series": series_items,
         "y_ticks": y_ticks,
         "samples_desc": list(reversed(samples)),
         "summary": summary,
@@ -1411,6 +1539,38 @@ async def day_lux_view(request: Request, day: Optional[str] = None):
             "now_marker": now_marker,
             "now_label": now_local.strftime("%H:%M") if is_today else "",
             "lux_day": lux_day,
+            "ticks": [
+                {"label": "00", "x": 0},
+                {"label": "06", "x": 250},
+                {"label": "12", "x": 500},
+                {"label": "18", "x": 750},
+                {"label": "24", "x": 1000},
+            ],
+        },
+    )
+
+
+@app.get("/day/temp", response_class=HTMLResponse)
+async def day_temp_view(request: Request, day: Optional[str] = None):
+    selected_day = parse_day(day)
+    day_start = datetime.combine(selected_day, time.min)
+    day_end = day_start + timedelta(days=1)
+    now_local = local_now_naive()
+    is_today = selected_day == now_local.date()
+    timeline_end = min(now_local, day_end) if is_today else day_end
+    now_marker = percent_between(now_local, day_start, day_end) if is_today else None
+    temp_day = await build_temp_day(day_start, day_end, timeline_end)
+    return templates.TemplateResponse(
+        request,
+        "day_temp.html",
+        {
+            "selected_day": selected_day.isoformat(),
+            "prev_day": (selected_day - timedelta(days=1)).isoformat(),
+            "next_day": (selected_day + timedelta(days=1)).isoformat(),
+            "is_today": is_today,
+            "now_marker": now_marker,
+            "now_label": now_local.strftime("%H:%M") if is_today else "",
+            "temp_day": temp_day,
             "ticks": [
                 {"label": "00", "x": 0},
                 {"label": "06", "x": 250},

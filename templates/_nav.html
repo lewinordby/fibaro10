@@ -7,6 +7,7 @@
     <a class="button {% if current_path == '/ventilation/samples' %}active{% endif %}" href="/ventilation/samples">Temp logg</a>
     <a class="button {% if current_path == '/day' %}active{% endif %}" href="/day">Dagslinje</a>
     <a class="button {% if current_path == '/day/lux' %}active{% endif %}" href="/day/lux">Dagslogg lux</a>
+    <a class="button {% if current_path == '/day/temp' %}active{% endif %}" href="/day/temp">Dagslogg temp</a>
     {% if request.state.auth_is_master %}
     <a class="button {% if current_path == '/admin/keys' %}active{% endif %}" href="/admin/keys">Nøkler</a>
     {% endif %}

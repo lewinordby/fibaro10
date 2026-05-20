@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dagslogg temp</title>
+    <style>
+        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --brand:#5292d6; --yr:#4b7fbb; --one:#df705d; --now:#ef4444; }
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+        header { position: sticky; top: 0; z-index: 5; background: rgba(244,246,248,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; }
+        h1 { margin: 0; font-size: 1.35rem; }
+        h2 { margin: 0 0 0.7rem; font-size: 1rem; }
+        .sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
+        main { padding: 0.85rem; max-width: 980px; margin: 0 auto; }
+        .datebar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 0.85rem; }
+        a.button, button { padding: 0.65rem 0.75rem; border: 1px solid var(--line); background: white; color: #111; text-decoration: none; border-radius: 7px; cursor: pointer; font-size: 0.95rem; text-align: center; }
+        form.day-form { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; margin-bottom: 0.85rem; }
+        input { width: 100%; padding: 0.6rem; border: 1px solid var(--line); border-radius: 7px; background: white; font-size: 1rem; }
+        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 0.85rem; margin-bottom: 0.85rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; margin-bottom: 0.85rem; }
+        .metric { background: #f8fafc; border: 1px solid #e5eaf0; border-radius: 7px; padding: 0.7rem; }
+        .metric span { display: block; color: var(--muted); font-size: 0.78rem; }
+        .metric strong { display: block; margin-top: 0.12rem; font-size: 1.22rem; }
+        .chart-wrap { overflow-x: auto; padding-bottom: 0.35rem; }
+        .chart-card { min-width: 760px; }
+        svg { display: block; width: 100%; height: auto; background: linear-gradient(#fff, #fbfdff); border: 1px solid #e5eaf0; border-radius: 7px; }
+        .axis { stroke: #cbd5e1; stroke-width: 1; }
+        .grid, .y-grid { stroke: #e5eaf0; stroke-width: 1; }
+        .temp-line { fill: none; stroke-width: 2.1; stroke-linejoin: round; stroke-linecap: round; }
+        .temp-line.yr { stroke: var(--yr); }
+        .temp-line.one { stroke: var(--one); }
+        .label { fill: var(--muted); font-size: 18px; }
+        .y-label { fill: #64748b; font-size: 10px; font-weight: 650; }
+        .now-line { stroke: var(--now); stroke-width: 2; }
+        .now-label { fill: var(--now); font-size: 13px; font-weight: 800; }
+        .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--muted); font-size: 0.86rem; margin-top: 0.65rem; }
+        .key { display: inline-flex; align-items: center; gap: 0.35rem; }
+        .swatch { width: 1.2rem; height: 0.18rem; border-radius: 999px; display: inline-block; }
+        .swatch.yr { background: var(--yr); }
+        .swatch.one { background: var(--one); }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 0.58rem; border-bottom: 1px solid #edf1f5; text-align: left; font-size: 0.88rem; vertical-align: top; }
+        th { color: var(--muted); font-weight: 750; }
+        .empty { color: var(--muted); padding: 0.8rem 0; }
+        @media (min-width: 760px) {
+            main { padding: 1.25rem; }
+            .datebar { grid-template-columns: auto auto auto; justify-content: start; }
+            .summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+            form.day-form { grid-template-columns: 1fr; }
+            .datebar { grid-template-columns: 1fr; }
+        }
+    </style>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+    <header>
+        <div class="brand-bar">
+            <img class="brand-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
+            <div>
+                <h1>Dagslogg temp</h1>
+                <p class="sub">Temperatur gjennom valgt dag</p>
+            </div>
+        </div>
+    </header>
+    <main>
+        {% include "_nav.html" %}
+        <form class="day-form" method="get" action="/day/temp">
+            <input type="date" name="day" value="{{ selected_day }}">
+            <button type="submit">Vis dag</button>
+        </form>
+        <div class="datebar">
+            <a class="button" href="/day/temp?day={{ prev_day }}">Forrige dag</a>
+            <a class="button" href="/day/temp">I dag</a>
+            <a class="button" href="/day/temp?day={{ next_day }}">Neste dag</a>
+        </div>
+
+        <section class="panel">
+            <div class="summary">
+                {% for series in temp_day.series %}
+                <div class="metric">
+                    <span>Siste {{ series.label }}</span>
+                    <strong>{{ series.latest }}</strong>
+                    <span>{{ temp_day.summary.latest_time }}</span>
+                </div>
+                {% endfor %}
+                <div class="metric"><span>Skala</span><strong>{{ temp_day.summary.axis_min }} til {{ temp_day.summary.axis_max }}</strong></div>
+                <div class="metric"><span>Antall målinger</span><strong>{{ temp_day.summary.count }}</strong></div>
+            </div>
+            <div class="chart-wrap">
+                <div class="chart-card">
+                    <svg viewBox="0 0 1000 330" role="img" aria-label="Temperatur gjennom dagen">
+                        <line class="axis" x1="0" y1="278" x2="1000" y2="278"></line>
+                        {% for tick in ticks %}
+                        <line class="grid" x1="{{ tick.x }}" y1="22" x2="{{ tick.x }}" y2="278"></line>
+                        <text class="label" x="{{ tick.x }}" y="313" text-anchor="middle">{{ tick.label }}</text>
+                        {% endfor %}
+                        {% for tick in temp_day.y_ticks %}
+                        <line class="y-grid" x1="0" y1="{{ tick.y }}" x2="1000" y2="{{ tick.y }}"></line>
+                        <text class="y-label" x="8" y="{{ tick.y - 4 }}">{{ tick.label }}</text>
+                        {% endfor %}
+                        {% for series in temp_day.series %}
+                        {% if series.polyline %}
+                        <polyline class="temp-line {{ series['class'] }}" points="{{ series.polyline }}"></polyline>
+                        {% endif %}
+                        {% endfor %}
+                        {% if is_today and now_marker is not none %}
+                        <line class="now-line" x1="{{ now_marker * 10 }}" y1="14" x2="{{ now_marker * 10 }}" y2="286"></line>
+                        <text class="now-label" x="{{ now_marker * 10 }}" y="12" text-anchor="middle">{{ now_label }}</text>
+                        {% endif %}
+                    </svg>
+                </div>
+            </div>
+            <div class="legend">
+                {% for series in temp_day.series %}
+                <span class="key"><span class="swatch {{ series['class'] }}"></span>{{ series.label }}</span>
+                {% endfor %}
+                <span class="key">Grafen stopper ved nå-linjen for dagens dato</span>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Målinger</h2>
+            {% if not temp_day.samples_desc %}
+            <div class="empty">Ingen temperaturmålinger denne dagen.</div>
+            {% endif %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tid</th>
+                            <th>Yr</th>
+                            <th>1.etg</th>
+                            <th>Modus</th>
+                            <th>Kilde</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in temp_day.samples_desc %}
+                        <tr>
+                            <td>{{ row.time }}</td>
+                            <td>{{ row.temp_yr_label }}</td>
+                            <td>{{ row.temp_1etg_label }}</td>
+                            <td>{{ row.mode or "-" }}</td>
+                            <td>{{ row.source or "-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
