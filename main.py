@@ -797,6 +797,19 @@ async def light_samples_json(
     return {"count": len(rows), "rows": [row_to_dict(row, LIGHT_SAMPLE_COLUMNS) for row in rows]}
 
 
+@app.get("/lights/samples", response_class=HTMLResponse)
+async def light_samples_view(
+    request: Request,
+    mode: Optional[str] = None,
+    from_text: Optional[str] = Query(default=None, alias="from"),
+    to_text: Optional[str] = Query(default=None, alias="to"),
+    limit: int = 500,
+):
+    rows, limit = await fetch_rows(OutdoorLightSample, None, None, None, mode, None, from_text, to_text, limit)
+    filters = {"mode": mode or "", "from": from_text or "", "to": to_text or "", "limit": limit}
+    return templates.TemplateResponse(request, "light_samples.html", {"rows": rows, "filters": filters})
+
+
 @app.get("/lights/samples/download")
 async def light_samples_download(
     mode: Optional[str] = None,
