@@ -611,21 +611,38 @@ def total_from_segments(segments) -> str:
 
 def lux_scale(values):
     max_value = max([value for value in values if value is not None] or [100])
-    for axis_max, step in [(50, 5), (200, 20), (1000, 100), (2000, 200), (10000, 1000), (20000, 2000)]:
+    for axis_max, step in [(200, 50), (1000, 250), (2000, 500), (5000, 1000), (10000, 2000), (20000, 5000)]:
         if max_value <= axis_max:
             return {"max": float(axis_max), "step": step}
-    return {"max": 20000.0, "step": 2000}
+    return {"max": 20000.0, "step": 5000}
 
 
 def lux_y(value: float, max_lux: float) -> float:
     graph_top = 22
     graph_bottom = 278
+    graph_mid = (graph_top + graph_bottom) / 2
+    scale_break = 2000.0
     usable = graph_bottom - graph_top
     if max_lux <= 0:
         return graph_bottom
-    scaled_value = math.sqrt(max(0, value))
-    scaled_max = math.sqrt(max_lux)
-    return round(graph_bottom - max(0, min(1, scaled_value / scaled_max)) * usable, 2)
+    value = max(0, min(value, max_lux))
+    if max_lux <= scale_break:
+        return round(graph_bottom - (value / max_lux) * usable, 2)
+    if value <= scale_break:
+        return round(graph_bottom - (value / scale_break) * (graph_bottom - graph_mid), 2)
+    return round(graph_mid - ((value - scale_break) / (max_lux - scale_break)) * (graph_mid - graph_top), 2)
+
+
+def lux_tick_values(max_lux: float):
+    if max_lux <= 200:
+        values = [50, 100, 150, 200]
+    elif max_lux <= 1000:
+        values = [100, 250, 500, 750, 1000]
+    elif max_lux <= 2000:
+        values = [250, 500, 1000, 1500, 2000]
+    else:
+        values = [500, 1000, 1500, 2000, 5000, 10000, 15000, 20000]
+    return [value for value in values if value <= max_lux]
 
 
 def lux_tick_label(value: int) -> str:
@@ -1015,11 +1032,11 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
             "symbol_radius": round(2.2 + math.sqrt(value / max_lux) * 3.8, 2),
             "symbol_opacity": round(0.25 + math.sqrt(value / max_lux) * 0.55, 2),
         }
-        for value in range(scale["step"], int(max_lux) + 1, scale["step"])
+        for value in lux_tick_values(max_lux)
     ]
     reference_lines = [
-        {"label": f"{value} lux", "value": value, "y": lux_y(float(value), max_lux)}
-        for value in [100, 1000]
+        {"label": f"{lux_tick_label(value)} lux", "value": value, "y": lux_y(float(value), max_lux)}
+        for value in [100, 1000, 2000]
         if value <= max_lux
     ]
 
@@ -1032,6 +1049,7 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
         "latest_time": samples[-1]["time"] if samples else "-",
         "scale_max": f"{max_lux:.0f}",
         "scale_step": f"{scale['step']:.0f}",
+        "scale_break": "2000",
     }
     return {
         "points": points,
