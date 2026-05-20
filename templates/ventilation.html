@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ventilasjon</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 1rem; background: #f7f8f9; color: #17202a; }
+        h1 { margin: 0.4rem 0 1rem; }
+        .nav, form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        input { padding: 0.45rem; min-width: 8rem; border: 1px solid #c9d1d9; border-radius: 4px; background: white; }
+        button, a.button { padding: 0.5rem 0.75rem; border: 1px solid #c9d1d9; background: white; color: #111; text-decoration: none; border-radius: 4px; cursor: pointer; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 0 5px rgba(0,0,0,0.08); }
+        th, td { padding: 0.55rem; text-align: left; border-bottom: 1px solid #e1e4e8; font-size: 0.84rem; white-space: nowrap; }
+        th { background: #edf2f7; position: sticky; top: 0; }
+        .text { white-space: normal; max-width: 30rem; overflow-wrap: anywhere; }
+    </style>
+</head>
+<body>
+    <h1>Ventilasjon</h1>
+    <div class="nav">
+        <a class="button" href="/">Start</a>
+        <a class="button" href="/lights">Ute lys</a>
+        <a class="button" href="/ventilation/download">Last ned CSV</a>
+        <a class="button" href="/ventilation/json">JSON</a>
+    </div>
+    <form method="get" action="/ventilation">
+        <input type="text" name="event_type" placeholder="type" value="{{ filters.event_type }}">
+        <input type="text" name="action" placeholder="PAA / AV" value="{{ filters.action }}">
+        <input type="number" name="device_id" placeholder="device id" value="{{ filters.device_id }}">
+        <input type="text" name="mode" placeholder="modus" value="{{ filters.mode }}">
+        <input type="text" name="source_contains" placeholder="søk i tekst" value="{{ filters.source_contains }}">
+        <input type="datetime-local" name="from" value="{{ filters.from }}">
+        <input type="datetime-local" name="to" value="{{ filters.to }}">
+        <input type="number" name="limit" min="1" max="10000" value="{{ filters.limit }}">
+        <button type="submit">Filtrer</button>
+        <a class="button" href="/ventilation">Nullstill</a>
+    </form>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Tid</th><th>Handling</th><th>Enhet</th><th>Modus</th><th>Verdi</th><th>Status</th><th>1.etg</th><th>2.etg</th><th>VIP</th><th>Ute</th><th>Loft</th><th>Diff W</th><th>Vifter</th><th>Årsak</th></tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row.id }}</td>
+                    <td>{{ row.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+                    <td>{{ row.action or "" }}</td>
+                    <td>{% if row.device_id %}{{ row.device_id }}{% endif %}{% if row.device_name %} {{ row.device_name }}{% endif %}</td>
+                    <td>{{ row.mode or "" }}</td>
+                    <td>{% if row.value is not none %}{{ "%.1f"|format(row.value) }}{% endif %}</td>
+                    <td>{{ row.state }}</td>
+                    <td>{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}{% endif %}</td>
+                    <td>{% if row.temp_2etg is not none %}{{ "%.1f"|format(row.temp_2etg) }}{% endif %}</td>
+                    <td>{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}{% endif %}</td>
+                    <td>{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}{% endif %}</td>
+                    <td>{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}{% endif %}</td>
+                    <td>{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% endif %}</td>
+                    <td>VIP={{ row.fan_vip }} 2.etg={{ row.fan_2etg }} tak={{ row.fan_tak }}</td>
+                    <td class="text">{{ row.reason or row.source or "" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
