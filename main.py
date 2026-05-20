@@ -850,12 +850,9 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
     polyline = " ".join(f"{point['x']:.2f},{point['y']:.2f}" for point in points)
 
     thresholds = [
-        {"label": "Gatelys PÅ", "value": 50, "class": "street"},
-        {"label": "Inngang PÅ", "value": 100, "class": "entrance"},
-        {"label": "Reklame PÅ", "value": 500, "class": "ads"},
-        {"label": "Lyslist PÅ", "value": 1000, "class": "strip"},
-        {"label": "Spot glass PÅ", "value": 1500, "class": "glass"},
-        {"label": "Spot glass AV", "value": 2000, "class": "glass-off"},
+        {"label": "100", "value": 100, "class": "low"},
+        {"label": "1000", "value": 1000, "class": "medium"},
+        {"label": "10000", "value": 10000, "class": "high"},
     ]
     visible_thresholds = [
         {**threshold, "y": lux_y(threshold["value"], max_lux)}

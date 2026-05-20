@@ -27,16 +27,13 @@
         svg { display: block; width: 100%; height: auto; background: linear-gradient(#fff, #fbfdff); border: 1px solid #e5eaf0; border-radius: 7px; }
         .axis { stroke: #cbd5e1; stroke-width: 1; }
         .grid { stroke: #e5eaf0; stroke-width: 1; }
-        .threshold { stroke-width: 1.6; stroke-dasharray: 6 6; opacity: 0.72; }
-        .threshold.street { stroke: #64748b; }
-        .threshold.entrance { stroke: #0f766e; }
-        .threshold.ads { stroke: #f59e0b; }
-        .threshold.strip { stroke: #2563eb; }
-        .threshold.glass { stroke: #7c3aed; }
-        .threshold.glass-off { stroke: #be123c; }
-        .lux-line { fill: none; stroke: var(--lux); stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+        .threshold { stroke-width: 1; opacity: 0.42; }
+        .threshold.low { stroke: #64748b; }
+        .threshold.medium { stroke: #64748b; }
+        .threshold.high { stroke: #64748b; }
+        .lux-line { fill: none; stroke: var(--lux); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
         .label { fill: var(--muted); font-size: 18px; }
-        .threshold-label { fill: #334155; font-size: 16px; font-weight: 700; }
+        .threshold-label { fill: #64748b; font-size: 12px; font-weight: 650; }
         .now-line { stroke: var(--now); stroke-width: 3; }
         .now-label { fill: var(--now); font-size: 17px; font-weight: 800; }
         .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--muted); font-size: 0.86rem; margin-top: 0.65rem; }
@@ -98,7 +95,7 @@
                         {% endfor %}
                         {% for threshold in lux_day.thresholds %}
                         <line class="threshold {{ threshold.class }}" x1="0" y1="{{ threshold.y }}" x2="1000" y2="{{ threshold.y }}"></line>
-                        <text class="threshold-label" x="8" y="{{ threshold.y - 7 }}">{{ threshold.label }} {{ threshold.value }} lux</text>
+                        <text class="threshold-label" x="8" y="{{ threshold.y - 4 }}">{{ threshold.label }}</text>
                         {% endfor %}
                         {% if lux_day.polyline %}
                         <polyline class="lux-line" points="{{ lux_day.polyline }}"></polyline>
