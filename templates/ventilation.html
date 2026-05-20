@@ -46,6 +46,7 @@
             .temps { grid-template-columns: repeat(7, minmax(0, 1fr)); }
         }
     </style>
+    <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
     <header>
@@ -53,13 +54,7 @@
         <p class="sub">Hva viftene gjorde, når og hvorfor</p>
     </header>
     <main>
-        <div class="nav">
-            <a class="button" href="/">Start</a>
-            <a class="button" href="/day">Dagslinje</a>
-            <a class="button" href="/ventilation/samples">Læring</a>
-            <a class="button" href="/lights">Ute lys</a>
-            <a class="button" href="/ventilation/download">CSV</a>
-        </div>
+        {% include "_nav.html" %}
         <details>
             <summary>Filter</summary>
             <form method="get" action="/ventilation">

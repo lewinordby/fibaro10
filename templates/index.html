@@ -252,6 +252,7 @@
             to { transform: rotate(360deg); }
         }
     </style>
+    <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
     <header>
@@ -259,13 +260,7 @@
         <p class="sub">Siste kjente drift fra HC3 og Render</p>
     </header>
     <main>
-        <div class="nav">
-            <a class="button" href="/lights">Ute lys</a>
-            <a class="button" href="/lights/samples">Lux logging</a>
-            <a class="button" href="/ventilation">Ventilasjon</a>
-            <a class="button" href="/ventilation/samples">Læring</a>
-            <a class="button" href="/day">Dagslinje</a>
-        </div>
+        {% include "_nav.html" %}
 
         <section class="hero">
             <div class="hero-top">

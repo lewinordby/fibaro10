@@ -80,6 +80,7 @@
             to { transform: rotate(360deg); }
         }
     </style>
+    <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
     <header>
@@ -87,12 +88,7 @@
         <p class="sub">5-minuttersmålinger for temperatur, drift og beslutningsgrunnlag</p>
     </header>
     <main>
-        <div class="nav">
-            <a class="button" href="/">Start</a>
-            <a class="button" href="/ventilation">Hendelser</a>
-            <a class="button" href="/day">Dagslinje</a>
-            <a class="button" href="/ventilation/samples/download">CSV</a>
-        </div>
+        {% include "_nav.html" %}
         <details>
             <summary>Filter</summary>
             <form method="get" action="/ventilation/samples">

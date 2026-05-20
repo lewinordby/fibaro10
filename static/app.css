@@ -1,0 +1,45 @@
+:root {
+    --page-width: 1120px;
+}
+
+main {
+    width: min(100% - 1.7rem, var(--page-width));
+    max-width: var(--page-width) !important;
+    margin-inline: auto;
+    padding-inline: 0 !important;
+}
+
+.app-nav {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.5rem;
+    width: 100%;
+    margin-bottom: 0.85rem;
+}
+
+.app-nav .button {
+    width: 100% !important;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.7rem;
+    line-height: 1.12;
+}
+
+@media (min-width: 680px) {
+    .app-nav {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (min-width: 980px) {
+    main {
+        padding-top: 1.25rem !important;
+        padding-bottom: 1.25rem !important;
+    }
+
+    .app-nav {
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    }
+}

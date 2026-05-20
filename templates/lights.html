@@ -39,6 +39,7 @@
             .wide { grid-column: auto; }
         }
     </style>
+    <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
     <header>
@@ -46,13 +47,7 @@
         <p class="sub">Hva lyset gjorde, når og hvorfor</p>
     </header>
     <main>
-        <div class="nav">
-            <a class="button" href="/">Start</a>
-            <a class="button" href="/lights/samples">Lux logging</a>
-            <a class="button" href="/day">Dagslinje</a>
-            <a class="button" href="/ventilation">Ventilasjon</a>
-            <a class="button" href="/lights/download">CSV</a>
-        </div>
+        {% include "_nav.html" %}
         <details>
             <summary>Filter</summary>
             <form method="get" action="/lights">

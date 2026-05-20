@@ -240,12 +240,12 @@ VENT_SAMPLE_COLUMNS = [
 ]
 
 LIGHT_TIMELINE_DEVICES = [
-    {"id": 425, "name": "Lyslist dekor"},
-    {"id": 427, "name": "Reklameplakater"},
-    {"id": 275, "name": "Spot foran glassvegg"},
-    {"id": 299, "name": "Spot foran massasje"},
-    {"id": 424, "name": "6xspot over inngang"},
-    {"id": 440, "name": "Parkeringslys/gatelys"},
+    {"id": 425, "name": "Lyslist dekor", "sample_attr": "light_lyslist"},
+    {"id": 427, "name": "Reklameplakater", "sample_attr": "light_reklame"},
+    {"id": 275, "name": "Spot foran glassvegg", "extra_key": "light_spot_glass_275"},
+    {"id": 299, "name": "Spot foran massasje", "extra_key": "light_spot_glass_299"},
+    {"id": 424, "name": "6xspot over inngang", "sample_attr": "light_spot_inngang"},
+    {"id": 440, "name": "Parkeringslys/gatelys", "sample_attr": "light_parkering"},
 ]
 
 VENT_TIMELINE_DEVICES = [
@@ -332,6 +332,32 @@ def span_width(start_value: datetime, end_value: datetime, day_start: datetime, 
     return round(max(0, percent_between(end_value, day_start, day_end) - percent_between(start_value, day_start, day_end)), 3)
 
 
+def add_segment(segments, start_value: datetime, end_value: datetime):
+    if end_value <= start_value:
+        return
+    if segments and segments[-1]["end_dt"] == start_value:
+        segments[-1]["end_dt"] = end_value
+    else:
+        segments.append({"start_dt": start_value, "end_dt": end_value})
+
+
+def display_segments(raw_segments, day_start: datetime, day_end: datetime):
+    return [
+        {
+            "left": percent_between(segment["start_dt"], day_start, day_end),
+            "width": span_width(segment["start_dt"], segment["end_dt"], day_start, day_end),
+            "start": segment["start_dt"].strftime("%H:%M"),
+            "end": segment["end_dt"].strftime("%H:%M"),
+        }
+        for segment in raw_segments
+    ]
+
+
+def total_from_segments(segments) -> str:
+    total_minutes = int(round(sum((segment["end_dt"] - segment["start_dt"]).total_seconds() / 60 for segment in segments)))
+    return f"{total_minutes // 60}t {total_minutes % 60}m"
+
+
 def event_detail(system: str, row) -> str:
     pieces = []
     if system == "lys" and row.lux is not None:
@@ -350,12 +376,36 @@ def event_detail(system: str, row) -> str:
     return ", ".join(pieces)
 
 
+def light_sample_state(row, device) -> Optional[bool]:
+    attr = device.get("sample_attr")
+    if attr:
+        value = getattr(row, attr, None)
+    else:
+        value = (row.extra or {}).get(device.get("extra_key"))
+    if value is None:
+        return None
+    return bool(value)
+
+
+def point_from_row(row, day_start: datetime, day_end: datetime, system: str):
+    event_time = max(day_start, min(day_end, row.timestamp))
+    reason = clean_display_text(row.reason or row.source or "")
+    return {
+        "left": percent_between(event_time, day_start, day_end),
+        "time": event_time.strftime("%H:%M"),
+        "action": display_action(row.action),
+        "action_class": "on" if row.action == "PAA" else "off" if row.action == "AV" else "neutral",
+        "reason": reason,
+        "detail": event_detail(system, row),
+    }
+
+
 def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end: datetime, timeline_end: datetime, system: str):
     state = state_from_event(previous_row) if previous_row else False
     if state is None:
         state = False
     cursor = day_start
-    segments = []
+    raw_segments = []
     points = []
 
     for row in rows:
@@ -363,42 +413,23 @@ def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end
             break
         event_time = max(day_start, min(timeline_end, row.timestamp))
         if state and event_time > cursor:
-            segments.append({
-                "left": percent_between(cursor, day_start, day_end),
-                "width": span_width(cursor, event_time, day_start, day_end),
-                "start": cursor.strftime("%H:%M"),
-                "end": event_time.strftime("%H:%M"),
-            })
+            add_segment(raw_segments, cursor, event_time)
 
         new_state = state_from_event(row)
-        reason = clean_display_text(row.reason or row.source or "")
-        points.append({
-            "left": percent_between(event_time, day_start, day_end),
-            "time": event_time.strftime("%H:%M"),
-            "action": display_action(row.action),
-            "action_class": "on" if row.action == "PAA" else "off" if row.action == "AV" else "neutral",
-            "reason": reason,
-            "detail": event_detail(system, row),
-        })
+        points.append(point_from_row(row, day_start, day_end, system))
         if new_state is not None:
             state = new_state
             cursor = event_time
 
     if state and cursor < timeline_end:
-        segments.append({
-            "left": percent_between(cursor, day_start, day_end),
-            "width": span_width(cursor, timeline_end, day_start, day_end),
-            "start": cursor.strftime("%H:%M"),
-            "end": timeline_end.strftime("%H:%M"),
-        })
+        add_segment(raw_segments, cursor, timeline_end)
 
-    total_minutes = int(round(sum(segment["width"] / 100 * 24 * 60 for segment in segments)))
     return {
         "id": device["id"],
         "name": device["name"],
-        "segments": segments,
+        "segments": display_segments(raw_segments, day_start, day_end),
         "points": points,
-        "total": f"{total_minutes // 60}t {total_minutes % 60}m",
+        "total": total_from_segments(raw_segments),
     }
 
 
@@ -432,6 +463,86 @@ async def build_timeline_group(model, devices, system: str, day_start: datetime,
         build_timeline_item(device, rows_by_device.get(device["id"], []), previous.get(device["id"]), day_start, day_end, timeline_end, system)
         for device in devices
     ]
+
+
+async def build_light_timeline_group(day_start: datetime, day_end: datetime, timeline_end: datetime):
+    device_ids = [device["id"] for device in LIGHT_TIMELINE_DEVICES]
+    async with async_session() as session:
+        event_result = await session.execute(
+            select(OutdoorLightEvent)
+            .where(OutdoorLightEvent.device_id.in_(device_ids))
+            .where(OutdoorLightEvent.timestamp >= day_start)
+            .where(OutdoorLightEvent.timestamp < timeline_end)
+            .order_by(OutdoorLightEvent.timestamp.asc())
+        )
+        event_rows = event_result.scalars().all()
+        sample_result = await session.execute(
+            select(OutdoorLightSample)
+            .where(OutdoorLightSample.timestamp >= day_start)
+            .where(OutdoorLightSample.timestamp < timeline_end)
+            .order_by(OutdoorLightSample.timestamp.asc())
+        )
+        sample_rows = sample_result.scalars().all()
+        previous_sample_result = await session.execute(
+            select(OutdoorLightSample)
+            .where(OutdoorLightSample.timestamp < day_start)
+            .order_by(OutdoorLightSample.timestamp.desc())
+            .limit(1)
+        )
+        previous_sample = previous_sample_result.scalars().first()
+
+    events_by_device = {device_id: [] for device_id in device_ids}
+    for row in event_rows:
+        events_by_device.setdefault(row.device_id, []).append(row)
+
+    items = []
+    for device in LIGHT_TIMELINE_DEVICES:
+        state = light_sample_state(previous_sample, device) if previous_sample else False
+        if state is None:
+            state = False
+        cursor = day_start
+        raw_segments = []
+        points = [point_from_row(row, day_start, day_end, "lys") for row in events_by_device.get(device["id"], [])]
+        sample_points = []
+
+        for row in sample_rows:
+            sample_time = row.bucket_start or row.timestamp
+            if sample_time >= timeline_end:
+                break
+            event_time = max(day_start, min(timeline_end, sample_time))
+            new_state = light_sample_state(row, device)
+            if new_state is None:
+                continue
+            if state and event_time > cursor:
+                add_segment(raw_segments, cursor, event_time)
+            if new_state != state:
+                action = "PAA" if new_state else "AV"
+                has_event_point = any(point["time"] == event_time.strftime("%H:%M") and point["action"] == display_action(action) for point in points)
+                if not has_event_point:
+                    sample_points.append({
+                        "left": percent_between(event_time, day_start, day_end),
+                        "time": event_time.strftime("%H:%M"),
+                        "action": display_action(action),
+                        "action_class": "on" if new_state else "off",
+                        "reason": "Statusendring fra 5-minutters luxlogg",
+                        "detail": f"Lux {row.lux:.0f}" if row.lux is not None else "",
+                    })
+            state = new_state
+            cursor = event_time
+
+        if state and cursor < timeline_end:
+            add_segment(raw_segments, cursor, timeline_end)
+
+        all_points = sorted(points + sample_points, key=lambda point: point["time"])
+        items.append({
+            "id": device["id"],
+            "name": device["name"],
+            "segments": display_segments(raw_segments, day_start, day_end),
+            "points": all_points,
+            "total": total_from_segments(raw_segments),
+        })
+
+    return items
 
 
 def row_to_dict(row, columns):
@@ -693,7 +804,7 @@ async def day_view(request: Request, day: Optional[str] = None):
     is_today = selected_day == now_local.date()
     timeline_end = min(now_local, day_end) if is_today else day_end
     now_marker = percent_between(now_local, day_start, day_end) if is_today else None
-    light_items = await build_timeline_group(OutdoorLightEvent, LIGHT_TIMELINE_DEVICES, "lys", day_start, day_end, timeline_end)
+    light_items = await build_light_timeline_group(day_start, day_end, timeline_end)
     vent_items = await build_timeline_group(VentilationEvent, VENT_TIMELINE_DEVICES, "ventilasjon", day_start, day_end, timeline_end)
     events = []
     for group_name, items in [("Ute lys", light_items), ("Ventilasjon", vent_items)]:

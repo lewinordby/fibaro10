@@ -68,6 +68,7 @@
             .event .badge { grid-column: 2; justify-self: start; }
         }
     </style>
+    <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
     <header>
@@ -75,11 +76,7 @@
         <p class="sub">Lys og ventilasjon gjennom valgt dag</p>
     </header>
     <main>
-        <div class="nav">
-            <a class="button" href="/">Start</a>
-            <a class="button" href="/lights">Ute lys</a>
-            <a class="button" href="/ventilation">Ventilasjon</a>
-        </div>
+        {% include "_nav.html" %}
         <form method="get" action="/day">
             <input type="date" name="day" value="{{ selected_day }}">
             <button type="submit">Vis dag</button>

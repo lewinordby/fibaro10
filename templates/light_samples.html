@@ -38,6 +38,7 @@
             .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         }
     </style>
+    <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
     <header>
@@ -45,12 +46,7 @@
         <p class="sub">5-minuttersmålinger fra lux-sensor og status på utelys</p>
     </header>
     <main>
-        <div class="nav">
-            <a class="button" href="/">Start</a>
-            <a class="button" href="/lights">Ute lys</a>
-            <a class="button" href="/day">Dagslinje</a>
-            <a class="button" href="/lights/samples/download">CSV</a>
-        </div>
+        {% include "_nav.html" %}
         <details>
             <summary>Filter</summary>
             <form method="get" action="/lights/samples">
