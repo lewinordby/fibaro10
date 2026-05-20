@@ -82,8 +82,8 @@
             <div class="summary">
                 {% for series in temp_day.series %}
                 <div class="metric">
-                    <span>Siste {{ series.label }}</span>
-                    <strong>{{ series.latest }}</strong>
+                    <span>Siste {{ series['label'] }}</span>
+                    <strong>{{ series['latest'] }}</strong>
                     <span>{{ temp_day.summary.latest_time }}</span>
                 </div>
                 {% endfor %}
@@ -103,8 +103,8 @@
                         <text class="y-label" x="8" y="{{ tick.y - 4 }}">{{ tick.label }}</text>
                         {% endfor %}
                         {% for series in temp_day.series %}
-                        {% if series.polyline %}
-                        <polyline class="temp-line {{ series['class'] }}" points="{{ series.polyline }}"></polyline>
+                        {% if series['polyline'] %}
+                        <polyline class="temp-line {{ series['class'] }}" points="{{ series['polyline'] }}"></polyline>
                         {% endif %}
                         {% endfor %}
                         {% if is_today and now_marker is not none %}
@@ -116,7 +116,7 @@
             </div>
             <div class="legend">
                 {% for series in temp_day.series %}
-                <span class="key"><span class="swatch {{ series['class'] }}"></span>{{ series.label }}</span>
+                <span class="key"><span class="swatch {{ series['class'] }}"></span>{{ series['label'] }}</span>
                 {% endfor %}
                 <span class="key">Grafen stopper ved nå-linjen for dagens dato</span>
             </div>
