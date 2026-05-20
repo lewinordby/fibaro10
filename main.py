@@ -19,25 +19,12 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 app = FastAPI()
-
-# Statisk og templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Databaseoppsett
 Base = declarative_base()
 engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
-
-
-class SensorData(Base):
-    __tablename__ = "sensor_data"
-
-    id = Column(Integer, primary_key=True, index=True)
-    temperature = Column(Float, nullable=True)
-    humidity = Column(Float, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    source = Column(String, default="unknown")
 
 
 class EventData(Base):
@@ -75,7 +62,7 @@ class EventData(Base):
     extra = Column(JSON, nullable=True)
 
 
-class SensorDataIn(BaseModel):
+class LegacyLogIn(BaseModel):
     temperature: float
     humidity: float
     timestamp: datetime
@@ -153,11 +140,54 @@ def value_from_payload(data: EventDataIn, key: str):
     return data.values.get(key)
 
 
+def json_value(value):
+    if isinstance(value, (dict, list)):
+        import json
+
+        return json.dumps(value, ensure_ascii=False)
+    return value
+
+
 def event_to_dict(row: EventData) -> Dict[str, Any]:
     out = {column: getattr(row, column) for column in EVENT_COLUMNS if column != "extra"}
     out["timestamp"] = row.timestamp.isoformat() if row.timestamp else None
     out["extra"] = row.extra or {}
     return out
+
+
+def event_from_payload(data: EventDataIn) -> EventData:
+    merged_extra = dict(data.extra or {})
+    if data.values:
+        merged_extra["values"] = data.values
+
+    return EventData(
+        timestamp=data.timestamp or datetime.utcnow(),
+        system=data.system,
+        event_type=data.event_type,
+        action=data.action,
+        device_id=data.device_id,
+        device_name=data.device_name,
+        mode=data.mode,
+        reason=data.reason,
+        source=data.source,
+        temp_1etg=value_from_payload(data, "temp_1etg"),
+        temp_2etg=value_from_payload(data, "temp_2etg"),
+        temp_vip=value_from_payload(data, "temp_vip"),
+        temp_ute=value_from_payload(data, "temp_ute"),
+        temp_loft=value_from_payload(data, "temp_loft"),
+        temp_passiv=value_from_payload(data, "temp_passiv"),
+        temp_luftinntak=value_from_payload(data, "temp_luftinntak"),
+        lux=value_from_payload(data, "lux"),
+        diff_w=value_from_payload(data, "diff_w"),
+        power_w=value_from_payload(data, "power_w"),
+        energy_kwh=value_from_payload(data, "energy_kwh"),
+        value=value_from_payload(data, "value"),
+        fan_vip=value_from_payload(data, "fan_vip"),
+        fan_2etg=value_from_payload(data, "fan_2etg"),
+        fan_tak=value_from_payload(data, "fan_tak"),
+        state=value_from_payload(data, "state"),
+        extra=merged_extra or None,
+    )
 
 
 def apply_event_filters(
@@ -193,6 +223,14 @@ def apply_event_filters(
     return stmt
 
 
+async def save_event(record: EventData) -> int:
+    async with async_session() as session:
+        session.add(record)
+        await session.commit()
+        await session.refresh(record)
+        return record.id
+
+
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
@@ -205,112 +243,26 @@ async def health():
 
 
 @app.post("/log")
-async def log_data(data: SensorDataIn):
-    async with async_session() as session:
-        record = SensorData(
-            temperature=data.temperature,
-            humidity=data.humidity,
-            timestamp=data.timestamp,
-            source=data.source,
-        )
-        session.add(record)
-        await session.commit()
-    return {"status": "ok"}
+async def legacy_log_data(data: LegacyLogIn):
+    record = EventData(
+        timestamp=data.timestamp,
+        system="legacy",
+        event_type="legacy_log",
+        source=data.source,
+        value=data.temperature,
+        extra={"temperature": data.temperature, "humidity": data.humidity},
+    )
+    event_id = await save_event(record)
+    return {"status": "ok", "id": event_id}
 
 
 @app.post("/events")
 async def log_event(data: EventDataIn):
-    merged_extra = dict(data.extra or {})
-    if data.values:
-        merged_extra["values"] = data.values
-
-    async with async_session() as session:
-        record = EventData(
-            timestamp=data.timestamp or datetime.utcnow(),
-            system=data.system,
-            event_type=data.event_type,
-            action=data.action,
-            device_id=data.device_id,
-            device_name=data.device_name,
-            mode=data.mode,
-            reason=data.reason,
-            source=data.source,
-            temp_1etg=value_from_payload(data, "temp_1etg"),
-            temp_2etg=value_from_payload(data, "temp_2etg"),
-            temp_vip=value_from_payload(data, "temp_vip"),
-            temp_ute=value_from_payload(data, "temp_ute"),
-            temp_loft=value_from_payload(data, "temp_loft"),
-            temp_passiv=value_from_payload(data, "temp_passiv"),
-            temp_luftinntak=value_from_payload(data, "temp_luftinntak"),
-            lux=value_from_payload(data, "lux"),
-            diff_w=value_from_payload(data, "diff_w"),
-            power_w=value_from_payload(data, "power_w"),
-            energy_kwh=value_from_payload(data, "energy_kwh"),
-            value=value_from_payload(data, "value"),
-            fan_vip=value_from_payload(data, "fan_vip"),
-            fan_2etg=value_from_payload(data, "fan_2etg"),
-            fan_tak=value_from_payload(data, "fan_tak"),
-            state=value_from_payload(data, "state"),
-            extra=merged_extra or None,
-        )
-        session.add(record)
-        await session.commit()
-        await session.refresh(record)
-    return {"status": "ok", "id": record.id}
+    event_id = await save_event(event_from_payload(data))
+    return {"status": "ok", "id": event_id}
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_data(request: Request, source: str = None, source_contains: str = None, limit: int = 100):
-    limit = max(1, min(limit, 1000))
-    stmt = select(SensorData).order_by(SensorData.timestamp.desc()).limit(limit)
-    if source:
-        stmt = stmt.where(SensorData.source == source)
-    if source_contains:
-        stmt = stmt.where(SensorData.source.ilike(f"%{source_contains}%"))
-
-    async with async_session() as session:
-        result = await session.execute(stmt)
-        rows = result.scalars().all()
-
-    return templates.TemplateResponse(
-        "table.html",
-        {
-            "request": request,
-            "rows": rows,
-            "source": source or "",
-            "source_contains": source_contains or "",
-            "limit": limit,
-        },
-    )
-
-
-@app.get("/download")
-async def download_csv(source: str = None, source_contains: str = None):
-    stmt = select(SensorData).order_by(SensorData.timestamp.desc())
-    if source:
-        stmt = stmt.where(SensorData.source == source)
-    if source_contains:
-        stmt = stmt.where(SensorData.source.ilike(f"%{source_contains}%"))
-
-    async with async_session() as session:
-        result = await session.execute(stmt)
-        rows = result.scalars().all()
-
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["id", "temperature", "humidity", "timestamp", "source"])
-    for row in rows:
-        writer.writerow([row.id, row.temperature, row.humidity, row.timestamp, row.source])
-
-    output.seek(0)
-    return StreamingResponse(
-        output,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=export.csv"},
-    )
-
-
-@app.get("/events", response_class=HTMLResponse)
 async def read_events(
     request: Request,
     system: Optional[str] = None,
@@ -332,28 +284,27 @@ async def read_events(
         result = await session.execute(stmt)
         rows = result.scalars().all()
 
-    return templates.TemplateResponse(
-        "events.html",
-        {
-            "request": request,
-            "rows": rows,
-            "filters": {
-                "system": system or "",
-                "event_type": event_type or "",
-                "action": action or "",
-                "device_id": device_id or "",
-                "mode": mode or "",
-                "source": source or "",
-                "source_contains": source_contains or "",
-                "from": from_ts.isoformat() if from_ts else "",
-                "to": to_ts.isoformat() if to_ts else "",
-                "limit": limit,
-            },
-        },
-    )
+    filters = {
+        "system": system or "",
+        "event_type": event_type or "",
+        "action": action or "",
+        "device_id": device_id or "",
+        "mode": mode or "",
+        "source": source or "",
+        "source_contains": source_contains or "",
+        "from": from_ts.isoformat() if from_ts else "",
+        "to": to_ts.isoformat() if to_ts else "",
+        "limit": limit,
+    }
+    return templates.TemplateResponse("events.html", {"request": request, "rows": rows, "filters": filters})
 
 
-@app.get("/events/download")
+@app.get("/events", response_class=HTMLResponse)
+async def read_events_alias(request: Request, **kwargs):
+    return await read_events(request, **kwargs)
+
+
+@app.get("/download")
 async def download_events_csv(
     system: Optional[str] = None,
     event_type: Optional[str] = None,
@@ -387,6 +338,21 @@ async def download_events_csv(
     )
 
 
+@app.get("/events/download")
+async def download_events_csv_alias(
+    system: Optional[str] = None,
+    event_type: Optional[str] = None,
+    action: Optional[str] = None,
+    device_id: Optional[int] = None,
+    mode: Optional[str] = None,
+    source: Optional[str] = None,
+    source_contains: Optional[str] = None,
+    from_ts: Optional[datetime] = Query(default=None, alias="from"),
+    to_ts: Optional[datetime] = Query(default=None, alias="to"),
+):
+    return await download_events_csv(system, event_type, action, device_id, mode, source, source_contains, from_ts, to_ts)
+
+
 @app.get("/events/json")
 async def events_json(
     system: Optional[str] = None,
@@ -409,11 +375,3 @@ async def events_json(
         rows = result.scalars().all()
 
     return {"count": len(rows), "rows": [event_to_dict(row) for row in rows]}
-
-
-def json_value(value):
-    if isinstance(value, (dict, list)):
-        import json
-
-        return json.dumps(value, ensure_ascii=False)
-    return value
