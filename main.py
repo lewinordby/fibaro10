@@ -4,7 +4,6 @@ from typing import Any, Dict, Optional
 import csv
 import hashlib
 import os
-import secrets
 from urllib.parse import parse_qs
 from zoneinfo import ZoneInfo
 
@@ -348,12 +347,8 @@ def hash_access_key(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def new_access_key() -> str:
-    return "sun2_" + secrets.token_urlsafe(28)
-
-
 def key_prefix(value: str) -> str:
-    return value[:14]
+    return "key_" + hash_access_key(value)[:8]
 
 
 def client_ip(request: Request) -> str:
@@ -1023,7 +1018,7 @@ async def keys_view(request: Request):
     return templates.TemplateResponse(
         request,
         "keys.html",
-        {"keys": key_rows, "logs": log_rows, "created_key": ""},
+        {"keys": key_rows, "logs": log_rows, "created_key": "", "error": ""},
     )
 
 
@@ -1034,9 +1029,24 @@ async def keys_create(request: Request):
         return forbidden
     form = await parse_form_body(request)
     name = (form.get("name") or "").strip()[:80]
+    raw_key = (form.get("access_key") or "").strip()
     if not name:
         name = "Delt nøkkel"
-    raw_key = new_access_key()
+    if len(raw_key) < 8:
+        async with async_session() as session:
+            key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
+            log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
+        return templates.TemplateResponse(
+            request,
+            "keys.html",
+            {
+                "keys": key_rows,
+                "logs": log_rows,
+                "created_key": "",
+                "error": "Nøkkelen må være minst 8 tegn.",
+            },
+            status_code=400,
+        )
     record = AccessKey(
         name=name,
         key_hash=hash_access_key(raw_key),
@@ -1052,7 +1062,7 @@ async def keys_create(request: Request):
     return templates.TemplateResponse(
         request,
         "keys.html",
-        {"keys": key_rows, "logs": log_rows, "created_key": raw_key},
+        {"keys": key_rows, "logs": log_rows, "created_key": raw_key, "error": ""},
     )
 
 

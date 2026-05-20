@@ -20,6 +20,7 @@
         .primary { background: #4b7fbb; border-color: #4779b1; color: white; }
         .danger { color: #9d3f31; border-color: #efc1b8; background: #fbebe8; }
         .created { border: 1px solid #b8d8f0; background: #f0f7fc; padding: 0.8rem; border-radius: 4px; margin-bottom: 0.8rem; }
+        .error { border: 1px solid #df705d; background: #fbebe8; color: #9d3f31; padding: 0.8rem; border-radius: 4px; margin-bottom: 0.8rem; }
         code { display: block; margin-top: 0.45rem; padding: 0.75rem; background: white; border: 1px solid #b8d8f0; border-radius: 4px; overflow-wrap: anywhere; }
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: white; }
@@ -56,8 +57,12 @@
                 <code>{{ created_key }}</code>
             </div>
             {% endif %}
+            {% if error %}
+            <div class="error">{{ error }}</div>
+            {% endif %}
             <form class="create-form" method="post" action="/admin/keys">
                 <input type="text" name="name" placeholder="Navn, f.eks. Elektriker eller Kristian mobil" maxlength="80">
+                <input type="text" name="access_key" placeholder="Nøkkel/passord, minst 8 tegn" minlength="8" autocomplete="new-password" required>
                 <button class="primary" type="submit">Lag nøkkel</button>
             </form>
         </section>
@@ -71,7 +76,7 @@
                             <th>Navn</th>
                             <th>Type</th>
                             <th>Status</th>
-                            <th>Prefix</th>
+                            <th>ID</th>
                             <th>Sist brukt</th>
                             <th>IP</th>
                             <th>Bruk</th>
