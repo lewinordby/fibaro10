@@ -5,120 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ute lys</title>
     <style>
-        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --on:#0f766e; --off:#9f1239; }
+        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --on:#0f766e; --off:#9f1239; --soft:#f8fafc; }
         * { box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
-        header { position: sticky; top: 0; z-index: 5; background: rgba(244,246,248,0.96); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; }
+        header { position: sticky; top: 0; z-index: 5; background: rgba(244,246,248,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; }
         h1 { margin: 0; font-size: 1.35rem; }
         .sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
-        main { padding: 1rem; max-width: 1200px; margin: 0 auto; }
-        .nav, form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
-        input { padding: 0.55rem; min-width: 8rem; border: 1px solid var(--line); border-radius: 6px; background: white; font-size: 1rem; }
-        button, a.button { padding: 0.6rem 0.8rem; border: 1px solid var(--line); background: white; color: #111; text-decoration: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem; }
-        details { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem; }
+        main { padding: 0.85rem; max-width: 860px; margin: 0 auto; }
+        .nav { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 0.85rem; }
+        a.button, button { padding: 0.65rem 0.75rem; border: 1px solid var(--line); background: white; color: #111; text-decoration: none; border-radius: 7px; cursor: pointer; font-size: 0.95rem; text-align: center; }
+        details { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.85rem; }
         summary { cursor: pointer; font-weight: 650; }
-        .table-wrap { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 0 5px rgba(0,0,0,0.06); }
-        th, td { padding: 0.55rem; text-align: left; border-bottom: 1px solid #e1e4e8; font-size: 0.84rem; white-space: nowrap; }
-        th { background: #edf2f7; position: sticky; top: 69px; }
-        .text { white-space: normal; max-width: 28rem; overflow-wrap: anywhere; }
-        .cards { display: none; }
-        .event-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.85rem; margin-bottom: 0.75rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.75rem; }
+        input { width: 100%; padding: 0.6rem; border: 1px solid var(--line); border-radius: 7px; background: white; font-size: 1rem; }
+        .wide { grid-column: 1 / -1; }
+        .event-card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 0.9rem; margin-bottom: 0.75rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
         .event-top { display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start; }
-        .device { font-weight: 700; line-height: 1.25; }
+        .device { font-weight: 750; line-height: 1.25; }
         .time { color: var(--muted); font-size: 0.84rem; margin-top: 0.2rem; }
-        .badge { display: inline-block; border-radius: 999px; padding: 0.22rem 0.55rem; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+        .badge { display: inline-block; border-radius: 999px; padding: 0.25rem 0.65rem; font-size: 0.8rem; font-weight: 750; white-space: nowrap; }
         .on { background: #ccfbf1; color: var(--on); }
         .off { background: #ffe4e6; color: var(--off); }
         .test { background: #e0e7ff; color: #3730a3; }
-        .metric-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: 0.75rem 0; }
-        .metric { background: #f8fafc; border-radius: 6px; padding: 0.5rem; }
-        .label { display: block; color: var(--muted); font-size: 0.74rem; }
-        .value { font-weight: 650; }
+        .line { display: flex; gap: 0.8rem; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; margin: 0.65rem 0 0.45rem; }
+        .line strong { color: var(--text); }
         .reason { color: #344054; line-height: 1.35; overflow-wrap: anywhere; }
-        @media (max-width: 760px) {
-            header { padding: 0.8rem; }
-            main { padding: 0.75rem; }
-            .nav { display: grid; grid-template-columns: 1fr 1fr; }
-            .nav .button { text-align: center; }
-            form { display: grid; grid-template-columns: 1fr 1fr; }
-            input, button, a.button { width: 100%; min-width: 0; }
-            .table-wrap { display: none; }
-            .cards { display: block; }
-            .metric-row { grid-template-columns: repeat(3, 1fr); }
+        .empty { color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+        @media (min-width: 760px) {
+            main { padding: 1.25rem; }
+            .nav { display: flex; }
+            a.button, button { width: auto; }
+            form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+            .wide { grid-column: auto; }
         }
     </style>
 </head>
 <body>
     <header>
         <h1>Ute lys</h1>
-        <p class="sub">Siste hendelser fra lysstyringen</p>
+        <p class="sub">Hva lyset gjorde, når og hvorfor</p>
     </header>
     <main>
         <div class="nav">
             <a class="button" href="/">Start</a>
             <a class="button" href="/ventilation">Ventilasjon</a>
             <a class="button" href="/lights/download">CSV</a>
-            <a class="button" href="/lights/json">JSON</a>
         </div>
         <details>
             <summary>Filter</summary>
             <form method="get" action="/lights">
-                <input type="text" name="event_type" placeholder="type" value="{{ filters.event_type }}">
                 <input type="text" name="action" placeholder="PÅ / AV" value="{{ filters.action }}">
-                <input type="number" name="device_id" placeholder="device id" value="{{ filters.device_id }}">
-                <input type="text" name="mode" placeholder="modus" value="{{ filters.mode }}">
-                <input type="text" name="source_contains" placeholder="søk i tekst" value="{{ filters.source_contains }}">
+                <input type="number" name="device_id" placeholder="Enhets-ID" value="{{ filters.device_id }}">
+                <input class="wide" type="text" name="source_contains" placeholder="Søk i tekst" value="{{ filters.source_contains }}">
                 <input type="datetime-local" name="from" value="{{ filters.from }}">
                 <input type="datetime-local" name="to" value="{{ filters.to }}">
-                <input type="number" name="limit" min="1" max="10000" value="{{ filters.limit }}">
-                <button type="submit">Filtrer</button>
+                <button type="submit">Vis</button>
                 <a class="button" href="/lights">Nullstill</a>
             </form>
         </details>
-        <section class="cards">
-            {% for row in rows %}
-            {% set reason = (row.reason or row.source or "")|replace("p?-grense", "på-grense")|replace("P?", "PÅ")|replace("innbl?sing", "innblåsing")|replace("kj?ling", "kjøling") %}
-            <article class="event-card">
-                <div class="event-top">
-                    <div>
-                        <div class="device">{% if row.device_name %}{{ row.device_name }}{% else %}Enhet {{ row.device_id }}{% endif %}</div>
-                        <div class="time">{{ row.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</div>
-                    </div>
-                    <span class="badge {% if row.action == 'PAA' %}on{% elif row.action == 'AV' %}off{% else %}test{% endif %}">{% if row.action == 'PAA' %}PÅ{% else %}{{ row.action or "" }}{% endif %}</span>
+        {% if not rows %}
+        <div class="empty">Ingen hendelser funnet.</div>
+        {% endif %}
+        {% for row in rows %}
+        {% set reason = (row.reason or row.source or "")|replace("p?-grense", "på-grense")|replace("P?", "PÅ")|replace("innbl?sing", "innblåsing")|replace("kj?ling", "kjøling") %}
+        <article class="event-card">
+            <div class="event-top">
+                <div>
+                    <div class="device">{% if row.device_name %}{{ row.device_name }}{% else %}Enhet {{ row.device_id }}{% endif %}</div>
+                    <div class="time">{{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}</div>
                 </div>
-                <div class="metric-row">
-                    <div class="metric"><span class="label">Lux</span><span class="value">{% if row.lux is not none %}{{ "%.0f"|format(row.lux) }}{% endif %}</span></div>
-                    <div class="metric"><span class="label">Verdi</span><span class="value">{% if row.value is not none %}{{ "%.0f"|format(row.value) }}{% endif %}</span></div>
-                    <div class="metric"><span class="label">Status</span><span class="value">{% if row.state %}På{% else %}Av{% endif %}</span></div>
-                </div>
-                <div class="reason">{{ reason }}</div>
-            </article>
-            {% endfor %}
-        </section>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr><th>ID</th><th>Tid</th><th>Handling</th><th>Enhet</th><th>Lux</th><th>Verdi</th><th>Status</th><th>Modus</th><th>Årsak</th></tr>
-                </thead>
-                <tbody>
-                    {% for row in rows %}
-                    {% set reason = (row.reason or row.source or "")|replace("p?-grense", "på-grense")|replace("P?", "PÅ")|replace("innbl?sing", "innblåsing")|replace("kj?ling", "kjøling") %}
-                    <tr>
-                        <td>{{ row.id }}</td>
-                        <td>{{ row.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
-                        <td>{% if row.action == 'PAA' %}PÅ{% else %}{{ row.action or "" }}{% endif %}</td>
-                        <td>{% if row.device_id %}{{ row.device_id }}{% endif %}{% if row.device_name %} {{ row.device_name }}{% endif %}</td>
-                        <td>{% if row.lux is not none %}{{ "%.0f"|format(row.lux) }}{% endif %}</td>
-                        <td>{% if row.value is not none %}{{ "%.0f"|format(row.value) }}{% endif %}</td>
-                        <td>{% if row.state %}På{% else %}Av{% endif %}</td>
-                        <td>{{ row.mode or "" }}</td>
-                        <td class="text">{{ reason }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                <span class="badge {% if row.action == 'PAA' %}on{% elif row.action == 'AV' %}off{% else %}test{% endif %}">{% if row.action == 'PAA' %}PÅ{% else %}{{ row.action or "" }}{% endif %}</span>
+            </div>
+            <div class="line">
+                <span>Lux: <strong>{% if row.lux is not none %}{{ "%.0f"|format(row.lux) }}{% endif %}</strong></span>
+                {% if row.device_id %}<span>ID: <strong>{{ row.device_id }}</strong></span>{% endif %}
+            </div>
+            <div class="reason">{{ reason }}</div>
+        </article>
+        {% endfor %}
     </main>
 </body>
 </html>
