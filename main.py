@@ -717,6 +717,60 @@ def age_label(minutes: Optional[int]) -> str:
     return f"{days}d siden"
 
 
+def average_value(values):
+    present = [value for value in values if value is not None]
+    if not present:
+        return None
+    return sum(present) / len(present)
+
+
+def latest_timestamp_from(*rows):
+    timestamps = [row.timestamp for row in rows if row is not None and row.timestamp is not None]
+    if not timestamps:
+        return None
+    return max(timestamps)
+
+
+def build_now_status(latest_sample, latest_light_sample, latest_light):
+    indoor_values = [
+        {"label": "1.etg", "value": latest_sample.temp_1etg if latest_sample else None},
+        {"label": "2.etg", "value": latest_sample.temp_2etg if latest_sample else None},
+        {"label": "VIP", "value": latest_sample.temp_vip if latest_sample else None},
+    ]
+    outdoor_ute = None
+    outdoor_yr = None
+    if latest_sample:
+        outdoor_ute = latest_sample.temp_ute if latest_sample.temp_ute is not None else latest_sample.temp_ute_netatmo
+        outdoor_yr = latest_sample.temp_yr
+    outdoor_values = [
+        {"label": "Ute", "value": outdoor_ute},
+        {"label": "Yr", "value": outdoor_yr},
+    ]
+    lux = None
+    if latest_light_sample and latest_light_sample.lux is not None:
+        lux = latest_light_sample.lux
+    elif latest_light and latest_light.lux is not None:
+        lux = latest_light.lux
+    timestamp = latest_timestamp_from(latest_sample, latest_light_sample, latest_light)
+    return {
+        "timestamp": timestamp,
+        "mode": latest_sample.mode if latest_sample else None,
+        "indoor_avg": average_value([item["value"] for item in indoor_values]),
+        "indoor_values": indoor_values,
+        "outdoor_avg": average_value([item["value"] for item in outdoor_values]),
+        "outdoor_values": outdoor_values,
+        "lux": lux,
+        "has_data": any(
+            value is not None
+            for value in [
+                lux,
+                *[item["value"] for item in indoor_values],
+                *[item["value"] for item in outdoor_values],
+            ]
+        ),
+    }
+
+
 def freshness_item(name: str, row, expected_minutes: int, warning_minutes: Optional[int] = None):
     warning_minutes = warning_minutes or expected_minutes * 2
     stamp = row.timestamp if row else None
@@ -1590,6 +1644,8 @@ async def index(request: Request):
 
     latest_sample = samples[0] if samples else None
     latest_light_sample = light_samples[0] if light_samples else None
+    latest_light = lights[0] if lights else None
+    now_status = build_now_status(latest_sample, latest_light_sample, latest_light)
     fan_state_from_sample = {
         130: latest_sample.fan_vip if latest_sample else None,
         160: latest_sample.fan_2etg if latest_sample else None,
@@ -1608,7 +1664,9 @@ async def index(request: Request):
                 "row": row,
                 "state": sample_state if sample_state is not None else event_state,
                 "sample_time": latest_light_sample.timestamp if sample_state is not None else None,
-                "lux": latest_light_sample.lux if latest_light_sample and latest_light_sample.lux is not None else (row.lux if row else None),
+                "lux": latest_light_sample.lux
+                if latest_light_sample and latest_light_sample.lux is not None
+                else (row.lux if row else None),
             }
         )
     vent_status = [
@@ -1631,10 +1689,11 @@ async def index(request: Request):
         request,
         "index.html",
         {
-            "latest_light": lights[0] if lights else None,
+            "latest_light": latest_light,
             "latest_light_sample": latest_light_sample,
             "latest_vent": ventilation[0] if ventilation else None,
             "latest_sample": latest_sample,
+            "now_status": now_status,
             "light_status": light_status,
             "vent_status": vent_status,
             "freshness_items": freshness_items,

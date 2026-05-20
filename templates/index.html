@@ -95,6 +95,76 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.55rem;
         }
+        .now-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.7rem;
+        }
+        .now-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 0.8rem;
+            min-width: 0;
+            background: var(--soft);
+            border: 1px solid #e5eaf0;
+            border-radius: 8px;
+            padding: 0.9rem;
+        }
+        .now-card.lux-card {
+            grid-template-columns: 1fr;
+        }
+        .now-label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 750;
+            text-transform: uppercase;
+        }
+        .now-value {
+            display: flex;
+            align-items: baseline;
+            gap: 0.15rem;
+            margin-top: 0.15rem;
+            font-size: clamp(2.45rem, 11vw, 4.4rem);
+            font-weight: 850;
+            line-height: 0.95;
+            color: var(--text);
+        }
+        .now-value .unit {
+            font-size: 0.38em;
+            color: var(--muted);
+            font-weight: 780;
+        }
+        .now-note {
+            margin-top: 0.45rem;
+            color: var(--muted);
+            font-size: 0.82rem;
+        }
+        .now-stack {
+            display: grid;
+            gap: 0.35rem;
+            min-width: 5.8rem;
+        }
+        .now-small {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.5rem;
+            align-items: baseline;
+            border-left: 3px solid #cfe3f6;
+            padding-left: 0.5rem;
+        }
+        .now-small .small-label {
+            color: var(--muted);
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+        .now-small .small-value {
+            font-weight: 850;
+            font-size: 0.95rem;
+            color: var(--text);
+            white-space: nowrap;
+        }
         .health-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -261,6 +331,8 @@
             .nav { display: flex; }
             .hero-top { grid-template-columns: 1fr auto; align-items: start; }
             .summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .now-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .now-card { min-height: 10.4rem; }
             .health-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .fan-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -295,30 +367,64 @@
                 <div>
                     <h2>Nåstatus</h2>
                     <p class="sub">
-                        {% if latest_sample %}
-                        Sist oppdatert {{ latest_sample.timestamp.strftime("%d.%m.%Y %H:%M") }}
+                        {% if now_status.timestamp %}
+                        Sist lest {{ now_status.timestamp.strftime("%d.%m.%Y %H:%M") }}
                         {% else %}
-                        Venter på første ventilasjonsmåling
+                        Venter på første måling
                         {% endif %}
                     </p>
                 </div>
-                {% if latest_sample %}
-                <span class="mode {% if latest_sample.mode == 'VARMEBEVARING' %}heat{% elif latest_sample.mode not in ['KJOLING', 'FORKJOLING'] %}normal{% endif %}">
-                    {{ (latest_sample.mode or "UKJENT")|replace("KJOLING", "KJØLING")|replace("FORKJOLING", "FORKJØLING") }}
+                {% if now_status.mode %}
+                <span class="mode {% if now_status.mode == 'VARMEBEVARING' %}heat{% elif now_status.mode not in ['KJOLING', 'FORKJOLING'] %}normal{% endif %}">
+                    {{ (now_status.mode or "UKJENT")|replace("KJOLING", "KJØLING")|replace("FORKJOLING", "FORKJØLING") }}
                 </span>
                 {% endif %}
             </div>
-            {% if latest_sample %}
-            <div class="summary-grid">
-                <div class="metric"><span class="label">Lux ute</span><span class="value">{% if latest_light_sample and latest_light_sample.lux is not none %}{{ "%.0f"|format(latest_light_sample.lux) }}{% elif latest_light and latest_light.lux is not none %}{{ "%.0f"|format(latest_light.lux) }}{% else %}-{% endif %}</span></div>
-                <div class="metric"><span class="label">1.etg</span><span class="value">{% if latest_sample.temp_1etg is not none %}{{ "%.1f"|format(latest_sample.temp_1etg) }}°{% else %}-{% endif %}</span></div>
-                <div class="metric"><span class="label">2.etg</span><span class="value">{% if latest_sample.temp_2etg is not none %}{{ "%.1f"|format(latest_sample.temp_2etg) }}°{% else %}-{% endif %}</span></div>
-                <div class="metric"><span class="label">VIP</span><span class="value">{% if latest_sample.temp_vip is not none %}{{ "%.1f"|format(latest_sample.temp_vip) }}°{% else %}-{% endif %}</span></div>
-                <div class="metric"><span class="label">Ute</span><span class="value">{% if latest_sample.temp_ute is not none %}{{ "%.1f"|format(latest_sample.temp_ute) }}°{% else %}-{% endif %}</span></div>
-                <div class="metric"><span class="label">Loft</span><span class="value">{% if latest_sample.temp_loft is not none %}{{ "%.1f"|format(latest_sample.temp_loft) }}°{% else %}-{% endif %}</span></div>
-                <div class="metric"><span class="label">Pass innluft</span><span class="value">{% if latest_sample.temp_passiv is not none %}{{ "%.1f"|format(latest_sample.temp_passiv) }}°{% else %}-{% endif %}</span></div>
-                <div class="metric"><span class="label">Diff W</span><span class="value">{% if latest_sample.diff_w is not none %}{{ "%.0f"|format(latest_sample.diff_w) }}{% else %}-{% endif %}</span></div>
-                <div class="metric"><span class="label">Solsenger</span><span class="value">{{ latest_sample.estimated_sunbeds if latest_sample.estimated_sunbeds is not none else "-" }}</span></div>
+            {% if now_status.has_data %}
+            <div class="now-grid">
+                <article class="now-card">
+                    <div>
+                        <span class="now-label">Innetemp</span>
+                        <div class="now-value">
+                            {% if now_status.indoor_avg is not none %}{{ "%.1f"|format(now_status.indoor_avg) }}{% else %}-{% endif %}<span class="unit">°</span>
+                        </div>
+                        <div class="now-note">Snitt av 1.etg, 2.etg og VIP</div>
+                    </div>
+                    <div class="now-stack" aria-label="Innetemperaturer">
+                        {% for item in now_status.indoor_values %}
+                        <div class="now-small">
+                            <span class="small-label">{{ item.label }}</span>
+                            <span class="small-value">{% if item.value is not none %}{{ "%.1f"|format(item.value) }}°{% else %}-{% endif %}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                <article class="now-card">
+                    <div>
+                        <span class="now-label">Utetemp</span>
+                        <div class="now-value">
+                            {% if now_status.outdoor_avg is not none %}{{ "%.1f"|format(now_status.outdoor_avg) }}{% else %}-{% endif %}<span class="unit">°</span>
+                        </div>
+                        <div class="now-note">Snitt av uteføler og Yr</div>
+                    </div>
+                    <div class="now-stack" aria-label="Utetemperaturer">
+                        {% for item in now_status.outdoor_values %}
+                        <div class="now-small">
+                            <span class="small-label">{{ item.label }}</span>
+                            <span class="small-value">{% if item.value is not none %}{{ "%.1f"|format(item.value) }}°{% else %}-{% endif %}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                <article class="now-card lux-card">
+                    <div>
+                        <span class="now-label">LUX</span>
+                        <div class="now-value">
+                            {% if now_status.lux is not none %}{{ "%.0f"|format(now_status.lux) }}{% else %}-{% endif %}
+                        </div>
+                        <div class="now-note">Siste leste luxverdi</div>
+                    </div>
+                </article>
             </div>
             {% else %}
             <div class="empty">Ingen 5-minuttersmåling er logget ennå.</div>
