@@ -137,9 +137,10 @@
                             {% if row.mode == "KJOLING" %}
                             <p>Scenen vurderer kjøling når høyeste innetemperatur er over 24,0° eller snittet inne er over 23,5°.</p>
                             <ul>
-                                <li>Innluft kan gå når det er åpningstid og ute er minst 1,5° kaldere enn varmeste rom, men over 10,0°.</li>
+                                <li>VIP-vifta vurderes mot VIP-temperaturen. 2.etg-vifta vurderes mot maks/snitt av 1.etg og 2.etg.</li>
+                                <li>Innluft kan gå når sonen er over ca. 23,8° og ute er minst 1,5° kaldere, men over 10,0°.</li>
                                 <li>Innluft kan også gå ved varmt loft når ute er over 8,0° og det ikke er varmebehov inne.</li>
-                                <li>Avtrekk kan gå ved varmt loft, spesielt over 32,0°, eller når både inne og loft er varmt.</li>
+                                <li>Avtrekk kan gå ved loft over 29,0°, og stopper først når loftet er under 27,0°.</li>
                             </ul>
                             {% elif row.mode == "VARMEBEVARING" %}
                             <p>Scenen prøver å spare varme når laveste innetemperatur er under 22,0° eller snittet inne er under 22,5°.</p>
@@ -147,6 +148,7 @@
                                 <li>Avtrekk stoppes normalt slik at varm luft ikke blåses ut.</li>
                                 <li>Kald innluft sperres når ute er for kaldt i forhold til varmebehovet.</li>
                                 <li>Passivt avtrekk får håndtere overskuddsvarme så lenge loftet ikke er kritisk varmt.</li>
+                                <li>Takvifta er fortsatt sperret ved varmebehov, med mindre loftet blir svært varmt.</li>
                             </ul>
                             {% elif row.mode == "FORKJOLING" %}
                             <p>Forkjøling kan skje før åpning når bygget er varmt og uteluften fortsatt kan hjelpe.</p>
@@ -172,7 +174,8 @@
                             <p>Normalmodus betyr at scenen ikke ser tydelig varmebehov eller kjølebehov akkurat nå.</p>
                             <ul>
                                 <li>Viftene styres videre av hysterese, åpningstid, lofttemperatur og om avtrekk krever innluft.</li>
-                                <li>Hvis avtrekk går, tvinges innluft på for å unngå undertrykk.</li>
+                                <li>VIP-vifta styres av VIP-temperatur, mens 2.etg-vifta styres av 1.etg/2.etg.</li>
+                                <li>Hvis avtrekk går og ingen innblåsing går, tvinges innluft på for å unngå undertrykk.</li>
                             </ul>
                             {% endif %}
                         </div>
