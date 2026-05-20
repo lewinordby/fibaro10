@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ventilasjon læring</title>
+    <style>
+        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --on:#0f766e; --off:#9f1239; --soft:#f8fafc; }
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+        header { position: sticky; top: 0; z-index: 5; background: rgba(244,246,248,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; }
+        h1 { margin: 0; font-size: 1.35rem; }
+        .sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
+        main { padding: 0.85rem; max-width: 980px; margin: 0 auto; }
+        .nav { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.85rem; }
+        a.button, button { padding: 0.65rem 0.75rem; border: 1px solid var(--line); background: white; color: #111; text-decoration: none; border-radius: 7px; cursor: pointer; font-size: 0.95rem; text-align: center; }
+        details { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.85rem; }
+        summary { cursor: pointer; font-weight: 650; }
+        form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.75rem; }
+        input { width: 100%; padding: 0.6rem; border: 1px solid var(--line); border-radius: 7px; background: white; font-size: 1rem; }
+        .sample { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 0.85rem; margin-bottom: 0.75rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .top { display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start; }
+        .time { font-weight: 750; }
+        .bucket { color: var(--muted); font-size: 0.84rem; margin-top: 0.15rem; }
+        .mode { border-radius: 999px; background: #e0e7ff; color: #3730a3; padding: 0.25rem 0.65rem; font-size: 0.8rem; font-weight: 750; white-space: nowrap; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; margin: 0.75rem 0; }
+        .cell { background: var(--soft); border: 1px solid #e5eaf0; border-radius: 7px; padding: 0.48rem; min-width: 0; }
+        .label { display: block; color: var(--muted); font-size: 0.72rem; }
+        .value { display: block; font-weight: 750; margin-top: 0.1rem; }
+        .flags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .flag { border-radius: 999px; padding: 0.22rem 0.55rem; background: #eef2f7; color: #344054; font-size: 0.78rem; font-weight: 650; }
+        .flag.on { background: #ccfbf1; color: var(--on); }
+        .flag.off { background: #ffe4e6; color: var(--off); }
+        .empty { color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+        @media (min-width: 760px) {
+            main { padding: 1.25rem; }
+            .nav { display: flex; }
+            form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+            .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Ventilasjon læring</h1>
+        <p class="sub">15-minuttersmålinger for temperatur, drift og beslutningsgrunnlag</p>
+    </header>
+    <main>
+        <div class="nav">
+            <a class="button" href="/">Start</a>
+            <a class="button" href="/ventilation">Hendelser</a>
+            <a class="button" href="/day">Dagslinje</a>
+            <a class="button" href="/ventilation/samples/download">CSV</a>
+        </div>
+        <details>
+            <summary>Filter</summary>
+            <form method="get" action="/ventilation/samples">
+                <input type="text" name="mode" placeholder="Modus" value="{{ filters.mode }}">
+                <input type="datetime-local" name="from" value="{{ filters.from }}">
+                <input type="datetime-local" name="to" value="{{ filters.to }}">
+                <input type="number" name="limit" placeholder="Antall" value="{{ filters.limit }}">
+                <button type="submit">Vis</button>
+                <a class="button" href="/ventilation/samples">Nullstill</a>
+            </form>
+        </details>
+        {% if not rows %}
+        <div class="empty">Ingen 15-minuttersmålinger funnet.</div>
+        {% endif %}
+        {% for row in rows %}
+        <article class="sample">
+            <div class="top">
+                <div>
+                    <div class="time">{{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}</div>
+                    <div class="bucket">Kvarter: {{ row.bucket_start.strftime("%H:%M") }}</div>
+                </div>
+                <span class="mode">{{ row.mode or "" }}</span>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="label">1.etg</span><span class="value">{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">2.etg</span><span class="value">{% if row.temp_2etg is not none %}{{ "%.1f"|format(row.temp_2etg) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">VIP</span><span class="value">{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Ute brukt</span><span class="value">{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Netatmo ute</span><span class="value">{% if row.temp_ute_netatmo is not none %}{{ "%.1f"|format(row.temp_ute_netatmo) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">YR</span><span class="value">{% if row.temp_yr is not none %}{{ "%.1f"|format(row.temp_yr) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Loft</span><span class="value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Passiv</span><span class="value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Min/avg/max</span><span class="value">{% if row.temp_min_inne is not none %}{{ "%.1f"|format(row.temp_min_inne) }}/{{ "%.1f"|format(row.temp_avg_inne) }}/{{ "%.1f"|format(row.temp_max_inne) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Diff W</span><span class="value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Solsenger</span><span class="value">{{ row.estimated_sunbeds if row.estimated_sunbeds is not none else "-" }}</span></div>
+                <div class="cell"><span class="label">Vifter</span><span class="value">VIP {{ "på" if row.fan_vip else "av" }} · 2.etg {{ "på" if row.fan_2etg else "av" }} · tak {{ "på" if row.fan_tak else "av" }}</span></div>
+            </div>
+            <div class="flags">
+                <span class="flag {% if row.open_time %}on{% else %}off{% endif %}">Åpent</span>
+                <span class="flag {% if row.heat_need %}on{% else %}off{% endif %}">Varmebehov</span>
+                <span class="flag {% if row.cool_need %}on{% else %}off{% endif %}">Kjølebehov</span>
+                <span class="flag {% if row.pre_cooling %}on{% else %}off{% endif %}">Forkjøling</span>
+                <span class="flag {% if row.afterrun_active %}on{% else %}off{% endif %}">Etterløp</span>
+            </div>
+        </article>
+        {% endfor %}
+    </main>
+</body>
+</html>

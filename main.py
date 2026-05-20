@@ -77,6 +77,43 @@ class VentilationEvent(Base):
     extra = Column(JSON, nullable=True)
 
 
+class VentilationSample(Base):
+    __tablename__ = "ventilasjon_samples"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    bucket_start = Column(DateTime, index=True, nullable=False)
+    mode = Column(String, index=True, nullable=True)
+    source = Column(Text, nullable=True)
+
+    temp_1etg = Column(Float, nullable=True)
+    temp_2etg = Column(Float, nullable=True)
+    temp_vip = Column(Float, nullable=True)
+    temp_ute = Column(Float, nullable=True)
+    temp_ute_netatmo = Column(Float, nullable=True)
+    temp_yr = Column(Float, nullable=True)
+    temp_loft = Column(Float, nullable=True)
+    temp_passiv = Column(Float, nullable=True)
+    temp_luftinntak = Column(Float, nullable=True)
+    temp_min_inne = Column(Float, nullable=True)
+    temp_avg_inne = Column(Float, nullable=True)
+    temp_max_inne = Column(Float, nullable=True)
+
+    diff_w = Column(Float, nullable=True)
+    estimated_sunbeds = Column(Integer, nullable=True)
+    afterrun_active = Column(Boolean, nullable=True)
+    heat_need = Column(Boolean, nullable=True)
+    cool_need = Column(Boolean, nullable=True)
+    open_time = Column(Boolean, nullable=True)
+    pre_cooling = Column(Boolean, nullable=True)
+    exhaust_time_allowed = Column(Boolean, nullable=True)
+
+    fan_vip = Column(Boolean, nullable=True)
+    fan_2etg = Column(Boolean, nullable=True)
+    fan_tak = Column(Boolean, nullable=True)
+    extra = Column(JSON, nullable=True)
+
+
 class GenericEvent(Base):
     __tablename__ = "event_data"
 
@@ -113,23 +150,36 @@ class EventDataIn(BaseModel):
     mode: Optional[str] = None
     reason: Optional[str] = None
     source: Optional[str] = None
+    bucket_start: Optional[datetime] = None
 
     temp_1etg: Optional[float] = None
     temp_2etg: Optional[float] = None
     temp_vip: Optional[float] = None
     temp_ute: Optional[float] = None
+    temp_ute_netatmo: Optional[float] = None
+    temp_yr: Optional[float] = None
     temp_loft: Optional[float] = None
     temp_passiv: Optional[float] = None
     temp_luftinntak: Optional[float] = None
+    temp_min_inne: Optional[float] = None
+    temp_avg_inne: Optional[float] = None
+    temp_max_inne: Optional[float] = None
     lux: Optional[float] = None
     diff_w: Optional[float] = None
     power_w: Optional[float] = None
     energy_kwh: Optional[float] = None
     value: Optional[float] = None
+    estimated_sunbeds: Optional[int] = None
 
     fan_vip: Optional[bool] = None
     fan_2etg: Optional[bool] = None
     fan_tak: Optional[bool] = None
+    afterrun_active: Optional[bool] = None
+    heat_need: Optional[bool] = None
+    cool_need: Optional[bool] = None
+    open_time: Optional[bool] = None
+    pre_cooling: Optional[bool] = None
+    exhaust_time_allowed: Optional[bool] = None
     state: Optional[bool] = None
 
     values: Dict[str, Any] = Field(default_factory=dict)
@@ -151,6 +201,14 @@ VENT_COLUMNS = [
 GENERIC_COLUMNS = [
     "id", "timestamp", "system", "event_type", "action", "device_id",
     "device_name", "mode", "reason", "source", "lux", "value", "state", "extra",
+]
+
+VENT_SAMPLE_COLUMNS = [
+    "id", "timestamp", "bucket_start", "mode", "source", "temp_1etg", "temp_2etg",
+    "temp_vip", "temp_ute", "temp_ute_netatmo", "temp_yr", "temp_loft", "temp_passiv",
+    "temp_luftinntak", "temp_min_inne", "temp_avg_inne", "temp_max_inne", "diff_w",
+    "estimated_sunbeds", "afterrun_active", "heat_need", "cool_need", "open_time",
+    "pre_cooling", "exhaust_time_allowed", "fan_vip", "fan_2etg", "fan_tak", "extra",
 ]
 
 LIGHT_TIMELINE_DEVICES = [
@@ -191,6 +249,12 @@ def parse_datetime(value: Optional[str]) -> Optional[datetime]:
         return datetime.fromisoformat(value)
     except ValueError:
         return None
+
+
+def quarter_bucket(value: Optional[datetime]) -> datetime:
+    stamp = value or datetime.utcnow()
+    minute = (stamp.minute // 15) * 15
+    return stamp.replace(minute=minute, second=0, microsecond=0)
 
 
 def parse_day(value: Optional[str]) -> date:
@@ -337,6 +401,8 @@ async def build_timeline_group(model, devices, system: str, day_start: datetime,
 def row_to_dict(row, columns):
     out = {column: getattr(row, column) for column in columns if column != "extra"}
     out["timestamp"] = row.timestamp.isoformat() if row.timestamp else None
+    if "bucket_start" in out and out["bucket_start"]:
+        out["bucket_start"] = out["bucket_start"].isoformat()
     out["extra"] = row.extra or {}
     return out
 
@@ -387,6 +453,40 @@ def vent_from_payload(data: EventDataIn) -> VentilationEvent:
         diff_w=value_from_payload(data, "diff_w"),
         power_w=value_from_payload(data, "power_w"),
         energy_kwh=value_from_payload(data, "energy_kwh"),
+        fan_vip=value_from_payload(data, "fan_vip"),
+        fan_2etg=value_from_payload(data, "fan_2etg"),
+        fan_tak=value_from_payload(data, "fan_tak"),
+        extra=merged_extra(data),
+    )
+
+
+def vent_sample_from_payload(data: EventDataIn) -> VentilationSample:
+    timestamp = data.timestamp or datetime.utcnow()
+    return VentilationSample(
+        timestamp=timestamp,
+        bucket_start=data.bucket_start or quarter_bucket(timestamp),
+        mode=data.mode,
+        source=data.source,
+        temp_1etg=value_from_payload(data, "temp_1etg"),
+        temp_2etg=value_from_payload(data, "temp_2etg"),
+        temp_vip=value_from_payload(data, "temp_vip"),
+        temp_ute=value_from_payload(data, "temp_ute"),
+        temp_ute_netatmo=value_from_payload(data, "temp_ute_netatmo"),
+        temp_yr=value_from_payload(data, "temp_yr"),
+        temp_loft=value_from_payload(data, "temp_loft"),
+        temp_passiv=value_from_payload(data, "temp_passiv"),
+        temp_luftinntak=value_from_payload(data, "temp_luftinntak"),
+        temp_min_inne=value_from_payload(data, "temp_min_inne"),
+        temp_avg_inne=value_from_payload(data, "temp_avg_inne"),
+        temp_max_inne=value_from_payload(data, "temp_max_inne"),
+        diff_w=value_from_payload(data, "diff_w"),
+        estimated_sunbeds=value_from_payload(data, "estimated_sunbeds"),
+        afterrun_active=value_from_payload(data, "afterrun_active"),
+        heat_need=value_from_payload(data, "heat_need"),
+        cool_need=value_from_payload(data, "cool_need"),
+        open_time=value_from_payload(data, "open_time"),
+        pre_cooling=value_from_payload(data, "pre_cooling"),
+        exhaust_time_allowed=value_from_payload(data, "exhaust_time_allowed"),
         fan_vip=value_from_payload(data, "fan_vip"),
         fan_2etg=value_from_payload(data, "fan_2etg"),
         fan_tak=value_from_payload(data, "fan_tak"),
@@ -473,7 +573,7 @@ async def startup():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "storage": ["utelys_events", "ventilasjon_events", "event_data"]}
+    return {"status": "ok", "storage": ["utelys_events", "ventilasjon_events", "ventilasjon_samples", "event_data"]}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -540,6 +640,9 @@ async def log_event(data: EventDataIn):
         event_id = await save_record(light_from_payload(data))
         return {"status": "ok", "id": event_id, "table": "utelys_events"}
     if system in {"ventilasjon", "ventilation", "vent"}:
+        if data.event_type in {"sample", "sample_15min", "learning_sample"}:
+            event_id = await save_record(vent_sample_from_payload(data))
+            return {"status": "ok", "id": event_id, "table": "ventilasjon_samples"}
         event_id = await save_record(vent_from_payload(data))
         return {"status": "ok", "id": event_id, "table": "ventilasjon_events"}
     event_id = await save_record(generic_from_payload(data))
@@ -634,6 +737,39 @@ async def ventilation_download(
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
     return await csv_response(VentilationEvent, VENT_COLUMNS, "ventilasjon_events.csv", event_type, action, device_id, mode, source_contains, from_text, to_text)
+
+
+@app.get("/ventilation/samples", response_class=HTMLResponse)
+async def ventilation_samples_view(
+    request: Request,
+    mode: Optional[str] = None,
+    from_text: Optional[str] = Query(default=None, alias="from"),
+    to_text: Optional[str] = Query(default=None, alias="to"),
+    limit: int = 500,
+):
+    rows, limit = await fetch_rows(VentilationSample, None, None, None, mode, None, from_text, to_text, limit)
+    filters = {"mode": mode or "", "from": from_text or "", "to": to_text or "", "limit": limit}
+    return templates.TemplateResponse(request, "ventilation_samples.html", {"rows": rows, "filters": filters})
+
+
+@app.get("/ventilation/samples/json")
+async def ventilation_samples_json(
+    mode: Optional[str] = None,
+    from_text: Optional[str] = Query(default=None, alias="from"),
+    to_text: Optional[str] = Query(default=None, alias="to"),
+    limit: int = 1000,
+):
+    rows, _ = await fetch_rows(VentilationSample, None, None, None, mode, None, from_text, to_text, limit)
+    return {"count": len(rows), "rows": [row_to_dict(row, VENT_SAMPLE_COLUMNS) for row in rows]}
+
+
+@app.get("/ventilation/samples/download")
+async def ventilation_samples_download(
+    mode: Optional[str] = None,
+    from_text: Optional[str] = Query(default=None, alias="from"),
+    to_text: Optional[str] = Query(default=None, alias="to"),
+):
+    return await csv_response(VentilationSample, VENT_SAMPLE_COLUMNS, "ventilasjon_samples.csv", None, None, None, mode, None, from_text, to_text)
 
 
 @app.get("/download")
