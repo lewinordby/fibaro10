@@ -1017,6 +1017,11 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
         }
         for value in range(scale["step"], int(max_lux) + 1, scale["step"])
     ]
+    reference_lines = [
+        {"label": f"{value} lux", "value": value, "y": lux_y(float(value), max_lux)}
+        for value in [100, 1000]
+        if value <= max_lux
+    ]
 
     lux_only = [sample["lux"] for sample in samples]
     summary = {
@@ -1032,6 +1037,7 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
         "points": points,
         "polyline": polyline,
         "y_ticks": y_ticks,
+        "reference_lines": reference_lines,
         "samples_desc": list(reversed(samples)),
         "summary": summary,
     }

@@ -32,6 +32,8 @@
         .label { fill: var(--muted); font-size: 18px; }
         .y-label { fill: #64748b; font-size: 9px; font-weight: 650; }
         .y-symbol { fill: #f59e0b; stroke: #b45309; stroke-width: 0.5; }
+        .ref-line { stroke: #df705d; stroke-width: 1.2; opacity: 0.8; }
+        .ref-label { fill: #9d3f31; font-size: 12px; font-weight: 800; }
         .now-line { stroke: #ef4444; stroke-width: 2; }
         .now-label { fill: #ef4444; font-size: 13px; font-weight: 800; }
         .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--muted); font-size: 0.86rem; margin-top: 0.65rem; }
@@ -96,6 +98,10 @@
                         <text class="y-label" x="8" y="{{ tick.y - 4 }}">{{ tick.label }}</text>
                         <circle class="y-symbol" cx="36" cy="{{ tick.y - 7 }}" r="{{ tick.symbol_radius }}" opacity="{{ tick.symbol_opacity }}"></circle>
                         {% endfor %}
+                        {% for ref in lux_day.reference_lines %}
+                        <line class="ref-line" x1="0" y1="{{ ref.y }}" x2="1000" y2="{{ ref.y }}"></line>
+                        <text class="ref-label" x="994" y="{{ ref.y - 5 }}" text-anchor="end">{{ ref.label }}</text>
+                        {% endfor %}
                         {% if lux_day.polyline %}
                         <polyline class="lux-line" points="{{ lux_day.polyline }}"></polyline>
                         {% endif %}
@@ -108,6 +114,7 @@
             </div>
             <div class="legend">
                 <span class="key"><span class="swatch"></span>Luxkurve fra 5-minutters målinger</span>
+                <span class="key">Referanse: 100 og 1000 lux</span>
                 <span class="key">Skala: kvadratrot, 0-{{ lux_day.summary.scale_max }} lux</span>
                 <span class="key">Grafen stopper ved nå-linjen for dagens dato</span>
             </div>
