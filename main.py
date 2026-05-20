@@ -339,6 +339,12 @@ VENT_TIMELINE_DEVICES = [
     {"id": 134, "name": "Avtrekk tak/loft"},
 ]
 
+DAY_ZOOM_OPTIONS = [
+    {"key": "all", "label": "Hele døgnet", "start_hour": 0, "end_hour": 24, "ticks": [0, 6, 12, 18, 24]},
+    {"key": "night", "label": "Natt 00-06", "start_hour": 0, "end_hour": 6, "ticks": [0, 2, 4, 6]},
+    {"key": "day", "label": "Dag 06-24", "start_hour": 6, "end_hour": 24, "ticks": [6, 12, 18, 24]},
+]
+
 STARTUP_COLUMNS = {
     "utelys_samples": [
         ("light_spot_glass_275", "BOOLEAN"),
@@ -517,6 +523,28 @@ def parse_day(value: Optional[str]) -> date:
         except ValueError:
             pass
     return datetime.now(LOCAL_TZ).date()
+
+
+def day_zoom_config(value: Optional[str]):
+    for option in DAY_ZOOM_OPTIONS:
+        if option["key"] == value:
+            return option
+    return DAY_ZOOM_OPTIONS[0]
+
+
+def day_zoom_window(selected_day: date, zoom_key: Optional[str]):
+    config = day_zoom_config(zoom_key)
+    day_start = datetime.combine(selected_day, time.min)
+    window_start = day_start + timedelta(hours=config["start_hour"])
+    window_end = day_start + timedelta(hours=config["end_hour"])
+    ticks = [
+        {
+            "label": f"{hour:02d}" if hour < 24 else "24",
+            "left": percent_between(day_start + timedelta(hours=hour), window_start, window_end),
+        }
+        for hour in config["ticks"]
+    ]
+    return config, window_start, window_end, ticks
 
 
 def local_now_naive() -> datetime:
@@ -1591,16 +1619,23 @@ async def index(request: Request):
 
 
 @app.get("/day", response_class=HTMLResponse)
-async def day_view(request: Request, day: Optional[str] = None):
+async def day_view(request: Request, day: Optional[str] = None, zoom: Optional[str] = "all"):
     selected_day = parse_day(day)
-    day_start = datetime.combine(selected_day, time.min)
-    day_end = day_start + timedelta(days=1)
+    zoom_config, window_start, window_end, ticks = day_zoom_window(selected_day, zoom)
     now_local = local_now_naive()
     is_today = selected_day == now_local.date()
-    timeline_end = min(now_local, day_end) if is_today else day_end
-    now_marker = percent_between(now_local, day_start, day_end) if is_today else None
-    light_items = await build_light_timeline_group(day_start, day_end, timeline_end)
-    vent_items = await build_timeline_group(VentilationEvent, VENT_TIMELINE_DEVICES, "ventilasjon", day_start, day_end, timeline_end)
+    if is_today:
+        if now_local < window_start:
+            timeline_end = window_start
+        elif now_local > window_end:
+            timeline_end = window_end
+        else:
+            timeline_end = now_local
+    else:
+        timeline_end = window_end
+    now_marker = percent_between(now_local, window_start, window_end) if is_today and window_start <= now_local <= window_end else None
+    light_items = await build_light_timeline_group(window_start, window_end, timeline_end)
+    vent_items = await build_timeline_group(VentilationEvent, VENT_TIMELINE_DEVICES, "ventilasjon", window_start, window_end, timeline_end)
     return templates.TemplateResponse(
         request,
         "day.html",
@@ -1608,18 +1643,15 @@ async def day_view(request: Request, day: Optional[str] = None):
             "selected_day": selected_day.isoformat(),
             "prev_day": (selected_day - timedelta(days=1)).isoformat(),
             "next_day": (selected_day + timedelta(days=1)).isoformat(),
+            "zoom": zoom_config["key"],
+            "zoom_label": zoom_config["label"],
+            "zoom_options": DAY_ZOOM_OPTIONS,
             "is_today": is_today,
             "now_marker": now_marker,
             "now_label": now_local.strftime("%H:%M") if is_today else "",
             "light_items": light_items,
             "vent_items": vent_items,
-            "ticks": [
-                {"label": "00", "left": 0},
-                {"label": "06", "left": 25},
-                {"label": "12", "left": 50},
-                {"label": "18", "left": 75},
-                {"label": "24", "left": 100},
-            ],
+            "ticks": ticks,
         },
     )
 
