@@ -31,12 +31,9 @@
         .temp-line.yr { stroke: var(--yr); }
         .temp-line.one { stroke: var(--one); }
         .temp-line.loft { stroke: var(--loft); }
-        .fan-event-line { stroke-width: 2; opacity: 0.9; }
+        .fan-event-line { stroke-width: 1; opacity: 0.72; }
         .fan-event-line.on { stroke: var(--fan-on); }
         .fan-event-line.off { stroke: var(--fan-off); }
-        .fan-event-label { font-size: 10px; font-weight: 800; }
-        .fan-event-label.on { fill: var(--fan-on); }
-        .fan-event-label.off { fill: var(--fan-off); }
         .label { fill: var(--muted); font-size: 18px; }
         .y-label { fill: #64748b; font-size: 10px; font-weight: 650; }
         .now-line { stroke: var(--now); stroke-width: 2; }
@@ -114,7 +111,6 @@
                         {% endfor %}
                         {% for event in temp_day.fan_events %}
                         <line class="fan-event-line {{ event['class'] }}" x1="{{ event['x'] }}" y1="22" x2="{{ event['x'] }}" y2="278"></line>
-                        <text class="fan-event-label {{ event['class'] }}" x="{{ event['x'] + 4 }}" y="38">{{ event['action'] }}</text>
                         {% endfor %}
                         {% for series in temp_day.series %}
                         {% if series['polyline'] %}
