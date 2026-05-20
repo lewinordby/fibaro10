@@ -25,7 +25,15 @@
         .top { display: grid; grid-template-columns: minmax(8rem, auto) 1fr auto; gap: 0.7rem; align-items: center; padding-bottom: 0.65rem; border-bottom: 1px solid #edf1f5; }
         .time { font-weight: 800; font-size: 1rem; line-height: 1.15; }
         .bucket { color: var(--muted); font-size: 0.78rem; margin-top: 0.12rem; }
+        .top-actions { display: flex; align-items: center; gap: 0.4rem; justify-content: flex-end; }
         .mode { border-radius: 999px; background: var(--mode-bg); color: var(--mode-color); border: 1px solid var(--mode-line); padding: 0.28rem 0.68rem; font-size: 0.78rem; font-weight: 800; white-space: nowrap; }
+        .rule-help { position: relative; }
+        .rule-help summary { list-style: none; width: 1.65rem; height: 1.65rem; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--mode-line); background: var(--mode-bg); color: var(--mode-color); font-weight: 900; cursor: pointer; }
+        .rule-help summary::-webkit-details-marker { display: none; }
+        .rule-body { position: absolute; right: 0; top: 2rem; z-index: 4; width: min(34rem, calc(100vw - 2rem)); background: white; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 30px rgba(15,23,42,0.16); padding: 0.85rem; color: var(--text); }
+        .rule-title { font-weight: 850; margin-bottom: 0.35rem; }
+        .rule-body p { margin: 0 0 0.55rem; color: #344054; line-height: 1.35; }
+        .rule-body ul { margin: 0; padding-left: 1.1rem; color: #344054; line-height: 1.35; }
         .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #e5eaf0; border-radius: 8px; overflow: hidden; margin: 0.75rem 0 0.65rem; background: var(--soft); }
         .cell { padding: 0.56rem 0.62rem; min-width: 0; border-right: 1px solid #e5eaf0; border-bottom: 1px solid #e5eaf0; }
         .cell:nth-child(2n) { border-right: 0; }
@@ -63,6 +71,7 @@
         @media (max-width: 560px) {
             .top { grid-template-columns: 1fr auto; gap: 0.55rem; }
             .fan-grid { grid-column: 1 / -1; justify-content: flex-start; }
+            .rule-body { right: -0.15rem; width: calc(100vw - 1.7rem); }
         }
         @media (prefers-reduced-motion: reduce) {
             .fan-card.on .fan-icon { animation: none; }
@@ -119,7 +128,56 @@
                         <div class="fan-name">Tak <span class="fan-state">{% if row.fan_tak %}PÅ{% else %}AV{% endif %}</span></div>
                     </div>
                 </div>
-                <span class="mode">{{ row.mode or "" }}</span>
+                <div class="top-actions">
+                    <span class="mode">{{ row.mode or "" }}</span>
+                    <details class="rule-help">
+                        <summary title="Vis regler">?</summary>
+                        <div class="rule-body">
+                            <div class="rule-title">Regler for {{ row.mode or "NORMAL" }}</div>
+                            {% if row.mode == "KJOLING" %}
+                            <p>Scenen vurderer kjøling når høyeste innetemperatur er over 24,0° eller snittet inne er over 23,5°.</p>
+                            <ul>
+                                <li>Innluft kan gå når det er åpningstid og ute er minst 1,5° kaldere enn varmeste rom, men over 10,0°.</li>
+                                <li>Innluft kan også gå ved varmt loft når ute er over 8,0° og det ikke er varmebehov inne.</li>
+                                <li>Avtrekk kan gå ved varmt loft, spesielt over 32,0°, eller når både inne og loft er varmt.</li>
+                            </ul>
+                            {% elif row.mode == "VARMEBEVARING" %}
+                            <p>Scenen prøver å spare varme når laveste innetemperatur er under 22,0° eller snittet inne er under 22,5°.</p>
+                            <ul>
+                                <li>Avtrekk stoppes normalt slik at varm luft ikke blåses ut.</li>
+                                <li>Kald innluft sperres når ute er for kaldt i forhold til varmebehovet.</li>
+                                <li>Passivt avtrekk får håndtere overskuddsvarme så lenge loftet ikke er kritisk varmt.</li>
+                            </ul>
+                            {% elif row.mode == "FORKJOLING" %}
+                            <p>Forkjøling kan skje før åpning når bygget er varmt og uteluften fortsatt kan hjelpe.</p>
+                            <ul>
+                                <li>Aktuelt mellom 05:00 og 07:00.</li>
+                                <li>Varmeste rom må være over 23,0°.</li>
+                                <li>Ute må være minst 1,0° kaldere enn varmeste rom og over 7,0°.</li>
+                            </ul>
+                            {% elif row.mode == "SPERRET_KALD_UTE" %}
+                            <p>Mekanisk ventilasjon sperres når utetemperaturen er under 7,0°.</p>
+                            <ul>
+                                <li>Innluft og avtrekk settes av for å unngå kald trekk og varmetap.</li>
+                                <li>Dette overstyrer vanlig kjølelogikk.</li>
+                            </ul>
+                            {% elif row.mode == "UTENFOR_DRIFTSTID" %}
+                            <p>Utenfor driftstid skal ventilasjonen normalt stå av.</p>
+                            <ul>
+                                <li>Normal driftstid er 07:00-23:00.</li>
+                                <li>Avtrekk stoppes fra 22:00 for å spare varme mot natten.</li>
+                                <li>Unntaket er forkjøling før åpning når kriteriene er oppfylt.</li>
+                            </ul>
+                            {% else %}
+                            <p>Normalmodus betyr at scenen ikke ser tydelig varmebehov eller kjølebehov akkurat nå.</p>
+                            <ul>
+                                <li>Viftene styres videre av hysterese, åpningstid, lofttemperatur og om avtrekk krever innluft.</li>
+                                <li>Hvis avtrekk går, tvinges innluft på for å unngå undertrykk.</li>
+                            </ul>
+                            {% endif %}
+                        </div>
+                    </details>
+                </div>
             </div>
             <div class="grid">
                 <div class="cell"><span class="label">1.etg</span><span class="value">{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}°{% else %}-{% endif %}</span></div>
