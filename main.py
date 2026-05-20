@@ -18,12 +18,12 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-app = FastAPI()
+app = FastAPI(title="Fibaro10 Eventlogg")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 Base = declarative_base()
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
@@ -239,7 +239,7 @@ async def startup():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "storage": "event_data"}
 
 
 @app.post("/log")
@@ -263,6 +263,7 @@ async def log_event(data: EventDataIn):
 
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/events", response_class=HTMLResponse)
 async def read_events(
     request: Request,
     system: Optional[str] = None,
@@ -299,12 +300,8 @@ async def read_events(
     return templates.TemplateResponse("events.html", {"request": request, "rows": rows, "filters": filters})
 
 
-@app.get("/events", response_class=HTMLResponse)
-async def read_events_alias(request: Request, **kwargs):
-    return await read_events(request, **kwargs)
-
-
 @app.get("/download")
+@app.get("/events/download")
 async def download_events_csv(
     system: Optional[str] = None,
     event_type: Optional[str] = None,
@@ -336,21 +333,6 @@ async def download_events_csv(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=events.csv"},
     )
-
-
-@app.get("/events/download")
-async def download_events_csv_alias(
-    system: Optional[str] = None,
-    event_type: Optional[str] = None,
-    action: Optional[str] = None,
-    device_id: Optional[int] = None,
-    mode: Optional[str] = None,
-    source: Optional[str] = None,
-    source_contains: Optional[str] = None,
-    from_ts: Optional[datetime] = Query(default=None, alias="from"),
-    to_ts: Optional[datetime] = Query(default=None, alias="to"),
-):
-    return await download_events_csv(system, event_type, action, device_id, mode, source, source_contains, from_ts, to_ts)
 
 
 @app.get("/events/json")
