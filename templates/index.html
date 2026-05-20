@@ -111,6 +111,12 @@
             border-radius: 8px;
             padding: 0.9rem;
         }
+        .now-card.temp-card {
+            border-left: 5px solid var(--vent, #52a464);
+        }
+        .now-card.lux-card {
+            border-left: 5px solid var(--light, #df705d);
+        }
         .now-card.lux-card {
             grid-template-columns: 1fr;
         }
@@ -151,8 +157,12 @@
             justify-content: space-between;
             gap: 0.5rem;
             align-items: baseline;
-            border-left: 3px solid #cfe3f6;
+            border-left: 3px solid var(--vent, #52a464);
             padding-left: 0.5rem;
+        }
+        .now-card.lux-card .now-label,
+        .now-card.lux-card .now-value {
+            color: var(--light, #df705d);
         }
         .now-small .small-label {
             color: var(--muted);
@@ -239,6 +249,36 @@
         }
         .status-card.on { border-left-color: var(--on); }
         .status-card.off { border-left-color: var(--off); }
+        .status-card.vent-card,
+        .status-card.vent-card.on,
+        .status-card.vent-card.off {
+            border-left-color: var(--vent, #52a464);
+        }
+        .status-card.light-card,
+        .status-card.light-card.on,
+        .status-card.light-card.off {
+            border-left-color: var(--light, #df705d);
+        }
+        .health-card.light-health,
+        .health-card.light-health.ok,
+        .health-card.light-health.warn,
+        .health-card.light-health.bad {
+            border-left-color: var(--light, #df705d);
+        }
+        .health-card.vent-health,
+        .health-card.vent-health.ok,
+        .health-card.vent-health.warn,
+        .health-card.vent-health.bad {
+            border-left-color: var(--vent, #52a464);
+        }
+        .section.vent-section .section-head h2,
+        .section.vent-section .section-head a {
+            color: var(--vent, #52a464);
+        }
+        .section.light-section .section-head h2,
+        .section.light-section .section-head a {
+            color: var(--light, #df705d);
+        }
         .status-top {
             display: flex;
             justify-content: space-between;
@@ -384,7 +424,7 @@
             </div>
             {% if now_status.has_data %}
             <div class="now-grid">
-                <article class="now-card">
+                <article class="now-card temp-card">
                     <div>
                         <span class="now-label">Innetemp</span>
                         <div class="now-value">
@@ -401,7 +441,7 @@
                         {% endfor %}
                     </div>
                 </article>
-                <article class="now-card">
+                <article class="now-card temp-card">
                     <div>
                         <span class="now-label">Utetemp</span>
                         <div class="now-value">
@@ -440,7 +480,7 @@
             </div>
             <div class="health-grid">
                 {% for item in freshness_items %}
-                <article class="health-card {{ item.status }}">
+                <article class="health-card {{ item.status }} {% if item.name in ['Lux logging', 'Lys-hendelser'] %}light-health{% elif item.name in ['Temp logg', 'Ventilasjonshendelser'] %}vent-health{% endif %}">
                     <div class="health-top">
                         <div>
                             <div class="name">{{ item.name }}</div>
@@ -456,7 +496,7 @@
             </div>
         </section>
 
-        <section class="section">
+        <section class="section vent-section">
             <div class="section-head">
                 <h2>Ventilasjon</h2>
                 <a href="/ventilation">Vis hendelser</a>
@@ -465,7 +505,7 @@
                 {% for item in vent_status %}
                 {% set row = item.row %}
                 {% set state = item.state if item.state is not none else (row.state if row and row.state is not none else none) %}
-                <article class="status-card fan-card {% if state == true %}on{% elif state == false %}off{% endif %}">
+                <article class="status-card vent-card fan-card {% if state == true %}on{% elif state == false %}off{% endif %}">
                     <div class="status-top">
                         <div>
                             <div class="name"><span class="fan-symbol"><span></span></span>{{ item.name }}</div>
@@ -483,7 +523,7 @@
             </div>
         </section>
 
-        <section class="section">
+        <section class="section light-section">
             <div class="section-head">
                 <h2>Lys</h2>
                 <a href="/lights/samples">Vis luxlogg</a>
@@ -492,7 +532,7 @@
                 {% for item in light_status %}
                 {% set row = item.row %}
                 {% set state = item.state %}
-                <article class="status-card {% if state == true %}on{% elif state == false %}off{% endif %}">
+                <article class="status-card light-card {% if state == true %}on{% elif state == false %}off{% endif %}">
                     <div class="status-top">
                         <div>
                             <div class="name">{{ item.name }}</div>
@@ -520,7 +560,7 @@
                 <a href="/day">Åpne dagslinje</a>
             </div>
             <div class="cards">
-                <article class="status-card">
+                <article class="status-card light-card">
                     <div class="status-top">
                         <div>
                             <div class="name">Siste lyslogg</div>
@@ -532,7 +572,7 @@
                     <div class="detail">{{ latest_light.device_name or ("Enhet " ~ latest_light.device_id) }}</div>
                     {% endif %}
                 </article>
-                <article class="status-card">
+                <article class="status-card vent-card">
                     <div class="status-top">
                         <div>
                             <div class="name">Siste ventilasjonshendelse</div>
