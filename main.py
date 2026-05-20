@@ -208,6 +208,10 @@ def display_action(action: Optional[str]) -> str:
     return action or ""
 
 
+def clean_display_text(value: Optional[str]) -> str:
+    return (value or "").replace("innbl?sing", "innblåsing").replace("innblasing", "innblåsing").replace("KJ?LING", "KJØLING").replace("KJOLING", "KJØLING").replace("kj?lebehov", "kjølebehov").replace("kjolebehov", "kjølebehov")
+
+
 def state_from_event(row):
     if row.action == "PAA":
         return True
@@ -267,7 +271,7 @@ def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end
             })
 
         new_state = state_from_event(row)
-        reason = row.reason or row.source or ""
+        reason = clean_display_text(row.reason or row.source or "")
         points.append({
             "left": percent_between(event_time, day_start, day_end),
             "time": event_time.strftime("%H:%M"),
