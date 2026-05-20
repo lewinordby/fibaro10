@@ -293,7 +293,7 @@
                 <div class="metric"><span class="label">VIP</span><span class="value">{% if latest_sample.temp_vip is not none %}{{ "%.1f"|format(latest_sample.temp_vip) }}°{% else %}-{% endif %}</span></div>
                 <div class="metric"><span class="label">Ute</span><span class="value">{% if latest_sample.temp_ute is not none %}{{ "%.1f"|format(latest_sample.temp_ute) }}°{% else %}-{% endif %}</span></div>
                 <div class="metric"><span class="label">Loft</span><span class="value">{% if latest_sample.temp_loft is not none %}{{ "%.1f"|format(latest_sample.temp_loft) }}°{% else %}-{% endif %}</span></div>
-                <div class="metric"><span class="label">Passiv innluft</span><span class="value">{% if latest_sample.temp_passiv is not none %}{{ "%.1f"|format(latest_sample.temp_passiv) }}°{% else %}-{% endif %}</span></div>
+                <div class="metric"><span class="label">Pass innluft</span><span class="value">{% if latest_sample.temp_passiv is not none %}{{ "%.1f"|format(latest_sample.temp_passiv) }}°{% else %}-{% endif %}</span></div>
                 <div class="metric"><span class="label">Diff W</span><span class="value">{% if latest_sample.diff_w is not none %}{{ "%.0f"|format(latest_sample.diff_w) }}{% else %}-{% endif %}</span></div>
                 <div class="metric"><span class="label">Solsenger</span><span class="value">{{ latest_sample.estimated_sunbeds if latest_sample.estimated_sunbeds is not none else "-" }}</span></div>
             </div>

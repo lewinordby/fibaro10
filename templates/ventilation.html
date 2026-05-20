@@ -103,7 +103,7 @@
                 <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">VIP</span><span class="temp-value">{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}°{% else %}-{% endif %}</span></div>
                 <div class="temp {% if trig_ute %}trigger{% endif %}"><span class="temp-label">Ute</span><span class="temp-value">{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}°{% else %}-{% endif %}</span></div>
                 <div class="temp {% if trig_loft %}trigger{% endif %}"><span class="temp-label">Loft</span><span class="temp-value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span></div>
-                <div class="temp"><span class="temp-label">Passiv</span><span class="temp-value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp"><span class="temp-label">Pass innluft</span><span class="temp-value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>
                 <div class="temp {% if trig_diff %}trigger{% endif %}"><span class="temp-label">Diff W</span><span class="temp-value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span></div>
             </div>
             <div class="trigger-note">Utløst av: {{ reason }}</div>

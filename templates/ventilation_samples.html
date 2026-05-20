@@ -190,7 +190,7 @@
                 <div class="cell"><span class="label">Netatmo ute</span><span class="value">{% if row.temp_ute_netatmo is not none %}{{ "%.1f"|format(row.temp_ute_netatmo) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">YR</span><span class="value">{% if row.temp_yr is not none %}{{ "%.1f"|format(row.temp_yr) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Loft</span><span class="value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Passiv</span><span class="value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Pass innluft</span><span class="value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Min/avg/max</span><span class="value">{% if row.temp_min_inne is not none %}{{ "%.1f"|format(row.temp_min_inne) }}/{{ "%.1f"|format(row.temp_avg_inne) }}/{{ "%.1f"|format(row.temp_max_inne) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Diff W</span><span class="value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Solsenger</span><span class="value">{{ row.estimated_sunbeds if row.estimated_sunbeds is not none else "-" }}</span></div>
