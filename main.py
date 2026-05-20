@@ -45,6 +45,23 @@ class OutdoorLightEvent(Base):
     extra = Column(JSON, nullable=True)
 
 
+class OutdoorLightSample(Base):
+    __tablename__ = "utelys_samples"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    bucket_start = Column(DateTime, index=True, nullable=False)
+    mode = Column(String, index=True, nullable=True)
+    source = Column(Text, nullable=True)
+    lux = Column(Float, nullable=True)
+    value = Column(Float, nullable=True)
+    light_lyslist = Column(Boolean, nullable=True)
+    light_reklame = Column(Boolean, nullable=True)
+    light_spot_inngang = Column(Boolean, nullable=True)
+    light_parkering = Column(Boolean, nullable=True)
+    extra = Column(JSON, nullable=True)
+
+
 class VentilationEvent(Base):
     __tablename__ = "ventilasjon_events"
 
@@ -174,6 +191,10 @@ class EventDataIn(BaseModel):
     fan_vip: Optional[bool] = None
     fan_2etg: Optional[bool] = None
     fan_tak: Optional[bool] = None
+    light_lyslist: Optional[bool] = None
+    light_reklame: Optional[bool] = None
+    light_spot_inngang: Optional[bool] = None
+    light_parkering: Optional[bool] = None
     afterrun_active: Optional[bool] = None
     heat_need: Optional[bool] = None
     cool_need: Optional[bool] = None
@@ -189,6 +210,11 @@ class EventDataIn(BaseModel):
 LIGHT_COLUMNS = [
     "id", "timestamp", "event_type", "action", "device_id", "device_name",
     "mode", "reason", "source", "lux", "value", "state", "extra",
+]
+
+LIGHT_SAMPLE_COLUMNS = [
+    "id", "timestamp", "bucket_start", "mode", "source", "lux", "value",
+    "light_lyslist", "light_reklame", "light_spot_inngang", "light_parkering", "extra",
 ]
 
 VENT_COLUMNS = [
@@ -431,6 +457,23 @@ def light_from_payload(data: EventDataIn) -> OutdoorLightEvent:
     )
 
 
+def light_sample_from_payload(data: EventDataIn) -> OutdoorLightSample:
+    timestamp = data.timestamp or datetime.utcnow()
+    return OutdoorLightSample(
+        timestamp=timestamp,
+        bucket_start=data.bucket_start or sample_bucket(timestamp),
+        mode=data.mode,
+        source=data.source,
+        lux=value_from_payload(data, "lux"),
+        value=value_from_payload(data, "value"),
+        light_lyslist=value_from_payload(data, "light_lyslist"),
+        light_reklame=value_from_payload(data, "light_reklame"),
+        light_spot_inngang=value_from_payload(data, "light_spot_inngang"),
+        light_parkering=value_from_payload(data, "light_parkering"),
+        extra=merged_extra(data),
+    )
+
+
 def vent_from_payload(data: EventDataIn) -> VentilationEvent:
     return VentilationEvent(
         timestamp=data.timestamp or datetime.utcnow(),
@@ -573,7 +616,7 @@ async def startup():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "storage": ["utelys_events", "ventilasjon_events", "ventilasjon_samples", "event_data"]}
+    return {"status": "ok", "storage": ["utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples", "event_data"]}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -581,6 +624,7 @@ async def health():
 async def index(request: Request):
     async with async_session() as session:
         lights = (await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(200))).scalars().all()
+        light_samples = (await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))).scalars().all()
         ventilation = (await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(100))).scalars().all()
         samples = (await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))).scalars().all()
 
@@ -595,6 +639,7 @@ async def index(request: Request):
             latest_vent_by_device[row.device_id] = row
 
     latest_sample = samples[0] if samples else None
+    latest_light_sample = light_samples[0] if light_samples else None
     fan_state_from_sample = {
         130: latest_sample.fan_vip if latest_sample else None,
         160: latest_sample.fan_2etg if latest_sample else None,
@@ -620,6 +665,7 @@ async def index(request: Request):
         "index.html",
         {
             "latest_light": lights[0] if lights else None,
+            "latest_light_sample": latest_light_sample,
             "latest_vent": ventilation[0] if ventilation else None,
             "latest_sample": latest_sample,
             "light_status": light_status,
@@ -680,6 +726,9 @@ async def legacy_log_data(data: LegacyLogIn):
 async def log_event(data: EventDataIn):
     system = (data.system or "").lower()
     if system in {"utelys", "ute_lys", "lys"}:
+        if data.event_type in {"sample", "sample_5min", "learning_sample"}:
+            event_id = await save_record(light_sample_from_payload(data))
+            return {"status": "ok", "id": event_id, "table": "utelys_samples"}
         event_id = await save_record(light_from_payload(data))
         return {"status": "ok", "id": event_id, "table": "utelys_events"}
     if system in {"ventilasjon", "ventilation", "vent"}:
@@ -735,6 +784,26 @@ async def lights_download(
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
     return await csv_response(OutdoorLightEvent, LIGHT_COLUMNS, "utelys_events.csv", event_type, action, device_id, mode, source_contains, from_text, to_text)
+
+
+@app.get("/lights/samples/json")
+async def light_samples_json(
+    mode: Optional[str] = None,
+    from_text: Optional[str] = Query(default=None, alias="from"),
+    to_text: Optional[str] = Query(default=None, alias="to"),
+    limit: int = 1000,
+):
+    rows, _ = await fetch_rows(OutdoorLightSample, None, None, None, mode, None, from_text, to_text, limit)
+    return {"count": len(rows), "rows": [row_to_dict(row, LIGHT_SAMPLE_COLUMNS) for row in rows]}
+
+
+@app.get("/lights/samples/download")
+async def light_samples_download(
+    mode: Optional[str] = None,
+    from_text: Optional[str] = Query(default=None, alias="from"),
+    to_text: Optional[str] = Query(default=None, alias="to"),
+):
+    return await csv_response(OutdoorLightSample, LIGHT_SAMPLE_COLUMNS, "utelys_samples.csv", None, None, None, mode, None, from_text, to_text)
 
 
 @app.get("/ventilation", response_class=HTMLResponse)

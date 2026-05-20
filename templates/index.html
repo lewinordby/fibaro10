@@ -286,6 +286,7 @@
             </div>
             {% if latest_sample %}
             <div class="summary-grid">
+                <div class="metric"><span class="label">Lux ute</span><span class="value">{% if latest_light_sample and latest_light_sample.lux is not none %}{{ "%.0f"|format(latest_light_sample.lux) }}{% elif latest_light and latest_light.lux is not none %}{{ "%.0f"|format(latest_light.lux) }}{% else %}-{% endif %}</span></div>
                 <div class="metric"><span class="label">1.etg</span><span class="value">{% if latest_sample.temp_1etg is not none %}{{ "%.1f"|format(latest_sample.temp_1etg) }}°{% else %}-{% endif %}</span></div>
                 <div class="metric"><span class="label">2.etg</span><span class="value">{% if latest_sample.temp_2etg is not none %}{{ "%.1f"|format(latest_sample.temp_2etg) }}°{% else %}-{% endif %}</span></div>
                 <div class="metric"><span class="label">VIP</span><span class="value">{% if latest_sample.temp_vip is not none %}{{ "%.1f"|format(latest_sample.temp_vip) }}°{% else %}-{% endif %}</span></div>
