@@ -25,13 +25,14 @@
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: white; }
         th, td { padding: 0.58rem; border-bottom: 1px solid var(--line); text-align: left; font-size: 0.88rem; vertical-align: top; }
+        td code { display: inline-block; margin-top: 0; padding: 0.35rem 0.45rem; }
         th { color: var(--muted); font-weight: 650; }
         .status { font-weight: 800; }
         .status.on { color: var(--on); }
         .status.off { color: var(--off); }
         @media (min-width: 760px) {
             main { padding: 1.25rem; }
-            .create-form { grid-template-columns: 1fr auto; }
+            .create-form { grid-template-columns: 1fr 1fr auto; }
         }
     </style>
     <link rel="stylesheet" href="/static/app.css">
@@ -53,7 +54,7 @@
             <h2>Ny delt nøkkel</h2>
             {% if created_key %}
             <div class="created">
-                Ny nøkkel er opprettet. Den vises bare nå.
+                Ny nøkkel er opprettet.
                 <code>{{ created_key }}</code>
             </div>
             {% endif %}
@@ -62,7 +63,7 @@
             {% endif %}
             <form class="create-form" method="post" action="/admin/keys">
                 <input type="text" name="name" placeholder="Navn, f.eks. Elektriker eller Kristian mobil" maxlength="80">
-                <input type="text" name="access_key" placeholder="Nøkkel/passord, minst 8 tegn" minlength="8" autocomplete="new-password" required>
+                <input type="text" name="access_key" placeholder="Nøkkel/passord, minst 5 tegn" minlength="5" autocomplete="new-password" required>
                 <button class="primary" type="submit">Lag nøkkel</button>
             </form>
         </section>
@@ -76,6 +77,7 @@
                             <th>Navn</th>
                             <th>Type</th>
                             <th>Status</th>
+                            <th>Nøkkel</th>
                             <th>ID</th>
                             <th>Sist brukt</th>
                             <th>IP</th>
@@ -89,6 +91,7 @@
                             <td>{{ key.name }}</td>
                             <td>{% if key.is_master %}Master{% else %}Delt{% endif %}</td>
                             <td class="status {% if key.active %}on{% else %}off{% endif %}">{% if key.active %}Aktiv{% else %}Av{% endif %}</td>
+                            <td>{% if key.is_master %}-{% elif key.key_plaintext %}<code>{{ key.key_plaintext }}</code>{% else %}Ikke lagret{% endif %}</td>
                             <td>{{ key.key_prefix }}</td>
                             <td>{% if key.last_seen_at %}{{ key.last_seen_at.strftime("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</td>
                             <td>{{ key.last_ip or "-" }}</td>

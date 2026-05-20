@@ -195,6 +195,7 @@ class AccessKey(Base):
     name = Column(String, nullable=False)
     key_hash = Column(String, unique=True, index=True, nullable=False)
     key_prefix = Column(String, index=True, nullable=False)
+    key_plaintext = Column(String, nullable=True)
     is_master = Column(Boolean, default=False, index=True)
     active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
@@ -944,6 +945,7 @@ async def startup():
         await conn.run_sync(Base.metadata.create_all)
         await conn.exec_driver_sql("ALTER TABLE utelys_samples ADD COLUMN IF NOT EXISTS light_spot_glass_275 BOOLEAN")
         await conn.exec_driver_sql("ALTER TABLE utelys_samples ADD COLUMN IF NOT EXISTS light_spot_glass_299 BOOLEAN")
+        await conn.exec_driver_sql("ALTER TABLE access_keys ADD COLUMN IF NOT EXISTS key_plaintext VARCHAR")
     async with async_session() as session:
         result = await session.execute(select(AccessKey).where(AccessKey.key_hash == MASTER_ACCESS_KEY_HASH))
         master = result.scalars().first()
@@ -1032,7 +1034,7 @@ async def keys_create(request: Request):
     raw_key = (form.get("access_key") or "").strip()
     if not name:
         name = "Delt nøkkel"
-    if len(raw_key) < 8:
+    if len(raw_key) < 5:
         async with async_session() as session:
             key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
             log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
@@ -1043,7 +1045,7 @@ async def keys_create(request: Request):
                 "keys": key_rows,
                 "logs": log_rows,
                 "created_key": "",
-                "error": "Nøkkelen må være minst 8 tegn.",
+                "error": "Nøkkelen må være minst 5 tegn.",
             },
             status_code=400,
         )
@@ -1051,6 +1053,7 @@ async def keys_create(request: Request):
         name=name,
         key_hash=hash_access_key(raw_key),
         key_prefix=key_prefix(raw_key),
+        key_plaintext=raw_key,
         is_master=False,
         active=True,
     )
