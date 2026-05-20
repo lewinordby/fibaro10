@@ -1,29 +1,36 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="no">
 <head>
-    <title>Sensor Data</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fibaro10</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 2rem; background: #f7f8f9; color: #17202a; }
+        main { max-width: 920px; margin: 0 auto; }
+        h1 { margin-top: 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+        a.card { display: block; background: white; border: 1px solid #d8dee4; border-radius: 6px; padding: 1rem; color: inherit; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        a.card:hover { border-color: #8aa4c6; }
+        .muted { color: #667085; font-size: 0.9rem; }
+        code { background: #eef2f7; padding: 0.1rem 0.25rem; border-radius: 3px; }
+    </style>
 </head>
 <body>
-    <h1>Siste Sensorverdier</h1>
-    <table border="1">
-        <tr>
-            <th>ID</th>
-            <th>Temperatur</th>
-            <th>Fuktighet</th>
-            <th>Timestamp</th>
-            <th>Kilde</th>
-        </tr>
-        {% for entry in entries %}
-        <tr>
-            <td>{{ entry.id }}</td>
-            <td>{{ entry.temperature }}</td>
-            <td>{{ entry.humidity or "" }}</td>
-            <td>{{ entry.timestamp }}</td>
-            <td>{{ entry.source or "" }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <p><a href="/download">Last ned som CSV</a></p>
+<main>
+    <h1>Fibaro10</h1>
+    <div class="grid">
+        <a class="card" href="/lights">
+            <h2>Ute lys</h2>
+            <p>Lux, av/på-hendelser, enheter og årsak.</p>
+            <p class="muted">Siste: {% if latest_light %}{{ latest_light.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}{% else %}ingen poster{% endif %}</p>
+        </a>
+        <a class="card" href="/ventilation">
+            <h2>Ventilasjon</h2>
+            <p>Viftestyring, temperaturer, modus og beslutningsgrunnlag.</p>
+            <p class="muted">Siste: {% if latest_vent %}{{ latest_vent.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}{% else %}ingen poster{% endif %}</p>
+        </a>
+    </div>
+    <p class="muted">HC3 poster fortsatt til <code>/events</code>. API-et fordeler automatisk til riktig tabell basert på <code>system</code>.</p>
+</main>
 </body>
 </html>
