@@ -297,7 +297,7 @@ async def read_events(
         "to": to_ts.isoformat() if to_ts else "",
         "limit": limit,
     }
-    return templates.TemplateResponse("events.html", {"request": request, "rows": rows, "filters": filters})
+    return templates.TemplateResponse(request, "events.html", {"rows": rows, "filters": filters})
 
 
 @app.get("/download")
