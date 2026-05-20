@@ -339,6 +339,30 @@ VENT_TIMELINE_DEVICES = [
     {"id": 134, "name": "Avtrekk tak/loft"},
 ]
 
+STARTUP_COLUMNS = {
+    "utelys_samples": [
+        ("light_spot_glass_275", "BOOLEAN"),
+        ("light_spot_glass_299", "BOOLEAN"),
+    ],
+    "ventilasjon_samples": [
+        ("temp_ute_netatmo", "DOUBLE PRECISION"),
+        ("temp_yr", "DOUBLE PRECISION"),
+        ("temp_min_inne", "DOUBLE PRECISION"),
+        ("temp_avg_inne", "DOUBLE PRECISION"),
+        ("temp_max_inne", "DOUBLE PRECISION"),
+        ("estimated_sunbeds", "INTEGER"),
+        ("afterrun_active", "BOOLEAN"),
+        ("heat_need", "BOOLEAN"),
+        ("cool_need", "BOOLEAN"),
+        ("open_time", "BOOLEAN"),
+        ("pre_cooling", "BOOLEAN"),
+        ("exhaust_time_allowed", "BOOLEAN"),
+    ],
+    "access_keys": [
+        ("key_plaintext", "VARCHAR"),
+    ],
+}
+
 
 def value_from_payload(data: EventDataIn, key: str):
     explicit = getattr(data, key)
@@ -367,10 +391,6 @@ def normalize_username(value: str) -> str:
 
 def credential_hash(username: str, password: str) -> str:
     return hash_access_key(normalize_username(username) + "\0" + password)
-
-
-def key_prefix(value: str) -> str:
-    return "key_" + hash_access_key(value)[:8]
 
 
 def credential_prefix(username: str, password: str) -> str:
@@ -627,6 +647,54 @@ def temp_label(value) -> str:
     if value is None:
         return "-"
     return f"{float(value):.1f}°"
+
+
+def minutes_since(value: Optional[datetime], now_value: Optional[datetime] = None) -> Optional[int]:
+    if not value:
+        return None
+    now_value = now_value or local_now_naive()
+    delta = now_value - value
+    return max(0, int(delta.total_seconds() // 60))
+
+
+def age_label(minutes: Optional[int]) -> str:
+    if minutes is None:
+        return "Ingen data"
+    if minutes < 1:
+        return "Akkurat nå"
+    if minutes < 60:
+        return f"{minutes} min siden"
+    hours = minutes // 60
+    rest = minutes % 60
+    if hours < 24:
+        return f"{hours}t {rest}m siden"
+    days = hours // 24
+    return f"{days}d siden"
+
+
+def freshness_item(name: str, row, expected_minutes: int, warning_minutes: Optional[int] = None):
+    warning_minutes = warning_minutes or expected_minutes * 2
+    stamp = row.timestamp if row else None
+    age_minutes = minutes_since(stamp)
+    if age_minutes is None:
+        status = "bad"
+        status_text = "Mangler"
+    elif age_minutes <= expected_minutes:
+        status = "ok"
+        status_text = "OK"
+    elif age_minutes <= warning_minutes:
+        status = "warn"
+        status_text = "Treg"
+    else:
+        status = "bad"
+        status_text = "Gammel"
+    return {
+        "name": name,
+        "age": age_label(age_minutes),
+        "status": status,
+        "status_text": status_text,
+        "timestamp": stamp,
+    }
 
 
 def light_status_text(row: OutdoorLightSample) -> str:
@@ -1243,9 +1311,9 @@ async def csv_response(model, columns, filename, event_type, action, device_id, 
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        await conn.exec_driver_sql("ALTER TABLE utelys_samples ADD COLUMN IF NOT EXISTS light_spot_glass_275 BOOLEAN")
-        await conn.exec_driver_sql("ALTER TABLE utelys_samples ADD COLUMN IF NOT EXISTS light_spot_glass_299 BOOLEAN")
-        await conn.exec_driver_sql("ALTER TABLE access_keys ADD COLUMN IF NOT EXISTS key_plaintext VARCHAR")
+        for table_name, columns in STARTUP_COLUMNS.items():
+            for column_name, column_type in columns:
+                await conn.exec_driver_sql(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} {column_type}")
     async with async_session() as session:
         result = await session.execute(select(AccessKey).where(AccessKey.key_hash == MASTER_ACCESS_KEY_HASH))
         master = result.scalars().first()
@@ -1476,10 +1544,21 @@ async def index(request: Request):
         134: latest_sample.fan_tak if latest_sample else None,
     }
 
-    light_status = [
-        {"id": device["id"], "name": device["name"], "row": latest_light_by_device.get(device["id"])}
-        for device in LIGHT_TIMELINE_DEVICES
-    ]
+    light_status = []
+    for device in LIGHT_TIMELINE_DEVICES:
+        row = latest_light_by_device.get(device["id"])
+        sample_state = light_sample_state(latest_light_sample, device) if latest_light_sample else None
+        event_state = state_from_event(row) if row else None
+        light_status.append(
+            {
+                "id": device["id"],
+                "name": device["name"],
+                "row": row,
+                "state": sample_state if sample_state is not None else event_state,
+                "sample_time": latest_light_sample.timestamp if sample_state is not None else None,
+                "lux": latest_light_sample.lux if latest_light_sample and latest_light_sample.lux is not None else (row.lux if row else None),
+            }
+        )
     vent_status = [
         {
             "id": device["id"],
@@ -1488,6 +1567,12 @@ async def index(request: Request):
             "state": fan_state_from_sample.get(device["id"]),
         }
         for device in VENT_TIMELINE_DEVICES
+    ]
+    freshness_items = [
+        freshness_item("Temp logg", latest_sample, 7, 15),
+        freshness_item("Lux logging", latest_light_sample, 7, 15),
+        freshness_item("Lys-hendelser", lights[0] if lights else None, 120, 360),
+        freshness_item("Ventilasjonshendelser", ventilation[0] if ventilation else None, 120, 360),
     ]
 
     return templates.TemplateResponse(
@@ -1500,6 +1585,7 @@ async def index(request: Request):
             "latest_sample": latest_sample,
             "light_status": light_status,
             "vent_status": vent_status,
+            "freshness_items": freshness_items,
         },
     )
 

@@ -91,7 +91,7 @@
                 <div class="metric">
                     <span>Siste {{ series['label'] }}</span>
                     <strong>{{ series['latest'] }}</strong>
-                    <span>{{ temp_day.summary.latest_time }}</span>
+                    <span>{{ temp_day.summary.latest_time }} · min {{ series['min'] }} / maks {{ series['max'] }}</span>
                 </div>
                 {% endfor %}
                 <div class="metric"><span>Skala</span><strong>{{ temp_day.summary.axis_min }} til {{ temp_day.summary.axis_max }}</strong></div>

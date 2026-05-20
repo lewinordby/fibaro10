@@ -95,12 +95,34 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.55rem;
         }
+        .health-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.55rem;
+            margin-bottom: 0.85rem;
+        }
         .metric {
             background: var(--soft);
             border: 1px solid #e5eaf0;
             border-radius: 8px;
             padding: 0.62rem;
             min-width: 0;
+        }
+        .health-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-left: 4px solid #94a3b8;
+            border-radius: 8px;
+            padding: 0.72rem;
+        }
+        .health-card.ok { border-left-color: var(--on); }
+        .health-card.warn { border-left-color: var(--warn); }
+        .health-card.bad { border-left-color: var(--off); }
+        .health-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.65rem;
+            align-items: start;
         }
         .label {
             display: block;
@@ -239,6 +261,7 @@
             .nav { display: flex; }
             .hero-top { grid-template-columns: 1fr auto; align-items: start; }
             .summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .health-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .fan-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
@@ -304,6 +327,29 @@
 
         <section class="section">
             <div class="section-head">
+                <h2>Datastatus</h2>
+                <a href="/day">Kontroller dagen</a>
+            </div>
+            <div class="health-grid">
+                {% for item in freshness_items %}
+                <article class="health-card {{ item.status }}">
+                    <div class="health-top">
+                        <div>
+                            <div class="name">{{ item.name }}</div>
+                            <div class="time">{{ item.age }}</div>
+                        </div>
+                        <span class="badge {% if item.status == 'ok' %}on{% elif item.status == 'bad' %}off{% else %}neutral{% endif %}">{{ item.status_text }}</span>
+                    </div>
+                    <div class="mini-row">
+                        <span>{% if item.timestamp %}{{ item.timestamp.strftime("%d.%m %H:%M") }}{% else %}-{% endif %}</span>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-head">
                 <h2>Ventilasjon</h2>
                 <a href="/ventilation">Vis hendelser</a>
             </div>
@@ -337,12 +383,12 @@
             <div class="cards lights">
                 {% for item in light_status %}
                 {% set row = item.row %}
-                {% set state = row.state if row and row.state is not none else (true if row and row.action == 'PAA' else false if row and row.action == 'AV' else none) %}
+                {% set state = item.state %}
                 <article class="status-card {% if state == true %}on{% elif state == false %}off{% endif %}">
                     <div class="status-top">
                         <div>
                             <div class="name">{{ item.name }}</div>
-                            <div class="time">{% if row %}{{ row.timestamp.strftime("%d.%m %H:%M") }}{% else %}Ingen hendelser{% endif %}</div>
+                            <div class="time">{% if item.sample_time %}Sample {{ item.sample_time.strftime("%d.%m %H:%M") }}{% elif row %}{{ row.timestamp.strftime("%d.%m %H:%M") }}{% else %}Ingen hendelser{% endif %}</div>
                         </div>
                         <span class="badge {% if state == true %}on{% elif state == false %}off{% else %}neutral{% endif %}">
                             {% if state == true %}PÅ{% elif state == false %}AV{% else %}-{% endif %}
@@ -350,7 +396,7 @@
                     </div>
                     <div class="mini-row">
                         <span>ID <strong>{{ item.id }}</strong></span>
-                        {% if row and row.lux is not none %}<span>Lux <strong>{{ "%.0f"|format(row.lux) }}</strong></span>{% endif %}
+                        {% if item.lux is not none %}<span>Lux <strong>{{ "%.0f"|format(item.lux) }}</strong></span>{% endif %}
                     </div>
                     {% if row and row.reason %}
                     <div class="detail">{{ row.reason|replace("p?-grense", "på-grense")|replace("av-grense", "av-grense") }}</div>
