@@ -28,7 +28,7 @@ MASTER_ACCESS_KEY_HASH = os.getenv(
 )
 AUTH_COOKIE_NAME = "fibaro10_access_key"
 PUBLIC_PREFIXES = ("/static/",)
-PUBLIC_PATHS = {"/health", "/events", "/log", "/auth/login"}
+PUBLIC_PATHS = {"/health", "/auth/login"}
 
 app = FastAPI(title="Fibaro10")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -41,8 +41,7 @@ async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 @app.middleware("http")
 async def access_key_middleware(request: Request, call_next):
-    path = request.url.path
-    if is_public_path(path):
+    if is_public_request(request):
         return await call_next(request)
 
     raw_key = presented_access_key(request)
@@ -377,8 +376,11 @@ def wants_html(request: Request) -> bool:
     return "text/html" in accept or "*/*" in accept
 
 
-def is_public_path(path: str) -> bool:
-    return path in PUBLIC_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES)
+def is_public_request(request: Request) -> bool:
+    path = request.url.path
+    if path in PUBLIC_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES):
+        return True
+    return request.method == "POST" and path in {"/events", "/log"}
 
 
 async def parse_form_body(request: Request) -> Dict[str, str]:
