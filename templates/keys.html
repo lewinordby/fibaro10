@@ -15,8 +15,8 @@
         main { padding: 0.85rem; max-width: 1120px; margin: 0 auto; }
         .panel { background: white; border: 1px solid var(--line); border-radius: 4px; padding: 0.9rem; margin-bottom: 0.9rem; }
         .create-form { display: grid; grid-template-columns: 1fr; gap: 0.55rem; }
-        input { width: 100%; padding: 0.72rem; border: 1px solid var(--line); border-radius: 4px; background: white; font-size: 1rem; }
-        button, .button { padding: 0.72rem 0.85rem; border: 1px solid var(--line); border-radius: 4px; background: white; color: #333; text-decoration: none; cursor: pointer; }
+        .panel input { width: 100%; padding: 0.72rem; border: 1px solid var(--line); border-radius: 4px; background: white; font-size: 1rem; }
+        .panel button { padding: 0.72rem 0.85rem; border: 1px solid var(--line); border-radius: 4px; background: white; color: #333; text-decoration: none; cursor: pointer; }
         .primary { background: #4b7fbb; border-color: #4779b1; color: white; }
         .danger { color: #9d3f31; border-color: #efc1b8; background: #fbebe8; }
         .created { border: 1px solid #b8d8f0; background: #f0f7fc; padding: 0.8rem; border-radius: 4px; margin-bottom: 0.8rem; }
@@ -93,7 +93,7 @@
                             <td class="status {% if key.active %}on{% else %}off{% endif %}">{% if key.active %}Aktiv{% else %}Av{% endif %}</td>
                             <td>{% if key.is_master %}-{% elif key.key_plaintext %}<code>{{ key.key_plaintext }}</code>{% else %}Ikke lagret{% endif %}</td>
                             <td>{{ key.key_prefix }}</td>
-                            <td>{% if key.last_seen_at %}{{ key.last_seen_at.strftime("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</td>
+                            <td>{{ key.last_seen_at|localtime if key.last_seen_at else "-" }}</td>
                             <td>{{ key.last_ip or "-" }}</td>
                             <td>{{ key.uses_count or 0 }}</td>
                             <td>
@@ -128,7 +128,7 @@
                     <tbody>
                         {% for row in logs %}
                         <tr>
-                            <td>{{ row.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td>
+                            <td>{{ row.timestamp|localtime }}</td>
                             <td>{{ row.key_name or "-" }}</td>
                             <td class="status {% if row.success %}on{% else %}off{% endif %}">{% if row.success %}OK{% else %}Avvist{% endif %}</td>
                             <td>{{ row.method }} {{ row.path }}</td>

@@ -35,6 +35,17 @@ app = FastAPI(title="Fibaro10")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+
+def format_local_datetime(value: Optional[datetime]) -> str:
+    if not value:
+        return "-"
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("UTC"))
+    return value.astimezone(LOCAL_TZ).strftime("%d.%m.%Y %H:%M:%S")
+
+
+templates.env.filters["localtime"] = format_local_datetime
+
 Base = declarative_base()
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
@@ -48,7 +59,7 @@ async def access_key_middleware(request: Request, call_next):
     username, password = presented_credentials(request)
     access_key = await find_access_key(username, password)
     if not access_key:
-        await log_access_attempt(request, False, "missing_or_invalid_key")
+        await log_access_attempt(request, False, "missing_or_invalid_key", attempted_username=username)
         if wants_html(request):
             return templates.TemplateResponse(
                 request,
@@ -410,12 +421,13 @@ async def log_access_attempt(
     success: bool,
     reason: str,
     access_key: Optional[AccessKey] = None,
+    attempted_username: Optional[str] = None,
 ):
     async with async_session() as session:
         session.add(
             AccessLog(
                 access_key_id=access_key.id if access_key else None,
-                key_name=access_key.name if access_key else None,
+                key_name=access_key.name if access_key else normalize_username(attempted_username or "") or None,
                 key_prefix=access_key.key_prefix if access_key else None,
                 path=request.url.path,
                 method=request.method,
@@ -1131,7 +1143,7 @@ async def login_submit(request: Request):
     password = (form.get("password") or "").strip()
     access_key = await find_access_key(username, password)
     if not access_key:
-        await log_access_attempt(request, False, "failed_login")
+        await log_access_attempt(request, False, "failed_login", attempted_username=username)
         return templates.TemplateResponse(
             request,
             "login.html",
