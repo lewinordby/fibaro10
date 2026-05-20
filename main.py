@@ -1601,12 +1601,6 @@ async def day_view(request: Request, day: Optional[str] = None):
     now_marker = percent_between(now_local, day_start, day_end) if is_today else None
     light_items = await build_light_timeline_group(day_start, day_end, timeline_end)
     vent_items = await build_timeline_group(VentilationEvent, VENT_TIMELINE_DEVICES, "ventilasjon", day_start, day_end, timeline_end)
-    events = []
-    for group_name, items in [("Lys", light_items), ("Ventilasjon", vent_items)]:
-        for item in items:
-            for point in item["points"]:
-                events.append({**point, "group": group_name, "device": item["name"]})
-    events.sort(key=lambda event: event["time"])
     return templates.TemplateResponse(
         request,
         "day.html",
@@ -1619,7 +1613,6 @@ async def day_view(request: Request, day: Optional[str] = None):
             "now_label": now_local.strftime("%H:%M") if is_today else "",
             "light_items": light_items,
             "vent_items": vent_items,
-            "events": events,
             "ticks": [
                 {"label": "00", "left": 0},
                 {"label": "06", "left": 25},
