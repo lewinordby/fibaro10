@@ -3,6 +3,7 @@ from io import StringIO
 from typing import Any, Dict, Optional
 import csv
 import hashlib
+import math
 import os
 from urllib.parse import parse_qs
 from zoneinfo import ZoneInfo
@@ -562,7 +563,9 @@ def lux_y(value: float, max_lux: float) -> float:
     usable = graph_bottom - graph_top
     if max_lux <= 0:
         return graph_bottom
-    return round(graph_bottom - max(0, min(1, value / max_lux)) * usable, 2)
+    scaled_value = math.log1p(max(0, value))
+    scaled_max = math.log1p(max_lux)
+    return round(graph_bottom - max(0, min(1, scaled_value / scaled_max)) * usable, 2)
 
 
 def light_status_text(row: OutdoorLightSample) -> str:
