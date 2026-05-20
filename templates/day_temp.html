@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dagslogg temp</title>
     <style>
-        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --brand:#5292d6; --yr:#4b7fbb; --one:#df705d; --now:#ef4444; }
+        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --brand:#5292d6; --yr:#4b7fbb; --one:#df705d; --loft:#726189; --now:#ef4444; --fan-on:#52a464; --fan-off:#df705d; }
         * { box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
         header { position: sticky; top: 0; z-index: 5; background: rgba(244,246,248,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; }
@@ -30,6 +30,13 @@
         .temp-line { fill: none; stroke-width: 2.1; stroke-linejoin: round; stroke-linecap: round; }
         .temp-line.yr { stroke: var(--yr); }
         .temp-line.one { stroke: var(--one); }
+        .temp-line.loft { stroke: var(--loft); }
+        .fan-event-line { stroke-width: 2; opacity: 0.9; }
+        .fan-event-line.on { stroke: var(--fan-on); }
+        .fan-event-line.off { stroke: var(--fan-off); }
+        .fan-event-label { font-size: 10px; font-weight: 800; }
+        .fan-event-label.on { fill: var(--fan-on); }
+        .fan-event-label.off { fill: var(--fan-off); }
         .label { fill: var(--muted); font-size: 18px; }
         .y-label { fill: #64748b; font-size: 10px; font-weight: 650; }
         .now-line { stroke: var(--now); stroke-width: 2; }
@@ -39,6 +46,9 @@
         .swatch { width: 1.2rem; height: 0.18rem; border-radius: 999px; display: inline-block; }
         .swatch.yr { background: var(--yr); }
         .swatch.one { background: var(--one); }
+        .swatch.loft { background: var(--loft); }
+        .swatch.fan-on { background: var(--fan-on); height: 0.8rem; width: 0.18rem; }
+        .swatch.fan-off { background: var(--fan-off); height: 0.8rem; width: 0.18rem; }
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: white; }
         th, td { padding: 0.58rem; border-bottom: 1px solid #edf1f5; text-align: left; font-size: 0.88rem; vertical-align: top; }
@@ -47,7 +57,7 @@
         @media (min-width: 760px) {
             main { padding: 1.25rem; }
             .datebar { grid-template-columns: auto auto auto; justify-content: start; }
-            .summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .summary { grid-template-columns: repeat(5, minmax(0, 1fr)); }
         }
         @media (max-width: 520px) {
             form.day-form { grid-template-columns: 1fr; }
@@ -88,7 +98,7 @@
                 </div>
                 {% endfor %}
                 <div class="metric"><span>Skala</span><strong>{{ temp_day.summary.axis_min }} til {{ temp_day.summary.axis_max }}</strong></div>
-                <div class="metric"><span>Antall målinger</span><strong>{{ temp_day.summary.count }}</strong></div>
+                <div class="metric"><span>Antall målinger</span><strong>{{ temp_day.summary.count }}</strong><span>{{ temp_day.summary.fan_event_count }} takviftehendelser</span></div>
             </div>
             <div class="chart-wrap">
                 <div class="chart-card">
@@ -101,6 +111,10 @@
                         {% for tick in temp_day.y_ticks %}
                         <line class="y-grid" x1="0" y1="{{ tick.y }}" x2="1000" y2="{{ tick.y }}"></line>
                         <text class="y-label" x="8" y="{{ tick.y - 4 }}">{{ tick.label }}</text>
+                        {% endfor %}
+                        {% for event in temp_day.fan_events %}
+                        <line class="fan-event-line {{ event['class'] }}" x1="{{ event['x'] }}" y1="22" x2="{{ event['x'] }}" y2="278"></line>
+                        <text class="fan-event-label {{ event['class'] }}" x="{{ event['x'] + 4 }}" y="38">{{ event['action'] }}</text>
                         {% endfor %}
                         {% for series in temp_day.series %}
                         {% if series['polyline'] %}
@@ -118,6 +132,8 @@
                 {% for series in temp_day.series %}
                 <span class="key"><span class="swatch {{ series['class'] }}"></span>{{ series['label'] }}</span>
                 {% endfor %}
+                <span class="key"><span class="swatch fan-on"></span>Takvifte PÅ</span>
+                <span class="key"><span class="swatch fan-off"></span>Takvifte AV</span>
                 <span class="key">Grafen stopper ved nå-linjen for dagens dato</span>
             </div>
         </section>
@@ -134,6 +150,7 @@
                             <th>Tid</th>
                             <th>Yr</th>
                             <th>1.etg</th>
+                            <th>Loft</th>
                             <th>Modus</th>
                             <th>Kilde</th>
                         </tr>
@@ -144,6 +161,7 @@
                             <td>{{ row.time }}</td>
                             <td>{{ row.temp_yr_label }}</td>
                             <td>{{ row.temp_1etg_label }}</td>
+                            <td>{{ row.temp_loft_label }}</td>
                             <td>{{ row.mode or "-" }}</td>
                             <td>{{ row.source or "-" }}</td>
                         </tr>

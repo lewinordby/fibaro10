@@ -945,6 +945,7 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
     series_config = [
         {"key": "temp_yr", "label": "Yr", "class": "yr"},
         {"key": "temp_1etg", "label": "1.etg", "class": "one"},
+        {"key": "temp_loft", "label": "Loft", "class": "loft"},
     ]
 
     async with async_session() as session:
@@ -955,6 +956,14 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
             .order_by(VentilationSample.timestamp.asc())
         )
         sample_rows = dedupe_samples_by_bucket(sample_result.scalars().all())
+        fan_result = await session.execute(
+            select(VentilationEvent)
+            .where(VentilationEvent.timestamp >= day_start)
+            .where(VentilationEvent.timestamp < timeline_end)
+            .where(VentilationEvent.device_id == 134)
+            .order_by(VentilationEvent.timestamp.asc())
+        )
+        fan_rows = fan_result.scalars().all()
 
     samples = []
     all_values = []
@@ -1012,14 +1021,32 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
         y_ticks.append({"label": temp_label(tick), "y": temp_y(tick, axis["min"], axis["max"])})
         tick += axis["step"]
 
+    fan_events = []
+    for row in fan_rows:
+        state = state_from_event(row)
+        if state is None:
+            continue
+        event_time = max(day_start, min(timeline_end, row.timestamp))
+        fan_events.append(
+            {
+                "x": percent_between(event_time, day_start, day_end) * 10,
+                "time": event_time.strftime("%H:%M"),
+                "action": "PÅ" if state else "AV",
+                "class": "on" if state else "off",
+                "detail": clean_display_text(row.reason or row.source or ""),
+            }
+        )
+
     summary = {
         "count": len(samples),
+        "fan_event_count": len(fan_events),
         "latest_time": samples[-1]["time"] if samples else "-",
         "axis_min": temp_label(axis["min"]),
         "axis_max": temp_label(axis["max"]),
     }
     return {
         "series": series_items,
+        "fan_events": fan_events,
         "y_ticks": y_ticks,
         "samples_desc": list(reversed(samples)),
         "summary": summary,
