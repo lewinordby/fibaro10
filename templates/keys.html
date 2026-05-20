@@ -43,7 +43,7 @@
             <img class="brand-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
             <div>
                 <h1>Nøkler</h1>
-                <p class="sub">Opprett delbare nøkler og se bruk</p>
+                <p class="sub">Opprett delte brukere og se bruk</p>
             </div>
         </div>
     </header>
@@ -51,33 +51,33 @@
         {% include "_nav.html" %}
 
         <section class="panel">
-            <h2>Ny delt nøkkel</h2>
+            <h2>Ny delt bruker</h2>
             {% if created_key %}
             <div class="created">
-                Ny nøkkel er opprettet.
-                <code>{{ created_key }}</code>
+                Ny bruker er opprettet.
+                <code>Brukernavn: {{ created_username }}<br>Passord: {{ created_key }}</code>
             </div>
             {% endif %}
             {% if error %}
             <div class="error">{{ error }}</div>
             {% endif %}
             <form class="create-form" method="post" action="/admin/keys">
-                <input type="text" name="name" placeholder="Navn, f.eks. Elektriker eller Kristian mobil" maxlength="80">
-                <input type="text" name="access_key" placeholder="Nøkkel/passord, minst 5 tegn" minlength="5" autocomplete="new-password" required>
-                <button class="primary" type="submit">Lag nøkkel</button>
+                <input type="text" name="username" placeholder="Brukernavn, f.eks. elektriker" maxlength="80" autocomplete="username" required>
+                <input type="text" name="password" placeholder="Passord, minst 5 tegn" minlength="5" autocomplete="new-password" required>
+                <button class="primary" type="submit">Lag bruker</button>
             </form>
         </section>
 
         <section class="panel">
-            <h2>Aktive og tidligere nøkler</h2>
+            <h2>Aktive og tidligere brukere</h2>
             <div class="table-wrap">
                 <table>
                     <thead>
                         <tr>
-                            <th>Navn</th>
+                            <th>Brukernavn</th>
                             <th>Type</th>
                             <th>Status</th>
-                            <th>Nøkkel</th>
+                            <th>Passord</th>
                             <th>ID</th>
                             <th>Sist brukt</th>
                             <th>IP</th>
@@ -118,7 +118,7 @@
                     <thead>
                         <tr>
                             <th>Tid</th>
-                            <th>Nøkkel</th>
+                            <th>Bruker</th>
                             <th>Status</th>
                             <th>Side</th>
                             <th>IP</th>

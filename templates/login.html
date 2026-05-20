@@ -30,7 +30,8 @@
         <div class="error">{{ error }}</div>
         {% endif %}
         <form method="post" action="/auth/login">
-            <input type="password" name="access_key" placeholder="Masterkey eller delt nøkkel" autocomplete="current-password" autofocus>
+            <input type="text" name="username" placeholder="Brukernavn" autocomplete="username" autofocus required>
+            <input type="password" name="password" placeholder="Passord" autocomplete="current-password" required>
             <button type="submit">Logg inn</button>
         </form>
         <p class="hint">HC3 kan fortsatt poste loggdata uten innlogging.</p>

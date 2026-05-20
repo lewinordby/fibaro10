@@ -25,7 +25,8 @@ MASTER_ACCESS_KEY_HASH = os.getenv(
     "MASTER_ACCESS_KEY_HASH",
     "752ede847bd180ef3d2700d117d297ced1b25664b946a3639fb7a3b2be93d5d1",
 )
-AUTH_COOKIE_NAME = "fibaro10_access_key"
+AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
+AUTH_COOKIE_NAME = "fibaro10_access_password"
 PUBLIC_PREFIXES = ("/static/",)
 PUBLIC_PATHS = {"/health", "/auth/login"}
 
@@ -43,18 +44,18 @@ async def access_key_middleware(request: Request, call_next):
     if is_public_request(request):
         return await call_next(request)
 
-    raw_key = presented_access_key(request)
-    access_key = await find_access_key(raw_key)
+    username, password = presented_credentials(request)
+    access_key = await find_access_key(username, password)
     if not access_key:
         await log_access_attempt(request, False, "missing_or_invalid_key")
         if wants_html(request):
             return templates.TemplateResponse(
                 request,
                 "login.html",
-                {"error": "Mangler eller ugyldig nøkkel"},
+                {"error": "Mangler eller ugyldig brukernavn/passord"},
                 status_code=401,
             )
-        return JSONResponse({"detail": "Ugyldig eller manglende nøkkel"}, status_code=401)
+        return JSONResponse({"detail": "Ugyldig eller manglende brukernavn/passord"}, status_code=401)
 
     request.state.access_key_id = access_key.id
     request.state.access_key_name = access_key.name
@@ -348,8 +349,20 @@ def hash_access_key(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def normalize_username(value: str) -> str:
+    return value.strip().casefold()
+
+
+def credential_hash(username: str, password: str) -> str:
+    return hash_access_key(normalize_username(username) + "\0" + password)
+
+
 def key_prefix(value: str) -> str:
     return "key_" + hash_access_key(value)[:8]
+
+
+def credential_prefix(username: str, password: str) -> str:
+    return "key_" + credential_hash(username, password)[:8]
 
 
 def client_ip(request: Request) -> str:
@@ -359,12 +372,18 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
-def presented_access_key(request: Request) -> Optional[str]:
-    return (
-        request.query_params.get("key")
-        or request.headers.get("x-access-key")
+def presented_credentials(request: Request) -> tuple[Optional[str], Optional[str]]:
+    username = (
+        request.query_params.get("username")
+        or request.headers.get("x-access-username")
+        or request.cookies.get(AUTH_USER_COOKIE_NAME)
+    )
+    password = (
+        request.query_params.get("password")
+        or request.headers.get("x-access-password")
         or request.cookies.get(AUTH_COOKIE_NAME)
     )
+    return username, password
 
 
 def wants_html(request: Request) -> bool:
@@ -419,20 +438,27 @@ async def log_access_attempt(
         await session.commit()
 
 
-async def find_access_key(raw_key: Optional[str]) -> Optional[AccessKey]:
-    if not raw_key:
+async def find_access_key(username: Optional[str], password: Optional[str]) -> Optional[AccessKey]:
+    if not username or not password:
         return None
-    hashed = hash_access_key(raw_key)
+    normalized_username = normalize_username(username)
+    if normalized_username == "master":
+        hashed = hash_access_key(password)
+    else:
+        hashed = credential_hash(normalized_username, password)
     async with async_session() as session:
         result = await session.execute(
-            select(AccessKey).where(AccessKey.key_hash == hashed).where(AccessKey.active == True)
+            select(AccessKey)
+            .where(AccessKey.name == normalized_username)
+            .where(AccessKey.key_hash == hashed)
+            .where(AccessKey.active == True)
         )
         return result.scalars().first()
 
 
 def require_master(request: Request):
     if not getattr(request.state, "auth_is_master", False):
-        return JSONResponse({"detail": "Masterkey kreves"}, status_code=403)
+        return JSONResponse({"detail": "Masterbruker kreves"}, status_code=403)
     return None
 
 
@@ -950,19 +976,34 @@ async def startup():
         result = await session.execute(select(AccessKey).where(AccessKey.key_hash == MASTER_ACCESS_KEY_HASH))
         master = result.scalars().first()
         if master:
-            master.name = "Master"
+            master.name = "master"
+            master.key_prefix = "sun2_master"
             master.is_master = True
             master.active = True
         else:
             session.add(
                 AccessKey(
-                    name="Master",
+                    name="master",
                     key_hash=MASTER_ACCESS_KEY_HASH,
                     key_prefix="sun2_master",
                     is_master=True,
                     active=True,
                 )
             )
+        legacy_shared = (
+            await session.execute(
+                select(AccessKey)
+                .where(AccessKey.is_master == False)
+                .where(AccessKey.key_plaintext.isnot(None))
+            )
+        ).scalars().all()
+        for key in legacy_shared:
+            username = normalize_username(key.name)
+            password = key.key_plaintext or ""
+            if username and password:
+                key.name = username
+                key.key_hash = credential_hash(username, password)
+                key.key_prefix = credential_prefix(username, password)
         await session.commit()
 
 
@@ -979,20 +1020,29 @@ async def login_view(request: Request):
 @app.post("/auth/login")
 async def login_submit(request: Request):
     form = await parse_form_body(request)
-    raw_key = (form.get("access_key") or "").strip()
-    access_key = await find_access_key(raw_key)
+    username = normalize_username(form.get("username") or "")
+    password = (form.get("password") or "").strip()
+    access_key = await find_access_key(username, password)
     if not access_key:
         await log_access_attempt(request, False, "failed_login")
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "Ugyldig nøkkel"},
+            {"error": "Ugyldig brukernavn eller passord"},
             status_code=401,
         )
     response = RedirectResponse("/", status_code=303)
     response.set_cookie(
+        AUTH_USER_COOKIE_NAME,
+        username,
+        max_age=60 * 60 * 24 * 365,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    response.set_cookie(
         AUTH_COOKIE_NAME,
-        raw_key,
+        password,
         max_age=60 * 60 * 24 * 365,
         httponly=True,
         secure=True,
@@ -1005,6 +1055,7 @@ async def login_submit(request: Request):
 @app.post("/auth/logout")
 async def logout():
     response = RedirectResponse("/auth/login", status_code=303)
+    response.delete_cookie(AUTH_USER_COOKIE_NAME)
     response.delete_cookie(AUTH_COOKIE_NAME)
     return response
 
@@ -1020,7 +1071,7 @@ async def keys_view(request: Request):
     return templates.TemplateResponse(
         request,
         "keys.html",
-        {"keys": key_rows, "logs": log_rows, "created_key": "", "error": ""},
+        {"keys": key_rows, "logs": log_rows, "created_username": "", "created_key": "", "error": ""},
     )
 
 
@@ -1030,11 +1081,9 @@ async def keys_create(request: Request):
     if forbidden:
         return forbidden
     form = await parse_form_body(request)
-    name = (form.get("name") or "").strip()[:80]
-    raw_key = (form.get("access_key") or "").strip()
-    if not name:
-        name = "Delt nøkkel"
-    if len(raw_key) < 5:
+    username = normalize_username(form.get("username") or form.get("name") or "")[:80]
+    password = (form.get("password") or form.get("access_key") or "").strip()
+    if not username:
         async with async_session() as session:
             key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
             log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
@@ -1044,20 +1093,56 @@ async def keys_create(request: Request):
             {
                 "keys": key_rows,
                 "logs": log_rows,
+                "created_username": "",
                 "created_key": "",
-                "error": "Nøkkelen må være minst 5 tegn.",
+                "error": "Brukernavn må fylles ut.",
             },
             status_code=400,
         )
-    record = AccessKey(
-        name=name,
-        key_hash=hash_access_key(raw_key),
-        key_prefix=key_prefix(raw_key),
-        key_plaintext=raw_key,
-        is_master=False,
-        active=True,
-    )
+    if len(password) < 5:
+        async with async_session() as session:
+            key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
+            log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
+        return templates.TemplateResponse(
+            request,
+            "keys.html",
+            {
+                "keys": key_rows,
+                "logs": log_rows,
+                "created_username": "",
+                "created_key": "",
+                "error": "Passordet må være minst 5 tegn.",
+            },
+            status_code=400,
+        )
+    existing_hash = credential_hash(username, password)
     async with async_session() as session:
+        existing = (
+            await session.execute(select(AccessKey).where(AccessKey.key_hash == existing_hash))
+        ).scalars().first()
+        if existing:
+            key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
+            log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
+            return templates.TemplateResponse(
+                request,
+                "keys.html",
+                {
+                    "keys": key_rows,
+                    "logs": log_rows,
+                    "created_username": "",
+                    "created_key": "",
+                    "error": "Denne kombinasjonen av brukernavn og passord finnes allerede.",
+                },
+                status_code=400,
+            )
+        record = AccessKey(
+            name=username,
+            key_hash=existing_hash,
+            key_prefix=credential_prefix(username, password),
+            key_plaintext=password,
+            is_master=False,
+            active=True,
+        )
         session.add(record)
         await session.commit()
         key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
@@ -1065,7 +1150,7 @@ async def keys_create(request: Request):
     return templates.TemplateResponse(
         request,
         "keys.html",
-        {"keys": key_rows, "logs": log_rows, "created_key": raw_key, "error": ""},
+        {"keys": key_rows, "logs": log_rows, "created_username": username, "created_key": password, "error": ""},
     )
 
 
