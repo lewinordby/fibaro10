@@ -860,7 +860,7 @@ async def day_view(request: Request, day: Optional[str] = None):
     light_items = await build_light_timeline_group(day_start, day_end, timeline_end)
     vent_items = await build_timeline_group(VentilationEvent, VENT_TIMELINE_DEVICES, "ventilasjon", day_start, day_end, timeline_end)
     events = []
-    for group_name, items in [("Ute lys", light_items), ("Ventilasjon", vent_items)]:
+    for group_name, items in [("Lys", light_items), ("Ventilasjon", vent_items)]:
         for item in items:
             for point in item["points"]:
                 events.append({**point, "group": group_name, "device": item["name"]})
