@@ -548,6 +548,31 @@ def total_from_segments(segments) -> str:
     return f"{total_minutes // 60}t {total_minutes % 60}m"
 
 
+def lux_scale_max(values) -> float:
+    max_value = max([value for value in values if value is not None] or [100])
+    for step in [100, 250, 500, 1000, 1500, 2000, 3000, 5000, 10000, 20000, 50000]:
+        if max_value <= step:
+            return float(step)
+    return float(((int(max_value) // 10000) + 1) * 10000)
+
+
+def lux_y(value: float, max_lux: float) -> float:
+    graph_top = 22
+    graph_bottom = 278
+    usable = graph_bottom - graph_top
+    if max_lux <= 0:
+        return graph_bottom
+    return round(graph_bottom - max(0, min(1, value / max_lux)) * usable, 2)
+
+
+def light_status_text(row: OutdoorLightSample) -> str:
+    active = []
+    for device in LIGHT_TIMELINE_DEVICES:
+        if light_sample_state(row, device):
+            active.append(device["name"])
+    return ", ".join(active) if active else "Alt av"
+
+
 def event_detail(system: str, row) -> str:
     pieces = []
     if system == "lys" and row.lux is not None:
@@ -777,6 +802,104 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
         })
 
     return items
+
+
+async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: datetime):
+    async with async_session() as session:
+        sample_result = await session.execute(
+            select(OutdoorLightSample)
+            .where(OutdoorLightSample.timestamp >= day_start)
+            .where(OutdoorLightSample.timestamp < timeline_end)
+            .order_by(OutdoorLightSample.timestamp.asc())
+        )
+        sample_rows = dedupe_samples_by_bucket(sample_result.scalars().all())
+        event_result = await session.execute(
+            select(OutdoorLightEvent)
+            .where(OutdoorLightEvent.lux.isnot(None))
+            .where(OutdoorLightEvent.timestamp >= day_start)
+            .where(OutdoorLightEvent.timestamp < timeline_end)
+            .order_by(OutdoorLightEvent.timestamp.asc())
+        )
+        event_rows = event_result.scalars().all()
+
+    samples = []
+    lux_values = []
+    for row in sample_rows:
+        sample_time = row.bucket_start or row.timestamp
+        lux_value = row.lux if row.lux is not None else row.value
+        if sample_time is None or lux_value is None:
+            continue
+        lux_values.append(lux_value)
+        samples.append(
+            {
+                "time_dt": sample_time,
+                "time": sample_time.strftime("%H:%M"),
+                "lux": round(lux_value, 1),
+                "lux_label": f"{lux_value:.0f}",
+                "mode": row.mode or "",
+                "source": row.source or "",
+                "lights": light_status_text(row),
+            }
+        )
+
+    max_lux = lux_scale_max(lux_values)
+    points = []
+    for sample in samples:
+        points.append(
+            {
+                **sample,
+                "x": percent_between(sample["time_dt"], day_start, day_end) * 10,
+                "y": lux_y(float(sample["lux"]), max_lux),
+            }
+        )
+    polyline = " ".join(f"{point['x']:.2f},{point['y']:.2f}" for point in points)
+
+    thresholds = [
+        {"label": "Gatelys PÅ", "value": 50, "class": "street"},
+        {"label": "Inngang PÅ", "value": 100, "class": "entrance"},
+        {"label": "Reklame PÅ", "value": 500, "class": "ads"},
+        {"label": "Lyslist PÅ", "value": 1000, "class": "strip"},
+        {"label": "Spot glass PÅ", "value": 1500, "class": "glass"},
+        {"label": "Spot glass AV", "value": 2000, "class": "glass-off"},
+    ]
+    visible_thresholds = [
+        {**threshold, "y": lux_y(threshold["value"], max_lux)}
+        for threshold in thresholds
+        if threshold["value"] <= max_lux
+    ]
+
+    event_markers = [
+        {
+            "x": percent_between(row.timestamp, day_start, day_end) * 10,
+            "y": lux_y(float(row.lux), max_lux),
+            "time": row.timestamp.strftime("%H:%M"),
+            "device": row.device_name or (str(row.device_id) if row.device_id is not None else "Lys"),
+            "action": display_action(row.action),
+            "action_class": "on" if row.action == "PAA" else "off" if row.action == "AV" else "neutral",
+            "lux_label": f"{row.lux:.0f}",
+            "reason": clean_display_text(row.reason or row.source or ""),
+        }
+        for row in event_rows
+        if row.lux is not None
+    ]
+
+    lux_only = [sample["lux"] for sample in samples]
+    summary = {
+        "count": len(samples),
+        "min": f"{min(lux_only):.0f}" if lux_only else "-",
+        "max": f"{max(lux_only):.0f}" if lux_only else "-",
+        "latest": f"{lux_only[-1]:.0f}" if lux_only else "-",
+        "latest_time": samples[-1]["time"] if samples else "-",
+        "scale_max": f"{max_lux:.0f}",
+    }
+    return {
+        "points": points,
+        "polyline": polyline,
+        "thresholds": visible_thresholds,
+        "events": event_markers,
+        "samples_desc": list(reversed(samples)),
+        "summary": summary,
+    }
 
 
 def row_to_dict(row, columns):
@@ -1266,6 +1389,38 @@ async def day_view(request: Request, day: Optional[str] = None):
                 {"label": "12", "left": 50},
                 {"label": "18", "left": 75},
                 {"label": "24", "left": 100},
+            ],
+        },
+    )
+
+
+@app.get("/day/lux", response_class=HTMLResponse)
+async def day_lux_view(request: Request, day: Optional[str] = None):
+    selected_day = parse_day(day)
+    day_start = datetime.combine(selected_day, time.min)
+    day_end = day_start + timedelta(days=1)
+    now_local = local_now_naive()
+    is_today = selected_day == now_local.date()
+    timeline_end = min(now_local, day_end) if is_today else day_end
+    now_marker = percent_between(now_local, day_start, day_end) if is_today else None
+    lux_day = await build_lux_day(day_start, day_end, timeline_end)
+    return templates.TemplateResponse(
+        request,
+        "day_lux.html",
+        {
+            "selected_day": selected_day.isoformat(),
+            "prev_day": (selected_day - timedelta(days=1)).isoformat(),
+            "next_day": (selected_day + timedelta(days=1)).isoformat(),
+            "is_today": is_today,
+            "now_marker": now_marker,
+            "now_label": now_local.strftime("%H:%M") if is_today else "",
+            "lux_day": lux_day,
+            "ticks": [
+                {"label": "00", "x": 0},
+                {"label": "06", "x": 250},
+                {"label": "12", "x": 500},
+                {"label": "18", "x": 750},
+                {"label": "24", "x": 1000},
             ],
         },
     )
