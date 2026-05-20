@@ -240,6 +240,8 @@ VENT_SAMPLE_COLUMNS = [
 LIGHT_TIMELINE_DEVICES = [
     {"id": 425, "name": "Lyslist dekor"},
     {"id": 427, "name": "Reklameplakater"},
+    {"id": 275, "name": "Spot foran glassvegg"},
+    {"id": 299, "name": "Spot foran massasje"},
     {"id": 424, "name": "6xspot over inngang"},
     {"id": 440, "name": "Parkeringslys/gatelys"},
 ]

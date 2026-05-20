@@ -73,9 +73,12 @@
                 </div>
                 <div class="lux">{% if row.lux is not none %}{{ "%.0f"|format(row.lux) }}{% else %}-{% endif %} lux</div>
             </div>
+            {% set extra = row.extra or {} %}
             <div class="grid">
                 <div class="light"><span class="light-name">Lyslist</span><span class="badge {% if row.light_lyslist %}on{% else %}off{% endif %}">{% if row.light_lyslist %}PÅ{% else %}AV{% endif %}</span></div>
                 <div class="light"><span class="light-name">Reklame</span><span class="badge {% if row.light_reklame %}on{% else %}off{% endif %}">{% if row.light_reklame %}PÅ{% else %}AV{% endif %}</span></div>
+                <div class="light"><span class="light-name">Spot glass 275</span><span class="badge {% if extra.light_spot_glass_275 %}on{% else %}off{% endif %}">{% if extra.light_spot_glass_275 %}PÅ{% else %}AV{% endif %}</span></div>
+                <div class="light"><span class="light-name">Spot glass 299</span><span class="badge {% if extra.light_spot_glass_299 %}on{% else %}off{% endif %}">{% if extra.light_spot_glass_299 %}PÅ{% else %}AV{% endif %}</span></div>
                 <div class="light"><span class="light-name">6xspot inngang</span><span class="badge {% if row.light_spot_inngang %}on{% else %}off{% endif %}">{% if row.light_spot_inngang %}PÅ{% else %}AV{% endif %}</span></div>
                 <div class="light"><span class="light-name">Parkering</span><span class="badge {% if row.light_parkering %}on{% else %}off{% endif %}">{% if row.light_parkering %}PÅ{% else %}AV{% endif %}</span></div>
             </div>
