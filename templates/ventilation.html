@@ -74,7 +74,10 @@
         <div class="empty">Ingen hendelser funnet.</div>
         {% endif %}
         {% for row in rows %}
-        {% set reason = (row.reason or row.source or "")|replace("p?-grense", "på-grense")|replace("P?", "PÅ")|replace("innbl?sing", "innblåsing")|replace("KJOLING", "KJØLING")|replace("kjolebehov", "kjølebehov") %}
+        {% set raw_reason = row.reason or row.source or "" %}
+        {% set reason = raw_reason|replace("p?-grense", "på-grense")|replace("P?", "PÅ")|replace("innbl?sing", "innblåsing")|replace("innblasing", "innblåsing")|replace("KJ?LING", "KJØLING")|replace("KJOLING", "KJØLING")|replace("kj?lebehov", "kjølebehov")|replace("kjolebehov", "kjølebehov") %}
+        {% set mode_text = (row.mode or "")|replace("KJ?LING", "KJØLING")|replace("KJOLING", "KJØLING") %}
+        {% set source_text = (row.source or "")|replace("innbl?sing", "innblåsing")|replace("innblasing", "innblåsing")|replace("KJ?LING", "KJØLING")|replace("KJOLING", "KJØLING")|replace("kj?lebehov", "kjølebehov")|replace("kjolebehov", "kjølebehov") %}
         {% set reason_l = reason|lower %}
         {% set trig_loft = 'loft' in reason_l %}
         {% set trig_ute = 'ute' in reason_l %}
@@ -89,7 +92,7 @@
                 <span class="badge {% if row.action == 'PAA' %}on{% elif row.action == 'AV' %}off{% else %}test{% endif %}">{% if row.action == 'PAA' %}PÅ{% else %}{{ row.action or "" }}{% endif %}</span>
             </div>
             <div class="line">
-                <span>Modus: <strong>{{ (row.mode or "")|replace("KJOLING", "KJØLING") }}</strong></span>
+                <span>Modus: <strong>{{ mode_text }}</strong></span>
                 {% if row.value is not none %}<span>Styringsverdi: <strong>{{ "%.1f"|format(row.value) }}</strong></span>{% endif %}
             </div>
             <div class="temps">
@@ -102,7 +105,7 @@
                 <div class="temp {% if trig_diff %}trigger{% endif %}"><span class="temp-label">Diff W</span><span class="temp-value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span></div>
             </div>
             <div class="trigger-note">Utløst av: {{ reason }}</div>
-            <div class="reason">{{ row.source or "" }}</div>
+            <div class="reason">{{ source_text }}</div>
         </article>
         {% endfor %}
     </main>
