@@ -27,13 +27,10 @@
         svg { display: block; width: 100%; height: auto; background: linear-gradient(#fff, #fbfdff); border: 1px solid #e5eaf0; border-radius: 7px; }
         .axis { stroke: #cbd5e1; stroke-width: 1; }
         .grid { stroke: #e5eaf0; stroke-width: 1; }
-        .threshold { stroke-width: 1; opacity: 0.42; }
-        .threshold.low { stroke: #64748b; }
-        .threshold.medium { stroke: #64748b; }
-        .threshold.high { stroke: #64748b; }
+        .y-grid { stroke: #e5eaf0; stroke-width: 1; }
         .lux-line { fill: none; stroke: var(--lux); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
         .label { fill: var(--muted); font-size: 18px; }
-        .threshold-label { fill: #64748b; font-size: 12px; font-weight: 650; }
+        .y-label { fill: #64748b; font-size: 11px; font-weight: 650; }
         .now-line { stroke: #ef4444; stroke-width: 2; }
         .now-label { fill: #ef4444; font-size: 13px; font-weight: 800; }
         .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--muted); font-size: 0.86rem; margin-top: 0.65rem; }
@@ -93,9 +90,9 @@
                         <line class="grid" x1="{{ tick.x }}" y1="22" x2="{{ tick.x }}" y2="278"></line>
                         <text class="label" x="{{ tick.x }}" y="313" text-anchor="middle">{{ tick.label }}</text>
                         {% endfor %}
-                        {% for threshold in lux_day.thresholds %}
-                        <line class="threshold {{ threshold.class }}" x1="0" y1="{{ threshold.y }}" x2="1000" y2="{{ threshold.y }}"></line>
-                        <text class="threshold-label" x="8" y="{{ threshold.y - 4 }}">{{ threshold.label }}</text>
+                        {% for tick in lux_day.y_ticks %}
+                        <line class="y-grid" x1="0" y1="{{ tick.y }}" x2="1000" y2="{{ tick.y }}"></line>
+                        <text class="y-label" x="8" y="{{ tick.y - 4 }}">{{ tick.label }}</text>
                         {% endfor %}
                         {% if lux_day.polyline %}
                         <polyline class="lux-line" points="{{ lux_day.polyline }}"></polyline>
@@ -108,8 +105,8 @@
                 </div>
             </div>
             <div class="legend">
-                <span class="key"><span class="swatch"></span>Logaritmisk luxkurve fra 5-minutters målinger</span>
-                <span class="key">Skala: log(1 + lux), slik at 0 lux kan vises</span>
+                <span class="key"><span class="swatch"></span>Luxkurve fra 5-minutters målinger</span>
+                <span class="key">Skala: 0-{{ lux_day.summary.scale_max }} lux, {{ lux_day.summary.scale_step }} lux per rute</span>
                 <span class="key">Grafen stopper ved nå-linjen for dagens dato</span>
             </div>
         </section>

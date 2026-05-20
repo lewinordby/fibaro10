@@ -3,7 +3,6 @@ from io import StringIO
 from typing import Any, Dict, Optional
 import csv
 import hashlib
-import math
 import os
 from urllib.parse import parse_qs
 from zoneinfo import ZoneInfo
@@ -549,12 +548,12 @@ def total_from_segments(segments) -> str:
     return f"{total_minutes // 60}t {total_minutes % 60}m"
 
 
-def lux_scale_max(values) -> float:
+def lux_scale(values):
     max_value = max([value for value in values if value is not None] or [100])
-    for step in [100, 250, 500, 1000, 1500, 2000, 3000, 5000, 10000, 20000, 50000]:
-        if max_value <= step:
-            return float(step)
-    return float(((int(max_value) // 10000) + 1) * 10000)
+    for axis_max, step in [(50, 5), (200, 20), (1000, 100), (2000, 200), (10000, 1000), (20000, 2000)]:
+        if max_value <= axis_max:
+            return {"max": float(axis_max), "step": step}
+    return {"max": 20000.0, "step": 2000}
 
 
 def lux_y(value: float, max_lux: float) -> float:
@@ -563,9 +562,7 @@ def lux_y(value: float, max_lux: float) -> float:
     usable = graph_bottom - graph_top
     if max_lux <= 0:
         return graph_bottom
-    scaled_value = math.log1p(max(0, value))
-    scaled_max = math.log1p(max_lux)
-    return round(graph_bottom - max(0, min(1, scaled_value / scaled_max)) * usable, 2)
+    return round(graph_bottom - max(0, min(1, value / max_lux)) * usable, 2)
 
 
 def light_status_text(row: OutdoorLightSample) -> str:
@@ -837,7 +834,8 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
             }
         )
 
-    max_lux = lux_scale_max(lux_values)
+    scale = lux_scale(lux_values)
+    max_lux = scale["max"]
     points = []
     for sample in samples:
         points.append(
@@ -849,15 +847,13 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
         )
     polyline = " ".join(f"{point['x']:.2f},{point['y']:.2f}" for point in points)
 
-    thresholds = [
-        {"label": "100", "value": 100, "class": "low"},
-        {"label": "1000", "value": 1000, "class": "medium"},
-        {"label": "10000", "value": 10000, "class": "high"},
-    ]
-    visible_thresholds = [
-        {**threshold, "y": lux_y(threshold["value"], max_lux)}
-        for threshold in thresholds
-        if threshold["value"] <= max_lux
+    y_ticks = [
+        {
+            "label": f"{value:g}",
+            "value": value,
+            "y": lux_y(float(value), max_lux),
+        }
+        for value in range(scale["step"], int(max_lux) + 1, scale["step"])
     ]
 
     lux_only = [sample["lux"] for sample in samples]
@@ -868,11 +864,12 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
         "latest": f"{lux_only[-1]:.0f}" if lux_only else "-",
         "latest_time": samples[-1]["time"] if samples else "-",
         "scale_max": f"{max_lux:.0f}",
+        "scale_step": f"{scale['step']:.0f}",
     }
     return {
         "points": points,
         "polyline": polyline,
-        "thresholds": visible_thresholds,
+        "y_ticks": y_ticks,
         "samples_desc": list(reversed(samples)),
         "summary": summary,
     }
