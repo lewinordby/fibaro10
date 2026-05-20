@@ -29,6 +29,11 @@
             <p>Viftestyring, temperaturer, modus og beslutningsgrunnlag.</p>
             <p class="muted">Siste: {% if latest_vent %}{{ latest_vent.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}{% else %}ingen poster{% endif %}</p>
         </a>
+        <a class="card" href="/day">
+            <h2>Dagslinje</h2>
+            <p>Grafisk oversikt over når lys og vifter slår seg av og på gjennom dagen.</p>
+            <p class="muted">Samler ute lys og ventilasjon i én visning.</p>
+        </a>
     </div>
     <p class="muted">HC3 poster fortsatt til <code>/events</code>. API-et fordeler automatisk til riktig tabell basert på <code>system</code>.</p>
 </main>

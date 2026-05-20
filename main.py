@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from io import StringIO
 from typing import Any, Dict, Optional
 import csv
@@ -153,6 +153,19 @@ GENERIC_COLUMNS = [
     "device_name", "mode", "reason", "source", "lux", "value", "state", "extra",
 ]
 
+LIGHT_TIMELINE_DEVICES = [
+    {"id": 425, "name": "Lyslist dekor"},
+    {"id": 427, "name": "Reklameplakater"},
+    {"id": 424, "name": "6xspot over inngang"},
+    {"id": 440, "name": "Parkeringslys/gatelys"},
+]
+
+VENT_TIMELINE_DEVICES = [
+    {"id": 130, "name": "Innluft VIP"},
+    {"id": 160, "name": "Innluft 2.etg"},
+    {"id": 134, "name": "Avtrekk tak/loft"},
+]
+
 
 def value_from_payload(data: EventDataIn, key: str):
     explicit = getattr(data, key)
@@ -178,6 +191,143 @@ def parse_datetime(value: Optional[str]) -> Optional[datetime]:
         return datetime.fromisoformat(value)
     except ValueError:
         return None
+
+
+def parse_day(value: Optional[str]) -> date:
+    if value:
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            pass
+    return datetime.utcnow().date()
+
+
+def display_action(action: Optional[str]) -> str:
+    if action == "PAA":
+        return "PÅ"
+    return action or ""
+
+
+def state_from_event(row):
+    if row.action == "PAA":
+        return True
+    if row.action == "AV":
+        return False
+    if row.state is not None:
+        return bool(row.state)
+    return None
+
+
+def percent_between(value: datetime, start: datetime, end: datetime) -> float:
+    total = (end - start).total_seconds()
+    if total <= 0:
+        return 0
+    seconds = (value - start).total_seconds()
+    return round(max(0, min(100, seconds / total * 100)), 3)
+
+
+def span_width(start_value: datetime, end_value: datetime, day_start: datetime, day_end: datetime) -> float:
+    return round(max(0, percent_between(end_value, day_start, day_end) - percent_between(start_value, day_start, day_end)), 3)
+
+
+def event_detail(system: str, row) -> str:
+    pieces = []
+    if system == "lys" and row.lux is not None:
+        pieces.append(f"Lux {row.lux:.0f}")
+    if system == "ventilasjon":
+        if row.temp_1etg is not None:
+            pieces.append(f"1.etg {row.temp_1etg:.1f}°")
+        if row.temp_2etg is not None:
+            pieces.append(f"2.etg {row.temp_2etg:.1f}°")
+        if row.temp_vip is not None:
+            pieces.append(f"VIP {row.temp_vip:.1f}°")
+        if row.temp_ute is not None:
+            pieces.append(f"ute {row.temp_ute:.1f}°")
+        if row.diff_w is not None:
+            pieces.append(f"diff {row.diff_w:.0f} W")
+    return ", ".join(pieces)
+
+
+def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end: datetime, system: str):
+    state = state_from_event(previous_row) if previous_row else False
+    if state is None:
+        state = False
+    cursor = day_start
+    segments = []
+    points = []
+
+    for row in rows:
+        event_time = max(day_start, min(day_end, row.timestamp))
+        if state and event_time > cursor:
+            segments.append({
+                "left": percent_between(cursor, day_start, day_end),
+                "width": span_width(cursor, event_time, day_start, day_end),
+                "start": cursor.strftime("%H:%M"),
+                "end": event_time.strftime("%H:%M"),
+            })
+
+        new_state = state_from_event(row)
+        reason = row.reason or row.source or ""
+        points.append({
+            "left": percent_between(event_time, day_start, day_end),
+            "time": event_time.strftime("%H:%M"),
+            "action": display_action(row.action),
+            "action_class": "on" if row.action == "PAA" else "off" if row.action == "AV" else "neutral",
+            "reason": reason,
+            "detail": event_detail(system, row),
+        })
+        if new_state is not None:
+            state = new_state
+            cursor = event_time
+
+    if state and cursor < day_end:
+        segments.append({
+            "left": percent_between(cursor, day_start, day_end),
+            "width": span_width(cursor, day_end, day_start, day_end),
+            "start": cursor.strftime("%H:%M"),
+            "end": day_end.strftime("%H:%M"),
+        })
+
+    total_minutes = int(round(sum(segment["width"] / 100 * 24 * 60 for segment in segments)))
+    return {
+        "id": device["id"],
+        "name": device["name"],
+        "segments": segments,
+        "points": points,
+        "total": f"{total_minutes // 60}t {total_minutes % 60}m",
+    }
+
+
+async def build_timeline_group(model, devices, system: str, day_start: datetime, day_end: datetime):
+    device_ids = [device["id"] for device in devices]
+    async with async_session() as session:
+        day_result = await session.execute(
+            select(model)
+            .where(model.device_id.in_(device_ids))
+            .where(model.timestamp >= day_start)
+            .where(model.timestamp < day_end)
+            .order_by(model.timestamp.asc())
+        )
+        rows = day_result.scalars().all()
+        previous = {}
+        for device_id in device_ids:
+            previous_result = await session.execute(
+                select(model)
+                .where(model.device_id == device_id)
+                .where(model.timestamp < day_start)
+                .order_by(model.timestamp.desc())
+                .limit(1)
+            )
+            previous[device_id] = previous_result.scalars().first()
+
+    rows_by_device = {device_id: [] for device_id in device_ids}
+    for row in rows:
+        rows_by_device.setdefault(row.device_id, []).append(row)
+
+    return [
+        build_timeline_item(device, rows_by_device.get(device["id"], []), previous.get(device["id"]), day_start, day_end, system)
+        for device in devices
+    ]
 
 
 def row_to_dict(row, columns):
@@ -329,6 +479,40 @@ async def index(request: Request):
         lights = (await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(1))).scalars().all()
         ventilation = (await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(1))).scalars().all()
     return templates.TemplateResponse(request, "index.html", {"latest_light": lights[0] if lights else None, "latest_vent": ventilation[0] if ventilation else None})
+
+
+@app.get("/day", response_class=HTMLResponse)
+async def day_view(request: Request, day: Optional[str] = None):
+    selected_day = parse_day(day)
+    day_start = datetime.combine(selected_day, time.min)
+    day_end = day_start + timedelta(days=1)
+    light_items = await build_timeline_group(OutdoorLightEvent, LIGHT_TIMELINE_DEVICES, "lys", day_start, day_end)
+    vent_items = await build_timeline_group(VentilationEvent, VENT_TIMELINE_DEVICES, "ventilasjon", day_start, day_end)
+    events = []
+    for group_name, items in [("Ute lys", light_items), ("Ventilasjon", vent_items)]:
+        for item in items:
+            for point in item["points"]:
+                events.append({**point, "group": group_name, "device": item["name"]})
+    events.sort(key=lambda event: event["time"])
+    return templates.TemplateResponse(
+        request,
+        "day.html",
+        {
+            "selected_day": selected_day.isoformat(),
+            "prev_day": (selected_day - timedelta(days=1)).isoformat(),
+            "next_day": (selected_day + timedelta(days=1)).isoformat(),
+            "light_items": light_items,
+            "vent_items": vent_items,
+            "events": events,
+            "ticks": [
+                {"label": "00", "left": 0},
+                {"label": "06", "left": 25},
+                {"label": "12", "left": 50},
+                {"label": "18", "left": 75},
+                {"label": "24", "left": 100},
+            ],
+        },
+    )
 
 
 @app.post("/log")
