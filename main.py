@@ -813,14 +813,6 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
             .order_by(OutdoorLightSample.timestamp.asc())
         )
         sample_rows = dedupe_samples_by_bucket(sample_result.scalars().all())
-        event_result = await session.execute(
-            select(OutdoorLightEvent)
-            .where(OutdoorLightEvent.lux.isnot(None))
-            .where(OutdoorLightEvent.timestamp >= day_start)
-            .where(OutdoorLightEvent.timestamp < timeline_end)
-            .order_by(OutdoorLightEvent.timestamp.asc())
-        )
-        event_rows = event_result.scalars().all()
 
     samples = []
     lux_values = []
@@ -868,21 +860,6 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
         if threshold["value"] <= max_lux
     ]
 
-    event_markers = [
-        {
-            "x": percent_between(row.timestamp, day_start, day_end) * 10,
-            "y": lux_y(float(row.lux), max_lux),
-            "time": row.timestamp.strftime("%H:%M"),
-            "device": row.device_name or (str(row.device_id) if row.device_id is not None else "Lys"),
-            "action": display_action(row.action),
-            "action_class": "on" if row.action == "PAA" else "off" if row.action == "AV" else "neutral",
-            "lux_label": f"{row.lux:.0f}",
-            "reason": clean_display_text(row.reason or row.source or ""),
-        }
-        for row in event_rows
-        if row.lux is not None
-    ]
-
     lux_only = [sample["lux"] for sample in samples]
     summary = {
         "count": len(samples),
@@ -896,7 +873,6 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
         "points": points,
         "polyline": polyline,
         "thresholds": visible_thresholds,
-        "events": event_markers,
         "samples_desc": list(reversed(samples)),
         "summary": summary,
     }

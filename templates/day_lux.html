@@ -35,10 +35,6 @@
         .threshold.glass { stroke: #7c3aed; }
         .threshold.glass-off { stroke: #be123c; }
         .lux-line { fill: none; stroke: var(--lux); stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
-        .sample-dot { fill: white; stroke: var(--lux); stroke-width: 2; }
-        .event-dot.on { fill: var(--on); }
-        .event-dot.off { fill: var(--off); }
-        .event-dot.neutral { fill: #4f46e5; }
         .label { fill: var(--muted); font-size: 18px; }
         .threshold-label { fill: #334155; font-size: 16px; font-weight: 700; }
         .now-line { stroke: var(--now); stroke-width: 3; }
@@ -46,7 +42,6 @@
         .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--muted); font-size: 0.86rem; margin-top: 0.65rem; }
         .key { display: inline-flex; align-items: center; gap: 0.35rem; }
         .swatch { width: 1rem; height: 0.55rem; border-radius: 999px; display: inline-block; background: var(--lux); }
-        .swatch.event { background: var(--on); }
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: white; }
         th, td { padding: 0.58rem; border-bottom: 1px solid #edf1f5; text-align: left; font-size: 0.88rem; vertical-align: top; }
@@ -108,16 +103,6 @@
                         {% if lux_day.polyline %}
                         <polyline class="lux-line" points="{{ lux_day.polyline }}"></polyline>
                         {% endif %}
-                        {% for point in lux_day.points %}
-                        <circle class="sample-dot" cx="{{ point.x }}" cy="{{ point.y }}" r="3">
-                            <title>{{ point.time }} · {{ point.lux_label }} lux</title>
-                        </circle>
-                        {% endfor %}
-                        {% for event in lux_day.events %}
-                        <circle class="event-dot {{ event.action_class }}" cx="{{ event.x }}" cy="{{ event.y }}" r="6">
-                            <title>{{ event.time }} · {{ event.device }} {{ event.action }} · {{ event.lux_label }} lux{% if event.reason %} · {{ event.reason }}{% endif %}</title>
-                        </circle>
-                        {% endfor %}
                         {% if is_today and now_marker is not none %}
                         <line class="now-line" x1="{{ now_marker * 10 }}" y1="14" x2="{{ now_marker * 10 }}" y2="286"></line>
                         <text class="now-label" x="{{ now_marker * 10 }}" y="12" text-anchor="middle">{{ now_label }}</text>
@@ -126,8 +111,7 @@
                 </div>
             </div>
             <div class="legend">
-                <span class="key"><span class="swatch"></span>5-minutters luxmåling</span>
-                <span class="key"><span class="swatch event"></span>Lysendring med luxverdi</span>
+                <span class="key"><span class="swatch"></span>Luxkurve fra 5-minutters målinger</span>
                 <span class="key">Grafen stopper ved nå-linjen for dagens dato</span>
             </div>
         </section>
