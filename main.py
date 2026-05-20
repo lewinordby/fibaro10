@@ -3,6 +3,7 @@ from io import StringIO
 from typing import Any, Dict, Optional
 import csv
 import os
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query, Request
@@ -17,6 +18,7 @@ from sqlalchemy.orm import declarative_base
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+LOCAL_TZ = ZoneInfo("Europe/Oslo")
 
 app = FastAPI(title="Fibaro10")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -291,7 +293,11 @@ def parse_day(value: Optional[str]) -> date:
             return date.fromisoformat(value)
         except ValueError:
             pass
-    return datetime.utcnow().date()
+    return datetime.now(LOCAL_TZ).date()
+
+
+def local_now_naive() -> datetime:
+    return datetime.now(LOCAL_TZ).replace(tzinfo=None)
 
 
 def display_action(action: Optional[str]) -> str:
@@ -344,7 +350,7 @@ def event_detail(system: str, row) -> str:
     return ", ".join(pieces)
 
 
-def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end: datetime, system: str):
+def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end: datetime, timeline_end: datetime, system: str):
     state = state_from_event(previous_row) if previous_row else False
     if state is None:
         state = False
@@ -353,7 +359,9 @@ def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end
     points = []
 
     for row in rows:
-        event_time = max(day_start, min(day_end, row.timestamp))
+        if row.timestamp >= timeline_end:
+            break
+        event_time = max(day_start, min(timeline_end, row.timestamp))
         if state and event_time > cursor:
             segments.append({
                 "left": percent_between(cursor, day_start, day_end),
@@ -376,12 +384,12 @@ def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end
             state = new_state
             cursor = event_time
 
-    if state and cursor < day_end:
+    if state and cursor < timeline_end:
         segments.append({
             "left": percent_between(cursor, day_start, day_end),
-            "width": span_width(cursor, day_end, day_start, day_end),
+            "width": span_width(cursor, timeline_end, day_start, day_end),
             "start": cursor.strftime("%H:%M"),
-            "end": day_end.strftime("%H:%M"),
+            "end": timeline_end.strftime("%H:%M"),
         })
 
     total_minutes = int(round(sum(segment["width"] / 100 * 24 * 60 for segment in segments)))
@@ -394,14 +402,14 @@ def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end
     }
 
 
-async def build_timeline_group(model, devices, system: str, day_start: datetime, day_end: datetime):
+async def build_timeline_group(model, devices, system: str, day_start: datetime, day_end: datetime, timeline_end: datetime):
     device_ids = [device["id"] for device in devices]
     async with async_session() as session:
         day_result = await session.execute(
             select(model)
             .where(model.device_id.in_(device_ids))
             .where(model.timestamp >= day_start)
-            .where(model.timestamp < day_end)
+            .where(model.timestamp < timeline_end)
             .order_by(model.timestamp.asc())
         )
         rows = day_result.scalars().all()
@@ -421,7 +429,7 @@ async def build_timeline_group(model, devices, system: str, day_start: datetime,
         rows_by_device.setdefault(row.device_id, []).append(row)
 
     return [
-        build_timeline_item(device, rows_by_device.get(device["id"], []), previous.get(device["id"]), day_start, day_end, system)
+        build_timeline_item(device, rows_by_device.get(device["id"], []), previous.get(device["id"]), day_start, day_end, timeline_end, system)
         for device in devices
     ]
 
@@ -681,8 +689,12 @@ async def day_view(request: Request, day: Optional[str] = None):
     selected_day = parse_day(day)
     day_start = datetime.combine(selected_day, time.min)
     day_end = day_start + timedelta(days=1)
-    light_items = await build_timeline_group(OutdoorLightEvent, LIGHT_TIMELINE_DEVICES, "lys", day_start, day_end)
-    vent_items = await build_timeline_group(VentilationEvent, VENT_TIMELINE_DEVICES, "ventilasjon", day_start, day_end)
+    now_local = local_now_naive()
+    is_today = selected_day == now_local.date()
+    timeline_end = min(now_local, day_end) if is_today else day_end
+    now_marker = percent_between(now_local, day_start, day_end) if is_today else None
+    light_items = await build_timeline_group(OutdoorLightEvent, LIGHT_TIMELINE_DEVICES, "lys", day_start, day_end, timeline_end)
+    vent_items = await build_timeline_group(VentilationEvent, VENT_TIMELINE_DEVICES, "ventilasjon", day_start, day_end, timeline_end)
     events = []
     for group_name, items in [("Ute lys", light_items), ("Ventilasjon", vent_items)]:
         for item in items:
@@ -696,6 +708,9 @@ async def day_view(request: Request, day: Optional[str] = None):
             "selected_day": selected_day.isoformat(),
             "prev_day": (selected_day - timedelta(days=1)).isoformat(),
             "next_day": (selected_day + timedelta(days=1)).isoformat(),
+            "is_today": is_today,
+            "now_marker": now_marker,
+            "now_label": now_local.strftime("%H:%M") if is_today else "",
             "light_items": light_items,
             "vent_items": vent_items,
             "events": events,
