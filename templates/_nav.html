@@ -1,8 +1,9 @@
+{% set current_path = request.url.path %}
 <nav class="nav app-nav" aria-label="Hovedmeny">
-    <a class="button" href="/">Status</a>
-    <a class="button" href="/lights">Ute lys</a>
-    <a class="button" href="/lights/samples">Lux logging</a>
-    <a class="button" href="/ventilation">Ventilasjon</a>
-    <a class="button" href="/ventilation/samples">Læring</a>
-    <a class="button" href="/day">Dagslinje</a>
+    <a class="button {% if current_path == '/' or current_path == '/events' %}active{% endif %}" href="/">Status</a>
+    <a class="button {% if current_path == '/lights' %}active{% endif %}" href="/lights">Ute lys</a>
+    <a class="button {% if current_path == '/lights/samples' %}active{% endif %}" href="/lights/samples">Lux logging</a>
+    <a class="button {% if current_path == '/ventilation' %}active{% endif %}" href="/ventilation">Ventilasjon</a>
+    <a class="button {% if current_path == '/ventilation/samples' %}active{% endif %}" href="/ventilation/samples">Læring</a>
+    <a class="button {% if current_path == '/day' %}active{% endif %}" href="/day">Dagslinje</a>
 </nav>
