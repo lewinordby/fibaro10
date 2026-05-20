@@ -3,44 +3,395 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fibaro10</title>
+    <title>Fibaro10 status</title>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 2rem; background: #f7f8f9; color: #17202a; }
-        main { max-width: 920px; margin: 0 auto; }
-        h1 { margin-top: 0; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
-        a.card { display: block; background: white; border: 1px solid #d8dee4; border-radius: 6px; padding: 1rem; color: inherit; text-decoration: none; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-        a.card:hover { border-color: #8aa4c6; }
-        .muted { color: #667085; font-size: 0.9rem; }
-        code { background: #eef2f7; padding: 0.1rem 0.25rem; border-radius: 3px; }
+        :root {
+            color-scheme: light;
+            --bg:#eef2f6;
+            --panel:#ffffff;
+            --line:#d8dee7;
+            --text:#15202b;
+            --muted:#667085;
+            --soft:#f8fafc;
+            --on:#0f766e;
+            --on-bg:#dffaf2;
+            --off:#9f1239;
+            --off-bg:#fff1f2;
+            --warn:#b45309;
+            --warn-bg:#ffedd5;
+            --cool:#0369a1;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            padding: 0.9rem 1rem;
+            background: rgba(238,242,246,0.97);
+            border-bottom: 1px solid var(--line);
+            backdrop-filter: blur(8px);
+        }
+        h1 { margin: 0; font-size: 1.35rem; letter-spacing: 0; }
+        h2 { margin: 0; font-size: 1.05rem; letter-spacing: 0; }
+        h3 { margin: 0; font-size: 0.92rem; letter-spacing: 0; }
+        p { margin: 0; }
+        main { max-width: 1060px; margin: 0 auto; padding: 0.85rem; }
+        .sub { margin-top: 0.15rem; color: var(--muted); font-size: 0.9rem; }
+        .nav {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.85rem;
+        }
+        .button {
+            display: block;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid var(--line);
+            background: white;
+            color: #111827;
+            text-decoration: none;
+            border-radius: 7px;
+            text-align: center;
+            font-size: 0.95rem;
+            box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+        }
+        .button:hover { border-color: #94a3b8; }
+        .hero {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0.9rem;
+            margin-bottom: 0.85rem;
+            box-shadow: 0 8px 22px rgba(15,23,42,0.06);
+        }
+        .hero-top {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.7rem;
+            margin-bottom: 0.85rem;
+        }
+        .mode {
+            display: inline-flex;
+            width: fit-content;
+            align-items: center;
+            border-radius: 999px;
+            padding: 0.32rem 0.75rem;
+            background: #e0f2fe;
+            color: var(--cool);
+            border: 1px solid #bae6fd;
+            font-size: 0.78rem;
+            font-weight: 850;
+        }
+        .mode.heat { background: var(--warn-bg); color: var(--warn); border-color: #fed7aa; }
+        .mode.normal { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.55rem;
+        }
+        .metric {
+            background: var(--soft);
+            border: 1px solid #e5eaf0;
+            border-radius: 8px;
+            padding: 0.62rem;
+            min-width: 0;
+        }
+        .label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.72rem;
+            line-height: 1.15;
+        }
+        .value {
+            display: block;
+            margin-top: 0.18rem;
+            font-size: 1.08rem;
+            font-weight: 850;
+            line-height: 1.12;
+            overflow-wrap: anywhere;
+        }
+        .section {
+            margin-bottom: 0.85rem;
+        }
+        .section-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin: 0 0 0.45rem;
+        }
+        .section-head a {
+            color: #334155;
+            font-size: 0.82rem;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.55rem;
+        }
+        .status-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-left: 4px solid #94a3b8;
+            border-radius: 8px;
+            padding: 0.74rem;
+            box-shadow: 0 1px 4px rgba(15,23,42,0.04);
+        }
+        .status-card.on { border-left-color: var(--on); }
+        .status-card.off { border-left-color: var(--off); }
+        .status-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.6rem;
+        }
+        .name { font-weight: 800; line-height: 1.2; }
+        .time { color: var(--muted); font-size: 0.78rem; margin-top: 0.18rem; }
+        .badge {
+            border-radius: 999px;
+            padding: 0.24rem 0.62rem;
+            font-size: 0.75rem;
+            font-weight: 850;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+        .badge.on { background: var(--on-bg); color: var(--on); border-color: #99f6e4; }
+        .badge.off { background: var(--off-bg); color: var(--off); border-color: #fecdd3; }
+        .badge.neutral { background: #eef2f7; color: #475569; border-color: #d8dee7; }
+        .detail {
+            margin-top: 0.55rem;
+            color: #344054;
+            font-size: 0.88rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .mini-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.55rem;
+            color: var(--muted);
+            font-size: 0.82rem;
+        }
+        .mini-row strong { color: var(--text); }
+        .fan-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.55rem;
+        }
+        .fan-symbol {
+            display: inline-grid;
+            place-items: center;
+            width: 1.65rem;
+            height: 1.65rem;
+            margin-right: 0.42rem;
+            border: 1px solid currentColor;
+            border-radius: 50%;
+            background: white;
+            vertical-align: -0.45rem;
+            position: relative;
+        }
+        .fan-card.on .fan-symbol { color: var(--on); animation: fan-spin 0.85s linear infinite; }
+        .fan-card.off .fan-symbol { color: var(--off); }
+        .fan-symbol::before,
+        .fan-symbol::after {
+            content: "";
+            position: absolute;
+            width: 0.25rem;
+            height: 0.55rem;
+            border-radius: 999px;
+            background: currentColor;
+            transform-origin: 50% 0.1rem;
+        }
+        .fan-symbol::before { transform: rotate(0deg) translateY(0.12rem); }
+        .fan-symbol::after { transform: rotate(120deg) translateY(0.12rem); }
+        .fan-symbol span {
+            position: absolute;
+            width: 0.25rem;
+            height: 0.55rem;
+            border-radius: 999px;
+            background: currentColor;
+            transform-origin: 50% 0.1rem;
+            transform: rotate(240deg) translateY(0.12rem);
+        }
+        .empty {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 0.9rem;
+            color: var(--muted);
+        }
+        code {
+            background: #eef2f7;
+            padding: 0.1rem 0.25rem;
+            border-radius: 3px;
+        }
+        @media (min-width: 700px) {
+            main { padding: 1.2rem; }
+            .nav { display: flex; }
+            .hero-top { grid-template-columns: 1fr auto; align-items: start; }
+            .summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .fan-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (min-width: 980px) {
+            .cards.lights { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .fan-card.on .fan-symbol { animation: none; }
+        }
+        @keyframes fan-spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-<main>
-    <h1>Fibaro10</h1>
-    <div class="grid">
-        <a class="card" href="/lights">
-            <h2>Ute lys</h2>
-            <p>Lux, av/på-hendelser, enheter og årsak.</p>
-            <p class="muted">Siste: {% if latest_light %}{{ latest_light.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}{% else %}ingen poster{% endif %}</p>
-        </a>
-        <a class="card" href="/ventilation">
-            <h2>Ventilasjon</h2>
-            <p>Viftestyring, temperaturer, modus og beslutningsgrunnlag.</p>
-            <p class="muted">Siste: {% if latest_vent %}{{ latest_vent.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}{% else %}ingen poster{% endif %}</p>
-        </a>
-        <a class="card" href="/day">
-            <h2>Dagslinje</h2>
-            <p>Grafisk oversikt over når lys og vifter slår seg av og på gjennom dagen.</p>
-            <p class="muted">Samler ute lys og ventilasjon i én visning.</p>
-        </a>
-        <a class="card" href="/ventilation/samples">
-            <h2>Ventilasjon læring</h2>
-            <p>5-minuttersmålinger med temperaturer, YR, driftstatus og beslutningsgrunnlag.</p>
-            <p class="muted">Brukes til å justere styringen over tid.</p>
-        </a>
-    </div>
-    <p class="muted">HC3 poster fortsatt til <code>/events</code>. API-et fordeler automatisk til riktig tabell basert på <code>system</code>.</p>
-</main>
+    <header>
+        <h1>Fibaro10 status</h1>
+        <p class="sub">Siste kjente drift fra HC3 og Render</p>
+    </header>
+    <main>
+        <div class="nav">
+            <a class="button" href="/lights">Ute lys</a>
+            <a class="button" href="/ventilation">Ventilasjon</a>
+            <a class="button" href="/ventilation/samples">Læring</a>
+            <a class="button" href="/day">Dagslinje</a>
+        </div>
+
+        <section class="hero">
+            <div class="hero-top">
+                <div>
+                    <h2>Nåstatus</h2>
+                    <p class="sub">
+                        {% if latest_sample %}
+                        Sist oppdatert {{ latest_sample.timestamp.strftime("%d.%m.%Y %H:%M") }}
+                        {% else %}
+                        Venter på første ventilasjonsmåling
+                        {% endif %}
+                    </p>
+                </div>
+                {% if latest_sample %}
+                <span class="mode {% if latest_sample.mode == 'VARMEBEVARING' %}heat{% elif latest_sample.mode not in ['KJOLING', 'FORKJOLING'] %}normal{% endif %}">
+                    {{ (latest_sample.mode or "UKJENT")|replace("KJOLING", "KJØLING")|replace("FORKJOLING", "FORKJØLING") }}
+                </span>
+                {% endif %}
+            </div>
+            {% if latest_sample %}
+            <div class="summary-grid">
+                <div class="metric"><span class="label">1.etg</span><span class="value">{% if latest_sample.temp_1etg is not none %}{{ "%.1f"|format(latest_sample.temp_1etg) }}°{% else %}-{% endif %}</span></div>
+                <div class="metric"><span class="label">2.etg</span><span class="value">{% if latest_sample.temp_2etg is not none %}{{ "%.1f"|format(latest_sample.temp_2etg) }}°{% else %}-{% endif %}</span></div>
+                <div class="metric"><span class="label">VIP</span><span class="value">{% if latest_sample.temp_vip is not none %}{{ "%.1f"|format(latest_sample.temp_vip) }}°{% else %}-{% endif %}</span></div>
+                <div class="metric"><span class="label">Ute</span><span class="value">{% if latest_sample.temp_ute is not none %}{{ "%.1f"|format(latest_sample.temp_ute) }}°{% else %}-{% endif %}</span></div>
+                <div class="metric"><span class="label">Loft</span><span class="value">{% if latest_sample.temp_loft is not none %}{{ "%.1f"|format(latest_sample.temp_loft) }}°{% else %}-{% endif %}</span></div>
+                <div class="metric"><span class="label">Passiv innluft</span><span class="value">{% if latest_sample.temp_passiv is not none %}{{ "%.1f"|format(latest_sample.temp_passiv) }}°{% else %}-{% endif %}</span></div>
+                <div class="metric"><span class="label">Diff W</span><span class="value">{% if latest_sample.diff_w is not none %}{{ "%.0f"|format(latest_sample.diff_w) }}{% else %}-{% endif %}</span></div>
+                <div class="metric"><span class="label">Solsenger</span><span class="value">{{ latest_sample.estimated_sunbeds if latest_sample.estimated_sunbeds is not none else "-" }}</span></div>
+            </div>
+            {% else %}
+            <div class="empty">Ingen 5-minuttersmåling er logget ennå.</div>
+            {% endif %}
+        </section>
+
+        <section class="section">
+            <div class="section-head">
+                <h2>Ventilasjon</h2>
+                <a href="/ventilation">Vis hendelser</a>
+            </div>
+            <div class="fan-grid">
+                {% for item in vent_status %}
+                {% set row = item.row %}
+                {% set state = item.state if item.state is not none else (row.state if row and row.state is not none else none) %}
+                <article class="status-card fan-card {% if state == true %}on{% elif state == false %}off{% endif %}">
+                    <div class="status-top">
+                        <div>
+                            <div class="name"><span class="fan-symbol"><span></span></span>{{ item.name }}</div>
+                            <div class="time">{% if row %}Siste endring {{ row.timestamp.strftime("%d.%m %H:%M") }}{% else %}Ingen endring logget{% endif %}</div>
+                        </div>
+                        <span class="badge {% if state == true %}on{% elif state == false %}off{% else %}neutral{% endif %}">
+                            {% if state == true %}PÅ{% elif state == false %}AV{% else %}-{% endif %}
+                        </span>
+                    </div>
+                    {% if row and row.reason %}
+                    <div class="detail">{{ row.reason|replace("kjolebehov", "kjølebehov")|replace("innblasing", "innblåsing")|replace("a spare", "å spare")|replace("gar", "går") }}</div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-head">
+                <h2>Ute lys</h2>
+                <a href="/lights">Vis hendelser</a>
+            </div>
+            <div class="cards lights">
+                {% for item in light_status %}
+                {% set row = item.row %}
+                {% set state = row.state if row and row.state is not none else (true if row and row.action == 'PAA' else false if row and row.action == 'AV' else none) %}
+                <article class="status-card {% if state == true %}on{% elif state == false %}off{% endif %}">
+                    <div class="status-top">
+                        <div>
+                            <div class="name">{{ item.name }}</div>
+                            <div class="time">{% if row %}{{ row.timestamp.strftime("%d.%m %H:%M") }}{% else %}Ingen hendelser{% endif %}</div>
+                        </div>
+                        <span class="badge {% if state == true %}on{% elif state == false %}off{% else %}neutral{% endif %}">
+                            {% if state == true %}PÅ{% elif state == false %}AV{% else %}-{% endif %}
+                        </span>
+                    </div>
+                    <div class="mini-row">
+                        <span>ID <strong>{{ item.id }}</strong></span>
+                        {% if row and row.lux is not none %}<span>Lux <strong>{{ "%.0f"|format(row.lux) }}</strong></span>{% endif %}
+                    </div>
+                    {% if row and row.reason %}
+                    <div class="detail">{{ row.reason|replace("p?-grense", "på-grense")|replace("av-grense", "av-grense") }}</div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-head">
+                <h2>Siste poster</h2>
+                <a href="/day">Åpne dagslinje</a>
+            </div>
+            <div class="cards">
+                <article class="status-card">
+                    <div class="status-top">
+                        <div>
+                            <div class="name">Siste lyslogg</div>
+                            <div class="time">{% if latest_light %}{{ latest_light.timestamp.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen poster{% endif %}</div>
+                        </div>
+                        <span class="badge neutral">{% if latest_light and latest_light.action == "PAA" %}PÅ{% else %}{{ latest_light.action if latest_light else "-" }}{% endif %}</span>
+                    </div>
+                    {% if latest_light %}
+                    <div class="detail">{{ latest_light.device_name or ("Enhet " ~ latest_light.device_id) }}</div>
+                    {% endif %}
+                </article>
+                <article class="status-card">
+                    <div class="status-top">
+                        <div>
+                            <div class="name">Siste ventilasjonshendelse</div>
+                            <div class="time">{% if latest_vent %}{{ latest_vent.timestamp.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen poster{% endif %}</div>
+                        </div>
+                        <span class="badge neutral">{% if latest_vent and latest_vent.action == "PAA" %}PÅ{% else %}{{ latest_vent.action if latest_vent else "-" }}{% endif %}</span>
+                    </div>
+                    {% if latest_vent %}
+                    <div class="detail">{{ latest_vent.device_name or ("Enhet " ~ latest_vent.device_id) }}</div>
+                    {% endif %}
+                </article>
+            </div>
+        </section>
+
+        <p class="sub">HC3 poster til <code>/events</code>. API-et fordeler automatisk til lys, ventilasjon og læringslogg.</p>
+    </main>
 </body>
 </html>

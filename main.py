@@ -580,9 +580,52 @@ async def health():
 @app.get("/events", response_class=HTMLResponse)
 async def index(request: Request):
     async with async_session() as session:
-        lights = (await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(1))).scalars().all()
-        ventilation = (await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(1))).scalars().all()
-    return templates.TemplateResponse(request, "index.html", {"latest_light": lights[0] if lights else None, "latest_vent": ventilation[0] if ventilation else None})
+        lights = (await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(200))).scalars().all()
+        ventilation = (await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(100))).scalars().all()
+        samples = (await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))).scalars().all()
+
+    latest_light_by_device = {}
+    for row in lights:
+        if row.device_id is not None and row.device_id not in latest_light_by_device:
+            latest_light_by_device[row.device_id] = row
+
+    latest_vent_by_device = {}
+    for row in ventilation:
+        if row.device_id is not None and row.device_id not in latest_vent_by_device:
+            latest_vent_by_device[row.device_id] = row
+
+    latest_sample = samples[0] if samples else None
+    fan_state_from_sample = {
+        130: latest_sample.fan_vip if latest_sample else None,
+        160: latest_sample.fan_2etg if latest_sample else None,
+        134: latest_sample.fan_tak if latest_sample else None,
+    }
+
+    light_status = [
+        {"id": device["id"], "name": device["name"], "row": latest_light_by_device.get(device["id"])}
+        for device in LIGHT_TIMELINE_DEVICES
+    ]
+    vent_status = [
+        {
+            "id": device["id"],
+            "name": device["name"],
+            "row": latest_vent_by_device.get(device["id"]),
+            "state": fan_state_from_sample.get(device["id"]),
+        }
+        for device in VENT_TIMELINE_DEVICES
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "latest_light": lights[0] if lights else None,
+            "latest_vent": ventilation[0] if ventilation else None,
+            "latest_sample": latest_sample,
+            "light_status": light_status,
+            "vent_status": vent_status,
+        },
+    )
 
 
 @app.get("/day", response_class=HTMLResponse)
