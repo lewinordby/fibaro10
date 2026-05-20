@@ -27,6 +27,20 @@
         .cell { background: var(--soft); border: 1px solid #e5eaf0; border-radius: 7px; padding: 0.48rem; min-width: 0; }
         .label { display: block; color: var(--muted); font-size: 0.72rem; }
         .value { display: block; font-weight: 750; margin-top: 0.1rem; }
+        .fan-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: 0.2rem 0 0.75rem; }
+        .fan-card { display: grid; grid-template-columns: 2.3rem 1fr; gap: 0.55rem; align-items: center; border-radius: 8px; border: 1px solid var(--line); padding: 0.55rem; min-width: 0; }
+        .fan-card.on { background: #ecfdf5; border-color: #99f6e4; color: var(--on); }
+        .fan-card.off { background: #fff1f2; border-color: #fecdd3; color: var(--off); }
+        .fan-icon { position: relative; width: 2.05rem; height: 2.05rem; border-radius: 50%; background: white; border: 1px solid currentColor; box-shadow: inset 0 0 0 0.32rem rgba(255,255,255,0.85); }
+        .fan-card.on .fan-icon { animation: fan-spin 0.75s linear infinite; }
+        .fan-card.off .fan-icon { opacity: 0.75; }
+        .fan-blade { position: absolute; left: 50%; top: 50%; width: 0.38rem; height: 0.78rem; background: currentColor; border-radius: 999px 999px 0.2rem 0.2rem; transform-origin: 50% 0.08rem; opacity: 0.9; }
+        .fan-blade:nth-child(1) { transform: rotate(0deg) translate(-50%, 0.08rem); }
+        .fan-blade:nth-child(2) { transform: rotate(120deg) translate(-50%, 0.08rem); }
+        .fan-blade:nth-child(3) { transform: rotate(240deg) translate(-50%, 0.08rem); }
+        .fan-core { position: absolute; left: 50%; top: 50%; width: 0.42rem; height: 0.42rem; background: currentColor; border-radius: 50%; transform: translate(-50%, -50%); }
+        .fan-name { color: var(--text); font-weight: 750; line-height: 1.15; }
+        .fan-state { font-size: 0.78rem; font-weight: 800; margin-top: 0.1rem; letter-spacing: 0; }
         .flags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
         .flag { border-radius: 999px; padding: 0.22rem 0.55rem; background: #eef2f7; color: #344054; font-size: 0.78rem; font-weight: 650; }
         .flag.on { background: #ccfbf1; color: var(--on); }
@@ -37,6 +51,15 @@
             .nav { display: flex; }
             form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
             .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+            .fan-grid { grid-template-columns: 1fr; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .fan-card.on .fan-icon { animation: none; }
+        }
+        @keyframes fan-spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -87,7 +110,20 @@
                 <div class="cell"><span class="label">Min/avg/max</span><span class="value">{% if row.temp_min_inne is not none %}{{ "%.1f"|format(row.temp_min_inne) }}/{{ "%.1f"|format(row.temp_avg_inne) }}/{{ "%.1f"|format(row.temp_max_inne) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Diff W</span><span class="value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Solsenger</span><span class="value">{{ row.estimated_sunbeds if row.estimated_sunbeds is not none else "-" }}</span></div>
-                <div class="cell"><span class="label">Vifter</span><span class="value">VIP {{ "på" if row.fan_vip else "av" }} · 2.etg {{ "på" if row.fan_2etg else "av" }} · tak {{ "på" if row.fan_tak else "av" }}</span></div>
+            </div>
+            <div class="fan-grid">
+                <div class="fan-card {% if row.fan_vip %}on{% else %}off{% endif %}">
+                    <div class="fan-icon" aria-hidden="true"><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-core"></span></div>
+                    <div><div class="fan-name">Innluft VIP</div><div class="fan-state">{% if row.fan_vip %}PÅ{% else %}AV{% endif %}</div></div>
+                </div>
+                <div class="fan-card {% if row.fan_2etg %}on{% else %}off{% endif %}">
+                    <div class="fan-icon" aria-hidden="true"><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-core"></span></div>
+                    <div><div class="fan-name">Innluft 2.etg</div><div class="fan-state">{% if row.fan_2etg %}PÅ{% else %}AV{% endif %}</div></div>
+                </div>
+                <div class="fan-card {% if row.fan_tak %}on{% else %}off{% endif %}">
+                    <div class="fan-icon" aria-hidden="true"><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-core"></span></div>
+                    <div><div class="fan-name">Avtrekk tak</div><div class="fan-state">{% if row.fan_tak %}PÅ{% else %}AV{% endif %}</div></div>
+                </div>
             </div>
             <div class="flags">
                 <span class="flag {% if row.open_time %}on{% else %}off{% endif %}">Åpent</span>
