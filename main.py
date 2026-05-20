@@ -387,6 +387,13 @@ def light_sample_state(row, device) -> Optional[bool]:
     return bool(value)
 
 
+def dedupe_samples_by_bucket(rows):
+    buckets = {}
+    for row in rows:
+        buckets[row.bucket_start or row.timestamp] = row
+    return [buckets[key] for key in sorted(buckets)]
+
+
 def point_from_row(row, day_start: datetime, day_end: datetime, system: str):
     event_time = max(day_start, min(day_end, row.timestamp))
     reason = clean_display_text(row.reason or row.source or "")
@@ -483,6 +490,7 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
             .order_by(OutdoorLightSample.timestamp.asc())
         )
         sample_rows = sample_result.scalars().all()
+        sample_rows = dedupe_samples_by_bucket(sample_rows)
         previous_sample_result = await session.execute(
             select(OutdoorLightSample)
             .where(OutdoorLightSample.timestamp < day_start)
