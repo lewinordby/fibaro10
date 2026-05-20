@@ -59,6 +59,8 @@ class OutdoorLightSample(Base):
     value = Column(Float, nullable=True)
     light_lyslist = Column(Boolean, nullable=True)
     light_reklame = Column(Boolean, nullable=True)
+    light_spot_glass_275 = Column(Boolean, nullable=True)
+    light_spot_glass_299 = Column(Boolean, nullable=True)
     light_spot_inngang = Column(Boolean, nullable=True)
     light_parkering = Column(Boolean, nullable=True)
     extra = Column(JSON, nullable=True)
@@ -195,6 +197,8 @@ class EventDataIn(BaseModel):
     fan_tak: Optional[bool] = None
     light_lyslist: Optional[bool] = None
     light_reklame: Optional[bool] = None
+    light_spot_glass_275: Optional[bool] = None
+    light_spot_glass_299: Optional[bool] = None
     light_spot_inngang: Optional[bool] = None
     light_parkering: Optional[bool] = None
     afterrun_active: Optional[bool] = None
@@ -216,7 +220,8 @@ LIGHT_COLUMNS = [
 
 LIGHT_SAMPLE_COLUMNS = [
     "id", "timestamp", "bucket_start", "mode", "source", "lux", "value",
-    "light_lyslist", "light_reklame", "light_spot_inngang", "light_parkering", "extra",
+    "light_lyslist", "light_reklame", "light_spot_glass_275", "light_spot_glass_299",
+    "light_spot_inngang", "light_parkering", "extra",
 ]
 
 VENT_COLUMNS = [
@@ -242,8 +247,8 @@ VENT_SAMPLE_COLUMNS = [
 LIGHT_TIMELINE_DEVICES = [
     {"id": 425, "name": "Lyslist dekor", "sample_attr": "light_lyslist"},
     {"id": 427, "name": "Reklameplakater", "sample_attr": "light_reklame"},
-    {"id": 275, "name": "Spot foran glassvegg", "extra_key": "light_spot_glass_275"},
-    {"id": 299, "name": "Spot foran massasje", "extra_key": "light_spot_glass_299"},
+    {"id": 275, "name": "Spot foran glassvegg", "sample_attr": "light_spot_glass_275"},
+    {"id": 299, "name": "Spot foran massasje", "sample_attr": "light_spot_glass_299"},
     {"id": 424, "name": "6xspot over inngang", "sample_attr": "light_spot_inngang"},
     {"id": 440, "name": "Parkeringslys/gatelys", "sample_attr": "light_parkering"},
 ]
@@ -378,13 +383,7 @@ def event_detail(system: str, row) -> str:
 
 def light_sample_state(row, device) -> Optional[bool]:
     attr = device.get("sample_attr")
-    if attr:
-        value = getattr(row, attr, None)
-    else:
-        extra = row.extra or {}
-        value = extra.get(device.get("extra_key"))
-        if value is None and isinstance(extra.get("values"), dict):
-            value = extra["values"].get(device.get("extra_key"))
+    value = getattr(row, attr, None)
     if value is None:
         return None
     return bool(value)
@@ -639,6 +638,8 @@ def light_sample_from_payload(data: EventDataIn) -> OutdoorLightSample:
         value=value_from_payload(data, "value"),
         light_lyslist=value_from_payload(data, "light_lyslist"),
         light_reklame=value_from_payload(data, "light_reklame"),
+        light_spot_glass_275=value_from_payload(data, "light_spot_glass_275"),
+        light_spot_glass_299=value_from_payload(data, "light_spot_glass_299"),
         light_spot_inngang=value_from_payload(data, "light_spot_inngang"),
         light_parkering=value_from_payload(data, "light_parkering"),
         extra=merged_extra(data),
@@ -783,6 +784,8 @@ async def csv_response(model, columns, filename, event_type, action, device_id, 
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.exec_driver_sql("ALTER TABLE utelys_samples ADD COLUMN IF NOT EXISTS light_spot_glass_275 BOOLEAN")
+        await conn.exec_driver_sql("ALTER TABLE utelys_samples ADD COLUMN IF NOT EXISTS light_spot_glass_299 BOOLEAN")
 
 
 @app.get("/health")
