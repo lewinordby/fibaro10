@@ -99,6 +99,15 @@ main {
     border-right: 0 !important;
 }
 
+.app-nav .nav-form {
+    margin: 0 !important;
+    display: block !important;
+}
+
+.app-nav .nav-form .button {
+    height: 100%;
+}
+
 .app-nav .button:hover {
     background: #f5f5f5 !important;
     color: #3a3d44 !important;
@@ -163,7 +172,7 @@ details {
     }
 
     .app-nav {
-        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)) !important;
     }
 }
 

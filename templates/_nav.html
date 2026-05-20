@@ -6,4 +6,10 @@
     <a class="button {% if current_path == '/ventilation' %}active{% endif %}" href="/ventilation">Ventilasjon</a>
     <a class="button {% if current_path == '/ventilation/samples' %}active{% endif %}" href="/ventilation/samples">Temp logg</a>
     <a class="button {% if current_path == '/day' %}active{% endif %}" href="/day">Dagslinje</a>
+    {% if request.state.auth_is_master %}
+    <a class="button {% if current_path == '/admin/keys' %}active{% endif %}" href="/admin/keys">Nøkler</a>
+    {% endif %}
+    <form class="nav-form" method="post" action="/auth/logout">
+        <button class="button" type="submit">Logg ut</button>
+    </form>
 </nav>

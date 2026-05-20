@@ -2,16 +2,19 @@ from datetime import date, datetime, time, timedelta
 from io import StringIO
 from typing import Any, Dict, Optional
 import csv
+import hashlib
 import os
+import secrets
+from urllib.parse import parse_qs
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, JSON, String, Text, select
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, JSON, String, Text, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -19,6 +22,13 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
+MASTER_ACCESS_KEY_HASH = os.getenv(
+    "MASTER_ACCESS_KEY_HASH",
+    "752ede847bd180ef3d2700d117d297ced1b25664b946a3639fb7a3b2be93d5d1",
+)
+AUTH_COOKIE_NAME = "fibaro10_access_key"
+PUBLIC_PREFIXES = ("/static/",)
+PUBLIC_PATHS = {"/health", "/events", "/log", "/auth/login"}
 
 app = FastAPI(title="Fibaro10")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -27,6 +37,32 @@ templates = Jinja2Templates(directory="templates")
 Base = declarative_base()
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
+
+
+@app.middleware("http")
+async def access_key_middleware(request: Request, call_next):
+    path = request.url.path
+    if is_public_path(path):
+        return await call_next(request)
+
+    raw_key = presented_access_key(request)
+    access_key = await find_access_key(raw_key)
+    if not access_key:
+        await log_access_attempt(request, False, "missing_or_invalid_key")
+        if wants_html(request):
+            return templates.TemplateResponse(
+                request,
+                "login.html",
+                {"error": "Mangler eller ugyldig nøkkel"},
+                status_code=401,
+            )
+        return JSONResponse({"detail": "Ugyldig eller manglende nøkkel"}, status_code=401)
+
+    request.state.access_key_id = access_key.id
+    request.state.access_key_name = access_key.name
+    request.state.auth_is_master = bool(access_key.is_master)
+    await log_access_attempt(request, True, "ok", access_key)
+    return await call_next(request)
 
 
 class OutdoorLightEvent(Base):
@@ -154,6 +190,38 @@ class GenericEvent(Base):
     extra = Column(JSON, nullable=True)
 
 
+class AccessKey(Base):
+    __tablename__ = "access_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    key_hash = Column(String, unique=True, index=True, nullable=False)
+    key_prefix = Column(String, index=True, nullable=False)
+    is_master = Column(Boolean, default=False, index=True)
+    active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    last_ip = Column(String, nullable=True)
+    last_user_agent = Column(Text, nullable=True)
+    uses_count = Column(Integer, default=0)
+
+
+class AccessLog(Base):
+    __tablename__ = "access_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    access_key_id = Column(Integer, nullable=True, index=True)
+    key_name = Column(String, nullable=True)
+    key_prefix = Column(String, nullable=True, index=True)
+    path = Column(Text, nullable=False)
+    method = Column(String, nullable=False)
+    ip = Column(String, nullable=True)
+    user_agent = Column(Text, nullable=True)
+    success = Column(Boolean, default=True, index=True)
+    reason = Column(String, nullable=True)
+
+
 class LegacyLogIn(BaseModel):
     temperature: float
     humidity: float
@@ -275,6 +343,99 @@ def json_value(value):
     if isinstance(value, datetime):
         return value.isoformat()
     return value
+
+
+def hash_access_key(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def new_access_key() -> str:
+    return "sun2_" + secrets.token_urlsafe(28)
+
+
+def key_prefix(value: str) -> str:
+    return value[:14]
+
+
+def client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else ""
+
+
+def presented_access_key(request: Request) -> Optional[str]:
+    return (
+        request.query_params.get("key")
+        or request.headers.get("x-access-key")
+        or request.cookies.get(AUTH_COOKIE_NAME)
+    )
+
+
+def wants_html(request: Request) -> bool:
+    accept = request.headers.get("accept", "")
+    return "text/html" in accept or "*/*" in accept
+
+
+def is_public_path(path: str) -> bool:
+    return path in PUBLIC_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES)
+
+
+async def parse_form_body(request: Request) -> Dict[str, str]:
+    raw = (await request.body()).decode("utf-8")
+    parsed = parse_qs(raw, keep_blank_values=True)
+    return {key: values[-1] if values else "" for key, values in parsed.items()}
+
+
+async def log_access_attempt(
+    request: Request,
+    success: bool,
+    reason: str,
+    access_key: Optional[AccessKey] = None,
+):
+    async with async_session() as session:
+        session.add(
+            AccessLog(
+                access_key_id=access_key.id if access_key else None,
+                key_name=access_key.name if access_key else None,
+                key_prefix=access_key.key_prefix if access_key else None,
+                path=request.url.path,
+                method=request.method,
+                ip=client_ip(request),
+                user_agent=request.headers.get("user-agent", ""),
+                success=success,
+                reason=reason,
+            )
+        )
+        if access_key and success:
+            await session.execute(
+                update(AccessKey)
+                .where(AccessKey.id == access_key.id)
+                .values(
+                    last_seen_at=datetime.utcnow(),
+                    last_ip=client_ip(request),
+                    last_user_agent=request.headers.get("user-agent", ""),
+                    uses_count=AccessKey.uses_count + 1,
+                )
+            )
+        await session.commit()
+
+
+async def find_access_key(raw_key: Optional[str]) -> Optional[AccessKey]:
+    if not raw_key:
+        return None
+    hashed = hash_access_key(raw_key)
+    async with async_session() as session:
+        result = await session.execute(
+            select(AccessKey).where(AccessKey.key_hash == hashed).where(AccessKey.active == True)
+        )
+        return result.scalars().first()
+
+
+def require_master(request: Request):
+    if not getattr(request.state, "auth_is_master", False):
+        return JSONResponse({"detail": "Masterkey kreves"}, status_code=403)
+    return None
 
 
 def parse_datetime(value: Optional[str]) -> Optional[datetime]:
@@ -786,11 +947,132 @@ async def startup():
         await conn.run_sync(Base.metadata.create_all)
         await conn.exec_driver_sql("ALTER TABLE utelys_samples ADD COLUMN IF NOT EXISTS light_spot_glass_275 BOOLEAN")
         await conn.exec_driver_sql("ALTER TABLE utelys_samples ADD COLUMN IF NOT EXISTS light_spot_glass_299 BOOLEAN")
+    async with async_session() as session:
+        result = await session.execute(select(AccessKey).where(AccessKey.key_hash == MASTER_ACCESS_KEY_HASH))
+        master = result.scalars().first()
+        if master:
+            master.name = "Master"
+            master.is_master = True
+            master.active = True
+        else:
+            session.add(
+                AccessKey(
+                    name="Master",
+                    key_hash=MASTER_ACCESS_KEY_HASH,
+                    key_prefix="sun2_master",
+                    is_master=True,
+                    active=True,
+                )
+            )
+        await session.commit()
 
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "storage": ["utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples", "event_data"]}
+
+
+@app.get("/auth/login", response_class=HTMLResponse)
+async def login_view(request: Request):
+    return templates.TemplateResponse(request, "login.html", {"error": ""})
+
+
+@app.post("/auth/login")
+async def login_submit(request: Request):
+    form = await parse_form_body(request)
+    raw_key = (form.get("access_key") or "").strip()
+    access_key = await find_access_key(raw_key)
+    if not access_key:
+        await log_access_attempt(request, False, "failed_login")
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": "Ugyldig nøkkel"},
+            status_code=401,
+        )
+    response = RedirectResponse("/", status_code=303)
+    response.set_cookie(
+        AUTH_COOKIE_NAME,
+        raw_key,
+        max_age=60 * 60 * 24 * 365,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+    )
+    await log_access_attempt(request, True, "login", access_key)
+    return response
+
+
+@app.post("/auth/logout")
+async def logout():
+    response = RedirectResponse("/auth/login", status_code=303)
+    response.delete_cookie(AUTH_COOKIE_NAME)
+    return response
+
+
+@app.get("/admin/keys", response_class=HTMLResponse)
+async def keys_view(request: Request):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
+        log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
+    return templates.TemplateResponse(
+        request,
+        "keys.html",
+        {"keys": key_rows, "logs": log_rows, "created_key": ""},
+    )
+
+
+@app.post("/admin/keys")
+async def keys_create(request: Request):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    form = await parse_form_body(request)
+    name = (form.get("name") or "").strip()[:80]
+    if not name:
+        name = "Delt nøkkel"
+    raw_key = new_access_key()
+    record = AccessKey(
+        name=name,
+        key_hash=hash_access_key(raw_key),
+        key_prefix=key_prefix(raw_key),
+        is_master=False,
+        active=True,
+    )
+    async with async_session() as session:
+        session.add(record)
+        await session.commit()
+        key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
+        log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
+    return templates.TemplateResponse(
+        request,
+        "keys.html",
+        {"keys": key_rows, "logs": log_rows, "created_key": raw_key},
+    )
+
+
+@app.post("/admin/keys/disable")
+async def keys_disable(request: Request):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    form = await parse_form_body(request)
+    try:
+        key_id = int(form.get("key_id") or "0")
+    except ValueError:
+        key_id = 0
+    async with async_session() as session:
+        await session.execute(
+            update(AccessKey)
+            .where(AccessKey.id == key_id)
+            .where(AccessKey.is_master == False)
+            .values(active=False)
+        )
+        await session.commit()
+    return RedirectResponse("/admin/keys", status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse)

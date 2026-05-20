@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nøkler</title>
+    <style>
+        :root { color-scheme: light; --bg:#f7f7f7; --panel:#fff; --line:#e6e6e6; --text:#3a3d44; --muted:#5f6670; --brand:#5292d6; --off:#df705d; --on:#52a464; }
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+        header { position: sticky; top: 0; z-index: 5; background: white; border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; }
+        h1 { margin: 0; font-size: 1.35rem; font-weight: 400; }
+        h2 { margin: 0 0 0.8rem; font-size: 1rem; }
+        .sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
+        main { padding: 0.85rem; max-width: 1120px; margin: 0 auto; }
+        .panel { background: white; border: 1px solid var(--line); border-radius: 4px; padding: 0.9rem; margin-bottom: 0.9rem; }
+        .create-form { display: grid; grid-template-columns: 1fr; gap: 0.55rem; }
+        input { width: 100%; padding: 0.72rem; border: 1px solid var(--line); border-radius: 4px; background: white; font-size: 1rem; }
+        button, .button { padding: 0.72rem 0.85rem; border: 1px solid var(--line); border-radius: 4px; background: white; color: #333; text-decoration: none; cursor: pointer; }
+        .primary { background: #4b7fbb; border-color: #4779b1; color: white; }
+        .danger { color: #9d3f31; border-color: #efc1b8; background: #fbebe8; }
+        .created { border: 1px solid #b8d8f0; background: #f0f7fc; padding: 0.8rem; border-radius: 4px; margin-bottom: 0.8rem; }
+        code { display: block; margin-top: 0.45rem; padding: 0.75rem; background: white; border: 1px solid #b8d8f0; border-radius: 4px; overflow-wrap: anywhere; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 0.58rem; border-bottom: 1px solid var(--line); text-align: left; font-size: 0.88rem; vertical-align: top; }
+        th { color: var(--muted); font-weight: 650; }
+        .status { font-weight: 800; }
+        .status.on { color: var(--on); }
+        .status.off { color: var(--off); }
+        @media (min-width: 760px) {
+            main { padding: 1.25rem; }
+            .create-form { grid-template-columns: 1fr auto; }
+        }
+    </style>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+    <header>
+        <div class="brand-bar">
+            <img class="brand-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
+            <div>
+                <h1>Nøkler</h1>
+                <p class="sub">Opprett delbare nøkler og se bruk</p>
+            </div>
+        </div>
+    </header>
+    <main>
+        {% include "_nav.html" %}
+
+        <section class="panel">
+            <h2>Ny delt nøkkel</h2>
+            {% if created_key %}
+            <div class="created">
+                Ny nøkkel er opprettet. Den vises bare nå.
+                <code>{{ created_key }}</code>
+            </div>
+            {% endif %}
+            <form class="create-form" method="post" action="/admin/keys">
+                <input type="text" name="name" placeholder="Navn, f.eks. Elektriker eller Kristian mobil" maxlength="80">
+                <button class="primary" type="submit">Lag nøkkel</button>
+            </form>
+        </section>
+
+        <section class="panel">
+            <h2>Aktive og tidligere nøkler</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Navn</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Prefix</th>
+                            <th>Sist brukt</th>
+                            <th>IP</th>
+                            <th>Bruk</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key in keys %}
+                        <tr>
+                            <td>{{ key.name }}</td>
+                            <td>{% if key.is_master %}Master{% else %}Delt{% endif %}</td>
+                            <td class="status {% if key.active %}on{% else %}off{% endif %}">{% if key.active %}Aktiv{% else %}Av{% endif %}</td>
+                            <td>{{ key.key_prefix }}</td>
+                            <td>{% if key.last_seen_at %}{{ key.last_seen_at.strftime("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</td>
+                            <td>{{ key.last_ip or "-" }}</td>
+                            <td>{{ key.uses_count or 0 }}</td>
+                            <td>
+                                {% if not key.is_master and key.active %}
+                                <form method="post" action="/admin/keys/disable">
+                                    <input type="hidden" name="key_id" value="{{ key.id }}">
+                                    <button class="danger" type="submit">Deaktiver</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Siste bruk</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tid</th>
+                            <th>Nøkkel</th>
+                            <th>Status</th>
+                            <th>Side</th>
+                            <th>IP</th>
+                            <th>Tekst</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in logs %}
+                        <tr>
+                            <td>{{ row.timestamp.strftime("%d.%m.%Y %H:%M:%S") }}</td>
+                            <td>{{ row.key_name or "-" }}</td>
+                            <td class="status {% if row.success %}on{% else %}off{% endif %}">{% if row.success %}OK{% else %}Avvist{% endif %}</td>
+                            <td>{{ row.method }} {{ row.path }}</td>
+                            <td>{{ row.ip or "-" }}</td>
+                            <td>{{ row.reason or "" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
