@@ -43,7 +43,7 @@
 <body>
     <header>
         <h1>Ventilasjon læring</h1>
-        <p class="sub">15-minuttersmålinger for temperatur, drift og beslutningsgrunnlag</p>
+        <p class="sub">5-minuttersmålinger for temperatur, drift og beslutningsgrunnlag</p>
     </header>
     <main>
         <div class="nav">
@@ -64,14 +64,14 @@
             </form>
         </details>
         {% if not rows %}
-        <div class="empty">Ingen 15-minuttersmålinger funnet.</div>
+        <div class="empty">Ingen 5-minuttersmålinger funnet.</div>
         {% endif %}
         {% for row in rows %}
         <article class="sample">
             <div class="top">
                 <div>
                     <div class="time">{{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}</div>
-                    <div class="bucket">Kvarter: {{ row.bucket_start.strftime("%H:%M") }}</div>
+                    <div class="bucket">Periode: {{ row.bucket_start.strftime("%H:%M") }}</div>
                 </div>
                 <span class="mode">{{ row.mode or "" }}</span>
             </div>

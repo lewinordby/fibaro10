@@ -251,9 +251,9 @@ def parse_datetime(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
-def quarter_bucket(value: Optional[datetime]) -> datetime:
+def sample_bucket(value: Optional[datetime]) -> datetime:
     stamp = value or datetime.utcnow()
-    minute = (stamp.minute // 15) * 15
+    minute = (stamp.minute // 5) * 5
     return stamp.replace(minute=minute, second=0, microsecond=0)
 
 
@@ -464,7 +464,7 @@ def vent_sample_from_payload(data: EventDataIn) -> VentilationSample:
     timestamp = data.timestamp or datetime.utcnow()
     return VentilationSample(
         timestamp=timestamp,
-        bucket_start=data.bucket_start or quarter_bucket(timestamp),
+        bucket_start=data.bucket_start or sample_bucket(timestamp),
         mode=data.mode,
         source=data.source,
         temp_1etg=value_from_payload(data, "temp_1etg"),
@@ -640,7 +640,7 @@ async def log_event(data: EventDataIn):
         event_id = await save_record(light_from_payload(data))
         return {"status": "ok", "id": event_id, "table": "utelys_events"}
     if system in {"ventilasjon", "ventilation", "vent"}:
-        if data.event_type in {"sample", "sample_15min", "learning_sample"}:
+        if data.event_type in {"sample", "sample_5min", "sample_15min", "learning_sample"}:
             event_id = await save_record(vent_sample_from_payload(data))
             return {"status": "ok", "id": event_id, "table": "ventilasjon_samples"}
         event_id = await save_record(vent_from_payload(data))
