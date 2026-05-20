@@ -381,7 +381,10 @@ def light_sample_state(row, device) -> Optional[bool]:
     if attr:
         value = getattr(row, attr, None)
     else:
-        value = (row.extra or {}).get(device.get("extra_key"))
+        extra = row.extra or {}
+        value = extra.get(device.get("extra_key"))
+        if value is None and isinstance(extra.get("values"), dict):
+            value = extra["values"].get(device.get("extra_key"))
     if value is None:
         return None
     return bool(value)
@@ -498,6 +501,16 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
             .limit(1)
         )
         previous_sample = previous_sample_result.scalars().first()
+        previous_events = {}
+        for device_id in device_ids:
+            previous_event_result = await session.execute(
+                select(OutdoorLightEvent)
+                .where(OutdoorLightEvent.device_id == device_id)
+                .where(OutdoorLightEvent.timestamp < day_start)
+                .order_by(OutdoorLightEvent.timestamp.desc())
+                .limit(1)
+            )
+            previous_events[device_id] = previous_event_result.scalars().first()
 
     events_by_device = {device_id: [] for device_id in device_ids}
     for row in event_rows:
@@ -505,13 +518,16 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
 
     items = []
     for device in LIGHT_TIMELINE_DEVICES:
-        state = light_sample_state(previous_sample, device) if previous_sample else False
+        state = light_sample_state(previous_sample, device) if previous_sample else None
+        if state is None and previous_events.get(device["id"]):
+            state = state_from_event(previous_events[device["id"]])
         if state is None:
             state = False
         cursor = day_start
         raw_segments = []
         points = [point_from_row(row, day_start, day_end, "lys") for row in events_by_device.get(device["id"], [])]
         sample_points = []
+        state_changes = []
 
         for row in sample_rows:
             sample_time = row.bucket_start or row.timestamp
@@ -521,9 +537,35 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
             new_state = light_sample_state(row, device)
             if new_state is None:
                 continue
+            state_changes.append({
+                "time": event_time,
+                "state": new_state,
+                "source": "sample",
+                "lux": row.lux,
+            })
+
+        for row in events_by_device.get(device["id"], []):
+            if row.timestamp >= timeline_end:
+                continue
+            event_time = max(day_start, min(timeline_end, row.timestamp))
+            new_state = state_from_event(row)
+            if new_state is None:
+                continue
+            state_changes.append({
+                "time": event_time,
+                "state": new_state,
+                "source": "event",
+                "lux": row.lux,
+            })
+
+        state_changes.sort(key=lambda item: (item["time"], 0 if item["source"] == "sample" else 1))
+
+        for change in state_changes:
+            event_time = change["time"]
+            new_state = change["state"]
             if state and event_time > cursor:
                 add_segment(raw_segments, cursor, event_time)
-            if new_state != state:
+            if new_state != state and change["source"] == "sample":
                 action = "PAA" if new_state else "AV"
                 has_event_point = any(point["time"] == event_time.strftime("%H:%M") and point["action"] == display_action(action) for point in points)
                 if not has_event_point:
@@ -533,7 +575,7 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
                         "action": display_action(action),
                         "action_class": "on" if new_state else "off",
                         "reason": "Statusendring fra 5-minutters luxlogg",
-                        "detail": f"Lux {row.lux:.0f}" if row.lux is not None else "",
+                        "detail": f"Lux {change['lux']:.0f}" if change["lux"] is not None else "",
                     })
             state = new_state
             cursor = event_time
