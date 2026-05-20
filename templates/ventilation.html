@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ventilasjon</title>
     <style>
-        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --on:#0f766e; --off:#9f1239; --soft:#f8fafc; }
+        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --on:#0f766e; --off:#9f1239; --trigger:#fff7ed; --trigger-line:#f97316; }
         * { box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
         header { position: sticky; top: 0; z-index: 5; background: rgba(244,246,248,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; }
@@ -29,6 +29,12 @@
         .test { background: #e0e7ff; color: #3730a3; }
         .line { display: flex; gap: 0.8rem; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; margin: 0.65rem 0 0.45rem; }
         .line strong { color: var(--text); }
+        .temps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.45rem; margin: 0.75rem 0; }
+        .temp { border: 1px solid var(--line); border-radius: 7px; background: #f8fafc; padding: 0.48rem; min-width: 0; }
+        .temp.trigger { background: var(--trigger); border-color: var(--trigger-line); }
+        .temp-label { display: block; color: var(--muted); font-size: 0.72rem; }
+        .temp-value { display: block; font-weight: 750; margin-top: 0.1rem; }
+        .trigger-note { border-left: 3px solid var(--trigger-line); padding-left: 0.6rem; margin: 0.35rem 0 0.55rem; color: #9a3412; font-weight: 650; }
         .reason { color: #344054; line-height: 1.35; overflow-wrap: anywhere; }
         .empty { color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
         @media (min-width: 760px) {
@@ -37,6 +43,7 @@
             a.button, button { width: auto; }
             form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
             .wide { grid-column: auto; }
+            .temps { grid-template-columns: repeat(7, minmax(0, 1fr)); }
         }
     </style>
 </head>
@@ -68,6 +75,11 @@
         {% endif %}
         {% for row in rows %}
         {% set reason = (row.reason or row.source or "")|replace("p?-grense", "på-grense")|replace("P?", "PÅ")|replace("innbl?sing", "innblåsing")|replace("KJOLING", "KJØLING")|replace("kjolebehov", "kjølebehov") %}
+        {% set reason_l = reason|lower %}
+        {% set trig_loft = 'loft' in reason_l %}
+        {% set trig_ute = 'ute' in reason_l %}
+        {% set trig_inne = 'inne' in reason_l or 'kjølebehov' in reason_l or 'varmebehov' in reason_l %}
+        {% set trig_diff = 'solseng' in reason_l or 'diff' in reason_l %}
         <article class="event-card">
             <div class="event-top">
                 <div>
@@ -78,11 +90,19 @@
             </div>
             <div class="line">
                 <span>Modus: <strong>{{ (row.mode or "")|replace("KJOLING", "KJØLING") }}</strong></span>
-                {% if row.value is not none %}<span>Verdi: <strong>{{ "%.1f"|format(row.value) }}</strong></span>{% endif %}
-                {% if row.temp_ute is not none %}<span>Ute: <strong>{{ "%.1f"|format(row.temp_ute) }}</strong></span>{% endif %}
-                {% if row.temp_loft is not none %}<span>Loft: <strong>{{ "%.1f"|format(row.temp_loft) }}</strong></span>{% endif %}
+                {% if row.value is not none %}<span>Styringsverdi: <strong>{{ "%.1f"|format(row.value) }}</strong></span>{% endif %}
             </div>
-            <div class="reason">{{ reason }}</div>
+            <div class="temps">
+                <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">1.etg</span><span class="temp-value">{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">2.etg</span><span class="temp-value">{% if row.temp_2etg is not none %}{{ "%.1f"|format(row.temp_2etg) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">VIP</span><span class="temp-value">{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_ute %}trigger{% endif %}"><span class="temp-label">Ute</span><span class="temp-value">{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_loft %}trigger{% endif %}"><span class="temp-label">Loft</span><span class="temp-value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp"><span class="temp-label">Passiv</span><span class="temp-value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_diff %}trigger{% endif %}"><span class="temp-label">Diff W</span><span class="temp-value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span></div>
+            </div>
+            <div class="trigger-note">Utløst av: {{ reason }}</div>
+            <div class="reason">{{ row.source or "" }}</div>
         </article>
         {% endfor %}
     </main>
