@@ -89,11 +89,17 @@ main {
 }
 
 .app-nav .nav-sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0.55rem;
     background: #fbfbfb;
 }
 
 .app-nav .nav-sub.compact {
-    grid-template-columns: 1fr;
+    grid-template-columns: none;
 }
 
 .app-nav .button {
@@ -123,8 +129,13 @@ main {
 }
 
 .app-nav .nav-sub .button {
+    width: auto !important;
     min-height: 2.35rem;
+    padding-inline: 0.85rem;
+    border: 1px solid var(--line) !important;
+    border-radius: 4px !important;
     font-size: 0.88rem;
+    background: #ffffff !important;
     color: var(--muted) !important;
 }
 
@@ -197,9 +208,6 @@ details {
         grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 
-    .app-nav .nav-sub {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
 }
 
 @media (min-width: 980px) {
@@ -208,9 +216,6 @@ details {
         padding-bottom: 1.25rem !important;
     }
 
-    .app-nav .nav-sub {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
 }
 
 @media (max-width: 520px) {
