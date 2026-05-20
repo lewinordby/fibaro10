@@ -188,14 +188,14 @@ details {
 .metric,
 .temp,
 .cell,
-.light {
+.light:not(.segment):not(.swatch) {
     background-color: #ffffff !important;
 }
 
 .metric,
 .temp,
 .cell,
-.light {
+.light:not(.segment):not(.swatch) {
     border-color: var(--line) !important;
 }
 
