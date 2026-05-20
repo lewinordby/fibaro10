@@ -706,8 +706,8 @@ async def ventilation_view(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 300,
 ):
-    rows, limit = await fetch_rows(VentilationEvent, event_type, action, device_id, mode, source_contains, from_text, to_text, limit)
-    filters = {"event_type": event_type or "", "action": action or "", "device_id": device_id or "", "mode": mode or "", "source_contains": source_contains or "", "from": from_text or "", "to": to_text or "", "limit": limit}
+    rows, limit = await fetch_rows(VentilationEvent, "fan_change", action, device_id, mode, source_contains, from_text, to_text, limit)
+    filters = {"event_type": "fan_change", "action": action or "", "device_id": device_id or "", "mode": mode or "", "source_contains": source_contains or "", "from": from_text or "", "to": to_text or "", "limit": limit}
     return templates.TemplateResponse(request, "ventilation.html", {"rows": rows, "filters": filters})
 
 
@@ -722,7 +722,7 @@ async def ventilation_json(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 1000,
 ):
-    rows, _ = await fetch_rows(VentilationEvent, event_type, action, device_id, mode, source_contains, from_text, to_text, limit)
+    rows, _ = await fetch_rows(VentilationEvent, "fan_change", action, device_id, mode, source_contains, from_text, to_text, limit)
     return {"count": len(rows), "rows": [row_to_dict(row, VENT_COLUMNS) for row in rows]}
 
 
@@ -736,7 +736,7 @@ async def ventilation_download(
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
-    return await csv_response(VentilationEvent, VENT_COLUMNS, "ventilasjon_events.csv", event_type, action, device_id, mode, source_contains, from_text, to_text)
+    return await csv_response(VentilationEvent, VENT_COLUMNS, "ventilasjon_events.csv", "fan_change", action, device_id, mode, source_contains, from_text, to_text)
 
 
 @app.get("/ventilation/samples", response_class=HTMLResponse)
