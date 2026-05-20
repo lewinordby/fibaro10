@@ -30,7 +30,8 @@
         .y-grid { stroke: #e5eaf0; stroke-width: 1; }
         .lux-line { fill: none; stroke: var(--lux); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
         .label { fill: var(--muted); font-size: 18px; }
-        .y-label { fill: #64748b; font-size: 11px; font-weight: 650; }
+        .y-label { fill: #64748b; font-size: 9px; font-weight: 650; }
+        .y-symbol { fill: #f59e0b; stroke: #b45309; stroke-width: 0.5; }
         .now-line { stroke: #ef4444; stroke-width: 2; }
         .now-label { fill: #ef4444; font-size: 13px; font-weight: 800; }
         .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--muted); font-size: 0.86rem; margin-top: 0.65rem; }
@@ -93,6 +94,7 @@
                         {% for tick in lux_day.y_ticks %}
                         <line class="y-grid" x1="0" y1="{{ tick.y }}" x2="1000" y2="{{ tick.y }}"></line>
                         <text class="y-label" x="8" y="{{ tick.y - 4 }}">{{ tick.label }}</text>
+                        <circle class="y-symbol" cx="36" cy="{{ tick.y - 7 }}" r="{{ tick.symbol_radius }}" opacity="{{ tick.symbol_opacity }}"></circle>
                         {% endfor %}
                         {% if lux_day.polyline %}
                         <polyline class="lux-line" points="{{ lux_day.polyline }}"></polyline>

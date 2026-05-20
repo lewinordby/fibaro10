@@ -568,6 +568,12 @@ def lux_y(value: float, max_lux: float) -> float:
     return round(graph_bottom - max(0, min(1, scaled_value / scaled_max)) * usable, 2)
 
 
+def lux_tick_label(value: int) -> str:
+    if value >= 1000:
+        return f"{value // 1000}K" if value % 1000 == 0 else f"{value / 1000:g}K"
+    return str(value)
+
+
 def light_status_text(row: OutdoorLightSample) -> str:
     active = []
     for device in LIGHT_TIMELINE_DEVICES:
@@ -852,9 +858,11 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
 
     y_ticks = [
         {
-            "label": f"{value:g}",
+            "label": lux_tick_label(value),
             "value": value,
             "y": lux_y(float(value), max_lux),
+            "symbol_radius": round(2.2 + math.sqrt(value / max_lux) * 3.8, 2),
+            "symbol_opacity": round(0.25 + math.sqrt(value / max_lux) * 0.55, 2),
         }
         for value in range(scale["step"], int(max_lux) + 1, scale["step"])
     ]
