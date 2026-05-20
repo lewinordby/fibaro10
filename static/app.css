@@ -66,7 +66,7 @@ main {
 
 .app-nav {
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: 1fr !important;
     gap: 0;
     width: 100%;
     margin-bottom: 0.85rem;
@@ -76,6 +76,24 @@ main {
     background: #ffffff;
     box-shadow: none;
     overflow: hidden;
+}
+
+.app-nav .nav-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+}
+
+.app-nav .nav-main {
+    border-bottom: 1px solid var(--line);
+}
+
+.app-nav .nav-sub {
+    background: #fbfbfb;
+}
+
+.app-nav .nav-sub.compact {
+    grid-template-columns: 1fr;
 }
 
 .app-nav .button {
@@ -95,8 +113,19 @@ main {
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.app-nav .button:last-child {
+.app-nav .nav-row .button:last-child {
     border-right: 0 !important;
+}
+
+.app-nav .nav-main .button {
+    min-height: 3rem;
+    font-weight: 650;
+}
+
+.app-nav .nav-sub .button {
+    min-height: 2.35rem;
+    font-size: 0.88rem;
+    color: var(--muted) !important;
 }
 
 .app-nav .nav-form {
@@ -160,8 +189,16 @@ details {
 }
 
 @media (min-width: 680px) {
-    .app-nav {
-        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    .app-nav .nav-main {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .app-nav .nav-main.has-admin {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .app-nav .nav-sub {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -171,8 +208,8 @@ details {
         padding-bottom: 1.25rem !important;
     }
 
-    .app-nav {
-        grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)) !important;
+    .app-nav .nav-sub {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
