@@ -3,13 +3,13 @@
 {% set is_light = current_path.startswith("/lights") or current_path == "/day/lux" %}
 {% set is_vent = current_path.startswith("/ventilation") or current_path == "/day/temp" %}
 {% set is_admin = current_path == "/admin/keys" %}
-<nav class="nav app-nav" aria-label="Hovedmeny">
+<nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_admin %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
     <div class="nav-row nav-main {% if request.state.auth_is_master %}has-admin{% endif %}">
-        <a class="button {% if is_status %}active{% endif %}" href="/">Status</a>
-        <a class="button {% if is_light %}active{% endif %}" href="/lights">Lys</a>
-        <a class="button {% if is_vent %}active{% endif %}" href="/ventilation">Ventilasjon</a>
+        <a class="button nav-status {% if is_status %}active{% endif %}" href="/">Status</a>
+        <a class="button nav-light {% if is_light %}active{% endif %}" href="/lights">Lys</a>
+        <a class="button nav-vent {% if is_vent %}active{% endif %}" href="/ventilation">Ventilasjon</a>
         {% if request.state.auth_is_master %}
-        <a class="button {% if current_path == '/admin/keys' %}active{% endif %}" href="/admin/keys">Nøkler</a>
+        <a class="button nav-admin {% if current_path == '/admin/keys' %}active{% endif %}" href="/admin/keys">Nøkler</a>
         {% endif %}
         <form class="nav-form" method="post" action="/auth/logout">
             <button class="button" type="submit">Logg ut</button>

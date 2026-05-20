@@ -23,6 +23,22 @@
     --vent: #378b5d;
     --light: #d98635;
     --neutral: #6d5b86;
+    --status-color: #3f7fbd;
+    --status-soft: #eaf4ff;
+    --status-border: #b8d8f0;
+    --status-ring: rgba(63, 127, 189, 0.24);
+    --light-color: #df705d;
+    --light-soft: #fbebe8;
+    --light-border: #f2c4bb;
+    --light-ring: rgba(223, 112, 93, 0.24);
+    --vent-color: #52a464;
+    --vent-soft: #eaf5ed;
+    --vent-border: #b9dfc2;
+    --vent-ring: rgba(82, 164, 100, 0.24);
+    --admin-color: #726189;
+    --admin-soft: #f0edf5;
+    --admin-border: #cec4db;
+    --admin-ring: rgba(114, 97, 137, 0.24);
     --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
     --shadow-2: 0 8px 22px rgba(16, 24, 40, 0.08);
 }
@@ -59,6 +75,17 @@ header {
     flex: 0 0 auto;
 }
 
+.brand-home {
+    display: inline-flex;
+    flex: 0 0 auto;
+    border-radius: 6px;
+    outline: none;
+}
+
+.brand-home:focus-visible {
+    box-shadow: 0 0 0 3px var(--brand-ring);
+}
+
 header h1 {
     color: var(--brand-dark);
     font-weight: 520 !important;
@@ -76,6 +103,10 @@ main {
 }
 
 .app-nav {
+    --section-color: var(--status-color);
+    --section-soft: var(--status-soft);
+    --section-border: var(--status-border);
+    --section-ring: var(--status-ring);
     display: grid !important;
     grid-template-columns: 1fr !important;
     gap: 0;
@@ -87,6 +118,27 @@ main {
     background: var(--panel);
     box-shadow: var(--shadow-1);
     overflow: hidden;
+}
+
+.app-nav.section-light {
+    --section-color: var(--light-color);
+    --section-soft: var(--light-soft);
+    --section-border: var(--light-border);
+    --section-ring: var(--light-ring);
+}
+
+.app-nav.section-vent {
+    --section-color: var(--vent-color);
+    --section-soft: var(--vent-soft);
+    --section-border: var(--vent-border);
+    --section-ring: var(--vent-ring);
+}
+
+.app-nav.section-admin {
+    --section-color: var(--admin-color);
+    --section-soft: var(--admin-soft);
+    --section-border: var(--admin-border);
+    --section-ring: var(--admin-ring);
 }
 
 .app-nav .nav-row {
@@ -157,23 +209,51 @@ main {
 }
 
 .app-nav .button:hover {
-    background: var(--brand-soft) !important;
+    background: var(--section-soft) !important;
     color: var(--brand-dark) !important;
-    border-color: #cfe3f6 !important;
+    border-color: var(--section-border) !important;
 }
 
 .app-nav .button.active {
-    background: var(--brand) !important;
+    background: var(--section-color) !important;
     color: #ffffff !important;
-    border-color: var(--brand) !important;
-    box-shadow: 0 1px 2px rgba(82, 146, 214, 0.22) !important;
+    border-color: var(--section-color) !important;
+    box-shadow: 0 1px 2px var(--section-ring) !important;
+}
+
+.app-nav .nav-main .button.nav-status {
+    --section-color: var(--status-color);
+    --section-soft: var(--status-soft);
+    --section-border: var(--status-border);
+    --section-ring: var(--status-ring);
+}
+
+.app-nav .nav-main .button.nav-light {
+    --section-color: var(--light-color);
+    --section-soft: var(--light-soft);
+    --section-border: var(--light-border);
+    --section-ring: var(--light-ring);
+}
+
+.app-nav .nav-main .button.nav-vent {
+    --section-color: var(--vent-color);
+    --section-soft: var(--vent-soft);
+    --section-border: var(--vent-border);
+    --section-ring: var(--vent-ring);
+}
+
+.app-nav .nav-main .button.nav-admin {
+    --section-color: var(--admin-color);
+    --section-soft: var(--admin-soft);
+    --section-border: var(--admin-border);
+    --section-ring: var(--admin-ring);
 }
 
 .app-nav .nav-sub .button.active {
-    background: var(--brand-soft) !important;
-    color: var(--brand-strong) !important;
-    border-color: #b8d8f0 !important;
-    box-shadow: inset 0 0 0 1px rgba(82, 146, 214, 0.12) !important;
+    background: var(--section-soft) !important;
+    color: var(--section-color) !important;
+    border-color: var(--section-border) !important;
+    box-shadow: inset 0 0 0 1px var(--section-ring) !important;
 }
 
 .app-nav .button.active::after {

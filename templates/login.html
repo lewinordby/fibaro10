@@ -10,7 +10,9 @@
         body { margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: var(--bg); color: var(--text); }
         .login-top { background: white; padding: 4.2rem 1.2rem 5rem; text-align: center; border-bottom: 1px solid var(--line); position: relative; }
         .login-top::after { content: ""; position: absolute; left: 50%; bottom: -1.05rem; width: 2.1rem; height: 2.1rem; background: white; transform: translateX(-50%) rotate(45deg); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-        .login-logo { width: 15.5rem; max-width: 70vw; height: auto; display: block; margin: 0 auto 1.7rem; }
+        .login-logo-link { display: inline-flex; border-radius: 6px; margin-bottom: 1.7rem; }
+        .login-logo-link:focus-visible { outline: 3px solid rgba(82, 146, 214, 0.28); outline-offset: 4px; }
+        .login-logo { width: 15.5rem; max-width: 70vw; height: auto; display: block; }
         h1 { margin: 0; font-size: 1.55rem; font-weight: 400; }
         main { width: min(100% - 2rem, 40rem); margin: 0 auto; padding: 6.2rem 0 2rem; }
         form { display: grid; gap: 1.25rem; }
@@ -22,7 +24,9 @@
 </head>
 <body>
     <div class="login-top">
-        <img class="login-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
+        <a class="login-logo-link" href="/" aria-label="Gå til status">
+            <img class="login-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
+        </a>
         <h1>Logg inn på grensesnittet.</h1>
     </div>
     <main>
