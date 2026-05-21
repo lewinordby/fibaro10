@@ -4,6 +4,8 @@ import getpass
 import json
 import os
 import pickle
+import secrets
+import string
 from pathlib import Path
 from typing import Any
 
@@ -53,11 +55,117 @@ async def request_code(email: str) -> None:
     from roborock.web_api import RoborockApiClient
 
     web_api = RoborockApiClient(username=email)
-    await web_api.request_code()
+    await web_api.request_code_v4()
     print(f"Kode er sendt til {email}.")
 
 
+async def request_code_legacy(email: str) -> None:
+    from roborock.web_api import RoborockApiClient
+
+    web_api = RoborockApiClient(username=email)
+    await web_api.request_code()
+    print(f"Gammel type kode er sendt til {email}.")
+
+
 async def login(email: str, code: str) -> None:
+    user_data = await dynamic_code_login(email, code)
+    save_user_data(user_data)
+    print(f"Login lagret i {CACHE_FILE}")
+    print_json(user_data)
+
+
+async def login_explicit(email: str, code: str, country: str, country_code: int) -> None:
+    user_data = await dynamic_code_login(email, code, country=country, country_code=country_code)
+    save_user_data(user_data)
+    print(f"Login lagret i {CACHE_FILE}")
+    print_json(user_data)
+
+
+async def get_latest_agreement_version(web_api: Any, country: str) -> tuple[int, int]:
+    from roborock.web_api import PreparedRequest
+
+    base_url = await web_api.base_url
+    agreement_request = PreparedRequest(base_url, web_api.session)
+    response = await agreement_request.request(
+        "get",
+        "/api/v3/app/agreement/latest",
+        params={"country": country},
+    )
+    data = response.get("data") if isinstance(response, dict) else None
+    if isinstance(data, dict):
+        return int(data.get("majorVersion") or 14), int(data.get("minorVersion") or 0)
+    return 14, 0
+
+
+async def dynamic_code_login(
+    email: str,
+    code: str,
+    country: str | None = None,
+    country_code: int | None = None,
+) -> Any:
+    from roborock.web_api import PreparedRequest, RoborockApiClient, UserData
+
+    web_api = RoborockApiClient(username=email)
+    base_url = await web_api.base_url
+    if country is None:
+        country = await web_api.country
+    if country_code is None:
+        country_code = await web_api.country_code
+    if country is None or country_code is None:
+        return await web_api.code_login(code)
+
+    major_version, minor_version = await get_latest_agreement_version(web_api, country)
+    header_clientid = web_api._get_header_client_id()
+    x_mercy_ks = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+    x_mercy_k = await web_api._sign_key_v3(x_mercy_ks)
+    login_request = PreparedRequest(
+        base_url,
+        web_api.session,
+        {
+            "header_clientid": header_clientid,
+            "x-mercy-ks": x_mercy_ks,
+            "x-mercy-k": x_mercy_k,
+            "Content-Type": "application/x-www-form-urlencoded",
+            "header_clientlang": "en",
+            "header_appversion": "4.54.02",
+            "header_phonesystem": "iOS",
+            "header_phonemodel": "iPhone16,1",
+        },
+    )
+    login_response = await login_request.request(
+        "post",
+        "/api/v4/auth/email/login/code",
+        data={
+            "country": country,
+            "countryCode": country_code,
+            "email": email,
+            "code": code,
+            "majorVersion": major_version,
+            "minorVersion": minor_version,
+        },
+    )
+    if login_response is None:
+        raise SystemExit("Roborock returnerte ikke login-respons.")
+    if login_response.get("code") != 200:
+        print_json(
+            {
+                "agreement_version_used": {
+                    "majorVersion": major_version,
+                    "minorVersion": minor_version,
+                    "country": country,
+                    "countryCode": country_code,
+                },
+                "response": login_response,
+            }
+        )
+        raise SystemExit("Roborock-login feilet. Se responsen over.")
+    user_data = login_response.get("data")
+    if not isinstance(user_data, dict):
+        raise SystemExit("Roborock returnerte uventet brukerdata.")
+    return UserData.from_dict(user_data)
+
+
+async def legacy_login(email: str, code: str) -> None:
     from roborock.web_api import RoborockApiClient
 
     web_api = RoborockApiClient(username=email)
@@ -65,6 +173,19 @@ async def login(email: str, code: str) -> None:
     save_user_data(user_data)
     print(f"Login lagret i {CACHE_FILE}")
     print_json(user_data)
+
+
+async def account_info(email: str) -> None:
+    from roborock.web_api import RoborockApiClient
+
+    web_api = RoborockApiClient(username=email)
+    print_json(
+        {
+            "base_url": await web_api.base_url,
+            "country": await web_api.country,
+            "country_code": await web_api.country_code,
+        }
+    )
 
 
 async def password_login(email: str, password: str | None, password_env: str | None) -> None:
@@ -82,6 +203,32 @@ async def password_login(email: str, password: str | None, password_env: str | N
     save_user_data(user_data)
     print(f"Login lagret i {CACHE_FILE}")
     print_json(user_data)
+
+
+async def password_probe(email: str, password: str | None, password_env: str | None) -> None:
+    from roborock.web_api import PreparedRequest, RoborockApiClient
+
+    if password_env:
+        password = os.getenv(password_env)
+    if not password:
+        password = getpass.getpass("Roborock-passord: ")
+    if not password:
+        raise SystemExit("Mangler passord.")
+
+    web_api = RoborockApiClient(username=email)
+    base_url = await web_api.base_url
+    header_clientid = web_api._get_header_client_id()
+    login_request = PreparedRequest(base_url, web_api.session, {"header_clientid": header_clientid})
+    login_response = await login_request.request(
+        "post",
+        "/api/v1/login",
+        params={
+            "username": email,
+            "password": password,
+            "needtwostepauth": "true",
+        },
+    )
+    print_json(login_response)
 
 
 async def get_device_manager(email: str):
@@ -138,14 +285,34 @@ async def main() -> None:
     request_parser = subparsers.add_parser("request-code", help="Send Roborock innloggingskode på e-post.")
     request_parser.add_argument("--email", required=True)
 
+    request_legacy_parser = subparsers.add_parser(
+        "request-code-legacy",
+        help="Send Roborock innloggingskode med gammel API-flyt.",
+    )
+    request_legacy_parser.add_argument("--email", required=True)
+
     login_parser = subparsers.add_parser("login", help="Logg inn med kode og lagre brukerdata lokalt.")
     login_parser.add_argument("--email", required=True)
     login_parser.add_argument("--code", required=True)
+    login_parser.add_argument("--country", help="Eksplisitt landkode, f.eks. NO.")
+    login_parser.add_argument("--country-code", type=int, help="Eksplisitt telefonlandkode, f.eks. 47.")
+
+    legacy_parser = subparsers.add_parser("legacy-login", help="Logg inn med gammel e-postkodeflyt.")
+    legacy_parser.add_argument("--email", required=True)
+    legacy_parser.add_argument("--code", required=True)
 
     password_parser = subparsers.add_parser("password-login", help="Logg inn med passord og lagre brukerdata lokalt.")
     password_parser.add_argument("--email", required=True)
     password_parser.add_argument("--password", help="Unngå helst denne. Bruk prompt eller --password-env.")
     password_parser.add_argument("--password-env", help="Navn på miljøvariabel som inneholder passordet.")
+
+    password_probe_parser = subparsers.add_parser("password-probe", help="Test passordlogin med eksplisitt totrinnsflagg.")
+    password_probe_parser.add_argument("--email", required=True)
+    password_probe_parser.add_argument("--password", help="Unngå helst denne. Bruk prompt eller --password-env.")
+    password_probe_parser.add_argument("--password-env", help="Navn på miljøvariabel som inneholder passordet.")
+
+    account_parser = subparsers.add_parser("account-info", help="Vis regiondata Roborock bruker for kontoen.")
+    account_parser.add_argument("--email", required=True)
 
     devices_parser = subparsers.add_parser("devices", help="List Roborock-enheter på kontoen.")
     devices_parser.add_argument("--email", required=True)
@@ -157,10 +324,23 @@ async def main() -> None:
 
     if args.command == "request-code":
         await request_code(args.email)
+    elif args.command == "request-code-legacy":
+        await request_code_legacy(args.email)
     elif args.command == "login":
-        await login(args.email, args.code)
+        if args.country or args.country_code:
+            if not args.country or args.country_code is None:
+                raise SystemExit("Bruk både --country og --country-code, eller ingen av dem.")
+            await login_explicit(args.email, args.code, args.country, args.country_code)
+        else:
+            await login(args.email, args.code)
     elif args.command == "password-login":
         await password_login(args.email, args.password, args.password_env)
+    elif args.command == "password-probe":
+        await password_probe(args.email, args.password, args.password_env)
+    elif args.command == "legacy-login":
+        await legacy_login(args.email, args.code)
+    elif args.command == "account-info":
+        await account_info(args.email)
     elif args.command == "devices":
         await list_devices(args.email)
     elif args.command == "status":
