@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yr logg</title>
+    <style>
+        :root { color-scheme: light; --bg:#eef2f6; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --soft:#f8fafc; --yr:#5292d6; --vent:#52a464; }
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+        header { position: sticky; top: 0; z-index: 5; background: rgba(238,242,246,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; backdrop-filter: blur(8px); }
+        h1 { margin: 0; font-size: 1.35rem; letter-spacing: 0; }
+        .sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
+        main { padding: 0.85rem; max-width: 980px; margin: 0 auto; }
+        a.button, button { padding: 0.65rem 0.75rem; border: 1px solid var(--line); background: white; color: #111; text-decoration: none; border-radius: 7px; cursor: pointer; font-size: 0.95rem; text-align: center; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+        details { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.85rem; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+        summary { cursor: pointer; font-weight: 650; }
+        form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.75rem; }
+        input { width: 100%; padding: 0.6rem; border: 1px solid var(--line); border-radius: 7px; background: white; font-size: 1rem; }
+        .sample { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--yr); border-radius: 8px; padding: 0.82rem; margin-bottom: 0.72rem; box-shadow: 0 5px 16px rgba(15,23,42,0.06); }
+        .top { display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start; }
+        .time { font-weight: 850; line-height: 1.15; }
+        .bucket { color: var(--muted); font-size: 0.78rem; margin-top: 0.12rem; }
+        .weather { text-align: right; font-weight: 850; color: var(--yr); }
+        .weather span { display: block; color: var(--muted); font-size: 0.78rem; font-weight: 650; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; margin-top: 0.75rem; }
+        .cell { background: var(--soft); border: 1px solid #e5eaf0; border-radius: 7px; padding: 0.55rem 0.62rem; min-width: 0; }
+        .label { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.1; }
+        .value { display: block; margin-top: 0.16rem; font-size: 1.02rem; font-weight: 850; overflow-wrap: anywhere; }
+        .forecast { border-top: 1px solid var(--line); margin-top: 0.75rem; padding-top: 0.65rem; }
+        .empty { color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+        @media (min-width: 760px) {
+            main { padding: 1.25rem; }
+            form { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .forecast .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        }
+    </style>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="theme-vent">
+    <header>
+        <div class="brand-bar">
+            <a class="brand-home" href="/" aria-label="Gå til status">
+                <img class="brand-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
+            </a>
+            <div>
+                <h1>Yr logg</h1>
+                <p class="sub">5-minutterslogg fra MET/Yr Locationforecast</p>
+            </div>
+        </div>
+    </header>
+    <main>
+        {% include "_nav.html" %}
+        <details>
+            <summary>Filter</summary>
+            <form method="get" action="/yr/samples">
+                <input type="datetime-local" name="from" value="{{ filters.from }}">
+                <input type="datetime-local" name="to" value="{{ filters.to }}">
+                <input type="number" name="limit" placeholder="Antall" value="{{ filters.limit }}">
+                <button type="submit">Vis</button>
+                <a class="button" href="/yr/samples">Nullstill</a>
+            </form>
+        </details>
+        {% if not rows %}
+        <div class="empty">Ingen Yr-målinger funnet ennå.</div>
+        {% endif %}
+        {% for row in rows %}
+        <article class="sample">
+            <div class="top">
+                <div>
+                    <div class="time">{{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}</div>
+                    <div class="bucket">Periode: {{ row.bucket_start.strftime("%H:%M") if row.bucket_start else "-" }} | Varsel: {{ row.forecast_time.strftime("%H:%M") if row.forecast_time else "-" }}</div>
+                </div>
+                <div class="weather">
+                    {{ row.weather_text or row.symbol_code or "-" }}
+                    <span>{% if row.air_temperature is not none %}{{ "%.1f"|format(row.air_temperature) }}°{% else %}-{% endif %}</span>
+                </div>
+            </div>
+            <div class="grid">
+                <div class="cell"><span class="label">Fukt</span><span class="value">{% if row.relative_humidity is not none %}{{ "%.0f"|format(row.relative_humidity) }}%{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Vind</span><span class="value">{% if row.wind_speed is not none %}{{ "%.1f"|format(row.wind_speed) }} m/s{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Skydekke</span><span class="value">{% if row.cloud_area_fraction is not none %}{{ "%.0f"|format(row.cloud_area_fraction) }}%{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Nedbør 1t</span><span class="value">{% if row.precipitation_next_1h is not none %}{{ "%.1f"|format(row.precipitation_next_1h) }} mm{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Duggpunkt</span><span class="value">{% if row.dew_point_temperature is not none %}{{ "%.1f"|format(row.dew_point_temperature) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Trykk</span><span class="value">{% if row.air_pressure_at_sea_level is not none %}{{ "%.0f"|format(row.air_pressure_at_sea_level) }} hPa{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Min neste 6t</span><span class="value">{% if row.temp_min_next_6h is not none %}{{ "%.1f"|format(row.temp_min_next_6h) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Maks neste 6t</span><span class="value">{% if row.temp_max_next_6h is not none %}{{ "%.1f"|format(row.temp_max_next_6h) }}°{% else %}-{% endif %}</span></div>
+            </div>
+            <div class="forecast">
+                <div class="grid">
+                    <div class="cell"><span class="label">+1t</span><span class="value">{% if row.temp_1h is not none %}{{ "%.1f"|format(row.temp_1h) }}°{% else %}-{% endif %}</span></div>
+                    <div class="cell"><span class="label">+3t</span><span class="value">{% if row.temp_3h is not none %}{{ "%.1f"|format(row.temp_3h) }}°{% else %}-{% endif %}</span></div>
+                    <div class="cell"><span class="label">+6t</span><span class="value">{% if row.temp_6h is not none %}{{ "%.1f"|format(row.temp_6h) }}°{% else %}-{% endif %}</span></div>
+                    <div class="cell"><span class="label">+12t</span><span class="value">{% if row.temp_12h is not none %}{{ "%.1f"|format(row.temp_12h) }}°{% else %}-{% endif %}</span></div>
+                    <div class="cell"><span class="label">+24t</span><span class="value">{% if row.temp_24h is not none %}{{ "%.1f"|format(row.temp_24h) }}°{% else %}-{% endif %}</span></div>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </main>
+</body>
+</html>

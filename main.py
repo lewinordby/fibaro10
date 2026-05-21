@@ -201,6 +201,41 @@ class VentilationSample(Base):
     extra = Column(JSON, nullable=True)
 
 
+class YrForecastSample(Base):
+    __tablename__ = "yr_forecast_samples"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    bucket_start = Column(DateTime, index=True, nullable=False)
+    source = Column(Text, nullable=True)
+    forecast_time = Column(DateTime, nullable=True)
+    symbol_code = Column(String, nullable=True)
+    weather_text = Column(String, nullable=True)
+    air_temperature = Column(Float, nullable=True)
+    relative_humidity = Column(Float, nullable=True)
+    wind_speed = Column(Float, nullable=True)
+    wind_from_direction = Column(Float, nullable=True)
+    cloud_area_fraction = Column(Float, nullable=True)
+    fog_area_fraction = Column(Float, nullable=True)
+    dew_point_temperature = Column(Float, nullable=True)
+    air_pressure_at_sea_level = Column(Float, nullable=True)
+    precipitation_next_1h = Column(Float, nullable=True)
+    precipitation_next_6h = Column(Float, nullable=True)
+    temp_1h = Column(Float, nullable=True)
+    temp_3h = Column(Float, nullable=True)
+    temp_6h = Column(Float, nullable=True)
+    temp_12h = Column(Float, nullable=True)
+    temp_24h = Column(Float, nullable=True)
+    symbol_1h = Column(String, nullable=True)
+    symbol_3h = Column(String, nullable=True)
+    symbol_6h = Column(String, nullable=True)
+    symbol_12h = Column(String, nullable=True)
+    symbol_24h = Column(String, nullable=True)
+    temp_min_next_6h = Column(Float, nullable=True)
+    temp_max_next_6h = Column(Float, nullable=True)
+    extra = Column(JSON, nullable=True)
+
+
 class GenericEvent(Base):
     __tablename__ = "event_data"
 
@@ -346,6 +381,16 @@ VENT_SAMPLE_COLUMNS = [
     "temp_luftinntak", "temp_min_inne", "temp_avg_inne", "temp_max_inne", "diff_w",
     "estimated_sunbeds", "afterrun_active", "heat_need", "cool_need", "open_time",
     "pre_cooling", "exhaust_time_allowed", "fan_vip", "fan_2etg", "fan_tak", "extra",
+]
+
+YR_SAMPLE_COLUMNS = [
+    "id", "timestamp", "bucket_start", "source", "forecast_time", "symbol_code",
+    "weather_text", "air_temperature", "relative_humidity", "wind_speed",
+    "wind_from_direction", "cloud_area_fraction", "fog_area_fraction",
+    "dew_point_temperature", "air_pressure_at_sea_level", "precipitation_next_1h",
+    "precipitation_next_6h", "temp_1h", "temp_3h", "temp_6h", "temp_12h",
+    "temp_24h", "symbol_1h", "symbol_3h", "symbol_6h", "symbol_12h",
+    "symbol_24h", "temp_min_next_6h", "temp_max_next_6h", "extra",
 ]
 
 LIGHT_TIMELINE_DEVICES = [
@@ -821,6 +866,9 @@ def weather_label(value) -> Optional[str]:
     key = raw.lower().replace("-", "_")
     if key in WEATHER_LABELS:
         return WEATHER_LABELS[key]
+    for suffix in ("_day", "_night", "_polartwilight"):
+        if key.endswith(suffix) and key[: -len(suffix)] in WEATHER_LABELS:
+            return WEATHER_LABELS[key[: -len(suffix)]]
     cleaned = raw.replace("_", " ").replace("-", " ")
     return cleaned[:1].upper() + cleaned[1:] if cleaned else None
 
@@ -854,11 +902,34 @@ def weather_from_rows(*rows) -> Optional[str]:
     return None
 
 
-def met_symbol_from_payload(payload: Dict[str, Any]) -> Optional[str]:
-    timeseries = payload.get("properties", {}).get("timeseries", [])
-    if not timeseries:
+def met_time(value: Optional[str]) -> Optional[datetime]:
+    if not value:
         return None
-    data = timeseries[0].get("data", {})
+    try:
+        stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if stamp.tzinfo:
+        stamp = stamp.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+    return stamp
+
+
+def met_details(entry: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not entry:
+        return {}
+    return entry.get("data", {}).get("instant", {}).get("details", {}) or {}
+
+
+def met_period_details(entry: Optional[Dict[str, Any]], period: str) -> Dict[str, Any]:
+    if not entry:
+        return {}
+    return entry.get("data", {}).get(period, {}).get("details", {}) or {}
+
+
+def met_period_symbol(entry: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not entry:
+        return None
+    data = entry.get("data", {})
     for period in ("next_1_hours", "next_6_hours", "next_12_hours"):
         symbol = data.get(period, {}).get("summary", {}).get("symbol_code")
         if symbol:
@@ -866,7 +937,70 @@ def met_symbol_from_payload(payload: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def fetch_met_weather() -> Optional[Dict[str, str]]:
+def met_value(details: Dict[str, Any], key: str) -> Optional[float]:
+    value = details.get(key)
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def met_entry_at(timeseries: list[Dict[str, Any]], base_time: Optional[datetime], hours: int) -> Optional[Dict[str, Any]]:
+    if not timeseries or not base_time:
+        return None
+    target = base_time + timedelta(hours=hours)
+    entries = [(met_time(entry.get("time")), entry) for entry in timeseries]
+    entries = [(stamp, entry) for stamp, entry in entries if stamp is not None]
+    if not entries:
+        return None
+    future_entries = [(stamp, entry) for stamp, entry in entries if stamp >= target]
+    source = future_entries or entries
+    return min(source, key=lambda item: abs((item[0] - target).total_seconds()))[1]
+
+
+def met_forecast_from_payload(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    timeseries = payload.get("properties", {}).get("timeseries", [])
+    if not timeseries:
+        return None
+    current = timeseries[0]
+    forecast_time = met_time(current.get("time"))
+    details = met_details(current)
+    symbol = met_period_symbol(current)
+    next_1h = met_period_details(current, "next_1_hours")
+    next_6h = met_period_details(current, "next_6_hours")
+    forecast: Dict[str, Any] = {
+        "symbol": symbol or "",
+        "text": weather_label(symbol),
+        "forecast_time": forecast_time,
+        "air_temperature": met_value(details, "air_temperature"),
+        "relative_humidity": met_value(details, "relative_humidity"),
+        "wind_speed": met_value(details, "wind_speed"),
+        "wind_from_direction": met_value(details, "wind_from_direction"),
+        "cloud_area_fraction": met_value(details, "cloud_area_fraction"),
+        "fog_area_fraction": met_value(details, "fog_area_fraction"),
+        "dew_point_temperature": met_value(details, "dew_point_temperature"),
+        "air_pressure_at_sea_level": met_value(details, "air_pressure_at_sea_level"),
+        "precipitation_next_1h": met_value(next_1h, "precipitation_amount"),
+        "precipitation_next_6h": met_value(next_6h, "precipitation_amount"),
+    }
+    for hours in (1, 3, 6, 12, 24):
+        entry = met_entry_at(timeseries, forecast_time, hours)
+        forecast[f"temp_{hours}h"] = met_value(met_details(entry), "air_temperature")
+        forecast[f"symbol_{hours}h"] = met_period_symbol(entry)
+    next_6h_values = []
+    if forecast_time:
+        for entry in timeseries:
+            stamp = met_time(entry.get("time"))
+            temp = met_value(met_details(entry), "air_temperature")
+            if stamp and temp is not None and forecast_time <= stamp <= forecast_time + timedelta(hours=6):
+                next_6h_values.append(temp)
+    forecast["temp_min_next_6h"] = min(next_6h_values) if next_6h_values else None
+    forecast["temp_max_next_6h"] = max(next_6h_values) if next_6h_values else None
+    forecast["raw_meta"] = payload.get("meta", {})
+    return forecast if forecast["text"] or forecast["air_temperature"] is not None else None
+
+
+def fetch_met_weather() -> Optional[Dict[str, Any]]:
     url = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={MET_LAT:.4f}&lon={MET_LON:.4f}"
     request = urllib.request.Request(
         url,
@@ -880,14 +1014,10 @@ def fetch_met_weather() -> Optional[Dict[str, str]]:
             payload = json.loads(response.read().decode("utf-8"))
     except (OSError, urllib.error.URLError, json.JSONDecodeError):
         return None
-    symbol = met_symbol_from_payload(payload)
-    label = weather_label(symbol)
-    if not label:
-        return None
-    return {"symbol": symbol or "", "text": label}
+    return met_forecast_from_payload(payload)
 
 
-async def met_weather_cached() -> Optional[Dict[str, str]]:
+async def met_weather_cached() -> Optional[Dict[str, Any]]:
     now_value = datetime.utcnow()
     if MET_WEATHER_CACHE["expires"] > now_value:
         return MET_WEATHER_CACHE["value"]
@@ -897,7 +1027,7 @@ async def met_weather_cached() -> Optional[Dict[str, str]]:
     return value
 
 
-def build_now_status(latest_sample, latest_light_sample, latest_light):
+def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample=None):
     indoor_values = [
         {"label": "1.etg", "value": latest_sample.temp_1etg if latest_sample else None},
         {"label": "2.etg", "value": latest_sample.temp_2etg if latest_sample else None},
@@ -908,23 +1038,26 @@ def build_now_status(latest_sample, latest_light_sample, latest_light):
     if latest_sample:
         outdoor_ute = latest_sample.temp_ute if latest_sample.temp_ute is not None else latest_sample.temp_ute_netatmo
         outdoor_yr = latest_sample.temp_yr
+    outdoor_yr_api = latest_yr_sample.air_temperature if latest_yr_sample else None
     outdoor_values = [
         {"label": "Ute", "value": outdoor_ute},
-        {"label": "Yr", "value": outdoor_yr},
+        {"label": "Yr HC3", "value": outdoor_yr},
+        {"label": "Yr API", "value": outdoor_yr_api},
     ]
     lux = None
     if latest_light_sample and latest_light_sample.lux is not None:
         lux = latest_light_sample.lux
     elif latest_light and latest_light.lux is not None:
         lux = latest_light.lux
-    timestamp = latest_timestamp_from(latest_sample, latest_light_sample, latest_light)
-    weather = weather_from_rows(latest_light_sample, latest_sample, latest_light)
+    timestamp = latest_timestamp_from(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
+    weather = weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light)
+    outdoor_avg_values = [outdoor_ute, outdoor_yr_api if outdoor_yr_api is not None else outdoor_yr]
     return {
         "timestamp": timestamp,
         "mode": latest_sample.mode if latest_sample else None,
         "indoor_avg": average_value([item["value"] for item in indoor_values]),
         "indoor_values": indoor_values,
-        "outdoor_avg": average_value([item["value"] for item in outdoor_values]),
+        "outdoor_avg": average_value(outdoor_avg_values),
         "outdoor_values": outdoor_values,
         "lux": lux,
         "weather": weather,
@@ -1397,10 +1530,12 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
 
 
 def row_to_dict(row, columns):
-    out = {column: getattr(row, column) for column in columns if column != "extra"}
-    out["timestamp"] = row.timestamp.isoformat() if row.timestamp else None
-    if "bucket_start" in out and out["bucket_start"]:
-        out["bucket_start"] = out["bucket_start"].isoformat()
+    out = {}
+    for column in columns:
+        if column == "extra":
+            continue
+        value = getattr(row, column)
+        out[column] = value.isoformat() if isinstance(value, datetime) else value
     out["extra"] = row.extra or {}
     return out
 
@@ -1452,7 +1587,7 @@ def payload_weather_text(data: EventDataIn) -> Optional[str]:
     )
 
 
-def light_sample_from_payload(data: EventDataIn, met_weather: Optional[Dict[str, str]] = None) -> OutdoorLightSample:
+def light_sample_from_payload(data: EventDataIn, met_weather: Optional[Dict[str, Any]] = None) -> OutdoorLightSample:
     timestamp = data.timestamp or datetime.utcnow()
     weather_symbol = payload_weather_symbol(data) or ((met_weather or {}).get("symbol") or None)
     weather_text = weather_label(payload_weather_text(data)) or ((met_weather or {}).get("text") or None)
@@ -1473,6 +1608,68 @@ def light_sample_from_payload(data: EventDataIn, met_weather: Optional[Dict[str,
         weather_text=weather_text,
         extra=merged_extra(data),
     )
+
+
+def yr_sample_from_forecast(
+    timestamp: datetime,
+    bucket_start: datetime,
+    source: Optional[str],
+    forecast: Dict[str, Any],
+) -> YrForecastSample:
+    return YrForecastSample(
+        timestamp=timestamp,
+        bucket_start=bucket_start,
+        source=source or "MET/Yr Locationforecast",
+        forecast_time=forecast.get("forecast_time"),
+        symbol_code=forecast.get("symbol") or None,
+        weather_text=forecast.get("text") or None,
+        air_temperature=forecast.get("air_temperature"),
+        relative_humidity=forecast.get("relative_humidity"),
+        wind_speed=forecast.get("wind_speed"),
+        wind_from_direction=forecast.get("wind_from_direction"),
+        cloud_area_fraction=forecast.get("cloud_area_fraction"),
+        fog_area_fraction=forecast.get("fog_area_fraction"),
+        dew_point_temperature=forecast.get("dew_point_temperature"),
+        air_pressure_at_sea_level=forecast.get("air_pressure_at_sea_level"),
+        precipitation_next_1h=forecast.get("precipitation_next_1h"),
+        precipitation_next_6h=forecast.get("precipitation_next_6h"),
+        temp_1h=forecast.get("temp_1h"),
+        temp_3h=forecast.get("temp_3h"),
+        temp_6h=forecast.get("temp_6h"),
+        temp_12h=forecast.get("temp_12h"),
+        temp_24h=forecast.get("temp_24h"),
+        symbol_1h=forecast.get("symbol_1h"),
+        symbol_3h=forecast.get("symbol_3h"),
+        symbol_6h=forecast.get("symbol_6h"),
+        symbol_12h=forecast.get("symbol_12h"),
+        symbol_24h=forecast.get("symbol_24h"),
+        temp_min_next_6h=forecast.get("temp_min_next_6h"),
+        temp_max_next_6h=forecast.get("temp_max_next_6h"),
+        extra={"raw_meta": forecast.get("raw_meta") or {}},
+    )
+
+
+async def save_yr_sample_for_payload(data: EventDataIn, forecast: Optional[Dict[str, Any]] = None) -> Optional[int]:
+    forecast = forecast or await met_weather_cached()
+    if not forecast:
+        return None
+    timestamp = data.timestamp or datetime.utcnow()
+    bucket_start = data.bucket_start or sample_bucket(timestamp)
+    async with async_session() as session:
+        existing = (
+            await session.execute(
+                select(YrForecastSample)
+                .where(YrForecastSample.bucket_start == bucket_start)
+                .limit(1)
+            )
+        ).scalars().first()
+        if existing:
+            return existing.id
+        record = yr_sample_from_forecast(timestamp, bucket_start, data.source, forecast)
+        session.add(record)
+        await session.commit()
+        await session.refresh(record)
+        return record.id
 
 
 def vent_from_payload(data: EventDataIn) -> VentilationEvent:
@@ -1653,7 +1850,7 @@ async def startup():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "storage": ["utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples", "event_data"]}
+    return {"status": "ok", "storage": ["utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples", "yr_forecast_samples", "event_data"]}
 
 
 @app.get("/auth/login", response_class=HTMLResponse)
@@ -1827,6 +2024,7 @@ async def index(request: Request):
         light_samples = (await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))).scalars().all()
         ventilation = (await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(100))).scalars().all()
         samples = (await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))).scalars().all()
+        yr_samples = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().all()
 
     latest_light_by_device = {}
     for row in lights:
@@ -1840,8 +2038,9 @@ async def index(request: Request):
 
     latest_sample = samples[0] if samples else None
     latest_light_sample = light_samples[0] if light_samples else None
+    latest_yr_sample = yr_samples[0] if yr_samples else None
     latest_light = lights[0] if lights else None
-    now_status = build_now_status(latest_sample, latest_light_sample, latest_light)
+    now_status = build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
     fan_state_from_sample = {
         130: latest_sample.fan_vip if latest_sample else None,
         160: latest_sample.fan_2etg if latest_sample else None,
@@ -1879,6 +2078,7 @@ async def index(request: Request):
     freshness_items = [
         freshness_item("Temp logg", latest_sample, 7, 15),
         freshness_item("Lux logging", latest_light_sample, 7, 15),
+        freshness_item("Yr API", latest_yr_sample, 7, 15),
         freshness_item("Lys-hendelser", lights[0] if lights else None, 120, 360),
         freshness_item("Ventilasjonshendelser", ventilation[0] if ventilation else None, 120, 360),
     ]
@@ -1891,6 +2091,7 @@ async def index(request: Request):
             "latest_light_sample": latest_light_sample,
             "latest_vent": ventilation[0] if ventilation else None,
             "latest_sample": latest_sample,
+            "latest_yr_sample": latest_yr_sample,
             "now_status": now_status,
             "light_status": light_status,
             "vent_status": vent_status,
@@ -2023,12 +2224,14 @@ async def log_event(data: EventDataIn):
             met_weather = None
             if not payload_weather_symbol(data) and not payload_weather_text(data):
                 met_weather = await met_weather_cached()
+            await save_yr_sample_for_payload(data, met_weather)
             event_id = await save_record(light_sample_from_payload(data, met_weather))
             return {"status": "ok", "id": event_id, "table": "utelys_samples"}
         event_id = await save_record(light_from_payload(data))
         return {"status": "ok", "id": event_id, "table": "utelys_events"}
     if system in {"ventilasjon", "ventilation", "vent"}:
         if data.event_type in {"sample", "sample_5min", "sample_15min", "learning_sample"}:
+            await save_yr_sample_for_payload(data)
             event_id = await save_record(vent_sample_from_payload(data))
             return {"status": "ok", "id": event_id, "table": "ventilasjon_samples"}
         event_id = await save_record(vent_from_payload(data))
@@ -2191,6 +2394,36 @@ async def ventilation_samples_download(
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
     return await csv_response(VentilationSample, VENT_SAMPLE_COLUMNS, "ventilasjon_samples.csv", None, None, None, mode, None, from_text, to_text)
+
+
+@app.get("/yr/samples", response_class=HTMLResponse)
+async def yr_samples_view(
+    request: Request,
+    from_text: Optional[str] = Query(default=None, alias="from"),
+    to_text: Optional[str] = Query(default=None, alias="to"),
+    limit: int = 500,
+):
+    rows, limit = await fetch_rows(YrForecastSample, None, None, None, None, None, from_text, to_text, limit)
+    filters = {"from": from_text or "", "to": to_text or "", "limit": limit}
+    return templates.TemplateResponse(request, "yr_samples.html", {"rows": rows, "filters": filters})
+
+
+@app.get("/yr/samples/json")
+async def yr_samples_json(
+    from_text: Optional[str] = Query(default=None, alias="from"),
+    to_text: Optional[str] = Query(default=None, alias="to"),
+    limit: int = 1000,
+):
+    rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, from_text, to_text, limit)
+    return {"count": len(rows), "rows": [row_to_dict(row, YR_SAMPLE_COLUMNS) for row in rows]}
+
+
+@app.get("/yr/samples/download")
+async def yr_samples_download(
+    from_text: Optional[str] = Query(default=None, alias="from"),
+    to_text: Optional[str] = Query(default=None, alias="to"),
+):
+    return await csv_response(YrForecastSample, YR_SAMPLE_COLUMNS, "yr_forecast_samples.csv", None, None, None, None, None, from_text, to_text)
 
 
 @app.get("/download")

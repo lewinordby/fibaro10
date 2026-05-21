@@ -447,7 +447,7 @@
                         <div class="now-value">
                             {% if now_status.outdoor_avg is not none %}{{ "%.1f"|format(now_status.outdoor_avg) }}{% else %}-{% endif %}<span class="unit">°</span>
                         </div>
-                        <div class="now-note">Snitt av uteføler og Yr</div>
+                        <div class="now-note">Snitt av uteføler og Yr API</div>
                     </div>
                     <div class="now-stack" aria-label="Utetemperaturer">
                         {% for item in now_status.outdoor_values %}
@@ -482,7 +482,7 @@
             </div>
             <div class="health-grid">
                 {% for item in freshness_items %}
-                <article class="health-card {{ item.status }} {% if item.name in ['Lux logging', 'Lys-hendelser'] %}light-health{% elif item.name in ['Temp logg', 'Ventilasjonshendelser'] %}vent-health{% endif %}">
+                <article class="health-card {{ item.status }} {% if item.name in ['Lux logging', 'Lys-hendelser'] %}light-health{% elif item.name in ['Temp logg', 'Yr API', 'Ventilasjonshendelser'] %}vent-health{% endif %}">
                     <div class="health-top">
                         <div>
                             <div class="name">{{ item.name }}</div>
