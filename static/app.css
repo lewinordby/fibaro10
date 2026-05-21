@@ -59,8 +59,11 @@ body {
     --page-accent-soft: var(--status-soft);
     --page-accent-border: var(--status-border);
     --page-accent-ring: var(--status-ring);
+    margin: 0;
     background: var(--bg) !important;
     color: var(--text) !important;
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    line-height: 1.45;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -102,7 +105,10 @@ header {
 }
 
 .site-header {
-    padding: 0.42rem 0.8rem !important;
+    position: sticky !important;
+    top: 0;
+    z-index: 20;
+    padding: 0.36rem 0.8rem !important;
 }
 
 .brand-bar {
@@ -152,7 +158,18 @@ main {
     width: min(100% - 1.7rem, var(--page-width));
     max-width: var(--page-width) !important;
     margin-inline: auto;
-    padding-inline: 0 !important;
+    padding: 0.95rem 0 1.35rem !important;
+}
+
+h1,
+h2,
+h3 {
+    color: var(--brand-dark);
+    line-height: 1.15;
+}
+
+p {
+    line-height: 1.45;
 }
 
 main > form,
@@ -196,7 +213,7 @@ main > details::before {
 
 .panel,
 .hero {
-    padding: clamp(0.9rem, 2vw, 1.15rem) !important;
+    padding: clamp(0.9rem, 2vw, 1.18rem) !important;
 }
 
 body.theme-status .hero {
@@ -256,6 +273,22 @@ main > details[open] > summary::after {
 
 .event-card {
     border-left: 4px solid var(--page-accent) !important;
+}
+
+.event-card,
+.status-card,
+.health-card,
+.panel,
+main > details {
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.event-card:hover,
+.status-card:hover,
+.health-card:hover {
+    border-color: var(--page-accent-border) !important;
+    box-shadow: var(--shadow-2) !important;
+    transform: translateY(-1px);
 }
 
 .event-top,
@@ -409,12 +442,12 @@ code {
     --section-ring: var(--status-ring);
     display: grid !important;
     grid-template-columns: 1fr !important;
-    gap: 0;
+    gap: 0.22rem;
     width: 100%;
     margin-bottom: 1rem;
-    padding: 0.35rem;
+    padding: 0.32rem;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: 9px;
     background: var(--panel);
     box-shadow: var(--shadow-1);
     overflow: hidden;
@@ -424,24 +457,25 @@ code {
     min-width: 0;
     width: 100% !important;
     margin-bottom: 0;
-    border-color: var(--line-soft);
-    background: rgba(249, 251, 254, 0.92);
+    border-color: #e6ebf2;
+    background: rgba(255, 255, 255, 0.94);
     box-shadow: none;
-    padding: 0.22rem;
+    padding: 0.24rem;
 }
 
 .site-header .app-nav .nav-main {
     align-items: stretch;
-    padding-bottom: 0.22rem;
-    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 0.24rem;
+    border-bottom: 1px solid #edf1f6;
 }
 
 .site-header .app-nav .nav-sub {
     margin-top: 0.22rem;
-    padding-top: 0.3rem;
-    padding-bottom: 0.02rem;
-    background: linear-gradient(90deg, var(--section-soft), transparent 82%);
-    border-radius: 0 0 6px 6px;
+    padding: 0.36rem 0.28rem 0.08rem;
+    background: linear-gradient(90deg, var(--section-soft), transparent 88%);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--section-soft) 78%, #ffffff), transparent 88%);
+    border-left: 3px solid var(--section-color);
+    border-radius: 0 0 7px 7px;
 }
 
 .app-nav.section-light {
@@ -504,27 +538,30 @@ code {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2.35rem;
+    min-height: 2.28rem;
     line-height: 1.12;
     text-decoration: none !important;
     border: 1px solid transparent !important;
-    border-radius: 6px !important;
-    background: transparent !important;
+    border-radius: 7px !important;
+    background: #ffffff !important;
     color: #526070 !important;
     font-size: 0.9rem;
     font-weight: 650;
-    box-shadow: none !important;
+    box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.25) !important;
     transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .app-nav .nav-main .button {
-    min-height: 2.42rem;
+    min-height: 2.36rem;
 }
 
 .app-nav .nav-main .nav-account {
-    width: 2.65rem !important;
+    width: 2.62rem !important;
     padding-inline: 0;
     font-size: 1.02rem;
+    background: var(--admin-soft) !important;
+    color: var(--admin-color) !important;
+    border-color: var(--admin-border) !important;
 }
 
 .app-nav .button.disabled {
@@ -536,12 +573,12 @@ code {
 
 .app-nav .nav-sub .button {
     width: auto !important;
-    min-height: 1.92rem;
-    padding: 0.32rem 0.7rem;
+    min-height: 1.86rem;
+    padding: 0.28rem 0.68rem;
     border-color: var(--line) !important;
     background: var(--panel-soft) !important;
     color: var(--muted) !important;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 620;
 }
 
@@ -556,8 +593,8 @@ code {
 
 .app-nav .nav-sub-form .button {
     width: auto !important;
-    min-height: 1.92rem;
-    padding: 0.32rem 0.7rem;
+    min-height: 1.86rem;
+    padding: 0.28rem 0.68rem;
     border-color: var(--line) !important;
     background: var(--panel-soft) !important;
     color: var(--muted) !important;
@@ -568,13 +605,15 @@ code {
     background: var(--section-soft) !important;
     color: var(--brand-dark) !important;
     border-color: var(--section-border) !important;
+    transform: translateY(-1px);
 }
 
 .app-nav .button.active {
     background: var(--section-color) !important;
     color: #ffffff !important;
     border-color: var(--section-color) !important;
-    box-shadow: 0 1px 2px var(--section-ring) !important;
+    box-shadow: 0 4px 12px var(--section-ring) !important;
+    transform: none;
 }
 
 .app-nav .nav-main .button.nav-status {
@@ -617,6 +656,7 @@ code {
     color: var(--section-color) !important;
     border-color: var(--section-border) !important;
     box-shadow: inset 0 0 0 1px var(--section-ring) !important;
+    font-weight: 780;
 }
 
 .app-nav .button.active::after {
@@ -681,6 +721,16 @@ details {
     box-shadow: var(--shadow-1) !important;
 }
 
+.status-card,
+.health-card,
+.event-card,
+.sample,
+.metric,
+.temp,
+.cell {
+    min-width: 0;
+}
+
 .hero,
 .panel,
 .event-card,
@@ -723,6 +773,9 @@ table {
 th {
     background: var(--panel-soft);
     color: var(--muted) !important;
+    font-size: 0.78rem;
+    letter-spacing: 0 !important;
+    text-transform: none;
 }
 
 td,
@@ -772,7 +825,7 @@ svg {
 
 @media (min-width: 680px) {
     .app-nav .nav-main {
-        grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) 2.62rem;
     }
 
 }
@@ -819,7 +872,36 @@ svg {
 
     .app-nav .button {
         min-height: 2.55rem;
-        font-size: 0.9rem;
+        font-size: 0.86rem;
+    }
+
+    .app-nav .nav-main {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) 2.62rem;
+    }
+
+    .app-nav .nav-main .nav-status {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .app-nav .nav-main .nav-light {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .app-nav .nav-main .nav-vent {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .app-nav .nav-main .nav-energy {
+        grid-column: 2 / span 2;
+        grid-row: 2;
+    }
+
+    .app-nav .nav-main .nav-account {
+        grid-column: 3;
+        grid-row: 1;
     }
 
     .panel,
