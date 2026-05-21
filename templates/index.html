@@ -106,10 +106,10 @@
             align-items: center;
             gap: 0.55rem;
             min-width: 0;
-            background: transparent;
+            background: var(--panel);
             border: 1px solid #e5eaf0;
             border-radius: 8px;
-            padding: 0.62rem;
+            padding: 0.52rem 0.62rem;
         }
         .now-card.temp-card {
             border-left: 3px solid var(--vent, #52a464);
@@ -120,8 +120,7 @@
         .now-card.weather-card {
             border-left: 3px solid var(--brand, #5292d6);
         }
-        .now-card.lux-card,
-        .now-card.weather-card {
+        .now-card.lux-card {
             grid-template-columns: 1fr;
         }
         .now-label {
@@ -136,7 +135,7 @@
             align-items: baseline;
             gap: 0.15rem;
             margin-top: 0.15rem;
-            font-size: clamp(1.8rem, 6vw, 2.55rem);
+            font-size: clamp(1.55rem, 5vw, 2.15rem);
             font-weight: 850;
             line-height: 1;
             color: var(--text);
@@ -147,13 +146,11 @@
             font-weight: 780;
         }
         .now-note {
-            margin-top: 0.28rem;
-            color: var(--muted);
-            font-size: 0.76rem;
+            display: none;
         }
         .now-stack {
             display: grid;
-            gap: 0.35rem;
+            gap: 0.22rem;
             min-width: 5.8rem;
         }
         .now-small {
@@ -177,6 +174,9 @@
             font-size: clamp(1.05rem, 4vw, 1.35rem);
             line-height: 1.05;
             overflow-wrap: anywhere;
+        }
+        .now-card.weather-card .now-small {
+            border-left-color: var(--brand, #5292d6);
         }
         .weather-mini-grid {
             display: grid;
@@ -211,7 +211,7 @@
         }
         .now-small .small-value {
             font-weight: 850;
-            font-size: 0.95rem;
+            font-size: 0.86rem;
             color: var(--text);
             white-space: nowrap;
         }
@@ -412,7 +412,7 @@
             .hero-top { grid-template-columns: 1fr auto; align-items: start; }
             .summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .now-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-            .now-card { min-height: 7rem; }
+            .now-card { min-height: 4.25rem; }
             .health-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .fan-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -503,39 +503,19 @@
                         <div class="now-value">
                             {{ now_status.weather_card.text or "Ikke logget" }}
                         </div>
-                        <div class="now-note">
-                            {% if now_status.weather_card.api_updated_at %}
-                            Yr oppdatert {{ now_status.weather_card.api_updated_at|localtime_short }}
-                            {% if now_status.weather_card.expires_at %}<br>Gyldig til {{ now_status.weather_card.expires_at|localtime_short }}{% endif %}
-                            {% else %}
-                            Venter på Yr API
-                            {% endif %}
+                    </div>
+                    <div class="now-stack" aria-label="Værdata fra Yr">
+                        <div class="now-small">
+                            <span class="small-label">Temp</span>
+                            <span class="small-value">{% if now_status.weather_card.temperature is not none %}{{ "%.1f"|format(now_status.weather_card.temperature) }}°{% else %}-{% endif %}</span>
                         </div>
-                        <div class="weather-mini-grid" aria-label="Værdata fra Yr">
-                            <div class="weather-mini">
-                                <span class="small-label">Yr nå</span>
-                                <span class="small-value">{% if now_status.weather_card.temperature is not none %}{{ "%.1f"|format(now_status.weather_card.temperature) }}°{% else %}-{% endif %}</span>
-                            </div>
-                            <div class="weather-mini">
-                                <span class="small-label">+6t</span>
-                                <span class="small-value">{% if now_status.weather_card.temp_6h is not none %}{{ "%.1f"|format(now_status.weather_card.temp_6h) }}°{% else %}-{% endif %}</span>
-                            </div>
-                            <div class="weather-mini">
-                                <span class="small-label">Fukt</span>
-                                <span class="small-value">{% if now_status.weather_card.humidity is not none %}{{ "%.0f"|format(now_status.weather_card.humidity) }}%{% else %}-{% endif %}</span>
-                            </div>
-                            <div class="weather-mini">
-                                <span class="small-label">Vind</span>
-                                <span class="small-value">{% if now_status.weather_card.wind is not none %}{{ "%.1f"|format(now_status.weather_card.wind) }} m/s{% else %}-{% endif %}</span>
-                            </div>
-                            <div class="weather-mini">
-                                <span class="small-label">Nedbør 1t</span>
-                                <span class="small-value">{% if now_status.weather_card.precipitation is not none %}{{ "%.1f"|format(now_status.weather_card.precipitation) }} mm{% else %}-{% endif %}</span>
-                            </div>
-                            <div class="weather-mini">
-                                <span class="small-label">Skyer</span>
-                                <span class="small-value">{% if now_status.weather_card.clouds is not none %}{{ "%.0f"|format(now_status.weather_card.clouds) }}%{% else %}-{% endif %}</span>
-                            </div>
+                        <div class="now-small">
+                            <span class="small-label">+6t</span>
+                            <span class="small-value">{% if now_status.weather_card.temp_6h is not none %}{{ "%.1f"|format(now_status.weather_card.temp_6h) }}°{% else %}-{% endif %}</span>
+                        </div>
+                        <div class="now-small">
+                            <span class="small-label">Nedbør</span>
+                            <span class="small-value">{% if now_status.weather_card.precipitation is not none %}{{ "%.1f"|format(now_status.weather_card.precipitation) }} mm{% else %}-{% endif %}</span>
                         </div>
                     </div>
                 </article>
