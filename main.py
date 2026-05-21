@@ -2555,19 +2555,49 @@ async def energy_view(request: Request):
     return templates.TemplateResponse(request, "energy.html", {})
 
 
+async def admin_keys_context(
+    request: Request,
+    session,
+    created_username: str = "",
+    created_key: str = "",
+    error: str = "",
+) -> Dict[str, Any]:
+    key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
+    selected_key = None
+    try:
+        selected_key_id = int(request.query_params.get("key_id") or "0")
+    except ValueError:
+        selected_key_id = 0
+    if selected_key_id:
+        selected_key = next((key for key in key_rows if key.id == selected_key_id), None)
+
+    log_query = select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200)
+    if selected_key:
+        log_query = (
+            select(AccessLog)
+            .where((AccessLog.access_key_id == selected_key.id) | (AccessLog.key_name == selected_key.name))
+            .order_by(AccessLog.timestamp.desc())
+            .limit(200)
+        )
+    log_rows = (await session.execute(log_query)).scalars().all()
+    return {
+        "keys": key_rows,
+        "logs": log_rows,
+        "selected_key": selected_key,
+        "created_username": created_username,
+        "created_key": created_key,
+        "error": error,
+    }
+
+
 @app.get("/admin/keys", response_class=HTMLResponse)
 async def keys_view(request: Request):
     forbidden = require_master(request)
     if forbidden:
         return forbidden
     async with async_session() as session:
-        key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
-        log_rows = (await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(200))).scalars().all()
-    return templates.TemplateResponse(
-        request,
-        "keys.html",
-        {"keys": key_rows, "logs": log_rows, "created_username": "", "created_key": "", "error": ""},
-    )
+        context = await admin_keys_context(request, session)
+    return templates.TemplateResponse(request, "keys.html", context)
 
 
 @app.post("/admin/keys")
