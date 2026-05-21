@@ -72,9 +72,9 @@
                     <div class="time">{{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}</div>
                     <div class="bucket">
                         Periode: {{ row.bucket_start.strftime("%H:%M") if row.bucket_start else "-" }}
-                        | Varsel: {{ row.forecast_time.strftime("%H:%M") if row.forecast_time else "-" }}
-                        | Yr oppdatert: {{ row.api_updated_at.strftime("%H:%M") if row.api_updated_at else "-" }}
-                        | Gyldig til: {{ row.expires_at.strftime("%H:%M") if row.expires_at else "-" }}
+                        | Varsel: {{ row.forecast_time|localtime_short if row.forecast_time else "-" }}
+                        | Yr oppdatert: {{ row.api_updated_at|localtime_short if row.api_updated_at else "-" }}
+                        | Gyldig til: {{ row.expires_at|localtime_short if row.expires_at else "-" }}
                     </div>
                 </div>
                 <div class="weather">
@@ -87,7 +87,7 @@
                 <div class="cell"><span class="label">Vind</span><span class="value">{% if row.wind_speed is not none %}{{ "%.1f"|format(row.wind_speed) }} m/s{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Skydekke</span><span class="value">{% if row.cloud_area_fraction is not none %}{{ "%.0f"|format(row.cloud_area_fraction) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Nedbør 1t</span><span class="value">{% if row.precipitation_next_1h is not none %}{{ "%.1f"|format(row.precipitation_next_1h) }} mm{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Neste henting</span><span class="value">{{ row.next_fetch_after.strftime("%H:%M") if row.next_fetch_after else "-" }}</span></div>
+                <div class="cell"><span class="label">Neste henting</span><span class="value">{{ row.next_fetch_after|localtime_short if row.next_fetch_after else "-" }}</span></div>
                 <div class="cell"><span class="label">Duggpunkt</span><span class="value">{% if row.dew_point_temperature is not none %}{{ "%.1f"|format(row.dew_point_temperature) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Trykk</span><span class="value">{% if row.air_pressure_at_sea_level is not none %}{{ "%.0f"|format(row.air_pressure_at_sea_level) }} hPa{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Min neste 6t</span><span class="value">{% if row.temp_min_next_6h is not none %}{{ "%.1f"|format(row.temp_min_next_6h) }}°{% else %}-{% endif %}</span></div>

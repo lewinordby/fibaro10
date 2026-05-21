@@ -62,7 +62,16 @@ def format_local_datetime(value: Optional[datetime]) -> str:
     return value.astimezone(LOCAL_TZ).strftime("%d.%m.%Y %H:%M:%S")
 
 
+def format_local_time(value: Optional[datetime]) -> str:
+    if not value:
+        return "-"
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("UTC"))
+    return value.astimezone(LOCAL_TZ).strftime("%H:%M")
+
+
 templates.env.filters["localtime"] = format_local_datetime
+templates.env.filters["localtime_short"] = format_local_time
 
 Base = declarative_base()
 engine = create_async_engine(DATABASE_URL, echo=False)
