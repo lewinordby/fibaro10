@@ -12,6 +12,7 @@ from typing import Any
 
 CACHE_DIR = Path.home() / ".fibaro10"
 CACHE_FILE = CACHE_DIR / "roborock_user_data.pickle"
+SECRET_KEYS = {"token", "u", "s", "h", "k", "r", "rruid", "uid"}
 
 
 def jsonable(value: Any) -> Any:
@@ -34,6 +35,20 @@ def print_json(value: Any) -> None:
     print(json.dumps(jsonable(value), indent=2, ensure_ascii=False, default=str))
 
 
+def redacted(value: Any) -> Any:
+    if isinstance(value, dict):
+        result = {}
+        for key, item in value.items():
+            if str(key).lower() in SECRET_KEYS and item is not None:
+                result[str(key)] = "***"
+            else:
+                result[str(key)] = redacted(item)
+        return result
+    if isinstance(value, list):
+        return [redacted(item) for item in value]
+    return value
+
+
 def save_user_data(user_data: Any) -> None:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     with CACHE_FILE.open("wb") as file:
@@ -49,6 +64,51 @@ def load_user_data() -> Any:
         )
     with CACHE_FILE.open("rb") as file:
         return pickle.load(file)
+
+
+def find_user_data(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise SystemExit("Importfilen må være JSON med objekt på toppnivå.")
+    if "token" in payload and "rriot" in payload:
+        return payload
+    if isinstance(payload.get("user_data"), dict):
+        return payload["user_data"]
+    if isinstance(payload.get("userdata"), dict):
+        return payload["userdata"]
+
+    entries = payload.get("data", {}).get("entries", [])
+    if isinstance(entries, list):
+        for entry in entries:
+            if not isinstance(entry, dict) or entry.get("domain") != "roborock":
+                continue
+            data = entry.get("data", {})
+            if isinstance(data, dict):
+                for key in ("user_data", "userdata"):
+                    if isinstance(data.get(key), dict):
+                        return data[key]
+
+    raise SystemExit(
+        "Fant ikke Roborock user_data. Støtter ren user_data-JSON eller Home Assistant "
+        ".storage/core.config_entries med domain=roborock."
+    )
+
+
+def import_user_data(path: str) -> None:
+    from roborock.web_api import UserData
+
+    source = Path(path).expanduser()
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    user_data_dict = find_user_data(payload)
+    user_data = UserData.from_dict(user_data_dict)
+    save_user_data(user_data)
+    print(f"Roborock-login importert og lagret i {CACHE_FILE}")
+    print_json(redacted(user_data_dict))
+
+
+def cache_info() -> None:
+    user_data = load_user_data()
+    data = jsonable(user_data)
+    print_json(redacted(data))
 
 
 async def request_code(email: str) -> None:
@@ -314,6 +374,14 @@ async def main() -> None:
     account_parser = subparsers.add_parser("account-info", help="Vis regiondata Roborock bruker for kontoen.")
     account_parser.add_argument("--email", required=True)
 
+    import_parser = subparsers.add_parser(
+        "import-user-data",
+        help="Importer Roborock user_data fra JSON eller Home Assistant core.config_entries.",
+    )
+    import_parser.add_argument("--file", required=True)
+
+    subparsers.add_parser("cache-info", help="Vis lagret Roborock-login uten hemmelige verdier.")
+
     devices_parser = subparsers.add_parser("devices", help="List Roborock-enheter på kontoen.")
     devices_parser.add_argument("--email", required=True)
 
@@ -341,6 +409,10 @@ async def main() -> None:
         await legacy_login(args.email, args.code)
     elif args.command == "account-info":
         await account_info(args.email)
+    elif args.command == "import-user-data":
+        import_user_data(args.file)
+    elif args.command == "cache-info":
+        cache_info()
     elif args.command == "devices":
         await list_devices(args.email)
     elif args.command == "status":
