@@ -410,9 +410,8 @@ code {
 }
 
 .site-header .app-nav {
-    flex: 1 1 auto;
     min-width: 0;
-    width: auto !important;
+    width: 100% !important;
     margin-bottom: 0;
     border-color: var(--line-soft);
     background: rgba(249, 251, 254, 0.92);
@@ -742,13 +741,7 @@ svg {
         gap: 0.55rem;
     }
 
-    .site-header .brand-home {
-        order: 1;
-        margin-left: auto;
-    }
-
     .site-header .app-nav {
-        order: 2;
         flex-basis: 100%;
         width: 100% !important;
     }

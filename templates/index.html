@@ -627,6 +627,7 @@
             </div>
             <div class="health-grid">
                 {% for item in freshness_items %}
+                {% if item.name not in ['Lys-hendelser', 'Ventilasjonshendelser'] %}
                 <article class="health-card {{ item.status }} {% if item.name in ['Lux logging', 'Lys-hendelser'] %}light-health{% elif item.name in ['Temp logg', 'Yr API', 'Ventilasjonshendelser'] %}vent-health{% endif %}">
                     <div class="health-top">
                         <div>
@@ -639,6 +640,7 @@
                         <span>{% if item.timestamp %}{{ item.timestamp.strftime("%d.%m %H:%M") }}{% else %}-{% endif %}</span>
                     </div>
                 </article>
+                {% endif %}
                 {% endfor %}
             </div>
         </section>
