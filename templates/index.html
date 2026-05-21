@@ -117,7 +117,11 @@
         .now-card.lux-card {
             border-left: 5px solid var(--light, #df705d);
         }
-        .now-card.lux-card {
+        .now-card.weather-card {
+            border-left: 5px solid var(--brand, #5292d6);
+        }
+        .now-card.lux-card,
+        .now-card.weather-card {
             grid-template-columns: 1fr;
         }
         .now-label {
@@ -163,6 +167,42 @@
         .now-card.lux-card .now-label,
         .now-card.lux-card .now-value {
             color: var(--light, #df705d);
+        }
+        .now-card.weather-card .now-label,
+        .now-card.weather-card .now-value {
+            color: var(--brand, #5292d6);
+        }
+        .now-card.weather-card .now-value {
+            display: block;
+            font-size: clamp(1.65rem, 6vw, 2.25rem);
+            line-height: 1.05;
+            overflow-wrap: anywhere;
+        }
+        .weather-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.4rem;
+            margin-top: 0.7rem;
+        }
+        .weather-mini {
+            border-left: 3px solid var(--brand, #5292d6);
+            padding-left: 0.5rem;
+            min-width: 0;
+        }
+        .weather-mini .small-label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.7rem;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+        .weather-mini .small-value {
+            display: block;
+            margin-top: 0.08rem;
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 850;
+            white-space: nowrap;
         }
         .now-small .small-label {
             color: var(--muted);
@@ -371,13 +411,14 @@
             .nav { display: flex; }
             .hero-top { grid-template-columns: 1fr auto; align-items: start; }
             .summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-            .now-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .now-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .now-card { min-height: 10.4rem; }
             .health-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .fan-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
         @media (min-width: 980px) {
+            .now-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .cards.lights { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -465,7 +506,48 @@
                             {% if now_status.lux is not none %}{{ "%.0f"|format(now_status.lux) }}{% else %}-{% endif %}
                         </div>
                         <div class="now-note">
-                            Siste leste luxverdi<br>Yr: {{ now_status.weather or "ikke logget" }}
+                            Siste leste luxverdi
+                        </div>
+                    </div>
+                </article>
+                <article class="now-card weather-card">
+                    <div>
+                        <span class="now-label">Yr / Vær</span>
+                        <div class="now-value">
+                            {{ now_status.weather_card.text or "Ikke logget" }}
+                        </div>
+                        <div class="now-note">
+                            {% if now_status.weather_card.timestamp %}
+                            Oppdatert {{ now_status.weather_card.timestamp.strftime("%H:%M") }}
+                            {% else %}
+                            Venter på Yr API
+                            {% endif %}
+                        </div>
+                        <div class="weather-mini-grid" aria-label="Værdata fra Yr">
+                            <div class="weather-mini">
+                                <span class="small-label">Yr nå</span>
+                                <span class="small-value">{% if now_status.weather_card.temperature is not none %}{{ "%.1f"|format(now_status.weather_card.temperature) }}°{% else %}-{% endif %}</span>
+                            </div>
+                            <div class="weather-mini">
+                                <span class="small-label">+6t</span>
+                                <span class="small-value">{% if now_status.weather_card.temp_6h is not none %}{{ "%.1f"|format(now_status.weather_card.temp_6h) }}°{% else %}-{% endif %}</span>
+                            </div>
+                            <div class="weather-mini">
+                                <span class="small-label">Fukt</span>
+                                <span class="small-value">{% if now_status.weather_card.humidity is not none %}{{ "%.0f"|format(now_status.weather_card.humidity) }}%{% else %}-{% endif %}</span>
+                            </div>
+                            <div class="weather-mini">
+                                <span class="small-label">Vind</span>
+                                <span class="small-value">{% if now_status.weather_card.wind is not none %}{{ "%.1f"|format(now_status.weather_card.wind) }} m/s{% else %}-{% endif %}</span>
+                            </div>
+                            <div class="weather-mini">
+                                <span class="small-label">Nedbør 1t</span>
+                                <span class="small-value">{% if now_status.weather_card.precipitation is not none %}{{ "%.1f"|format(now_status.weather_card.precipitation) }} mm{% else %}-{% endif %}</span>
+                            </div>
+                            <div class="weather-mini">
+                                <span class="small-label">Skyer</span>
+                                <span class="small-value">{% if now_status.weather_card.clouds is not none %}{{ "%.0f"|format(now_status.weather_card.clouds) }}%{% else %}-{% endif %}</span>
+                            </div>
                         </div>
                     </div>
                 </article>

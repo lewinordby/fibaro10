@@ -1052,6 +1052,16 @@ def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr
     timestamp = latest_timestamp_from(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
     weather = weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light)
     outdoor_avg_values = [outdoor_ute, outdoor_yr_api if outdoor_yr_api is not None else outdoor_yr]
+    weather_card = {
+        "text": weather,
+        "temperature": latest_yr_sample.air_temperature if latest_yr_sample else None,
+        "temp_6h": latest_yr_sample.temp_6h if latest_yr_sample else None,
+        "humidity": latest_yr_sample.relative_humidity if latest_yr_sample else None,
+        "wind": latest_yr_sample.wind_speed if latest_yr_sample else None,
+        "precipitation": latest_yr_sample.precipitation_next_1h if latest_yr_sample else None,
+        "clouds": latest_yr_sample.cloud_area_fraction if latest_yr_sample else None,
+        "timestamp": latest_yr_sample.timestamp if latest_yr_sample else None,
+    }
     return {
         "timestamp": timestamp,
         "mode": latest_sample.mode if latest_sample else None,
@@ -1061,6 +1071,7 @@ def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr
         "outdoor_values": outdoor_values,
         "lux": lux,
         "weather": weather,
+        "weather_card": weather_card,
         "has_data": any(
             value is not None
             for value in [
