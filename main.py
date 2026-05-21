@@ -1031,16 +1031,50 @@ def config_stat_cards(key: str, values: Dict[str, Any], version: int) -> list[Di
     if key == "lights":
         return [
             {"label": "Aktiv versjon", "value": str(version), "detail": "HC3 leser denne versjonen"},
+            {"label": "Runner-scene", "value": "362", "detail": "Kortkjørende Lua-styring"},
             {"label": "Luxsensor", "value": "433", "detail": "Brukes av alle lysregler"},
             {"label": "Sjekkintervall", "value": f"{values['config_poll_minutes']} min", "detail": "Trigger-scenen starter runneren"},
-            {"label": "Bekreftelse", "value": f"{values['decision_delay_seconds']} sek", "detail": "Motvirker flimring"},
         ]
     if key == "ventilation":
         return [
             {"label": "Aktiv versjon", "value": str(version), "detail": "HC3 leser denne versjonen"},
+            {"label": "Runner-scene", "value": "363", "detail": "Kortkjørende Lua-styring"},
             {"label": "Driftstid", "value": f"{values['open_from']}-{values['close_at']}", "detail": "Normal vurderingsperiode"},
-            {"label": "Forkjøling", "value": str(values["pre_cooling_from"]), "detail": "Kan starte før åpning"},
             {"label": "Utesperre", "value": f"{values['mechanical_min_outdoor_temp']}°C", "detail": "Stopper mekanisk ventilasjon"},
+        ]
+    return []
+
+
+def config_operational_notes(key: str, values: Dict[str, Any]) -> list[Dict[str, str]]:
+    if key == "lights":
+        return [
+            {
+                "title": "Når tar endringen effekt?",
+                "text": f"Trigger-scenen starter lys-runneren hvert {values['config_poll_minutes']} minutt. Runneren henter alltid siste config-versjon fra appen før den vurderer lux.",
+            },
+            {
+                "title": "Rask test",
+                "text": "Sett globalvariabelen UTE_LYS_TEST_LUX i HC3 til ønsket lux-verdi og kjør scene 362. Variabelen tømmes automatisk etter testen.",
+            },
+            {
+                "title": "Hysterese",
+                "text": "Lys slås på under på-grensen og av over av-grensen. Hvis lux ligger mellom disse verdiene beholdes gjeldende status.",
+            },
+        ]
+    if key == "ventilation":
+        return [
+            {
+                "title": "Når tar endringen effekt?",
+                "text": "Trigger-scenen starter ventilasjons-runneren hvert 5. minutt. Runneren henter alltid siste config-versjon fra appen før den styrer viftene.",
+            },
+            {
+                "title": "Rask test",
+                "text": "Bruk VENT_TEST_TEMP_INNE, VENT_TEST_TEMP_UTE og VENT_TEST_DIFF_W i HC3 og kjør scene 363. Testvariablene tømmes automatisk etter kjøring.",
+            },
+            {
+                "title": "Sikkerhet",
+                "text": "Mekanisk ventilasjon sperres ved for lav utetemperatur, og avtrekk skal ikke gå uten at innluft er vurdert samtidig.",
+            },
         ]
     return []
 
@@ -2550,6 +2584,7 @@ async def config_context(config_key: str):
         "rules": config_rules(config_key, values),
         "summary_rows": config_summary_rows(config_key, values),
         "stat_cards": config_stat_cards(config_key, values, row.version),
+        "operational_notes": config_operational_notes(config_key, values),
         "devices": config_devices(config_key),
         "history": history,
         "saved": False,
@@ -2608,6 +2643,7 @@ async def update_settings(request: Request, config_key: str):
         context["rules"] = config_rules(config_key, values)
         context["summary_rows"] = config_summary_rows(config_key, values)
         context["stat_cards"] = config_stat_cards(config_key, values, context["config"].version)
+        context["operational_notes"] = config_operational_notes(config_key, values)
         context["errors"] = errors
         return templates.TemplateResponse(request, "control_settings.html", context, status_code=400)
     reason = (form.get("reason") or "Endret i grensesnittet").strip()

@@ -23,6 +23,10 @@
         .stat-card .label { color: var(--muted); font-size: 0.78rem; font-weight: 750; }
         .stat-card .value { margin-top: 0.15rem; font-size: 1.35rem; line-height: 1.05; font-weight: 820; color: var(--text); }
         .stat-card .detail { margin-top: 0.2rem; color: var(--muted); font-size: 0.78rem; }
+        .note-grid { display: grid; grid-template-columns: 1fr; gap: 0.65rem; margin-top: 0.75rem; }
+        .note-card { border: 1px solid var(--page-accent-border, #b8d8f0); background: linear-gradient(180deg, var(--page-accent-soft, #eaf4ff), #fff); border-radius: 8px; padding: 0.78rem; }
+        .note-card strong { display: block; margin-bottom: 0.25rem; }
+        .note-card span { color: var(--muted); font-size: 0.86rem; line-height: 1.35; }
         .saved { border: 1px solid #b9dfc2; background: #eaf5ed; color: #2f7a49; padding: 0.75rem; border-radius: 7px; margin-bottom: 0.8rem; }
         .error { border: 1px solid #f2c4bb; background: #fbebe8; color: #9b3b2e; padding: 0.75rem; border-radius: 7px; margin-bottom: 0.8rem; }
         .error ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
@@ -57,6 +61,7 @@
         @media (min-width: 760px) {
             main { padding: 1.25rem; }
             .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .note-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
             .fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
             .device-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
@@ -79,7 +84,7 @@
         {% include "_nav.html" %}
 
         {% if saved %}
-        <div class="saved">Innstillingene er lagret. HC3 vil se ny versjon neste gang den henter konfigurasjonen.</div>
+        <div class="saved">Innstillingene er lagret som versjon {{ config.version }}. HC3 henter ny versjon neste gang runner-scenen kjøres.</div>
         {% endif %}
         {% if errors %}
         <div class="error">
@@ -148,6 +153,19 @@
                 <li>{{ rule }}</li>
                 {% endfor %}
             </ul>
+        </section>
+
+        <section class="panel">
+            <h2>Test og drift</h2>
+            <p class="sub">Bruk dette når du vil kontrollere at en endring faktisk blir hentet og brukt av HC3.</p>
+            <div class="note-grid">
+                {% for note in operational_notes %}
+                <div class="note-card">
+                    <strong>{{ note.title }}</strong>
+                    <span>{{ note.text }}</span>
+                </div>
+                {% endfor %}
+            </div>
         </section>
 
         <section class="panel">
