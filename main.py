@@ -99,7 +99,9 @@ async def access_key_middleware(request: Request, call_next):
 
     request.state.access_key_id = access_key.id
     request.state.access_key_name = access_key.name
-    request.state.auth_is_master = bool(access_key.is_master)
+    request.state.auth_role = access_role(access_key)
+    request.state.auth_is_master = request.state.auth_role == "master"
+    request.state.auth_can_settings = request.state.auth_role in ["master", "settings"]
     await log_access_attempt(request, True, "ok", access_key)
     return await call_next(request)
 
@@ -282,6 +284,7 @@ class AccessKey(Base):
     key_hash = Column(String, unique=True, index=True, nullable=False)
     key_prefix = Column(String, index=True, nullable=False)
     key_plaintext = Column(String, nullable=True)
+    role = Column(String, default="viewer", index=True)
     is_master = Column(Boolean, default=False, index=True)
     active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
@@ -522,6 +525,7 @@ STARTUP_COLUMNS = {
     ],
     "access_keys": [
         ("key_plaintext", "VARCHAR"),
+        ("role", "VARCHAR"),
     ],
     "yr_forecast_samples": [
         ("api_updated_at", "TIMESTAMP"),
@@ -829,6 +833,31 @@ async def find_access_key(username: Optional[str], password: Optional[str]) -> O
 def require_master(request: Request):
     if not getattr(request.state, "auth_is_master", False):
         return JSONResponse({"detail": "Masterbruker kreves"}, status_code=403)
+    return None
+
+
+def access_role(access_key: Optional[AccessKey]) -> str:
+    if not access_key:
+        return "viewer"
+    if access_key.is_master:
+        return "master"
+    role = (access_key.role or "viewer").strip().lower()
+    if role not in ["viewer", "settings"]:
+        return "viewer"
+    return role
+
+
+def access_role_label(role: Optional[str], is_master: bool = False) -> str:
+    if is_master or role == "master":
+        return "Master"
+    if role == "settings":
+        return "Innstillinger"
+    return "Vanlig"
+
+
+def require_settings_access(request: Request):
+    if not getattr(request.state, "auth_can_settings", False):
+        return JSONResponse({"detail": "Tilgang til innstillinger kreves"}, status_code=403)
     return None
 
 
@@ -2419,6 +2448,7 @@ async def startup():
             master.name = "master"
             master.key_prefix = "sun2_master"
             master.is_master = True
+            master.role = "master"
             master.active = True
         else:
             session.add(
@@ -2426,6 +2456,7 @@ async def startup():
                     name="master",
                     key_hash=MASTER_ACCESS_KEY_HASH,
                     key_prefix="sun2_master",
+                    role="master",
                     is_master=True,
                     active=True,
                 )
@@ -2440,6 +2471,8 @@ async def startup():
         for key in legacy_shared:
             username = normalize_username(key.name)
             password = key.key_plaintext or ""
+            if not key.role:
+                key.role = "viewer"
             if username and password:
                 key.name = username
                 key.key_hash = credential_hash(username, password)
@@ -2536,6 +2569,9 @@ async def keys_create(request: Request):
     form = await parse_form_body(request)
     username = normalize_username(form.get("username") or form.get("name") or "")[:80]
     password = (form.get("password") or form.get("access_key") or "").strip()
+    role = (form.get("role") or "viewer").strip().lower()
+    if role not in ["viewer", "settings"]:
+        role = "viewer"
     if not username:
         async with async_session() as session:
             key_rows = (await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()))).scalars().all()
@@ -2593,6 +2629,7 @@ async def keys_create(request: Request):
             key_hash=existing_hash,
             key_prefix=credential_prefix(username, password),
             key_plaintext=password,
+            role=role,
             is_master=False,
             active=True,
         )
@@ -2623,6 +2660,30 @@ async def keys_disable(request: Request):
             .where(AccessKey.id == key_id)
             .where(AccessKey.is_master == False)
             .values(active=False)
+        )
+        await session.commit()
+    return RedirectResponse("/admin/keys", status_code=303)
+
+
+@app.post("/admin/keys/role")
+async def keys_role_update(request: Request):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    form = await parse_form_body(request)
+    try:
+        key_id = int(form.get("key_id") or "0")
+    except ValueError:
+        key_id = 0
+    role = (form.get("role") or "viewer").strip().lower()
+    if role not in ["viewer", "settings"]:
+        role = "viewer"
+    async with async_session() as session:
+        await session.execute(
+            update(AccessKey)
+            .where(AccessKey.id == key_id)
+            .where(AccessKey.is_master == False)
+            .values(role=role)
         )
         await session.commit()
     return RedirectResponse("/admin/keys", status_code=303)
@@ -2698,7 +2759,7 @@ async def ventilation_settings_update(request: Request):
 
 
 async def update_settings(request: Request, config_key: str):
-    forbidden = require_master(request)
+    forbidden = require_settings_access(request)
     if forbidden:
         return forbidden
     form = await parse_form_body(request)

@@ -207,10 +207,10 @@
                 <h2>Lagre endring</h2>
                 <textarea name="reason" placeholder="Kort notat, f.eks. Hevet spot foran til 2000 lux etter testing"></textarea>
                 <div class="actions">
-                    {% if request.state.auth_is_master %}
+                    {% if request.state.auth_can_settings %}
                     <button class="primary" type="submit">Lagre ny versjon</button>
                     {% else %}
-                    <span class="sub">Kun masterbruker kan endre verdiene.</span>
+                    <span class="sub">Brukeren din kan lese, men ikke endre verdiene.</span>
                     {% endif %}
                     <a class="button" href="{{ definition.settings_path }}">Forkast endringer</a>
                 </div>
