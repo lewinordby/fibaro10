@@ -17,24 +17,27 @@
     </div>
 
     {% if is_status %}
-    <div class="nav-row nav-sub compact" aria-label="Undermeny for status">
+    <div class="nav-row nav-sub" aria-label="Undermeny for status">
+        <a class="button {% if current_path == '/' or current_path == '/events' %}active{% endif %}" href="/">Dashboard</a>
         <a class="button {% if current_path == '/day' %}active{% endif %}" href="/day">Dagslinje</a>
     </div>
     {% elif is_light %}
     <div class="nav-row nav-sub" aria-label="Undermeny for lys">
+        <a class="button {% if current_path == '/lights' %}active{% endif %}" href="/lights">Hendelser</a>
         <a class="button {% if current_path == '/lights/samples' %}active{% endif %}" href="/lights/samples">Lux logging</a>
         <a class="button {% if current_path == '/day/lux' %}active{% endif %}" href="/day/lux">Dagslogg lux</a>
         <a class="button {% if current_path == '/lights/settings' %}active{% endif %}" href="/lights/settings">Innstillinger</a>
     </div>
     {% elif is_vent %}
     <div class="nav-row nav-sub" aria-label="Undermeny for ventilasjon">
+        <a class="button {% if current_path == '/ventilation' %}active{% endif %}" href="/ventilation">Hendelser</a>
         <a class="button {% if current_path == '/ventilation/samples' %}active{% endif %}" href="/ventilation/samples">Temp logg</a>
         <a class="button {% if current_path == '/day/temp' %}active{% endif %}" href="/day/temp">Dagslogg temp</a>
         <a class="button {% if current_path == '/yr/samples' %}active{% endif %}" href="/yr/samples">Yr logg</a>
         <a class="button {% if current_path == '/ventilation/settings' %}active{% endif %}" href="/ventilation/settings">Innstillinger</a>
     </div>
     {% elif is_admin %}
-    <div class="nav-row nav-sub compact" aria-label="Undermeny for nøkler">
+    <div class="nav-row nav-sub" aria-label="Undermeny for nøkler">
         <a class="button active" href="/admin/keys">Brukere og tilgang</a>
     </div>
     {% endif %}

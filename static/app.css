@@ -422,12 +422,14 @@ code {
 .site-header .app-nav .nav-main {
     align-items: stretch;
     padding-bottom: 0.22rem;
-    border-bottom: 2px solid var(--section-color);
+    border-bottom: 1px solid var(--line-soft);
 }
 
 .site-header .app-nav .nav-sub {
-    padding-top: 0.28rem;
+    margin-top: 0.22rem;
+    padding-top: 0.3rem;
     padding-bottom: 0.02rem;
+    border-top: 2px solid var(--section-color);
     background: linear-gradient(90deg, var(--section-soft), transparent 82%);
     border-radius: 0 0 6px 6px;
 }
