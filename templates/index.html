@@ -525,29 +525,6 @@
             {% endif %}
         </section>
 
-        <section class="section">
-            <div class="section-head">
-                <h2>Datastatus</h2>
-                <a href="/day">Kontroller dagen</a>
-            </div>
-            <div class="health-grid">
-                {% for item in freshness_items %}
-                <article class="health-card {{ item.status }} {% if item.name in ['Lux logging', 'Lys-hendelser'] %}light-health{% elif item.name in ['Temp logg', 'Yr API', 'Ventilasjonshendelser'] %}vent-health{% endif %}">
-                    <div class="health-top">
-                        <div>
-                            <div class="name">{{ item.name }}</div>
-                            <div class="time">{{ item.age }}</div>
-                        </div>
-                        <span class="badge {% if item.status == 'ok' %}on{% elif item.status == 'bad' %}off{% else %}neutral{% endif %}">{{ item.status_text }}</span>
-                    </div>
-                    <div class="mini-row">
-                        <span>{% if item.timestamp %}{{ item.timestamp.strftime("%d.%m %H:%M") }}{% else %}-{% endif %}</span>
-                    </div>
-                </article>
-                {% endfor %}
-            </div>
-        </section>
-
         <section class="section vent-section">
             <div class="section-head">
                 <h2>Ventilasjon</h2>
@@ -610,7 +587,7 @@
 
         <section class="section">
             <div class="section-head">
-                <h2>Siste poster</h2>
+                <h2>Siste hendelser</h2>
                 <a href="/day">Åpne dagslinje</a>
             </div>
             <div class="cards">
@@ -640,6 +617,29 @@
                     <div class="detail">{{ latest_vent.device_name or latest_vent.device_key or "Ukjent vifte" }}{% if latest_vent_reason %}<br><strong>Hvorfor:</strong> {{ latest_vent_reason|replace("kjolebehov", "kjølebehov")|replace("innblasing", "innblåsing") }}{% endif %}</div>
                     {% endif %}
                 </article>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-head">
+                <h2>Datastatus</h2>
+                <a href="/day">Kontroller dagen</a>
+            </div>
+            <div class="health-grid">
+                {% for item in freshness_items %}
+                <article class="health-card {{ item.status }} {% if item.name in ['Lux logging', 'Lys-hendelser'] %}light-health{% elif item.name in ['Temp logg', 'Yr API', 'Ventilasjonshendelser'] %}vent-health{% endif %}">
+                    <div class="health-top">
+                        <div>
+                            <div class="name">{{ item.name }}</div>
+                            <div class="time">{{ item.age }}</div>
+                        </div>
+                        <span class="badge {% if item.status == 'ok' %}on{% elif item.status == 'bad' %}off{% else %}neutral{% endif %}">{{ item.status_text }}</span>
+                    </div>
+                    <div class="mini-row">
+                        <span>{% if item.timestamp %}{{ item.timestamp.strftime("%d.%m %H:%M") }}{% else %}-{% endif %}</span>
+                    </div>
+                </article>
+                {% endfor %}
             </div>
         </section>
 
