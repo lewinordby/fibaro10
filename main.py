@@ -950,7 +950,7 @@ def light_rules(values: Dict[str, Any]) -> list[str]:
     return [
         f"Lyslist slås på når lux er under {values['lyslist_on_lux']} og av når lux er over {values['lyslist_off_lux']}, innen {values['open_from']}-{values['close_at']}.",
         f"Reklameplakater slås på når lux er under {values['reklame_on_lux']} og av når lux er over {values['reklame_off_lux']}, innen {values['open_from']}-{values['close_at']}.",
-        f"Spot foran glassvegg 275/299 slås på under {values['spot_glass_on_lux']} lux og av over {values['spot_glass_off_lux']} lux, innen {values['open_from']}-{values['close_at']}.",
+        f"Spot foran glassvegg slås på under {values['spot_glass_on_lux']} lux og av over {values['spot_glass_off_lux']} lux, innen {values['open_from']}-{values['close_at']}.",
         f"6xspot over inngang slås på under {values['spot_inngang_on_lux']} lux og av over {values['spot_inngang_off_lux']} lux, fra {values['open_from']} til {values['entrance_close_at']}.",
         f"Parkeringslys slås på under {values['parkering_on_lux']} lux og av over {values['parkering_off_lux']} lux uavhengig av åpningstid.",
         f"Alle lysendringer bekreftes etter {values['decision_delay_seconds']} sekunder for å unngå flimring.",
