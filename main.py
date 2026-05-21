@@ -2296,16 +2296,16 @@ async def log_event(data: EventDataIn):
             met_weather = None
             if not payload_weather_symbol(data) and not payload_weather_text(data):
                 met_weather = await met_weather_cached()
-            await save_yr_sample_for_payload(data, met_weather)
+            yr_sample_id = await save_yr_sample_for_payload(data, met_weather)
             event_id = await save_record(light_sample_from_payload(data, met_weather))
-            return {"status": "ok", "id": event_id, "table": "utelys_samples"}
+            return {"status": "ok", "id": event_id, "table": "utelys_samples", "yr_sample_id": yr_sample_id}
         event_id = await save_record(light_from_payload(data))
         return {"status": "ok", "id": event_id, "table": "utelys_events"}
     if system in {"ventilasjon", "ventilation", "vent"}:
         if data.event_type in {"sample", "sample_5min", "sample_15min", "learning_sample"}:
-            await save_yr_sample_for_payload(data)
+            yr_sample_id = await save_yr_sample_for_payload(data)
             event_id = await save_record(vent_sample_from_payload(data))
-            return {"status": "ok", "id": event_id, "table": "ventilasjon_samples"}
+            return {"status": "ok", "id": event_id, "table": "ventilasjon_samples", "yr_sample_id": yr_sample_id}
         event_id = await save_record(vent_from_payload(data))
         return {"status": "ok", "id": event_id, "table": "ventilasjon_events"}
     event_id = await save_record(generic_from_payload(data))
