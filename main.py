@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from email.utils import parsedate_to_datetime
 from io import StringIO
 from typing import Any, Dict, Optional
 import asyncio
@@ -208,6 +209,11 @@ class YrForecastSample(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     bucket_start = Column(DateTime, index=True, nullable=False)
     source = Column(Text, nullable=True)
+    api_updated_at = Column(DateTime, nullable=True)
+    last_modified = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, index=True, nullable=True)
+    next_fetch_after = Column(DateTime, nullable=True)
+    age_seconds = Column(Integer, nullable=True)
     forecast_time = Column(DateTime, nullable=True)
     symbol_code = Column(String, nullable=True)
     weather_text = Column(String, nullable=True)
@@ -384,7 +390,8 @@ VENT_SAMPLE_COLUMNS = [
 ]
 
 YR_SAMPLE_COLUMNS = [
-    "id", "timestamp", "bucket_start", "source", "forecast_time", "symbol_code",
+    "id", "timestamp", "bucket_start", "source", "api_updated_at", "last_modified",
+    "expires_at", "next_fetch_after", "age_seconds", "forecast_time", "symbol_code",
     "weather_text", "air_temperature", "relative_humidity", "wind_speed",
     "wind_from_direction", "cloud_area_fraction", "fog_area_fraction",
     "dew_point_temperature", "air_pressure_at_sea_level", "precipitation_next_1h",
@@ -469,6 +476,13 @@ STARTUP_COLUMNS = {
     ],
     "access_keys": [
         ("key_plaintext", "VARCHAR"),
+    ],
+    "yr_forecast_samples": [
+        ("api_updated_at", "TIMESTAMP"),
+        ("last_modified", "TIMESTAMP"),
+        ("expires_at", "TIMESTAMP"),
+        ("next_fetch_after", "TIMESTAMP"),
+        ("age_seconds", "INTEGER"),
     ],
 }
 
@@ -914,6 +928,33 @@ def met_time(value: Optional[str]) -> Optional[datetime]:
     return stamp
 
 
+def http_header_time(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        stamp = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if stamp.tzinfo:
+        stamp = stamp.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+    return stamp
+
+
+def met_age_seconds(value: Optional[str]) -> Optional[int]:
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def met_next_fetch_after(forecast: Optional[Dict[str, Any]], now_value: Optional[datetime] = None) -> datetime:
+    now_value = now_value or datetime.utcnow()
+    expires_at = (forecast or {}).get("expires_at")
+    if isinstance(expires_at, datetime) and expires_at > now_value:
+        return expires_at + timedelta(minutes=1)
+    return now_value + timedelta(minutes=1)
+
+
 def met_details(entry: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not entry:
         return {}
@@ -962,6 +1003,7 @@ def met_forecast_from_payload(payload: Dict[str, Any]) -> Optional[Dict[str, Any
     timeseries = payload.get("properties", {}).get("timeseries", [])
     if not timeseries:
         return None
+    meta = payload.get("properties", {}).get("meta", {}) or {}
     current = timeseries[0]
     forecast_time = met_time(current.get("time"))
     details = met_details(current)
@@ -971,6 +1013,7 @@ def met_forecast_from_payload(payload: Dict[str, Any]) -> Optional[Dict[str, Any
     forecast: Dict[str, Any] = {
         "symbol": symbol or "",
         "text": weather_label(symbol),
+        "api_updated_at": met_time(meta.get("updated_at")),
         "forecast_time": forecast_time,
         "air_temperature": met_value(details, "air_temperature"),
         "relative_humidity": met_value(details, "relative_humidity"),
@@ -996,7 +1039,7 @@ def met_forecast_from_payload(payload: Dict[str, Any]) -> Optional[Dict[str, Any
                 next_6h_values.append(temp)
     forecast["temp_min_next_6h"] = min(next_6h_values) if next_6h_values else None
     forecast["temp_max_next_6h"] = max(next_6h_values) if next_6h_values else None
-    forecast["raw_meta"] = payload.get("meta", {})
+    forecast["raw_meta"] = meta
     return forecast if forecast["text"] or forecast["air_temperature"] is not None else None
 
 
@@ -1011,10 +1054,17 @@ def fetch_met_weather() -> Optional[Dict[str, Any]]:
     )
     try:
         with urllib.request.urlopen(request, timeout=4) as response:
+            headers = response.headers
             payload = json.loads(response.read().decode("utf-8"))
     except (OSError, urllib.error.URLError, json.JSONDecodeError):
         return None
-    return met_forecast_from_payload(payload)
+    forecast = met_forecast_from_payload(payload)
+    if forecast:
+        forecast["last_modified"] = http_header_time(headers.get("Last-Modified"))
+        forecast["expires_at"] = http_header_time(headers.get("Expires"))
+        forecast["age_seconds"] = met_age_seconds(headers.get("Age"))
+        forecast["next_fetch_after"] = met_next_fetch_after(forecast)
+    return forecast
 
 
 async def met_weather_cached() -> Optional[Dict[str, Any]]:
@@ -1023,7 +1073,7 @@ async def met_weather_cached() -> Optional[Dict[str, Any]]:
         return MET_WEATHER_CACHE["value"]
     value = await asyncio.to_thread(fetch_met_weather)
     MET_WEATHER_CACHE["value"] = value
-    MET_WEATHER_CACHE["expires"] = now_value + timedelta(minutes=5)
+    MET_WEATHER_CACHE["expires"] = met_next_fetch_after(value, now_value) if value else now_value + timedelta(minutes=5)
     return value
 
 
@@ -1061,6 +1111,9 @@ def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr
         "precipitation": latest_yr_sample.precipitation_next_1h if latest_yr_sample else None,
         "clouds": latest_yr_sample.cloud_area_fraction if latest_yr_sample else None,
         "timestamp": latest_yr_sample.timestamp if latest_yr_sample else None,
+        "api_updated_at": latest_yr_sample.api_updated_at if latest_yr_sample else None,
+        "expires_at": latest_yr_sample.expires_at if latest_yr_sample else None,
+        "next_fetch_after": latest_yr_sample.next_fetch_after if latest_yr_sample else None,
     }
     return {
         "timestamp": timestamp,
@@ -1631,6 +1684,11 @@ def yr_sample_from_forecast(
         timestamp=timestamp,
         bucket_start=bucket_start,
         source=source or "MET/Yr Locationforecast",
+        api_updated_at=forecast.get("api_updated_at"),
+        last_modified=forecast.get("last_modified"),
+        expires_at=forecast.get("expires_at"),
+        next_fetch_after=forecast.get("next_fetch_after"),
+        age_seconds=forecast.get("age_seconds"),
         forecast_time=forecast.get("forecast_time"),
         symbol_code=forecast.get("symbol") or None,
         weather_text=forecast.get("text") or None,
@@ -1666,14 +1724,17 @@ async def save_yr_sample_for_payload(data: EventDataIn, forecast: Optional[Dict[
         return None
     timestamp = data.timestamp or datetime.utcnow()
     bucket_start = data.bucket_start or sample_bucket(timestamp)
+    expires_at = forecast.get("expires_at")
+    api_updated_at = forecast.get("api_updated_at")
     async with async_session() as session:
-        existing = (
-            await session.execute(
-                select(YrForecastSample)
-                .where(YrForecastSample.bucket_start == bucket_start)
-                .limit(1)
-            )
-        ).scalars().first()
+        stmt = select(YrForecastSample).limit(1)
+        if expires_at:
+            stmt = stmt.where(YrForecastSample.expires_at == expires_at)
+        elif api_updated_at:
+            stmt = stmt.where(YrForecastSample.api_updated_at == api_updated_at)
+        else:
+            stmt = stmt.where(YrForecastSample.bucket_start == bucket_start)
+        existing = (await session.execute(stmt)).scalars().first()
         if existing:
             return existing.id
         record = yr_sample_from_forecast(timestamp, bucket_start, data.source, forecast)
@@ -2089,7 +2150,7 @@ async def index(request: Request):
     freshness_items = [
         freshness_item("Temp logg", latest_sample, 7, 15),
         freshness_item("Lux logging", latest_light_sample, 7, 15),
-        freshness_item("Yr API", latest_yr_sample, 7, 15),
+        freshness_item("Yr API", latest_yr_sample, 70, 130),
         freshness_item("Lys-hendelser", lights[0] if lights else None, 120, 360),
         freshness_item("Ventilasjonshendelser", ventilation[0] if ventilation else None, 120, 360),
     ]

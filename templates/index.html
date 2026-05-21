@@ -517,8 +517,9 @@
                             {{ now_status.weather_card.text or "Ikke logget" }}
                         </div>
                         <div class="now-note">
-                            {% if now_status.weather_card.timestamp %}
-                            Oppdatert {{ now_status.weather_card.timestamp.strftime("%H:%M") }}
+                            {% if now_status.weather_card.api_updated_at %}
+                            Yr oppdatert {{ now_status.weather_card.api_updated_at.strftime("%H:%M") }}
+                            {% if now_status.weather_card.expires_at %}<br>Gyldig til {{ now_status.weather_card.expires_at.strftime("%H:%M") }}{% endif %}
                             {% else %}
                             Venter på Yr API
                             {% endif %}
