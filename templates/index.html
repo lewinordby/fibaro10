@@ -465,7 +465,7 @@
                             {% if now_status.lux is not none %}{{ "%.0f"|format(now_status.lux) }}{% else %}-{% endif %}
                         </div>
                         <div class="now-note">
-                            Siste leste luxverdi{% if now_status.weather %}<br>Yr: {{ now_status.weather }}{% endif %}
+                            Siste leste luxverdi<br>Yr: {{ now_status.weather or "ikke logget" }}
                         </div>
                     </div>
                 </article>
