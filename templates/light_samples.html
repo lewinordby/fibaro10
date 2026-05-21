@@ -85,6 +85,7 @@
                 <div class="light"><span class="light-name">Parkering</span><span class="badge {% if row.light_parkering %}on{% else %}off{% endif %}">{% if row.light_parkering %}PÅ{% else %}AV{% endif %}</span></div>
             </div>
             <div class="meta">
+                <span>Yr: <strong>{{ row.weather_text or "ikke logget" }}</strong></span>
                 <span>{{ row.source or "UTE LYS | 5MIN_SAMPLE" }}</span>
             </div>
         </article>

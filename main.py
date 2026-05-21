@@ -1,11 +1,15 @@
 from datetime import date, datetime, time, timedelta
 from io import StringIO
 from typing import Any, Dict, Optional
+import asyncio
 import csv
 import hashlib
+import json
 import math
 import os
 from urllib.parse import parse_qs
+import urllib.error
+import urllib.request
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
@@ -30,6 +34,19 @@ AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
 PUBLIC_PREFIXES = ("/static/",)
 PUBLIC_PATHS = {"/health", "/auth/login"}
+
+
+def env_float(name: str, default: str) -> float:
+    try:
+        return float(os.getenv(name, default))
+    except (TypeError, ValueError):
+        return float(default)
+
+
+MET_LAT = env_float("MET_LAT", "61.1153")
+MET_LON = env_float("MET_LON", "10.4662")
+MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 https://fibaro10.onrender.com")
+MET_WEATHER_CACHE = {"expires": datetime.min, "value": None}
 
 app = FastAPI(title="Fibaro10")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -110,6 +127,8 @@ class OutdoorLightSample(Base):
     light_spot_glass_299 = Column(Boolean, nullable=True)
     light_spot_inngang = Column(Boolean, nullable=True)
     light_parkering = Column(Boolean, nullable=True)
+    weather_symbol = Column(String, nullable=True)
+    weather_text = Column(String, nullable=True)
     extra = Column(JSON, nullable=True)
 
 
@@ -306,7 +325,7 @@ LIGHT_COLUMNS = [
 LIGHT_SAMPLE_COLUMNS = [
     "id", "timestamp", "bucket_start", "mode", "source", "lux", "value",
     "light_lyslist", "light_reklame", "light_spot_glass_275", "light_spot_glass_299",
-    "light_spot_inngang", "light_parkering", "extra",
+    "light_spot_inngang", "light_parkering", "weather_symbol", "weather_text", "extra",
 ]
 
 VENT_COLUMNS = [
@@ -386,6 +405,8 @@ STARTUP_COLUMNS = {
     "utelys_samples": [
         ("light_spot_glass_275", "BOOLEAN"),
         ("light_spot_glass_299", "BOOLEAN"),
+        ("weather_symbol", "VARCHAR"),
+        ("weather_text", "VARCHAR"),
     ],
     "ventilasjon_samples": [
         ("temp_ute_netatmo", "DOUBLE PRECISION"),
@@ -819,12 +840,61 @@ def weather_from_rows(*rows) -> Optional[str]:
         "next_1_hours_symbol_code",
     ]
     for row in rows:
-        extra = getattr(row, "extra", None) if row is not None else None
+        if row is None:
+            continue
+        for attr in ("weather_text", "weather_type", "yr_weather", "weather_symbol", "yr_symbol"):
+            label = weather_label(getattr(row, attr, None))
+            if label:
+                return label
+        extra = getattr(row, "extra", None)
         found = nested_extra_value(extra, keys)
         label = weather_label(found)
         if label:
             return label
     return None
+
+
+def met_symbol_from_payload(payload: Dict[str, Any]) -> Optional[str]:
+    timeseries = payload.get("properties", {}).get("timeseries", [])
+    if not timeseries:
+        return None
+    data = timeseries[0].get("data", {})
+    for period in ("next_1_hours", "next_6_hours", "next_12_hours"):
+        symbol = data.get(period, {}).get("summary", {}).get("symbol_code")
+        if symbol:
+            return symbol
+    return None
+
+
+def fetch_met_weather() -> Optional[Dict[str, str]]:
+    url = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={MET_LAT:.4f}&lon={MET_LON:.4f}"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": MET_USER_AGENT,
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=4) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError):
+        return None
+    symbol = met_symbol_from_payload(payload)
+    label = weather_label(symbol)
+    if not label:
+        return None
+    return {"symbol": symbol or "", "text": label}
+
+
+async def met_weather_cached() -> Optional[Dict[str, str]]:
+    now_value = datetime.utcnow()
+    if MET_WEATHER_CACHE["expires"] > now_value:
+        return MET_WEATHER_CACHE["value"]
+    value = await asyncio.to_thread(fetch_met_weather)
+    MET_WEATHER_CACHE["value"] = value
+    MET_WEATHER_CACHE["expires"] = now_value + timedelta(minutes=5)
+    return value
 
 
 def build_now_status(latest_sample, latest_light_sample, latest_light):
@@ -1363,8 +1433,29 @@ def light_from_payload(data: EventDataIn) -> OutdoorLightEvent:
     )
 
 
-def light_sample_from_payload(data: EventDataIn) -> OutdoorLightSample:
+def payload_weather_symbol(data: EventDataIn) -> Optional[str]:
+    return (
+        data.weather_symbol
+        or data.yr_symbol
+        or nested_extra_value(data.extra, ["weather_symbol", "yr_symbol", "symbol_code", "next_1_hours_symbol_code"])
+        or nested_extra_value(data.values, ["weather_symbol", "yr_symbol", "symbol_code", "next_1_hours_symbol_code"])
+    )
+
+
+def payload_weather_text(data: EventDataIn) -> Optional[str]:
+    return (
+        data.weather_text
+        or data.weather_type
+        or data.yr_weather
+        or nested_extra_value(data.extra, ["weather_text", "weather_type", "yr_weather", "weather", "condition_text", "condition"])
+        or nested_extra_value(data.values, ["weather_text", "weather_type", "yr_weather", "weather", "condition_text", "condition"])
+    )
+
+
+def light_sample_from_payload(data: EventDataIn, met_weather: Optional[Dict[str, str]] = None) -> OutdoorLightSample:
     timestamp = data.timestamp or datetime.utcnow()
+    weather_symbol = payload_weather_symbol(data) or ((met_weather or {}).get("symbol") or None)
+    weather_text = weather_label(payload_weather_text(data)) or ((met_weather or {}).get("text") or None)
     return OutdoorLightSample(
         timestamp=timestamp,
         bucket_start=data.bucket_start or sample_bucket(timestamp),
@@ -1378,6 +1469,8 @@ def light_sample_from_payload(data: EventDataIn) -> OutdoorLightSample:
         light_spot_glass_299=value_from_payload(data, "light_spot_glass_299"),
         light_spot_inngang=value_from_payload(data, "light_spot_inngang"),
         light_parkering=value_from_payload(data, "light_parkering"),
+        weather_symbol=weather_symbol,
+        weather_text=weather_text,
         extra=merged_extra(data),
     )
 
@@ -1927,7 +2020,10 @@ async def log_event(data: EventDataIn):
     system = (data.system or "").lower()
     if system in {"utelys", "ute_lys", "lys"}:
         if data.event_type in {"sample", "sample_5min", "learning_sample"}:
-            event_id = await save_record(light_sample_from_payload(data))
+            met_weather = None
+            if not payload_weather_symbol(data) and not payload_weather_text(data):
+                met_weather = await met_weather_cached()
+            event_id = await save_record(light_sample_from_payload(data, met_weather))
             return {"status": "ok", "id": event_id, "table": "utelys_samples"}
         event_id = await save_record(light_from_payload(data))
         return {"status": "ok", "id": event_id, "table": "utelys_events"}
