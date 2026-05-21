@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Stre
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, JSON, String, Text, select, update
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, JSON, String, Text, delete, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -2410,6 +2410,8 @@ async def startup():
         for table_name, columns in STARTUP_COLUMNS.items():
             for column_name, column_type in columns:
                 await conn.exec_driver_sql(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} {column_type}")
+        await conn.execute(delete(OutdoorLightEvent).where(OutdoorLightEvent.source == "CODEX TEST"))
+        await conn.execute(delete(VentilationEvent).where(VentilationEvent.source == "CODEX TEST"))
     async with async_session() as session:
         result = await session.execute(select(AccessKey).where(AccessKey.key_hash == MASTER_ACCESS_KEY_HASH))
         master = result.scalars().first()
