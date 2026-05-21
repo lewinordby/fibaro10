@@ -1,6 +1,8 @@
 import argparse
 import asyncio
+import getpass
 import json
+import os
 import pickle
 from pathlib import Path
 from typing import Any
@@ -65,6 +67,23 @@ async def login(email: str, code: str) -> None:
     print_json(user_data)
 
 
+async def password_login(email: str, password: str | None, password_env: str | None) -> None:
+    from roborock.web_api import RoborockApiClient
+
+    if password_env:
+        password = os.getenv(password_env)
+    if not password:
+        password = getpass.getpass("Roborock-passord: ")
+    if not password:
+        raise SystemExit("Mangler passord.")
+
+    web_api = RoborockApiClient(username=email)
+    user_data = await web_api.pass_login(password)
+    save_user_data(user_data)
+    print(f"Login lagret i {CACHE_FILE}")
+    print_json(user_data)
+
+
 async def get_device_manager(email: str):
     from roborock.devices.device_manager import UserParams, create_device_manager
 
@@ -123,6 +142,11 @@ async def main() -> None:
     login_parser.add_argument("--email", required=True)
     login_parser.add_argument("--code", required=True)
 
+    password_parser = subparsers.add_parser("password-login", help="Logg inn med passord og lagre brukerdata lokalt.")
+    password_parser.add_argument("--email", required=True)
+    password_parser.add_argument("--password", help="Unngå helst denne. Bruk prompt eller --password-env.")
+    password_parser.add_argument("--password-env", help="Navn på miljøvariabel som inneholder passordet.")
+
     devices_parser = subparsers.add_parser("devices", help="List Roborock-enheter på kontoen.")
     devices_parser.add_argument("--email", required=True)
 
@@ -135,6 +159,8 @@ async def main() -> None:
         await request_code(args.email)
     elif args.command == "login":
         await login(args.email, args.code)
+    elif args.command == "password-login":
+        await password_login(args.email, args.password, args.password_env)
     elif args.command == "devices":
         await list_devices(args.email)
     elif args.command == "status":
