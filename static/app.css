@@ -523,6 +523,16 @@ code {
     height: 100%;
 }
 
+.app-nav .nav-sub-form .button {
+    width: auto !important;
+    min-height: 1.92rem;
+    padding: 0.32rem 0.7rem;
+    border-color: var(--line) !important;
+    background: var(--panel-soft) !important;
+    color: var(--muted) !important;
+    font-size: 0.82rem;
+}
+
 .app-nav .button:hover {
     background: var(--section-soft) !important;
     color: var(--brand-dark) !important;
@@ -715,9 +725,6 @@ svg {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
-    .app-nav .nav-main.has-admin {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
 }
 
 @media (min-width: 980px) {
