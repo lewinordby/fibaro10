@@ -91,7 +91,7 @@ header {
 }
 
 .site-header {
-    padding: 0.65rem 1rem !important;
+    padding: 0.42rem 0.8rem !important;
 }
 
 .brand-bar {
@@ -104,11 +104,11 @@ header {
 
 .site-header .brand-bar {
     align-items: center;
-    gap: 0.95rem;
+    gap: 0.8rem;
 }
 
 .brand-logo {
-    width: 6.7rem;
+    width: 5.9rem;
     height: auto;
     display: block;
     flex: 0 0 auto;
@@ -117,6 +117,7 @@ header {
 .brand-home {
     display: inline-flex;
     flex: 0 0 auto;
+    margin-left: auto;
     border-radius: 6px;
     outline: none;
 }
@@ -403,14 +404,20 @@ code {
     border-color: var(--line-soft);
     background: rgba(249, 251, 254, 0.92);
     box-shadow: none;
+    padding: 0.22rem;
 }
 
 .site-header .app-nav .nav-main {
     align-items: stretch;
+    padding-bottom: 0.22rem;
+    border-bottom: 2px solid var(--section-color);
 }
 
 .site-header .app-nav .nav-sub {
-    padding-top: 0.35rem;
+    padding-top: 0.28rem;
+    padding-bottom: 0.02rem;
+    background: linear-gradient(90deg, var(--section-soft), transparent 82%);
+    border-radius: 0 0 6px 6px;
 }
 
 .app-nav.section-light {
@@ -466,29 +473,30 @@ code {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2.75rem;
+    min-height: 2.35rem;
     line-height: 1.12;
     border: 1px solid transparent !important;
     border-radius: 6px !important;
     background: transparent !important;
     color: #526070 !important;
-    font-weight: 620;
+    font-size: 0.9rem;
+    font-weight: 650;
     box-shadow: none !important;
     transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .app-nav .nav-main .button {
-    min-height: 3rem;
+    min-height: 2.42rem;
 }
 
 .app-nav .nav-sub .button {
     width: auto !important;
-    min-height: 2.25rem;
-    padding-inline: 0.85rem;
+    min-height: 1.92rem;
+    padding: 0.32rem 0.7rem;
     border-color: var(--line) !important;
     background: var(--panel-soft) !important;
     color: var(--muted) !important;
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     font-weight: 620;
 }
 
@@ -721,7 +729,13 @@ svg {
         gap: 0.55rem;
     }
 
+    .site-header .brand-home {
+        order: 1;
+        margin-left: auto;
+    }
+
     .site-header .app-nav {
+        order: 2;
         flex-basis: 100%;
         width: 100% !important;
     }
