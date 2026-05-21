@@ -39,19 +39,8 @@
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="theme-vent">
-    <header>
-        <div class="brand-bar">
-            <a class="brand-home" href="/" aria-label="Gå til status">
-                <img class="brand-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
-            </a>
-            <div>
-                <h1>Yr logg</h1>
-                <p class="sub">5-minutterslogg fra MET/Yr Locationforecast</p>
-            </div>
-        </div>
-    </header>
+    {% include "_header.html" %}
     <main>
-        {% include "_nav.html" %}
         <details>
             <summary>Filter</summary>
             <form method="get" action="/yr/samples">

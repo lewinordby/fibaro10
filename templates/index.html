@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fibaro10 status</title>
+    <title>SUN2 drift</title>
     <style>
         :root {
             color-scheme: light;
@@ -431,20 +431,8 @@
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="theme-status">
-    <header>
-        <div class="brand-bar">
-            <a class="brand-home" href="/" aria-label="Gå til status">
-                <img class="brand-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
-            </a>
-            <div>
-                <h1>Fibaro10 status</h1>
-                <p class="sub">Siste kjente drift fra HC3 og Render</p>
-            </div>
-        </div>
-    </header>
+    {% include "_header.html" %}
     <main>
-        {% include "_nav.html" %}
-
         <section class="hero">
             <div class="hero-top">
                 <div>

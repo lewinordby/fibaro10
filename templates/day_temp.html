@@ -64,19 +64,8 @@
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="theme-vent">
-    <header>
-        <div class="brand-bar">
-            <a class="brand-home" href="/" aria-label="Gå til status">
-                <img class="brand-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
-            </a>
-            <div>
-                <h1>Dagslogg temp</h1>
-                <p class="sub">Temperatur gjennom valgt dag</p>
-            </div>
-        </div>
-    </header>
+    {% include "_header.html" %}
     <main>
-        {% include "_nav.html" %}
         <form class="day-form" method="get" action="/day/temp">
             <input type="date" name="day" value="{{ selected_day }}">
             <button type="submit">Vis dag</button>

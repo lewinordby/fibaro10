@@ -90,6 +90,10 @@ header {
     backdrop-filter: blur(10px);
 }
 
+.site-header {
+    padding: 0.65rem 1rem !important;
+}
+
 .brand-bar {
     width: min(100% - 1.7rem, var(--page-width));
     margin-inline: auto;
@@ -98,8 +102,13 @@ header {
     gap: 1rem;
 }
 
+.site-header .brand-bar {
+    align-items: center;
+    gap: 0.95rem;
+}
+
 .brand-logo {
-    width: 7.2rem;
+    width: 6.7rem;
     height: auto;
     display: block;
     flex: 0 0 auto;
@@ -384,6 +393,24 @@ code {
     background: var(--panel);
     box-shadow: var(--shadow-1);
     overflow: hidden;
+}
+
+.site-header .app-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto !important;
+    margin-bottom: 0;
+    border-color: var(--line-soft);
+    background: rgba(249, 251, 254, 0.92);
+    box-shadow: none;
+}
+
+.site-header .app-nav .nav-main {
+    align-items: stretch;
+}
+
+.site-header .app-nav .nav-sub {
+    padding-top: 0.35rem;
 }
 
 .app-nav.section-light {
@@ -686,6 +713,17 @@ svg {
     .brand-bar {
         align-items: center;
         gap: 0.75rem;
+    }
+
+    .site-header .brand-bar {
+        width: min(100% - 0.5rem, var(--page-width));
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .site-header .app-nav {
+        flex-basis: 100%;
+        width: 100% !important;
     }
 
     header h1 {
