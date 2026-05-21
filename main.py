@@ -266,6 +266,11 @@ class EventDataIn(BaseModel):
     temp_avg_inne: Optional[float] = None
     temp_max_inne: Optional[float] = None
     lux: Optional[float] = None
+    weather_type: Optional[str] = None
+    weather_symbol: Optional[str] = None
+    weather_text: Optional[str] = None
+    yr_weather: Optional[str] = None
+    yr_symbol: Optional[str] = None
     diff_w: Optional[float] = None
     power_w: Optional[float] = None
     energy_kwh: Optional[float] = None
@@ -344,6 +349,38 @@ DAY_ZOOM_OPTIONS = [
     {"key": "night", "label": "Natt 00-06", "start_hour": 0, "end_hour": 6, "ticks": [0, 2, 4, 6]},
     {"key": "day", "label": "Dag 06-24", "start_hour": 6, "end_hour": 24, "ticks": [6, 12, 18, 24]},
 ]
+
+WEATHER_LABELS = {
+    "clearsky": "Klarvær",
+    "clearsky_day": "Klarvær",
+    "clearsky_night": "Klarvær",
+    "clearsky_polartwilight": "Klarvær",
+    "fair": "Lettskyet",
+    "fair_day": "Lettskyet",
+    "fair_night": "Lettskyet",
+    "fair_polartwilight": "Lettskyet",
+    "partlycloudy": "Delvis skyet",
+    "partlycloudy_day": "Delvis skyet",
+    "partlycloudy_night": "Delvis skyet",
+    "partlycloudy_polartwilight": "Delvis skyet",
+    "cloudy": "Skyet",
+    "fog": "Tåke",
+    "lightrain": "Lett regn",
+    "rain": "Regn",
+    "heavyrain": "Kraftig regn",
+    "lightsnow": "Lett snø",
+    "snow": "Snø",
+    "heavysnow": "Kraftig snø",
+    "sleet": "Sludd",
+    "lightsleet": "Lett sludd",
+    "thunderstorm": "Torden",
+    "rainshowers": "Regnbyger",
+    "lightrainshowers": "Lette regnbyger",
+    "heavyrainshowers": "Kraftige regnbyger",
+    "snowshowers": "Snøbyger",
+    "lightsnowshowers": "Lette snøbyger",
+    "heavysnowshowers": "Kraftige snøbyger",
+}
 
 STARTUP_COLUMNS = {
     "utelys_samples": [
@@ -731,6 +768,65 @@ def latest_timestamp_from(*rows):
     return max(timestamps)
 
 
+def nested_extra_value(value, keys):
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        for key in keys:
+            found = value.get(key)
+            if found not in (None, ""):
+                if isinstance(found, (dict, list)):
+                    nested = nested_extra_value(found, keys)
+                    if nested not in (None, ""):
+                        return nested
+                    continue
+                return found
+        for child in value.values():
+            found = nested_extra_value(child, keys)
+            if found not in (None, ""):
+                return found
+    elif isinstance(value, list):
+        for child in value:
+            found = nested_extra_value(child, keys)
+            if found not in (None, ""):
+                return found
+    return None
+
+
+def weather_label(value) -> Optional[str]:
+    if value in (None, ""):
+        return None
+    raw = str(value).strip()
+    key = raw.lower().replace("-", "_")
+    if key in WEATHER_LABELS:
+        return WEATHER_LABELS[key]
+    cleaned = raw.replace("_", " ").replace("-", " ")
+    return cleaned[:1].upper() + cleaned[1:] if cleaned else None
+
+
+def weather_from_rows(*rows) -> Optional[str]:
+    keys = [
+        "weather_text",
+        "weather_type",
+        "yr_weather",
+        "weather",
+        "condition_text",
+        "condition",
+        "summary",
+        "symbol_code",
+        "weather_symbol",
+        "yr_symbol",
+        "next_1_hours_symbol_code",
+    ]
+    for row in rows:
+        extra = getattr(row, "extra", None) if row is not None else None
+        found = nested_extra_value(extra, keys)
+        label = weather_label(found)
+        if label:
+            return label
+    return None
+
+
 def build_now_status(latest_sample, latest_light_sample, latest_light):
     indoor_values = [
         {"label": "1.etg", "value": latest_sample.temp_1etg if latest_sample else None},
@@ -752,6 +848,7 @@ def build_now_status(latest_sample, latest_light_sample, latest_light):
     elif latest_light and latest_light.lux is not None:
         lux = latest_light.lux
     timestamp = latest_timestamp_from(latest_sample, latest_light_sample, latest_light)
+    weather = weather_from_rows(latest_light_sample, latest_sample, latest_light)
     return {
         "timestamp": timestamp,
         "mode": latest_sample.mode if latest_sample else None,
@@ -760,10 +857,12 @@ def build_now_status(latest_sample, latest_light_sample, latest_light):
         "outdoor_avg": average_value([item["value"] for item in outdoor_values]),
         "outdoor_values": outdoor_values,
         "lux": lux,
+        "weather": weather,
         "has_data": any(
             value is not None
             for value in [
                 lux,
+                weather,
                 *[item["value"] for item in indoor_values],
                 *[item["value"] for item in outdoor_values],
             ]
@@ -1240,6 +1339,10 @@ def merged_extra(data: EventDataIn):
     extra = dict(data.extra or {})
     if data.values:
         extra["values"] = data.values
+    for key in ("weather_type", "weather_symbol", "weather_text", "yr_weather", "yr_symbol"):
+        value = getattr(data, key)
+        if value not in (None, ""):
+            extra[key] = value
     return extra or None
 
 
