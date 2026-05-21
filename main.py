@@ -2757,15 +2757,15 @@ async def index(request: Request):
     light_status = []
     for device in LIGHT_TIMELINE_DEVICES:
         row = latest_light_by_key.get(device["key"])
-        sample_state = light_sample_state(latest_light_sample, device) if latest_light_sample else None
+        light_sample_value = light_sample_state(latest_light_sample, device) if latest_light_sample else None
         event_state = state_from_event(row) if row else None
         light_status.append(
             {
                 "id": device["key"],
                 "name": device["name"],
                 "row": row,
-                "state": sample_state if sample_state is not None else event_state,
-                "sample_time": latest_light_sample.timestamp if sample_state is not None else None,
+                "state": light_sample_value if light_sample_value is not None else event_state,
+                "sample_time": latest_light_sample.timestamp if light_sample_value is not None else None,
                 "lux": row.lux if row and row.lux is not None else (
                     latest_light_sample.lux
                     if latest_light_sample and latest_light_sample.lux is not None
