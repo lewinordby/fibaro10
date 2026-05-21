@@ -15,8 +15,14 @@
         .sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
         main { padding: 0.85rem; max-width: 1120px; margin: 0 auto; }
         .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.9rem; margin-bottom: 0.9rem; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+        .hero-panel { border-top: 3px solid var(--page-accent, #5292d6); }
         .status-line { display: flex; flex-wrap: wrap; gap: 0.55rem; color: var(--muted); font-size: 0.86rem; }
         .badge { display: inline-flex; align-items: center; min-height: 1.8rem; border-radius: 999px; padding: 0.22rem 0.65rem; background: #eaf5ed; color: #2f7a49; border: 1px solid #b9dfc2; font-weight: 800; }
+        .stat-grid { display: grid; grid-template-columns: 1fr; gap: 0.65rem; margin-top: 0.8rem; }
+        .stat-card { border: 1px solid var(--line); background: var(--soft); border-radius: 8px; padding: 0.75rem; }
+        .stat-card .label { color: var(--muted); font-size: 0.78rem; font-weight: 750; }
+        .stat-card .value { margin-top: 0.15rem; font-size: 1.35rem; line-height: 1.05; font-weight: 820; color: var(--text); }
+        .stat-card .detail { margin-top: 0.2rem; color: var(--muted); font-size: 0.78rem; }
         .saved { border: 1px solid #b9dfc2; background: #eaf5ed; color: #2f7a49; padding: 0.75rem; border-radius: 7px; margin-bottom: 0.8rem; }
         .error { border: 1px solid #f2c4bb; background: #fbebe8; color: #9b3b2e; padding: 0.75rem; border-radius: 7px; margin-bottom: 0.8rem; }
         .error ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
@@ -26,6 +32,10 @@
         .device-grid { display: grid; grid-template-columns: 1fr; gap: 0.55rem; margin-top: 0.75rem; }
         .device-pill { border: 1px solid var(--line); background: var(--soft); border-left: 3px solid var(--page-accent, #5292d6); border-radius: 7px; padding: 0.65rem; }
         .device-pill strong { display: block; margin-bottom: 0.18rem; }
+        .summary-table { margin-top: 0.7rem; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+        .summary-table table { min-width: 760px; }
+        .summary-table td:first-child { font-weight: 800; color: var(--text); }
+        .chip { display: inline-flex; align-items: center; min-height: 1.65rem; padding: 0.18rem 0.5rem; border-radius: 999px; background: var(--page-accent-soft, #eaf4ff); color: var(--page-accent, #5292d6); border: 1px solid var(--page-accent-border, #b8d8f0); font-weight: 750; white-space: nowrap; }
         .group { border: 1px solid var(--line); border-radius: 8px; padding: 0.8rem; margin-bottom: 0.8rem; background: #fff; }
         .fields { display: grid; grid-template-columns: 1fr; gap: 0.65rem; }
         .field { display: grid; gap: 0.25rem; min-width: 0; }
@@ -46,6 +56,7 @@
         code { white-space: nowrap; }
         @media (min-width: 760px) {
             main { padding: 1.25rem; }
+            .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
             .device-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
@@ -81,13 +92,57 @@
         </div>
         {% endif %}
 
-        <section class="panel">
-            <h2>Aktiv logikk</h2>
+        <section class="panel hero-panel">
+            <h2>Aktiv styring</h2>
             <div class="status-line">
                 <span class="badge">Versjon {{ config.version }}</span>
                 <span>Sist endret {{ config.updated_at|localtime if config.updated_at else "-" }}</span>
                 <span>Endret av {{ config.updated_by or "-" }}</span>
             </div>
+            <div class="stat-grid">
+                {% for card in stat_cards %}
+                <div class="stat-card">
+                    <div class="label">{{ card.label }}</div>
+                    <div class="value">{{ card.value }}</div>
+                    <div class="detail">{{ card.detail }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Kort oversikt</h2>
+            <p class="sub">Dette er reglene HC3 bruker etter at den har hentet siste config fra appen.</p>
+            <div class="summary-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Område</th>
+                            <th>Enhet</th>
+                            <th>Start/på</th>
+                            <th>Stopp/av</th>
+                            <th>Tidsvindu</th>
+                            <th>Merknad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in summary_rows %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td><span class="chip">{{ row.device }}</span></td>
+                            <td>{{ row.start }}</td>
+                            <td>{{ row.stop }}</td>
+                            <td>{{ row.window }}</td>
+                            <td>{{ row.note }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Forklaring</h2>
             <ul class="rules">
                 {% for rule in rules %}
                 <li>{{ rule }}</li>

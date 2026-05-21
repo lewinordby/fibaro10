@@ -969,6 +969,82 @@ def config_rules(key: str, values: Dict[str, Any]) -> list[str]:
     return []
 
 
+def config_summary_rows(key: str, values: Dict[str, Any]) -> list[Dict[str, str]]:
+    if key == "lights":
+        rows = []
+        for group in CONTROL_DEVICES["lights"]["groups"]:
+            window = "Hele døgnet"
+            if group["follows_opening_hours"]:
+                window = f"{values[group['time_from_key']]}-{values[group['time_to_key']]}"
+            rows.append(
+                {
+                    "name": group["name"],
+                    "device": ", ".join(str(device_id) for device_id in group["device_ids"]),
+                    "start": f"PÅ under {values[group['on_lux_key']]} lux",
+                    "stop": f"AV over {values[group['off_lux_key']]} lux",
+                    "window": window,
+                    "note": "Styres av lux og tidsvindu" if group["follows_opening_hours"] else "Styres av lux uavhengig av åpningstid",
+                }
+            )
+        return rows
+
+    if key == "ventilation":
+        return [
+            {
+                "name": "Innluft VIP",
+                "device": "130",
+                "start": f"Start over {values['vip_start_temp']}°C",
+                "stop": f"Stopp under {values['vip_stop_temp']}°C",
+                "window": f"{values['open_from']}-{values['close_at']}",
+                "note": f"VIP vurderes mot ute minst {values['outdoor_cooler_delta']}°C kaldere",
+            },
+            {
+                "name": "Innluft 1./2.etg",
+                "device": "160",
+                "start": f"Start over {values['floor_start_temp']}°C",
+                "stop": f"Stopp under {values['floor_stop_temp']}°C",
+                "window": f"{values['open_from']}-{values['close_at']}",
+                "note": "Bruker 1.etg og 2.etg som grunnlag",
+            },
+            {
+                "name": "Takvifte avtrekk",
+                "device": "134",
+                "start": f"Loft over {values['loft_exhaust_start_temp']}°C",
+                "stop": f"Loft under {values['loft_exhaust_stop_temp']}°C",
+                "window": f"Stopper {values['exhaust_stop_before_close_minutes']} min før stenging",
+                "note": f"Ikke tillatt hvis inne er under {values['indoor_allow_exhaust_temp']}°C",
+            },
+            {
+                "name": "Mekanisk sperre",
+                "device": "-",
+                "start": f"Tillatt over {values['mechanical_min_outdoor_temp']}°C ute",
+                "stop": f"Sperret under {values['mechanical_min_outdoor_temp']}°C ute",
+                "window": "Gjelder alle vifter",
+                "note": "Hindrer kald trekk og unødvendig varmetap",
+            },
+        ]
+
+    return []
+
+
+def config_stat_cards(key: str, values: Dict[str, Any], version: int) -> list[Dict[str, str]]:
+    if key == "lights":
+        return [
+            {"label": "Aktiv versjon", "value": str(version), "detail": "HC3 leser denne versjonen"},
+            {"label": "Luxsensor", "value": "433", "detail": "Brukes av alle lysregler"},
+            {"label": "Sjekkintervall", "value": f"{values['config_poll_minutes']} min", "detail": "Trigger-scenen starter runneren"},
+            {"label": "Bekreftelse", "value": f"{values['decision_delay_seconds']} sek", "detail": "Motvirker flimring"},
+        ]
+    if key == "ventilation":
+        return [
+            {"label": "Aktiv versjon", "value": str(version), "detail": "HC3 leser denne versjonen"},
+            {"label": "Driftstid", "value": f"{values['open_from']}-{values['close_at']}", "detail": "Normal vurderingsperiode"},
+            {"label": "Forkjøling", "value": str(values["pre_cooling_from"]), "detail": "Kan starte før åpning"},
+            {"label": "Utesperre", "value": f"{values['mechanical_min_outdoor_temp']}°C", "detail": "Stopper mekanisk ventilasjon"},
+        ]
+    return []
+
+
 def config_devices(key: str) -> Dict[str, Any]:
     return deepcopy(CONTROL_DEVICES.get(key, {}))
 
@@ -2472,6 +2548,8 @@ async def config_context(config_key: str):
         "config": row,
         "values": values,
         "rules": config_rules(config_key, values),
+        "summary_rows": config_summary_rows(config_key, values),
+        "stat_cards": config_stat_cards(config_key, values, row.version),
         "devices": config_devices(config_key),
         "history": history,
         "saved": False,
@@ -2528,6 +2606,8 @@ async def update_settings(request: Request, config_key: str):
         context = await config_context(config_key)
         context["values"] = values
         context["rules"] = config_rules(config_key, values)
+        context["summary_rows"] = config_summary_rows(config_key, values)
+        context["stat_cards"] = config_stat_cards(config_key, values, context["config"].version)
         context["errors"] = errors
         return templates.TemplateResponse(request, "control_settings.html", context, status_code=400)
     reason = (form.get("reason") or "Endret i grensesnittet").strip()
