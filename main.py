@@ -2853,6 +2853,15 @@ async def index(request: Request):
         }
         for device in VENT_TIMELINE_DEVICES
     ]
+    vent_status.append(
+        {
+            "id": "loft_recovery",
+            "name": "Loft > 1.etg gjenvinning",
+            "row": None,
+            "state": False,
+            "dummy_reason": "Planlagt varmegjenvinning fra loft til 1.etg. Ikke koblet til styring ennå.",
+        }
+    )
     freshness_items = [
         freshness_item("Temp logg", latest_sample, 7, 15),
         freshness_item("Lux logging", latest_light_sample, 7, 15),

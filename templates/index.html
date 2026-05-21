@@ -418,7 +418,7 @@
             .now-card { min-height: 8.5rem; }
             .health-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .fan-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .fan-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         }
         @media (min-width: 980px) {
             .cards.lights { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -537,12 +537,12 @@
                 {% for item in vent_status %}
                 {% set row = item.row %}
                 {% set state = item.state if item.state is not none else (row.state if row and row.state is not none else none) %}
-                {% set vent_reason = (row.reason or row.source) if row else "" %}
+                {% set vent_reason = item.dummy_reason or ((row.reason or row.source) if row else "") %}
                 <article class="status-card vent-card fan-card {% if state == true %}on{% elif state == false %}off{% endif %}">
                     <div class="status-top">
                         <div>
                             <div class="name"><span class="fan-symbol"><span></span></span>{{ item.name }}</div>
-                            <div class="time">{% if row %}Sist endret {{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen endring logget{% endif %}</div>
+                            <div class="time">{% if item.dummy_reason %}Ikke satt i drift{% elif row %}Sist endret {{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen endring logget{% endif %}</div>
                         </div>
                         <span class="badge {% if state == true %}on{% elif state == false %}off{% else %}neutral{% endif %}">
                             {% if state == true %}PÅ{% elif state == false %}AV{% else %}-{% endif %}
