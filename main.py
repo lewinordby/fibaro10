@@ -1767,9 +1767,11 @@ async def index(request: Request):
                 "row": row,
                 "state": sample_state if sample_state is not None else event_state,
                 "sample_time": latest_light_sample.timestamp if sample_state is not None else None,
-                "lux": latest_light_sample.lux
-                if latest_light_sample and latest_light_sample.lux is not None
-                else (row.lux if row else None),
+                "lux": row.lux if row and row.lux is not None else (
+                    latest_light_sample.lux
+                    if latest_light_sample and latest_light_sample.lux is not None
+                    else None
+                ),
             }
         )
     vent_status = [
