@@ -505,18 +505,19 @@
                 {% for item in vent_status %}
                 {% set row = item.row %}
                 {% set state = item.state if item.state is not none else (row.state if row and row.state is not none else none) %}
+                {% set vent_reason = (row.reason or row.source) if row else "" %}
                 <article class="status-card vent-card fan-card {% if state == true %}on{% elif state == false %}off{% endif %}">
                     <div class="status-top">
                         <div>
                             <div class="name"><span class="fan-symbol"><span></span></span>{{ item.name }}</div>
-                            <div class="time">{% if row %}Siste endring {{ row.timestamp.strftime("%d.%m %H:%M") }}{% else %}Ingen endring logget{% endif %}</div>
+                            <div class="time">{% if row %}Sist endret {{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen endring logget{% endif %}</div>
                         </div>
                         <span class="badge {% if state == true %}on{% elif state == false %}off{% else %}neutral{% endif %}">
                             {% if state == true %}PÅ{% elif state == false %}AV{% else %}-{% endif %}
                         </span>
                     </div>
-                    {% if row and row.reason %}
-                    <div class="detail">{{ row.reason|replace("kjolebehov", "kjølebehov")|replace("innblasing", "innblåsing")|replace("a spare", "å spare")|replace("gar", "går") }}</div>
+                    {% if vent_reason %}
+                    <div class="detail"><strong>Hvorfor:</strong> {{ vent_reason|replace("kjolebehov", "kjølebehov")|replace("innblasing", "innblåsing")|replace("a spare", "å spare")|replace("gar", "går") }}</div>
                     {% endif %}
                 </article>
                 {% endfor %}
@@ -532,11 +533,12 @@
                 {% for item in light_status %}
                 {% set row = item.row %}
                 {% set state = item.state %}
+                {% set light_reason = (row.reason or row.source) if row else "" %}
                 <article class="status-card light-card {% if state == true %}on{% elif state == false %}off{% endif %}">
                     <div class="status-top">
                         <div>
                             <div class="name">{{ item.name }}</div>
-                            <div class="time">{% if item.sample_time %}Sample {{ item.sample_time.strftime("%d.%m %H:%M") }}{% elif row %}{{ row.timestamp.strftime("%d.%m %H:%M") }}{% else %}Ingen hendelser{% endif %}</div>
+                            <div class="time">{% if row %}Sist endret {{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}{% elif item.sample_time %}Sist lest {{ item.sample_time.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen hendelser{% endif %}</div>
                         </div>
                         <span class="badge {% if state == true %}on{% elif state == false %}off{% else %}neutral{% endif %}">
                             {% if state == true %}PÅ{% elif state == false %}AV{% else %}-{% endif %}
@@ -546,8 +548,8 @@
                         <span>ID <strong>{{ item.id }}</strong></span>
                         {% if item.lux is not none %}<span>Lux <strong>{{ "%.0f"|format(item.lux) }}</strong></span>{% endif %}
                     </div>
-                    {% if row and row.reason %}
-                    <div class="detail">{{ row.reason|replace("p?-grense", "på-grense")|replace("av-grense", "av-grense") }}</div>
+                    {% if light_reason %}
+                    <div class="detail"><strong>Hvorfor:</strong> {{ light_reason|replace("p?-grense", "på-grense")|replace("av-grense", "av-grense") }}</div>
                     {% endif %}
                 </article>
                 {% endfor %}
@@ -561,27 +563,29 @@
             </div>
             <div class="cards">
                 <article class="status-card light-card">
+                    {% set latest_light_reason = (latest_light.reason or latest_light.source) if latest_light else "" %}
                     <div class="status-top">
                         <div>
                             <div class="name">Siste lyslogg</div>
-                            <div class="time">{% if latest_light %}{{ latest_light.timestamp.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen poster{% endif %}</div>
+                            <div class="time">{% if latest_light %}Sist endret {{ latest_light.timestamp.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen poster{% endif %}</div>
                         </div>
                         <span class="badge neutral">{% if latest_light and latest_light.action == "PAA" %}PÅ{% else %}{{ latest_light.action if latest_light else "-" }}{% endif %}</span>
                     </div>
                     {% if latest_light %}
-                    <div class="detail">{{ latest_light.device_name or ("Enhet " ~ latest_light.device_id) }}</div>
+                    <div class="detail">{{ latest_light.device_name or ("Enhet " ~ latest_light.device_id) }}{% if latest_light_reason %}<br><strong>Hvorfor:</strong> {{ latest_light_reason|replace("p?-grense", "på-grense") }}{% endif %}</div>
                     {% endif %}
                 </article>
                 <article class="status-card vent-card">
+                    {% set latest_vent_reason = (latest_vent.reason or latest_vent.source) if latest_vent else "" %}
                     <div class="status-top">
                         <div>
                             <div class="name">Siste ventilasjonshendelse</div>
-                            <div class="time">{% if latest_vent %}{{ latest_vent.timestamp.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen poster{% endif %}</div>
+                            <div class="time">{% if latest_vent %}Sist endret {{ latest_vent.timestamp.strftime("%d.%m.%Y %H:%M") }}{% else %}Ingen poster{% endif %}</div>
                         </div>
                         <span class="badge neutral">{% if latest_vent and latest_vent.action == "PAA" %}PÅ{% else %}{{ latest_vent.action if latest_vent else "-" }}{% endif %}</span>
                     </div>
                     {% if latest_vent %}
-                    <div class="detail">{{ latest_vent.device_name or ("Enhet " ~ latest_vent.device_id) }}</div>
+                    <div class="detail">{{ latest_vent.device_name or ("Enhet " ~ latest_vent.device_id) }}{% if latest_vent_reason %}<br><strong>Hvorfor:</strong> {{ latest_vent_reason|replace("kjolebehov", "kjølebehov")|replace("innblasing", "innblåsing") }}{% endif %}</div>
                     {% endif %}
                 </article>
             </div>
