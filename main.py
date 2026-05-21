@@ -111,6 +111,7 @@ class OutdoorLightEvent(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     event_type = Column(String, index=True, default="device_change")
     action = Column(String, index=True, nullable=True)
+    device_key = Column(String, index=True, nullable=True)
     device_id = Column(Integer, index=True, nullable=True)
     device_name = Column(String, nullable=True)
     mode = Column(String, index=True, nullable=True)
@@ -150,6 +151,7 @@ class VentilationEvent(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     event_type = Column(String, index=True, default="fan_change")
     action = Column(String, index=True, nullable=True)
+    device_key = Column(String, index=True, nullable=True)
     device_id = Column(Integer, index=True, nullable=True)
     device_name = Column(String, nullable=True)
     mode = Column(String, index=True, nullable=True)
@@ -260,6 +262,7 @@ class GenericEvent(Base):
     system = Column(String, index=True, nullable=False)
     event_type = Column(String, index=True, default="status")
     action = Column(String, index=True, nullable=True)
+    device_key = Column(String, index=True, nullable=True)
     device_id = Column(Integer, index=True, nullable=True)
     device_name = Column(String, nullable=True)
     mode = Column(String, index=True, nullable=True)
@@ -339,6 +342,7 @@ class EventDataIn(BaseModel):
     event_type: str = "status"
     timestamp: Optional[datetime] = None
     action: Optional[str] = None
+    device_key: Optional[str] = None
     device_id: Optional[int] = None
     device_name: Optional[str] = None
     mode: Optional[str] = None
@@ -392,7 +396,7 @@ class EventDataIn(BaseModel):
 
 
 LIGHT_COLUMNS = [
-    "id", "timestamp", "event_type", "action", "device_id", "device_name",
+    "id", "timestamp", "event_type", "action", "device_key", "device_id", "device_name",
     "mode", "reason", "source", "lux", "value", "state", "extra",
 ]
 
@@ -403,14 +407,14 @@ LIGHT_SAMPLE_COLUMNS = [
 ]
 
 VENT_COLUMNS = [
-    "id", "timestamp", "event_type", "action", "device_id", "device_name",
+    "id", "timestamp", "event_type", "action", "device_key", "device_id", "device_name",
     "mode", "reason", "source", "value", "state", "temp_1etg", "temp_2etg",
     "temp_vip", "temp_ute", "temp_loft", "temp_passiv", "temp_luftinntak",
     "diff_w", "power_w", "energy_kwh", "fan_vip", "fan_2etg", "fan_tak", "extra",
 ]
 
 GENERIC_COLUMNS = [
-    "id", "timestamp", "system", "event_type", "action", "device_id",
+    "id", "timestamp", "system", "event_type", "action", "device_key", "device_id",
     "device_name", "mode", "reason", "source", "lux", "value", "state", "extra",
 ]
 
@@ -434,18 +438,18 @@ YR_SAMPLE_COLUMNS = [
 ]
 
 LIGHT_TIMELINE_DEVICES = [
-    {"id": 425, "name": "Lyslist dekor", "sample_attr": "light_lyslist"},
-    {"id": 427, "name": "Reklameplakater", "sample_attr": "light_reklame"},
-    {"id": 275, "name": "Spot foran glassvegg", "sample_attr": "light_spot_glass_275"},
-    {"id": 299, "name": "Spot foran massasje", "sample_attr": "light_spot_glass_299"},
-    {"id": 424, "name": "6xspot over inngang", "sample_attr": "light_spot_inngang"},
-    {"id": 440, "name": "Parkeringslys/gatelys", "sample_attr": "light_parkering"},
+    {"key": "lyslist", "name": "Lyslist dekor", "sample_attr": "light_lyslist", "legacy_ids": [425]},
+    {"key": "reklame", "name": "Reklameplakater", "sample_attr": "light_reklame", "legacy_ids": [427]},
+    {"key": "spot_glass_275", "name": "Spot foran glassvegg", "sample_attr": "light_spot_glass_275", "legacy_ids": [275]},
+    {"key": "spot_glass_299", "name": "Spot foran massasje", "sample_attr": "light_spot_glass_299", "legacy_ids": [299]},
+    {"key": "spot_inngang", "name": "6xspot over inngang", "sample_attr": "light_spot_inngang", "legacy_ids": [424]},
+    {"key": "parkering", "name": "Parkeringslys/gatelys", "sample_attr": "light_parkering", "legacy_ids": [440]},
 ]
 
 VENT_TIMELINE_DEVICES = [
-    {"id": 130, "name": "Innluft VIP"},
-    {"id": 160, "name": "Innluft 2.etg"},
-    {"id": 134, "name": "Avtrekk tak/loft"},
+    {"key": "vip_intake", "name": "Innluft VIP", "sample_attr": "fan_vip", "legacy_ids": [130]},
+    {"key": "floor_intake", "name": "Innluft 2.etg", "sample_attr": "fan_2etg", "legacy_ids": [160]},
+    {"key": "roof_exhaust", "name": "Avtrekk tak/loft", "sample_attr": "fan_tak", "legacy_ids": [134]},
 ]
 
 DAY_ZOOM_OPTIONS = [
@@ -487,6 +491,15 @@ WEATHER_LABELS = {
 }
 
 STARTUP_COLUMNS = {
+    "utelys_events": [
+        ("device_key", "VARCHAR"),
+    ],
+    "ventilasjon_events": [
+        ("device_key", "VARCHAR"),
+    ],
+    "event_data": [
+        ("device_key", "VARCHAR"),
+    ],
     "utelys_samples": [
         ("light_spot_glass_275", "BOOLEAN"),
         ("light_spot_glass_299", "BOOLEAN"),
@@ -607,12 +620,11 @@ CONFIG_DEFINITIONS = {
 
 CONTROL_DEVICES = {
     "lights": {
-        "lux_sensor": {"id": 433, "name": "Luxsensor ute", "role": "sensor"},
+        "lux_sensor": {"key": "lux_ute", "name": "Luxsensor ute", "role": "sensor"},
         "groups": [
             {
                 "key": "lyslist",
                 "name": "Lyslist fasade",
-                "device_ids": [425],
                 "on_lux_key": "lyslist_on_lux",
                 "off_lux_key": "lyslist_off_lux",
                 "time_from_key": "open_from",
@@ -622,7 +634,6 @@ CONTROL_DEVICES = {
             {
                 "key": "reklame",
                 "name": "Reklameplakater tegelfasade",
-                "device_ids": [427],
                 "on_lux_key": "reklame_on_lux",
                 "off_lux_key": "reklame_off_lux",
                 "time_from_key": "open_from",
@@ -632,7 +643,6 @@ CONTROL_DEVICES = {
             {
                 "key": "spot_glass",
                 "name": "Spot foran glassvegg",
-                "device_ids": [275, 299],
                 "on_lux_key": "spot_glass_on_lux",
                 "off_lux_key": "spot_glass_off_lux",
                 "time_from_key": "open_from",
@@ -642,7 +652,6 @@ CONTROL_DEVICES = {
             {
                 "key": "spot_inngang",
                 "name": "6xspot over inngang",
-                "device_ids": [424],
                 "on_lux_key": "spot_inngang_on_lux",
                 "off_lux_key": "spot_inngang_off_lux",
                 "time_from_key": "open_from",
@@ -652,7 +661,6 @@ CONTROL_DEVICES = {
             {
                 "key": "parkering",
                 "name": "Parkeringslys",
-                "device_ids": [440],
                 "on_lux_key": "parkering_on_lux",
                 "off_lux_key": "parkering_off_lux",
                 "time_from_key": None,
@@ -663,14 +671,14 @@ CONTROL_DEVICES = {
     },
     "ventilation": {
         "sensors": {
-            "outdoor_temp": {"id": 3, "name": "Utetemperatur"},
-            "netatmo_main": {"id": 341, "name": "Netatmo hovedenhet"},
+            "outdoor_temp": {"key": "outdoor_temp", "name": "Utetemperatur"},
+            "netatmo_main": {"key": "netatmo_main", "name": "Netatmo hovedenhet"},
             "passive_intake": {"name": "Pass innluft"},
         },
         "fans": [
-            {"key": "vip_intake", "name": "Innluft VIP", "device_id": 130, "zone": "VIP"},
-            {"key": "floor_intake", "name": "Innluft 1./2.etg", "device_id": 160, "zone": "1.etg/2.etg"},
-            {"key": "roof_exhaust", "name": "Takvifte avtrekk", "device_id": 134, "zone": "Loft"},
+            {"key": "vip_intake", "name": "Innluft VIP", "zone": "VIP"},
+            {"key": "floor_intake", "name": "Innluft 1./2.etg", "zone": "1.etg/2.etg"},
+            {"key": "roof_exhaust", "name": "Takvifte avtrekk", "zone": "Loft"},
         ],
     },
 }
@@ -979,7 +987,7 @@ def config_summary_rows(key: str, values: Dict[str, Any]) -> list[Dict[str, str]
             rows.append(
                 {
                     "name": group["name"],
-                    "device": ", ".join(str(device_id) for device_id in group["device_ids"]),
+                    "device": group["key"],
                     "start": f"PÅ under {values[group['on_lux_key']]} lux",
                     "stop": f"AV over {values[group['off_lux_key']]} lux",
                     "window": window,
@@ -992,7 +1000,7 @@ def config_summary_rows(key: str, values: Dict[str, Any]) -> list[Dict[str, str]
         return [
             {
                 "name": "Innluft VIP",
-                "device": "130",
+                "device": "vip_intake",
                 "start": f"Start over {values['vip_start_temp']}°C",
                 "stop": f"Stopp under {values['vip_stop_temp']}°C",
                 "window": f"{values['open_from']}-{values['close_at']}",
@@ -1000,7 +1008,7 @@ def config_summary_rows(key: str, values: Dict[str, Any]) -> list[Dict[str, str]
             },
             {
                 "name": "Innluft 1./2.etg",
-                "device": "160",
+                "device": "floor_intake",
                 "start": f"Start over {values['floor_start_temp']}°C",
                 "stop": f"Stopp under {values['floor_stop_temp']}°C",
                 "window": f"{values['open_from']}-{values['close_at']}",
@@ -1008,7 +1016,7 @@ def config_summary_rows(key: str, values: Dict[str, Any]) -> list[Dict[str, str]
             },
             {
                 "name": "Takvifte avtrekk",
-                "device": "134",
+                "device": "roof_exhaust",
                 "start": f"Loft over {values['loft_exhaust_start_temp']}°C",
                 "stop": f"Loft under {values['loft_exhaust_stop_temp']}°C",
                 "window": f"Stopper {values['exhaust_stop_before_close_minutes']} min før stenging",
@@ -1666,6 +1674,43 @@ def light_sample_state(row, device) -> Optional[bool]:
     return bool(value)
 
 
+def sample_state(row, device) -> Optional[bool]:
+    attr = device.get("sample_attr")
+    if not row or not attr:
+        return None
+    value = getattr(row, attr, None)
+    if value is None:
+        return None
+    return bool(value)
+
+
+def event_extra_key(row) -> Optional[str]:
+    extra = getattr(row, "extra", None) or {}
+    if isinstance(extra, dict):
+        key = extra.get("device_key") or extra.get("key")
+        if key:
+            return str(key)
+    return None
+
+
+def event_device_key(row, devices) -> Optional[str]:
+    key = getattr(row, "device_key", None) or event_extra_key(row)
+    if key:
+        return str(key)
+    device_id = getattr(row, "device_id", None)
+    device_name = (getattr(row, "device_name", None) or "").strip().lower()
+    for device in devices:
+        if device_id is not None and device_id in device.get("legacy_ids", []):
+            return device["key"]
+        if device_name and device_name == device["name"].strip().lower():
+            return device["key"]
+    return None
+
+
+def event_matches_device(row, device, devices) -> bool:
+    return event_device_key(row, devices) == device["key"]
+
+
 def dedupe_samples_by_bucket(rows):
     buckets = {}
     for row in rows:
@@ -1711,7 +1756,7 @@ def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end
         add_segment(raw_segments, cursor, timeline_end)
 
     return {
-        "id": device["id"],
+        "id": device["key"],
         "name": device["name"],
         "segments": display_segments(raw_segments, day_start, day_end),
         "points": points,
@@ -1720,43 +1765,40 @@ def build_timeline_item(device, rows, previous_row, day_start: datetime, day_end
 
 
 async def build_timeline_group(model, devices, system: str, day_start: datetime, day_end: datetime, timeline_end: datetime):
-    device_ids = [device["id"] for device in devices]
     async with async_session() as session:
         day_result = await session.execute(
             select(model)
-            .where(model.device_id.in_(device_ids))
             .where(model.timestamp >= day_start)
             .where(model.timestamp < timeline_end)
             .order_by(model.timestamp.asc())
         )
         rows = day_result.scalars().all()
         previous = {}
-        for device_id in device_ids:
-            previous_result = await session.execute(
+        for device in devices:
+            previous_candidates = (await session.execute(
                 select(model)
-                .where(model.device_id == device_id)
                 .where(model.timestamp < day_start)
                 .order_by(model.timestamp.desc())
-                .limit(1)
-            )
-            previous[device_id] = previous_result.scalars().first()
+                .limit(300)
+            )).scalars().all()
+            previous[device["key"]] = next((row for row in previous_candidates if event_matches_device(row, device, devices)), None)
 
-    rows_by_device = {device_id: [] for device_id in device_ids}
+    rows_by_device = {device["key"]: [] for device in devices}
     for row in rows:
-        rows_by_device.setdefault(row.device_id, []).append(row)
+        key = event_device_key(row, devices)
+        if key in rows_by_device:
+            rows_by_device[key].append(row)
 
     return [
-        build_timeline_item(device, rows_by_device.get(device["id"], []), previous.get(device["id"]), day_start, day_end, timeline_end, system)
+        build_timeline_item(device, rows_by_device.get(device["key"], []), previous.get(device["key"]), day_start, day_end, timeline_end, system)
         for device in devices
     ]
 
 
 async def build_light_timeline_group(day_start: datetime, day_end: datetime, timeline_end: datetime):
-    device_ids = [device["id"] for device in LIGHT_TIMELINE_DEVICES]
     async with async_session() as session:
         event_result = await session.execute(
             select(OutdoorLightEvent)
-            .where(OutdoorLightEvent.device_id.in_(device_ids))
             .where(OutdoorLightEvent.timestamp >= day_start)
             .where(OutdoorLightEvent.timestamp < timeline_end)
             .order_by(OutdoorLightEvent.timestamp.asc())
@@ -1778,30 +1820,34 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
         )
         previous_sample = previous_sample_result.scalars().first()
         previous_events = {}
-        for device_id in device_ids:
-            previous_event_result = await session.execute(
+        for device in LIGHT_TIMELINE_DEVICES:
+            previous_candidates = (await session.execute(
                 select(OutdoorLightEvent)
-                .where(OutdoorLightEvent.device_id == device_id)
                 .where(OutdoorLightEvent.timestamp < day_start)
                 .order_by(OutdoorLightEvent.timestamp.desc())
-                .limit(1)
+                .limit(300)
+            )).scalars().all()
+            previous_events[device["key"]] = next(
+                (row for row in previous_candidates if event_matches_device(row, device, LIGHT_TIMELINE_DEVICES)),
+                None,
             )
-            previous_events[device_id] = previous_event_result.scalars().first()
 
-    events_by_device = {device_id: [] for device_id in device_ids}
+    events_by_device = {device["key"]: [] for device in LIGHT_TIMELINE_DEVICES}
     for row in event_rows:
-        events_by_device.setdefault(row.device_id, []).append(row)
+        key = event_device_key(row, LIGHT_TIMELINE_DEVICES)
+        if key in events_by_device:
+            events_by_device[key].append(row)
 
     items = []
     for device in LIGHT_TIMELINE_DEVICES:
         state = light_sample_state(previous_sample, device) if previous_sample else None
-        if state is None and previous_events.get(device["id"]):
-            state = state_from_event(previous_events[device["id"]])
+        if state is None and previous_events.get(device["key"]):
+            state = state_from_event(previous_events[device["key"]])
         if state is None:
             state = False
         cursor = day_start
         raw_segments = []
-        points = [point_from_row(row, day_start, day_end, "lys") for row in events_by_device.get(device["id"], [])]
+        points = [point_from_row(row, day_start, day_end, "lys") for row in events_by_device.get(device["key"], [])]
         sample_points = []
         state_changes = []
 
@@ -1820,7 +1866,7 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
                 "lux": row.lux,
             })
 
-        for row in events_by_device.get(device["id"], []):
+        for row in events_by_device.get(device["key"], []):
             if row.timestamp >= timeline_end:
                 continue
             event_time = max(day_start, min(timeline_end, row.timestamp))
@@ -1861,7 +1907,7 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
 
         all_points = sorted(points + sample_points, key=lambda point: point["time"])
         items.append({
-            "id": device["id"],
+            "id": device["key"],
             "name": device["name"],
             "segments": display_segments(raw_segments, day_start, day_end),
             "points": all_points,
@@ -1970,10 +2016,12 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
             select(VentilationEvent)
             .where(VentilationEvent.timestamp >= day_start)
             .where(VentilationEvent.timestamp < timeline_end)
-            .where(VentilationEvent.device_id == 134)
             .order_by(VentilationEvent.timestamp.asc())
         )
-        fan_rows = fan_result.scalars().all()
+        fan_rows = [
+            row for row in fan_result.scalars().all()
+            if event_matches_device(row, VENT_TIMELINE_DEVICES[2], VENT_TIMELINE_DEVICES)
+        ]
 
     samples = []
     all_values = []
@@ -2076,6 +2124,8 @@ def row_to_dict(row, columns):
 
 def merged_extra(data: EventDataIn):
     extra = dict(data.extra or {})
+    if data.device_key:
+        extra["device_key"] = data.device_key
     if data.values:
         extra["values"] = data.values
     for key in ("weather_type", "weather_symbol", "weather_text", "yr_weather", "yr_symbol"):
@@ -2090,6 +2140,7 @@ def light_from_payload(data: EventDataIn) -> OutdoorLightEvent:
         timestamp=data.timestamp or datetime.utcnow(),
         event_type=data.event_type,
         action=data.action,
+        device_key=data.device_key,
         device_id=data.device_id,
         device_name=data.device_name,
         mode=data.mode,
@@ -2219,6 +2270,7 @@ def vent_from_payload(data: EventDataIn) -> VentilationEvent:
         timestamp=data.timestamp or datetime.utcnow(),
         event_type=data.event_type,
         action=data.action,
+        device_key=data.device_key,
         device_id=data.device_id,
         device_name=data.device_name,
         mode=data.mode,
@@ -2283,6 +2335,7 @@ def generic_from_payload(data: EventDataIn) -> GenericEvent:
         system=data.system,
         event_type=data.event_type,
         action=data.action,
+        device_key=data.device_key,
         device_id=data.device_id,
         device_name=data.device_name,
         mode=data.mode,
@@ -2295,11 +2348,13 @@ def generic_from_payload(data: EventDataIn) -> GenericEvent:
     )
 
 
-def apply_common_filters(stmt, model, event_type, action, device_id, mode, source_contains, from_ts, to_ts):
+def apply_common_filters(stmt, model, event_type, action, device_key, device_id, mode, source_contains, from_ts, to_ts):
     if event_type:
         stmt = stmt.where(model.event_type == event_type)
     if action:
         stmt = stmt.where(model.action == action)
+    if device_key:
+        stmt = stmt.where(model.device_key == device_key)
     if device_id is not None:
         stmt = stmt.where(model.device_id == device_id)
     if mode:
@@ -2321,19 +2376,19 @@ async def save_record(record) -> int:
         return record.id
 
 
-async def fetch_rows(model, event_type, action, device_id, mode, source_contains, from_text, to_text, limit):
+async def fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit):
     from_ts = parse_datetime(from_text)
     to_ts = parse_datetime(to_text)
     limit = max(1, min(limit, 10000))
     stmt = select(model).order_by(model.timestamp.desc()).limit(limit)
-    stmt = apply_common_filters(stmt, model, event_type, action, device_id, mode, source_contains, from_ts, to_ts)
+    stmt = apply_common_filters(stmt, model, event_type, action, device_key, device_id, mode, source_contains, from_ts, to_ts)
     async with async_session() as session:
         result = await session.execute(stmt)
         return result.scalars().all(), limit
 
 
-async def csv_response(model, columns, filename, event_type, action, device_id, mode, source_contains, from_text, to_text):
-    rows, _ = await fetch_rows(model, event_type, action, device_id, mode, source_contains, from_text, to_text, 10000)
+async def csv_response(model, columns, filename, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text):
+    rows, _ = await fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, 10000)
     output = StringIO()
     writer = csv.writer(output)
     writer.writerow(columns)
@@ -2679,35 +2734,32 @@ async def index(request: Request):
         samples = (await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))).scalars().all()
         yr_samples = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().all()
 
-    latest_light_by_device = {}
+    latest_light_by_key = {}
     for row in lights:
-        if row.device_id is not None and row.device_id not in latest_light_by_device:
-            latest_light_by_device[row.device_id] = row
+        key = event_device_key(row, LIGHT_TIMELINE_DEVICES)
+        if key and key not in latest_light_by_key:
+            latest_light_by_key[key] = row
 
-    latest_vent_by_device = {}
+    latest_vent_by_key = {}
     for row in ventilation:
-        if row.device_id is not None and row.device_id not in latest_vent_by_device:
-            latest_vent_by_device[row.device_id] = row
+        key = event_device_key(row, VENT_TIMELINE_DEVICES)
+        if key and key not in latest_vent_by_key:
+            latest_vent_by_key[key] = row
 
     latest_sample = samples[0] if samples else None
     latest_light_sample = light_samples[0] if light_samples else None
     latest_yr_sample = yr_samples[0] if yr_samples else None
     latest_light = lights[0] if lights else None
     now_status = build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
-    fan_state_from_sample = {
-        130: latest_sample.fan_vip if latest_sample else None,
-        160: latest_sample.fan_2etg if latest_sample else None,
-        134: latest_sample.fan_tak if latest_sample else None,
-    }
 
     light_status = []
     for device in LIGHT_TIMELINE_DEVICES:
-        row = latest_light_by_device.get(device["id"])
+        row = latest_light_by_key.get(device["key"])
         sample_state = light_sample_state(latest_light_sample, device) if latest_light_sample else None
         event_state = state_from_event(row) if row else None
         light_status.append(
             {
-                "id": device["id"],
+                "id": device["key"],
                 "name": device["name"],
                 "row": row,
                 "state": sample_state if sample_state is not None else event_state,
@@ -2721,10 +2773,10 @@ async def index(request: Request):
         )
     vent_status = [
         {
-            "id": device["id"],
+            "id": device["key"],
             "name": device["name"],
-            "row": latest_vent_by_device.get(device["id"]),
-            "state": fan_state_from_sample.get(device["id"]),
+            "row": latest_vent_by_key.get(device["key"]),
+            "state": sample_state(latest_sample, device),
         }
         for device in VENT_TIMELINE_DEVICES
     ]
@@ -2898,6 +2950,7 @@ async def lights_view(
     request: Request,
     event_type: Optional[str] = None,
     action: Optional[str] = None,
+    device_key: Optional[str] = None,
     device_id: Optional[int] = None,
     mode: Optional[str] = None,
     source_contains: Optional[str] = None,
@@ -2905,8 +2958,8 @@ async def lights_view(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 300,
 ):
-    rows, limit = await fetch_rows(OutdoorLightEvent, event_type, action, device_id, mode, source_contains, from_text, to_text, limit)
-    filters = {"event_type": event_type or "", "action": action or "", "device_id": device_id or "", "mode": mode or "", "source_contains": source_contains or "", "from": from_text or "", "to": to_text or "", "limit": limit}
+    rows, limit = await fetch_rows(OutdoorLightEvent, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit)
+    filters = {"event_type": event_type or "", "action": action or "", "device_key": device_key or "", "device_id": device_id or "", "mode": mode or "", "source_contains": source_contains or "", "from": from_text or "", "to": to_text or "", "limit": limit}
     return templates.TemplateResponse(request, "lights.html", {"rows": rows, "filters": filters})
 
 
@@ -2914,6 +2967,7 @@ async def lights_view(
 async def lights_json(
     event_type: Optional[str] = None,
     action: Optional[str] = None,
+    device_key: Optional[str] = None,
     device_id: Optional[int] = None,
     mode: Optional[str] = None,
     source_contains: Optional[str] = None,
@@ -2921,7 +2975,7 @@ async def lights_json(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 1000,
 ):
-    rows, _ = await fetch_rows(OutdoorLightEvent, event_type, action, device_id, mode, source_contains, from_text, to_text, limit)
+    rows, _ = await fetch_rows(OutdoorLightEvent, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit)
     return {"count": len(rows), "rows": [row_to_dict(row, LIGHT_COLUMNS) for row in rows]}
 
 
@@ -2929,13 +2983,14 @@ async def lights_json(
 async def lights_download(
     event_type: Optional[str] = None,
     action: Optional[str] = None,
+    device_key: Optional[str] = None,
     device_id: Optional[int] = None,
     mode: Optional[str] = None,
     source_contains: Optional[str] = None,
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
-    return await csv_response(OutdoorLightEvent, LIGHT_COLUMNS, "utelys_events.csv", event_type, action, device_id, mode, source_contains, from_text, to_text)
+    return await csv_response(OutdoorLightEvent, LIGHT_COLUMNS, "utelys_events.csv", event_type, action, device_key, device_id, mode, source_contains, from_text, to_text)
 
 
 @app.get("/lights/samples/json")
@@ -2945,7 +3000,7 @@ async def light_samples_json(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 1000,
 ):
-    rows, _ = await fetch_rows(OutdoorLightSample, None, None, None, mode, None, from_text, to_text, limit)
+    rows, _ = await fetch_rows(OutdoorLightSample, None, None, None, None, mode, None, from_text, to_text, limit)
     return {"count": len(rows), "rows": [row_to_dict(row, LIGHT_SAMPLE_COLUMNS) for row in rows]}
 
 
@@ -2957,7 +3012,7 @@ async def light_samples_view(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 500,
 ):
-    rows, limit = await fetch_rows(OutdoorLightSample, None, None, None, mode, None, from_text, to_text, limit)
+    rows, limit = await fetch_rows(OutdoorLightSample, None, None, None, None, mode, None, from_text, to_text, limit)
     filters = {"mode": mode or "", "from": from_text or "", "to": to_text or "", "limit": limit}
     return templates.TemplateResponse(request, "light_samples.html", {"rows": rows, "filters": filters})
 
@@ -2968,7 +3023,7 @@ async def light_samples_download(
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
-    return await csv_response(OutdoorLightSample, LIGHT_SAMPLE_COLUMNS, "utelys_samples.csv", None, None, None, mode, None, from_text, to_text)
+    return await csv_response(OutdoorLightSample, LIGHT_SAMPLE_COLUMNS, "utelys_samples.csv", None, None, None, None, mode, None, from_text, to_text)
 
 
 @app.get("/ventilation", response_class=HTMLResponse)
@@ -2976,6 +3031,7 @@ async def ventilation_view(
     request: Request,
     event_type: Optional[str] = None,
     action: Optional[str] = None,
+    device_key: Optional[str] = None,
     device_id: Optional[int] = None,
     mode: Optional[str] = None,
     source_contains: Optional[str] = None,
@@ -2983,8 +3039,8 @@ async def ventilation_view(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 300,
 ):
-    rows, limit = await fetch_rows(VentilationEvent, "fan_change", action, device_id, mode, source_contains, from_text, to_text, limit)
-    filters = {"event_type": "fan_change", "action": action or "", "device_id": device_id or "", "mode": mode or "", "source_contains": source_contains or "", "from": from_text or "", "to": to_text or "", "limit": limit}
+    rows, limit = await fetch_rows(VentilationEvent, "fan_change", action, device_key, device_id, mode, source_contains, from_text, to_text, limit)
+    filters = {"event_type": "fan_change", "action": action or "", "device_key": device_key or "", "device_id": device_id or "", "mode": mode or "", "source_contains": source_contains or "", "from": from_text or "", "to": to_text or "", "limit": limit}
     return templates.TemplateResponse(request, "ventilation.html", {"rows": rows, "filters": filters})
 
 
@@ -2992,6 +3048,7 @@ async def ventilation_view(
 async def ventilation_json(
     event_type: Optional[str] = None,
     action: Optional[str] = None,
+    device_key: Optional[str] = None,
     device_id: Optional[int] = None,
     mode: Optional[str] = None,
     source_contains: Optional[str] = None,
@@ -2999,7 +3056,7 @@ async def ventilation_json(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 1000,
 ):
-    rows, _ = await fetch_rows(VentilationEvent, "fan_change", action, device_id, mode, source_contains, from_text, to_text, limit)
+    rows, _ = await fetch_rows(VentilationEvent, "fan_change", action, device_key, device_id, mode, source_contains, from_text, to_text, limit)
     return {"count": len(rows), "rows": [row_to_dict(row, VENT_COLUMNS) for row in rows]}
 
 
@@ -3007,13 +3064,14 @@ async def ventilation_json(
 async def ventilation_download(
     event_type: Optional[str] = None,
     action: Optional[str] = None,
+    device_key: Optional[str] = None,
     device_id: Optional[int] = None,
     mode: Optional[str] = None,
     source_contains: Optional[str] = None,
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
-    return await csv_response(VentilationEvent, VENT_COLUMNS, "ventilasjon_events.csv", "fan_change", action, device_id, mode, source_contains, from_text, to_text)
+    return await csv_response(VentilationEvent, VENT_COLUMNS, "ventilasjon_events.csv", "fan_change", action, device_key, device_id, mode, source_contains, from_text, to_text)
 
 
 @app.get("/ventilation/samples", response_class=HTMLResponse)
@@ -3024,7 +3082,7 @@ async def ventilation_samples_view(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 500,
 ):
-    rows, limit = await fetch_rows(VentilationSample, None, None, None, mode, None, from_text, to_text, limit)
+    rows, limit = await fetch_rows(VentilationSample, None, None, None, None, mode, None, from_text, to_text, limit)
     filters = {"mode": mode or "", "from": from_text or "", "to": to_text or "", "limit": limit}
     return templates.TemplateResponse(request, "ventilation_samples.html", {"rows": rows, "filters": filters})
 
@@ -3036,7 +3094,7 @@ async def ventilation_samples_json(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 1000,
 ):
-    rows, _ = await fetch_rows(VentilationSample, None, None, None, mode, None, from_text, to_text, limit)
+    rows, _ = await fetch_rows(VentilationSample, None, None, None, None, mode, None, from_text, to_text, limit)
     return {"count": len(rows), "rows": [row_to_dict(row, VENT_SAMPLE_COLUMNS) for row in rows]}
 
 
@@ -3046,7 +3104,7 @@ async def ventilation_samples_download(
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
-    return await csv_response(VentilationSample, VENT_SAMPLE_COLUMNS, "ventilasjon_samples.csv", None, None, None, mode, None, from_text, to_text)
+    return await csv_response(VentilationSample, VENT_SAMPLE_COLUMNS, "ventilasjon_samples.csv", None, None, None, None, mode, None, from_text, to_text)
 
 
 @app.get("/yr/samples", response_class=HTMLResponse)
@@ -3056,7 +3114,7 @@ async def yr_samples_view(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 500,
 ):
-    rows, limit = await fetch_rows(YrForecastSample, None, None, None, None, None, from_text, to_text, limit)
+    rows, limit = await fetch_rows(YrForecastSample, None, None, None, None, None, None, from_text, to_text, limit)
     filters = {"from": from_text or "", "to": to_text or "", "limit": limit}
     return templates.TemplateResponse(request, "yr_samples.html", {"rows": rows, "filters": filters})
 
@@ -3067,7 +3125,7 @@ async def yr_samples_json(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 1000,
 ):
-    rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, from_text, to_text, limit)
+    rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, from_text, to_text, limit)
     return {"count": len(rows), "rows": [row_to_dict(row, YR_SAMPLE_COLUMNS) for row in rows]}
 
 
@@ -3076,13 +3134,13 @@ async def yr_samples_download(
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
-    return await csv_response(YrForecastSample, YR_SAMPLE_COLUMNS, "yr_forecast_samples.csv", None, None, None, None, None, from_text, to_text)
+    return await csv_response(YrForecastSample, YR_SAMPLE_COLUMNS, "yr_forecast_samples.csv", None, None, None, None, None, None, from_text, to_text)
 
 
 @app.get("/download")
 @app.get("/events/download")
 async def generic_download():
-    return await csv_response(GenericEvent, GENERIC_COLUMNS, "event_data.csv", None, None, None, None, None, None, None)
+    return await csv_response(GenericEvent, GENERIC_COLUMNS, "event_data.csv", None, None, None, None, None, None, None, None)
 
 
 @app.get("/events/json")

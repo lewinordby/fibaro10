@@ -59,7 +59,7 @@
             <summary>Filter</summary>
             <form method="get" action="/lights">
                 <input type="text" name="action" placeholder="PÅ / AV" value="{{ filters.action }}">
-                <input type="number" name="device_id" placeholder="Enhets-ID" value="{{ filters.device_id }}">
+                <input type="text" name="device_key" placeholder="Nøkkel" value="{{ filters.device_key }}">
                 <input class="wide" type="text" name="source_contains" placeholder="Søk i tekst" value="{{ filters.source_contains }}">
                 <input type="datetime-local" name="from" value="{{ filters.from }}">
                 <input type="datetime-local" name="to" value="{{ filters.to }}">
@@ -75,14 +75,14 @@
         <article class="event-card">
             <div class="event-top">
                 <div>
-                    <div class="device">{% if row.device_name %}{{ row.device_name }}{% else %}Enhet {{ row.device_id }}{% endif %}</div>
+                    <div class="device">{{ row.device_name or row.device_key or "Ukjent lys" }}</div>
                     <div class="time">{{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}</div>
                 </div>
                 <span class="badge {% if row.action == 'PAA' %}on{% elif row.action == 'AV' %}off{% else %}test{% endif %}">{% if row.action == 'PAA' %}PÅ{% else %}{{ row.action or "" }}{% endif %}</span>
             </div>
             <div class="line">
                 <span>Lux: <strong>{% if row.lux is not none %}{{ "%.0f"|format(row.lux) }}{% endif %}</strong></span>
-                {% if row.device_id %}<span>ID: <strong>{{ row.device_id }}</strong></span>{% endif %}
+                {% if row.device_key %}<span>Nøkkel: <strong>{{ row.device_key }}</strong></span>{% endif %}
             </div>
             <div class="reason">{{ reason }}</div>
         </article>

@@ -630,7 +630,7 @@
                         </span>
                     </div>
                     <div class="mini-row">
-                        <span>ID <strong>{{ item.id }}</strong></span>
+                        <span>Nøkkel <strong>{{ item.id }}</strong></span>
                         {% if item.lux is not none %}<span>Lux <strong>{{ "%.0f"|format(item.lux) }}</strong></span>{% endif %}
                     </div>
                     {% if light_reason %}
@@ -657,7 +657,7 @@
                         <span class="badge neutral">{% if latest_light and latest_light.action == "PAA" %}PÅ{% else %}{{ latest_light.action if latest_light else "-" }}{% endif %}</span>
                     </div>
                     {% if latest_light %}
-                    <div class="detail">{{ latest_light.device_name or ("Enhet " ~ latest_light.device_id) }}{% if latest_light_reason %}<br><strong>Hvorfor:</strong> {{ latest_light_reason|replace("p?-grense", "på-grense") }}{% endif %}</div>
+                    <div class="detail">{{ latest_light.device_name or latest_light.device_key or "Ukjent lys" }}{% if latest_light_reason %}<br><strong>Hvorfor:</strong> {{ latest_light_reason|replace("p?-grense", "på-grense") }}{% endif %}</div>
                     {% endif %}
                 </article>
                 <article class="status-card vent-card">
@@ -670,7 +670,7 @@
                         <span class="badge neutral">{% if latest_vent and latest_vent.action == "PAA" %}PÅ{% else %}{{ latest_vent.action if latest_vent else "-" }}{% endif %}</span>
                     </div>
                     {% if latest_vent %}
-                    <div class="detail">{{ latest_vent.device_name or ("Enhet " ~ latest_vent.device_id) }}{% if latest_vent_reason %}<br><strong>Hvorfor:</strong> {{ latest_vent_reason|replace("kjolebehov", "kjølebehov")|replace("innblasing", "innblåsing") }}{% endif %}</div>
+                    <div class="detail">{{ latest_vent.device_name or latest_vent.device_key or "Ukjent vifte" }}{% if latest_vent_reason %}<br><strong>Hvorfor:</strong> {{ latest_vent_reason|replace("kjolebehov", "kjølebehov")|replace("innblasing", "innblåsing") }}{% endif %}</div>
                     {% endif %}
                 </article>
             </div>
