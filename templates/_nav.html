@@ -8,7 +8,11 @@
         <a class="button nav-status {% if is_status %}active{% endif %}" href="/">Status</a>
         <a class="button nav-light {% if is_light %}active{% endif %}" href="/lights">Lys</a>
         <a class="button nav-vent {% if is_vent %}active{% endif %}" href="/ventilation">Ventilasjon</a>
-        <a class="button nav-admin {% if is_account %}active{% endif %}" href="/account">Konto</a>
+        <span class="button nav-energy disabled" aria-disabled="true">Energi</span>
+        <a class="button nav-account {% if is_account %}active{% endif %}" href="/account" aria-label="Konto">
+            <span aria-hidden="true">&#128100;</span>
+            <span class="sr-only">Konto</span>
+        </a>
     </div>
 
     {% if is_status %}
