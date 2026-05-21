@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energi</title>
+    <style>
+        :root { color-scheme: light; --bg:#eef2f6; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; }
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+        header { position: sticky; top: 0; z-index: 5; background: rgba(255,255,255,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; backdrop-filter: blur(8px); }
+        main { padding: 0.85rem; max-width: 1120px; margin: 0 auto; }
+        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.9rem; margin-bottom: 0.9rem; }
+        h1 { margin: 0 0 0.35rem; font-size: 1.25rem; }
+        p { margin: 0; color: var(--muted); }
+        @media (min-width: 760px) { main { padding: 1.25rem; } }
+    </style>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="theme-energy">
+    {% include "_header.html" %}
+    <main>
+        <section class="panel">
+            <h1>Energi</h1>
+            <p>Testside for energidelen. Her kan vi senere legge inn strømforbruk, effekt, døgnprofil og sammenligning mot drift.</p>
+        </section>
+    </main>
+</body>
+</html>

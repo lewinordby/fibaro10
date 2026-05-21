@@ -2508,6 +2508,11 @@ async def account_view(request: Request):
     return templates.TemplateResponse(request, "account.html", {})
 
 
+@app.get("/energy", response_class=HTMLResponse)
+async def energy_view(request: Request):
+    return templates.TemplateResponse(request, "energy.html", {})
+
+
 @app.get("/admin/keys", response_class=HTMLResponse)
 async def keys_view(request: Request):
     forbidden = require_master(request)

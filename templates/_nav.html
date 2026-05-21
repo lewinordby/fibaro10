@@ -2,13 +2,14 @@
 {% set is_status = current_path == "/" or current_path == "/events" or current_path == "/day" %}
 {% set is_light = current_path.startswith("/lights") or current_path == "/day/lux" %}
 {% set is_vent = current_path.startswith("/ventilation") or current_path.startswith("/yr") or current_path == "/day/temp" %}
+{% set is_energy = current_path.startswith("/energy") %}
 {% set is_account = current_path == "/account" or current_path == "/admin/keys" %}
-<nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
+<nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_energy %}section-energy{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
     <div class="nav-row nav-main">
         <a class="button nav-status {% if is_status %}active{% endif %}" href="/">Status</a>
         <a class="button nav-light {% if is_light %}active{% endif %}" href="/lights">Lys</a>
         <a class="button nav-vent {% if is_vent %}active{% endif %}" href="/ventilation">Ventilasjon</a>
-        <span class="button nav-energy disabled" aria-disabled="true">Energi</span>
+        <a class="button nav-energy {% if is_energy %}active{% endif %}" href="/energy">Energi</a>
         <a class="button nav-account {% if is_account %}active{% endif %}" href="/account" aria-label="Konto">
             <span aria-hidden="true">&#128100;</span>
             <span class="sr-only">Konto</span>
@@ -34,6 +35,10 @@
         <a class="button {% if current_path == '/day/temp' %}active{% endif %}" href="/day/temp">Dagslogg temp</a>
         <a class="button {% if current_path == '/yr/samples' %}active{% endif %}" href="/yr/samples">Yr logg</a>
         <a class="button {% if current_path == '/ventilation/settings' %}active{% endif %}" href="/ventilation/settings">Innstillinger</a>
+    </div>
+    {% elif is_energy %}
+    <div class="nav-row nav-sub" aria-label="Undermeny for energi">
+        <a class="button active" href="/energy">Testside</a>
     </div>
     {% elif is_account %}
     <div class="nav-row nav-sub" aria-label="Undermeny for konto">
