@@ -66,19 +66,19 @@
 <body class="theme-status">
     {% include "_header.html" %}
     <main>
-        <form method="get" action="/day">
+        <form method="get" action="/status/dagslinje">
             <input type="date" name="day" value="{{ selected_day }}">
             <input type="hidden" name="zoom" value="{{ zoom }}">
             <button type="submit">Vis dag</button>
         </form>
         <div class="datebar">
-            <a class="button" href="/day?day={{ prev_day }}&zoom={{ zoom }}">Forrige dag</a>
-            <a class="button" href="/day?zoom={{ zoom }}">I dag</a>
-            <a class="button" href="/day?day={{ next_day }}&zoom={{ zoom }}">Neste dag</a>
+            <a class="button" href="/status/dagslinje?day={{ prev_day }}&zoom={{ zoom }}">Forrige dag</a>
+            <a class="button" href="/status/dagslinje?zoom={{ zoom }}">I dag</a>
+            <a class="button" href="/status/dagslinje?day={{ next_day }}&zoom={{ zoom }}">Neste dag</a>
         </div>
         <div class="zoombar" aria-label="Velg tidsrom">
             {% for option in zoom_options %}
-            <a class="button {% if zoom == option.key %}active{% endif %}" href="/day?day={{ selected_day }}&zoom={{ option.key }}">{{ option.label }}</a>
+            <a class="button {% if zoom == option.key %}active{% endif %}" href="/status/dagslinje?day={{ selected_day }}&zoom={{ option.key }}">{{ option.label }}</a>
             {% endfor %}
         </div>
 

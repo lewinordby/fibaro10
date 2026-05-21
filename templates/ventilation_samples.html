@@ -87,13 +87,13 @@
     <main>
         <details>
             <summary>Filter</summary>
-            <form method="get" action="/ventilation/samples">
+            <form method="get" action="/ventilasjon/temp-logg">
                 <input type="text" name="mode" placeholder="Modus" value="{{ filters.mode }}">
                 <input type="datetime-local" name="from" value="{{ filters.from }}">
                 <input type="datetime-local" name="to" value="{{ filters.to }}">
                 <input type="number" name="limit" placeholder="Antall" value="{{ filters.limit }}">
                 <button type="submit">Vis</button>
-                <a class="button" href="/ventilation/samples">Nullstill</a>
+                <a class="button" href="/ventilasjon/temp-logg">Nullstill</a>
             </form>
         </details>
         {% if not rows %}

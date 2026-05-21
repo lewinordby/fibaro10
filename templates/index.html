@@ -534,7 +534,7 @@
         <section class="section vent-section">
             <div class="section-head">
                 <h2>Ventilasjon</h2>
-                <a href="/ventilation">Vis hendelser</a>
+                <a href="/ventilasjon/hendelser">Vis hendelser</a>
             </div>
             <div class="fan-grid">
                 {% for item in vent_status %}
@@ -562,7 +562,7 @@
         <section class="section light-section">
             <div class="section-head">
                 <h2>Lys</h2>
-                <a href="/lights/samples">Vis luxlogg</a>
+                <a href="/lys/lux-logging">Vis luxlogg</a>
             </div>
             <div class="cards lights">
                 {% for item in light_status %}
@@ -594,7 +594,7 @@
         <section class="section">
             <div class="section-head">
                 <h2>Siste hendelser</h2>
-                <a href="/day">Åpne dagslinje</a>
+                <a href="/status/dagslinje">Åpne dagslinje</a>
             </div>
             <div class="cards">
                 <article class="status-card light-card">
@@ -629,7 +629,7 @@
         <section class="section">
             <div class="section-head">
                 <h2>Datastatus</h2>
-                <a href="/day">Kontroller dagen</a>
+                <a href="/status/dagslinje">Kontroller dagen</a>
             </div>
             <div class="health-grid">
                 {% for item in freshness_items %}

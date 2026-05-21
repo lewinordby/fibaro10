@@ -53,14 +53,14 @@
     <main>
         <details>
             <summary>Filter</summary>
-            <form method="get" action="/ventilation">
+            <form method="get" action="/ventilasjon/hendelser">
                 <input type="text" name="action" placeholder="PÅ / AV" value="{{ filters.action }}">
                 <input type="text" name="device_key" placeholder="Nøkkel" value="{{ filters.device_key }}">
                 <input class="wide" type="text" name="source_contains" placeholder="Søk i tekst" value="{{ filters.source_contains }}">
                 <input type="datetime-local" name="from" value="{{ filters.from }}">
                 <input type="datetime-local" name="to" value="{{ filters.to }}">
                 <button type="submit">Vis</button>
-                <a class="button" href="/ventilation">Nullstill</a>
+                <a class="button" href="/ventilasjon/hendelser">Nullstill</a>
             </form>
         </details>
         {% if not rows %}

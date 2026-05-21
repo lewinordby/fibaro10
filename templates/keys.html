@@ -61,7 +61,7 @@
             {% if error %}
             <div class="error">{{ error }}</div>
             {% endif %}
-            <form class="create-form" method="post" action="/admin/keys">
+            <form class="create-form" method="post" action="/konto/brukere-og-tilgang">
                 <input type="text" name="username" placeholder="Brukernavn, f.eks. elektriker" maxlength="80" autocomplete="username" required>
                 <input type="text" name="password" placeholder="Passord, minst 5 tegn" minlength="5" autocomplete="new-password" required>
                 <select name="role" aria-label="Tilgangsnivå">
@@ -92,12 +92,12 @@
                     <tbody>
                         {% for key in keys %}
                         <tr class="{% if selected_key is defined and selected_key and key.id == selected_key.id %}selected-row{% endif %}">
-                            <td><a class="user-link" href="/admin/keys?key_id={{ key.id }}">{{ key.name }}</a></td>
+                            <td><a class="user-link" href="/konto/brukere-og-tilgang?key_id={{ key.id }}">{{ key.name }}</a></td>
                             <td>
                                 {% if key.is_master %}
                                 Master
                                 {% else %}
-                                <form class="role-form" method="post" action="/admin/keys/role">
+                                <form class="role-form" method="post" action="/konto/brukere-og-tilgang/rolle">
                                     <input type="hidden" name="key_id" value="{{ key.id }}">
                                     <select name="role" aria-label="Tilgangsnivå for {{ key.name }}">
                                         <option value="viewer" {% if key.role != "settings" %}selected{% endif %}>Vanlig</option>
@@ -115,7 +115,7 @@
                             <td>{{ key.uses_count or 0 }}</td>
                             <td>
                                 {% if not key.is_master and key.active %}
-                                <form method="post" action="/admin/keys/disable">
+                                <form method="post" action="/konto/brukere-og-tilgang/deaktiver">
                                     <input type="hidden" name="key_id" value="{{ key.id }}">
                                     <button class="danger" type="submit">Deaktiver</button>
                                 </form>
@@ -134,7 +134,7 @@
             <div class="filter-line">
                 <span>Filtrert på</span>
                 <span class="filter-pill">{{ selected_key.name }}</span>
-                <a class="filter-reset" href="/admin/keys">Vis alle brukere</a>
+                <a class="filter-reset" href="/konto/brukere-og-tilgang">Vis alle brukere</a>
             </div>
             {% endif %}
             <div class="table-wrap">

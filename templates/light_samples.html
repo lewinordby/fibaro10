@@ -45,12 +45,12 @@
     <main>
         <details>
             <summary>Filter</summary>
-            <form method="get" action="/lights/samples">
+            <form method="get" action="/lys/lux-logging">
                 <input type="datetime-local" name="from" value="{{ filters.from }}">
                 <input type="datetime-local" name="to" value="{{ filters.to }}">
                 <input type="number" name="limit" placeholder="Antall" value="{{ filters.limit }}">
                 <button type="submit">Vis</button>
-                <a class="button" href="/lights/samples">Nullstill</a>
+                <a class="button" href="/lys/lux-logging">Nullstill</a>
             </form>
         </details>
         {% if not rows %}

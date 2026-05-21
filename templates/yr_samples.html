@@ -43,12 +43,12 @@
     <main>
         <details>
             <summary>Filter</summary>
-            <form method="get" action="/yr/samples">
+            <form method="get" action="/ventilasjon/yr-logg">
                 <input type="datetime-local" name="from" value="{{ filters.from }}">
                 <input type="datetime-local" name="to" value="{{ filters.to }}">
                 <input type="number" name="limit" placeholder="Antall" value="{{ filters.limit }}">
                 <button type="submit">Vis</button>
-                <a class="button" href="/yr/samples">Nullstill</a>
+                <a class="button" href="/ventilasjon/yr-logg">Nullstill</a>
             </form>
         </details>
         {% if not rows %}

@@ -66,14 +66,14 @@
 <body class="theme-vent">
     {% include "_header.html" %}
     <main>
-        <form class="day-form" method="get" action="/day/temp">
+        <form class="day-form" method="get" action="/ventilasjon/dagslogg-temp">
             <input type="date" name="day" value="{{ selected_day }}">
             <button type="submit">Vis dag</button>
         </form>
         <div class="datebar">
-            <a class="button" href="/day/temp?day={{ prev_day }}">Forrige dag</a>
-            <a class="button" href="/day/temp">I dag</a>
-            <a class="button" href="/day/temp?day={{ next_day }}">Neste dag</a>
+            <a class="button" href="/ventilasjon/dagslogg-temp?day={{ prev_day }}">Forrige dag</a>
+            <a class="button" href="/ventilasjon/dagslogg-temp">I dag</a>
+            <a class="button" href="/ventilasjon/dagslogg-temp?day={{ next_day }}">Neste dag</a>
         </div>
 
         <section class="panel">

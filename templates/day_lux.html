@@ -59,14 +59,14 @@
 <body class="theme-light">
     {% include "_header.html" %}
     <main>
-        <form class="day-form" method="get" action="/day/lux">
+        <form class="day-form" method="get" action="/lys/dagslogg-lux">
             <input type="date" name="day" value="{{ selected_day }}">
             <button type="submit">Vis dag</button>
         </form>
         <div class="datebar">
-            <a class="button" href="/day/lux?day={{ prev_day }}">Forrige dag</a>
-            <a class="button" href="/day/lux">I dag</a>
-            <a class="button" href="/day/lux?day={{ next_day }}">Neste dag</a>
+            <a class="button" href="/lys/dagslogg-lux?day={{ prev_day }}">Forrige dag</a>
+            <a class="button" href="/lys/dagslogg-lux">I dag</a>
+            <a class="button" href="/lys/dagslogg-lux?day={{ next_day }}">Neste dag</a>
         </div>
 
         <section class="panel">

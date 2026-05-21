@@ -1,16 +1,16 @@
 {% set current_path = request.url.path %}
-{% set is_status = current_path == "/" or current_path == "/events" or current_path == "/day" %}
-{% set is_light = current_path.startswith("/lights") or current_path == "/day/lux" %}
-{% set is_vent = current_path.startswith("/ventilation") or current_path.startswith("/yr") or current_path == "/day/temp" %}
-{% set is_energy = current_path.startswith("/energy") %}
-{% set is_account = current_path == "/account" or current_path == "/admin/keys" %}
+{% set is_status = current_path.startswith("/status") %}
+{% set is_light = current_path.startswith("/lys") %}
+{% set is_vent = current_path.startswith("/ventilasjon") %}
+{% set is_energy = current_path.startswith("/energi") %}
+{% set is_account = current_path.startswith("/konto") %}
 <nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_energy %}section-energy{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
     <div class="nav-row nav-main">
-        <a class="button nav-status {% if is_status %}active{% endif %}" href="/">Status</a>
-        <a class="button nav-light {% if is_light %}active{% endif %}" href="/lights">Lys</a>
-        <a class="button nav-vent {% if is_vent %}active{% endif %}" href="/ventilation">Ventilasjon</a>
-        <a class="button nav-energy {% if is_energy %}active{% endif %}" href="/energy">Energi</a>
-        <a class="button nav-account {% if is_account %}active{% endif %}" href="/account" aria-label="Konto">
+        <a class="button nav-status {% if is_status %}active{% endif %}" href="/status/dashboard">Status</a>
+        <a class="button nav-light {% if is_light %}active{% endif %}" href="/lys/hendelser">Lys</a>
+        <a class="button nav-vent {% if is_vent %}active{% endif %}" href="/ventilasjon/hendelser">Ventilasjon</a>
+        <a class="button nav-energy {% if is_energy %}active{% endif %}" href="/energi/testside">Energi</a>
+        <a class="button nav-account {% if is_account %}active{% endif %}" href="/konto/oversikt" aria-label="Konto">
             <span aria-hidden="true">&#128100;</span>
             <span class="sr-only">Konto</span>
         </a>
@@ -18,35 +18,35 @@
 
     {% if is_status %}
     <div class="nav-row nav-sub" aria-label="Undermeny for status">
-        <a class="button {% if current_path == '/' or current_path == '/events' %}active{% endif %}" href="/">Dashboard</a>
-        <a class="button {% if current_path == '/day' %}active{% endif %}" href="/day">Dagslinje</a>
+        <a class="button {% if current_path == '/status/dashboard' %}active{% endif %}" href="/status/dashboard">Dashboard</a>
+        <a class="button {% if current_path == '/status/dagslinje' %}active{% endif %}" href="/status/dagslinje">Dagslinje</a>
     </div>
     {% elif is_light %}
     <div class="nav-row nav-sub" aria-label="Undermeny for lys">
-        <a class="button {% if current_path == '/lights' %}active{% endif %}" href="/lights">Hendelser</a>
-        <a class="button {% if current_path == '/lights/samples' %}active{% endif %}" href="/lights/samples">Lux logging</a>
-        <a class="button {% if current_path == '/day/lux' %}active{% endif %}" href="/day/lux">Dagslogg lux</a>
-        <a class="button {% if current_path == '/lights/settings' %}active{% endif %}" href="/lights/settings">Innstillinger</a>
+        <a class="button {% if current_path == '/lys/hendelser' %}active{% endif %}" href="/lys/hendelser">Hendelser</a>
+        <a class="button {% if current_path == '/lys/lux-logging' %}active{% endif %}" href="/lys/lux-logging">Lux logging</a>
+        <a class="button {% if current_path == '/lys/dagslogg-lux' %}active{% endif %}" href="/lys/dagslogg-lux">Dagslogg lux</a>
+        <a class="button {% if current_path == '/lys/innstillinger' %}active{% endif %}" href="/lys/innstillinger">Innstillinger</a>
     </div>
     {% elif is_vent %}
     <div class="nav-row nav-sub" aria-label="Undermeny for ventilasjon">
-        <a class="button {% if current_path == '/ventilation' %}active{% endif %}" href="/ventilation">Hendelser</a>
-        <a class="button {% if current_path == '/ventilation/samples' %}active{% endif %}" href="/ventilation/samples">Temp logg</a>
-        <a class="button {% if current_path == '/day/temp' %}active{% endif %}" href="/day/temp">Dagslogg temp</a>
-        <a class="button {% if current_path == '/yr/samples' %}active{% endif %}" href="/yr/samples">Yr logg</a>
-        <a class="button {% if current_path == '/ventilation/settings' %}active{% endif %}" href="/ventilation/settings">Innstillinger</a>
+        <a class="button {% if current_path == '/ventilasjon/hendelser' %}active{% endif %}" href="/ventilasjon/hendelser">Hendelser</a>
+        <a class="button {% if current_path == '/ventilasjon/temp-logg' %}active{% endif %}" href="/ventilasjon/temp-logg">Temp logg</a>
+        <a class="button {% if current_path == '/ventilasjon/dagslogg-temp' %}active{% endif %}" href="/ventilasjon/dagslogg-temp">Dagslogg temp</a>
+        <a class="button {% if current_path == '/ventilasjon/yr-logg' %}active{% endif %}" href="/ventilasjon/yr-logg">Yr logg</a>
+        <a class="button {% if current_path == '/ventilasjon/innstillinger' %}active{% endif %}" href="/ventilasjon/innstillinger">Innstillinger</a>
     </div>
     {% elif is_energy %}
     <div class="nav-row nav-sub" aria-label="Undermeny for energi">
-        <a class="button active" href="/energy">Testside</a>
+        <a class="button active" href="/energi/testside">Testside</a>
     </div>
     {% elif is_account %}
     <div class="nav-row nav-sub" aria-label="Undermeny for konto">
-        <a class="button {% if current_path == '/account' %}active{% endif %}" href="/account">Oversikt</a>
+        <a class="button {% if current_path == '/konto/oversikt' %}active{% endif %}" href="/konto/oversikt">Oversikt</a>
         {% if request.state.auth_is_master %}
-        <a class="button {% if current_path == '/admin/keys' %}active{% endif %}" href="/admin/keys">Brukere og tilgang</a>
+        <a class="button {% if current_path == '/konto/brukere-og-tilgang' %}active{% endif %}" href="/konto/brukere-og-tilgang">Brukere og tilgang</a>
         {% endif %}
-        <form class="nav-form nav-sub-form" method="post" action="/auth/logout">
+        <form class="nav-form nav-sub-form" method="post" action="/konto/logg-ut">
             <button class="button" type="submit">Logg ut</button>
         </form>
     </div>

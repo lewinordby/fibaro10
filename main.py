@@ -542,7 +542,7 @@ CONFIG_DEFINITIONS = {
         "title": "Lysstyring",
         "subtitle": "Terskler, driftstid og forklaring for utelys",
         "theme": "theme-light",
-        "settings_path": "/lights/settings",
+        "settings_path": "/lys/innstillinger",
         "api_path": "/api/config/lights",
         "groups": [
             {
@@ -578,7 +578,7 @@ CONFIG_DEFINITIONS = {
         "title": "Ventilasjonsstyring",
         "subtitle": "Temperaturgrenser, driftstid og forklaring for vifter",
         "theme": "theme-vent",
-        "settings_path": "/ventilation/settings",
+        "settings_path": "/ventilasjon/innstillinger",
         "api_path": "/api/config/ventilation",
         "groups": [
             {
@@ -2516,7 +2516,7 @@ async def login_submit(request: Request):
             {"error": "Ugyldig brukernavn eller passord"},
             status_code=401,
         )
-    response = RedirectResponse("/", status_code=303)
+    response = RedirectResponse("/status/dashboard", status_code=303)
     response.set_cookie(
         AUTH_USER_COOKIE_NAME,
         username,
@@ -2537,7 +2537,7 @@ async def login_submit(request: Request):
     return response
 
 
-@app.post("/auth/logout")
+@app.post("/konto/logg-ut")
 async def logout():
     response = RedirectResponse("/auth/login", status_code=303)
     response.delete_cookie(AUTH_USER_COOKIE_NAME)
@@ -2545,12 +2545,12 @@ async def logout():
     return response
 
 
-@app.get("/account", response_class=HTMLResponse)
+@app.get("/konto/oversikt", response_class=HTMLResponse)
 async def account_view(request: Request):
     return templates.TemplateResponse(request, "account.html", {})
 
 
-@app.get("/energy", response_class=HTMLResponse)
+@app.get("/energi/testside", response_class=HTMLResponse)
 async def energy_view(request: Request):
     return templates.TemplateResponse(request, "energy.html", {})
 
@@ -2590,7 +2590,7 @@ async def admin_keys_context(
     }
 
 
-@app.get("/admin/keys", response_class=HTMLResponse)
+@app.get("/konto/brukere-og-tilgang", response_class=HTMLResponse)
 async def keys_view(request: Request):
     forbidden = require_master(request)
     if forbidden:
@@ -2600,7 +2600,7 @@ async def keys_view(request: Request):
     return templates.TemplateResponse(request, "keys.html", context)
 
 
-@app.post("/admin/keys")
+@app.post("/konto/brukere-og-tilgang")
 async def keys_create(request: Request):
     forbidden = require_master(request)
     if forbidden:
@@ -2683,7 +2683,7 @@ async def keys_create(request: Request):
     )
 
 
-@app.post("/admin/keys/disable")
+@app.post("/konto/brukere-og-tilgang/deaktiver")
 async def keys_disable(request: Request):
     forbidden = require_master(request)
     if forbidden:
@@ -2701,10 +2701,10 @@ async def keys_disable(request: Request):
             .values(active=False)
         )
         await session.commit()
-    return RedirectResponse("/admin/keys", status_code=303)
+    return RedirectResponse("/konto/brukere-og-tilgang", status_code=303)
 
 
-@app.post("/admin/keys/role")
+@app.post("/konto/brukere-og-tilgang/rolle")
 async def keys_role_update(request: Request):
     forbidden = require_master(request)
     if forbidden:
@@ -2725,7 +2725,7 @@ async def keys_role_update(request: Request):
             .values(role=role)
         )
         await session.commit()
-    return RedirectResponse("/admin/keys", status_code=303)
+    return RedirectResponse("/konto/brukere-og-tilgang", status_code=303)
 
 
 async def config_context(config_key: str):
@@ -2775,24 +2775,24 @@ async def api_control_config(config_key: str):
     return config_payload(row)
 
 
-@app.get("/lights/settings", response_class=HTMLResponse)
+@app.get("/lys/innstillinger", response_class=HTMLResponse)
 async def light_settings_view(request: Request):
     context = await config_context("lights")
     return templates.TemplateResponse(request, "control_settings.html", context)
 
 
-@app.post("/lights/settings", response_class=HTMLResponse)
+@app.post("/lys/innstillinger", response_class=HTMLResponse)
 async def light_settings_update(request: Request):
     return await update_settings(request, "lights")
 
 
-@app.get("/ventilation/settings", response_class=HTMLResponse)
+@app.get("/ventilasjon/innstillinger", response_class=HTMLResponse)
 async def ventilation_settings_view(request: Request):
     context = await config_context("ventilation")
     return templates.TemplateResponse(request, "control_settings.html", context)
 
 
-@app.post("/ventilation/settings", response_class=HTMLResponse)
+@app.post("/ventilasjon/innstillinger", response_class=HTMLResponse)
 async def ventilation_settings_update(request: Request):
     return await update_settings(request, "ventilation")
 
@@ -2836,8 +2836,12 @@ async def update_settings(request: Request, config_key: str):
     return templates.TemplateResponse(request, "control_settings.html", context)
 
 
-@app.get("/", response_class=HTMLResponse)
-@app.get("/events", response_class=HTMLResponse)
+@app.get("/")
+async def root_redirect():
+    return RedirectResponse("/status/dashboard", status_code=303)
+
+
+@app.get("/status/dashboard", response_class=HTMLResponse)
 async def index(request: Request):
     async with async_session() as session:
         lights = (await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(200))).scalars().all()
@@ -2926,7 +2930,7 @@ async def index(request: Request):
     )
 
 
-@app.get("/day", response_class=HTMLResponse)
+@app.get("/status/dagslinje", response_class=HTMLResponse)
 async def day_view(request: Request, day: Optional[str] = None, zoom: Optional[str] = "all"):
     selected_day = parse_day(day)
     zoom_config, window_start, window_end, ticks = day_zoom_window(selected_day, zoom)
@@ -2964,7 +2968,7 @@ async def day_view(request: Request, day: Optional[str] = None, zoom: Optional[s
     )
 
 
-@app.get("/day/lux", response_class=HTMLResponse)
+@app.get("/lys/dagslogg-lux", response_class=HTMLResponse)
 async def day_lux_view(request: Request, day: Optional[str] = None):
     selected_day = parse_day(day)
     day_start = datetime.combine(selected_day, time.min)
@@ -2996,7 +3000,7 @@ async def day_lux_view(request: Request, day: Optional[str] = None):
     )
 
 
-@app.get("/day/temp", response_class=HTMLResponse)
+@app.get("/ventilasjon/dagslogg-temp", response_class=HTMLResponse)
 async def day_temp_view(request: Request, day: Optional[str] = None):
     selected_day = parse_day(day)
     day_start = datetime.combine(selected_day, time.min)
@@ -3066,7 +3070,7 @@ async def log_event(data: EventDataIn):
     return {"status": "ok", "id": event_id, "table": "event_data"}
 
 
-@app.get("/lights", response_class=HTMLResponse)
+@app.get("/lys/hendelser", response_class=HTMLResponse)
 async def lights_view(
     request: Request,
     event_type: Optional[str] = None,
@@ -3125,7 +3129,7 @@ async def light_samples_json(
     return {"count": len(rows), "rows": [row_to_dict(row, LIGHT_SAMPLE_COLUMNS) for row in rows]}
 
 
-@app.get("/lights/samples", response_class=HTMLResponse)
+@app.get("/lys/lux-logging", response_class=HTMLResponse)
 async def light_samples_view(
     request: Request,
     mode: Optional[str] = None,
@@ -3147,7 +3151,7 @@ async def light_samples_download(
     return await csv_response(OutdoorLightSample, LIGHT_SAMPLE_COLUMNS, "utelys_samples.csv", None, None, None, None, mode, None, from_text, to_text)
 
 
-@app.get("/ventilation", response_class=HTMLResponse)
+@app.get("/ventilasjon/hendelser", response_class=HTMLResponse)
 async def ventilation_view(
     request: Request,
     event_type: Optional[str] = None,
@@ -3195,7 +3199,7 @@ async def ventilation_download(
     return await csv_response(VentilationEvent, VENT_COLUMNS, "ventilasjon_events.csv", "fan_change", action, device_key, device_id, mode, source_contains, from_text, to_text)
 
 
-@app.get("/ventilation/samples", response_class=HTMLResponse)
+@app.get("/ventilasjon/temp-logg", response_class=HTMLResponse)
 async def ventilation_samples_view(
     request: Request,
     mode: Optional[str] = None,
@@ -3228,7 +3232,7 @@ async def ventilation_samples_download(
     return await csv_response(VentilationSample, VENT_SAMPLE_COLUMNS, "ventilasjon_samples.csv", None, None, None, None, mode, None, from_text, to_text)
 
 
-@app.get("/yr/samples", response_class=HTMLResponse)
+@app.get("/ventilasjon/yr-logg", response_class=HTMLResponse)
 async def yr_samples_view(
     request: Request,
     from_text: Optional[str] = Query(default=None, alias="from"),
