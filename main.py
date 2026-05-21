@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -35,7 +35,7 @@ MASTER_ACCESS_KEY_HASH = os.getenv(
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
 PUBLIC_PREFIXES = ("/static/",)
-PUBLIC_PATHS = {"/health", "/auth/login"}
+PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
 
 
 def env_float(name: str, default: str) -> float:
@@ -2486,6 +2486,15 @@ async def startup():
 @app.get("/health")
 async def health():
     return {"status": "ok", "storage": ["utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples", "yr_forecast_samples", "control_configs", "control_config_history", "event_data"]}
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse(
+        "static/sun2-blue-transparent.png",
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=604800, immutable"},
+    )
 
 
 @app.get("/auth/login", response_class=HTMLResponse)
