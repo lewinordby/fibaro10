@@ -188,6 +188,19 @@ main > details::before {
     padding: clamp(0.9rem, 2vw, 1.15rem) !important;
 }
 
+body.theme-status .hero {
+    overflow: visible;
+    margin-bottom: 1rem;
+    padding: 0 !important;
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+body.theme-status .hero::before {
+    content: none !important;
+}
+
 main > details {
     padding: 0.9rem !important;
 }
