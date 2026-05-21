@@ -24,12 +24,14 @@
     <div class="nav-row nav-sub" aria-label="Undermeny for lys">
         <a class="button {% if current_path == '/lights/samples' %}active{% endif %}" href="/lights/samples">Lux logging</a>
         <a class="button {% if current_path == '/day/lux' %}active{% endif %}" href="/day/lux">Dagslogg lux</a>
+        <a class="button {% if current_path == '/lights/settings' %}active{% endif %}" href="/lights/settings">Innstillinger</a>
     </div>
     {% elif is_vent %}
     <div class="nav-row nav-sub" aria-label="Undermeny for ventilasjon">
         <a class="button {% if current_path == '/ventilation/samples' %}active{% endif %}" href="/ventilation/samples">Temp logg</a>
         <a class="button {% if current_path == '/day/temp' %}active{% endif %}" href="/day/temp">Dagslogg temp</a>
         <a class="button {% if current_path == '/yr/samples' %}active{% endif %}" href="/yr/samples">Yr logg</a>
+        <a class="button {% if current_path == '/ventilation/settings' %}active{% endif %}" href="/ventilation/settings">Innstillinger</a>
     </div>
     {% elif is_admin %}
     <div class="nav-row nav-sub compact" aria-label="Undermeny for nøkler">

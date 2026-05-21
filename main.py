@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta
 from email.utils import parsedate_to_datetime
 from io import StringIO
+from copy import deepcopy
 from typing import Any, Dict, Optional
 import asyncio
 import csv
@@ -303,6 +304,29 @@ class AccessLog(Base):
     reason = Column(String, nullable=True)
 
 
+class ControlConfig(Base):
+    __tablename__ = "control_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, index=True, nullable=False)
+    version = Column(Integer, default=1, nullable=False)
+    values = Column(JSON, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_by = Column(String, nullable=True)
+
+
+class ControlConfigHistory(Base):
+    __tablename__ = "control_config_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    config_key = Column(String, index=True, nullable=False)
+    version = Column(Integer, nullable=False)
+    values = Column(JSON, nullable=False)
+    changed_at = Column(DateTime, default=datetime.utcnow, index=True)
+    changed_by = Column(String, nullable=True)
+    reason = Column(Text, nullable=True)
+
+
 class LegacyLogIn(BaseModel):
     temperature: float
     humidity: float
@@ -496,6 +520,177 @@ STARTUP_COLUMNS = {
 }
 
 
+CONFIG_DEFINITIONS = {
+    "lights": {
+        "title": "Lysstyring",
+        "subtitle": "Terskler, driftstid og forklaring for utelys",
+        "theme": "theme-light",
+        "settings_path": "/lights/settings",
+        "api_path": "/api/config/lights",
+        "groups": [
+            {
+                "title": "Felles drift",
+                "description": "Gjelder alle lys unntatt parkeringslys der feltet sier at åpningstid ignoreres.",
+                "fields": [
+                    {"key": "open_from", "label": "Start før åpning", "type": "time", "default": "06:45", "unit": "", "help": "Tidligste tidspunkt lys som følger åpningstid kan være på."},
+                    {"key": "close_at", "label": "Normal av-tid", "type": "time", "default": "23:00", "unit": "", "help": "Standard av-tid for lys som følger åpningstid."},
+                    {"key": "entrance_close_at", "label": "Inngang av-tid", "type": "time", "default": "23:20", "unit": "", "help": "6xspot over inngang kan stå litt lenger enn øvrige fasadelys."},
+                    {"key": "decision_delay_seconds", "label": "Bekreftelsestid", "type": "int", "default": 120, "unit": "sek", "help": "Lux må bekreftes etter denne forsinkelsen før lys endres."},
+                    {"key": "config_poll_minutes", "label": "HC3 henter config", "type": "int", "default": 5, "unit": "min", "help": "Hvor ofte HC3 bør kontrollere om versjon er endret."},
+                ],
+            },
+            {
+                "title": "Luxgrenser",
+                "description": "På-grense er lav lux. Av-grense er høyere lux for å gi hysterese og unngå flimring.",
+                "fields": [
+                    {"key": "lyslist_on_lux", "label": "Lyslist på under", "type": "float", "default": 1000, "unit": "lux", "help": "Dekorlys på fasade."},
+                    {"key": "lyslist_off_lux", "label": "Lyslist av over", "type": "float", "default": 1500, "unit": "lux", "help": "Må være høyere enn på-grensen."},
+                    {"key": "reklame_on_lux", "label": "Reklame på under", "type": "float", "default": 500, "unit": "lux", "help": "Reklameplakater på tegelfasade."},
+                    {"key": "reklame_off_lux", "label": "Reklame av over", "type": "float", "default": 700, "unit": "lux", "help": "Må være høyere enn på-grensen."},
+                    {"key": "spot_glass_on_lux", "label": "Spot foran på under", "type": "float", "default": 1500, "unit": "lux", "help": "Spot 275 og 299 foran glassveggen."},
+                    {"key": "spot_glass_off_lux", "label": "Spot foran av over", "type": "float", "default": 2000, "unit": "lux", "help": "Må være høyere enn på-grensen."},
+                    {"key": "spot_inngang_on_lux", "label": "6xspot inngang på under", "type": "float", "default": 100, "unit": "lux", "help": "Behovsstyrt inngangslys."},
+                    {"key": "spot_inngang_off_lux", "label": "6xspot inngang av over", "type": "float", "default": 150, "unit": "lux", "help": "Må være høyere enn på-grensen."},
+                    {"key": "parkering_on_lux", "label": "Parkering på under", "type": "float", "default": 50, "unit": "lux", "help": "Parkeringslys/gatelys."},
+                    {"key": "parkering_off_lux", "label": "Parkering av over", "type": "float", "default": 80, "unit": "lux", "help": "Parkeringslys følger ikke åpningstid."},
+                ],
+            },
+        ],
+    },
+    "ventilation": {
+        "title": "Ventilasjonsstyring",
+        "subtitle": "Temperaturgrenser, driftstid og forklaring for vifter",
+        "theme": "theme-vent",
+        "settings_path": "/ventilation/settings",
+        "api_path": "/api/config/ventilation",
+        "groups": [
+            {
+                "title": "Drift og sikkerhet",
+                "description": "Disse grensene hindrer trekk, undertrykk og unødvendig varmetap.",
+                "fields": [
+                    {"key": "open_from", "label": "Åpningstid fra", "type": "time", "default": "07:00", "unit": "", "help": "Normal start for ventilasjonslogikk."},
+                    {"key": "close_at", "label": "Stenging", "type": "time", "default": "23:00", "unit": "", "help": "Normal stengetid."},
+                    {"key": "pre_cooling_from", "label": "Forkjøling fra", "type": "time", "default": "05:30", "unit": "", "help": "Kan brukes på varme dager når ute fortsatt er kaldt."},
+                    {"key": "exhaust_stop_before_close_minutes", "label": "Stopp avtrekk før stenging", "type": "int", "default": 60, "unit": "min", "help": "Sparer varme mot natten."},
+                    {"key": "mechanical_min_outdoor_temp", "label": "Sperr mekanisk under", "type": "float", "default": 7.0, "unit": "°C", "help": "Avtrekk og innluft stoppes når ute er kaldere enn dette."},
+                    {"key": "intake_min_outdoor_temp", "label": "Innluft minimum ute", "type": "float", "default": 10.0, "unit": "°C", "help": "Hindrer kald innblåsing."},
+                ],
+            },
+            {
+                "title": "Innluft",
+                "description": "Innluft skal bare gå når ute faktisk hjelper, og alltid gi luft inn dersom avtrekk er aktivt.",
+                "fields": [
+                    {"key": "vip_start_temp", "label": "VIP innluft start", "type": "float", "default": 23.8, "unit": "°C", "help": "VIP-viften vurderer primært VIP-temperatur."},
+                    {"key": "vip_stop_temp", "label": "VIP innluft stopp", "type": "float", "default": 23.2, "unit": "°C", "help": "Lavere enn start for hysterese."},
+                    {"key": "floor_start_temp", "label": "1./2.etg innluft start", "type": "float", "default": 23.8, "unit": "°C", "help": "2.etg-viften vurderer 1.etg og 2.etg."},
+                    {"key": "floor_stop_temp", "label": "1./2.etg innluft stopp", "type": "float", "default": 23.2, "unit": "°C", "help": "Lavere enn start for hysterese."},
+                    {"key": "outdoor_cooler_delta", "label": "Ute må være kaldere", "type": "float", "default": 1.5, "unit": "°C", "help": "Ute må være minst så mye kaldere enn sonen."},
+                    {"key": "max_indoor_heat_need_temp", "label": "Varmebehov under", "type": "float", "default": 21.5, "unit": "°C", "help": "Under denne temperaturen unngår vi kjølende ventilasjon."},
+                ],
+            },
+            {
+                "title": "Avtrekk tak/loft",
+                "description": "Avtrekk skal ikke gå bare fordi solsenger er i bruk hvis lokalet trenger varme.",
+                "fields": [
+                    {"key": "loft_exhaust_start_temp", "label": "Takvifte start loft", "type": "float", "default": 30.0, "unit": "°C", "help": "Starter når loftet er varmt nok og ute ikke er for kaldt."},
+                    {"key": "loft_exhaust_stop_temp", "label": "Takvifte stopp loft", "type": "float", "default": 28.0, "unit": "°C", "help": "Stopper lavere enn start for hysterese."},
+                    {"key": "indoor_allow_exhaust_temp", "label": "Avtrekk tillatt når inne over", "type": "float", "default": 25.0, "unit": "°C", "help": "Hindrer at varme blåses ut når lokalet er kaldt."},
+                    {"key": "sunbed_power_1_threshold_w", "label": "Antatt 1 solseng over", "type": "int", "default": 4000, "unit": "W", "help": "Differanse mellom total og målt øvrig forbruk."},
+                    {"key": "sunbed_power_2_threshold_w", "label": "Antatt 2 solsenger over", "type": "int", "default": 12000, "unit": "W", "help": "Brukes for vurdering og logging."},
+                    {"key": "afterrun_minutes", "label": "Ettergang", "type": "int", "default": 20, "unit": "min", "help": "Hvor lenge vifter kan gå etter siste tydelige varmebelastning."},
+                ],
+            },
+        ],
+    },
+}
+
+
+CONTROL_DEVICES = {
+    "lights": {
+        "lux_sensor": {"id": 433, "name": "Luxsensor ute", "role": "sensor"},
+        "groups": [
+            {
+                "key": "lyslist",
+                "name": "Lyslist fasade",
+                "device_ids": [425],
+                "on_lux_key": "lyslist_on_lux",
+                "off_lux_key": "lyslist_off_lux",
+                "time_from_key": "open_from",
+                "time_to_key": "close_at",
+                "follows_opening_hours": True,
+            },
+            {
+                "key": "reklame",
+                "name": "Reklameplakater tegelfasade",
+                "device_ids": [427],
+                "on_lux_key": "reklame_on_lux",
+                "off_lux_key": "reklame_off_lux",
+                "time_from_key": "open_from",
+                "time_to_key": "close_at",
+                "follows_opening_hours": True,
+            },
+            {
+                "key": "spot_glass",
+                "name": "Spot foran glassvegg",
+                "device_ids": [275, 299],
+                "on_lux_key": "spot_glass_on_lux",
+                "off_lux_key": "spot_glass_off_lux",
+                "time_from_key": "open_from",
+                "time_to_key": "close_at",
+                "follows_opening_hours": True,
+            },
+            {
+                "key": "spot_inngang",
+                "name": "6xspot over inngang",
+                "device_ids": [422],
+                "on_lux_key": "spot_inngang_on_lux",
+                "off_lux_key": "spot_inngang_off_lux",
+                "time_from_key": "open_from",
+                "time_to_key": "entrance_close_at",
+                "follows_opening_hours": True,
+            },
+            {
+                "key": "parkering",
+                "name": "Parkeringslys",
+                "device_ids": [440],
+                "on_lux_key": "parkering_on_lux",
+                "off_lux_key": "parkering_off_lux",
+                "time_from_key": None,
+                "time_to_key": None,
+                "follows_opening_hours": False,
+            },
+        ],
+    },
+    "ventilation": {
+        "sensors": {
+            "outdoor_temp": {"id": 3, "name": "Utetemperatur"},
+            "netatmo_main": {"id": 341, "name": "Netatmo hovedenhet"},
+            "passive_intake": {"name": "Pass innluft"},
+        },
+        "fans": [
+            {"key": "vip_intake", "name": "Innluft VIP", "device_id": 130, "zone": "VIP"},
+            {"key": "floor_intake", "name": "Innluft 1./2.etg", "device_id": 160, "zone": "1.etg/2.etg"},
+            {"key": "roof_exhaust", "name": "Takvifte avtrekk", "device_id": 134, "zone": "Loft"},
+        ],
+    },
+}
+
+
+def config_definition(key: str) -> Optional[Dict[str, Any]]:
+    return CONFIG_DEFINITIONS.get(key)
+
+
+def config_defaults(key: str) -> Dict[str, Any]:
+    definition = config_definition(key)
+    values: Dict[str, Any] = {}
+    if not definition:
+        return values
+    for group in definition["groups"]:
+        for field in group["fields"]:
+            values[field["key"]] = deepcopy(field["default"])
+    return values
+
+
 def value_from_payload(data: EventDataIn, key: str):
     explicit = getattr(data, key)
     if explicit is not None:
@@ -558,6 +753,8 @@ def wants_html(request: Request) -> bool:
 def is_public_request(request: Request) -> bool:
     path = request.url.path
     if path in PUBLIC_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES):
+        return True
+    if request.method == "GET" and (path == "/api/config" or path.startswith("/api/config/")):
         return True
     return request.method == "POST" and path in {"/events", "/log"}
 
@@ -649,6 +846,160 @@ def parse_day(value: Optional[str]) -> date:
         except ValueError:
             pass
     return datetime.now(LOCAL_TZ).date()
+
+
+def parse_config_value(raw: Optional[str], field: Dict[str, Any]):
+    field_type = field.get("type")
+    if field_type == "bool":
+        return raw in {"on", "true", "1", "yes"}
+    if raw in (None, ""):
+        return deepcopy(field["default"])
+    if field_type == "int":
+        try:
+            return int(float(raw))
+        except ValueError:
+            return int(field["default"])
+    if field_type == "float":
+        try:
+            return float(str(raw).replace(",", "."))
+        except ValueError:
+            return float(field["default"])
+    return str(raw).strip()
+
+
+def merge_config_values(key: str, values: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    merged = config_defaults(key)
+    if values:
+        for item_key, value in values.items():
+            if item_key in merged:
+                merged[item_key] = value
+    return merged
+
+
+def config_values_from_form(key: str, form: Dict[str, str]) -> Dict[str, Any]:
+    definition = config_definition(key)
+    values = config_defaults(key)
+    if not definition:
+        return values
+    for group in definition["groups"]:
+        for field in group["fields"]:
+            values[field["key"]] = parse_config_value(form.get(field["key"]), field)
+    return values
+
+
+def time_minutes(value: str) -> Optional[int]:
+    try:
+        hour, minute = str(value).split(":", 1)
+        return int(hour) * 60 + int(minute)
+    except (TypeError, ValueError):
+        return None
+
+
+def validate_config_values(key: str, values: Dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+
+    def require_increasing(label: str, low_key: str, high_key: str):
+        if float(values[high_key]) <= float(values[low_key]):
+            errors.append(f"{label}: av-grensen må være høyere enn på-grensen.")
+
+    def require_lower_stop(label: str, stop_key: str, start_key: str):
+        if float(values[stop_key]) >= float(values[start_key]):
+            errors.append(f"{label}: stoppgrensen må være lavere enn startgrensen.")
+
+    def require_time_order(label: str, start_key: str, stop_key: str):
+        start = time_minutes(str(values[start_key]))
+        stop = time_minutes(str(values[stop_key]))
+        if start is None or stop is None:
+            errors.append(f"{label}: tidspunkt må være på formatet HH:MM.")
+        elif stop <= start:
+            errors.append(f"{label}: sluttid må være senere enn starttid.")
+
+    if key == "lights":
+        require_time_order("Lys åpningstid", "open_from", "close_at")
+        require_increasing("Lyslist", "lyslist_on_lux", "lyslist_off_lux")
+        require_increasing("Reklameplakater", "reklame_on_lux", "reklame_off_lux")
+        require_increasing("Spot foran glassvegg", "spot_glass_on_lux", "spot_glass_off_lux")
+        require_increasing("6xspot inngang", "spot_inngang_on_lux", "spot_inngang_off_lux")
+        require_increasing("Parkeringslys", "parkering_on_lux", "parkering_off_lux")
+        if int(values["decision_delay_seconds"]) < 0 or int(values["decision_delay_seconds"]) > 900:
+            errors.append("Bekreftelsestid bør være mellom 0 og 900 sekunder.")
+        if int(values["config_poll_minutes"]) < 1 or int(values["config_poll_minutes"]) > 60:
+            errors.append("HC3 config-henting bør være mellom 1 og 60 minutter.")
+    elif key == "ventilation":
+        require_time_order("Ventilasjon åpningstid", "open_from", "close_at")
+        require_lower_stop("VIP innluft", "vip_stop_temp", "vip_start_temp")
+        require_lower_stop("1./2.etg innluft", "floor_stop_temp", "floor_start_temp")
+        require_lower_stop("Takvifte loft", "loft_exhaust_stop_temp", "loft_exhaust_start_temp")
+        if int(values["afterrun_minutes"]) < 0 or int(values["afterrun_minutes"]) > 180:
+            errors.append("Ettergang bør være mellom 0 og 180 minutter.")
+        if int(values["exhaust_stop_before_close_minutes"]) < 0 or int(values["exhaust_stop_before_close_minutes"]) > 240:
+            errors.append("Stopp avtrekk før stenging bør være mellom 0 og 240 minutter.")
+
+    return errors
+
+
+def light_rules(values: Dict[str, Any]) -> list[str]:
+    return [
+        f"Lyslist slås på når lux er under {values['lyslist_on_lux']} og av når lux er over {values['lyslist_off_lux']}, innen {values['open_from']}-{values['close_at']}.",
+        f"Reklameplakater slås på når lux er under {values['reklame_on_lux']} og av når lux er over {values['reklame_off_lux']}, innen {values['open_from']}-{values['close_at']}.",
+        f"Spot foran glassvegg 275/299 slås på under {values['spot_glass_on_lux']} lux og av over {values['spot_glass_off_lux']} lux, innen {values['open_from']}-{values['close_at']}.",
+        f"6xspot over inngang slås på under {values['spot_inngang_on_lux']} lux og av over {values['spot_inngang_off_lux']} lux, fra {values['open_from']} til {values['entrance_close_at']}.",
+        f"Parkeringslys slås på under {values['parkering_on_lux']} lux og av over {values['parkering_off_lux']} lux uavhengig av åpningstid.",
+        f"Alle lysendringer bekreftes etter {values['decision_delay_seconds']} sekunder for å unngå flimring.",
+    ]
+
+
+def ventilation_rules(values: Dict[str, Any]) -> list[str]:
+    return [
+        f"Normal ventilasjon vurderes mellom {values['open_from']} og {values['close_at']}; forkjøling kan starte {values['pre_cooling_from']} på varme dager.",
+        f"Mekanisk ventilasjon sperres når utetemperaturen er under {values['mechanical_min_outdoor_temp']}°C.",
+        f"VIP innluft starter over {values['vip_start_temp']}°C og stopper under {values['vip_stop_temp']}°C når ute er minst {values['outdoor_cooler_delta']}°C kaldere.",
+        f"2.etg innluft vurderer 1.etg og 2.etg, starter over {values['floor_start_temp']}°C og stopper under {values['floor_stop_temp']}°C.",
+        f"Takvifte starter når loftet er over {values['loft_exhaust_start_temp']}°C og stopper under {values['loft_exhaust_stop_temp']}°C, men ikke hvis inne er under {values['indoor_allow_exhaust_temp']}°C.",
+        f"Avtrekk stoppes {values['exhaust_stop_before_close_minutes']} minutter før stenging for å spare varme mot natten.",
+        "Hvis avtrekk er aktivt skal minst én innluftsvifte være tilgjengelig, så vi unngår unødvendig undertrykk.",
+    ]
+
+
+def config_rules(key: str, values: Dict[str, Any]) -> list[str]:
+    if key == "lights":
+        return light_rules(values)
+    if key == "ventilation":
+        return ventilation_rules(values)
+    return []
+
+
+def config_devices(key: str) -> Dict[str, Any]:
+    return deepcopy(CONTROL_DEVICES.get(key, {}))
+
+
+def config_payload(row: ControlConfig) -> Dict[str, Any]:
+    values = merge_config_values(row.key, row.values)
+    return {
+        "system": row.key,
+        "version": row.version,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        "updated_by": row.updated_by,
+        "values": values,
+        "devices": config_devices(row.key),
+        "rules": config_rules(row.key, values),
+        "fallback_note": "HC3 skal bruke sist kjente verdier hvis API-et ikke kan nås.",
+    }
+
+
+async def get_or_create_config(session, key: str) -> Optional[ControlConfig]:
+    if key not in CONFIG_DEFINITIONS:
+        return None
+    row = (await session.execute(select(ControlConfig).where(ControlConfig.key == key))).scalars().first()
+    if row:
+        row.values = merge_config_values(key, row.values)
+        return row
+    row = ControlConfig(key=key, version=1, values=config_defaults(key), updated_by="system")
+    session.add(row)
+    session.add(ControlConfigHistory(config_key=key, version=1, values=row.values, changed_by="system", reason="Standardverdier opprettet"))
+    await session.commit()
+    await session.refresh(row)
+    return row
 
 
 def day_zoom_config(value: Optional[str]):
@@ -1927,11 +2278,14 @@ async def startup():
                 key.key_hash = credential_hash(username, password)
                 key.key_prefix = credential_prefix(username, password)
         await session.commit()
+    async with async_session() as session:
+        for config_key in CONFIG_DEFINITIONS:
+            await get_or_create_config(session, config_key)
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "storage": ["utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples", "yr_forecast_samples", "event_data"]}
+    return {"status": "ok", "storage": ["utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples", "yr_forecast_samples", "control_configs", "control_config_history", "event_data"]}
 
 
 @app.get("/auth/login", response_class=HTMLResponse)
@@ -2095,6 +2449,108 @@ async def keys_disable(request: Request):
         )
         await session.commit()
     return RedirectResponse("/admin/keys", status_code=303)
+
+
+async def config_context(config_key: str):
+    definition = config_definition(config_key)
+    if not definition:
+        return None
+    async with async_session() as session:
+        row = await get_or_create_config(session, config_key)
+        history = (
+            await session.execute(
+                select(ControlConfigHistory)
+                .where(ControlConfigHistory.config_key == config_key)
+                .order_by(ControlConfigHistory.changed_at.desc())
+                .limit(20)
+            )
+        ).scalars().all()
+    values = merge_config_values(config_key, row.values)
+    return {
+        "definition": definition,
+        "config_key": config_key,
+        "config": row,
+        "values": values,
+        "rules": config_rules(config_key, values),
+        "devices": config_devices(config_key),
+        "history": history,
+        "saved": False,
+        "errors": [],
+    }
+
+
+@app.get("/api/config")
+async def api_control_configs():
+    async with async_session() as session:
+        rows = [await get_or_create_config(session, config_key) for config_key in CONFIG_DEFINITIONS]
+    return {"configs": [config_payload(row) for row in rows if row]}
+
+
+@app.get("/api/config/{config_key}")
+async def api_control_config(config_key: str):
+    if config_key not in CONFIG_DEFINITIONS:
+        return JSONResponse({"detail": "Ukjent konfigurasjon"}, status_code=404)
+    async with async_session() as session:
+        row = await get_or_create_config(session, config_key)
+    return config_payload(row)
+
+
+@app.get("/lights/settings", response_class=HTMLResponse)
+async def light_settings_view(request: Request):
+    context = await config_context("lights")
+    return templates.TemplateResponse(request, "control_settings.html", context)
+
+
+@app.post("/lights/settings", response_class=HTMLResponse)
+async def light_settings_update(request: Request):
+    return await update_settings(request, "lights")
+
+
+@app.get("/ventilation/settings", response_class=HTMLResponse)
+async def ventilation_settings_view(request: Request):
+    context = await config_context("ventilation")
+    return templates.TemplateResponse(request, "control_settings.html", context)
+
+
+@app.post("/ventilation/settings", response_class=HTMLResponse)
+async def ventilation_settings_update(request: Request):
+    return await update_settings(request, "ventilation")
+
+
+async def update_settings(request: Request, config_key: str):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    form = await parse_form_body(request)
+    values = config_values_from_form(config_key, form)
+    errors = validate_config_values(config_key, values)
+    if errors:
+        context = await config_context(config_key)
+        context["values"] = values
+        context["rules"] = config_rules(config_key, values)
+        context["errors"] = errors
+        return templates.TemplateResponse(request, "control_settings.html", context, status_code=400)
+    reason = (form.get("reason") or "Endret i grensesnittet").strip()
+    changed_by = getattr(request.state, "access_key_name", "") or "master"
+    async with async_session() as session:
+        row = await get_or_create_config(session, config_key)
+        row.values = values
+        row.version = (row.version or 1) + 1
+        row.updated_at = datetime.utcnow()
+        row.updated_by = changed_by
+        session.add(
+            ControlConfigHistory(
+                config_key=config_key,
+                version=row.version,
+                values=deepcopy(values),
+                changed_by=changed_by,
+                reason=reason,
+            )
+        )
+        await session.commit()
+    context = await config_context(config_key)
+    context["saved"] = True
+    return templates.TemplateResponse(request, "control_settings.html", context)
 
 
 @app.get("/", response_class=HTMLResponse)

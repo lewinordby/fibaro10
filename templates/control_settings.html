@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ definition.title }}</title>
+    <style>
+        :root { color-scheme: light; --bg:#eef2f6; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --soft:#f8fafc; --ok:#52a464; --warn:#df705d; }
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+        header { position: sticky; top: 0; z-index: 5; background: rgba(255,255,255,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; backdrop-filter: blur(8px); }
+        h1 { margin: 0; font-size: 1.35rem; font-weight: 520; }
+        h2 { margin: 0 0 0.45rem; font-size: 1.02rem; }
+        h3 { margin: 0 0 0.55rem; font-size: 0.95rem; }
+        .sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
+        main { padding: 0.85rem; max-width: 1120px; margin: 0 auto; }
+        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.9rem; margin-bottom: 0.9rem; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+        .status-line { display: flex; flex-wrap: wrap; gap: 0.55rem; color: var(--muted); font-size: 0.86rem; }
+        .badge { display: inline-flex; align-items: center; min-height: 1.8rem; border-radius: 999px; padding: 0.22rem 0.65rem; background: #eaf5ed; color: #2f7a49; border: 1px solid #b9dfc2; font-weight: 800; }
+        .saved { border: 1px solid #b9dfc2; background: #eaf5ed; color: #2f7a49; padding: 0.75rem; border-radius: 7px; margin-bottom: 0.8rem; }
+        .error { border: 1px solid #f2c4bb; background: #fbebe8; color: #9b3b2e; padding: 0.75rem; border-radius: 7px; margin-bottom: 0.8rem; }
+        .error ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+        .api { overflow-wrap: anywhere; background: var(--soft); border: 1px solid var(--line); border-radius: 7px; padding: 0.65rem; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.85rem; }
+        .rules { display: grid; gap: 0.45rem; margin: 0.75rem 0 0; padding: 0; list-style: none; }
+        .rules li { border-left: 3px solid var(--page-accent, #5292d6); background: var(--soft); padding: 0.58rem 0.7rem; border-radius: 6px; line-height: 1.35; }
+        .device-grid { display: grid; grid-template-columns: 1fr; gap: 0.55rem; margin-top: 0.75rem; }
+        .device-pill { border: 1px solid var(--line); background: var(--soft); border-left: 3px solid var(--page-accent, #5292d6); border-radius: 7px; padding: 0.65rem; }
+        .device-pill strong { display: block; margin-bottom: 0.18rem; }
+        .group { border: 1px solid var(--line); border-radius: 8px; padding: 0.8rem; margin-bottom: 0.8rem; background: #fff; }
+        .fields { display: grid; grid-template-columns: 1fr; gap: 0.65rem; }
+        .field { display: grid; gap: 0.25rem; min-width: 0; }
+        label { font-weight: 760; font-size: 0.9rem; }
+        .help { color: var(--muted); font-size: 0.78rem; line-height: 1.25; }
+        .input-row { display: flex; align-items: center; gap: 0.45rem; }
+        input { width: 100%; min-height: 2.55rem; border: 1px solid var(--line); border-radius: 7px; padding: 0.55rem 0.65rem; font: inherit; }
+        input:focus { outline: 3px solid var(--page-accent-ring, rgba(82,146,214,0.24)); border-color: var(--page-accent, #5292d6); }
+        .unit { color: var(--muted); font-weight: 750; min-width: 2.2rem; }
+        textarea { width: 100%; min-height: 4rem; border: 1px solid var(--line); border-radius: 7px; padding: 0.65rem; font: inherit; resize: vertical; }
+        .actions { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; }
+        button, .button { border: 1px solid var(--line); background: white; color: var(--text); border-radius: 7px; padding: 0.7rem 0.9rem; font-weight: 750; text-decoration: none; cursor: pointer; }
+        .primary { background: var(--page-accent, #5292d6) !important; border-color: var(--page-accent, #5292d6) !important; color: white !important; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 0.58rem; border-bottom: 1px solid var(--line); text-align: left; font-size: 0.86rem; vertical-align: top; }
+        th { color: var(--muted); font-weight: 750; }
+        code { white-space: nowrap; }
+        @media (min-width: 760px) {
+            main { padding: 1.25rem; }
+            .fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .device-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+    </style>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="{{ definition.theme }}">
+    <header>
+        <div class="brand-bar">
+            <a class="brand-home" href="/" aria-label="Gå til status">
+                <img class="brand-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
+            </a>
+            <div>
+                <h1>{{ definition.title }}</h1>
+                <p class="sub">{{ definition.subtitle }}</p>
+            </div>
+        </div>
+    </header>
+    <main>
+        {% include "_nav.html" %}
+
+        {% if saved %}
+        <div class="saved">Innstillingene er lagret. HC3 vil se ny versjon neste gang den henter konfigurasjonen.</div>
+        {% endif %}
+        {% if errors %}
+        <div class="error">
+            <strong>Kan ikke lagre disse verdiene ennå.</strong>
+            <ul>
+                {% for error in errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <section class="panel">
+            <h2>Aktiv logikk</h2>
+            <div class="status-line">
+                <span class="badge">Versjon {{ config.version }}</span>
+                <span>Sist endret {{ config.updated_at|localtime if config.updated_at else "-" }}</span>
+                <span>Endret av {{ config.updated_by or "-" }}</span>
+            </div>
+            <ul class="rules">
+                {% for rule in rules %}
+                <li>{{ rule }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <section class="panel">
+            <h2>HC3 API</h2>
+            <p class="sub">HC3 kan hente denne adressen ved oppstart og deretter kontrollere om <code>version</code> er endret.</p>
+            <div class="api">{{ request.url_for('api_control_config', config_key=config_key) }}</div>
+        </section>
+
+        <section class="panel">
+            <h2>Enheter i styringen</h2>
+            <div class="device-grid">
+                {% if config_key == "lights" %}
+                    {% for group in devices.groups %}
+                    <div class="device-pill">
+                        <strong>{{ group.name }}</strong>
+                        <span>Enhet {{ group.device_ids|join(", ") }}</span><br>
+                        <span>Luxfelt: <code>{{ group.on_lux_key }}</code> / <code>{{ group.off_lux_key }}</code></span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    {% for fan in devices.fans %}
+                    <div class="device-pill">
+                        <strong>{{ fan.name }}</strong>
+                        <span>Enhet {{ fan.device_id }} · {{ fan.zone }}</span>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </section>
+
+        <form method="post" action="{{ definition.settings_path }}">
+            {% for group in definition.groups %}
+            <section class="group">
+                <h3>{{ group.title }}</h3>
+                <p class="sub">{{ group.description }}</p>
+                <div class="fields">
+                    {% for field in group.fields %}
+                    <div class="field">
+                        <label for="{{ field.key }}">{{ field.label }}</label>
+                        <div class="input-row">
+                            <input id="{{ field.key }}" name="{{ field.key }}" type="{% if field.type == 'time' %}time{% elif field.type in ['int', 'float'] %}number{% else %}text{% endif %}" {% if field.type == 'float' %}step="0.1"{% elif field.type == 'int' %}step="1"{% endif %} value="{{ values[field.key] }}">
+                            {% if field.unit %}<span class="unit">{{ field.unit }}</span>{% endif %}
+                        </div>
+                        <div class="help">{{ field.help }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+            <section class="panel">
+                <h2>Lagre endring</h2>
+                <textarea name="reason" placeholder="Kort notat, f.eks. Hevet spot foran til 2000 lux etter testing"></textarea>
+                <div class="actions">
+                    {% if request.state.auth_is_master %}
+                    <button class="primary" type="submit">Lagre ny versjon</button>
+                    {% else %}
+                    <span class="sub">Kun masterbruker kan endre verdiene.</span>
+                    {% endif %}
+                    <a class="button" href="{{ definition.settings_path }}">Forkast endringer</a>
+                </div>
+            </section>
+        </form>
+
+        <section class="panel">
+            <h2>Historikk</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tid</th>
+                            <th>Versjon</th>
+                            <th>Endret av</th>
+                            <th>Notat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in history %}
+                        <tr>
+                            <td>{{ row.changed_at|localtime }}</td>
+                            <td>{{ row.version }}</td>
+                            <td>{{ row.changed_by or "-" }}</td>
+                            <td>{{ row.reason or "-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
