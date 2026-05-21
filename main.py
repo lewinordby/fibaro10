@@ -642,7 +642,7 @@ CONTROL_DEVICES = {
             {
                 "key": "spot_inngang",
                 "name": "6xspot over inngang",
-                "device_ids": [422],
+                "device_ids": [424],
                 "on_lux_key": "spot_inngang_on_lux",
                 "off_lux_key": "spot_inngang_off_lux",
                 "time_from_key": "open_from",
