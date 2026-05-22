@@ -24,6 +24,7 @@ load_dotenv()
 DATA_DIR = Path(os.getenv("ROBOROCK_DATA_DIR", "./data"))
 CACHE_FILE = DATA_DIR / "roborock_user_data.pickle"
 CLIENT_IDS_FILE = DATA_DIR / "roborock_client_ids.json"
+HOME_CACHE_FILE = DATA_DIR / "home_data.json"
 STATE_FILE = DATA_DIR / "state.json"
 QUEUE_FILE = DATA_DIR / "pending_batches.jsonl"
 
@@ -34,6 +35,7 @@ FIBARO10_API_BASE_URL = os.getenv("FIBARO10_API_BASE_URL", "https://fibaro10.onr
 FIBARO10_API_USERNAME = os.getenv("FIBARO10_API_USERNAME", "")
 FIBARO10_API_PASSWORD = os.getenv("FIBARO10_API_PASSWORD", "")
 STATUS_INTERVAL_SECONDS = int(os.getenv("STATUS_INTERVAL_SECONDS", "300"))
+HOME_REFRESH_SECONDS = int(os.getenv("HOME_REFRESH_SECONDS", "3600"))
 HISTORY_LIMIT = int(os.getenv("HISTORY_LIMIT", "10"))
 MAP_SYNC_ON_START = os.getenv("MAP_SYNC_ON_START", "true").lower() in {"1", "true", "yes", "on"}
 AUTO_SYNC_ENABLED = os.getenv("AUTO_SYNC_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
@@ -171,9 +173,42 @@ async def code_login(email: str, code: str) -> None:
     save_user_data(UserData.from_dict(response["data"]))
 
 
-async def get_home_data(email: str) -> dict[str, Any]:
+def load_cached_home_data() -> dict[str, Any] | None:
+    if not HOME_CACHE_FILE.exists():
+        return None
+    return json.loads(HOME_CACHE_FILE.read_text(encoding="utf-8"))
+
+
+def save_home_data(home: dict[str, Any]) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    HOME_CACHE_FILE.write_text(json.dumps(home, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def cached_home_is_fresh() -> bool:
+    if not HOME_CACHE_FILE.exists():
+        return False
+    age_seconds = dt.datetime.now().timestamp() - HOME_CACHE_FILE.stat().st_mtime
+    return age_seconds < HOME_REFRESH_SECONDS
+
+
+async def get_home_data(email: str, force_refresh: bool = False) -> dict[str, Any]:
+    if not force_refresh and cached_home_is_fresh():
+        cached = load_cached_home_data()
+        if cached:
+            cached["_cache"] = {"source": "file", "fresh": True}
+            return cached
     web_api = create_web_api(email)
-    return jsonable(await web_api.get_home_data_v3(load_user_data()))
+    try:
+        home = jsonable(await web_api.get_home_data_v3(load_user_data()))
+        home["_cache"] = {"source": "cloud", "fresh": True}
+        save_home_data(home)
+        return home
+    except Exception as exc:
+        cached = load_cached_home_data()
+        if cached:
+            cached["_cache"] = {"source": "file", "fresh": False, "error": str(exc)}
+            return cached
+        raise
 
 
 async def get_local_rpc(device: dict[str, Any], host: str):
@@ -342,8 +377,8 @@ def resend_queue() -> int:
     return sent
 
 
-async def collect_once(include_maps: bool = False) -> dict[str, Any]:
-    home = await get_home_data(ROBOROCK_EMAIL)
+async def collect_once(include_maps: bool = False, force_home_refresh: bool = False) -> dict[str, Any]:
+    home = await get_home_data(ROBOROCK_EMAIL, force_refresh=force_home_refresh)
     devices = home.get("devices", []) + home.get("received_devices", [])
     products = {product.get("id"): product for product in home.get("products", [])}
     state = load_state()
@@ -421,7 +456,7 @@ async def collect_once(include_maps: bool = False) -> dict[str, Any]:
         "timestamp": utc_now().isoformat(),
         "ok": True,
         "robots": robots,
-        "extra": {"home_id": home.get("id"), "host_candidates": candidates},
+        "extra": {"home_id": home.get("id"), "host_candidates": candidates, "home_cache": home.get("_cache")},
     }
     try:
         resend_queue()
@@ -515,11 +550,17 @@ async def login_route(email: str = Query(default=ROBOROCK_EMAIL), code: str = Qu
 
 
 @app.get("/sync-now")
-async def sync_now(maps: bool = False):
+async def sync_now(maps: bool = False, refresh: bool = False):
     try:
         async with sync_lock:
-            batch = await collect_once(include_maps=maps)
-        return JSONResponse({"status": "ok", "robots": len(batch.get("robots", []))})
+            batch = await collect_once(include_maps=maps, force_home_refresh=refresh)
+        return JSONResponse(
+            {
+                "status": "ok",
+                "robots": len(batch.get("robots", [])),
+                "home_cache": (batch.get("extra") or {}).get("home_cache"),
+            }
+        )
     except Exception as exc:
         state = load_state()
         state["last_error"] = f"manual sync: {exc}"
