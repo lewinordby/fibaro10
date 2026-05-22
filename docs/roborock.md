@@ -74,6 +74,18 @@ Denne bruker lokal LAN-tilkobling mot roboten. Standard IP er foreløpig `192.16
 python scripts\roborock_probe.py clean-history --email roborock.sun2@gmail.com --host 192.168.x.x --limit 5
 ```
 
+Hent kartbilde:
+
+```powershell
+python scripts\roborock_probe.py map-image --email roborock.sun2@gmail.com --output roborock_output\map.png
+```
+
+Kommandoen bruker Roborock sin kartkanal via cloud. Ved test 2026-05-22 lagret scriptet:
+
+- PNG-bilde: `roborock_output\map.png`
+- Rådata, hvis `--raw-output` er angitt.
+- Metadata som bildestørrelse, laderposisjon, robotposisjon og antall rom.
+
 Full device manager/MQTT finnes også, men kan bruke lang tid eller henge hvis MQTT-oppkoblingen ikke blir klar:
 
 ```powershell
@@ -110,6 +122,6 @@ Siste utførte jobber kan hentes via lokal kanal. Eksempel på siste fem ved tes
 
 For Fibaro10 er det tryggest å starte med REST-basert status fra `home`/`devices`, siden dette allerede fungerer stabilt. Der får vi blant annet online-status, batteri, firmware, modell og rå statusfelter.
 
-Planlagte jobber kan hentes stabilt via REST. Siste utførte rengjøringer hentes stabilt via lokal LAN-tilkobling mot robotens port `58867`, med `local_key` fra Roborock cloud-data. Cloud-MQTT/RPC timeout-er foreløpig fra dette Windows-miljøet.
+Planlagte jobber kan hentes stabilt via REST. Siste utførte rengjøringer hentes stabilt via lokal LAN-tilkobling mot robotens port `58867`, med `local_key` fra Roborock cloud-data. Kart kan hentes som PNG via Roborock sin kartkanal. Lokale kartforsøk svarte ikke ved test, men cloud-metoden fungerte og ga et kart på `1684 x 2288` piksler med 14 rom.
 
 Neste steg kan være å lage en egen Roborock-side i grensesnittet, eller å logge status og planlagte jobber periodisk på samme måte som lys og ventilasjon.

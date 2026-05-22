@@ -101,6 +101,10 @@ def create_web_api(email: str) -> Any:
 def enum_name(enum_class: Any, value: Any) -> str | None:
     if value is None:
         return None
+    try:
+        return enum_class(value).name
+    except ValueError:
+        return None
 
 
 def local_datetime(timestamp: int | None) -> str | None:
@@ -119,10 +123,6 @@ def area_to_square_meters(area: int | None) -> float | None:
     if area is None:
         return None
     return round(area / 1_000_000, 2)
-    try:
-        return enum_class(value).name
-    except ValueError:
-        return None
 
 
 def find_user_data(payload: Any) -> dict[str, Any]:
@@ -519,6 +519,129 @@ async def get_local_rpc(email: str, device_id: str | None, host: str):
     return RpcChannel(lambda: [strategy], logger), channel
 
 
+async def get_local_map_rpc(email: str, device_id: str | None, host: str, request_protocol: str):
+    from roborock.devices.rpc.v1_channel import RpcChannel, RpcStrategy
+    from roborock.devices.transport.local_channel import LocalChannel
+    from roborock.protocols.v1_protocol import create_map_response_decoder, create_security_data
+    from roborock.roborock_message import RoborockMessageProtocol
+    from roborock.util import RoborockLoggerAdapter
+
+    user_data = load_user_data()
+    device = await get_rest_device(email, device_id)
+    duid = device["duid"]
+    channel = LocalChannel(host, device["local_key"], duid)
+    await channel.connect()
+    security_data = create_security_data(user_data.rriot)
+    logger = RoborockLoggerAdapter(duid=duid, logger=logging.getLogger("roborock-local-map"))
+    protocol = (
+        RoborockMessageProtocol.RPC_REQUEST
+        if request_protocol == "rpc"
+        else RoborockMessageProtocol.GENERAL_REQUEST
+    )
+    strategy = RpcStrategy(
+        name=f"local-map-{request_protocol}",
+        channel=channel,
+        encoder=lambda request: request.encode_message(
+            protocol,
+            security_data=security_data,
+            version=channel.protocol_version,
+        ),
+        decoder=create_map_response_decoder(security_data),
+    )
+    return RpcChannel(lambda: [strategy], logger), channel
+
+
+def save_map_content(raw_map: bytes, output_file: str, raw_output_file: str | None = None) -> dict[str, Any]:
+    from roborock.devices.traits.v1.map_content import MapContentConverter
+    from roborock.map.map_parser import MapParser, MapParserConfig
+
+    output = Path(output_file).expanduser()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if raw_output_file:
+        raw_output = Path(raw_output_file).expanduser()
+        raw_output.parent.mkdir(parents=True, exist_ok=True)
+        raw_output.write_bytes(raw_map)
+    else:
+        raw_output = None
+
+    content = MapContentConverter(MapParser(MapParserConfig())).parse_map_content(raw_map)
+    if not content.image_content:
+        raise SystemExit("Kartet ble hentet, men Roborock-parseren returnerte ikke bildeinnhold.")
+    output.write_bytes(content.image_content)
+
+    map_data = content.map_data
+    image_size = None
+    if map_data and map_data.image:
+        image_size = list(map_data.image.data.size)
+    return {
+        "image_file": str(output),
+        "raw_file": str(raw_output) if raw_output else None,
+        "raw_bytes": len(raw_map),
+        "image_bytes": len(content.image_content),
+        "image_size": image_size,
+        "charger": map_data.charger.as_dict() if map_data and map_data.charger else None,
+        "vacuum_position": map_data.vacuum_position.as_dict() if map_data and map_data.vacuum_position else None,
+        "rooms": len(map_data.rooms or []) if map_data else None,
+        "zones": len(map_data.zones or []) if map_data else None,
+    }
+
+
+async def fetch_map_image(
+    email: str,
+    device_id: str | None,
+    host: str,
+    output_file: str,
+    raw_output_file: str | None,
+    method: str,
+) -> None:
+    from roborock.roborock_typing import RoborockCommand
+
+    errors = []
+    methods = ["local-rpc", "local-general", "cloud"] if method == "auto" else [method]
+    for current_method in methods:
+        try:
+            if current_method == "cloud":
+                manager = await get_device_manager(email)
+                try:
+                    if device_id is None:
+                        devices = await manager.get_devices()
+                        if len(devices) != 1:
+                            raise SystemExit("Angi --device-id naar kontoen har null eller flere enheter.")
+                        device = devices[0]
+                    else:
+                        device = await manager.get_device(device_id)
+                    if device is None or device.v1_properties is None:
+                        raise SystemExit("Roboten stoetter ikke V1 kart via dette biblioteket.")
+                    await device.v1_properties.start()
+                    trait = device.v1_properties.map_content
+                    await trait.refresh()
+                    if not trait.raw_api_response:
+                        raise SystemExit("Roborock returnerte ikke raadata for kartet.")
+                    result = save_map_content(trait.raw_api_response, output_file, raw_output_file)
+                finally:
+                    await manager.close()
+            else:
+                request_protocol = "rpc" if current_method == "local-rpc" else "general"
+                rpc, channel = await get_local_map_rpc(email, device_id, host, request_protocol)
+                try:
+                    raw_map = await rpc.send_command(RoborockCommand.GET_MAP_V1)
+                finally:
+                    channel.close()
+                if not isinstance(raw_map, bytes):
+                    raise SystemExit(f"Uventet kartrespons: {type(raw_map)}")
+                result = save_map_content(raw_map, output_file, raw_output_file)
+            result["method"] = current_method
+            result["host"] = host if current_method != "cloud" else None
+            print_json(result)
+            return
+        except Exception as exc:
+            errors.append({"method": current_method, "error": str(exc)})
+            continue
+
+    print_json({"ok": False, "errors": errors})
+    raise SystemExit("Klarte ikke hente Roborock-kart med noen av metodene.")
+
+
 async def list_clean_history(email: str, device_id: str | None, host: str, limit: int) -> None:
     from roborock.roborock_typing import RoborockCommand
 
@@ -663,6 +786,19 @@ async def main() -> None:
     clean_history_parser.add_argument("--host", default=DEFAULT_ROBOROCK_HOST, help="Robotens lokale IP-adresse.")
     clean_history_parser.add_argument("--limit", type=int, default=5, help="Antall siste jobber som skal hentes.")
 
+    map_parser = subparsers.add_parser("map-image", help="Hent Roborock-kart og lagre det som PNG.")
+    map_parser.add_argument("--email", required=True)
+    map_parser.add_argument("--device-id", help="DUID. Kan utelates hvis kontoen bare har en enhet.")
+    map_parser.add_argument("--host", default=DEFAULT_ROBOROCK_HOST, help="Robotens lokale IP-adresse.")
+    map_parser.add_argument("--output", default="roborock_output/map.png", help="PNG-fil som skal skrives.")
+    map_parser.add_argument("--raw-output", help="Valgfri fil for raadata fra Roborock.")
+    map_parser.add_argument(
+        "--method",
+        choices=["auto", "local-rpc", "local-general", "cloud"],
+        default="cloud",
+        help="Hvilken kanal som skal testes.",
+    )
+
     status_parser = subparsers.add_parser("status", help="Hent status og forbruksdeler for støvsugere.")
     status_parser.add_argument("--email", required=True)
 
@@ -703,6 +839,8 @@ async def main() -> None:
         await list_schedules(args.email, args.device_id)
     elif args.command == "clean-history":
         await list_clean_history(args.email, args.device_id, args.host, args.limit)
+    elif args.command == "map-image":
+        await fetch_map_image(args.email, args.device_id, args.host, args.output, args.raw_output, args.method)
     elif args.command == "status":
         await show_status(args.email)
 
