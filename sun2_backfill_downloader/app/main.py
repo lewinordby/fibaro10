@@ -66,7 +66,10 @@ state: dict[str, Any] = {
 def local_today() -> date:
     if ZoneInfo is None:
         return datetime.now().date()
-    return datetime.now(ZoneInfo(timezone_name())).date()
+    try:
+        return datetime.now(ZoneInfo(timezone_name())).date()
+    except Exception:
+        return datetime.now().date()
 
 
 def env_required(name: str) -> str:
