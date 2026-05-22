@@ -9,6 +9,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from urllib.parse import parse_qs
 import urllib.error
 import urllib.request
@@ -670,7 +671,9 @@ class Sun2RoomDailyStat(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     stat_date = Column(Date, index=True, nullable=False)
+    room_key = Column(String, index=True, nullable=True)
     room = Column(String, index=True, nullable=False)
+    source_room_name = Column(String, nullable=True)
     total_soletid_minutter = Column(Float, nullable=True)
     totalt_antall_solinger = Column(Integer, nullable=True)
     solinger_medlemmer = Column(Integer, nullable=True)
@@ -836,6 +839,8 @@ class RoborockIngestIn(BaseModel):
 class Sun2RoomStatIn(BaseModel):
     stat_date: date
     room: str
+    room_key: Optional[str] = None
+    source_room_name: Optional[str] = None
     total_soletid_minutter: Optional[float] = None
     totalt_antall_solinger: Optional[int] = None
     solinger_medlemmer: Optional[int] = None
@@ -932,10 +937,10 @@ ROBOROCK_MAP_COLUMNS = [
 ]
 
 SUN2_ROOM_COLUMNS = [
-    "id", "stat_date", "room", "total_soletid_minutter", "totalt_antall_solinger",
-    "solinger_medlemmer", "solinger_ikke_medlemmer", "totalt_inntjent_kr",
-    "inntjent_medlemmer_kr", "inntjent_ikke_medlemmer_kr", "source",
-    "source_file", "imported_at", "raw",
+    "id", "stat_date", "room_key", "room", "source_room_name", "total_soletid_minutter",
+    "totalt_antall_solinger", "solinger_medlemmer", "solinger_ikke_medlemmer",
+    "totalt_inntjent_kr", "inntjent_medlemmer_kr", "inntjent_ikke_medlemmer_kr",
+    "source", "source_file", "imported_at", "raw",
 ]
 
 SUN2_IMPORT_COLUMNS = [
@@ -1040,6 +1045,10 @@ STARTUP_COLUMNS = {
     "roborock_robots": [
         ("serial_number", "VARCHAR"),
         ("last_map_at", "TIMESTAMP"),
+    ],
+    "sun2_room_daily_stats": [
+        ("room_key", "VARCHAR"),
+        ("source_room_name", "VARCHAR"),
     ],
 }
 
@@ -1234,6 +1243,16 @@ def repair_mojibake(value: Any) -> Any:
         return value.encode("latin1").decode("utf-8")
     except UnicodeError:
         return value
+
+
+def room_key_from_name(value: Any) -> Optional[str]:
+    text = repair_mojibake(value)
+    if not isinstance(text, str):
+        return None
+    match = re.search(r"\brom\s*0*(\d+)\b", text, re.IGNORECASE)
+    if not match:
+        return None
+    return f"rom_{int(match.group(1)):02d}"
 
 
 def bool_value(value: Any) -> Optional[bool]:
@@ -3182,7 +3201,9 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
     updated = 0
     batch_date = data.stat_date
     for row in data.rows:
-        room = (repair_mojibake(row.room) or "").strip()
+        source_room_name = (repair_mojibake(row.source_room_name or row.room) or "").strip()
+        room = (repair_mojibake(row.room) or source_room_name).strip()
+        room_key = (repair_mojibake(row.room_key) or room_key_from_name(source_room_name) or room_key_from_name(room) or room).strip()
         if not room:
             continue
         stat_date = row.stat_date or batch_date
@@ -3190,16 +3211,32 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
             await session.execute(
                 select(Sun2RoomDailyStat)
                 .where(Sun2RoomDailyStat.stat_date == stat_date)
-                .where(Sun2RoomDailyStat.room == room)
+                .where(Sun2RoomDailyStat.room_key == room_key)
             )
         ).scalars().first()
+        if not existing:
+            existing = (
+                await session.execute(
+                    select(Sun2RoomDailyStat)
+                    .where(Sun2RoomDailyStat.stat_date == stat_date)
+                    .where(Sun2RoomDailyStat.room == room)
+                )
+            ).scalars().first()
         if not existing:
             same_day = (
                 await session.execute(
                     select(Sun2RoomDailyStat).where(Sun2RoomDailyStat.stat_date == stat_date)
                 )
             ).scalars().all()
-            existing = next((candidate for candidate in same_day if repair_mojibake(candidate.room) == room), None)
+            existing = next(
+                (
+                    candidate for candidate in same_day
+                    if repair_mojibake(candidate.room) == room
+                    or repair_mojibake(candidate.source_room_name) == source_room_name
+                    or (candidate.room_key and repair_mojibake(candidate.room_key) == room_key)
+                ),
+                None,
+            )
         if not existing:
             existing = Sun2RoomDailyStat(stat_date=stat_date, room=room)
             session.add(existing)
@@ -3207,7 +3244,9 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
         else:
             updated += 1
 
+        existing.room_key = room_key
         existing.room = room
+        existing.source_room_name = source_room_name
         existing.total_soletid_minutter = row.total_soletid_minutter
         existing.totalt_antall_solinger = row.totalt_antall_solinger
         existing.solinger_medlemmer = row.solinger_medlemmer

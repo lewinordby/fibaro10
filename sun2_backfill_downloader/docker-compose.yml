@@ -1,0 +1,11 @@
+services:
+  sun2_backfill_downloader:
+    build: .
+    container_name: sun2_backfill_downloader
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8097:8097"
+    volumes:
+      - ./data:/data

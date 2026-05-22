@@ -41,6 +41,7 @@
                 <thead>
                     <tr>
                         <th>Dato</th>
+                        <th>Nøkkel</th>
                         <th>Rom</th>
                         <th>Minutter</th>
                         <th>Solinger</th>
@@ -56,6 +57,7 @@
                     {% for row in rows %}
                     <tr>
                         <td>{{ row.stat_date }}</td>
+                        <td>{{ row.room_key or "-" }}</td>
                         <td>{{ row.room }}</td>
                         <td>{{ "%.0f"|format(row.total_soletid_minutter or 0) }}</td>
                         <td>{{ row.totalt_antall_solinger or 0 }}</td>

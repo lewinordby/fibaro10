@@ -86,6 +86,25 @@ def clean_text(value: Any) -> str:
     return text
 
 
+def normalize_text(value: Any) -> str:
+    text = str(value or "").strip().strip('"')
+    if "\u00c3" in text or "\u00c2" in text:
+        try:
+            return text.encode("latin1").decode("utf-8")
+        except UnicodeError:
+            return text
+    return text
+
+
+def room_key_from_name(value: Any) -> str:
+    text = normalize_text(value)
+    match = re.search(r"\brom\s*0*(\d+)\b", text, re.IGNORECASE)
+    if match:
+        return f"rom_{int(match.group(1)):02d}"
+    normalized = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+    return normalized or "ukjent_rom"
+
+
 def move_to(src: Path, dest_dir: Path, prefix: str) -> Path:
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / f"{prefix}{src.name}"
@@ -111,14 +130,16 @@ def parse_file(file_path: Path) -> tuple[date, list[dict[str, Any]]]:
             raise ValueError(f"Uventede kolonner: {reader.fieldnames}")
         rows = []
         for raw in reader:
-            room = clean_text(raw.get("Rom"))
+            room = normalize_text(raw.get("Rom"))
             if not room or room == "Totalt":
                 continue
-            clean_raw = {key: clean_text(value) for key, value in raw.items()}
+            clean_raw = {key: normalize_text(value) for key, value in raw.items()}
             rows.append(
                 {
                     "stat_date": stat_date.isoformat(),
+                    "room_key": room_key_from_name(room),
                     "room": room,
+                    "source_room_name": room,
                     "total_soletid_minutter": decimal_value(raw.get("Total Soletid (minutter)")),
                     "totalt_antall_solinger": int_value(raw.get("Totalt antall Solinger")),
                     "solinger_medlemmer": int_value(raw.get("Solinger Medlemmer")),
