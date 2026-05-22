@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, status as http_status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 load_dotenv()
@@ -516,9 +516,18 @@ async def login_route(email: str = Query(default=ROBOROCK_EMAIL), code: str = Qu
 
 @app.get("/sync-now")
 async def sync_now(maps: bool = False):
-    async with sync_lock:
-        batch = await collect_once(include_maps=maps)
-    return JSONResponse({"status": "ok", "robots": len(batch.get("robots", []))})
+    try:
+        async with sync_lock:
+            batch = await collect_once(include_maps=maps)
+        return JSONResponse({"status": "ok", "robots": len(batch.get("robots", []))})
+    except Exception as exc:
+        state = load_state()
+        state["last_error"] = f"manual sync: {exc}"
+        save_state(state)
+        return JSONResponse(
+            {"status": "error", "error": str(exc)},
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @app.get("/api/status")
