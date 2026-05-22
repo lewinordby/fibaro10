@@ -27,6 +27,13 @@ def env_value(name: str, default: str | None = None) -> str | None:
     return os.getenv(name) or os.getenv(name.lower()) or default
 
 
+def timezone_name() -> str:
+    value = env_value("TZ", "Europe/Oslo") or "Europe/Oslo"
+    if value.lower() == "europe/oslo":
+        return "Europe/Oslo"
+    return value
+
+
 FILENAME_PREFIX = "Statistics_room"
 EXPORT_URL = env_value("EXPORT_URL", "https://sun2owner.repayal.com/php/export/statistics_beds.php")
 OUT_DIR = Path(env_value("OUT_DIR", "/data/backfill_raw") or "/data/backfill_raw")
@@ -59,7 +66,7 @@ state: dict[str, Any] = {
 def local_today() -> date:
     if ZoneInfo is None:
         return datetime.now().date()
-    return datetime.now(ZoneInfo(env_value("TZ", "Europe/Oslo") or "Europe/Oslo")).date()
+    return datetime.now(ZoneInfo(timezone_name())).date()
 
 
 def env_required(name: str) -> str:
@@ -164,29 +171,29 @@ def start_date_from_progress(config_start: date) -> date:
 
 def run_backfill_sync() -> None:
     global stop_requested
-    username = env_required("SUN2_USERNAME")
-    password = env_required("SUN2_PASSWORD")
-    configured_start = parse_date(os.getenv("START_DATE"), date(2017, 3, 1))
-    end = parse_date(os.getenv("END_DATE"), local_today() - timedelta(days=1))
-    start = start_date_from_progress(configured_start)
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    ERROR_DIR.mkdir(parents=True, exist_ok=True)
-    state.update(
-        {
-            "running": True,
-            "stop_requested": False,
-            "last_error": None,
-            "range": {"start": start.isoformat(), "end": end.isoformat(), "configured_start": configured_start.isoformat()},
-        }
-    )
-    save_progress({})
-
-    if start > end:
-        state.update({"running": False, "last_error": None})
-        save_progress({"message": "Ferdig, ingen datoer igjen"})
-        return
-
     try:
+        username = env_required("SUN2_USERNAME")
+        password = env_required("SUN2_PASSWORD")
+        configured_start = parse_date(env_value("START_DATE"), date(2017, 3, 1))
+        end = parse_date(env_value("END_DATE"), local_today() - timedelta(days=1))
+        start = start_date_from_progress(configured_start)
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        ERROR_DIR.mkdir(parents=True, exist_ok=True)
+        state.update(
+            {
+                "running": True,
+                "stop_requested": False,
+                "last_error": None,
+                "range": {"start": start.isoformat(), "end": end.isoformat(), "configured_start": configured_start.isoformat()},
+            }
+        )
+        save_progress({})
+
+        if start > end:
+            state.update({"running": False, "last_error": None})
+            save_progress({"message": "Ferdig, ingen datoer igjen"})
+            return
+
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             context = browser.new_context(locale="nb-NO", accept_downloads=True)
