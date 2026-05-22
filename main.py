@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, Column, DateTime, Float, Integer, JSON, String, Text, delete, select, update
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, delete, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -664,6 +664,43 @@ class RoborockSyncRun(Base):
     raw = Column(JSON, nullable=True)
 
 
+class Sun2RoomDailyStat(Base):
+    __tablename__ = "sun2_room_daily_stats"
+    __table_args__ = (UniqueConstraint("stat_date", "room", name="uq_sun2_room_daily_stats_date_room"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    stat_date = Column(Date, index=True, nullable=False)
+    room = Column(String, index=True, nullable=False)
+    total_soletid_minutter = Column(Float, nullable=True)
+    totalt_antall_solinger = Column(Integer, nullable=True)
+    solinger_medlemmer = Column(Integer, nullable=True)
+    solinger_ikke_medlemmer = Column(Integer, nullable=True)
+    totalt_inntjent_kr = Column(Float, nullable=True)
+    inntjent_medlemmer_kr = Column(Float, nullable=True)
+    inntjent_ikke_medlemmer_kr = Column(Float, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    source_file = Column(String, index=True, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, index=True)
+    raw = Column(JSON, nullable=True)
+
+
+class Sun2ImportRun(Base):
+    __tablename__ = "sun2_import_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    collector_id = Column(String, index=True, nullable=True)
+    source = Column(String, nullable=True)
+    ok = Column(Boolean, nullable=True)
+    stat_date = Column(Date, index=True, nullable=True)
+    source_file = Column(String, index=True, nullable=True)
+    rows_count = Column(Integer, nullable=True)
+    inserted_count = Column(Integer, nullable=True)
+    updated_count = Column(Integer, nullable=True)
+    message = Column(Text, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
 class AccessKey(Base):
     __tablename__ = "access_keys"
 
@@ -796,6 +833,31 @@ class RoborockIngestIn(BaseModel):
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
+class Sun2RoomStatIn(BaseModel):
+    stat_date: date
+    room: str
+    total_soletid_minutter: Optional[float] = None
+    totalt_antall_solinger: Optional[int] = None
+    solinger_medlemmer: Optional[int] = None
+    solinger_ikke_medlemmer: Optional[int] = None
+    totalt_inntjent_kr: Optional[float] = None
+    inntjent_medlemmer_kr: Optional[float] = None
+    inntjent_ikke_medlemmer_kr: Optional[float] = None
+    raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Sun2RoomStatsIngestIn(BaseModel):
+    source: str = "sun2_importer"
+    collector_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    ok: bool = True
+    stat_date: Optional[date] = None
+    source_file: Optional[str] = None
+    message: Optional[str] = None
+    rows: list[Sun2RoomStatIn] = Field(default_factory=list)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
 LIGHT_COLUMNS = [
     "id", "timestamp", "event_type", "action", "device_key", "device_id", "device_name",
     "mode", "reason", "source", "lux", "value", "state", "extra",
@@ -867,6 +929,18 @@ ROBOROCK_SCHEDULE_COLUMNS = [
 ROBOROCK_MAP_COLUMNS = [
     "id", "robot_duid", "timestamp", "image_bytes", "raw_bytes", "image_width",
     "image_height", "rooms", "zones", "charger", "vacuum_position", "raw",
+]
+
+SUN2_ROOM_COLUMNS = [
+    "id", "stat_date", "room", "total_soletid_minutter", "totalt_antall_solinger",
+    "solinger_medlemmer", "solinger_ikke_medlemmer", "totalt_inntjent_kr",
+    "inntjent_medlemmer_kr", "inntjent_ikke_medlemmer_kr", "source",
+    "source_file", "imported_at", "raw",
+]
+
+SUN2_IMPORT_COLUMNS = [
+    "id", "timestamp", "collector_id", "source", "ok", "stat_date", "source_file",
+    "rows_count", "inserted_count", "updated_count", "message", "raw",
 ]
 
 LIGHT_TIMELINE_DEVICES = [
@@ -3094,6 +3168,44 @@ async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time:
     return {"ok": True, "duid": duid}
 
 
+async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_time: datetime) -> Dict[str, int]:
+    inserted = 0
+    updated = 0
+    batch_date = data.stat_date
+    for row in data.rows:
+        room = (row.room or "").strip()
+        if not room:
+            continue
+        stat_date = row.stat_date or batch_date
+        existing = (
+            await session.execute(
+                select(Sun2RoomDailyStat)
+                .where(Sun2RoomDailyStat.stat_date == stat_date)
+                .where(Sun2RoomDailyStat.room == room)
+            )
+        ).scalars().first()
+        if not existing:
+            existing = Sun2RoomDailyStat(stat_date=stat_date, room=room)
+            session.add(existing)
+            inserted += 1
+        else:
+            updated += 1
+
+        existing.total_soletid_minutter = row.total_soletid_minutter
+        existing.totalt_antall_solinger = row.totalt_antall_solinger
+        existing.solinger_medlemmer = row.solinger_medlemmer
+        existing.solinger_ikke_medlemmer = row.solinger_ikke_medlemmer
+        existing.totalt_inntjent_kr = row.totalt_inntjent_kr
+        existing.inntjent_medlemmer_kr = row.inntjent_medlemmer_kr
+        existing.inntjent_ikke_medlemmer_kr = row.inntjent_ikke_medlemmer_kr
+        existing.source = data.source
+        existing.source_file = data.source_file
+        existing.imported_at = batch_time
+        existing.raw = row.raw or {}
+
+    return {"inserted": inserted, "updated": updated}
+
+
 async def fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit):
     from_ts = parse_datetime(from_text)
     to_ts = parse_datetime(to_text)
@@ -3181,6 +3293,7 @@ async def health():
             "yr_forecast_samples", "control_configs", "control_config_history", "event_data",
             "roborock_robots", "roborock_status_samples", "roborock_clean_jobs",
             "roborock_schedules", "roborock_consumables", "roborock_maps",
+            "sun2_room_daily_stats", "sun2_import_runs",
         ],
     }
 
@@ -3787,6 +3900,79 @@ async def roborock_ingest(data: RoborockIngestIn):
             results.append(await ingest_roborock_robot(session, robot, batch_time, data.source))
         await session.commit()
     return {"status": "ok", "robots": results}
+
+
+@app.post("/api/sun2/room-stats/ingest")
+async def sun2_room_stats_ingest(data: Sun2RoomStatsIngestIn):
+    batch_time = data.timestamp or datetime.utcnow()
+    async with async_session() as session:
+        counts = await ingest_sun2_room_stats(session, data, batch_time)
+        session.add(
+            Sun2ImportRun(
+                timestamp=batch_time,
+                collector_id=data.collector_id,
+                source=data.source,
+                ok=data.ok,
+                stat_date=data.stat_date,
+                source_file=data.source_file,
+                rows_count=len(data.rows),
+                inserted_count=counts["inserted"],
+                updated_count=counts["updated"],
+                message=data.message,
+                raw={"extra": data.extra},
+            )
+        )
+        await session.commit()
+    return {"status": "ok", **counts, "rows": len(data.rows)}
+
+
+@app.get("/energi/soling", response_class=HTMLResponse)
+async def sun2_room_stats_view(request: Request, limit: int = 300):
+    limit = max(1, min(limit, 1000))
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(Sun2RoomDailyStat)
+                .order_by(Sun2RoomDailyStat.stat_date.desc(), Sun2RoomDailyStat.room)
+                .limit(limit)
+            )
+        ).scalars().all()
+        imports = (
+            await session.execute(
+                select(Sun2ImportRun)
+                .order_by(Sun2ImportRun.timestamp.desc())
+                .limit(25)
+            )
+        ).scalars().all()
+    return templates.TemplateResponse(
+        request,
+        "sun2_room_stats.html",
+        {"rows": rows, "imports": imports, "limit": limit},
+    )
+
+
+@app.get("/api/sun2/room-stats/json")
+async def sun2_room_stats_json(limit: int = 300):
+    limit = max(1, min(limit, 5000))
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(Sun2RoomDailyStat)
+                .order_by(Sun2RoomDailyStat.stat_date.desc(), Sun2RoomDailyStat.room)
+                .limit(limit)
+            )
+        ).scalars().all()
+        imports = (
+            await session.execute(
+                select(Sun2ImportRun)
+                .order_by(Sun2ImportRun.timestamp.desc())
+                .limit(min(limit, 500))
+            )
+        ).scalars().all()
+    return {
+        "rows": [row_to_dict(row, SUN2_ROOM_COLUMNS) for row in rows],
+        "imports": [row_to_dict(row, SUN2_IMPORT_COLUMNS) for row in imports],
+    }
 
 
 @app.get("/renhold/oversikt", response_class=HTMLResponse)

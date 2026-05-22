@@ -44,7 +44,8 @@
     </div>
     {% elif is_energy %}
     <div class="nav-row nav-sub" aria-label="Undermeny for energi">
-        <a class="button active" href="/energi/testside">Testside</a>
+        <a class="button {% if current_path == '/energi/testside' %}active{% endif %}" href="/energi/testside">Testside</a>
+        <a class="button {% if current_path == '/energi/soling' %}active{% endif %}" href="/energi/soling">Soling</a>
     </div>
     {% elif is_account %}
     <div class="nav-row nav-sub" aria-label="Undermeny for konto">

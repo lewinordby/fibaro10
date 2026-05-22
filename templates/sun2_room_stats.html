@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soling</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <style>
+        .page-title { margin:0 0 0.85rem; font-size:1.22rem; font-weight:760; color:var(--brand-dark); }
+        .summary-grid { display:grid; gap:0.7rem; margin-bottom:0.9rem; }
+        .summary-card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:0.85rem; box-shadow:var(--shadow-1); }
+        .summary-card span { color:var(--muted); font-size:0.78rem; }
+        .summary-card strong { display:block; margin-top:0.2rem; font-size:1.1rem; }
+        .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:860px; }
+        th, td { padding:0.58rem 0.65rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
+        th { color:var(--muted); font-size:0.78rem; font-weight:760; background:var(--panel-soft); }
+        td { font-size:0.9rem; }
+        .section-title { margin:1rem 0 0.5rem; font-size:1rem; color:var(--brand-dark); }
+        .ok { color:var(--on); font-weight:760; }
+        .bad { color:var(--off); font-weight:760; }
+        @media (min-width: 820px) { .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    </style>
+</head>
+<body class="theme-energy">
+    {% include "_header.html" %}
+    <main>
+        <h1 class="page-title">Soling per rom</h1>
+        {% set latest = rows[0] if rows else None %}
+        {% set latest_import = imports[0] if imports else None %}
+        <section class="summary-grid">
+            <div class="summary-card"><span>Siste dato</span><strong>{{ latest.stat_date if latest else "-" }}</strong></div>
+            <div class="summary-card"><span>Rader vist</span><strong>{{ rows|length }}</strong></div>
+            <div class="summary-card"><span>Siste import</span><strong>{{ latest_import.timestamp|localtime_short if latest_import else "-" }}</strong></div>
+            <div class="summary-card"><span>Siste fil</span><strong>{{ latest_import.source_file if latest_import else "-" }}</strong></div>
+        </section>
+
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dato</th>
+                        <th>Rom</th>
+                        <th>Minutter</th>
+                        <th>Solinger</th>
+                        <th>Medlemmer</th>
+                        <th>Ikke medlemmer</th>
+                        <th>Inntjent</th>
+                        <th>Medlemmer kr</th>
+                        <th>Ikke medlemmer kr</th>
+                        <th>Importert</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ row.stat_date }}</td>
+                        <td>{{ row.room }}</td>
+                        <td>{{ "%.0f"|format(row.total_soletid_minutter or 0) }}</td>
+                        <td>{{ row.totalt_antall_solinger or 0 }}</td>
+                        <td>{{ row.solinger_medlemmer or 0 }}</td>
+                        <td>{{ row.solinger_ikke_medlemmer or 0 }}</td>
+                        <td>{{ "%.2f"|format(row.totalt_inntjent_kr or 0) }}</td>
+                        <td>{{ "%.2f"|format(row.inntjent_medlemmer_kr or 0) }}</td>
+                        <td>{{ "%.2f"|format(row.inntjent_ikke_medlemmer_kr or 0) }}</td>
+                        <td>{{ row.imported_at|localtime_short }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <h2 class="section-title">Importer</h2>
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tid</th>
+                        <th>Fil</th>
+                        <th>Dato</th>
+                        <th>Status</th>
+                        <th>Rader</th>
+                        <th>Nye</th>
+                        <th>Oppdatert</th>
+                        <th>Melding</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in imports %}
+                    <tr>
+                        <td>{{ run.timestamp|localtime }}</td>
+                        <td>{{ run.source_file or "-" }}</td>
+                        <td>{{ run.stat_date or "-" }}</td>
+                        <td class="{% if run.ok %}ok{% else %}bad{% endif %}">{% if run.ok %}OK{% else %}Feil{% endif %}</td>
+                        <td>{{ run.rows_count or 0 }}</td>
+                        <td>{{ run.inserted_count or 0 }}</td>
+                        <td>{{ run.updated_count or 0 }}</td>
+                        <td>{{ run.message or "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>

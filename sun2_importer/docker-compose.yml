@@ -1,0 +1,11 @@
+services:
+  sun2_importer:
+    build: .
+    container_name: sun2_importer
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8096:8096"
+    volumes:
+      - ./data:/data
