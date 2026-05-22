@@ -1,63 +1,82 @@
 # Roborock-integrasjon
 
-Dette er foreløpig et testspor for å hente Roborock-enheter og status med `python-roborock`.
+Dette er et testspor for å hente Roborock-enheter og status med `python-roborock`.
 
 ## Status
 
-Direkte innlogging mot Roborock er testet med:
+Login fungerer nå med egen delt Roborock-bruker:
 
-- e-postkode via ny API-flyt
-- e-postkode via gammel API-flyt
-- passord-login
-- passord-login med eksplisitt totrinnsflagg
-
-Roborock svarer med `need two step validate` på passordflyten, men returnerer ikke en token eller en session-id som scriptet kan fullføre videre med. E-postkodene blir avvist av Roborock sine API-endepunkter, selv når riktig region og avtaleversjon brukes.
-
-## Script
-
-Scriptet ligger her:
-
-```powershell
-scripts\roborock_probe.py
+```text
+roborock.sun2@gmail.com
 ```
 
-Nyttige kommandoer:
+Viktig funn: Roborock binder e-postkoden til `header_clientid`. Scriptet lagrer derfor en stabil klient-ID lokalt per e-postadresse i:
 
-```powershell
-python scripts\roborock_probe.py account-info --email lewi.nordby@gmail.com
-python scripts\roborock_probe.py request-code --email lewi.nordby@gmail.com
-python scripts\roborock_probe.py login --email lewi.nordby@gmail.com --code KODE
-python scripts\roborock_probe.py request-code-legacy --email lewi.nordby@gmail.com
-python scripts\roborock_probe.py legacy-login --email lewi.nordby@gmail.com --code KODE
-python scripts\roborock_probe.py password-probe --email lewi.nordby@gmail.com
+```text
+C:\Users\mrnor\.fibaro10\roborock_client_ids.json
 ```
 
-Når login er lagret:
+Selve Roborock-token lagres lokalt i:
+
+```text
+C:\Users\mrnor\.fibaro10\roborock_user_data.pickle
+```
+
+Disse filene skal ikke legges i Git.
+
+## Kommandoer
+
+Send kode:
+
+```powershell
+python scripts\roborock_probe.py request-code --email roborock.sun2@gmail.com
+```
+
+Logg inn med koden:
+
+```powershell
+python scripts\roborock_probe.py login --email roborock.sun2@gmail.com --code KODE
+```
+
+Vis lagret login uten hemmelige verdier:
 
 ```powershell
 python scripts\roborock_probe.py cache-info
-python scripts\roborock_probe.py devices --email lewi.nordby@gmail.com
-python scripts\roborock_probe.py status --email lewi.nordby@gmail.com
 ```
 
-## Import fra Home Assistant eller annen tokenkilde
-
-Hvis Roborock allerede er satt opp i Home Assistant, kan `user_data` normalt ligge i:
-
-```text
-/config/.storage/core.config_entries
-```
-
-Importer slik:
+Hent rask enhetsoversikt via REST:
 
 ```powershell
-python scripts\roborock_probe.py import-user-data --file C:\sti\til\core.config_entries
+python scripts\roborock_probe.py devices --email roborock.sun2@gmail.com
 ```
 
-Scriptet støtter også en ren JSON-fil som enten er selve `user_data`-objektet, eller et objekt med feltet `user_data`.
+Hent rå home-data via REST:
 
-## Anbefalt vei videre
+```powershell
+python scripts\roborock_probe.py home --email roborock.sun2@gmail.com
+```
 
-Lag helst en egen Roborock-bruker for integrasjoner og del roboten til denne brukeren fra Roborock-appen. Da slipper vi å bruke hovedkontoen, og vi kan rotere eller fjerne tilgangen senere uten å berøre privat konto.
+Full device manager/MQTT finnes også, men kan bruke lang tid eller henge hvis MQTT-oppkoblingen ikke blir klar:
 
-Når vi får tak i en fungerende `user_data`, kan vi hente enhetsliste, status, forbruksdeler og eventuelt bygge en egen side i Fibaro10-grensesnittet.
+```powershell
+python scripts\roborock_probe.py devices-live --email roborock.sun2@gmail.com
+```
+
+## Første funn
+
+Den delte roboten vises i Roborock API-et som:
+
+- Navn: `1.etg A`
+- Produkt: `Roborock Qrevo`
+- Modell: `roborock.vacuum.a75`
+- Firmware: `02.20.60`
+- Delt enhet: ja
+- Online: ja
+- Statuskode `8`: `charging`
+- Feilkode `0`: ingen feil
+
+## Praktisk vurdering
+
+For Fibaro10 er det tryggest å starte med REST-basert status fra `home`/`devices`, siden dette allerede fungerer stabilt. Der får vi blant annet online-status, batteri, firmware, modell og rå statusfelter.
+
+Neste steg kan være å lage en egen Roborock-side i grensesnittet, eller å logge status periodisk på samme måte som lys og ventilasjon.
