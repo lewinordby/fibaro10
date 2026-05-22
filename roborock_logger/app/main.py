@@ -420,7 +420,9 @@ async def collect_once(include_maps: bool = False, force_home_refresh: bool = Fa
         host = None
         if device.get("local_key"):
             try:
-                host, network, probes = await find_local_host(device, candidates)
+                preferred_host = previous_robot.get("local_ip")
+                device_candidates = list(dict.fromkeys(([preferred_host] if preferred_host else []) + candidates))
+                host, network, probes = await find_local_host(device, device_candidates)
                 robot.setdefault("probe_results", []).extend(probes)
                 if host:
                     robot["local_ip"] = host
