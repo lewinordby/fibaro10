@@ -62,6 +62,18 @@ List planlagte jobber:
 python scripts\roborock_probe.py schedules --email roborock.sun2@gmail.com
 ```
 
+List siste utførte jobber/rengjøringer:
+
+```powershell
+python scripts\roborock_probe.py clean-history --email roborock.sun2@gmail.com --limit 5
+```
+
+Denne bruker lokal LAN-tilkobling mot roboten. Standard IP er foreløpig `192.168.2.91`. Hvis roboten får ny IP kan den overstyres slik:
+
+```powershell
+python scripts\roborock_probe.py clean-history --email roborock.sun2@gmail.com --host 192.168.x.x --limit 5
+```
+
 Full device manager/MQTT finnes også, men kan bruke lang tid eller henge hvis MQTT-oppkoblingen ikke blir klar:
 
 ```powershell
@@ -86,10 +98,18 @@ Det finnes to aktive planlagte jobber:
 - Jobb `4118662`: cron `0 3 * * ?`, aktiv, gjentas, segmenter `21,23,18,20,16`, repeat `2`, fan power `105`, mop mode `303`.
 - Jobb `4072519`: cron `0 2 * * ?`, aktiv, gjentas, segmenter `21,16,18,20,23`, repeat `1`, fan power `104`, mop mode `300`.
 
+Siste utførte jobber kan hentes via lokal kanal. Eksempel på siste fem ved test:
+
+- 2026-05-22 02:00-02:39, 39,9 min, 37,78 m², fullført, feil `0`.
+- 2026-05-21 21:02-21:10, 5,2 min, 4,78 m², fullført, feil `0`.
+- 2026-05-21 03:00-08:45, 147,1 min, 40,21 m², fullført, feil `0`.
+- 2026-05-21 02:00-02:37, 37,8 min, 38,59 m², fullført, feil `0`.
+- 2026-05-20 03:00-08:42, 151,1 min, 39,88 m², fullført, feil `0`.
+
 ## Praktisk vurdering
 
 For Fibaro10 er det tryggest å starte med REST-basert status fra `home`/`devices`, siden dette allerede fungerer stabilt. Der får vi blant annet online-status, batteri, firmware, modell og rå statusfelter.
 
-Planlagte jobber kan også hentes stabilt via REST. Siste utførte rengjøringer ser ut til å kreve MQTT/RPC (`get_clean_summary` og `get_clean_record`), og den oppkoblingen timeout-er foreløpig fra dette Windows-miljøet.
+Planlagte jobber kan hentes stabilt via REST. Siste utførte rengjøringer hentes stabilt via lokal LAN-tilkobling mot robotens port `58867`, med `local_key` fra Roborock cloud-data. Cloud-MQTT/RPC timeout-er foreløpig fra dette Windows-miljøet.
 
 Neste steg kan være å lage en egen Roborock-side i grensesnittet, eller å logge status og planlagte jobber periodisk på samme måte som lys og ventilasjon.

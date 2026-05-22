@@ -1,7 +1,9 @@
 import argparse
 import asyncio
+import datetime as dt
 import getpass
 import json
+import logging
 import os
 import pickle
 import secrets
@@ -15,6 +17,7 @@ CACHE_DIR = Path.home() / ".fibaro10"
 CACHE_FILE = CACHE_DIR / "roborock_user_data.pickle"
 CLIENT_IDS_FILE = CACHE_DIR / "roborock_client_ids.json"
 SECRET_KEYS = {"token", "u", "s", "h", "k", "r", "rruid", "uid", "local_key"}
+DEFAULT_ROBOROCK_HOST = "192.168.2.91"
 
 
 def jsonable(value: Any) -> Any:
@@ -98,6 +101,24 @@ def create_web_api(email: str) -> Any:
 def enum_name(enum_class: Any, value: Any) -> str | None:
     if value is None:
         return None
+
+
+def local_datetime(timestamp: int | None) -> str | None:
+    if timestamp is None:
+        return None
+    return dt.datetime.fromtimestamp(timestamp).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def seconds_to_minutes(seconds: int | None) -> float | None:
+    if seconds is None:
+        return None
+    return round(seconds / 60, 1)
+
+
+def area_to_square_meters(area: int | None) -> float | None:
+    if area is None:
+        return None
+    return round(area / 1_000_000, 2)
     try:
         return enum_class(value).name
     except ValueError:
@@ -379,12 +400,29 @@ async def get_device_manager(email: str):
     return await create_device_manager(user_params)
 
 
-async def show_home(email: str) -> None:
+async def get_home_data_json(email: str) -> dict[str, Any]:
     from roborock.web_api import RoborockApiClient
 
     user_data = load_user_data()
     web_api = RoborockApiClient(username=email)
-    home_data = await web_api.get_home_data_v3(user_data)
+    return jsonable(await web_api.get_home_data_v3(user_data))
+
+
+async def get_rest_device(email: str, device_id: str | None) -> dict[str, Any]:
+    home_data = await get_home_data_json(email)
+    devices = home_data.get("devices", []) + home_data.get("received_devices", [])
+    if device_id is None:
+        if len(devices) != 1:
+            raise SystemExit("Angi --device-id når kontoen har null eller flere enheter.")
+        return devices[0]
+    for device in devices:
+        if device.get("duid") == device_id:
+            return device
+    raise SystemExit(f"Fant ikke Roborock-enhet med DUID {device_id}.")
+
+
+async def show_home(email: str) -> None:
+    home_data = await get_home_data_json(email)
     print_json(redacted(jsonable(home_data)))
 
 
@@ -395,12 +433,8 @@ async def list_devices(email: str) -> None:
 
 async def get_rest_devices(email: str) -> list[dict[str, Any]]:
     from roborock.data.v1.v1_code_mappings import RoborockStateCode
-    from roborock.web_api import RoborockApiClient
 
-    user_data = load_user_data()
-    web_api = RoborockApiClient(username=email)
-    home_data = await web_api.get_home_data_v3(user_data)
-    data = jsonable(home_data)
+    data = await get_home_data_json(email)
     products = {product.get("id"): product for product in data.get("products", [])}
     devices = []
     for section in ("devices", "received_devices"):
@@ -460,6 +494,79 @@ async def list_schedules(email: str, device_id: str | None) -> None:
     web_api = RoborockApiClient(username=email)
     schedules = await web_api.get_schedules(user_data, device_id)
     print_json(schedules)
+
+
+async def get_local_rpc(email: str, device_id: str | None, host: str):
+    from roborock.devices.rpc.v1_channel import RpcChannel, RpcStrategy, decode_rpc_response
+    from roborock.devices.transport.local_channel import LocalChannel
+    from roborock.roborock_message import RoborockMessageProtocol
+    from roborock.util import RoborockLoggerAdapter
+
+    device = await get_rest_device(email, device_id)
+    duid = device["duid"]
+    channel = LocalChannel(host, device["local_key"], duid)
+    await channel.connect()
+    logger = RoborockLoggerAdapter(duid=duid, logger=logging.getLogger("roborock-local"))
+    strategy = RpcStrategy(
+        name="local",
+        channel=channel,
+        encoder=lambda request: request.encode_message(
+            RoborockMessageProtocol.GENERAL_REQUEST,
+            version=channel.protocol_version,
+        ),
+        decoder=decode_rpc_response,
+    )
+    return RpcChannel(lambda: [strategy], logger), channel
+
+
+async def list_clean_history(email: str, device_id: str | None, host: str, limit: int) -> None:
+    from roborock.roborock_typing import RoborockCommand
+
+    rpc, channel = await get_local_rpc(email, device_id, host)
+    try:
+        summary = await rpc.send_command(RoborockCommand.GET_CLEAN_SUMMARY)
+        records = summary.get("records", []) if isinstance(summary, dict) else summary[3]
+        result = {
+            "host": host,
+            "summary": {
+                "total_minutes": seconds_to_minutes(summary.get("clean_time")) if isinstance(summary, dict) else None,
+                "total_area_m2": area_to_square_meters(summary.get("clean_area")) if isinstance(summary, dict) else None,
+                "total_count": summary.get("clean_count") if isinstance(summary, dict) else None,
+                "dust_collection_count": summary.get("dust_collection_count") if isinstance(summary, dict) else None,
+            },
+            "records": [],
+        }
+        for record_id in records[:limit]:
+            raw_record = await rpc.send_command(RoborockCommand.GET_CLEAN_RECORD, params=[record_id])
+            raw_items = raw_record if isinstance(raw_record, list) else [raw_record]
+            for item in raw_items:
+                if not isinstance(item, dict):
+                    continue
+                result["records"].append(
+                    {
+                        "id": record_id,
+                        "begin": item.get("begin"),
+                        "begin_local": local_datetime(item.get("begin")),
+                        "end": item.get("end"),
+                        "end_local": local_datetime(item.get("end")),
+                        "duration_seconds": item.get("duration"),
+                        "duration_minutes": seconds_to_minutes(item.get("duration")),
+                        "area_m2": area_to_square_meters(item.get("area")),
+                        "cleaned_area_m2": area_to_square_meters(item.get("cleaned_area")),
+                        "complete": item.get("complete"),
+                        "error": item.get("error"),
+                        "start_type": item.get("start_type"),
+                        "clean_type": item.get("clean_type"),
+                        "finish_reason": item.get("finish_reason"),
+                        "dust_collection_status": item.get("dust_collection_status"),
+                        "avoid_count": item.get("avoid_count"),
+                        "wash_count": item.get("wash_count"),
+                        "clean_times": item.get("clean_times"),
+                    }
+                )
+        print_json(result)
+    finally:
+        channel.close()
 
 
 async def show_status(email: str) -> None:
@@ -547,6 +654,15 @@ async def main() -> None:
     schedules_parser.add_argument("--email", required=True)
     schedules_parser.add_argument("--device-id", help="DUID. Kan utelates hvis kontoen bare har én enhet.")
 
+    clean_history_parser = subparsers.add_parser(
+        "clean-history",
+        help="List siste utførte Roborock-rengjøringer via lokal LAN-tilkobling.",
+    )
+    clean_history_parser.add_argument("--email", required=True)
+    clean_history_parser.add_argument("--device-id", help="DUID. Kan utelates hvis kontoen bare har én enhet.")
+    clean_history_parser.add_argument("--host", default=DEFAULT_ROBOROCK_HOST, help="Robotens lokale IP-adresse.")
+    clean_history_parser.add_argument("--limit", type=int, default=5, help="Antall siste jobber som skal hentes.")
+
     status_parser = subparsers.add_parser("status", help="Hent status og forbruksdeler for støvsugere.")
     status_parser.add_argument("--email", required=True)
 
@@ -585,6 +701,8 @@ async def main() -> None:
         await list_devices_live(args.email)
     elif args.command == "schedules":
         await list_schedules(args.email, args.device_id)
+    elif args.command == "clean-history":
+        await list_clean_history(args.email, args.device_id, args.host, args.limit)
     elif args.command == "status":
         await show_status(args.email)
 
