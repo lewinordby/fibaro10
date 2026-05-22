@@ -76,6 +76,16 @@ def int_value(value: Any) -> int | None:
     return int(number)
 
 
+def clean_text(value: Any) -> str:
+    text = str(value or "").strip().strip('"')
+    if "Ã" in text or "Â" in text:
+        try:
+            return text.encode("latin1").decode("utf-8")
+        except UnicodeError:
+            return text
+    return text
+
+
 def move_to(src: Path, dest_dir: Path, prefix: str) -> Path:
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / f"{prefix}{src.name}"
@@ -101,9 +111,10 @@ def parse_file(file_path: Path) -> tuple[date, list[dict[str, Any]]]:
             raise ValueError(f"Uventede kolonner: {reader.fieldnames}")
         rows = []
         for raw in reader:
-            room = (raw.get("Rom") or "").strip().strip('"')
+            room = clean_text(raw.get("Rom"))
             if not room or room == "Totalt":
                 continue
+            clean_raw = {key: clean_text(value) for key, value in raw.items()}
             rows.append(
                 {
                     "stat_date": stat_date.isoformat(),
@@ -115,7 +126,7 @@ def parse_file(file_path: Path) -> tuple[date, list[dict[str, Any]]]:
                     "totalt_inntjent_kr": decimal_value(raw.get("Totalt Inntjent (KR)")),
                     "inntjent_medlemmer_kr": decimal_value(raw.get("Inntjent Medlemmer (KR)")),
                     "inntjent_ikke_medlemmer_kr": decimal_value(raw.get("Inntjent Ikke Medlemmer (KR)")),
-                    "raw": raw,
+                    "raw": clean_raw,
                 }
             )
     return stat_date, rows

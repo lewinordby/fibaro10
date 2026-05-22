@@ -1227,6 +1227,15 @@ def json_value(value):
     return value
 
 
+def repair_mojibake(value: Any) -> Any:
+    if not isinstance(value, str) or ("Ã" not in value and "Â" not in value):
+        return value
+    try:
+        return value.encode("latin1").decode("utf-8")
+    except UnicodeError:
+        return value
+
+
 def bool_value(value: Any) -> Optional[bool]:
     if value is None:
         return None
@@ -3173,7 +3182,7 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
     updated = 0
     batch_date = data.stat_date
     for row in data.rows:
-        room = (row.room or "").strip()
+        room = (repair_mojibake(row.room) or "").strip()
         if not room:
             continue
         stat_date = row.stat_date or batch_date
@@ -3185,12 +3194,20 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
             )
         ).scalars().first()
         if not existing:
+            same_day = (
+                await session.execute(
+                    select(Sun2RoomDailyStat).where(Sun2RoomDailyStat.stat_date == stat_date)
+                )
+            ).scalars().all()
+            existing = next((candidate for candidate in same_day if repair_mojibake(candidate.room) == room), None)
+        if not existing:
             existing = Sun2RoomDailyStat(stat_date=stat_date, room=room)
             session.add(existing)
             inserted += 1
         else:
             updated += 1
 
+        existing.room = room
         existing.total_soletid_minutter = row.total_soletid_minutter
         existing.totalt_antall_solinger = row.totalt_antall_solinger
         existing.solinger_medlemmer = row.solinger_medlemmer
