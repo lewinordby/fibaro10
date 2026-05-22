@@ -9,33 +9,108 @@
         .panel-grid { display:grid; gap:0.85rem; }
         .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
         .metric-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.55rem; }
-        .metric { background:var(--panel-soft); border:1px solid var(--line-soft); border-radius:8px; padding:0.65rem; }
+        .metric { background:var(--panel-soft); border:1px solid var(--line-soft); border-radius:8px; padding:0.65rem; min-height:4.2rem; }
         .metric span { display:block; color:var(--muted); font-size:0.78rem; }
-        .metric strong { font-size:1.08rem; }
+        .metric strong { display:block; margin-top:0.14rem; font-size:1.05rem; line-height:1.2; }
+        .section-title { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:0.75rem; }
+        .section-title h2 { margin:0; }
+        .muted { color:var(--muted); }
+        .table-wrap { margin-top:0.5rem; }
         table { width:100%; border-collapse:collapse; font-size:0.9rem; }
         th, td { padding:0.52rem; border-bottom:1px solid var(--line-soft); text-align:left; vertical-align:top; }
-        th { color:var(--muted); font-size:0.78rem; text-transform:uppercase; }
-        .map-img { width:100%; max-height:620px; object-fit:contain; background:#0f5c8d; border-radius:8px; border:1px solid var(--line); }
-        .muted { color:var(--muted); }
-        @media (min-width:900px) { .panel-grid.two { grid-template-columns:1fr 1fr; } .metric-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+        th { color:var(--muted); font-size:0.78rem; text-transform:none; }
+        .map-img { width:100%; max-height:520px; object-fit:contain; background:#0f5c8d; border-radius:8px; border:1px solid var(--line); }
+        .details-grid { display:grid; grid-template-columns:1fr; gap:0.55rem; }
+        .data-row { display:grid; grid-template-columns:minmax(7.5rem,0.7fr) minmax(0,1.3fr); gap:0.7rem; padding:0.5rem 0; border-bottom:1px solid var(--line-soft); }
+        .data-row span { color:var(--muted); }
+        .raw-details { margin-top:0.8rem; }
+        .raw-details pre { white-space:pre-wrap; overflow:auto; max-height:28rem; background:#0f172a; color:#e2e8f0; border-radius:8px; padding:0.8rem; font-size:0.78rem; }
+        .status-ok { color:var(--on); }
+        .status-bad { color:var(--off); }
+        @media (min-width:900px) {
+            .panel-grid.two { grid-template-columns:1.1fr 0.9fr; }
+            .metric-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+            .details-grid { grid-template-columns:1fr 1fr; column-gap:1.2rem; }
+        }
     </style>
 </head>
 <body class="theme-cleaning">
     {% include "_header.html" %}
+    {% set meta = robot.extra.metadata if robot.extra and robot.extra.metadata else {} %}
+    {% set network = latest_status.raw.network if latest_status and latest_status.raw and latest_status.raw.network else {} %}
+    {% set raw_status = latest_status.raw.status if latest_status and latest_status.raw and latest_status.raw.status else {} %}
     <main>
         <section class="hero">
             <h1>{{ robot.name }}</h1>
-            <p class="sub">{{ robot.product or "-" }} · {{ robot.model or "-" }} · {{ robot.local_ip or "ingen lokal IP" }}</p>
+            <p class="sub">
+                {{ robot.model or meta.model or "Ukjent modell" }}
+                · {{ robot.local_ip or "ingen lokal IP" }}
+                · sist sett {{ robot.last_seen_at|localtime if robot.last_seen_at else "-" }}
+            </p>
         </section>
 
         <section class="panel">
-            <h2>Nåstatus</h2>
-            <div class="metric-grid">
-                <div class="metric"><span>Batteri</span><strong>{% if latest_status and latest_status.battery is not none %}{{ latest_status.battery }}%{% else %}-{% endif %}</strong></div>
-                <div class="metric"><span>Status</span><strong>{{ latest_status.state_name if latest_status and latest_status.state_name else (latest_status.state_code if latest_status else "-") }}</strong></div>
-                <div class="metric"><span>Feil</span><strong>{{ latest_status.error_code if latest_status and latest_status.error_code is not none else "-" }}</strong></div>
-                <div class="metric"><span>RSSI</span><strong>{{ latest_status.rssi if latest_status and latest_status.rssi is not none else "-" }}</strong></div>
+            <div class="section-title">
+                <h2>Nåstatus</h2>
+                <span class="muted">{{ latest_status.timestamp|localtime if latest_status else "-" }}</span>
             </div>
+            <div class="metric-grid">
+                <div class="metric"><span>Status</span><strong>{{ latest_status.state_code|roborock_state if latest_status else "-" }}</strong></div>
+                <div class="metric"><span>Batteri</span><strong>{% if latest_status and latest_status.battery is not none %}{{ latest_status.battery }}%{% else %}-{% endif %}</strong></div>
+                <div class="metric"><span>Feil</span><strong class="{% if latest_status and latest_status.error_code %}status-bad{% else %}status-ok{% endif %}">{{ latest_status.error_code|roborock_error if latest_status else "-" }}</strong></div>
+                <div class="metric"><span>WiFi-signal</span><strong>{{ latest_status.rssi|roborock_signal if latest_status else "-" }}</strong></div>
+                <div class="metric"><span>Rengjøringstid</span><strong>{{ latest_status.clean_time_seconds|hours if latest_status else "-" }}</strong></div>
+                <div class="metric"><span>Areal siste status</span><strong>{% if latest_status and latest_status.clean_area_m2 is not none %}{{ "%.1f"|format(latest_status.clean_area_m2) }} m²{% else %}-{% endif %}</strong></div>
+                <div class="metric"><span>Sugekraft</span><strong>{{ latest_status.fan_power|roborock_fan if latest_status else "-" }}</strong></div>
+                <div class="metric"><span>Ladestatus</span><strong>{{ latest_status.charge_status|roborock_charge if latest_status else "-" }}</strong></div>
+            </div>
+        </section>
+
+        <section class="panel-grid two">
+            <article class="panel">
+                <div class="section-title">
+                    <h2>Robotdata</h2>
+                    <span class="muted">Teknisk identitet</span>
+                </div>
+                <div class="details-grid">
+                    <div>
+                        <div class="data-row"><span>Navn</span><strong>{{ robot.name }}</strong></div>
+                        <div class="data-row"><span>DUID</span><strong>{{ robot.duid }}</strong></div>
+                        <div class="data-row"><span>Serienummer</span><strong>{{ robot.serial_number or meta.sn or "-" }}</strong></div>
+                        <div class="data-row"><span>Produkt-ID</span><strong>{{ meta.product_id or robot.product or "-" }}</strong></div>
+                        <div class="data-row"><span>Modell</span><strong>{{ robot.model or meta.model or "-" }}</strong></div>
+                        <div class="data-row"><span>Firmware</span><strong>{{ robot.firmware or meta.fv or "-" }}</strong></div>
+                    </div>
+                    <div>
+                        <div class="data-row"><span>Protokoll</span><strong>{{ robot.protocol_version or meta.pv or "-" }}</strong></div>
+                        <div class="data-row"><span>Tidssone</span><strong>{{ robot.time_zone_id or meta.time_zone_id or "-" }}</strong></div>
+                        <div class="data-row"><span>Delt robot</span><strong>{{ robot.shared|yesno }}</strong></div>
+                        <div class="data-row"><span>Cloud-status</span><strong>{{ robot.cloud_online|yesno }}</strong></div>
+                        <div class="data-row"><span>Opprettet i Roborock</span><strong>{% if meta.create_time %}{{ meta.create_time|localtime }}{% else %}-{% endif %}</strong></div>
+                        <div class="data-row"><span>Siste feil/melding</span><strong>{{ robot.last_error or "-" }}</strong></div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="panel">
+                <div class="section-title">
+                    <h2>Nettverk</h2>
+                    <span class="muted">Lokal LAN-lesing</span>
+                </div>
+                <div class="details-grid">
+                    <div>
+                        <div class="data-row"><span>Lokal IP</span><strong>{% if robot.local_ip %}{{ robot.local_ip }}{% elif latest_status and latest_status.local_ip %}{{ latest_status.local_ip }}{% else %}-{% endif %}</strong></div>
+                        <div class="data-row"><span>SSID</span><strong>{{ network.ssid or "-" }}</strong></div>
+                        <div class="data-row"><span>WiFi-signal</span><strong>{{ latest_status.rssi|roborock_signal if latest_status else "-" }}</strong></div>
+                    </div>
+                    <div>
+                        <div class="data-row"><span>MAC</span><strong>{{ network.mac or "-" }}</strong></div>
+                        <div class="data-row"><span>Aksesspunkt</span><strong>{{ network.bssid or "-" }}</strong></div>
+                        <div class="data-row"><span>Sist lokal status</span><strong>{{ robot.last_local_at|localtime if robot.last_local_at else "-" }}</strong></div>
+                    </div>
+                </div>
+                <p class="muted">WiFi-signal vises i dBm. Jo nærmere 0, jo sterkere signal. For eksempel er -45 dBm svært bra, mens -75 dBm er svakt.</p>
+            </article>
         </section>
 
         <section class="panel-grid two">
@@ -52,10 +127,11 @@
                 <h2>Forbruksdeler</h2>
                 {% if consumables %}
                 <div class="metric-grid">
-                    <div class="metric"><span>Hovedbørste</span><strong>{{ consumables.main_brush_work_time or 0 }}</strong></div>
-                    <div class="metric"><span>Sidebørste</span><strong>{{ consumables.side_brush_work_time or 0 }}</strong></div>
-                    <div class="metric"><span>Filter</span><strong>{{ consumables.filter_work_time or 0 }}</strong></div>
-                    <div class="metric"><span>Sensor</span><strong>{{ consumables.sensor_dirty_time or 0 }}</strong></div>
+                    <div class="metric"><span>Hovedbørste brukt</span><strong>{{ consumables.main_brush_work_time|hours }}</strong></div>
+                    <div class="metric"><span>Sidebørste brukt</span><strong>{{ consumables.side_brush_work_time|hours }}</strong></div>
+                    <div class="metric"><span>Filter brukt</span><strong>{{ consumables.filter_work_time|hours }}</strong></div>
+                    <div class="metric"><span>Sensor siden rens</span><strong>{{ consumables.sensor_dirty_time|hours }}</strong></div>
+                    <div class="metric"><span>Støvtømming</span><strong>{{ consumables.dust_collection_work_times if consumables.dust_collection_work_times is not none else "-" }}</strong></div>
                 </div>
                 {% else %}
                 <p class="muted">Ingen forbruksdata er mottatt ennå.</p>
@@ -65,39 +141,83 @@
 
         <section class="panel">
             <h2>Planlagte jobber</h2>
-            <table>
-                <thead><tr><th>Tid</th><th>Segmenter</th><th>Repeat</th><th>Fan</th><th>Mopp</th><th>Aktiv</th></tr></thead>
-                <tbody>
-                    {% for row in schedules %}
-                    <tr>
-                        <td>{{ row.cron or "-" }}</td>
-                        <td>{{ row.segments or "-" }}</td>
-                        <td>{{ row.repeat if row.repeat is not none else "-" }}</td>
-                        <td>{{ row.fan_power if row.fan_power is not none else "-" }}</td>
-                        <td>{{ row.mop_mode if row.mop_mode is not none else "-" }}</td>
-                        <td>{% if row.enabled %}Ja{% else %}Nei{% endif %}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Tid</th><th>Områder</th><th>Runder</th><th>Sugekraft</th><th>Mopp</th><th>Vann</th><th>Aktiv</th></tr></thead>
+                    <tbody>
+                        {% for row in schedules %}
+                        <tr>
+                            <td><strong>{{ row|schedule_text }}</strong><br><span class="muted">{{ row.cron or "-" }}</span></td>
+                            <td>{{ row.segments or "-" }}</td>
+                            <td>{{ row.repeat|rounds }}</td>
+                            <td>{{ row.fan_power|roborock_fan }}</td>
+                            <td>{{ row.mop_mode|roborock_mop }}</td>
+                            <td>{{ row.water_box_mode|roborock_water }}</td>
+                            <td>{{ row.enabled|yesno }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <section class="panel">
             <h2>Siste rengjøringer</h2>
-            <table>
-                <thead><tr><th>Start</th><th>Varighet</th><th>Areal</th><th>Fullført</th><th>Feil</th></tr></thead>
-                <tbody>
-                    {% for row in jobs %}
-                    <tr>
-                        <td>{{ row.begin_at|localtime if row.begin_at else "-" }}</td>
-                        <td>{% if row.duration_minutes is not none %}{{ "%.1f"|format(row.duration_minutes) }} min{% else %}-{% endif %}</td>
-                        <td>{% if row.area_m2 is not none %}{{ "%.1f"|format(row.area_m2) }} m²{% else %}-{% endif %}</td>
-                        <td>{% if row.complete %}Ja{% else %}Nei{% endif %}</td>
-                        <td>{{ row.error_code if row.error_code is not none else "-" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Start</th><th>Slutt</th><th>Varighet</th><th>Areal</th><th>Runder</th><th>Fullført</th><th>Feil</th></tr></thead>
+                    <tbody>
+                        {% for row in jobs %}
+                        <tr>
+                            <td>{{ row.begin_at|localtime if row.begin_at else "-" }}</td>
+                            <td>{{ row.end_at|localtime if row.end_at else "-" }}</td>
+                            <td>{% if row.duration_minutes is not none %}{{ "%.1f"|format(row.duration_minutes) }} min{% else %}-{% endif %}</td>
+                            <td>{% if row.cleaned_area_m2 is not none %}{{ "%.1f"|format(row.cleaned_area_m2) }} m²{% elif row.area_m2 is not none %}{{ "%.1f"|format(row.area_m2) }} m²{% else %}-{% endif %}</td>
+                            <td>{{ row.clean_times|rounds }}</td>
+                            <td>{{ row.complete|yesno }}</td>
+                            <td>{{ row.error_code|roborock_error }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Statushistorikk</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Tid</th><th>Status</th><th>Batteri</th><th>Sugekraft</th><th>Mopp</th><th>WiFi-signal</th><th>IP</th></tr></thead>
+                    <tbody>
+                        {% for row in statuses[:20] %}
+                        <tr>
+                            <td>{{ row.timestamp|localtime }}</td>
+                            <td>{{ row.state_code|roborock_state }}</td>
+                            <td>{% if row.battery is not none %}{{ row.battery }}%{% else %}-{% endif %}</td>
+                            <td>{{ row.fan_power|roborock_fan }}</td>
+                            <td>{{ row.mop_mode|roborock_mop }}</td>
+                            <td>{{ row.rssi|roborock_signal }}</td>
+                            <td>{{ row.local_ip or "-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Rådata</h2>
+            <p class="muted">Dette er feltene vi lagrer fra Roborock. Nyttig når vi senere skal bygge bedre regler eller feilsøke en robot.</p>
+            <details class="raw-details">
+                <summary>Robotmetadata</summary>
+                <pre>{{ robot.extra|pretty_json }}</pre>
+            </details>
+            {% if latest_status %}
+            <details class="raw-details">
+                <summary>Siste statuspakke</summary>
+                <pre>{{ latest_status.raw|pretty_json }}</pre>
+            </details>
+            {% endif %}
         </section>
     </main>
 </body>
