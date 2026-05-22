@@ -474,13 +474,11 @@ async def collect_once(include_maps: bool = False, force_home_refresh: bool = Fa
 
 
 async def sync_loop() -> None:
-    first = True
     while True:
         try:
             if AUTO_SYNC_ENABLED and CACHE_FILE.exists():
                 async with sync_lock:
-                    await collect_once(include_maps=first and MAP_SYNC_ON_START)
-                first = False
+                    await collect_once(include_maps=False)
         except Exception as exc:
             state = load_state()
             state["last_error"] = str(exc)
