@@ -22,14 +22,19 @@ except Exception:  # pragma: no cover
 
 load_dotenv()
 
+
+def env_value(name: str, default: str | None = None) -> str | None:
+    return os.getenv(name) or os.getenv(name.lower()) or default
+
+
 FILENAME_PREFIX = "Statistics_room"
-EXPORT_URL = os.getenv("EXPORT_URL", "https://sun2owner.repayal.com/php/export/statistics_beds.php")
-OUT_DIR = Path(os.getenv("OUT_DIR", "/data/backfill_raw"))
-ERROR_DIR = Path(os.getenv("ERROR_DIR", "/data/backfill_errors"))
-STATUS_FILE = Path(os.getenv("STATUS_FILE", "/data/backfill_status.json"))
-PAUSE_SECONDS = float(os.getenv("PAUSE_SECONDS", "2"))
-SKIP_EXISTING = os.getenv("SKIP_EXISTING", "1") == "1"
-AUTO_START = os.getenv("AUTO_START", "0") == "1"
+EXPORT_URL = env_value("EXPORT_URL", "https://sun2owner.repayal.com/php/export/statistics_beds.php")
+OUT_DIR = Path(env_value("OUT_DIR", "/data/backfill_raw") or "/data/backfill_raw")
+ERROR_DIR = Path(env_value("ERROR_DIR", "/data/backfill_errors") or "/data/backfill_errors")
+STATUS_FILE = Path(env_value("STATUS_FILE", "/data/backfill_status.json") or "/data/backfill_status.json")
+PAUSE_SECONDS = float(env_value("PAUSE_SECONDS", "2") or "2")
+SKIP_EXISTING = (env_value("SKIP_EXISTING", "1") or "1") == "1"
+AUTO_START = (env_value("AUTO_START", "0") or "0") == "1"
 
 app = FastAPI(title="Sun2_backfill_downloader")
 task: asyncio.Task | None = None
@@ -54,11 +59,11 @@ state: dict[str, Any] = {
 def local_today() -> date:
     if ZoneInfo is None:
         return datetime.now().date()
-    return datetime.now(ZoneInfo(os.getenv("TZ", "Europe/Oslo"))).date()
+    return datetime.now(ZoneInfo(env_value("TZ", "Europe/Oslo") or "Europe/Oslo")).date()
 
 
 def env_required(name: str) -> str:
-    value = os.getenv(name, "").strip()
+    value = (env_value(name, "") or "").strip()
     if not value:
         raise RuntimeError(f"Mangler env var: {name}")
     return value
