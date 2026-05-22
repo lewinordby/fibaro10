@@ -56,6 +56,12 @@ Hent rå home-data via REST:
 python scripts\roborock_probe.py home --email roborock.sun2@gmail.com
 ```
 
+List planlagte jobber:
+
+```powershell
+python scripts\roborock_probe.py schedules --email roborock.sun2@gmail.com
+```
+
 Full device manager/MQTT finnes også, men kan bruke lang tid eller henge hvis MQTT-oppkoblingen ikke blir klar:
 
 ```powershell
@@ -75,8 +81,15 @@ Den delte roboten vises i Roborock API-et som:
 - Statuskode `8`: `charging`
 - Feilkode `0`: ingen feil
 
+Det finnes to aktive planlagte jobber:
+
+- Jobb `4118662`: cron `0 3 * * ?`, aktiv, gjentas, segmenter `21,23,18,20,16`, repeat `2`, fan power `105`, mop mode `303`.
+- Jobb `4072519`: cron `0 2 * * ?`, aktiv, gjentas, segmenter `21,16,18,20,23`, repeat `1`, fan power `104`, mop mode `300`.
+
 ## Praktisk vurdering
 
 For Fibaro10 er det tryggest å starte med REST-basert status fra `home`/`devices`, siden dette allerede fungerer stabilt. Der får vi blant annet online-status, batteri, firmware, modell og rå statusfelter.
 
-Neste steg kan være å lage en egen Roborock-side i grensesnittet, eller å logge status periodisk på samme måte som lys og ventilasjon.
+Planlagte jobber kan også hentes stabilt via REST. Siste utførte rengjøringer ser ut til å kreve MQTT/RPC (`get_clean_summary` og `get_clean_record`), og den oppkoblingen timeout-er foreløpig fra dette Windows-miljøet.
+
+Neste steg kan være å lage en egen Roborock-side i grensesnittet, eller å logge status og planlagte jobber periodisk på samme måte som lys og ventilasjon.

@@ -389,6 +389,11 @@ async def show_home(email: str) -> None:
 
 
 async def list_devices(email: str) -> None:
+    devices = await get_rest_devices(email)
+    print_json(devices)
+
+
+async def get_rest_devices(email: str) -> list[dict[str, Any]]:
     from roborock.data.v1.v1_code_mappings import RoborockStateCode
     from roborock.web_api import RoborockApiClient
 
@@ -421,7 +426,7 @@ async def list_devices(email: str) -> None:
                     "status_raw": status,
                 }
             )
-    print_json(devices)
+    return devices
 
 
 async def list_devices_live(email: str) -> None:
@@ -440,6 +445,21 @@ async def list_devices_live(email: str) -> None:
             }
         )
     print_json(result)
+
+
+async def list_schedules(email: str, device_id: str | None) -> None:
+    from roborock.web_api import RoborockApiClient
+
+    user_data = load_user_data()
+    if device_id is None:
+        devices = await get_rest_devices(email)
+        if len(devices) != 1:
+            raise SystemExit("Angi --device-id når kontoen har null eller flere enheter.")
+        device_id = devices[0]["duid"]
+
+    web_api = RoborockApiClient(username=email)
+    schedules = await web_api.get_schedules(user_data, device_id)
+    print_json(schedules)
 
 
 async def show_status(email: str) -> None:
@@ -523,6 +543,10 @@ async def main() -> None:
     devices_live_parser = subparsers.add_parser("devices-live", help="List Roborock-enheter via full device manager/MQTT.")
     devices_live_parser.add_argument("--email", required=True)
 
+    schedules_parser = subparsers.add_parser("schedules", help="List planlagte Roborock-jobber via REST.")
+    schedules_parser.add_argument("--email", required=True)
+    schedules_parser.add_argument("--device-id", help="DUID. Kan utelates hvis kontoen bare har én enhet.")
+
     status_parser = subparsers.add_parser("status", help="Hent status og forbruksdeler for støvsugere.")
     status_parser.add_argument("--email", required=True)
 
@@ -559,12 +583,16 @@ async def main() -> None:
         await list_devices(args.email)
     elif args.command == "devices-live":
         await list_devices_live(args.email)
+    elif args.command == "schedules":
+        await list_schedules(args.email, args.device_id)
     elif args.command == "status":
         await show_status(args.email)
 
 
 if __name__ == "__main__":
     try:
+        if sys.platform == "win32":
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         asyncio.run(main())
     except ModuleNotFoundError as exc:
         if exc.name == "roborock":
