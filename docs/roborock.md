@@ -62,6 +62,18 @@ List planlagte jobber:
 python scripts\roborock_probe.py schedules --email roborock.sun2@gmail.com
 ```
 
+Hent samlet cloud/REST-oversikt:
+
+```powershell
+python scripts\roborock_probe.py cloud-probe --email roborock.sun2@gmail.com
+```
+
+Test lokale lesekommandoer mot roboten:
+
+```powershell
+python scripts\roborock_probe.py local-read-probe --email roborock.sun2@gmail.com
+```
+
 List siste utførte jobber/rengjøringer:
 
 ```powershell

@@ -18,6 +18,32 @@ CACHE_FILE = CACHE_DIR / "roborock_user_data.pickle"
 CLIENT_IDS_FILE = CACHE_DIR / "roborock_client_ids.json"
 SECRET_KEYS = {"token", "u", "s", "h", "k", "r", "rruid", "uid", "local_key"}
 DEFAULT_ROBOROCK_HOST = "192.168.2.91"
+LOCAL_READ_COMMANDS = (
+    ("status", "GET_STATUS", None),
+    ("consumable", "GET_CONSUMABLE", None),
+    ("clean_summary", "GET_CLEAN_SUMMARY", None),
+    ("network_info", "GET_NETWORK_INFO", None),
+    ("sound_volume", "GET_SOUND_VOLUME", None),
+    ("dnd_timer", "GET_DND_TIMER", None),
+    ("child_lock", "GET_CHILD_LOCK_STATUS", None),
+    ("led_status", "GET_LED_STATUS", None),
+    ("flow_led_status", "GET_FLOW_LED_STATUS", None),
+    ("dust_collection_mode", "GET_DUST_COLLECTION_MODE", None),
+    ("smart_wash_params", "GET_SMART_WASH_PARAMS", None),
+    ("wash_towel_mode", "GET_WASH_TOWEL_MODE", None),
+    ("room_mapping", "GET_ROOM_MAPPING", None),
+    ("timezone", "GET_TIMEZONE", None),
+    ("timer", "GET_TIMER", None),
+    ("server_timer", "GET_SERVER_TIMER", None),
+    ("timer_summary", "GET_TIMER_SUMMARY", None),
+    ("serial_number", "GET_SERIAL_NUMBER", None),
+    ("carpet_mode", "GET_CARPET_MODE", None),
+    ("custom_mode", "GET_CUSTOM_MODE", None),
+    ("water_box_custom_mode", "GET_WATER_BOX_CUSTOM_MODE", None),
+    ("dock_info", "GET_DOCK_INFO", None),
+    ("map_status", "GET_MAP_STATUS", None),
+    ("persist_map", "GET_PERSIST", None),
+)
 
 
 def jsonable(value: Any) -> Any:
@@ -692,6 +718,83 @@ async def list_clean_history(email: str, device_id: str | None, host: str, limit
         channel.close()
 
 
+async def cloud_probe(email: str) -> None:
+    from roborock.web_api import RoborockApiClient
+
+    user_data = load_user_data()
+    web_api = RoborockApiClient(username=email)
+    home_data = jsonable(await web_api.get_home_data_v3(user_data))
+    devices = home_data.get("devices", []) + home_data.get("received_devices", [])
+    products = {product.get("id"): product for product in home_data.get("products", [])}
+    result = {
+        "home": {
+            "id": home_data.get("id"),
+            "name": home_data.get("name"),
+            "geo_name": home_data.get("geo_name"),
+            "lat": home_data.get("lat"),
+            "lon": home_data.get("lon"),
+            "rooms": home_data.get("rooms", []),
+        },
+        "cloud_rooms": jsonable(await web_api.get_rooms(user_data)),
+        "devices": [],
+    }
+    for device in devices:
+        duid = device.get("duid")
+        product = products.get(device.get("product_id"), {})
+        item = {
+            "name": device.get("name"),
+            "duid": duid,
+            "source": "received_devices" if device in home_data.get("received_devices", []) else "devices",
+            "shared": bool(device.get("share")),
+            "online": device.get("online"),
+            "firmware": device.get("fv"),
+            "protocol_version": device.get("pv"),
+            "product": product.get("name"),
+            "model": product.get("model"),
+            "product_id": device.get("product_id"),
+            "room_id": device.get("room_id"),
+            "time_zone_id": device.get("time_zone_id"),
+            "feature_set": device.get("feature_set"),
+            "new_feature_set": device.get("new_feature_set"),
+            "status_raw": device.get("device_status"),
+        }
+        if duid:
+            try:
+                item["schedules"] = jsonable(await web_api.get_schedules(user_data, duid))
+            except Exception as exc:
+                item["schedules_error"] = str(exc)
+            try:
+                item["scenes"] = jsonable(await web_api.get_scenes(user_data, duid))
+            except Exception as exc:
+                item["scenes_error"] = str(exc)
+        result["devices"].append(item)
+    print_json(redacted(result))
+
+
+async def local_read_probe(email: str, device_id: str | None, host: str, include_data: bool) -> None:
+    from roborock.roborock_typing import RoborockCommand
+
+    rpc, channel = await get_local_rpc(email, device_id, host)
+    results = []
+    try:
+        for name, command_name, params in LOCAL_READ_COMMANDS:
+            command = getattr(RoborockCommand, command_name)
+            item = {"name": name, "command": command.value}
+            try:
+                data = await rpc.send_command(command, params=params)
+                item["ok"] = True
+                item["type"] = type(data).__name__
+                if include_data:
+                    item["data"] = jsonable(data)
+            except Exception as exc:
+                item["ok"] = False
+                item["error"] = str(exc)
+            results.append(item)
+    finally:
+        channel.close()
+    print_json({"host": host, "results": results})
+
+
 async def show_status(email: str) -> None:
     manager = await get_device_manager(email)
     devices = await manager.get_devices()
@@ -786,6 +889,15 @@ async def main() -> None:
     clean_history_parser.add_argument("--host", default=DEFAULT_ROBOROCK_HOST, help="Robotens lokale IP-adresse.")
     clean_history_parser.add_argument("--limit", type=int, default=5, help="Antall siste jobber som skal hentes.")
 
+    cloud_probe_parser = subparsers.add_parser("cloud-probe", help="Hent trygg cloud/REST-oversikt.")
+    cloud_probe_parser.add_argument("--email", required=True)
+
+    local_probe_parser = subparsers.add_parser("local-read-probe", help="Test trygge lokale lesekommandoer.")
+    local_probe_parser.add_argument("--email", required=True)
+    local_probe_parser.add_argument("--device-id", help="DUID. Kan utelates hvis kontoen bare har en enhet.")
+    local_probe_parser.add_argument("--host", default=DEFAULT_ROBOROCK_HOST, help="Robotens lokale IP-adresse.")
+    local_probe_parser.add_argument("--include-data", action="store_true", help="Ta med rådata i resultatet.")
+
     map_parser = subparsers.add_parser("map-image", help="Hent Roborock-kart og lagre det som PNG.")
     map_parser.add_argument("--email", required=True)
     map_parser.add_argument("--device-id", help="DUID. Kan utelates hvis kontoen bare har en enhet.")
@@ -839,6 +951,10 @@ async def main() -> None:
         await list_schedules(args.email, args.device_id)
     elif args.command == "clean-history":
         await list_clean_history(args.email, args.device_id, args.host, args.limit)
+    elif args.command == "cloud-probe":
+        await cloud_probe(args.email)
+    elif args.command == "local-read-probe":
+        await local_read_probe(args.email, args.device_id, args.host, args.include_data)
     elif args.command == "map-image":
         await fetch_map_image(args.email, args.device_id, args.host, args.output, args.raw_output, args.method)
     elif args.command == "status":
