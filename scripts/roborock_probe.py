@@ -18,6 +18,8 @@ CACHE_FILE = CACHE_DIR / "roborock_user_data.pickle"
 CLIENT_IDS_FILE = CACHE_DIR / "roborock_client_ids.json"
 SECRET_KEYS = {"token", "u", "s", "h", "k", "r", "rruid", "uid", "local_key"}
 DEFAULT_ROBOROCK_HOST = "192.168.2.91"
+DEFAULT_ROBOROCK_SUBNET = "192.168.2."
+ROBOROCK_LOCAL_PORT = 58867
 LOCAL_READ_COMMANDS = (
     ("status", "GET_STATUS", None),
     ("consumable", "GET_CONSUMABLE", None),
@@ -795,6 +797,24 @@ async def local_read_probe(email: str, device_id: str | None, host: str, include
     print_json({"host": host, "results": results})
 
 
+async def scan_local_hosts(subnet: str, timeout: float) -> None:
+    async def check_host(host: str) -> str | None:
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, ROBOROCK_LOCAL_PORT),
+                timeout=timeout,
+            )
+            writer.close()
+            await writer.wait_closed()
+            return host
+        except Exception:
+            return None
+
+    hosts = [f"{subnet}{index}" for index in range(1, 255)]
+    found = [host for host in await asyncio.gather(*(check_host(host) for host in hosts)) if host]
+    print_json({"subnet": subnet, "port": ROBOROCK_LOCAL_PORT, "hosts": found})
+
+
 async def show_status(email: str) -> None:
     manager = await get_device_manager(email)
     devices = await manager.get_devices()
@@ -898,6 +918,10 @@ async def main() -> None:
     local_probe_parser.add_argument("--host", default=DEFAULT_ROBOROCK_HOST, help="Robotens lokale IP-adresse.")
     local_probe_parser.add_argument("--include-data", action="store_true", help="Ta med rådata i resultatet.")
 
+    scan_parser = subparsers.add_parser("scan-local", help="Finn lokale verter som har Roborock-porten åpen.")
+    scan_parser.add_argument("--subnet", default=DEFAULT_ROBOROCK_SUBNET, help="Subnett-prefiks, f.eks. 192.168.2.")
+    scan_parser.add_argument("--timeout", type=float, default=0.35, help="Timeout per IP i sekunder.")
+
     map_parser = subparsers.add_parser("map-image", help="Hent Roborock-kart og lagre det som PNG.")
     map_parser.add_argument("--email", required=True)
     map_parser.add_argument("--device-id", help="DUID. Kan utelates hvis kontoen bare har en enhet.")
@@ -955,6 +979,8 @@ async def main() -> None:
         await cloud_probe(args.email)
     elif args.command == "local-read-probe":
         await local_read_probe(args.email, args.device_id, args.host, args.include_data)
+    elif args.command == "scan-local":
+        await scan_local_hosts(args.subnet, args.timeout)
     elif args.command == "map-image":
         await fetch_map_image(args.email, args.device_id, args.host, args.output, args.raw_output, args.method)
     elif args.command == "status":

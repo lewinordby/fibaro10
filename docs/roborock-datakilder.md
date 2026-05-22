@@ -2,16 +2,14 @@
 
 Dette dokumentet oppsummerer hva vi kan hente fra Roborock, fordelt på cloud/REST, cloud kartkanal og lokal LAN-tilkobling. Målet er å bruke dette som grunnlag for en lokal logger som fyller en database løpende, og deretter vise dataene i hovedapplikasjonen.
 
-## Testet robot
+## Testede roboter
 
-- Navn: `1.etg A`
-- DUID: `22dp228bUjRzmteABcjU69`
-- Produkt: `Roborock Qrevo`
-- Modell: `roborock.vacuum.a75`
-- Firmware: `02.20.60`
-- Lokal IP ved test: `192.168.2.91`
-- Protokoll: `1.0`
-- Kontoen har roboten som delt enhet.
+| Navn | DUID | Produkt | Modell | Firmware | Lokal IP ved test | Cloud | Lokal LAN | Kart |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `1.etg A` | `22dp228bUjRzmteABcjU69` | Roborock Qrevo | `roborock.vacuum.a75` | `02.20.60` | `192.168.2.91` | OK | OK | OK, 14 rom |
+| `1.etg B` | `5DGq5OKxp03eEghRleQ7Sk` | S8 | `roborock.vacuum.a51` | `02.17.42` | `192.168.2.85` | OK | OK | OK, 11 rom |
+
+Kontoen har robotene som delte enheter.
 
 ## Cloud / REST
 
@@ -78,6 +76,18 @@ Kommando:
 python scripts\roborock_probe.py local-read-probe --email roborock.sun2@gmail.com
 ```
 
+Hvis kontoen har flere roboter må `--device-id` og `--host` brukes:
+
+```powershell
+python scripts\roborock_probe.py local-read-probe --email roborock.sun2@gmail.com --device-id 5DGq5OKxp03eEghRleQ7Sk --host 192.168.2.85
+```
+
+Finn lokale kandidater som har Roborock-porten åpen:
+
+```powershell
+python scripts\roborock_probe.py scan-local
+```
+
 Med rådata:
 
 ```powershell
@@ -94,11 +104,12 @@ python scripts\roborock_probe.py map-image --email roborock.sun2@gmail.com --out
 
 Ved test fikk vi:
 
-- PNG-bilde: `1684 x 2288`
-- Rå kartdata: 529 510 bytes
-- Ferdig PNG: 46 509 bytes
-- 14 rom i kartdata
-- Laderposisjon og robotposisjon
+| Robot | PNG | Rå kartdata | Ferdig PNG | Rom |
+| --- | --- | ---: | ---: | ---: |
+| `1.etg A` | `1684 x 2288` | 529 510 bytes | 46 509 bytes | 14 |
+| `1.etg B` | `1356 x 1388` | 267 715 bytes | 41 884 bytes | 11 |
+
+Kartdata inneholder også laderposisjon og robotposisjon.
 
 Lokale kartforsøk svarte ikke. `get_clean_record_map` finnes som kommando i biblioteket, men ga timeout i våre tester både lokalt og via cloud-kartkanalen. Foreløpig bør vi derfor regne med at vi får aktivt/nåværende kart, ikke historisk kart per rengjøring.
 

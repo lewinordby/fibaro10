@@ -74,6 +74,12 @@ Test lokale lesekommandoer mot roboten:
 python scripts\roborock_probe.py local-read-probe --email roborock.sun2@gmail.com
 ```
 
+Finn lokale Roborock-kandidater:
+
+```powershell
+python scripts\roborock_probe.py scan-local
+```
+
 List siste utførte jobber/rengjøringer:
 
 ```powershell
