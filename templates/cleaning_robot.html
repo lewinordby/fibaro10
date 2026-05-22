@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renhold - {{ robot.name }}</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <style>
+        .panel-grid { display:grid; gap:0.85rem; }
+        .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        .metric-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.55rem; }
+        .metric { background:var(--panel-soft); border:1px solid var(--line-soft); border-radius:8px; padding:0.65rem; }
+        .metric span { display:block; color:var(--muted); font-size:0.78rem; }
+        .metric strong { font-size:1.08rem; }
+        table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+        th, td { padding:0.52rem; border-bottom:1px solid var(--line-soft); text-align:left; vertical-align:top; }
+        th { color:var(--muted); font-size:0.78rem; text-transform:uppercase; }
+        .map-img { width:100%; max-height:620px; object-fit:contain; background:#0f5c8d; border-radius:8px; border:1px solid var(--line); }
+        .muted { color:var(--muted); }
+        @media (min-width:900px) { .panel-grid.two { grid-template-columns:1fr 1fr; } .metric-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    </style>
+</head>
+<body class="theme-cleaning">
+    {% include "_header.html" %}
+    <main>
+        <section class="hero">
+            <h1>{{ robot.name }}</h1>
+            <p class="sub">{{ robot.product or "-" }} · {{ robot.model or "-" }} · {{ robot.local_ip or "ingen lokal IP" }}</p>
+        </section>
+
+        <section class="panel">
+            <h2>Nåstatus</h2>
+            <div class="metric-grid">
+                <div class="metric"><span>Batteri</span><strong>{% if latest_status and latest_status.battery is not none %}{{ latest_status.battery }}%{% else %}-{% endif %}</strong></div>
+                <div class="metric"><span>Status</span><strong>{{ latest_status.state_name if latest_status and latest_status.state_name else (latest_status.state_code if latest_status else "-") }}</strong></div>
+                <div class="metric"><span>Feil</span><strong>{{ latest_status.error_code if latest_status and latest_status.error_code is not none else "-" }}</strong></div>
+                <div class="metric"><span>RSSI</span><strong>{{ latest_status.rssi if latest_status and latest_status.rssi is not none else "-" }}</strong></div>
+            </div>
+        </section>
+
+        <section class="panel-grid two">
+            <article class="panel">
+                <h2>Kart</h2>
+                {% if latest_map and latest_map.image_base64 %}
+                <img class="map-img" src="data:image/png;base64,{{ latest_map.image_base64 }}" alt="Kart for {{ robot.name }}">
+                <p class="muted">Rom: {{ latest_map.rooms or "-" }} · {{ latest_map.image_width or "-" }} x {{ latest_map.image_height or "-" }} · {{ latest_map.timestamp|localtime }}</p>
+                {% else %}
+                <p class="muted">Ingen kart er mottatt ennå.</p>
+                {% endif %}
+            </article>
+            <article class="panel">
+                <h2>Forbruksdeler</h2>
+                {% if consumables %}
+                <div class="metric-grid">
+                    <div class="metric"><span>Hovedbørste</span><strong>{{ consumables.main_brush_work_time or 0 }}</strong></div>
+                    <div class="metric"><span>Sidebørste</span><strong>{{ consumables.side_brush_work_time or 0 }}</strong></div>
+                    <div class="metric"><span>Filter</span><strong>{{ consumables.filter_work_time or 0 }}</strong></div>
+                    <div class="metric"><span>Sensor</span><strong>{{ consumables.sensor_dirty_time or 0 }}</strong></div>
+                </div>
+                {% else %}
+                <p class="muted">Ingen forbruksdata er mottatt ennå.</p>
+                {% endif %}
+            </article>
+        </section>
+
+        <section class="panel">
+            <h2>Planlagte jobber</h2>
+            <table>
+                <thead><tr><th>Tid</th><th>Segmenter</th><th>Repeat</th><th>Fan</th><th>Mopp</th><th>Aktiv</th></tr></thead>
+                <tbody>
+                    {% for row in schedules %}
+                    <tr>
+                        <td>{{ row.cron or "-" }}</td>
+                        <td>{{ row.segments or "-" }}</td>
+                        <td>{{ row.repeat if row.repeat is not none else "-" }}</td>
+                        <td>{{ row.fan_power if row.fan_power is not none else "-" }}</td>
+                        <td>{{ row.mop_mode if row.mop_mode is not none else "-" }}</td>
+                        <td>{% if row.enabled %}Ja{% else %}Nei{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="panel">
+            <h2>Siste rengjøringer</h2>
+            <table>
+                <thead><tr><th>Start</th><th>Varighet</th><th>Areal</th><th>Fullført</th><th>Feil</th></tr></thead>
+                <tbody>
+                    {% for row in jobs %}
+                    <tr>
+                        <td>{{ row.begin_at|localtime if row.begin_at else "-" }}</td>
+                        <td>{% if row.duration_minutes is not none %}{{ "%.1f"|format(row.duration_minutes) }} min{% else %}-{% endif %}</td>
+                        <td>{% if row.area_m2 is not none %}{{ "%.1f"|format(row.area_m2) }} m²{% else %}-{% endif %}</td>
+                        <td>{% if row.complete %}Ja{% else %}Nei{% endif %}</td>
+                        <td>{{ row.error_code if row.error_code is not none else "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>

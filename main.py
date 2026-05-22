@@ -276,6 +276,159 @@ class GenericEvent(Base):
     extra = Column(JSON, nullable=True)
 
 
+class RoborockRobot(Base):
+    __tablename__ = "roborock_robots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    duid = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, index=True, nullable=False)
+    product = Column(String, nullable=True)
+    model = Column(String, nullable=True)
+    firmware = Column(String, nullable=True)
+    protocol_version = Column(String, nullable=True)
+    serial_number = Column(String, nullable=True)
+    local_ip = Column(String, nullable=True)
+    cloud_online = Column(Boolean, nullable=True)
+    shared = Column(Boolean, nullable=True)
+    time_zone_id = Column(String, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True, index=True)
+    last_cloud_at = Column(DateTime, nullable=True)
+    last_local_at = Column(DateTime, nullable=True)
+    last_status_at = Column(DateTime, nullable=True)
+    last_map_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    capabilities = Column(JSON, nullable=True)
+    extra = Column(JSON, nullable=True)
+
+
+class RoborockStatusSample(Base):
+    __tablename__ = "roborock_status_samples"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, index=True, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    source = Column(String, nullable=True)
+    state_code = Column(Integer, nullable=True)
+    state_name = Column(String, nullable=True)
+    battery = Column(Integer, nullable=True)
+    error_code = Column(Integer, nullable=True)
+    in_cleaning = Column(Boolean, nullable=True)
+    in_returning = Column(Boolean, nullable=True)
+    clean_time_seconds = Column(Integer, nullable=True)
+    clean_area_m2 = Column(Float, nullable=True)
+    fan_power = Column(Integer, nullable=True)
+    water_box_mode = Column(Integer, nullable=True)
+    mop_mode = Column(Integer, nullable=True)
+    dock_type = Column(Integer, nullable=True)
+    charge_status = Column(Integer, nullable=True)
+    clean_percent = Column(Integer, nullable=True)
+    local_ip = Column(String, nullable=True)
+    rssi = Column(Integer, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
+class RoborockCleanJob(Base):
+    __tablename__ = "roborock_clean_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, index=True, nullable=False)
+    record_id = Column(String, index=True, nullable=False)
+    begin_at = Column(DateTime, index=True, nullable=True)
+    end_at = Column(DateTime, index=True, nullable=True)
+    duration_seconds = Column(Integer, nullable=True)
+    duration_minutes = Column(Float, nullable=True)
+    area_m2 = Column(Float, nullable=True)
+    cleaned_area_m2 = Column(Float, nullable=True)
+    complete = Column(Boolean, nullable=True)
+    error_code = Column(Integer, nullable=True)
+    start_type = Column(Integer, nullable=True)
+    clean_type = Column(Integer, nullable=True)
+    finish_reason = Column(Integer, nullable=True)
+    dust_collection_status = Column(Integer, nullable=True)
+    avoid_count = Column(Integer, nullable=True)
+    wash_count = Column(Integer, nullable=True)
+    clean_times = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+    raw = Column(JSON, nullable=True)
+
+
+class RoborockSchedule(Base):
+    __tablename__ = "roborock_schedules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, index=True, nullable=False)
+    schedule_id = Column(String, index=True, nullable=False)
+    cron = Column(String, nullable=True)
+    enabled = Column(Boolean, nullable=True)
+    repeated = Column(Boolean, nullable=True)
+    segments = Column(String, nullable=True)
+    fan_power = Column(Integer, nullable=True)
+    mop_mode = Column(Integer, nullable=True)
+    water_box_mode = Column(Integer, nullable=True)
+    repeat = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+    raw = Column(JSON, nullable=True)
+
+
+class RoborockConsumableSnapshot(Base):
+    __tablename__ = "roborock_consumables"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, index=True, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    main_brush_work_time = Column(Integer, nullable=True)
+    side_brush_work_time = Column(Integer, nullable=True)
+    filter_work_time = Column(Integer, nullable=True)
+    sensor_dirty_time = Column(Integer, nullable=True)
+    dust_collection_work_times = Column(Integer, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
+class RoborockMapSnapshot(Base):
+    __tablename__ = "roborock_maps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, index=True, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    image_bytes = Column(Integer, nullable=True)
+    raw_bytes = Column(Integer, nullable=True)
+    image_width = Column(Integer, nullable=True)
+    image_height = Column(Integer, nullable=True)
+    rooms = Column(Integer, nullable=True)
+    zones = Column(Integer, nullable=True)
+    charger = Column(JSON, nullable=True)
+    vacuum_position = Column(JSON, nullable=True)
+    image_base64 = Column(Text, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
+class RoborockProbeResult(Base):
+    __tablename__ = "roborock_probe_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    robot_duid = Column(String, index=True, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    source = Column(String, index=True, nullable=True)
+    command = Column(String, index=True, nullable=True)
+    ok = Column(Boolean, nullable=True)
+    error = Column(Text, nullable=True)
+    result_type = Column(String, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
+class RoborockSyncRun(Base):
+    __tablename__ = "roborock_sync_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    collector_id = Column(String, index=True, nullable=True)
+    source = Column(String, nullable=True)
+    ok = Column(Boolean, nullable=True)
+    robots_count = Column(Integer, nullable=True)
+    message = Column(Text, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
 class AccessKey(Base):
     __tablename__ = "access_keys"
 
@@ -398,6 +551,16 @@ class EventDataIn(BaseModel):
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
+class RoborockIngestIn(BaseModel):
+    source: str = "Roborock_logger"
+    collector_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    ok: bool = True
+    message: Optional[str] = None
+    robots: list[Dict[str, Any]] = Field(default_factory=list)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
 LIGHT_COLUMNS = [
     "id", "timestamp", "event_type", "action", "device_key", "device_id", "device_name",
     "mode", "reason", "source", "lux", "value", "state", "extra",
@@ -438,6 +601,37 @@ YR_SAMPLE_COLUMNS = [
     "precipitation_next_6h", "temp_1h", "temp_3h", "temp_6h", "temp_12h",
     "temp_24h", "symbol_1h", "symbol_3h", "symbol_6h", "symbol_12h",
     "symbol_24h", "temp_min_next_6h", "temp_max_next_6h", "extra",
+]
+
+ROBOROCK_ROBOT_COLUMNS = [
+    "id", "duid", "name", "product", "model", "firmware", "protocol_version",
+    "serial_number", "local_ip", "cloud_online", "shared", "time_zone_id",
+    "last_seen_at", "last_cloud_at", "last_local_at", "last_status_at",
+    "last_map_at", "last_error", "capabilities", "extra",
+]
+
+ROBOROCK_STATUS_COLUMNS = [
+    "id", "robot_duid", "timestamp", "source", "state_code", "state_name",
+    "battery", "error_code", "in_cleaning", "in_returning", "clean_time_seconds",
+    "clean_area_m2", "fan_power", "water_box_mode", "mop_mode", "dock_type",
+    "charge_status", "clean_percent", "local_ip", "rssi", "raw",
+]
+
+ROBOROCK_JOB_COLUMNS = [
+    "id", "robot_duid", "record_id", "begin_at", "end_at", "duration_seconds",
+    "duration_minutes", "area_m2", "cleaned_area_m2", "complete", "error_code",
+    "start_type", "clean_type", "finish_reason", "dust_collection_status",
+    "avoid_count", "wash_count", "clean_times", "updated_at", "raw",
+]
+
+ROBOROCK_SCHEDULE_COLUMNS = [
+    "id", "robot_duid", "schedule_id", "cron", "enabled", "repeated", "segments",
+    "fan_power", "mop_mode", "water_box_mode", "repeat", "updated_at", "raw",
+]
+
+ROBOROCK_MAP_COLUMNS = [
+    "id", "robot_duid", "timestamp", "image_bytes", "raw_bytes", "image_width",
+    "image_height", "rooms", "zones", "charger", "vacuum_position", "raw",
 ]
 
 LIGHT_TIMELINE_DEVICES = [
@@ -533,6 +727,10 @@ STARTUP_COLUMNS = {
         ("expires_at", "TIMESTAMP"),
         ("next_fetch_after", "TIMESTAMP"),
         ("age_seconds", "INTEGER"),
+    ],
+    "roborock_robots": [
+        ("serial_number", "VARCHAR"),
+        ("last_map_at", "TIMESTAMP"),
     ],
 }
 
@@ -718,6 +916,78 @@ def json_value(value):
     if isinstance(value, datetime):
         return value.isoformat()
     return value
+
+
+def bool_value(value: Any) -> Optional[bool]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on", "ja"}:
+            return True
+        if normalized in {"0", "false", "no", "off", "nei"}:
+            return False
+    return None
+
+
+def int_value(value: Any) -> Optional[int]:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def float_value(value: Any) -> Optional[float]:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def timestamp_value(value: Any) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, (int, float)):
+        return datetime.utcfromtimestamp(value)
+    if isinstance(value, str):
+        parsed = parse_datetime(value)
+        if parsed:
+            return parsed
+        try:
+            return datetime.utcfromtimestamp(int(value))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def area_m2_from_payload(value: Any) -> Optional[float]:
+    number = float_value(value)
+    if number is None:
+        return None
+    if number > 100000:
+        return round(number / 1_000_000, 2)
+    return number
+
+
+def first_dict(value: Any) -> Dict[str, Any]:
+    if isinstance(value, list) and value and isinstance(value[0], dict):
+        return value[0]
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
+def roborock_schedule_params(schedule: Dict[str, Any]) -> Dict[str, Any]:
+    params = (((schedule.get("param") or {}).get("params")) or [])
+    return params[0] if params and isinstance(params[0], dict) else {}
 
 
 def hash_access_key(value: str) -> str:
@@ -2147,7 +2417,8 @@ def row_to_dict(row, columns):
             continue
         value = getattr(row, column)
         out[column] = value.isoformat() if isinstance(value, datetime) else value
-    out["extra"] = row.extra or {}
+    if hasattr(row, "extra"):
+        out["extra"] = row.extra or {}
     return out
 
 
@@ -2405,6 +2676,189 @@ async def save_record(record) -> int:
         return record.id
 
 
+async def ingest_roborock_robot(session, robot_data: Dict[str, Any], batch_time: datetime, source: str) -> Dict[str, Any]:
+    duid = robot_data.get("duid") or robot_data.get("robot_duid")
+    if not duid:
+        return {"ok": False, "error": "Mangler DUID"}
+
+    meta = robot_data.get("metadata") or robot_data
+    network = robot_data.get("network") or {}
+    capabilities = robot_data.get("capabilities") or robot_data.get("probe_results") or {}
+    local_ip = robot_data.get("local_ip") or network.get("ip") or meta.get("local_ip")
+    status = first_dict(robot_data.get("status"))
+    consumable = first_dict(robot_data.get("consumables") or robot_data.get("consumable"))
+    cloud_online = bool_value(meta.get("online") if "online" in meta else meta.get("cloud_online"))
+
+    existing = (
+        await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))
+    ).scalars().first()
+    if not existing:
+        existing = RoborockRobot(duid=duid, name=meta.get("name") or duid)
+        session.add(existing)
+
+    existing.name = meta.get("name") or existing.name or duid
+    existing.product = meta.get("product") or existing.product
+    existing.model = meta.get("model") or existing.model
+    existing.firmware = meta.get("firmware") or meta.get("fv") or existing.firmware
+    existing.protocol_version = meta.get("protocol_version") or meta.get("pv") or existing.protocol_version
+    existing.serial_number = robot_data.get("serial_number") or meta.get("serial_number") or existing.serial_number
+    existing.local_ip = local_ip or existing.local_ip
+    existing.cloud_online = cloud_online if cloud_online is not None else existing.cloud_online
+    existing.shared = bool_value(meta.get("shared") if "shared" in meta else meta.get("share"))
+    existing.time_zone_id = meta.get("time_zone_id") or meta.get("timezone") or existing.time_zone_id
+    existing.last_seen_at = batch_time
+    if robot_data.get("cloud"):
+        existing.last_cloud_at = batch_time
+    if status or network:
+        existing.last_local_at = batch_time
+    if status:
+        existing.last_status_at = batch_time
+    if robot_data.get("map"):
+        existing.last_map_at = batch_time
+    existing.last_error = robot_data.get("last_error") or robot_data.get("error") or None
+    existing.capabilities = capabilities or existing.capabilities
+    existing.extra = {
+        "source": source,
+        "metadata": meta,
+        "summary": robot_data.get("clean_summary"),
+    }
+
+    if status:
+        session.add(
+            RoborockStatusSample(
+                robot_duid=duid,
+                timestamp=batch_time,
+                source=source,
+                state_code=int_value(status.get("state")),
+                state_name=status.get("state_name"),
+                battery=int_value(status.get("battery")),
+                error_code=int_value(status.get("error_code") if "error_code" in status else status.get("error")),
+                in_cleaning=bool_value(status.get("in_cleaning")),
+                in_returning=bool_value(status.get("in_returning")),
+                clean_time_seconds=int_value(status.get("clean_time")),
+                clean_area_m2=area_m2_from_payload(status.get("clean_area")),
+                fan_power=int_value(status.get("fan_power")),
+                water_box_mode=int_value(status.get("water_box_mode")),
+                mop_mode=int_value(status.get("mop_mode")),
+                dock_type=int_value(status.get("dock_type")),
+                charge_status=int_value(status.get("charge_status")),
+                clean_percent=int_value(status.get("clean_percent")),
+                local_ip=local_ip,
+                rssi=int_value(network.get("rssi")),
+                raw={"status": status, "network": network},
+            )
+        )
+
+    if consumable:
+        session.add(
+            RoborockConsumableSnapshot(
+                robot_duid=duid,
+                timestamp=batch_time,
+                main_brush_work_time=int_value(consumable.get("main_brush_work_time")),
+                side_brush_work_time=int_value(consumable.get("side_brush_work_time")),
+                filter_work_time=int_value(consumable.get("filter_work_time")),
+                sensor_dirty_time=int_value(consumable.get("sensor_dirty_time")),
+                dust_collection_work_times=int_value(consumable.get("dust_collection_work_times")),
+                raw=consumable,
+            )
+        )
+
+    for job in robot_data.get("clean_jobs") or robot_data.get("jobs") or []:
+        record_id = str(job.get("id") or job.get("record_id") or "")
+        if not record_id:
+            continue
+        existing_job = (
+            await session.execute(
+                select(RoborockCleanJob)
+                .where(RoborockCleanJob.robot_duid == duid)
+                .where(RoborockCleanJob.record_id == record_id)
+            )
+        ).scalars().first()
+        if not existing_job:
+            existing_job = RoborockCleanJob(robot_duid=duid, record_id=record_id)
+            session.add(existing_job)
+        existing_job.begin_at = timestamp_value(job.get("begin") or job.get("begin_at"))
+        existing_job.end_at = timestamp_value(job.get("end") or job.get("end_at"))
+        existing_job.duration_seconds = int_value(job.get("duration_seconds") or job.get("duration"))
+        existing_job.duration_minutes = float_value(job.get("duration_minutes"))
+        existing_job.area_m2 = float_value(job.get("area_m2")) or area_m2_from_payload(job.get("area"))
+        existing_job.cleaned_area_m2 = float_value(job.get("cleaned_area_m2")) or area_m2_from_payload(job.get("cleaned_area"))
+        existing_job.complete = bool_value(job.get("complete"))
+        existing_job.error_code = int_value(job.get("error") if "error" in job else job.get("error_code"))
+        existing_job.start_type = int_value(job.get("start_type"))
+        existing_job.clean_type = int_value(job.get("clean_type"))
+        existing_job.finish_reason = int_value(job.get("finish_reason"))
+        existing_job.dust_collection_status = int_value(job.get("dust_collection_status"))
+        existing_job.avoid_count = int_value(job.get("avoid_count"))
+        existing_job.wash_count = int_value(job.get("wash_count"))
+        existing_job.clean_times = int_value(job.get("clean_times"))
+        existing_job.updated_at = batch_time
+        existing_job.raw = job
+
+    for schedule in robot_data.get("schedules") or []:
+        schedule_id = str(schedule.get("id") or schedule.get("schedule_id") or "")
+        if not schedule_id:
+            continue
+        params = roborock_schedule_params(schedule)
+        existing_schedule = (
+            await session.execute(
+                select(RoborockSchedule)
+                .where(RoborockSchedule.robot_duid == duid)
+                .where(RoborockSchedule.schedule_id == schedule_id)
+            )
+        ).scalars().first()
+        if not existing_schedule:
+            existing_schedule = RoborockSchedule(robot_duid=duid, schedule_id=schedule_id)
+            session.add(existing_schedule)
+        existing_schedule.cron = schedule.get("cron")
+        existing_schedule.enabled = bool_value(schedule.get("enabled"))
+        existing_schedule.repeated = bool_value(schedule.get("repeated"))
+        existing_schedule.segments = params.get("segments")
+        existing_schedule.fan_power = int_value(params.get("fan_power"))
+        existing_schedule.mop_mode = int_value(params.get("mop_mode"))
+        existing_schedule.water_box_mode = int_value(params.get("water_box_mode"))
+        existing_schedule.repeat = int_value(params.get("repeat"))
+        existing_schedule.updated_at = batch_time
+        existing_schedule.raw = schedule
+
+    map_data = robot_data.get("map") or {}
+    if map_data:
+        image_size = map_data.get("image_size") or []
+        if not isinstance(image_size, list):
+            image_size = []
+        session.add(
+            RoborockMapSnapshot(
+                robot_duid=duid,
+                timestamp=batch_time,
+                image_bytes=int_value(map_data.get("image_bytes")),
+                raw_bytes=int_value(map_data.get("raw_bytes")),
+                image_width=int_value(image_size[0] if len(image_size) > 0 else map_data.get("image_width")),
+                image_height=int_value(image_size[1] if len(image_size) > 1 else map_data.get("image_height")),
+                rooms=int_value(map_data.get("rooms")),
+                zones=int_value(map_data.get("zones")),
+                charger=map_data.get("charger"),
+                vacuum_position=map_data.get("vacuum_position"),
+                image_base64=map_data.get("image_base64"),
+                raw={key: value for key, value in map_data.items() if key != "image_base64"},
+            )
+        )
+
+    for probe in robot_data.get("probe_results") or []:
+        session.add(
+            RoborockProbeResult(
+                robot_duid=duid,
+                timestamp=batch_time,
+                source=probe.get("source") or source,
+                command=probe.get("command") or probe.get("name"),
+                ok=bool_value(probe.get("ok")),
+                error=probe.get("error"),
+                result_type=probe.get("type") or probe.get("result_type"),
+                raw=probe,
+            )
+        )
+    return {"ok": True, "duid": duid}
+
+
 async def fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit):
     from_ts = parse_datetime(from_text)
     to_ts = parse_datetime(to_text)
@@ -2485,7 +2939,15 @@ async def startup():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "storage": ["utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples", "yr_forecast_samples", "control_configs", "control_config_history", "event_data"]}
+    return {
+        "status": "ok",
+        "storage": [
+            "utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples",
+            "yr_forecast_samples", "control_configs", "control_config_history", "event_data",
+            "roborock_robots", "roborock_status_samples", "roborock_clean_jobs",
+            "roborock_schedules", "roborock_consumables", "roborock_maps",
+        ],
+    }
 
 
 @app.get("/favicon.ico")
@@ -3068,6 +3530,147 @@ async def log_event(data: EventDataIn):
         return {"status": "ok", "id": event_id, "table": "ventilasjon_events"}
     event_id = await save_record(generic_from_payload(data))
     return {"status": "ok", "id": event_id, "table": "event_data"}
+
+
+@app.post("/api/renhold/ingest")
+async def roborock_ingest(data: RoborockIngestIn):
+    batch_time = data.timestamp or datetime.utcnow()
+    results = []
+    async with async_session() as session:
+        session.add(
+            RoborockSyncRun(
+                timestamp=batch_time,
+                collector_id=data.collector_id,
+                source=data.source,
+                ok=data.ok,
+                robots_count=len(data.robots),
+                message=data.message,
+                raw={"extra": data.extra},
+            )
+        )
+        for robot in data.robots:
+            results.append(await ingest_roborock_robot(session, robot, batch_time, data.source))
+        await session.commit()
+    return {"status": "ok", "robots": results}
+
+
+@app.get("/renhold/oversikt", response_class=HTMLResponse)
+async def cleaning_overview(request: Request):
+    async with async_session() as session:
+        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        latest_status = {}
+        latest_jobs = {}
+        next_schedules = {}
+        for robot in robots:
+            latest_status[robot.duid] = (
+                await session.execute(
+                    select(RoborockStatusSample)
+                    .where(RoborockStatusSample.robot_duid == robot.duid)
+                    .order_by(RoborockStatusSample.timestamp.desc())
+                    .limit(1)
+                )
+            ).scalars().first()
+            latest_jobs[robot.duid] = (
+                await session.execute(
+                    select(RoborockCleanJob)
+                    .where(RoborockCleanJob.robot_duid == robot.duid)
+                    .order_by(RoborockCleanJob.begin_at.desc())
+                    .limit(1)
+                )
+            ).scalars().first()
+            next_schedules[robot.duid] = (
+                await session.execute(
+                    select(RoborockSchedule)
+                    .where(RoborockSchedule.robot_duid == robot.duid)
+                    .where(RoborockSchedule.enabled == True)
+                    .order_by(RoborockSchedule.cron)
+                    .limit(1)
+                )
+            ).scalars().first()
+    return templates.TemplateResponse(
+        request,
+        "cleaning_overview.html",
+        {
+            "robots": robots,
+            "latest_status": latest_status,
+            "latest_jobs": latest_jobs,
+            "next_schedules": next_schedules,
+        },
+    )
+
+
+@app.get("/renhold/robot/{duid}", response_class=HTMLResponse)
+async def cleaning_robot_detail(request: Request, duid: str):
+    async with async_session() as session:
+        robot = (await session.execute(select(RoborockRobot).where(RoborockRobot.duid == duid))).scalars().first()
+        if not robot:
+            return JSONResponse({"detail": "Ukjent robot"}, status_code=404)
+        statuses = (
+            await session.execute(
+                select(RoborockStatusSample)
+                .where(RoborockStatusSample.robot_duid == duid)
+                .order_by(RoborockStatusSample.timestamp.desc())
+                .limit(100)
+            )
+        ).scalars().all()
+        jobs = (
+            await session.execute(
+                select(RoborockCleanJob)
+                .where(RoborockCleanJob.robot_duid == duid)
+                .order_by(RoborockCleanJob.begin_at.desc())
+                .limit(50)
+            )
+        ).scalars().all()
+        schedules = (
+            await session.execute(
+                select(RoborockSchedule)
+                .where(RoborockSchedule.robot_duid == duid)
+                .order_by(RoborockSchedule.cron)
+            )
+        ).scalars().all()
+        consumables = (
+            await session.execute(
+                select(RoborockConsumableSnapshot)
+                .where(RoborockConsumableSnapshot.robot_duid == duid)
+                .order_by(RoborockConsumableSnapshot.timestamp.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        latest_map = (
+            await session.execute(
+                select(RoborockMapSnapshot)
+                .where(RoborockMapSnapshot.robot_duid == duid)
+                .order_by(RoborockMapSnapshot.timestamp.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+    return templates.TemplateResponse(
+        request,
+        "cleaning_robot.html",
+        {
+            "robot": robot,
+            "latest_status": statuses[0] if statuses else None,
+            "statuses": statuses,
+            "jobs": jobs,
+            "schedules": schedules,
+            "consumables": consumables,
+            "latest_map": latest_map,
+        },
+    )
+
+
+@app.get("/renhold/json")
+async def cleaning_json(limit: int = 100):
+    limit = max(1, min(limit, 1000))
+    async with async_session() as session:
+        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        jobs = (await session.execute(select(RoborockCleanJob).order_by(RoborockCleanJob.begin_at.desc()).limit(limit))).scalars().all()
+        statuses = (await session.execute(select(RoborockStatusSample).order_by(RoborockStatusSample.timestamp.desc()).limit(limit))).scalars().all()
+    return {
+        "robots": [row_to_dict(row, ROBOROCK_ROBOT_COLUMNS) for row in robots],
+        "jobs": [row_to_dict(row, ROBOROCK_JOB_COLUMNS) for row in jobs],
+        "statuses": [row_to_dict(row, ROBOROCK_STATUS_COLUMNS) for row in statuses],
+    }
 
 
 @app.get("/lys/hendelser", response_class=HTMLResponse)

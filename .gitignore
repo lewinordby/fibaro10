@@ -1,3 +1,6 @@
 __pycache__/
 *.py[cod]
+.env
 roborock_output/
+roborock_logger/.env
+roborock_logger/data/

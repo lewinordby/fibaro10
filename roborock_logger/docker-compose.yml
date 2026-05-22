@@ -1,0 +1,11 @@
+services:
+  roborock_logger:
+    build: .
+    container_name: roborock_logger
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8095:8095"
+    volumes:
+      - ./data:/data

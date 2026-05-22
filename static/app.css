@@ -35,6 +35,10 @@
     --vent-soft: #eaf5ed;
     --vent-border: #b9dfc2;
     --vent-ring: rgba(82, 164, 100, 0.24);
+    --cleaning-color: #2f8fa3;
+    --cleaning-soft: #e7f5f8;
+    --cleaning-border: #acd8e1;
+    --cleaning-ring: rgba(47, 143, 163, 0.24);
     --admin-color: #726189;
     --admin-soft: #f0edf5;
     --admin-border: #cec4db;
@@ -81,6 +85,13 @@ body.theme-vent {
     --page-accent-soft: var(--vent-soft);
     --page-accent-border: var(--vent-border);
     --page-accent-ring: var(--vent-ring);
+}
+
+body.theme-cleaning {
+    --page-accent: var(--cleaning-color);
+    --page-accent-soft: var(--cleaning-soft);
+    --page-accent-border: var(--cleaning-border);
+    --page-accent-ring: var(--cleaning-ring);
 }
 
 body.theme-admin {
@@ -492,6 +503,13 @@ code {
     --section-ring: var(--vent-ring);
 }
 
+.app-nav.section-cleaning {
+    --section-color: var(--cleaning-color);
+    --section-soft: var(--cleaning-soft);
+    --section-border: var(--cleaning-border);
+    --section-ring: var(--cleaning-ring);
+}
+
 .app-nav.section-admin {
     --section-color: var(--admin-color);
     --section-soft: var(--admin-soft);
@@ -635,6 +653,13 @@ code {
     --section-soft: var(--vent-soft);
     --section-border: var(--vent-border);
     --section-ring: var(--vent-ring);
+}
+
+.app-nav .nav-main .button.nav-cleaning {
+    --section-color: var(--cleaning-color);
+    --section-soft: var(--cleaning-soft);
+    --section-border: var(--cleaning-border);
+    --section-ring: var(--cleaning-ring);
 }
 
 .app-nav .nav-main .button.nav-admin {
@@ -825,7 +850,7 @@ svg {
 
 @media (min-width: 680px) {
     .app-nav .nav-main {
-        grid-template-columns: repeat(4, minmax(0, 1fr)) 2.62rem;
+        grid-template-columns: repeat(5, minmax(0, 1fr)) 2.62rem;
     }
 
 }
@@ -894,9 +919,14 @@ svg {
         grid-row: 2;
     }
 
-    .app-nav .nav-main .nav-energy {
-        grid-column: 2 / span 2;
+    .app-nav .nav-main .nav-cleaning {
+        grid-column: 2;
         grid-row: 2;
+    }
+
+    .app-nav .nav-main .nav-energy {
+        grid-column: 1 / span 2;
+        grid-row: 3;
     }
 
     .app-nav .nav-main .nav-account {
