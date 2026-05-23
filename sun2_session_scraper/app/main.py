@@ -491,6 +491,9 @@ def extract_paginated_table(page, max_pages: int = 500) -> tuple[list[str], list
             row = dict(row)
             row["__source_row_number"] = str(len(all_rows) + 1)
             all_rows.append(row)
+        _, visible_to, visible_total = extract_visible_sessions_range(page)
+        if visible_to is not None and visible_total is not None and visible_to >= visible_total:
+            break
         pager = page.evaluate(
             """
             () => {
@@ -555,6 +558,14 @@ def extract_expected_sessions_count(page) -> int | None:
         if match:
             return int(match.group(1))
     return None
+
+
+def extract_visible_sessions_range(page) -> tuple[int | None, int | None, int | None]:
+    text = normalize_text(page.locator("body").inner_text(timeout=5000))
+    match = re.search(r"Viser\s+solinger\s+(\d+)\s+til\s+(\d+)\s+av\s+(\d+)", text, re.I)
+    if not match:
+        return None, None, None
+    return int(match.group(1)), int(match.group(2)), int(match.group(3))
 
 
 def save_debug(page, filename: str) -> None:
