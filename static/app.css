@@ -2383,3 +2383,235 @@ table tbody tr:hover td {
         border-radius: 9px !important;
     }
 }
+
+/* Dashboard redesign pass: cleaner control-room feel. */
+body.theme-status {
+    background:
+        linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%) !important;
+}
+
+body.theme-status main {
+    padding-top: 1.1rem !important;
+}
+
+body.theme-status .hero {
+    padding: 0 !important;
+    margin-bottom: 1.05rem !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+body.theme-status .hero::before {
+    content: none !important;
+}
+
+body.theme-status .hero-top {
+    margin-bottom: 0.75rem !important;
+}
+
+body.theme-status .hero h2 {
+    font-size: 1.08rem !important;
+    font-weight: 850 !important;
+}
+
+body.theme-status .mode {
+    min-height: 1.85rem;
+    padding: 0.34rem 0.74rem !important;
+    background: #ffffff !important;
+    border-color: var(--line) !important;
+    box-shadow: var(--shadow-1);
+}
+
+body.theme-status .now-grid {
+    gap: 0.85rem !important;
+}
+
+body.theme-status .now-card {
+    min-height: 7.25rem !important;
+    padding: 0.95rem 1rem !important;
+    border: 1px solid rgba(203, 213, 225, 0.88) !important;
+    border-left: 0 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    box-shadow: 0 12px 30px rgba(38, 50, 63, 0.08) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+body.theme-status .now-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 4px;
+    background: var(--status-color);
+}
+
+body.theme-status .now-card.temp-card::before,
+body.theme-status .now-card.vent-card::before {
+    background: var(--vent-color);
+}
+
+body.theme-status .now-card.lux-card::before {
+    background: var(--light-color);
+}
+
+body.theme-status .now-card.weather-card::before {
+    background: var(--status-color);
+}
+
+body.theme-status .now-label {
+    font-size: 0.7rem !important;
+    letter-spacing: 0.05em !important;
+    color: #6b7280 !important;
+}
+
+body.theme-status .now-value {
+    font-size: clamp(1.75rem, 3.5vw, 2.15rem) !important;
+    color: #182334 !important;
+}
+
+body.theme-status .now-card.lux-card .now-value {
+    color: var(--light-color) !important;
+}
+
+body.theme-status .now-card.weather-card {
+    grid-template-columns: minmax(0, 1fr) minmax(5.2rem, auto) !important;
+}
+
+body.theme-status .now-card.weather-card .now-value {
+    max-width: 100%;
+    font-size: clamp(1.05rem, 1.9vw, 1.22rem) !important;
+    line-height: 1.12 !important;
+    color: var(--status-color) !important;
+}
+
+body.theme-status .now-stack {
+    min-width: 5.35rem !important;
+}
+
+body.theme-status .now-small {
+    border-left-width: 3px !important;
+    padding-left: 0.55rem !important;
+}
+
+body.theme-status .quick-grid {
+    gap: 0.78rem !important;
+}
+
+body.theme-status .quick-card {
+    min-height: 4.55rem !important;
+    padding: 0.85rem 0.95rem !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(203, 213, 225, 0.86) !important;
+    border-left-width: 4px !important;
+    box-shadow: 0 8px 20px rgba(38, 50, 63, 0.06) !important;
+}
+
+body.theme-status .quick-card strong {
+    font-size: 0.96rem !important;
+    color: #182334 !important;
+}
+
+body.theme-status .quick-card i {
+    width: 2rem !important;
+    height: 2rem !important;
+}
+
+body.theme-status .section {
+    margin-top: 1.05rem !important;
+}
+
+body.theme-status .section-head {
+    align-items: center !important;
+    margin-bottom: 0.65rem !important;
+}
+
+body.theme-status .section-head h2 {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem !important;
+    font-weight: 880 !important;
+}
+
+body.theme-status .section-head h2::before {
+    content: "";
+    width: 0.56rem;
+    height: 0.56rem;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.9;
+}
+
+body.theme-status .section-actions a {
+    min-height: 1.8rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+body.theme-status .status-card {
+    min-height: 8.55rem !important;
+    padding: 0.9rem !important;
+    border-left-width: 0 !important;
+    border-top: 4px solid #94a3b8 !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(38, 50, 63, 0.065) !important;
+}
+
+body.theme-status .status-card.vent-card {
+    border-top-color: var(--vent-color) !important;
+}
+
+body.theme-status .status-card.light-card {
+    border-top-color: var(--light-color) !important;
+}
+
+body.theme-status .status-card .name {
+    font-size: 0.95rem !important;
+    color: #172033 !important;
+}
+
+body.theme-status .status-card.light-card .name::before {
+    content: "";
+    display: inline-block;
+    width: 0.72rem;
+    height: 0.72rem;
+    margin-right: 0.42rem;
+    border-radius: 999px;
+    background: var(--light-soft);
+    border: 2px solid var(--light-color);
+    box-shadow: 0 0 0 3px rgba(223, 112, 93, 0.08);
+}
+
+body.theme-status .badge {
+    padding: 0.28rem 0.62rem !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+body.theme-status .detail {
+    color: #4b5563 !important;
+}
+
+@media (min-width: 1020px) {
+    body.theme-status .site-header {
+        width: 238px !important;
+        border-right: 1px solid rgba(203, 213, 225, 0.8) !important;
+        box-shadow: 8px 0 24px rgba(38, 50, 63, 0.04) !important;
+    }
+
+    body.theme-status main {
+        width: min(calc(100% - 2.2rem), 1200px) !important;
+    }
+}
+
+@media (max-width: 760px) {
+    body.theme-status .now-card.weather-card {
+        grid-template-columns: minmax(0, 1fr) auto !important;
+    }
+
+    body.theme-status .quick-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
