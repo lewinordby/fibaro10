@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI innstillinger</title>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="theme-ai">
+    {% include "_header.html" %}
+    <main>
+        <section class="page-title">
+            <div>
+                <h1>AI innstillinger</h1>
+                <p>Legg inn servernøkkelen som brukes når appen skal spørre OpenAI.</p>
+            </div>
+            <span class="status-pill {% if settings.api_key %}ok{% else %}warn{% endif %}">
+                {{ settings.source }}
+            </span>
+        </section>
+
+        {% if saved %}
+        <div class="saved">AI-innstillingene er lagret.</div>
+        {% endif %}
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <section class="panel">
+            <h2>OpenAI API key</h2>
+            <p class="sub">Nøkkelen brukes bare på serveren. Den sendes ikke til nettleseren etter lagring.</p>
+            <div class="note-grid">
+                <div class="note-card">
+                    <strong>Status</strong>
+                    <span>
+                        {% if settings.has_env_key %}
+                        Appen bruker <code>OPENAI_API_KEY</code> fra Render. Denne overstyrer nøkkelen i databasen.
+                        {% elif settings.has_stored_key %}
+                        Appen bruker lagret nøkkel: <code>{{ settings.stored_key_masked }}</code>.
+                        {% else %}
+                        Det er ikke lagret noen nøkkel ennå.
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="note-card">
+                    <strong>Hvor finner du den?</strong>
+                    <span>Gå til <a href="{{ openai_key_url }}" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a>, logg inn, og opprett en ny API key.</span>
+                </div>
+                <div class="note-card">
+                    <strong>Sikkerhet</strong>
+                    <span>OpenAI anbefaler at API keys holdes hemmelige og lastes server-side, helst via miljøvariabel eller nøkkelhåndtering.</span>
+                </div>
+            </div>
+        </section>
+
+        <form method="post" action="/ai/innstillinger">
+            <section class="panel">
+                <h2>Lagre nøkkel</h2>
+                <div class="fields">
+                    <div class="field">
+                        <label for="openai_api_key">Ny API key</label>
+                        <input id="openai_api_key" name="openai_api_key" type="password" autocomplete="off" placeholder="sk-...">
+                        <div class="help">La feltet stå tomt hvis du bare vil beholde eksisterende nøkkel.</div>
+                    </div>
+                    <div class="field">
+                        <label for="openai_model">Modell</label>
+                        <input id="openai_model" name="openai_model" type="text" value="{{ settings.model }}">
+                        <div class="help">Brukes av AI-søket. Standard er satt i appen.</div>
+                    </div>
+                    <div class="field">
+                        <label for="clear_openai_api_key">Nullstill lagret nøkkel</label>
+                        <div class="input-row">
+                            <input id="clear_openai_api_key" name="clear_openai_api_key" type="checkbox" value="1">
+                            <span class="help">Fjerner bare nøkkelen i databasen, ikke Render-miljøvariabelen.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="actions">
+                    {% if request.state.auth_can_settings %}
+                    <button class="primary" type="submit">Lagre AI-innstillinger</button>
+                    {% else %}
+                    <span class="sub">Brukeren din kan lese, men ikke endre AI-innstillingene.</span>
+                    {% endif %}
+                    <a class="button" href="/ai/sok">Tilbake til AI søk</a>
+                </div>
+            </section>
+        </form>
+    </main>
+</body>
+</html>

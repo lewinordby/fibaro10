@@ -3892,14 +3892,68 @@ async def run_ai_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     return {"ok": False, "error": f"Ukjent verktøy: {name}"}
 
 
-def openai_api_key() -> str:
+AI_CONFIG_KEY = "ai"
+
+
+def openai_env_api_key() -> str:
     return (os.getenv("OPENAI_API_KEY") or "").strip()
 
 
-def openai_responses_request(payload: Dict[str, Any]) -> Dict[str, Any]:
-    api_key = openai_api_key()
+def mask_secret(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    value = str(value)
+    if len(value) <= 10:
+        return "********"
+    return f"{value[:7]}...{value[-4:]}"
+
+
+async def get_ai_config() -> ControlConfig:
+    async with async_session() as session:
+        row = (await session.execute(select(ControlConfig).where(ControlConfig.key == AI_CONFIG_KEY))).scalars().first()
+        if row:
+            return row
+        row = ControlConfig(
+            key=AI_CONFIG_KEY,
+            version=1,
+            values={"openai_api_key": "", "openai_model": OPENAI_MODEL},
+            updated_by="system",
+        )
+        session.add(row)
+        session.add(
+            ControlConfigHistory(
+                config_key=AI_CONFIG_KEY,
+                version=1,
+                values={"openai_api_key": "", "openai_model": OPENAI_MODEL},
+                changed_by="system",
+                reason="AI-innstillinger opprettet",
+            )
+        )
+        await session.commit()
+        await session.refresh(row)
+        return row
+
+
+async def effective_openai_settings() -> Dict[str, Any]:
+    env_key = openai_env_api_key()
+    row = await get_ai_config()
+    values = row.values or {}
+    stored_key = str(values.get("openai_api_key") or "").strip()
+    stored_model = str(values.get("openai_model") or "").strip()
+    return {
+        "api_key": env_key or stored_key,
+        "source": "Render miljøvariabel" if env_key else ("App-innstilling" if stored_key else "Mangler"),
+        "has_env_key": bool(env_key),
+        "has_stored_key": bool(stored_key),
+        "stored_key_masked": mask_secret(stored_key),
+        "model": stored_model or OPENAI_MODEL,
+        "config": row,
+    }
+
+
+def openai_responses_request(payload: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY mangler i miljøvariablene.")
+        raise RuntimeError("OpenAI API key mangler.")
     request = urllib.request.Request(
         "https://api.openai.com/v1/responses",
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -3938,11 +3992,14 @@ async def ask_ai(question: str, username: str) -> Dict[str, Any]:
     question = (question or "").strip()
     if not question:
         return {"ok": False, "answer": "", "error": "Skriv inn et spørsmål først.", "tool_calls": []}
-    if not openai_api_key():
+    openai_settings = await effective_openai_settings()
+    api_key = openai_settings["api_key"]
+    model = openai_settings["model"]
+    if not api_key:
         return {
             "ok": False,
             "answer": "",
-            "error": "OPENAI_API_KEY mangler. Legg nøkkelen inn i miljøvariablene før AI-søk kan brukes.",
+            "error": "OpenAI API key mangler. Legg den inn under AI > Innstillinger eller som OPENAI_API_KEY i Render.",
             "tool_calls": [],
         }
 
@@ -3962,12 +4019,12 @@ async def ask_ai(question: str, username: str) -> Dict[str, Any]:
         }
     ]
     payload = {
-        "model": OPENAI_MODEL,
+        "model": model,
         "instructions": system_prompt,
         "tools": tools,
         "input": conversation_items,
     }
-    response = await asyncio.to_thread(openai_responses_request, payload)
+    response = await asyncio.to_thread(openai_responses_request, payload, api_key)
     tool_log: list[Dict[str, Any]] = []
 
     for _ in range(6):
@@ -4004,11 +4061,12 @@ async def ask_ai(question: str, username: str) -> Dict[str, Any]:
         response = await asyncio.to_thread(
             openai_responses_request,
             {
-                "model": OPENAI_MODEL,
+                "model": model,
                 "instructions": system_prompt,
                 "tools": tools,
                 "input": conversation_items,
             },
+            api_key,
         )
 
     return {"ok": False, "answer": response_output_text(response), "error": "AI-søket stoppet etter for mange verktøykall.", "tool_calls": tool_log}
@@ -4150,13 +4208,14 @@ async def ai_redirect():
 
 @app.get("/ai/sok", response_class=HTMLResponse)
 async def ai_search_view(request: Request):
+    openai_settings = await effective_openai_settings()
     context = {
         "question": "",
         "result": None,
         "datasets": ai_dataset_overview(),
         "logs": await recent_ai_logs(),
-        "api_ready": bool(openai_api_key()),
-        "model": OPENAI_MODEL,
+        "api_ready": bool(openai_settings["api_key"]),
+        "model": openai_settings["model"],
     }
     return templates.TemplateResponse(request, "ai_search.html", context)
 
@@ -4183,15 +4242,102 @@ async def ai_search_submit(request: Request):
             )
         )
         await session.commit()
+    openai_settings = await effective_openai_settings()
     context = {
         "question": question,
         "result": result,
         "datasets": ai_dataset_overview(),
         "logs": await recent_ai_logs(),
-        "api_ready": bool(openai_api_key()),
-        "model": OPENAI_MODEL,
+        "api_ready": bool(openai_settings["api_key"]),
+        "model": openai_settings["model"],
     }
     return templates.TemplateResponse(request, "ai_search.html", context)
+
+
+@app.get("/ai/innstillinger", response_class=HTMLResponse)
+async def ai_settings_view(request: Request):
+    settings = await effective_openai_settings()
+    return templates.TemplateResponse(
+        request,
+        "ai_settings.html",
+        {
+            "settings": settings,
+            "saved": False,
+            "error": "",
+            "openai_key_url": "https://platform.openai.com/api-keys",
+        },
+    )
+
+
+@app.post("/ai/innstillinger", response_class=HTMLResponse)
+async def ai_settings_update(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    form = await parse_form_body(request)
+    new_key = (form.get("openai_api_key") or "").strip()
+    model = (form.get("openai_model") or OPENAI_MODEL).strip() or OPENAI_MODEL
+    clear_key = form.get("clear_openai_api_key") == "1"
+    if new_key and not new_key.startswith("sk-"):
+        settings = await effective_openai_settings()
+        settings["model"] = model
+        return templates.TemplateResponse(
+            request,
+            "ai_settings.html",
+            {
+                "settings": settings,
+                "saved": False,
+                "error": "Nøkkelen ser ikke ut som en OpenAI API key. Den starter normalt med sk-.",
+                "openai_key_url": "https://platform.openai.com/api-keys",
+            },
+            status_code=400,
+        )
+    changed_by = getattr(request.state, "access_key_name", "") or "master"
+    async with async_session() as session:
+        row = (await session.execute(select(ControlConfig).where(ControlConfig.key == AI_CONFIG_KEY))).scalars().first()
+        if not row:
+            row = ControlConfig(
+                key=AI_CONFIG_KEY,
+                version=1,
+                values={"openai_api_key": "", "openai_model": model},
+                updated_by=changed_by,
+            )
+            session.add(row)
+            await session.flush()
+        values = dict(row.values or {})
+        if clear_key:
+            values["openai_api_key"] = ""
+        elif new_key:
+            values["openai_api_key"] = new_key
+        values["openai_model"] = model
+        row.values = values
+        row.version = (row.version or 1) + 1
+        row.updated_at = datetime.utcnow()
+        row.updated_by = changed_by
+        history_values = dict(values)
+        if history_values.get("openai_api_key"):
+            history_values["openai_api_key"] = mask_secret(history_values["openai_api_key"])
+        session.add(
+            ControlConfigHistory(
+                config_key=AI_CONFIG_KEY,
+                version=row.version,
+                values=history_values,
+                changed_by=changed_by,
+                reason="AI-innstillinger endret",
+            )
+        )
+        await session.commit()
+    settings = await effective_openai_settings()
+    return templates.TemplateResponse(
+        request,
+        "ai_settings.html",
+        {
+            "settings": settings,
+            "saved": True,
+            "error": "",
+            "openai_key_url": "https://platform.openai.com/api-keys",
+        },
+    )
 
 
 @app.get("/api/ai/datasets/json")
