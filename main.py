@@ -3366,7 +3366,7 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
     return items
 
 
-async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: datetime):
+async def fetch_lux_samples(day_start: datetime, timeline_end: datetime):
     async with async_session() as session:
         sample_result = await session.execute(
             select(OutdoorLightSample)
@@ -3395,8 +3395,13 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
                 "lights": light_status_text(row),
             }
         )
+    return samples, lux_values
 
-    scale = lux_scale(lux_values)
+
+async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: datetime, scale_values: Optional[list] = None):
+    samples, lux_values = await fetch_lux_samples(day_start, timeline_end)
+
+    scale = lux_scale(scale_values if scale_values is not None else lux_values)
     max_lux = scale["max"]
     points = []
     for sample in samples:
@@ -5189,15 +5194,26 @@ async def day_view(request: Request, day: Optional[str] = None, zoom: Optional[s
 
 
 @app.get("/lys/dagslogg-lux", response_class=HTMLResponse)
-async def day_lux_view(request: Request, day: Optional[str] = None):
+async def day_lux_view(request: Request, day: Optional[str] = None, compare_previous: bool = False):
     selected_day = parse_day(day)
     day_start = datetime.combine(selected_day, time.min)
     day_end = day_start + timedelta(days=1)
+    previous_day_start = day_start - timedelta(days=1)
+    previous_day_end = day_start
     now_local = local_now_naive()
     is_today = selected_day == now_local.date()
     timeline_end = min(now_local, day_end) if is_today else day_end
     now_marker = percent_between(now_local, day_start, day_end) if is_today else None
-    lux_day = await build_lux_day(day_start, day_end, timeline_end)
+    previous_lux_day = None
+    if compare_previous:
+        _, current_values = await fetch_lux_samples(day_start, timeline_end)
+        _, previous_values = await fetch_lux_samples(previous_day_start, previous_day_end)
+        lux_values = current_values + previous_values
+        lux_day = await build_lux_day(day_start, day_end, timeline_end, lux_values)
+        previous_lux_day = await build_lux_day(previous_day_start, previous_day_end, previous_day_end, lux_values)
+    else:
+        lux_day = await build_lux_day(day_start, day_end, timeline_end)
+    compare_query = "&compare_previous=1" if compare_previous else ""
     return templates.TemplateResponse(
         request,
         "day_lux.html",
@@ -5205,10 +5221,14 @@ async def day_lux_view(request: Request, day: Optional[str] = None):
             "selected_day": selected_day.isoformat(),
             "prev_day": (selected_day - timedelta(days=1)).isoformat(),
             "next_day": (selected_day + timedelta(days=1)).isoformat(),
+            "compare_previous": compare_previous,
+            "compare_query": compare_query,
+            "previous_day_label": (selected_day - timedelta(days=1)).strftime("%d.%m.%Y"),
             "is_today": is_today,
             "now_marker": now_marker,
             "now_label": now_local.strftime("%H:%M") if is_today else "",
             "lux_day": lux_day,
+            "previous_lux_day": previous_lux_day,
             "ticks": [
                 {"label": "00", "x": 0},
                 {"label": "06", "x": 250},

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dagslogg lux</title>
     <style>
-        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --brand:#5292d6; --lux:#2563eb; --lux-fill:#dbeafe; --now:#ef4444; --on:#0f766e; --off:#9f1239; }
+        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --brand:#5292d6; --lux:#df705d; --lux-previous:#1f2937; --lux-fill:#dbeafe; --now:#ef4444; --on:#0f766e; --off:#9f1239; }
         * { box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
         header { position: sticky; top: 0; z-index: 5; background: rgba(244,246,248,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; }
@@ -15,8 +15,10 @@
         main { padding: 0.85rem; max-width: 980px; margin: 0 auto; }
         .datebar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 0.85rem; }
         a.button, button { padding: 0.65rem 0.75rem; border: 1px solid var(--line); background: white; color: #111; text-decoration: none; border-radius: 7px; cursor: pointer; font-size: 0.95rem; text-align: center; }
-        form.day-form { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; margin-bottom: 0.85rem; }
+        form.day-form { display: grid; grid-template-columns: minmax(10rem, 1fr) auto auto; gap: 0.5rem; margin-bottom: 0.85rem; align-items: stretch; }
         input { width: 100%; padding: 0.6rem; border: 1px solid var(--line); border-radius: 7px; background: white; font-size: 1rem; }
+        .compare-toggle { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--muted); font-weight: 750; font-size: 0.9rem; padding: 0.55rem 0.65rem; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+        .compare-toggle input { width: auto; accent-color: var(--lux); }
         .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 0.85rem; margin-bottom: 0.85rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
         .summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; margin-bottom: 0.85rem; }
         .metric { background: #f8fafc; border: 1px solid #e5eaf0; border-radius: 7px; padding: 0.7rem; }
@@ -34,11 +36,13 @@
         .y-symbol { fill: #f59e0b; stroke: #b45309; stroke-width: 0.5; }
         .ref-line { stroke: #df705d; stroke-width: 1.2; opacity: 0.8; }
         .ref-label { fill: #9d3f31; font-size: 12px; font-weight: 800; }
+        .previous-lux-line { fill: none; stroke: var(--lux-previous); stroke-width: 1.55; stroke-linejoin: round; stroke-linecap: round; opacity: 0.72; }
         .now-line { stroke: #ef4444; stroke-width: 2; }
         .now-label { fill: #ef4444; font-size: 13px; font-weight: 800; }
         .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--muted); font-size: 0.86rem; margin-top: 0.65rem; }
         .key { display: inline-flex; align-items: center; gap: 0.35rem; }
         .swatch { width: 1rem; height: 0.55rem; border-radius: 999px; display: inline-block; background: var(--lux); }
+        .swatch.previous { background: var(--lux-previous); opacity: 0.72; }
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; background: white; }
         th, td { padding: 0.58rem; border-bottom: 1px solid #edf1f5; text-align: left; font-size: 0.88rem; vertical-align: top; }
@@ -61,12 +65,13 @@
     <main>
         <form class="day-form" method="get" action="/lys/dagslogg-lux">
             <input type="date" name="day" value="{{ selected_day }}">
+            <label class="compare-toggle"><input type="checkbox" name="compare_previous" value="1" {% if compare_previous %}checked{% endif %}> Sammenlign med dagen før</label>
             <button type="submit">Vis dag</button>
         </form>
         <div class="datebar">
-            <a class="button" href="/lys/dagslogg-lux?day={{ prev_day }}">Forrige dag</a>
-            <a class="button" href="/lys/dagslogg-lux">I dag</a>
-            <a class="button" href="/lys/dagslogg-lux?day={{ next_day }}">Neste dag</a>
+            <a class="button" href="/lys/dagslogg-lux?day={{ prev_day }}{{ compare_query }}">Forrige dag</a>
+            <a class="button" href="/lys/dagslogg-lux{% if compare_previous %}?compare_previous=1{% endif %}">I dag</a>
+            <a class="button" href="/lys/dagslogg-lux?day={{ next_day }}{{ compare_query }}">Neste dag</a>
         </div>
 
         <section class="panel">
@@ -93,6 +98,9 @@
                         <line class="ref-line" x1="0" y1="{{ ref.y }}" x2="1000" y2="{{ ref.y }}"></line>
                         <text class="ref-label" x="994" y="{{ ref.y - 5 }}" text-anchor="end">{{ ref.label }}</text>
                         {% endfor %}
+                        {% if compare_previous and previous_lux_day and previous_lux_day.polyline %}
+                        <polyline class="previous-lux-line" points="{{ previous_lux_day.polyline }}"></polyline>
+                        {% endif %}
                         {% if lux_day.polyline %}
                         <polyline class="lux-line" points="{{ lux_day.polyline }}"></polyline>
                         {% endif %}
@@ -104,7 +112,10 @@
                 </div>
             </div>
             <div class="legend">
-                <span class="key"><span class="swatch"></span>Luxkurve fra 5-minutters målinger</span>
+                <span class="key"><span class="swatch"></span>Valgt dag</span>
+                {% if compare_previous %}
+                <span class="key"><span class="swatch previous"></span>Dagen før ({{ previous_day_label }})</span>
+                {% endif %}
                 <span class="key">Referanse: 100, 1000 og 2K lux</span>
                 <span class="key">Skala: delt lineær, 0-2K nederst og 2K-{{ lux_day.summary.scale_max }} øverst</span>
                 <span class="key">Grafen stopper ved nå-linjen for dagens dato</span>
