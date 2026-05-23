@@ -39,6 +39,10 @@
     --cleaning-soft: #e7f5f8;
     --cleaning-border: #acd8e1;
     --cleaning-ring: rgba(47, 143, 163, 0.24);
+    --sun2-color: #3f7fbd;
+    --sun2-soft: #eaf4ff;
+    --sun2-border: #b8d8f0;
+    --sun2-ring: rgba(63, 127, 189, 0.24);
     --admin-color: #726189;
     --admin-soft: #f0edf5;
     --admin-border: #cec4db;
@@ -110,6 +114,13 @@ body.theme-energy {
     --page-accent-soft: var(--energy-soft);
     --page-accent-border: var(--energy-border);
     --page-accent-ring: var(--energy-ring);
+}
+
+body.theme-sun2 {
+    --page-accent: var(--sun2-color);
+    --page-accent-soft: var(--sun2-soft);
+    --page-accent-border: var(--sun2-border);
+    --page-accent-ring: var(--sun2-ring);
 }
 
 body.theme-ai {
@@ -666,10 +677,10 @@ code {
 }
 
 .app-nav.section-sun2 {
-    --section-color: var(--energy-color);
-    --section-soft: var(--energy-soft);
-    --section-border: var(--energy-border);
-    --section-ring: var(--energy-ring);
+    --section-color: var(--sun2-color);
+    --section-soft: var(--sun2-soft);
+    --section-border: var(--sun2-border);
+    --section-ring: var(--sun2-ring);
 }
 
 .app-nav.section-admin {
@@ -848,10 +859,10 @@ code {
 }
 
 .app-nav .nav-main .button.nav-sun2 {
-    --section-color: var(--energy-color);
-    --section-soft: var(--energy-soft);
-    --section-border: var(--energy-border);
-    --section-ring: var(--energy-ring);
+    --section-color: var(--sun2-color);
+    --section-soft: var(--sun2-soft);
+    --section-border: var(--sun2-border);
+    --section-ring: var(--sun2-ring);
 }
 
 .app-nav .nav-main .button.nav-admin {
@@ -1145,5 +1156,397 @@ button.primary,
         padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
         font-size: 0.82rem !important;
+    }
+}
+
+/* 2026 UI refresh: compact, readable, one visual system across old templates. */
+:root {
+    --page-width: 1240px;
+    --bg: #f3f6fa;
+    --panel: #ffffff;
+    --panel-soft: #f8fafc;
+    --line: #dbe3ed;
+    --line-soft: #edf2f7;
+    --text: #202b38;
+    --muted: #647386;
+    --brand-dark: #202b38;
+    --shadow-1: 0 1px 2px rgba(24, 39, 75, 0.05), 0 8px 22px rgba(24, 39, 75, 0.055);
+    --shadow-2: 0 14px 35px rgba(24, 39, 75, 0.09);
+    --radius-sm: 7px;
+    --radius-md: 9px;
+    --radius-lg: 12px;
+}
+
+body {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top left, rgba(82, 146, 214, 0.1), transparent 28rem),
+        linear-gradient(180deg, #f8fafc 0, var(--bg) 20rem) !important;
+    color: var(--text) !important;
+    font-size: 15px;
+}
+
+.site-header {
+    padding: 0.48rem 0.75rem !important;
+    background: rgba(255, 255, 255, 0.86) !important;
+    border-bottom: 1px solid rgba(219, 227, 237, 0.85) !important;
+    box-shadow: 0 1px 0 rgba(24, 39, 75, 0.04) !important;
+}
+
+.brand-bar {
+    width: min(100% - 1rem, var(--page-width)) !important;
+}
+
+main {
+    width: min(100% - 1rem, var(--page-width)) !important;
+    padding: 1rem 0 1.6rem !important;
+}
+
+.app-nav {
+    display: grid !important;
+    gap: 0.45rem !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+.site-header .app-nav {
+    background: transparent !important;
+}
+
+.app-nav .nav-row {
+    display: flex !important;
+    align-items: center;
+    gap: 0.36rem !important;
+    width: 100%;
+}
+
+.app-nav .nav-main {
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 0.42rem !important;
+    padding: 0.32rem;
+    border: 1px solid rgba(219, 227, 237, 0.9);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: 0 1px 2px rgba(24, 39, 75, 0.04);
+}
+
+.app-nav .button {
+    min-width: 0 !important;
+    width: auto !important;
+    min-height: 0 !important;
+    border-radius: 10px !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: #59687a !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+    transform: none !important;
+}
+
+.app-nav .nav-main .button {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, auto);
+    justify-content: center;
+    align-items: center;
+    gap: 0.36rem;
+    height: 2.28rem;
+    padding: 0 0.52rem !important;
+    font-size: 0.8rem;
+    font-weight: 760;
+}
+
+.app-nav .nav-main .nav-account {
+    width: auto !important;
+    font-size: 0.8rem !important;
+    background: transparent !important;
+    color: #59687a !important;
+    border-color: transparent !important;
+}
+
+.app-nav .nav-icon {
+    width: 0.92rem !important;
+    height: 0.92rem !important;
+    stroke-width: 2;
+}
+
+.app-nav .nav-label {
+    display: inline-block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-nav .nav-main .button:hover {
+    background: var(--section-soft) !important;
+    color: var(--section-color) !important;
+    border-color: var(--section-border) !important;
+}
+
+.app-nav .nav-main .button.active {
+    background: var(--section-soft) !important;
+    color: var(--section-color) !important;
+    border-color: var(--section-border) !important;
+    box-shadow: inset 0 -2px 0 var(--section-color), 0 5px 14px rgba(24, 39, 75, 0.06) !important;
+}
+
+.app-nav .nav-sub {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    min-height: 2.28rem;
+    padding: 0 0.16rem 0.05rem;
+}
+
+.app-nav .nav-sub .button,
+.app-nav .nav-sub-form .button {
+    width: auto !important;
+    min-height: 1.82rem !important;
+    padding: 0.34rem 0.68rem !important;
+    border-radius: 999px !important;
+    border-color: transparent !important;
+    background: transparent !important;
+    color: var(--muted) !important;
+    font-size: 0.8rem !important;
+    font-weight: 720 !important;
+}
+
+.app-nav .nav-sub .button:hover,
+.app-nav .nav-sub-form .button:hover {
+    background: var(--section-soft) !important;
+    color: var(--section-color) !important;
+}
+
+.app-nav .nav-sub .button.active {
+    background: var(--section-color) !important;
+    border-color: var(--section-color) !important;
+    color: #fff !important;
+    box-shadow: 0 5px 14px var(--section-ring) !important;
+}
+
+.app-nav .button.active::after,
+.app-nav .button::after {
+    content: none !important;
+}
+
+.panel,
+.hero,
+.event-card,
+.sample,
+.status-card,
+.health-card,
+.metric,
+.temp,
+.cell,
+.summary-card,
+.stat-card,
+.now-card,
+.clean-card,
+.table-wrap,
+main > details,
+.group,
+.note-card {
+    border: 1px solid var(--line) !important;
+    border-radius: var(--radius-lg) !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    box-shadow: var(--shadow-1) !important;
+}
+
+.panel::before,
+.hero::before,
+main > details::before {
+    height: 2px !important;
+    background: var(--page-accent) !important;
+    opacity: 0.95 !important;
+}
+
+.panel,
+.hero {
+    padding: clamp(0.9rem, 1.6vw, 1.15rem) !important;
+}
+
+.section {
+    margin-top: 1rem !important;
+}
+
+.section h2,
+.panel h2,
+.hero h2 {
+    font-size: 1rem !important;
+    font-weight: 780 !important;
+}
+
+.page-title {
+    align-items: center !important;
+    margin-bottom: 0.85rem !important;
+}
+
+.page-title h1,
+header h1,
+h1 {
+    font-size: clamp(1.28rem, 2.5vw, 1.75rem) !important;
+    font-weight: 760 !important;
+}
+
+.sub,
+.help,
+.detail,
+.label,
+.now-label,
+.small-label {
+    color: var(--muted) !important;
+}
+
+.now-grid,
+.summary-grid,
+.health-grid,
+.clean-grid,
+.hero-grid,
+.top-grid,
+.panel-grid,
+.summary-tables {
+    gap: 0.85rem !important;
+}
+
+.now-card {
+    min-height: 8.2rem !important;
+    align-content: center;
+    border-left-width: 4px !important;
+}
+
+.now-value {
+    font-size: clamp(1.35rem, 3.5vw, 2rem) !important;
+}
+
+.status-card,
+.health-card,
+.event-card,
+.sample {
+    padding: 0.82rem !important;
+}
+
+.metric,
+.temp,
+.cell,
+.stat-card {
+    background: var(--panel-soft) !important;
+    border-color: var(--line-soft) !important;
+}
+
+input,
+select,
+textarea {
+    border-radius: 9px !important;
+    border-color: var(--line) !important;
+    background: #fff !important;
+}
+
+a.button,
+button,
+.button {
+    border-radius: 9px !important;
+    text-decoration: none !important;
+}
+
+button.primary,
+.button.primary,
+.primary {
+    background: var(--page-accent) !important;
+    border-color: var(--page-accent) !important;
+    color: #fff !important;
+}
+
+table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+th {
+    background: #f7fafc !important;
+    color: #667386 !important;
+    font-size: 0.76rem !important;
+    font-weight: 780 !important;
+}
+
+td,
+th {
+    padding: 0.58rem 0.66rem !important;
+    border-bottom: 1px solid var(--line-soft) !important;
+}
+
+tbody tr:hover {
+    background: #f8fbff !important;
+}
+
+.badge,
+.mode,
+.flag,
+.chip,
+.status-pill {
+    border-radius: 999px !important;
+    font-weight: 780 !important;
+}
+
+svg {
+    border-radius: 10px !important;
+}
+
+@media (max-width: 900px) {
+    .app-nav .nav-main {
+        display: flex !important;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-bottom: 0.34rem;
+    }
+
+    .app-nav .nav-main::-webkit-scrollbar {
+        display: none;
+    }
+
+    .app-nav .nav-main .button {
+        flex: 0 0 auto;
+        min-width: 4.9rem !important;
+    }
+
+    .app-nav .nav-sub {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
+    }
+
+    .app-nav .nav-sub::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+@media (max-width: 520px) {
+    body {
+        font-size: 14px;
+    }
+
+    .site-header {
+        padding-inline: 0.46rem !important;
+    }
+
+    main,
+    .brand-bar {
+        width: min(100% - 0.7rem, var(--page-width)) !important;
+    }
+
+    .app-nav .nav-main .button {
+        height: 2.18rem;
+        min-width: 4.55rem !important;
+        padding-inline: 0.45rem !important;
+        font-size: 0.76rem;
+    }
+
+    .app-nav .nav-icon {
+        width: 0.82rem !important;
+        height: 0.82rem !important;
     }
 }
