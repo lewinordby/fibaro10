@@ -2057,3 +2057,141 @@ svg {
         width: 100% !important;
     }
 }
+
+/* Collapsible desktop sidebar. Stored client-side by _header.html. */
+.nav-toggle {
+    display: none;
+}
+
+.nav-toggle-lines {
+    position: relative;
+    display: block;
+    width: 1rem;
+    height: 0.72rem;
+}
+
+.nav-toggle-lines::before,
+.nav-toggle-lines::after,
+.nav-toggle-lines {
+    border-top: 2px solid currentColor;
+}
+
+.nav-toggle-lines::before,
+.nav-toggle-lines::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 1rem;
+}
+
+.nav-toggle-lines::before {
+    top: 0.22rem;
+}
+
+.nav-toggle-lines::after {
+    top: 0.5rem;
+}
+
+@media (min-width: 1020px) {
+    .nav-toggle {
+        display: inline-flex !important;
+        position: absolute;
+        top: 1rem;
+        right: 0.82rem;
+        z-index: 2;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        padding: 0 !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 9px !important;
+        background: #fff !important;
+        color: var(--muted) !important;
+        box-shadow: none !important;
+    }
+
+    .nav-toggle:hover {
+        color: var(--brand) !important;
+        border-color: var(--status-border) !important;
+        background: var(--status-soft) !important;
+    }
+
+    html.nav-collapsed body {
+        padding-left: 78px !important;
+    }
+
+    html.nav-collapsed .site-header {
+        width: 78px !important;
+        padding: 0.82rem 0.55rem !important;
+    }
+
+    html.nav-collapsed .brand-bar::before {
+        content: "S²";
+        margin: 0.05rem 0 1.1rem;
+        text-align: center;
+        font-size: 1.45rem;
+    }
+
+    html.nav-collapsed .brand-bar::after {
+        content: none;
+    }
+
+    html.nav-collapsed .nav-toggle {
+        position: static;
+        width: 100%;
+        margin: 0 0 0.7rem;
+    }
+
+    html.nav-collapsed main {
+        width: min(calc(100vw - 78px - 2.2rem), var(--page-width)) !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-main .button,
+    html.nav-collapsed .app-nav .nav-main .nav-account {
+        justify-content: center !important;
+        width: 100% !important;
+        height: 2.42rem !important;
+        padding: 0 !important;
+        gap: 0 !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-label,
+    html.nav-collapsed .app-nav .nav-main .nav-account::after,
+    html.nav-collapsed .app-nav .nav-sub::before {
+        display: none !important;
+        content: none !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-main .nav-account {
+        margin-top: 0.56rem !important;
+        padding-top: 0.56rem !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-icon {
+        width: 1.08rem !important;
+        height: 1.08rem !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-sub {
+        margin-top: 0.82rem !important;
+        padding-top: 0.7rem !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-sub .button,
+    html.nav-collapsed .app-nav .nav-sub-form .button {
+        justify-content: center !important;
+        min-height: 2rem !important;
+        padding: 0.3rem 0.12rem !important;
+        font-size: 0.66rem !important;
+        overflow: hidden;
+        text-align: center !important;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 1019px) {
+    .nav-toggle {
+        display: none !important;
+    }
+}

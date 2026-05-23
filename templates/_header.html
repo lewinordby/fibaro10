@@ -1,5 +1,26 @@
 <header class="site-header">
     <div class="brand-bar">
+        <button class="nav-toggle" type="button" aria-label="Bytt menybredde" title="Bytt menybredde">
+            <span class="nav-toggle-lines" aria-hidden="true"></span>
+        </button>
         {% include "_nav.html" %}
     </div>
 </header>
+<script>
+    (() => {
+        const root = document.documentElement;
+        const key = "fibaro10_nav_collapsed";
+        const apply = (collapsed) => {
+            root.classList.toggle("nav-collapsed", collapsed);
+            document.querySelector(".nav-toggle")?.setAttribute("aria-pressed", collapsed ? "true" : "false");
+        };
+        apply(localStorage.getItem(key) === "1");
+        document.addEventListener("click", (event) => {
+            const button = event.target.closest(".nav-toggle");
+            if (!button) return;
+            const collapsed = !root.classList.contains("nav-collapsed");
+            localStorage.setItem(key, collapsed ? "1" : "0");
+            apply(collapsed);
+        });
+    })();
+</script>
