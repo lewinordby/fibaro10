@@ -11,7 +11,7 @@ import json
 import math
 import os
 import re
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote, quote_plus, urlparse
 import urllib.error
 import urllib.request
 from zoneinfo import ZoneInfo
@@ -54,6 +54,9 @@ MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 https://fibaro10.onre
 MET_WEATHER_CACHE = {"expires": datetime.min, "value": None}
 SUMMARY_CACHE_TTL = timedelta(minutes=5)
 SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
+NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
+NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
+NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 
 app = FastAPI(title="Fibaro10")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -2505,6 +2508,59 @@ def display_action(action: Optional[str]) -> str:
 
 def clean_display_text(value: Optional[str]) -> str:
     return (value or "").replace("innbl?sing", "innblåsing").replace("innblasing", "innblåsing").replace("KJ?LING", "KJØLING").replace("KJOLING", "KJØLING").replace("kj?lebehov", "kjølebehov").replace("kjolebehov", "kjølebehov")
+
+
+def ntfy_host() -> str:
+    parsed = urlparse(NTFY_BASE_URL)
+    return parsed.netloc or parsed.path.strip("/")
+
+
+def ntfy_topic_url(topic: str) -> str:
+    return f"{NTFY_BASE_URL}/{quote(topic, safe='')}"
+
+
+def ntfy_subscribe_url(topic: str, display_name: str) -> str:
+    return f"ntfy://{ntfy_host()}/{quote(topic, safe='')}?display={quote_plus(display_name)}"
+
+
+def publish_ntfy_message(topic: str, title: str, message: str, tags: str = "", priority: str = "3") -> None:
+    headers = {"Title": title, "Priority": priority}
+    if tags:
+        headers["Tags"] = tags
+    request = urllib.request.Request(
+        ntfy_topic_url(topic),
+        data=message.encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=NTFY_TIMEOUT_SECONDS):
+        pass
+
+
+async def publish_light_ntfy(event: OutdoorLightEvent) -> bool:
+    state = state_from_event(event)
+    if state is None:
+        return False
+    action = "P\u00c5" if state else "AV"
+    device_name = event.device_name or event.device_key or "Ukjent lys"
+    pieces = [f"{device_name} er {action}."]
+    if event.lux is not None:
+        pieces.append(f"Lux: {event.lux:.0f}.")
+    detail = clean_display_text(event.reason or event.source or "")
+    if detail:
+        pieces.append(f"\u00c5rsak: {detail}.")
+    try:
+        await asyncio.to_thread(
+            publish_ntfy_message,
+            NTFY_LIGHTS_TOPIC,
+            f"SUN2 lys {action}",
+            " ".join(pieces),
+            "bulb",
+            "3",
+        )
+        return True
+    except Exception:
+        return False
 
 
 def state_from_event(row):
@@ -5042,6 +5098,8 @@ async def index(request: Request):
             "latest_yr_sample": latest_yr_sample,
             "now_status": now_status,
             "light_status": light_status,
+            "ntfy_lights_subscribe_url": ntfy_subscribe_url(NTFY_LIGHTS_TOPIC, "SUN2 lys"),
+            "ntfy_lights_web_url": ntfy_topic_url(NTFY_LIGHTS_TOPIC),
             "vent_status": vent_status,
             "freshness_items": freshness_items,
         },
@@ -5175,8 +5233,10 @@ async def log_event(data: EventDataIn):
             yr_sample_id = await save_yr_sample_for_payload(data, met_weather)
             event_id = await save_record(light_sample_from_payload(data, met_weather))
             return {"status": "ok", "id": event_id, "table": "utelys_samples", "yr_sample_id": yr_sample_id}
-        event_id = await save_record(light_from_payload(data))
-        return {"status": "ok", "id": event_id, "table": "utelys_events"}
+        event = light_from_payload(data)
+        event_id = await save_record(event)
+        ntfy_sent = await publish_light_ntfy(event)
+        return {"status": "ok", "id": event_id, "table": "utelys_events", "ntfy_sent": ntfy_sent}
     if system in {"ventilasjon", "ventilation", "vent"}:
         if data.event_type in {"sample", "sample_5min", "sample_15min", "learning_sample"}:
             yr_sample_id = await save_yr_sample_for_payload(data)
