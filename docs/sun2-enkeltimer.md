@@ -32,7 +32,7 @@ POST_TO_FIBARO10=0
 Kjør én måned i grensesnittet:
 
 ```text
-http://QNAP-IP:8098
+http://QNAP-IP:8099
 ```
 
 Kontroller filen:

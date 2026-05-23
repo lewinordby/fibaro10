@@ -100,8 +100,10 @@
                 <thead>
                     <tr>
                         <th>Start</th>
+                        <th>SUN2-id</th>
                         <th>Rom</th>
                         <th>Bruker</th>
+                        <th>Betaling</th>
                         <th>Kunde</th>
                         <th>Minutter</th>
                         <th>Betalt</th>
@@ -114,8 +116,10 @@
                     {% for row in rows %}
                     <tr>
                         <td class="period">{{ row.started_at|localtime }}</td>
+                        <td>{{ row.sun2_user_id or "-" }}</td>
                         <td>{{ row.room or row.room_key or "-" }}</td>
                         <td class="name">{{ row.user_name or "-" }}</td>
+                        <td>{{ row.payment_method or "-" }}</td>
                         <td>{{ row.customer_type or row.user_identifier or "-" }}</td>
                         <td>{{ "%.1f"|format(row.duration_minutes or 0) }}</td>
                         <td class="money">{{ "%.2f"|format(row.paid_amount_kr or 0) }} kr</td>

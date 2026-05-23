@@ -728,9 +728,13 @@ class Sun2TanningSession(Base):
     room_key = Column(String, index=True, nullable=True)
     room = Column(String, index=True, nullable=True)
     source_room_name = Column(String, nullable=True)
+    sun2_user_id = Column(String, index=True, nullable=True)
+    sun2_center_id = Column(String, index=True, nullable=True)
     user_name = Column(String, index=True, nullable=True)
     user_identifier = Column(String, index=True, nullable=True)
     customer_type = Column(String, index=True, nullable=True)
+    gender = Column(String, index=True, nullable=True)
+    payment_method = Column(String, index=True, nullable=True)
     duration_minutes = Column(Float, nullable=True)
     paid_amount_kr = Column(Float, nullable=True)
     status = Column(String, index=True, nullable=True)
@@ -987,9 +991,13 @@ class Sun2TanningSessionIn(BaseModel):
     room: Optional[str] = None
     room_key: Optional[str] = None
     source_room_name: Optional[str] = None
+    sun2_user_id: Optional[str] = None
+    sun2_center_id: Optional[str] = None
     user_name: Optional[str] = None
     user_identifier: Optional[str] = None
     customer_type: Optional[str] = None
+    gender: Optional[str] = None
+    payment_method: Optional[str] = None
     duration_minutes: Optional[float] = None
     paid_amount_kr: Optional[float] = None
     status: Optional[str] = None
@@ -1094,9 +1102,9 @@ SUN2_IMPORT_COLUMNS = [
 
 SUN2_SESSION_COLUMNS = [
     "id", "source_session_id", "started_at", "ended_at", "stat_date", "room_key",
-    "room", "source_room_name", "user_name", "user_identifier", "customer_type",
-    "duration_minutes", "paid_amount_kr", "status", "source", "source_file",
-    "imported_at", "raw",
+    "room", "source_room_name", "sun2_user_id", "sun2_center_id", "user_name",
+    "user_identifier", "customer_type", "gender", "payment_method", "duration_minutes",
+    "paid_amount_kr", "status", "source", "source_file", "imported_at", "raw",
 ]
 
 SUN2_SESSION_IMPORT_COLUMNS = [
@@ -1765,6 +1773,12 @@ STARTUP_COLUMNS = {
     "sun2_room_daily_stats": [
         ("room_key", "VARCHAR"),
         ("source_room_name", "VARCHAR"),
+    ],
+    "sun2_tanning_sessions": [
+        ("sun2_user_id", "VARCHAR"),
+        ("sun2_center_id", "VARCHAR"),
+        ("gender", "VARCHAR"),
+        ("payment_method", "VARCHAR"),
     ],
 }
 
@@ -4235,9 +4249,13 @@ async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestI
         existing.room_key = room_key or None
         existing.room = room or None
         existing.source_room_name = source_room_name or None
+        existing.sun2_user_id = (repair_mojibake(row.sun2_user_id) or "").strip() or None
+        existing.sun2_center_id = (repair_mojibake(row.sun2_center_id) or "").strip() or None
         existing.user_name = (repair_mojibake(row.user_name) or "").strip() or None
         existing.user_identifier = (repair_mojibake(row.user_identifier) or "").strip() or None
         existing.customer_type = (repair_mojibake(row.customer_type) or "").strip() or None
+        existing.gender = (repair_mojibake(row.gender) or "").strip() or None
+        existing.payment_method = (repair_mojibake(row.payment_method) or "").strip() or None
         existing.duration_minutes = row.duration_minutes
         existing.paid_amount_kr = row.paid_amount_kr
         existing.status = (repair_mojibake(row.status) or "").strip() or None

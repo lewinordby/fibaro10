@@ -6,6 +6,6 @@ services:
     env_file:
       - .env
     ports:
-      - "8098:8098"
+      - "8099:8098"
     volumes:
       - ./data:/data

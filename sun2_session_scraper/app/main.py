@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 import os
@@ -45,7 +46,10 @@ def timezone_name() -> str:
 def local_now() -> datetime:
     if ZoneInfo is None:
         return datetime.now()
-    return datetime.now(ZoneInfo(timezone_name()))
+    try:
+        return datetime.now(ZoneInfo(timezone_name()))
+    except Exception:
+        return datetime.now()
 
 
 def local_today() -> date:
@@ -168,15 +172,52 @@ def parse_number(value: Any) -> float | None:
         return None
 
 
+def parse_duration_minutes(value: Any) -> float | None:
+    text = normalize_text(value).lower()
+    if not text:
+        return None
+    hours = 0.0
+    minutes = 0.0
+    hour_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:time|timer|t)\b", text)
+    minute_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:minutt|minutter|min)\b", text)
+    if hour_match:
+        hours = float(hour_match.group(1).replace(",", "."))
+    if minute_match:
+        minutes = float(minute_match.group(1).replace(",", "."))
+    if hour_match or minute_match:
+        return hours * 60 + minutes
+    return parse_number(text)
+
+
+def decode_sun2_member_token(token: Any) -> tuple[str | None, str | None]:
+    text = normalize_text(token)
+    if not text or "." not in text:
+        return None, None
+    try:
+        payload = text.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        decoded = base64.urlsafe_b64decode(payload.encode()).decode("utf-8", errors="ignore").strip().strip('"')
+    except Exception:
+        return None, None
+    match = re.match(r"(\d+)-(\d+)", decoded)
+    if not match:
+        return None, None
+    return match.group(1), match.group(2)
+
+
 def parse_datetime_guess(value: Any, fallback_day: date) -> datetime | None:
     text = normalize_text(value)
     if not text:
         return None
     for pattern in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d.%m.%Y %H:%M:%S", "%d.%m.%Y %H:%M"):
         try:
-            return datetime.strptime(text[: len(pattern)], pattern)
+            return datetime.strptime(text, pattern)
         except ValueError:
             pass
+    match = re.search(r"(\d{4})[./-](\d{1,2})[./-](\d{1,2}).*?(\d{1,2}):(\d{2})", text)
+    if match:
+        year, month, day, hour, minute = [int(part) for part in match.groups()]
+        return datetime(year, month, day, hour, minute)
     match = re.search(r"(\d{1,2})[./-](\d{1,2})[./-](\d{2,4}).*?(\d{1,2}):(\d{2})", text)
     if match:
         day, month, year, hour, minute = [int(part) for part in match.groups()]
@@ -228,13 +269,22 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
     if not started_at:
         return None
 
-    duration = parse_number(pick(raw, "varighet", "soltid", "minutter", "min"))
-    paid = parse_number(pick(raw, "betalt", "pris", "belop", "inntjent", "kr"))
+    duration = parse_duration_minutes(pick(raw, "varighet", "soletid", "soltid", "minutter", "min"))
+    paid = parse_number(pick(raw, "kostnad", "betalt", "pris", "belop", "inntjent", "kr"))
     room = pick(raw, "rom", "seng", "bed", "solarium")
     user_name = pick(raw, "bruker", "kunde", "navn", "medlem")
     user_identifier = pick(raw, "kunde id", "bruker id", "medlemsnummer", "telefon", "epost", "email")
-    status = pick(raw, "status", "resultat", "betaling")
+    payment_method = pick(raw, "betalingsmiddel", "betaling", "payment")
+    status = pick(raw, "status", "resultat") or payment_method
     customer_type = pick(raw, "kundetype", "type", "medlemstype")
+    gender = pick(raw, "kjonn", "kjønn", "gender")
+    sun2_user_id = normalize_text(raw.get("__sun2_user_id"))
+    sun2_center_id = normalize_text(raw.get("__sun2_center_id"))
+    token_center_id, token_user_id = decode_sun2_member_token(raw.get("__sun2_user_token"))
+    if not sun2_center_id:
+        sun2_center_id = token_center_id or ""
+    if not sun2_user_id:
+        sun2_user_id = token_user_id or ""
     ended_at = None
     if duration is not None:
         ended_at = started_at + timedelta(minutes=duration)
@@ -242,6 +292,7 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
     source_id = pick_identifier(raw)
     if not source_id:
         source_id = row_hash({"started_at": started_at.isoformat(), "room": room, "user": user_name, "duration": duration, "paid": paid, "raw": raw})
+    raw_for_storage = {key: value for key, value in raw.items() if key not in {"__sun2_user_token", "__user_href"}}
 
     return {
         "source_session_id": normalize_text(source_id),
@@ -251,13 +302,17 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
         "room": normalize_text(room) or None,
         "room_key": room_key_from_name(room) if room else None,
         "source_room_name": normalize_text(room) or None,
+        "sun2_user_id": sun2_user_id or None,
+        "sun2_center_id": sun2_center_id or None,
         "user_name": normalize_text(user_name) or None,
         "user_identifier": normalize_text(user_identifier) or None,
         "customer_type": normalize_text(customer_type) or None,
+        "gender": normalize_text(gender) or None,
+        "payment_method": normalize_text(payment_method) or None,
         "duration_minutes": duration,
         "paid_amount_kr": paid,
         "status": normalize_text(status) or None,
-        "raw": raw,
+        "raw": raw_for_storage,
     }
 
 
@@ -363,17 +418,27 @@ def extract_largest_table(page) -> tuple[list[str], list[dict[str, str]]]:
         data = table.evaluate(
             """
             table => {
-              const rows = Array.from(table.querySelectorAll('tr')).map(tr =>
-                Array.from(tr.children).map(td => (td.innerText || '').trim())
-              ).filter(row => row.some(Boolean));
+              const domRows = Array.from(table.querySelectorAll('tr'));
               let headers = Array.from(table.querySelectorAll('thead th')).map(th => (th.innerText || '').trim());
+              let rows = domRows.map(tr => {
+                const cells = Array.from(tr.children);
+                const texts = cells.map(td => (td.innerText || '').trim());
+                const firstUserLink = tr.querySelector('a.this-user-info, a[data-user-id], a[data-user]');
+                return {
+                  texts,
+                  sun2_user_id: firstUserLink ? (firstUserLink.getAttribute('data-user-id') || '') : '',
+                  sun2_user_token: firstUserLink ? (firstUserLink.getAttribute('data-user') || '') : '',
+                  user_title: firstUserLink ? (firstUserLink.getAttribute('data-title') || '') : '',
+                  user_href: firstUserLink ? (firstUserLink.getAttribute('href') || '') : '',
+                };
+              }).filter(row => row.texts.some(Boolean));
               let bodyRows = rows;
               if (!headers.length && rows.length) {
-                headers = rows[0];
+                headers = rows[0].texts;
                 bodyRows = rows.slice(1);
               }
               if (!headers.length && bodyRows.length) {
-                headers = bodyRows[0].map((_, i) => `Kolonne ${i + 1}`);
+                headers = bodyRows[0].texts.map((_, i) => `Kolonne ${i + 1}`);
               }
               return {headers, rows: bodyRows};
             }
@@ -382,12 +447,52 @@ def extract_largest_table(page) -> tuple[list[str], list[dict[str, str]]]:
         headers = [normalize_text(header) or f"Kolonne {i + 1}" for i, header in enumerate(data.get("headers") or [])]
         rows = []
         for raw_row in data.get("rows") or []:
-            row = {headers[i] if i < len(headers) else f"Kolonne {i + 1}": normalize_text(value) for i, value in enumerate(raw_row)}
+            texts = raw_row.get("texts") if isinstance(raw_row, dict) else raw_row
+            row = {headers[i] if i < len(headers) else f"Kolonne {i + 1}": normalize_text(value) for i, value in enumerate(texts)}
+            if isinstance(raw_row, dict):
+                row["__sun2_user_id"] = normalize_text(raw_row.get("sun2_user_id"))
+                row["__sun2_user_token"] = normalize_text(raw_row.get("sun2_user_token"))
+                row["__user_title"] = normalize_text(raw_row.get("user_title"))
+                row["__user_href"] = normalize_text(raw_row.get("user_href"))
             if any(row.values()):
                 rows.append(row)
         if len(rows) > len(best[1]):
             best = (headers, rows)
     return best
+
+
+def extract_paginated_table(page, max_pages: int = 500) -> tuple[list[str], list[dict[str, str]]]:
+    all_rows: list[dict[str, str]] = []
+    headers: list[str] = []
+    seen_keys: set[str] = set()
+    for _ in range(max_pages):
+        headers, rows = extract_largest_table(page)
+        for row in rows:
+            key = json.dumps(row, sort_keys=True, ensure_ascii=False)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                all_rows.append(row)
+        pager = page.evaluate(
+            """
+            () => {
+              const active = Array.from(document.querySelectorAll('.pagination li.active a, .pagination .active a, .pagination li.active, .pagination .active'))
+                .map(e => (e.innerText || '').trim()).find(Boolean);
+              const pages = Array.from(document.querySelectorAll('.pagination a')).map(a => (a.innerText || '').trim()).filter(Boolean);
+              return {active, pages};
+            }
+            """
+        )
+        active_text = normalize_text((pager or {}).get("active"))
+        active_page = int(active_text) if active_text.isdigit() else 1
+        next_page = str(active_page + 1)
+        if next_page not in ((pager or {}).get("pages") or []):
+            break
+        locator = page.locator(".pagination a").filter(has_text=re.compile(f"^{re.escape(next_page)}$"))
+        if locator.count() == 0:
+            break
+        locator.first.click()
+        page.wait_for_timeout(700)
+    return headers, all_rows
 
 
 def save_debug(page, filename: str) -> None:
@@ -442,7 +547,7 @@ def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
         page = context.new_page()
         open_sessions_page(page, username, password)
         set_date_range(page, start, end)
-        headers, table_rows = extract_largest_table(page)
+        headers, table_rows = extract_paginated_table(page)
         sessions = [item for item in (normalize_session_row(row, start) for row in table_rows) if item]
         if not sessions:
             save_debug(page, f"NO_ROWS_{start:%Y_%m}")
