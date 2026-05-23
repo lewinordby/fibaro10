@@ -37,9 +37,11 @@
         .weekly-axis { stroke:#cbd5e1; stroke-width:1.1; }
         .weekly-line { fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
         .weekly-label { fill:var(--muted); font-size:10px; font-weight:700; }
-        .weekly-legend { display:flex; flex-wrap:wrap; gap:0.45rem 0.7rem; margin-top:0.65rem; }
-        .weekly-legend span { display:inline-flex; align-items:center; gap:0.28rem; color:var(--muted); font-size:0.78rem; font-weight:740; }
-        .weekly-legend i { width:0.7rem; height:0.7rem; border-radius:999px; display:inline-block; }
+        .weekly-legend { display:flex; flex-wrap:wrap; gap:0.45rem 0.58rem; margin-top:0.65rem; }
+        .weekly-year { display:inline-flex; align-items:center; gap:0.34rem; border:1px solid var(--line); background:var(--panel-soft); border-radius:999px; padding:0.27rem 0.52rem 0.27rem 0.42rem; color:var(--muted); font-size:0.78rem; font-weight:740; cursor:pointer; user-select:none; }
+        .weekly-year input { width:0.9rem; height:0.9rem; margin:0; accent-color:var(--year-color); cursor:pointer; }
+        .weekly-year i { width:0.65rem; height:0.65rem; border-radius:999px; display:inline-block; background:var(--year-color); }
+        .weekly-year:has(input:not(:checked)) { opacity:0.48; }
         .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
         table { width:100%; border-collapse:collapse; min-width:690px; }
         th, td { padding:0.58rem 0.65rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
@@ -273,6 +275,8 @@
             const legend = document.querySelector("#weeklyLegend");
             const buttons = document.querySelectorAll("[data-weekly-metric]");
             if (!svg || !data.length) return;
+            const activeYears = new Set(data.map((series) => series.year));
+            let currentMetric = "revenue";
 
             const width = 980;
             const height = 360;
@@ -303,8 +307,10 @@
             };
 
             const render = (metric) => {
+                currentMetric = metric;
+                const visibleData = data.filter((series) => activeYears.has(series.year));
                 buttons.forEach((button) => button.classList.toggle("active", button.dataset.weeklyMetric === metric));
-                const maxValue = Math.max(1, ...data.flatMap((series) => series[metric].filter((value) => value !== null)));
+                const maxValue = Math.max(1, ...visibleData.flatMap((series) => series[metric].filter((value) => value !== null)));
                 const yMax = Math.ceil(maxValue / 5) * 5;
                 const yTicks = [0, 0.25, 0.5, 0.75, 1].map((factor) => Math.round(yMax * factor));
                 const xForWeek = (week) => margin.left + ((week - 1) / 52) * plotWidth;
@@ -320,7 +326,7 @@
                     return `<line class="weekly-grid" x1="${x}" x2="${x}" y1="${margin.top}" y2="${margin.top + plotHeight}"></line>
                         <text class="weekly-label" x="${x}" y="${height - 12}" text-anchor="middle">${week}</text>`;
                 }).join("");
-                const lines = data.map((series) => {
+                const lines = visibleData.map((series) => {
                     const points = weeks.map((week, index) => {
                         const value = series[metric][index];
                         if (value === null || value === undefined) return null;
@@ -338,10 +344,30 @@
                     <text class="weekly-label" x="${width / 2}" y="${height - 2}" text-anchor="middle">Uke</text>
                     ${lines}
                 `;
-                legend.innerHTML = data.map((series) => `<span><i style="background:${series.color}"></i>${series.year}</span>`).join("");
+            };
+
+            const renderLegend = () => {
+                legend.innerHTML = data.map((series) => `
+                    <label class="weekly-year" style="--year-color:${series.color}">
+                        <input type="checkbox" value="${series.year}" checked aria-label="Vis ${series.year}">
+                        <i aria-hidden="true"></i>
+                        <span>${series.year}</span>
+                    </label>
+                `).join("");
+                legend.querySelectorAll("input").forEach((input) => {
+                    input.addEventListener("change", () => {
+                        if (input.checked) {
+                            activeYears.add(input.value);
+                        } else {
+                            activeYears.delete(input.value);
+                        }
+                        render(currentMetric);
+                    });
+                });
             };
 
             buttons.forEach((button) => button.addEventListener("click", () => render(button.dataset.weeklyMetric)));
+            renderLegend();
             render("revenue");
         })();
     </script>
