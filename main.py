@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, delete, select, update
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, delete, select, text as sql_text, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -34,6 +34,7 @@ MASTER_ACCESS_KEY_HASH = os.getenv(
     "MASTER_ACCESS_KEY_HASH",
     "752ede847bd180ef3d2700d117d297ced1b25664b946a3639fb7a3b2be93d5d1",
 )
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
 PUBLIC_PREFIXES = ("/static/",)
@@ -752,6 +753,20 @@ class EnergyImportRun(Base):
     raw = Column(JSON, nullable=True)
 
 
+class AiQueryLog(Base):
+    __tablename__ = "ai_query_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    username = Column(String, index=True, nullable=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=True)
+    ok = Column(Boolean, index=True, nullable=True)
+    error = Column(Text, nullable=True)
+    tool_calls_count = Column(Integer, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
 class AccessKey(Base):
     __tablename__ = "access_keys"
 
@@ -1007,6 +1022,90 @@ ENERGY_IMPORT_COLUMNS = [
     "days_count", "hours_count", "inserted_count", "updated_count", "skipped_count", "total_kwh",
     "estimated_hours_count", "message", "raw",
 ]
+
+AI_QUERY_COLUMNS = [
+    "id", "timestamp", "username", "question", "answer", "ok", "error", "tool_calls_count", "raw",
+]
+
+AI_DATASETS = {
+    "soling_daily": {
+        "table": "sun2_room_daily_stats",
+        "title": "Soling per rom per dag",
+        "description": "SUN2-statistikk med soltid, antall solinger og inntjent beløp per rom og dato.",
+        "columns": SUN2_ROOM_COLUMNS,
+        "time_column": "stat_date",
+    },
+    "energy_hourly": {
+        "table": "energy_hourly_consumption",
+        "title": "Elvia strømforbruk per time",
+        "description": "Importerte Elvia-timesverdier med kWh, måler, dato og status.",
+        "columns": ENERGY_HOURLY_COLUMNS,
+        "time_column": "measured_at",
+    },
+    "light_events": {
+        "table": "utelys_events",
+        "title": "Lys hendelser",
+        "description": "På/av-hendelser for lys, med lux, enhet, årsak og modus.",
+        "columns": LIGHT_COLUMNS,
+        "time_column": "timestamp",
+    },
+    "light_samples": {
+        "table": "utelys_samples",
+        "title": "Lys 5-minutters logging",
+        "description": "Regelmessige lys- og lux-prøver med status for alle lysgrupper.",
+        "columns": LIGHT_SAMPLE_COLUMNS,
+        "time_column": "timestamp",
+    },
+    "ventilation_events": {
+        "table": "ventilasjon_events",
+        "title": "Ventilasjon hendelser",
+        "description": "Start/stopp-hendelser for vifter med temperaturer, effekt og årsak.",
+        "columns": VENT_COLUMNS,
+        "time_column": "timestamp",
+    },
+    "ventilation_samples": {
+        "table": "ventilasjon_samples",
+        "title": "Ventilasjon 5-minutters logging",
+        "description": "Temperaturer, viftestatus, effekt og beregnet driftsmodus.",
+        "columns": VENT_SAMPLE_COLUMNS,
+        "time_column": "timestamp",
+    },
+    "yr_forecast": {
+        "table": "yr_forecast_samples",
+        "title": "Yr værdata",
+        "description": "Værvarsel og observasjonsnære verdier hentet fra Yr/MET.",
+        "columns": YR_SAMPLE_COLUMNS,
+        "time_column": "timestamp",
+    },
+    "renhold_robots": {
+        "table": "roborock_robots",
+        "title": "Roborock roboter",
+        "description": "Robotmetadata, modell, serienummer, IP, firmware og siste kontakt.",
+        "columns": ROBOROCK_ROBOT_COLUMNS,
+        "time_column": "last_seen_at",
+    },
+    "renhold_status": {
+        "table": "roborock_status_samples",
+        "title": "Roborock status",
+        "description": "Statusprøver fra robotene med batteri, tilstand, rengjøring og signal.",
+        "columns": ROBOROCK_STATUS_COLUMNS,
+        "time_column": "timestamp",
+    },
+    "renhold_jobs": {
+        "table": "roborock_clean_jobs",
+        "title": "Roborock jobber",
+        "description": "Historiske rengjøringsjobber med tid, areal, varighet og sluttstatus.",
+        "columns": ROBOROCK_JOB_COLUMNS,
+        "time_column": "begin_at",
+    },
+    "generic_events": {
+        "table": "event_data",
+        "title": "Generelle logghendelser",
+        "description": "Eldre og generelle loggposter fra HC3 og scripts.",
+        "columns": GENERIC_COLUMNS,
+        "time_column": "timestamp",
+    },
+}
 
 
 SUN2_SUM_FIELDS = [
@@ -1460,7 +1559,7 @@ def json_value(value):
         import json
 
         return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, datetime):
+    if isinstance(value, (datetime, date)):
         return value.isoformat()
     return value
 
@@ -3666,6 +3765,261 @@ async def csv_response(model, columns, filename, event_type, action, device_key,
     )
 
 
+def ai_jsonable(value: Any) -> Any:
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {key: ai_jsonable(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [ai_jsonable(item) for item in value]
+    return value
+
+
+def ai_dataset_overview() -> list[Dict[str, Any]]:
+    return [
+        {
+            "key": key,
+            "table": dataset["table"],
+            "title": repair_mojibake(dataset["title"]),
+            "description": repair_mojibake(dataset["description"]),
+            "time_column": dataset.get("time_column"),
+            "columns_count": len(dataset["columns"]),
+        }
+        for key, dataset in AI_DATASETS.items()
+    ]
+
+
+def ai_dataset_schema(dataset_key: str) -> Dict[str, Any]:
+    dataset = AI_DATASETS.get((dataset_key or "").strip())
+    if not dataset:
+        return {"ok": False, "error": "Ukjent datasett", "datasets": list(AI_DATASETS)}
+    return {
+        "ok": True,
+        "key": dataset_key,
+        "table": dataset["table"],
+        "title": repair_mojibake(dataset["title"]),
+        "description": repair_mojibake(dataset["description"]),
+        "time_column": dataset.get("time_column"),
+        "columns": dataset["columns"],
+    }
+
+
+def validate_ai_sql(sql: str) -> tuple[bool, str]:
+    sql_clean = (sql or "").strip()
+    if not re.match(r"(?is)^select\b", sql_clean):
+        return False, "Kun SELECT-spørringer er tillatt."
+    if ";" in sql_clean or "--" in sql_clean or "/*" in sql_clean or "*/" in sql_clean:
+        return False, "Kommentarer og flere SQL-setninger er ikke tillatt."
+    forbidden = r"\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|copy|execute|call|merge|vacuum|analyze)\b"
+    if re.search(forbidden, sql_clean, flags=re.IGNORECASE):
+        return False, "Spørringen inneholder ikke-tillatte SQL-kommandoer."
+    from_match = re.search(r"(?is)\bfrom\b(.*?)(\bwhere\b|\bgroup\b|\border\b|\blimit\b|$)", sql_clean)
+    if from_match and "," in from_match.group(1):
+        return False, "Bruk eksplisitt JOIN i stedet for kommaseparerte tabeller."
+    allowed_tables = {dataset["table"].lower() for dataset in AI_DATASETS.values()}
+    used_tables = {
+        match.group(1).split(".")[-1].strip('"').lower()
+        for match in re.finditer(r"(?is)\b(?:from|join)\s+([a-zA-Z_][\w.]*)", sql_clean)
+    }
+    if not used_tables:
+        return False, "Fant ingen tabell i spørringen."
+    unknown = sorted(table for table in used_tables if table not in allowed_tables)
+    if unknown:
+        return False, f"Tabellen er ikke godkjent for AI-søk: {', '.join(unknown)}"
+    return True, ""
+
+
+async def run_safe_ai_sql(sql: str, limit: int = 200) -> Dict[str, Any]:
+    ok, error = validate_ai_sql(sql)
+    if not ok:
+        return {"ok": False, "error": error, "rows": []}
+    safe_limit = max(1, min(int_value(limit) or 200, 500))
+    wrapped_sql = f"SELECT * FROM ({sql.strip()}) AS ai_query LIMIT {safe_limit}"
+    async with async_session() as session:
+        result = await session.execute(sql_text(wrapped_sql))
+        rows = [dict(row._mapping) for row in result.fetchall()]
+    return {
+        "ok": True,
+        "limit": safe_limit,
+        "count": len(rows),
+        "rows": ai_jsonable(rows),
+    }
+
+
+def ai_tools_definition() -> list[Dict[str, Any]]:
+    return [
+        {
+            "type": "function",
+            "name": "list_datasets",
+            "description": "Lister alle datasett og tabeller som kan brukes til analyse.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+        {
+            "type": "function",
+            "name": "get_dataset_schema",
+            "description": "Henter tabellnavn, kolonner og beskrivelse for ett datasett.",
+            "parameters": {
+                "type": "object",
+                "properties": {"dataset": {"type": "string"}},
+                "required": ["dataset"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "type": "function",
+            "name": "run_safe_sql",
+            "description": "Kjører en trygg SELECT-spørring mot godkjente tabeller. Bruk alltid LIMIT eller argumentet limit.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sql": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+                },
+                "required": ["sql"],
+                "additionalProperties": False,
+            },
+        },
+    ]
+
+
+async def run_ai_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+    if name == "list_datasets":
+        return {"ok": True, "datasets": ai_dataset_overview()}
+    if name == "get_dataset_schema":
+        return ai_dataset_schema(str(arguments.get("dataset") or ""))
+    if name == "run_safe_sql":
+        return await run_safe_ai_sql(str(arguments.get("sql") or ""), int_value(arguments.get("limit")) or 200)
+    return {"ok": False, "error": f"Ukjent verktøy: {name}"}
+
+
+def openai_api_key() -> str:
+    return (os.getenv("OPENAI_API_KEY") or "").strip()
+
+
+def openai_responses_request(payload: Dict[str, Any]) -> Dict[str, Any]:
+    api_key = openai_api_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY mangler i miljøvariablene.")
+    request = urllib.request.Request(
+        "https://api.openai.com/v1/responses",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=75) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"OpenAI svarte {exc.code}: {body[:800]}") from exc
+
+
+def response_output_text(response: Dict[str, Any]) -> str:
+    if response.get("output_text"):
+        return str(response["output_text"]).strip()
+    parts = []
+    for item in response.get("output", []) or []:
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content", []) or []:
+            if content.get("type") in {"output_text", "text"} and content.get("text"):
+                parts.append(str(content["text"]))
+    return "\n".join(parts).strip()
+
+
+def response_function_calls(response: Dict[str, Any]) -> list[Dict[str, Any]]:
+    return [item for item in response.get("output", []) or [] if item.get("type") == "function_call"]
+
+
+async def ask_ai(question: str, username: str) -> Dict[str, Any]:
+    question = (question or "").strip()
+    if not question:
+        return {"ok": False, "answer": "", "error": "Skriv inn et spørsmål først.", "tool_calls": []}
+    if not openai_api_key():
+        return {
+            "ok": False,
+            "answer": "",
+            "error": "OPENAI_API_KEY mangler. Legg nøkkelen inn i miljøvariablene før AI-søk kan brukes.",
+            "tool_calls": [],
+        }
+
+    system_prompt = (
+        "Du er analyseassistent for SUN2 Lillehammer sin Fibaro10-applikasjon. "
+        "Svar på norsk, kort og konkret, men forklar metode når tallene kan misforstås. "
+        "Du har bare lov til å bruke verktøyene for å se datasett, skjema og lese data. "
+        "Ikke finn opp tall. Hvis data mangler, si det tydelig. "
+        "Når du trenger data, bruk først list_datasets eller get_dataset_schema, og kjør deretter run_safe_sql. "
+        "SQL skal være enkel SELECT mot godkjente tabeller."
+    )
+    tools = ai_tools_definition()
+    conversation_items = [
+        {
+            "role": "user",
+            "content": [{"type": "input_text", "text": question}],
+        }
+    ]
+    payload = {
+        "model": OPENAI_MODEL,
+        "instructions": system_prompt,
+        "tools": tools,
+        "input": conversation_items,
+    }
+    response = await asyncio.to_thread(openai_responses_request, payload)
+    tool_log: list[Dict[str, Any]] = []
+
+    for _ in range(6):
+        calls = response_function_calls(response)
+        if not calls:
+            answer = response_output_text(response)
+            return {"ok": bool(answer), "answer": answer, "error": "" if answer else "Fikk ikke svar fra modellen.", "tool_calls": tool_log}
+
+        outputs = []
+        for call in calls:
+            try:
+                args = json.loads(call.get("arguments") or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            result = await run_ai_tool(call.get("name") or "", args)
+            tool_log.append(
+                {
+                    "name": call.get("name"),
+                    "arguments": args,
+                    "ok": result.get("ok", True),
+                    "count": result.get("count"),
+                    "error": result.get("error"),
+                }
+            )
+            outputs.append(
+                {
+                    "type": "function_call_output",
+                    "call_id": call.get("call_id"),
+                    "output": json.dumps(result, ensure_ascii=False, default=str),
+                }
+            )
+        conversation_items.extend(response.get("output", []) or [])
+        conversation_items.extend(outputs)
+        response = await asyncio.to_thread(
+            openai_responses_request,
+            {
+                "model": OPENAI_MODEL,
+                "instructions": system_prompt,
+                "tools": tools,
+                "input": conversation_items,
+            },
+        )
+
+    return {"ok": False, "answer": response_output_text(response), "error": "AI-søket stoppet etter for mange verktøykall.", "tool_calls": tool_log}
+
+
+async def recent_ai_logs(limit: int = 10) -> list[AiQueryLog]:
+    async with async_session() as session:
+        result = await session.execute(select(AiQueryLog).order_by(AiQueryLog.timestamp.desc()).limit(limit))
+        return result.scalars().all()
+
+
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
@@ -3726,7 +4080,8 @@ async def health():
             "yr_forecast_samples", "control_configs", "control_config_history", "event_data",
             "roborock_robots", "roborock_status_samples", "roborock_clean_jobs",
             "roborock_schedules", "roborock_consumables", "roborock_maps",
-            "sun2_room_daily_stats", "sun2_import_runs",
+            "sun2_room_daily_stats", "sun2_import_runs", "energy_hourly_consumption",
+            "energy_import_runs", "ai_query_logs",
         ],
     }
 
@@ -3786,6 +4141,68 @@ async def logout():
     response.delete_cookie(AUTH_USER_COOKIE_NAME)
     response.delete_cookie(AUTH_COOKIE_NAME)
     return response
+
+
+@app.get("/ai")
+async def ai_redirect():
+    return RedirectResponse("/ai/sok", status_code=303)
+
+
+@app.get("/ai/sok", response_class=HTMLResponse)
+async def ai_search_view(request: Request):
+    context = {
+        "question": "",
+        "result": None,
+        "datasets": ai_dataset_overview(),
+        "logs": await recent_ai_logs(),
+        "api_ready": bool(openai_api_key()),
+        "model": OPENAI_MODEL,
+    }
+    return templates.TemplateResponse(request, "ai_search.html", context)
+
+
+@app.post("/ai/sok", response_class=HTMLResponse)
+async def ai_search_submit(request: Request):
+    form = await parse_form_body(request)
+    question = (form.get("question") or "").strip()
+    username = getattr(request.state, "access_key_name", "") or ""
+    try:
+        result = await ask_ai(question, username)
+    except Exception as exc:
+        result = {"ok": False, "answer": "", "error": str(exc), "tool_calls": []}
+    async with async_session() as session:
+        session.add(
+            AiQueryLog(
+                username=username,
+                question=question,
+                answer=result.get("answer") or None,
+                ok=bool(result.get("ok")),
+                error=result.get("error") or None,
+                tool_calls_count=len(result.get("tool_calls") or []),
+                raw={"tool_calls": result.get("tool_calls") or []},
+            )
+        )
+        await session.commit()
+    context = {
+        "question": question,
+        "result": result,
+        "datasets": ai_dataset_overview(),
+        "logs": await recent_ai_logs(),
+        "api_ready": bool(openai_api_key()),
+        "model": OPENAI_MODEL,
+    }
+    return templates.TemplateResponse(request, "ai_search.html", context)
+
+
+@app.get("/api/ai/datasets/json")
+async def ai_datasets_json():
+    return {"datasets": ai_dataset_overview()}
+
+
+@app.get("/api/ai/logs/json")
+async def ai_logs_json(limit: int = Query(25, ge=1, le=200)):
+    logs = await recent_ai_logs(limit)
+    return {"rows": [row_to_dict(row, AI_QUERY_COLUMNS) for row in logs]}
 
 
 @app.get("/konto/oversikt", response_class=HTMLResponse)

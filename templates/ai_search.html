@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI søk</title>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="theme-ai">
+    {% include "_header.html" %}
+    <main>
+        <section class="page-title">
+            <div>
+                <h1>AI søk</h1>
+                <p>Still frie spørsmål på norsk mot soling, energi, lys, ventilasjon, vær og renhold.</p>
+            </div>
+            <span class="status-pill {% if api_ready %}ok{% else %}warn{% endif %}">
+                {{ model }}{% if not api_ready %} mangler nøkkel{% endif %}
+            </span>
+        </section>
+
+        <section class="panel ai-panel">
+            <form method="post" action="/ai/sok" class="ai-form">
+                <label for="question">Spørsmål</label>
+                <textarea id="question" name="question" rows="4" placeholder="Eksempel: Hvilken måned hadde høyest strømforbruk, og hvordan var antall solinger samme måned?">{{ question }}</textarea>
+                <div class="ai-examples" aria-label="Eksempler">
+                    <button type="button" data-question="Hvilken måned hadde høyest strømforbruk?">Høyest strømforbruk</button>
+                    <button type="button" data-question="Sammenlign antall solinger og kWh per måned i 2025.">Soling mot strøm</button>
+                    <button type="button" data-question="Hvilke lys hadde flest hendelser siste 7 dager?">Lys siste uke</button>
+                    <button type="button" data-question="Oppsummer ventilasjonen i går.">Ventilasjon i går</button>
+                </div>
+                <button class="button primary" type="submit">Spør AI</button>
+            </form>
+        </section>
+
+        {% if result %}
+        <section class="panel ai-answer {% if result.ok %}ok{% else %}warn{% endif %}">
+            <h2>Svar</h2>
+            {% if result.answer %}
+            <div class="ai-answer-text">{{ result.answer }}</div>
+            {% endif %}
+            {% if result.error %}
+            <p class="warning-text">{{ result.error }}</p>
+            {% endif %}
+            {% if result.tool_calls %}
+            <details class="ai-tools">
+                <summary>Databruk</summary>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Verktøy</th><th>Rader</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for call in result.tool_calls %}
+                            <tr>
+                                <td>{{ call.name }}</td>
+                                <td>{{ call.count if call.count is not none else "-" }}</td>
+                                <td>{% if call.ok %}OK{% else %}{{ call.error }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <section class="ai-grid">
+            <div class="panel">
+                <h2>Datasett</h2>
+                <div class="dataset-list">
+                    {% for dataset in datasets %}
+                    <article class="dataset-item">
+                        <div>
+                            <strong>{{ dataset.title }}</strong>
+                            <span>{{ dataset.description }}</span>
+                        </div>
+                        <code>{{ dataset.table }}</code>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="panel">
+                <h2>Siste AI-spørsmål</h2>
+                <div class="event-list compact">
+                    {% for log in logs %}
+                    <article>
+                        <strong>{{ log.question }}</strong>
+                        <span>{{ log.timestamp|localtime }} · {{ log.username or "-" }} · {% if log.ok %}OK{% else %}Feil{% endif %}</span>
+                    </article>
+                    {% else %}
+                    <p class="muted">Ingen AI-spørsmål er logget ennå.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </main>
+    <script>
+        document.querySelectorAll("[data-question]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const field = document.querySelector("#question");
+                field.value = button.dataset.question || "";
+                field.focus();
+            });
+        });
+    </script>
+</body>
+</html>
