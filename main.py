@@ -4239,6 +4239,16 @@ async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestI
     updated = 0
     skipped = 0
     source = data.source or "sun2_session_scraper"
+    source_file = (repair_mojibake(data.source_file) or "").strip()
+    replaced = 0
+
+    if source_file and data.rows:
+        result = await session.execute(
+            delete(Sun2TanningSession)
+            .where(Sun2TanningSession.source == source)
+            .where(Sun2TanningSession.source_file == source_file)
+        )
+        replaced = int(result.rowcount or 0)
 
     for row in data.rows:
         source_session_id = (repair_mojibake(row.source_session_id) or "").strip()
@@ -4281,11 +4291,11 @@ async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestI
         existing.duration_minutes = row.duration_minutes
         existing.paid_amount_kr = row.paid_amount_kr
         existing.status = (repair_mojibake(row.status) or "").strip() or None
-        existing.source_file = data.source_file
+        existing.source_file = source_file or data.source_file
         existing.imported_at = batch_time
         existing.raw = row.raw or {}
 
-    return {"inserted": inserted, "updated": updated, "skipped": skipped}
+    return {"inserted": inserted, "updated": updated, "skipped": skipped, "replaced": replaced}
 
 
 async def ingest_elvia_hours(session, parsed: Dict[str, Any], batch_time: datetime) -> Dict[str, int]:

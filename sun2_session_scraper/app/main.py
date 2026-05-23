@@ -430,6 +430,7 @@ def extract_largest_table(page) -> tuple[list[str], list[dict[str, str]]]:
     tables = page.locator("table")
     table_count = tables.count()
     best: tuple[list[str], list[dict[str, str]]] = ([], [])
+    best_score = -1
     for index in range(table_count):
         table = tables.nth(index)
         data = table.evaluate(
@@ -473,7 +474,10 @@ def extract_largest_table(page) -> tuple[list[str], list[dict[str, str]]]:
                 row["__user_href"] = normalize_text(raw_row.get("user_href"))
             if any(row.values()):
                 rows.append(row)
-        if len(rows) > len(best[1]):
+        header_keys = {normalize_key(header) for header in headers}
+        score = sum(1 for key in ["navn", "betalingsmiddel", "soletid", "kostnad", "solarium", "tidspunkt"] if key in header_keys)
+        if score > best_score or (score == best_score and len(rows) > len(best[1])):
+            best_score = score
             best = (headers, rows)
     return best
 
@@ -481,35 +485,76 @@ def extract_largest_table(page) -> tuple[list[str], list[dict[str, str]]]:
 def extract_paginated_table(page, max_pages: int = 500) -> tuple[list[str], list[dict[str, str]]]:
     all_rows: list[dict[str, str]] = []
     headers: list[str] = []
-    seen_keys: set[str] = set()
     for _ in range(max_pages):
         headers, rows = extract_largest_table(page)
         for row in rows:
-            key = json.dumps(row, sort_keys=True, ensure_ascii=False)
-            if key not in seen_keys:
-                seen_keys.add(key)
-                all_rows.append(row)
+            row = dict(row)
+            row["__source_row_number"] = str(len(all_rows) + 1)
+            all_rows.append(row)
         pager = page.evaluate(
             """
             () => {
-              const active = Array.from(document.querySelectorAll('.pagination li.active a, .pagination .active a, .pagination li.active, .pagination .active'))
+              const active = Array.from(document.querySelectorAll('.pagination li.active a, .pagination li.active span, .pagination a.active, .pagination span.active'))
                 .map(e => (e.innerText || '').trim()).find(Boolean);
-              const pages = Array.from(document.querySelectorAll('.pagination a')).map(a => (a.innerText || '').trim()).filter(Boolean);
-              return {active, pages};
+              const pages = Array.from(document.querySelectorAll('.pagination a, .pagination span')).map(a => (a.innerText || '').trim()).filter(Boolean);
+              const numericPages = pages.map(text => parseInt(text, 10)).filter(value => Number.isFinite(value));
+              return {active, pages, numericPages};
             }
             """
         )
         active_text = normalize_text((pager or {}).get("active"))
         active_page = int(active_text) if active_text.isdigit() else 1
-        next_page = str(active_page + 1)
-        if next_page not in ((pager or {}).get("pages") or []):
+        numeric_pages = sorted({int(value) for value in ((pager or {}).get("numericPages") or [])})
+        next_candidates = [value for value in numeric_pages if value > active_page]
+        next_page = str(next_candidates[0] if next_candidates else active_page + 1)
+        clicked = page.evaluate(
+            """
+            (nextPage) => {
+              const isDisabled = (element) => {
+                const item = element.closest('li');
+                return element.classList.contains('disabled') || (item && item.classList.contains('disabled'));
+              };
+              const links = Array.from(document.querySelectorAll('.pagination a')).filter(a => !isDisabled(a));
+              let target = links.find(a => (a.innerText || '').trim() === nextPage);
+              if (!target) {
+                target = links.find(a => {
+                  const text = (a.innerText || '').trim().toLowerCase();
+                  const className = String(a.className || '').toLowerCase();
+                  const itemClassName = String(a.closest('li')?.className || '').toLowerCase();
+                  return text === 'neste' || text === 'next' || className.includes('next') || itemClassName.includes('next');
+                });
+              }
+              if (!target) {
+                const active = parseInt(nextPage, 10) - 1;
+                target = links
+                  .map(a => ({element: a, page: parseInt((a.innerText || '').trim(), 10)}))
+                  .filter(item => Number.isFinite(item.page) && item.page > active)
+                  .sort((a, b) => a.page - b.page)[0]?.element;
+              }
+              if (!target) return false;
+              target.click();
+              return true;
+            }
+            """,
+            next_page,
+        )
+        if not clicked:
             break
-        locator = page.locator(".pagination a").filter(has_text=re.compile(f"^{re.escape(next_page)}$"))
-        if locator.count() == 0:
-            break
-        locator.first.click()
-        page.wait_for_timeout(700)
+        page.wait_for_timeout(900)
     return headers, all_rows
+
+
+def extract_expected_sessions_count(page) -> int | None:
+    text = normalize_text(page.locator("body").inner_text(timeout=5000))
+    patterns = [
+        r"Solinger\s+i\s+valgt\s+periode\s*\((\d+)\s*st\)",
+        r"Viser\s+solinger\s+\d+\s+til\s+\d+\s+av\s+(\d+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.I)
+        if match:
+            return int(match.group(1))
+    return None
 
 
 def save_debug(page, filename: str) -> None:
@@ -564,8 +609,12 @@ def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
         page = context.new_page()
         open_sessions_page(page, username, password)
         set_date_range(page, start, end)
+        expected_count = extract_expected_sessions_count(page)
         headers, table_rows = extract_paginated_table(page)
         sessions = [item for item in (normalize_session_row(row, start) for row in table_rows) if item]
+        if expected_count is not None and len(sessions) != expected_count:
+            save_debug(page, f"COUNT_MISMATCH_{start:%Y_%m}")
+            raise RuntimeError(f"Antall stemmer ikke for {start.isoformat()} - {end.isoformat()}: fant {len(sessions)} av {expected_count}")
         outside_period = [
             item
             for item in sessions
