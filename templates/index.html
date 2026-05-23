@@ -523,8 +523,9 @@
                     </p>
                 </div>
                 {% if now_status.mode %}
+                {% set mode_label = "Utenfor driftstid" if now_status.mode == "UTENFOR_DRIFTSTID" else ((now_status.mode or "UKJENT")|replace("_", " ")|replace("KJOLING", "KJØLING")|replace("FORKJOLING", "FORKJØLING")) %}
                 <span class="mode {% if now_status.mode == 'VARMEBEVARING' %}heat{% elif now_status.mode not in ['KJOLING', 'FORKJOLING'] %}normal{% endif %}">
-                    {{ (now_status.mode or "UKJENT")|replace("KJOLING", "KJØLING")|replace("FORKJOLING", "FORKJØLING") }}
+                    {{ mode_label }}
                 </span>
                 {% endif %}
             </div>

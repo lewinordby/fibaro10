@@ -2615,3 +2615,100 @@ body.theme-status .detail {
         grid-template-columns: 1fr !important;
     }
 }
+
+/* Brand and navigation refinement. */
+.brand-home {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    text-decoration: none;
+}
+
+.brand-logo {
+    display: block;
+    width: 6.7rem;
+    height: auto;
+}
+
+@media (min-width: 1020px) {
+    .brand-bar::before,
+    .brand-bar::after {
+        content: none !important;
+        display: none !important;
+    }
+
+    .brand-home {
+        margin: 0.08rem 0 1.05rem 0.18rem !important;
+    }
+
+    .brand-logo {
+        width: 6.35rem;
+        filter: drop-shadow(0 8px 14px rgba(82, 146, 214, 0.14));
+    }
+
+    .site-header .app-nav .nav-main {
+        gap: 0.22rem !important;
+    }
+
+    .app-nav .nav-main .button {
+        border-radius: 10px !important;
+        min-height: 2.34rem !important;
+    }
+
+    .app-nav .nav-main .button.active {
+        background: linear-gradient(180deg, var(--section-soft), #ffffff) !important;
+        color: #172033 !important;
+        box-shadow: inset 3px 0 0 var(--section-color), 0 8px 18px rgba(16, 24, 40, 0.06) !important;
+    }
+
+    .app-nav .nav-sub {
+        margin-left: 0.92rem !important;
+    }
+
+    html.nav-collapsed .brand-home {
+        display: none !important;
+    }
+
+    html.nav-collapsed .brand-bar::before {
+        content: "S²" !important;
+        display: block !important;
+        margin: 0.05rem 0 1.1rem !important;
+        text-align: center;
+        font-size: 1.45rem;
+        color: var(--brand);
+        font-weight: 860;
+    }
+}
+
+@media (max-width: 1019px) {
+    .site-header .brand-bar {
+        display: grid !important;
+        grid-template-columns: auto 1fr;
+        gap: 0.65rem;
+        align-items: center;
+    }
+
+    .brand-home {
+        order: 1;
+    }
+
+    .brand-logo {
+        width: 5.1rem;
+    }
+
+    .nav-toggle {
+        order: 2;
+        justify-self: end;
+    }
+
+    .app-nav {
+        order: 3;
+        grid-column: 1 / -1;
+    }
+}
+
+body.theme-status .mode {
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    font-weight: 840 !important;
+}
