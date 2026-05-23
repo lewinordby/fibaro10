@@ -1850,3 +1850,210 @@ svg {
         height: 0.82rem !important;
     }
 }
+
+/* Final navigation override: this must stay at the end so older nav experiments cannot override it. */
+@media (min-width: 1020px) {
+    body {
+        padding-left: 238px !important;
+    }
+
+    .site-header {
+        position: fixed !important;
+        top: 0 !important;
+        right: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        z-index: 40 !important;
+        width: 238px !important;
+        height: 100vh !important;
+        padding: 1rem 0.82rem !important;
+        border-right: 1px solid rgba(219, 227, 237, 0.95) !important;
+        border-bottom: 0 !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+        box-shadow: 8px 0 28px rgba(24, 39, 75, 0.045) !important;
+        overflow-y: auto !important;
+    }
+
+    .site-header .brand-bar,
+    .brand-bar {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    .brand-bar::before {
+        content: "SUN²";
+        display: block;
+        margin: 0 0 0.08rem 0.22rem;
+        color: var(--brand);
+        font-size: 1.72rem;
+        line-height: 1;
+        font-weight: 860;
+    }
+
+    .brand-bar::after {
+        content: "Drift og analyse";
+        display: block;
+        margin: 0 0 1.08rem 0.24rem;
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 720;
+    }
+
+    main {
+        width: min(calc(100vw - 238px - 2.2rem), var(--page-width)) !important;
+        max-width: var(--page-width) !important;
+        margin: 0 auto !important;
+        padding-top: 1.15rem !important;
+    }
+
+    .app-nav,
+    .site-header .app-nav {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    .app-nav .nav-row,
+    .site-header .app-nav .nav-main,
+    .app-nav .nav-main {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        flex-wrap: nowrap !important;
+        gap: 0.14rem !important;
+        width: 100% !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    .app-nav .nav-main .button,
+    .app-nav .nav-main .nav-account {
+        display: flex !important;
+        flex: 0 0 auto !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 0.62rem !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 2.42rem !important;
+        min-height: 2.42rem !important;
+        padding: 0 0.72rem !important;
+        border: 1px solid transparent !important;
+        border-radius: 10px !important;
+        background: transparent !important;
+        color: #526070 !important;
+        box-shadow: none !important;
+        font-size: 0.88rem !important;
+        font-weight: 760 !important;
+        text-align: left !important;
+    }
+
+    .app-nav .nav-main .button:hover {
+        background: var(--section-soft) !important;
+        color: var(--section-color) !important;
+        border-color: var(--section-border) !important;
+    }
+
+    .app-nav .nav-main .button.active {
+        background: var(--section-soft) !important;
+        color: var(--section-color) !important;
+        border-color: var(--section-border) !important;
+        box-shadow: inset 3px 0 0 var(--section-color) !important;
+    }
+
+    .app-nav .nav-main .nav-account {
+        margin-top: 0.62rem !important;
+        padding-top: 0.62rem !important;
+        border-top: 1px solid var(--line-soft) !important;
+    }
+
+    .app-nav .nav-main .nav-account::after {
+        content: "Konto";
+        font-size: 0.88rem;
+        font-weight: 760;
+    }
+
+    .app-nav .nav-main .nav-account.active {
+        background: var(--admin-soft) !important;
+        color: var(--admin-color) !important;
+        border-color: var(--admin-border) !important;
+        box-shadow: inset 3px 0 0 var(--admin-color) !important;
+    }
+
+    .app-nav .nav-icon {
+        width: 1rem !important;
+        height: 1rem !important;
+        flex: 0 0 auto !important;
+    }
+
+    .app-nav .nav-label {
+        display: block !important;
+        flex: 1 1 auto !important;
+        text-align: left !important;
+    }
+
+    .app-nav .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.1rem !important;
+        width: 100% !important;
+        min-height: 0 !important;
+        margin-top: 1.05rem !important;
+        padding: 0.82rem 0 0 !important;
+        border-top: 1px solid var(--line-soft) !important;
+        border-bottom: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    .app-nav .nav-sub::before {
+        content: "Undermeny";
+        display: block !important;
+        margin: 0 0 0.34rem 0.72rem;
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 850;
+        text-transform: uppercase;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        display: flex !important;
+        justify-content: flex-start !important;
+        width: 100% !important;
+        min-height: 2.08rem !important;
+        padding: 0.42rem 0.72rem !important;
+        border: 1px solid transparent !important;
+        border-radius: 9px !important;
+        background: transparent !important;
+        color: #657386 !important;
+        box-shadow: none !important;
+        text-align: left !important;
+        font-size: 0.82rem !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: var(--section-color) !important;
+        color: #fff !important;
+        border-color: var(--section-color) !important;
+    }
+
+    .app-nav .nav-sub-form {
+        width: 100% !important;
+    }
+}
