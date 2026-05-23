@@ -3350,10 +3350,25 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
 
 async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: datetime):
     series_config = [
-        {"key": "temp_yr", "label": "Yr", "class": "yr"},
-        {"key": "temp_1etg", "label": "1.etg", "class": "one"},
-        {"key": "temp_loft", "label": "Loft", "class": "loft"},
+        {"key": "temp_1etg", "label": "1.etg", "class": "one", "color": "#df705d", "default": True},
+        {"key": "temp_2etg", "label": "2.etg", "class": "two", "color": "#f2b84b", "default": True},
+        {"key": "temp_vip", "label": "VIP", "class": "vip", "color": "#8b5cf6", "default": True},
+        {"key": "temp_ute", "label": "Ute styring", "class": "outdoor", "color": "#2f8fa3", "default": True},
+        {"key": "temp_ute_netatmo", "label": "Ute Netatmo", "class": "outdoor-netatmo", "color": "#14b8a6", "default": False},
+        {"key": "temp_yr", "label": "Yr API", "class": "yr", "color": "#4b7fbb", "default": True},
+        {"key": "temp_loft", "label": "Loft", "class": "loft", "color": "#726189", "default": True},
+        {"key": "temp_passiv", "label": "Pass innluft", "class": "passive", "color": "#52a464", "default": False},
+        {"key": "temp_luftinntak", "label": "Luftinntak", "class": "intake", "color": "#9a660f", "default": False},
+        {"key": "temp_min_inne", "label": "Min inne", "class": "indoor-min", "color": "#93c5fd", "default": False},
+        {"key": "temp_avg_inne", "label": "Snitt inne", "class": "indoor-avg", "color": "#3f7fbd", "default": False},
+        {"key": "temp_max_inne", "label": "Maks inne", "class": "indoor-max", "color": "#1d4ed8", "default": False},
     ]
+    fan_config = [
+        {**VENT_TIMELINE_DEVICES[0], "short": "VIP", "color": "#52a464", "default": True},
+        {**VENT_TIMELINE_DEVICES[1], "short": "2.etg", "color": "#3f7fbd", "default": True},
+        {**VENT_TIMELINE_DEVICES[2], "short": "Tak", "color": "#726189", "default": True},
+    ]
+    fan_by_key = {fan["key"]: fan for fan in fan_config}
 
     async with async_session() as session:
         sample_result = await session.execute(
@@ -3369,10 +3384,7 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
             .where(VentilationEvent.timestamp < timeline_end)
             .order_by(VentilationEvent.timestamp.asc())
         )
-        fan_rows = [
-            row for row in fan_result.scalars().all()
-            if event_matches_device(row, VENT_TIMELINE_DEVICES[2], VENT_TIMELINE_DEVICES)
-        ]
+        fan_rows = fan_result.scalars().all()
 
     samples = []
     all_values = []
@@ -3418,6 +3430,7 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
             {
                 **series,
                 "polyline": " ".join(f"{point['x']:.2f},{point['y']:.2f}" for point in points),
+                "points": points,
                 "latest": temp_label(values[-1]) if values else "-",
                 "min": temp_label(min(values)) if values else "-",
                 "max": temp_label(max(values)) if values else "-",
@@ -3432,12 +3445,20 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
 
     fan_events = []
     for row in fan_rows:
+        fan_key = event_device_key(row, VENT_TIMELINE_DEVICES)
+        if fan_key not in fan_by_key:
+            continue
         state = state_from_event(row)
         if state is None:
             continue
+        fan = fan_by_key[fan_key]
         event_time = max(day_start, min(timeline_end, row.timestamp))
         fan_events.append(
             {
+                "fan_key": fan_key,
+                "fan_name": fan["name"],
+                "fan_short": fan["short"],
+                "color": fan["color"],
                 "x": percent_between(event_time, day_start, day_end) * 10,
                 "time": event_time.strftime("%H:%M"),
                 "action": "PÅ" if state else "AV",
@@ -3446,19 +3467,23 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
             }
         )
 
+    visible_series_count = sum(1 for series in series_items if series["polyline"])
     summary = {
         "count": len(samples),
         "fan_event_count": len(fan_events),
         "latest_time": samples[-1]["time"] if samples else "-",
         "axis_min": temp_label(axis["min"]),
         "axis_max": temp_label(axis["max"]),
+        "series_count": visible_series_count,
     }
     return {
         "series": series_items,
+        "fans": fan_config,
         "fan_events": fan_events,
         "y_ticks": y_ticks,
         "samples_desc": list(reversed(samples)),
         "summary": summary,
+        "axis": axis,
     }
 
 

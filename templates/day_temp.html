@@ -3,69 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dagslogg temp</title>
+    <title>Dagslogg temperatur</title>
+    <link rel="stylesheet" href="/static/app.css">
     <style>
-        :root { color-scheme: light; --bg:#f4f6f8; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --brand:#5292d6; --yr:#4b7fbb; --one:#df705d; --loft:#726189; --now:#ef4444; --fan-on:#52a464; --fan-off:#df705d; }
-        * { box-sizing: border-box; }
-        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
-        header { position: sticky; top: 0; z-index: 5; background: rgba(244,246,248,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; }
-        h1 { margin: 0; font-size: 1.35rem; }
-        h2 { margin: 0 0 0.7rem; font-size: 1rem; }
-        .sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
-        main { padding: 0.85rem; max-width: 980px; margin: 0 auto; }
-        .datebar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 0.85rem; }
-        a.button, button { padding: 0.65rem 0.75rem; border: 1px solid var(--line); background: white; color: #111; text-decoration: none; border-radius: 7px; cursor: pointer; font-size: 0.95rem; text-align: center; }
-        form.day-form { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; margin-bottom: 0.85rem; }
-        input { width: 100%; padding: 0.6rem; border: 1px solid var(--line); border-radius: 7px; background: white; font-size: 1rem; }
-        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 0.85rem; margin-bottom: 0.85rem; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-        .summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; margin-bottom: 0.85rem; }
-        .metric { background: #f8fafc; border: 1px solid #e5eaf0; border-radius: 7px; padding: 0.7rem; }
-        .metric span { display: block; color: var(--muted); font-size: 0.78rem; }
-        .metric strong { display: block; margin-top: 0.12rem; font-size: 1.22rem; }
-        .chart-wrap { overflow-x: auto; padding-bottom: 0.35rem; }
-        .chart-card { min-width: 760px; }
-        svg { display: block; width: 100%; height: auto; background: linear-gradient(#fff, #fbfdff); border: 1px solid #e5eaf0; border-radius: 7px; }
-        .axis { stroke: #cbd5e1; stroke-width: 1; }
-        .grid, .y-grid { stroke: #e5eaf0; stroke-width: 1; }
-        .temp-line { fill: none; stroke-width: 2.1; stroke-linejoin: round; stroke-linecap: round; }
-        .temp-line.yr { stroke: var(--yr); }
-        .temp-line.one { stroke: var(--one); }
-        .temp-line.loft { stroke: var(--loft); }
-        .fan-event-line { stroke-width: 1; opacity: 0.72; }
-        .fan-event-line.on { stroke: var(--fan-on); }
-        .fan-event-line.off { stroke: var(--fan-off); }
-        .label { fill: var(--muted); font-size: 18px; }
-        .y-label { fill: #64748b; font-size: 10px; font-weight: 650; }
-        .now-line { stroke: var(--now); stroke-width: 2; }
-        .now-label { fill: var(--now); font-size: 13px; font-weight: 800; }
-        .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--muted); font-size: 0.86rem; margin-top: 0.65rem; }
-        .key { display: inline-flex; align-items: center; gap: 0.35rem; }
-        .swatch { width: 1.2rem; height: 0.18rem; border-radius: 999px; display: inline-block; }
-        .swatch.yr { background: var(--yr); }
-        .swatch.one { background: var(--one); }
-        .swatch.loft { background: var(--loft); }
-        .swatch.fan-on { background: var(--fan-on); height: 0.8rem; width: 0.18rem; }
-        .swatch.fan-off { background: var(--fan-off); height: 0.8rem; width: 0.18rem; }
-        .table-wrap { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { padding: 0.58rem; border-bottom: 1px solid #edf1f5; text-align: left; font-size: 0.88rem; vertical-align: top; }
-        th { color: var(--muted); font-weight: 750; }
-        .empty { color: var(--muted); padding: 0.8rem 0; }
-        @media (min-width: 760px) {
-            main { padding: 1.25rem; }
-            .datebar { grid-template-columns: auto auto auto; justify-content: start; }
-            .summary { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        .page-title { margin:0 0 0.35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 0.95rem; color:var(--muted); font-size:0.88rem; }
+        .day-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:0.55rem; margin-bottom:0.75rem; }
+        .day-form input { min-height:2.35rem; border:1px solid var(--line); border-radius:8px; padding:0.55rem 0.65rem; background:#fff; }
+        .datebar { display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.85rem; }
+        .button, .day-form button { display:inline-flex; align-items:center; justify-content:center; min-height:2.35rem; border:1px solid var(--line); border-radius:8px; padding:0.48rem 0.78rem; background:#fff; color:var(--brand-dark); text-decoration:none; font:inherit; font-weight:720; cursor:pointer; }
+        .day-form button { background:var(--vent-color); border-color:var(--vent-color); color:#fff; }
+        .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:0.95rem; margin-bottom:0.95rem; box-shadow:var(--shadow-1); }
+        .summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.58rem; margin-bottom:0.9rem; }
+        .metric { background:var(--panel-soft); border:1px solid var(--line-soft); border-radius:9px; padding:0.68rem 0.75rem; min-width:0; }
+        .metric span { display:block; color:var(--muted); font-size:0.74rem; }
+        .metric strong { display:block; margin-top:0.12rem; font-size:1.08rem; color:var(--brand-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .chart-head { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin-bottom:0.7rem; }
+        .chart-title { margin:0; font-size:1rem; color:var(--brand-dark); }
+        .chart-note { color:var(--muted); font-size:0.78rem; }
+        .control-section { display:grid; gap:0.48rem; margin-bottom:0.8rem; }
+        .control-title { color:var(--muted); font-size:0.76rem; font-weight:780; text-transform:uppercase; letter-spacing:0.04em; }
+        .toggle-row { display:flex; flex-wrap:wrap; gap:0.4rem; }
+        .series-toggle { --toggle-color:var(--vent-color); display:inline-flex; align-items:center; gap:0.34rem; border:1px solid var(--line); background:var(--panel-soft); border-radius:999px; padding:0.28rem 0.55rem 0.28rem 0.42rem; color:var(--muted); font-size:0.78rem; font-weight:740; cursor:pointer; user-select:none; }
+        .series-toggle input { width:0.9rem; height:0.9rem; margin:0; accent-color:var(--toggle-color); cursor:pointer; }
+        .series-toggle i { width:0.64rem; height:0.64rem; border-radius:999px; display:inline-block; background:var(--toggle-color); }
+        .series-toggle:has(input:not(:checked)) { opacity:0.5; }
+        .fan-toggle i { width:0.18rem; height:0.86rem; border-radius:999px; }
+        .chart-wrap { width:100%; overflow:hidden; }
+        .temp-chart { width:100%; height:auto; display:block; background:#fff; border:1px solid var(--line-soft); border-radius:10px; }
+        .axis { stroke:#cbd5e1; stroke-width:1.1; }
+        .grid { stroke:#e6edf5; stroke-width:1; }
+        .temp-line { fill:none; stroke-width:2.05; stroke-linejoin:round; stroke-linecap:round; }
+        .fan-line { stroke-width:1.05; opacity:0.78; }
+        .fan-marker { stroke:#fff; stroke-width:1.5; }
+        .label { fill:var(--muted); font-size:12px; font-weight:700; }
+        .y-label { fill:#64748b; font-size:10px; font-weight:680; }
+        .now-line { stroke:#ef4444; stroke-width:1.3; }
+        .now-label { fill:#ef4444; font-size:12px; font-weight:800; }
+        .empty { color:var(--muted); padding:0.7rem 0; }
+        .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:980px; }
+        th, td { padding:0.54rem 0.6rem; border-bottom:1px solid var(--line-soft); text-align:left; white-space:nowrap; font-size:0.84rem; }
+        th { color:var(--muted); background:var(--panel-soft); font-weight:760; }
+        tbody tr:last-child td { border-bottom:0; }
+        .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin:0 0 0.55rem; }
+        .section-title { margin:0; font-size:1rem; color:var(--brand-dark); }
+        @media (min-width: 820px) {
+            .summary { grid-template-columns:repeat(5,minmax(0,1fr)); }
+            .control-section { grid-template-columns:7rem minmax(0,1fr); align-items:start; }
         }
-        @media (max-width: 520px) {
-            form.day-form { grid-template-columns: 1fr; }
-            .datebar { grid-template-columns: 1fr; }
+        @media (max-width: 620px) {
+            .day-form { grid-template-columns:1fr; }
+            .chart-wrap { overflow-x:auto; padding-bottom:0.3rem; }
+            .temp-chart { min-width:820px; }
+            .summary { grid-template-columns:1fr; }
         }
     </style>
-    <link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="theme-vent">
     {% include "_header.html" %}
     <main>
+        <h1 class="page-title">Dagslogg ventilasjon</h1>
+        <p class="page-subtitle">Temperaturer gjennom dagen med av/på-tidspunkter for innluft VIP, innluft 2.etg og takvifte.</p>
+
         <form class="day-form" method="get" action="/ventilasjon/dagslogg-temp">
             <input type="date" name="day" value="{{ selected_day }}">
             <button type="submit">Vis dag</button>
@@ -78,55 +78,78 @@
 
         <section class="panel">
             <div class="summary">
-                {% for series in temp_day.series %}
                 <div class="metric">
-                    <span>Siste {{ series['label'] }}</span>
-                    <strong>{{ series['latest'] }}</strong>
-                    <span>{{ temp_day.summary.latest_time }} · min {{ series['min'] }} / maks {{ series['max'] }}</span>
+                    <span>Siste måling</span>
+                    <strong>{{ temp_day.summary.latest_time }}</strong>
+                    <span>{{ temp_day.summary.count }} målinger</span>
                 </div>
-                {% endfor %}
-                <div class="metric"><span>Skala</span><strong>{{ temp_day.summary.axis_min }} til {{ temp_day.summary.axis_max }}</strong></div>
-                <div class="metric"><span>Antall målinger</span><strong>{{ temp_day.summary.count }}</strong><span>{{ temp_day.summary.fan_event_count }} takviftehendelser</span></div>
+                <div class="metric">
+                    <span>Temperaturserier</span>
+                    <strong>{{ temp_day.summary.series_count }}</strong>
+                    <span>av {{ temp_day.series|length }} mulige</span>
+                </div>
+                <div class="metric">
+                    <span>Viftehendelser</span>
+                    <strong>{{ temp_day.summary.fan_event_count }}</strong>
+                    <span>VIP, 2.etg og tak</span>
+                </div>
+                <div class="metric">
+                    <span>Skala</span>
+                    <strong>{{ temp_day.summary.axis_min }} - {{ temp_day.summary.axis_max }}</strong>
+                    <span>Basert på alle valgbare temperaturer</span>
+                </div>
+                <div class="metric">
+                    <span>Dato</span>
+                    <strong>{{ selected_day }}</strong>
+                    <span>{% if is_today %}Stopper ved nå-linjen{% else %}Hele døgnet{% endif %}</span>
+                </div>
             </div>
+
+            <div class="chart-head">
+                <div>
+                    <h2 class="chart-title">Temperatur og viftestyring</h2>
+                    <span class="chart-note">Velg hvilke temperaturer og vifter som skal vises.</span>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <div class="control-title">Temperatur</div>
+                <div class="toggle-row" id="tempControls">
+                    {% for series in temp_day.series %}
+                    {% if series.polyline %}
+                    <label class="series-toggle" style="--toggle-color:{{ series.color }}">
+                        <input type="checkbox" value="{{ series.key }}" {% if series.default %}checked{% endif %}>
+                        <i aria-hidden="true"></i>
+                        <span>{{ series.label }}</span>
+                    </label>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="control-section">
+                <div class="control-title">Vifter</div>
+                <div class="toggle-row" id="fanControls">
+                    {% for fan in temp_day.fans %}
+                    <label class="series-toggle fan-toggle" style="--toggle-color:{{ fan.color }}">
+                        <input type="checkbox" value="{{ fan.key }}" {% if fan.default %}checked{% endif %}>
+                        <i aria-hidden="true"></i>
+                        <span>{{ fan.short }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
             <div class="chart-wrap">
-                <div class="chart-card">
-                    <svg viewBox="0 0 1000 330" role="img" aria-label="Temperatur gjennom dagen">
-                        <line class="axis" x1="0" y1="278" x2="1000" y2="278"></line>
-                        {% for tick in ticks %}
-                        <line class="grid" x1="{{ tick.x }}" y1="22" x2="{{ tick.x }}" y2="278"></line>
-                        <text class="label" x="{{ tick.x }}" y="313" text-anchor="middle">{{ tick.label }}</text>
-                        {% endfor %}
-                        {% for tick in temp_day.y_ticks %}
-                        <line class="y-grid" x1="0" y1="{{ tick.y }}" x2="1000" y2="{{ tick.y }}"></line>
-                        <text class="y-label" x="8" y="{{ tick.y - 4 }}">{{ tick.label }}</text>
-                        {% endfor %}
-                        {% for event in temp_day.fan_events %}
-                        <line class="fan-event-line {{ event['class'] }}" x1="{{ event['x'] }}" y1="22" x2="{{ event['x'] }}" y2="278"></line>
-                        {% endfor %}
-                        {% for series in temp_day.series %}
-                        {% if series['polyline'] %}
-                        <polyline class="temp-line {{ series['class'] }}" points="{{ series['polyline'] }}"></polyline>
-                        {% endif %}
-                        {% endfor %}
-                        {% if is_today and now_marker is not none %}
-                        <line class="now-line" x1="{{ now_marker * 10 }}" y1="14" x2="{{ now_marker * 10 }}" y2="286"></line>
-                        <text class="now-label" x="{{ now_marker * 10 }}" y="12" text-anchor="middle">{{ now_label }}</text>
-                        {% endif %}
-                    </svg>
-                </div>
-            </div>
-            <div class="legend">
-                {% for series in temp_day.series %}
-                <span class="key"><span class="swatch {{ series['class'] }}"></span>{{ series['label'] }}</span>
-                {% endfor %}
-                <span class="key"><span class="swatch fan-on"></span>Takvifte PÅ</span>
-                <span class="key"><span class="swatch fan-off"></span>Takvifte AV</span>
-                <span class="key">Grafen stopper ved nå-linjen for dagens dato</span>
+                <svg class="temp-chart" viewBox="0 0 1000 330" role="img" aria-label="Temperatur og viftehendelser gjennom dagen"></svg>
             </div>
         </section>
 
         <section class="panel">
-            <h2>Målinger</h2>
+            <div class="section-row">
+                <h2 class="section-title">Målinger</h2>
+                <span class="chart-note">Alle temperaturfelt fra temp-loggen</span>
+            </div>
             {% if not temp_day.samples_desc %}
             <div class="empty">Ingen temperaturmålinger denne dagen.</div>
             {% endif %}
@@ -135,9 +158,9 @@
                     <thead>
                         <tr>
                             <th>Tid</th>
-                            <th>Yr</th>
-                            <th>1.etg</th>
-                            <th>Loft</th>
+                            {% for series in temp_day.series %}
+                            <th>{{ series.label }}</th>
+                            {% endfor %}
                             <th>Modus</th>
                             <th>Kilde</th>
                         </tr>
@@ -146,9 +169,9 @@
                         {% for row in temp_day.samples_desc %}
                         <tr>
                             <td>{{ row.time }}</td>
-                            <td>{{ row.temp_yr_label }}</td>
-                            <td>{{ row.temp_1etg_label }}</td>
-                            <td>{{ row.temp_loft_label }}</td>
+                            {% for series in temp_day.series %}
+                            <td>{{ row[series.key ~ "_label"] }}</td>
+                            {% endfor %}
                             <td>{{ row.mode or "-" }}</td>
                             <td>{{ row.source or "-" }}</td>
                         </tr>
@@ -158,5 +181,82 @@
             </div>
         </section>
     </main>
+    <script>
+        (() => {
+            const series = {{ temp_day.series|tojson }};
+            const fans = {{ temp_day.fans|tojson }};
+            const fanEvents = {{ temp_day.fan_events|tojson }};
+            const yTicks = {{ temp_day.y_ticks|tojson }};
+            const xTicks = {{ ticks|tojson }};
+            const nowMarker = {{ (now_marker * 10) if is_today and now_marker is not none else "null" }};
+            const nowLabel = {{ now_label|tojson }};
+            const svg = document.querySelector(".temp-chart");
+            const tempInputs = document.querySelectorAll("#tempControls input");
+            const fanInputs = document.querySelectorAll("#fanControls input");
+            if (!svg) return;
+
+            const width = 1000;
+            const height = 330;
+            const graphTop = 22;
+            const graphBottom = 278;
+            const fanLane = new Map(fans.map((fan, index) => [fan.key, graphTop + 10 + index * 13]));
+            const activeTemps = new Set([...tempInputs].filter((input) => input.checked).map((input) => input.value));
+            const activeFans = new Set([...fanInputs].filter((input) => input.checked).map((input) => input.value));
+
+            const pathFromPoints = (points) => points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
+            const escapeText = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char]));
+
+            const render = () => {
+                const grid = [
+                    `<line class="axis" x1="0" y1="${graphBottom}" x2="${width}" y2="${graphBottom}"></line>`,
+                    ...xTicks.map((tick) => `
+                        <line class="grid" x1="${tick.x}" y1="${graphTop}" x2="${tick.x}" y2="${graphBottom}"></line>
+                        <text class="label" x="${tick.x}" y="313" text-anchor="middle">${escapeText(tick.label)}</text>
+                    `),
+                    ...yTicks.map((tick) => `
+                        <line class="grid" x1="0" y1="${tick.y}" x2="${width}" y2="${tick.y}"></line>
+                        <text class="y-label" x="8" y="${tick.y - 4}">${escapeText(tick.label)}</text>
+                    `),
+                ].join("");
+
+                const fanLines = fanEvents
+                    .filter((event) => activeFans.has(event.fan_key))
+                    .map((event) => {
+                        const isOn = event.class === "on";
+                        const stroke = isOn ? "#52a464" : "#df705d";
+                        const y = fanLane.get(event.fan_key) || graphTop + 10;
+                        return `
+                            <g>
+                                <line class="fan-line" x1="${event.x}" y1="${graphTop}" x2="${event.x}" y2="${graphBottom}" stroke="${stroke}" ${isOn ? "" : "stroke-dasharray=\"3 4\""}></line>
+                                <circle class="fan-marker" cx="${event.x}" cy="${y}" r="4.4" fill="${event.color}"></circle>
+                                <title>${escapeText(event.time)} ${escapeText(event.fan_short)} ${escapeText(event.action)} ${escapeText(event.detail)}</title>
+                            </g>
+                        `;
+                    }).join("");
+
+                const lines = series
+                    .filter((item) => activeTemps.has(item.key) && item.points?.length)
+                    .map((item) => `<path class="temp-line" d="${pathFromPoints(item.points)}" stroke="${item.color}"><title>${escapeText(item.label)}</title></path>`)
+                    .join("");
+
+                const now = nowMarker === null ? "" : `
+                    <line class="now-line" x1="${nowMarker}" y1="14" x2="${nowMarker}" y2="286"></line>
+                    <text class="now-label" x="${nowMarker}" y="12" text-anchor="middle">${escapeText(nowLabel)}</text>
+                `;
+
+                svg.innerHTML = `<rect x="0" y="0" width="${width}" height="${height}" fill="#fff"></rect>${grid}${fanLines}${lines}${now}`;
+            };
+
+            tempInputs.forEach((input) => input.addEventListener("change", () => {
+                if (input.checked) activeTemps.add(input.value); else activeTemps.delete(input.value);
+                render();
+            }));
+            fanInputs.forEach((input) => input.addEventListener("change", () => {
+                if (input.checked) activeFans.add(input.value); else activeFans.delete(input.value);
+                render();
+            }));
+            render();
+        })();
+    </script>
 </body>
 </html>
