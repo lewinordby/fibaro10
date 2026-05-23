@@ -3,15 +3,17 @@
 {% set is_light = current_path.startswith("/lys") %}
 {% set is_vent = current_path.startswith("/ventilasjon") %}
 {% set is_cleaning = current_path.startswith("/renhold") %}
+{% set is_sun2 = current_path.startswith("/soling") %}
 {% set is_energy = current_path.startswith("/energi") %}
 {% set is_account = current_path.startswith("/konto") %}
-<nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_cleaning %}section-cleaning{% elif is_energy %}section-energy{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
+<nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_cleaning %}section-cleaning{% elif is_sun2 %}section-sun2{% elif is_energy %}section-energy{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
     <div class="nav-row nav-main">
         <a class="button nav-status {% if is_status %}active{% endif %}" href="/status/dashboard">Status</a>
         <a class="button nav-light {% if is_light %}active{% endif %}" href="/lys/hendelser">Lys</a>
         <a class="button nav-vent {% if is_vent %}active{% endif %}" href="/ventilasjon/hendelser">Ventilasjon</a>
         <a class="button nav-cleaning {% if is_cleaning %}active{% endif %}" href="/renhold/oversikt">Renhold</a>
-        <a class="button nav-energy {% if is_energy %}active{% endif %}" href="/energi/oversikt">Energi</a>
+        <a class="button nav-sun2 {% if is_sun2 %}active{% endif %}" href="/soling/oversikt">Soling</a>
+        <a class="button nav-energy {% if is_energy %}active{% endif %}" href="/energi/elvia">Energi</a>
         <a class="button nav-account {% if is_account %}active{% endif %}" href="/konto/oversikt" aria-label="Konto">
             <span aria-hidden="true">&#128100;</span>
             <span class="sr-only">Konto</span>
@@ -42,10 +44,14 @@
     <div class="nav-row nav-sub" aria-label="Undermeny for renhold">
         <a class="button {% if current_path == '/renhold/oversikt' %}active{% endif %}" href="/renhold/oversikt">Oversikt</a>
     </div>
+    {% elif is_sun2 %}
+    <div class="nav-row nav-sub" aria-label="Undermeny for soling">
+        <a class="button {% if current_path == '/soling/oversikt' %}active{% endif %}" href="/soling/oversikt">Oversikt</a>
+        <a class="button {% if current_path == '/soling/detaljer' %}active{% endif %}" href="/soling/detaljer">Detaljer</a>
+    </div>
     {% elif is_energy %}
     <div class="nav-row nav-sub" aria-label="Undermeny for energi">
-        <a class="button {% if current_path == '/energi/oversikt' %}active{% endif %}" href="/energi/oversikt">Oversikt</a>
-        <a class="button {% if current_path == '/energi/soling' %}active{% endif %}" href="/energi/soling">Soling</a>
+        <a class="button {% if current_path == '/energi/elvia' %}active{% endif %}" href="/energi/elvia">Elvia</a>
     </div>
     {% elif is_account %}
     <div class="nav-row nav-sub" aria-label="Undermeny for konto">

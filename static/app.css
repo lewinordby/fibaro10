@@ -510,6 +510,13 @@ code {
     --section-ring: var(--cleaning-ring);
 }
 
+.app-nav.section-sun2 {
+    --section-color: var(--energy-color);
+    --section-soft: var(--energy-soft);
+    --section-border: var(--energy-border);
+    --section-ring: var(--energy-ring);
+}
+
 .app-nav.section-admin {
     --section-color: var(--admin-color);
     --section-soft: var(--admin-soft);
@@ -660,6 +667,13 @@ code {
     --section-soft: var(--cleaning-soft);
     --section-border: var(--cleaning-border);
     --section-ring: var(--cleaning-ring);
+}
+
+.app-nav .nav-main .button.nav-sun2 {
+    --section-color: var(--energy-color);
+    --section-soft: var(--energy-soft);
+    --section-border: var(--energy-border);
+    --section-ring: var(--energy-ring);
 }
 
 .app-nav .nav-main .button.nav-admin {
@@ -850,7 +864,7 @@ svg {
 
 @media (min-width: 680px) {
     .app-nav .nav-main {
-        grid-template-columns: repeat(5, minmax(0, 1fr)) 2.62rem;
+        grid-template-columns: repeat(6, minmax(0, 1fr)) 2.62rem;
     }
 
 }
@@ -924,8 +938,13 @@ svg {
         grid-row: 2;
     }
 
+    .app-nav .nav-main .nav-sun2 {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
     .app-nav .nav-main .nav-energy {
-        grid-column: 1 / span 2;
+        grid-column: 2;
         grid-row: 3;
     }
 

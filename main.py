@@ -4,6 +4,7 @@ from io import StringIO
 from copy import deepcopy
 from typing import Any, Dict, Optional
 import asyncio
+import calendar
 import csv
 import hashlib
 import json
@@ -704,6 +705,53 @@ class Sun2ImportRun(Base):
     raw = Column(JSON, nullable=True)
 
 
+class EnergyHourlyConsumption(Base):
+    __tablename__ = "energy_hourly_consumption"
+    __table_args__ = (UniqueConstraint("meter_id", "measured_at", name="uq_energy_hourly_meter_time"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    meter_id = Column(String, index=True, nullable=False)
+    measured_at = Column(DateTime, index=True, nullable=False)
+    stat_date = Column(Date, index=True, nullable=False)
+    year = Column(Integer, index=True, nullable=False)
+    month = Column(Integer, index=True, nullable=False)
+    day = Column(Integer, index=True, nullable=False)
+    hour = Column(Integer, index=True, nullable=False)
+    consumption_kwh = Column(Float, nullable=False)
+    production_kwh = Column(Float, nullable=True)
+    status = Column(String, index=True, nullable=True)
+    is_verified = Column(Boolean, nullable=True)
+    is_estimated = Column(Boolean, index=True, nullable=True)
+    is_public_holiday = Column(Boolean, nullable=True)
+    use_weekend_prices = Column(Boolean, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    source_file = Column(String, index=True, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, index=True)
+    raw = Column(JSON, nullable=True)
+
+
+class EnergyImportRun(Base):
+    __tablename__ = "energy_import_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    meter_id = Column(String, index=True, nullable=True)
+    source = Column(String, nullable=True)
+    ok = Column(Boolean, nullable=True)
+    source_file = Column(String, index=True, nullable=True)
+    period_first = Column(DateTime, index=True, nullable=True)
+    period_last = Column(DateTime, index=True, nullable=True)
+    days_count = Column(Integer, nullable=True)
+    hours_count = Column(Integer, nullable=True)
+    inserted_count = Column(Integer, nullable=True)
+    updated_count = Column(Integer, nullable=True)
+    skipped_count = Column(Integer, nullable=True)
+    total_kwh = Column(Float, nullable=True)
+    estimated_hours_count = Column(Integer, nullable=True)
+    message = Column(Text, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
 class AccessKey(Base):
     __tablename__ = "access_keys"
 
@@ -948,6 +996,18 @@ SUN2_IMPORT_COLUMNS = [
     "rows_count", "inserted_count", "updated_count", "message", "raw",
 ]
 
+ENERGY_HOURLY_COLUMNS = [
+    "id", "meter_id", "measured_at", "stat_date", "year", "month", "day", "hour",
+    "consumption_kwh", "production_kwh", "status", "is_verified", "is_estimated",
+    "is_public_holiday", "use_weekend_prices", "source", "source_file", "imported_at", "raw",
+]
+
+ENERGY_IMPORT_COLUMNS = [
+    "id", "timestamp", "meter_id", "source", "ok", "source_file", "period_first", "period_last",
+    "days_count", "hours_count", "inserted_count", "updated_count", "skipped_count", "total_kwh",
+    "estimated_hours_count", "message", "raw",
+]
+
 
 SUN2_SUM_FIELDS = [
     "total_soletid_minutter",
@@ -1027,6 +1087,11 @@ def build_sun2_summaries(rows: list[Any]) -> Dict[str, Any]:
         item["totalt_antall_solinger"],
         item["total_soletid_minutter"],
     )
+    count_sort = lambda item: (
+        item["totalt_antall_solinger"],
+        item["totalt_inntjent_kr"],
+        item["total_soletid_minutter"],
+    )
 
     return {
         "daily": daily_items,
@@ -1034,9 +1099,81 @@ def build_sun2_summaries(rows: list[Any]) -> Dict[str, Any]:
         "yearly": yearly_items,
         "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
         "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
+        "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:10],
+        "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:10],
         "total": finalize_sun2_summary(total),
         "first_date": first_date,
         "last_date": last_date,
+    }
+
+
+def empty_energy_summary(period: str) -> Dict[str, Any]:
+    return {
+        "period": period,
+        "period_label": period,
+        "consumption_kwh": 0.0,
+        "production_kwh": 0.0,
+        "hours_count": 0,
+        "estimated_hours_count": 0,
+        "days": set(),
+    }
+
+
+def add_energy_row_to_summary(summary: Dict[str, Any], row: Any) -> None:
+    summary["consumption_kwh"] += row.consumption_kwh or 0
+    summary["production_kwh"] += row.production_kwh or 0
+    summary["hours_count"] += 1
+    if row.is_estimated:
+        summary["estimated_hours_count"] += 1
+    if row.stat_date:
+        summary["days"].add(row.stat_date)
+
+
+def finalize_energy_summary(summary: Dict[str, Any]) -> Dict[str, Any]:
+    summary = dict(summary)
+    summary["days_count"] = len(summary.pop("days", []))
+    return summary
+
+
+def build_energy_summaries(rows: list[Any]) -> Dict[str, Any]:
+    daily: Dict[str, Dict[str, Any]] = {}
+    monthly: Dict[str, Dict[str, Any]] = {}
+    yearly: Dict[str, Dict[str, Any]] = {}
+    total = empty_energy_summary("Totalt")
+    first_at = None
+    last_at = None
+
+    for row in rows:
+        if not row.measured_at:
+            continue
+        first_at = row.measured_at if first_at is None else min(first_at, row.measured_at)
+        last_at = row.measured_at if last_at is None else max(last_at, row.measured_at)
+        day_key = row.stat_date.isoformat()
+        month_key = f"{row.year:04d}-{row.month:02d}"
+        year_key = str(row.year)
+        daily.setdefault(day_key, empty_energy_summary(day_key))
+        monthly.setdefault(month_key, empty_energy_summary(month_key))
+        yearly.setdefault(year_key, empty_energy_summary(year_key))
+        daily[day_key]["period_label"] = row.stat_date.strftime("%d.%m.%Y")
+        add_energy_row_to_summary(daily[day_key], row)
+        add_energy_row_to_summary(monthly[month_key], row)
+        add_energy_row_to_summary(yearly[year_key], row)
+        add_energy_row_to_summary(total, row)
+
+    daily_items = [finalize_energy_summary(daily[key]) for key in sorted(daily, reverse=True)]
+    monthly_items = [finalize_energy_summary(monthly[key]) for key in sorted(monthly, reverse=True)]
+    yearly_items = [finalize_energy_summary(yearly[key]) for key in sorted(yearly, reverse=True)]
+    top_sort = lambda item: (item["consumption_kwh"], item["hours_count"])
+
+    return {
+        "daily": daily_items,
+        "monthly": monthly_items,
+        "yearly": yearly_items,
+        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
+        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
+        "total": finalize_energy_summary(total),
+        "first_at": first_at,
+        "last_at": last_at,
     }
 
 
@@ -1379,6 +1516,104 @@ def float_value(value: Any) -> Optional[float]:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def nested_total(value: Any) -> Optional[float]:
+    if not isinstance(value, dict):
+        return None
+    return float_value(value.get("Total"))
+
+
+def consumption_value(value: Any) -> Optional[float]:
+    if not isinstance(value, dict):
+        return None
+    return float_value(value.get("Value"))
+
+
+def meter_id_from_filename(filename: Optional[str]) -> str:
+    match = re.match(r"(\d+)", filename or "")
+    return match.group(1) if match else "elvia"
+
+
+def parse_elvia_json_payload(content: bytes, filename: str) -> Dict[str, Any]:
+    data = json.loads(content.decode("utf-8-sig"))
+    meter_id = meter_id_from_filename(filename)
+    rows: list[Dict[str, Any]] = []
+    day_ids = set()
+    month_days: Dict[str, set[int]] = {}
+    estimated_hours = 0
+
+    for year_data in data.get("Years") or []:
+        for month_data in year_data.get("Months") or []:
+            for day_data in month_data.get("Days") or []:
+                day = date(int(day_data["Year"]), int(day_data["Month"]), int(day_data["Day"]))
+                day_ids.add(day)
+                month_key = f"{day.year:04d}-{day.month:02d}"
+                month_days.setdefault(month_key, set()).add(day.day)
+                for hour_data in day_data.get("Hours") or []:
+                    measured_at = datetime(
+                        int(hour_data["Year"]),
+                        int(hour_data["Month"]),
+                        int(hour_data["Day"]),
+                        int(hour_data["Hour"]),
+                    )
+                    consumption = consumption_value(hour_data.get("Consumption"))
+                    if consumption is None:
+                        continue
+                    production = consumption_value(hour_data.get("Production"))
+                    status = (hour_data.get("Consumption") or {}).get("Status")
+                    is_estimated = status != "OK"
+                    if is_estimated:
+                        estimated_hours += 1
+                    rows.append(
+                        {
+                            "meter_id": meter_id,
+                            "measured_at": measured_at,
+                            "stat_date": measured_at.date(),
+                            "year": measured_at.year,
+                            "month": measured_at.month,
+                            "day": measured_at.day,
+                            "hour": measured_at.hour,
+                            "consumption_kwh": consumption,
+                            "production_kwh": production,
+                            "status": status,
+                            "is_verified": bool_value((hour_data.get("Consumption") or {}).get("IsVerified")),
+                            "is_estimated": is_estimated,
+                            "is_public_holiday": bool_value(hour_data.get("IsPublicHoliday")),
+                            "use_weekend_prices": bool_value(hour_data.get("UseWeekendPrices")),
+                            "raw": hour_data,
+                        }
+                    )
+
+    rows.sort(key=lambda item: item["measured_at"])
+    first_at = rows[0]["measured_at"] if rows else None
+    last_at = rows[-1]["measured_at"] if rows else None
+    partial_months = []
+    for month_key, days in sorted(month_days.items()):
+        year_number, month_number = [int(part) for part in month_key.split("-")]
+        expected_days = calendar.monthrange(year_number, month_number)[1]
+        if len(days) != expected_days:
+            partial_months.append(
+                {
+                    "month": month_key,
+                    "days": len(days),
+                    "expected_days": expected_days,
+                    "first_day": min(days),
+                    "last_day": max(days),
+                }
+            )
+    return {
+        "meter_id": meter_id,
+        "rows": rows,
+        "first_at": first_at,
+        "last_at": last_at,
+        "days_count": len(day_ids),
+        "hours_count": len(rows),
+        "total_kwh": sum(row["consumption_kwh"] for row in rows),
+        "estimated_hours_count": estimated_hours,
+        "partial_months": partial_months,
+        "source_file": filename,
+    }
 
 
 def timestamp_value(value: Any) -> Optional[datetime]:
@@ -2845,7 +3080,7 @@ def row_to_dict(row, columns):
         if column == "extra":
             continue
         value = getattr(row, column)
-        out[column] = value.isoformat() if isinstance(value, datetime) else value
+        out[column] = value.isoformat() if isinstance(value, (datetime, date)) else value
     if hasattr(row, "extra"):
         out["extra"] = row.extra or {}
     return out
@@ -3352,6 +3587,56 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
         existing.raw = row.raw or {}
 
     return {"inserted": inserted, "updated": updated}
+
+
+async def ingest_elvia_hours(session, parsed: Dict[str, Any], batch_time: datetime) -> Dict[str, int]:
+    rows = parsed["rows"]
+    if not rows:
+        return {"inserted": 0, "updated": 0, "skipped": 0}
+
+    meter_id = parsed["meter_id"]
+    first_at = parsed["first_at"]
+    last_at = parsed["last_at"]
+    existing_rows = (
+        await session.execute(
+            select(EnergyHourlyConsumption)
+            .where(EnergyHourlyConsumption.meter_id == meter_id)
+            .where(EnergyHourlyConsumption.measured_at >= first_at)
+            .where(EnergyHourlyConsumption.measured_at <= last_at)
+        )
+    ).scalars().all()
+    existing_by_time = {row.measured_at: row for row in existing_rows}
+    inserted = 0
+    updated = 0
+    skipped = 0
+
+    for row in rows:
+        existing = existing_by_time.get(row["measured_at"])
+        if not existing:
+            existing = EnergyHourlyConsumption(meter_id=meter_id, measured_at=row["measured_at"])
+            session.add(existing)
+            inserted += 1
+        else:
+            updated += 1
+
+        existing.stat_date = row["stat_date"]
+        existing.year = row["year"]
+        existing.month = row["month"]
+        existing.day = row["day"]
+        existing.hour = row["hour"]
+        existing.consumption_kwh = row["consumption_kwh"]
+        existing.production_kwh = row["production_kwh"]
+        existing.status = row["status"]
+        existing.is_verified = row["is_verified"]
+        existing.is_estimated = row["is_estimated"]
+        existing.is_public_holiday = row["is_public_holiday"]
+        existing.use_weekend_prices = row["use_weekend_prices"]
+        existing.source = "elvia"
+        existing.source_file = parsed["source_file"]
+        existing.imported_at = batch_time
+        existing.raw = row["raw"]
+
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
 async def fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit):
@@ -4076,7 +4361,7 @@ async def sun2_room_stats_ingest(data: Sun2RoomStatsIngestIn):
 
 @app.get("/sun2/room-stats")
 async def sun2_room_stats_legacy_redirect():
-    return RedirectResponse("/energi/soling", status_code=307)
+    return RedirectResponse("/soling/detaljer", status_code=307)
 
 
 @app.get("/sun2/room-stats/json")
@@ -4086,10 +4371,25 @@ async def sun2_room_stats_json_legacy_redirect():
 
 @app.get("/energi")
 async def energy_redirect():
-    return RedirectResponse("/energi/oversikt", status_code=307)
+    return RedirectResponse("/energi/elvia", status_code=307)
 
 
 @app.get("/energi/oversikt", response_class=HTMLResponse)
+async def energy_overview_legacy_redirect():
+    return RedirectResponse("/soling/oversikt", status_code=307)
+
+
+@app.get("/energi/soling", response_class=HTMLResponse)
+async def energy_soling_legacy_redirect():
+    return RedirectResponse("/soling/detaljer", status_code=307)
+
+
+@app.get("/soling")
+async def sun2_redirect():
+    return RedirectResponse("/soling/oversikt", status_code=307)
+
+
+@app.get("/soling/oversikt", response_class=HTMLResponse)
 async def sun2_overview_view(request: Request):
     async with async_session() as session:
         rows = (
@@ -4112,6 +4412,8 @@ async def sun2_overview_view(request: Request):
         {
             "top_days": summaries["top_days"],
             "top_months": summaries["top_months"],
+            "top_days_by_count": summaries["top_days_by_count"],
+            "top_months_by_count": summaries["top_months_by_count"],
             "grand_total": summaries["total"],
             "first_date": summaries["first_date"],
             "last_date": summaries["last_date"],
@@ -4121,7 +4423,7 @@ async def sun2_overview_view(request: Request):
     )
 
 
-@app.get("/energi/soling", response_class=HTMLResponse)
+@app.get("/soling/detaljer", response_class=HTMLResponse)
 async def sun2_room_stats_view(request: Request, limit: int = 300):
     limit = max(1, min(limit, 1000))
     async with async_session() as session:
@@ -4196,9 +4498,164 @@ async def sun2_room_stats_json(limit: int = 300):
         "yearly_totals": summaries["yearly"],
         "top_days": summaries["top_days"],
         "top_months": summaries["top_months"],
+        "top_days_by_count": summaries["top_days_by_count"],
+        "top_months_by_count": summaries["top_months_by_count"],
         "grand_total": summaries["total"],
         "first_date": summaries["first_date"],
         "last_date": summaries["last_date"],
+        "total_rows": len(summary_rows),
+    }
+
+
+@app.get("/energi/elvia", response_class=HTMLResponse)
+async def energy_elvia_view(request: Request):
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(EnergyHourlyConsumption)
+                .order_by(EnergyHourlyConsumption.measured_at.asc())
+            )
+        ).scalars().all()
+        imports = (
+            await session.execute(
+                select(EnergyImportRun)
+                .order_by(EnergyImportRun.timestamp.desc())
+                .limit(25)
+            )
+        ).scalars().all()
+    summaries = build_energy_summaries(rows)
+    return templates.TemplateResponse(
+        request,
+        "energy_elvia.html",
+        {
+            "rows": rows[-24:],
+            "imports": imports,
+            "summaries": summaries,
+            "message": "",
+            "error": "",
+            "import_result": None,
+        },
+    )
+
+
+@app.post("/energi/elvia", response_class=HTMLResponse)
+async def energy_elvia_upload(request: Request):
+    message = ""
+    error = ""
+    import_result = None
+    if not getattr(request.state, "auth_can_settings", False):
+        error = "Du må ha innstillingstilgang for å importere Elvia-filer."
+    else:
+        try:
+            form = await request.form()
+            upload = form.get("file")
+            filename = getattr(upload, "filename", "") or ""
+            if not upload or not filename:
+                raise ValueError("Velg en JSON-fil fra Elvia før du importerer.")
+            content = await upload.read()
+            parsed = parse_elvia_json_payload(content, filename)
+            if not parsed["rows"]:
+                raise ValueError("Filen inneholder ingen timeverdier som kan importeres.")
+            batch_time = datetime.utcnow()
+            async with async_session() as session:
+                counts = await ingest_elvia_hours(session, parsed, batch_time)
+                import_result = {key: value for key, value in parsed.items() if key != "rows"}
+                import_result.update(counts)
+                session.add(
+                    EnergyImportRun(
+                        timestamp=batch_time,
+                        meter_id=parsed["meter_id"],
+                        source="elvia",
+                        ok=True,
+                        source_file=filename,
+                        period_first=parsed["first_at"],
+                        period_last=parsed["last_at"],
+                        days_count=parsed["days_count"],
+                        hours_count=parsed["hours_count"],
+                        inserted_count=counts["inserted"],
+                        updated_count=counts["updated"],
+                        skipped_count=counts["skipped"],
+                        total_kwh=parsed["total_kwh"],
+                        estimated_hours_count=parsed["estimated_hours_count"],
+                        message="Importert",
+                        raw={"partial_months": parsed["partial_months"]},
+                    )
+                )
+                await session.commit()
+            message = (
+                f"Importerte {counts['inserted']} nye og oppdaterte {counts['updated']} timer "
+                f"for måler {parsed['meter_id']}."
+            )
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            error = "Filen kunne ikke leses som gyldig JSON."
+        except Exception as exc:
+            error = str(exc)
+
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(EnergyHourlyConsumption)
+                .order_by(EnergyHourlyConsumption.measured_at.asc())
+            )
+        ).scalars().all()
+        imports = (
+            await session.execute(
+                select(EnergyImportRun)
+                .order_by(EnergyImportRun.timestamp.desc())
+                .limit(25)
+            )
+        ).scalars().all()
+    summaries = build_energy_summaries(rows)
+    return templates.TemplateResponse(
+        request,
+        "energy_elvia.html",
+        {
+            "rows": rows[-24:],
+            "imports": imports,
+            "summaries": summaries,
+            "message": message,
+            "error": error,
+            "import_result": import_result,
+        },
+    )
+
+
+@app.get("/api/energi/elvia/json")
+async def energy_elvia_json(limit: int = 300):
+    limit = max(1, min(limit, 5000))
+    async with async_session() as session:
+        summary_rows = (
+            await session.execute(
+                select(EnergyHourlyConsumption)
+                .order_by(EnergyHourlyConsumption.measured_at.asc())
+            )
+        ).scalars().all()
+        rows = (
+            await session.execute(
+                select(EnergyHourlyConsumption)
+                .order_by(EnergyHourlyConsumption.measured_at.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+        imports = (
+            await session.execute(
+                select(EnergyImportRun)
+                .order_by(EnergyImportRun.timestamp.desc())
+                .limit(min(limit, 500))
+            )
+        ).scalars().all()
+    summaries = build_energy_summaries(summary_rows)
+    return {
+        "rows": [row_to_dict(row, ENERGY_HOURLY_COLUMNS) for row in rows],
+        "imports": [row_to_dict(row, ENERGY_IMPORT_COLUMNS) for row in imports],
+        "daily_totals": summaries["daily"],
+        "monthly_totals": summaries["monthly"],
+        "yearly_totals": summaries["yearly"],
+        "top_days": summaries["top_days"],
+        "top_months": summaries["top_months"],
+        "grand_total": summaries["total"],
+        "first_at": summaries["first_at"],
+        "last_at": summaries["last_at"],
         "total_rows": len(summary_rows),
     }
 

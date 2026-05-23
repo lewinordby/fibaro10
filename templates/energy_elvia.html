@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elvia import</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <style>
+        .page-title { margin:0 0 0.35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 0.95rem; color:var(--muted); font-size:0.88rem; }
+        .grid { display:grid; gap:0.85rem; }
+        .panel-card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:0.9rem; box-shadow:var(--shadow-1); }
+        .panel-card.accent { border-top:4px solid var(--energy-color); }
+        .summary-grid { display:grid; gap:0.7rem; margin-bottom:0.95rem; }
+        .summary-card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:0.82rem; box-shadow:var(--shadow-1); }
+        .summary-card span { display:block; color:var(--muted); font-size:0.76rem; }
+        .summary-card strong { display:block; margin-top:0.18rem; font-size:1.13rem; color:var(--brand-dark); }
+        .summary-card small { display:block; margin-top:0.24rem; color:var(--muted); font-size:0.72rem; }
+        .upload-form { display:grid; gap:0.7rem; margin:0; }
+        .upload-row { display:flex; flex-wrap:wrap; gap:0.55rem; align-items:center; }
+        input[type="file"] { max-width:100%; padding:0.65rem; border:1px solid var(--line); border-radius:8px; background:var(--panel-soft); }
+        .button-primary { width:auto !important; min-height:2.3rem; padding:0.45rem 0.9rem; border:1px solid var(--energy-color); border-radius:8px; background:var(--energy-color); color:white; font-weight:780; cursor:pointer; }
+        .notice { margin:0 0 0.8rem; padding:0.7rem 0.8rem; border-radius:8px; font-size:0.88rem; }
+        .notice.ok { background:#edf8f1; border:1px solid #bce4c8; color:#276846; }
+        .notice.error { background:#fbebe8; border:1px solid #f2c4bb; color:#9d3f31; }
+        .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin:1rem 0 0.5rem; }
+        .section-title { margin:0; font-size:1rem; color:var(--brand-dark); }
+        .section-note { color:var(--muted); font-size:0.78rem; }
+        .top-grid { display:grid; gap:0.9rem; }
+        .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:680px; }
+        th, td { padding:0.58rem 0.65rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
+        th { color:var(--muted); font-size:0.76rem; font-weight:760; background:var(--panel-soft); }
+        td { font-size:0.88rem; }
+        tbody tr:last-child td { border-bottom:0; }
+        .period { font-weight:780; color:var(--brand-dark); }
+        .kwh { color:#9a660f; font-weight:800; }
+        .muted { color:var(--muted); }
+        @media (min-width: 820px) {
+            .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        }
+        @media (min-width: 1160px) {
+            .grid.two { grid-template-columns:minmax(0,0.85fr) minmax(0,1.15fr); align-items:start; }
+            .top-grid { grid-template-columns:1fr 1fr; align-items:start; }
+        }
+    </style>
+</head>
+<body class="theme-energy">
+    {% include "_header.html" %}
+    <main>
+        {% set total = summaries.total %}
+        {% set latest_import = imports[0] if imports else None %}
+        <h1 class="page-title">Elvia strømforbruk</h1>
+        <p class="page-subtitle">
+            Last opp JSON-eksporten fra Elvia. Data lagres per time, så samme fil kan importeres på nytt uten dobbelttelling.
+        </p>
+
+        {% if message %}<p class="notice ok">{{ message }}</p>{% endif %}
+        {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+
+        <section class="summary-grid">
+            <div class="summary-card">
+                <span>Totalt forbruk</span>
+                <strong>{{ "{:,.0f}".format(total.consumption_kwh or 0).replace(",", " ") }} kWh</strong>
+                <small>{{ total.hours_count or 0 }} timer</small>
+            </div>
+            <div class="summary-card">
+                <span>Periode</span>
+                <strong>{% if summaries.first_at and summaries.last_at %}{{ summaries.first_at|localtime }} - {{ summaries.last_at|localtime }}{% else %}-{% endif %}</strong>
+                <small>{{ total.days_count or 0 }} dager</small>
+            </div>
+            <div class="summary-card">
+                <span>Estimerte timer</span>
+                <strong>{{ total.estimated_hours_count or 0 }}</strong>
+                <small>Fra Elvia-status ulik OK</small>
+            </div>
+            <div class="summary-card">
+                <span>Siste import</span>
+                <strong>{{ latest_import.timestamp|localtime if latest_import else "-" }}</strong>
+                <small>{{ latest_import.source_file if latest_import else "Ingen import ennå" }}</small>
+            </div>
+        </section>
+
+        <section class="grid two">
+            <article class="panel-card accent">
+                <h2 class="section-title">Importer fil</h2>
+                <p class="page-subtitle">Velg JSON-filen du laster ned manuelt fra Elvia etter BankID.</p>
+                <form class="upload-form" method="post" action="/energi/elvia" enctype="multipart/form-data">
+                    <div class="upload-row">
+                        <input type="file" name="file" accept=".json,application/json" required>
+                        <button class="button-primary" type="submit">Importer</button>
+                    </div>
+                </form>
+                {% if import_result %}
+                <div class="section-row">
+                    <h3 class="section-title">Siste importresultat</h3>
+                </div>
+                <p class="muted">
+                    Måler {{ import_result.meter_id }}:
+                    {{ import_result.inserted }} nye,
+                    {{ import_result.updated }} oppdatert,
+                    {{ "{:,.0f}".format(import_result.total_kwh or 0).replace(",", " ") }} kWh.
+                </p>
+                {% if import_result.partial_months %}
+                <p class="muted">Ufullstendige måneder i filen:
+                    {% for month in import_result.partial_months %}
+                        {{ month["month"] }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+                {% endif %}
+                {% endif %}
+            </article>
+
+            <article>
+                <div class="section-row">
+                    <h2 class="section-title">Årssummer</h2>
+                    <span class="section-note">{{ summaries.yearly|length }} år</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>År</th>
+                                <th>kWh</th>
+                                <th>Dager</th>
+                                <th>Timer</th>
+                                <th>Est.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in summaries.yearly %}
+                            <tr>
+                                <td class="period">{{ item.period }}</td>
+                                <td class="kwh">{{ "{:,.0f}".format(item.consumption_kwh or 0).replace(",", " ") }}</td>
+                                <td>{{ item.days_count }}</td>
+                                <td>{{ item.hours_count }}</td>
+                                <td>{{ item.estimated_hours_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </article>
+        </section>
+
+        <section class="top-grid">
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 høyeste forbruksdager</h2>
+                    <span class="section-note">kWh</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Dato</th>
+                                <th>kWh</th>
+                                <th>Timer</th>
+                                <th>Est.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in summaries.top_days %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td class="period">{{ item.period_label }}</td>
+                                <td class="kwh">{{ "{:,.1f}".format(item.consumption_kwh or 0).replace(",", " ") }}</td>
+                                <td>{{ item.hours_count }}</td>
+                                <td>{{ item.estimated_hours_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 høyeste forbruksmåneder</h2>
+                    <span class="section-note">kWh</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Måned</th>
+                                <th>kWh</th>
+                                <th>Dager</th>
+                                <th>Est.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in summaries.top_months %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td class="period">{{ item.period }}</td>
+                                <td class="kwh">{{ "{:,.0f}".format(item.consumption_kwh or 0).replace(",", " ") }}</td>
+                                <td>{{ item.days_count }}</td>
+                                <td>{{ item.estimated_hours_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </section>
+
+        <div class="section-row">
+            <h2 class="section-title">Importer</h2>
+            <span class="section-note">Siste {{ imports|length }}</span>
+        </div>
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tid</th>
+                        <th>Fil</th>
+                        <th>Måler</th>
+                        <th>Timer</th>
+                        <th>Nye</th>
+                        <th>Oppdatert</th>
+                        <th>kWh</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in imports %}
+                    <tr>
+                        <td>{{ run.timestamp|localtime }}</td>
+                        <td>{{ run.source_file or "-" }}</td>
+                        <td>{{ run.meter_id or "-" }}</td>
+                        <td>{{ run.hours_count or 0 }}</td>
+                        <td>{{ run.inserted_count or 0 }}</td>
+                        <td>{{ run.updated_count or 0 }}</td>
+                        <td class="kwh">{{ "{:,.0f}".format(run.total_kwh or 0).replace(",", " ") }}</td>
+                        <td>{{ "OK" if run.ok else "Feil" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>

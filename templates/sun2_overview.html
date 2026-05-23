@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Energi oversikt</title>
+    <title>Soling oversikt</title>
     <link rel="stylesheet" href="/static/app.css">
     <style>
         .page-title { margin:0 0 0.35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
@@ -21,6 +21,7 @@
         .summary-card span { color:var(--muted); font-size:0.76rem; }
         .summary-card strong { display:block; margin-top:0.16rem; font-size:1.03rem; color:var(--brand-dark); }
         .top-grid { display:grid; gap:0.9rem; }
+        .count-grid { margin-top:1rem; }
         .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin:0.2rem 0 0.5rem; }
         .section-title { margin:0; font-size:1rem; color:var(--brand-dark); }
         .section-note { color:var(--muted); font-size:0.78rem; }
@@ -50,7 +51,7 @@
         {% set best_month = top_months[0] if top_months else None %}
         <h1 class="page-title">Oversikt soling</h1>
         <p class="page-subtitle">
-            Topp 10 er sortert på inntjent beløp.
+            Første toppliste er sortert på inntjent beløp. Nederst vises tilsvarende topplister sortert på antall solinger.
             {% if first_date and last_date %}Datagrunnlag fra {{ first_date }} til {{ last_date }}.{% endif %}
         </p>
 
@@ -155,6 +156,74 @@
                                 <td class="period">{{ item.period }}</td>
                                 <td class="money">{{ "{:,.0f}".format(item.totalt_inntjent_kr or 0).replace(",", " ") }} kr</td>
                                 <td>{{ "{:,.0f}".format(item.totalt_antall_solinger or 0).replace(",", " ") }}</td>
+                                <td>{{ "{:,.1f}".format(item.total_soletid_timer or 0).replace(",", " ") }}</td>
+                                <td>{{ item.days_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </section>
+
+        <section class="top-grid count-grid">
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 flest solinger per dag</h2>
+                    <span class="section-note">Sortert på antall</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Dato</th>
+                                <th>Solinger</th>
+                                <th>Inntjent</th>
+                                <th>Timer</th>
+                                <th>Rom</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_days_by_count %}
+                            <tr>
+                                <td class="rank">{{ loop.index }}</td>
+                                <td class="period">{{ item.period_label }}</td>
+                                <td>{{ "{:,.0f}".format(item.totalt_antall_solinger or 0).replace(",", " ") }}</td>
+                                <td class="money">{{ "{:,.0f}".format(item.totalt_inntjent_kr or 0).replace(",", " ") }} kr</td>
+                                <td>{{ "{:,.1f}".format(item.total_soletid_timer or 0).replace(",", " ") }}</td>
+                                <td>{{ item.rooms_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 flest solinger per måned</h2>
+                    <span class="section-note">Sortert på antall</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Måned</th>
+                                <th>Solinger</th>
+                                <th>Inntjent</th>
+                                <th>Timer</th>
+                                <th>Dager</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_months_by_count %}
+                            <tr>
+                                <td class="rank">{{ loop.index }}</td>
+                                <td class="period">{{ item.period }}</td>
+                                <td>{{ "{:,.0f}".format(item.totalt_antall_solinger or 0).replace(",", " ") }}</td>
+                                <td class="money">{{ "{:,.0f}".format(item.totalt_inntjent_kr or 0).replace(",", " ") }} kr</td>
                                 <td>{{ "{:,.1f}".format(item.total_soletid_timer or 0).replace(",", " ") }}</td>
                                 <td>{{ item.days_count }}</td>
                             </tr>
