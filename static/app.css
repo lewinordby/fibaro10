@@ -2195,3 +2195,73 @@ svg {
         display: none !important;
     }
 }
+
+/* Navigation placement cleanup: submenus belong to the active main item. */
+.app-nav .nav-main > .nav-sub {
+    grid-column: 1 / -1 !important;
+    flex-basis: 100% !important;
+}
+
+@media (max-width: 1019px) {
+    .app-nav .nav-main > .nav-sub {
+        order: 20;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        width: 100% !important;
+        margin: 0.12rem 0 0 !important;
+        padding: 0.36rem 0.18rem 0.04rem !important;
+        border-top: 1px solid var(--line-soft) !important;
+        overflow-x: auto !important;
+        scrollbar-width: none;
+    }
+
+    .app-nav .nav-main > .nav-sub::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+@media (min-width: 1020px) {
+    main {
+        width: min(calc(100% - 2.2rem), var(--page-width)) !important;
+        transition: width 0.18s ease;
+    }
+
+    html.nav-collapsed main {
+        width: min(calc(100% - 2.2rem), var(--page-width)) !important;
+    }
+
+    .app-nav .nav-main > .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.08rem !important;
+        width: auto !important;
+        min-height: 0 !important;
+        margin: -0.02rem 0 0.34rem 1.12rem !important;
+        padding: 0.16rem 0 0.16rem 0.68rem !important;
+        border-top: 0 !important;
+        border-left: 2px solid var(--section-border) !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    .app-nav .nav-main > .nav-sub::before {
+        content: none !important;
+        display: none !important;
+    }
+
+    .app-nav .nav-main > .nav-sub .button,
+    .app-nav .nav-main > .nav-sub-form .button {
+        min-height: 1.84rem !important;
+        padding: 0.34rem 0.58rem !important;
+        border-radius: 8px !important;
+        font-size: 0.78rem !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-main > .nav-sub {
+        display: none !important;
+    }
+}
