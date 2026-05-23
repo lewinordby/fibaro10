@@ -3430,7 +3430,6 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
             {
                 **series,
                 "polyline": " ".join(f"{point['x']:.2f},{point['y']:.2f}" for point in points),
-                "points": points,
                 "latest": temp_label(values[-1]) if values else "-",
                 "min": temp_label(min(values)) if values else "-",
                 "max": temp_label(max(values)) if values else "-",
@@ -3483,7 +3482,6 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
         "y_ticks": y_ticks,
         "samples_desc": list(reversed(samples)),
         "summary": summary,
-        "axis": axis,
     }
 
 
@@ -5297,7 +5295,7 @@ async def sun2_overview_view(request: Request):
 
 
 @app.get("/soling/detaljer", response_class=HTMLResponse)
-async def sun2_room_stats_view(request: Request, limit: int = 300):
+async def sun2_room_stats_view(request: Request, limit: int = 150):
     limit = max(1, min(limit, 1000))
     async with async_session() as session:
         summaries = await get_sun2_summaries(session)
@@ -5525,31 +5523,63 @@ async def cleaning_overview(request: Request):
         latest_status = {}
         latest_jobs = {}
         next_schedules = {}
-        for robot in robots:
-            latest_status[robot.duid] = (
-                await session.execute(
-                    select(RoborockStatusSample)
-                    .where(RoborockStatusSample.robot_duid == robot.duid)
-                    .order_by(RoborockStatusSample.timestamp.desc())
-                    .limit(1)
+        robot_duids = [robot.duid for robot in robots]
+        if robot_duids:
+            latest_status_subq = (
+                select(
+                    RoborockStatusSample.robot_duid.label("robot_duid"),
+                    func.max(RoborockStatusSample.timestamp).label("latest_at"),
                 )
-            ).scalars().first()
-            latest_jobs[robot.duid] = (
+                .where(RoborockStatusSample.robot_duid.in_(robot_duids))
+                .group_by(RoborockStatusSample.robot_duid)
+                .subquery()
+            )
+            status_rows = (
                 await session.execute(
-                    select(RoborockCleanJob)
-                    .where(RoborockCleanJob.robot_duid == robot.duid)
-                    .order_by(RoborockCleanJob.begin_at.desc())
-                    .limit(1)
+                    select(RoborockStatusSample).join(
+                        latest_status_subq,
+                        (RoborockStatusSample.robot_duid == latest_status_subq.c.robot_duid)
+                        & (RoborockStatusSample.timestamp == latest_status_subq.c.latest_at),
+                    )
                 )
-            ).scalars().first()
-            schedules = (
+            ).scalars().all()
+            latest_status = {row.robot_duid: row for row in status_rows}
+
+            latest_job_subq = (
+                select(
+                    RoborockCleanJob.robot_duid.label("robot_duid"),
+                    func.max(RoborockCleanJob.begin_at).label("latest_at"),
+                )
+                .where(RoborockCleanJob.robot_duid.in_(robot_duids))
+                .group_by(RoborockCleanJob.robot_duid)
+                .subquery()
+            )
+            job_rows = (
+                await session.execute(
+                    select(RoborockCleanJob).join(
+                        latest_job_subq,
+                        (RoborockCleanJob.robot_duid == latest_job_subq.c.robot_duid)
+                        & (RoborockCleanJob.begin_at == latest_job_subq.c.latest_at),
+                    )
+                )
+            ).scalars().all()
+            latest_jobs = {row.robot_duid: row for row in job_rows}
+
+            schedule_rows = (
                 await session.execute(
                     select(RoborockSchedule)
-                    .where(RoborockSchedule.robot_duid == robot.duid)
+                    .where(RoborockSchedule.robot_duid.in_(robot_duids))
                     .where(RoborockSchedule.enabled == True)
                 )
             ).scalars().all()
-            next_schedules[robot.duid] = min(schedules, key=roborock_next_schedule_score) if schedules else None
+            schedules_by_robot: Dict[str, list[RoborockSchedule]] = {}
+            for schedule in schedule_rows:
+                schedules_by_robot.setdefault(schedule.robot_duid, []).append(schedule)
+            next_schedules = {
+                duid: min(schedules, key=roborock_next_schedule_score)
+                for duid, schedules in schedules_by_robot.items()
+                if schedules
+            }
     return templates.TemplateResponse(
         request,
         "cleaning_overview.html",

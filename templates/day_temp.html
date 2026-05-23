@@ -203,7 +203,6 @@
             const activeTemps = new Set([...tempInputs].filter((input) => input.checked).map((input) => input.value));
             const activeFans = new Set([...fanInputs].filter((input) => input.checked).map((input) => input.value));
 
-            const pathFromPoints = (points) => points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
             const escapeText = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char]));
 
             const render = () => {
@@ -235,8 +234,8 @@
                     }).join("");
 
                 const lines = series
-                    .filter((item) => activeTemps.has(item.key) && item.points?.length)
-                    .map((item) => `<path class="temp-line" d="${pathFromPoints(item.points)}" stroke="${item.color}"><title>${escapeText(item.label)}</title></path>`)
+                    .filter((item) => activeTemps.has(item.key) && item.polyline)
+                    .map((item) => `<polyline class="temp-line" points="${item.polyline}" stroke="${item.color}"><title>${escapeText(item.label)}</title></polyline>`)
                     .join("");
 
                 const now = nowMarker === null ? "" : `
