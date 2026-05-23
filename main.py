@@ -3982,6 +3982,16 @@ async def sun2_room_stats_ingest(data: Sun2RoomStatsIngestIn):
     return {"status": "ok", **counts, "rows": len(data.rows)}
 
 
+@app.get("/sun2/room-stats")
+async def sun2_room_stats_legacy_redirect():
+    return RedirectResponse("/energi/soling", status_code=307)
+
+
+@app.get("/sun2/room-stats/json")
+async def sun2_room_stats_json_legacy_redirect():
+    return RedirectResponse("/api/sun2/room-stats/json", status_code=307)
+
+
 @app.get("/energi/soling", response_class=HTMLResponse)
 async def sun2_room_stats_view(request: Request, limit: int = 300):
     limit = max(1, min(limit, 1000))
