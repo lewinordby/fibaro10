@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energi oversikt</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <style>
+        .page-title { margin:0 0 0.35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 0.95rem; color:var(--muted); font-size:0.88rem; }
+        .hero-grid { display:grid; gap:0.75rem; margin-bottom:0.95rem; }
+        .hero-card { background:var(--panel); border:1px solid var(--line); border-top:4px solid var(--energy-color); border-radius:12px; padding:0.95rem; box-shadow:var(--shadow-1); }
+        .hero-card.secondary { border-top-color:var(--brand); }
+        .hero-card span { display:block; color:var(--muted); font-size:0.78rem; font-weight:720; }
+        .hero-card strong { display:block; margin-top:0.2rem; font-size:1.45rem; line-height:1.08; color:var(--brand-dark); }
+        .hero-card small { display:block; margin-top:0.35rem; color:var(--muted); font-size:0.78rem; }
+        .metric-row { display:flex; flex-wrap:wrap; gap:0.45rem; margin-top:0.75rem; }
+        .pill { display:inline-flex; align-items:center; gap:0.25rem; border:1px solid var(--line); background:var(--panel-soft); color:var(--brand-dark); border-radius:999px; padding:0.32rem 0.55rem; font-size:0.78rem; font-weight:720; }
+        .summary-grid { display:grid; gap:0.7rem; margin-bottom:1rem; }
+        .summary-card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:0.78rem 0.85rem; box-shadow:var(--shadow-1); }
+        .summary-card span { color:var(--muted); font-size:0.76rem; }
+        .summary-card strong { display:block; margin-top:0.16rem; font-size:1.03rem; color:var(--brand-dark); }
+        .top-grid { display:grid; gap:0.9rem; }
+        .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin:0.2rem 0 0.5rem; }
+        .section-title { margin:0; font-size:1rem; color:var(--brand-dark); }
+        .section-note { color:var(--muted); font-size:0.78rem; }
+        .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:690px; }
+        th, td { padding:0.58rem 0.65rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
+        th { color:var(--muted); font-size:0.76rem; font-weight:760; background:var(--panel-soft); }
+        td { font-size:0.88rem; }
+        tbody tr:last-child td { border-bottom:0; }
+        .rank { width:2.2rem; color:var(--muted); font-weight:760; }
+        .period { font-weight:780; color:var(--brand-dark); }
+        .money { color:#9a660f; font-weight:800; }
+        @media (min-width: 820px) {
+            .hero-grid { grid-template-columns:1.15fr 1fr; }
+            .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        }
+        @media (min-width: 1160px) {
+            .top-grid { grid-template-columns:1fr 1fr; align-items:start; }
+        }
+    </style>
+</head>
+<body class="theme-energy">
+    {% include "_header.html" %}
+    <main>
+        {% set best_day = top_days[0] if top_days else None %}
+        {% set best_month = top_months[0] if top_months else None %}
+        <h1 class="page-title">Oversikt soling</h1>
+        <p class="page-subtitle">
+            Topp 10 er sortert på inntjent beløp.
+            {% if first_date and last_date %}Datagrunnlag fra {{ first_date }} til {{ last_date }}.{% endif %}
+        </p>
+
+        <section class="hero-grid">
+            <article class="hero-card">
+                <span>Beste dag</span>
+                <strong>{{ best_day.period_label if best_day else "-" }}</strong>
+                <div class="metric-row">
+                    <span class="pill">{{ "{:,.0f}".format(best_day.totalt_inntjent_kr if best_day else 0).replace(",", " ") }} kr</span>
+                    <span class="pill">{{ "{:,.0f}".format(best_day.totalt_antall_solinger if best_day else 0).replace(",", " ") }} solinger</span>
+                    <span class="pill">{{ "{:,.1f}".format(best_day.total_soletid_timer if best_day else 0).replace(",", " ") }} t</span>
+                </div>
+                <small>Summerer alle rom for samme dato.</small>
+            </article>
+
+            <article class="hero-card secondary">
+                <span>Beste måned</span>
+                <strong>{{ best_month.period if best_month else "-" }}</strong>
+                <div class="metric-row">
+                    <span class="pill">{{ "{:,.0f}".format(best_month.totalt_inntjent_kr if best_month else 0).replace(",", " ") }} kr</span>
+                    <span class="pill">{{ "{:,.0f}".format(best_month.totalt_antall_solinger if best_month else 0).replace(",", " ") }} solinger</span>
+                    <span class="pill">{{ "{:,.1f}".format(best_month.total_soletid_timer if best_month else 0).replace(",", " ") }} t</span>
+                </div>
+                <small>Summerer alle rom og dager i måneden.</small>
+            </article>
+        </section>
+
+        <section class="summary-grid">
+            <div class="summary-card">
+                <span>Totalt inntjent</span>
+                <strong>{{ "{:,.0f}".format(grand_total.totalt_inntjent_kr or 0).replace(",", " ") }} kr</strong>
+            </div>
+            <div class="summary-card">
+                <span>Totalt solinger</span>
+                <strong>{{ "{:,.0f}".format(grand_total.totalt_antall_solinger or 0).replace(",", " ") }}</strong>
+            </div>
+            <div class="summary-card">
+                <span>Totalt soltid</span>
+                <strong>{{ "{:,.0f}".format(grand_total.total_soletid_timer or 0).replace(",", " ") }} t</strong>
+            </div>
+            <div class="summary-card">
+                <span>Siste import</span>
+                <strong>{{ latest_import.timestamp|localtime if latest_import else "-" }}</strong>
+            </div>
+        </section>
+
+        <section class="top-grid">
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 beste dager</h2>
+                    <span class="section-note">Alle rom samlet</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Dato</th>
+                                <th>Inntjent</th>
+                                <th>Solinger</th>
+                                <th>Timer</th>
+                                <th>Rom</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_days %}
+                            <tr>
+                                <td class="rank">{{ loop.index }}</td>
+                                <td class="period">{{ item.period_label }}</td>
+                                <td class="money">{{ "{:,.0f}".format(item.totalt_inntjent_kr or 0).replace(",", " ") }} kr</td>
+                                <td>{{ "{:,.0f}".format(item.totalt_antall_solinger or 0).replace(",", " ") }}</td>
+                                <td>{{ "{:,.1f}".format(item.total_soletid_timer or 0).replace(",", " ") }}</td>
+                                <td>{{ item.rooms_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 beste måneder</h2>
+                    <span class="section-note">Alle rom samlet</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Måned</th>
+                                <th>Inntjent</th>
+                                <th>Solinger</th>
+                                <th>Timer</th>
+                                <th>Dager</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_months %}
+                            <tr>
+                                <td class="rank">{{ loop.index }}</td>
+                                <td class="period">{{ item.period }}</td>
+                                <td class="money">{{ "{:,.0f}".format(item.totalt_inntjent_kr or 0).replace(",", " ") }} kr</td>
+                                <td>{{ "{:,.0f}".format(item.totalt_antall_solinger or 0).replace(",", " ") }}</td>
+                                <td>{{ "{:,.1f}".format(item.total_soletid_timer or 0).replace(",", " ") }}</td>
+                                <td>{{ item.days_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

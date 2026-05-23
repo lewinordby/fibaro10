@@ -963,6 +963,7 @@ SUN2_SUM_FIELDS = [
 def empty_sun2_summary(period: str) -> Dict[str, Any]:
     return {
         "period": period,
+        "period_label": period,
         "total_soletid_minutter": 0.0,
         "total_soletid_timer": 0.0,
         "totalt_antall_solinger": 0,
@@ -994,6 +995,7 @@ def finalize_sun2_summary(summary: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def build_sun2_summaries(rows: list[Any]) -> Dict[str, Any]:
+    daily: Dict[str, Dict[str, Any]] = {}
     monthly: Dict[str, Dict[str, Any]] = {}
     yearly: Dict[str, Dict[str, Any]] = {}
     total = empty_sun2_summary("Totalt")
@@ -1005,17 +1007,33 @@ def build_sun2_summaries(rows: list[Any]) -> Dict[str, Any]:
             continue
         first_date = row.stat_date if first_date is None else min(first_date, row.stat_date)
         last_date = row.stat_date if last_date is None else max(last_date, row.stat_date)
+        day_key = row.stat_date.isoformat()
         month_key = row.stat_date.strftime("%Y-%m")
         year_key = str(row.stat_date.year)
+        daily.setdefault(day_key, empty_sun2_summary(day_key))
         monthly.setdefault(month_key, empty_sun2_summary(month_key))
         yearly.setdefault(year_key, empty_sun2_summary(year_key))
+        daily[day_key]["period_label"] = row.stat_date.strftime("%d.%m.%Y")
+        add_sun2_row_to_summary(daily[day_key], row)
         add_sun2_row_to_summary(monthly[month_key], row)
         add_sun2_row_to_summary(yearly[year_key], row)
         add_sun2_row_to_summary(total, row)
 
+    daily_items = [finalize_sun2_summary(daily[key]) for key in sorted(daily, reverse=True)]
+    monthly_items = [finalize_sun2_summary(monthly[key]) for key in sorted(monthly, reverse=True)]
+    yearly_items = [finalize_sun2_summary(yearly[key]) for key in sorted(yearly, reverse=True)]
+    top_sort = lambda item: (
+        item["totalt_inntjent_kr"],
+        item["totalt_antall_solinger"],
+        item["total_soletid_minutter"],
+    )
+
     return {
-        "monthly": [finalize_sun2_summary(monthly[key]) for key in sorted(monthly, reverse=True)],
-        "yearly": [finalize_sun2_summary(yearly[key]) for key in sorted(yearly, reverse=True)],
+        "daily": daily_items,
+        "monthly": monthly_items,
+        "yearly": yearly_items,
+        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
+        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
         "total": finalize_sun2_summary(total),
         "first_date": first_date,
         "last_date": last_date,
@@ -4066,6 +4084,43 @@ async def sun2_room_stats_json_legacy_redirect():
     return RedirectResponse("/api/sun2/room-stats/json", status_code=307)
 
 
+@app.get("/energi")
+async def energy_redirect():
+    return RedirectResponse("/energi/oversikt", status_code=307)
+
+
+@app.get("/energi/oversikt", response_class=HTMLResponse)
+async def sun2_overview_view(request: Request):
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(Sun2RoomDailyStat)
+                .order_by(Sun2RoomDailyStat.stat_date.asc(), Sun2RoomDailyStat.room)
+            )
+        ).scalars().all()
+        latest_import = (
+            await session.execute(
+                select(Sun2ImportRun)
+                .order_by(Sun2ImportRun.timestamp.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+    summaries = build_sun2_summaries(rows)
+    return templates.TemplateResponse(
+        request,
+        "sun2_overview.html",
+        {
+            "top_days": summaries["top_days"],
+            "top_months": summaries["top_months"],
+            "grand_total": summaries["total"],
+            "first_date": summaries["first_date"],
+            "last_date": summaries["last_date"],
+            "total_rows": len(rows),
+            "latest_import": latest_import,
+        },
+    )
+
+
 @app.get("/energi/soling", response_class=HTMLResponse)
 async def sun2_room_stats_view(request: Request, limit: int = 300):
     limit = max(1, min(limit, 1000))
@@ -4136,8 +4191,11 @@ async def sun2_room_stats_json(limit: int = 300):
     return {
         "rows": [row_to_dict(row, SUN2_ROOM_COLUMNS) for row in rows],
         "imports": [row_to_dict(row, SUN2_IMPORT_COLUMNS) for row in imports],
+        "daily_totals": summaries["daily"],
         "monthly_totals": summaries["monthly"],
         "yearly_totals": summaries["yearly"],
+        "top_days": summaries["top_days"],
+        "top_months": summaries["top_months"],
         "grand_total": summaries["total"],
         "first_date": summaries["first_date"],
         "last_date": summaries["last_date"],
