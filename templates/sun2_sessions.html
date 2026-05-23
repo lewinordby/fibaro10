@@ -44,7 +44,7 @@
             <div class="summary-card">
                 <span>Registrerte solinger</span>
                 <strong>{{ "{:,.0f}".format(total.sessions_count or 0).replace(",", " ") }}</strong>
-                <small>{% if total.first_at and total.last_at %}{{ total.first_at|localtime_short }} til {{ total.last_at|localtime_short }}{% else %}-{% endif %}</small>
+                <small>{% if total.first_at and total.last_at %}{{ total.first_at|source_time_short }} til {{ total.last_at|source_time_short }}{% else %}-{% endif %}</small>
             </div>
             <div class="summary-card">
                 <span>Soltid</span>
@@ -115,7 +115,7 @@
                 <tbody>
                     {% for row in rows %}
                     <tr>
-                        <td class="period">{{ row.started_at|localtime }}</td>
+                        <td class="period">{{ row.started_at|source_time }}</td>
                         <td>{{ row.sun2_user_id or "-" }}</td>
                         <td>{{ row.room or row.room_key or "-" }}</td>
                         <td class="name">{{ row.user_name or "-" }}</td>
@@ -153,7 +153,7 @@
                     <tr>
                         <td>{{ run.timestamp|localtime }}</td>
                         <td>{{ run.source_file or "-" }}</td>
-                        <td>{{ run.period_first|localtime_short if run.period_first else "-" }} - {{ run.period_last|localtime_short if run.period_last else "-" }}</td>
+                        <td>{{ run.period_first|source_time_short if run.period_first else "-" }} - {{ run.period_last|source_time_short if run.period_last else "-" }}</td>
                         <td class="{% if run.ok %}ok{% else %}bad{% endif %}">{% if run.ok %}OK{% else %}Feil{% endif %}</td>
                         <td>{{ run.rows_count or 0 }}</td>
                         <td>{{ run.inserted_count or 0 }}</td>

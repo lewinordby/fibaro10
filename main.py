@@ -86,8 +86,30 @@ def format_local_time(value: Optional[datetime]) -> str:
     return value.astimezone(LOCAL_TZ).strftime("%H:%M")
 
 
+def format_source_datetime(value: Optional[datetime]) -> str:
+    if not value:
+        return "-"
+    if isinstance(value, (int, float)):
+        value = datetime.fromtimestamp(value)
+    if value.tzinfo is not None:
+        value = value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return value.strftime("%d.%m.%Y %H:%M:%S")
+
+
+def format_source_time(value: Optional[datetime]) -> str:
+    if not value:
+        return "-"
+    if isinstance(value, (int, float)):
+        value = datetime.fromtimestamp(value)
+    if value.tzinfo is not None:
+        value = value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return value.strftime("%H:%M")
+
+
 templates.env.filters["localtime"] = format_local_datetime
 templates.env.filters["localtime_short"] = format_local_time
+templates.env.filters["source_time"] = format_source_datetime
+templates.env.filters["source_time_short"] = format_source_time
 
 
 ROBOROCK_STATE_LABELS = {
