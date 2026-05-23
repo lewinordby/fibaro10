@@ -948,6 +948,80 @@ SUN2_IMPORT_COLUMNS = [
     "rows_count", "inserted_count", "updated_count", "message", "raw",
 ]
 
+
+SUN2_SUM_FIELDS = [
+    "total_soletid_minutter",
+    "totalt_antall_solinger",
+    "solinger_medlemmer",
+    "solinger_ikke_medlemmer",
+    "totalt_inntjent_kr",
+    "inntjent_medlemmer_kr",
+    "inntjent_ikke_medlemmer_kr",
+]
+
+
+def empty_sun2_summary(period: str) -> Dict[str, Any]:
+    return {
+        "period": period,
+        "total_soletid_minutter": 0.0,
+        "total_soletid_timer": 0.0,
+        "totalt_antall_solinger": 0,
+        "solinger_medlemmer": 0,
+        "solinger_ikke_medlemmer": 0,
+        "totalt_inntjent_kr": 0.0,
+        "inntjent_medlemmer_kr": 0.0,
+        "inntjent_ikke_medlemmer_kr": 0.0,
+        "days": set(),
+        "rooms": set(),
+    }
+
+
+def add_sun2_row_to_summary(summary: Dict[str, Any], row: Any) -> None:
+    for field in SUN2_SUM_FIELDS:
+        summary[field] += getattr(row, field) or 0
+    if row.stat_date:
+        summary["days"].add(row.stat_date)
+    if row.room:
+        summary["rooms"].add(row.room)
+
+
+def finalize_sun2_summary(summary: Dict[str, Any]) -> Dict[str, Any]:
+    summary = dict(summary)
+    summary["total_soletid_timer"] = summary["total_soletid_minutter"] / 60
+    summary["days_count"] = len(summary.pop("days", []))
+    summary["rooms_count"] = len(summary.pop("rooms", []))
+    return summary
+
+
+def build_sun2_summaries(rows: list[Any]) -> Dict[str, Any]:
+    monthly: Dict[str, Dict[str, Any]] = {}
+    yearly: Dict[str, Dict[str, Any]] = {}
+    total = empty_sun2_summary("Totalt")
+    first_date = None
+    last_date = None
+
+    for row in rows:
+        if not row.stat_date:
+            continue
+        first_date = row.stat_date if first_date is None else min(first_date, row.stat_date)
+        last_date = row.stat_date if last_date is None else max(last_date, row.stat_date)
+        month_key = row.stat_date.strftime("%Y-%m")
+        year_key = str(row.stat_date.year)
+        monthly.setdefault(month_key, empty_sun2_summary(month_key))
+        yearly.setdefault(year_key, empty_sun2_summary(year_key))
+        add_sun2_row_to_summary(monthly[month_key], row)
+        add_sun2_row_to_summary(yearly[year_key], row)
+        add_sun2_row_to_summary(total, row)
+
+    return {
+        "monthly": [finalize_sun2_summary(monthly[key]) for key in sorted(monthly, reverse=True)],
+        "yearly": [finalize_sun2_summary(yearly[key]) for key in sorted(yearly, reverse=True)],
+        "total": finalize_sun2_summary(total),
+        "first_date": first_date,
+        "last_date": last_date,
+    }
+
+
 LIGHT_TIMELINE_DEVICES = [
     {"key": "lyslist", "name": "Lyslist dekor", "sample_attr": "light_lyslist", "legacy_ids": [425]},
     {"key": "reklame", "name": "Reklameplakater", "sample_attr": "light_reklame", "legacy_ids": [427]},
@@ -3996,6 +4070,12 @@ async def sun2_room_stats_json_legacy_redirect():
 async def sun2_room_stats_view(request: Request, limit: int = 300):
     limit = max(1, min(limit, 1000))
     async with async_session() as session:
+        summary_rows = (
+            await session.execute(
+                select(Sun2RoomDailyStat)
+                .order_by(Sun2RoomDailyStat.stat_date.asc(), Sun2RoomDailyStat.room)
+            )
+        ).scalars().all()
         rows = (
             await session.execute(
                 select(Sun2RoomDailyStat)
@@ -4010,10 +4090,21 @@ async def sun2_room_stats_view(request: Request, limit: int = 300):
                 .limit(25)
             )
         ).scalars().all()
+    summaries = build_sun2_summaries(summary_rows)
     return templates.TemplateResponse(
         request,
         "sun2_room_stats.html",
-        {"rows": rows, "imports": imports, "limit": limit},
+        {
+            "rows": rows,
+            "imports": imports,
+            "limit": limit,
+            "monthly_totals": summaries["monthly"],
+            "yearly_totals": summaries["yearly"],
+            "grand_total": summaries["total"],
+            "first_date": summaries["first_date"],
+            "last_date": summaries["last_date"],
+            "total_rows": len(summary_rows),
+        },
     )
 
 
@@ -4021,6 +4112,12 @@ async def sun2_room_stats_view(request: Request, limit: int = 300):
 async def sun2_room_stats_json(limit: int = 300):
     limit = max(1, min(limit, 5000))
     async with async_session() as session:
+        summary_rows = (
+            await session.execute(
+                select(Sun2RoomDailyStat)
+                .order_by(Sun2RoomDailyStat.stat_date.asc(), Sun2RoomDailyStat.room)
+            )
+        ).scalars().all()
         rows = (
             await session.execute(
                 select(Sun2RoomDailyStat)
@@ -4035,9 +4132,16 @@ async def sun2_room_stats_json(limit: int = 300):
                 .limit(min(limit, 500))
             )
         ).scalars().all()
+    summaries = build_sun2_summaries(summary_rows)
     return {
         "rows": [row_to_dict(row, SUN2_ROOM_COLUMNS) for row in rows],
         "imports": [row_to_dict(row, SUN2_IMPORT_COLUMNS) for row in imports],
+        "monthly_totals": summaries["monthly"],
+        "yearly_totals": summaries["yearly"],
+        "grand_total": summaries["total"],
+        "first_date": summaries["first_date"],
+        "last_date": summaries["last_date"],
+        "total_rows": len(summary_rows),
     }
 
 

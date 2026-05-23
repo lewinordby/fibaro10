@@ -6,36 +6,145 @@
     <title>Soling</title>
     <link rel="stylesheet" href="/static/app.css">
     <style>
-        .page-title { margin:0 0 0.85rem; font-size:1.22rem; font-weight:760; color:var(--brand-dark); }
-        .summary-grid { display:grid; gap:0.7rem; margin-bottom:0.9rem; }
-        .summary-card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:0.85rem; box-shadow:var(--shadow-1); }
+        .page-title { margin:0 0 0.35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 0.9rem; color:var(--muted); font-size:0.88rem; }
+        .summary-grid { display:grid; gap:0.7rem; margin-bottom:0.95rem; }
+        .summary-card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:0.85rem; box-shadow:var(--shadow-1); min-height:82px; }
         .summary-card span { color:var(--muted); font-size:0.78rem; }
-        .summary-card strong { display:block; margin-top:0.2rem; font-size:1.1rem; }
+        .summary-card strong { display:block; margin-top:0.18rem; font-size:1.16rem; line-height:1.12; }
+        .summary-card small { display:block; margin-top:0.25rem; color:var(--muted); font-size:0.72rem; }
+        .section-title { margin:1rem 0 0.5rem; font-size:1rem; color:var(--brand-dark); }
+        .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin-top:1rem; }
+        .section-note { color:var(--muted); font-size:0.78rem; }
+        .summary-tables { display:grid; gap:0.9rem; }
         .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
-        table { width:100%; border-collapse:collapse; min-width:860px; }
+        .table-wrap.compact table { min-width:760px; }
+        table { width:100%; border-collapse:collapse; min-width:940px; }
         th, td { padding:0.58rem 0.65rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
         th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
-        th { color:var(--muted); font-size:0.78rem; font-weight:760; background:var(--panel-soft); }
-        td { font-size:0.9rem; }
-        .section-title { margin:1rem 0 0.5rem; font-size:1rem; color:var(--brand-dark); }
+        th { color:var(--muted); font-size:0.76rem; font-weight:760; background:var(--panel-soft); }
+        td { font-size:0.88rem; }
+        tbody tr:last-child td { border-bottom:0; }
         .ok { color:var(--on); font-weight:760; }
         .bad { color:var(--off); font-weight:760; }
-        @media (min-width: 820px) { .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+        .period { font-weight:760; color:var(--brand-dark); }
+        .money { font-weight:760; }
+        @media (min-width: 820px) {
+            .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        }
+        @media (min-width: 1160px) {
+            .summary-tables { grid-template-columns:minmax(0,1.35fr) minmax(0,0.9fr); align-items:start; }
+        }
     </style>
 </head>
 <body class="theme-energy">
     {% include "_header.html" %}
     <main>
         <h1 class="page-title">Soling per rom</h1>
+        <p class="page-subtitle">
+            Oppsummert fra importerte SUN2-dagsfiler
+            {% if first_date and last_date %}for perioden {{ first_date }} til {{ last_date }}{% endif %}.
+        </p>
+
         {% set latest = rows[0] if rows else None %}
         {% set latest_import = imports[0] if imports else None %}
         <section class="summary-grid">
-            <div class="summary-card"><span>Siste dato</span><strong>{{ latest.stat_date if latest else "-" }}</strong></div>
-            <div class="summary-card"><span>Rader vist</span><strong>{{ rows|length }}</strong></div>
-            <div class="summary-card"><span>Siste import</span><strong>{{ latest_import.timestamp|localtime_short if latest_import else "-" }}</strong></div>
-            <div class="summary-card"><span>Siste fil</span><strong>{{ latest_import.source_file if latest_import else "-" }}</strong></div>
+            <div class="summary-card">
+                <span>Totalt soltid</span>
+                <strong>{{ "{:,.0f}".format(grand_total.total_soletid_timer or 0).replace(",", " ") }} t</strong>
+                <small>{{ "{:,.0f}".format(grand_total.total_soletid_minutter or 0).replace(",", " ") }} minutter</small>
+            </div>
+            <div class="summary-card">
+                <span>Totalt antall solinger</span>
+                <strong>{{ "{:,.0f}".format(grand_total.totalt_antall_solinger or 0).replace(",", " ") }}</strong>
+                <small>{{ grand_total.days_count or 0 }} dager / {{ grand_total.rooms_count or 0 }} rom</small>
+            </div>
+            <div class="summary-card">
+                <span>Totalt inntjent</span>
+                <strong>{{ "{:,.0f}".format(grand_total.totalt_inntjent_kr or 0).replace(",", " ") }} kr</strong>
+                <small>Medlem {{ "{:,.0f}".format(grand_total.inntjent_medlemmer_kr or 0).replace(",", " ") }} kr</small>
+            </div>
+            <div class="summary-card">
+                <span>Siste import</span>
+                <strong>{{ latest_import.timestamp|localtime_short if latest_import else "-" }}</strong>
+                <small>{{ total_rows }} rader totalt</small>
+            </div>
         </section>
 
+        <section class="summary-tables">
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">Total per måned</h2>
+                    <span class="section-note">{{ monthly_totals|length }} måneder</span>
+                </div>
+                <section class="table-wrap compact">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Måned</th>
+                                <th>Dager</th>
+                                <th>Rom</th>
+                                <th>Timer</th>
+                                <th>Solinger</th>
+                                <th>Medlemmer</th>
+                                <th>Ikke medlem</th>
+                                <th>Inntjent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in monthly_totals %}
+                            <tr>
+                                <td class="period">{{ item.period }}</td>
+                                <td>{{ item.days_count }}</td>
+                                <td>{{ item.rooms_count }}</td>
+                                <td>{{ "{:,.1f}".format(item.total_soletid_timer or 0).replace(",", " ") }}</td>
+                                <td>{{ "{:,.0f}".format(item.totalt_antall_solinger or 0).replace(",", " ") }}</td>
+                                <td>{{ "{:,.0f}".format(item.solinger_medlemmer or 0).replace(",", " ") }}</td>
+                                <td>{{ "{:,.0f}".format(item.solinger_ikke_medlemmer or 0).replace(",", " ") }}</td>
+                                <td class="money">{{ "{:,.0f}".format(item.totalt_inntjent_kr or 0).replace(",", " ") }} kr</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">Total per år</h2>
+                    <span class="section-note">{{ yearly_totals|length }} år</span>
+                </div>
+                <section class="table-wrap compact">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>År</th>
+                                <th>Dager</th>
+                                <th>Timer</th>
+                                <th>Solinger</th>
+                                <th>Inntjent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in yearly_totals %}
+                            <tr>
+                                <td class="period">{{ item.period }}</td>
+                                <td>{{ item.days_count }}</td>
+                                <td>{{ "{:,.1f}".format(item.total_soletid_timer or 0).replace(",", " ") }}</td>
+                                <td>{{ "{:,.0f}".format(item.totalt_antall_solinger or 0).replace(",", " ") }}</td>
+                                <td class="money">{{ "{:,.0f}".format(item.totalt_inntjent_kr or 0).replace(",", " ") }} kr</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </section>
+
+        <div class="section-row">
+            <h2 class="section-title">Detaljer per rom</h2>
+            <span class="section-note">Viser siste {{ rows|length }} av {{ total_rows }} rader</span>
+        </div>
         <section class="table-wrap">
             <table>
                 <thead>
