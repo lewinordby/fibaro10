@@ -1858,6 +1858,7 @@ svg {
     }
 
     .site-header {
+        box-sizing: border-box !important;
         position: fixed !important;
         top: 0 !important;
         right: auto !important;
@@ -2122,6 +2123,7 @@ svg {
     }
 
     html.nav-collapsed .site-header {
+        box-sizing: border-box !important;
         width: 78px !important;
         padding: 0.82rem 0.55rem !important;
     }
@@ -2193,6 +2195,50 @@ svg {
 @media (max-width: 1019px) {
     .nav-toggle {
         display: none !important;
+    }
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+main,
+main > *,
+.panel,
+.hero,
+.event-card,
+.sample,
+.status-card,
+.health-card,
+.metric,
+.temp,
+.cell,
+.summary-card,
+.stat-card,
+.now-card,
+.clean-card,
+.robot-card,
+.panel-card,
+.chart-panel,
+.table-wrap,
+.grid > *,
+.top-grid > *,
+.summary-grid > *,
+.summary-tables > *,
+.panel-grid > *,
+.ai-grid > * {
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    .ai-grid,
+    .grid.two,
+    .summary-tables,
+    .top-grid,
+    .panel-grid.two {
+        grid-template-columns: 1fr !important;
     }
 }
 

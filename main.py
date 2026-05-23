@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, delete, select, text as sql_text, update
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, case, delete, func, select, text as sql_text, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -52,6 +52,8 @@ MET_LAT = env_float("MET_LAT", "61.1153")
 MET_LON = env_float("MET_LON", "10.4662")
 MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 https://fibaro10.onrender.com")
 MET_WEATHER_CACHE = {"expires": datetime.min, "value": None}
+SUMMARY_CACHE_TTL = timedelta(minutes=5)
+SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
 
 app = FastAPI(title="Fibaro10")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -1293,6 +1295,274 @@ def build_energy_summaries(rows: list[Any]) -> Dict[str, Any]:
         "first_at": first_at,
         "last_at": last_at,
     }
+
+
+def int_or_zero(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def float_or_zero(value: Any) -> float:
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def finalized_sun2_aggregate(row: Dict[str, Any], period: str, period_label: Optional[str] = None) -> Dict[str, Any]:
+    item = empty_sun2_summary(period)
+    item["period_label"] = period_label or period
+    for field in SUN2_SUM_FIELDS:
+        item[field] = float_or_zero(row.get(field))
+    item["total_soletid_timer"] = item["total_soletid_minutter"] / 60
+    item["days_count"] = int_or_zero(row.get("days_count"))
+    item["rooms_count"] = int_or_zero(row.get("rooms_count"))
+    return item
+
+
+def finalized_energy_aggregate(row: Dict[str, Any], period: str, period_label: Optional[str] = None) -> Dict[str, Any]:
+    item = empty_energy_summary(period)
+    item["period_label"] = period_label or period
+    item["consumption_kwh"] = float_or_zero(row.get("consumption_kwh"))
+    item["production_kwh"] = float_or_zero(row.get("production_kwh"))
+    item["hours_count"] = int_or_zero(row.get("hours_count"))
+    item["estimated_hours_count"] = int_or_zero(row.get("estimated_hours_count"))
+    item["days_count"] = int_or_zero(row.get("days_count"))
+    return item
+
+
+def sun2_sum_columns() -> list[Any]:
+    return [func.coalesce(func.sum(getattr(Sun2RoomDailyStat, field)), 0).label(field) for field in SUN2_SUM_FIELDS]
+
+
+def energy_sum_columns() -> list[Any]:
+    return [
+        func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0).label("consumption_kwh"),
+        func.coalesce(func.sum(EnergyHourlyConsumption.production_kwh), 0).label("production_kwh"),
+        func.count(EnergyHourlyConsumption.id).label("hours_count"),
+        func.coalesce(
+            func.sum(case((EnergyHourlyConsumption.is_estimated.is_(True), 1), else_=0)),
+            0,
+        ).label("estimated_hours_count"),
+    ]
+
+
+def empty_fast_sun2_summary(period: str, period_label: Optional[str] = None) -> Dict[str, Any]:
+    item = {field: 0.0 for field in SUN2_SUM_FIELDS}
+    item.update(
+        {
+            "period": period,
+            "period_label": period_label or period,
+            "total_soletid_timer": 0.0,
+            "days_count": 0,
+            "rooms_count": 0,
+            "rows_count": 0,
+        }
+    )
+    return item
+
+
+def add_fast_sun2_summary(target: Dict[str, Any], source: Dict[str, Any]) -> None:
+    for field in SUN2_SUM_FIELDS:
+        target[field] += float_or_zero(source.get(field))
+    target["total_soletid_timer"] = target["total_soletid_minutter"] / 60
+    target["days_count"] += int_or_zero(source.get("days_count"))
+    target["rows_count"] += int_or_zero(source.get("rows_count"))
+    target["rooms_count"] = max(int_or_zero(target.get("rooms_count")), int_or_zero(source.get("rooms_count")))
+
+
+def empty_fast_energy_summary(period: str, period_label: Optional[str] = None) -> Dict[str, Any]:
+    return {
+        "period": period,
+        "period_label": period_label or period,
+        "consumption_kwh": 0.0,
+        "production_kwh": 0.0,
+        "hours_count": 0,
+        "estimated_hours_count": 0,
+        "days_count": 0,
+    }
+
+
+def add_fast_energy_summary(target: Dict[str, Any], source: Dict[str, Any]) -> None:
+    target["consumption_kwh"] += float_or_zero(source.get("consumption_kwh"))
+    target["production_kwh"] += float_or_zero(source.get("production_kwh"))
+    target["hours_count"] += int_or_zero(source.get("hours_count"))
+    target["estimated_hours_count"] += int_or_zero(source.get("estimated_hours_count"))
+    target["days_count"] += int_or_zero(source.get("days_count"))
+
+
+async def build_sun2_summaries_fast(session) -> Dict[str, Any]:
+    daily_rows = (
+        await session.execute(
+            select(
+                Sun2RoomDailyStat.stat_date.label("stat_date"),
+                *sun2_sum_columns(),
+                func.count(Sun2RoomDailyStat.id).label("rows_count"),
+                func.count(func.distinct(Sun2RoomDailyStat.room)).label("rooms_count"),
+            )
+            .group_by(Sun2RoomDailyStat.stat_date)
+            .order_by(Sun2RoomDailyStat.stat_date.desc())
+        )
+    ).mappings().all()
+
+    daily_items = []
+    monthly: Dict[str, Dict[str, Any]] = {}
+    yearly: Dict[str, Dict[str, Any]] = {}
+    weekly: Dict[str, Dict[int, Dict[str, Any]]] = {}
+    total = empty_fast_sun2_summary("Totalt")
+    first_date = None
+    last_date = None
+
+    for row in daily_rows:
+        stat_date = row.get("stat_date")
+        if not stat_date:
+            continue
+        first_date = stat_date if first_date is None else min(first_date, stat_date)
+        last_date = stat_date if last_date is None else max(last_date, stat_date)
+        source = dict(row)
+        source["days_count"] = 1
+        item = finalized_sun2_aggregate(source, stat_date.isoformat(), stat_date.strftime("%d.%m.%Y"))
+        item["rows_count"] = int_or_zero(row.get("rows_count"))
+        daily_items.append(item)
+
+        month_key = stat_date.strftime("%Y-%m")
+        year_key = str(stat_date.year)
+        monthly.setdefault(month_key, empty_fast_sun2_summary(month_key))
+        yearly.setdefault(year_key, empty_fast_sun2_summary(year_key))
+        add_fast_sun2_summary(monthly[month_key], item)
+        add_fast_sun2_summary(yearly[year_key], item)
+        add_fast_sun2_summary(total, item)
+
+        iso_year, iso_week, _ = stat_date.isocalendar()
+        iso_year_key = str(iso_year)
+        weekly.setdefault(iso_year_key, {})
+        weekly[iso_year_key].setdefault(iso_week, {"revenue": 0.0, "count": 0})
+        weekly[iso_year_key][iso_week]["revenue"] += float_or_zero(item.get("totalt_inntjent_kr"))
+        weekly[iso_year_key][iso_week]["count"] += int_or_zero(item.get("totalt_antall_solinger"))
+
+    monthly_items = [monthly[key] for key in sorted(monthly, reverse=True)]
+    yearly_items = [yearly[key] for key in sorted(yearly, reverse=True)]
+    palette = ["#3f7fbd", "#df705d", "#52a464", "#726189", "#f2b84b", "#2f8fa3", "#8b5cf6", "#ef4444"]
+    weekly_chart = []
+    for index, year in enumerate(sorted(weekly.keys())):
+        weeks = weekly[year]
+        weekly_chart.append(
+            {
+                "year": year,
+                "color": palette[index % len(palette)],
+                "revenue": [round(weeks[week]["revenue"], 2) if week in weeks else None for week in range(1, 54)],
+                "count": [weeks[week]["count"] if week in weeks else None for week in range(1, 54)],
+            }
+        )
+
+    top_sort = lambda item: (
+        item["totalt_inntjent_kr"],
+        item["totalt_antall_solinger"],
+        item["total_soletid_minutter"],
+    )
+    count_sort = lambda item: (
+        item["totalt_antall_solinger"],
+        item["totalt_inntjent_kr"],
+        item["total_soletid_minutter"],
+    )
+    return {
+        "daily": daily_items,
+        "monthly": monthly_items,
+        "yearly": yearly_items,
+        "weekly_chart": weekly_chart,
+        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
+        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
+        "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:10],
+        "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:10],
+        "total": total,
+        "first_date": first_date,
+        "last_date": last_date,
+        "total_rows": int_or_zero(total.get("rows_count")),
+    }
+
+
+async def build_energy_summaries_fast(session) -> Dict[str, Any]:
+    daily_rows = (
+        await session.execute(
+            select(
+                EnergyHourlyConsumption.stat_date.label("stat_date"),
+                *energy_sum_columns(),
+            )
+            .group_by(EnergyHourlyConsumption.stat_date)
+            .order_by(EnergyHourlyConsumption.stat_date.desc())
+        )
+    ).mappings().all()
+
+    daily_items = []
+    monthly: Dict[str, Dict[str, Any]] = {}
+    yearly: Dict[str, Dict[str, Any]] = {}
+    total = empty_fast_energy_summary("Totalt")
+    first_at = None
+    last_at = None
+
+    for row in daily_rows:
+        stat_date = row.get("stat_date")
+        if not stat_date:
+            continue
+        item = finalized_energy_aggregate(dict(row, days_count=1), stat_date.isoformat(), stat_date.strftime("%d.%m.%Y"))
+        daily_items.append(item)
+        month_key = stat_date.strftime("%Y-%m")
+        year_key = str(stat_date.year)
+        monthly.setdefault(month_key, empty_fast_energy_summary(month_key))
+        yearly.setdefault(year_key, empty_fast_energy_summary(year_key))
+        add_fast_energy_summary(monthly[month_key], item)
+        add_fast_energy_summary(yearly[year_key], item)
+        add_fast_energy_summary(total, item)
+
+    bounds = (
+        await session.execute(
+            select(
+                func.min(EnergyHourlyConsumption.measured_at).label("first_at"),
+                func.max(EnergyHourlyConsumption.measured_at).label("last_at"),
+            )
+        )
+    ).mappings().first() or {}
+    first_at = bounds.get("first_at")
+    last_at = bounds.get("last_at")
+    monthly_items = [monthly[key] for key in sorted(monthly, reverse=True)]
+    yearly_items = [yearly[key] for key in sorted(yearly, reverse=True)]
+    top_sort = lambda item: (item["consumption_kwh"], item["hours_count"])
+
+    return {
+        "daily": daily_items,
+        "monthly": monthly_items,
+        "yearly": yearly_items,
+        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
+        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
+        "total": total,
+        "first_at": first_at,
+        "last_at": last_at,
+    }
+
+
+async def cached_summaries(cache_key: str, builder, session, force: bool = False) -> Dict[str, Any]:
+    now = datetime.utcnow()
+    cached = SUMMARY_CACHE.get(cache_key)
+    if not force and cached and cached.get("expires", datetime.min) > now:
+        return cached["value"]
+    value = await builder(session)
+    SUMMARY_CACHE[cache_key] = {"expires": now + SUMMARY_CACHE_TTL, "value": value}
+    return value
+
+
+async def get_sun2_summaries(session, force: bool = False) -> Dict[str, Any]:
+    return await cached_summaries("sun2", build_sun2_summaries_fast, session, force)
+
+
+async def get_energy_summaries(session, force: bool = False) -> Dict[str, Any]:
+    return await cached_summaries("energy", build_energy_summaries_fast, session, force)
+
+
+def clear_summary_cache(*keys: str) -> None:
+    for key in keys:
+        SUMMARY_CACHE.pop(key, None)
 
 
 LIGHT_TIMELINE_DEVICES = [
@@ -4938,6 +5208,7 @@ async def sun2_room_stats_ingest(data: Sun2RoomStatsIngestIn):
             )
         )
         await session.commit()
+    clear_summary_cache("sun2")
     return {"status": "ok", **counts, "rows": len(data.rows)}
 
 
@@ -4958,7 +5229,7 @@ async def energy_redirect():
 
 @app.get("/energi/oversikt", response_class=HTMLResponse)
 async def energy_overview_legacy_redirect():
-    return RedirectResponse("/soling/oversikt", status_code=307)
+    return RedirectResponse("/energi/elvia", status_code=307)
 
 
 @app.get("/energi/soling", response_class=HTMLResponse)
@@ -4974,12 +5245,7 @@ async def sun2_redirect():
 @app.get("/soling/oversikt", response_class=HTMLResponse)
 async def sun2_overview_view(request: Request):
     async with async_session() as session:
-        rows = (
-            await session.execute(
-                select(Sun2RoomDailyStat)
-                .order_by(Sun2RoomDailyStat.stat_date.asc(), Sun2RoomDailyStat.room)
-            )
-        ).scalars().all()
+        summaries = await get_sun2_summaries(session)
         latest_import = (
             await session.execute(
                 select(Sun2ImportRun)
@@ -4987,7 +5253,6 @@ async def sun2_overview_view(request: Request):
                 .limit(1)
             )
         ).scalars().first()
-    summaries = build_sun2_summaries(rows)
     return templates.TemplateResponse(
         request,
         "sun2_overview.html",
@@ -5000,7 +5265,7 @@ async def sun2_overview_view(request: Request):
             "weekly_chart": summaries["weekly_chart"],
             "first_date": summaries["first_date"],
             "last_date": summaries["last_date"],
-            "total_rows": len(rows),
+            "total_rows": summaries["total_rows"],
             "latest_import": latest_import,
         },
     )
@@ -5010,12 +5275,7 @@ async def sun2_overview_view(request: Request):
 async def sun2_room_stats_view(request: Request, limit: int = 300):
     limit = max(1, min(limit, 1000))
     async with async_session() as session:
-        summary_rows = (
-            await session.execute(
-                select(Sun2RoomDailyStat)
-                .order_by(Sun2RoomDailyStat.stat_date.asc(), Sun2RoomDailyStat.room)
-            )
-        ).scalars().all()
+        summaries = await get_sun2_summaries(session)
         rows = (
             await session.execute(
                 select(Sun2RoomDailyStat)
@@ -5030,7 +5290,6 @@ async def sun2_room_stats_view(request: Request, limit: int = 300):
                 .limit(25)
             )
         ).scalars().all()
-    summaries = build_sun2_summaries(summary_rows)
     return templates.TemplateResponse(
         request,
         "sun2_room_stats.html",
@@ -5043,7 +5302,7 @@ async def sun2_room_stats_view(request: Request, limit: int = 300):
             "grand_total": summaries["total"],
             "first_date": summaries["first_date"],
             "last_date": summaries["last_date"],
-            "total_rows": len(summary_rows),
+            "total_rows": summaries["total_rows"],
         },
     )
 
@@ -5052,12 +5311,7 @@ async def sun2_room_stats_view(request: Request, limit: int = 300):
 async def sun2_room_stats_json(limit: int = 300):
     limit = max(1, min(limit, 5000))
     async with async_session() as session:
-        summary_rows = (
-            await session.execute(
-                select(Sun2RoomDailyStat)
-                .order_by(Sun2RoomDailyStat.stat_date.asc(), Sun2RoomDailyStat.room)
-            )
-        ).scalars().all()
+        summaries = await get_sun2_summaries(session)
         rows = (
             await session.execute(
                 select(Sun2RoomDailyStat)
@@ -5072,7 +5326,6 @@ async def sun2_room_stats_json(limit: int = 300):
                 .limit(min(limit, 500))
             )
         ).scalars().all()
-    summaries = build_sun2_summaries(summary_rows)
     return {
         "rows": [row_to_dict(row, SUN2_ROOM_COLUMNS) for row in rows],
         "imports": [row_to_dict(row, SUN2_IMPORT_COLUMNS) for row in imports],
@@ -5086,17 +5339,19 @@ async def sun2_room_stats_json(limit: int = 300):
         "grand_total": summaries["total"],
         "first_date": summaries["first_date"],
         "last_date": summaries["last_date"],
-        "total_rows": len(summary_rows),
+        "total_rows": summaries["total_rows"],
     }
 
 
 @app.get("/energi/elvia", response_class=HTMLResponse)
 async def energy_elvia_view(request: Request):
     async with async_session() as session:
+        summaries = await get_energy_summaries(session)
         rows = (
             await session.execute(
                 select(EnergyHourlyConsumption)
-                .order_by(EnergyHourlyConsumption.measured_at.asc())
+                .order_by(EnergyHourlyConsumption.measured_at.desc())
+                .limit(24)
             )
         ).scalars().all()
         imports = (
@@ -5106,12 +5361,11 @@ async def energy_elvia_view(request: Request):
                 .limit(25)
             )
         ).scalars().all()
-    summaries = build_energy_summaries(rows)
     return templates.TemplateResponse(
         request,
         "energy_elvia.html",
         {
-            "rows": rows[-24:],
+            "rows": list(reversed(rows)),
             "imports": imports,
             "summaries": summaries,
             "message": "",
@@ -5165,6 +5419,7 @@ async def energy_elvia_upload(request: Request):
                     )
                 )
                 await session.commit()
+            clear_summary_cache("energy")
             message = (
                 f"Importerte {counts['inserted']} nye og oppdaterte {counts['updated']} timer "
                 f"for måler {parsed['meter_id']}."
@@ -5175,10 +5430,12 @@ async def energy_elvia_upload(request: Request):
             error = str(exc)
 
     async with async_session() as session:
+        summaries = await get_energy_summaries(session, force=bool(import_result and not error))
         rows = (
             await session.execute(
                 select(EnergyHourlyConsumption)
-                .order_by(EnergyHourlyConsumption.measured_at.asc())
+                .order_by(EnergyHourlyConsumption.measured_at.desc())
+                .limit(24)
             )
         ).scalars().all()
         imports = (
@@ -5188,12 +5445,11 @@ async def energy_elvia_upload(request: Request):
                 .limit(25)
             )
         ).scalars().all()
-    summaries = build_energy_summaries(rows)
     return templates.TemplateResponse(
         request,
         "energy_elvia.html",
         {
-            "rows": rows[-24:],
+            "rows": list(reversed(rows)),
             "imports": imports,
             "summaries": summaries,
             "message": message,
@@ -5207,12 +5463,7 @@ async def energy_elvia_upload(request: Request):
 async def energy_elvia_json(limit: int = 300):
     limit = max(1, min(limit, 5000))
     async with async_session() as session:
-        summary_rows = (
-            await session.execute(
-                select(EnergyHourlyConsumption)
-                .order_by(EnergyHourlyConsumption.measured_at.asc())
-            )
-        ).scalars().all()
+        summaries = await get_energy_summaries(session)
         rows = (
             await session.execute(
                 select(EnergyHourlyConsumption)
@@ -5227,7 +5478,6 @@ async def energy_elvia_json(limit: int = 300):
                 .limit(min(limit, 500))
             )
         ).scalars().all()
-    summaries = build_energy_summaries(summary_rows)
     return {
         "rows": [row_to_dict(row, ENERGY_HOURLY_COLUMNS) for row in rows],
         "imports": [row_to_dict(row, ENERGY_IMPORT_COLUMNS) for row in imports],
@@ -5239,7 +5489,7 @@ async def energy_elvia_json(limit: int = 300):
         "grand_total": summaries["total"],
         "first_at": summaries["first_at"],
         "last_at": summaries["last_at"],
-        "total_rows": len(summary_rows),
+        "total_rows": summaries["total"]["hours_count"],
     }
 
 
