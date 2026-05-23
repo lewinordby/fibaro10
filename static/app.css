@@ -1159,6 +1159,173 @@ button.primary,
     }
 }
 
+/* Navigation v3: desktop app shell. The wide view gets a real sidebar instead of a crowded top bar. */
+@media (min-width: 1020px) {
+    body {
+        padding-left: 238px;
+    }
+
+    .site-header {
+        position: fixed !important;
+        inset: 0 auto 0 0;
+        width: 238px;
+        height: 100vh;
+        padding: 1rem 0.82rem !important;
+        border-right: 1px solid rgba(219, 227, 237, 0.95) !important;
+        border-bottom: 0 !important;
+        background: rgba(255, 255, 255, 0.94) !important;
+        box-shadow: 6px 0 24px rgba(24, 39, 75, 0.04) !important;
+        overflow-y: auto;
+    }
+
+    .brand-bar {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+
+    .brand-bar::before {
+        content: "SUN²";
+        display: block;
+        margin: 0 0 0.08rem 0.22rem;
+        color: var(--brand);
+        font-size: 1.74rem;
+        line-height: 1;
+        font-weight: 850;
+        letter-spacing: 0 !important;
+    }
+
+    .brand-bar::after {
+        content: "Drift og analyse";
+        display: block;
+        margin: 0 0 1.05rem 0.24rem;
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 720;
+    }
+
+    main {
+        width: min(calc(100vw - 238px - 2.2rem), var(--page-width)) !important;
+        margin: 0 auto !important;
+        padding-top: 1.15rem !important;
+    }
+
+    .app-nav {
+        gap: 0 !important;
+    }
+
+    .app-nav .nav-main {
+        display: flex !important;
+        flex-direction: column;
+        gap: 0.12rem !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-main .button {
+        width: 100% !important;
+        height: 2.42rem !important;
+        display: flex !important;
+        justify-content: flex-start;
+        gap: 0.62rem;
+        padding: 0 0.72rem !important;
+        border-radius: 10px !important;
+        font-size: 0.88rem;
+        color: #526070 !important;
+    }
+
+    .app-nav .nav-main .button.active {
+        background: var(--section-soft) !important;
+        border-color: var(--section-border) !important;
+        color: var(--section-color) !important;
+        box-shadow: inset 3px 0 0 var(--section-color) !important;
+    }
+
+    .app-nav .nav-main .button:hover {
+        background: var(--section-soft) !important;
+        color: var(--section-color) !important;
+    }
+
+    .app-nav .nav-main .nav-account {
+        width: 100% !important;
+        margin-top: 0.58rem;
+        border-top: 1px solid var(--line-soft) !important;
+        padding-top: 0.58rem !important;
+        background: transparent !important;
+        color: #526070 !important;
+    }
+
+    .app-nav .nav-main .nav-account::after {
+        content: "Konto";
+        font-size: 0.88rem;
+        font-weight: 760;
+    }
+
+    .app-nav .nav-main .nav-account.active {
+        background: var(--admin-soft) !important;
+        color: var(--admin-color) !important;
+        box-shadow: inset 3px 0 0 var(--admin-color) !important;
+    }
+
+    .app-nav .nav-icon {
+        width: 1rem !important;
+        height: 1rem !important;
+        flex: 0 0 auto;
+    }
+
+    .app-nav .nav-label {
+        flex: 1 1 auto;
+        text-align: left;
+    }
+
+    .app-nav .nav-sub {
+        display: flex !important;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.08rem !important;
+        margin-top: 1.05rem;
+        padding: 0.8rem 0 0 !important;
+        border-top: 1px solid var(--line-soft);
+        border-bottom: 0 !important;
+        min-height: 0;
+    }
+
+    .app-nav .nav-sub::before {
+        content: "Undermeny";
+        display: block;
+        flex: 0 0 auto;
+        margin: 0 0 0.34rem 0.72rem;
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 850;
+        text-transform: uppercase;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        min-height: 2.08rem !important;
+        padding: 0.42rem 0.72rem !important;
+        border-radius: 9px !important;
+        color: #657386 !important;
+        text-align: left;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: var(--section-color) !important;
+        color: #fff !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-sub-form {
+        width: 100%;
+    }
+}
+
 /* Navigation v2: calmer top tabs with a separate account action. */
 .site-header {
     padding-block: 0.36rem !important;
