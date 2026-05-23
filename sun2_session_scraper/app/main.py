@@ -371,6 +371,23 @@ def open_sessions_page(page, username: str, password: str) -> None:
 def set_date_range(page, start: date, end: date) -> None:
     iso_start, iso_end = start.isoformat(), end.isoformat()
     no_start, no_end = start.strftime("%d.%m.%Y"), end.strftime("%d.%m.%Y")
+    if page.locator("#member-dates button").count() > 0:
+        page.locator("#member-dates button").first.click(timeout=5000)
+        page.wait_for_timeout(250)
+        custom_range = page.locator(".ranges li").filter(has_text=re.compile("^Valgfri$", re.I))
+        if custom_range.count() > 0:
+            custom_range.first.click(timeout=5000)
+            page.wait_for_timeout(250)
+        page.locator('input[name="daterangepicker_start"]').fill(iso_start, timeout=5000)
+        page.locator('input[name="daterangepicker_end"]').fill(iso_end, timeout=5000)
+        page.locator(".applyBtn").first.click(timeout=5000)
+        try:
+            page.wait_for_load_state("networkidle", timeout=10000)
+        except PwTimeoutError:
+            pass
+        page.wait_for_timeout(1000)
+        return
+
     inputs = page.locator("input")
     count = inputs.count()
     date_like_indexes: list[int] = []
@@ -549,6 +566,15 @@ def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
         set_date_range(page, start, end)
         headers, table_rows = extract_paginated_table(page)
         sessions = [item for item in (normalize_session_row(row, start) for row in table_rows) if item]
+        outside_period = [
+            item
+            for item in sessions
+            if not (start <= date.fromisoformat(item["stat_date"]) <= end)
+        ]
+        if outside_period:
+            save_debug(page, f"DATE_MISMATCH_{start:%Y_%m}")
+            sample = outside_period[0].get("started_at") or outside_period[0].get("stat_date")
+            raise RuntimeError(f"Dato-filter feilet for {start.isoformat()} - {end.isoformat()}, eksempelrad: {sample}")
         if not sessions:
             save_debug(page, f"NO_ROWS_{start:%Y_%m}")
         payload = {
