@@ -5672,12 +5672,20 @@ async def sun2_room_stats_view(request: Request, limit: int = 150):
 
 
 @app.get("/soling/enkeltimer", response_class=HTMLResponse)
-async def sun2_sessions_view(request: Request, limit: int = 250):
+async def sun2_sessions_view(request: Request, limit: int = 250, sun2_user_id: Optional[str] = None):
     limit = max(1, min(limit, 2000))
+    active_sun2_user_id = (sun2_user_id or "").strip()
+    session_filters = []
+    if active_sun2_user_id:
+        session_filters.append(Sun2TanningSession.sun2_user_id == active_sun2_user_id)
+
     async with async_session() as session:
+        rows_query = select(Sun2TanningSession)
+        if session_filters:
+            rows_query = rows_query.where(*session_filters)
         rows = (
             await session.execute(
-                select(Sun2TanningSession)
+                rows_query
                 .order_by(Sun2TanningSession.started_at.desc())
                 .limit(limit)
             )
@@ -5689,31 +5697,39 @@ async def sun2_sessions_view(request: Request, limit: int = 250):
                 .limit(25)
             )
         ).scalars().all()
+        total_query = select(
+            func.count(Sun2TanningSession.id).label("sessions_count"),
+            func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+            func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+            func.min(Sun2TanningSession.started_at).label("first_at"),
+            func.max(Sun2TanningSession.started_at).label("last_at"),
+        )
+        if session_filters:
+            total_query = total_query.where(*session_filters)
         total = (
             await session.execute(
-                select(
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                    func.min(Sun2TanningSession.started_at).label("first_at"),
-                    func.max(Sun2TanningSession.started_at).label("last_at"),
-                )
+                total_query
             )
         ).mappings().first()
         year_part = func.extract("year", Sun2TanningSession.stat_date)
         month_part = func.extract("month", Sun2TanningSession.stat_date)
+        monthly_query = (
+            select(
+                year_part.label("year"),
+                month_part.label("month"),
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+            )
+            .group_by(year_part, month_part)
+            .order_by(year_part.desc(), month_part.desc())
+            .limit(36)
+        )
+        if session_filters:
+            monthly_query = monthly_query.where(*session_filters)
         monthly = (
             await session.execute(
-                select(
-                    year_part.label("year"),
-                    month_part.label("month"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                )
-                .group_by(year_part, month_part)
-                .order_by(year_part.desc(), month_part.desc())
-                .limit(36)
+                monthly_query
             )
         ).mappings().all()
     return templates.TemplateResponse(
@@ -5725,6 +5741,7 @@ async def sun2_sessions_view(request: Request, limit: int = 250):
             "limit": limit,
             "total": total or {},
             "monthly": monthly,
+            "active_sun2_user_id": active_sun2_user_id,
         },
     )
 
@@ -5766,12 +5783,16 @@ async def sun2_room_stats_json(limit: int = 300):
 
 
 @app.get("/api/sun2/sessions/json")
-async def sun2_sessions_json(limit: int = 300):
+async def sun2_sessions_json(limit: int = 300, sun2_user_id: Optional[str] = None):
     limit = max(1, min(limit, 5000))
+    active_sun2_user_id = (sun2_user_id or "").strip()
     async with async_session() as session:
+        rows_query = select(Sun2TanningSession)
+        if active_sun2_user_id:
+            rows_query = rows_query.where(Sun2TanningSession.sun2_user_id == active_sun2_user_id)
         rows = (
             await session.execute(
-                select(Sun2TanningSession)
+                rows_query
                 .order_by(Sun2TanningSession.started_at.desc())
                 .limit(limit)
             )
@@ -5786,6 +5807,7 @@ async def sun2_sessions_json(limit: int = 300):
     return {
         "rows": [row_to_dict(row, SUN2_SESSION_COLUMNS) for row in rows],
         "imports": [row_to_dict(row, SUN2_SESSION_IMPORT_COLUMNS) for row in imports],
+        "sun2_user_id": active_sun2_user_id or None,
     }
 
 

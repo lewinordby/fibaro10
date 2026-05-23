@@ -13,6 +13,9 @@
         .summary-card span { color:var(--muted); font-size:0.78rem; }
         .summary-card strong { display:block; margin-top:0.18rem; font-size:1.16rem; line-height:1.12; }
         .summary-card small { display:block; margin-top:0.25rem; color:var(--muted); font-size:0.72rem; }
+        .filter-strip { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; margin:0 0 0.9rem; padding:0.65rem 0.75rem; background:rgba(65,126,184,0.1); border:1px solid rgba(65,126,184,0.22); border-radius:10px; color:var(--brand-dark); }
+        .filter-strip span { font-size:0.86rem; }
+        .filter-strip a { color:var(--sun2-blue); font-weight:760; text-decoration:none; }
         .section-title { margin:1rem 0 0.5rem; font-size:1rem; color:var(--brand-dark); }
         .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin-top:1rem; }
         .section-note { color:var(--muted); font-size:0.78rem; }
@@ -25,6 +28,8 @@
         tbody tr:last-child td { border-bottom:0; }
         .period, .name { font-weight:760; color:var(--brand-dark); }
         .money { font-weight:760; }
+        .id-link { display:inline-flex; align-items:center; min-height:1.55rem; padding:0.08rem 0.45rem; border-radius:999px; color:var(--sun2-blue); background:rgba(65,126,184,0.1); font-weight:760; text-decoration:none; }
+        .id-link:hover, .id-link.active { background:var(--sun2-blue); color:#fff; }
         .ok { color:var(--on); font-weight:760; }
         .bad { color:var(--off); font-weight:760; }
         @media (min-width: 820px) {
@@ -39,6 +44,12 @@
         <p class="page-subtitle">
             En rad per soling fra SUN2 Owner. Dette gir bedre grunnlag for bruksmønster, kundereiser og senere energi-/omsetningsanalyse.
         </p>
+        {% if active_sun2_user_id %}
+        <section class="filter-strip">
+            <span>Filtrert på SUN2-id <strong>{{ active_sun2_user_id }}</strong></span>
+            <a href="/soling/enkeltimer">Vis alle enkeltimer</a>
+        </section>
+        {% endif %}
 
         <section class="summary-grid">
             <div class="summary-card">
@@ -93,7 +104,7 @@
 
         <div class="section-row">
             <h2 class="section-title">Siste enkeltimer</h2>
-            <span class="section-note">Viser siste {{ rows|length }}</span>
+            <span class="section-note">{% if active_sun2_user_id %}SUN2-id {{ active_sun2_user_id }} · {% endif %}Viser siste {{ rows|length }}</span>
         </div>
         <section class="table-wrap">
             <table>
@@ -116,7 +127,13 @@
                     {% for row in rows %}
                     <tr>
                         <td class="period">{{ row.started_at|source_time }}</td>
-                        <td>{{ row.sun2_user_id or "-" }}</td>
+                        <td>
+                            {% if row.sun2_user_id %}
+                            <a class="id-link{% if active_sun2_user_id == row.sun2_user_id %} active{% endif %}" href="/soling/enkeltimer?sun2_user_id={{ row.sun2_user_id }}">{{ row.sun2_user_id }}</a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
                         <td>{{ row.room or row.room_key or "-" }}</td>
                         <td class="name">{{ row.user_name or "-" }}</td>
                         <td>{{ row.payment_method or "-" }}</td>
