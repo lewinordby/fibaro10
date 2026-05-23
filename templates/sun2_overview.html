@@ -25,6 +25,21 @@
         .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin:0.2rem 0 0.5rem; }
         .section-title { margin:0; font-size:1rem; color:var(--brand-dark); }
         .section-note { color:var(--muted); font-size:0.78rem; }
+        .chart-panel { margin:0 0 1rem; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:0.95rem; box-shadow:var(--shadow-1); overflow:hidden; }
+        .chart-head { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin-bottom:0.65rem; }
+        .chart-title { margin:0; font-size:1rem; color:var(--brand-dark); }
+        .chart-controls { display:flex; gap:0.35rem; flex-wrap:wrap; }
+        .chart-toggle { border:1px solid var(--line); border-radius:999px; background:var(--panel-soft); color:var(--muted); padding:0.28rem 0.58rem; font:inherit; font-size:0.76rem; font-weight:760; cursor:pointer; }
+        .chart-toggle.active { background:var(--sun2-color); border-color:var(--sun2-color); color:#fff; }
+        .weekly-chart-wrap { width:100%; overflow:hidden; }
+        .weekly-chart { width:100%; height:auto; display:block; background:#fff; border:1px solid var(--line-soft); border-radius:10px; }
+        .weekly-grid { stroke:#e6edf5; stroke-width:1; }
+        .weekly-axis { stroke:#cbd5e1; stroke-width:1.1; }
+        .weekly-line { fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+        .weekly-label { fill:var(--muted); font-size:10px; font-weight:700; }
+        .weekly-legend { display:flex; flex-wrap:wrap; gap:0.45rem 0.7rem; margin-top:0.65rem; }
+        .weekly-legend span { display:inline-flex; align-items:center; gap:0.28rem; color:var(--muted); font-size:0.78rem; font-weight:740; }
+        .weekly-legend i { width:0.7rem; height:0.7rem; border-radius:999px; display:inline-block; }
         .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
         table { width:100%; border-collapse:collapse; min-width:690px; }
         th, td { padding:0.58rem 0.65rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
@@ -96,6 +111,23 @@
                 <span>Siste import</span>
                 <strong>{{ latest_import.timestamp|localtime if latest_import else "-" }}</strong>
             </div>
+        </section>
+
+        <section class="chart-panel">
+            <div class="chart-head">
+                <div>
+                    <h2 class="chart-title">Ukesutvikling per år</h2>
+                    <span class="section-note">Én linje per år, uke 1-53.</span>
+                </div>
+                <div class="chart-controls">
+                    <button class="chart-toggle active" type="button" data-weekly-metric="revenue">Inntjent</button>
+                    <button class="chart-toggle" type="button" data-weekly-metric="count">Solinger</button>
+                </div>
+            </div>
+            <div class="weekly-chart-wrap">
+                <svg class="weekly-chart" viewBox="0 0 980 360" role="img" aria-label="Linjediagram over uker per år"></svg>
+            </div>
+            <div class="weekly-legend" id="weeklyLegend"></div>
         </section>
 
         <section class="top-grid">
@@ -234,5 +266,84 @@
             </div>
         </section>
     </main>
+    <script>
+        (() => {
+            const data = {{ weekly_chart|tojson }};
+            const svg = document.querySelector(".weekly-chart");
+            const legend = document.querySelector("#weeklyLegend");
+            const buttons = document.querySelectorAll("[data-weekly-metric]");
+            if (!svg || !data.length) return;
+
+            const width = 980;
+            const height = 360;
+            const margin = { top: 18, right: 18, bottom: 38, left: 72 };
+            const plotWidth = width - margin.left - margin.right;
+            const plotHeight = height - margin.top - margin.bottom;
+            const weeks = Array.from({ length: 53 }, (_, index) => index + 1);
+
+            const formatValue = (value, metric) => {
+                if (metric === "count") return Math.round(value).toLocaleString("nb-NO");
+                if (value >= 1000000) return `${(value / 1000000).toFixed(1).replace(".", ",")}M`;
+                if (value >= 1000) return `${Math.round(value / 1000).toLocaleString("nb-NO")}k`;
+                return Math.round(value).toLocaleString("nb-NO");
+            };
+
+            const pointsToPath = (points) => {
+                let path = "";
+                let open = false;
+                points.forEach((point) => {
+                    if (!point) {
+                        open = false;
+                        return;
+                    }
+                    path += `${open ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)} `;
+                    open = true;
+                });
+                return path.trim();
+            };
+
+            const render = (metric) => {
+                buttons.forEach((button) => button.classList.toggle("active", button.dataset.weeklyMetric === metric));
+                const maxValue = Math.max(1, ...data.flatMap((series) => series[metric].filter((value) => value !== null)));
+                const yMax = Math.ceil(maxValue / 5) * 5;
+                const yTicks = [0, 0.25, 0.5, 0.75, 1].map((factor) => Math.round(yMax * factor));
+                const xForWeek = (week) => margin.left + ((week - 1) / 52) * plotWidth;
+                const yForValue = (value) => margin.top + plotHeight - (value / yMax) * plotHeight;
+
+                const grid = yTicks.map((tick) => {
+                    const y = yForValue(tick);
+                    return `<line class="weekly-grid" x1="${margin.left}" x2="${width - margin.right}" y1="${y}" y2="${y}"></line>
+                        <text class="weekly-label" x="${margin.left - 10}" y="${y + 3}" text-anchor="end">${formatValue(tick, metric)}</text>`;
+                }).join("");
+                const xLabels = [1, 10, 20, 30, 40, 50, 53].map((week) => {
+                    const x = xForWeek(week);
+                    return `<line class="weekly-grid" x1="${x}" x2="${x}" y1="${margin.top}" y2="${margin.top + plotHeight}"></line>
+                        <text class="weekly-label" x="${x}" y="${height - 12}" text-anchor="middle">${week}</text>`;
+                }).join("");
+                const lines = data.map((series) => {
+                    const points = weeks.map((week, index) => {
+                        const value = series[metric][index];
+                        if (value === null || value === undefined) return null;
+                        return { x: xForWeek(week), y: yForValue(value) };
+                    });
+                    return `<path class="weekly-line" d="${pointsToPath(points)}" stroke="${series.color}"></path>`;
+                }).join("");
+
+                svg.innerHTML = `
+                    <rect x="0" y="0" width="${width}" height="${height}" fill="#fff"></rect>
+                    ${grid}
+                    ${xLabels}
+                    <line class="weekly-axis" x1="${margin.left}" x2="${width - margin.right}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight}"></line>
+                    <line class="weekly-axis" x1="${margin.left}" x2="${margin.left}" y1="${margin.top}" y2="${margin.top + plotHeight}"></line>
+                    <text class="weekly-label" x="${width / 2}" y="${height - 2}" text-anchor="middle">Uke</text>
+                    ${lines}
+                `;
+                legend.innerHTML = data.map((series) => `<span><i style="background:${series.color}"></i>${series.year}</span>`).join("");
+            };
+
+            buttons.forEach((button) => button.addEventListener("click", () => render(button.dataset.weeklyMetric)));
+            render("revenue");
+        })();
+    </script>
 </body>
 </html>

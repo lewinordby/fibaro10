@@ -1157,6 +1157,7 @@ def build_sun2_summaries(rows: list[Any]) -> Dict[str, Any]:
     daily: Dict[str, Dict[str, Any]] = {}
     monthly: Dict[str, Dict[str, Any]] = {}
     yearly: Dict[str, Dict[str, Any]] = {}
+    weekly: Dict[str, Dict[int, Dict[str, Any]]] = {}
     total = empty_sun2_summary("Totalt")
     first_date = None
     last_date = None
@@ -1169,13 +1170,18 @@ def build_sun2_summaries(rows: list[Any]) -> Dict[str, Any]:
         day_key = row.stat_date.isoformat()
         month_key = row.stat_date.strftime("%Y-%m")
         year_key = str(row.stat_date.year)
+        iso_year, iso_week, _ = row.stat_date.isocalendar()
+        iso_year_key = str(iso_year)
         daily.setdefault(day_key, empty_sun2_summary(day_key))
         monthly.setdefault(month_key, empty_sun2_summary(month_key))
         yearly.setdefault(year_key, empty_sun2_summary(year_key))
+        weekly.setdefault(iso_year_key, {})
+        weekly[iso_year_key].setdefault(iso_week, empty_sun2_summary(f"{iso_year_key}-W{iso_week:02d}"))
         daily[day_key]["period_label"] = row.stat_date.strftime("%d.%m.%Y")
         add_sun2_row_to_summary(daily[day_key], row)
         add_sun2_row_to_summary(monthly[month_key], row)
         add_sun2_row_to_summary(yearly[year_key], row)
+        add_sun2_row_to_summary(weekly[iso_year_key][iso_week], row)
         add_sun2_row_to_summary(total, row)
 
     daily_items = [finalize_sun2_summary(daily[key]) for key in sorted(daily, reverse=True)]
@@ -1191,11 +1197,24 @@ def build_sun2_summaries(rows: list[Any]) -> Dict[str, Any]:
         item["totalt_inntjent_kr"],
         item["total_soletid_minutter"],
     )
+    weekly_chart = []
+    palette = ["#3f7fbd", "#df705d", "#52a464", "#726189", "#f2b84b", "#2f8fa3", "#8b5cf6", "#ef4444"]
+    for index, year_key in enumerate(sorted(weekly.keys())):
+        weeks = weekly[year_key]
+        weekly_chart.append(
+            {
+                "year": year_key,
+                "color": palette[index % len(palette)],
+                "revenue": [round(finalize_sun2_summary(weeks[week])["totalt_inntjent_kr"], 2) if week in weeks else None for week in range(1, 54)],
+                "count": [int(finalize_sun2_summary(weeks[week])["totalt_antall_solinger"]) if week in weeks else None for week in range(1, 54)],
+            }
+        )
 
     return {
         "daily": daily_items,
         "monthly": monthly_items,
         "yearly": yearly_items,
+        "weekly_chart": weekly_chart,
         "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
         "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
         "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:10],
@@ -4978,6 +4997,7 @@ async def sun2_overview_view(request: Request):
             "top_days_by_count": summaries["top_days_by_count"],
             "top_months_by_count": summaries["top_months_by_count"],
             "grand_total": summaries["total"],
+            "weekly_chart": summaries["weekly_chart"],
             "first_date": summaries["first_date"],
             "last_date": summaries["last_date"],
             "total_rows": len(rows),
