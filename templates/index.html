@@ -298,6 +298,14 @@
             border-color: var(--light, #df705d);
             background: #fff3f1;
         }
+        .section.vent-section .subscribe-button {
+            border-color: rgba(82,164,100,0.36);
+            background: #edf8f0;
+        }
+        .section.vent-section .subscribe-button:hover {
+            border-color: var(--vent, #52a464);
+            background: #f4fbf6;
+        }
         .cards {
             display: grid;
             grid-template-columns: 1fr;
@@ -553,7 +561,10 @@
         <section class="section vent-section">
             <div class="section-head">
                 <h2>Ventilasjon</h2>
-                <a href="/ventilasjon/hendelser">Vis hendelser</a>
+                <div class="section-actions">
+                    <a href="/ventilasjon/hendelser">Vis hendelser</a>
+                    <a class="subscribe-button" href="{{ ntfy_ventilation_subscribe_url }}" title="Abonner på ntfy-varsel når ventilasjon slås av og på">Abonner varsler</a>
+                </div>
             </div>
             <div class="fan-grid">
                 {% for item in vent_status %}

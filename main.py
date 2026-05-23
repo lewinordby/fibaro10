@@ -56,6 +56,7 @@ SUMMARY_CACHE_TTL = timedelta(minutes=5)
 SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
 NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
 NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
+NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 
 app = FastAPI(title="Fibaro10")
@@ -2556,6 +2557,47 @@ async def publish_light_ntfy(event: OutdoorLightEvent) -> bool:
             f"SUN2 lys {action}",
             " ".join(pieces),
             "bulb",
+            "3",
+        )
+        return True
+    except Exception:
+        return False
+
+
+async def publish_ventilation_ntfy(event: VentilationEvent) -> bool:
+    state = state_from_event(event)
+    if state is None:
+        return False
+    action = "P\u00c5" if state else "AV"
+    device_name = event.device_name or event.device_key or "Ukjent vifte"
+    pieces = [f"{device_name} er {action}."]
+    if event.mode:
+        pieces.append(f"Modus: {clean_display_text(event.mode)}.")
+    temps = []
+    if event.temp_1etg is not None:
+        temps.append(f"1.etg {event.temp_1etg:.1f}\u00b0")
+    if event.temp_2etg is not None:
+        temps.append(f"2.etg {event.temp_2etg:.1f}\u00b0")
+    if event.temp_vip is not None:
+        temps.append(f"VIP {event.temp_vip:.1f}\u00b0")
+    if event.temp_ute is not None:
+        temps.append(f"ute {event.temp_ute:.1f}\u00b0")
+    if event.temp_loft is not None:
+        temps.append(f"loft {event.temp_loft:.1f}\u00b0")
+    if temps:
+        pieces.append("Temp: " + ", ".join(temps) + ".")
+    if event.diff_w is not None:
+        pieces.append(f"Diff: {event.diff_w:.0f} W.")
+    detail = clean_display_text(event.reason or event.source or "")
+    if detail:
+        pieces.append(f"\u00c5rsak: {detail}.")
+    try:
+        await asyncio.to_thread(
+            publish_ntfy_message,
+            NTFY_VENTILATION_TOPIC,
+            f"SUN2 ventilasjon {action}",
+            " ".join(pieces),
+            "dash",
             "3",
         )
         return True
@@ -5100,6 +5142,8 @@ async def index(request: Request):
             "light_status": light_status,
             "ntfy_lights_subscribe_url": ntfy_subscribe_url(NTFY_LIGHTS_TOPIC, "SUN2 lys"),
             "ntfy_lights_web_url": ntfy_topic_url(NTFY_LIGHTS_TOPIC),
+            "ntfy_ventilation_subscribe_url": ntfy_subscribe_url(NTFY_VENTILATION_TOPIC, "SUN2 ventilasjon"),
+            "ntfy_ventilation_web_url": ntfy_topic_url(NTFY_VENTILATION_TOPIC),
             "vent_status": vent_status,
             "freshness_items": freshness_items,
         },
@@ -5242,8 +5286,10 @@ async def log_event(data: EventDataIn):
             yr_sample_id = await save_yr_sample_for_payload(data)
             event_id = await save_record(vent_sample_from_payload(data))
             return {"status": "ok", "id": event_id, "table": "ventilasjon_samples", "yr_sample_id": yr_sample_id}
-        event_id = await save_record(vent_from_payload(data))
-        return {"status": "ok", "id": event_id, "table": "ventilasjon_events"}
+        event = vent_from_payload(data)
+        event_id = await save_record(event)
+        ntfy_sent = await publish_ventilation_ntfy(event)
+        return {"status": "ok", "id": event_id, "table": "ventilasjon_events", "ntfy_sent": ntfy_sent}
     event_id = await save_record(generic_from_payload(data))
     return {"status": "ok", "id": event_id, "table": "event_data"}
 
