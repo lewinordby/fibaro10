@@ -275,7 +275,17 @@
             const legend = document.querySelector("#weeklyLegend");
             const buttons = document.querySelectorAll("[data-weekly-metric]");
             if (!svg || !data.length) return;
-            const activeYears = new Set(data.map((series) => series.year));
+            const storageKey = "sun2_weekly_visible_years";
+            const allYears = data.map((series) => String(series.year));
+            const storedYears = (() => {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(storageKey) || "[]");
+                    return Array.isArray(parsed) ? parsed.map(String).filter((year) => allYears.includes(year)) : [];
+                } catch {
+                    return [];
+                }
+            })();
+            const activeYears = new Set(storedYears.length ? storedYears : allYears);
             let currentMetric = "revenue";
 
             const width = 980;
@@ -308,7 +318,7 @@
 
             const render = (metric) => {
                 currentMetric = metric;
-                const visibleData = data.filter((series) => activeYears.has(series.year));
+                const visibleData = data.filter((series) => activeYears.has(String(series.year)));
                 buttons.forEach((button) => button.classList.toggle("active", button.dataset.weeklyMetric === metric));
                 const maxValue = Math.max(1, ...visibleData.flatMap((series) => series[metric].filter((value) => value !== null)));
                 const yMax = Math.ceil(maxValue / 5) * 5;
@@ -349,7 +359,7 @@
             const renderLegend = () => {
                 legend.innerHTML = data.map((series) => `
                     <label class="weekly-year" style="--year-color:${series.color}">
-                        <input type="checkbox" value="${series.year}" checked aria-label="Vis ${series.year}">
+                        <input type="checkbox" value="${series.year}" ${activeYears.has(String(series.year)) ? "checked" : ""} aria-label="Vis ${series.year}">
                         <i aria-hidden="true"></i>
                         <span>${series.year}</span>
                     </label>
@@ -357,10 +367,11 @@
                 legend.querySelectorAll("input").forEach((input) => {
                     input.addEventListener("change", () => {
                         if (input.checked) {
-                            activeYears.add(input.value);
+                            activeYears.add(String(input.value));
                         } else {
-                            activeYears.delete(input.value);
+                            activeYears.delete(String(input.value));
                         }
+                        localStorage.setItem(storageKey, JSON.stringify([...activeYears]));
                         render(currentMetric);
                     });
                 });

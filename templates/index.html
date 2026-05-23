@@ -265,6 +265,48 @@
         .section {
             margin-bottom: 1rem;
         }
+        .quick-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.65rem;
+            margin: 0 0 1rem;
+        }
+        .quick-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            min-height: 4.1rem;
+            padding: 0.72rem 0.82rem;
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--brand, #5292d6);
+            border-radius: 8px;
+            background: var(--panel);
+            color: var(--text);
+            text-decoration: none;
+            box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+        }
+        .quick-card:hover { border-color: #c6d2df; transform: translateY(-1px); }
+        .quick-card strong { display: block; font-size: 0.92rem; line-height: 1.12; }
+        .quick-card span { display: block; margin-top: 0.18rem; color: var(--muted); font-size: 0.76rem; line-height: 1.18; }
+        .quick-card i {
+            display: inline-grid;
+            place-items: center;
+            width: 1.85rem;
+            height: 1.85rem;
+            border-radius: 999px;
+            background: var(--brand-soft, #eaf4ff);
+            color: var(--brand, #5292d6);
+            font-style: normal;
+            font-weight: 900;
+            flex: 0 0 auto;
+        }
+        .quick-card.light { border-left-color: var(--light, #df705d); }
+        .quick-card.light i { background: #fbebe8; color: var(--light, #df705d); }
+        .quick-card.vent { border-left-color: var(--vent, #52a464); }
+        .quick-card.vent i { background: #edf8f0; color: var(--vent, #52a464); }
+        .quick-card.manual { border-left-color: var(--neutral, #6d5b86); }
+        .quick-card.manual i { background: #f0edf5; color: var(--neutral, #6d5b86); }
         .section-head {
             display: flex;
             align-items: baseline;
@@ -447,6 +489,7 @@
             .now-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .now-card { min-height: 8.2rem; }
             .health-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .quick-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .fan-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         }
@@ -556,6 +599,25 @@
             {% else %}
             <div class="empty">Ingen 5-minuttersmåling er logget ennå.</div>
             {% endif %}
+        </section>
+
+        <section class="quick-grid" aria-label="Hurtigvalg">
+            <a class="quick-card" href="/status/dagslinje">
+                <div><strong>Dagslinje</strong><span>Se lys og ventilasjon samlet.</span></div>
+                <i aria-hidden="true">↗</i>
+            </a>
+            <a class="quick-card light" href="/lys/dagslogg-lux?compare_previous=1">
+                <div><strong>Lux mot i går</strong><span>Sammenlign lysnivå dag for dag.</span></div>
+                <i aria-hidden="true">☀</i>
+            </a>
+            <a class="quick-card vent" href="/ventilasjon/dagslogg-temp">
+                <div><strong>Temperatur</strong><span>Se temperaturer og vifteendringer.</span></div>
+                <i aria-hidden="true">°</i>
+            </a>
+            <a class="quick-card manual" href="/static/manualer/sun2_driftsmanual.pdf">
+                <div><strong>Manual</strong><span>Åpne sluttbrukerveiledningen.</span></div>
+                <i aria-hidden="true">?</i>
+            </a>
         </section>
 
         <section class="section vent-section">

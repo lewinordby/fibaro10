@@ -112,6 +112,7 @@
         {% if is_account %}
         <div class="nav-row nav-sub" aria-label="Undermeny for konto">
             <a class="button {% if current_path == '/konto/oversikt' %}active{% endif %}" href="/konto/oversikt">Oversikt</a>
+            <a class="button" href="/static/manualer/sun2_driftsmanual.pdf">Manual</a>
             {% if request.state.auth_is_master %}
             <a class="button {% if current_path == '/konto/brukere-og-tilgang' %}active{% endif %}" href="/konto/brukere-og-tilgang">Brukere</a>
             {% endif %}
