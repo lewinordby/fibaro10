@@ -538,7 +538,10 @@ code {
 }
 
 .app-nav .nav-main {
+    display: flex;
+    flex-wrap: wrap;
     gap: 0.25rem;
+    justify-content: center;
     padding-bottom: 0.35rem;
     border-bottom: 1px solid var(--line-soft);
 }
@@ -577,7 +580,9 @@ code {
 }
 
 .app-nav .nav-main .button {
+    width: 5.2rem !important;
     min-height: 2.36rem;
+    padding: 0;
 }
 
 .app-nav .nav-main .nav-account {
@@ -587,6 +592,17 @@ code {
     background: var(--admin-soft) !important;
     color: var(--admin-color) !important;
     border-color: var(--admin-border) !important;
+}
+
+.app-nav .nav-icon {
+    width: 1.22rem;
+    height: 1.22rem;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .app-nav .button.disabled {
@@ -864,7 +880,7 @@ svg {
 
 @media (min-width: 680px) {
     .app-nav .nav-main {
-        grid-template-columns: repeat(6, minmax(0, 1fr)) 2.62rem;
+        justify-content: center;
     }
 
 }
@@ -915,42 +931,13 @@ svg {
     }
 
     .app-nav .nav-main {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) 2.62rem;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
-    .app-nav .nav-main .nav-status {
-        grid-column: 1;
-        grid-row: 1;
-    }
-
-    .app-nav .nav-main .nav-light {
-        grid-column: 2;
-        grid-row: 1;
-    }
-
-    .app-nav .nav-main .nav-vent {
-        grid-column: 1;
-        grid-row: 2;
-    }
-
-    .app-nav .nav-main .nav-cleaning {
-        grid-column: 2;
-        grid-row: 2;
-    }
-
-    .app-nav .nav-main .nav-sun2 {
-        grid-column: 1;
-        grid-row: 3;
-    }
-
-    .app-nav .nav-main .nav-energy {
-        grid-column: 2;
-        grid-row: 3;
-    }
-
+    .app-nav .nav-main .button,
     .app-nav .nav-main .nav-account {
-        grid-column: 3;
-        grid-row: 1;
+        width: 100% !important;
     }
 
     .panel,
