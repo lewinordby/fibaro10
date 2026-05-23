@@ -4,3 +4,5 @@ __pycache__/
 roborock_output/
 roborock_logger/.env
 roborock_logger/data/
+sun2_session_scraper/.env
+sun2_session_scraper/data/

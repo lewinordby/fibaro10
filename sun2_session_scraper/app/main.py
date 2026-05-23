@@ -1,0 +1,643 @@
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import json
+import os
+import re
+import time
+import urllib.error
+import urllib.request
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from playwright.sync_api import TimeoutError as PwTimeoutError
+from playwright.sync_api import sync_playwright
+
+try:
+    from zoneinfo import ZoneInfo
+except Exception:  # pragma: no cover
+    ZoneInfo = None  # type: ignore
+
+
+load_dotenv()
+
+
+def env_value(name: str, default: str | None = None) -> str | None:
+    return os.getenv(name) or os.getenv(name.lower()) or default
+
+
+def env_required(name: str) -> str:
+    value = (env_value(name, "") or "").strip()
+    if not value:
+        raise RuntimeError(f"Mangler env var: {name}")
+    return value
+
+
+def timezone_name() -> str:
+    return env_value("TZ", "Europe/Oslo") or "Europe/Oslo"
+
+
+def local_now() -> datetime:
+    if ZoneInfo is None:
+        return datetime.now()
+    return datetime.now(ZoneInfo(timezone_name()))
+
+
+def local_today() -> date:
+    return local_now().date()
+
+
+BASE_URL = env_value("BASE_URL", "https://sun2owner.repayal.com") or "https://sun2owner.repayal.com"
+LIST_URL = (env_value("LIST_URL", "") or "").strip()
+NAVIGATION_LABELS = [part.strip() for part in (env_value("NAVIGATION_LABELS", "Statistikk|Bruker|Liste") or "").split("|") if part.strip()]
+OUT_DIR = Path(env_value("OUT_DIR", "/data/session_exports") or "/data/session_exports")
+ERROR_DIR = Path(env_value("ERROR_DIR", "/data/session_errors") or "/data/session_errors")
+STATUS_FILE = Path(env_value("STATUS_FILE", "/data/session_scraper_status.json") or "/data/session_scraper_status.json")
+PAUSE_SECONDS = float(env_value("PAUSE_SECONDS", "2") or "2")
+SKIP_EXISTING = (env_value("SKIP_EXISTING", "1") or "1") == "1"
+AUTO_START = (env_value("AUTO_START", "0") or "0") == "1"
+POST_TO_FIBARO10 = (env_value("POST_TO_FIBARO10", "0") or "0") == "1"
+FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "https://fibaro10.onrender.com") or "").rstrip("/")
+FIBARO10_API_USERNAME = env_value("FIBARO10_API_USERNAME", "") or ""
+FIBARO10_API_PASSWORD = env_value("FIBARO10_API_PASSWORD", "") or ""
+COLLECTOR_ID = env_value("COLLECTOR_ID", "qnap-sun2-session-scraper") or "qnap-sun2-session-scraper"
+
+app = FastAPI(title="Sun2_session_scraper")
+task: asyncio.Task | None = None
+stop_requested = False
+
+state: dict[str, Any] = {
+    "started_at": datetime.utcnow().isoformat(),
+    "running": False,
+    "stop_requested": False,
+    "last_error": None,
+    "last_action": None,
+    "last_period": None,
+    "last_success_period": None,
+    "last_success_at": None,
+    "created_files": 0,
+    "posted_files": 0,
+    "skipped_files": 0,
+    "failed": 0,
+    "rows_last_file": 0,
+    "current_file": None,
+    "range": {},
+}
+
+
+def parse_date(value: str | None, default: date) -> date:
+    if not value:
+        return default
+    return date.fromisoformat(value.strip())
+
+
+def month_start(day: date) -> date:
+    return day.replace(day=1)
+
+
+def next_month(day: date) -> date:
+    return (day.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+
+def month_end(day: date) -> date:
+    return next_month(day) - timedelta(days=1)
+
+
+def iter_month_ranges(start: date, end: date):
+    current = month_start(start)
+    while current <= end:
+        yield max(start, current), min(end, month_end(current))
+        current = next_month(current)
+
+
+def filename_for(start: date) -> str:
+    return f"Sun2_sessions_{start:%Y-%m}.json"
+
+
+def load_progress() -> dict[str, Any]:
+    if not STATUS_FILE.exists():
+        return {}
+    try:
+        return json.loads(STATUS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_progress(extra: dict[str, Any]) -> None:
+    STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    payload = {**state, **extra, "saved_at": datetime.utcnow().isoformat()}
+    STATUS_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+
+
+def normalize_text(value: Any) -> str:
+    text = str(value or "").replace("\xa0", " ").strip()
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def normalize_key(value: Any) -> str:
+    text = normalize_text(value).lower()
+    replacements = str.maketrans({
+        "\u00e6": "a",
+        "\u00f8": "o",
+        "\u00e5": "a",
+        "\u00e4": "a",
+        "\u00f6": "o",
+        "\u00fc": "u",
+        "\u00e9": "e",
+        "\u00e8": "e",
+    })
+    return re.sub(r"[^a-z0-9]+", "_", text.translate(replacements)).strip("_")
+
+
+def parse_number(value: Any) -> float | None:
+    text = normalize_text(value)
+    if not text:
+        return None
+    match = re.search(r"-?\d+(?:[.,]\d+)?", text.replace(" ", ""))
+    if not match:
+        return None
+    try:
+        return float(match.group(0).replace(",", "."))
+    except ValueError:
+        return None
+
+
+def parse_datetime_guess(value: Any, fallback_day: date) -> datetime | None:
+    text = normalize_text(value)
+    if not text:
+        return None
+    for pattern in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d.%m.%Y %H:%M:%S", "%d.%m.%Y %H:%M"):
+        try:
+            return datetime.strptime(text[: len(pattern)], pattern)
+        except ValueError:
+            pass
+    match = re.search(r"(\d{1,2})[./-](\d{1,2})[./-](\d{2,4}).*?(\d{1,2}):(\d{2})", text)
+    if match:
+        day, month, year, hour, minute = [int(part) for part in match.groups()]
+        if year < 100:
+            year += 2000
+        return datetime(year, month, day, hour, minute)
+    match = re.search(r"(\d{1,2}):(\d{2})", text)
+    if match:
+        hour, minute = [int(part) for part in match.groups()]
+        return datetime(fallback_day.year, fallback_day.month, fallback_day.day, hour, minute)
+    return None
+
+
+def pick(row: dict[str, str], *keywords: str) -> str:
+    normalized_keywords = [normalize_key(keyword) for keyword in keywords]
+    for key, value in row.items():
+        nkey = normalize_key(key)
+        if any(keyword in nkey for keyword in normalized_keywords):
+            return value
+    return ""
+
+
+def pick_identifier(row: dict[str, str]) -> str:
+    exact_keys = {"id", "nr", "nummer", "ordre_id", "booking_id", "transaksjon_id", "kvittering"}
+    for key, value in row.items():
+        if normalize_key(key) in exact_keys:
+            return value
+    return pick(row, "ordre", "transaksjon", "booking", "kvittering", "session")
+
+
+def row_hash(row: dict[str, Any]) -> str:
+    data = json.dumps(row, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha1(data.encode("utf-8")).hexdigest()
+
+
+def room_key_from_name(value: str) -> str:
+    text = normalize_text(value)
+    match = re.search(r"\brom\s*0*(\d+)\b", text, re.IGNORECASE)
+    if match:
+        return f"rom_{int(match.group(1)):02d}"
+    return normalize_key(text) or "ukjent_rom"
+
+
+def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, Any] | None:
+    started_text = pick(raw, "start", "tidspunkt", "dato", "siste soling", "time")
+    if not started_text:
+        started_text = next((value for value in raw.values() if parse_datetime_guess(value, fallback_day)), "")
+    started_at = parse_datetime_guess(started_text, fallback_day)
+    if not started_at:
+        return None
+
+    duration = parse_number(pick(raw, "varighet", "soltid", "minutter", "min"))
+    paid = parse_number(pick(raw, "betalt", "pris", "belop", "inntjent", "kr"))
+    room = pick(raw, "rom", "seng", "bed", "solarium")
+    user_name = pick(raw, "bruker", "kunde", "navn", "medlem")
+    user_identifier = pick(raw, "kunde id", "bruker id", "medlemsnummer", "telefon", "epost", "email")
+    status = pick(raw, "status", "resultat", "betaling")
+    customer_type = pick(raw, "kundetype", "type", "medlemstype")
+    ended_at = None
+    if duration is not None:
+        ended_at = started_at + timedelta(minutes=duration)
+
+    source_id = pick_identifier(raw)
+    if not source_id:
+        source_id = row_hash({"started_at": started_at.isoformat(), "room": room, "user": user_name, "duration": duration, "paid": paid, "raw": raw})
+
+    return {
+        "source_session_id": normalize_text(source_id),
+        "started_at": started_at.isoformat(),
+        "ended_at": ended_at.isoformat() if ended_at else None,
+        "stat_date": started_at.date().isoformat(),
+        "room": normalize_text(room) or None,
+        "room_key": room_key_from_name(room) if room else None,
+        "source_room_name": normalize_text(room) or None,
+        "user_name": normalize_text(user_name) or None,
+        "user_identifier": normalize_text(user_identifier) or None,
+        "customer_type": normalize_text(customer_type) or None,
+        "duration_minutes": duration,
+        "paid_amount_kr": paid,
+        "status": normalize_text(status) or None,
+        "raw": raw,
+    }
+
+
+def login_if_needed(page, username: str, password: str) -> None:
+    if page.locator("#password").count() == 0 and page.locator("input[type='password']").count() == 0:
+        return
+    if page.locator("#username").count() > 0:
+        page.locator("#username").fill(username)
+    else:
+        page.locator("input[name='username'], input[type='text'], input[type='email']").first.fill(username)
+    if page.locator("#password").count() > 0:
+        page.locator("#password").fill(password)
+    else:
+        page.locator("input[name='password'], input[type='password']").first.fill(password)
+    if page.locator("#login-action").count() > 0:
+        page.locator("#login-action").click()
+    elif page.get_by_text("Logg inn").count() > 0:
+        page.get_by_text("Logg inn").first.click()
+    else:
+        page.locator("button[type='submit'], input[type='submit']").first.click()
+    try:
+        page.wait_for_load_state("networkidle", timeout=15000)
+    except PwTimeoutError:
+        pass
+
+
+def click_text_if_present(page, text: str) -> bool:
+    candidates = [
+        page.get_by_role("link", name=re.compile(re.escape(text), re.I)),
+        page.get_by_role("button", name=re.compile(re.escape(text), re.I)),
+        page.get_by_text(re.compile(re.escape(text), re.I)),
+    ]
+    for candidate in candidates:
+        try:
+            if candidate.count() > 0:
+                candidate.first.click(timeout=5000)
+                try:
+                    page.wait_for_load_state("networkidle", timeout=10000)
+                except PwTimeoutError:
+                    pass
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def open_sessions_page(page, username: str, password: str) -> None:
+    page.goto(LIST_URL or BASE_URL, wait_until="domcontentloaded")
+    login_if_needed(page, username, password)
+    if LIST_URL:
+        return
+    for label in NAVIGATION_LABELS:
+        click_text_if_present(page, label)
+
+
+def set_date_range(page, start: date, end: date) -> None:
+    iso_start, iso_end = start.isoformat(), end.isoformat()
+    no_start, no_end = start.strftime("%d.%m.%Y"), end.strftime("%d.%m.%Y")
+    inputs = page.locator("input")
+    count = inputs.count()
+    date_like_indexes: list[int] = []
+    for index in range(count):
+        field = inputs.nth(index)
+        try:
+            attrs = " ".join(
+                normalize_key(field.get_attribute(attr) or "")
+                for attr in ["id", "name", "placeholder", "aria-label", "class", "type"]
+            )
+            if "date" in attrs or "dato" in attrs or "start" in attrs or "from" in attrs or "fra" in attrs or "end" in attrs or "slutt" in attrs or "til" in attrs:
+                date_like_indexes.append(index)
+            if any(key in attrs for key in ["start", "from", "fra", "startdate"]):
+                field.fill(iso_start if (field.get_attribute("type") or "").lower() == "date" else no_start, timeout=3000)
+            elif any(key in attrs for key in ["end", "to", "til", "slutt", "enddate"]):
+                field.fill(iso_end if (field.get_attribute("type") or "").lower() == "date" else no_end, timeout=3000)
+        except Exception:
+            continue
+
+    if len(date_like_indexes) >= 2:
+        first = inputs.nth(date_like_indexes[0])
+        second = inputs.nth(date_like_indexes[1])
+        try:
+            first.fill(iso_start if (first.get_attribute("type") or "").lower() == "date" else no_start, timeout=3000)
+            second.fill(iso_end if (second.get_attribute("type") or "").lower() == "date" else no_end, timeout=3000)
+        except Exception:
+            pass
+
+    for label in ["Vis", "Søk", "Sok", "Filter", "Oppdater", "Search", "Show"]:
+        if click_text_if_present(page, label):
+            return
+    try:
+        page.keyboard.press("Enter")
+        page.wait_for_load_state("networkidle", timeout=10000)
+    except Exception:
+        pass
+
+
+def extract_largest_table(page) -> tuple[list[str], list[dict[str, str]]]:
+    tables = page.locator("table")
+    table_count = tables.count()
+    best: tuple[list[str], list[dict[str, str]]] = ([], [])
+    for index in range(table_count):
+        table = tables.nth(index)
+        data = table.evaluate(
+            """
+            table => {
+              const rows = Array.from(table.querySelectorAll('tr')).map(tr =>
+                Array.from(tr.children).map(td => (td.innerText || '').trim())
+              ).filter(row => row.some(Boolean));
+              let headers = Array.from(table.querySelectorAll('thead th')).map(th => (th.innerText || '').trim());
+              let bodyRows = rows;
+              if (!headers.length && rows.length) {
+                headers = rows[0];
+                bodyRows = rows.slice(1);
+              }
+              if (!headers.length && bodyRows.length) {
+                headers = bodyRows[0].map((_, i) => `Kolonne ${i + 1}`);
+              }
+              return {headers, rows: bodyRows};
+            }
+            """
+        )
+        headers = [normalize_text(header) or f"Kolonne {i + 1}" for i, header in enumerate(data.get("headers") or [])]
+        rows = []
+        for raw_row in data.get("rows") or []:
+            row = {headers[i] if i < len(headers) else f"Kolonne {i + 1}": normalize_text(value) for i, value in enumerate(raw_row)}
+            if any(row.values()):
+                rows.append(row)
+        if len(rows) > len(best[1]):
+            best = (headers, rows)
+    return best
+
+
+def save_debug(page, filename: str) -> None:
+    ERROR_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        (ERROR_DIR / f"{filename}.html").write_text(page.content(), encoding="utf-8")
+    except Exception:
+        pass
+    try:
+        page.screenshot(path=str(ERROR_DIR / f"{filename}.png"), full_page=True)
+    except Exception:
+        pass
+
+
+def post_to_fibaro10(payload: dict[str, Any]) -> dict[str, Any]:
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(
+        f"{FIBARO10_API_BASE_URL}/api/sun2/sessions/ingest",
+        data=data,
+        method="POST",
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "User-Agent": "Sun2_session_scraper/1.0",
+            "x-access-username": FIBARO10_API_USERNAME,
+            "x-access-password": FIBARO10_API_PASSWORD,
+        },
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        body = response.read().decode("utf-8")
+        return json.loads(body) if body else {"status": response.status}
+
+
+def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
+    username = env_required("SUN2_USERNAME")
+    password = env_required("SUN2_PASSWORD")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    ERROR_DIR.mkdir(parents=True, exist_ok=True)
+    filename = filename_for(start)
+    out_path = OUT_DIR / filename
+    state.update({"last_period": f"{start.isoformat()} - {end.isoformat()}", "current_file": filename, "rows_last_file": 0})
+
+    period_is_still_open = end >= local_today()
+    if SKIP_EXISTING and out_path.exists() and not period_is_still_open:
+        state["skipped_files"] += 1
+        state["last_success_period"] = state["last_period"]
+        save_progress({"last_action": "skipped_existing"})
+        return {"ok": True, "skipped": True, "file": filename, "rows": 0}
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(locale="nb-NO", accept_downloads=True)
+        page = context.new_page()
+        open_sessions_page(page, username, password)
+        set_date_range(page, start, end)
+        headers, table_rows = extract_largest_table(page)
+        sessions = [item for item in (normalize_session_row(row, start) for row in table_rows) if item]
+        if not sessions:
+            save_debug(page, f"NO_ROWS_{start:%Y_%m}")
+        payload = {
+            "source": "sun2_session_scraper",
+            "collector_id": COLLECTOR_ID,
+            "timestamp": datetime.utcnow().isoformat(),
+            "ok": True,
+            "source_file": filename,
+            "message": f"Skrapet {start.isoformat()} til {end.isoformat()}",
+            "rows": sessions,
+            "extra": {
+                "period_start": start.isoformat(),
+                "period_end": end.isoformat(),
+                "headers": headers,
+                "raw_rows": len(table_rows),
+                "list_url": page.url,
+            },
+        }
+        tmp_path = out_path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        tmp_path.replace(out_path)
+        response = None
+        if POST_TO_FIBARO10 and sessions:
+            response = post_to_fibaro10(payload)
+            state["posted_files"] += 1
+        context.close()
+        browser.close()
+
+    state["created_files"] += 1
+    state["rows_last_file"] = len(sessions)
+    state["last_success_period"] = state["last_period"]
+    state["last_success_at"] = datetime.utcnow().isoformat()
+    state["last_error"] = None
+    save_progress({"last_action": "created", "fibaro10_response": response})
+    return {"ok": True, "file": filename, "rows": len(sessions), "posted": bool(response), "fibaro10_response": response}
+
+
+def start_date_from_progress(config_start: date) -> date:
+    progress = load_progress()
+    last_period = progress.get("last_success_period") or ""
+    match = re.search(r"(\d{4}-\d{2}-\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})", last_period)
+    if not match:
+        return config_start
+    try:
+        next_day = date.fromisoformat(match.group(2)) + timedelta(days=1)
+        return max(config_start, next_day)
+    except ValueError:
+        return config_start
+
+
+def run_range_sync() -> None:
+    global stop_requested
+    try:
+        configured_start = parse_date(env_value("START_DATE"), local_today().replace(day=1))
+        end = parse_date(env_value("END_DATE"), local_today())
+        start = start_date_from_progress(configured_start)
+        state.update(
+            {
+                "running": True,
+                "stop_requested": False,
+                "last_error": None,
+                "range": {"start": start.isoformat(), "end": end.isoformat(), "configured_start": configured_start.isoformat()},
+            }
+        )
+        save_progress({})
+        for period_start, period_end in iter_month_ranges(start, end):
+            if stop_requested:
+                state["stop_requested"] = True
+                break
+            try:
+                scrape_month_sync(period_start, period_end)
+            except Exception as exc:
+                state["failed"] += 1
+                state["last_error"] = f"{period_start:%Y-%m}: {exc}"
+                save_progress({"last_action": "failed"})
+            if PAUSE_SECONDS > 0:
+                time.sleep(PAUSE_SECONDS)
+    except Exception as exc:
+        state["last_error"] = str(exc)
+        save_progress({"last_action": "fatal_error"})
+    finally:
+        state["running"] = False
+        state["current_file"] = None
+        save_progress({"last_action": "stopped" if stop_requested else "finished"})
+        stop_requested = False
+
+
+async def ensure_task_started() -> bool:
+    global task, stop_requested
+    if task and not task.done():
+        return False
+    stop_requested = False
+    task = asyncio.create_task(asyncio.to_thread(run_range_sync))
+    return True
+
+
+@app.on_event("startup")
+async def startup() -> None:
+    progress = load_progress()
+    if progress:
+        state.update({key: value for key, value in progress.items() if key in state})
+    if AUTO_START:
+        await ensure_task_started()
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    status_class = "ok" if not state.get("last_error") else "bad"
+    html = f"""
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sun2 enkeltimer</title>
+<style>
+body{{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;background:#eef2f6;color:#17202a}}
+main{{max-width:980px;margin:0 auto;padding:1rem}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.7rem}}
+.card{{background:white;border:1px solid #d8dee4;border-radius:10px;padding:1rem;margin:.75rem 0;box-shadow:0 2px 10px rgba(0,0,0,.06)}}
+.metric{{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:.75rem}}
+.metric span{{display:block;color:#667085;font-size:.78rem}}
+.metric strong{{display:block;margin-top:.2rem;font-size:1.05rem}}
+.ok{{color:#16803c;font-weight:750}}.bad{{color:#b42318;font-weight:750}}
+button{{border:0;border-radius:8px;background:#4b86c2;color:white;padding:.65rem .9rem;font-weight:750;margin-right:.4rem}}
+.stop{{background:#b42318}} pre{{white-space:pre-wrap;background:#0f172a;color:#e5e7eb;border-radius:8px;padding:.75rem;overflow:auto}}
+input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-right:.35rem}}
+</style></head>
+<body><main>
+<h1>Sun2 enkeltimer</h1>
+<section class="card grid">
+<div class="metric"><span>Status</span><strong class="{status_class}">{'Kjører' if state.get('running') else ('Feil' if state.get('last_error') else 'Klar')}</strong></div>
+<div class="metric"><span>Periode</span><strong>{state.get('last_period') or '-'}</strong></div>
+<div class="metric"><span>Siste OK</span><strong>{state.get('last_success_period') or '-'}</strong></div>
+<div class="metric"><span>Filer</span><strong>{state.get('created_files', 0)}</strong></div>
+<div class="metric"><span>Postet</span><strong>{state.get('posted_files', 0)}</strong></div>
+<div class="metric"><span>Siste rader</span><strong>{state.get('rows_last_file', 0)}</strong></div>
+</section>
+<section class="card">
+<form method="post" action="/start" style="display:inline"><button type="submit">Start range</button></form>
+<form method="post" action="/stop" style="display:inline"><button class="stop" type="submit">Stopp</button></form>
+<form method="post" action="/sync-current-month" style="display:inline"><button type="submit">Denne måneden</button></form>
+</section>
+<section class="card">
+<form method="post" action="/sync-month">
+<input name="year" type="number" min="2017" max="2100" value="{local_today().year}">
+<input name="month" type="number" min="1" max="12" value="{local_today().month}">
+<button type="submit">Kjør valgt måned</button>
+</form>
+</section>
+<section class="card"><pre>{json.dumps(state, ensure_ascii=False, indent=2)}</pre></section>
+</main></body></html>
+"""
+    return HTMLResponse(html)
+
+
+@app.post("/start")
+async def start():
+    await ensure_task_started()
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/stop")
+async def stop():
+    global stop_requested
+    stop_requested = True
+    state["stop_requested"] = True
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/sync-current-month")
+async def sync_current_month():
+    today = local_today()
+    start = today.replace(day=1)
+    end = today
+    result = await asyncio.to_thread(scrape_month_sync, start, end)
+    return JSONResponse({"status": "ok", "result": result, "state": state})
+
+
+@app.post("/sync-month")
+async def sync_month(request: Request, year: int | None = Query(None), month: int | None = Query(None)):
+    if year is None or month is None:
+        body = (await request.body()).decode("utf-8")
+        from urllib.parse import parse_qs
+
+        form = parse_qs(body)
+        year = int((form.get("year") or [local_today().year])[0])
+        month = int((form.get("month") or [local_today().month])[0])
+    start = date(year, month, 1)
+    end = min(month_end(start), local_today())
+    result = await asyncio.to_thread(scrape_month_sync, start, end)
+    return JSONResponse({"status": "ok", "result": result, "state": state})
+
+
+@app.get("/json")
+async def json_status():
+    return JSONResponse(state)

@@ -714,6 +714,51 @@ class Sun2ImportRun(Base):
     raw = Column(JSON, nullable=True)
 
 
+class Sun2TanningSession(Base):
+    __tablename__ = "sun2_tanning_sessions"
+    __table_args__ = (
+        UniqueConstraint("source", "source_session_id", name="uq_sun2_session_source_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_session_id = Column(String, index=True, nullable=False)
+    started_at = Column(DateTime, index=True, nullable=False)
+    ended_at = Column(DateTime, index=True, nullable=True)
+    stat_date = Column(Date, index=True, nullable=False)
+    room_key = Column(String, index=True, nullable=True)
+    room = Column(String, index=True, nullable=True)
+    source_room_name = Column(String, nullable=True)
+    user_name = Column(String, index=True, nullable=True)
+    user_identifier = Column(String, index=True, nullable=True)
+    customer_type = Column(String, index=True, nullable=True)
+    duration_minutes = Column(Float, nullable=True)
+    paid_amount_kr = Column(Float, nullable=True)
+    status = Column(String, index=True, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    source_file = Column(String, index=True, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, index=True)
+    raw = Column(JSON, nullable=True)
+
+
+class Sun2SessionImportRun(Base):
+    __tablename__ = "sun2_session_import_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    collector_id = Column(String, index=True, nullable=True)
+    source = Column(String, nullable=True)
+    ok = Column(Boolean, nullable=True)
+    source_file = Column(String, index=True, nullable=True)
+    period_first = Column(DateTime, index=True, nullable=True)
+    period_last = Column(DateTime, index=True, nullable=True)
+    rows_count = Column(Integer, nullable=True)
+    inserted_count = Column(Integer, nullable=True)
+    updated_count = Column(Integer, nullable=True)
+    skipped_count = Column(Integer, nullable=True)
+    message = Column(Text, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
 class EnergyHourlyConsumption(Base):
     __tablename__ = "energy_hourly_consumption"
     __table_args__ = (UniqueConstraint("meter_id", "measured_at", name="uq_energy_hourly_meter_time"),)
@@ -934,6 +979,34 @@ class Sun2RoomStatsIngestIn(BaseModel):
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
+class Sun2TanningSessionIn(BaseModel):
+    source_session_id: str
+    started_at: datetime
+    ended_at: Optional[datetime] = None
+    stat_date: Optional[date] = None
+    room: Optional[str] = None
+    room_key: Optional[str] = None
+    source_room_name: Optional[str] = None
+    user_name: Optional[str] = None
+    user_identifier: Optional[str] = None
+    customer_type: Optional[str] = None
+    duration_minutes: Optional[float] = None
+    paid_amount_kr: Optional[float] = None
+    status: Optional[str] = None
+    raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Sun2TanningSessionsIngestIn(BaseModel):
+    source: str = "sun2_session_scraper"
+    collector_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    ok: bool = True
+    source_file: Optional[str] = None
+    message: Optional[str] = None
+    rows: list[Sun2TanningSessionIn] = Field(default_factory=list)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
 LIGHT_COLUMNS = [
     "id", "timestamp", "event_type", "action", "device_key", "device_id", "device_name",
     "mode", "reason", "source", "lux", "value", "state", "extra",
@@ -1019,6 +1092,19 @@ SUN2_IMPORT_COLUMNS = [
     "rows_count", "inserted_count", "updated_count", "message", "raw",
 ]
 
+SUN2_SESSION_COLUMNS = [
+    "id", "source_session_id", "started_at", "ended_at", "stat_date", "room_key",
+    "room", "source_room_name", "user_name", "user_identifier", "customer_type",
+    "duration_minutes", "paid_amount_kr", "status", "source", "source_file",
+    "imported_at", "raw",
+]
+
+SUN2_SESSION_IMPORT_COLUMNS = [
+    "id", "timestamp", "collector_id", "source", "ok", "source_file",
+    "period_first", "period_last", "rows_count", "inserted_count", "updated_count",
+    "skipped_count", "message", "raw",
+]
+
 ENERGY_HOURLY_COLUMNS = [
     "id", "meter_id", "measured_at", "stat_date", "year", "month", "day", "hour",
     "consumption_kwh", "production_kwh", "status", "is_verified", "is_estimated",
@@ -1042,6 +1128,13 @@ AI_DATASETS = {
         "description": "SUN2-statistikk med soltid, antall solinger og inntjent beløp per rom og dato.",
         "columns": SUN2_ROOM_COLUMNS,
         "time_column": "stat_date",
+    },
+    "soling_sessions": {
+        "table": "sun2_tanning_sessions",
+        "title": "Enkelt-solinger",
+        "description": "En rad per soltime/soling hentet fra SUN2 owner, med starttid, rom, bruker, varighet og betalt belop.",
+        "columns": SUN2_SESSION_COLUMNS,
+        "time_column": "started_at",
     },
     "energy_hourly": {
         "table": "energy_hourly_consumption",
@@ -4105,6 +4198,56 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
     return {"inserted": inserted, "updated": updated}
 
 
+async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestIn, batch_time: datetime) -> Dict[str, int]:
+    inserted = 0
+    updated = 0
+    skipped = 0
+    source = data.source or "sun2_session_scraper"
+
+    for row in data.rows:
+        source_session_id = (repair_mojibake(row.source_session_id) or "").strip()
+        if not source_session_id or not row.started_at:
+            skipped += 1
+            continue
+        source_room_name = (repair_mojibake(row.source_room_name or row.room) or "").strip()
+        room = (repair_mojibake(row.room) or source_room_name).strip()
+        room_key = (repair_mojibake(row.room_key) or room_key_from_name(source_room_name) or room_key_from_name(room) or "").strip()
+        stat_date = row.stat_date or row.started_at.date()
+
+        existing = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .where(Sun2TanningSession.source == source)
+                .where(Sun2TanningSession.source_session_id == source_session_id)
+            )
+        ).scalars().first()
+
+        if not existing:
+            existing = Sun2TanningSession(source=source, source_session_id=source_session_id)
+            session.add(existing)
+            inserted += 1
+        else:
+            updated += 1
+
+        existing.started_at = row.started_at
+        existing.ended_at = row.ended_at
+        existing.stat_date = stat_date
+        existing.room_key = room_key or None
+        existing.room = room or None
+        existing.source_room_name = source_room_name or None
+        existing.user_name = (repair_mojibake(row.user_name) or "").strip() or None
+        existing.user_identifier = (repair_mojibake(row.user_identifier) or "").strip() or None
+        existing.customer_type = (repair_mojibake(row.customer_type) or "").strip() or None
+        existing.duration_minutes = row.duration_minutes
+        existing.paid_amount_kr = row.paid_amount_kr
+        existing.status = (repair_mojibake(row.status) or "").strip() or None
+        existing.source_file = data.source_file
+        existing.imported_at = batch_time
+        existing.raw = row.raw or {}
+
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
+
+
 async def ingest_elvia_hours(session, parsed: Dict[str, Any], batch_time: datetime) -> Dict[str, int]:
     rows = parsed["rows"]
     if not rows:
@@ -4555,7 +4698,8 @@ async def health():
             "yr_forecast_samples", "control_configs", "control_config_history", "event_data",
             "roborock_robots", "roborock_status_samples", "roborock_clean_jobs",
             "roborock_schedules", "roborock_consumables", "roborock_maps",
-            "sun2_room_daily_stats", "sun2_import_runs", "energy_hourly_consumption",
+            "sun2_room_daily_stats", "sun2_import_runs", "sun2_tanning_sessions",
+            "sun2_session_import_runs", "energy_hourly_consumption",
             "energy_import_runs", "ai_query_logs",
         ],
     }
@@ -5363,6 +5507,35 @@ async def sun2_room_stats_ingest(data: Sun2RoomStatsIngestIn):
     return {"status": "ok", **counts, "rows": len(data.rows)}
 
 
+@app.post("/api/sun2/sessions/ingest")
+async def sun2_sessions_ingest(data: Sun2TanningSessionsIngestIn):
+    batch_time = data.timestamp or datetime.utcnow()
+    period_first = min((row.started_at for row in data.rows if row.started_at), default=None)
+    period_last = max((row.started_at for row in data.rows if row.started_at), default=None)
+    async with async_session() as session:
+        counts = await ingest_sun2_tanning_sessions(session, data, batch_time)
+        session.add(
+            Sun2SessionImportRun(
+                timestamp=batch_time,
+                collector_id=data.collector_id,
+                source=data.source,
+                ok=data.ok,
+                source_file=data.source_file,
+                period_first=period_first,
+                period_last=period_last,
+                rows_count=len(data.rows),
+                inserted_count=counts["inserted"],
+                updated_count=counts["updated"],
+                skipped_count=counts["skipped"],
+                message=data.message,
+                raw={"extra": data.extra},
+            )
+        )
+        await session.commit()
+    clear_summary_cache("sun2_sessions")
+    return {"status": "ok", **counts, "rows": len(data.rows)}
+
+
 @app.get("/sun2/room-stats")
 async def sun2_room_stats_legacy_redirect():
     return RedirectResponse("/soling/detaljer", status_code=307)
@@ -5458,6 +5631,64 @@ async def sun2_room_stats_view(request: Request, limit: int = 150):
     )
 
 
+@app.get("/soling/enkeltimer", response_class=HTMLResponse)
+async def sun2_sessions_view(request: Request, limit: int = 250):
+    limit = max(1, min(limit, 2000))
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .order_by(Sun2TanningSession.started_at.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+        imports = (
+            await session.execute(
+                select(Sun2SessionImportRun)
+                .order_by(Sun2SessionImportRun.timestamp.desc())
+                .limit(25)
+            )
+        ).scalars().all()
+        total = (
+            await session.execute(
+                select(
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                    func.min(Sun2TanningSession.started_at).label("first_at"),
+                    func.max(Sun2TanningSession.started_at).label("last_at"),
+                )
+            )
+        ).mappings().first()
+        year_part = func.extract("year", Sun2TanningSession.stat_date)
+        month_part = func.extract("month", Sun2TanningSession.stat_date)
+        monthly = (
+            await session.execute(
+                select(
+                    year_part.label("year"),
+                    month_part.label("month"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                )
+                .group_by(year_part, month_part)
+                .order_by(year_part.desc(), month_part.desc())
+                .limit(36)
+            )
+        ).mappings().all()
+    return templates.TemplateResponse(
+        request,
+        "sun2_sessions.html",
+        {
+            "rows": rows,
+            "imports": imports,
+            "limit": limit,
+            "total": total or {},
+            "monthly": monthly,
+        },
+    )
+
+
 @app.get("/api/sun2/room-stats/json")
 async def sun2_room_stats_json(limit: int = 300):
     limit = max(1, min(limit, 5000))
@@ -5491,6 +5722,30 @@ async def sun2_room_stats_json(limit: int = 300):
         "first_date": summaries["first_date"],
         "last_date": summaries["last_date"],
         "total_rows": summaries["total_rows"],
+    }
+
+
+@app.get("/api/sun2/sessions/json")
+async def sun2_sessions_json(limit: int = 300):
+    limit = max(1, min(limit, 5000))
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .order_by(Sun2TanningSession.started_at.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+        imports = (
+            await session.execute(
+                select(Sun2SessionImportRun)
+                .order_by(Sun2SessionImportRun.timestamp.desc())
+                .limit(min(limit, 500))
+            )
+        ).scalars().all()
+    return {
+        "rows": [row_to_dict(row, SUN2_SESSION_COLUMNS) for row in rows],
+        "imports": [row_to_dict(row, SUN2_SESSION_IMPORT_COLUMNS) for row in imports],
     }
 
 

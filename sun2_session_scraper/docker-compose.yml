@@ -1,0 +1,11 @@
+services:
+  sun2_session_scraper:
+    build: .
+    container_name: sun2_session_scraper
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8098:8098"
+    volumes:
+      - ./data:/data

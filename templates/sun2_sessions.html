@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enkeltimer</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <style>
+        .page-title { margin:0 0 0.35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 0.9rem; color:var(--muted); font-size:0.88rem; }
+        .summary-grid { display:grid; gap:0.7rem; margin-bottom:0.95rem; }
+        .summary-card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:0.85rem; box-shadow:var(--shadow-1); min-height:80px; }
+        .summary-card span { color:var(--muted); font-size:0.78rem; }
+        .summary-card strong { display:block; margin-top:0.18rem; font-size:1.16rem; line-height:1.12; }
+        .summary-card small { display:block; margin-top:0.25rem; color:var(--muted); font-size:0.72rem; }
+        .section-title { margin:1rem 0 0.5rem; font-size:1rem; color:var(--brand-dark); }
+        .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin-top:1rem; }
+        .section-note { color:var(--muted); font-size:0.78rem; }
+        .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:980px; }
+        th, td { padding:0.58rem 0.65rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child, th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3) { text-align:left; }
+        th { color:var(--muted); font-size:0.76rem; font-weight:760; background:var(--panel-soft); }
+        td { font-size:0.88rem; }
+        tbody tr:last-child td { border-bottom:0; }
+        .period, .name { font-weight:760; color:var(--brand-dark); }
+        .money { font-weight:760; }
+        .ok { color:var(--on); font-weight:760; }
+        .bad { color:var(--off); font-weight:760; }
+        @media (min-width: 820px) {
+            .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        }
+    </style>
+</head>
+<body class="theme-sun2">
+    {% include "_header.html" %}
+    <main>
+        <h1 class="page-title">Enkeltimer</h1>
+        <p class="page-subtitle">
+            En rad per soling fra SUN2 Owner. Dette gir bedre grunnlag for bruksmønster, kundereiser og senere energi-/omsetningsanalyse.
+        </p>
+
+        <section class="summary-grid">
+            <div class="summary-card">
+                <span>Registrerte solinger</span>
+                <strong>{{ "{:,.0f}".format(total.sessions_count or 0).replace(",", " ") }}</strong>
+                <small>{% if total.first_at and total.last_at %}{{ total.first_at|localtime_short }} til {{ total.last_at|localtime_short }}{% else %}-{% endif %}</small>
+            </div>
+            <div class="summary-card">
+                <span>Soltid</span>
+                <strong>{{ "{:,.1f}".format((total.duration_minutes or 0) / 60).replace(",", " ") }} t</strong>
+                <small>{{ "{:,.0f}".format(total.duration_minutes or 0).replace(",", " ") }} minutter</small>
+            </div>
+            <div class="summary-card">
+                <span>Betalt</span>
+                <strong>{{ "{:,.0f}".format(total.paid_amount_kr or 0).replace(",", " ") }} kr</strong>
+                <small>Basert på enkeltlinjene</small>
+            </div>
+            <div class="summary-card">
+                <span>Siste import</span>
+                {% set latest_import = imports[0] if imports else None %}
+                <strong>{{ latest_import.timestamp|localtime_short if latest_import else "-" }}</strong>
+                <small>{{ latest_import.source_file if latest_import else "Ingen import ennå" }}</small>
+            </div>
+        </section>
+
+        <div class="section-row">
+            <h2 class="section-title">Siste måneder</h2>
+            <span class="section-note">{{ monthly|length }} perioder</span>
+        </div>
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Måned</th>
+                        <th>Solinger</th>
+                        <th>Timer</th>
+                        <th>Betalt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in monthly %}
+                    <tr>
+                        <td class="period">{{ "%04d-%02d"|format(item.year|int, item.month|int) }}</td>
+                        <td>{{ "{:,.0f}".format(item.sessions_count or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.1f}".format((item.duration_minutes or 0) / 60).replace(",", " ") }}</td>
+                        <td class="money">{{ "{:,.0f}".format(item.paid_amount_kr or 0).replace(",", " ") }} kr</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <div class="section-row">
+            <h2 class="section-title">Siste enkeltimer</h2>
+            <span class="section-note">Viser siste {{ rows|length }}</span>
+        </div>
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Start</th>
+                        <th>Rom</th>
+                        <th>Bruker</th>
+                        <th>Kunde</th>
+                        <th>Minutter</th>
+                        <th>Betalt</th>
+                        <th>Status</th>
+                        <th>Kilde</th>
+                        <th>Importert</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td class="period">{{ row.started_at|localtime }}</td>
+                        <td>{{ row.room or row.room_key or "-" }}</td>
+                        <td class="name">{{ row.user_name or "-" }}</td>
+                        <td>{{ row.customer_type or row.user_identifier or "-" }}</td>
+                        <td>{{ "%.1f"|format(row.duration_minutes or 0) }}</td>
+                        <td class="money">{{ "%.2f"|format(row.paid_amount_kr or 0) }} kr</td>
+                        <td>{{ row.status or "-" }}</td>
+                        <td>{{ row.source_file or row.source or "-" }}</td>
+                        <td>{{ row.imported_at|localtime_short }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <h2 class="section-title">Importer</h2>
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tid</th>
+                        <th>Fil</th>
+                        <th>Periode</th>
+                        <th>Status</th>
+                        <th>Rader</th>
+                        <th>Nye</th>
+                        <th>Oppdatert</th>
+                        <th>Hoppet over</th>
+                        <th>Melding</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in imports %}
+                    <tr>
+                        <td>{{ run.timestamp|localtime }}</td>
+                        <td>{{ run.source_file or "-" }}</td>
+                        <td>{{ run.period_first|localtime_short if run.period_first else "-" }} - {{ run.period_last|localtime_short if run.period_last else "-" }}</td>
+                        <td class="{% if run.ok %}ok{% else %}bad{% endif %}">{% if run.ok %}OK{% else %}Feil{% endif %}</td>
+                        <td>{{ run.rows_count or 0 }}</td>
+                        <td>{{ run.inserted_count or 0 }}</td>
+                        <td>{{ run.updated_count or 0 }}</td>
+                        <td>{{ run.skipped_count or 0 }}</td>
+                        <td>{{ run.message or "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>
