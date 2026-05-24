@@ -1788,6 +1788,59 @@ async def build_sun2_summaries_fast(session) -> Dict[str, Any]:
         weekly[iso_year_key][iso_week]["revenue"] += float_or_zero(item.get("totalt_inntjent_kr"))
         weekly[iso_year_key][iso_week]["count"] += int_or_zero(item.get("totalt_antall_solinger"))
 
+    latest_daily_date = last_date
+    session_filters = []
+    if latest_daily_date:
+        session_filters.append(Sun2TanningSession.stat_date > latest_daily_date)
+    customer_type = func.lower(func.coalesce(Sun2TanningSession.customer_type, ""))
+    is_member = customer_type.like("%medlem%") & ~customer_type.like("%ikke%")
+    live_session_query = (
+        select(
+            Sun2TanningSession.stat_date.label("stat_date"),
+            func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("total_soletid_minutter"),
+            func.count(Sun2TanningSession.id).label("totalt_antall_solinger"),
+            func.coalesce(func.sum(case((is_member, 1), else_=0)), 0).label("solinger_medlemmer"),
+            func.coalesce(func.sum(case((~is_member, 1), else_=0)), 0).label("solinger_ikke_medlemmer"),
+            func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("totalt_inntjent_kr"),
+            func.coalesce(func.sum(case((is_member, Sun2TanningSession.paid_amount_kr), else_=0)), 0).label("inntjent_medlemmer_kr"),
+            func.coalesce(func.sum(case((~is_member, Sun2TanningSession.paid_amount_kr), else_=0)), 0).label("inntjent_ikke_medlemmer_kr"),
+            func.count(Sun2TanningSession.id).label("rows_count"),
+            func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms_count"),
+        )
+        .group_by(Sun2TanningSession.stat_date)
+        .order_by(Sun2TanningSession.stat_date.desc())
+    )
+    if session_filters:
+        live_session_query = live_session_query.where(*session_filters)
+    live_session_rows = (await session.execute(live_session_query)).mappings().all()
+    for row in live_session_rows:
+        stat_date = row.get("stat_date")
+        if not stat_date:
+            continue
+        first_date = stat_date if first_date is None else min(first_date, stat_date)
+        last_date = stat_date if last_date is None else max(last_date, stat_date)
+        source = dict(row)
+        source["days_count"] = 1
+        item = finalized_sun2_aggregate(source, stat_date.isoformat(), stat_date.strftime("%d.%m.%Y"))
+        item["rows_count"] = int_or_zero(row.get("rows_count"))
+        daily_items.append(item)
+
+        month_key = stat_date.strftime("%Y-%m")
+        year_key = str(stat_date.year)
+        monthly.setdefault(month_key, empty_fast_sun2_summary(month_key))
+        yearly.setdefault(year_key, empty_fast_sun2_summary(year_key))
+        add_fast_sun2_summary(monthly[month_key], item)
+        add_fast_sun2_summary(yearly[year_key], item)
+        add_fast_sun2_summary(total, item)
+
+        iso_year, iso_week, _ = stat_date.isocalendar()
+        iso_year_key = str(iso_year)
+        weekly.setdefault(iso_year_key, {})
+        weekly[iso_year_key].setdefault(iso_week, {"revenue": 0.0, "count": 0})
+        weekly[iso_year_key][iso_week]["revenue"] += float_or_zero(item.get("totalt_inntjent_kr"))
+        weekly[iso_year_key][iso_week]["count"] += int_or_zero(item.get("totalt_antall_solinger"))
+
+    daily_items = sorted(daily_items, key=lambda item: item["period"], reverse=True)
     monthly_items = [monthly[key] for key in sorted(monthly, reverse=True)]
     yearly_items = [yearly[key] for key in sorted(yearly, reverse=True)]
     palette = ["#3f7fbd", "#df705d", "#52a464", "#726189", "#f2b84b", "#2f8fa3", "#8b5cf6", "#ef4444"]
