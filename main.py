@@ -6235,6 +6235,7 @@ async def import_status_view(request: Request):
         runs = (
             await session.execute(
                 select(ImportJobRun)
+                .where(ImportJobRun.job_name.in_(list(IMPORT_JOB_DEFINITIONS)))
                 .order_by(ImportJobRun.finished_at.desc())
                 .limit(80)
             )
