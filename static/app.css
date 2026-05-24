@@ -3811,3 +3811,404 @@ textarea:focus {
         height: 2.35rem !important;
     }
 }
+
+/* SUN2 Owner exact menu behavior. This is the final navigation layer. */
+:root {
+    --sun-owner-sidebar: 252px;
+    --sun-owner-sidebar-closed: 76px;
+    --sun-owner-header-mobile: 68px;
+    --sun-owner-blue: #5292d6;
+    --sun-owner-text: #444c58;
+    --sun-owner-muted: #5f6773;
+    --sun-owner-line: #e8e8e8;
+    --sun-owner-active-row: #f1f1f1;
+    --sun-owner-hover-row: #f7f8fa;
+}
+
+.nav-chevron {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    opacity: 0.82;
+}
+
+@media (min-width: 1020px) {
+    .site-header {
+        position: fixed !important;
+        inset: 0 auto 0 0 !important;
+        z-index: 70 !important;
+        width: var(--sun-owner-sidebar) !important;
+        height: 100vh !important;
+        padding: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        background: #ffffff !important;
+        border-right: 1px solid var(--sun-owner-line) !important;
+        box-shadow: none !important;
+    }
+
+    .site-header .brand-bar {
+        min-height: 100vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0 !important;
+        padding: 0 !important;
+    }
+
+    .brand-home {
+        min-height: 6.25rem !important;
+        display: grid !important;
+        place-items: center !important;
+        border-bottom: 1px solid var(--sun-owner-line) !important;
+        background: #ffffff !important;
+    }
+
+    .brand-logo {
+        width: 7.7rem !important;
+    }
+
+    .nav-toggle {
+        position: absolute !important;
+        top: 1.42rem !important;
+        right: 1.28rem !important;
+        width: 2.76rem !important;
+        height: 2.76rem !important;
+        border: 1px solid #e2e4e8 !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        color: #9a9a9a !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    .nav-toggle-lines,
+    .nav-toggle-lines::before,
+    .nav-toggle-lines::after {
+        width: 1.35rem !important;
+        height: 0.17rem !important;
+    }
+
+    .app-nav {
+        flex: 1 1 auto !important;
+        margin-top: 1.55rem !important;
+    }
+
+    .app-nav .nav-main {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0 !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.62rem !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1.35rem minmax(0, 1fr) 0.72rem !important;
+        align-items: center !important;
+        gap: 0.86rem !important;
+        padding: 0 1.18rem 0 1.45rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        outline: 0 !important;
+        background: #ffffff !important;
+        color: var(--sun-owner-text) !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+        font-size: 1.06rem !important;
+        font-weight: 480 !important;
+        line-height: 1 !important;
+        text-align: left !important;
+    }
+
+    .app-nav .nav-main > .button:hover {
+        background: var(--sun-owner-hover-row) !important;
+        color: #202834 !important;
+    }
+
+    .app-nav .nav-main > .button.active {
+        background: var(--sun-owner-active-row) !important;
+        color: #202834 !important;
+        font-weight: 540 !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        margin: 0.38rem 0.28rem 0 !important;
+        width: calc(100% - 0.56rem) !important;
+        min-height: 3.38rem !important;
+        padding-left: 1.17rem !important;
+        border: 2px solid #1f1f1f !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub .nav-label {
+        text-decoration: underline;
+        text-underline-offset: 0.16rem;
+        text-decoration-thickness: 1px;
+    }
+
+    .app-nav .nav-main > .button.active .nav-chevron {
+        transform: rotate(45deg);
+        color: #243243;
+    }
+
+    .app-nav .nav-icon {
+        width: 1.42rem !important;
+        height: 1.42rem !important;
+        color: #545b66 !important;
+        stroke: currentColor !important;
+        stroke-width: 2.05 !important;
+    }
+
+    .app-nav .nav-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .app-nav .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        min-height: 3.38rem !important;
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        padding: 0 1rem 0 4.15rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: var(--sun-owner-text) !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+        font-size: 1rem !important;
+        font-weight: 460 !important;
+        text-align: left !important;
+    }
+
+    .app-nav .nav-sub .button:hover,
+    .app-nav .nav-sub-form .button:hover {
+        background: var(--sun-owner-hover-row) !important;
+        color: #202834 !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: #f7f7f7 !important;
+        color: #202834 !important;
+        font-weight: 560 !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line), inset 4px 0 0 var(--section-color) !important;
+    }
+
+    .app-nav .nav-form {
+        margin: 0 !important;
+    }
+
+    .site-header ~ main,
+    .site-header ~ .container,
+    body .site-header ~ main,
+    body .site-header ~ .container {
+        box-sizing: border-box !important;
+        width: calc(100vw - var(--sun-owner-sidebar) - 3rem) !important;
+        max-width: none !important;
+        margin: 0 1.5rem 0 calc(var(--sun-owner-sidebar) + 1.5rem) !important;
+        padding-top: 1.15rem !important;
+    }
+
+    html.nav-collapsed .site-header {
+        width: var(--sun-owner-sidebar-closed) !important;
+    }
+
+    html.nav-collapsed .brand-home {
+        min-height: 4.8rem !important;
+    }
+
+    html.nav-collapsed .brand-logo {
+        width: 3.1rem !important;
+    }
+
+    html.nav-collapsed .nav-toggle {
+        top: 5rem !important;
+        right: 1.05rem !important;
+        width: 2.05rem !important;
+        height: 2.05rem !important;
+    }
+
+    html.nav-collapsed .app-nav {
+        margin-top: 3rem !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-main > .button {
+        min-height: 3.4rem !important;
+        grid-template-columns: 1fr !important;
+        justify-items: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-main > .button.active {
+        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--sun-owner-line) !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-label,
+    html.nav-collapsed .app-nav .nav-chevron,
+    html.nav-collapsed .app-nav .nav-sub {
+        display: none !important;
+    }
+
+    html.nav-collapsed .site-header ~ main,
+    html.nav-collapsed .site-header ~ .container,
+    html.nav-collapsed body .site-header ~ main,
+    html.nav-collapsed body .site-header ~ .container {
+        width: calc(100vw - var(--sun-owner-sidebar-closed) - 3rem) !important;
+        margin-left: calc(var(--sun-owner-sidebar-closed) + 1.5rem) !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    .site-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 80 !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid var(--sun-owner-line) !important;
+        box-shadow: none !important;
+    }
+
+    .site-header .brand-bar {
+        min-height: var(--sun-owner-header-mobile) !important;
+        display: grid !important;
+        grid-template-columns: auto 1fr auto !important;
+        align-items: center !important;
+        gap: 0.8rem !important;
+        padding: 0 0.9rem !important;
+    }
+
+    .brand-logo {
+        width: 5.9rem !important;
+    }
+
+    .nav-toggle {
+        justify-self: end !important;
+        width: 2.72rem !important;
+        min-width: 0 !important;
+        height: 2.72rem !important;
+        border-radius: 5px !important;
+    }
+
+    .nav-toggle-label {
+        display: none !important;
+    }
+
+    .app-nav {
+        grid-column: 1 / -1 !important;
+        max-height: calc(100vh - var(--sun-owner-header-mobile)) !important;
+        overflow-y: auto !important;
+        border-top: 1px solid var(--sun-owner-line) !important;
+        background: #ffffff !important;
+    }
+
+    html.nav-collapsed .app-nav {
+        display: none !important;
+    }
+
+    .app-nav .nav-main {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.32rem !important;
+        display: grid !important;
+        grid-template-columns: 1.36rem minmax(0, 1fr) 0.72rem !important;
+        align-items: center !important;
+        gap: 0.82rem !important;
+        padding: 0 1rem 0 1.12rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: var(--sun-owner-text) !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+        font-size: 1rem !important;
+        font-weight: 520 !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        margin: 0.34rem 0.34rem 0 !important;
+        width: calc(100% - 0.68rem) !important;
+        border: 2px solid #1f1f1f !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub .nav-label {
+        text-decoration: underline;
+        text-underline-offset: 0.15rem;
+    }
+
+    .app-nav .nav-icon {
+        width: 1.28rem !important;
+        height: 1.28rem !important;
+    }
+
+    .app-nav .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        min-height: 3.1rem !important;
+        width: 100% !important;
+        justify-content: flex-start !important;
+        padding: 0 1rem 0 3.65rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: var(--sun-owner-text) !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+        font-size: 0.96rem !important;
+        font-weight: 470 !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: #f7f7f7 !important;
+        color: #202834 !important;
+        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--sun-owner-line) !important;
+    }
+
+    .site-header ~ main,
+    .site-header ~ .container,
+    body .site-header ~ main,
+    body .site-header ~ .container {
+        width: min(100% - 1rem, var(--page-width)) !important;
+        max-width: var(--page-width) !important;
+        margin: 0 auto !important;
+        padding-top: 0.85rem !important;
+    }
+}

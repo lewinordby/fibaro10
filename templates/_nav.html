@@ -9,11 +9,12 @@
 {% set is_account = current_path.startswith("/konto") %}
 <nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_cleaning %}section-cleaning{% elif is_sun2 %}section-sun2{% elif is_energy %}section-energy{% elif is_ai %}section-ai{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
     <div class="nav-row nav-main">
-        <a class="button nav-status {% if is_status %}active{% endif %}" href="/status/dashboard" aria-label="Status" title="Status">
+        <a class="button nav-status has-sub {% if is_status %}active{% endif %}" href="/status/dashboard" aria-label="Status" title="Status">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M4 11.5 12 5l8 6.5"></path><path d="M6.5 10.5V19h4v-5h3v5h4v-8.5"></path>
             </svg>
             <span class="nav-label">Status</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         {% if is_status %}
         <div class="nav-row nav-sub" aria-label="Undermeny for status">
@@ -22,11 +23,12 @@
         </div>
         {% endif %}
 
-        <a class="button nav-light {% if is_light %}active{% endif %}" href="/lys/hendelser" aria-label="Lys" title="Lys">
+        <a class="button nav-light has-sub {% if is_light %}active{% endif %}" href="/lys/hendelser" aria-label="Lys" title="Lys">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M9 18h6"></path><path d="M10 21h4"></path><path d="M8 12a4 4 0 1 1 8 0c0 1.4-.8 2.4-1.7 3.2-.6.5-.8 1-.8 1.8h-3c0-.8-.2-1.3-.8-1.8C8.8 14.4 8 13.4 8 12Z"></path><path d="M12 2.8v2"></path><path d="m4.8 5.8 1.4 1.4"></path><path d="m19.2 5.8-1.4 1.4"></path>
             </svg>
             <span class="nav-label">Lys</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         {% if is_light %}
         <div class="nav-row nav-sub" aria-label="Undermeny for lys">
@@ -37,11 +39,12 @@
         </div>
         {% endif %}
 
-        <a class="button nav-vent {% if is_vent %}active{% endif %}" href="/ventilasjon/hendelser" aria-label="Ventilasjon" title="Ventilasjon">
+        <a class="button nav-vent has-sub {% if is_vent %}active{% endif %}" href="/ventilasjon/hendelser" aria-label="Ventilasjon" title="Ventilasjon">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="2.1"></circle><path d="M12 4.2c2 0 3.8 1.4 3.8 3.3 0 1.5-1.1 2.6-2.7 3.1"></path><path d="M19 15.8c-1 1.7-3.1 2.3-4.8 1.4-1.3-.8-1.8-2.2-1.4-3.8"></path><path d="M5 15.8c-1-1.7-.4-3.8 1.3-4.8 1.3-.8 2.8-.5 4 .7"></path>
             </svg>
-            <span class="nav-label">Vent</span>
+            <span class="nav-label">Ventilasjon</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         {% if is_vent %}
         <div class="nav-row nav-sub" aria-label="Undermeny for ventilasjon">
@@ -53,11 +56,12 @@
         </div>
         {% endif %}
 
-        <a class="button nav-cleaning {% if is_cleaning %}active{% endif %}" href="/renhold/oversikt" aria-label="Renhold" title="Renhold">
+        <a class="button nav-cleaning has-sub {% if is_cleaning %}active{% endif %}" href="/renhold/oversikt" aria-label="Renhold" title="Renhold">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="7.2"></circle><circle cx="9.4" cy="10.2" r="0.7"></circle><circle cx="14.6" cy="10.2" r="0.7"></circle><path d="M8.4 15h7.2"></path><path d="M12 4.8v3.1"></path><path d="M6.8 17.2c1.3 1.25 3 2 5.2 2s3.9-.75 5.2-2"></path>
             </svg>
             <span class="nav-label">Renhold</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         {% if is_cleaning %}
         <div class="nav-row nav-sub" aria-label="Undermeny for renhold">
@@ -65,11 +69,12 @@
         </div>
         {% endif %}
 
-        <a class="button nav-sun2 {% if is_sun2 %}active{% endif %}" href="/soling/oversikt" aria-label="Soling" title="Soling">
+        <a class="button nav-sun2 has-sub {% if is_sun2 %}active{% endif %}" href="/soling/oversikt" aria-label="Soling" title="Soling">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="3.6"></circle><path d="M12 2.5v3"></path><path d="M12 18.5v3"></path><path d="M2.5 12h3"></path><path d="M18.5 12h3"></path><path d="m5.3 5.3 2.1 2.1"></path><path d="m16.6 16.6 2.1 2.1"></path><path d="m18.7 5.3-2.1 2.1"></path><path d="m7.4 16.6-2.1 2.1"></path>
             </svg>
             <span class="nav-label">Soling</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         {% if is_sun2 %}
         <div class="nav-row nav-sub" aria-label="Undermeny for soling">
@@ -81,11 +86,12 @@
         </div>
         {% endif %}
 
-        <a class="button nav-energy {% if is_energy %}active{% endif %}" href="/energi/elvia" aria-label="Energi" title="Energi">
+        <a class="button nav-energy has-sub {% if is_energy %}active{% endif %}" href="/energi/elvia" aria-label="Energi" title="Energi">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M13 2.8 5.8 13H12l-1 8.2L18.2 10H12l1-7.2Z"></path>
             </svg>
             <span class="nav-label">Energi</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         {% if is_energy %}
         <div class="nav-row nav-sub" aria-label="Undermeny for energi">
@@ -93,11 +99,12 @@
         </div>
         {% endif %}
 
-        <a class="button nav-ai {% if is_ai %}active{% endif %}" href="/ai/sok" aria-label="AI søk" title="AI søk">
+        <a class="button nav-ai has-sub {% if is_ai %}active{% endif %}" href="/ai/sok" aria-label="AI søk" title="AI søk">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M10.8 4.2 12 7.6l3.4 1.2L12 10l-1.2 3.4L9.6 10 6.2 8.8l3.4-1.2 1.2-3.4Z"></path><path d="M17.5 12.5l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8.8-2.1Z"></path><path d="M6.5 14.5l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5.5-1.3Z"></path>
             </svg>
             <span class="nav-label">AI</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         {% if is_ai %}
         <div class="nav-row nav-sub" aria-label="Undermeny for AI">
@@ -106,11 +113,12 @@
         </div>
         {% endif %}
 
-        <a class="button nav-account {% if is_account %}active{% endif %}" href="/konto/oversikt" aria-label="Konto" title="Konto">
+        <a class="button nav-account has-sub {% if is_account %}active{% endif %}" href="/konto/oversikt" aria-label="Konto" title="Konto">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.8-4 3.3-6 7-6s6.2 2 7 6"></path>
             </svg>
-            <span class="sr-only">Konto</span>
+            <span class="nav-label">Konto</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         {% if is_account %}
         <div class="nav-row nav-sub" aria-label="Undermeny for konto">
