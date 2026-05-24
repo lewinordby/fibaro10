@@ -485,13 +485,19 @@ def extract_largest_table(page) -> tuple[list[str], list[dict[str, str]]]:
 def extract_paginated_table(page, max_pages: int = 500) -> tuple[list[str], list[dict[str, str]]]:
     all_rows: list[dict[str, str]] = []
     headers: list[str] = []
+    seen_ranges: set[tuple[int | None, int | None, int | None]] = set()
     for _ in range(max_pages):
+        visible_range = extract_visible_sessions_range(page)
+        if visible_range != (None, None, None):
+            if visible_range in seen_ranges:
+                break
+            seen_ranges.add(visible_range)
         headers, rows = extract_largest_table(page)
         for row in rows:
             row = dict(row)
             row["__source_row_number"] = str(len(all_rows) + 1)
             all_rows.append(row)
-        _, visible_to, visible_total = extract_visible_sessions_range(page)
+        _, visible_to, visible_total = visible_range
         if visible_to is not None and visible_total is not None and visible_to >= visible_total:
             break
         pager = page.evaluate(
