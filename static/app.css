@@ -3811,3 +3811,123 @@ textarea:focus {
         height: 2.35rem !important;
     }
 }
+
+/* 2026-05-25 content polish: tighter, calmer surfaces without touching navigation. */
+body {
+    background:
+        linear-gradient(180deg, #f7f9fc 0%, #eef3f8 42%, #f4f7fb 100%) !important;
+}
+
+main {
+    color: var(--text);
+}
+
+main h1,
+main h2,
+main h3 {
+    text-wrap: balance;
+}
+
+main p,
+main .sub,
+main .page-subtitle,
+main .section-note {
+    color: #66758a;
+}
+
+main :where(.panel, .hero, .event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .filter-panel, details, .table-wrap) {
+    border-color: rgba(203, 213, 225, 0.86) !important;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px rgba(38, 50, 63, 0.06) !important;
+}
+
+main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, details, .sample, .job-card) {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+}
+
+main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, details) {
+    border-radius: 12px !important;
+}
+
+main :where(.event-card, .status-card, .health-card, .quick-card, .robot-card, .sample, .job-card) {
+    border-radius: 10px !important;
+}
+
+main :where(.filter-panel, details) {
+    border-top: 3px solid var(--page-accent) !important;
+}
+
+main :where(input, select, textarea) {
+    border-color: #cfd8e3 !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+    border-radius: 8px !important;
+    box-shadow: inset 0 1px 1px rgba(16, 24, 40, 0.03);
+}
+
+main :where(input, select, textarea):focus {
+    border-color: var(--page-accent) !important;
+    box-shadow: 0 0 0 4px var(--page-accent-ring), inset 0 1px 1px rgba(16, 24, 40, 0.03) !important;
+    outline: none;
+}
+
+main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button) {
+    border-color: #ccd6e2 !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    color: var(--brand-dark) !important;
+    font-weight: 740;
+}
+
+main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button):hover {
+    border-color: var(--page-accent-border) !important;
+    box-shadow: 0 6px 16px rgba(38, 50, 63, 0.08) !important;
+    transform: translateY(-1px);
+}
+
+main :where(a.button.active, button.active, .chart-toggle.active, .sun-chip.active) {
+    border-color: var(--page-accent) !important;
+    background: var(--page-accent) !important;
+    color: #ffffff !important;
+}
+
+main :where(table) {
+    border-collapse: separate !important;
+    border-spacing: 0;
+}
+
+main :where(th) {
+    background: #f6f9fc !important;
+    color: #5f6f84 !important;
+    font-weight: 820 !important;
+}
+
+main :where(td, th) {
+    border-bottom-color: #e8eef5 !important;
+}
+
+main :where(.badge, .pill, .status-pill, .mode, .flag) {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+main :where(.empty-state, .empty) {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border-color: #d8e1eb !important;
+}
+
+main :where(.table-wrap) {
+    overflow: auto;
+    border-radius: 12px !important;
+}
+
+main :where(.table-wrap table) {
+    overflow: hidden;
+}
+
+@media (max-width: 640px) {
+    main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, details) {
+        border-radius: 10px !important;
+    }
+
+    main :where(a.button, button:not(.nav-toggle)) {
+        min-height: 2.42rem;
+    }
+}
