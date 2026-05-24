@@ -3827,7 +3827,7 @@ async def record_import_job(
     raw: Optional[Dict[str, Any]] = None,
 ) -> ImportJobStatus:
     definition = import_job_definition(job_name)
-    finished_at = finished_at or datetime.utcnow()
+    finished_at = finished_at or local_now_naive()
     title = title or definition["title"]
     category = category or definition["category"]
     source = source or definition.get("source")
@@ -6458,7 +6458,7 @@ async def log_event(data: EventDataIn):
 async def import_status_report(data: ImportStatusReportIn):
     definition = import_job_definition(data.job_name)
     ok = data.ok if data.ok is not None else (data.status not in {"bad", "failed", "error"})
-    finished_at = data.finished_at or datetime.utcnow()
+    finished_at = data.finished_at or local_now_naive()
     async with async_session() as session:
         row = await record_import_job(
             session,
