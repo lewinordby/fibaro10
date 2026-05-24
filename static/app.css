@@ -4489,3 +4489,76 @@ textarea:focus {
         box-shadow: inset 0 -1px 0 #e0e2e5 !important;
     }
 }
+
+/* Final owner-menu override. Keep this last so legacy menu experiments cannot win. */
+@media (min-width: 1020px) {
+    html body .site-header .app-nav .nav-main > .nav-sub {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-left: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        min-height: 3.7rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        padding: 0 1rem 0 4.15rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+        font-size: 1rem !important;
+        font-weight: 480 !important;
+        text-align: left !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button::before,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button::before {
+        content: none !important;
+        display: none !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button.active {
+        background: #f1f1f1 !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+        font-weight: 600 !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        min-height: 3.28rem !important;
+        padding: 0 1rem 0 3.65rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+        text-align: left !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button::before,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button::before {
+        content: none !important;
+        display: none !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button.active {
+        background: #f1f1f1 !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+        font-weight: 600 !important;
+    }
+}
