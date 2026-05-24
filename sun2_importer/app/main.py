@@ -105,6 +105,30 @@ def room_key_from_name(value: Any) -> str:
     return normalized or "ukjent_rom"
 
 
+SUN2_ROOM_MAP_BY_DISPLAY = {
+    1: {"room_id": "rom-01", "sun2_bed_id": "640"},
+    2: {"room_id": "rom-02", "sun2_bed_id": "641"},
+    3: {"room_id": "rom-03", "sun2_bed_id": "642"},
+    4: {"room_id": "rom-04", "sun2_bed_id": "643"},
+    5: {"room_id": "rom-05", "sun2_bed_id": "644"},
+    6: {"room_id": "rom-06", "sun2_bed_id": "645"},
+    7: {"room_id": "rom-07", "sun2_bed_id": "646"},
+    8: {"room_id": "rom-08", "sun2_bed_id": "647"},
+    9: {"room_id": "rom-09", "sun2_bed_id": "648"},
+    10: {"room_id": "rom-11", "sun2_bed_id": "679"},
+    11: {"room_id": "rom-12", "sun2_bed_id": "680"},
+    12: {"room_id": "rom-13", "sun2_bed_id": "681"},
+}
+
+
+def room_identity(value: Any) -> dict[str, Any]:
+    text = normalize_text(value)
+    if text in {".", "-", ""}:
+        return {"room_id": "rom-10", "sun2_bed_id": "649"}
+    match = re.search(r"\brom\s*0*(\d{1,2})\b", text, re.IGNORECASE)
+    return dict(SUN2_ROOM_MAP_BY_DISPLAY.get(int(match.group(1)), {})) if match else {}
+
+
 def move_to(src: Path, dest_dir: Path, prefix: str) -> Path:
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / f"{prefix}{src.name}"
@@ -133,13 +157,16 @@ def parse_file(file_path: Path) -> tuple[date, list[dict[str, Any]]]:
             room = normalize_text(raw.get("Rom"))
             if not room or room == "Totalt":
                 continue
+            identity = room_identity(room)
             clean_raw = {key: normalize_text(value) for key, value in raw.items()}
             rows.append(
                 {
                     "stat_date": stat_date.isoformat(),
+                    "room_id": identity.get("room_id"),
                     "room_key": room_key_from_name(room),
                     "room": room,
                     "source_room_name": room,
+                    "sun2_bed_id": identity.get("sun2_bed_id"),
                     "total_soletid_minutter": decimal_value(raw.get("Total Soletid (minutter)")),
                     "totalt_antall_solinger": int_value(raw.get("Totalt antall Solinger")),
                     "solinger_medlemmer": int_value(raw.get("Solinger Medlemmer")),

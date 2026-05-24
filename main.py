@@ -703,9 +703,11 @@ class Sun2RoomDailyStat(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     stat_date = Column(Date, index=True, nullable=False)
+    room_id = Column(String, index=True, nullable=True)
     room_key = Column(String, index=True, nullable=True)
     room = Column(String, index=True, nullable=False)
     source_room_name = Column(String, nullable=True)
+    sun2_bed_id = Column(String, index=True, nullable=True)
     total_soletid_minutter = Column(Float, nullable=True)
     totalt_antall_solinger = Column(Integer, nullable=True)
     solinger_medlemmer = Column(Integer, nullable=True)
@@ -747,11 +749,13 @@ class Sun2TanningSession(Base):
     started_at = Column(DateTime, index=True, nullable=False)
     ended_at = Column(DateTime, index=True, nullable=True)
     stat_date = Column(Date, index=True, nullable=False)
+    room_id = Column(String, index=True, nullable=True)
     room_key = Column(String, index=True, nullable=True)
     room = Column(String, index=True, nullable=True)
     source_room_name = Column(String, nullable=True)
     sun2_user_id = Column(String, index=True, nullable=True)
     sun2_center_id = Column(String, index=True, nullable=True)
+    sun2_bed_id = Column(String, index=True, nullable=True)
     user_name = Column(String, index=True, nullable=True)
     user_identifier = Column(String, index=True, nullable=True)
     customer_type = Column(String, index=True, nullable=True)
@@ -762,6 +766,31 @@ class Sun2TanningSession(Base):
     status = Column(String, index=True, nullable=True)
     source = Column(String, index=True, nullable=True)
     source_file = Column(String, index=True, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, index=True)
+    raw = Column(JSON, nullable=True)
+
+
+class Sun2Bed(Base):
+    __tablename__ = "sun2_beds"
+
+    id = Column(Integer, primary_key=True, index=True)
+    room_id = Column(String, index=True, nullable=True)
+    physical_room_number = Column(Integer, index=True, nullable=True)
+    display_room_number = Column(Integer, index=True, nullable=True)
+    sun2_center_id = Column(String, index=True, nullable=True)
+    sun2_bed_id = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, index=True, nullable=False)
+    source_room_name = Column(String, nullable=True)
+    bed_model = Column(String, index=True, nullable=True)
+    bed_model_id = Column(String, index=True, nullable=True)
+    max_minutes = Column(Float, nullable=True)
+    startup_minutes = Column(Float, nullable=True)
+    cooldown_minutes = Column(Float, nullable=True)
+    current_price_per_min = Column(Float, nullable=True)
+    status = Column(String, index=True, nullable=True)
+    status_code = Column(String, index=True, nullable=True)
+    lamp_status = Column(Text, nullable=True)
+    source = Column(String, index=True, nullable=True)
     imported_at = Column(DateTime, default=datetime.utcnow, index=True)
     raw = Column(JSON, nullable=True)
 
@@ -981,8 +1010,10 @@ class RoborockIngestIn(BaseModel):
 class Sun2RoomStatIn(BaseModel):
     stat_date: date
     room: str
+    room_id: Optional[str] = None
     room_key: Optional[str] = None
     source_room_name: Optional[str] = None
+    sun2_bed_id: Optional[str] = None
     total_soletid_minutter: Optional[float] = None
     totalt_antall_solinger: Optional[int] = None
     solinger_medlemmer: Optional[int] = None
@@ -1010,11 +1041,13 @@ class Sun2TanningSessionIn(BaseModel):
     started_at: datetime
     ended_at: Optional[datetime] = None
     stat_date: Optional[date] = None
+    room_id: Optional[str] = None
     room: Optional[str] = None
     room_key: Optional[str] = None
     source_room_name: Optional[str] = None
     sun2_user_id: Optional[str] = None
     sun2_center_id: Optional[str] = None
+    sun2_bed_id: Optional[str] = None
     user_name: Optional[str] = None
     user_identifier: Optional[str] = None
     customer_type: Optional[str] = None
@@ -1034,6 +1067,36 @@ class Sun2TanningSessionsIngestIn(BaseModel):
     source_file: Optional[str] = None
     message: Optional[str] = None
     rows: list[Sun2TanningSessionIn] = Field(default_factory=list)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Sun2BedIn(BaseModel):
+    room_id: Optional[str] = None
+    physical_room_number: Optional[int] = None
+    display_room_number: Optional[int] = None
+    sun2_center_id: Optional[str] = None
+    sun2_bed_id: str
+    name: str
+    source_room_name: Optional[str] = None
+    bed_model: Optional[str] = None
+    bed_model_id: Optional[str] = None
+    max_minutes: Optional[float] = None
+    startup_minutes: Optional[float] = None
+    cooldown_minutes: Optional[float] = None
+    current_price_per_min: Optional[float] = None
+    status: Optional[str] = None
+    status_code: Optional[str] = None
+    lamp_status: Optional[str] = None
+    raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Sun2BedsIngestIn(BaseModel):
+    source: str = "sun2_session_scraper"
+    collector_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    ok: bool = True
+    message: Optional[str] = None
+    beds: list[Sun2BedIn] = Field(default_factory=list)
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -1111,7 +1174,7 @@ ROBOROCK_MAP_COLUMNS = [
 ]
 
 SUN2_ROOM_COLUMNS = [
-    "id", "stat_date", "room_key", "room", "source_room_name", "total_soletid_minutter",
+    "id", "stat_date", "room_id", "room_key", "room", "source_room_name", "sun2_bed_id", "total_soletid_minutter",
     "totalt_antall_solinger", "solinger_medlemmer", "solinger_ikke_medlemmer",
     "totalt_inntjent_kr", "inntjent_medlemmer_kr", "inntjent_ikke_medlemmer_kr",
     "source", "source_file", "imported_at", "raw",
@@ -1123,10 +1186,17 @@ SUN2_IMPORT_COLUMNS = [
 ]
 
 SUN2_SESSION_COLUMNS = [
-    "id", "source_session_id", "started_at", "ended_at", "stat_date", "room_key",
-    "room", "source_room_name", "sun2_user_id", "sun2_center_id", "user_name",
+    "id", "source_session_id", "started_at", "ended_at", "stat_date", "room_id", "room_key",
+    "room", "source_room_name", "sun2_user_id", "sun2_center_id", "sun2_bed_id", "user_name",
     "user_identifier", "customer_type", "gender", "payment_method", "duration_minutes",
     "paid_amount_kr", "status", "source", "source_file", "imported_at", "raw",
+]
+
+SUN2_BED_COLUMNS = [
+    "id", "room_id", "physical_room_number", "display_room_number", "sun2_center_id",
+    "sun2_bed_id", "name", "source_room_name", "bed_model", "bed_model_id",
+    "max_minutes", "startup_minutes", "cooldown_minutes", "current_price_per_min",
+    "status", "status_code", "lamp_status", "source", "imported_at", "raw",
 ]
 
 SUN2_SESSION_IMPORT_COLUMNS = [
@@ -1165,6 +1235,13 @@ AI_DATASETS = {
         "description": "En rad per soltime/soling hentet fra SUN2 owner, med starttid, rom, bruker, varighet og betalt belop.",
         "columns": SUN2_SESSION_COLUMNS,
         "time_column": "started_at",
+    },
+    "soling_beds": {
+        "table": "sun2_beds",
+        "title": "SUN2 senger og fysisk rom",
+        "description": "Fast mapping mellom fysisk rom-id, SUN2 seng-id, SUN2-navn, modell, status og gjeldende innstillinger.",
+        "columns": SUN2_BED_COLUMNS,
+        "time_column": "imported_at",
     },
     "energy_hourly": {
         "table": "energy_hourly_consumption",
@@ -1793,12 +1870,16 @@ STARTUP_COLUMNS = {
         ("last_map_at", "TIMESTAMP"),
     ],
     "sun2_room_daily_stats": [
+        ("room_id", "VARCHAR"),
         ("room_key", "VARCHAR"),
         ("source_room_name", "VARCHAR"),
+        ("sun2_bed_id", "VARCHAR"),
     ],
     "sun2_tanning_sessions": [
+        ("room_id", "VARCHAR"),
         ("sun2_user_id", "VARCHAR"),
         ("sun2_center_id", "VARCHAR"),
+        ("sun2_bed_id", "VARCHAR"),
         ("gender", "VARCHAR"),
         ("payment_method", "VARCHAR"),
     ],
@@ -2005,6 +2086,103 @@ def room_key_from_name(value: Any) -> Optional[str]:
     if not match:
         return None
     return f"rom_{int(match.group(1)):02d}"
+
+
+SUN2_ROOM_MAP_BY_DISPLAY = {
+    1: {"room_id": "rom-01", "physical_room_number": 1, "display_room_number": 1, "sun2_bed_id": "640"},
+    2: {"room_id": "rom-02", "physical_room_number": 2, "display_room_number": 2, "sun2_bed_id": "641"},
+    3: {"room_id": "rom-03", "physical_room_number": 3, "display_room_number": 3, "sun2_bed_id": "642"},
+    4: {"room_id": "rom-04", "physical_room_number": 4, "display_room_number": 4, "sun2_bed_id": "643"},
+    5: {"room_id": "rom-05", "physical_room_number": 5, "display_room_number": 5, "sun2_bed_id": "644"},
+    6: {"room_id": "rom-06", "physical_room_number": 6, "display_room_number": 6, "sun2_bed_id": "645"},
+    7: {"room_id": "rom-07", "physical_room_number": 7, "display_room_number": 7, "sun2_bed_id": "646"},
+    8: {"room_id": "rom-08", "physical_room_number": 8, "display_room_number": 8, "sun2_bed_id": "647"},
+    9: {"room_id": "rom-09", "physical_room_number": 9, "display_room_number": 9, "sun2_bed_id": "648"},
+    10: {"room_id": "rom-11", "physical_room_number": 11, "display_room_number": 10, "sun2_bed_id": "679"},
+    11: {"room_id": "rom-12", "physical_room_number": 12, "display_room_number": 11, "sun2_bed_id": "680"},
+    12: {"room_id": "rom-13", "physical_room_number": 13, "display_room_number": 12, "sun2_bed_id": "681"},
+}
+
+SUN2_ROOM_UNKNOWN_OLD_10 = {
+    "room_id": "rom-10",
+    "physical_room_number": 10,
+    "display_room_number": None,
+    "sun2_bed_id": "649",
+}
+
+
+def normalize_room_id(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip().lower().replace("_", "-")
+    match = re.search(r"(?:rom[-\s]*)?0*(\d{1,2})$", text)
+    if not match:
+        return None
+    number = int(match.group(1))
+    if 1 <= number <= 13:
+        return f"rom-{number:02d}"
+    return None
+
+
+def sun2_room_identity(value: Any = None, room_id: Any = None, bed_id: Any = None) -> Dict[str, Any]:
+    explicit_room_id = normalize_room_id(room_id)
+    bed_id_text = (repair_mojibake(bed_id) or "").strip()
+    if explicit_room_id:
+        physical_number = int(explicit_room_id.rsplit("-", 1)[-1])
+        identity = {
+            "room_id": explicit_room_id,
+            "physical_room_number": physical_number,
+            "display_room_number": None,
+            "sun2_bed_id": bed_id_text or None,
+        }
+        for item in list(SUN2_ROOM_MAP_BY_DISPLAY.values()) + [SUN2_ROOM_UNKNOWN_OLD_10]:
+            if item["room_id"] == explicit_room_id:
+                identity.update(item)
+                if bed_id_text:
+                    identity["sun2_bed_id"] = bed_id_text
+                break
+        return identity
+
+    text_value = repair_mojibake(value)
+    text = str(text_value).strip() if text_value is not None else ""
+    if text in {".", "-", ""}:
+        identity = dict(SUN2_ROOM_UNKNOWN_OLD_10)
+        if bed_id_text:
+            identity["sun2_bed_id"] = bed_id_text
+        return identity
+
+    match = re.search(r"\brom\s*0*(\d{1,2})\b", text, re.IGNORECASE)
+    if match:
+        display_number = int(match.group(1))
+        identity = dict(SUN2_ROOM_MAP_BY_DISPLAY.get(display_number) or {})
+        if identity:
+            if bed_id_text:
+                identity["sun2_bed_id"] = bed_id_text
+            return identity
+
+    explicit_from_value = normalize_room_id(text)
+    if explicit_from_value:
+        return sun2_room_identity(room_id=explicit_from_value, bed_id=bed_id_text)
+    return {"room_id": None, "physical_room_number": None, "display_room_number": None, "sun2_bed_id": bed_id_text or None}
+
+
+def sun2_room_label(room_id: Optional[str], source_name: Optional[str] = None) -> str:
+    normalized = normalize_room_id(room_id)
+    source = (repair_mojibake(source_name) or "").strip()
+    if not normalized:
+        return source or "-"
+    number = int(normalized.rsplit("-", 1)[-1])
+    if source and source not in {".", "-"}:
+        return f"Rom {number} - {source}"
+    if normalized == "rom-10":
+        return "Rom 10 - tidligere SUN2-navn '.'"
+    return f"Rom {number}"
+
+
+SUN2_ROOM_OPTIONS = [
+    {"value": f"rom-{number:02d}", "label": f"Rom {number}"}
+    for number in range(1, 14)
+]
 
 
 def bool_value(value: Any) -> Optional[bool]:
@@ -4176,6 +4354,7 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
         source_room_name = (repair_mojibake(row.source_room_name or row.room) or "").strip()
         room = (repair_mojibake(row.room) or source_room_name).strip()
         room_key = (repair_mojibake(row.room_key) or room_key_from_name(source_room_name) or room_key_from_name(room) or room).strip()
+        identity = sun2_room_identity(source_room_name or room, row.room_id, row.sun2_bed_id)
         if not room:
             continue
         stat_date = row.stat_date or batch_date
@@ -4217,8 +4396,10 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
             updated += 1
 
         existing.room_key = room_key
+        existing.room_id = identity.get("room_id")
         existing.room = room
         existing.source_room_name = source_room_name
+        existing.sun2_bed_id = identity.get("sun2_bed_id")
         existing.total_soletid_minutter = row.total_soletid_minutter
         existing.totalt_antall_solinger = row.totalt_antall_solinger
         existing.solinger_medlemmer = row.solinger_medlemmer
@@ -4232,6 +4413,51 @@ async def ingest_sun2_room_stats(session, data: Sun2RoomStatsIngestIn, batch_tim
         existing.raw = row.raw or {}
 
     return {"inserted": inserted, "updated": updated}
+
+
+async def ingest_sun2_beds(session, data: Sun2BedsIngestIn, batch_time: datetime) -> Dict[str, int]:
+    inserted = 0
+    updated = 0
+    skipped = 0
+    for row in data.beds:
+        bed_id = (repair_mojibake(row.sun2_bed_id) or "").strip()
+        name = (repair_mojibake(row.name) or "").strip()
+        if not bed_id or not name:
+            skipped += 1
+            continue
+        identity = sun2_room_identity(row.source_room_name or name, row.room_id, bed_id)
+        existing = (
+            await session.execute(
+                select(Sun2Bed).where(Sun2Bed.sun2_bed_id == bed_id)
+            )
+        ).scalars().first()
+        if not existing:
+            existing = Sun2Bed(sun2_bed_id=bed_id, name=name)
+            session.add(existing)
+            inserted += 1
+        else:
+            updated += 1
+
+        existing.room_id = row.room_id or identity.get("room_id")
+        existing.physical_room_number = row.physical_room_number or identity.get("physical_room_number")
+        existing.display_room_number = row.display_room_number or identity.get("display_room_number")
+        existing.sun2_center_id = (repair_mojibake(row.sun2_center_id) or "").strip() or None
+        existing.sun2_bed_id = bed_id
+        existing.name = name
+        existing.source_room_name = (repair_mojibake(row.source_room_name) or name).strip() or None
+        existing.bed_model = (repair_mojibake(row.bed_model) or "").strip() or None
+        existing.bed_model_id = (repair_mojibake(row.bed_model_id) or "").strip() or None
+        existing.max_minutes = row.max_minutes
+        existing.startup_minutes = row.startup_minutes
+        existing.cooldown_minutes = row.cooldown_minutes
+        existing.current_price_per_min = row.current_price_per_min
+        existing.status = (repair_mojibake(row.status) or "").strip() or None
+        existing.status_code = (repair_mojibake(row.status_code) or "").strip() or None
+        existing.lamp_status = (repair_mojibake(row.lamp_status) or "").strip() or None
+        existing.source = data.source
+        existing.imported_at = batch_time
+        existing.raw = row.raw or {}
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
 async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestIn, batch_time: datetime) -> Dict[str, int]:
@@ -4258,6 +4484,7 @@ async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestI
         source_room_name = (repair_mojibake(row.source_room_name or row.room) or "").strip()
         room = (repair_mojibake(row.room) or source_room_name).strip()
         room_key = (repair_mojibake(row.room_key) or room_key_from_name(source_room_name) or room_key_from_name(room) or "").strip()
+        identity = sun2_room_identity(source_room_name or room, row.room_id, row.sun2_bed_id)
         stat_date = row.stat_date or row.started_at.date()
 
         existing = (
@@ -4278,11 +4505,13 @@ async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestI
         existing.started_at = row.started_at
         existing.ended_at = row.ended_at
         existing.stat_date = stat_date
+        existing.room_id = identity.get("room_id")
         existing.room_key = room_key or None
         existing.room = room or None
         existing.source_room_name = source_room_name or None
         existing.sun2_user_id = (repair_mojibake(row.sun2_user_id) or "").strip() or None
         existing.sun2_center_id = (repair_mojibake(row.sun2_center_id) or "").strip() or None
+        existing.sun2_bed_id = identity.get("sun2_bed_id")
         existing.user_name = (repair_mojibake(row.user_name) or "").strip() or None
         existing.user_identifier = (repair_mojibake(row.user_identifier) or "").strip() or None
         existing.customer_type = (repair_mojibake(row.customer_type) or "").strip() or None
@@ -4296,6 +4525,32 @@ async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestI
         existing.raw = row.raw or {}
 
     return {"inserted": inserted, "updated": updated, "skipped": skipped, "replaced": replaced}
+
+
+async def backfill_sun2_room_identity(session) -> Dict[str, int]:
+    counts = {"daily": 0, "sessions": 0}
+    for model, key in [(Sun2RoomDailyStat, "daily"), (Sun2TanningSession, "sessions")]:
+        rows = (
+            await session.execute(
+                select(model).where(or_(model.room_id.is_(None), model.sun2_bed_id.is_(None)))
+            )
+        ).scalars().all()
+        for row in rows:
+            identity = sun2_room_identity(
+                getattr(row, "source_room_name", None) or getattr(row, "room", None) or getattr(row, "room_key", None),
+                getattr(row, "room_id", None),
+                getattr(row, "sun2_bed_id", None),
+            )
+            changed = False
+            if identity.get("room_id") and row.room_id != identity.get("room_id"):
+                row.room_id = identity.get("room_id")
+                changed = True
+            if identity.get("sun2_bed_id") and getattr(row, "sun2_bed_id", None) != identity.get("sun2_bed_id"):
+                row.sun2_bed_id = identity.get("sun2_bed_id")
+                changed = True
+            if changed:
+                counts[key] += 1
+    return counts
 
 
 async def ingest_elvia_hours(session, parsed: Dict[str, Any], batch_time: datetime) -> Dict[str, int]:
@@ -4695,6 +4950,10 @@ async def startup():
         for table_name, columns in STARTUP_COLUMNS.items():
             for column_name, column_type in columns:
                 await conn.exec_driver_sql(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} {column_type}")
+        await conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_sun2_room_daily_stats_room_id ON sun2_room_daily_stats (room_id)")
+        await conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_sun2_room_daily_stats_sun2_bed_id ON sun2_room_daily_stats (sun2_bed_id)")
+        await conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_sun2_tanning_sessions_room_id ON sun2_tanning_sessions (room_id)")
+        await conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_sun2_tanning_sessions_sun2_bed_id ON sun2_tanning_sessions (sun2_bed_id)")
         await conn.execute(delete(OutdoorLightEvent).where(OutdoorLightEvent.source == "CODEX TEST"))
         await conn.execute(delete(VentilationEvent).where(VentilationEvent.source == "CODEX TEST"))
     async with async_session() as session:
@@ -4737,6 +4996,8 @@ async def startup():
     async with async_session() as session:
         for config_key in CONFIG_DEFINITIONS:
             await get_or_create_config(session, config_key)
+        await backfill_sun2_room_identity(session)
+        await session.commit()
 
 
 @app.get("/health")
@@ -4749,7 +5010,7 @@ async def health():
             "roborock_robots", "roborock_status_samples", "roborock_clean_jobs",
             "roborock_schedules", "roborock_consumables", "roborock_maps",
             "sun2_room_daily_stats", "sun2_import_runs", "sun2_tanning_sessions",
-            "sun2_session_import_runs", "energy_hourly_consumption",
+            "sun2_beds", "sun2_session_import_runs", "energy_hourly_consumption",
             "energy_import_runs", "ai_query_logs",
         ],
     }
@@ -5586,6 +5847,16 @@ async def sun2_sessions_ingest(data: Sun2TanningSessionsIngestIn):
     return {"status": "ok", **counts, "rows": len(data.rows)}
 
 
+@app.post("/api/sun2/beds/ingest")
+async def sun2_beds_ingest(data: Sun2BedsIngestIn):
+    batch_time = data.timestamp or datetime.utcnow()
+    async with async_session() as session:
+        counts = await ingest_sun2_beds(session, data, batch_time)
+        await session.commit()
+    clear_summary_cache("sun2_session_options")
+    return {"status": "ok", **counts, "beds": len(data.beds)}
+
+
 @app.get("/sun2/room-stats")
 async def sun2_room_stats_legacy_redirect():
     return RedirectResponse("/soling/detaljer", status_code=307)
@@ -5697,7 +5968,31 @@ async def get_sun2_session_options(session) -> Dict[str, list[str]]:
             .order_by(column)
         )
 
+    bed_rows = (
+        await session.execute(
+            select(Sun2Bed)
+            .where(Sun2Bed.room_id.is_not(None))
+            .order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id)
+        )
+    ).scalars().all()
+    room_ids = [
+        {
+            "value": bed.room_id,
+            "label": sun2_room_label(bed.room_id, bed.name),
+        }
+        for bed in bed_rows
+        if bed.room_id
+    ] or list(SUN2_ROOM_OPTIONS)
+    seen_room_ids = set()
+    deduped_room_ids = []
+    for item in room_ids:
+        if item["value"] in seen_room_ids:
+            continue
+        seen_room_ids.add(item["value"])
+        deduped_room_ids.append(item)
+
     value = {
+        "room_ids": deduped_room_ids,
         "rooms": (await session.execute(distinct_text(Sun2TanningSession.room))).scalars().all(),
         "payments": (await session.execute(distinct_text(Sun2TanningSession.payment_method))).scalars().all(),
         "statuses": (await session.execute(distinct_text(Sun2TanningSession.status))).scalars().all(),
@@ -5737,6 +6032,7 @@ async def sun2_sessions_view(
     sun2_user_id: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    room_id: Optional[str] = None,
     room: Optional[str] = None,
     payment_method: Optional[str] = None,
     status: Optional[str] = None,
@@ -5746,6 +6042,7 @@ async def sun2_sessions_view(
     limit = max(25, min(limit, 1000))
     page = max(1, page)
     active_sun2_user_id = (sun2_user_id or "").strip()
+    active_room_id = normalize_room_id(room_id)
     active_room = (room or "").strip()
     active_payment_method = (payment_method or "").strip()
     active_status = (status or "").strip()
@@ -5768,6 +6065,7 @@ async def sun2_sessions_view(
         active_sun2_user_id,
         active_date_from,
         active_date_to,
+        active_room_id,
         active_room,
         active_payment_method,
         active_status,
@@ -5786,6 +6084,8 @@ async def sun2_sessions_view(
         session_filters.append(Sun2TanningSession.stat_date >= active_date_from)
     if active_date_to:
         session_filters.append(Sun2TanningSession.stat_date <= active_date_to)
+    if active_room_id:
+        session_filters.append(Sun2TanningSession.room_id == active_room_id)
     if active_room:
         session_filters.append(Sun2TanningSession.room == active_room)
     if active_payment_method:
@@ -5796,18 +6096,31 @@ async def sun2_sessions_view(
         session_filters.append(Sun2TanningSession.customer_type == active_customer_type)
     if active_q:
         like = f"%{active_q.lower()}%"
-        session_filters.append(or_(
+        q_room_id = normalize_room_id(active_q)
+        numeric_match = re.fullmatch(r"\d{1,2}", active_q)
+        if numeric_match:
+            q_room_id = normalize_room_id(f"rom-{int(active_q):02d}")
+        search_terms = [
             func.lower(func.coalesce(Sun2TanningSession.user_name, "")).like(like),
             func.lower(func.coalesce(Sun2TanningSession.user_identifier, "")).like(like),
             func.lower(func.coalesce(Sun2TanningSession.sun2_user_id, "")).like(like),
+            func.lower(func.coalesce(Sun2TanningSession.room_id, "")).like(like),
             func.lower(func.coalesce(Sun2TanningSession.room, "")).like(like),
+            func.lower(func.coalesce(Sun2TanningSession.source_room_name, "")).like(like),
+            func.lower(func.coalesce(Sun2TanningSession.sun2_bed_id, "")).like(like),
             func.lower(func.coalesce(Sun2TanningSession.payment_method, "")).like(like),
             func.lower(func.coalesce(Sun2TanningSession.status, "")).like(like),
             func.lower(func.coalesce(Sun2TanningSession.source_file, "")).like(like),
+        ]
+        if q_room_id:
+            search_terms.append(Sun2TanningSession.room_id == q_room_id)
+        session_filters.append(or_(
+            *search_terms,
         ))
 
     async with async_session() as session:
         options = await get_sun2_session_options(session)
+        room_id_options = options["room_ids"]
         room_options = options["rooms"]
         payment_options = options["payments"]
         status_options = options["statuses"]
@@ -5936,18 +6249,25 @@ async def sun2_sessions_view(
 
         top_rooms_query = (
             select(
-                Sun2TanningSession.room.label("label"),
+                Sun2TanningSession.room_id.label("room_id"),
+                func.max(Sun2TanningSession.room).label("source_room_name"),
                 func.count(Sun2TanningSession.id).label("sessions_count"),
                 func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
                 func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
             )
-            .group_by(Sun2TanningSession.room)
+            .group_by(Sun2TanningSession.room_id)
             .order_by(func.count(Sun2TanningSession.id).desc())
             .limit(10)
         )
         if session_filters:
             top_rooms_query = top_rooms_query.where(*session_filters)
-        top_rooms = (await session.execute(top_rooms_query)).mappings().all()
+        top_rooms = [
+            {
+                **dict(item),
+                "label": sun2_room_label(item.get("room_id"), item.get("source_room_name")),
+            }
+            for item in (await session.execute(top_rooms_query)).mappings().all()
+        ]
 
         top_users_query = (
             select(
@@ -6002,6 +6322,7 @@ async def sun2_sessions_view(
         "sun2_user_id": active_sun2_user_id,
         "date_from": active_date_from.isoformat() if active_date_from else "",
         "date_to": active_date_to.isoformat() if active_date_to else "",
+        "room_id": active_room_id or "",
         "room": active_room,
         "payment_method": active_payment_method,
         "status": active_status,
@@ -6046,7 +6367,7 @@ async def sun2_sessions_view(
         }
         for item in daily
     ]
-    active_filter_count = sum(1 for key in ["sun2_user_id", "room", "payment_method", "status", "customer_type", "q"] if filter_values.get(key))
+    active_filter_count = sum(1 for key in ["sun2_user_id", "room_id", "room", "payment_method", "status", "customer_type", "q"] if filter_values.get(key))
     if user_has_filters and (filter_values.get("date_from") or filter_values.get("date_to")):
         active_filter_count += 1
     pagination = {
@@ -6083,6 +6404,7 @@ async def sun2_sessions_view(
             "top_users": top_users,
             "payment_breakdown": payment_breakdown,
             "status_breakdown": status_breakdown,
+            "room_id_options": room_id_options,
             "room_options": room_options,
             "payment_options": payment_options,
             "status_options": status_options,
@@ -6092,6 +6414,38 @@ async def sun2_sessions_view(
             "pagination": pagination,
             "query_url": query_url,
             "active_sun2_user_id": active_sun2_user_id,
+        },
+    )
+
+
+@app.get("/soling/senger", response_class=HTMLResponse)
+async def sun2_beds_view(request: Request):
+    async with async_session() as session:
+        beds = (
+            await session.execute(
+                select(Sun2Bed).order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id, Sun2Bed.name)
+            )
+        ).scalars().all()
+        totals_rows = (
+            await session.execute(
+                select(
+                    Sun2TanningSession.room_id.label("room_id"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                    func.max(Sun2TanningSession.started_at).label("last_at"),
+                )
+                .group_by(Sun2TanningSession.room_id)
+            )
+        ).mappings().all()
+    totals = {item["room_id"]: item for item in totals_rows}
+    return templates.TemplateResponse(
+        request,
+        "sun2_beds.html",
+        {
+            "beds": beds,
+            "totals": totals,
+            "room_label": sun2_room_label,
         },
     )
 
@@ -6130,6 +6484,17 @@ async def sun2_room_stats_json(limit: int = 300):
         "last_date": summaries["last_date"],
         "total_rows": summaries["total_rows"],
     }
+
+
+@app.get("/api/sun2/beds/json")
+async def sun2_beds_json():
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(Sun2Bed).order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id, Sun2Bed.name)
+            )
+        ).scalars().all()
+    return {"rows": [row_to_dict(row, SUN2_BED_COLUMNS) for row in rows]}
 
 
 @app.get("/api/sun2/sessions/json")

@@ -89,6 +89,8 @@ state: dict[str, Any] = {
     "skipped_files": 0,
     "failed": 0,
     "rows_last_file": 0,
+    "beds_last_sync": None,
+    "beds_last_count": 0,
     "current_file": None,
     "range": {},
 }
@@ -205,6 +207,10 @@ def decode_sun2_member_token(token: Any) -> tuple[str | None, str | None]:
     return match.group(1), match.group(2)
 
 
+def decode_sun2_pk_token(token: Any) -> tuple[str | None, str | None]:
+    return decode_sun2_member_token(token)
+
+
 def parse_datetime_guess(value: Any, fallback_day: date) -> datetime | None:
     text = normalize_text(value)
     if not text:
@@ -261,6 +267,37 @@ def room_key_from_name(value: str) -> str:
     return normalize_key(text) or "ukjent_rom"
 
 
+SUN2_ROOM_MAP_BY_DISPLAY = {
+    1: {"room_id": "rom-01", "physical_room_number": 1, "display_room_number": 1, "sun2_bed_id": "640"},
+    2: {"room_id": "rom-02", "physical_room_number": 2, "display_room_number": 2, "sun2_bed_id": "641"},
+    3: {"room_id": "rom-03", "physical_room_number": 3, "display_room_number": 3, "sun2_bed_id": "642"},
+    4: {"room_id": "rom-04", "physical_room_number": 4, "display_room_number": 4, "sun2_bed_id": "643"},
+    5: {"room_id": "rom-05", "physical_room_number": 5, "display_room_number": 5, "sun2_bed_id": "644"},
+    6: {"room_id": "rom-06", "physical_room_number": 6, "display_room_number": 6, "sun2_bed_id": "645"},
+    7: {"room_id": "rom-07", "physical_room_number": 7, "display_room_number": 7, "sun2_bed_id": "646"},
+    8: {"room_id": "rom-08", "physical_room_number": 8, "display_room_number": 8, "sun2_bed_id": "647"},
+    9: {"room_id": "rom-09", "physical_room_number": 9, "display_room_number": 9, "sun2_bed_id": "648"},
+    10: {"room_id": "rom-11", "physical_room_number": 11, "display_room_number": 10, "sun2_bed_id": "679"},
+    11: {"room_id": "rom-12", "physical_room_number": 12, "display_room_number": 11, "sun2_bed_id": "680"},
+    12: {"room_id": "rom-13", "physical_room_number": 13, "display_room_number": 12, "sun2_bed_id": "681"},
+}
+
+SUN2_ROOM_UNKNOWN_OLD_10 = {"room_id": "rom-10", "physical_room_number": 10, "display_room_number": None, "sun2_bed_id": "649"}
+
+
+def room_identity(value: Any, bed_id: str | None = None) -> dict[str, Any]:
+    text = normalize_text(value)
+    bed_id = normalize_text(bed_id)
+    if text in {".", "-", ""}:
+        result = dict(SUN2_ROOM_UNKNOWN_OLD_10)
+    else:
+        match = re.search(r"\brom\s*0*(\d{1,2})\b", text, re.IGNORECASE)
+        result = dict(SUN2_ROOM_MAP_BY_DISPLAY.get(int(match.group(1)), {})) if match else {}
+    if bed_id:
+        result["sun2_bed_id"] = bed_id
+    return result
+
+
 def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, Any] | None:
     started_text = pick(raw, "start", "tidspunkt", "dato", "siste soling", "time")
     if not started_text:
@@ -272,6 +309,7 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
     duration = parse_duration_minutes(pick(raw, "varighet", "soletid", "soltid", "minutter", "min"))
     paid = parse_number(pick(raw, "kostnad", "betalt", "pris", "belop", "inntjent", "kr"))
     room = pick(raw, "rom", "seng", "bed", "solarium")
+    identity = room_identity(room)
     user_name = pick(raw, "bruker", "kunde", "navn", "medlem")
     user_identifier = pick(raw, "kunde id", "bruker id", "medlemsnummer", "telefon", "epost", "email")
     payment_method = pick(raw, "betalingsmiddel", "betaling", "payment")
@@ -299,9 +337,11 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
         "started_at": started_at.isoformat(),
         "ended_at": ended_at.isoformat() if ended_at else None,
         "stat_date": started_at.date().isoformat(),
+        "room_id": identity.get("room_id"),
         "room": normalize_text(room) or None,
         "room_key": room_key_from_name(room) if room else None,
         "source_room_name": normalize_text(room) or None,
+        "sun2_bed_id": identity.get("sun2_bed_id"),
         "sun2_user_id": sun2_user_id or None,
         "sun2_center_id": sun2_center_id or None,
         "user_name": normalize_text(user_name) or None,
@@ -366,6 +406,80 @@ def open_sessions_page(page, username: str, password: str) -> None:
         return
     for label in NAVIGATION_LABELS:
         click_text_if_present(page, label)
+
+
+def open_beds_page(page, username: str, password: str) -> None:
+    page.goto(f"{BASE_URL.rstrip('/')}/settings_beds.php", wait_until="domcontentloaded")
+    login_if_needed(page, username, password)
+    try:
+        page.wait_for_load_state("networkidle", timeout=10000)
+    except PwTimeoutError:
+        pass
+    page.wait_for_timeout(750)
+
+
+def extract_beds(page) -> list[dict[str, Any]]:
+    rows = page.evaluate(
+        """
+        () => Array.from(document.querySelectorAll('tr')).map((row) => {
+          const text = (selector) => {
+            const item = row.querySelector(selector);
+            return item ? (item.innerText || item.textContent || '').trim() : '';
+          };
+          const attr = (selector, name) => {
+            const item = row.querySelector(selector);
+            return item ? (item.getAttribute(name) || '') : '';
+          };
+          const name = text('.settings-bed-names');
+          if (!name) return null;
+          const lamps = Array.from(row.querySelectorAll('.settings-bed-lamp-info')).map((item) => (
+            item.getAttribute('title') || item.innerText || item.textContent || ''
+          ).trim()).filter(Boolean);
+          return {
+            name,
+            name_token: attr('.settings-bed-names', 'data-pk'),
+            bed_model: text('.settings-bed-types'),
+            bed_model_id: attr('.settings-bed-types', 'data-value') || attr('.settings-bed-types', 'data-pk'),
+            max_minutes: text('.settings-bed-max-time'),
+            startup_minutes: text('.settings-bed-startup-time'),
+            cooldown_minutes: text('.settings-bed-aftercooling-time') || text('.settings-bed-after-cooling-time') || text('.settings-bed-cooldown-time'),
+            current_price_per_min: text('.settings-bed-prices'),
+            status: text('.settings-bed-statuses'),
+            status_code: attr('.settings-bed-statuses', 'data-value'),
+            lamp_status: lamps.join(' | ')
+          };
+        }).filter(Boolean)
+        """
+    )
+    beds: list[dict[str, Any]] = []
+    for raw in rows:
+        center_id, bed_id = decode_sun2_pk_token(raw.get("name_token"))
+        if not bed_id:
+            continue
+        name = normalize_text(raw.get("name"))
+        identity = room_identity(name, bed_id)
+        beds.append(
+            {
+                "room_id": identity.get("room_id"),
+                "physical_room_number": identity.get("physical_room_number"),
+                "display_room_number": identity.get("display_room_number"),
+                "sun2_center_id": center_id,
+                "sun2_bed_id": bed_id,
+                "name": name,
+                "source_room_name": name,
+                "bed_model": normalize_text(raw.get("bed_model")) or None,
+                "bed_model_id": normalize_text(raw.get("bed_model_id")) or None,
+                "max_minutes": parse_number(raw.get("max_minutes")),
+                "startup_minutes": parse_number(raw.get("startup_minutes")),
+                "cooldown_minutes": parse_number(raw.get("cooldown_minutes")),
+                "current_price_per_min": parse_number(raw.get("current_price_per_min")),
+                "status": normalize_text(raw.get("status")) or None,
+                "status_code": normalize_text(raw.get("status_code")) or None,
+                "lamp_status": normalize_text(raw.get("lamp_status")) or None,
+                "raw": {key: value for key, value in raw.items() if key != "name_token"},
+            }
+        )
+    return beds
 
 
 def set_date_range(page, start: date, end: date) -> None:
@@ -586,10 +700,10 @@ def save_debug(page, filename: str) -> None:
         pass
 
 
-def post_to_fibaro10(payload: dict[str, Any]) -> dict[str, Any]:
+def post_to_fibaro10(payload: dict[str, Any], endpoint: str = "/api/sun2/sessions/ingest") -> dict[str, Any]:
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
-        f"{FIBARO10_API_BASE_URL}/api/sun2/sessions/ingest",
+        f"{FIBARO10_API_BASE_URL}{endpoint}",
         data=data,
         method="POST",
         headers={
@@ -602,6 +716,37 @@ def post_to_fibaro10(payload: dict[str, Any]) -> dict[str, Any]:
     with urllib.request.urlopen(request, timeout=30) as response:
         body = response.read().decode("utf-8")
         return json.loads(body) if body else {"status": response.status}
+
+
+def scrape_beds_sync() -> dict[str, Any]:
+    username = env_required("SUN2_USERNAME")
+    password = env_required("SUN2_PASSWORD")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(locale="nb-NO", accept_downloads=True)
+        page = context.new_page()
+        open_beds_page(page, username, password)
+        beds = extract_beds(page)
+        response = None
+        if POST_TO_FIBARO10 and beds:
+            response = post_to_fibaro10(
+                {
+                    "source": "sun2_session_scraper",
+                    "collector_id": COLLECTOR_ID,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "ok": True,
+                    "message": f"Importerte {len(beds)} SUN2-senger",
+                    "beds": beds,
+                    "extra": {"settings_url": page.url},
+                },
+                "/api/sun2/beds/ingest",
+            )
+        context.close()
+        browser.close()
+    state["beds_last_sync"] = datetime.utcnow().isoformat()
+    state["beds_last_count"] = len(beds)
+    save_progress({"last_action": "beds_synced", "beds_last_count": len(beds), "fibaro10_beds_response": response})
+    return {"ok": True, "beds": len(beds), "posted": bool(response), "fibaro10_response": response}
 
 
 def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
@@ -706,6 +851,11 @@ def run_range_sync() -> None:
             }
         )
         save_progress({})
+        try:
+            scrape_beds_sync()
+        except Exception as exc:
+            state["last_error"] = f"Seng-sync feilet: {exc}"
+            save_progress({"last_action": "beds_failed"})
         for period_start, period_end in iter_month_ranges(start, end):
             if stop_requested:
                 state["stop_requested"] = True
@@ -783,6 +933,7 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <form method="post" action="/start" style="display:inline"><button type="submit">Start range</button></form>
 <form method="post" action="/stop" style="display:inline"><button class="stop" type="submit">Stopp</button></form>
 <form method="post" action="/sync-current-month" style="display:inline"><button type="submit">Denne måneden</button></form>
+<form method="post" action="/sync-beds" style="display:inline"><button type="submit">Synk senger</button></form>
 </section>
 <section class="card">
 <form method="post" action="/sync-month">
@@ -817,6 +968,12 @@ async def sync_current_month():
     start = today.replace(day=1)
     end = today
     result = await asyncio.to_thread(scrape_month_sync, start, end)
+    return JSONResponse({"status": "ok", "result": result, "state": state})
+
+
+@app.post("/sync-beds")
+async def sync_beds():
+    result = await asyncio.to_thread(scrape_beds_sync)
     return JSONResponse({"status": "ok", "result": result, "state": state})
 
 

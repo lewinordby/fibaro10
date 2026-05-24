@@ -17,6 +17,8 @@ Fibaro10 lagrer data i:
 
 - `sun2_download` kan fortsette som i dag.
 - Importen er idempotent: samme rom/dato kan sendes flere ganger uten duplikater.
+- Importen sender også fast fysisk `room_id` og SUN2 `sun2_bed_id`, slik at historiske navneendringer ikke ødelegger rapporter.
+- SUN2 `.` eller `-` blir fysisk `rom-10`; SUN2 `Rom 10`-`Rom 12` blir fysisk `rom-11`-`rom-13`.
 - Hvis Fibaro10 ikke svarer, blir filen liggende i `incoming` og forsokes igjen.
 - Parsefeil flyttes til `rejected`.
 - Vellykket import flyttes til `archive`.

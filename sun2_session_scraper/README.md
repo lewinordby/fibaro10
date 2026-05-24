@@ -10,11 +10,20 @@ Filene kan beholdes som råarkiv, og kan også sendes direkte til Fibaro10:
 
 ```text
 POST /api/sun2/sessions/ingest
+POST /api/sun2/beds/ingest
 ```
 
 ## Hvorfor egen app
 
 `sun2_importer` håndterer romstatistikk per dag. Denne appen håndterer enkeltlinjer: starttid, rom, bruker, varighet, betalt beløp og status. Det gir mye bedre grunnlag for analyse av bruksmønster senere.
+
+Appen kan også lese SUN2 sin sengeliste fra `settings_beds.php`. Den listen brukes som fasit for fast fysisk `room_id`, SUN2 `sun2_bed_id`, dagens SUN2-navn, modell, pris, maks soletid og status.
+
+Rom-mappingen er bevisst historisk:
+
+- SUN2-navn `.` eller `-` = fysisk `rom-10`
+- SUN2 `Rom 1` til `Rom 9` = fysisk `rom-01` til `rom-09`
+- SUN2 `Rom 10`, `Rom 11`, `Rom 12` = fysisk `rom-11`, `rom-12`, `rom-13`
 
 ## Miljøvariabler
 
@@ -54,6 +63,7 @@ GET  /json
 POST /start
 POST /stop
 POST /sync-current-month
+POST /sync-beds
 POST /sync-month?year=2026&month=5
 ```
 

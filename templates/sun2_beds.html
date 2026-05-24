@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUN2 senger</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <style>
+        .sun-page { display:grid; gap:0.9rem; }
+        .sun-title { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; }
+        .sun-title h1 { margin:0; font-size:clamp(1.35rem,2.4vw,1.9rem); }
+        .sun-title p { margin:0.25rem 0 0; color:var(--muted); max-width:62rem; }
+        .metric-grid { display:grid; gap:0.72rem; grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .metric-card { min-height:6rem; padding:0.86rem 0.92rem; border:1px solid var(--line); border-top:4px solid var(--sun2-color); border-radius:12px; background:#fff; box-shadow:var(--shadow-1); }
+        .metric-card span { display:block; color:var(--muted); font-size:0.74rem; font-weight:800; text-transform:uppercase; }
+        .metric-card strong { display:block; margin-top:0.18rem; color:var(--brand-dark); font-size:clamp(1.2rem,2.7vw,1.7rem); line-height:1.05; }
+        .metric-card small { display:block; margin-top:0.34rem; color:var(--muted); font-size:0.78rem; }
+        .table-wrap { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:1040px; }
+        th, td { padding:0.62rem 0.7rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child, th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { text-align:left; }
+        th { position:sticky; top:0; z-index:1; color:var(--muted); font-size:0.74rem; font-weight:820; background:#f8fbff; }
+        td { font-size:0.86rem; }
+        tbody tr:last-child td { border-bottom:0; }
+        .room-pill { display:inline-flex; align-items:center; min-height:1.62rem; padding:0.12rem 0.5rem; border-radius:999px; background:var(--sun2-soft); color:var(--sun2-color); font-weight:850; text-decoration:none; }
+        .muted { color:var(--muted); }
+        .ok { color:var(--on); font-weight:850; }
+        .bad { color:var(--off); font-weight:850; }
+        @media (min-width: 900px) { .metric-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    </style>
+</head>
+<body>
+{% include "_nav.html" %}
+<main class="container">
+    <section class="sun-page">
+        <div class="sun-title">
+            <div>
+                <h1>Senger og fysisk rom-id</h1>
+                <p>Denne siden er fasiten mellom SUN2-navn, SUN2-seng-id og fysisk rom. All rapportering kan dermed bruke fast rom-id selv om navnene i SUN2 endres.</p>
+            </div>
+        </div>
+
+        <section class="metric-grid">
+            <article class="metric-card">
+                <span>Registrerte senger</span>
+                <strong>{{ beds|length }}</strong>
+                <small>Importert fra SUN2 innstillinger</small>
+            </article>
+            <article class="metric-card">
+                <span>Fysiske rom</span>
+                <strong>13</strong>
+                <small>rom-01 til rom-13</small>
+            </article>
+            <article class="metric-card">
+                <span>Historisk rom 10</span>
+                <strong>.</strong>
+                <small>Gamle SUN2-navn mappes til rom-10</small>
+            </article>
+            <article class="metric-card">
+                <span>Ny nummerering</span>
+                <strong>10-12</strong>
+                <small>SUN2 rom 10-12 mappes til fysisk rom 11-13</small>
+            </article>
+        </section>
+
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fysisk rom</th>
+                        <th>SUN2-navn</th>
+                        <th>SUN2 seng-id</th>
+                        <th>Center</th>
+                        <th>Modell</th>
+                        <th>Maks min</th>
+                        <th>Pris/min</th>
+                        <th>Status</th>
+                        <th>Solinger</th>
+                        <th>Soltid</th>
+                        <th>Sist brukt</th>
+                        <th>Importert</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bed in beds %}
+                    {% set total = totals.get(bed.room_id) or {} %}
+                    <tr>
+                        <td><a class="room-pill" href="/soling/enkeltimer?room_id={{ bed.room_id }}">{{ bed.room_id or "-" }}</a></td>
+                        <td>{{ bed.name }}</td>
+                        <td>{{ bed.sun2_bed_id }}</td>
+                        <td>{{ bed.sun2_center_id or "-" }}</td>
+                        <td>{{ bed.bed_model or "-" }}</td>
+                        <td>{{ "%.0f"|format(bed.max_minutes or 0) if bed.max_minutes else "-" }}</td>
+                        <td>{{ "%.2f"|format(bed.current_price_per_min or 0) if bed.current_price_per_min else "-" }}</td>
+                        <td class="{% if bed.status_code == '1' %}ok{% elif bed.status_code == '0' %}bad{% else %}muted{% endif %}">{{ bed.status or bed.status_code or "-" }}</td>
+                        <td>{{ "{:,.0f}".format(total.sessions_count or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.1f}".format((total.duration_minutes or 0) / 60).replace(",", " ") }} t</td>
+                        <td class="muted">{{ total.last_at|source_time if total.last_at else "-" }}</td>
+                        <td class="muted">{{ bed.imported_at|localtime_short }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="12">Ingen senger er importert ennå. Kjør synk av senger i SUN2 scraperen.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </section>
+</main>
+</body>
+</html>

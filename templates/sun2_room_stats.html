@@ -150,6 +150,7 @@
                 <thead>
                     <tr>
                         <th>Dato</th>
+                        <th>Fysisk rom</th>
                         <th>Nøkkel</th>
                         <th>Rom</th>
                         <th>Minutter</th>
@@ -166,6 +167,7 @@
                     {% for row in rows %}
                     <tr>
                         <td>{{ row.stat_date }}</td>
+                        <td>{{ row.room_id or "-" }}</td>
                         <td>{{ row.room_key or "-" }}</td>
                         <td>{{ row.room }}</td>
                         <td>{{ "%.0f"|format(row.total_soletid_minutter or 0) }}</td>

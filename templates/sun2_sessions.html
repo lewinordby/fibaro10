@@ -134,11 +134,11 @@
                     <input id="date_to" type="date" name="date_to" value="{{ filters.date_to }}">
                 </div>
                 <div class="filter-field">
-                    <label for="room">Rom</label>
-                    <select id="room" name="room">
+                    <label for="room_id">Fysisk rom</label>
+                    <select id="room_id" name="room_id">
                         <option value="">Alle rom</option>
-                        {% for option in room_options %}
-                        <option value="{{ option }}" {% if filters.room == option %}selected{% endif %}>{{ option }}</option>
+                        {% for option in room_id_options %}
+                        <option value="{{ option.value }}" {% if filters.room_id == option.value %}selected{% endif %}>{{ option.label }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -258,7 +258,13 @@
                     <div class="rank-item">
                         <span class="rank-no">{{ loop.index }}</span>
                         <div class="rank-main">
-                            <strong>{{ item.label or "-" }}</strong>
+                            <strong>
+                                {% if item.room_id %}
+                                <a class="id-link" href="{{ query_url(room_id=item.room_id, page=1) }}">{{ item.label or item.room_id }}</a>
+                                {% else %}
+                                {{ item.label or "-" }}
+                                {% endif %}
+                            </strong>
                             <span>{{ "{:,.1f}".format((item.duration_minutes or 0) / 60).replace(",", " ") }} t · {{ "{:,.0f}".format(item.paid_amount_kr or 0).replace(",", " ") }} kr</span>
                         </div>
                         <span class="rank-value">{{ "{:,.0f}".format(item.sessions_count or 0).replace(",", " ") }}</span>
@@ -376,7 +382,14 @@
                             <span class="cell-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>{{ row.room or row.room_key or "-" }}</td>
+                        <td>
+                            {% if row.room_id %}
+                            <a class="id-link" href="{{ query_url(room_id=row.room_id, page=1) }}">{{ row.room_id }}</a>
+                            {% else %}
+                            <span class="cell-muted">-</span>
+                            {% endif %}
+                            <span class="cell-muted">{{ row.room or row.room_key or "" }}</span>
+                        </td>
                         <td class="name">{{ row.user_name or "-" }}</td>
                         <td>{{ row.payment_method or "-" }}</td>
                         <td>{{ row.customer_type or row.user_identifier or "-" }}</td>
