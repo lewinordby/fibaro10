@@ -4842,3 +4842,88 @@ html body .site-header .app-nav .nav-main > .nav-sub .button.active .nav-sub-ico
         box-shadow: inset 0 -1px 0 #e9eaec !important;
     }
 }
+
+/* Desktop menu polish: match SUN2 Owner with a left-biased logo and calmer toggle. */
+@media (min-width: 1020px) {
+    html body .site-header .brand-home {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        min-height: 6.25rem !important;
+        padding-left: 2.15rem !important;
+        padding-right: 4.45rem !important;
+    }
+
+    html body .site-header .brand-logo {
+        width: 7.15rem !important;
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    html body .site-header .nav-toggle {
+        top: 1.64rem !important;
+        right: 1.1rem !important;
+        width: 2.48rem !important;
+        min-width: 2.48rem !important;
+        height: 2.48rem !important;
+        color: #85888d !important;
+        border: 1px solid #dce1e8 !important;
+        border-radius: 7px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f7f8fa 100%) !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.07) !important;
+    }
+
+    html body .site-header .nav-toggle:hover,
+    html body .site-header .nav-toggle:focus-visible {
+        color: #5f646b !important;
+        border-color: #ccd3dc !important;
+        background: #ffffff !important;
+    }
+
+    html body .site-header .nav-toggle-lines,
+    html body .site-header .nav-toggle-lines::before,
+    html body .site-header .nav-toggle-lines::after {
+        width: 1.2rem !important;
+        height: 0.13rem !important;
+        border: 0 !important;
+        border-top: 0 !important;
+        border-radius: 999px !important;
+        background: currentColor !important;
+    }
+
+    html body .site-header .nav-toggle-lines::before {
+        top: -0.38rem !important;
+    }
+
+    html body .site-header .nav-toggle-lines::after {
+        top: 0.38rem !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-home {
+        justify-content: center !important;
+        min-height: 4.65rem !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-logo {
+        width: 3.05rem !important;
+    }
+
+    html.nav-collapsed body .site-header .nav-toggle {
+        top: 4.95rem !important;
+        right: 1.05rem !important;
+        width: 2.05rem !important;
+        min-width: 2.05rem !important;
+        height: 2.05rem !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+    }
+
+    html.nav-collapsed body .site-header .nav-toggle-lines,
+    html.nav-collapsed body .site-header .nav-toggle-lines::before,
+    html.nav-collapsed body .site-header .nav-toggle-lines::after {
+        width: 1rem !important;
+        height: 0.12rem !important;
+    }
+}
