@@ -409,6 +409,12 @@ def open_sessions_page(page, username: str, password: str) -> None:
 
 
 def open_beds_page(page, username: str, password: str) -> None:
+    page.goto(BASE_URL, wait_until="domcontentloaded")
+    login_if_needed(page, username, password)
+    try:
+        page.wait_for_load_state("networkidle", timeout=10000)
+    except PwTimeoutError:
+        pass
     page.goto(f"{BASE_URL.rstrip('/')}/settings_beds.php", wait_until="domcontentloaded")
     login_if_needed(page, username, password)
     try:
