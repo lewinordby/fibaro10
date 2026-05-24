@@ -4949,10 +4949,6 @@ async def startup():
         for table_name, columns in STARTUP_COLUMNS.items():
             for column_name, column_type in columns:
                 await conn.exec_driver_sql(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} {column_type}")
-        await conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_sun2_room_daily_stats_room_id ON sun2_room_daily_stats (room_id)")
-        await conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_sun2_room_daily_stats_sun2_bed_id ON sun2_room_daily_stats (sun2_bed_id)")
-        await conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_sun2_tanning_sessions_room_id ON sun2_tanning_sessions (room_id)")
-        await conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_sun2_tanning_sessions_sun2_bed_id ON sun2_tanning_sessions (sun2_bed_id)")
         await conn.execute(delete(OutdoorLightEvent).where(OutdoorLightEvent.source == "CODEX TEST"))
         await conn.execute(delete(VentilationEvent).where(VentilationEvent.source == "CODEX TEST"))
     async with async_session() as session:
@@ -4995,7 +4991,6 @@ async def startup():
     async with async_session() as session:
         for config_key in CONFIG_DEFINITIONS:
             await get_or_create_config(session, config_key)
-        await backfill_sun2_room_identity(session)
         await session.commit()
 
 
@@ -5854,6 +5849,15 @@ async def sun2_beds_ingest(data: Sun2BedsIngestIn):
         await session.commit()
     clear_summary_cache("sun2_session_options")
     return {"status": "ok", **counts, "beds": len(data.beds)}
+
+
+@app.post("/api/sun2/backfill-room-identity")
+async def sun2_backfill_room_identity():
+    async with async_session() as session:
+        counts = await backfill_sun2_room_identity(session)
+        await session.commit()
+    clear_summary_cache("sun2", "sun2_sessions", "sun2_session_options", "sun2_session_database_total")
+    return {"status": "ok", **counts}
 
 
 @app.get("/sun2/room-stats")
