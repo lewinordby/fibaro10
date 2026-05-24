@@ -2712,3 +2712,436 @@ body.theme-status .mode {
     letter-spacing: 0 !important;
     font-weight: 840 !important;
 }
+
+/* SUN2 Owner inspired navigation. Keep this block last. */
+:root {
+    --owner-nav-width: 238px;
+    --owner-nav-collapsed-width: 76px;
+    --owner-nav-mobile-height: 64px;
+}
+
+.site-header {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 1px 0 rgba(16, 24, 40, 0.06) !important;
+}
+
+.site-header .brand-bar {
+    width: auto !important;
+    max-width: none !important;
+}
+
+.brand-home {
+    margin: 0 !important;
+}
+
+.brand-logo {
+    width: 6.15rem !important;
+    max-width: 100%;
+    filter: none !important;
+}
+
+.nav-toggle {
+    width: 2.45rem;
+    height: 2.45rem;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #555f6d;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+.nav-toggle-lines,
+.nav-toggle-lines::before,
+.nav-toggle-lines::after {
+    display: block;
+    width: 1.18rem;
+    height: 0.16rem;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.nav-toggle-lines {
+    position: relative;
+}
+
+.nav-toggle-lines::before,
+.nav-toggle-lines::after {
+    content: "";
+    position: absolute;
+    left: 0;
+}
+
+.nav-toggle-lines::before {
+    top: -0.42rem;
+}
+
+.nav-toggle-lines::after {
+    top: 0.42rem;
+}
+
+.app-nav,
+.site-header .app-nav {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+.app-nav .nav-row,
+.site-header .app-nav .nav-main,
+.app-nav .nav-main {
+    display: flex !important;
+    width: 100% !important;
+    max-width: none !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.app-nav .button,
+.app-nav .nav-sub-form .button {
+    text-decoration: none !important;
+    font: inherit !important;
+}
+
+.app-nav .button::after,
+.app-nav .button.active::after {
+    content: none !important;
+}
+
+@media (min-width: 1020px) {
+    .site-header {
+        position: fixed !important;
+        inset: 0 auto 0 0 !important;
+        z-index: 40 !important;
+        width: var(--owner-nav-width) !important;
+        height: 100vh !important;
+        padding: 0 !important;
+        overflow-y: auto !important;
+        border-right: 1px solid #e5e7eb !important;
+        border-bottom: 0 !important;
+        box-shadow: 8px 0 26px rgba(38, 50, 63, 0.05) !important;
+    }
+
+    html.nav-collapsed .site-header {
+        width: var(--owner-nav-collapsed-width) !important;
+    }
+
+    .site-header .brand-bar {
+        min-height: 100%;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0 !important;
+        padding: 1.05rem 0 0.95rem !important;
+    }
+
+    .site-header .brand-bar::before,
+    .site-header .brand-bar::after {
+        content: none !important;
+        display: none !important;
+    }
+
+    .brand-home {
+        min-height: 4.7rem;
+        display: grid !important;
+        place-items: center !important;
+        border-bottom: 1px solid #edf1f6;
+    }
+
+    .nav-toggle {
+        position: absolute;
+        top: 1.05rem;
+        right: 0.82rem;
+    }
+
+    .app-nav {
+        margin-top: 0.95rem !important;
+    }
+
+    .app-nav .nav-main {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.02rem !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1.38rem minmax(0, 1fr) !important;
+        align-items: center !important;
+        justify-content: start !important;
+        gap: 0.8rem !important;
+        padding: 0 1.05rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: #4b5563 !important;
+        box-shadow: inset 0 -1px 0 #edf1f6 !important;
+        font-size: 0.98rem !important;
+        font-weight: 560 !important;
+        white-space: nowrap !important;
+    }
+
+    .app-nav .nav-main > .button:hover {
+        background: #f5f7fb !important;
+        color: #26323f !important;
+        border: 0 !important;
+    }
+
+    .app-nav .nav-main > .button.active {
+        background: #f0f2f5 !important;
+        color: #26323f !important;
+        border: 0 !important;
+        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 #e5e7eb !important;
+    }
+
+    .app-nav .nav-icon {
+        width: 1.22rem !important;
+        height: 1.22rem !important;
+        stroke-width: 2.1 !important;
+        color: currentColor !important;
+        flex: 0 0 auto;
+    }
+
+    .app-nav .nav-sub {
+        display: grid !important;
+        gap: 0 !important;
+        margin: 0 !important;
+        padding: 0.26rem 0 0.34rem 2.7rem !important;
+        border: 0 !important;
+        border-left: 4px solid var(--section-color) !important;
+        border-radius: 0 !important;
+        background: linear-gradient(90deg, var(--section-soft), rgba(255, 255, 255, 0.68)) !important;
+        box-shadow: inset 0 -1px 0 #edf1f6 !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        min-height: 2rem !important;
+        width: calc(100% - 0.6rem) !important;
+        justify-content: flex-start !important;
+        padding: 0.26rem 0.55rem !important;
+        border: 0 !important;
+        border-radius: 4px !important;
+        background: transparent !important;
+        color: #596579 !important;
+        box-shadow: none !important;
+        font-size: 0.84rem !important;
+        font-weight: 640 !important;
+        text-align: left !important;
+    }
+
+    .app-nav .nav-sub .button:hover,
+    .app-nav .nav-sub-form .button:hover,
+    .app-nav .nav-sub .button.active {
+        background: rgba(255, 255, 255, 0.86) !important;
+        color: var(--section-color) !important;
+        box-shadow: inset 3px 0 0 var(--section-color) !important;
+    }
+
+    .app-nav .nav-form {
+        margin: 0 !important;
+    }
+
+    .site-header ~ main,
+    .site-header ~ .container {
+        width: auto !important;
+        max-width: none !important;
+        margin-left: calc(var(--owner-nav-width) + 1.4rem) !important;
+        margin-right: 1.4rem !important;
+        padding-top: 1rem !important;
+    }
+
+    html.nav-collapsed .site-header ~ main,
+    html.nav-collapsed .site-header ~ .container {
+        margin-left: calc(var(--owner-nav-collapsed-width) + 1.4rem) !important;
+    }
+
+    html.nav-collapsed .brand-home {
+        display: grid !important;
+        min-height: 4.2rem;
+        padding-top: 0.4rem;
+    }
+
+    html.nav-collapsed .brand-logo {
+        width: 3.35rem !important;
+    }
+
+    html.nav-collapsed .nav-toggle {
+        top: 4.65rem;
+        right: 1.05rem;
+        width: 2rem;
+        height: 2rem;
+        box-shadow: none;
+    }
+
+    html.nav-collapsed .app-nav {
+        margin-top: 3rem !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-main > .button {
+        min-height: 3.18rem !important;
+        grid-template-columns: 1fr !important;
+        justify-items: center !important;
+        padding: 0 !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-label,
+    html.nav-collapsed .app-nav .sr-only {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-sub {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    .site-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 50 !important;
+        min-height: var(--owner-nav-mobile-height) !important;
+        padding: 0.46rem 0.72rem !important;
+    }
+
+    .site-header .brand-bar {
+        display: grid !important;
+        grid-template-columns: auto 1fr auto !important;
+        align-items: center !important;
+        gap: 0.74rem !important;
+    }
+
+    .brand-home {
+        order: 1 !important;
+        min-width: 5.4rem;
+    }
+
+    .brand-logo {
+        width: 5.35rem !important;
+    }
+
+    .nav-toggle {
+        order: 3 !important;
+        justify-self: end !important;
+    }
+
+    .app-nav {
+        order: 4 !important;
+        grid-column: 1 / -1 !important;
+        max-height: calc(100vh - var(--owner-nav-mobile-height) - 1rem) !important;
+        overflow: auto !important;
+        border-top: 1px solid #edf1f6 !important;
+        padding-top: 0.52rem !important;
+    }
+
+    html.nav-collapsed .app-nav {
+        display: none !important;
+    }
+
+    .app-nav .nav-main {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.42rem !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 2.55rem !important;
+        display: inline-grid !important;
+        grid-template-columns: 1.1rem minmax(0, auto) !important;
+        justify-content: start !important;
+        gap: 0.45rem !important;
+        padding: 0.38rem 0.65rem !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 7px !important;
+        background: #ffffff !important;
+        color: #4b5563 !important;
+        box-shadow: none !important;
+        font-size: 0.88rem !important;
+        font-weight: 680 !important;
+    }
+
+    .app-nav .nav-main > .button.active {
+        background: var(--section-soft) !important;
+        color: var(--section-color) !important;
+        border-color: var(--section-border) !important;
+        box-shadow: inset 3px 0 0 var(--section-color) !important;
+    }
+
+    .app-nav .nav-icon {
+        width: 1.08rem !important;
+        height: 1.08rem !important;
+    }
+
+    .app-nav .nav-sub {
+        grid-column: 1 / -1 !important;
+        display: flex !important;
+        gap: 0.38rem !important;
+        overflow-x: auto !important;
+        padding: 0.28rem 0 0.1rem !important;
+        margin: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        min-height: 2.12rem !important;
+        flex: 0 0 auto !important;
+        padding: 0.28rem 0.64rem !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 999px !important;
+        background: #ffffff !important;
+        color: #596579 !important;
+        box-shadow: none !important;
+        font-size: 0.82rem !important;
+        font-weight: 690 !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: var(--section-color) !important;
+        border-color: var(--section-color) !important;
+        color: #ffffff !important;
+    }
+
+    .app-nav .nav-sub-form {
+        flex: 0 0 auto !important;
+    }
+
+    .site-header ~ main,
+    .site-header ~ .container {
+        width: min(100% - 1rem, var(--page-width)) !important;
+        max-width: var(--page-width) !important;
+        margin-inline: auto !important;
+        padding-top: 0.78rem !important;
+    }
+}
+
+@media (max-width: 520px) {
+    .app-nav .nav-main {
+        grid-template-columns: 1fr !important;
+    }
+
+    .brand-logo {
+        width: 4.9rem !important;
+    }
+}

@@ -13,11 +13,13 @@
     (() => {
         const root = document.documentElement;
         const key = "fibaro10_nav_collapsed";
+        const mobileQuery = window.matchMedia("(max-width: 1019px)");
         const apply = (collapsed) => {
             root.classList.toggle("nav-collapsed", collapsed);
             document.querySelector(".nav-toggle")?.setAttribute("aria-pressed", collapsed ? "true" : "false");
         };
-        apply(localStorage.getItem(key) === "1");
+        const stored = localStorage.getItem(key);
+        apply(stored === null ? mobileQuery.matches : stored === "1");
         document.addEventListener("click", (event) => {
             const button = event.target.closest(".nav-toggle");
             if (!button) return;
