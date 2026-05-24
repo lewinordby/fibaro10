@@ -7352,6 +7352,19 @@ async def sun2_day_timeline_view(request: Request, day: Optional[str] = None):
                 .order_by(Sun2TanningSession.room_id.asc(), Sun2TanningSession.started_at.asc())
             )
         ).scalars().all()
+        energy_rows = (
+            await session.execute(
+                select(
+                    EnergyHourlyConsumption.hour.label("hour"),
+                    func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0).label("consumption_kwh"),
+                    func.coalesce(func.sum(EnergyHourlyConsumption.production_kwh), 0).label("production_kwh"),
+                    func.count(EnergyHourlyConsumption.id).label("rows_count"),
+                )
+                .where(EnergyHourlyConsumption.stat_date == selected)
+                .group_by(EnergyHourlyConsumption.hour)
+                .order_by(EnergyHourlyConsumption.hour.asc())
+            )
+        ).mappings().all()
 
     totals = {"sessions_count": 0, "duration_minutes": 0.0, "duration_hours": 0.0, "paid_amount_kr": 0.0}
     for row in rows:
@@ -7420,6 +7433,34 @@ async def sun2_day_timeline_view(request: Request, day: Optional[str] = None):
         now_local = datetime.now(LOCAL_TZ).replace(tzinfo=None)
         now_marker = round(max(0, min(100, ((now_local - day_start).total_seconds() / 86400) * 100)), 3)
     ticks = [{"label": f"{hour:02d}", "left": round(hour / 24 * 100, 4)} for hour in range(0, 25, 2)]
+    energy_lookup = {int(item.get("hour") or 0): item for item in energy_rows}
+    energy_hours = []
+    max_energy_kwh = max([float((item.get("consumption_kwh") or 0)) for item in energy_rows] or [0.0])
+    total_energy_kwh = sum(float((item.get("consumption_kwh") or 0)) for item in energy_rows)
+    for hour in range(24):
+        item = energy_lookup.get(hour) or {}
+        consumption = float(item.get("consumption_kwh") or 0)
+        production = float(item.get("production_kwh") or 0)
+        energy_hours.append(
+            {
+                "hour": hour,
+                "left": round(hour / 24 * 100, 4),
+                "width": round(100 / 24, 4),
+                "height": round((consumption / max_energy_kwh) * 100, 2) if max_energy_kwh else 0,
+                "consumption_kwh": consumption,
+                "production_kwh": production,
+                "title": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00 | {consumption:.2f} kWh",
+            }
+        )
+    peak_energy_hour = max(energy_hours, key=lambda item: item["consumption_kwh"], default=None)
+    if peak_energy_hour and not peak_energy_hour["consumption_kwh"]:
+        peak_energy_hour = None
+    energy_summary = {
+        "hours_count": len([item for item in energy_hours if item["consumption_kwh"] > 0]),
+        "total_kwh": total_energy_kwh,
+        "max_kwh": max_energy_kwh,
+        "peak_hour": peak_energy_hour,
+    }
 
     return templates.TemplateResponse(
         request,
@@ -7434,6 +7475,8 @@ async def sun2_day_timeline_view(request: Request, day: Optional[str] = None):
             "busiest_room": busiest_room,
             "ticks": ticks,
             "now_marker": now_marker,
+            "energy_hours": energy_hours,
+            "energy_summary": energy_summary,
         },
     )
 

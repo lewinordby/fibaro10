@@ -36,6 +36,12 @@
         .room-total { color:var(--muted); font-size:0.72rem; font-weight:780; text-align:left; white-space:nowrap; }
         .room-line { position:relative; height:2.72rem; border:1px solid #dbe6f2; border-radius:10px; background:linear-gradient(90deg, rgba(219,230,242,0.72) 1px, transparent 1px), linear-gradient(180deg,#fbfdff,#f6f9fd); background-size:calc(100% / 24) 100%, 100% 100%; overflow:hidden; }
         .room-line::before { content:""; position:absolute; inset:0; background:linear-gradient(90deg, transparent 0 24.95%, rgba(63,127,189,0.08) 25% 25.15%, transparent 25.2% 49.95%, rgba(63,127,189,0.08) 50% 50.15%, transparent 50.2% 74.95%, rgba(63,127,189,0.08) 75% 75.15%, transparent 75.2%); pointer-events:none; }
+        .energy-line { position:relative; height:4.15rem; border:1px solid #e3d1ad; border-radius:10px; background:linear-gradient(90deg, rgba(227,209,173,0.62) 1px, transparent 1px), linear-gradient(180deg,#fffaf0,#fff7e8); background-size:calc(100% / 24) 100%, 100% 100%; overflow:hidden; }
+        .energy-line::before { content:""; position:absolute; inset:auto 0 0; height:1px; background:#d9bd84; opacity:0.65; }
+        .energy-bar { position:absolute; bottom:0.34rem; min-height:3px; border-radius:5px 5px 2px 2px; background:linear-gradient(180deg,var(--energy-color),#b97920); box-shadow:0 2px 7px rgba(219,151,52,0.18); }
+        .energy-bar.empty { opacity:0.16; min-height:2px; box-shadow:none; }
+        .energy-bar:hover { filter:brightness(0.96); outline:2px solid rgba(219,151,52,0.22); }
+        .energy-total { color:#9a660f; font-size:0.72rem; font-weight:850; text-align:left; white-space:nowrap; }
         .session-block { position:absolute; top:0.42rem; height:1.82rem; min-width:3px; border-radius:7px; background:linear-gradient(180deg,var(--sun2-color),#2f6fa9); box-shadow:0 3px 9px rgba(63,127,189,0.24); color:#fff; text-decoration:none; overflow:hidden; }
         .session-block.member { background:linear-gradient(180deg,var(--vent-color),#3d8b53); box-shadow:0 3px 9px rgba(76,158,95,0.22); }
         .session-block.no-member { background:linear-gradient(180deg,var(--energy-color),#bf8330); box-shadow:0 3px 9px rgba(219,151,52,0.22); }
@@ -107,6 +113,11 @@
                 <strong>{{ busiest_room.label if busiest_room else "-" }}</strong>
                 <small>{% if busiest_room %}{{ busiest_room.count }} solinger{% else %}Ingen solinger{% endif %}</small>
             </div>
+            <div class="metric-card accent">
+                <span>Strømforbruk</span>
+                <strong>{% if energy_summary.hours_count %}{{ "%.1f"|format(energy_summary.total_kwh) }} kWh{% else %}-{% endif %}</strong>
+                <small>{% if energy_summary.peak_hour %}Topp {{ "%02d"|format(energy_summary.peak_hour.hour) }}:00 med {{ "%.1f"|format(energy_summary.peak_hour.consumption_kwh) }} kWh{% else %}Ingen Elvia-data for dagen{% endif %}</small>
+            </div>
         </section>
 
         <section class="timeline-card">
@@ -130,6 +141,20 @@
                         {% endfor %}
                     </div>
                     <div></div>
+
+                    <div class="room-label">
+                        Strøm
+                        <small>Elvia</small>
+                    </div>
+                    <div class="energy-line">
+                        {% if now_marker is not none %}
+                        <div class="now-marker" style="left:{{ now_marker }}%"></div>
+                        {% endif %}
+                        {% for item in energy_hours %}
+                        <div class="energy-bar {% if not item.consumption_kwh %}empty{% endif %}" title="{{ item.title }}" style="left:{{ item.left }}%; width:calc({{ item.width }}% - 2px); height:{{ item.height }}%;"></div>
+                        {% endfor %}
+                    </div>
+                    <div class="energy-total">{% if energy_summary.hours_count %}{{ "%.1f"|format(energy_summary.total_kwh) }} kWh{% else %}-{% endif %}</div>
 
                     {% for room in rooms %}
                     <div class="room-label">
