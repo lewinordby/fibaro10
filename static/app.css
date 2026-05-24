@@ -4740,11 +4740,11 @@ html body .site-header .app-nav .nav-main > .nav-sub .button.active .nav-sub-ico
         max-width: 100% !important;
         min-height: 5rem !important;
         margin: 0 !important;
-        padding: 0 1rem !important;
+        padding: 0 1rem 0 clamp(1.55rem, 8vw, 3.8rem) !important;
         display: grid !important;
-        grid-template-columns: minmax(0, 1fr) 2.9rem !important;
+        grid-template-columns: minmax(0, 1fr) 2.65rem !important;
         align-items: center !important;
-        gap: 0.75rem !important;
+        gap: 0.65rem !important;
         box-sizing: border-box !important;
         background: #ffffff !important;
     }
@@ -4757,14 +4757,14 @@ html body .site-header .app-nav .nav-main > .nav-sub .button.active .nav-sub-ico
         height: 5rem !important;
         display: flex !important;
         align-items: center !important;
-        justify-content: center !important;
+        justify-content: flex-start !important;
         border: 0 !important;
         background: transparent !important;
     }
 
     html body .site-header .brand-logo,
     html.nav-collapsed body .site-header .brand-logo {
-        width: min(8.8rem, 52vw) !important;
+        width: min(8.35rem, 48vw) !important;
         max-width: 100% !important;
         height: auto !important;
         display: block !important;
@@ -4776,12 +4776,42 @@ html body .site-header .app-nav .nav-main > .nav-sub .button.active .nav-sub-ico
         inset: auto !important;
         justify-self: end !important;
         align-self: center !important;
-        width: 2.75rem !important;
-        min-width: 2.75rem !important;
-        height: 2.75rem !important;
+        width: 2.58rem !important;
+        min-width: 2.58rem !important;
+        height: 2.58rem !important;
         padding: 0 !important;
-        border-radius: 5px !important;
+        color: #7f8389 !important;
+        border: 1px solid #d9dee6 !important;
+        border-radius: 7px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f7f8fa 100%) !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
         transform: none !important;
+    }
+
+    html body .site-header .nav-toggle:hover,
+    html body .site-header .nav-toggle:focus-visible {
+        color: #5b6068 !important;
+        border-color: #cfd6df !important;
+        background: #ffffff !important;
+    }
+
+    html body .site-header .nav-toggle-lines,
+    html body .site-header .nav-toggle-lines::before,
+    html body .site-header .nav-toggle-lines::after {
+        width: 1.22rem !important;
+        height: 0.13rem !important;
+        border: 0 !important;
+        border-top: 0 !important;
+        border-radius: 999px !important;
+        background: currentColor !important;
+    }
+
+    html body .site-header .nav-toggle-lines::before {
+        top: -0.38rem !important;
+    }
+
+    html body .site-header .nav-toggle-lines::after {
+        top: 0.38rem !important;
     }
 
     html body .site-header .app-nav,
