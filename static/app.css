@@ -4226,15 +4226,34 @@ textarea:focus {
 }
 
 @media (max-width: 1019px) {
+    .app-nav,
     .app-nav .nav-main {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
         align-items: stretch !important;
+        flex-direction: column !important;
     }
 
     .app-nav .nav-main > .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
         width: 100% !important;
+        max-width: 100% !important;
         min-width: 100% !important;
         align-self: stretch !important;
         flex: 0 0 auto !important;
         order: 0 !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .app-nav .nav-main > .nav-sub .button,
+    .app-nav .nav-main > .nav-sub-form .button {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 auto !important;
     }
 }
