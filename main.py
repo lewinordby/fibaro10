@@ -797,6 +797,34 @@ class Sun2Bed(Base):
     raw = Column(JSON, nullable=True)
 
 
+class Sun2Member(Base):
+    __tablename__ = "sun2_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sun2_user_id = Column(String, unique=True, index=True, nullable=False)
+    sun2_center_id = Column(String, index=True, nullable=True)
+    name = Column(String, index=True, nullable=True)
+    display_name = Column(String, index=True, nullable=True)
+    initials = Column(String, index=True, nullable=True)
+    age = Column(Integer, index=True, nullable=True)
+    email = Column(String, index=True, nullable=True)
+    phone = Column(String, index=True, nullable=True)
+    profile_url = Column(Text, nullable=True)
+    customer_type = Column(String, index=True, nullable=True)
+    gender = Column(String, index=True, nullable=True)
+    birth_date = Column(Date, index=True, nullable=True)
+    member_since = Column(Date, index=True, nullable=True)
+    last_seen_at = Column(DateTime, index=True, nullable=True)
+    status = Column(String, index=True, nullable=True)
+    balance_kr = Column(Float, nullable=True)
+    total_spent_kr = Column(Float, nullable=True)
+    visits_count = Column(Integer, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    source_file = Column(String, index=True, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, index=True)
+    raw = Column(JSON, nullable=True)
+
+
 class Sun2SessionImportRun(Base):
     __tablename__ = "sun2_session_import_runs"
 
@@ -1103,6 +1131,39 @@ class Sun2BedsIngestIn(BaseModel):
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
+class Sun2MemberIn(BaseModel):
+    sun2_user_id: str
+    sun2_center_id: Optional[str] = None
+    name: Optional[str] = None
+    display_name: Optional[str] = None
+    initials: Optional[str] = None
+    age: Optional[int] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    profile_url: Optional[str] = None
+    customer_type: Optional[str] = None
+    gender: Optional[str] = None
+    birth_date: Optional[date] = None
+    member_since: Optional[date] = None
+    last_seen_at: Optional[datetime] = None
+    status: Optional[str] = None
+    balance_kr: Optional[float] = None
+    total_spent_kr: Optional[float] = None
+    visits_count: Optional[int] = None
+    source_file: Optional[str] = None
+    raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Sun2MembersIngestIn(BaseModel):
+    source: str = "sun2_session_scraper"
+    collector_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    ok: bool = True
+    message: Optional[str] = None
+    members: list[Sun2MemberIn] = Field(default_factory=list)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
 LIGHT_COLUMNS = [
     "id", "timestamp", "event_type", "action", "device_key", "device_id", "device_name",
     "mode", "reason", "source", "lux", "value", "state", "extra",
@@ -1202,6 +1263,13 @@ SUN2_BED_COLUMNS = [
     "status", "status_code", "lamp_status", "source", "imported_at", "raw",
 ]
 
+SUN2_MEMBER_COLUMNS = [
+    "id", "sun2_user_id", "sun2_center_id", "name", "display_name", "initials", "age",
+    "email", "phone", "profile_url", "customer_type", "gender", "birth_date",
+    "member_since", "last_seen_at", "status", "balance_kr", "total_spent_kr",
+    "visits_count", "source", "source_file", "imported_at", "raw",
+]
+
 SUN2_SESSION_IMPORT_COLUMNS = [
     "id", "timestamp", "collector_id", "source", "ok", "source_file",
     "period_first", "period_last", "rows_count", "inserted_count", "updated_count",
@@ -1244,6 +1312,13 @@ AI_DATASETS = {
         "title": "SUN2 senger og fysisk rom",
         "description": "Fast mapping mellom fysisk rom-id, SUN2 seng-id, SUN2-navn, modell, status og gjeldende innstillinger.",
         "columns": SUN2_BED_COLUMNS,
+        "time_column": "imported_at",
+    },
+    "soling_members": {
+        "table": "sun2_members",
+        "title": "SUN2 medlemmer",
+        "description": "SUN2-brukere/medlemmer med fast SUN2-id og eventuell profilinfo fra medlemssider.",
+        "columns": SUN2_MEMBER_COLUMNS,
         "time_column": "imported_at",
     },
     "energy_hourly": {
@@ -1891,6 +1966,29 @@ STARTUP_COLUMNS = {
         ("gender", "VARCHAR"),
         ("payment_method", "VARCHAR"),
     ],
+    "sun2_members": [
+        ("sun2_center_id", "VARCHAR"),
+        ("name", "VARCHAR"),
+        ("display_name", "VARCHAR"),
+        ("initials", "VARCHAR"),
+        ("age", "INTEGER"),
+        ("email", "VARCHAR"),
+        ("phone", "VARCHAR"),
+        ("profile_url", "TEXT"),
+        ("customer_type", "VARCHAR"),
+        ("gender", "VARCHAR"),
+        ("birth_date", "DATE"),
+        ("member_since", "DATE"),
+        ("last_seen_at", "TIMESTAMP"),
+        ("status", "VARCHAR"),
+        ("balance_kr", "DOUBLE PRECISION"),
+        ("total_spent_kr", "DOUBLE PRECISION"),
+        ("visits_count", "INTEGER"),
+        ("source", "VARCHAR"),
+        ("source_file", "VARCHAR"),
+        ("imported_at", "TIMESTAMP"),
+        ("raw", "JSON"),
+    ],
 }
 
 PERFORMANCE_INDEXES = [
@@ -1923,6 +2021,21 @@ PERFORMANCE_INDEXES = [
         "ix_sun2_sessions_customer_stat",
         "CREATE INDEX IF NOT EXISTS ix_sun2_sessions_customer_stat "
         "ON sun2_tanning_sessions (customer_type, stat_date)",
+    ),
+    (
+        "ix_sun2_members_name",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_members_name "
+        "ON sun2_members (name)",
+    ),
+    (
+        "ix_sun2_members_display_name",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_members_display_name "
+        "ON sun2_members (display_name)",
+    ),
+    (
+        "ix_sun2_members_status_type",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_members_status_type "
+        "ON sun2_members (status, customer_type)",
     ),
     (
         "ix_sun2_room_daily_date_room",
@@ -4582,6 +4695,52 @@ async def ingest_sun2_beds(session, data: Sun2BedsIngestIn, batch_time: datetime
     return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
+async def ingest_sun2_members(session, data: Sun2MembersIngestIn, batch_time: datetime) -> Dict[str, int]:
+    inserted = 0
+    updated = 0
+    skipped = 0
+    source = data.source or "sun2_session_scraper"
+    for row in data.members:
+        sun2_user_id = (repair_mojibake(row.sun2_user_id) or "").strip()
+        if not sun2_user_id:
+            skipped += 1
+            continue
+        existing = (
+            await session.execute(
+                select(Sun2Member).where(Sun2Member.sun2_user_id == sun2_user_id)
+            )
+        ).scalars().first()
+        if not existing:
+            existing = Sun2Member(sun2_user_id=sun2_user_id)
+            session.add(existing)
+            inserted += 1
+        else:
+            updated += 1
+
+        existing.sun2_center_id = (repair_mojibake(row.sun2_center_id) or "").strip() or existing.sun2_center_id
+        existing.name = (repair_mojibake(row.name) or "").strip() or None
+        existing.display_name = (repair_mojibake(row.display_name) or "").strip() or existing.name or None
+        existing.initials = (repair_mojibake(row.initials) or "").strip() or None
+        existing.age = row.age
+        existing.email = (repair_mojibake(row.email) or "").strip() or None
+        existing.phone = (repair_mojibake(row.phone) or "").strip() or None
+        existing.profile_url = (repair_mojibake(row.profile_url) or "").strip() or None
+        existing.customer_type = (repair_mojibake(row.customer_type) or "").strip() or None
+        existing.gender = (repair_mojibake(row.gender) or "").strip() or None
+        existing.birth_date = row.birth_date
+        existing.member_since = row.member_since
+        existing.last_seen_at = row.last_seen_at
+        existing.status = (repair_mojibake(row.status) or "").strip() or None
+        existing.balance_kr = row.balance_kr
+        existing.total_spent_kr = row.total_spent_kr
+        existing.visits_count = row.visits_count
+        existing.source = source
+        existing.source_file = (repair_mojibake(row.source_file or "") or "").strip() or None
+        existing.imported_at = batch_time
+        existing.raw = row.raw or {}
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
+
+
 async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestIn, batch_time: datetime) -> Dict[str, int]:
     inserted = 0
     updated = 0
@@ -5986,6 +6145,16 @@ async def sun2_beds_ingest(data: Sun2BedsIngestIn):
     return {"status": "ok", **counts, "beds": len(data.beds)}
 
 
+@app.post("/api/sun2/members/ingest")
+async def sun2_members_ingest(data: Sun2MembersIngestIn):
+    batch_time = data.timestamp or datetime.utcnow()
+    async with async_session() as session:
+        counts = await ingest_sun2_members(session, data, batch_time)
+        await session.commit()
+    clear_summary_cache("sun2_members")
+    return {"status": "ok", **counts, "members": len(data.members)}
+
+
 @app.post("/api/sun2/backfill-room-identity")
 async def sun2_backfill_room_identity():
     async with async_session() as session:
@@ -6611,6 +6780,113 @@ async def sun2_beds_view(request: Request):
     )
 
 
+@app.get("/soling/medlemmer", response_class=HTMLResponse)
+async def sun2_members_view(
+    request: Request,
+    q: str = "",
+    customer_type: str = "",
+    status: str = "",
+    limit: int = 250,
+):
+    search = (q or "").strip()
+    active_customer_type = (customer_type or "").strip()
+    active_status = (status or "").strip()
+    limit = max(25, min(limit, 1000))
+    filters = []
+    if search:
+        like = f"%{search.lower()}%"
+        filters.append(
+            or_(
+                func.lower(func.coalesce(Sun2Member.sun2_user_id, "")).like(like),
+                func.lower(func.coalesce(Sun2Member.name, "")).like(like),
+                func.lower(func.coalesce(Sun2Member.display_name, "")).like(like),
+                func.lower(func.coalesce(Sun2Member.initials, "")).like(like),
+                func.lower(func.coalesce(Sun2Member.email, "")).like(like),
+                func.lower(func.coalesce(Sun2Member.phone, "")).like(like),
+            )
+        )
+    if active_customer_type:
+        filters.append(Sun2Member.customer_type == active_customer_type)
+    if active_status:
+        filters.append(Sun2Member.status == active_status)
+
+    async with async_session() as session:
+        rows_query = select(Sun2Member)
+        for condition in filters:
+            rows_query = rows_query.where(condition)
+        members = (
+            await session.execute(
+                rows_query
+                .order_by(Sun2Member.imported_at.desc(), Sun2Member.name, Sun2Member.display_name, Sun2Member.sun2_user_id)
+                .limit(limit)
+            )
+        ).scalars().all()
+        member_ids = [member.sun2_user_id for member in members if member.sun2_user_id]
+        stats = {}
+        if member_ids:
+            stats_rows = (
+                await session.execute(
+                    select(
+                        Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
+                        func.count(Sun2TanningSession.id).label("sessions_count"),
+                        func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                        func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                        func.max(Sun2TanningSession.started_at).label("last_session_at"),
+                        func.max(Sun2TanningSession.user_name).label("session_name"),
+                    )
+                    .where(Sun2TanningSession.sun2_user_id.in_(member_ids))
+                    .group_by(Sun2TanningSession.sun2_user_id)
+                )
+            ).mappings().all()
+            stats = {item["sun2_user_id"]: item for item in stats_rows}
+        totals = (
+            await session.execute(
+                select(
+                    func.count(Sun2Member.id).label("members_count"),
+                    func.count(Sun2Member.name).label("named_count"),
+                    func.count(Sun2Member.email).label("email_count"),
+                    func.count(Sun2Member.phone).label("phone_count"),
+                    func.max(Sun2Member.imported_at).label("last_imported_at"),
+                )
+            )
+        ).mappings().first() or {}
+        customer_options = (
+            await session.execute(
+                select(Sun2Member.customer_type).where(Sun2Member.customer_type.is_not(None)).distinct().order_by(Sun2Member.customer_type)
+            )
+        ).scalars().all()
+        status_options = (
+            await session.execute(
+                select(Sun2Member.status).where(Sun2Member.status.is_not(None)).distinct().order_by(Sun2Member.status)
+            )
+        ).scalars().all()
+        known_from_sessions = (
+            await session.execute(
+                select(func.count(func.distinct(Sun2TanningSession.sun2_user_id)))
+                .where(Sun2TanningSession.sun2_user_id.is_not(None))
+                .where(Sun2TanningSession.sun2_user_id != "")
+            )
+        ).scalar_one()
+    return templates.TemplateResponse(
+        request,
+        "sun2_members.html",
+        {
+            "members": members,
+            "stats": stats,
+            "totals": totals,
+            "known_from_sessions": known_from_sessions,
+            "filters": {
+                "q": search,
+                "customer_type": active_customer_type,
+                "status": active_status,
+                "limit": limit,
+            },
+            "customer_options": customer_options,
+            "status_options": status_options,
+        },
+    )
+
+
 @app.get("/api/sun2/room-stats/json")
 async def sun2_room_stats_json(limit: int = 300):
     limit = max(1, min(limit, 5000))
@@ -6656,6 +6932,34 @@ async def sun2_beds_json():
             )
         ).scalars().all()
     return {"rows": [row_to_dict(row, SUN2_BED_COLUMNS) for row in rows]}
+
+
+@app.get("/api/sun2/members/json")
+async def sun2_members_json(limit: int = 300, q: Optional[str] = None):
+    limit = max(1, min(limit, 5000))
+    search = (q or "").strip()
+    async with async_session() as session:
+        rows_query = select(Sun2Member)
+        if search:
+            like = f"%{search.lower()}%"
+            rows_query = rows_query.where(
+                or_(
+                    func.lower(func.coalesce(Sun2Member.sun2_user_id, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.name, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.display_name, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.initials, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.email, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.phone, "")).like(like),
+                )
+            )
+        rows = (
+            await session.execute(
+                rows_query
+                .order_by(Sun2Member.imported_at.desc(), Sun2Member.sun2_user_id)
+                .limit(limit)
+            )
+        ).scalars().all()
+    return {"rows": [row_to_dict(row, SUN2_MEMBER_COLUMNS) for row in rows], "q": search or None}
 
 
 @app.get("/api/sun2/sessions/json")

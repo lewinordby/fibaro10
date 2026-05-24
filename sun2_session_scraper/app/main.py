@@ -12,6 +12,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query, Request
@@ -59,6 +60,8 @@ def local_today() -> date:
 BASE_URL = env_value("BASE_URL", "https://sun2owner.repayal.com") or "https://sun2owner.repayal.com"
 LIST_URL = (env_value("LIST_URL", "") or "").strip()
 NAVIGATION_LABELS = [part.strip() for part in (env_value("NAVIGATION_LABELS", "Statistikk|Bruker|Liste") or "").split("|") if part.strip()]
+MEMBERS_URL = (env_value("MEMBERS_URL", "") or "").strip()
+MEMBER_NAVIGATION_LABELS = [part.strip() for part in (env_value("MEMBER_NAVIGATION_LABELS", "Medlemmer|Brukere|Kunder") or "").split("|") if part.strip()]
 OUT_DIR = Path(env_value("OUT_DIR", "/data/session_exports") or "/data/session_exports")
 ERROR_DIR = Path(env_value("ERROR_DIR", "/data/session_errors") or "/data/session_errors")
 STATUS_FILE = Path(env_value("STATUS_FILE", "/data/session_scraper_status.json") or "/data/session_scraper_status.json")
@@ -70,6 +73,8 @@ FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "https://fibaro10.on
 FIBARO10_API_USERNAME = env_value("FIBARO10_API_USERNAME", "") or ""
 FIBARO10_API_PASSWORD = env_value("FIBARO10_API_PASSWORD", "") or ""
 COLLECTOR_ID = env_value("COLLECTOR_ID", "qnap-sun2-session-scraper") or "qnap-sun2-session-scraper"
+MEMBER_PROFILE_LIMIT = int(env_value("MEMBER_PROFILE_LIMIT", "120") or "120")
+FETCH_MEMBER_PROFILES = (env_value("FETCH_MEMBER_PROFILES", "1") or "1") == "1"
 
 app = FastAPI(title="Sun2_session_scraper")
 task: asyncio.Task | None = None
@@ -91,6 +96,9 @@ state: dict[str, Any] = {
     "rows_last_file": 0,
     "beds_last_sync": None,
     "beds_last_count": 0,
+    "members_last_sync": None,
+    "members_last_count": 0,
+    "members_last_named_count": 0,
     "current_file": None,
     "range": {},
 }
@@ -237,6 +245,39 @@ def parse_datetime_guess(value: Any, fallback_day: date) -> datetime | None:
     return None
 
 
+def parse_date_guess(value: Any) -> date | None:
+    text = normalize_text(value)
+    if not text:
+        return None
+    for pattern in ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(text, pattern).date()
+        except ValueError:
+            pass
+    match = re.search(r"(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})", text)
+    if match:
+        day, month, year = [int(part) for part in match.groups()]
+        if year < 100:
+            year += 2000
+        try:
+            return date(year, month, day)
+        except ValueError:
+            return None
+    match = re.search(r"(\d{4})[./-](\d{1,2})[./-](\d{1,2})", text)
+    if match:
+        year, month, day = [int(part) for part in match.groups()]
+        try:
+            return date(year, month, day)
+        except ValueError:
+            return None
+    return None
+
+
+def parse_int(value: Any) -> int | None:
+    number = parse_number(value)
+    return int(number) if number is not None else None
+
+
 def pick(row: dict[str, str], *keywords: str) -> str:
     normalized_keywords = [normalize_key(keyword) for keyword in keywords]
     for key, value in row.items():
@@ -310,7 +351,7 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
     paid = parse_number(pick(raw, "kostnad", "betalt", "pris", "belop", "inntjent", "kr"))
     room = pick(raw, "rom", "seng", "bed", "solarium")
     identity = room_identity(room)
-    user_name = pick(raw, "bruker", "kunde", "navn", "medlem")
+    user_name = pick(raw, "bruker", "kunde", "navn", "medlem") or normalize_text(raw.get("__user_title"))
     user_identifier = pick(raw, "kunde id", "bruker id", "medlemsnummer", "telefon", "epost", "email")
     payment_method = pick(raw, "betalingsmiddel", "betaling", "payment")
     status = pick(raw, "status", "resultat") or payment_method
@@ -422,6 +463,133 @@ def open_beds_page(page, username: str, password: str) -> None:
     except PwTimeoutError:
         pass
     page.wait_for_timeout(750)
+
+
+def open_members_page(page, username: str, password: str) -> None:
+    page.goto(MEMBERS_URL or BASE_URL, wait_until="domcontentloaded")
+    login_if_needed(page, username, password)
+    if MEMBERS_URL:
+        return
+    for label in MEMBER_NAVIGATION_LABELS:
+        click_text_if_present(page, label)
+    page.wait_for_timeout(750)
+
+
+def absolute_url(value: Any) -> str:
+    text = normalize_text(value)
+    if not text:
+        return ""
+    return urljoin(BASE_URL.rstrip("/") + "/", text)
+
+
+def profile_pairs_from_page(page) -> dict[str, str]:
+    try:
+        return page.evaluate(
+            """
+            () => {
+              const norm = (text) => String(text || '').replace(/\\s+/g, ' ').trim();
+              const pairs = {};
+              const add = (key, value) => {
+                key = norm(key).replace(/:$/, '');
+                value = norm(value);
+                if (key && value && !pairs[key]) pairs[key] = value;
+              };
+              document.querySelectorAll('tr').forEach(tr => {
+                const cells = Array.from(tr.children).map(td => norm(td.innerText || td.textContent));
+                if (cells.length >= 2) add(cells[0], cells.slice(1).join(' '));
+              });
+              document.querySelectorAll('dt').forEach(dt => add(dt.innerText, dt.nextElementSibling ? dt.nextElementSibling.innerText : ''));
+              document.querySelectorAll('input, select, textarea').forEach(el => {
+                const id = el.getAttribute('id') || '';
+                const name = el.getAttribute('name') || '';
+                const label = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null;
+                const key = (label && label.innerText) || el.getAttribute('placeholder') || name || id;
+                const value = el.tagName === 'SELECT'
+                  ? (el.options[el.selectedIndex]?.text || el.value || '')
+                  : (el.value || el.getAttribute('value') || '');
+                add(key, value);
+              });
+              return pairs;
+            }
+            """
+        ) or {}
+    except Exception:
+        return {}
+
+
+def extract_age(value: Any) -> int | None:
+    text = normalize_text(value)
+    match = re.search(r"\((\d{1,3})\s*år\)", text, re.I)
+    if not match:
+        match = re.search(r"\b(\d{1,3})\s*år\b", text, re.I)
+    return int(match.group(1)) if match else None
+
+
+def looks_like_initials(value: Any) -> bool:
+    text = re.sub(r"\([^)]*\)", "", normalize_text(value)).strip()
+    if not text:
+        return False
+    parts = text.split()
+    return 1 <= len(parts) <= 4 and all(re.fullmatch(r"[A-Za-zÆØÅæøå]\.?", part) for part in parts)
+
+
+def normalize_member_row(raw: dict[str, str], profile: dict[str, str] | None = None) -> dict[str, Any] | None:
+    merged = {**raw, **(profile or {})}
+    sun2_user_id = normalize_text(raw.get("__sun2_user_id"))
+    sun2_center_id = normalize_text(raw.get("__sun2_center_id"))
+    token_center_id, token_user_id = decode_sun2_member_token(raw.get("__sun2_user_token"))
+    if not sun2_center_id:
+        sun2_center_id = token_center_id or ""
+    if not sun2_user_id:
+        sun2_user_id = token_user_id or ""
+    if not sun2_user_id:
+        sun2_user_id = normalize_text(pick(merged, "sun2 id", "bruker id", "kunde id", "medlemsnummer", "id"))
+    if not sun2_user_id:
+        return None
+
+    display_name = normalize_text(
+        pick(merged, "fullt navn", "navn", "bruker", "kunde", "medlem") or raw.get("__user_title")
+    )
+    full_name = normalize_text(pick(profile or {}, "fullt navn", "navn", "fornavn")) if profile else ""
+    if not full_name and display_name and not looks_like_initials(display_name):
+        full_name = display_name
+    initials = normalize_text(raw.get("__user_title") or display_name)
+    if not looks_like_initials(initials):
+        initials = ""
+    age = extract_age(display_name) or extract_age(pick(merged, "alder"))
+    email = normalize_text(pick(merged, "epost", "e-post", "email", "mail"))
+    phone = normalize_text(pick(merged, "telefon", "mobil", "phone"))
+    birth_date = parse_date_guess(pick(merged, "fødselsdato", "fodselsdato", "født", "fodsels"))
+    member_since = parse_date_guess(pick(merged, "medlem siden", "opprettet", "registrert"))
+    last_seen = parse_datetime_guess(pick(merged, "sist aktiv", "siste soling", "sist besøk", "sist brukt"), local_today())
+    raw_for_storage = {
+        key: value
+        for key, value in raw.items()
+        if key not in {"__sun2_user_token"}
+    }
+    if profile:
+        raw_for_storage["profile"] = profile
+    return {
+        "sun2_user_id": sun2_user_id,
+        "sun2_center_id": sun2_center_id or None,
+        "name": full_name or None,
+        "display_name": display_name or full_name or initials or None,
+        "initials": initials or None,
+        "age": age,
+        "email": email or None,
+        "phone": phone or None,
+        "profile_url": absolute_url(raw.get("__user_href")) or None,
+        "customer_type": normalize_text(pick(merged, "kundetype", "medlemstype", "type")) or None,
+        "gender": normalize_text(pick(merged, "kjønn", "kjonn", "gender")) or None,
+        "birth_date": birth_date.isoformat() if birth_date else None,
+        "member_since": member_since.isoformat() if member_since else None,
+        "last_seen_at": last_seen.isoformat() if last_seen else None,
+        "status": normalize_text(pick(merged, "status")) or None,
+        "balance_kr": parse_number(pick(merged, "saldo", "balanse")),
+        "total_spent_kr": parse_number(pick(merged, "totalt", "omsetning", "kjøpt", "brukt")),
+        "visits_count": parse_int(pick(merged, "solinger", "besøk", "antall")),
+        "raw": raw_for_storage,
+    }
 
 
 def extract_beds(page) -> list[dict[str, Any]]:
@@ -755,6 +923,86 @@ def scrape_beds_sync() -> dict[str, Any]:
     return {"ok": True, "beds": len(beds), "posted": bool(response), "fibaro10_response": response}
 
 
+def scrape_members_sync() -> dict[str, Any]:
+    username = env_required("SUN2_USERNAME")
+    password = env_required("SUN2_PASSWORD")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    filename = "Sun2_members.json"
+    out_path = OUT_DIR / filename
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(locale="nb-NO", accept_downloads=True)
+        page = context.new_page()
+        open_members_page(page, username, password)
+        headers, table_rows = extract_paginated_table(page, max_pages=300)
+        profile_cache: dict[str, dict[str, str]] = {}
+        if FETCH_MEMBER_PROFILES:
+            profile_page = context.new_page()
+            for row in table_rows[: max(0, MEMBER_PROFILE_LIMIT)]:
+                href = absolute_url(row.get("__user_href"))
+                if not href:
+                    continue
+                try:
+                    profile_page.goto(href, wait_until="domcontentloaded", timeout=15000)
+                    login_if_needed(profile_page, username, password)
+                    try:
+                        profile_page.wait_for_load_state("networkidle", timeout=8000)
+                    except PwTimeoutError:
+                        pass
+                    profile_cache[href] = profile_pairs_from_page(profile_page)
+                    profile_page.wait_for_timeout(150)
+                except Exception:
+                    profile_cache[href] = {}
+            profile_page.close()
+        members = []
+        seen: set[str] = set()
+        for row in table_rows:
+            href = absolute_url(row.get("__user_href"))
+            item = normalize_member_row(row, profile_cache.get(href))
+            if not item or item["sun2_user_id"] in seen:
+                continue
+            item["source_file"] = filename
+            seen.add(item["sun2_user_id"])
+            members.append(item)
+        payload = {
+            "source": "sun2_session_scraper",
+            "collector_id": COLLECTOR_ID,
+            "timestamp": datetime.utcnow().isoformat(),
+            "ok": True,
+            "message": f"Skrapet {len(members)} SUN2-medlemmer",
+            "members": members,
+            "extra": {
+                "headers": headers,
+                "raw_rows": len(table_rows),
+                "members_url": page.url,
+                "profile_fetch_enabled": FETCH_MEMBER_PROFILES,
+                "profile_limit": MEMBER_PROFILE_LIMIT,
+            },
+        }
+        tmp_path = out_path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        tmp_path.replace(out_path)
+        response = None
+        if POST_TO_FIBARO10 and members:
+            response = post_to_fibaro10(payload, "/api/sun2/members/ingest")
+        context.close()
+        browser.close()
+
+    named_count = sum(1 for item in members if item.get("name"))
+    state["members_last_sync"] = datetime.utcnow().isoformat()
+    state["members_last_count"] = len(members)
+    state["members_last_named_count"] = named_count
+    save_progress(
+        {
+            "last_action": "members_synced",
+            "members_last_count": len(members),
+            "members_last_named_count": named_count,
+            "fibaro10_members_response": response,
+        }
+    )
+    return {"ok": True, "members": len(members), "named": named_count, "posted": bool(response), "fibaro10_response": response}
+
+
 def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
     username = env_required("SUN2_USERNAME")
     password = env_required("SUN2_PASSWORD")
@@ -934,12 +1182,15 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <div class="metric"><span>Filer</span><strong>{state.get('created_files', 0)}</strong></div>
 <div class="metric"><span>Postet</span><strong>{state.get('posted_files', 0)}</strong></div>
 <div class="metric"><span>Siste rader</span><strong>{state.get('rows_last_file', 0)}</strong></div>
+<div class="metric"><span>Medlemmer</span><strong>{state.get('members_last_count', 0)}</strong></div>
+<div class="metric"><span>Navn funnet</span><strong>{state.get('members_last_named_count', 0)}</strong></div>
 </section>
 <section class="card">
 <form method="post" action="/start" style="display:inline"><button type="submit">Start range</button></form>
 <form method="post" action="/stop" style="display:inline"><button class="stop" type="submit">Stopp</button></form>
 <form method="post" action="/sync-current-month" style="display:inline"><button type="submit">Denne måneden</button></form>
 <form method="post" action="/sync-beds" style="display:inline"><button type="submit">Synk senger</button></form>
+<form method="post" action="/sync-members" style="display:inline"><button type="submit">Synk medlemmer</button></form>
 </section>
 <section class="card">
 <form method="post" action="/sync-month">
@@ -980,6 +1231,12 @@ async def sync_current_month():
 @app.post("/sync-beds")
 async def sync_beds():
     result = await asyncio.to_thread(scrape_beds_sync)
+    return JSONResponse({"status": "ok", "result": result, "state": state})
+
+
+@app.post("/sync-members")
+async def sync_members():
+    result = await asyncio.to_thread(scrape_members_sync)
     return JSONResponse({"status": "ok", "result": result, "state": state})
 
 

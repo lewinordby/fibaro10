@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUN2 medlemmer</title>
+    {% include "_styles.html" %}
+    <style>
+        .sun-page { display:grid; gap:0.9rem; }
+        .sun-title { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; }
+        .sun-title h1 { margin:0; font-size:clamp(1.35rem,2.4vw,1.9rem); }
+        .sun-title p { margin:0.25rem 0 0; color:var(--muted); max-width:62rem; }
+        .metric-grid { display:grid; gap:0.72rem; grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .metric-card { min-height:6rem; padding:0.86rem 0.92rem; border:1px solid var(--line); border-top:4px solid var(--sun2-color); border-radius:12px; background:#fff; box-shadow:var(--shadow-1); }
+        .metric-card.warning { border-top-color:var(--energy-color); }
+        .metric-card.good { border-top-color:var(--vent-color); }
+        .metric-card span { display:block; color:var(--muted); font-size:0.74rem; font-weight:800; text-transform:uppercase; }
+        .metric-card strong { display:block; margin-top:0.18rem; color:var(--brand-dark); font-size:clamp(1.2rem,2.7vw,1.7rem); line-height:1.05; }
+        .metric-card small { display:block; margin-top:0.34rem; color:var(--muted); font-size:0.78rem; }
+        .filter-panel { padding:0.85rem; border:1px solid var(--line); border-radius:12px; background:#fff; box-shadow:var(--shadow-1); }
+        .filter-grid { display:grid; grid-template-columns:1fr; gap:0.62rem; }
+        .filter-field { display:grid; gap:0.28rem; min-width:0; }
+        .filter-field label { color:var(--muted); font-size:0.72rem; font-weight:800; text-transform:uppercase; }
+        .filter-field input, .filter-field select { width:100%; min-height:2.38rem; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--text); padding:0.45rem 0.58rem; font:inherit; font-size:0.86rem; }
+        .filter-buttons { display:flex; flex-wrap:wrap; gap:0.45rem; align-items:end; }
+        .table-wrap { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:1120px; }
+        th, td { padding:0.62rem 0.7rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child, th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) { text-align:left; }
+        th { position:sticky; top:0; z-index:1; color:var(--muted); font-size:0.74rem; font-weight:820; background:#f8fbff; }
+        td { font-size:0.86rem; }
+        tbody tr:last-child td { border-bottom:0; }
+        .id-link { display:inline-flex; align-items:center; min-height:1.62rem; padding:0.12rem 0.5rem; border-radius:999px; background:var(--sun2-soft); color:var(--sun2-color); font-weight:850; text-decoration:none; }
+        .name-main { font-weight:850; color:var(--brand-dark); }
+        .muted { color:var(--muted); }
+        .contact { display:grid; gap:0.1rem; }
+        .contact span { color:var(--muted); }
+        .tag { display:inline-flex; align-items:center; min-height:1.45rem; padding:0.08rem 0.45rem; border:1px solid var(--line); border-radius:999px; color:var(--muted); background:var(--panel-soft); font-size:0.76rem; font-weight:800; }
+        .tag.good { border-color:rgba(73,159,91,.35); background:rgba(73,159,91,.1); color:#2f7b42; }
+        .empty-state { padding:1rem; border:1px dashed var(--line); border-radius:12px; background:#fff; color:var(--muted); }
+        @media (min-width: 760px) {
+            .filter-grid { grid-template-columns:minmax(220px,1.5fr) repeat(3,minmax(130px,0.75fr)) auto; align-items:end; }
+            .metric-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        }
+        @media (max-width: 720px) {
+            .sun-title { align-items:flex-start; flex-direction:column; }
+        }
+    </style>
+</head>
+<body class="theme-sun2">
+{% include "_header.html" %}
+<main class="container">
+    <section class="sun-page">
+        <div class="sun-title">
+            <div>
+                <h1>Medlemmer</h1>
+                <p>Fast SUN2-id med det vi klarer å hente fra medlems-/profilsidene. Enkeltimene alene gir ofte bare initialer og alder, derfor brukes denne siden til å bygge et bedre søkegrunnlag.</p>
+            </div>
+        </div>
+
+        <section class="metric-grid">
+            <article class="metric-card">
+                <span>Importerte profiler</span>
+                <strong>{{ "{:,.0f}".format(totals.members_count or 0).replace(",", " ") }}</strong>
+                <small>{{ "{:,.0f}".format(known_from_sessions or 0).replace(",", " ") }} unike SUN2-id finnes i enkeltimene</small>
+            </article>
+            <article class="metric-card good">
+                <span>Med navn</span>
+                <strong>{{ "{:,.0f}".format(totals.named_count or 0).replace(",", " ") }}</strong>
+                <small>Hvis dette er lavt, viser SUN2-siden trolig bare initialer.</small>
+            </article>
+            <article class="metric-card">
+                <span>Kontaktinfo</span>
+                <strong>{{ "{:,.0f}".format((totals.email_count or 0) + (totals.phone_count or 0)).replace(",", " ") }}</strong>
+                <small>E-post eller telefon registrert i importen.</small>
+            </article>
+            <article class="metric-card warning">
+                <span>Sist importert</span>
+                <strong>{{ totals.last_imported_at|localtime_short if totals.last_imported_at else "-" }}</strong>
+                <small>Kjør Synk medlemmer i SUN2 scraperen for å oppdatere.</small>
+            </article>
+        </section>
+
+        <form class="filter-panel" method="get" action="/soling/medlemmer">
+            <div class="filter-grid">
+                <div class="filter-field">
+                    <label for="q">Søk</label>
+                    <input id="q" name="q" value="{{ filters.q }}" placeholder="Navn, initialer, SUN2-id, telefon eller e-post">
+                </div>
+                <div class="filter-field">
+                    <label for="customer_type">Kundetype</label>
+                    <select id="customer_type" name="customer_type">
+                        <option value="">Alle</option>
+                        {% for option in customer_options %}
+                        <option value="{{ option }}" {% if filters.customer_type == option %}selected{% endif %}>{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="">Alle</option>
+                        {% for option in status_options %}
+                        <option value="{{ option }}" {% if filters.status == option %}selected{% endif %}>{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-field">
+                    <label for="limit">Vis</label>
+                    <select id="limit" name="limit">
+                        {% for option in [100, 250, 500, 1000] %}
+                        <option value="{{ option }}" {% if filters.limit == option %}selected{% endif %}>{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-buttons">
+                    <button class="button primary" type="submit">Filtrer</button>
+                    <a class="button" href="/soling/medlemmer">Nullstill</a>
+                </div>
+            </div>
+        </form>
+
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SUN2-id</th>
+                        <th>Navn</th>
+                        <th>Initialer/alder</th>
+                        <th>Kontakt</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Solinger</th>
+                        <th>Soltid</th>
+                        <th>Betalt</th>
+                        <th>Sist soling</th>
+                        <th>Importert</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in members %}
+                    {% set stat = stats.get(member.sun2_user_id) or {} %}
+                    {% set fallback_name = member.display_name or stat.session_name or member.initials or "-" %}
+                    <tr>
+                        <td><a class="id-link" href="/soling/enkeltimer?sun2_user_id={{ member.sun2_user_id }}">{{ member.sun2_user_id }}</a></td>
+                        <td>
+                            <span class="name-main">{{ member.name or fallback_name }}</span>
+                            {% if not member.name %}
+                            <span class="tag">Kun initialer</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ member.initials or fallback_name }}{% if member.age %} · {{ member.age }} år{% endif %}</td>
+                        <td>
+                            <span class="contact">
+                                <span>{{ member.email or "-" }}</span>
+                                <span>{{ member.phone or "-" }}</span>
+                            </span>
+                        </td>
+                        <td>{{ member.customer_type or "-" }}</td>
+                        <td>{% if member.status %}<span class="tag good">{{ member.status }}</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+                        <td>{{ "{:,.0f}".format(stat.sessions_count or member.visits_count or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.1f}".format((stat.duration_minutes or 0) / 60).replace(",", " ") }} t</td>
+                        <td>{{ "{:,.0f}".format(stat.paid_amount_kr or member.total_spent_kr or 0).replace(",", " ") }} kr</td>
+                        <td class="muted">{{ stat.last_session_at|source_time if stat.last_session_at else (member.last_seen_at|localtime_short if member.last_seen_at else "-") }}</td>
+                        <td class="muted">{{ member.imported_at|localtime_short }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11">
+                            <div class="empty-state">
+                                Ingen medlemmer er importert ennå. Kjør <strong>Synk medlemmer</strong> i SUN2 scraperen. Enkeltimene har allerede SUN2-id, men ikke fulle navn.
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </section>
+</main>
+</body>
+</html>
