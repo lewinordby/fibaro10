@@ -4224,3 +4224,17 @@ textarea:focus {
         padding-top: 0.85rem !important;
     }
 }
+
+@media (max-width: 1019px) {
+    .app-nav .nav-main {
+        align-items: stretch !important;
+    }
+
+    .app-nav .nav-main > .nav-sub {
+        width: 100% !important;
+        min-width: 100% !important;
+        align-self: stretch !important;
+        flex: 0 0 auto !important;
+        order: 0 !important;
+    }
+}
