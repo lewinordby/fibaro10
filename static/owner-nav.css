@@ -1,0 +1,1115 @@
+/* SUN2 Owner exact menu behavior. This is the final navigation layer. */
+:root {
+    --sun-owner-sidebar: 252px;
+    --sun-owner-sidebar-closed: 76px;
+    --sun-owner-header-mobile: 68px;
+    --sun-owner-blue: #5292d6;
+    --sun-owner-text: #444c58;
+    --sun-owner-muted: #5f6773;
+    --sun-owner-line: #e8e8e8;
+    --sun-owner-active-row: #f1f1f1;
+    --sun-owner-hover-row: #f7f8fa;
+}
+
+.nav-chevron {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    opacity: 0.82;
+}
+
+@media (min-width: 1020px) {
+    .site-header {
+        position: fixed !important;
+        inset: 0 auto 0 0 !important;
+        z-index: 70 !important;
+        width: var(--sun-owner-sidebar) !important;
+        height: 100vh !important;
+        padding: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        background: #ffffff !important;
+        border-right: 1px solid var(--sun-owner-line) !important;
+        box-shadow: none !important;
+    }
+
+    body[class] .site-header {
+        width: var(--sun-owner-sidebar) !important;
+    }
+
+    .site-header .brand-bar {
+        min-height: 100vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0 !important;
+        padding: 0 !important;
+    }
+
+    .brand-home {
+        min-height: 6.25rem !important;
+        width: 100% !important;
+        flex: 0 0 auto !important;
+        display: grid !important;
+        place-items: center !important;
+        border-bottom: 1px solid var(--sun-owner-line) !important;
+        background: #ffffff !important;
+    }
+
+    .brand-logo {
+        width: 7.7rem !important;
+    }
+
+    .nav-toggle {
+        position: absolute !important;
+        top: 1.42rem !important;
+        right: 1.28rem !important;
+        width: 2.76rem !important;
+        height: 2.76rem !important;
+        border: 1px solid #e2e4e8 !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        color: #9a9a9a !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+    }
+
+    .nav-toggle-lines,
+    .nav-toggle-lines::before,
+    .nav-toggle-lines::after {
+        width: 1.35rem !important;
+        height: 0.17rem !important;
+    }
+
+    .app-nav {
+        flex: 1 1 auto !important;
+        margin-top: 1.55rem !important;
+    }
+
+    .app-nav .nav-main {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0 !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.62rem !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1.35rem minmax(0, 1fr) 0.72rem !important;
+        align-items: center !important;
+        gap: 0.86rem !important;
+        padding: 0 1.18rem 0 1.45rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        outline: 0 !important;
+        background: #ffffff !important;
+        color: var(--sun-owner-text) !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+        font-size: 1.06rem !important;
+        font-weight: 480 !important;
+        line-height: 1 !important;
+        text-align: left !important;
+    }
+
+    .app-nav .nav-main > .button.has-sub::after,
+    .app-nav .nav-main > .button.active.has-sub::after {
+        content: none !important;
+        display: none !important;
+    }
+
+    .app-nav .nav-main > .button:hover {
+        background: var(--sun-owner-hover-row) !important;
+        color: #202834 !important;
+    }
+
+    .app-nav .nav-main > .button.active {
+        background: var(--sun-owner-active-row) !important;
+        color: #202834 !important;
+        font-weight: 540 !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        margin: 0.38rem 0.28rem 0 !important;
+        width: calc(100% - 0.56rem) !important;
+        min-height: 3.38rem !important;
+        padding-left: 1.17rem !important;
+        border: 2px solid #1f1f1f !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub .nav-label {
+        text-decoration: underline;
+        text-underline-offset: 0.16rem;
+        text-decoration-thickness: 1px;
+    }
+
+    .app-nav .nav-main > .button.active .nav-chevron {
+        transform: rotate(45deg);
+        color: #243243;
+    }
+
+    .app-nav .nav-icon {
+        width: 1.42rem !important;
+        height: 1.42rem !important;
+        color: #545b66 !important;
+        stroke: currentColor !important;
+        stroke-width: 2.05 !important;
+    }
+
+    .app-nav .nav-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .app-nav .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        min-height: 3.38rem !important;
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        padding: 0 1rem 0 4.15rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: var(--sun-owner-text) !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+        font-size: 1rem !important;
+        font-weight: 460 !important;
+        text-align: left !important;
+    }
+
+    .app-nav .nav-sub .button:hover,
+    .app-nav .nav-sub-form .button:hover {
+        background: var(--sun-owner-hover-row) !important;
+        color: #202834 !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: #f7f7f7 !important;
+        color: #202834 !important;
+        font-weight: 560 !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line), inset 4px 0 0 var(--section-color) !important;
+    }
+
+    .app-nav .nav-form {
+        margin: 0 !important;
+    }
+
+    .site-header ~ main,
+    .site-header ~ .container,
+    body .site-header ~ main,
+    body .site-header ~ .container {
+        box-sizing: border-box !important;
+        width: calc(100vw - var(--sun-owner-sidebar) - 3rem) !important;
+        max-width: none !important;
+        margin: 0 1.5rem 0 calc(var(--sun-owner-sidebar) + 1.5rem) !important;
+        padding-top: 1.15rem !important;
+    }
+
+    html.nav-collapsed .site-header {
+        width: var(--sun-owner-sidebar-closed) !important;
+    }
+
+    html.nav-collapsed .brand-home {
+        min-height: 4.8rem !important;
+    }
+
+    html.nav-collapsed .brand-logo {
+        width: 3.1rem !important;
+    }
+
+    html.nav-collapsed .nav-toggle {
+        top: 5rem !important;
+        right: 1.05rem !important;
+        width: 2.05rem !important;
+        height: 2.05rem !important;
+    }
+
+    html.nav-collapsed .app-nav {
+        margin-top: 3rem !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-main > .button {
+        min-height: 3.4rem !important;
+        grid-template-columns: 1fr !important;
+        justify-items: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-main > .button.active {
+        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--sun-owner-line) !important;
+    }
+
+    html.nav-collapsed .app-nav .nav-label,
+    html.nav-collapsed .app-nav .nav-chevron,
+    html.nav-collapsed .app-nav .nav-sub {
+        display: none !important;
+    }
+
+    html.nav-collapsed .site-header ~ main,
+    html.nav-collapsed .site-header ~ .container,
+    html.nav-collapsed body .site-header ~ main,
+    html.nav-collapsed body .site-header ~ .container {
+        width: calc(100vw - var(--sun-owner-sidebar-closed) - 3rem) !important;
+        margin-left: calc(var(--sun-owner-sidebar-closed) + 1.5rem) !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    .site-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 80 !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid var(--sun-owner-line) !important;
+        box-shadow: none !important;
+    }
+
+    .site-header .brand-bar {
+        min-height: var(--sun-owner-header-mobile) !important;
+        display: grid !important;
+        grid-template-columns: auto 1fr auto !important;
+        align-items: center !important;
+        gap: 0.8rem !important;
+        padding: 0 0.9rem !important;
+    }
+
+    .brand-logo {
+        width: 5.9rem !important;
+    }
+
+    .nav-toggle {
+        justify-self: end !important;
+        width: 2.72rem !important;
+        min-width: 0 !important;
+        height: 2.72rem !important;
+        border-radius: 5px !important;
+    }
+
+    .nav-toggle-label {
+        display: none !important;
+    }
+
+    .app-nav {
+        grid-column: 1 / -1 !important;
+        max-height: calc(100vh - var(--sun-owner-header-mobile)) !important;
+        overflow-y: auto !important;
+        border-top: 1px solid var(--sun-owner-line) !important;
+        background: #ffffff !important;
+    }
+
+    html.nav-collapsed .app-nav {
+        display: none !important;
+    }
+
+    .app-nav .nav-main {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.32rem !important;
+        display: grid !important;
+        grid-template-columns: 1.36rem minmax(0, 1fr) 0.72rem !important;
+        align-items: center !important;
+        gap: 0.82rem !important;
+        padding: 0 1rem 0 1.12rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: var(--sun-owner-text) !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+        font-size: 1rem !important;
+        font-weight: 520 !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        margin: 0.34rem 0.34rem 0 !important;
+        width: calc(100% - 0.68rem) !important;
+        border: 2px solid #1f1f1f !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub .nav-label {
+        text-decoration: underline;
+        text-underline-offset: 0.15rem;
+    }
+
+    .app-nav .nav-icon {
+        width: 1.28rem !important;
+        height: 1.28rem !important;
+    }
+
+    .app-nav .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        min-height: 3.1rem !important;
+        width: 100% !important;
+        justify-content: flex-start !important;
+        padding: 0 1rem 0 3.65rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: var(--sun-owner-text) !important;
+        box-shadow: inset 0 -1px 0 var(--sun-owner-line) !important;
+        font-size: 0.96rem !important;
+        font-weight: 470 !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: #f7f7f7 !important;
+        color: #202834 !important;
+        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--sun-owner-line) !important;
+    }
+
+    .site-header ~ main,
+    .site-header ~ .container,
+    body .site-header ~ main,
+    body .site-header ~ .container {
+        width: min(100% - 1rem, var(--page-width)) !important;
+        max-width: var(--page-width) !important;
+        margin: 0 auto !important;
+        padding-top: 0.85rem !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    .app-nav,
+    .app-nav .nav-main {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        align-items: stretch !important;
+        flex-direction: column !important;
+    }
+
+    .app-nav .nav-main > .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        align-self: stretch !important;
+        flex: 0 0 auto !important;
+        order: 0 !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .app-nav .nav-main > .nav-sub .button,
+    .app-nav .nav-main > .nav-sub-form .button {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 auto !important;
+    }
+}
+
+/* SUN2 Owner fidelity pass: quieter, taller rows and menu-only neutral styling. */
+@media (min-width: 1020px) {
+    .site-header,
+    body[class] .site-header {
+        width: 252px !important;
+        background: #ffffff !important;
+        border-right: 1px solid #e5e7eb !important;
+    }
+
+    .site-header .brand-bar {
+        min-height: 100vh !important;
+        background: #ffffff !important;
+    }
+
+    .brand-home {
+        min-height: 10rem !important;
+        width: 100% !important;
+        place-items: center !important;
+        border-bottom: 1px solid #e9eaec !important;
+    }
+
+    .brand-logo {
+        width: 7.25rem !important;
+    }
+
+    .nav-toggle {
+        top: 2.6rem !important;
+        right: 1.58rem !important;
+        width: 2.72rem !important;
+        height: 2.72rem !important;
+        border: 1px solid #e1e4e8 !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        color: #9b9b9b !important;
+        box-shadow: 0 1px 3px rgba(24, 31, 38, 0.08) !important;
+    }
+
+    .app-nav {
+        margin-top: 0 !important;
+        border-top: 0 !important;
+    }
+
+    .app-nav .nav-main {
+        background: #ffffff !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 4.18rem !important;
+        grid-template-columns: 1.46rem minmax(0, 1fr) 0.72rem !important;
+        gap: 0.9rem !important;
+        padding: 0 1.18rem 0 2.04rem !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+        font-size: 1.06rem !important;
+        font-weight: 500 !important;
+    }
+
+    .app-nav .nav-main > .button:hover {
+        background: #f7f7f7 !important;
+        color: #2c333d !important;
+    }
+
+    .app-nav .nav-main > .button.active:not(.has-sub) {
+        background: #eeeeee !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        min-height: 3.95rem !important;
+        margin: 0.46rem 0.26rem 0 !important;
+        width: calc(100% - 0.52rem) !important;
+        padding: 0 1rem 0 1.75rem !important;
+        border: 2px solid #1f1f1f !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        color: #2c333d !important;
+        box-shadow: none !important;
+        font-weight: 500 !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub .nav-label {
+        text-decoration: underline !important;
+        text-decoration-thickness: 1px !important;
+        text-underline-offset: 0.16rem !important;
+    }
+
+    .app-nav .nav-icon {
+        width: 1.42rem !important;
+        height: 1.42rem !important;
+        color: #555b63 !important;
+        stroke-width: 2.15 !important;
+    }
+
+    .nav-chevron {
+        width: 0.48rem !important;
+        height: 0.48rem !important;
+        color: #26323f !important;
+        opacity: 0.9 !important;
+    }
+
+    .app-nav .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        position: relative !important;
+        min-height: 3.76rem !important;
+        width: 100% !important;
+        padding: 0 1rem 0 4.85rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+        font-size: 1.02rem !important;
+        font-weight: 480 !important;
+    }
+
+    .app-nav .nav-sub .button::before,
+    .app-nav .nav-sub-form .button::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 2.24rem !important;
+        top: 50% !important;
+        width: 1.26rem !important;
+        height: 1.26rem !important;
+        border: 2px solid currentColor !important;
+        border-radius: 0.24rem !important;
+        transform: translateY(-50%) !important;
+        opacity: 0.78 !important;
+    }
+
+    .app-nav .nav-sub .button:hover,
+    .app-nav .nav-sub-form .button:hover {
+        background: #f7f7f7 !important;
+        color: #2c333d !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: #f1f1f1 !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+        font-weight: 600 !important;
+    }
+
+    .app-nav .nav-sub .button.active::before {
+        background: #ffffff !important;
+        border-color: #4f5661 !important;
+        opacity: 0.95 !important;
+    }
+
+    .site-header ~ main,
+    .site-header ~ .container,
+    body .site-header ~ main,
+    body .site-header ~ .container {
+        width: calc(100vw - 252px - 3rem) !important;
+        margin-left: calc(252px + 1.5rem) !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    .site-header {
+        background: #ffffff !important;
+    }
+
+    .site-header .brand-bar {
+        min-height: 4.75rem !important;
+        padding: 0 1.05rem !important;
+    }
+
+    .brand-logo {
+        width: 6rem !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.76rem !important;
+        padding-left: 1.58rem !important;
+        padding-right: 1.12rem !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        min-height: 3.44rem !important;
+        margin: 0.36rem 0.34rem 0 !important;
+        width: calc(100% - 0.68rem) !important;
+        border: 2px solid #1f1f1f !important;
+        border-radius: 5px !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        position: relative !important;
+        min-height: 3.28rem !important;
+        padding-left: 4.45rem !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+    }
+
+    .app-nav .nav-sub .button::before,
+    .app-nav .nav-sub-form .button::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 2.05rem !important;
+        top: 50% !important;
+        width: 1.1rem !important;
+        height: 1.1rem !important;
+        border: 2px solid currentColor !important;
+        border-radius: 0.22rem !important;
+        transform: translateY(-50%) !important;
+        opacity: 0.78 !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: #f1f1f1 !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+    }
+}
+
+/* Final owner-menu override. Keep this last so legacy menu experiments cannot win. */
+@media (min-width: 1020px) {
+    html body .site-header .app-nav .nav-main > .nav-sub {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-left: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        min-height: 3.7rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        padding: 0 1rem 0 4.15rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+        font-size: 1rem !important;
+        font-weight: 480 !important;
+        text-align: left !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button::before,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button::before {
+        content: none !important;
+        display: none !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button.active {
+        background: #f1f1f1 !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+        font-weight: 600 !important;
+    }
+}
+
+/* Owner menu precision pass: full-width sidebar rows without visible internal scrollbar. */
+@media (min-width: 1020px) {
+    html body .site-header {
+        scrollbar-width: none !important;
+    }
+
+    html body .site-header::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    html body .site-header .app-nav,
+    html body .site-header .app-nav .nav-main,
+    html body .site-header .app-nav .nav-row {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .button {
+        min-height: 4rem !important;
+        padding-left: 1.95rem !important;
+        padding-right: 1.18rem !important;
+        font-size: 1.06rem !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .button.active.has-sub {
+        width: calc(100% - 0.52rem) !important;
+        margin-left: 0.26rem !important;
+        margin-right: 0.26rem !important;
+        padding-left: 1.68rem !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        min-height: 3.72rem !important;
+        display: grid !important;
+        grid-template-columns: 1.35rem minmax(0, 1fr) !important;
+        gap: 0.9rem !important;
+        padding: 0 1rem 0 2rem !important;
+        font-size: 1.04rem !important;
+        font-weight: 470 !important;
+    }
+}
+
+.app-nav .nav-sub-icon {
+    width: 1.35rem !important;
+    height: 1.35rem !important;
+    display: block !important;
+    flex: 0 0 auto !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    color: #555b63 !important;
+}
+
+.app-nav .nav-sub-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+html body .site-header .app-nav .nav-main > .nav-sub .button.active .nav-sub-icon {
+    color: #4f5661 !important;
+}
+
+@media (max-width: 1019px) {
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        display: grid !important;
+        grid-template-columns: 1.25rem minmax(0, 1fr) !important;
+        gap: 0.86rem !important;
+        padding-left: 2rem !important;
+    }
+
+    .app-nav .nav-sub-icon {
+        width: 1.25rem !important;
+        height: 1.25rem !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        min-height: 3.28rem !important;
+        padding: 0 1rem 0 3.65rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+        text-align: left !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button::before,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button::before {
+        content: none !important;
+        display: none !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button.active {
+        background: #f1f1f1 !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+        font-weight: 600 !important;
+    }
+}
+
+/* Collapsed sidebar must actually shrink, not just hide labels. */
+@media (min-width: 1020px) {
+    html.nav-collapsed body .site-header,
+    html.nav-collapsed body[class] .site-header {
+        width: var(--sun-owner-sidebar-closed) !important;
+        min-width: var(--sun-owner-sidebar-closed) !important;
+        max-width: var(--sun-owner-sidebar-closed) !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-home {
+        min-height: 4.65rem !important;
+        width: 100% !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-logo {
+        width: 3.05rem !important;
+    }
+
+    html.nav-collapsed body .site-header .nav-toggle {
+        top: 4.95rem !important;
+        right: 1.05rem !important;
+        width: 2.05rem !important;
+        height: 2.05rem !important;
+    }
+
+    html.nav-collapsed body .site-header .app-nav {
+        width: 100% !important;
+        margin-top: 3rem !important;
+    }
+
+    html.nav-collapsed body .site-header .app-nav .nav-main > .button {
+        min-height: 3.38rem !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        justify-items: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    html.nav-collapsed body .site-header .app-nav .nav-main > .button.active.has-sub {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--sun-owner-line) !important;
+    }
+
+    html.nav-collapsed body .site-header .app-nav .nav-label,
+    html.nav-collapsed body .site-header .app-nav .nav-chevron,
+    html.nav-collapsed body .site-header .app-nav .nav-sub {
+        display: none !important;
+    }
+
+    html.nav-collapsed body .site-header ~ main,
+    html.nav-collapsed body .site-header ~ .container,
+    html.nav-collapsed body .site-header ~ .page-shell {
+        width: calc(100vw - var(--sun-owner-sidebar-closed) - 3rem) !important;
+        max-width: none !important;
+        margin: 0 1.5rem 0 calc(var(--sun-owner-sidebar-closed) + 1.5rem) !important;
+    }
+}
+
+/* Mobile menu: keep logo and hamburger in one clean SUN2-style top row. */
+@media (max-width: 1019px) {
+    html body .site-header,
+    html.nav-collapsed body .site-header,
+    html body[class] .site-header {
+        position: sticky !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 90 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        background: #ffffff !important;
+        border-right: 0 !important;
+        border-bottom: 1px solid #e5e7eb !important;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04) !important;
+    }
+
+    html body .site-header .brand-bar,
+    html.nav-collapsed body .site-header .brand-bar {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 5rem !important;
+        margin: 0 !important;
+        padding: 0 1rem 0 clamp(1.55rem, 8vw, 3.8rem) !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) 2.65rem !important;
+        align-items: center !important;
+        gap: 0.65rem !important;
+        box-sizing: border-box !important;
+        background: #ffffff !important;
+    }
+
+    html body .site-header .brand-home,
+    html.nav-collapsed body .site-header .brand-home {
+        width: auto !important;
+        min-width: 0 !important;
+        min-height: 5rem !important;
+        height: 5rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        border: 0 !important;
+        background: transparent !important;
+    }
+
+    html body .site-header .brand-logo,
+    html.nav-collapsed body .site-header .brand-logo {
+        width: min(8.35rem, 48vw) !important;
+        max-width: 100% !important;
+        height: auto !important;
+        display: block !important;
+    }
+
+    html body .site-header .nav-toggle,
+    html.nav-collapsed body .site-header .nav-toggle {
+        position: static !important;
+        inset: auto !important;
+        justify-self: end !important;
+        align-self: center !important;
+        width: 2.58rem !important;
+        min-width: 2.58rem !important;
+        height: 2.58rem !important;
+        padding: 0 !important;
+        color: #7f8389 !important;
+        border: 1px solid #d9dee6 !important;
+        border-radius: 7px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f7f8fa 100%) !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+        transform: none !important;
+    }
+
+    html body .site-header .nav-toggle:hover,
+    html body .site-header .nav-toggle:focus-visible {
+        color: #5b6068 !important;
+        border-color: #cfd6df !important;
+        background: #ffffff !important;
+    }
+
+    html body .site-header .nav-toggle-lines,
+    html body .site-header .nav-toggle-lines::before,
+    html body .site-header .nav-toggle-lines::after {
+        width: 1.22rem !important;
+        height: 0.13rem !important;
+        border: 0 !important;
+        border-top: 0 !important;
+        border-radius: 999px !important;
+        background: currentColor !important;
+    }
+
+    html body .site-header .nav-toggle-lines::before {
+        top: -0.38rem !important;
+    }
+
+    html body .site-header .nav-toggle-lines::after {
+        top: 0.38rem !important;
+    }
+
+    html body .site-header .app-nav,
+    html.nav-collapsed body .site-header .app-nav {
+        grid-column: 1 / -1 !important;
+        position: static !important;
+        width: calc(100% + 2rem) !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        max-height: calc(100vh - 5rem) !important;
+        margin: 0 -1rem !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        background: #ffffff !important;
+        border-top: 1px solid #e9eaec !important;
+        box-shadow: none !important;
+    }
+
+    html.nav-collapsed body .site-header .app-nav {
+        display: none !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .button {
+        min-height: 3.85rem !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+    }
+}
+
+/* Desktop menu polish: match SUN2 Owner with a left-biased logo and calmer toggle. */
+@media (min-width: 1020px) {
+    html body .site-header .brand-home {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        min-height: 6.25rem !important;
+        padding-left: 2.15rem !important;
+        padding-right: 4.45rem !important;
+    }
+
+    html body .site-header .brand-logo {
+        width: 7.15rem !important;
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    html body .site-header .nav-toggle {
+        top: 1.64rem !important;
+        right: 1.1rem !important;
+        width: 2.48rem !important;
+        min-width: 2.48rem !important;
+        height: 2.48rem !important;
+        color: #85888d !important;
+        border: 1px solid #dce1e8 !important;
+        border-radius: 7px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f7f8fa 100%) !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.07) !important;
+    }
+
+    html body .site-header .nav-toggle:hover,
+    html body .site-header .nav-toggle:focus-visible {
+        color: #5f646b !important;
+        border-color: #ccd3dc !important;
+        background: #ffffff !important;
+    }
+
+    html body .site-header .nav-toggle-lines,
+    html body .site-header .nav-toggle-lines::before,
+    html body .site-header .nav-toggle-lines::after {
+        width: 1.2rem !important;
+        height: 0.13rem !important;
+        border: 0 !important;
+        border-top: 0 !important;
+        border-radius: 999px !important;
+        background: currentColor !important;
+    }
+
+    html body .site-header .nav-toggle-lines::before {
+        top: -0.38rem !important;
+    }
+
+    html body .site-header .nav-toggle-lines::after {
+        top: 0.38rem !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-home {
+        justify-content: center !important;
+        min-height: 4.65rem !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-logo {
+        width: 3.05rem !important;
+    }
+
+    html.nav-collapsed body .site-header .nav-toggle {
+        top: 4.95rem !important;
+        right: 1.05rem !important;
+        width: 2.05rem !important;
+        min-width: 2.05rem !important;
+        height: 2.05rem !important;
+        border-radius: 6px !important;
+        box-shadow: none !important;
+    }
+
+    html.nav-collapsed body .site-header .nav-toggle-lines,
+    html.nav-collapsed body .site-header .nav-toggle-lines::before,
+    html.nav-collapsed body .site-header .nav-toggle-lines::after {
+        width: 1rem !important;
+        height: 0.12rem !important;
+    }
+}
