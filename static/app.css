@@ -4536,6 +4536,46 @@ textarea:focus {
     }
 }
 
+/* Owner menu precision pass: full-width sidebar rows without visible internal scrollbar. */
+@media (min-width: 1020px) {
+    html body .site-header {
+        scrollbar-width: none !important;
+    }
+
+    html body .site-header::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    html body .site-header .app-nav,
+    html body .site-header .app-nav .nav-main,
+    html body .site-header .app-nav .nav-row {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .button {
+        min-height: 4rem !important;
+        padding-left: 1.95rem !important;
+        padding-right: 1.18rem !important;
+        font-size: 1.06rem !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .button.active.has-sub {
+        width: calc(100% - 0.52rem) !important;
+        margin-left: 0.26rem !important;
+        margin-right: 0.26rem !important;
+        padding-left: 1.68rem !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        min-height: 3.72rem !important;
+        padding-left: 4.9rem !important;
+        font-size: 1.04rem !important;
+        font-weight: 470 !important;
+    }
+}
+
 @media (max-width: 1019px) {
     html body .site-header .app-nav .nav-main > .nav-sub .button,
     html body .site-header .app-nav .nav-main > .nav-sub-form .button {
