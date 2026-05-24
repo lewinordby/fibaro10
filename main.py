@@ -1769,6 +1769,10 @@ async def get_energy_summaries(session, force: bool = False) -> Dict[str, Any]:
 def clear_summary_cache(*keys: str) -> None:
     for key in keys:
         SUMMARY_CACHE.pop(key, None)
+        prefix = f"{key}:"
+        for cached_key in list(SUMMARY_CACHE):
+            if cached_key.startswith(prefix):
+                SUMMARY_CACHE.pop(cached_key, None)
 
 
 LIGHT_TIMELINE_DEVICES = [
@@ -1884,6 +1888,64 @@ STARTUP_COLUMNS = {
         ("payment_method", "VARCHAR"),
     ],
 }
+
+PERFORMANCE_INDEXES = [
+    (
+        "ix_sun2_sessions_stat_started",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_sessions_stat_started "
+        "ON sun2_tanning_sessions (stat_date, started_at DESC)",
+    ),
+    (
+        "ix_sun2_sessions_room_stat",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_sessions_room_stat "
+        "ON sun2_tanning_sessions (room_id, stat_date)",
+    ),
+    (
+        "ix_sun2_sessions_user_stat",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_sessions_user_stat "
+        "ON sun2_tanning_sessions (sun2_user_id, stat_date)",
+    ),
+    (
+        "ix_sun2_sessions_payment_stat",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_sessions_payment_stat "
+        "ON sun2_tanning_sessions (payment_method, stat_date)",
+    ),
+    (
+        "ix_sun2_sessions_status_stat",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_sessions_status_stat "
+        "ON sun2_tanning_sessions (status, stat_date)",
+    ),
+    (
+        "ix_sun2_sessions_customer_stat",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_sessions_customer_stat "
+        "ON sun2_tanning_sessions (customer_type, stat_date)",
+    ),
+    (
+        "ix_sun2_room_daily_date_room",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_room_daily_date_room "
+        "ON sun2_room_daily_stats (stat_date, room_id)",
+    ),
+    (
+        "ix_energy_hourly_year_month",
+        "CREATE INDEX IF NOT EXISTS ix_energy_hourly_year_month "
+        "ON energy_hourly_consumption (year, month)",
+    ),
+    (
+        "ix_energy_hourly_date_meter",
+        "CREATE INDEX IF NOT EXISTS ix_energy_hourly_date_meter "
+        "ON energy_hourly_consumption (stat_date, meter_id)",
+    ),
+    (
+        "ix_vent_samples_bucket_mode",
+        "CREATE INDEX IF NOT EXISTS ix_vent_samples_bucket_mode "
+        "ON ventilasjon_samples (bucket_start, mode)",
+    ),
+    (
+        "ix_light_samples_bucket_mode",
+        "CREATE INDEX IF NOT EXISTS ix_light_samples_bucket_mode "
+        "ON utelys_samples (bucket_start, mode)",
+    ),
+]
 
 
 CONFIG_DEFINITIONS = {
@@ -4949,6 +5011,8 @@ async def startup():
         for table_name, columns in STARTUP_COLUMNS.items():
             for column_name, column_type in columns:
                 await conn.exec_driver_sql(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} {column_type}")
+        for _, statement in PERFORMANCE_INDEXES:
+            await conn.execute(sql_text(statement))
         await conn.execute(delete(OutdoorLightEvent).where(OutdoorLightEvent.source == "CODEX TEST"))
         await conn.execute(delete(VentilationEvent).where(VentilationEvent.source == "CODEX TEST"))
     async with async_session() as session:
@@ -6145,30 +6209,189 @@ async def sun2_sessions_view(
             await session.execute(
                 select(Sun2SessionImportRun)
                 .order_by(Sun2SessionImportRun.timestamp.desc())
-                .limit(25)
+                .limit(10)
             )
         ).scalars().all()
-        total_query = select(
-            func.count(Sun2TanningSession.id).label("sessions_count"),
-            func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-            func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-            func.coalesce(func.avg(Sun2TanningSession.duration_minutes), 0).label("avg_duration_minutes"),
-            func.coalesce(func.avg(Sun2TanningSession.paid_amount_kr), 0).label("avg_paid_amount_kr"),
-            func.count(func.distinct(Sun2TanningSession.sun2_user_id)).label("unique_users_count"),
-            func.min(Sun2TanningSession.started_at).label("first_at"),
-            func.max(Sun2TanningSession.started_at).label("last_at"),
-        )
-        if session_filters:
-            total_query = total_query.where(*session_filters)
-        total = (
-            await session.execute(
-                total_query
+        analytics_cache_parts = {
+            "scope": active_scope,
+            "sun2_user_id": active_sun2_user_id,
+            "date_from": active_date_from.isoformat() if active_date_from else "",
+            "date_to": active_date_to.isoformat() if active_date_to else "",
+            "room_id": active_room_id or "",
+            "room": active_room,
+            "payment_method": active_payment_method,
+            "status": active_status,
+            "customer_type": active_customer_type,
+            "q": active_q,
+        }
+        analytics_cache_key = "sun2_sessions:" + hashlib.sha1(
+            json.dumps(analytics_cache_parts, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        now_value = datetime.utcnow()
+        cached_analytics = SUMMARY_CACHE.get(analytics_cache_key)
+        if cached_analytics and cached_analytics.get("expires", datetime.min) > now_value:
+            analytics = cached_analytics["value"]
+            total = analytics["total"]
+            database_total = analytics["database_total"]
+            total_count = int((total or {}).get("sessions_count") or 0)
+            monthly = analytics.get("monthly", [])
+            chart_granularity = analytics["chart_granularity"]
+            daily = analytics["daily"]
+            hourly_rows = analytics["hourly_rows"]
+            top_rooms = analytics["top_rooms"]
+            top_users = analytics["top_users"]
+            payment_breakdown = analytics["payment_breakdown"]
+            status_breakdown = analytics["status_breakdown"]
+        else:
+            total_query = select(
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                func.coalesce(func.avg(Sun2TanningSession.duration_minutes), 0).label("avg_duration_minutes"),
+                func.coalesce(func.avg(Sun2TanningSession.paid_amount_kr), 0).label("avg_paid_amount_kr"),
+                func.count(func.distinct(Sun2TanningSession.sun2_user_id)).label("unique_users_count"),
+                func.min(Sun2TanningSession.started_at).label("first_at"),
+                func.max(Sun2TanningSession.started_at).label("last_at"),
             )
-        ).mappings().first()
-        database_total = total
-        if session_filters:
-            database_total = await get_sun2_session_database_total(session)
-        total_count = int((total or {}).get("sessions_count") or 0)
+            if session_filters:
+                total_query = total_query.where(*session_filters)
+            total = dict((await session.execute(total_query)).mappings().first() or {})
+            database_total = total
+            if session_filters:
+                database_total = await get_sun2_session_database_total(session)
+            total_count = int((total or {}).get("sessions_count") or 0)
+            monthly = []
+
+            chart_span_days = None
+            if active_date_from and active_date_to:
+                chart_span_days = (active_date_to - active_date_from).days + 1
+            chart_granularity = "month" if (active_scope == "all" or (chart_span_days and chart_span_days > 370)) else "day"
+            if chart_granularity == "month":
+                chart_year_part = func.extract("year", Sun2TanningSession.stat_date)
+                chart_month_part = func.extract("month", Sun2TanningSession.stat_date)
+                day_query = (
+                    select(
+                        chart_year_part.label("year"),
+                        chart_month_part.label("month"),
+                        func.count(Sun2TanningSession.id).label("sessions_count"),
+                        func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                        func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                    )
+                    .group_by(chart_year_part, chart_month_part)
+                    .order_by(chart_year_part.asc(), chart_month_part.asc())
+                )
+            else:
+                day_query = (
+                    select(
+                        Sun2TanningSession.stat_date.label("day"),
+                        func.count(Sun2TanningSession.id).label("sessions_count"),
+                        func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                        func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                    )
+                    .group_by(Sun2TanningSession.stat_date)
+                    .order_by(Sun2TanningSession.stat_date.asc())
+                )
+            if session_filters:
+                day_query = day_query.where(*session_filters)
+            daily = [dict(item) for item in (await session.execute(day_query)).mappings().all()]
+
+            hour_part = func.extract("hour", Sun2TanningSession.started_at)
+            hourly_query = (
+                select(
+                    hour_part.label("hour"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                )
+                .group_by(hour_part)
+                .order_by(hour_part.asc())
+            )
+            if session_filters:
+                hourly_query = hourly_query.where(*session_filters)
+            hourly_rows = [dict(item) for item in (await session.execute(hourly_query)).mappings().all()]
+
+            top_rooms_query = (
+                select(
+                    Sun2TanningSession.room_id.label("room_id"),
+                    func.max(Sun2TanningSession.room).label("source_room_name"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                )
+                .group_by(Sun2TanningSession.room_id)
+                .order_by(func.count(Sun2TanningSession.id).desc())
+                .limit(10)
+            )
+            if session_filters:
+                top_rooms_query = top_rooms_query.where(*session_filters)
+            top_rooms = [
+                {
+                    **dict(item),
+                    "label": sun2_room_label(item.get("room_id"), item.get("source_room_name")),
+                }
+                for item in (await session.execute(top_rooms_query)).mappings().all()
+            ]
+
+            top_users_query = (
+                select(
+                    Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
+                    func.max(Sun2TanningSession.user_name).label("user_name"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                    func.max(Sun2TanningSession.started_at).label("last_at"),
+                )
+                .where(Sun2TanningSession.sun2_user_id.is_not(None))
+                .where(Sun2TanningSession.sun2_user_id != "")
+                .group_by(Sun2TanningSession.sun2_user_id)
+                .order_by(func.count(Sun2TanningSession.id).desc())
+                .limit(10)
+            )
+            if session_filters:
+                top_users_query = top_users_query.where(*session_filters)
+            top_users = [dict(item) for item in (await session.execute(top_users_query)).mappings().all()]
+
+            payment_query = (
+                select(
+                    Sun2TanningSession.payment_method.label("label"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                )
+                .group_by(Sun2TanningSession.payment_method)
+                .order_by(func.count(Sun2TanningSession.id).desc())
+                .limit(8)
+            )
+            if session_filters:
+                payment_query = payment_query.where(*session_filters)
+            payment_breakdown = [dict(item) for item in (await session.execute(payment_query)).mappings().all()]
+
+            status_query = (
+                select(
+                    Sun2TanningSession.status.label("label"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                )
+                .group_by(Sun2TanningSession.status)
+                .order_by(func.count(Sun2TanningSession.id).desc())
+                .limit(8)
+            )
+            if session_filters:
+                status_query = status_query.where(*session_filters)
+            status_breakdown = [dict(item) for item in (await session.execute(status_query)).mappings().all()]
+
+            SUMMARY_CACHE[analytics_cache_key] = {
+                "expires": now_value + SUMMARY_CACHE_TTL,
+                "value": {
+                    "total": total,
+                    "database_total": database_total,
+                    "monthly": monthly,
+                    "chart_granularity": chart_granularity,
+                    "daily": daily,
+                    "hourly_rows": hourly_rows,
+                    "top_rooms": top_rooms,
+                    "top_users": top_users,
+                    "payment_breakdown": payment_breakdown,
+                    "status_breakdown": status_breakdown,
+                },
+            }
         page_count = max(1, math.ceil(total_count / limit))
         if page > page_count:
             page = page_count
@@ -6181,142 +6404,6 @@ async def sun2_sessions_view(
                     .limit(limit)
                 )
             ).scalars().all()
-        year_part = func.extract("year", Sun2TanningSession.stat_date)
-        month_part = func.extract("month", Sun2TanningSession.stat_date)
-        monthly_query = (
-            select(
-                year_part.label("year"),
-                month_part.label("month"),
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-            )
-            .group_by(year_part, month_part)
-            .order_by(year_part.desc(), month_part.desc())
-            .limit(36)
-        )
-        if session_filters:
-            monthly_query = monthly_query.where(*session_filters)
-        monthly = (
-            await session.execute(
-                monthly_query
-            )
-        ).mappings().all()
-
-        chart_span_days = None
-        if active_date_from and active_date_to:
-            chart_span_days = (active_date_to - active_date_from).days + 1
-        chart_granularity = "month" if (active_scope == "all" or (chart_span_days and chart_span_days > 370)) else "day"
-        if chart_granularity == "month":
-            chart_year_part = func.extract("year", Sun2TanningSession.stat_date)
-            chart_month_part = func.extract("month", Sun2TanningSession.stat_date)
-            day_query = (
-                select(
-                    chart_year_part.label("year"),
-                    chart_month_part.label("month"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                )
-                .group_by(chart_year_part, chart_month_part)
-                .order_by(chart_year_part.asc(), chart_month_part.asc())
-            )
-        else:
-            day_query = (
-                select(
-                    Sun2TanningSession.stat_date.label("day"),
-                    func.count(Sun2TanningSession.id).label("sessions_count"),
-                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                )
-                .group_by(Sun2TanningSession.stat_date)
-                .order_by(Sun2TanningSession.stat_date.asc())
-            )
-        if session_filters:
-            day_query = day_query.where(*session_filters)
-        daily = (await session.execute(day_query)).mappings().all()
-
-        hour_part = func.extract("hour", Sun2TanningSession.started_at)
-        hourly_query = (
-            select(
-                hour_part.label("hour"),
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-            )
-            .group_by(hour_part)
-            .order_by(hour_part.asc())
-        )
-        if session_filters:
-            hourly_query = hourly_query.where(*session_filters)
-        hourly_rows = (await session.execute(hourly_query)).mappings().all()
-
-        top_rooms_query = (
-            select(
-                Sun2TanningSession.room_id.label("room_id"),
-                func.max(Sun2TanningSession.room).label("source_room_name"),
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-            )
-            .group_by(Sun2TanningSession.room_id)
-            .order_by(func.count(Sun2TanningSession.id).desc())
-            .limit(10)
-        )
-        if session_filters:
-            top_rooms_query = top_rooms_query.where(*session_filters)
-        top_rooms = [
-            {
-                **dict(item),
-                "label": sun2_room_label(item.get("room_id"), item.get("source_room_name")),
-            }
-            for item in (await session.execute(top_rooms_query)).mappings().all()
-        ]
-
-        top_users_query = (
-            select(
-                Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
-                func.max(Sun2TanningSession.user_name).label("user_name"),
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-                func.max(Sun2TanningSession.started_at).label("last_at"),
-            )
-            .where(Sun2TanningSession.sun2_user_id.is_not(None))
-            .where(Sun2TanningSession.sun2_user_id != "")
-            .group_by(Sun2TanningSession.sun2_user_id)
-            .order_by(func.count(Sun2TanningSession.id).desc())
-            .limit(10)
-        )
-        if session_filters:
-            top_users_query = top_users_query.where(*session_filters)
-        top_users = (await session.execute(top_users_query)).mappings().all()
-
-        payment_query = (
-            select(
-                Sun2TanningSession.payment_method.label("label"),
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
-            )
-            .group_by(Sun2TanningSession.payment_method)
-            .order_by(func.count(Sun2TanningSession.id).desc())
-            .limit(8)
-        )
-        if session_filters:
-            payment_query = payment_query.where(*session_filters)
-        payment_breakdown = (await session.execute(payment_query)).mappings().all()
-
-        status_query = (
-            select(
-                Sun2TanningSession.status.label("label"),
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-            )
-            .group_by(Sun2TanningSession.status)
-            .order_by(func.count(Sun2TanningSession.id).desc())
-            .limit(8)
-        )
-        if session_filters:
-            status_query = status_query.where(*session_filters)
-        status_breakdown = (await session.execute(status_query)).mappings().all()
 
     filter_values = {
         "limit": limit,

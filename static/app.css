@@ -3166,3 +3166,134 @@ body.theme-status .mode {
         width: 4.9rem !important;
     }
 }
+
+/* Final operational polish. Keep after route-specific styles. */
+html {
+    background: #f4f7fb;
+    overflow-x: clip;
+}
+
+body {
+    background:
+        radial-gradient(circle at 78% -10%, rgba(63, 127, 189, 0.08), transparent 28rem),
+        #f4f7fb !important;
+    overflow-x: clip;
+}
+
+main,
+.container {
+    animation: page-in 160ms ease-out;
+}
+
+@keyframes page-in {
+    from {
+        opacity: 0.92;
+        transform: translateY(3px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.panel-card,
+.summary-card,
+.metric-card,
+.status-card,
+.data-card,
+.timeline-panel,
+.settings-card,
+.table-wrap,
+.filter-panel {
+    border-color: #dce4ee !important;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px rgba(38, 50, 63, 0.055) !important;
+}
+
+.panel-card,
+.summary-card,
+.metric-card,
+.status-card,
+.data-card,
+.settings-card,
+.filter-panel {
+    background: rgba(255, 255, 255, 0.96) !important;
+}
+
+.page-title,
+.sun-title h1,
+main > h1 {
+    letter-spacing: 0 !important;
+    color: #26323f !important;
+}
+
+.page-subtitle,
+.sun-title p,
+main > p {
+    color: #637083 !important;
+}
+
+.button,
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
+}
+
+.button,
+button.button,
+.button-primary {
+    transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.button:hover,
+button.button:hover,
+.button-primary:hover {
+    transform: translateY(-1px);
+}
+
+input,
+select,
+textarea {
+    border-color: #d6e0eb !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--section-color, var(--sun2-color)) !important;
+    box-shadow: 0 0 0 3px rgba(63, 127, 189, 0.14) !important;
+    outline: none !important;
+}
+
+.table-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: #b7c4d4 #eef3f8;
+}
+
+.table-wrap table tbody tr:hover td {
+    background: rgba(63, 127, 189, 0.035);
+}
+
+.rank-item,
+.hour-grid,
+.session-chart {
+    border-color: #e2e8f0 !important;
+}
+
+@media (max-width: 720px) {
+    .panel-card,
+    .summary-card,
+    .metric-card,
+    .status-card,
+    .data-card,
+    .settings-card,
+    .filter-panel,
+    .table-wrap {
+        border-radius: 9px !important;
+    }
+
+    .table-wrap {
+        margin-inline: -0.15rem;
+    }
+}
