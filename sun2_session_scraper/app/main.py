@@ -427,7 +427,7 @@ def open_beds_page(page, username: str, password: str) -> None:
 def extract_beds(page) -> list[dict[str, Any]]:
     rows = page.evaluate(
         """
-        () => Array.from(document.querySelectorAll('tr')).map((row) => {
+        () => Array.from(document.querySelectorAll('.tile-stats')).map((row) => {
           const text = (selector) => {
             const item = row.querySelector(selector);
             return item ? (item.innerText || item.textContent || '').trim() : '';
