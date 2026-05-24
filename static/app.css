@@ -2958,16 +2958,19 @@ body.theme-status .mode {
 
     .site-header ~ main,
     .site-header ~ .container {
-        width: auto !important;
+        box-sizing: border-box !important;
+        width: calc(100vw - var(--owner-nav-width) - 2.8rem) !important;
         max-width: none !important;
-        margin-left: calc(var(--owner-nav-width) + 1.4rem) !important;
-        margin-right: 1.4rem !important;
+        margin: 0 1.4rem 0 calc(var(--owner-nav-width) + 1.4rem) !important;
+        margin-inline: calc(var(--owner-nav-width) + 1.4rem) 1.4rem !important;
         padding-top: 1rem !important;
     }
 
     html.nav-collapsed .site-header ~ main,
     html.nav-collapsed .site-header ~ .container {
-        margin-left: calc(var(--owner-nav-collapsed-width) + 1.4rem) !important;
+        width: calc(100vw - var(--owner-nav-collapsed-width) - 2.8rem) !important;
+        margin: 0 1.4rem 0 calc(var(--owner-nav-collapsed-width) + 1.4rem) !important;
+        margin-inline: calc(var(--owner-nav-collapsed-width) + 1.4rem) 1.4rem !important;
     }
 
     html.nav-collapsed .brand-home {
@@ -3131,6 +3134,7 @@ body.theme-status .mode {
     .site-header ~ .container {
         width: min(100% - 1rem, var(--page-width)) !important;
         max-width: var(--page-width) !important;
+        margin: 0 auto !important;
         margin-inline: auto !important;
         padding-top: 0.78rem !important;
     }
