@@ -2854,7 +2854,9 @@ body.theme-status .mode {
     }
 
     .site-header .brand-bar::before,
-    .site-header .brand-bar::after {
+    .site-header .brand-bar::after,
+    html.nav-collapsed .site-header .brand-bar::before,
+    html.nav-collapsed .site-header .brand-bar::after {
         content: none !important;
         display: none !important;
     }
