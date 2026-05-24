@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import os
 import time
+import urllib.error
+import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -37,14 +40,25 @@ def timezone_name() -> str:
 FILENAME_PREFIX = "Statistics_room"
 EXPORT_URL = env_value("EXPORT_URL", "https://sun2owner.repayal.com/php/export/statistics_beds.php")
 OUT_DIR = Path(env_value("OUT_DIR", "/data/backfill_raw") or "/data/backfill_raw")
+DAILY_OUT_DIR = Path(env_value("DAILY_OUT_DIR", "/data/incoming") or "/data/incoming")
 ERROR_DIR = Path(env_value("ERROR_DIR", "/data/backfill_errors") or "/data/backfill_errors")
 STATUS_FILE = Path(env_value("STATUS_FILE", "/data/backfill_status.json") or "/data/backfill_status.json")
 PAUSE_SECONDS = float(env_value("PAUSE_SECONDS", "2") or "2")
 SKIP_EXISTING = (env_value("SKIP_EXISTING", "1") or "1") == "1"
 AUTO_START = (env_value("AUTO_START", "0") or "0") == "1"
+DAILY_DOWNLOAD_ENABLED = (env_value("DAILY_DOWNLOAD_ENABLED", "1") or "1") == "1"
+DAILY_DOWNLOAD_TIME = env_value("DAILY_DOWNLOAD_TIME", "01:05") or "01:05"
+DAILY_DOWNLOAD_DAYS_BACK = int(env_value("DAILY_DOWNLOAD_DAYS_BACK", "1") or "1")
+SCHEDULE_POLL_SECONDS = int(env_value("SCHEDULE_POLL_SECONDS", "60") or "60")
+FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "https://fibaro10.onrender.com") or "").rstrip("/")
+FIBARO10_API_USERNAME = env_value("FIBARO10_API_USERNAME", "") or ""
+FIBARO10_API_PASSWORD = env_value("FIBARO10_API_PASSWORD", "") or ""
+COLLECTOR_ID = env_value("COLLECTOR_ID", "qnap-sun2-daily-downloader") or "qnap-sun2-daily-downloader"
 
 app = FastAPI(title="Sun2_backfill_downloader")
 task: asyncio.Task | None = None
+scheduler_task: asyncio.Task | None = None
+schedule_lock = asyncio.Lock()
 stop_requested = False
 
 state: dict[str, Any] = {
@@ -58,18 +72,71 @@ state: dict[str, Any] = {
     "downloaded": 0,
     "skipped": 0,
     "failed": 0,
+    "daily_download_enabled": DAILY_DOWNLOAD_ENABLED,
+    "daily_download_time": DAILY_DOWNLOAD_TIME,
+    "daily_last_check": None,
+    "daily_last_run_date": None,
+    "daily_last_action": None,
     "current_file": None,
     "range": {},
 }
 
 
-def local_today() -> date:
+def local_now() -> datetime:
     if ZoneInfo is None:
-        return datetime.now().date()
+        return datetime.now()
     try:
-        return datetime.now(ZoneInfo(timezone_name())).date()
+        return datetime.now(ZoneInfo(timezone_name()))
     except Exception:
-        return datetime.now().date()
+        return datetime.now()
+
+
+def local_today() -> date:
+    return local_now().date()
+
+
+def normalize_schedule_time(value: str, default: str) -> str:
+    try:
+        hour_text, minute_text = value.strip().split(":", 1)
+        hour = max(0, min(23, int(hour_text)))
+        minute = max(0, min(59, int(minute_text)))
+        return f"{hour:02d}:{minute:02d}"
+    except Exception:
+        return default
+
+
+def daily_download_due(now: datetime) -> bool:
+    scheduled = normalize_schedule_time(DAILY_DOWNLOAD_TIME, "01:05")
+    return now.strftime("%H:%M") >= scheduled and state.get("daily_last_run_date") != now.date().isoformat()
+
+
+def post_import_status(ok: bool, message: str, records_imported: int = 0, records_total: int | None = None, raw: dict[str, Any] | None = None) -> None:
+    if not FIBARO10_API_BASE_URL or not FIBARO10_API_USERNAME or not FIBARO10_API_PASSWORD:
+        return
+    payload = {
+        "job_name": "sun2_daily_download",
+        "source": "sun2_backfill_downloader",
+        "collector_id": COLLECTOR_ID,
+        "ok": ok,
+        "message": message,
+        "records_imported": records_imported,
+        "records_total": records_total,
+        "raw": raw or {},
+    }
+    data = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+    request = urllib.request.Request(
+        f"{FIBARO10_API_BASE_URL}/api/import-status/report",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    credentials = f"{FIBARO10_API_USERNAME}:{FIBARO10_API_PASSWORD}".encode("utf-8")
+    request.add_header("Authorization", "Basic " + base64.b64encode(credentials).decode("ascii"))
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            response.read()
+    except (urllib.error.URLError, TimeoutError, Exception) as exc:
+        state["last_status_post_error"] = str(exc)
 
 
 def env_required(name: str) -> str:
@@ -158,6 +225,57 @@ def login_if_needed(page, username: str, password: str) -> None:
         page.wait_for_load_state("networkidle", timeout=15000)
     except PwTimeoutError:
         pass
+
+
+def download_one_day_sync(day: date, target_dir: Path) -> dict[str, Any]:
+    username = env_required("SUN2_USERNAME")
+    password = env_required("SUN2_PASSWORD")
+    target_dir.mkdir(parents=True, exist_ok=True)
+    ERROR_DIR.mkdir(parents=True, exist_ok=True)
+    filename = filename_for(day)
+    out_path = target_dir / filename
+    state["last_date"] = day.isoformat()
+    state["current_file"] = filename
+
+    if SKIP_EXISTING and out_path.exists():
+        state["skipped"] += 1
+        state["last_success_date"] = day.isoformat()
+        state["last_success_at"] = datetime.utcnow().isoformat()
+        state["last_error"] = None
+        save_progress({"last_action": "daily_skipped_existing"})
+        post_import_status(True, f"Dagsfil finnes allerede: {filename}", records_imported=0, records_total=1, raw={"file": filename, "target_dir": str(target_dir), "skipped": True})
+        return {"ok": True, "file": filename, "skipped": True}
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(locale="nb-NO", accept_downloads=True)
+        page = context.new_page()
+        page.goto(export_url_for(day), wait_until="domcontentloaded")
+        login_if_needed(page, username, password)
+        if looks_like_login_html(page.content()):
+            raise RuntimeError("Etter login havnet vi fortsatt paa login-side")
+
+        response = context.request.get(export_url_for(day), max_redirects=10, timeout=30000)
+        data = response.body()
+        if response.status != 200:
+            (ERROR_DIR / f"HTTP_{response.status}_{filename}.html").write_bytes(data)
+            raise RuntimeError(f"HTTP {response.status}")
+        if is_html_bytes(data):
+            (ERROR_DIR / f"HTML_{filename}.html").write_bytes(data)
+            raise RuntimeError("Fikk HTML i stedet for CSV")
+        tmp_path = out_path.with_suffix(".csv.tmp")
+        tmp_path.write_bytes(data)
+        tmp_path.replace(out_path)
+        context.close()
+        browser.close()
+
+    state["downloaded"] += 1
+    state["last_success_date"] = day.isoformat()
+    state["last_success_at"] = datetime.utcnow().isoformat()
+    state["last_error"] = None
+    save_progress({"last_action": "daily_downloaded"})
+    post_import_status(True, f"Lastet ned dagsfil {filename}", records_imported=1, records_total=1, raw={"file": filename, "target_dir": str(target_dir)})
+    return {"ok": True, "file": filename, "skipped": False, "bytes": len(data)}
 
 
 def start_date_from_progress(config_start: date) -> date:
@@ -267,13 +385,47 @@ async def ensure_task_started() -> bool:
     return True
 
 
+async def nightly_daily_download_loop() -> None:
+    while True:
+        try:
+            now = local_now()
+            state["daily_last_check"] = now.isoformat()
+            if DAILY_DOWNLOAD_ENABLED and daily_download_due(now):
+                if task and not task.done():
+                    state["daily_last_action"] = "venter paa backfill-jobb"
+                else:
+                    state["daily_last_run_date"] = now.date().isoformat()
+                    state["daily_last_action"] = f"starter {now:%Y-%m-%d %H:%M:%S}"
+                    save_progress({"last_action": "daily_schedule_started"})
+                    async with schedule_lock:
+                        target_day = local_today() - timedelta(days=max(1, DAILY_DOWNLOAD_DAYS_BACK))
+                        try:
+                            result = await asyncio.to_thread(download_one_day_sync, target_day, DAILY_OUT_DIR)
+                            state["daily_last_action"] = f"ok {target_day.isoformat()}"
+                            save_progress({"last_action": "daily_schedule_finished", "daily_result": result})
+                        except Exception as exc:
+                            state["failed"] += 1
+                            state["last_error"] = f"Nattlig dagsnedlasting {target_day.isoformat()} feilet: {exc}"
+                            state["daily_last_action"] = f"feil {target_day.isoformat()}"
+                            save_progress({"last_action": "daily_schedule_failed"})
+                            post_import_status(False, state["last_error"], records_total=1, raw={"date": target_day.isoformat(), "target_dir": str(DAILY_OUT_DIR)})
+            save_progress({"last_action": "daily_scheduler_check"})
+        except Exception as exc:
+            state["last_error"] = f"Scheduler feilet: {exc}"
+            save_progress({"last_action": "daily_scheduler_failed"})
+        await asyncio.sleep(max(30, SCHEDULE_POLL_SECONDS))
+
+
 @app.on_event("startup")
 async def startup() -> None:
+    global scheduler_task
     progress = load_progress()
     if progress:
         state.update({key: value for key, value in progress.items() if key in state})
     if AUTO_START:
         await ensure_task_started()
+    if DAILY_DOWNLOAD_ENABLED and (scheduler_task is None or scheduler_task.done()):
+        scheduler_task = asyncio.create_task(nightly_daily_download_loop())
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -307,10 +459,15 @@ button{{border:0;border-radius:8px;background:#4b86c2;color:white;padding:.65rem
 <div class="metric"><span>Lastet ned</span><strong>{state.get('downloaded', 0)}</strong></div>
 <div class="metric"><span>Hoppet over</span><strong>{state.get('skipped', 0)}</strong></div>
 <div class="metric"><span>Feil</span><strong>{state.get('failed', 0)}</strong></div>
+<div class="metric"><span>Nattlig dagsfil</span><strong>{'PÃ¥' if DAILY_DOWNLOAD_ENABLED else 'Av'}</strong></div>
+<div class="metric"><span>Natt-tid</span><strong>{DAILY_DOWNLOAD_TIME}</strong></div>
+<div class="metric"><span>Daglig mappe</span><strong>{DAILY_OUT_DIR}</strong></div>
+<div class="metric"><span>Siste nattjobb</span><strong>{state.get('daily_last_action') or '-'}</strong></div>
 </section>
 <section class="card">
 <form method="post" action="/start" style="display:inline"><button type="submit">Start</button></form>
 <form method="post" action="/stop" style="display:inline"><button class="stop" type="submit">Stopp</button></form>
+<form method="post" action="/download-yesterday" style="display:inline"><button type="submit">Last ned i gÃ¥r</button></form>
 </section>
 <section class="card"><pre>{json.dumps(state, ensure_ascii=False, indent=2)}</pre></section>
 </main></body></html>
@@ -332,6 +489,19 @@ async def stop():
     stop_requested = True
     state["stop_requested"] = True
     return RedirectResponse("/", status_code=303)
+
+
+@app.post("/download-yesterday")
+async def download_yesterday():
+    day = local_today() - timedelta(days=max(1, DAILY_DOWNLOAD_DAYS_BACK))
+    try:
+        result = await asyncio.to_thread(download_one_day_sync, day, DAILY_OUT_DIR)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell dagsnedlasting {day.isoformat()} feilet: {exc}"
+        save_progress({"last_action": "manual_daily_failed"})
+        post_import_status(False, state["last_error"], records_total=1, raw={"date": day.isoformat(), "target_dir": str(DAILY_OUT_DIR)})
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 
 @app.get("/json")

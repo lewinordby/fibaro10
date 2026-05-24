@@ -46,6 +46,13 @@ PAUSE_SECONDS=2
 SKIP_EXISTING=1
 AUTO_START=0
 
+# Nattlig plan. Enkelttimer, senger og medlemmer kjores paa ulike tidspunkt.
+SCHEDULE_ENABLED=1
+SCHEDULE_SESSIONS_TIME=02:10
+SCHEDULE_BEDS_TIME=02:40
+SCHEDULE_MEMBERS_TIME=03:10
+SCHEDULE_POLL_SECONDS=60
+
 POST_TO_FIBARO10=1
 FIBARO10_API_BASE_URL=https://fibaro10.onrender.com
 FIBARO10_API_USERNAME=logger
@@ -64,8 +71,19 @@ POST /start
 POST /stop
 POST /sync-current-month
 POST /sync-beds
+POST /sync-members
 POST /sync-month?year=2026&month=5
 ```
+
+## Nattlig flyt
+
+Denne appen har ikke en egen import-app ved siden av seg. Den skraper data og poster direkte til Fibaro10:
+
+- `02:10`: enkelttimer for inneværende måned
+- `02:40`: seng-/rommetadata
+- `03:10`: medlemmer og profilfelter
+
+Alle jobbene rapporterer status til Fibaro10, slik at Datakilder viser om nattjobbene faktisk har gått.
 
 ## Viktig første test
 

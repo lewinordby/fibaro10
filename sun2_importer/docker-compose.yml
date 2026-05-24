@@ -8,4 +8,4 @@ services:
     ports:
       - "8096:8096"
     volumes:
-      - ./data:/data
+      - ${SUN2_DAILY_DATA_DIR:-./data}:/data

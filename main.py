@@ -2165,6 +2165,14 @@ IMPORT_JOB_DEFINITIONS = {
         "warning_after_minutes": 30,
         "description": "Robotstatus, planlagte jobber og siste lokale/cloud-data.",
     },
+    "sun2_daily_download": {
+        "title": "Sun2 dagsfil nedlasting",
+        "category": "Soling",
+        "source": "QNAP",
+        "expected_interval_minutes": 36 * 60,
+        "warning_after_minutes": 72 * 60,
+        "description": "Nattlig nedlasting av SUN2 dagsfil for import.",
+    },
     "sun2_room_daily_import": {
         "title": "Sun2 dagsimport rom",
         "category": "Soling",

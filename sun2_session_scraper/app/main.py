@@ -68,6 +68,11 @@ STATUS_FILE = Path(env_value("STATUS_FILE", "/data/session_scraper_status.json")
 PAUSE_SECONDS = float(env_value("PAUSE_SECONDS", "2") or "2")
 SKIP_EXISTING = (env_value("SKIP_EXISTING", "1") or "1") == "1"
 AUTO_START = (env_value("AUTO_START", "0") or "0") == "1"
+SCHEDULE_ENABLED = (env_value("SCHEDULE_ENABLED", "1") or "1") == "1"
+SCHEDULE_POLL_SECONDS = int(env_value("SCHEDULE_POLL_SECONDS", "60") or "60")
+SCHEDULE_SESSIONS_TIME = env_value("SCHEDULE_SESSIONS_TIME", "02:10") or "02:10"
+SCHEDULE_BEDS_TIME = env_value("SCHEDULE_BEDS_TIME", "02:40") or "02:40"
+SCHEDULE_MEMBERS_TIME = env_value("SCHEDULE_MEMBERS_TIME", "03:10") or "03:10"
 POST_TO_FIBARO10 = (env_value("POST_TO_FIBARO10", "0") or "0") == "1"
 FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "https://fibaro10.onrender.com") or "").rstrip("/")
 FIBARO10_API_USERNAME = env_value("FIBARO10_API_USERNAME", "") or ""
@@ -79,6 +84,8 @@ MEMBER_POST_BATCH_SIZE = int(env_value("MEMBER_POST_BATCH_SIZE", "500") or "500"
 
 app = FastAPI(title="Sun2_session_scraper")
 task: asyncio.Task | None = None
+scheduler_task: asyncio.Task | None = None
+schedule_lock = asyncio.Lock()
 stop_requested = False
 
 state: dict[str, Any] = {
@@ -100,9 +107,35 @@ state: dict[str, Any] = {
     "members_last_sync": None,
     "members_last_count": 0,
     "members_last_named_count": 0,
+    "scheduler_enabled": SCHEDULE_ENABLED,
+    "scheduler_last_check": None,
+    "scheduler_last_action": None,
+    "scheduled_last_runs": {},
     "current_file": None,
     "range": {},
 }
+
+
+def normalize_schedule_time(value: str, default: str) -> str:
+    try:
+        hour_text, minute_text = value.strip().split(":", 1)
+        hour = max(0, min(23, int(hour_text)))
+        minute = max(0, min(59, int(minute_text)))
+        return f"{hour:02d}:{minute:02d}"
+    except Exception:
+        return default
+
+
+def schedule_due(job_key: str, time_text: str, now: datetime) -> bool:
+    scheduled = normalize_schedule_time(time_text, "02:00")
+    last_runs = state.setdefault("scheduled_last_runs", {})
+    return now.strftime("%H:%M") >= scheduled and last_runs.get(job_key) != now.date().isoformat()
+
+
+def mark_scheduled_attempt(job_key: str, now: datetime) -> None:
+    last_runs = state.setdefault("scheduled_last_runs", {})
+    last_runs[job_key] = now.date().isoformat()
+    state["scheduler_last_action"] = f"{job_key} {now:%Y-%m-%d %H:%M:%S}"
 
 
 def parse_date(value: str | None, default: date) -> date:
@@ -1275,13 +1308,60 @@ async def ensure_task_started() -> bool:
     return True
 
 
+async def run_scheduled_job(job_key: str, job_name: str, runner) -> None:
+    if schedule_lock.locked():
+        return
+    async with schedule_lock:
+        now = local_now()
+        mark_scheduled_attempt(job_key, now)
+        save_progress({"last_action": f"scheduled_{job_key}_started"})
+        try:
+            result = await asyncio.to_thread(runner)
+            state["last_error"] = None
+            save_progress({"last_action": f"scheduled_{job_key}_finished", "scheduled_result": result})
+        except Exception as exc:
+            state["last_error"] = f"Nattlig {job_key} feilet: {exc}"
+            save_progress({"last_action": f"scheduled_{job_key}_failed"})
+            post_import_status(job_name, ok=False, message=state["last_error"], raw={"job_key": job_key})
+
+
+def current_month_runner():
+    today = local_today()
+    return scrape_month_sync(today.replace(day=1), today)
+
+
+async def nightly_scheduler_loop() -> None:
+    while True:
+        try:
+            now = local_now()
+            state["scheduler_last_check"] = now.isoformat()
+            if SCHEDULE_ENABLED:
+                if schedule_due("sessions", SCHEDULE_SESSIONS_TIME, now):
+                    if task and not task.done():
+                        state["scheduler_last_action"] = "sessions venter paa range-jobb"
+                    else:
+                        await run_scheduled_job("sessions", "sun2_sessions_import", current_month_runner)
+                if schedule_due("beds", SCHEDULE_BEDS_TIME, now):
+                    await run_scheduled_job("beds", "sun2_beds_import", scrape_beds_sync)
+                if schedule_due("members", SCHEDULE_MEMBERS_TIME, now):
+                    await run_scheduled_job("members", "sun2_members_import", scrape_members_sync)
+            save_progress({"last_action": "scheduler_check"})
+        except Exception as exc:
+            state["last_error"] = f"Scheduler feilet: {exc}"
+            save_progress({"last_action": "scheduler_failed"})
+        await asyncio.sleep(max(30, SCHEDULE_POLL_SECONDS))
+
+
 @app.on_event("startup")
 async def startup() -> None:
+    global scheduler_task
     progress = load_progress()
     if progress:
         state.update({key: value for key, value in progress.items() if key in state})
     if AUTO_START:
         await ensure_task_started()
+    if SCHEDULE_ENABLED and (scheduler_task is None or scheduler_task.done()):
+        scheduler_task = asyncio.create_task(nightly_scheduler_loop())
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1318,6 +1398,10 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <div class="metric"><span>Siste rader</span><strong>{state.get('rows_last_file', 0)}</strong></div>
 <div class="metric"><span>Medlemmer</span><strong>{state.get('members_last_count', 0)}</strong></div>
 <div class="metric"><span>Navn funnet</span><strong>{state.get('members_last_named_count', 0)}</strong></div>
+<div class="metric"><span>Nattjobb</span><strong>{'PÃ¥' if SCHEDULE_ENABLED else 'Av'}</strong></div>
+<div class="metric"><span>Tider</span><strong>{SCHEDULE_SESSIONS_TIME} / {SCHEDULE_BEDS_TIME} / {SCHEDULE_MEMBERS_TIME}</strong></div>
+<div class="metric"><span>Siste sjekk</span><strong>{state.get('scheduler_last_check') or '-'}</strong></div>
+<div class="metric"><span>Siste nattjobb</span><strong>{state.get('scheduler_last_action') or '-'}</strong></div>
 </section>
 <section class="card">
 <form method="post" action="/start" style="display:inline"><button type="submit">Start range</button></form>

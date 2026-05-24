@@ -2,7 +2,7 @@
 
 `Sun2_importer` erstatter den gamle `sol_import`-flyten.
 
-Den poller katalogen der `sun2_download` legger CSV-filene, parser romstatistikk og sender resultatet til Fibaro10:
+Den poller katalogen der `sun2_backfill_downloader` legger nattlige CSV-filer, parser romstatistikk og sender resultatet til Fibaro10:
 
 ```text
 POST /api/sun2/room-stats/ingest
@@ -34,6 +34,9 @@ IMPORT_DIR=/data/incoming
 ARCHIVE_DIR=/data/archive
 REJECTED_DIR=/data/rejected
 POLL_SECONDS=10
+
+# Skal settes likt som i sun2_backfill_downloader slik at begge ser samme /data.
+SUN2_DAILY_DATA_DIR=/share/Container/sun2_daily_data
 ```
 
 ## Lokal start
@@ -47,3 +50,9 @@ Apnes pa:
 ```text
 http://QNAP-IP:8096
 ```
+
+## Nattlig flyt
+
+1. `sun2_backfill_downloader` laster ned gaarsdagens `Statistics_room_YYYY-MM-DD_YYYY-MM-DD.csv` til `/data/incoming`.
+2. `sun2_importer` oppdager filen innen `POLL_SECONDS`.
+3. Filen sendes til Fibaro10, flyttes til `archive` ved suksess og rapporteres i Datakilder.
