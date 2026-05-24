@@ -4257,3 +4257,235 @@ textarea:focus {
         flex: 0 0 auto !important;
     }
 }
+
+/* SUN2 Owner fidelity pass: quieter, taller rows and menu-only neutral styling. */
+@media (min-width: 1020px) {
+    .site-header,
+    body[class] .site-header {
+        width: 252px !important;
+        background: #ffffff !important;
+        border-right: 1px solid #e5e7eb !important;
+    }
+
+    .site-header .brand-bar {
+        min-height: 100vh !important;
+        background: #ffffff !important;
+    }
+
+    .brand-home {
+        min-height: 10rem !important;
+        width: 100% !important;
+        place-items: center !important;
+        border-bottom: 1px solid #e9eaec !important;
+    }
+
+    .brand-logo {
+        width: 7.25rem !important;
+    }
+
+    .nav-toggle {
+        top: 2.6rem !important;
+        right: 1.58rem !important;
+        width: 2.72rem !important;
+        height: 2.72rem !important;
+        border: 1px solid #e1e4e8 !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        color: #9b9b9b !important;
+        box-shadow: 0 1px 3px rgba(24, 31, 38, 0.08) !important;
+    }
+
+    .app-nav {
+        margin-top: 0 !important;
+        border-top: 0 !important;
+    }
+
+    .app-nav .nav-main {
+        background: #ffffff !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 4.18rem !important;
+        grid-template-columns: 1.46rem minmax(0, 1fr) 0.72rem !important;
+        gap: 0.9rem !important;
+        padding: 0 1.18rem 0 2.04rem !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+        font-size: 1.06rem !important;
+        font-weight: 500 !important;
+    }
+
+    .app-nav .nav-main > .button:hover {
+        background: #f7f7f7 !important;
+        color: #2c333d !important;
+    }
+
+    .app-nav .nav-main > .button.active:not(.has-sub) {
+        background: #eeeeee !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        min-height: 3.95rem !important;
+        margin: 0.46rem 0.26rem 0 !important;
+        width: calc(100% - 0.52rem) !important;
+        padding: 0 1rem 0 1.75rem !important;
+        border: 2px solid #1f1f1f !important;
+        border-radius: 5px !important;
+        background: #ffffff !important;
+        color: #2c333d !important;
+        box-shadow: none !important;
+        font-weight: 500 !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub .nav-label {
+        text-decoration: underline !important;
+        text-decoration-thickness: 1px !important;
+        text-underline-offset: 0.16rem !important;
+    }
+
+    .app-nav .nav-icon {
+        width: 1.42rem !important;
+        height: 1.42rem !important;
+        color: #555b63 !important;
+        stroke-width: 2.15 !important;
+    }
+
+    .nav-chevron {
+        width: 0.48rem !important;
+        height: 0.48rem !important;
+        color: #26323f !important;
+        opacity: 0.9 !important;
+    }
+
+    .app-nav .nav-sub {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        position: relative !important;
+        min-height: 3.76rem !important;
+        width: 100% !important;
+        padding: 0 1rem 0 4.85rem !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+        font-size: 1.02rem !important;
+        font-weight: 480 !important;
+    }
+
+    .app-nav .nav-sub .button::before,
+    .app-nav .nav-sub-form .button::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 2.24rem !important;
+        top: 50% !important;
+        width: 1.26rem !important;
+        height: 1.26rem !important;
+        border: 2px solid currentColor !important;
+        border-radius: 0.24rem !important;
+        transform: translateY(-50%) !important;
+        opacity: 0.78 !important;
+    }
+
+    .app-nav .nav-sub .button:hover,
+    .app-nav .nav-sub-form .button:hover {
+        background: #f7f7f7 !important;
+        color: #2c333d !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: #f1f1f1 !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+        font-weight: 600 !important;
+    }
+
+    .app-nav .nav-sub .button.active::before {
+        background: #ffffff !important;
+        border-color: #4f5661 !important;
+        opacity: 0.95 !important;
+    }
+
+    .site-header ~ main,
+    .site-header ~ .container,
+    body .site-header ~ main,
+    body .site-header ~ .container {
+        width: calc(100vw - 252px - 3rem) !important;
+        margin-left: calc(252px + 1.5rem) !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    .site-header {
+        background: #ffffff !important;
+    }
+
+    .site-header .brand-bar {
+        min-height: 4.75rem !important;
+        padding: 0 1.05rem !important;
+    }
+
+    .brand-logo {
+        width: 6rem !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.76rem !important;
+        padding-left: 1.58rem !important;
+        padding-right: 1.12rem !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        min-height: 3.44rem !important;
+        margin: 0.36rem 0.34rem 0 !important;
+        width: calc(100% - 0.68rem) !important;
+        border: 2px solid #1f1f1f !important;
+        border-radius: 5px !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        position: relative !important;
+        min-height: 3.28rem !important;
+        padding-left: 4.45rem !important;
+        background: #ffffff !important;
+        color: #4f5661 !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+    }
+
+    .app-nav .nav-sub .button::before,
+    .app-nav .nav-sub-form .button::before {
+        content: "" !important;
+        position: absolute !important;
+        left: 2.05rem !important;
+        top: 50% !important;
+        width: 1.1rem !important;
+        height: 1.1rem !important;
+        border: 2px solid currentColor !important;
+        border-radius: 0.22rem !important;
+        transform: translateY(-50%) !important;
+        opacity: 0.78 !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: #f1f1f1 !important;
+        color: #2c333d !important;
+        box-shadow: inset 0 -1px 0 #e0e2e5 !important;
+    }
+}
