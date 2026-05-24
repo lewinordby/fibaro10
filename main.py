@@ -11,7 +11,7 @@ import json
 import math
 import os
 import re
-from urllib.parse import parse_qs, quote, quote_plus, urlparse
+from urllib.parse import parse_qs, quote, quote_plus, urlencode, urlparse
 import urllib.error
 import urllib.request
 from zoneinfo import ZoneInfo
@@ -23,7 +23,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, case, delete, func, select, text as sql_text, update
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, case, delete, func, or_, select, text as sql_text, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -5682,21 +5682,87 @@ async def sun2_room_stats_view(request: Request, limit: int = 150):
 
 
 @app.get("/soling/enkeltimer", response_class=HTMLResponse)
-async def sun2_sessions_view(request: Request, limit: int = 250, sun2_user_id: Optional[str] = None):
-    limit = max(1, min(limit, 2000))
+async def sun2_sessions_view(
+    request: Request,
+    limit: int = 100,
+    page: int = 1,
+    sun2_user_id: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    room: Optional[str] = None,
+    payment_method: Optional[str] = None,
+    status: Optional[str] = None,
+    customer_type: Optional[str] = None,
+    q: Optional[str] = None,
+):
+    limit = max(25, min(limit, 1000))
+    page = max(1, page)
     active_sun2_user_id = (sun2_user_id or "").strip()
+    active_room = (room or "").strip()
+    active_payment_method = (payment_method or "").strip()
+    active_status = (status or "").strip()
+    active_customer_type = (customer_type or "").strip()
+    active_q = (q or "").strip()
+    active_date_from = None
+    active_date_to = None
+    try:
+        active_date_from = date.fromisoformat(date_from) if date_from else None
+    except ValueError:
+        active_date_from = None
+    try:
+        active_date_to = date.fromisoformat(date_to) if date_to else None
+    except ValueError:
+        active_date_to = None
+
     session_filters = []
     if active_sun2_user_id:
         session_filters.append(Sun2TanningSession.sun2_user_id == active_sun2_user_id)
+    if active_date_from:
+        session_filters.append(Sun2TanningSession.stat_date >= active_date_from)
+    if active_date_to:
+        session_filters.append(Sun2TanningSession.stat_date <= active_date_to)
+    if active_room:
+        session_filters.append(Sun2TanningSession.room == active_room)
+    if active_payment_method:
+        session_filters.append(Sun2TanningSession.payment_method == active_payment_method)
+    if active_status:
+        session_filters.append(Sun2TanningSession.status == active_status)
+    if active_customer_type:
+        session_filters.append(Sun2TanningSession.customer_type == active_customer_type)
+    if active_q:
+        like = f"%{active_q.lower()}%"
+        session_filters.append(or_(
+            func.lower(func.coalesce(Sun2TanningSession.user_name, "")).like(like),
+            func.lower(func.coalesce(Sun2TanningSession.user_identifier, "")).like(like),
+            func.lower(func.coalesce(Sun2TanningSession.sun2_user_id, "")).like(like),
+            func.lower(func.coalesce(Sun2TanningSession.room, "")).like(like),
+            func.lower(func.coalesce(Sun2TanningSession.payment_method, "")).like(like),
+            func.lower(func.coalesce(Sun2TanningSession.status, "")).like(like),
+            func.lower(func.coalesce(Sun2TanningSession.source_file, "")).like(like),
+        ))
 
     async with async_session() as session:
+        distinct_text = lambda column: (
+            select(column)
+            .where(column.is_not(None))
+            .where(column != "")
+            .distinct()
+            .order_by(column)
+        )
+        room_options = (await session.execute(distinct_text(Sun2TanningSession.room))).scalars().all()
+        payment_options = (await session.execute(distinct_text(Sun2TanningSession.payment_method))).scalars().all()
+        status_options = (await session.execute(distinct_text(Sun2TanningSession.status))).scalars().all()
+        customer_options = (await session.execute(distinct_text(Sun2TanningSession.customer_type))).scalars().all()
+
         rows_query = select(Sun2TanningSession)
         if session_filters:
             rows_query = rows_query.where(*session_filters)
+        offset = (page - 1) * limit
         rows = (
             await session.execute(
                 rows_query
                 .order_by(Sun2TanningSession.started_at.desc())
+                .offset(offset)
                 .limit(limit)
             )
         ).scalars().all()
@@ -5711,6 +5777,9 @@ async def sun2_sessions_view(request: Request, limit: int = 250, sun2_user_id: O
             func.count(Sun2TanningSession.id).label("sessions_count"),
             func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
             func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+            func.coalesce(func.avg(Sun2TanningSession.duration_minutes), 0).label("avg_duration_minutes"),
+            func.coalesce(func.avg(Sun2TanningSession.paid_amount_kr), 0).label("avg_paid_amount_kr"),
+            func.count(func.distinct(Sun2TanningSession.sun2_user_id)).label("unique_users_count"),
             func.min(Sun2TanningSession.started_at).label("first_at"),
             func.max(Sun2TanningSession.started_at).label("last_at"),
         )
@@ -5721,6 +5790,19 @@ async def sun2_sessions_view(request: Request, limit: int = 250, sun2_user_id: O
                 total_query
             )
         ).mappings().first()
+        total_count = int((total or {}).get("sessions_count") or 0)
+        page_count = max(1, math.ceil(total_count / limit))
+        if page > page_count:
+            page = page_count
+            offset = (page - 1) * limit
+            rows = (
+                await session.execute(
+                    rows_query
+                    .order_by(Sun2TanningSession.started_at.desc())
+                    .offset(offset)
+                    .limit(limit)
+                )
+            ).scalars().all()
         year_part = func.extract("year", Sun2TanningSession.stat_date)
         month_part = func.extract("month", Sun2TanningSession.stat_date)
         monthly_query = (
@@ -5742,6 +5824,151 @@ async def sun2_sessions_view(request: Request, limit: int = 250, sun2_user_id: O
                 monthly_query
             )
         ).mappings().all()
+
+        day_query = (
+            select(
+                Sun2TanningSession.stat_date.label("day"),
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+            )
+            .group_by(Sun2TanningSession.stat_date)
+            .order_by(Sun2TanningSession.stat_date.asc())
+        )
+        if session_filters:
+            day_query = day_query.where(*session_filters)
+        daily = (await session.execute(day_query)).mappings().all()
+
+        hour_part = func.extract("hour", Sun2TanningSession.started_at)
+        hourly_query = (
+            select(
+                hour_part.label("hour"),
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+            )
+            .group_by(hour_part)
+            .order_by(hour_part.asc())
+        )
+        if session_filters:
+            hourly_query = hourly_query.where(*session_filters)
+        hourly_rows = (await session.execute(hourly_query)).mappings().all()
+
+        top_rooms_query = (
+            select(
+                func.coalesce(Sun2TanningSession.room, Sun2TanningSession.room_key, "-").label("label"),
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+            )
+            .group_by(func.coalesce(Sun2TanningSession.room, Sun2TanningSession.room_key, "-"))
+            .order_by(func.count(Sun2TanningSession.id).desc())
+            .limit(10)
+        )
+        if session_filters:
+            top_rooms_query = top_rooms_query.where(*session_filters)
+        top_rooms = (await session.execute(top_rooms_query)).mappings().all()
+
+        top_users_query = (
+            select(
+                Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
+                func.max(Sun2TanningSession.user_name).label("user_name"),
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                func.max(Sun2TanningSession.started_at).label("last_at"),
+            )
+            .where(Sun2TanningSession.sun2_user_id.is_not(None))
+            .where(Sun2TanningSession.sun2_user_id != "")
+            .group_by(Sun2TanningSession.sun2_user_id)
+            .order_by(func.count(Sun2TanningSession.id).desc())
+            .limit(10)
+        )
+        if session_filters:
+            top_users_query = top_users_query.where(*session_filters)
+        top_users = (await session.execute(top_users_query)).mappings().all()
+
+        payment_query = (
+            select(
+                func.coalesce(Sun2TanningSession.payment_method, "-").label("label"),
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+            )
+            .group_by(func.coalesce(Sun2TanningSession.payment_method, "-"))
+            .order_by(func.count(Sun2TanningSession.id).desc())
+            .limit(8)
+        )
+        if session_filters:
+            payment_query = payment_query.where(*session_filters)
+        payment_breakdown = (await session.execute(payment_query)).mappings().all()
+
+        status_query = (
+            select(
+                func.coalesce(Sun2TanningSession.status, "-").label("label"),
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+            )
+            .group_by(func.coalesce(Sun2TanningSession.status, "-"))
+            .order_by(func.count(Sun2TanningSession.id).desc())
+            .limit(8)
+        )
+        if session_filters:
+            status_query = status_query.where(*session_filters)
+        status_breakdown = (await session.execute(status_query)).mappings().all()
+
+    filter_values = {
+        "limit": limit,
+        "page": page,
+        "sun2_user_id": active_sun2_user_id,
+        "date_from": active_date_from.isoformat() if active_date_from else "",
+        "date_to": active_date_to.isoformat() if active_date_to else "",
+        "room": active_room,
+        "payment_method": active_payment_method,
+        "status": active_status,
+        "customer_type": active_customer_type,
+        "q": active_q,
+    }
+    def query_url(**updates):
+        params = dict(filter_values)
+        params.update(updates)
+        params = {key: value for key, value in params.items() if value not in (None, "", 0)}
+        return f"/soling/enkeltimer?{urlencode(params)}"
+
+    hourly_lookup = {int(item.hour or 0): item for item in hourly_rows}
+    hourly = [
+        {
+            "hour": hour,
+            "label": f"{hour:02d}",
+            "sessions_count": int((hourly_lookup.get(hour) or {}).get("sessions_count") or 0),
+            "paid_amount_kr": float((hourly_lookup.get(hour) or {}).get("paid_amount_kr") or 0),
+        }
+        for hour in range(24)
+    ]
+    peak_hour = max(hourly, key=lambda item: item["sessions_count"], default=None)
+    best_day = max(daily, key=lambda item: item.sessions_count or 0, default=None)
+    daily_chart = [
+        {
+            "date": item.day.isoformat() if item.day else "",
+            "label": item.day.strftime("%d.%m.%Y") if item.day else "",
+            "sessions_count": int(item.sessions_count or 0),
+            "duration_hours": round(float(item.duration_minutes or 0) / 60, 2),
+            "paid_amount_kr": round(float(item.paid_amount_kr or 0), 2),
+        }
+        for item in daily
+    ]
+    active_filter_count = sum(1 for key in ["sun2_user_id", "date_from", "date_to", "room", "payment_method", "status", "customer_type", "q"] if filter_values.get(key))
+    pagination = {
+        "page": page,
+        "page_count": page_count,
+        "limit": limit,
+        "total_count": total_count,
+        "from_row": min(total_count, offset + 1) if total_count else 0,
+        "to_row": min(total_count, offset + len(rows)),
+        "prev_url": query_url(page=max(1, page - 1)) if page > 1 else "",
+        "next_url": query_url(page=min(page_count, page + 1)) if page < page_count else "",
+        "pages": [
+            {"number": number, "url": query_url(page=number), "active": number == page}
+            for number in range(max(1, page - 2), min(page_count, page + 2) + 1)
+        ],
+    }
     return templates.TemplateResponse(
         request,
         "sun2_sessions.html",
@@ -5751,6 +5978,22 @@ async def sun2_sessions_view(request: Request, limit: int = 250, sun2_user_id: O
             "limit": limit,
             "total": total or {},
             "monthly": monthly,
+            "daily_chart": daily_chart,
+            "hourly": hourly,
+            "peak_hour": peak_hour,
+            "best_day": best_day,
+            "top_rooms": top_rooms,
+            "top_users": top_users,
+            "payment_breakdown": payment_breakdown,
+            "status_breakdown": status_breakdown,
+            "room_options": room_options,
+            "payment_options": payment_options,
+            "status_options": status_options,
+            "customer_options": customer_options,
+            "filters": filter_values,
+            "active_filter_count": active_filter_count,
+            "pagination": pagination,
+            "query_url": query_url,
             "active_sun2_user_id": active_sun2_user_id,
         },
     )
