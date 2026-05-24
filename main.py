@@ -5112,12 +5112,44 @@ async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestI
         ).scalars().first()
 
         if not existing:
+            legacy_source_session_id = str((row.raw or {}).get("legacy_source_session_id") or "").strip()
+            if legacy_source_session_id:
+                existing = (
+                    await session.execute(
+                        select(Sun2TanningSession)
+                        .where(Sun2TanningSession.source == source)
+                        .where(Sun2TanningSession.source_session_id == legacy_source_session_id)
+                    )
+                ).scalars().first()
+
+        if not existing:
+            natural_query = (
+                select(Sun2TanningSession)
+                .where(Sun2TanningSession.source == source)
+                .where(Sun2TanningSession.started_at == row.started_at)
+                .where(Sun2TanningSession.stat_date == stat_date)
+                .where(Sun2TanningSession.duration_minutes == row.duration_minutes)
+                .where(Sun2TanningSession.paid_amount_kr == row.paid_amount_kr)
+            )
+            if identity.get("sun2_bed_id"):
+                natural_query = natural_query.where(Sun2TanningSession.sun2_bed_id == identity.get("sun2_bed_id"))
+            elif identity.get("room_id"):
+                natural_query = natural_query.where(Sun2TanningSession.room_id == identity.get("room_id"))
+            if row.sun2_user_id:
+                natural_query = natural_query.where(Sun2TanningSession.sun2_user_id == row.sun2_user_id)
+            elif row.user_identifier:
+                natural_query = natural_query.where(Sun2TanningSession.user_identifier == row.user_identifier)
+            existing = (await session.execute(natural_query)).scalars().first()
+
+        if not existing:
             existing = Sun2TanningSession(source=source, source_session_id=source_session_id)
             session.add(existing)
             inserted += 1
         else:
             updated += 1
 
+        existing.source = source
+        existing.source_session_id = source_session_id
         existing.started_at = row.started_at
         existing.ended_at = row.ended_at
         existing.stat_date = stat_date

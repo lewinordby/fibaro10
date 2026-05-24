@@ -53,6 +53,10 @@ SCHEDULE_BEDS_TIME=02:40
 SCHEDULE_MEMBERS_TIME=03:10
 SCHEDULE_POLL_SECONDS=60
 
+# Live-sync henter dagens enkelttimer hvert 5. minutt.
+LIVE_SYNC_ENABLED=1
+LIVE_SYNC_INTERVAL_SECONDS=300
+
 POST_TO_FIBARO10=1
 FIBARO10_API_BASE_URL=https://fibaro10.onrender.com
 FIBARO10_API_USERNAME=logger
@@ -70,6 +74,7 @@ GET  /json
 POST /start
 POST /stop
 POST /sync-current-month
+POST /sync-today
 POST /sync-beds
 POST /sync-members
 POST /sync-month?year=2026&month=5
@@ -82,6 +87,8 @@ Denne appen har ikke en egen import-app ved siden av seg. Den skraper data og po
 - `02:10`: enkelttimer for inneværende måned
 - `02:40`: seng-/rommetadata
 - `03:10`: medlemmer og profilfelter
+
+I tillegg hentes dagens enkelttimer hvert 5. minutt når `LIVE_SYNC_ENABLED=1`. Den jobben skriver en egen dagsfil, for eksempel `Sun2_sessions_2026-05-24.json`, og bruker samme idempotente API-import som månedsjobben.
 
 Alle jobbene rapporterer status til Fibaro10, slik at Datakilder viser om nattjobbene faktisk har gått.
 

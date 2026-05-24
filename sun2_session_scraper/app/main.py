@@ -12,7 +12,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, urljoin, urlparse
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query, Request
@@ -73,6 +73,8 @@ SCHEDULE_POLL_SECONDS = int(env_value("SCHEDULE_POLL_SECONDS", "60") or "60")
 SCHEDULE_SESSIONS_TIME = env_value("SCHEDULE_SESSIONS_TIME", "02:10") or "02:10"
 SCHEDULE_BEDS_TIME = env_value("SCHEDULE_BEDS_TIME", "02:40") or "02:40"
 SCHEDULE_MEMBERS_TIME = env_value("SCHEDULE_MEMBERS_TIME", "03:10") or "03:10"
+LIVE_SYNC_ENABLED = (env_value("LIVE_SYNC_ENABLED", "1") or "1") == "1"
+LIVE_SYNC_INTERVAL_SECONDS = int(env_value("LIVE_SYNC_INTERVAL_SECONDS", "300") or "300")
 POST_TO_FIBARO10 = (env_value("POST_TO_FIBARO10", "0") or "0") == "1"
 FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "https://fibaro10.onrender.com") or "").rstrip("/")
 FIBARO10_API_USERNAME = env_value("FIBARO10_API_USERNAME", "") or ""
@@ -85,6 +87,7 @@ MEMBER_POST_BATCH_SIZE = int(env_value("MEMBER_POST_BATCH_SIZE", "500") or "500"
 app = FastAPI(title="Sun2_session_scraper")
 task: asyncio.Task | None = None
 scheduler_task: asyncio.Task | None = None
+live_sync_task: asyncio.Task | None = None
 schedule_lock = asyncio.Lock()
 stop_requested = False
 
@@ -111,6 +114,11 @@ state: dict[str, Any] = {
     "scheduler_last_check": None,
     "scheduler_last_action": None,
     "scheduled_last_runs": {},
+    "live_sync_enabled": LIVE_SYNC_ENABLED,
+    "live_sync_interval_seconds": LIVE_SYNC_INTERVAL_SECONDS,
+    "live_last_check": None,
+    "live_last_action": None,
+    "live_last_result": None,
     "current_file": None,
     "range": {},
 }
@@ -165,6 +173,10 @@ def iter_month_ranges(start: date, end: date):
 
 def filename_for(start: date) -> str:
     return f"Sun2_sessions_{start:%Y-%m}.json"
+
+
+def daily_filename_for(day: date) -> str:
+    return f"Sun2_sessions_{day:%Y-%m-%d}.json"
 
 
 def load_progress() -> dict[str, Any]:
@@ -322,16 +334,72 @@ def pick(row: dict[str, str], *keywords: str) -> str:
 
 
 def pick_identifier(row: dict[str, str]) -> str:
-    exact_keys = {"id", "nr", "nummer", "ordre_id", "booking_id", "transaksjon_id", "kvittering"}
+    exact_keys = {"id", "nr", "nummer", "ordre_id", "booking_id", "transaksjon_id", "kvittering", "session_id", "source_session_id"}
     for key, value in row.items():
         if normalize_key(key) in exact_keys:
             return value
     return pick(row, "ordre", "transaksjon", "booking", "kvittering", "session")
 
 
+def json_load(value: Any) -> Any:
+    text = normalize_text(value)
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except Exception:
+        return None
+
+
+def flatten_metadata(value: Any, prefix: str = "") -> list[tuple[str, str]]:
+    items: list[tuple[str, str]] = []
+    if isinstance(value, dict):
+        for key, sub_value in value.items():
+            sub_key = f"{prefix}.{key}" if prefix else str(key)
+            items.extend(flatten_metadata(sub_value, sub_key))
+    elif isinstance(value, list):
+        for index, sub_value in enumerate(value):
+            items.extend(flatten_metadata(sub_value, f"{prefix}.{index}" if prefix else str(index)))
+    else:
+        text = normalize_text(value)
+        if text:
+            items.append((prefix, text))
+    return items
+
+
+def looks_like_session_identifier_key(key: str) -> bool:
+    normalized = normalize_key(key)
+    ignored = ["user", "bruker", "kunde", "member", "medlem", "bed", "seng", "room", "rom", "center", "centre"]
+    if any(word in normalized for word in ignored):
+        return False
+    return any(
+        word in normalized
+        for word in ["session", "soling", "order", "ordre", "booking", "transaction", "transaksjon", "receipt", "kvittering", "sale"]
+    ) or normalized in {"id", "pk", "data_id", "data_pk"}
+
+
+def hidden_session_identifier(row: dict[str, Any]) -> str:
+    for hidden_key in ["__row_attrs", "__link_attrs", "__input_attrs"]:
+        metadata = json_load(row.get(hidden_key))
+        for key, value in flatten_metadata(metadata):
+            if looks_like_session_identifier_key(key) and value not in {"0", "#"}:
+                return f"{normalize_key(key)}:{value}"
+            if key.endswith(".href") and value and "members_show.php" not in value:
+                parsed = urlparse(value)
+                query = parse_qs(parsed.query)
+                for query_key, query_values in query.items():
+                    if looks_like_session_identifier_key(query_key) and query_values:
+                        return f"{normalize_key(query_key)}:{query_values[0]}"
+    return ""
+
+
 def row_hash(row: dict[str, Any]) -> str:
     data = json.dumps(row, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha1(data.encode("utf-8")).hexdigest()
+
+
+def stable_session_identifier(values: dict[str, Any]) -> str:
+    return "stable:" + row_hash(values)
 
 
 def room_key_from_name(value: str) -> str:
@@ -402,10 +470,27 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
     if duration is not None:
         ended_at = started_at + timedelta(minutes=duration)
 
-    source_id = pick_identifier(raw)
-    if not source_id:
-        source_id = row_hash({"started_at": started_at.isoformat(), "room": room, "user": user_name, "duration": duration, "paid": paid, "raw": raw})
+    legacy_raw = {key: value for key, value in raw.items() if key not in {"__row_attrs", "__link_attrs", "__input_attrs"}}
+    legacy_source_id = pick_identifier(legacy_raw)
+    if not legacy_source_id:
+        legacy_source_id = row_hash({"started_at": started_at.isoformat(), "room": room, "user": user_name, "duration": duration, "paid": paid, "raw": legacy_raw})
+    source_id = pick_identifier(raw) or hidden_session_identifier(raw)
+    source_id_basis = "sun2_hidden" if source_id else "stable_v1"
+    if source_id:
+        source_id = "sun2:" + normalize_text(source_id)
+    else:
+        source_id = stable_session_identifier(
+            {
+                "started_at": started_at.isoformat(timespec="minutes"),
+                "bed": identity.get("sun2_bed_id") or identity.get("room_id") or room_key_from_name(room),
+                "user": sun2_user_id or normalize_key(user_identifier) or normalize_key(user_name),
+                "duration": duration,
+                "paid": paid,
+            }
+        )
     raw_for_storage = {key: value for key, value in raw.items() if key not in {"__sun2_user_token", "__user_href"}}
+    raw_for_storage["source_session_id_basis"] = source_id_basis
+    raw_for_storage["legacy_source_session_id"] = normalize_text(legacy_source_id)
 
     return {
         "source_session_id": normalize_text(source_id),
@@ -779,14 +864,29 @@ def extract_largest_table(page) -> tuple[list[str], list[dict[str, str]]]:
         data = table.evaluate(
             """
             table => {
+              const attrs = (el) => Object.fromEntries(Array.from(el.attributes || []).map(attr => [attr.name, attr.value]));
               const domRows = Array.from(table.querySelectorAll('tr'));
               let headers = Array.from(table.querySelectorAll('thead th')).map(th => (th.innerText || '').trim());
               let rows = domRows.map(tr => {
                 const cells = Array.from(tr.children);
                 const texts = cells.map(td => (td.innerText || '').trim());
                 const firstUserLink = tr.querySelector('a.this-user-info, a[data-user-id], a[data-user]');
+                const linkAttrs = Array.from(tr.querySelectorAll('a, button, [data-id], [data-pk], [data-value]')).map(el => ({
+                  tag: el.tagName,
+                  text: (el.innerText || el.textContent || '').trim(),
+                  href: el.href || '',
+                  attrs: attrs(el),
+                }));
+                const inputAttrs = Array.from(tr.querySelectorAll('input, select, textarea')).map(el => ({
+                  tag: el.tagName,
+                  value: el.value || el.getAttribute('value') || '',
+                  attrs: attrs(el),
+                }));
                 return {
                   texts,
+                  row_attrs: attrs(tr),
+                  link_attrs: linkAttrs,
+                  input_attrs: inputAttrs,
                   sun2_user_id: firstUserLink ? (firstUserLink.getAttribute('data-user-id') || '') : '',
                   sun2_user_token: firstUserLink ? (firstUserLink.getAttribute('data-user') || '') : '',
                   user_title: firstUserLink ? (firstUserLink.getAttribute('data-title') || '') : '',
@@ -815,6 +915,9 @@ def extract_largest_table(page) -> tuple[list[str], list[dict[str, str]]]:
                 row["__sun2_user_token"] = normalize_text(raw_row.get("sun2_user_token"))
                 row["__user_title"] = normalize_text(raw_row.get("user_title"))
                 row["__user_href"] = normalize_text(raw_row.get("user_href"))
+                row["__row_attrs"] = json.dumps(raw_row.get("row_attrs") or {}, ensure_ascii=False, sort_keys=True)
+                row["__link_attrs"] = json.dumps(raw_row.get("link_attrs") or [], ensure_ascii=False, sort_keys=True)
+                row["__input_attrs"] = json.dumps(raw_row.get("input_attrs") or [], ensure_ascii=False, sort_keys=True)
             if any(row.values()):
                 rows.append(row)
         header_keys = {normalize_key(header) for header in headers}
@@ -1146,12 +1249,12 @@ def scrape_members_sync() -> dict[str, Any]:
     return {"ok": True, "members": len(members), "named": named_count, "posted": bool(response), "fibaro10_response": response}
 
 
-def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
+def scrape_month_sync(start: date, end: date, source_filename: str | None = None) -> dict[str, Any]:
     username = env_required("SUN2_USERNAME")
     password = env_required("SUN2_PASSWORD")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     ERROR_DIR.mkdir(parents=True, exist_ok=True)
-    filename = filename_for(start)
+    filename = source_filename or filename_for(start)
     out_path = OUT_DIR / filename
     state.update({"last_period": f"{start.isoformat()} - {end.isoformat()}", "current_file": filename, "rows_last_file": 0})
 
@@ -1234,6 +1337,11 @@ def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
         raw={"source_file": filename, "posted": bool(response), "response": response},
     )
     return {"ok": True, "file": filename, "rows": len(sessions), "posted": bool(response), "fibaro10_response": response}
+
+
+def scrape_today_sync() -> dict[str, Any]:
+    today = local_today()
+    return scrape_month_sync(today, today, daily_filename_for(today))
 
 
 def start_date_from_progress(config_start: date) -> date:
@@ -1352,9 +1460,33 @@ async def nightly_scheduler_loop() -> None:
         await asyncio.sleep(max(30, SCHEDULE_POLL_SECONDS))
 
 
+async def live_sync_loop() -> None:
+    while True:
+        try:
+            state["live_last_check"] = local_now().isoformat()
+            if LIVE_SYNC_ENABLED:
+                if task and not task.done():
+                    state["live_last_action"] = "venter paa range-jobb"
+                elif schedule_lock.locked():
+                    state["live_last_action"] = "venter paa annen scraper-jobb"
+                else:
+                    async with schedule_lock:
+                        result = await asyncio.to_thread(scrape_today_sync)
+                        state["live_last_action"] = f"ok {local_now():%Y-%m-%d %H:%M:%S}"
+                        state["live_last_result"] = result
+                        save_progress({"last_action": "live_sync_finished", "live_result": result})
+            save_progress({"last_action": "live_sync_check"})
+        except Exception as exc:
+            state["last_error"] = f"Live-sync feilet: {exc}"
+            state["live_last_action"] = "feil"
+            save_progress({"last_action": "live_sync_failed"})
+            post_import_status("sun2_sessions_import", ok=False, message=state["last_error"], raw={"job_key": "live_today"})
+        await asyncio.sleep(max(60, LIVE_SYNC_INTERVAL_SECONDS))
+
+
 @app.on_event("startup")
 async def startup() -> None:
-    global scheduler_task
+    global scheduler_task, live_sync_task
     progress = load_progress()
     if progress:
         state.update({key: value for key, value in progress.items() if key in state})
@@ -1362,6 +1494,8 @@ async def startup() -> None:
         await ensure_task_started()
     if SCHEDULE_ENABLED and (scheduler_task is None or scheduler_task.done()):
         scheduler_task = asyncio.create_task(nightly_scheduler_loop())
+    if LIVE_SYNC_ENABLED and (live_sync_task is None or live_sync_task.done()):
+        live_sync_task = asyncio.create_task(live_sync_loop())
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1402,11 +1536,14 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <div class="metric"><span>Tider</span><strong>{SCHEDULE_SESSIONS_TIME} / {SCHEDULE_BEDS_TIME} / {SCHEDULE_MEMBERS_TIME}</strong></div>
 <div class="metric"><span>Siste sjekk</span><strong>{state.get('scheduler_last_check') or '-'}</strong></div>
 <div class="metric"><span>Siste nattjobb</span><strong>{state.get('scheduler_last_action') or '-'}</strong></div>
+<div class="metric"><span>Live-sync</span><strong>{'PÃ¥' if LIVE_SYNC_ENABLED else 'Av'} / {LIVE_SYNC_INTERVAL_SECONDS}s</strong></div>
+<div class="metric"><span>Siste live</span><strong>{state.get('live_last_action') or '-'}</strong></div>
 </section>
 <section class="card">
 <form method="post" action="/start" style="display:inline"><button type="submit">Start range</button></form>
 <form method="post" action="/stop" style="display:inline"><button class="stop" type="submit">Stopp</button></form>
 <form method="post" action="/sync-current-month" style="display:inline"><button type="submit">Denne måneden</button></form>
+<form method="post" action="/sync-today" style="display:inline"><button type="submit">I dag</button></form>
 <form method="post" action="/sync-beds" style="display:inline"><button type="submit">Synk senger</button></form>
 <form method="post" action="/sync-members" style="display:inline"><button type="submit">Synk medlemmer</button></form>
 </section>
@@ -1449,6 +1586,18 @@ async def sync_current_month():
         state["last_error"] = f"Denne måneden feilet: {exc}"
         save_progress({"last_action": "manual_month_failed"})
         post_import_status("sun2_sessions_import", ok=False, message=state["last_error"])
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
+
+
+@app.post("/sync-today")
+async def sync_today():
+    try:
+        result = await asyncio.to_thread(scrape_today_sync)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Dagens live-sync feilet: {exc}"
+        save_progress({"last_action": "manual_today_failed"})
+        post_import_status("sun2_sessions_import", ok=False, message=state["last_error"], raw={"job_key": "manual_today"})
         return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 
