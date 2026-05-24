@@ -5932,7 +5932,7 @@ async def sun2_sessions_view(
         params = {key: value for key, value in params.items() if value not in (None, "", 0)}
         return f"/soling/enkeltimer?{urlencode(params)}"
 
-    hourly_lookup = {int(item.hour or 0): item for item in hourly_rows}
+    hourly_lookup = {int(item.get("hour") or 0): item for item in hourly_rows}
     hourly = [
         {
             "hour": hour,
@@ -5943,14 +5943,14 @@ async def sun2_sessions_view(
         for hour in range(24)
     ]
     peak_hour = max(hourly, key=lambda item: item["sessions_count"], default=None)
-    best_day = max(daily, key=lambda item: item.sessions_count or 0, default=None)
+    best_day = max(daily, key=lambda item: item.get("sessions_count") or 0, default=None)
     daily_chart = [
         {
-            "date": item.day.isoformat() if item.day else "",
-            "label": item.day.strftime("%d.%m.%Y") if item.day else "",
-            "sessions_count": int(item.sessions_count or 0),
-            "duration_hours": round(float(item.duration_minutes or 0) / 60, 2),
-            "paid_amount_kr": round(float(item.paid_amount_kr or 0), 2),
+            "date": item.get("day").isoformat() if item.get("day") else "",
+            "label": item.get("day").strftime("%d.%m.%Y") if item.get("day") else "",
+            "sessions_count": int(item.get("sessions_count") or 0),
+            "duration_hours": round(float(item.get("duration_minutes") or 0) / 60, 2),
+            "paid_amount_kr": round(float(item.get("paid_amount_kr") or 0), 2),
         }
         for item in daily
     ]
