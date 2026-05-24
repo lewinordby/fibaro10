@@ -1113,3 +1113,78 @@ html body .site-header .app-nav .nav-main > .nav-sub .button.active .nav-sub-ico
         height: 0.12rem !important;
     }
 }
+
+/* Submenus are intentionally smaller than main menu rows. */
+@media (min-width: 1020px) {
+    html body .site-header .app-nav .nav-main > .nav-sub {
+        padding: 0.16rem 0 0.22rem !important;
+        background: #fafafa !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        min-height: 2.12rem !important;
+        grid-template-columns: 0.92rem minmax(0, 1fr) !important;
+        gap: 0.62rem !important;
+        padding: 0 0.9rem 0 3.05rem !important;
+        background: #fafafa !important;
+        color: #646c78 !important;
+        box-shadow: none !important;
+        font-size: 0.82rem !important;
+        font-weight: 520 !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button:hover,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button:hover {
+        background: #f2f4f7 !important;
+        color: #2c333d !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button.active {
+        background: #eef3f8 !important;
+        color: #26323f !important;
+        box-shadow: inset 3px 0 0 var(--section-color) !important;
+        font-weight: 680 !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .nav-sub-icon {
+        width: 0.92rem !important;
+        height: 0.92rem !important;
+        stroke-width: 2.25 !important;
+        color: currentColor !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    html body .site-header .app-nav .nav-main > .nav-sub {
+        background: #fafafa !important;
+        box-shadow: inset 0 -1px 0 #e9eaec !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        min-height: 2.35rem !important;
+        grid-template-columns: 1rem minmax(0, 1fr) !important;
+        gap: 0.7rem !important;
+        padding: 0 1rem 0 3.85rem !important;
+        background: #fafafa !important;
+        color: #646c78 !important;
+        box-shadow: none !important;
+        font-size: 0.9rem !important;
+        font-weight: 540 !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .button.active {
+        background: #eef3f8 !important;
+        color: #26323f !important;
+        box-shadow: inset 3px 0 0 var(--section-color) !important;
+        font-weight: 700 !important;
+    }
+
+    html body .site-header .app-nav .nav-main > .nav-sub .nav-sub-icon {
+        width: 1rem !important;
+        height: 1rem !important;
+        color: currentColor !important;
+    }
+}
