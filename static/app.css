@@ -2822,6 +2822,11 @@ body.theme-status .mode {
 }
 
 @media (min-width: 1020px) {
+    body,
+    html.nav-collapsed body {
+        padding-left: 0 !important;
+    }
+
     .site-header {
         position: fixed !important;
         inset: 0 auto 0 0 !important;
@@ -3022,6 +3027,10 @@ body.theme-status .mode {
 }
 
 @media (max-width: 1019px) {
+    body {
+        padding-left: 0 !important;
+    }
+
     .site-header {
         position: sticky !important;
         top: 0 !important;
