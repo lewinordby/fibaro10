@@ -8101,7 +8101,7 @@ async def light_samples_view(
     mode: Optional[str] = None,
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 500,
+    limit: int = 200,
 ):
     rows, limit = await fetch_rows(OutdoorLightSample, None, None, None, None, mode, None, from_text, to_text, limit)
     filters = {"mode": mode or "", "from": from_text or "", "to": to_text or "", "limit": limit}
@@ -8171,7 +8171,7 @@ async def ventilation_samples_view(
     mode: Optional[str] = None,
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
-    limit: int = 500,
+    limit: int = 200,
 ):
     rows, limit = await fetch_rows(VentilationSample, None, None, None, None, mode, None, from_text, to_text, limit)
     filters = {"mode": mode or "", "from": from_text or "", "to": to_text or "", "limit": limit}
