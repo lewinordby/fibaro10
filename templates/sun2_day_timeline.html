@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dagslinje soling</title>
+    {% include "_styles.html" %}
+    <style>
+        .sun-page { display:grid; gap:0.9rem; }
+        .sun-title { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; }
+        .sun-title h1 { margin:0; font-size:clamp(1.35rem,2.4vw,1.9rem); }
+        .sun-title p { margin:0.25rem 0 0; color:var(--muted); max-width:58rem; }
+        .sun-actions { display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; justify-content:flex-end; }
+        .filter-panel { padding:0.85rem; border:1px solid var(--line); border-radius:12px; background:#fff; box-shadow:var(--shadow-1); }
+        .filter-grid { display:grid; grid-template-columns:1fr; gap:0.62rem; }
+        .filter-field { display:grid; gap:0.28rem; }
+        .filter-field label { color:var(--muted); font-size:0.72rem; font-weight:800; text-transform:uppercase; }
+        .filter-field input { width:100%; min-height:2.38rem; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--text); padding:0.45rem 0.58rem; font:inherit; font-size:0.86rem; }
+        .metric-grid { display:grid; gap:0.72rem; grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .metric-card { min-height:5.8rem; padding:0.82rem 0.9rem; border:1px solid var(--line); border-top:4px solid var(--sun2-color); border-radius:12px; background:#fff; box-shadow:var(--shadow-1); }
+        .metric-card.accent { border-top-color:var(--energy-color); }
+        .metric-card.good { border-top-color:var(--vent-color); }
+        .metric-card span { display:block; color:var(--muted); font-size:0.72rem; font-weight:800; text-transform:uppercase; }
+        .metric-card strong { display:block; margin-top:0.18rem; color:var(--brand-dark); font-size:clamp(1.15rem,2.5vw,1.58rem); line-height:1.05; }
+        .metric-card small { display:block; margin-top:0.32rem; color:var(--muted); font-size:0.76rem; }
+        .timeline-card { border:1px solid var(--line); border-radius:14px; background:#fff; box-shadow:var(--shadow-1); overflow:hidden; }
+        .timeline-head { display:flex; align-items:flex-end; justify-content:space-between; gap:0.8rem; padding:0.9rem 0.95rem 0.65rem; border-bottom:1px solid var(--line-soft); }
+        .timeline-head h2 { margin:0; font-size:1rem; }
+        .timeline-head span { color:var(--muted); font-size:0.78rem; }
+        .timeline-scroll { overflow:auto; padding:0.85rem 0.95rem 1rem; }
+        .timeline-grid { min-width:860px; display:grid; grid-template-columns:5.4rem minmax(720px,1fr) 5.6rem; gap:0.5rem 0.65rem; align-items:center; }
+        .time-axis { grid-column:2; position:relative; height:1.4rem; color:var(--muted); font-size:0.66rem; font-weight:760; }
+        .time-axis span { position:absolute; top:0; transform:translateX(-50%); }
+        .room-label { color:var(--brand-dark); font-size:0.82rem; font-weight:850; text-align:right; }
+        .room-label small { display:block; color:var(--muted); font-size:0.66rem; font-weight:760; }
+        .room-total { color:var(--muted); font-size:0.72rem; font-weight:780; text-align:left; white-space:nowrap; }
+        .room-line { position:relative; height:2.72rem; border:1px solid #dbe6f2; border-radius:10px; background:linear-gradient(90deg, rgba(219,230,242,0.72) 1px, transparent 1px), linear-gradient(180deg,#fbfdff,#f6f9fd); background-size:calc(100% / 24) 100%, 100% 100%; overflow:hidden; }
+        .room-line::before { content:""; position:absolute; inset:0; background:linear-gradient(90deg, transparent 0 24.95%, rgba(63,127,189,0.08) 25% 25.15%, transparent 25.2% 49.95%, rgba(63,127,189,0.08) 50% 50.15%, transparent 50.2% 74.95%, rgba(63,127,189,0.08) 75% 75.15%, transparent 75.2%); pointer-events:none; }
+        .session-block { position:absolute; top:0.42rem; height:1.82rem; min-width:3px; border-radius:7px; background:linear-gradient(180deg,var(--sun2-color),#2f6fa9); box-shadow:0 3px 9px rgba(63,127,189,0.24); color:#fff; text-decoration:none; overflow:hidden; }
+        .session-block.member { background:linear-gradient(180deg,var(--vent-color),#3d8b53); box-shadow:0 3px 9px rgba(76,158,95,0.22); }
+        .session-block.no-member { background:linear-gradient(180deg,var(--energy-color),#bf8330); box-shadow:0 3px 9px rgba(219,151,52,0.22); }
+        .session-block span { display:block; padding:0.24rem 0.38rem; font-size:0.64rem; font-weight:850; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+        .session-block:hover { filter:brightness(0.96); transform:translateY(-1px); }
+        .now-marker { position:absolute; top:0; bottom:0; width:2px; background:#101828; opacity:0.72; z-index:4; }
+        .now-marker::after { content:"Nå"; position:absolute; top:-1.1rem; left:50%; transform:translateX(-50%); color:#101828; font-size:0.62rem; font-weight:900; }
+        .empty-state { padding:1rem; border:1px dashed var(--line); border-radius:12px; background:#fff; color:var(--muted); }
+        .legend { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; color:var(--muted); font-size:0.76rem; font-weight:760; }
+        .legend i { display:inline-block; width:1.4rem; height:0.66rem; border-radius:999px; vertical-align:middle; margin-right:0.28rem; }
+        .legend .standard { background:var(--sun2-color); }
+        .legend .member { background:var(--vent-color); }
+        .legend .nomember { background:var(--energy-color); }
+        @media (min-width: 760px) {
+            .filter-grid { grid-template-columns:14rem auto 1fr; align-items:end; }
+            .metric-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        }
+        @media (max-width: 720px) {
+            .sun-title { align-items:flex-start; flex-direction:column; }
+            .sun-actions { justify-content:flex-start; }
+            .metric-grid { grid-template-columns:1fr; }
+            .timeline-scroll { padding-left:0.65rem; padding-right:0.65rem; }
+        }
+    </style>
+</head>
+<body class="theme-sun2">
+    {% include "_header.html" %}
+    <main class="sun-page">
+        <section class="sun-title">
+            <div>
+                <h1>Dagslinje soling</h1>
+                <p>Fysiske rom tegnet som egne spor gjennom døgnet. Rom 10 er utelatt fordi det er historisk/utgått, mens rom 11-13 følger dagens fysiske rommapping.</p>
+            </div>
+            <div class="sun-actions">
+                <a class="button" href="/soling/dagslinje?day={{ prev_day }}">Forrige dag</a>
+                <a class="button" href="/soling/dagslinje">I dag</a>
+                <a class="button" href="/soling/dagslinje?day={{ next_day }}">Neste dag</a>
+            </div>
+        </section>
+
+        <form class="filter-panel" method="get" action="/soling/dagslinje">
+            <div class="filter-grid">
+                <div class="filter-field">
+                    <label for="day">Dato</label>
+                    <input id="day" type="date" name="day" value="{{ selected_day }}">
+                </div>
+                <button class="button" type="submit">Vis dag</button>
+            </div>
+        </form>
+
+        <section class="metric-grid">
+            <div class="metric-card">
+                <span>Solinger</span>
+                <strong>{{ totals.sessions_count }}</strong>
+                <small>{{ selected_day_label }}</small>
+            </div>
+            <div class="metric-card good">
+                <span>Total soletid</span>
+                <strong>{{ "%.1f"|format(totals.duration_hours) }} t</strong>
+                <small>{{ totals.duration_minutes|round(0)|int }} minutter</small>
+            </div>
+            <div class="metric-card accent">
+                <span>Omsetning</span>
+                <strong>{{ "{:,.0f}".format(totals.paid_amount_kr).replace(",", " ") }} kr</strong>
+                <small>Fra enkelttimer</small>
+            </div>
+            <div class="metric-card">
+                <span>Mest brukt</span>
+                <strong>{{ busiest_room.label if busiest_room else "-" }}</strong>
+                <small>{% if busiest_room %}{{ busiest_room.count }} solinger{% else %}Ingen solinger{% endif %}</small>
+            </div>
+        </section>
+
+        <section class="timeline-card">
+            <div class="timeline-head">
+                <div>
+                    <h2>Rom gjennom døgnet</h2>
+                    <span>Blokkene viser faktisk start og beregnet sluttid. Trykk på en blokk for å åpne enkelttimen(e) i listen.</span>
+                </div>
+                <div class="legend">
+                    <span><i class="standard"></i>Standard</span>
+                    <span><i class="member"></i>Medlem</span>
+                    <span><i class="nomember"></i>Ikke medlem</span>
+                </div>
+            </div>
+            <div class="timeline-scroll">
+                <div class="timeline-grid">
+                    <div></div>
+                    <div class="time-axis" aria-hidden="true">
+                        {% for tick in ticks %}
+                        <span style="left:{{ tick.left }}%">{{ tick.label }}</span>
+                        {% endfor %}
+                    </div>
+                    <div></div>
+
+                    {% for room in rooms %}
+                    <div class="room-label">
+                        {{ room.label }}
+                        <small>{{ room.room_id }}</small>
+                    </div>
+                    <div class="room-line">
+                        {% if now_marker is not none %}
+                        <div class="now-marker" style="left:{{ now_marker }}%"></div>
+                        {% endif %}
+                        {% for item in room.sessions %}
+                        <a class="session-block {{ item.kind }}" href="{{ item.href }}" title="{{ item.title }}" style="left:{{ item.left }}%; width:{{ item.width }}%;">
+                            <span>{{ item.label }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <div class="room-total">{{ room.count }} stk / {{ room.minutes|round(0)|int }} min</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% if not totals.sessions_count %}
+            <div class="empty-state">Ingen enkelttimer er registrert for denne dagen.</div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

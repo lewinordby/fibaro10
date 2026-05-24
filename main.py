@@ -7269,6 +7269,124 @@ async def sun2_sessions_view(
     )
 
 
+@app.get("/soling/dagslinje", response_class=HTMLResponse)
+async def sun2_day_timeline_view(request: Request, day: Optional[str] = None):
+    try:
+        selected = date.fromisoformat(day) if day else datetime.now(LOCAL_TZ).date()
+    except ValueError:
+        selected = datetime.now(LOCAL_TZ).date()
+
+    day_start = datetime.combine(selected, time.min)
+    day_end = day_start + timedelta(days=1)
+    visible_room_numbers = list(range(1, 10)) + [11, 12, 13]
+    visible_room_ids = [f"rom-{number:02d}" for number in visible_room_numbers]
+    room_lookup = {
+        room_id: {
+            "room_id": room_id,
+            "label": f"Rom {int(room_id.rsplit('-', 1)[-1])}",
+            "sessions": [],
+            "count": 0,
+            "minutes": 0.0,
+            "paid": 0.0,
+        }
+        for room_id in visible_room_ids
+    }
+
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .where(Sun2TanningSession.stat_date == selected)
+                .where(Sun2TanningSession.room_id.in_(visible_room_ids))
+                .order_by(Sun2TanningSession.room_id.asc(), Sun2TanningSession.started_at.asc())
+            )
+        ).scalars().all()
+
+    totals = {"sessions_count": 0, "duration_minutes": 0.0, "duration_hours": 0.0, "paid_amount_kr": 0.0}
+    for row in rows:
+        room_id = normalize_room_id(row.room_id)
+        if room_id not in room_lookup or not row.started_at:
+            continue
+        start_at = row.started_at
+        end_at = row.ended_at
+        if getattr(start_at, "tzinfo", None):
+            start_at = start_at.astimezone(LOCAL_TZ).replace(tzinfo=None)
+        if end_at and getattr(end_at, "tzinfo", None):
+            end_at = end_at.astimezone(LOCAL_TZ).replace(tzinfo=None)
+        if not end_at:
+            end_at = start_at + timedelta(minutes=float(row.duration_minutes or 15))
+        if end_at <= start_at:
+            end_at = start_at + timedelta(minutes=max(1.0, float(row.duration_minutes or 1)))
+
+        clamped_start = max(day_start, min(day_end, start_at))
+        clamped_end = max(clamped_start, min(day_end, end_at))
+        duration_minutes = max(0.0, (clamped_end - clamped_start).total_seconds() / 60)
+        if duration_minutes <= 0:
+            continue
+
+        left = round(((clamped_start - day_start).total_seconds() / 86400) * 100, 4)
+        width = max(0.18, round(((clamped_end - clamped_start).total_seconds() / 86400) * 100, 4))
+        customer_type = (row.customer_type or "").lower()
+        kind = "standard"
+        if "ikke" in customer_type:
+            kind = "no-member"
+        elif "medlem" in customer_type:
+            kind = "member"
+        paid = float(row.paid_amount_kr or 0)
+        label = f"{start_at:%H:%M}"
+        title_parts = [
+            f"{room_lookup[room_id]['label']} {start_at:%H:%M}-{end_at:%H:%M}",
+            f"{duration_minutes:.0f} min",
+        ]
+        if row.user_name:
+            title_parts.append(str(row.user_name))
+        if paid:
+            title_parts.append(f"{paid:.0f} kr")
+        item = {
+            "left": left,
+            "width": width,
+            "label": label,
+            "title": " | ".join(title_parts),
+            "kind": kind,
+            "href": f"/soling/enkeltimer?date_from={selected.isoformat()}&date_to={selected.isoformat()}&room_id={room_id}",
+        }
+        room_lookup[room_id]["sessions"].append(item)
+        room_lookup[room_id]["count"] += 1
+        room_lookup[room_id]["minutes"] += duration_minutes
+        room_lookup[room_id]["paid"] += paid
+        totals["sessions_count"] += 1
+        totals["duration_minutes"] += duration_minutes
+        totals["paid_amount_kr"] += paid
+
+    totals["duration_hours"] = round(totals["duration_minutes"] / 60, 2)
+    rooms = [room_lookup[room_id] for room_id in visible_room_ids]
+    busiest_room = max(rooms, key=lambda item: item["count"], default=None)
+    if busiest_room and not busiest_room["count"]:
+        busiest_room = None
+    today = datetime.now(LOCAL_TZ).date()
+    now_marker = None
+    if selected == today:
+        now_local = datetime.now(LOCAL_TZ).replace(tzinfo=None)
+        now_marker = round(max(0, min(100, ((now_local - day_start).total_seconds() / 86400) * 100)), 3)
+    ticks = [{"label": f"{hour:02d}", "left": round(hour / 24 * 100, 4)} for hour in range(0, 25, 2)]
+
+    return templates.TemplateResponse(
+        request,
+        "sun2_day_timeline.html",
+        {
+            "selected_day": selected.isoformat(),
+            "selected_day_label": selected.strftime("%d.%m.%Y"),
+            "prev_day": (selected - timedelta(days=1)).isoformat(),
+            "next_day": (selected + timedelta(days=1)).isoformat(),
+            "rooms": rooms,
+            "totals": totals,
+            "busiest_room": busiest_room,
+            "ticks": ticks,
+            "now_marker": now_marker,
+        },
+    )
+
+
 @app.get("/soling/senger", response_class=HTMLResponse)
 async def sun2_beds_view(request: Request):
     async with async_session() as session:
