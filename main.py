@@ -2929,11 +2929,9 @@ def publish_ntfy_message(topic: str, title: str, message: str, tags: str = "", p
 def should_publish_access_ntfy(request: Request, access_key: Optional[AccessKey], reason: str) -> bool:
     if not access_key or access_key.is_master:
         return False
-    if reason == "login":
-        return True
-    if request.method != "GET" or not wants_html(request):
+    if reason != "login" and (request.method != "GET" or not wants_html(request)):
         return False
-    if request.url.path.startswith("/auth/"):
+    if reason != "login" and request.url.path.startswith("/auth/"):
         return False
     last_notified = access_key.last_notified_at or access_key.last_seen_at
     if not last_notified:
