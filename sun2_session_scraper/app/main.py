@@ -914,6 +914,50 @@ def post_to_fibaro10(payload: dict[str, Any], endpoint: str = "/api/sun2/session
         return json.loads(body) if body else {"status": response.status}
 
 
+def post_import_status(
+    job_name: str,
+    *,
+    ok: bool,
+    message: str,
+    records_imported: int | None = None,
+    records_total: int | None = None,
+    raw: dict[str, Any] | None = None,
+) -> None:
+    titles = {
+        "sun2_sessions_import": "Sun2 enkelttimer",
+        "sun2_beds_import": "Sun2 senger",
+        "sun2_members_import": "Sun2 medlemmer",
+    }
+    payload = {
+        "job_name": job_name,
+        "title": titles.get(job_name, job_name.replace("_", " ").title()),
+        "category": "Soling",
+        "source": "sun2_session_scraper",
+        "ok": ok,
+        "records_imported": records_imported,
+        "records_total": records_total,
+        "message": message,
+        "raw": {"collector_id": COLLECTOR_ID, **(raw or {})},
+    }
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(
+        f"{FIBARO10_API_BASE_URL}/api/import-status/report",
+        data=data,
+        method="POST",
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "User-Agent": "Sun2_session_scraper/1.0",
+            "x-access-username": FIBARO10_API_USERNAME,
+            "x-access-password": FIBARO10_API_PASSWORD,
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=12):
+            pass
+    except Exception:
+        pass
+
+
 def post_members_to_fibaro10(payload: dict[str, Any]) -> dict[str, Any] | None:
     members = payload.get("members") or []
     if not members:
@@ -970,6 +1014,14 @@ def scrape_beds_sync() -> dict[str, Any]:
     state["beds_last_sync"] = datetime.utcnow().isoformat()
     state["beds_last_count"] = len(beds)
     save_progress({"last_action": "beds_synced", "beds_last_count": len(beds), "fibaro10_beds_response": response})
+    post_import_status(
+        "sun2_beds_import",
+        ok=True,
+        message=f"Synket {len(beds)} senger",
+        records_imported=len(beds),
+        records_total=len(beds),
+        raw={"posted": bool(response), "response": response},
+    )
     return {"ok": True, "beds": len(beds), "posted": bool(response), "fibaro10_response": response}
 
 
@@ -1050,6 +1102,14 @@ def scrape_members_sync() -> dict[str, Any]:
             "fibaro10_members_response": response,
         }
     )
+    post_import_status(
+        "sun2_members_import",
+        ok=True,
+        message=f"Synket {len(members)} medlemmer, {named_count} med navn",
+        records_imported=len(members),
+        records_total=len(members),
+        raw={"posted": bool(response), "named_count": named_count, "response": response},
+    )
     return {"ok": True, "members": len(members), "named": named_count, "posted": bool(response), "fibaro10_response": response}
 
 
@@ -1067,6 +1127,14 @@ def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
         state["skipped_files"] += 1
         state["last_success_period"] = state["last_period"]
         save_progress({"last_action": "skipped_existing"})
+        post_import_status(
+            "sun2_sessions_import",
+            ok=True,
+            message=f"Hoppet over eksisterende fil {filename}",
+            records_imported=0,
+            records_total=0,
+            raw={"source_file": filename, "skipped": True},
+        )
         return {"ok": True, "skipped": True, "file": filename, "rows": 0}
 
     with sync_playwright() as p:
@@ -1124,6 +1192,14 @@ def scrape_month_sync(start: date, end: date) -> dict[str, Any]:
     state["last_success_at"] = datetime.utcnow().isoformat()
     state["last_error"] = None
     save_progress({"last_action": "created", "fibaro10_response": response})
+    post_import_status(
+        "sun2_sessions_import",
+        ok=True,
+        message=f"Skrapet {filename} med {len(sessions)} enkelttimer",
+        records_imported=len(sessions),
+        records_total=expected_count if expected_count is not None else len(sessions),
+        raw={"source_file": filename, "posted": bool(response), "response": response},
+    )
     return {"ok": True, "file": filename, "rows": len(sessions), "posted": bool(response), "fibaro10_response": response}
 
 
@@ -1160,6 +1236,7 @@ def run_range_sync() -> None:
         except Exception as exc:
             state["last_error"] = f"Seng-sync feilet: {exc}"
             save_progress({"last_action": "beds_failed"})
+            post_import_status("sun2_beds_import", ok=False, message=state["last_error"])
         for period_start, period_end in iter_month_ranges(start, end):
             if stop_requested:
                 state["stop_requested"] = True
@@ -1170,11 +1247,18 @@ def run_range_sync() -> None:
                 state["failed"] += 1
                 state["last_error"] = f"{period_start:%Y-%m}: {exc}"
                 save_progress({"last_action": "failed"})
+                post_import_status(
+                    "sun2_sessions_import",
+                    ok=False,
+                    message=state["last_error"],
+                    raw={"period_start": period_start.isoformat(), "period_end": period_end.isoformat()},
+                )
             if PAUSE_SECONDS > 0:
                 time.sleep(PAUSE_SECONDS)
     except Exception as exc:
         state["last_error"] = str(exc)
         save_progress({"last_action": "fatal_error"})
+        post_import_status("sun2_sessions_import", ok=False, message=f"Fatal scraper-feil: {exc}")
     finally:
         state["running"] = False
         state["current_file"] = None
@@ -1274,20 +1358,38 @@ async def sync_current_month():
     today = local_today()
     start = today.replace(day=1)
     end = today
-    result = await asyncio.to_thread(scrape_month_sync, start, end)
-    return JSONResponse({"status": "ok", "result": result, "state": state})
+    try:
+        result = await asyncio.to_thread(scrape_month_sync, start, end)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Denne måneden feilet: {exc}"
+        save_progress({"last_action": "manual_month_failed"})
+        post_import_status("sun2_sessions_import", ok=False, message=state["last_error"])
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 
 @app.post("/sync-beds")
 async def sync_beds():
-    result = await asyncio.to_thread(scrape_beds_sync)
-    return JSONResponse({"status": "ok", "result": result, "state": state})
+    try:
+        result = await asyncio.to_thread(scrape_beds_sync)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell seng-sync feilet: {exc}"
+        save_progress({"last_action": "beds_failed"})
+        post_import_status("sun2_beds_import", ok=False, message=state["last_error"])
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 
 @app.post("/sync-members")
 async def sync_members():
-    result = await asyncio.to_thread(scrape_members_sync)
-    return JSONResponse({"status": "ok", "result": result, "state": state})
+    try:
+        result = await asyncio.to_thread(scrape_members_sync)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell medlems-sync feilet: {exc}"
+        save_progress({"last_action": "members_failed"})
+        post_import_status("sun2_members_import", ok=False, message=state["last_error"])
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 
 @app.post("/sync-month")
@@ -1301,8 +1403,19 @@ async def sync_month(request: Request, year: int | None = Query(None), month: in
         month = int((form.get("month") or [local_today().month])[0])
     start = date(year, month, 1)
     end = min(month_end(start), local_today())
-    result = await asyncio.to_thread(scrape_month_sync, start, end)
-    return JSONResponse({"status": "ok", "result": result, "state": state})
+    try:
+        result = await asyncio.to_thread(scrape_month_sync, start, end)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell måned {year}-{month:02d} feilet: {exc}"
+        save_progress({"last_action": "manual_month_failed"})
+        post_import_status(
+            "sun2_sessions_import",
+            ok=False,
+            message=state["last_error"],
+            raw={"year": year, "month": month},
+        )
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 
 @app.get("/json")

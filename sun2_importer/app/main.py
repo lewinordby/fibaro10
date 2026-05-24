@@ -208,6 +208,44 @@ def post_to_fibaro10(source_file: str, stat_date: date, rows: list[dict[str, Any
         return json.loads(body) if body else {"status": response.status}
 
 
+def post_import_status(
+    *,
+    ok: bool,
+    message: str,
+    records_imported: int | None = None,
+    records_total: int | None = None,
+    raw: dict[str, Any] | None = None,
+) -> None:
+    payload = {
+        "job_name": "sun2_room_daily_import",
+        "title": "Sun2 dagsimport rom",
+        "category": "Soling",
+        "source": "sun2_importer",
+        "ok": ok,
+        "records_imported": records_imported,
+        "records_total": records_total,
+        "message": message,
+        "raw": {"collector_id": COLLECTOR_ID, **(raw or {})},
+    }
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(
+        f"{FIBARO10_API_BASE_URL}/api/import-status/report",
+        data=data,
+        method="POST",
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "User-Agent": "Sun2_importer/1.0",
+            "x-access-username": FIBARO10_API_USERNAME,
+            "x-access-password": FIBARO10_API_PASSWORD,
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=12):
+            pass
+    except Exception:
+        pass
+
+
 def process_once() -> list[dict[str, Any]]:
     IMPORT_DIR.mkdir(parents=True, exist_ok=True)
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
@@ -221,6 +259,13 @@ def process_once() -> list[dict[str, Any]]:
             rejected = move_to(file_path, REJECTED_DIR, "ERROR_")
             state["rejected_files"] += 1
             state["last_error"] = str(exc)
+            post_import_status(
+                ok=False,
+                message=f"Avvist fil {file_path.name}: {exc}",
+                records_imported=0,
+                records_total=0,
+                raw={"source_file": file_path.name, "moved_to": str(rejected)},
+            )
             results.append({"file": file_path.name, "ok": False, "error": str(exc), "moved_to": str(rejected)})
             continue
 
@@ -228,6 +273,13 @@ def process_once() -> list[dict[str, Any]]:
             response = post_to_fibaro10(file_path.name, stat_date, rows)
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             state["last_error"] = f"Fibaro10 svarte ikke: {exc}"
+            post_import_status(
+                ok=False,
+                message=f"Kunne ikke sende {file_path.name}: {exc}",
+                records_imported=0,
+                records_total=len(rows),
+                raw={"source_file": file_path.name, "kept_in_incoming": True},
+            )
             results.append({"file": file_path.name, "ok": False, "error": state["last_error"], "kept_in_incoming": True})
             continue
 
@@ -235,6 +287,13 @@ def process_once() -> list[dict[str, Any]]:
         state["processed_files"] += 1
         state["last_success_at"] = datetime.utcnow().isoformat()
         state["last_error"] = None
+        post_import_status(
+            ok=True,
+            message=f"Importerte {file_path.name}",
+            records_imported=len(rows),
+            records_total=len(rows),
+            raw={"source_file": file_path.name, "response": response},
+        )
         result = {"file": file_path.name, "ok": True, "rows": len(rows), "response": response, "moved_to": str(archived)}
         results.append(result)
     state["last_run_at"] = datetime.utcnow().isoformat()

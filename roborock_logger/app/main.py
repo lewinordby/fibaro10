@@ -352,6 +352,39 @@ def post_to_fibaro10(batch: dict[str, Any]) -> None:
             raise RuntimeError(f"Fibaro10 svarte {response.status}")
 
 
+def post_import_status(ok: bool, message: str, robots_count: int | None = None, raw: dict[str, Any] | None = None) -> None:
+    payload = {
+        "job_name": "roborock_sync",
+        "title": "Roborock logger",
+        "category": "Renhold",
+        "source": "Roborock_logger",
+        "ok": ok,
+        "records_imported": robots_count,
+        "records_total": robots_count,
+        "message": message,
+        "raw": {"collector_id": COLLECTOR_ID, **(raw or {})},
+    }
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Roborock_logger/1.0",
+    }
+    if FIBARO10_API_USERNAME and FIBARO10_API_PASSWORD:
+        headers["x-access-username"] = FIBARO10_API_USERNAME
+        headers["x-access-password"] = FIBARO10_API_PASSWORD
+    request = urllib.request.Request(
+        f"{FIBARO10_API_BASE_URL}/api/import-status/report",
+        data=body,
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=12):
+            pass
+    except Exception:
+        pass
+
+
 def queue_batch(batch: dict[str, Any]) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with QUEUE_FILE.open("a", encoding="utf-8") as file:
@@ -465,9 +498,11 @@ async def collect_once(include_maps: bool = False, force_home_refresh: bool = Fa
         post_to_fibaro10(batch)
         state["last_sync"] = utc_now().isoformat()
         state["last_error"] = None
+        post_import_status(True, f"{len(robots)} roboter synkronisert", len(robots), {"home_cache": home.get("_cache")})
     except Exception as exc:
         queue_batch(batch)
         state["last_error"] = str(exc)
+        post_import_status(False, f"Kunne ikke sende Roborock-data: {exc}", len(robots), {"queued": True})
     state["pending_batches"] = sum(1 for _ in QUEUE_FILE.open(encoding="utf-8")) if QUEUE_FILE.exists() else 0
     save_state(state)
     return batch
@@ -483,6 +518,7 @@ async def sync_loop() -> None:
             state = load_state()
             state["last_error"] = str(exc)
             save_state(state)
+            post_import_status(False, f"Roborock sync feilet før ingest: {exc}")
         await asyncio.sleep(max(60, STATUS_INTERVAL_SECONDS))
 
 
@@ -565,6 +601,7 @@ async def sync_now(maps: bool = False, refresh: bool = False):
         state = load_state()
         state["last_error"] = f"manual sync: {exc}"
         save_state(state)
+        post_import_status(False, f"Manuell Roborock sync feilet: {exc}")
         return JSONResponse(
             {"status": "error", "error": str(exc)},
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
