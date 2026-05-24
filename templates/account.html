@@ -15,6 +15,8 @@
         p { margin: 0; color: var(--muted); }
         .line { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.75rem; }
         .badge { display: inline-flex; align-items: center; min-height: 1.7rem; border-radius: 999px; padding: 0.2rem 0.62rem; background: #f0edf5; color: #726189; border: 1px solid #cec4db; font-weight: 750; }
+        .subscribe { display: inline-flex; align-items: center; justify-content: center; min-height: 2.25rem; padding: 0.45rem 0.78rem; border-radius: 7px; background: #726189; color: #fff; text-decoration: none; font-weight: 760; }
+        .help { margin-top: 0.5rem; font-size: 0.86rem; }
         @media (min-width: 760px) { main { padding: 1.25rem; } }
     </style>
     {% include "_styles.html" %}
@@ -30,6 +32,17 @@
                 <span class="badge">{% if request.state.auth_is_master %}Master{% elif request.state.auth_role == "settings" %}Innstillinger{% else %}Vanlig bruker{% endif %}</span>
             </div>
         </section>
+        {% if request.state.auth_is_master %}
+        <section class="panel">
+            <h1>Varsel om brukere</h1>
+            <p>Abonner på egen ntfy-kanal for varsel når andre brukere enn master logger inn eller åpner løsningen etter en pause.</p>
+            <div class="line">
+                <a class="subscribe" href="{{ ntfy_access_subscribe_url }}">Abonner på brukervarsler</a>
+                <a class="badge" href="{{ ntfy_access_web_url }}" target="_blank" rel="noreferrer">Åpne kanal</a>
+            </div>
+            <p class="help">Varsel begrenses til maks ett per bruker per ca. {{ ntfy_access_cooldown_minutes }} minutt, i tillegg til innlogging.</p>
+        </section>
+        {% endif %}
     </main>
 </body>
 </html>

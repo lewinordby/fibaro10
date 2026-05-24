@@ -58,7 +58,9 @@ SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
 NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
 NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
+NTFY_ACCESS_TOPIC = os.getenv("NTFY_ACCESS_TOPIC", f"sun2-tilgang-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
+NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 
 app = FastAPI(title="Fibaro10")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
@@ -888,6 +890,7 @@ class AccessKey(Base):
     active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     last_seen_at = Column(DateTime, nullable=True)
+    last_notified_at = Column(DateTime, nullable=True)
     last_ip = Column(String, nullable=True)
     last_user_agent = Column(Text, nullable=True)
     uses_count = Column(Integer, default=0)
@@ -1861,6 +1864,7 @@ STARTUP_COLUMNS = {
     "access_keys": [
         ("key_plaintext", "VARCHAR"),
         ("role", "VARCHAR"),
+        ("last_notified_at", "TIMESTAMP"),
     ],
     "yr_forecast_samples": [
         ("api_updated_at", "TIMESTAMP"),
@@ -2481,6 +2485,8 @@ async def log_access_attempt(
     access_key: Optional[AccessKey] = None,
     attempted_username: Optional[str] = None,
 ):
+    notify_master = success and should_publish_access_ntfy(request, access_key, reason)
+    now_value = datetime.utcnow()
     async with async_session() as session:
         session.add(
             AccessLog(
@@ -2496,17 +2502,28 @@ async def log_access_attempt(
             )
         )
         if access_key and success:
-            await session.execute(
-                update(AccessKey)
-                .where(AccessKey.id == access_key.id)
-                .values(
-                    last_seen_at=datetime.utcnow(),
-                    last_ip=client_ip(request),
-                    last_user_agent=request.headers.get("user-agent", ""),
-                    uses_count=AccessKey.uses_count + 1,
-                )
-            )
+            values = {
+                "last_seen_at": now_value,
+                "last_ip": client_ip(request),
+                "last_user_agent": request.headers.get("user-agent", ""),
+                "uses_count": func.coalesce(AccessKey.uses_count, 0) + 1,
+            }
+            if notify_master:
+                values["last_notified_at"] = now_value
+            await session.execute(update(AccessKey).where(AccessKey.id == access_key.id).values(**values))
         await session.commit()
+    if notify_master and access_key:
+        asyncio.create_task(
+            publish_access_ntfy(
+                access_key.name,
+                access_key.role,
+                access_key.is_master,
+                request.method,
+                request.url.path,
+                client_ip(request),
+                reason,
+            )
+        )
 
 
 async def find_access_key(username: Optional[str], password: Optional[str]) -> Optional[AccessKey]:
@@ -2907,6 +2924,51 @@ def publish_ntfy_message(topic: str, title: str, message: str, tags: str = "", p
     )
     with urllib.request.urlopen(request, timeout=NTFY_TIMEOUT_SECONDS):
         pass
+
+
+def should_publish_access_ntfy(request: Request, access_key: Optional[AccessKey], reason: str) -> bool:
+    if not access_key or access_key.is_master:
+        return False
+    if reason == "login":
+        return True
+    if request.method != "GET" or not wants_html(request):
+        return False
+    if request.url.path.startswith("/auth/"):
+        return False
+    last_notified = access_key.last_notified_at or access_key.last_seen_at
+    if not last_notified:
+        return True
+    return datetime.utcnow() - last_notified >= timedelta(minutes=NTFY_ACCESS_COOLDOWN_MINUTES)
+
+
+async def publish_access_ntfy(
+    username: str,
+    role: Optional[str],
+    is_master: bool,
+    method: str,
+    path: str,
+    ip: str,
+    reason: str,
+) -> bool:
+    role_label = access_role_label(role, is_master)
+    action = "logget inn" if reason == "login" else "bruker løsningen"
+    message = (
+        f"{username} ({role_label}) {action}. "
+        f"Side: {method} {path}. "
+        f"IP: {ip or '-'}."
+    )
+    try:
+        await asyncio.to_thread(
+            publish_ntfy_message,
+            NTFY_ACCESS_TOPIC,
+            "SUN2 brukeraktivitet",
+            message,
+            "bust_in_silhouette",
+            "3",
+        )
+        return True
+    except Exception:
+        return False
 
 
 async def publish_light_ntfy(event: OutdoorLightEvent) -> bool:
@@ -5283,7 +5345,15 @@ async def ai_logs_json(limit: int = Query(25, ge=1, le=200)):
 
 @app.get("/konto/oversikt", response_class=HTMLResponse)
 async def account_view(request: Request):
-    return templates.TemplateResponse(request, "account.html", {})
+    return templates.TemplateResponse(
+        request,
+        "account.html",
+        {
+            "ntfy_access_subscribe_url": ntfy_subscribe_url(NTFY_ACCESS_TOPIC, "SUN2 tilgang"),
+            "ntfy_access_web_url": ntfy_topic_url(NTFY_ACCESS_TOPIC),
+            "ntfy_access_cooldown_minutes": int(NTFY_ACCESS_COOLDOWN_MINUTES),
+        },
+    )
 
 
 @app.get("/energi/testside", response_class=HTMLResponse)
@@ -5323,6 +5393,9 @@ async def admin_keys_context(
         "created_username": created_username,
         "created_key": created_key,
         "error": error,
+        "ntfy_access_subscribe_url": ntfy_subscribe_url(NTFY_ACCESS_TOPIC, "SUN2 tilgang"),
+        "ntfy_access_web_url": ntfy_topic_url(NTFY_ACCESS_TOPIC),
+        "ntfy_access_cooldown_minutes": int(NTFY_ACCESS_COOLDOWN_MINUTES),
     }
 
 
