@@ -7367,6 +7367,7 @@ async def sun2_day_timeline_view(request: Request, day: Optional[str] = None):
         ).mappings().all()
 
     totals = {"sessions_count": 0, "duration_minutes": 0.0, "duration_hours": 0.0, "paid_amount_kr": 0.0}
+    aggregate_sessions = []
     for row in rows:
         room_id = normalize_room_id(row.room_id)
         if room_id not in room_lookup or not row.started_at:
@@ -7415,6 +7416,7 @@ async def sun2_day_timeline_view(request: Request, day: Optional[str] = None):
             "href": f"/soling/enkeltimer?date_from={selected.isoformat()}&date_to={selected.isoformat()}&room_id={room_id}",
         }
         room_lookup[room_id]["sessions"].append(item)
+        aggregate_sessions.append({**item, "label": room_lookup[room_id]["label"]})
         room_lookup[room_id]["count"] += 1
         room_lookup[room_id]["minutes"] += duration_minutes
         room_lookup[room_id]["paid"] += paid
@@ -7471,6 +7473,7 @@ async def sun2_day_timeline_view(request: Request, day: Optional[str] = None):
             "prev_day": (selected - timedelta(days=1)).isoformat(),
             "next_day": (selected + timedelta(days=1)).isoformat(),
             "rooms": rooms,
+            "aggregate_sessions": aggregate_sessions,
             "totals": totals,
             "busiest_room": busiest_room,
             "ticks": ticks,
