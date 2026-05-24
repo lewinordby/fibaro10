@@ -4644,3 +4644,69 @@ html body .site-header .app-nav .nav-main > .nav-sub .button.active .nav-sub-ico
         font-weight: 600 !important;
     }
 }
+
+/* Collapsed sidebar must actually shrink, not just hide labels. */
+@media (min-width: 1020px) {
+    html.nav-collapsed body .site-header,
+    html.nav-collapsed body[class] .site-header {
+        width: var(--sun-owner-sidebar-closed) !important;
+        min-width: var(--sun-owner-sidebar-closed) !important;
+        max-width: var(--sun-owner-sidebar-closed) !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-home {
+        min-height: 4.65rem !important;
+        width: 100% !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-logo {
+        width: 3.05rem !important;
+    }
+
+    html.nav-collapsed body .site-header .nav-toggle {
+        top: 4.95rem !important;
+        right: 1.05rem !important;
+        width: 2.05rem !important;
+        height: 2.05rem !important;
+    }
+
+    html.nav-collapsed body .site-header .app-nav {
+        width: 100% !important;
+        margin-top: 3rem !important;
+    }
+
+    html.nav-collapsed body .site-header .app-nav .nav-main > .button {
+        min-height: 3.38rem !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        justify-items: center !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    html.nav-collapsed body .site-header .app-nav .nav-main > .button.active.has-sub {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--sun-owner-line) !important;
+    }
+
+    html.nav-collapsed body .site-header .app-nav .nav-label,
+    html.nav-collapsed body .site-header .app-nav .nav-chevron,
+    html.nav-collapsed body .site-header .app-nav .nav-sub {
+        display: none !important;
+    }
+
+    html.nav-collapsed body .site-header ~ main,
+    html.nav-collapsed body .site-header ~ .container,
+    html.nav-collapsed body .site-header ~ .page-shell {
+        width: calc(100vw - var(--sun-owner-sidebar-closed) - 3rem) !important;
+        max-width: none !important;
+        margin: 0 1.5rem 0 calc(var(--sun-owner-sidebar-closed) + 1.5rem) !important;
+    }
+}
