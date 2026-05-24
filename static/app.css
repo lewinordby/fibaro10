@@ -4570,9 +4570,51 @@ textarea:focus {
     html body .site-header .app-nav .nav-main > .nav-sub .button,
     html body .site-header .app-nav .nav-main > .nav-sub-form .button {
         min-height: 3.72rem !important;
-        padding-left: 4.9rem !important;
+        display: grid !important;
+        grid-template-columns: 1.35rem minmax(0, 1fr) !important;
+        gap: 0.9rem !important;
+        padding: 0 1rem 0 2rem !important;
         font-size: 1.04rem !important;
         font-weight: 470 !important;
+    }
+}
+
+.app-nav .nav-sub-icon {
+    width: 1.35rem !important;
+    height: 1.35rem !important;
+    display: block !important;
+    flex: 0 0 auto !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    color: #555b63 !important;
+}
+
+.app-nav .nav-sub-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+html body .site-header .app-nav .nav-main > .nav-sub .button.active .nav-sub-icon {
+    color: #4f5661 !important;
+}
+
+@media (max-width: 1019px) {
+    html body .site-header .app-nav .nav-main > .nav-sub .button,
+    html body .site-header .app-nav .nav-main > .nav-sub-form .button {
+        display: grid !important;
+        grid-template-columns: 1.25rem minmax(0, 1fr) !important;
+        gap: 0.86rem !important;
+        padding-left: 2rem !important;
+    }
+
+    .app-nav .nav-sub-icon {
+        width: 1.25rem !important;
+        height: 1.25rem !important;
     }
 }
 

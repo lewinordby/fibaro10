@@ -7,6 +7,36 @@
 {% set is_energy = current_path.startswith("/energi") %}
 {% set is_ai = current_path.startswith("/ai") %}
 {% set is_account = current_path.startswith("/konto") %}
+{% macro sub_button(path, label, icon, active) -%}
+<a class="button {% if active %}active{% endif %}" href="{{ path }}">
+    <svg class="nav-sub-icon" aria-hidden="true" viewBox="0 0 24 24">
+        {% if icon == "dashboard" %}
+        <path d="M4 13.5A8 8 0 0 1 20 13.5"></path><path d="M12 13l4-4"></path><path d="M4 18h16"></path>
+        {% elif icon == "timeline" %}
+        <path d="M4 18h16"></path><path d="M7 15V9"></path><path d="M12 15V5"></path><path d="M17 15v-7"></path>
+        {% elif icon == "list" %}
+        <path d="M8 6h12"></path><path d="M8 12h12"></path><path d="M8 18h12"></path><path d="M4 6h.01"></path><path d="M4 12h.01"></path><path d="M4 18h.01"></path>
+        {% elif icon == "sun" %}
+        <circle cx="12" cy="12" r="3.5"></circle><path d="M12 2.5v3"></path><path d="M12 18.5v3"></path><path d="M2.5 12h3"></path><path d="M18.5 12h3"></path><path d="m5.3 5.3 2.1 2.1"></path><path d="m16.6 16.6 2.1 2.1"></path><path d="m18.7 5.3-2.1 2.1"></path><path d="m7.4 16.6-2.1 2.1"></path>
+        {% elif icon == "chart" %}
+        <path d="M4 19h16"></path><path d="M7 16l3-4 3 2 4-7"></path><path d="M17 7h3v3"></path>
+        {% elif icon == "settings" %}
+        <circle cx="12" cy="12" r="3"></circle><path d="M12 2.8v2.4"></path><path d="M12 18.8v2.4"></path><path d="m4.9 4.9 1.7 1.7"></path><path d="m17.4 17.4 1.7 1.7"></path><path d="M2.8 12h2.4"></path><path d="M18.8 12h2.4"></path><path d="m19.1 4.9-1.7 1.7"></path><path d="m6.6 17.4-1.7 1.7"></path>
+        {% elif icon == "weather" %}
+        <path d="M7 18h10a4 4 0 0 0 .5-8A5.5 5.5 0 0 0 7 9.8 4.1 4.1 0 0 0 7 18Z"></path>
+        {% elif icon == "bed" %}
+        <path d="M4 10V6"></path><path d="M20 14v5"></path><path d="M4 19v-9h6a4 4 0 0 1 4 4v0h6"></path><path d="M4 14h16"></path>
+        {% elif icon == "users" %}
+        <circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.4 2.6-5 5.5-5"></path><circle cx="16.5" cy="9" r="2.5"></circle><path d="M14 14.5c2.8.3 4.6 1.8 5.2 4.5"></path>
+        {% elif icon == "book" %}
+        <path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 0-4-4V4Z"></path><path d="M5 16V4"></path>
+        {% else %}
+        <path d="M5 12h14"></path><path d="M12 5v14"></path>
+        {% endif %}
+    </svg>
+    <span class="nav-sub-label">{{ label }}</span>
+</a>
+{%- endmacro %}
 <nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_cleaning %}section-cleaning{% elif is_sun2 %}section-sun2{% elif is_energy %}section-energy{% elif is_ai %}section-ai{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
     <div class="nav-row nav-main">
         <a class="button nav-status has-sub {% if is_status %}active{% endif %}" href="/status/dashboard" aria-label="Status" title="Status">
@@ -18,8 +48,8 @@
         </a>
         {% if is_status %}
         <div class="nav-row nav-sub" aria-label="Undermeny for status">
-            <a class="button {% if current_path == '/status/dashboard' %}active{% endif %}" href="/status/dashboard">Dashboard</a>
-            <a class="button {% if current_path == '/status/dagslinje' %}active{% endif %}" href="/status/dagslinje">Dagslinje</a>
+            {{ sub_button("/status/dashboard", "Dashboard", "dashboard", current_path == "/status/dashboard") }}
+            {{ sub_button("/status/dagslinje", "Dagslinje", "timeline", current_path == "/status/dagslinje") }}
         </div>
         {% endif %}
 
@@ -32,10 +62,10 @@
         </a>
         {% if is_light %}
         <div class="nav-row nav-sub" aria-label="Undermeny for lys">
-            <a class="button {% if current_path == '/lys/hendelser' %}active{% endif %}" href="/lys/hendelser">Hendelser</a>
-            <a class="button {% if current_path == '/lys/lux-logging' %}active{% endif %}" href="/lys/lux-logging">Lux logg</a>
-            <a class="button {% if current_path == '/lys/dagslogg-lux' %}active{% endif %}" href="/lys/dagslogg-lux">Dagslogg</a>
-            <a class="button {% if current_path == '/lys/innstillinger' %}active{% endif %}" href="/lys/innstillinger">Innstillinger</a>
+            {{ sub_button("/lys/hendelser", "Hendelser", "list", current_path == "/lys/hendelser") }}
+            {{ sub_button("/lys/lux-logging", "Lux logg", "sun", current_path == "/lys/lux-logging") }}
+            {{ sub_button("/lys/dagslogg-lux", "Dagslogg", "chart", current_path == "/lys/dagslogg-lux") }}
+            {{ sub_button("/lys/innstillinger", "Innstillinger", "settings", current_path == "/lys/innstillinger") }}
         </div>
         {% endif %}
 
@@ -48,11 +78,11 @@
         </a>
         {% if is_vent %}
         <div class="nav-row nav-sub" aria-label="Undermeny for ventilasjon">
-            <a class="button {% if current_path == '/ventilasjon/hendelser' %}active{% endif %}" href="/ventilasjon/hendelser">Hendelser</a>
-            <a class="button {% if current_path == '/ventilasjon/temp-logg' %}active{% endif %}" href="/ventilasjon/temp-logg">Temp logg</a>
-            <a class="button {% if current_path == '/ventilasjon/dagslogg-temp' %}active{% endif %}" href="/ventilasjon/dagslogg-temp">Dagslogg</a>
-            <a class="button {% if current_path == '/ventilasjon/yr-logg' %}active{% endif %}" href="/ventilasjon/yr-logg">Yr logg</a>
-            <a class="button {% if current_path == '/ventilasjon/innstillinger' %}active{% endif %}" href="/ventilasjon/innstillinger">Innstillinger</a>
+            {{ sub_button("/ventilasjon/hendelser", "Hendelser", "list", current_path == "/ventilasjon/hendelser") }}
+            {{ sub_button("/ventilasjon/temp-logg", "Temp logg", "chart", current_path == "/ventilasjon/temp-logg") }}
+            {{ sub_button("/ventilasjon/dagslogg-temp", "Dagslogg", "timeline", current_path == "/ventilasjon/dagslogg-temp") }}
+            {{ sub_button("/ventilasjon/yr-logg", "Yr logg", "weather", current_path == "/ventilasjon/yr-logg") }}
+            {{ sub_button("/ventilasjon/innstillinger", "Innstillinger", "settings", current_path == "/ventilasjon/innstillinger") }}
         </div>
         {% endif %}
 
@@ -65,7 +95,7 @@
         </a>
         {% if is_cleaning %}
         <div class="nav-row nav-sub" aria-label="Undermeny for renhold">
-            <a class="button {% if current_path == '/renhold/oversikt' %}active{% endif %}" href="/renhold/oversikt">Oversikt</a>
+            {{ sub_button("/renhold/oversikt", "Oversikt", "dashboard", current_path == "/renhold/oversikt") }}
         </div>
         {% endif %}
 
@@ -78,11 +108,11 @@
         </a>
         {% if is_sun2 %}
         <div class="nav-row nav-sub" aria-label="Undermeny for soling">
-            <a class="button {% if current_path == '/soling/oversikt' %}active{% endif %}" href="/soling/oversikt">Oversikt</a>
-            <a class="button {% if current_path == '/soling/detaljer' %}active{% endif %}" href="/soling/detaljer">Detaljer</a>
-            <a class="button {% if current_path == '/soling/enkeltimer' %}active{% endif %}" href="/soling/enkeltimer">Enkeltimer</a>
-            <a class="button {% if current_path == '/soling/senger' %}active{% endif %}" href="/soling/senger">Senger</a>
-            <a class="button {% if current_path == '/soling/medlemmer' %}active{% endif %}" href="/soling/medlemmer">Medlemmer</a>
+            {{ sub_button("/soling/oversikt", "Oversikt", "dashboard", current_path == "/soling/oversikt") }}
+            {{ sub_button("/soling/detaljer", "Detaljer", "chart", current_path == "/soling/detaljer") }}
+            {{ sub_button("/soling/enkeltimer", "Enkeltimer", "list", current_path == "/soling/enkeltimer") }}
+            {{ sub_button("/soling/senger", "Senger", "bed", current_path == "/soling/senger") }}
+            {{ sub_button("/soling/medlemmer", "Medlemmer", "users", current_path == "/soling/medlemmer") }}
         </div>
         {% endif %}
 
@@ -95,7 +125,7 @@
         </a>
         {% if is_energy %}
         <div class="nav-row nav-sub" aria-label="Undermeny for energi">
-            <a class="button {% if current_path == '/energi/elvia' %}active{% endif %}" href="/energi/elvia">Elvia</a>
+            {{ sub_button("/energi/elvia", "Elvia", "chart", current_path == "/energi/elvia") }}
         </div>
         {% endif %}
 
@@ -108,8 +138,8 @@
         </a>
         {% if is_ai %}
         <div class="nav-row nav-sub" aria-label="Undermeny for AI">
-            <a class="button {% if current_path == '/ai/sok' %}active{% endif %}" href="/ai/sok">Søk</a>
-            <a class="button {% if current_path == '/ai/innstillinger' %}active{% endif %}" href="/ai/innstillinger">Innstillinger</a>
+            {{ sub_button("/ai/sok", "Søk", "list", current_path == "/ai/sok") }}
+            {{ sub_button("/ai/innstillinger", "Innstillinger", "settings", current_path == "/ai/innstillinger") }}
         </div>
         {% endif %}
 
@@ -122,13 +152,18 @@
         </a>
         {% if is_account %}
         <div class="nav-row nav-sub" aria-label="Undermeny for konto">
-            <a class="button {% if current_path == '/konto/oversikt' %}active{% endif %}" href="/konto/oversikt">Oversikt</a>
-            <a class="button" href="/static/manualer/sun2_driftsmanual.pdf">Manual</a>
+            {{ sub_button("/konto/oversikt", "Oversikt", "dashboard", current_path == "/konto/oversikt") }}
+            {{ sub_button("/static/manualer/sun2_driftsmanual.pdf", "Manual", "book", false) }}
             {% if request.state.auth_is_master %}
-            <a class="button {% if current_path == '/konto/brukere-og-tilgang' %}active{% endif %}" href="/konto/brukere-og-tilgang">Brukere</a>
+            {{ sub_button("/konto/brukere-og-tilgang", "Brukere", "users", current_path == "/konto/brukere-og-tilgang") }}
             {% endif %}
             <form class="nav-form nav-sub-form" method="post" action="/konto/logg-ut">
-                <button class="button" type="submit">Logg ut</button>
+                <button class="button" type="submit">
+                    <svg class="nav-sub-icon" aria-hidden="true" viewBox="0 0 24 24">
+                        <path d="M10 5H5v14h5"></path><path d="M14 8l4 4-4 4"></path><path d="M18 12H9"></path>
+                    </svg>
+                    <span class="nav-sub-label">Logg ut</span>
+                </button>
             </form>
         </div>
         {% endif %}
