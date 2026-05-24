@@ -31,14 +31,18 @@
         .chart-controls { display:flex; gap:0.35rem; flex-wrap:wrap; }
         .chart-toggle { border:1px solid var(--line); border-radius:999px; background:var(--panel-soft); color:var(--muted); padding:0.28rem 0.58rem; font:inherit; font-size:0.76rem; font-weight:760; cursor:pointer; }
         .chart-toggle.active { background:var(--sun2-color); border-color:var(--sun2-color); color:#fff; }
-        .weekly-chart-wrap { width:100%; overflow:hidden; }
+        .weekly-chart-wrap { width:100%; overflow:hidden; position:relative; }
         .weekly-chart { width:100%; height:auto; display:block; background:#fff; border:1px solid var(--line-soft); border-radius:10px; }
         .weekly-grid { stroke:#e6edf5; stroke-width:1; }
         .weekly-axis { stroke:#cbd5e1; stroke-width:1.1; }
         .weekly-line { fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
-        .weekly-point { stroke:#fff; stroke-width:1.2; opacity:0.78; }
-        .weekly-hit { fill:transparent; cursor:crosshair; }
-        .weekly-point-group:hover .weekly-point { opacity:1; stroke-width:1.8; }
+        .weekly-point { stroke:#fff; stroke-width:1.2; opacity:0.9; transition:opacity 0.12s ease, r 0.12s ease, stroke-width 0.12s ease; }
+        .weekly-hit { fill:transparent; cursor:crosshair; pointer-events:all; }
+        .weekly-point-group:hover .weekly-point { opacity:1; r:4.8; stroke-width:1.8; }
+        .weekly-tooltip { position:absolute; z-index:4; min-width:135px; pointer-events:none; transform:translate(-50%, calc(-100% - 12px)); background:#17202a; color:#fff; border-radius:8px; padding:0.52rem 0.6rem; box-shadow:0 12px 28px rgba(15,23,42,0.2); font-size:0.78rem; line-height:1.28; opacity:0; visibility:hidden; transition:opacity 0.1s ease; }
+        .weekly-tooltip.visible { opacity:1; visibility:visible; }
+        .weekly-tooltip strong { display:block; font-size:0.82rem; margin-bottom:0.12rem; }
+        .weekly-tooltip span { display:block; color:#d9e7f5; white-space:nowrap; }
         .weekly-label { fill:var(--muted); font-size:10px; font-weight:700; }
         .weekly-legend { display:flex; flex-wrap:wrap; gap:0.45rem 0.58rem; margin-top:0.65rem; }
         .weekly-year { display:inline-flex; align-items:center; gap:0.34rem; border:1px solid var(--line); background:var(--panel-soft); border-radius:999px; padding:0.27rem 0.52rem 0.27rem 0.42rem; color:var(--muted); font-size:0.78rem; font-weight:740; cursor:pointer; user-select:none; }
@@ -131,6 +135,7 @@
             </div>
             <div class="weekly-chart-wrap">
                 <svg class="weekly-chart" viewBox="0 0 980 360" role="img" aria-label="Linjediagram over uker per år"></svg>
+                <div class="weekly-tooltip" id="weeklyTooltip" role="status" aria-live="polite"></div>
             </div>
             <div class="weekly-legend" id="weeklyLegend"></div>
         </section>
@@ -275,6 +280,7 @@
         (() => {
             const data = {{ weekly_chart|tojson }};
             const svg = document.querySelector(".weekly-chart");
+            const tooltip = document.querySelector("#weeklyTooltip");
             const legend = document.querySelector("#weeklyLegend");
             const buttons = document.querySelectorAll("[data-weekly-metric]");
             if (!svg || !data.length) return;
@@ -355,10 +361,8 @@
                         const revenue = series.revenue[index] ?? 0;
                         const x = xForWeek(week);
                         const y = yForValue(value);
-                        const title = `${series.year} uke ${week}\n${Number(count).toLocaleString("nb-NO")} solinger\n${Number(revenue).toLocaleString("nb-NO", { maximumFractionDigits: 0 })} kr`;
-                        return `<g class="weekly-point-group">
-                            <title>${title}</title>
-                            <circle class="weekly-point" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="${series.color}"></circle>
+                        return `<g class="weekly-point-group" data-year="${series.year}" data-week="${week}" data-count="${count}" data-revenue="${revenue}" data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}">
+                            <circle class="weekly-point" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="${series.color}"></circle>
                             <circle class="weekly-hit" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8"></circle>
                         </g>`;
                     }).join("");
@@ -374,6 +378,29 @@
                     ${lines}
                     ${pointGroups}
                 `;
+            };
+
+            const hideTooltip = () => {
+                if (!tooltip) return;
+                tooltip.classList.remove("visible");
+            };
+
+            const showTooltip = (event) => {
+                if (!tooltip) return;
+                const group = event.target.closest(".weekly-point-group");
+                if (!group) {
+                    hideTooltip();
+                    return;
+                }
+                const { year, week, count, revenue, x, y } = group.dataset;
+                tooltip.innerHTML = `<strong>${year} - uke ${week}</strong>
+                    <span>${Number(count || 0).toLocaleString("nb-NO")} solinger</span>
+                    <span>${Number(revenue || 0).toLocaleString("nb-NO", { maximumFractionDigits: 0 })} kr</span>`;
+                const svgRect = svg.getBoundingClientRect();
+                const wrapRect = svg.parentElement.getBoundingClientRect();
+                tooltip.style.left = `${svgRect.left - wrapRect.left + (Number(x) / width) * svgRect.width}px`;
+                tooltip.style.top = `${svgRect.top - wrapRect.top + (Number(y) / height) * svgRect.height}px`;
+                tooltip.classList.add("visible");
             };
 
             const renderLegend = () => {
@@ -398,6 +425,8 @@
             };
 
             buttons.forEach((button) => button.addEventListener("click", () => render(button.dataset.weeklyMetric)));
+            svg.addEventListener("mousemove", showTooltip);
+            svg.addEventListener("mouseleave", hideTooltip);
             renderLegend();
             render("revenue");
         })();
