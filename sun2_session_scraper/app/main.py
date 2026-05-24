@@ -75,6 +75,7 @@ FIBARO10_API_PASSWORD = env_value("FIBARO10_API_PASSWORD", "") or ""
 COLLECTOR_ID = env_value("COLLECTOR_ID", "qnap-sun2-session-scraper") or "qnap-sun2-session-scraper"
 MEMBER_PROFILE_LIMIT = int(env_value("MEMBER_PROFILE_LIMIT", "120") or "120")
 FETCH_MEMBER_PROFILES = (env_value("FETCH_MEMBER_PROFILES", "1") or "1") == "1"
+MEMBER_POST_BATCH_SIZE = int(env_value("MEMBER_POST_BATCH_SIZE", "500") or "500")
 
 app = FastAPI(title="Sun2_session_scraper")
 task: asyncio.Task | None = None
@@ -470,6 +471,26 @@ def open_members_page(page, username: str, password: str) -> None:
     login_if_needed(page, username, password)
     if MEMBERS_URL:
         return
+    member_href = ""
+    try:
+        member_href = page.evaluate(
+            """
+            () => Array.from(document.querySelectorAll('a'))
+              .map(a => a.href || '')
+              .find(href => href.includes('members_show.php')) || ''
+            """
+        )
+    except Exception:
+        member_href = ""
+    if member_href:
+        page.goto(member_href, wait_until="domcontentloaded")
+        login_if_needed(page, username, password)
+        try:
+            page.wait_for_load_state("networkidle", timeout=10000)
+        except PwTimeoutError:
+            pass
+        page.wait_for_timeout(750)
+        return
     for label in MEMBER_NAVIGATION_LABELS:
         click_text_if_present(page, label)
     page.wait_for_timeout(750)
@@ -477,7 +498,7 @@ def open_members_page(page, username: str, password: str) -> None:
 
 def absolute_url(value: Any) -> str:
     text = normalize_text(value)
-    if not text:
+    if not text or text == "#":
         return ""
     return urljoin(BASE_URL.rstrip("/") + "/", text)
 
@@ -550,6 +571,7 @@ def normalize_member_row(raw: dict[str, str], profile: dict[str, str] | None = N
     display_name = normalize_text(
         pick(merged, "fullt navn", "navn", "bruker", "kunde", "medlem") or raw.get("__user_title")
     )
+    display_name = re.sub(r"^ID#\s*\d+\s*", "", display_name, flags=re.I).strip()
     full_name = normalize_text(pick(profile or {}, "fullt navn", "navn", "fornavn")) if profile else ""
     if not full_name and display_name and not looks_like_initials(display_name):
         full_name = display_name
@@ -560,7 +582,7 @@ def normalize_member_row(raw: dict[str, str], profile: dict[str, str] | None = N
     email = normalize_text(pick(merged, "epost", "e-post", "email", "mail"))
     phone = normalize_text(pick(merged, "telefon", "mobil", "phone"))
     birth_date = parse_date_guess(pick(merged, "fødselsdato", "fodselsdato", "født", "fodsels"))
-    member_since = parse_date_guess(pick(merged, "medlem siden", "opprettet", "registrert"))
+    member_since = parse_date_guess(pick(merged, "ble medlem", "medlem siden", "opprettet", "registrert"))
     last_seen = parse_datetime_guess(pick(merged, "sist aktiv", "siste soling", "sist besøk", "sist brukt"), local_today())
     raw_for_storage = {
         key: value
@@ -856,7 +878,7 @@ def extract_expected_sessions_count(page) -> int | None:
 
 def extract_visible_sessions_range(page) -> tuple[int | None, int | None, int | None]:
     text = normalize_text(page.locator("body").inner_text(timeout=5000))
-    match = re.search(r"Viser\s+solinger\s+(\d+)\s+til\s+(\d+)\s+av\s+(\d+)", text, re.I)
+    match = re.search(r"Viser\s+(?:solinger|medlemmer)\s+(\d+)\s+til\s+(\d+)\s+av\s+(\d+)", text, re.I)
     if not match:
         return None, None, None
     return int(match.group(1)), int(match.group(2)), int(match.group(3))
@@ -890,6 +912,34 @@ def post_to_fibaro10(payload: dict[str, Any], endpoint: str = "/api/sun2/session
     with urllib.request.urlopen(request, timeout=30) as response:
         body = response.read().decode("utf-8")
         return json.loads(body) if body else {"status": response.status}
+
+
+def post_members_to_fibaro10(payload: dict[str, Any]) -> dict[str, Any] | None:
+    members = payload.get("members") or []
+    if not members:
+        return None
+    batch_size = max(1, MEMBER_POST_BATCH_SIZE)
+    responses: list[dict[str, Any]] = []
+    for index in range(0, len(members), batch_size):
+        batch = members[index : index + batch_size]
+        batch_payload = dict(payload)
+        batch_payload["members"] = batch
+        extra = dict(payload.get("extra") or {})
+        extra.update(
+            {
+                "batch_from": index + 1,
+                "batch_to": index + len(batch),
+                "batch_total": len(members),
+                "batch_size": batch_size,
+            }
+        )
+        batch_payload["extra"] = extra
+        responses.append(post_to_fibaro10(batch_payload, "/api/sun2/members/ingest"))
+    return {
+        "batches": len(responses),
+        "members": len(members),
+        "responses": responses[-3:],
+    }
 
 
 def scrape_beds_sync() -> dict[str, Any]:
@@ -934,7 +984,7 @@ def scrape_members_sync() -> dict[str, Any]:
         context = browser.new_context(locale="nb-NO", accept_downloads=True)
         page = context.new_page()
         open_members_page(page, username, password)
-        headers, table_rows = extract_paginated_table(page, max_pages=300)
+        headers, table_rows = extract_paginated_table(page, max_pages=1000)
         profile_cache: dict[str, dict[str, str]] = {}
         if FETCH_MEMBER_PROFILES:
             profile_page = context.new_page()
@@ -984,7 +1034,7 @@ def scrape_members_sync() -> dict[str, Any]:
         tmp_path.replace(out_path)
         response = None
         if POST_TO_FIBARO10 and members:
-            response = post_to_fibaro10(payload, "/api/sun2/members/ingest")
+            response = post_members_to_fibaro10(payload)
         context.close()
         browser.close()
 
