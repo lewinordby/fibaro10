@@ -100,7 +100,7 @@
         </div>
         {% endif %}
 
-        <a class="button nav-sun2 has-sub {% if is_sun2 %}active{% endif %}" href="/soling/oversikt" aria-label="Soling" title="Soling">
+        <a class="button nav-sun2 has-sub {% if is_sun2 %}active{% endif %}" href="/soling/dagslinje" aria-label="Soling" title="Soling">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="3.6"></circle><path d="M12 2.5v3"></path><path d="M12 18.5v3"></path><path d="M2.5 12h3"></path><path d="M18.5 12h3"></path><path d="m5.3 5.3 2.1 2.1"></path><path d="m16.6 16.6 2.1 2.1"></path><path d="m18.7 5.3-2.1 2.1"></path><path d="m7.4 16.6-2.1 2.1"></path>
             </svg>
@@ -109,10 +109,10 @@
         </a>
         {% if is_sun2 %}
         <div class="nav-row nav-sub" aria-label="Undermeny for soling">
-            {{ sub_button("/soling/oversikt", "Oversikt", "dashboard", current_path == "/soling/oversikt") }}
+            {{ sub_button("/soling/dagslinje", "Dagslinje", "timeline", current_path == "/soling/dagslinje") }}
+            {{ sub_button("/soling/oversikt", "Statistikk", "dashboard", current_path == "/soling/oversikt") }}
             {{ sub_button("/soling/detaljer", "Detaljer", "chart", current_path == "/soling/detaljer") }}
             {{ sub_button("/soling/enkeltimer", "Enkeltimer", "list", current_path == "/soling/enkeltimer") }}
-            {{ sub_button("/soling/dagslinje", "Dagslinje", "timeline", current_path == "/soling/dagslinje") }}
             {{ sub_button("/soling/senger", "Senger", "bed", current_path == "/soling/senger") }}
             {{ sub_button("/soling/medlemmer", "Medlemmer", "users", current_path == "/soling/medlemmer") }}
         </div>

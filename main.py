@@ -6632,7 +6632,7 @@ async def sun2_sessions_ingest(data: Sun2TanningSessionsIngestIn):
             raw={"collector_id": data.collector_id, "source_file": data.source_file, "counts": counts},
         )
         await session.commit()
-    clear_summary_cache("sun2_sessions", "sun2_session_options", "sun2_session_database_total")
+    clear_summary_cache("sun2", "sun2_sessions", "sun2_session_options", "sun2_session_database_total")
     return {"status": "ok", **counts, "rows": len(data.rows)}
 
 
@@ -6712,7 +6712,7 @@ async def energy_soling_legacy_redirect():
 
 @app.get("/soling")
 async def sun2_redirect():
-    return RedirectResponse("/soling/oversikt", status_code=307)
+    return RedirectResponse("/soling/dagslinje", status_code=307)
 
 
 @app.get("/soling/oversikt", response_class=HTMLResponse)
