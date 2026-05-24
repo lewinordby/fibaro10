@@ -21,6 +21,11 @@
             root.classList.toggle("nav-collapsed", collapsed);
             document.querySelector(".nav-toggle")?.setAttribute("aria-pressed", collapsed ? "true" : "false");
         };
+        const collapseMobileMenu = () => {
+            if (!mobileQuery.matches) return;
+            localStorage.setItem(mobileKey, "1");
+            apply(true);
+        };
         const restore = () => {
             const stored = localStorage.getItem(storageKey());
             apply(stored === null ? mobileQuery.matches : stored === "1");
@@ -28,10 +33,21 @@
         restore();
         document.addEventListener("click", (event) => {
             const button = event.target.closest(".nav-toggle");
-            if (!button) return;
-            const collapsed = !root.classList.contains("nav-collapsed");
-            localStorage.setItem(storageKey(), collapsed ? "1" : "0");
-            apply(collapsed);
+            if (button) {
+                const collapsed = !root.classList.contains("nav-collapsed");
+                localStorage.setItem(storageKey(), collapsed ? "1" : "0");
+                apply(collapsed);
+                return;
+            }
+
+            if (event.target.closest(".app-nav a[href], .brand-home")) {
+                collapseMobileMenu();
+            }
+        });
+        document.addEventListener("submit", (event) => {
+            if (event.target.closest(".app-nav")) {
+                collapseMobileMenu();
+            }
         });
         mobileQuery.addEventListener?.("change", restore);
     })();
