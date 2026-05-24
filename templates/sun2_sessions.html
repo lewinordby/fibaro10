@@ -13,6 +13,7 @@
         .sun-actions { display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; justify-content:flex-end; }
         .sun-chip { display:inline-flex; align-items:center; min-height:1.75rem; padding:0.24rem 0.58rem; border:1px solid var(--sun2-border); border-radius:999px; background:var(--sun2-soft); color:var(--sun2-color); font-size:0.76rem; font-weight:780; text-decoration:none; white-space:nowrap; }
         .sun-chip.clear { border-color:var(--line); background:#fff; color:var(--muted); }
+        .sun-chip.warning { border-color:var(--energy-border); background:var(--energy-soft); color:#9a660f; }
         .filter-panel { padding:0.85rem; border:1px solid var(--line); border-radius:12px; background:#fff; box-shadow:var(--shadow-1); }
         .filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.62rem; }
         .filter-field { display:grid; gap:0.28rem; min-width:0; }
@@ -106,6 +107,12 @@
                 {% if active_filter_count %}
                 <span class="sun-chip">{{ active_filter_count }} aktive filtre</span>
                 <a class="sun-chip clear" href="/soling/enkeltimer">Nullstill</a>
+                {% elif auto_recent_window %}
+                <span class="sun-chip warning">Siste 120 dager</span>
+                <a class="sun-chip clear" href="{{ query_url(scope='all', date_from='', date_to='', page=1) }}">Vis hele perioden</a>
+                {% elif filters.scope == "all" %}
+                <span class="sun-chip warning">Hele perioden</span>
+                <a class="sun-chip clear" href="/soling/enkeltimer">Rask visning</a>
                 {% else %}
                 <span class="sun-chip">Alle data</span>
                 {% endif %}
@@ -174,6 +181,7 @@
                 <input type="hidden" name="sun2_user_id" value="{{ filters.sun2_user_id }}">
                 {% endif %}
                 <input type="hidden" name="page" value="1">
+                <input type="hidden" name="scope" value="{{ filters.scope }}">
                 <div class="filter-buttons">
                     <button class="button primary" type="submit">Filtrer</button>
                     <a class="button" href="/soling/enkeltimer">Nullstill</a>
@@ -183,9 +191,9 @@
 
         <section class="metric-grid">
             <article class="metric-card">
-                <span>Registrerte solinger</span>
+                <span>Solinger i utvalg</span>
                 <strong>{{ "{:,.0f}".format(total.sessions_count or 0).replace(",", " ") }}</strong>
-                <small>{% if total.first_at and total.last_at %}{{ total.first_at|source_time_short }} {{ total.first_at.strftime("%d.%m.%Y") }} til {{ total.last_at|source_time_short }} {{ total.last_at.strftime("%d.%m.%Y") }}{% else %}-{% endif %}</small>
+                <small>Totalt i databasen: {{ "{:,.0f}".format(database_total.sessions_count or 0).replace(",", " ") }}</small>
             </article>
             <article class="metric-card good">
                 <span>Soltid</span>
@@ -209,7 +217,13 @@
                 <div class="panel-head">
                     <div>
                         <h2>Utvikling</h2>
-                        <span>{% if daily_chart %}{{ daily_chart|length }} dager i valgt utvalg{% else %}Ingen dager i valgt utvalg{% endif %}</span>
+                        <span>
+                            {% if daily_chart %}
+                            {{ daily_chart|length }} {% if chart_granularity == "month" %}måneder{% else %}dager{% endif %} i valgt utvalg
+                            {% else %}
+                            Ingen data i valgt utvalg
+                            {% endif %}
+                        </span>
                     </div>
                     <div class="chart-tabs">
                         <button class="chart-tab active" type="button" data-session-metric="sessions_count">Solinger</button>

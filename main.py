@@ -5582,7 +5582,7 @@ async def sun2_sessions_ingest(data: Sun2TanningSessionsIngestIn):
             )
         )
         await session.commit()
-    clear_summary_cache("sun2_sessions")
+    clear_summary_cache("sun2_sessions", "sun2_session_options", "sun2_session_database_total")
     return {"status": "ok", **counts, "rows": len(data.rows)}
 
 
@@ -5681,11 +5681,59 @@ async def sun2_room_stats_view(request: Request, limit: int = 150):
     )
 
 
+async def get_sun2_session_options(session) -> Dict[str, list[str]]:
+    cache_key = "sun2_session_options"
+    now_value = datetime.utcnow()
+    cached = SUMMARY_CACHE.get(cache_key)
+    if cached and cached.get("expires", datetime.min) > now_value:
+        return cached["value"]
+
+    def distinct_text(column):
+        return (
+            select(column)
+            .where(column.is_not(None))
+            .where(column != "")
+            .distinct()
+            .order_by(column)
+        )
+
+    value = {
+        "rooms": (await session.execute(distinct_text(Sun2TanningSession.room))).scalars().all(),
+        "payments": (await session.execute(distinct_text(Sun2TanningSession.payment_method))).scalars().all(),
+        "statuses": (await session.execute(distinct_text(Sun2TanningSession.status))).scalars().all(),
+        "customers": (await session.execute(distinct_text(Sun2TanningSession.customer_type))).scalars().all(),
+    }
+    SUMMARY_CACHE[cache_key] = {"expires": now_value + timedelta(minutes=30), "value": value}
+    return value
+
+
+async def get_sun2_session_database_total(session) -> Dict[str, Any]:
+    cache_key = "sun2_session_database_total"
+    now_value = datetime.utcnow()
+    cached = SUMMARY_CACHE.get(cache_key)
+    if cached and cached.get("expires", datetime.min) > now_value:
+        return cached["value"]
+    value = (
+        await session.execute(
+            select(
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                func.count(func.distinct(Sun2TanningSession.sun2_user_id)).label("unique_users_count"),
+            )
+        )
+    ).mappings().first() or {}
+    value = dict(value)
+    SUMMARY_CACHE[cache_key] = {"expires": now_value + timedelta(minutes=5), "value": value}
+    return value
+
+
 @app.get("/soling/enkeltimer", response_class=HTMLResponse)
 async def sun2_sessions_view(
     request: Request,
-    limit: int = 100,
+    limit: int = 50,
     page: int = 1,
+    scope: Optional[str] = None,
     sun2_user_id: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
@@ -5703,6 +5751,9 @@ async def sun2_sessions_view(
     active_status = (status or "").strip()
     active_customer_type = (customer_type or "").strip()
     active_q = (q or "").strip()
+    active_scope = (scope or "recent").strip().lower()
+    if active_scope not in {"recent", "all"}:
+        active_scope = "recent"
     active_date_from = None
     active_date_to = None
     try:
@@ -5713,6 +5764,20 @@ async def sun2_sessions_view(
         active_date_to = date.fromisoformat(date_to) if date_to else None
     except ValueError:
         active_date_to = None
+    user_has_filters = any([
+        active_sun2_user_id,
+        active_date_from,
+        active_date_to,
+        active_room,
+        active_payment_method,
+        active_status,
+        active_customer_type,
+        active_q,
+    ])
+    auto_recent_window = active_scope != "all" and not user_has_filters
+    if auto_recent_window:
+        active_date_to = datetime.now(LOCAL_TZ).date()
+        active_date_from = active_date_to - timedelta(days=119)
 
     session_filters = []
     if active_sun2_user_id:
@@ -5742,17 +5807,11 @@ async def sun2_sessions_view(
         ))
 
     async with async_session() as session:
-        distinct_text = lambda column: (
-            select(column)
-            .where(column.is_not(None))
-            .where(column != "")
-            .distinct()
-            .order_by(column)
-        )
-        room_options = (await session.execute(distinct_text(Sun2TanningSession.room))).scalars().all()
-        payment_options = (await session.execute(distinct_text(Sun2TanningSession.payment_method))).scalars().all()
-        status_options = (await session.execute(distinct_text(Sun2TanningSession.status))).scalars().all()
-        customer_options = (await session.execute(distinct_text(Sun2TanningSession.customer_type))).scalars().all()
+        options = await get_sun2_session_options(session)
+        room_options = options["rooms"]
+        payment_options = options["payments"]
+        status_options = options["statuses"]
+        customer_options = options["customers"]
 
         rows_query = select(Sun2TanningSession)
         if session_filters:
@@ -5790,6 +5849,9 @@ async def sun2_sessions_view(
                 total_query
             )
         ).mappings().first()
+        database_total = total
+        if session_filters:
+            database_total = await get_sun2_session_database_total(session)
         total_count = int((total or {}).get("sessions_count") or 0)
         page_count = max(1, math.ceil(total_count / limit))
         if page > page_count:
@@ -5825,16 +5887,35 @@ async def sun2_sessions_view(
             )
         ).mappings().all()
 
-        day_query = (
-            select(
-                Sun2TanningSession.stat_date.label("day"),
-                func.count(Sun2TanningSession.id).label("sessions_count"),
-                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
-                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+        chart_span_days = None
+        if active_date_from and active_date_to:
+            chart_span_days = (active_date_to - active_date_from).days + 1
+        chart_granularity = "month" if (active_scope == "all" or (chart_span_days and chart_span_days > 370)) else "day"
+        if chart_granularity == "month":
+            chart_year_part = func.extract("year", Sun2TanningSession.stat_date)
+            chart_month_part = func.extract("month", Sun2TanningSession.stat_date)
+            day_query = (
+                select(
+                    chart_year_part.label("year"),
+                    chart_month_part.label("month"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                )
+                .group_by(chart_year_part, chart_month_part)
+                .order_by(chart_year_part.asc(), chart_month_part.asc())
             )
-            .group_by(Sun2TanningSession.stat_date)
-            .order_by(Sun2TanningSession.stat_date.asc())
-        )
+        else:
+            day_query = (
+                select(
+                    Sun2TanningSession.stat_date.label("day"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                )
+                .group_by(Sun2TanningSession.stat_date)
+                .order_by(Sun2TanningSession.stat_date.asc())
+            )
         if session_filters:
             day_query = day_query.where(*session_filters)
         daily = (await session.execute(day_query)).mappings().all()
@@ -5917,6 +5998,7 @@ async def sun2_sessions_view(
     filter_values = {
         "limit": limit,
         "page": page,
+        "scope": active_scope,
         "sun2_user_id": active_sun2_user_id,
         "date_from": active_date_from.isoformat() if active_date_from else "",
         "date_to": active_date_to.isoformat() if active_date_to else "",
@@ -5929,6 +6011,8 @@ async def sun2_sessions_view(
     def query_url(**updates):
         params = dict(filter_values)
         params.update(updates)
+        if params.get("scope") == "recent" and not params.get("date_from") and not params.get("date_to"):
+            params.pop("scope", None)
         params = {key: value for key, value in params.items() if value not in (None, "", 0)}
         return f"/soling/enkeltimer?{urlencode(params)}"
 
@@ -5946,15 +6030,25 @@ async def sun2_sessions_view(
     best_day = max(daily, key=lambda item: item.get("sessions_count") or 0, default=None)
     daily_chart = [
         {
-            "date": item.get("day").isoformat() if item.get("day") else "",
-            "label": item.get("day").strftime("%d.%m.%Y") if item.get("day") else "",
+            "date": (
+                item.get("day").isoformat()
+                if chart_granularity == "day" and item.get("day")
+                else f"{int(item.get('year')):04d}-{int(item.get('month')):02d}-01"
+            ),
+            "label": (
+                item.get("day").strftime("%d.%m.%Y")
+                if chart_granularity == "day" and item.get("day")
+                else f"{int(item.get('month')):02d}.{int(item.get('year')):04d}"
+            ),
             "sessions_count": int(item.get("sessions_count") or 0),
             "duration_hours": round(float(item.get("duration_minutes") or 0) / 60, 2),
             "paid_amount_kr": round(float(item.get("paid_amount_kr") or 0), 2),
         }
         for item in daily
     ]
-    active_filter_count = sum(1 for key in ["sun2_user_id", "date_from", "date_to", "room", "payment_method", "status", "customer_type", "q"] if filter_values.get(key))
+    active_filter_count = sum(1 for key in ["sun2_user_id", "room", "payment_method", "status", "customer_type", "q"] if filter_values.get(key))
+    if user_has_filters and (filter_values.get("date_from") or filter_values.get("date_to")):
+        active_filter_count += 1
     pagination = {
         "page": page,
         "page_count": page_count,
@@ -5977,8 +6071,11 @@ async def sun2_sessions_view(
             "imports": imports,
             "limit": limit,
             "total": total or {},
+            "database_total": database_total or {},
             "monthly": monthly,
             "daily_chart": daily_chart,
+            "chart_granularity": chart_granularity,
+            "auto_recent_window": auto_recent_window,
             "hourly": hourly,
             "peak_hour": peak_hour,
             "best_day": best_day,
