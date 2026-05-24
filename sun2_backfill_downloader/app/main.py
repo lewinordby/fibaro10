@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import os
 import time
@@ -130,8 +129,8 @@ def post_import_status(ok: bool, message: str, records_imported: int = 0, record
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    credentials = f"{FIBARO10_API_USERNAME}:{FIBARO10_API_PASSWORD}".encode("utf-8")
-    request.add_header("Authorization", "Basic " + base64.b64encode(credentials).decode("ascii"))
+    request.add_header("x-access-username", FIBARO10_API_USERNAME)
+    request.add_header("x-access-password", FIBARO10_API_PASSWORD)
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             response.read()
