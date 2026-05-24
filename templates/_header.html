@@ -21,7 +21,10 @@
             root.classList.toggle("nav-collapsed", collapsed);
             document.querySelector(".nav-toggle")?.setAttribute("aria-pressed", collapsed ? "true" : "false");
         };
-        const restore = () => apply(localStorage.getItem(storageKey()) === "1");
+        const restore = () => {
+            const stored = localStorage.getItem(storageKey());
+            apply(stored === null ? mobileQuery.matches : stored === "1");
+        };
         restore();
         document.addEventListener("click", (event) => {
             const button = event.target.closest(".nav-toggle");
