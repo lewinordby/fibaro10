@@ -546,6 +546,49 @@ class GenericEvent(Base):
     extra = Column(JSON, nullable=True)
 
 
+class ImportJobStatus(Base):
+    __tablename__ = "import_job_status"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_name = Column(String, unique=True, index=True, nullable=False)
+    title = Column(String, nullable=False)
+    category = Column(String, index=True, nullable=False)
+    source = Column(String, index=True, nullable=True)
+    status = Column(String, index=True, nullable=False, default="unknown")
+    status_text = Column(String, nullable=True)
+    last_started_at = Column(DateTime, nullable=True)
+    last_success_at = Column(DateTime, nullable=True, index=True)
+    last_failed_at = Column(DateTime, nullable=True, index=True)
+    last_run_at = Column(DateTime, nullable=True, index=True)
+    next_expected_at = Column(DateTime, nullable=True, index=True)
+    expected_interval_minutes = Column(Integer, nullable=True)
+    warning_after_minutes = Column(Integer, nullable=True)
+    records_imported = Column(Integer, nullable=True)
+    records_total = Column(Integer, nullable=True)
+    duration_seconds = Column(Float, nullable=True)
+    message = Column(Text, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
+class ImportJobRun(Base):
+    __tablename__ = "import_job_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_name = Column(String, index=True, nullable=False)
+    title = Column(String, nullable=True)
+    category = Column(String, index=True, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, default=datetime.utcnow, index=True)
+    ok = Column(Boolean, index=True, nullable=True)
+    status = Column(String, index=True, nullable=True)
+    records_imported = Column(Integer, nullable=True)
+    records_total = Column(Integer, nullable=True)
+    duration_seconds = Column(Float, nullable=True)
+    message = Column(Text, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
 class RoborockRobot(Base):
     __tablename__ = "roborock_robots"
 
@@ -1162,6 +1205,25 @@ class Sun2MembersIngestIn(BaseModel):
     message: Optional[str] = None
     members: list[Sun2MemberIn] = Field(default_factory=list)
     extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ImportStatusReportIn(BaseModel):
+    job_name: str
+    title: Optional[str] = None
+    category: Optional[str] = None
+    source: Optional[str] = None
+    status: Optional[str] = None
+    ok: Optional[bool] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    next_expected_at: Optional[datetime] = None
+    expected_interval_minutes: Optional[int] = None
+    warning_after_minutes: Optional[int] = None
+    records_imported: Optional[int] = None
+    records_total: Optional[int] = None
+    duration_seconds: Optional[float] = None
+    message: Optional[str] = None
+    raw: Dict[str, Any] = Field(default_factory=dict)
 
 
 LIGHT_COLUMNS = [
@@ -2062,7 +2124,88 @@ PERFORMANCE_INDEXES = [
         "CREATE INDEX IF NOT EXISTS ix_light_samples_bucket_mode "
         "ON utelys_samples (bucket_start, mode)",
     ),
+    (
+        "ix_import_runs_job_finished",
+        "CREATE INDEX IF NOT EXISTS ix_import_runs_job_finished "
+        "ON import_job_runs (job_name, finished_at DESC)",
+    ),
 ]
+
+
+IMPORT_JOB_DEFINITIONS = {
+    "hc3_light_5min": {
+        "title": "Lys / lux fra HC3",
+        "category": "Lys",
+        "source": "HC3",
+        "expected_interval_minutes": 7,
+        "warning_after_minutes": 15,
+        "description": "5-minutters luxlogg og status for utelys.",
+    },
+    "hc3_ventilation_5min": {
+        "title": "Ventilasjon / temperatur fra HC3",
+        "category": "Ventilasjon",
+        "source": "HC3",
+        "expected_interval_minutes": 7,
+        "warning_after_minutes": 15,
+        "description": "5-minutters temperatur, effekt og viftestatus.",
+    },
+    "yr_weather_refresh": {
+        "title": "Yr API",
+        "category": "Vær",
+        "source": "MET/Yr",
+        "expected_interval_minutes": 70,
+        "warning_after_minutes": 130,
+        "description": "Værvarsel hentet fra Yr/MET når forrige varsel går ut.",
+    },
+    "roborock_sync": {
+        "title": "Roborock logger",
+        "category": "Renhold",
+        "source": "QNAP",
+        "expected_interval_minutes": 10,
+        "warning_after_minutes": 30,
+        "description": "Robotstatus, planlagte jobber og siste lokale/cloud-data.",
+    },
+    "sun2_room_daily_import": {
+        "title": "Sun2 dagsimport rom",
+        "category": "Soling",
+        "source": "QNAP",
+        "expected_interval_minutes": 36 * 60,
+        "warning_after_minutes": 72 * 60,
+        "description": "Daglige summer per rom fra Sun2.",
+    },
+    "sun2_sessions_import": {
+        "title": "Sun2 enkelttimer",
+        "category": "Soling",
+        "source": "QNAP",
+        "expected_interval_minutes": 36 * 60,
+        "warning_after_minutes": 72 * 60,
+        "description": "Import av enkeltsolinger fra Sun2.",
+    },
+    "sun2_beds_import": {
+        "title": "Sun2 senger",
+        "category": "Soling",
+        "source": "QNAP",
+        "expected_interval_minutes": 7 * 24 * 60,
+        "warning_after_minutes": 14 * 24 * 60,
+        "description": "Seng-/rommetadata fra Sun2.",
+    },
+    "sun2_members_import": {
+        "title": "Sun2 medlemmer",
+        "category": "Soling",
+        "source": "QNAP",
+        "expected_interval_minutes": 7 * 24 * 60,
+        "warning_after_minutes": 14 * 24 * 60,
+        "description": "Medlemsregister og profilfelter fra Sun2.",
+    },
+    "elvia_monthly_import": {
+        "title": "Elvia månedsfil",
+        "category": "Energi",
+        "source": "Manuell opplasting",
+        "expected_interval_minutes": 40 * 24 * 60,
+        "warning_after_minutes": 55 * 24 * 60,
+        "description": "Månedlig import av strømforbruk fra Elvia.",
+    },
+}
 
 
 CONFIG_DEFINITIONS = {
@@ -3631,6 +3774,190 @@ def freshness_item(name: str, row, expected_minutes: int, warning_minutes: Optio
         "status_text": status_text,
         "timestamp": stamp,
     }
+
+
+def import_job_definition(job_name: str) -> Dict[str, Any]:
+    fallback = {
+        "title": job_name.replace("_", " ").title(),
+        "category": "Annet",
+        "source": None,
+        "expected_interval_minutes": None,
+        "warning_after_minutes": None,
+        "description": "",
+    }
+    return {**fallback, **IMPORT_JOB_DEFINITIONS.get(job_name, {})}
+
+
+def import_job_status_from_age(stamp: Optional[datetime], expected_minutes: Optional[int], warning_minutes: Optional[int]) -> tuple[str, str]:
+    age_minutes = minutes_since(stamp)
+    if age_minutes is None:
+        return "bad", "Mangler"
+    if expected_minutes is None:
+        return "ok", "OK"
+    warning_minutes = warning_minutes or expected_minutes * 2
+    if age_minutes <= expected_minutes:
+        return "ok", "OK"
+    if age_minutes <= warning_minutes:
+        return "warn", "Treg"
+    return "bad", "Gammel"
+
+
+def import_job_age(row: Optional[ImportJobStatus]) -> str:
+    stamp = row.last_success_at if row else None
+    return age_label(minutes_since(stamp))
+
+
+async def record_import_job(
+    session,
+    job_name: str,
+    *,
+    ok: bool = True,
+    title: Optional[str] = None,
+    category: Optional[str] = None,
+    source: Optional[str] = None,
+    started_at: Optional[datetime] = None,
+    finished_at: Optional[datetime] = None,
+    next_expected_at: Optional[datetime] = None,
+    expected_interval_minutes: Optional[int] = None,
+    warning_after_minutes: Optional[int] = None,
+    records_imported: Optional[int] = None,
+    records_total: Optional[int] = None,
+    duration_seconds: Optional[float] = None,
+    message: Optional[str] = None,
+    raw: Optional[Dict[str, Any]] = None,
+) -> ImportJobStatus:
+    definition = import_job_definition(job_name)
+    finished_at = finished_at or datetime.utcnow()
+    title = title or definition["title"]
+    category = category or definition["category"]
+    source = source or definition.get("source")
+    expected_interval_minutes = expected_interval_minutes if expected_interval_minutes is not None else definition.get("expected_interval_minutes")
+    warning_after_minutes = warning_after_minutes if warning_after_minutes is not None else definition.get("warning_after_minutes")
+    if next_expected_at is None and ok and expected_interval_minutes:
+        next_expected_at = finished_at + timedelta(minutes=expected_interval_minutes)
+    status = "ok" if ok else "bad"
+    status_text = "OK" if ok else "Feil"
+
+    session.add(
+        ImportJobRun(
+            job_name=job_name,
+            title=title,
+            category=category,
+            source=source,
+            started_at=started_at,
+            finished_at=finished_at,
+            ok=ok,
+            status=status,
+            records_imported=records_imported,
+            records_total=records_total,
+            duration_seconds=duration_seconds,
+            message=message,
+            raw=raw or {},
+        )
+    )
+
+    existing = (
+        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == job_name))
+    ).scalars().first()
+    if not existing:
+        existing = ImportJobStatus(job_name=job_name, title=title, category=category)
+        session.add(existing)
+    existing.title = title
+    existing.category = category
+    existing.source = source
+    existing.status = status
+    existing.status_text = status_text
+    existing.last_started_at = started_at or existing.last_started_at
+    existing.last_run_at = finished_at
+    if ok:
+        existing.last_success_at = finished_at
+    else:
+        existing.last_failed_at = finished_at
+    existing.next_expected_at = next_expected_at
+    existing.expected_interval_minutes = expected_interval_minutes
+    existing.warning_after_minutes = warning_after_minutes
+    existing.records_imported = records_imported
+    existing.records_total = records_total
+    existing.duration_seconds = duration_seconds
+    existing.message = message
+    existing.raw = raw or {}
+    return existing
+
+
+async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
+    if job_name == "hc3_light_5min":
+        row = (await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))).scalars().first()
+        return {"last_success_at": row.timestamp if row else None, "message": "Sist funnet i luxloggen" if row else ""}
+    if job_name == "hc3_ventilation_5min":
+        row = (await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))).scalars().first()
+        return {"last_success_at": row.timestamp if row else None, "message": "Sist funnet i temploggen" if row else ""}
+    if job_name == "yr_weather_refresh":
+        row = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().first()
+        return {"last_success_at": row.timestamp if row else None, "message": row.weather_text if row else ""}
+    if job_name == "roborock_sync":
+        row = (await session.execute(select(RoborockSyncRun).order_by(RoborockSyncRun.timestamp.desc()).limit(1))).scalars().first()
+        return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.robots_count if row else None}
+    if job_name == "sun2_room_daily_import":
+        row = (await session.execute(select(Sun2ImportRun).order_by(Sun2ImportRun.timestamp.desc()).limit(1))).scalars().first()
+        return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.rows_count if row else None}
+    if job_name == "sun2_sessions_import":
+        row = (await session.execute(select(Sun2SessionImportRun).order_by(Sun2SessionImportRun.timestamp.desc()).limit(1))).scalars().first()
+        return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.rows_count if row else None}
+    if job_name == "sun2_beds_import":
+        row = (await session.execute(select(Sun2Bed).order_by(Sun2Bed.imported_at.desc()).limit(1))).scalars().first()
+        count = (await session.execute(select(func.count()).select_from(Sun2Bed))).scalar_one()
+        return {"last_success_at": row.imported_at if row else None, "message": "Sist funnet i senger-tabellen" if row else "", "records_total": count}
+    if job_name == "sun2_members_import":
+        row = (await session.execute(select(Sun2Member).order_by(Sun2Member.imported_at.desc()).limit(1))).scalars().first()
+        count = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
+        return {"last_success_at": row.imported_at if row else None, "message": "Sist funnet i medlemstabellen" if row else "", "records_total": count}
+    if job_name == "elvia_monthly_import":
+        row = (await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(1))).scalars().first()
+        return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.hours_count if row else None}
+    return {}
+
+
+async def import_status_rows(session) -> list[Dict[str, Any]]:
+    existing = {
+        row.job_name: row
+        for row in (
+            await session.execute(select(ImportJobStatus))
+        ).scalars().all()
+    }
+    rows = []
+    for job_name, definition in IMPORT_JOB_DEFINITIONS.items():
+        row = existing.get(job_name)
+        fallback = {} if row else await fallback_import_job_status(session, job_name)
+        stamp = row.last_success_at if row else fallback.get("last_success_at")
+        last_failed_at = row.last_failed_at if row else fallback.get("last_failed_at")
+        status, status_text = import_job_status_from_age(
+            stamp,
+            row.expected_interval_minutes if row else definition.get("expected_interval_minutes"),
+            row.warning_after_minutes if row else definition.get("warning_after_minutes"),
+        )
+        if last_failed_at and (not stamp or last_failed_at > stamp):
+            status, status_text = "bad", "Feil"
+        rows.append(
+            {
+                "job_name": job_name,
+                "title": row.title if row else definition["title"],
+                "category": row.category if row else definition["category"],
+                "source": row.source if row and row.source else definition.get("source"),
+                "description": definition.get("description", ""),
+                "status": status,
+                "status_text": status_text,
+                "age": import_job_age(row) if row else age_label(minutes_since(stamp)),
+                "last_success_at": stamp,
+                "last_run_at": row.last_run_at if row else stamp,
+                "last_failed_at": last_failed_at,
+                "next_expected_at": row.next_expected_at if row else None,
+                "records_imported": row.records_imported if row else None,
+                "records_total": row.records_total if row else fallback.get("records_total"),
+                "duration_seconds": row.duration_seconds if row else None,
+                "message": row.message if row else fallback.get("message", ""),
+            }
+        )
+    return rows
 
 
 def light_status_text(row: OutdoorLightSample) -> str:
@@ -5286,6 +5613,7 @@ async def health():
             "yr_forecast_samples", "control_configs", "control_config_history", "event_data",
             "roborock_robots", "roborock_status_samples", "roborock_clean_jobs",
             "roborock_schedules", "roborock_consumables", "roborock_maps",
+            "import_job_status", "import_job_runs",
             "sun2_room_daily_stats", "sun2_import_runs", "sun2_tanning_sessions",
             "sun2_beds", "sun2_session_import_runs", "energy_hourly_consumption",
             "energy_import_runs", "ai_query_logs",
@@ -5900,6 +6228,30 @@ async def index(request: Request):
     )
 
 
+@app.get("/status/datakilder", response_class=HTMLResponse)
+async def import_status_view(request: Request):
+    async with async_session() as session:
+        rows = await import_status_rows(session)
+        runs = (
+            await session.execute(
+                select(ImportJobRun)
+                .order_by(ImportJobRun.finished_at.desc())
+                .limit(80)
+            )
+        ).scalars().all()
+    counts = {
+        "ok": sum(1 for row in rows if row["status"] == "ok"),
+        "warn": sum(1 for row in rows if row["status"] == "warn"),
+        "bad": sum(1 for row in rows if row["status"] == "bad"),
+        "total": len(rows),
+    }
+    return templates.TemplateResponse(
+        request,
+        "import_status.html",
+        {"rows": rows, "runs": runs, "counts": counts},
+    )
+
+
 @app.get("/status/dagslinje", response_class=HTMLResponse)
 async def day_view(request: Request, day: Optional[str] = None, zoom: Optional[str] = "all"):
     selected_day = parse_day(day)
@@ -6041,6 +6393,27 @@ async def log_event(data: EventDataIn):
                 met_weather = await met_weather_cached()
             yr_sample_id = await save_yr_sample_for_payload(data, met_weather)
             event_id = await save_record(light_sample_from_payload(data, met_weather))
+            async with async_session() as session:
+                await record_import_job(
+                    session,
+                    "hc3_light_5min",
+                    source=data.source or "HC3",
+                    records_imported=1,
+                    records_total=1,
+                    message=f"Lux {data.lux:.0f}" if data.lux is not None else "5-minutters sample mottatt",
+                    raw={"event_id": event_id, "yr_sample_id": yr_sample_id},
+                )
+                if yr_sample_id:
+                    await record_import_job(
+                        session,
+                        "yr_weather_refresh",
+                        source="MET/Yr",
+                        records_imported=1,
+                        records_total=1,
+                        message="Yr-data lagret sammen med luxsample",
+                        raw={"yr_sample_id": yr_sample_id},
+                    )
+                await session.commit()
             return {"status": "ok", "id": event_id, "table": "utelys_samples", "yr_sample_id": yr_sample_id}
         event = light_from_payload(data)
         event_id = await save_record(event)
@@ -6050,6 +6423,27 @@ async def log_event(data: EventDataIn):
         if data.event_type in {"sample", "sample_5min", "sample_15min", "learning_sample"}:
             yr_sample_id = await save_yr_sample_for_payload(data)
             event_id = await save_record(vent_sample_from_payload(data))
+            async with async_session() as session:
+                await record_import_job(
+                    session,
+                    "hc3_ventilation_5min",
+                    source=data.source or "HC3",
+                    records_imported=1,
+                    records_total=1,
+                    message=f"Modus {data.mode}" if data.mode else "5-minutters sample mottatt",
+                    raw={"event_id": event_id, "yr_sample_id": yr_sample_id},
+                )
+                if yr_sample_id:
+                    await record_import_job(
+                        session,
+                        "yr_weather_refresh",
+                        source="MET/Yr",
+                        records_imported=1,
+                        records_total=1,
+                        message="Yr-data lagret sammen med ventilasjonssample",
+                        raw={"yr_sample_id": yr_sample_id},
+                    )
+                await session.commit()
             return {"status": "ok", "id": event_id, "table": "ventilasjon_samples", "yr_sample_id": yr_sample_id}
         event = vent_from_payload(data)
         event_id = await save_record(event)
@@ -6057,6 +6451,42 @@ async def log_event(data: EventDataIn):
         return {"status": "ok", "id": event_id, "table": "ventilasjon_events", "ntfy_sent": ntfy_sent}
     event_id = await save_record(generic_from_payload(data))
     return {"status": "ok", "id": event_id, "table": "event_data"}
+
+
+@app.post("/api/import-status/report")
+async def import_status_report(data: ImportStatusReportIn):
+    definition = import_job_definition(data.job_name)
+    ok = data.ok if data.ok is not None else (data.status not in {"bad", "failed", "error"})
+    finished_at = data.finished_at or datetime.utcnow()
+    async with async_session() as session:
+        row = await record_import_job(
+            session,
+            data.job_name,
+            ok=bool(ok),
+            title=data.title or definition["title"],
+            category=data.category or definition["category"],
+            source=data.source or definition.get("source"),
+            started_at=data.started_at,
+            finished_at=finished_at,
+            next_expected_at=data.next_expected_at,
+            expected_interval_minutes=data.expected_interval_minutes,
+            warning_after_minutes=data.warning_after_minutes,
+            records_imported=data.records_imported,
+            records_total=data.records_total,
+            duration_seconds=data.duration_seconds,
+            message=data.message,
+            raw=data.raw,
+        )
+        await session.commit()
+        await session.refresh(row)
+    return {"status": "ok", "job_name": row.job_name, "job_status": row.status, "last_success_at": row.last_success_at}
+
+
+@app.get("/api/import-status/json")
+async def import_status_json():
+    async with async_session() as session:
+        rows = await import_status_rows(session)
+    return {"rows": rows}
 
 
 @app.post("/api/renhold/ingest")
@@ -6077,6 +6507,16 @@ async def roborock_ingest(data: RoborockIngestIn):
         )
         for robot in data.robots:
             results.append(await ingest_roborock_robot(session, robot, batch_time, data.source))
+        await record_import_job(
+            session,
+            "roborock_sync",
+            ok=data.ok,
+            source=data.source,
+            records_imported=len(data.robots),
+            records_total=len(data.robots),
+            message=data.message or f"{len(data.robots)} roboter synkronisert",
+            raw={"collector_id": data.collector_id, "extra": data.extra},
+        )
         await session.commit()
     return {"status": "ok", "robots": results}
 
@@ -6100,6 +6540,16 @@ async def sun2_room_stats_ingest(data: Sun2RoomStatsIngestIn):
                 message=data.message,
                 raw={"extra": data.extra},
             )
+        )
+        await record_import_job(
+            session,
+            "sun2_room_daily_import",
+            ok=data.ok,
+            source=data.source,
+            records_imported=counts["inserted"] + counts["updated"],
+            records_total=len(data.rows),
+            message=data.message or f"{len(data.rows)} romrader for {data.stat_date or '-'}",
+            raw={"collector_id": data.collector_id, "source_file": data.source_file, "counts": counts},
         )
         await session.commit()
     clear_summary_cache("sun2")
@@ -6130,6 +6580,16 @@ async def sun2_sessions_ingest(data: Sun2TanningSessionsIngestIn):
                 raw={"extra": data.extra},
             )
         )
+        await record_import_job(
+            session,
+            "sun2_sessions_import",
+            ok=data.ok,
+            source=data.source,
+            records_imported=counts["inserted"] + counts["updated"],
+            records_total=len(data.rows),
+            message=data.message or f"{len(data.rows)} enkelttimer mottatt",
+            raw={"collector_id": data.collector_id, "source_file": data.source_file, "counts": counts},
+        )
         await session.commit()
     clear_summary_cache("sun2_sessions", "sun2_session_options", "sun2_session_database_total")
     return {"status": "ok", **counts, "rows": len(data.rows)}
@@ -6140,6 +6600,16 @@ async def sun2_beds_ingest(data: Sun2BedsIngestIn):
     batch_time = data.timestamp or datetime.utcnow()
     async with async_session() as session:
         counts = await ingest_sun2_beds(session, data, batch_time)
+        await record_import_job(
+            session,
+            "sun2_beds_import",
+            ok=data.ok,
+            source=data.source,
+            records_imported=counts["inserted"] + counts["updated"],
+            records_total=len(data.beds),
+            message=data.message or f"{len(data.beds)} senger mottatt",
+            raw={"collector_id": data.collector_id, "counts": counts},
+        )
         await session.commit()
     clear_summary_cache("sun2_session_options")
     return {"status": "ok", **counts, "beds": len(data.beds)}
@@ -6150,6 +6620,16 @@ async def sun2_members_ingest(data: Sun2MembersIngestIn):
     batch_time = data.timestamp or datetime.utcnow()
     async with async_session() as session:
         counts = await ingest_sun2_members(session, data, batch_time)
+        await record_import_job(
+            session,
+            "sun2_members_import",
+            ok=data.ok,
+            source=data.source,
+            records_imported=counts["inserted"] + counts["updated"],
+            records_total=len(data.members),
+            message=data.message or f"{len(data.members)} medlemmer mottatt",
+            raw={"collector_id": data.collector_id, "counts": counts},
+        )
         await session.commit()
     clear_summary_cache("sun2_members")
     return {"status": "ok", **counts, "members": len(data.members)}
@@ -7065,6 +7545,15 @@ async def energy_elvia_upload(request: Request):
                         message="Importert",
                         raw={"partial_months": parsed["partial_months"]},
                     )
+                )
+                await record_import_job(
+                    session,
+                    "elvia_monthly_import",
+                    source="elvia",
+                    records_imported=counts["inserted"] + counts["updated"],
+                    records_total=parsed["hours_count"],
+                    message=f"{parsed['hours_count']} timer for måler {parsed['meter_id']}",
+                    raw={"source_file": filename, "partial_months": parsed["partial_months"], "counts": counts},
                 )
                 await session.commit()
             clear_summary_cache("energy")

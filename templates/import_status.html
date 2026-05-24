@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datakilder</title>
+    <style>
+        :root { color-scheme: light; --bg:#eef2f6; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; --ok:#0f766e; --warn:#b45309; --bad:#9f1239; }
+        * { box-sizing: border-box; }
+        body { margin:0; font-family:system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--text); }
+        main { width:min(100% - 1.4rem, 1180px); margin:0 auto; padding:1rem 0 2rem; }
+        .page-head { margin:0 0 1rem; }
+        h1 { margin:0; font-size:1.5rem; letter-spacing:0; }
+        h2 { margin:0; font-size:1.05rem; letter-spacing:0; }
+        .sub { margin:.2rem 0 0; color:var(--muted); }
+        .summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.7rem; margin-bottom:1rem; }
+        .summary-card, .panel, .job-card { background:var(--panel); border:1px solid var(--line); border-radius:8px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+        .summary-card { padding:.85rem; border-top:4px solid #5292d6; }
+        .summary-card.ok { border-top-color:var(--ok); }
+        .summary-card.warn { border-top-color:var(--warn); }
+        .summary-card.bad { border-top-color:var(--bad); }
+        .summary-card span { display:block; color:var(--muted); font-size:.78rem; font-weight:750; text-transform:uppercase; }
+        .summary-card strong { display:block; margin-top:.15rem; font-size:1.45rem; }
+        .jobs { display:grid; gap:.75rem; margin-bottom:1rem; }
+        .job-card { padding:.9rem; border-left:4px solid #94a3b8; }
+        .job-card.ok { border-left-color:var(--ok); }
+        .job-card.warn { border-left-color:var(--warn); }
+        .job-card.bad { border-left-color:var(--bad); }
+        .job-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.8rem; }
+        .job-title { font-weight:850; font-size:1rem; }
+        .job-meta { color:var(--muted); font-size:.82rem; margin-top:.16rem; }
+        .badge { display:inline-flex; align-items:center; border-radius:999px; padding:.25rem .62rem; font-size:.72rem; font-weight:850; border:1px solid transparent; white-space:nowrap; }
+        .badge.ok { background:#dffaf2; color:var(--ok); border-color:#99f6e4; }
+        .badge.warn { background:#ffedd5; color:var(--warn); border-color:#fed7aa; }
+        .badge.bad { background:#fff1f2; color:var(--bad); border-color:#fecdd3; }
+        .job-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; margin-top:.8rem; }
+        .mini { background:#f8fafc; border:1px solid #edf1f6; border-radius:7px; padding:.55rem .62rem; min-width:0; }
+        .mini span { display:block; color:var(--muted); font-size:.72rem; font-weight:750; }
+        .mini strong { display:block; margin-top:.06rem; font-size:.9rem; overflow-wrap:anywhere; }
+        .message { margin-top:.65rem; color:var(--muted); font-size:.86rem; line-height:1.35; }
+        .panel { padding:.9rem; overflow:hidden; }
+        .table-wrap { overflow:auto; margin-top:.7rem; }
+        table { width:100%; border-collapse:collapse; min-width:760px; font-size:.86rem; }
+        th, td { padding:.55rem .6rem; border-bottom:1px solid #edf1f6; text-align:left; vertical-align:top; }
+        th { color:var(--muted); font-size:.74rem; text-transform:uppercase; letter-spacing:.02em; }
+        td.muted { color:var(--muted); }
+        @media (min-width:760px) {
+            .summary { grid-template-columns:repeat(4,minmax(0,1fr)); }
+            .jobs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .job-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        }
+    </style>
+    {% include "_styles.html" %}
+</head>
+<body class="theme-light">
+    {% include "_header.html" %}
+    <main>
+        <div class="page-head">
+            <h1>Datakilder</h1>
+            <p class="sub">Samlet status for importene og datakildene appen er avhengig av.</p>
+        </div>
+
+        <section class="summary" aria-label="Oppsummering">
+            <article class="summary-card"><span>Totalt</span><strong>{{ counts.total }}</strong></article>
+            <article class="summary-card ok"><span>OK</span><strong>{{ counts.ok }}</strong></article>
+            <article class="summary-card warn"><span>Treg</span><strong>{{ counts.warn }}</strong></article>
+            <article class="summary-card bad"><span>Feil/gammel</span><strong>{{ counts.bad }}</strong></article>
+        </section>
+
+        <section class="jobs" aria-label="Datakilder">
+            {% for row in rows %}
+            <article class="job-card {{ row.status }}">
+                <div class="job-top">
+                    <div>
+                        <div class="job-title">{{ row.title }}</div>
+                        <div class="job-meta">{{ row.category }} · {{ row.source or "-" }}</div>
+                    </div>
+                    <span class="badge {{ row.status }}">{{ row.status_text }}</span>
+                </div>
+                <div class="job-grid">
+                    <div class="mini"><span>Sist OK</span><strong>{% if row.last_success_at %}{{ row.last_success_at.strftime("%d.%m %H:%M") }}{% else %}-{% endif %}</strong></div>
+                    <div class="mini"><span>Alder</span><strong>{{ row.age }}</strong></div>
+                    <div class="mini"><span>Neste forventet</span><strong>{% if row.next_expected_at %}{{ row.next_expected_at.strftime("%d.%m %H:%M") }}{% else %}-{% endif %}</strong></div>
+                    <div class="mini"><span>Poster</span><strong>{% if row.records_imported is not none %}{{ row.records_imported }}{% elif row.records_total is not none %}{{ row.records_total }}{% else %}-{% endif %}</strong></div>
+                </div>
+                <div class="message">{{ row.description }}{% if row.message %}<br>{{ row.message }}{% endif %}</div>
+            </article>
+            {% endfor %}
+        </section>
+
+        <section class="panel">
+            <div class="job-top">
+                <div>
+                    <h2>Siste kjøringer</h2>
+                    <p class="sub">Historikk fra nye importer som rapporterer status.</p>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tid</th>
+                            <th>Jobb</th>
+                            <th>Status</th>
+                            <th>Poster</th>
+                            <th>Melding</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for run in runs %}
+                        <tr>
+                            <td>{% if run.finished_at %}{{ run.finished_at.strftime("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</td>
+                            <td>{{ run.title or run.job_name }}</td>
+                            <td><span class="badge {% if run.ok %}ok{% else %}bad{% endif %}">{% if run.ok %}OK{% else %}Feil{% endif %}</span></td>
+                            <td class="muted">{{ run.records_imported if run.records_imported is not none else "-" }}{% if run.records_total is not none %} / {{ run.records_total }}{% endif %}</td>
+                            <td class="muted">{{ run.message or "-" }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not runs %}
+                        <tr><td colspan="5" class="muted">Ingen nye kjøringer logget ennå. Eksisterende data vises likevel i kortene over.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
