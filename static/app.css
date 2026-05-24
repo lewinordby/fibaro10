@@ -3850,6 +3850,10 @@ textarea:focus {
         box-shadow: none !important;
     }
 
+    body[class] .site-header {
+        width: var(--sun-owner-sidebar) !important;
+    }
+
     .site-header .brand-bar {
         min-height: 100vh !important;
         display: flex !important;
@@ -3861,6 +3865,8 @@ textarea:focus {
 
     .brand-home {
         min-height: 6.25rem !important;
+        width: 100% !important;
+        flex: 0 0 auto !important;
         display: grid !important;
         place-items: center !important;
         border-bottom: 1px solid var(--sun-owner-line) !important;
@@ -3921,6 +3927,12 @@ textarea:focus {
         font-weight: 480 !important;
         line-height: 1 !important;
         text-align: left !important;
+    }
+
+    .app-nav .nav-main > .button.has-sub::after,
+    .app-nav .nav-main > .button.active.has-sub::after {
+        content: none !important;
+        display: none !important;
     }
 
     .app-nav .nav-main > .button:hover {
