@@ -4530,26 +4530,25 @@ async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestI
 async def backfill_sun2_room_identity(session) -> Dict[str, int]:
     counts = {"daily": 0, "sessions": 0}
     for model, key in [(Sun2RoomDailyStat, "daily"), (Sun2TanningSession, "sessions")]:
-        rows = (
-            await session.execute(
-                select(model).where(or_(model.room_id.is_(None), model.sun2_bed_id.is_(None)))
+        source_text = func.lower(func.trim(func.coalesce(model.source_room_name, model.room, model.room_key, "")))
+        missing_identity = or_(model.room_id.is_(None), model.sun2_bed_id.is_(None))
+        old_room = await session.execute(
+            update(model)
+            .where(missing_identity)
+            .where(or_(source_text == ".", source_text == "-"))
+            .values(room_id=SUN2_ROOM_UNKNOWN_OLD_10["room_id"], sun2_bed_id=SUN2_ROOM_UNKNOWN_OLD_10["sun2_bed_id"])
+        )
+        counts[key] += int(old_room.rowcount or 0)
+
+        for display_number, identity in SUN2_ROOM_MAP_BY_DISPLAY.items():
+            room_text = f"rom {display_number}"
+            result = await session.execute(
+                update(model)
+                .where(missing_identity)
+                .where(or_(source_text == room_text, source_text.like(f"{room_text} %")))
+                .values(room_id=identity["room_id"], sun2_bed_id=identity["sun2_bed_id"])
             )
-        ).scalars().all()
-        for row in rows:
-            identity = sun2_room_identity(
-                getattr(row, "source_room_name", None) or getattr(row, "room", None) or getattr(row, "room_key", None),
-                getattr(row, "room_id", None),
-                getattr(row, "sun2_bed_id", None),
-            )
-            changed = False
-            if identity.get("room_id") and row.room_id != identity.get("room_id"):
-                row.room_id = identity.get("room_id")
-                changed = True
-            if identity.get("sun2_bed_id") and getattr(row, "sun2_bed_id", None) != identity.get("sun2_bed_id"):
-                row.sun2_bed_id = identity.get("sun2_bed_id")
-                changed = True
-            if changed:
-                counts[key] += 1
+            counts[key] += int(result.rowcount or 0)
     return counts
 
 
