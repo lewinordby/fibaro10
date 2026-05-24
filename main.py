@@ -1788,10 +1788,8 @@ async def build_sun2_summaries_fast(session) -> Dict[str, Any]:
         weekly[iso_year_key][iso_week]["revenue"] += float_or_zero(item.get("totalt_inntjent_kr"))
         weekly[iso_year_key][iso_week]["count"] += int_or_zero(item.get("totalt_antall_solinger"))
 
-    latest_daily_date = last_date
-    session_filters = []
-    if latest_daily_date:
-        session_filters.append(Sun2TanningSession.stat_date > latest_daily_date)
+    daily_dates_subquery = select(Sun2RoomDailyStat.stat_date).distinct()
+    session_filters = [Sun2TanningSession.stat_date.not_in(daily_dates_subquery)]
     customer_type = func.lower(func.coalesce(Sun2TanningSession.customer_type, ""))
     is_member = customer_type.like("%medlem%") & ~customer_type.like("%ikke%")
     live_session_query = (
