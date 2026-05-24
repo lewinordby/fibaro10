@@ -5855,12 +5855,12 @@ async def sun2_sessions_view(
 
         top_rooms_query = (
             select(
-                func.coalesce(Sun2TanningSession.room, Sun2TanningSession.room_key, "-").label("label"),
+                Sun2TanningSession.room.label("label"),
                 func.count(Sun2TanningSession.id).label("sessions_count"),
                 func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
                 func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
             )
-            .group_by(func.coalesce(Sun2TanningSession.room, Sun2TanningSession.room_key, "-"))
+            .group_by(Sun2TanningSession.room)
             .order_by(func.count(Sun2TanningSession.id).desc())
             .limit(10)
         )
@@ -5889,11 +5889,11 @@ async def sun2_sessions_view(
 
         payment_query = (
             select(
-                func.coalesce(Sun2TanningSession.payment_method, "-").label("label"),
+                Sun2TanningSession.payment_method.label("label"),
                 func.count(Sun2TanningSession.id).label("sessions_count"),
                 func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
             )
-            .group_by(func.coalesce(Sun2TanningSession.payment_method, "-"))
+            .group_by(Sun2TanningSession.payment_method)
             .order_by(func.count(Sun2TanningSession.id).desc())
             .limit(8)
         )
@@ -5903,10 +5903,10 @@ async def sun2_sessions_view(
 
         status_query = (
             select(
-                func.coalesce(Sun2TanningSession.status, "-").label("label"),
+                Sun2TanningSession.status.label("label"),
                 func.count(Sun2TanningSession.id).label("sessions_count"),
             )
-            .group_by(func.coalesce(Sun2TanningSession.status, "-"))
+            .group_by(Sun2TanningSession.status)
             .order_by(func.count(Sun2TanningSession.id).desc())
             .limit(8)
         )

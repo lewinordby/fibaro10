@@ -244,7 +244,7 @@
                     <div class="rank-item">
                         <span class="rank-no">{{ loop.index }}</span>
                         <div class="rank-main">
-                            <strong>{{ item.label }}</strong>
+                            <strong>{{ item.label or "-" }}</strong>
                             <span>{{ "{:,.1f}".format((item.duration_minutes or 0) / 60).replace(",", " ") }} t · {{ "{:,.0f}".format(item.paid_amount_kr or 0).replace(",", " ") }} kr</span>
                         </div>
                         <span class="rank-value">{{ "{:,.0f}".format(item.sessions_count or 0).replace(",", " ") }}</span>
@@ -295,7 +295,7 @@
                     <div class="rank-item">
                         <span class="rank-no">{{ loop.index }}</span>
                         <div class="rank-main">
-                            <strong>{{ item.label }}</strong>
+                            <strong>{{ item.label or "-" }}</strong>
                             <span>{{ "{:,.0f}".format(item.paid_amount_kr or 0).replace(",", " ") }} kr</span>
                         </div>
                         <span class="rank-value">{{ "{:,.0f}".format(item.sessions_count or 0).replace(",", " ") }}</span>
@@ -315,7 +315,7 @@
                     <div class="rank-item">
                         <span class="rank-no">{{ loop.index }}</span>
                         <div class="rank-main">
-                            <strong>{{ item.label }}</strong>
+                            <strong>{{ item.label or "-" }}</strong>
                             <span>Registrert status fra SUN2-listen</span>
                         </div>
                         <span class="rank-value">{{ "{:,.0f}".format(item.sessions_count or 0).replace(",", " ") }}</span>
