@@ -3,8 +3,9 @@
         <a class="brand-home" href="/status/dashboard" aria-label="Gå til status">
             <img class="brand-logo" src="/static/sun2-blue-transparent.png" alt="SUN2">
         </a>
-        <button class="nav-toggle" type="button" aria-label="Bytt menybredde" title="Bytt menybredde">
+        <button class="nav-toggle" type="button" aria-label="Åpne eller lukk meny" title="Åpne eller lukk meny">
             <span class="nav-toggle-lines" aria-hidden="true"></span>
+            <span class="nav-toggle-label">Meny</span>
         </button>
         {% include "_nav.html" %}
     </div>
@@ -12,20 +13,23 @@
 <script>
     (() => {
         const root = document.documentElement;
-        const key = "fibaro10_nav_collapsed";
+        const desktopKey = "fibaro10_nav_collapsed_desktop_v2";
+        const mobileKey = "fibaro10_nav_collapsed_mobile_v2";
         const mobileQuery = window.matchMedia("(max-width: 1019px)");
+        const storageKey = () => mobileQuery.matches ? mobileKey : desktopKey;
         const apply = (collapsed) => {
             root.classList.toggle("nav-collapsed", collapsed);
             document.querySelector(".nav-toggle")?.setAttribute("aria-pressed", collapsed ? "true" : "false");
         };
-        const stored = localStorage.getItem(key);
-        apply(stored === null ? mobileQuery.matches : stored === "1");
+        const restore = () => apply(localStorage.getItem(storageKey()) === "1");
+        restore();
         document.addEventListener("click", (event) => {
             const button = event.target.closest(".nav-toggle");
             if (!button) return;
             const collapsed = !root.classList.contains("nav-collapsed");
-            localStorage.setItem(key, collapsed ? "1" : "0");
+            localStorage.setItem(storageKey(), collapsed ? "1" : "0");
             apply(collapsed);
         });
+        mobileQuery.addEventListener?.("change", restore);
     })();
 </script>

@@ -2754,6 +2754,10 @@ body.theme-status .mode {
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
 
+.nav-toggle-label {
+    display: none;
+}
+
 .nav-toggle-lines,
 .nav-toggle-lines::before,
 .nav-toggle-lines::after {
@@ -3060,6 +3064,17 @@ body.theme-status .mode {
     .nav-toggle {
         order: 3 !important;
         justify-self: end !important;
+        width: auto !important;
+        min-width: 4.85rem !important;
+        grid-template-columns: auto auto !important;
+        gap: 0.48rem !important;
+        padding: 0 0.72rem !important;
+    }
+
+    .nav-toggle-label {
+        display: inline !important;
+        font-size: 0.84rem;
+        font-weight: 760;
     }
 
     .app-nav {
