@@ -29,7 +29,7 @@
         .method-card h2, .section-title { margin:0 0 0.35rem; font-size:1rem; color:var(--brand-dark); }
         .method-card p { margin:0; color:var(--muted); line-height:1.45; font-size:0.86rem; }
         .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
-        table { width:100%; border-collapse:collapse; min-width:920px; }
+        table { width:100%; border-collapse:collapse; min-width:1040px; }
         th, td { padding:0.56rem 0.62rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
         th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
         th { color:var(--muted); font-size:0.72rem; font-weight:780; background:var(--panel-soft); text-transform:uppercase; }
@@ -117,7 +117,8 @@
                 start til {{ summary.cooldown_minutes }} minutter etter slutt, fordi kjøling fortsatt trekker strøm. For selve effektmålingen
                 brukes bare prøver fra {{ summary.warmup_minutes }} minutter etter oppstart og frem til {{ summary.stop_before_end_minutes }}
                 minutt før solingen slutter. Solingen må ha minst {{ summary.min_samples_per_session }} rene minuttmålinger før den brukes.
-                Beregn-knappen regner alltid på nytt fra rådata.
+                Estimatet bruker medianen fordi den tåler enkeltmålinger som stikker seg ut bedre enn vanlig snitt.
+                Normalområde viser 25-75 % av målingene, mens min-maks viser hele spennet. Beregn-knappen regner alltid på nytt fra rådata.
             </p>
         </article>
 
@@ -131,9 +132,10 @@
                     <tr>
                         <th>Rom</th>
                         <th>Seng</th>
+                        <th>Estimat W</th>
                         <th>Snitt W</th>
-                        <th>Median W</th>
-                        <th>Spenn</th>
+                        <th>Normalområde</th>
+                        <th>Min-maks</th>
                         <th>Observasjoner</th>
                         <th>Solinger</th>
                         <th>15 min</th>
@@ -148,17 +150,18 @@
                     <tr>
                         <td class="room">{{ room.label }}</td>
                         <td>{{ room.sun2_bed_id or "-" }}{% if room.bed_model %}<span class="muted"> · {{ room.bed_model }}</span>{% endif %}</td>
-                        <td class="power">{{ "{:,.0f}".format(room.avg_w or 0).replace(",", " ") }}</td>
-                        <td>{{ "{:,.0f}".format(room.median_w or 0).replace(",", " ") }}</td>
+                        <td class="power">{{ "{:,.0f}".format(room.estimate_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(room.avg_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.0f}".format(room.p25_w or 0).replace(",", " ") }} - {{ "{:,.0f}".format(room.p75_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(room.min_w or 0).replace(",", " ") }} - {{ "{:,.0f}".format(room.max_w or 0).replace(",", " ") }}</td>
                         <td>{{ room.samples_count }}</td>
                         <td>{{ room.sessions_count }}</td>
                         <td>{{ "{:.2f}".format(room.kwh_15_min or 0) }} kWh</td>
                         <td>{{ "{:.2f}".format(room.estimated_kwh or 0) }} kWh</td>
                         <td><span class="confidence {{ confidence_class }}">{{ room.confidence }}</span></td>
                         <td class="bar-cell">
-                            <div class="bar-track" title="{{ '{:,.0f}'.format(room.avg_w or 0).replace(',', ' ') }} W">
-                                <div class="bar-fill" style="width:{{ ((room.avg_w or 0) / (max_power or 1) * 100)|round(1) }}%;"></div>
+                            <div class="bar-track" title="{{ '{:,.0f}'.format(room.estimate_w or 0).replace(',', ' ') }} W">
+                                <div class="bar-fill" style="width:{{ ((room.estimate_w or 0) / (max_power or 1) * 100)|round(1) }}%;"></div>
                             </div>
                         </td>
                     </tr>

@@ -5037,20 +5037,23 @@ def build_sunbed_power_analysis(
         baseline_values = item.pop("baseline_values")
         session_count = len(item.pop("sessions"))
         avg_w = sum(net_values) / len(net_values) if net_values else None
+        median_w = median(net_values) if net_values else None
+        estimate_w = median_w
         item.update(
             {
                 "sessions_count": session_count,
                 "avg_w": avg_w,
-                "median_w": median(net_values) if net_values else None,
+                "median_w": median_w,
+                "estimate_w": estimate_w,
                 "p25_w": percentile(net_values, 0.25),
                 "p75_w": percentile(net_values, 0.75),
                 "min_w": min(net_values) if net_values else None,
                 "max_w": max(net_values) if net_values else None,
                 "avg_observed_w": sum(observed_values) / len(observed_values) if observed_values else None,
                 "avg_baseline_w": sum(baseline_values) / len(baseline_values) if baseline_values else None,
-                "kwh_10_min": (avg_w or 0) / 1000 * (10 / 60),
-                "kwh_15_min": (avg_w or 0) / 1000 * (15 / 60),
-                "kwh_20_min": (avg_w or 0) / 1000 * (20 / 60),
+                "kwh_10_min": (estimate_w or 0) / 1000 * (10 / 60),
+                "kwh_15_min": (estimate_w or 0) / 1000 * (15 / 60),
+                "kwh_20_min": (estimate_w or 0) / 1000 * (20 / 60),
                 "confidence": "Høy" if len(net_values) >= 60 and session_count >= 5 else "Middels" if len(net_values) >= 20 and session_count >= 2 else "Lav",
             }
         )
@@ -7650,7 +7653,7 @@ async def energy_sunbed_consumption_view(
 
     bed_lookup = {bed.room_id: bed for bed in bed_rows if bed.room_id}
     analysis = build_sunbed_power_analysis(session_rows, [dict(row) for row in energy_rows], bed_lookup)
-    max_power = max([float_or_zero(room.get("avg_w")) for room in analysis["rooms"]] or [0.0])
+    max_power = max([float_or_zero(room.get("estimate_w")) for room in analysis["rooms"]] or [0.0])
     response = templates.TemplateResponse(
         request,
         "energy_sunbeds.html",
