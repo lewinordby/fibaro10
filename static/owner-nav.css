@@ -1378,3 +1378,127 @@ html.nav-collapsed body .site-header .brand-logo.brand-lilletorget-logo {
         width: min(10.4rem, 58vw) !important;
     }
 }
+
+/* Split Lilletorget header: sun/P toggles menu, text goes to Status. */
+html body .site-header .brand-mark-toggle.nav-toggle {
+    display: inline-grid !important;
+    place-items: center !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: var(--building-navy) !important;
+}
+
+html body .site-header .brand-mark-toggle.nav-toggle:hover,
+html body .site-header .brand-mark-toggle.nav-toggle:focus-visible {
+    background: var(--building-gold-soft) !important;
+    border: 0 !important;
+    box-shadow: 0 0 0 3px rgba(210, 151, 19, 0.18) !important;
+}
+
+html body .site-header .brand-toggle-mark {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    pointer-events: none;
+}
+
+html body .site-header .brand-logo.brand-lilletorget-text-logo {
+    display: block !important;
+    height: auto !important;
+    object-fit: contain !important;
+    filter: none !important;
+}
+
+@media (min-width: 1020px) {
+    html body .site-header .brand-mark-toggle.nav-toggle {
+        position: absolute !important;
+        top: 1.05rem !important;
+        left: 0.92rem !important;
+        right: auto !important;
+        width: 3.45rem !important;
+        min-width: 3.45rem !important;
+        height: 3.45rem !important;
+        border-radius: 999px !important;
+        transform: none !important;
+    }
+
+    html body .site-header .brand-home.brand-lilletorget {
+        min-height: 5.9rem !important;
+        justify-content: flex-start !important;
+        padding: 0.92rem 0.85rem 0.72rem 4.65rem !important;
+        border-bottom: 1px solid var(--owner-line) !important;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%) !important;
+    }
+
+    html body .site-header .brand-logo.brand-lilletorget-text-logo {
+        width: 10.65rem !important;
+        max-width: 100% !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-mark-toggle.nav-toggle {
+        top: 0.66rem !important;
+        left: 50% !important;
+        width: 3.2rem !important;
+        min-width: 3.2rem !important;
+        height: 3.2rem !important;
+        transform: translateX(-50%) !important;
+    }
+
+    html.nav-collapsed body .site-header .brand-home.brand-lilletorget {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    html body .site-header .brand-bar,
+    html.nav-collapsed body .site-header .brand-bar {
+        grid-template-columns: 3rem minmax(0, 1fr) !important;
+    }
+
+    html body .site-header .brand-mark-toggle.nav-toggle,
+    html.nav-collapsed body .site-header .brand-mark-toggle.nav-toggle {
+        position: static !important;
+        inset: auto !important;
+        order: 1 !important;
+        justify-self: start !important;
+        align-self: center !important;
+        width: 2.95rem !important;
+        min-width: 2.95rem !important;
+        height: 2.95rem !important;
+        border-radius: 999px !important;
+        transform: none !important;
+    }
+
+    html body .site-header .brand-home.brand-lilletorget,
+    html.nav-collapsed body .site-header .brand-home.brand-lilletorget {
+        order: 2 !important;
+        min-height: 5rem !important;
+        height: 5rem !important;
+        justify-content: flex-start !important;
+        border: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        max-width: none !important;
+    }
+
+    html body .site-header .brand-logo.brand-lilletorget-text-logo,
+    html.nav-collapsed body .site-header .brand-logo.brand-lilletorget-text-logo {
+        width: min(10.9rem, 56vw) !important;
+        max-width: 100% !important;
+    }
+
+    html body .site-header .app-nav,
+    html.nav-collapsed body .site-header .app-nav {
+        grid-column: 1 / -1 !important;
+    }
+}
+
+@media (max-width: 430px) {
+    html body .site-header .brand-logo.brand-lilletorget-text-logo,
+    html.nav-collapsed body .site-header .brand-logo.brand-lilletorget-text-logo {
+        width: min(9.7rem, 52vw) !important;
+    }
+}
