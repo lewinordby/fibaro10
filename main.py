@@ -4851,6 +4851,7 @@ def build_sunbed_power_analysis(
 ) -> Dict[str, Any]:
     warmup_minutes = 2
     cooldown_minutes = 3
+    stop_before_end_minutes = 1
     min_samples_per_session = 3
     session_items = []
     for row in sessions:
@@ -4867,7 +4868,7 @@ def build_sunbed_power_analysis(
                 "start": start_at,
                 "end": end_at,
                 "measure_start": start_at + timedelta(minutes=warmup_minutes),
-                "measure_end": end_at,
+                "measure_end": end_at - timedelta(minutes=stop_before_end_minutes),
                 "occupied_end": end_at + timedelta(minutes=cooldown_minutes),
                 "duration_minutes": max(0.0, (end_at - start_at).total_seconds() / 60),
             }
@@ -5073,6 +5074,7 @@ def build_sunbed_power_analysis(
             "rooms_count": len(rooms),
             "warmup_minutes": warmup_minutes,
             "cooldown_minutes": cooldown_minutes,
+            "stop_before_end_minutes": stop_before_end_minutes,
             "min_samples_per_session": min_samples_per_session,
         },
     }
