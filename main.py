@@ -4503,6 +4503,154 @@ async def build_light_timeline_group(day_start: datetime, day_end: datetime, tim
     return items
 
 
+async def build_light_chart_markers(day_start: datetime, day_end: datetime, timeline_end: datetime):
+    light_colors = {
+        "lyslist": "#df705d",
+        "reklame": "#f2b84b",
+        "spot_glass_275": "#3f7fbd",
+        "spot_glass_299": "#2f8fa3",
+        "spot_inngang": "#726189",
+        "parkering": "#52a464",
+    }
+    light_shorts = {
+        "lyslist": "Lyslist",
+        "reklame": "Reklame",
+        "spot_glass_275": "Glass",
+        "spot_glass_299": "Massasje",
+        "spot_inngang": "Inngang",
+        "parkering": "Parkering",
+    }
+    devices = [
+        {
+            **device,
+            "short": light_shorts.get(device["key"], device["name"]),
+            "color": light_colors.get(device["key"], "#df705d"),
+            "default": True,
+        }
+        for device in LIGHT_TIMELINE_DEVICES
+    ]
+
+    async with async_session() as session:
+        event_rows = (
+            await session.execute(
+                select(OutdoorLightEvent)
+                .where(OutdoorLightEvent.timestamp >= day_start)
+                .where(OutdoorLightEvent.timestamp < timeline_end)
+                .order_by(OutdoorLightEvent.timestamp.asc())
+            )
+        ).scalars().all()
+        sample_rows = (
+            await session.execute(
+                select(OutdoorLightSample)
+                .where(OutdoorLightSample.timestamp >= day_start)
+                .where(OutdoorLightSample.timestamp < timeline_end)
+                .order_by(OutdoorLightSample.timestamp.asc())
+            )
+        ).scalars().all()
+        sample_rows = dedupe_samples_by_bucket(sample_rows)
+        previous_sample = (
+            await session.execute(
+                select(OutdoorLightSample)
+                .where(OutdoorLightSample.timestamp < day_start)
+                .order_by(OutdoorLightSample.timestamp.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        previous_candidates = (
+            await session.execute(
+                select(OutdoorLightEvent)
+                .where(OutdoorLightEvent.timestamp < day_start)
+                .order_by(OutdoorLightEvent.timestamp.desc())
+                .limit(300)
+            )
+        ).scalars().all()
+
+    events_by_device = {device["key"]: [] for device in devices}
+    for row in event_rows:
+        key = event_device_key(row, LIGHT_TIMELINE_DEVICES)
+        if key in events_by_device:
+            events_by_device[key].append(row)
+
+    markers = []
+    light_lane_y = {device["key"]: 34 + index * 13 for index, device in enumerate(devices)}
+    for device in devices:
+        state = light_sample_state(previous_sample, device) if previous_sample else None
+        if state is None:
+            previous_event = next(
+                (row for row in previous_candidates if event_matches_device(row, device, LIGHT_TIMELINE_DEVICES)),
+                None,
+            )
+            state = state_from_event(previous_event) if previous_event else None
+        if state is None:
+            state = False
+
+        changes = []
+        for row in sample_rows:
+            sample_time = row.bucket_start or row.timestamp
+            if sample_time is None or sample_time >= timeline_end:
+                continue
+            new_state = light_sample_state(row, device)
+            if new_state is None:
+                continue
+            changes.append(
+                {
+                    "time": max(day_start, min(timeline_end, sample_time)),
+                    "state": new_state,
+                    "source_order": 0,
+                    "detail": f"Lux {row.lux:.0f}" if row.lux is not None else "",
+                    "reason": "Statusendring fra 5-minutters luxlogg",
+                }
+            )
+
+        for row in events_by_device.get(device["key"], []):
+            if row.timestamp >= timeline_end:
+                continue
+            new_state = state_from_event(row)
+            if new_state is None:
+                continue
+            detail = event_detail("lys", row)
+            reason = clean_display_text(row.reason or row.source or "")
+            changes.append(
+                {
+                    "time": max(day_start, min(timeline_end, row.timestamp)),
+                    "state": new_state,
+                    "source_order": 1,
+                    "detail": detail,
+                    "reason": reason,
+                }
+            )
+
+        seen = set()
+        for change in sorted(changes, key=lambda item: (item["time"], item["source_order"])):
+            if change["state"] == state:
+                continue
+            action = "PÅ" if change["state"] else "AV"
+            action_class = "on" if change["state"] else "off"
+            marker_key = (device["key"], change["time"].replace(second=0, microsecond=0), action_class)
+            if marker_key in seen:
+                state = change["state"]
+                continue
+            seen.add(marker_key)
+            markers.append(
+                {
+                    "light_key": device["key"],
+                    "light_name": device["name"],
+                    "light_short": device["short"],
+                    "color": device["color"],
+                    "x": percent_between(change["time"], day_start, day_end) * 10,
+                    "lane_y": light_lane_y.get(device["key"], 34),
+                    "time": change["time"].strftime("%H:%M"),
+                    "action": action,
+                    "class": action_class,
+                    "detail": change["detail"],
+                    "reason": change["reason"],
+                }
+            )
+            state = change["state"]
+
+    return {"lights": devices, "events": markers}
+
+
 async def fetch_lux_samples(day_start: datetime, timeline_end: datetime):
     async with async_session() as session:
         sample_result = await session.execute(
@@ -7145,6 +7293,7 @@ async def day_lux_view(request: Request, day: Optional[str] = None, compare_prev
         previous_lux_day = await build_lux_day(previous_day_start, previous_day_end, previous_day_end, lux_values)
     else:
         lux_day = await build_lux_day(day_start, day_end, timeline_end)
+    light_chart = await build_light_chart_markers(day_start, day_end, timeline_end)
     compare_query = "&compare_previous=1" if compare_previous else ""
     return templates.TemplateResponse(
         request,
@@ -7160,6 +7309,7 @@ async def day_lux_view(request: Request, day: Optional[str] = None, compare_prev
             "now_marker": now_marker,
             "now_label": now_local.strftime("%H:%M") if is_today else "",
             "lux_day": lux_day,
+            "light_chart": light_chart,
             "previous_lux_day": previous_lux_day,
             "ticks": [
                 {"label": "00", "x": 0},

@@ -24,6 +24,13 @@
         .metric { background: #f8fafc; border: 1px solid #e5eaf0; border-radius: 7px; padding: 0.7rem; }
         .metric span { display: block; color: var(--muted); font-size: 0.78rem; }
         .metric strong { display: block; margin-top: 0.12rem; font-size: 1.22rem; }
+        .control-section { display:grid; gap:0.48rem; margin-bottom:0.8rem; }
+        .control-title { color:var(--muted); font-size:0.76rem; font-weight:780; text-transform:uppercase; letter-spacing:0.04em; }
+        .toggle-row { display:flex; flex-wrap:wrap; gap:0.4rem; }
+        .series-toggle { --toggle-color:var(--lux); display:inline-flex; align-items:center; gap:0.34rem; border:1px solid var(--line); background:#fff; border-radius:999px; padding:0.28rem 0.55rem 0.28rem 0.42rem; color:var(--muted); font-size:0.78rem; font-weight:740; cursor:pointer; user-select:none; }
+        .series-toggle input { width:0.9rem; height:0.9rem; margin:0; accent-color:var(--toggle-color); cursor:pointer; }
+        .series-toggle i { width:0.18rem; height:0.86rem; border-radius:999px; display:inline-block; background:var(--toggle-color); }
+        .series-toggle:has(input:not(:checked)) { opacity:0.5; }
         .chart-wrap { overflow-x: auto; padding-bottom: 0.35rem; }
         .chart-card { min-width: 760px; }
         svg { display: block; width: 100%; height: auto; background: linear-gradient(#fff, #fbfdff); border: 1px solid #e5eaf0; border-radius: 7px; }
@@ -39,6 +46,8 @@
         .previous-lux-line { fill: none; stroke: var(--lux-previous); stroke-width: 1.55; stroke-linejoin: round; stroke-linecap: round; opacity: 0.72; }
         .now-line { stroke: #ef4444; stroke-width: 2; }
         .now-label { fill: #ef4444; font-size: 13px; font-weight: 800; }
+        .light-line { stroke-width: 1.05; opacity: 0.76; }
+        .light-marker { stroke:#fff; stroke-width:1.5; }
         .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--muted); font-size: 0.86rem; margin-top: 0.65rem; }
         .key { display: inline-flex; align-items: center; gap: 0.35rem; }
         .swatch { width: 1rem; height: 0.55rem; border-radius: 999px; display: inline-block; background: var(--lux); }
@@ -81,6 +90,18 @@
                 <div class="metric"><span>Høyest</span><strong>{{ lux_day.summary.max }} lux</strong></div>
                 <div class="metric"><span>Antall målinger</span><strong>{{ lux_day.summary.count }}</strong></div>
             </div>
+            <div class="control-section">
+                <div class="control-title">Lys i grafen</div>
+                <div class="toggle-row" id="lightControls">
+                    {% for light in light_chart.lights %}
+                    <label class="series-toggle" style="--toggle-color:{{ light.color }}">
+                        <input type="checkbox" value="{{ light.key }}" {% if light.default %}checked{% endif %}>
+                        <i aria-hidden="true"></i>
+                        <span>{{ light.short }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
             <div class="chart-wrap">
                 <div class="chart-card">
                     <svg viewBox="0 0 1000 330" role="img" aria-label="Lux gjennom dagen">
@@ -104,6 +125,13 @@
                         {% if lux_day.polyline %}
                         <polyline class="lux-line" points="{{ lux_day.polyline }}"></polyline>
                         {% endif %}
+                        {% for event in light_chart.events %}
+                        <g class="light-event" data-light-key="{{ event.light_key }}">
+                            <line class="light-line" x1="{{ event.x }}" y1="22" x2="{{ event.x }}" y2="278" stroke="{% if event['class'] == 'on' %}#52a464{% else %}#df705d{% endif %}" {% if event['class'] == 'off' %}stroke-dasharray="3 4"{% endif %}></line>
+                            <circle class="light-marker" cx="{{ event.x }}" cy="{{ event.lane_y }}" r="4.4" fill="{{ event.color }}"></circle>
+                            <title>{{ event.time }} {{ event.light_short }} {{ event.action }}{% if event.detail %} · {{ event.detail }}{% endif %}{% if event.reason %} · {{ event.reason }}{% endif %}</title>
+                        </g>
+                        {% endfor %}
                         {% if is_today and now_marker is not none %}
                         <line class="now-line" x1="{{ now_marker * 10 }}" y1="14" x2="{{ now_marker * 10 }}" y2="286"></line>
                         <text class="now-label" x="{{ now_marker * 10 }}" y="12" text-anchor="middle">{{ now_label }}</text>
@@ -119,39 +147,24 @@
                 <span class="key">Referanse: 100, 1000 og 2K lux</span>
                 <span class="key">Skala: delt lineær, 0-2K nederst og 2K-{{ lux_day.summary.scale_max }} øverst</span>
                 <span class="key">Grafen stopper ved nå-linjen for dagens dato</span>
-            </div>
-        </section>
-
-        <section class="panel">
-            <h2>Målinger</h2>
-            {% if not lux_day.samples_desc %}
-            <div class="empty">Ingen luxmålinger denne dagen.</div>
-            {% endif %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Tid</th>
-                            <th>Lux</th>
-                            <th>Modus</th>
-                            <th>Lysstatus</th>
-                            <th>Kilde</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in lux_day.samples_desc %}
-                        <tr>
-                            <td>{{ row.time }}</td>
-                            <td>{{ row.lux_label }}</td>
-                            <td>{{ row.mode or "-" }}</td>
-                            <td>{{ row.lights }}</td>
-                            <td>{{ row.source or "-" }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <span class="key">Grønn/rød strek: lys på/av</span>
             </div>
         </section>
     </main>
+    <script>
+        (() => {
+            const inputs = document.querySelectorAll("#lightControls input");
+            const render = () => {
+                inputs.forEach((input) => {
+                    const key = window.CSS && CSS.escape ? CSS.escape(input.value) : input.value;
+                    document.querySelectorAll(`.light-event[data-light-key="${key}"]`).forEach((event) => {
+                        event.style.display = input.checked ? "" : "none";
+                    });
+                });
+            };
+            inputs.forEach((input) => input.addEventListener("change", render));
+            render();
+        })();
+    </script>
 </body>
 </html>
