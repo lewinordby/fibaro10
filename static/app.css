@@ -1,17 +1,17 @@
 :root {
-    --page-width: 1180px;
+    --page-width: 1240px;
     --brand: #5292d6;
     --brand-strong: #326fa8;
-    --brand-dark: #26323f;
+    --brand-dark: #071a45;
     --brand-soft: #eaf4ff;
     --brand-ring: rgba(82, 146, 214, 0.26);
-    --bg: #f5f7fb;
+    --bg: #f3f6fa;
     --panel: #ffffff;
-    --panel-soft: #f9fbfe;
+    --panel-soft: #f8fafc;
     --line: #dbe3ec;
-    --line-soft: #edf1f6;
-    --text: #26323f;
-    --muted: #64748b;
+    --line-soft: #edf2f7;
+    --text: #202b38;
+    --muted: #647386;
     --cool: #326fa8;
     --lux: #6d5b86;
     --on: #378b5d;
@@ -27,39 +27,40 @@
     --status-soft: #eaf4ff;
     --status-border: #b8d8f0;
     --status-ring: rgba(50, 111, 168, 0.24);
-    --light-color: #a96f16;
+    --light-color: #d29713;
     --light-soft: #fff4da;
     --light-border: #e9c37a;
-    --light-ring: rgba(169, 111, 22, 0.24);
-    --vent-color: #3f8f50;
+    --light-ring: rgba(210, 151, 19, 0.24);
+    --vent-color: #4fa35a;
     --vent-soft: #eaf5ed;
     --vent-border: #b9dfc2;
-    --vent-ring: rgba(63, 143, 80, 0.24);
+    --vent-ring: rgba(79, 163, 90, 0.24);
     --cleaning-color: #6d5b86;
     --cleaning-soft: #f0edf5;
     --cleaning-border: #cec4db;
     --cleaning-ring: rgba(109, 91, 134, 0.24);
-    --sun2-color: #b84f45;
+    --sun2-color: #d66d5b;
     --sun2-soft: #faebe8;
     --sun2-border: #e6b4ad;
-    --sun2-ring: rgba(184, 79, 69, 0.24);
+    --sun2-ring: rgba(214, 109, 91, 0.24);
     --admin-color: #536276;
-    --admin-soft: #f0edf5;
+    --admin-soft: #f3f6fa;
     --admin-border: #c9d1dc;
     --admin-ring: rgba(83, 98, 118, 0.24);
-    --energy-color: #946512;
+    --energy-color: #9a660f;
     --energy-soft: #fff4da;
     --energy-border: #dfc076;
-    --energy-ring: rgba(148, 101, 18, 0.26);
+    --energy-ring: rgba(154, 102, 15, 0.26);
     --ai-color: #4b63b6;
     --ai-soft: #edf2ff;
     --ai-border: #c8d5ff;
     --ai-ring: rgba(75, 99, 182, 0.24);
-    --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
-    --shadow-2: 0 8px 22px rgba(16, 24, 40, 0.08);
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 10px;
+    --shadow-1: 0 1px 2px rgba(24, 39, 75, 0.05), 0 8px 22px rgba(24, 39, 75, 0.055);
+    --shadow-2: 0 14px 35px rgba(24, 39, 75, 0.09);
+    --radius-sm: 7px;
+    --radius-md: 9px;
+    --radius-lg: 12px;
+    --surface: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
 }
 
 * {
@@ -1525,5 +1526,140 @@ main :where(.table-wrap table) {
 
     main :where(a.button, button:not(.nav-toggle)) {
         min-height: 2.42rem;
+    }
+}
+
+/* 2026-05-25 design consolidation: single palette, calmer density, shared controls. */
+html {
+    background: #eef3f8;
+}
+
+body {
+    background:
+        radial-gradient(circle at -4rem -5rem, rgba(210, 151, 19, 0.09), transparent 30rem),
+        radial-gradient(circle at 100% 0, rgba(82, 146, 214, 0.08), transparent 28rem),
+        linear-gradient(180deg, #f8fafc 0%, #eef3f8 46%, #f4f7fb 100%) !important;
+}
+
+main {
+    --surface-border: rgba(203, 213, 225, 0.88);
+    --surface-shadow: 0 1px 2px rgba(16, 24, 40, 0.035), 0 10px 24px rgba(38, 50, 63, 0.055);
+    --surface-shadow-hover: 0 1px 2px rgba(16, 24, 40, 0.045), 0 16px 32px rgba(38, 50, 63, 0.08);
+}
+
+main :where(.page-title, .section-row, .section-head, .chart-head) {
+    gap: 0.75rem;
+}
+
+main :where(.page-title, .section-title, .chart-title, .area-title, .event-title, .card-title, h1, h2, h3) {
+    color: var(--brand-dark) !important;
+}
+
+main :where(.page-subtitle, .section-note, .chart-note, .detail, .help, .sub, small) {
+    color: var(--muted) !important;
+}
+
+main :where(.panel, .hero, .event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .filter-panel, .area-card, .clean-card, .table-wrap, details) {
+    border-color: var(--surface-border) !important;
+    background: var(--surface) !important;
+    box-shadow: var(--surface-shadow) !important;
+}
+
+main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, .area-card, details) {
+    border-radius: var(--radius-lg) !important;
+}
+
+main :where(.metric, .temp, .cell, .mini-metric, .stat-card, .quick-card, .health-card) {
+    background: #f8fafc !important;
+    border-color: #e4ebf3 !important;
+}
+
+main :where(.event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .quick-card, .area-card):hover {
+    box-shadow: var(--surface-shadow-hover) !important;
+    transform: translateY(-1px);
+}
+
+main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button) {
+    min-height: 2.38rem;
+    border: 1px solid #ccd6e2 !important;
+    border-radius: var(--radius-md) !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%) !important;
+    color: var(--brand-dark) !important;
+    box-shadow: 0 1px 1px rgba(16, 24, 40, 0.025) !important;
+    font-weight: 740 !important;
+}
+
+main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button):hover {
+    border-color: var(--page-accent-border) !important;
+    background: #ffffff !important;
+    box-shadow: 0 7px 18px rgba(38, 50, 63, 0.08) !important;
+}
+
+main :where(a.button.active, button.active, .chart-toggle.active, .sun-chip.active, .active > .button) {
+    border-color: var(--page-accent) !important;
+    background: var(--page-accent) !important;
+    color: #ffffff !important;
+}
+
+main :where(input, select, textarea) {
+    border-color: #ccd6e2 !important;
+    border-radius: var(--radius-md) !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+}
+
+main :where(input, select, textarea):focus {
+    border-color: var(--page-accent) !important;
+    box-shadow: 0 0 0 4px var(--page-accent-ring) !important;
+    outline: none !important;
+}
+
+main :where(table) {
+    background: #ffffff;
+}
+
+main :where(th) {
+    background: #f7fafc !important;
+    color: #5f6f84 !important;
+    font-size: 0.75rem !important;
+    letter-spacing: 0 !important;
+}
+
+main :where(td, th) {
+    border-bottom-color: #e8eef5 !important;
+}
+
+main :where(tbody tr:hover td) {
+    background: color-mix(in srgb, var(--page-accent-soft) 44%, #ffffff) !important;
+}
+
+main :where(.badge, .pill, .status-pill, .mode, .flag, .live-pill, .stat-pill) {
+    border-radius: 999px !important;
+    font-weight: 780 !important;
+}
+
+body.theme-status .now-card,
+body.theme-status .quick-card,
+body.theme-status .status-card {
+    background: #ffffff !important;
+}
+
+body.theme-light .lux-line,
+body.theme-light .ref-line {
+    stroke: var(--light-color) !important;
+}
+
+body.theme-energy .bar:not(.elvia),
+body.theme-energy .dot:not(.elvia):not(.delta) {
+    background: var(--energy-color) !important;
+}
+
+@media (max-width: 640px) {
+    main {
+        width: min(100% - 0.85rem, var(--page-width)) !important;
+    }
+
+    main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, .area-card, details) {
+        border-radius: var(--radius-md) !important;
     }
 }

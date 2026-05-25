@@ -239,11 +239,11 @@ html body {
         width: calc(100% - 0.52rem) !important;
         margin: 0.44rem 0.26rem 0 !important;
         padding-left: 1.75rem !important;
-        border: 2px solid #1f1f1f !important;
+        border: 1px solid var(--section-border) !important;
         border-radius: 5px !important;
-        background: #fff !important;
-        color: #26323f !important;
-        box-shadow: none !important;
+        background: linear-gradient(180deg, #ffffff 0%, var(--section-soft) 100%) !important;
+        color: var(--owner-navy) !important;
+        box-shadow: inset 4px 0 0 var(--section-color) !important;
     }
 
     .app-nav .nav-main > .button.active:not(.has-sub) {
@@ -253,9 +253,8 @@ html body {
     }
 
     .app-nav .nav-main > .button.active.has-sub .nav-label {
-        text-decoration: underline !important;
-        text-decoration-thickness: 1px !important;
-        text-underline-offset: 0.16rem !important;
+        text-decoration: none !important;
+        font-weight: 740 !important;
     }
 
     .app-nav .nav-main > .button.active .nav-chevron {
@@ -308,8 +307,8 @@ html body {
     }
 
     .app-nav .nav-sub .button.active {
-        background: #eef3f8 !important;
-        color: #26323f !important;
+        background: #ffffff !important;
+        color: var(--owner-navy) !important;
         box-shadow: inset 3px 0 0 var(--section-color) !important;
         font-weight: 720 !important;
     }
@@ -506,15 +505,15 @@ html body {
         width: calc(100% - 0.68rem) !important;
         margin: 0.34rem 0.34rem 0 !important;
         padding-left: 1rem !important;
-        border: 2px solid #1f1f1f !important;
+        border: 1px solid var(--section-border) !important;
         border-radius: 5px !important;
-        background: #fff !important;
-        box-shadow: none !important;
+        background: linear-gradient(180deg, #ffffff 0%, var(--section-soft) 100%) !important;
+        box-shadow: inset 4px 0 0 var(--section-color) !important;
     }
 
     .app-nav .nav-main > .button.active.has-sub .nav-label {
-        text-decoration: underline !important;
-        text-underline-offset: 0.15rem !important;
+        text-decoration: none !important;
+        font-weight: 740 !important;
     }
 
     .app-nav .nav-main > .button.active .nav-chevron {
@@ -567,8 +566,8 @@ html body {
     }
 
     .app-nav .nav-sub .button.active {
-        background: #eef3f8 !important;
-        color: #26323f !important;
+        background: #ffffff !important;
+        color: var(--owner-navy) !important;
         box-shadow: inset 3px 0 0 var(--section-color) !important;
         font-weight: 720 !important;
     }
