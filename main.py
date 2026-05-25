@@ -6344,7 +6344,10 @@ async def index(request: Request):
         "total": len(import_rows),
     }
     attention_items = []
+    event_freshness_names = {"Lys-hendelser", "Ventilasjonshendelser"}
     for item in freshness_items:
+        if item["name"] in event_freshness_names:
+            continue
         if item["status"] in {"warn", "bad"}:
             attention_items.append(
                 dashboard_alert(
