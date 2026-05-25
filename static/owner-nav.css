@@ -213,7 +213,8 @@ html body {
         stroke-width: 2.08 !important;
     }
 
-    .app-nav .nav-sub {
+    .app-nav .nav-sub,
+    .app-nav .nav-main > .nav-sub {
         width: 100% !important;
         display: flex !important;
         flex-direction: column !important;
@@ -470,7 +471,8 @@ html body {
         stroke-width: 2.08 !important;
     }
 
-    .app-nav .nav-sub {
+    .app-nav .nav-sub,
+    .app-nav .nav-main > .nav-sub {
         width: 100% !important;
         display: flex !important;
         flex-direction: column !important;
