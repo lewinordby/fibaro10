@@ -3866,6 +3866,17 @@ def import_job_age(row: Optional[ImportJobStatus]) -> str:
     return age_label(minutes_since(stamp))
 
 
+def format_short_number(value: Any, decimals: int = 0) -> str:
+    number = float_or_zero(value)
+    if decimals:
+        return f"{number:,.{decimals}f}".replace(",", " ")
+    return f"{round(number):,}".replace(",", " ")
+
+
+def dashboard_alert(level: str, title: str, detail: str, href: str = "/status/datakilder") -> Dict[str, str]:
+    return {"level": level, "title": title, "detail": detail, "href": href}
+
+
 async def record_import_job(
     session,
     job_name: str,
@@ -6228,12 +6239,41 @@ async def root_redirect():
 
 @app.get("/status/dashboard", response_class=HTMLResponse)
 async def index(request: Request):
+    today = local_now_naive().date()
     async with async_session() as session:
         lights = (await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(200))).scalars().all()
         light_samples = (await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))).scalars().all()
         ventilation = (await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(100))).scalars().all()
         samples = (await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))).scalars().all()
         yr_samples = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().all()
+        import_rows = await import_status_rows(session)
+        today_sun = (
+            await session.execute(
+                select(
+                    func.count(Sun2TanningSession.id).label("sessions"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                    func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
+                ).where(Sun2TanningSession.stat_date == today)
+            )
+        ).one()
+        today_energy = (
+            await session.execute(
+                select(
+                    func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0).label("kwh"),
+                    func.count(EnergyHourlyConsumption.id).label("hours"),
+                    func.max(EnergyHourlyConsumption.measured_at).label("last_at"),
+                ).where(EnergyHourlyConsumption.stat_date == today)
+            )
+        ).one()
+        robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+        schedules = (
+            await session.execute(
+                select(RoborockSchedule)
+                .where(RoborockSchedule.enabled == True)
+                .order_by(RoborockSchedule.cron)
+            )
+        ).scalars().all()
 
     latest_light_by_key = {}
     for row in lights:
@@ -6297,6 +6337,95 @@ async def index(request: Request):
         freshness_item("Lys-hendelser", lights[0] if lights else None, 120, 360),
         freshness_item("Ventilasjonshendelser", ventilation[0] if ventilation else None, 120, 360),
     ]
+    import_counts = {
+        "ok": sum(1 for row in import_rows if row["status"] == "ok"),
+        "warn": sum(1 for row in import_rows if row["status"] == "warn"),
+        "bad": sum(1 for row in import_rows if row["status"] == "bad"),
+        "total": len(import_rows),
+    }
+    attention_items = []
+    for item in freshness_items:
+        if item["status"] in {"warn", "bad"}:
+            attention_items.append(
+                dashboard_alert(
+                    item["status"],
+                    item["name"],
+                    f"{item['status_text']} - sist sett {item['age']}.",
+                    "/status/datakilder",
+                )
+            )
+    for row in import_rows:
+        if row["status"] in {"warn", "bad"}:
+            attention_items.append(
+                dashboard_alert(
+                    row["status"],
+                    row["title"],
+                    f"{row['status_text']} - {row['age']}.",
+                    "/status/datakilder",
+                )
+            )
+    missing_light_status = [item["name"] for item in light_status if item["state"] is None]
+    if missing_light_status:
+        attention_items.append(
+            dashboard_alert(
+                "warn",
+                "Lysstatus",
+                f"Mangler sikker status for {len(missing_light_status)} lys.",
+                "/lys/hendelser",
+            )
+        )
+    missing_vent_status = [item["name"] for item in vent_status if item["state"] is None]
+    if missing_vent_status:
+        attention_items.append(
+            dashboard_alert(
+                "warn",
+                "Ventilasjonsstatus",
+                f"Mangler sikker status for {len(missing_vent_status)} vifter.",
+                "/ventilasjon/hendelser",
+            )
+        )
+    attention_items = attention_items[:6]
+
+    recent_robot_cutoff = local_now_naive() - timedelta(minutes=20)
+    active_robots = [
+        robot for robot in robots
+        if robot.last_seen_at and robot.last_seen_at >= recent_robot_cutoff
+    ]
+    next_schedule = sorted(schedules, key=roborock_next_schedule_score)[0] if schedules else None
+    ops_cards = [
+        {
+            "title": "Datakilder",
+            "value": f"{import_counts['ok']}/{import_counts['total']}",
+            "unit": "OK",
+            "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel",
+            "href": "/status/datakilder",
+            "tone": "status",
+        },
+        {
+            "title": "Soling i dag",
+            "value": format_short_number(today_sun.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {format_short_number(today_sun.paid)} kr - {today_sun.rooms or 0} rom",
+            "href": f"/soling/dagslinje?day={today.isoformat()}",
+            "tone": "sun2",
+        },
+        {
+            "title": "Strøm i dag",
+            "value": format_short_number(today_energy.kwh, 1),
+            "unit": "kWh",
+            "detail": f"{today_energy.hours or 0} timer importert" + (f" - sist {today_energy.last_at.strftime('%H:%M')}" if today_energy.last_at else ""),
+            "href": "/energi/elvia",
+            "tone": "energy",
+        },
+        {
+            "title": "Renhold",
+            "value": f"{len(active_robots)}/{len(robots)}",
+            "unit": "aktive",
+            "detail": f"Neste: {roborock_schedule_text(next_schedule)}" if next_schedule else "Ingen aktiv plan funnet",
+            "href": "/renhold/oversikt",
+            "tone": "cleaning",
+        },
+    ]
 
     return templates.TemplateResponse(
         request,
@@ -6315,6 +6444,8 @@ async def index(request: Request):
             "ntfy_ventilation_web_url": ntfy_topic_url(NTFY_VENTILATION_TOPIC),
             "vent_status": vent_status,
             "freshness_items": freshness_items,
+            "ops_cards": ops_cards,
+            "attention_items": attention_items,
         },
     )
 
