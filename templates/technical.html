@@ -17,7 +17,7 @@
         .grid { display:grid; gap:.85rem; }
         .panel { background:var(--panel); border:1px solid var(--line); border-top:4px solid var(--page-accent); border-radius:8px; padding:.9rem; box-shadow:0 1px 3px rgba(15,23,42,.06); }
         .list { display:grid; gap:.48rem; margin:.55rem 0 0; padding:0; list-style:none; }
-        .list li { display:grid; grid-template-columns:8.2rem minmax(0,1fr); gap:.55rem; padding:.45rem 0; border-top:1px solid #edf1f6; }
+        .list li { display:grid; grid-template-columns:8.7rem minmax(0,1fr); gap:.55rem; padding:.45rem 0; border-top:1px solid #edf1f6; }
         .list li:first-child { border-top:0; }
         .key { color:#526174; font-size:.78rem; font-weight:820; text-transform:uppercase; }
         .value { color:var(--text); overflow-wrap:anywhere; }
@@ -53,18 +53,20 @@
                     <li><span class="key">Navn</span><span class="value">Fibaro10 / Lilletorget drift</span></li>
                     <li><span class="key">Produksjon</span><span class="value"><code>https://fibaro10.onrender.com</code></span></li>
                     <li><span class="key">Kode</span><span class="value">GitHub-repo deployes til Render fra <code>main</code>.</span></li>
-                    <li><span class="key">Backend</span><span class="value">FastAPI med PostgreSQL-database.</span></li>
-                    <li><span class="key">Frontend</span><span class="value">Server-renderte HTML-maler, felles CSS og meny.</span></li>
+                    <li><span class="key">Backend</span><span class="value">FastAPI med PostgreSQL-database og GZip-komprimering.</span></li>
+                    <li><span class="key">Frontend</span><span class="value">Server-renderte Jinja-maler. Felles design ligger i <code>static/app.css</code>, meny/header i <code>static/owner-nav.css</code>.</span></li>
+                    <li><span class="key">Branding</span><span class="value">Lilletorget-logo. Sol/P-symbol åpner/lukker meny, tekstlogo går til Status.</span></li>
                 </ul>
             </article>
 
             <article class="panel">
                 <h2>Tilgang</h2>
                 <ul class="list">
-                    <li><span class="key">Innlogging</span><span class="value">Brukernavn og passord/nøkkel lagres som tilgangsnøkler.</span></li>
+                    <li><span class="key">Innlogging</span><span class="value">Brukernavn og passord/nøkkel. Normal bruk skjer med cookie etter innlogging.</span></li>
                     <li><span class="key">Roller</span><span class="value">Master, Innstillinger og Vanlig bruker.</span></li>
-                    <li><span class="key">Varsel</span><span class="value">Master kan abonnere på ntfy-varsel når andre brukere benytter løsningen.</span></li>
-                    <li><span class="key">Admin</span><span class="value">Brukere og nøkler ligger under Konto.</span></li>
+                    <li><span class="key">Master</span><span class="value">Kan opprette brukere, se nøkler, endre roller og abonnere på tilgangsvarsel.</span></li>
+                    <li><span class="key">Innstillinger</span><span class="value">Kan endre styringsverdier for lys og ventilasjon, men ikke administrere brukere.</span></li>
+                    <li><span class="key">Logger</span><span class="value">Lokal/QNAP-baserte tjenester kan poste med egen bruker via HTTP-headere.</span></li>
                 </ul>
             </article>
         </section>
@@ -72,41 +74,41 @@
         <section class="panel">
             <h2>Dataflyt</h2>
             <div class="flow">
-                <div class="step"><strong>HC3</strong><p>Poster lys, lux, ventilasjon, temperatur og Yr-data til API-et.</p></div>
-                <div class="step"><strong>Lokale loggere</strong><p>QNAP/Docker kan hente Roborock og SUN2-data og sende inn til API-et.</p></div>
-                <div class="step"><strong>Database</strong><p>Data lagres i egne tabeller for lys, ventilasjon, renhold, soling, energi og importstatus.</p></div>
-                <div class="step"><strong>Grensesnitt</strong><p>Sidene viser status, tidslinjer, logger, grafer og feilsignaler fra samme datagrunnlag.</p></div>
+                <div class="step"><strong>HC3</strong><p>Poster lys, lux, ventilasjon, temperatur, energi og Yr-grunnlag til API-et.</p></div>
+                <div class="step"><strong>Lokale loggere</strong><p>QNAP/Docker henter Roborock og SUN2-data og sender strukturerte batcher inn.</p></div>
+                <div class="step"><strong>Database</strong><p>Data lagres i egne tabeller for lys, ventilasjon, renhold, soling, energi, AI, tilgang og importstatus.</p></div>
+                <div class="step"><strong>Grensesnitt</strong><p>Sidene viser status, tidslinjer, logger, grafer, innstillinger og feilsignaler fra samme datagrunnlag.</p></div>
             </div>
         </section>
 
         <section class="grid three">
             <article class="panel">
-                <h2>Hyppige data</h2>
+                <h2>Hyppige logger</h2>
                 <ul class="list">
-                    <li><span class="key">Lys</span><span class="value">Lux og lysstatus logges hvert 5. minutt.</span></li>
-                    <li><span class="key">Ventilasjon</span><span class="value">Temperaturer, viftestatus og effektgrunnlag logges hvert 5. minutt.</span></li>
-                    <li><span class="key">Yr</span><span class="value">Værdata hentes når Yr-varselet er utløpt eller må fornyes.</span></li>
-                    <li><span class="key">Roborock</span><span class="value">Robotstatus hentes av Roborock_logger og postes til API-et.</span></li>
+                    <li><span class="key">Lys</span><span class="value">Lux og lysstatus hvert 5. minutt. Hendelser ved statusendring.</span></li>
+                    <li><span class="key">Ventilasjon</span><span class="value">Temperaturer, viftestatus, modus og effektgrunnlag hvert 5. minutt.</span></li>
+                    <li><span class="key">Energi HC3</span><span class="value">Realtime W og akkumulert kWh hvert minutt fra quickapps i HC3.</span></li>
+                    <li><span class="key">Yr</span><span class="value">Hentes/lagres når varselet må fornyes, og knyttes til ventilasjonsgrunnlaget.</span></li>
                 </ul>
             </article>
 
             <article class="panel">
                 <h2>SUN2-import</h2>
                 <ul class="list">
-                    <li><span class="key">Dagsfiler</span><span class="value">Summer per rom og dato.</span></li>
-                    <li><span class="key">Enkeltimer</span><span class="value">Solinger med tidspunkt, rom, bruker, varighet og beløp.</span></li>
-                    <li><span class="key">Medlemmer</span><span class="value">Medlemsregister importeres separat.</span></li>
-                    <li><span class="key">Senger</span><span class="value">Rom-/sengmetadata brukes for mer stabile rom-id-er.</span></li>
+                    <li><span class="key">Dagsfiler</span><span class="value">Nattlig nedlasting/import av summer per rom og dato.</span></li>
+                    <li><span class="key">Enkeltimer</span><span class="value">Skrapes omtrent hvert 5. minutt for inneværende dag/måned. Duplikater unngås med naturlig nøkkel.</span></li>
+                    <li><span class="key">Medlemmer</span><span class="value">Synkes periodisk. SUN2-id er den stabile nøkkelen.</span></li>
+                    <li><span class="key">Senger</span><span class="value">Rom-/sengmetadata gir stabil fysisk rom-id selv om SUN2-navn endres.</span></li>
                 </ul>
             </article>
 
             <article class="panel">
-                <h2>Energi</h2>
+                <h2>Renhold og energi</h2>
                 <ul class="list">
-                    <li><span class="key">Elvia</span><span class="value">Manuell opplasting av timesfil under Energi.</span></li>
-                    <li><span class="key">Format</span><span class="value">Importen lagrer forbruk per time i egen tabell.</span></li>
-                    <li><span class="key">Bruk</span><span class="value">Kan sammenlignes med soling på dagslinje.</span></li>
-                    <li><span class="key">HC3</span><span class="value">Lokalt vedlikeholdsverktøy: <a href="http://192.168.20.218:8108" target="_blank" rel="noopener">HC3 vedlikehold</a>.</span></li>
+                    <li><span class="key">Roborock</span><span class="value">Lokal logger sender robotstatus, jobber, planer, forbruksdeler og kartdata.</span></li>
+                    <li><span class="key">Elvia</span><span class="value">Manuell opplasting av timesfil under Energi → Elvia.</span></li>
+                    <li><span class="key">Forbruk/seng</span><span class="value">Beregnes fra SUN2 enkelttimer og HC3 differanseforbruk når nøyaktig én seng er i bruk.</span></li>
+                    <li><span class="key">HC3 verktøy</span><span class="value">Lokalt vedlikeholdsverktøy: <a href="http://192.168.20.218:8108" target="_blank" rel="noopener">HC3 vedlikehold</a>.</span></li>
                 </ul>
             </article>
         </section>
@@ -115,27 +117,31 @@
             <h2>Viktige endepunkter</h2>
             <ul class="list">
                 <li><span class="key">Helse</span><span class="value"><code>/health</code></span></li>
-                <li><span class="key">HC3 inn</span><span class="value"><code>/events</code> og eldre <code>/log</code></span></li>
+                <li><span class="key">HC3 inn</span><span class="value"><code>/events</code>, eldre <code>/log</code> og <code>/api/energi/fibaro</code></span></li>
                 <li><span class="key">Importstatus</span><span class="value"><code>/api/import-status/json</code></span></li>
+                <li><span class="key">Config</span><span class="value"><code>/api/config</code>, <code>/api/config/lights</code>, <code>/api/config/ventilation</code></span></li>
                 <li><span class="key">Lys</span><span class="value"><code>/lights/json</code> og <code>/lights/samples/json</code></span></li>
-                <li><span class="key">Ventilasjon</span><span class="value"><code>/ventilation/json</code> og <code>/ventilation/samples/json</code></span></li>
-                <li><span class="key">Soling</span><span class="value"><code>/api/sun2/sessions/json</code>, <code>/api/sun2/members/json</code>, <code>/api/sun2/beds/json</code></span></li>
-                <li><span class="key">Energi</span><span class="value"><code>/api/energi/elvia/json</code></span></li>
+                <li><span class="key">Ventilasjon</span><span class="value"><code>/ventilation/json</code>, <code>/ventilation/samples/json</code>, <code>/yr/samples/json</code></span></li>
+                <li><span class="key">Soling</span><span class="value"><code>/api/sun2/sessions/json</code>, <code>/api/sun2/members/json</code>, <code>/api/sun2/beds/json</code>, <code>/api/sun2/room-stats/json</code></span></li>
+                <li><span class="key">Energi</span><span class="value"><code>/api/energi/fibaro/json</code> og <code>/api/energi/elvia/json</code></span></li>
+                <li><span class="key">Renhold</span><span class="value"><code>/api/renhold/ingest</code> og <code>/renhold/json</code></span></li>
+                <li><span class="key">AI</span><span class="value"><code>/api/ai/datasets/json</code> og <code>/api/ai/logs/json</code></span></li>
             </ul>
         </section>
 
         <section class="panel">
             <h2>Feilsøking først</h2>
             <ul class="list">
-                <li><span class="key">1</span><span class="value">Åpne Status → Datakilder og se om noe er tregt eller gammelt.</span></li>
+                <li><span class="key">1</span><span class="value">Åpne Status → Datakilder og se om noe er tregt, gammelt eller feilet.</span></li>
                 <li><span class="key">2</span><span class="value">Sjekk Status → Dashboard for Driftsradar og siste hendelser.</span></li>
                 <li><span class="key">3</span><span class="value">Sjekk aktuell fagmeny: Lys, Ventilasjon, Renhold, Soling eller Energi.</span></li>
                 <li><span class="key">4</span><span class="value">Ved importfeil: sjekk lokal logger/QNAP først, deretter API-status i appen.</span></li>
+                <li><span class="key">5</span><span class="value">Ved rare tider: kontroller om kilden leverer lokal tid eller UTC. SUN2 og Elvia vises som kildetid, HC3/Yr konverteres til Europe/Oslo ved visning.</span></li>
             </ul>
             <div class="links">
                 <a class="button" href="/status/datakilder">Datakilder</a>
                 <a class="button" href="/status/dashboard">Dashboard</a>
-                <a class="button" href="/konto/oversikt">Konto</a>
+                <a class="button" href="/konto/manual">Manual</a>
             </div>
         </section>
     </main>

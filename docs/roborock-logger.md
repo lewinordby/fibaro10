@@ -1,49 +1,42 @@
-# Roborock_logger og Renhold i Fibaro10
+# Roborock_logger og Renhold
 
-## Mål
+`Roborock_logger` er den lokale innlesingsappen for robotstøvsugere. Den kjører på QNAP/Docker i samme nett som robotene og sender ferdig strukturerte data til Fibaro10.
 
-`Roborock_logger` kjører lokalt på QNAP/Docker i samme nett som robotene. Den leser Roborock cloud og lokal LAN, og sender ferdig strukturerte data til Fibaro10.
+## Hvorfor lokal logger
 
-Fibaro10 kan ligge på Render nå og flyttes lokalt senere. Da endres bare:
+Roborock-data kommer fra to steder:
 
-```env
-FIBARO10_API_BASE_URL=https://fibaro10.onrender.com
-```
+- Roborock cloud for konto, robotliste, metadata, planer og kartkanal
+- lokal LAN-tilkobling for raskere status og historikk fra robotene
 
-til for eksempel:
+Den lokale loggeren gjør at hovedappen slipper å snakke direkte med Roborock ved sidevisning. Fibaro10 viser bare data som allerede ligger i egen database.
 
-```env
-FIBARO10_API_BASE_URL=http://192.168.2.x:8000
-```
+## API i Fibaro10
 
-## Fibaro10
-
-Fibaro10 har fått:
-
-- `POST /api/renhold/ingest`
-- `GET /renhold/oversikt`
-- `GET /renhold/robot/{duid}`
-- `GET /renhold/json`
-
-Data lagres i egne tabeller:
-
-- `roborock_robots`
-- `roborock_status_samples`
-- `roborock_clean_jobs`
-- `roborock_schedules`
-- `roborock_consumables`
-- `roborock_maps`
-- `roborock_probe_results`
-- `roborock_sync_runs`
-
-Loggeren sender med vanlig Fibaro10-bruker i HTTP-headere:
+Fibaro10 tar imot:
 
 ```text
-x-access-username
-x-access-password
+POST /api/renhold/ingest
 ```
 
-Lag gjerne en egen bruker i Fibaro10 som heter `logger`.
+Og viser:
+
+```text
+GET /renhold/oversikt
+GET /renhold/robot/{duid}
+GET /renhold/json
+```
+
+Data lagres i egne tabeller for:
+
+- roboter
+- statusmålinger
+- vaskjobber
+- planlagte jobber
+- forbruksdeler
+- kart
+- probe-resultater
+- sync-kjøringer
 
 ## QNAP / Docker
 
@@ -53,31 +46,59 @@ Mappen ligger i repoet:
 roborock_logger
 ```
 
-Oppsett:
+Typisk drift:
 
 ```bash
 cd roborock_logger
-cp .env.example .env
 docker compose up -d --build
 ```
 
-Åpne:
+Webflate:
 
 ```text
 http://QNAP-IP:8095
 ```
 
-Første gangs bruk:
+Hvis Fibaro10 senere flyttes lokalt, endres bare API-base i loggerens miljø:
 
-1. Send Roborock-kode fra webflaten.
-2. Skriv inn koden og lagre login.
-3. Trykk `Synk nå`.
-4. Trykk `Synk med kart` når kart skal overføres.
+```env
+FIBARO10_API_BASE_URL=https://fibaro10.onrender.com
+```
 
-Hvis Fibaro10 ikke svarer, legges batcher i lokal kø:
+til for eksempel:
+
+```env
+FIBARO10_API_BASE_URL=http://192.168.20.x:8000
+```
+
+## Drift og kontroll
+
+Normal sync skjer periodisk fra loggeren. Status for siste vellykkede Roborock-sync vises i:
+
+```text
+Status -> Datakilder -> Roborock logger
+```
+
+I hovedappen vises robotene under:
+
+```text
+Renhold -> Oversikt
+```
+
+Derfra kan man åpne hver robot og se status, teknisk identitet, siste jobber, planer, kart og rå statuspakker.
+
+## Feilsøking
+
+Hvis Renhold viser gamle data:
+
+1. Sjekk Status -> Datakilder.
+2. Åpne Roborock_logger på QNAP og se om den har feilmelding.
+3. Kontroller at robotene er online i Roborock.
+4. Kontroller at logger-brukeren i Fibaro10 fortsatt virker.
+5. Sjekk lokal kø hvis Fibaro10 har vært nede:
 
 ```text
 /data/pending_batches.jsonl
 ```
 
-De sendes på nytt ved neste vellykkede sync.
+Batcher i kø sendes på nytt ved neste vellykkede sync.
