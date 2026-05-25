@@ -5948,6 +5948,11 @@ async def account_technical_view(request: Request):
     return templates.TemplateResponse(request, "technical.html", {})
 
 
+@app.get("/konto/manual", response_class=HTMLResponse)
+async def account_manual_view(request: Request):
+    return templates.TemplateResponse(request, "manual.html", {})
+
+
 @app.get("/energi/testside", response_class=HTMLResponse)
 async def energy_view(request: Request):
     return templates.TemplateResponse(request, "energy.html", {})
