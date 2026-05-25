@@ -3029,6 +3029,22 @@ def normalize_local_naive(value: Optional[datetime]) -> Optional[datetime]:
     return value.replace(tzinfo=None)
 
 
+def utc_naive_to_local_naive(value: Optional[datetime]) -> Optional[datetime]:
+    if not value:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("UTC"))
+    return value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+
+
+def local_naive_to_utc_naive(value: Optional[datetime]) -> Optional[datetime]:
+    if not value:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=LOCAL_TZ)
+    return value.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+
 def minute_bucket(value: Optional[datetime]) -> datetime:
     stamp = normalize_local_naive(value) or local_now_naive()
     return stamp.replace(second=0, microsecond=0)
@@ -4130,7 +4146,7 @@ async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
         return {"last_success_at": row.timestamp if row else None, "message": "Sist funnet i temploggen" if row else ""}
     if job_name == "yr_weather_refresh":
         row = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().first()
-        return {"last_success_at": row.timestamp if row else None, "message": row.weather_text if row else ""}
+        return {"last_success_at": utc_naive_to_local_naive(row.timestamp) if row else None, "message": row.weather_text if row else ""}
     if job_name == "hc3_energy_1min":
         row = (await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))).scalars().first()
         return {
@@ -5851,9 +5867,12 @@ async def ingest_elvia_hours(session, parsed: Dict[str, Any], batch_time: dateti
     return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
-async def fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit):
+async def fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit, time_basis: str = "source"):
     from_ts = parse_datetime(from_text)
     to_ts = parse_datetime(to_text)
+    if time_basis == "utc":
+        from_ts = local_naive_to_utc_naive(from_ts)
+        to_ts = local_naive_to_utc_naive(to_ts)
     limit = max(1, min(limit, 10000))
     stmt = select(model).order_by(model.timestamp.desc()).limit(limit)
     stmt = apply_common_filters(stmt, model, event_type, action, device_key, device_id, mode, source_contains, from_ts, to_ts)
@@ -5862,8 +5881,8 @@ async def fetch_rows(model, event_type, action, device_key, device_id, mode, sou
         return result.scalars().all(), limit
 
 
-async def csv_response(model, columns, filename, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text):
-    rows, _ = await fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, 10000)
+async def csv_response(model, columns, filename, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, time_basis: str = "source"):
+    rows, _ = await fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, 10000, time_basis=time_basis)
     output = StringIO()
     writer = csv.writer(output)
     writer.writerow(columns)
@@ -9087,7 +9106,7 @@ async def yr_samples_view(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 500,
 ):
-    rows, limit = await fetch_rows(YrForecastSample, None, None, None, None, None, None, from_text, to_text, limit)
+    rows, limit = await fetch_rows(YrForecastSample, None, None, None, None, None, None, from_text, to_text, limit, time_basis="utc")
     filters = {"from": from_text or "", "to": to_text or "", "limit": limit}
     return templates.TemplateResponse(request, "yr_samples.html", {"rows": rows, "filters": filters})
 
@@ -9098,7 +9117,7 @@ async def yr_samples_json(
     to_text: Optional[str] = Query(default=None, alias="to"),
     limit: int = 1000,
 ):
-    rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, from_text, to_text, limit)
+    rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, from_text, to_text, limit, time_basis="utc")
     return {"count": len(rows), "rows": [row_to_dict(row, YR_SAMPLE_COLUMNS) for row in rows]}
 
 
@@ -9107,7 +9126,7 @@ async def yr_samples_download(
     from_text: Optional[str] = Query(default=None, alias="from"),
     to_text: Optional[str] = Query(default=None, alias="to"),
 ):
-    return await csv_response(YrForecastSample, YR_SAMPLE_COLUMNS, "yr_forecast_samples.csv", None, None, None, None, None, None, from_text, to_text)
+    return await csv_response(YrForecastSample, YR_SAMPLE_COLUMNS, "yr_forecast_samples.csv", None, None, None, None, None, None, from_text, to_text, time_basis="utc")
 
 
 @app.get("/download")

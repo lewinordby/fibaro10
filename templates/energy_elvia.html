@@ -67,7 +67,7 @@
             </div>
             <div class="summary-card">
                 <span>Periode</span>
-                <strong>{% if summaries.first_at and summaries.last_at %}{{ summaries.first_at|localtime }} - {{ summaries.last_at|localtime }}{% else %}-{% endif %}</strong>
+                <strong>{% if summaries.first_at and summaries.last_at %}{{ summaries.first_at|source_time }} - {{ summaries.last_at|source_time }}{% else %}-{% endif %}</strong>
                 <small>{{ total.days_count or 0 }} dager</small>
             </div>
             <div class="summary-card">

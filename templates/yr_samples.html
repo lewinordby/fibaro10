@@ -58,9 +58,9 @@
         <article class="sample">
             <div class="top">
                 <div>
-                    <div class="time">{{ row.timestamp.strftime("%d.%m.%Y %H:%M") }}</div>
+                    <div class="time">{{ row.timestamp|localtime }}</div>
                     <div class="bucket">
-                        Periode: {{ row.bucket_start.strftime("%H:%M") if row.bucket_start else "-" }}
+                        Periode: {{ row.bucket_start|localtime_short if row.bucket_start else "-" }}
                         | Varsel: {{ row.forecast_time|localtime_short if row.forecast_time else "-" }}
                         | Yr oppdatert: {{ row.api_updated_at|localtime_short if row.api_updated_at else "-" }}
                         | Gyldig til: {{ row.expires_at|localtime_short if row.expires_at else "-" }}

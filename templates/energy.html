@@ -70,7 +70,7 @@
             <div class="summary-card">
                 <span>Inntak nå</span>
                 <strong>{{ "{:,.0f}".format(latest.inntak_w or 0).replace(",", " ") if latest else "-" }} W</strong>
-                <small>{{ latest.bucket_start|localtime if latest else "Ingen HC3-måling ennå" }}</small>
+                <small>{{ latest.bucket_start|source_time if latest else "Ingen HC3-måling ennå" }}</small>
             </div>
             <div class="summary-card">
                 <span>Forbruk i dag</span>
@@ -154,7 +154,7 @@
                 <tbody>
                     {% for row in rows %}
                     <tr>
-                        <td class="time-cell">{{ row.bucket_start|localtime }}</td>
+                        <td class="time-cell">{{ row.bucket_start|source_time }}</td>
                         <td>{{ "{:,.0f}".format(row.inntak_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.0f}".format(row.varmepumper_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.0f}".format(row.belysning_w or 0).replace(",", " ") }}</td>
