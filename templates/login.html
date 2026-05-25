@@ -12,7 +12,8 @@
         .login-top::after { content: ""; position: absolute; left: 50%; bottom: -1.05rem; width: 2.1rem; height: 2.1rem; background: white; transform: translateX(-50%) rotate(45deg); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
         .login-logo-link { display: inline-grid; justify-items:center; gap:.5rem; border-radius: 10px; margin-bottom: 1.7rem; text-decoration:none; color:var(--brand); }
         .login-logo-link:focus-visible { outline: 3px solid rgba(210, 151, 19, 0.28); outline-offset: 4px; }
-        .login-logo { width: 7rem; max-width: 34vw; height: auto; display: block; filter:drop-shadow(0 12px 22px rgba(7,26,69,.08)); }
+        .login-logo { width: 19rem; max-width: 82vw; height: auto; display: block; filter:drop-shadow(0 12px 22px rgba(7,26,69,.08)); }
+        .login-wordmark { width: min(28rem, 86vw); }
         .login-brand-name { font-size:clamp(2rem, 7vw, 4.2rem); line-height:.95; font-weight:360; letter-spacing:0 !important; color:var(--brand); }
         .login-brand-subtitle { font-size:clamp(.72rem, 2.2vw, 1.05rem); font-weight:850; letter-spacing:.32em !important; text-transform:uppercase; color:var(--brand); }
         .login-brand-subtitle .amp { color:var(--gold); }
@@ -30,9 +31,7 @@
 <body>
     <div class="login-top">
         <a class="login-logo-link" href="/status/dashboard" aria-label="Gå til status">
-            <img class="login-logo" src="/static/lilletorget-mark.png" alt="" aria-hidden="true">
-            <span class="login-brand-name">Lilletorget</span>
-            <span class="login-brand-subtitle">Solsenter <span class="amp">&amp;</span> parkering</span>
+            <img class="login-logo login-wordmark" src="/static/lilletorget-wordmark.png" alt="Lilletorget">
         </a>
         <h1>Logg inn på grensesnittet.</h1>
     </div>
