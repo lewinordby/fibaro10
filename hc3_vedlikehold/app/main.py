@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 
 APP_TITLE = "HC3 vedlikehold"
@@ -34,6 +34,16 @@ GROUP_TONES = {
 }
 
 app = FastAPI(title=APP_TITLE)
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
+
+
+@app.head("/", include_in_schema=False)
+async def head_index():
+    return Response(status_code=200)
 
 
 class Hc3Error(RuntimeError):

@@ -12,7 +12,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from playwright.sync_api import TimeoutError as PwTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -55,6 +55,11 @@ FIBARO10_API_PASSWORD = env_value("FIBARO10_API_PASSWORD", "") or ""
 COLLECTOR_ID = env_value("COLLECTOR_ID", "qnap-sun2-daily-downloader") or "qnap-sun2-daily-downloader"
 
 app = FastAPI(title="Sun2_backfill_downloader")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 task: asyncio.Task | None = None
 scheduler_task: asyncio.Task | None = None
 schedule_lock = asyncio.Lock()

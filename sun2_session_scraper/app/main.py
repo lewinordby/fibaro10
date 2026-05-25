@@ -16,7 +16,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from playwright.sync_api import TimeoutError as PwTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -88,6 +88,11 @@ app = FastAPI(title="Sun2_session_scraper")
 task: asyncio.Task | None = None
 scheduler_task: asyncio.Task | None = None
 live_sync_task: asyncio.Task | None = None
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 schedule_lock = asyncio.Lock()
 stop_requested = False
 

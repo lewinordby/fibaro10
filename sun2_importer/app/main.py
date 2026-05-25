@@ -16,7 +16,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 
 load_dotenv()
@@ -54,6 +54,11 @@ state: dict[str, Any] = {
     "rejected_files": 0,
     "running": False,
 }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 
 
 def decimal_value(value: Any) -> float | None:

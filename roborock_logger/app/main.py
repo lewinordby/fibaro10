@@ -17,7 +17,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query, status as http_status
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 load_dotenv()
 
@@ -43,6 +43,11 @@ ROBOROCK_LOCAL_PORT = 58867
 
 app = FastAPI(title="Roborock_logger")
 sync_lock = asyncio.Lock()
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 
 
 def utc_now() -> dt.datetime:
