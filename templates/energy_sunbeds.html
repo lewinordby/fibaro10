@@ -49,6 +49,9 @@
         @media (min-width: 820px) {
             .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
         }
+        @media (min-width: 1120px) {
+            .summary-grid { grid-template-columns:repeat(5,minmax(0,1fr)); }
+        }
         @media (max-width: 640px) {
             .filter-form { display:grid; grid-template-columns:1fr; }
             .button-primary { width:100%; }
@@ -73,8 +76,8 @@
                     <label for="date_to">Til</label>
                     <input id="date_to" type="date" name="date_to" value="{{ date_to }}">
                 </div>
-                <button class="button-primary" type="submit">Beregn</button>
-                <span class="page-subtitle">Maks {{ max_days }} dager per beregning for å holde siden rask.</span>
+                <button class="button-primary" type="submit">Beregn på nytt</button>
+                <span class="page-subtitle">Maks {{ max_days }} dager per beregning. Hver beregning kjøres direkte fra rådata og lagrer ikke gamle estimater.</span>
             </form>
         </article>
 
@@ -97,16 +100,22 @@
             <div class="summary-card">
                 <span>Overlapp utelatt</span>
                 <strong>{{ summary.overlap_samples }}</strong>
-                <small>Målepunkter der flere senger gikk samtidig.</small>
+                <small>Målepunkter der flere senger gikk samtidig eller var i etterkjøling.</small>
+            </div>
+            <div class="summary-card">
+                <span>For få prøver</span>
+                <strong>{{ summary.rejected_short_sessions }}</strong>
+                <small>Solinger med under {{ summary.min_samples_per_session }} rene målinger.</small>
             </div>
         </section>
 
         <article class="method-card">
             <h2>Metode</h2>
             <p>
-                For hvert minutt ser appen hvilke solinger som er aktive. Hvis akkurat én seng går, brukes differanseforbruket fra HC3.
-                Deretter trekkes en baseline fra samme dag/time hvis mulig. Resultatet er estimert effekt for den ene senga.
-                Målinger under 500 W etter baseline fjernes som støy.
+                For hvert minutt ser appen hvilke senger som kan påvirke differansen. En seng regnes som opptatt fra start til
+                {{ summary.cooldown_minutes }} minutter etter slutt, fordi kjøling fortsatt trekker strøm. For selve effektmålingen brukes bare
+                prøver fra {{ summary.warmup_minutes }} minutter etter oppstart og frem til solingen slutter. Solingen må ha minst
+                {{ summary.min_samples_per_session }} rene minuttmålinger før den brukes. Beregn-knappen regner alltid på nytt fra rådata.
             </p>
         </article>
 

@@ -4849,6 +4849,9 @@ def build_sunbed_power_analysis(
     samples: list[Any],
     bed_lookup: Dict[str, Any],
 ) -> Dict[str, Any]:
+    warmup_minutes = 2
+    cooldown_minutes = 3
+    min_samples_per_session = 3
     session_items = []
     for row in sessions:
         room_id = normalize_room_id(row.room_id)
@@ -4863,6 +4866,9 @@ def build_sunbed_power_analysis(
                 "sun2_bed_id": row.sun2_bed_id,
                 "start": start_at,
                 "end": end_at,
+                "measure_start": start_at + timedelta(minutes=warmup_minutes),
+                "measure_end": end_at,
+                "occupied_end": end_at + timedelta(minutes=cooldown_minutes),
                 "duration_minutes": max(0.0, (end_at - start_at).total_seconds() / 60),
             }
         )
@@ -4872,7 +4878,7 @@ def build_sunbed_power_analysis(
     for item in session_items:
         sessions_by_id[item["id"]] = item
         events.append((item["start"], 1, item["id"]))
-        events.append((item["end"], -1, item["id"]))
+        events.append((item["occupied_end"], -1, item["id"]))
     events.sort(key=lambda item: (item[0], item[1]))
 
     sample_items = []
@@ -4922,9 +4928,13 @@ def build_sunbed_power_analysis(
     global_baseline = median(baseline_global) if baseline_global else None
     per_room: Dict[str, Dict[str, Any]] = {}
     per_session: Dict[int, Dict[str, Any]] = {}
+    candidate_sessions: Dict[int, Dict[str, Any]] = {}
     used_samples = 0
     rejected_low = 0
     missing_baseline = 0
+    rejected_warmup_cooldown = 0
+    rejected_short_sessions = 0
+    rejected_short_samples = 0
 
     for sample in classified:
         if sample["state"] != "single":
@@ -4934,6 +4944,9 @@ def build_sunbed_power_analysis(
         if not session_item:
             continue
         sample_time = sample["time"]
+        if not (session_item["measure_start"] <= sample_time < session_item["measure_end"]):
+            rejected_warmup_cooldown += 1
+            continue
         baseline_values = baseline_by_day_hour.get((sample_time.date(), sample_time.hour)) or baseline_by_day.get(sample_time.date())
         baseline = median(baseline_values) if baseline_values else global_baseline
         if baseline is None:
@@ -4944,6 +4957,23 @@ def build_sunbed_power_analysis(
             rejected_low += 1
             continue
 
+        if session_id not in candidate_sessions:
+            candidate_sessions[session_id] = {
+                **session_item,
+                "net_values": [],
+                "observed_values": [],
+                "baseline_values": [],
+            }
+        candidate_sessions[session_id]["net_values"].append(net_w)
+        candidate_sessions[session_id]["observed_values"].append(sample["diff_w"])
+        candidate_sessions[session_id]["baseline_values"].append(baseline)
+
+    for session_id, session_item in candidate_sessions.items():
+        net_values = session_item["net_values"]
+        if len(net_values) < min_samples_per_session:
+            rejected_short_sessions += 1
+            rejected_short_samples += len(net_values)
+            continue
         room_id = session_item["room_id"]
         bed = bed_lookup.get(room_id)
         if room_id not in per_room:
@@ -4961,25 +4991,20 @@ def build_sunbed_power_analysis(
                 "duration_minutes": 0.0,
             }
         target = per_room[room_id]
-        target["samples_count"] += 1
+        target["samples_count"] += len(net_values)
         target["sessions"].add(session_id)
-        target["net_values"].append(net_w)
-        target["observed_values"].append(sample["diff_w"])
-        target["baseline_values"].append(baseline)
-        target["estimated_kwh"] += net_w / 1000 / 60
-        used_samples += 1
-
-        if session_id not in per_session:
-            per_session[session_id] = {
-                **session_item,
-                "label": target["label"],
-                "net_values": [],
-                "observed_values": [],
-                "baseline_values": [],
-            }
-        per_session[session_id]["net_values"].append(net_w)
-        per_session[session_id]["observed_values"].append(sample["diff_w"])
-        per_session[session_id]["baseline_values"].append(baseline)
+        target["net_values"].extend(net_values)
+        target["observed_values"].extend(session_item["observed_values"])
+        target["baseline_values"].extend(session_item["baseline_values"])
+        target["estimated_kwh"] += sum(net_values) / 1000 / 60
+        used_samples += len(net_values)
+        per_session[session_id] = {
+            **session_item,
+            "label": target["label"],
+            "net_values": list(net_values),
+            "observed_values": list(session_item["observed_values"]),
+            "baseline_values": list(session_item["baseline_values"]),
+        }
 
     rooms = []
     for item in per_room.values():
@@ -5041,8 +5066,14 @@ def build_sunbed_power_analysis(
             "overlap_samples": overlap_samples,
             "missing_baseline_samples": missing_baseline,
             "rejected_low_samples": rejected_low,
+            "rejected_warmup_cooldown_samples": rejected_warmup_cooldown,
+            "rejected_short_sessions": rejected_short_sessions,
+            "rejected_short_samples": rejected_short_samples,
             "global_baseline_w": global_baseline,
             "rooms_count": len(rooms),
+            "warmup_minutes": warmup_minutes,
+            "cooldown_minutes": cooldown_minutes,
+            "min_samples_per_session": min_samples_per_session,
         },
     }
 
@@ -7592,7 +7623,7 @@ async def energy_sunbed_consumption_view(
     bed_lookup = {bed.room_id: bed for bed in bed_rows if bed.room_id}
     analysis = build_sunbed_power_analysis(session_rows, [dict(row) for row in energy_rows], bed_lookup)
     max_power = max([float_or_zero(room.get("avg_w")) for room in analysis["rooms"]] or [0.0])
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "energy_sunbeds.html",
         {
@@ -7606,6 +7637,8 @@ async def energy_sunbed_consumption_view(
             "max_power": max_power,
         },
     )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/soling")
