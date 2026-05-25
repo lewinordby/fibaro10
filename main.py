@@ -6453,6 +6453,14 @@ async def login_view(request: Request):
     return templates.TemplateResponse(request, "login.html", {"error": ""})
 
 
+def redirect_keep_query(request: Request, target: str, status_code: int = 307) -> RedirectResponse:
+    query = request.url.query
+    if query:
+        separator = "&" if "?" in target else "?"
+        target = f"{target}{separator}{query}"
+    return RedirectResponse(target, status_code=status_code)
+
+
 @app.post("/auth/login")
 async def login_submit(request: Request):
     form = await parse_form_body(request)
@@ -6497,18 +6505,18 @@ async def logout():
 
 
 @app.get("/ai")
-async def ai_redirect():
-    return RedirectResponse("/ai/sok", status_code=303)
+async def ai_redirect(request: Request):
+    return redirect_keep_query(request, "/ai/sok", status_code=303)
 
 
 @app.get("/lys")
-async def lights_redirect():
-    return RedirectResponse("/lys/dagslogg-lux", status_code=307)
+async def lights_redirect(request: Request):
+    return redirect_keep_query(request, "/lys/dagslogg-lux", status_code=307)
 
 
 @app.get("/ventilasjon")
-async def ventilation_redirect():
-    return RedirectResponse("/ventilasjon/dagslogg-temp", status_code=307)
+async def ventilation_redirect(request: Request):
+    return redirect_keep_query(request, "/ventilasjon/dagslogg-temp", status_code=307)
 
 
 @app.get("/ai/sok", response_class=HTMLResponse)
@@ -6969,8 +6977,8 @@ async def update_settings(request: Request, config_key: str):
 
 
 @app.get("/")
-async def root_redirect():
-    return RedirectResponse("/status/dashboard", status_code=303)
+async def root_redirect(request: Request):
+    return redirect_keep_query(request, "/status/dashboard", status_code=303)
 
 
 @app.get("/status/dashboard", response_class=HTMLResponse)
@@ -7630,28 +7638,28 @@ async def sun2_backfill_room_identity():
 
 
 @app.get("/sun2/room-stats")
-async def sun2_room_stats_legacy_redirect():
-    return RedirectResponse("/soling/detaljer", status_code=307)
+async def sun2_room_stats_legacy_redirect(request: Request):
+    return redirect_keep_query(request, "/soling/detaljer", status_code=307)
 
 
 @app.get("/sun2/room-stats/json")
-async def sun2_room_stats_json_legacy_redirect():
-    return RedirectResponse("/api/sun2/room-stats/json", status_code=307)
+async def sun2_room_stats_json_legacy_redirect(request: Request):
+    return redirect_keep_query(request, "/api/sun2/room-stats/json", status_code=307)
 
 
 @app.get("/energi")
-async def energy_redirect():
-    return RedirectResponse("/energi/status", status_code=307)
+async def energy_redirect(request: Request):
+    return redirect_keep_query(request, "/energi/status", status_code=307)
 
 
 @app.get("/energi/oversikt", response_class=HTMLResponse)
-async def energy_overview_legacy_redirect():
-    return RedirectResponse("/energi/status", status_code=307)
+async def energy_overview_legacy_redirect(request: Request):
+    return redirect_keep_query(request, "/energi/status", status_code=307)
 
 
 @app.get("/energi/soling", response_class=HTMLResponse)
-async def energy_soling_legacy_redirect():
-    return RedirectResponse("/soling/detaljer", status_code=307)
+async def energy_soling_legacy_redirect(request: Request):
+    return redirect_keep_query(request, "/soling/detaljer", status_code=307)
 
 
 @app.post("/api/energi/fibaro")
@@ -7885,8 +7893,8 @@ async def energy_sunbed_consumption_view(
 
 
 @app.get("/soling")
-async def sun2_redirect():
-    return RedirectResponse("/soling/dagslinje", status_code=307)
+async def sun2_redirect(request: Request):
+    return redirect_keep_query(request, "/soling/dagslinje", status_code=307)
 
 
 @app.get("/soling/oversikt", response_class=HTMLResponse)
