@@ -155,6 +155,7 @@
         {% if is_account %}
         <div class="nav-row nav-sub" aria-label="Undermeny for konto">
             {{ sub_button("/konto/oversikt", "Oversikt", "dashboard", current_path == "/konto/oversikt") }}
+            {{ sub_button("/konto/teknisk", "Teknisk", "list", current_path == "/konto/teknisk") }}
             {{ sub_button("/static/manualer/sun2_driftsmanual.pdf", "Manual", "book", false) }}
             {% if request.state.auth_is_master %}
             {{ sub_button("/konto/brukere-og-tilgang", "Brukere", "users", current_path == "/konto/brukere-og-tilgang") }}

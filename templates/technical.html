@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teknisk oversikt</title>
+    <style>
+        :root { color-scheme: light; --bg:#eef2f6; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; }
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+        main { width:min(100% - 1.4rem, 1120px); margin:0 auto; padding:1rem 0 2rem; }
+        .page-head { margin:0 0 1rem; }
+        h1 { margin:0 0 .25rem; font-size:1.45rem; }
+        h2 { margin:0 0 .55rem; font-size:1rem; }
+        p { margin:0; color:var(--muted); line-height:1.45; }
+        code { background:#eef2f7; border-radius:4px; padding:.08rem .28rem; }
+        .grid { display:grid; gap:.85rem; }
+        .panel { background:var(--panel); border:1px solid var(--line); border-top:4px solid var(--page-accent); border-radius:8px; padding:.9rem; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+        .list { display:grid; gap:.48rem; margin:.55rem 0 0; padding:0; list-style:none; }
+        .list li { display:grid; grid-template-columns:8.2rem minmax(0,1fr); gap:.55rem; padding:.45rem 0; border-top:1px solid #edf1f6; }
+        .list li:first-child { border-top:0; }
+        .key { color:#526174; font-size:.78rem; font-weight:820; text-transform:uppercase; }
+        .value { color:var(--text); overflow-wrap:anywhere; }
+        .flow { display:grid; grid-template-columns:1fr; gap:.5rem; margin-top:.6rem; }
+        .step { border:1px solid #e5eaf0; border-left:4px solid var(--page-accent); border-radius:7px; padding:.55rem .65rem; background:#fbfdff; }
+        .step strong { display:block; margin-bottom:.1rem; }
+        .links { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.65rem; }
+        .button { display:inline-flex; align-items:center; min-height:2.15rem; padding:.38rem .68rem; border:1px solid var(--page-accent-border); border-radius:7px; background:var(--page-accent-soft); color:var(--page-accent); text-decoration:none; font-weight:800; }
+        @media (min-width: 760px) {
+            main { padding-top:1.25rem; }
+            .grid.two { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .grid.three { grid-template-columns:repeat(3,minmax(0,1fr)); }
+            .flow { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        }
+        @media (max-width: 560px) {
+            .list li { grid-template-columns:1fr; gap:.12rem; }
+        }
+    </style>
+    {% include "_styles.html" %}
+</head>
+<body class="theme-admin">
+    {% include "_header.html" %}
+    <main>
+        <div class="page-head">
+            <h1>Teknisk oversikt</h1>
+            <p>Kort dokumentasjon for hvordan SUN2 drift er bygget opp, hvor data kommer fra, og hvor feil normalt sjekkes først.</p>
+        </div>
+
+        <section class="grid two">
+            <article class="panel">
+                <h2>Applikasjon</h2>
+                <ul class="list">
+                    <li><span class="key">Navn</span><span class="value">Fibaro10 / SUN2 drift</span></li>
+                    <li><span class="key">Produksjon</span><span class="value"><code>https://fibaro10.onrender.com</code></span></li>
+                    <li><span class="key">Kode</span><span class="value">GitHub-repo deployes til Render fra <code>main</code>.</span></li>
+                    <li><span class="key">Backend</span><span class="value">FastAPI med PostgreSQL-database.</span></li>
+                    <li><span class="key">Frontend</span><span class="value">Server-renderte HTML-maler, felles CSS og meny.</span></li>
+                </ul>
+            </article>
+
+            <article class="panel">
+                <h2>Tilgang</h2>
+                <ul class="list">
+                    <li><span class="key">Innlogging</span><span class="value">Brukernavn og passord/nøkkel lagres som tilgangsnøkler.</span></li>
+                    <li><span class="key">Roller</span><span class="value">Master, Innstillinger og Vanlig bruker.</span></li>
+                    <li><span class="key">Varsel</span><span class="value">Master kan abonnere på ntfy-varsel når andre brukere benytter løsningen.</span></li>
+                    <li><span class="key">Admin</span><span class="value">Brukere og nøkler ligger under Konto.</span></li>
+                </ul>
+            </article>
+        </section>
+
+        <section class="panel">
+            <h2>Dataflyt</h2>
+            <div class="flow">
+                <div class="step"><strong>HC3</strong><p>Poster lys, lux, ventilasjon, temperatur og Yr-data til API-et.</p></div>
+                <div class="step"><strong>Lokale loggere</strong><p>QNAP/Docker kan hente Roborock og SUN2-data og sende inn til API-et.</p></div>
+                <div class="step"><strong>Database</strong><p>Data lagres i egne tabeller for lys, ventilasjon, renhold, soling, energi og importstatus.</p></div>
+                <div class="step"><strong>Grensesnitt</strong><p>Sidene viser status, tidslinjer, logger, grafer og feilsignaler fra samme datagrunnlag.</p></div>
+            </div>
+        </section>
+
+        <section class="grid three">
+            <article class="panel">
+                <h2>Hyppige data</h2>
+                <ul class="list">
+                    <li><span class="key">Lys</span><span class="value">Lux og lysstatus logges hvert 5. minutt.</span></li>
+                    <li><span class="key">Ventilasjon</span><span class="value">Temperaturer, viftestatus og effektgrunnlag logges hvert 5. minutt.</span></li>
+                    <li><span class="key">Yr</span><span class="value">Værdata hentes når Yr-varselet er utløpt eller må fornyes.</span></li>
+                    <li><span class="key">Roborock</span><span class="value">Robotstatus hentes av Roborock_logger og postes til API-et.</span></li>
+                </ul>
+            </article>
+
+            <article class="panel">
+                <h2>SUN2-import</h2>
+                <ul class="list">
+                    <li><span class="key">Dagsfiler</span><span class="value">Summer per rom og dato.</span></li>
+                    <li><span class="key">Enkeltimer</span><span class="value">Solinger med tidspunkt, rom, bruker, varighet og beløp.</span></li>
+                    <li><span class="key">Medlemmer</span><span class="value">Medlemsregister importeres separat.</span></li>
+                    <li><span class="key">Senger</span><span class="value">Rom-/sengmetadata brukes for mer stabile rom-id-er.</span></li>
+                </ul>
+            </article>
+
+            <article class="panel">
+                <h2>Energi</h2>
+                <ul class="list">
+                    <li><span class="key">Elvia</span><span class="value">Manuell opplasting av timesfil under Energi.</span></li>
+                    <li><span class="key">Format</span><span class="value">Importen lagrer forbruk per time i egen tabell.</span></li>
+                    <li><span class="key">Bruk</span><span class="value">Kan sammenlignes med soling på dagslinje.</span></li>
+                </ul>
+            </article>
+        </section>
+
+        <section class="panel">
+            <h2>Viktige endepunkter</h2>
+            <ul class="list">
+                <li><span class="key">Helse</span><span class="value"><code>/health</code></span></li>
+                <li><span class="key">HC3 inn</span><span class="value"><code>/events</code> og eldre <code>/log</code></span></li>
+                <li><span class="key">Importstatus</span><span class="value"><code>/api/import-status/json</code></span></li>
+                <li><span class="key">Lys</span><span class="value"><code>/lights/json</code> og <code>/lights/samples/json</code></span></li>
+                <li><span class="key">Ventilasjon</span><span class="value"><code>/ventilation/json</code> og <code>/ventilation/samples/json</code></span></li>
+                <li><span class="key">Soling</span><span class="value"><code>/api/sun2/sessions/json</code>, <code>/api/sun2/members/json</code>, <code>/api/sun2/beds/json</code></span></li>
+                <li><span class="key">Energi</span><span class="value"><code>/api/energi/elvia/json</code></span></li>
+            </ul>
+        </section>
+
+        <section class="panel">
+            <h2>Feilsøking først</h2>
+            <ul class="list">
+                <li><span class="key">1</span><span class="value">Åpne Status → Datakilder og se om noe er tregt eller gammelt.</span></li>
+                <li><span class="key">2</span><span class="value">Sjekk Status → Dashboard for Driftsradar og siste hendelser.</span></li>
+                <li><span class="key">3</span><span class="value">Sjekk aktuell fagmeny: Lys, Ventilasjon, Renhold, Soling eller Energi.</span></li>
+                <li><span class="key">4</span><span class="value">Ved importfeil: sjekk lokal logger/QNAP først, deretter API-status i appen.</span></li>
+            </ul>
+            <div class="links">
+                <a class="button" href="/status/datakilder">Datakilder</a>
+                <a class="button" href="/status/dashboard">Dashboard</a>
+                <a class="button" href="/konto/oversikt">Konto</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
