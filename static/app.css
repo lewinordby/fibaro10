@@ -785,212 +785,37 @@ button.primary,
         font-size: 0.82rem !important;
     }
 }
-
-/* 2026 UI refresh: compact, readable, one visual system across old templates. */
-:root {
-    --page-width: 1240px;
-    --bg: #f3f6fa;
-    --panel: #ffffff;
-    --panel-soft: #f8fafc;
-    --line: #dbe3ed;
-    --line-soft: #edf2f7;
-    --text: #202b38;
-    --muted: #647386;
-    --brand-dark: #202b38;
-    --shadow-1: 0 1px 2px rgba(24, 39, 75, 0.05), 0 8px 22px rgba(24, 39, 75, 0.055);
-    --shadow-2: 0 14px 35px rgba(24, 39, 75, 0.09);
-    --radius-sm: 7px;
-    --radius-md: 9px;
-    --radius-lg: 12px;
+/* Consolidated design system: shared surfaces, controls and page rhythm. */
+html {
+    background: #eef3f8;
+    overflow-x: clip;
 }
 
 body {
     min-height: 100vh;
     background:
-        radial-gradient(circle at top left, rgba(82, 146, 214, 0.1), transparent 28rem),
-        linear-gradient(180deg, #f8fafc 0, var(--bg) 20rem) !important;
-    color: var(--text) !important;
+        radial-gradient(circle at -4rem -5rem, rgba(210, 151, 19, 0.08), transparent 29rem),
+        radial-gradient(circle at 100% 0, rgba(82, 146, 214, 0.08), transparent 28rem),
+        linear-gradient(180deg, #f8fafc 0%, #eef3f8 46%, #f4f7fb 100%) !important;
     font-size: 15px;
+    overflow-x: clip;
 }
 
 main {
+    --surface-border: rgba(203, 213, 225, 0.88);
+    --surface-shadow: 0 1px 2px rgba(16, 24, 40, 0.035), 0 10px 24px rgba(38, 50, 63, 0.055);
+    --surface-shadow-hover: 0 1px 2px rgba(16, 24, 40, 0.045), 0 16px 32px rgba(38, 50, 63, 0.08);
     width: min(100% - 1rem, var(--page-width)) !important;
     padding: 1rem 0 1.6rem !important;
+    color: var(--text);
+    animation: page-in 160ms ease-out;
 }
 
-
-.panel,
-.hero,
-.event-card,
-.sample,
-.status-card,
-.health-card,
-.metric,
-.temp,
-.cell,
-.summary-card,
-.stat-card,
-.now-card,
-.clean-card,
-.table-wrap,
-main > details,
-.group,
-.note-card {
-    border: 1px solid var(--line) !important;
-    border-radius: var(--radius-lg) !important;
-    background: rgba(255, 255, 255, 0.94) !important;
-    box-shadow: var(--shadow-1) !important;
+@keyframes page-in {
+    from { opacity: 0.92; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-.panel::before,
-.hero::before,
-main > details::before {
-    height: 2px !important;
-    background: var(--page-accent) !important;
-    opacity: 0.95 !important;
-}
-
-.panel,
-.hero {
-    padding: clamp(0.9rem, 1.6vw, 1.15rem) !important;
-}
-
-.section {
-    margin-top: 1rem !important;
-}
-
-.section h2,
-.panel h2,
-.hero h2 {
-    font-size: 1rem !important;
-    font-weight: 780 !important;
-}
-
-.page-title {
-    align-items: center !important;
-    margin-bottom: 0.85rem !important;
-}
-
-.page-title h1,
-header h1,
-h1 {
-    font-size: clamp(1.28rem, 2.5vw, 1.75rem) !important;
-    font-weight: 760 !important;
-}
-
-.sub,
-.help,
-.detail,
-.label,
-.now-label,
-.small-label {
-    color: var(--muted) !important;
-}
-
-.now-grid,
-.summary-grid,
-.health-grid,
-.clean-grid,
-.hero-grid,
-.top-grid,
-.panel-grid,
-.summary-tables {
-    gap: 0.85rem !important;
-}
-
-.now-card {
-    min-height: 8.2rem !important;
-    align-content: center;
-    border-left-width: 4px !important;
-}
-
-.now-value {
-    font-size: clamp(1.35rem, 3.5vw, 2rem) !important;
-}
-
-.status-card,
-.health-card,
-.event-card,
-.sample {
-    padding: 0.82rem !important;
-}
-
-.metric,
-.temp,
-.cell,
-.stat-card {
-    background: var(--panel-soft) !important;
-    border-color: var(--line-soft) !important;
-}
-
-input,
-select,
-textarea {
-    border-radius: 9px !important;
-    border-color: var(--line) !important;
-    background: #fff !important;
-}
-
-a.button,
-button,
-.button {
-    border-radius: 9px !important;
-    text-decoration: none !important;
-}
-
-button.primary,
-.button.primary,
-.primary {
-    background: var(--page-accent) !important;
-    border-color: var(--page-accent) !important;
-    color: #fff !important;
-}
-
-table {
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-}
-
-th {
-    background: #f7fafc !important;
-    color: #667386 !important;
-    font-size: 0.76rem !important;
-    font-weight: 780 !important;
-}
-
-td,
-th {
-    padding: 0.58rem 0.66rem !important;
-    border-bottom: 1px solid var(--line-soft) !important;
-}
-
-tbody tr:hover {
-    background: #f8fbff !important;
-}
-
-.badge,
-.mode,
-.flag,
-.chip,
-.status-pill {
-    border-radius: 999px !important;
-    font-weight: 780 !important;
-}
-
-svg {
-    border-radius: 10px !important;
-}
-
-
-@media (max-width: 520px) {
-    body {
-        font-size: 14px;
-    }
-
-
-}
-
-/* 2026-05 polish pass: calmer surfaces, clearer focus, and less visual jump. */
 :focus-visible {
     outline: 3px solid var(--page-accent-ring);
     outline-offset: 2px;
@@ -1001,112 +826,157 @@ button,
 input,
 select,
 textarea {
+    font-family: inherit;
     transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
-.panel,
-.hero,
-.event-card,
-.status-card,
-.health-card,
-.summary-card,
-.robot-card,
-.panel-card,
-.chart-panel,
-.table-wrap {
+main :where(.page-title, .section-row, .section-head, .chart-head) {
+    gap: 0.75rem;
+}
+
+main :where(.page-title, .section-title, .chart-title, .area-title, .event-title, .card-title, h1, h2, h3) {
+    color: var(--brand-dark) !important;
+    text-wrap: balance;
+}
+
+main :where(.page-subtitle, .section-note, .chart-note, .detail, .help, .sub, small, .muted) {
+    color: var(--muted) !important;
+}
+
+main :where(.panel, .hero, .event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .chart-panel, .timeline-panel, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .filter-panel, .area-card, .clean-card, .data-card, .settings-card, .table-wrap, details) {
+    border-color: var(--surface-border) !important;
+    background: var(--surface) !important;
+    box-shadow: var(--surface-shadow) !important;
+}
+
+main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-panel, .timeline-card, .metric-card, .filter-panel, .area-card, .data-card, .settings-card, details) {
+    border-radius: var(--radius-lg) !important;
+}
+
+main :where(.event-card, .status-card, .health-card, .quick-card, .robot-card, .sample, .job-card) {
+    border-radius: var(--radius-md) !important;
+}
+
+main :where(.metric, .temp, .cell, .mini-metric, .stat-card, .health-card) {
+    background: var(--panel-soft) !important;
+    border-color: var(--line-soft) !important;
+}
+
+main :where(.event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .quick-card, .area-card):hover {
+    box-shadow: var(--surface-shadow-hover) !important;
+    transform: translateY(-1px);
+}
+
+main :where(.filter-panel, details) {
+    border-top: 3px solid var(--page-accent) !important;
+}
+
+main :where(input, select, textarea) {
+    min-height: 2.42rem;
+    border-color: #ccd6e2 !important;
+    border-radius: var(--radius-md) !important;
+    background: #ffffff !important;
+    color: var(--text) !important;
+    box-shadow: inset 0 1px 1px rgba(16, 24, 40, 0.03);
+    outline: none !important;
+}
+
+main :where(input, select, textarea):focus {
+    border-color: var(--page-accent) !important;
+    box-shadow: 0 0 0 4px var(--page-accent-ring), inset 0 1px 1px rgba(16, 24, 40, 0.03) !important;
+}
+
+main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button) {
+    min-height: 2.38rem;
+    border: 1px solid #ccd6e2 !important;
+    border-radius: var(--radius-md) !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%) !important;
+    color: var(--brand-dark) !important;
+    box-shadow: 0 1px 1px rgba(16, 24, 40, 0.025) !important;
+    font-weight: 740 !important;
+    text-decoration: none !important;
+}
+
+main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button):hover {
+    border-color: var(--page-accent-border) !important;
+    background: #ffffff !important;
+    box-shadow: 0 7px 18px rgba(38, 50, 63, 0.08) !important;
+    transform: translateY(-1px);
+}
+
+main :where(a.button.active, button.active, .chart-toggle.active, .sun-chip.active, .active > .button, .button.primary, button.primary, .primary, .button-primary) {
+    border-color: var(--page-accent) !important;
+    background: var(--page-accent) !important;
+    color: #ffffff !important;
+}
+
+main :where(.badge, .pill, .status-pill, .mode, .flag, .live-pill, .stat-pill) {
+    border-radius: 999px !important;
+    font-weight: 780 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+main :where(.table-wrap) {
+    overflow: auto !important;
+    border-radius: var(--radius-lg) !important;
+    scrollbar-width: thin;
+    scrollbar-color: #b7c4d4 #eef3f8;
+}
+
+main :where(table) {
+    width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    background: #ffffff;
+}
+
+main :where(th) {
+    background: #f7fafc !important;
+    color: #5f6f84 !important;
+    font-size: 0.75rem !important;
+    font-weight: 820 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+}
+
+main :where(td, th) {
+    padding: 0.58rem 0.66rem !important;
+    border-bottom-color: #e8eef5 !important;
+}
+
+main :where(tbody tr:hover td) {
+    background: color-mix(in srgb, var(--page-accent-soft) 44%, #ffffff) !important;
+}
+
+main :where(svg) {
+    border-color: var(--surface-border) !important;
+    border-radius: var(--radius-lg) !important;
     background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
 }
 
-.event-card:hover,
-.status-card:hover,
-.health-card:hover,
-.summary-card:hover,
-.robot-card:hover,
-.panel-card:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-2) !important;
-}
-
-.table-wrap {
-    scrollbar-gutter: stable;
-}
-
-table tbody tr:hover td {
-    background: rgba(82, 146, 214, 0.045);
-}
-
-
-@media (max-width: 640px) {
-    main {
-        width: min(calc(100% - 1rem), var(--page-width)) !important;
-        padding-top: 0.72rem !important;
-    }
-
-    .panel,
-    .hero,
-    .event-card,
-    .status-card,
-    .health-card,
-    .summary-card,
-    .robot-card,
-    .panel-card,
-    .chart-panel {
-        border-radius: 9px !important;
-    }
-}
-
-/* Dashboard redesign pass: cleaner control-room feel. */
-body.theme-status {
-    background:
-        linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%) !important;
-}
-
-body.theme-status main {
-    padding-top: 1.1rem !important;
-}
-
 body.theme-status .hero {
-    padding: 0 !important;
+    overflow: visible;
     margin-bottom: 1.05rem !important;
-    background: transparent !important;
+    padding: 0 !important;
     border: 0 !important;
+    background: transparent !important;
     box-shadow: none !important;
-    overflow: visible !important;
 }
 
 body.theme-status .hero::before {
     content: none !important;
 }
 
-body.theme-status .hero-top {
-    margin-bottom: 0.75rem !important;
-}
-
-body.theme-status .hero h2 {
-    font-size: 1.08rem !important;
-    font-weight: 850 !important;
-}
-
-body.theme-status .mode {
-    min-height: 1.85rem;
-    padding: 0.34rem 0.74rem !important;
+body.theme-status .now-card,
+body.theme-status .quick-card,
+body.theme-status .status-card {
     background: #ffffff !important;
-    border-color: var(--line) !important;
-    box-shadow: var(--shadow-1);
-}
-
-body.theme-status .now-grid {
-    gap: 0.85rem !important;
 }
 
 body.theme-status .now-card {
     min-height: 7.25rem !important;
     padding: 0.95rem 1rem !important;
-    border: 1px solid rgba(203, 213, 225, 0.88) !important;
-    border-left: 0 !important;
-    border-radius: 8px !important;
-    background: #ffffff !important;
-    box-shadow: 0 12px 30px rgba(38, 50, 63, 0.08) !important;
+    border-left-width: 0 !important;
     position: relative;
     overflow: hidden;
 }
@@ -1124,524 +994,23 @@ body.theme-status .now-card.vent-card::before {
     background: var(--vent-color);
 }
 
+body.theme-status .now-card.lux-card::before,
+body.theme-status .status-card.light-card {
+    border-top-color: var(--light-color) !important;
+}
+
 body.theme-status .now-card.lux-card::before {
     background: var(--light-color);
-}
-
-body.theme-status .now-card.weather-card::before {
-    background: var(--status-color);
-}
-
-body.theme-status .now-label {
-    font-size: 0.7rem !important;
-    letter-spacing: 0.05em !important;
-    color: #6b7280 !important;
-}
-
-body.theme-status .now-value {
-    font-size: clamp(1.75rem, 3.5vw, 2.15rem) !important;
-    color: #182334 !important;
-}
-
-body.theme-status .now-card.lux-card .now-value {
-    color: var(--light-color) !important;
-}
-
-body.theme-status .now-card.weather-card {
-    grid-template-columns: minmax(0, 1fr) minmax(5.2rem, auto) !important;
-}
-
-body.theme-status .now-card.weather-card .now-value {
-    max-width: 100%;
-    font-size: clamp(1.05rem, 1.9vw, 1.22rem) !important;
-    line-height: 1.12 !important;
-    color: var(--status-color) !important;
-}
-
-body.theme-status .now-stack {
-    min-width: 5.35rem !important;
-}
-
-body.theme-status .now-small {
-    border-left-width: 3px !important;
-    padding-left: 0.55rem !important;
-}
-
-body.theme-status .quick-grid {
-    gap: 0.78rem !important;
-}
-
-body.theme-status .quick-card {
-    min-height: 4.55rem !important;
-    padding: 0.85rem 0.95rem !important;
-    background: #ffffff !important;
-    border: 1px solid rgba(203, 213, 225, 0.86) !important;
-    border-left-width: 4px !important;
-    box-shadow: 0 8px 20px rgba(38, 50, 63, 0.06) !important;
-}
-
-body.theme-status .quick-card strong {
-    font-size: 0.96rem !important;
-    color: #182334 !important;
-}
-
-body.theme-status .quick-card i {
-    width: 2rem !important;
-    height: 2rem !important;
-}
-
-body.theme-status .section {
-    margin-top: 1.05rem !important;
-}
-
-body.theme-status .section-head {
-    align-items: center !important;
-    margin-bottom: 0.65rem !important;
-}
-
-body.theme-status .section-head h2 {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1rem !important;
-    font-weight: 880 !important;
-}
-
-body.theme-status .section-head h2::before {
-    content: "";
-    width: 0.56rem;
-    height: 0.56rem;
-    border-radius: 999px;
-    background: currentColor;
-    opacity: 0.9;
-}
-
-body.theme-status .section-actions a {
-    min-height: 1.8rem;
-    display: inline-flex;
-    align-items: center;
-}
-
-body.theme-status .status-card {
-    min-height: 8.55rem !important;
-    padding: 0.9rem !important;
-    border-left-width: 0 !important;
-    border-top: 4px solid #94a3b8 !important;
-    background: #ffffff !important;
-    box-shadow: 0 8px 20px rgba(38, 50, 63, 0.065) !important;
 }
 
 body.theme-status .status-card.vent-card {
     border-top-color: var(--vent-color) !important;
 }
 
-body.theme-status .status-card.light-card {
-    border-top-color: var(--light-color) !important;
-}
-
-body.theme-status .status-card .name {
-    font-size: 0.95rem !important;
-    color: #172033 !important;
-}
-
-body.theme-status .status-card.light-card .name::before {
-    content: "";
-    display: inline-block;
-    width: 0.72rem;
-    height: 0.72rem;
-    margin-right: 0.42rem;
-    border-radius: 999px;
-    background: var(--light-soft);
-    border: 2px solid var(--light-color);
-    box-shadow: 0 0 0 3px rgba(223, 112, 93, 0.08);
-}
-
-body.theme-status .badge {
-    padding: 0.28rem 0.62rem !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
-}
-
-body.theme-status .detail {
-    color: #4b5563 !important;
-}
-
-
-@media (max-width: 760px) {
-    body.theme-status .now-card.weather-card {
-        grid-template-columns: minmax(0, 1fr) auto !important;
-    }
-
-    body.theme-status .quick-grid {
-        grid-template-columns: 1fr !important;
-    }
-}
-
-
-/* Final operational polish. Keep after route-specific styles. */
-html {
-    background: #f4f7fb;
-    overflow-x: clip;
-}
-
-body {
-    background:
-        radial-gradient(circle at 78% -10%, rgba(63, 127, 189, 0.08), transparent 28rem),
-        #f4f7fb !important;
-    overflow-x: clip;
-}
-
-main,
-.container {
-    animation: page-in 160ms ease-out;
-}
-
-@keyframes page-in {
-    from {
-        opacity: 0.92;
-        transform: translateY(3px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.panel-card,
-.summary-card,
-.metric-card,
-.status-card,
-.data-card,
-.timeline-panel,
-.settings-card,
-.table-wrap,
-.filter-panel {
-    border-color: #dce4ee !important;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px rgba(38, 50, 63, 0.055) !important;
-}
-
-.panel-card,
-.summary-card,
-.metric-card,
-.status-card,
-.data-card,
-.settings-card,
-.filter-panel {
-    background: rgba(255, 255, 255, 0.96) !important;
-}
-
-.page-title,
-.sun-title h1,
-main > h1 {
-    letter-spacing: 0 !important;
-    color: #26323f !important;
-}
-
-.page-subtitle,
-.sun-title p,
-main > p {
-    color: #637083 !important;
-}
-
-.button,
-button,
-input,
-select,
-textarea {
-    font-family: inherit;
-}
-
-.button,
-button.button,
-.button-primary {
-    transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, background-color 120ms ease, color 120ms ease;
-}
-
-.button:hover,
-button.button:hover,
-.button-primary:hover {
-    transform: translateY(-1px);
-}
-
-input,
-select,
-textarea {
-    border-color: #d6e0eb !important;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-    border-color: var(--section-color, var(--sun2-color)) !important;
-    box-shadow: 0 0 0 3px rgba(63, 127, 189, 0.14) !important;
-    outline: none !important;
-}
-
-.table-wrap {
-    scrollbar-width: thin;
-    scrollbar-color: #b7c4d4 #eef3f8;
-}
-
-.table-wrap table tbody tr:hover td {
-    background: rgba(63, 127, 189, 0.035);
-}
-
-.rank-item,
-.hour-grid,
-.session-chart {
-    border-color: #e2e8f0 !important;
-}
-
-@media (max-width: 720px) {
-    .panel-card,
-    .summary-card,
-    .metric-card,
-    .status-card,
-    .data-card,
-    .settings-card,
-    .filter-panel,
-    .table-wrap {
-        border-radius: 9px !important;
-    }
-
-    .table-wrap {
-        margin-inline: -0.15rem;
-    }
-}
-
-
-/* 2026-05-25 content polish: tighter, calmer surfaces without touching navigation. */
-body {
-    background:
-        linear-gradient(180deg, #f7f9fc 0%, #eef3f8 42%, #f4f7fb 100%) !important;
-}
-
-main {
-    color: var(--text);
-}
-
-main h1,
-main h2,
-main h3 {
-    text-wrap: balance;
-}
-
-main p,
-main .sub,
-main .page-subtitle,
-main .section-note {
-    color: #66758a;
-}
-
-main :where(.panel, .hero, .event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .filter-panel, details, .table-wrap) {
-    border-color: rgba(203, 213, 225, 0.86) !important;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px rgba(38, 50, 63, 0.06) !important;
-}
-
-main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, details, .sample, .job-card) {
-    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
-}
-
-main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, details) {
-    border-radius: 12px !important;
-}
-
-main :where(.event-card, .status-card, .health-card, .quick-card, .robot-card, .sample, .job-card) {
-    border-radius: 10px !important;
-}
-
-main :where(.filter-panel, details) {
-    border-top: 3px solid var(--page-accent) !important;
-}
-
-main :where(input, select, textarea) {
-    border-color: #cfd8e3 !important;
-    background: #ffffff !important;
-    color: var(--text) !important;
-    border-radius: 8px !important;
-    box-shadow: inset 0 1px 1px rgba(16, 24, 40, 0.03);
-}
-
-main :where(input, select, textarea):focus {
-    border-color: var(--page-accent) !important;
-    box-shadow: 0 0 0 4px var(--page-accent-ring), inset 0 1px 1px rgba(16, 24, 40, 0.03) !important;
-    outline: none;
-}
-
-main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button) {
-    border-color: #ccd6e2 !important;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-    color: var(--brand-dark) !important;
-    font-weight: 740;
-}
-
-main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button):hover {
-    border-color: var(--page-accent-border) !important;
-    box-shadow: 0 6px 16px rgba(38, 50, 63, 0.08) !important;
-    transform: translateY(-1px);
-}
-
-main :where(a.button.active, button.active, .chart-toggle.active, .sun-chip.active) {
-    border-color: var(--page-accent) !important;
-    background: var(--page-accent) !important;
-    color: #ffffff !important;
-}
-
-main :where(table) {
-    border-collapse: separate !important;
-    border-spacing: 0;
-}
-
-main :where(th) {
-    background: #f6f9fc !important;
-    color: #5f6f84 !important;
-    font-weight: 820 !important;
-}
-
-main :where(td, th) {
-    border-bottom-color: #e8eef5 !important;
-}
-
-main :where(.badge, .pill, .status-pill, .mode, .flag) {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
-}
-
-main :where(.empty-state, .empty) {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-    border-color: #d8e1eb !important;
-}
-
-main :where(.table-wrap) {
-    overflow: auto;
-    border-radius: 12px !important;
-}
-
-main :where(.table-wrap table) {
-    overflow: hidden;
-}
-
-@media (max-width: 640px) {
-    main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, details) {
-        border-radius: 10px !important;
-    }
-
-    main :where(a.button, button:not(.nav-toggle)) {
-        min-height: 2.42rem;
-    }
-}
-
-/* 2026-05-25 design consolidation: single palette, calmer density, shared controls. */
-html {
-    background: #eef3f8;
-}
-
-body {
-    background:
-        radial-gradient(circle at -4rem -5rem, rgba(210, 151, 19, 0.09), transparent 30rem),
-        radial-gradient(circle at 100% 0, rgba(82, 146, 214, 0.08), transparent 28rem),
-        linear-gradient(180deg, #f8fafc 0%, #eef3f8 46%, #f4f7fb 100%) !important;
-}
-
-main {
-    --surface-border: rgba(203, 213, 225, 0.88);
-    --surface-shadow: 0 1px 2px rgba(16, 24, 40, 0.035), 0 10px 24px rgba(38, 50, 63, 0.055);
-    --surface-shadow-hover: 0 1px 2px rgba(16, 24, 40, 0.045), 0 16px 32px rgba(38, 50, 63, 0.08);
-}
-
-main :where(.page-title, .section-row, .section-head, .chart-head) {
-    gap: 0.75rem;
-}
-
-main :where(.page-title, .section-title, .chart-title, .area-title, .event-title, .card-title, h1, h2, h3) {
-    color: var(--brand-dark) !important;
-}
-
-main :where(.page-subtitle, .section-note, .chart-note, .detail, .help, .sub, small) {
-    color: var(--muted) !important;
-}
-
-main :where(.panel, .hero, .event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .filter-panel, .area-card, .clean-card, .table-wrap, details) {
-    border-color: var(--surface-border) !important;
-    background: var(--surface) !important;
-    box-shadow: var(--surface-shadow) !important;
-}
-
-main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, .area-card, details) {
-    border-radius: var(--radius-lg) !important;
-}
-
-main :where(.metric, .temp, .cell, .mini-metric, .stat-card, .quick-card, .health-card) {
-    background: #f8fafc !important;
-    border-color: #e4ebf3 !important;
-}
-
-main :where(.event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .quick-card, .area-card):hover {
-    box-shadow: var(--surface-shadow-hover) !important;
-    transform: translateY(-1px);
-}
-
-main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button) {
-    min-height: 2.38rem;
-    border: 1px solid #ccd6e2 !important;
-    border-radius: var(--radius-md) !important;
-    background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%) !important;
-    color: var(--brand-dark) !important;
-    box-shadow: 0 1px 1px rgba(16, 24, 40, 0.025) !important;
-    font-weight: 740 !important;
-}
-
-main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button):hover {
-    border-color: var(--page-accent-border) !important;
-    background: #ffffff !important;
-    box-shadow: 0 7px 18px rgba(38, 50, 63, 0.08) !important;
-}
-
-main :where(a.button.active, button.active, .chart-toggle.active, .sun-chip.active, .active > .button) {
-    border-color: var(--page-accent) !important;
-    background: var(--page-accent) !important;
-    color: #ffffff !important;
-}
-
-main :where(input, select, textarea) {
-    border-color: #ccd6e2 !important;
-    border-radius: var(--radius-md) !important;
-    background: #ffffff !important;
-    color: var(--text) !important;
-}
-
-main :where(input, select, textarea):focus {
-    border-color: var(--page-accent) !important;
-    box-shadow: 0 0 0 4px var(--page-accent-ring) !important;
-    outline: none !important;
-}
-
-main :where(table) {
-    background: #ffffff;
-}
-
-main :where(th) {
-    background: #f7fafc !important;
-    color: #5f6f84 !important;
-    font-size: 0.75rem !important;
-    letter-spacing: 0 !important;
-}
-
-main :where(td, th) {
-    border-bottom-color: #e8eef5 !important;
-}
-
-main :where(tbody tr:hover td) {
-    background: color-mix(in srgb, var(--page-accent-soft) 44%, #ffffff) !important;
-}
-
-main :where(.badge, .pill, .status-pill, .mode, .flag, .live-pill, .stat-pill) {
-    border-radius: 999px !important;
-    font-weight: 780 !important;
-}
-
-body.theme-status .now-card,
-body.theme-status .quick-card,
 body.theme-status .status-card {
-    background: #ffffff !important;
+    min-height: 8.55rem !important;
+    border-left-width: 0 !important;
+    border-top: 4px solid #94a3b8 !important;
 }
 
 body.theme-light .lux-line,
@@ -1655,11 +1024,18 @@ body.theme-energy .dot:not(.elvia):not(.delta) {
 }
 
 @media (max-width: 640px) {
+    body { font-size: 14px; }
+
     main {
         width: min(100% - 0.85rem, var(--page-width)) !important;
+        padding-top: 0.72rem !important;
     }
 
-    main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-card, .metric-card, .filter-panel, .area-card, details) {
+    main :where(.panel, .hero, .summary-card, .panel-card, .chart-panel, .timeline-panel, .timeline-card, .metric-card, .filter-panel, .area-card, details, .table-wrap) {
         border-radius: var(--radius-md) !important;
+    }
+
+    main :where(a.button, button:not(.nav-toggle)) {
+        min-height: 2.42rem;
     }
 }
