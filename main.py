@@ -2352,8 +2352,8 @@ IMPORT_JOB_DEFINITIONS = {
         "title": "Sun2 enkelttimer",
         "category": "Soling",
         "source": "QNAP",
-        "expected_interval_minutes": 36 * 60,
-        "warning_after_minutes": 72 * 60,
+        "expected_interval_minutes": 7,
+        "warning_after_minutes": 20,
         "description": "Import av enkeltsolinger fra Sun2.",
     },
     "sun2_beds_import": {
@@ -4189,10 +4189,17 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
         fallback = {} if row else await fallback_import_job_status(session, job_name)
         stamp = row.last_success_at if row else fallback.get("last_success_at")
         last_failed_at = row.last_failed_at if row else fallback.get("last_failed_at")
+        expected_minutes = definition.get("expected_interval_minutes")
+        warning_minutes = definition.get("warning_after_minutes")
+        next_expected_at = row.next_expected_at if row else None
+        if stamp and expected_minutes:
+            calculated_next = stamp + timedelta(minutes=expected_minutes)
+            if not next_expected_at or abs((next_expected_at - calculated_next).total_seconds()) > 60:
+                next_expected_at = calculated_next
         status, status_text = import_job_status_from_age(
             stamp,
-            row.expected_interval_minutes if row else definition.get("expected_interval_minutes"),
-            row.warning_after_minutes if row else definition.get("warning_after_minutes"),
+            expected_minutes,
+            warning_minutes,
         )
         if last_failed_at and (not stamp or last_failed_at > stamp):
             status, status_text = "bad", "Feil"
@@ -4209,7 +4216,7 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
                 "last_success_at": stamp,
                 "last_run_at": row.last_run_at if row else stamp,
                 "last_failed_at": last_failed_at,
-                "next_expected_at": row.next_expected_at if row else None,
+                "next_expected_at": next_expected_at,
                 "records_imported": row.records_imported if row else None,
                 "records_total": row.records_total if row else fallback.get("records_total"),
                 "duration_seconds": row.duration_seconds if row else None,
