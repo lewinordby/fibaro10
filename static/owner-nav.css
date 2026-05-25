@@ -132,7 +132,7 @@ html body {
     }
 
     .brand-lilletorget-text-logo {
-        width: 10.95rem !important;
+        width: 9.8rem !important;
         max-width: 100% !important;
     }
 
@@ -395,7 +395,7 @@ html body {
 
     .brand-lilletorget-text-logo,
     html.nav-collapsed .brand-lilletorget-text-logo {
-        width: min(11.4rem, 58vw) !important;
+        width: min(9.8rem, 50vw) !important;
         max-width: 100% !important;
     }
 
@@ -544,6 +544,6 @@ html body {
 
     .brand-lilletorget-text-logo,
     html.nav-collapsed .brand-lilletorget-text-logo {
-        width: min(10.2rem, 54vw) !important;
+        width: min(8.9rem, 48vw) !important;
     }
 }
