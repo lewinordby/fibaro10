@@ -3,26 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Energi</title>
-    <style>
-        :root { color-scheme: light; --bg:#eef2f6; --panel:#fff; --line:#d8dee4; --text:#17202a; --muted:#667085; }
-        * { box-sizing: border-box; }
-        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
-        header { position: sticky; top: 0; z-index: 5; background: rgba(255,255,255,0.97); border-bottom: 1px solid var(--line); padding: 0.85rem 1rem; backdrop-filter: blur(8px); }
-        main { padding: 0.85rem; max-width: 1120px; margin: 0 auto; }
-        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.9rem; margin-bottom: 0.9rem; }
-        h1 { margin: 0 0 0.35rem; font-size: 1.25rem; }
-        p { margin: 0; color: var(--muted); }
-        @media (min-width: 760px) { main { padding: 1.25rem; } }
-    </style>
+    <title>Energi status</title>
     {% include "_styles.html" %}
+    <style>
+        .page-title { margin:0 0 0.35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 0.95rem; color:var(--muted); font-size:0.88rem; }
+        .summary-grid { display:grid; gap:0.75rem; margin-bottom:0.95rem; }
+        .summary-card, .area-card, .panel-card {
+            background:var(--panel);
+            border:1px solid var(--line);
+            border-radius:10px;
+            box-shadow:var(--shadow-1);
+        }
+        .summary-card { padding:0.9rem; border-top:4px solid var(--energy-color); }
+        .summary-card span, .area-card span { display:block; color:var(--muted); font-size:0.76rem; font-weight:720; }
+        .summary-card strong { display:block; margin-top:0.18rem; font-size:1.38rem; color:var(--brand-dark); line-height:1; }
+        .summary-card small { display:block; margin-top:0.32rem; color:var(--muted); font-size:0.72rem; }
+        .area-grid { display:grid; gap:0.75rem; margin-bottom:0.95rem; }
+        .area-card { padding:0.82rem; border-top:4px solid var(--energy-color); }
+        .area-card.tone-light { border-top-color:var(--light-color); }
+        .area-card.tone-vent { border-top-color:var(--vent-color); }
+        .area-card.tone-sun2 { border-top-color:var(--sun2-color); }
+        .area-card.tone-status { border-top-color:var(--status-color); }
+        .area-card.tone-admin { border-top-color:var(--admin-color); }
+        .area-head { display:flex; justify-content:space-between; gap:0.6rem; align-items:flex-start; margin-bottom:0.52rem; }
+        .area-title { margin:0; font-size:0.94rem; color:var(--brand-dark); }
+        .live-pill { padding:0.18rem 0.48rem; border-radius:999px; background:#fff7ed; color:#9a660f; border:1px solid #f0d09b; font-size:0.72rem; font-weight:800; white-space:nowrap; }
+        .area-power { font-size:1.32rem; line-height:1; font-weight:850; color:var(--brand-dark); }
+        .area-detail { display:grid; grid-template-columns:1fr 1fr; gap:0.55rem; margin-top:0.7rem; }
+        .mini-metric { background:var(--panel-soft); border:1px solid var(--line-soft); border-radius:8px; padding:0.52rem; min-width:0; }
+        .mini-metric strong { display:block; margin-top:0.12rem; font-size:0.98rem; color:var(--brand-dark); white-space:nowrap; }
+        .mini-metric.warn strong { color:#9d3f31; }
+        .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin:1rem 0 0.5rem; }
+        .section-title { margin:0; font-size:1rem; color:var(--brand-dark); }
+        .section-note { color:var(--muted); font-size:0.78rem; }
+        .panel-card { padding:0.9rem; margin-bottom:0.95rem; }
+        .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:900px; }
+        th, td { padding:0.56rem 0.62rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child { text-align:left; }
+        th { color:var(--muted); font-size:0.74rem; font-weight:780; background:var(--panel-soft); }
+        td { font-size:0.84rem; }
+        tbody tr:last-child td { border-bottom:0; }
+        .time-cell { font-weight:780; color:var(--brand-dark); }
+        .muted { color:var(--muted); }
+        .reset-dot { display:inline-flex; width:0.55rem; height:0.55rem; border-radius:999px; background:#d1d5db; vertical-align:middle; }
+        .reset-dot.on { background:#d66d5b; box-shadow:0 0 0 3px rgba(214,109,91,0.16); }
+        @media (min-width: 760px) {
+            .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+            .area-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        }
+        @media (min-width: 1160px) {
+            .area-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        }
+    </style>
 </head>
 <body class="theme-energy">
     {% include "_header.html" %}
     <main>
-        <section class="panel">
-            <h1>Energi</h1>
-            <p>Testside for energidelen. Her kan vi senere legge inn strømforbruk, effekt, døgnprofil og sammenligning mot drift.</p>
+        <h1 class="page-title">Energi status</h1>
+        <p class="page-subtitle">
+            Minuttlogging fra HC3. Realtime viser hva bygget bruker akkurat nå, mens akkumulert kWh brukes til dagsummer og kan sammenlignes mot Elvia.
+        </p>
+
+        <section class="summary-grid">
+            <div class="summary-card">
+                <span>Inntak nå</span>
+                <strong>{{ "{:,.0f}".format(latest.inntak_w or 0).replace(",", " ") if latest else "-" }} W</strong>
+                <small>{{ latest.bucket_start|localtime if latest else "Ingen HC3-måling ennå" }}</small>
+            </div>
+            <div class="summary-card">
+                <span>Forbruk i dag</span>
+                <strong>{{ "{:,.1f}".format(totals.inntak_delta_kwh or 0).replace(",", " ") }} kWh</strong>
+                <small>{{ sample_count }} minuttverdier</small>
+            </div>
+            <div class="summary-card">
+                <span>Differanse nå</span>
+                <strong>{{ "{:,.0f}".format(latest.differanse_beregnet_w or 0).replace(",", " ") if latest else "-" }} W</strong>
+                <small>Inntak minus varmepumper, lys, massasje og annet</small>
+            </div>
+            <div class="summary-card">
+                <span>Elvia i dag</span>
+                <strong>{{ "{:,.1f}".format(elvia_today_kwh or 0).replace(",", " ") }} kWh</strong>
+                <small>Fasit når månedens fil er importert</small>
+            </div>
+        </section>
+
+        <section class="area-grid">
+            {% for card in area_cards %}
+            <article class="area-card tone-{{ card.tone }}">
+                <div class="area-head">
+                    <h2 class="area-title">{{ card.label }}</h2>
+                    <span class="live-pill">live</span>
+                </div>
+                <div class="area-power">{{ "{:,.0f}".format(card.power_w or 0).replace(",", " ") if latest else "-" }} W</div>
+                <div class="area-detail">
+                    <div class="mini-metric">
+                        <span>I dag</span>
+                        <strong>{{ "{:,.2f}".format(card.today_kwh or 0).replace(",", " ") }} kWh</strong>
+                    </div>
+                    <div class="mini-metric">
+                        <span>Akkumulert</span>
+                        <strong>{{ "{:,.1f}".format(card.energy_kwh or 0).replace(",", " ") if card.energy_kwh is not none else "-" }}</strong>
+                    </div>
+                    <div class="mini-metric {% if card.resets_today %}warn{% endif %}">
+                        <span>Reset i dag</span>
+                        <strong>{{ card.resets_today }}</strong>
+                    </div>
+                    <div class="mini-metric">
+                        <span>Andel av inntak</span>
+                        {% set share = ((card.power_w or 0) / (latest.inntak_w or 1) * 100) if latest and latest.inntak_w else 0 %}
+                        <strong>{{ "{:.0f}".format(share) }}%</strong>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </section>
+
+        <article class="panel-card">
+            <h2 class="section-title">Slik brukes målingene</h2>
+            <p class="page-subtitle">
+                HC3 sender både realtime W og akkumulert kWh. Appen beregner differanse selv fra de fem hovedgruppene, mens Fibaro sin differanse tas med som kontrollverdi. Hvis en akkumulert måler starter på 0 igjen markeres reset, og negativt forbruk brukes aldri i dagsummen.
+            </p>
+        </article>
+
+        <div class="section-row">
+            <h2 class="section-title">Siste minuttmålinger</h2>
+            <span class="section-note">Nyeste først</span>
+        </div>
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tid</th>
+                        <th>Inntak W</th>
+                        <th>VP W</th>
+                        <th>Lys W</th>
+                        <th>Massasje W</th>
+                        <th>Annet W</th>
+                        <th>Diff beregnet W</th>
+                        <th>Diff Fibaro W</th>
+                        <th>Inntak kWh</th>
+                        <th>Reset</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td class="time-cell">{{ row.bucket_start|localtime }}</td>
+                        <td>{{ "{:,.0f}".format(row.inntak_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(row.varmepumper_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(row.belysning_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(row.massasje_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(row.annet_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(row.differanse_beregnet_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(row.differanse_fibaro_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.2f}".format(row.inntak_kwh or 0).replace(",", " ") }}</td>
+                        <td>
+                            <span class="reset-dot {% if row.inntak_reset or row.varmepumper_reset or row.belysning_reset or row.massasje_reset or row.annet_reset or row.differanse_fibaro_reset %}on{% endif %}"></span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="10" class="muted">Ingen energimålinger er mottatt ennå.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </section>
     </main>
 </body>

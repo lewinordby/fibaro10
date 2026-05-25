@@ -118,7 +118,7 @@
         </div>
         {% endif %}
 
-        <a class="button nav-energy has-sub {% if is_energy %}active{% endif %}" href="/energi/elvia" aria-label="Energi" title="Energi">
+        <a class="button nav-energy has-sub {% if is_energy %}active{% endif %}" href="/energi/status" aria-label="Energi" title="Energi">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M13 2.8 5.8 13H12l-1 8.2L18.2 10H12l1-7.2Z"></path>
             </svg>
@@ -127,6 +127,7 @@
         </a>
         {% if is_energy %}
         <div class="nav-row nav-sub" aria-label="Undermeny for energi">
+            {{ sub_button("/energi/status", "Status", "dashboard", current_path == "/energi/status") }}
             {{ sub_button("/energi/elvia", "Elvia", "chart", current_path == "/energi/elvia") }}
         </div>
         {% endif %}

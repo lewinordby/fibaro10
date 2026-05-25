@@ -934,6 +934,49 @@ class EnergyImportRun(Base):
     raw = Column(JSON, nullable=True)
 
 
+class EnergyFibaroSample(Base):
+    __tablename__ = "energy_fibaro_samples"
+    __table_args__ = (UniqueConstraint("bucket_start", name="uq_energy_fibaro_bucket"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    bucket_start = Column(DateTime, index=True, nullable=False)
+    source = Column(String, index=True, nullable=True)
+
+    inntak_w = Column(Float, nullable=True)
+    varmepumper_w = Column(Float, nullable=True)
+    belysning_w = Column(Float, nullable=True)
+    massasje_w = Column(Float, nullable=True)
+    annet_w = Column(Float, nullable=True)
+    differanse_fibaro_w = Column(Float, nullable=True)
+    differanse_beregnet_w = Column(Float, nullable=True)
+
+    inntak_kwh = Column(Float, nullable=True)
+    varmepumper_kwh = Column(Float, nullable=True)
+    belysning_kwh = Column(Float, nullable=True)
+    massasje_kwh = Column(Float, nullable=True)
+    annet_kwh = Column(Float, nullable=True)
+    differanse_fibaro_kwh = Column(Float, nullable=True)
+    differanse_beregnet_kwh = Column(Float, nullable=True)
+
+    inntak_delta_kwh = Column(Float, nullable=True)
+    varmepumper_delta_kwh = Column(Float, nullable=True)
+    belysning_delta_kwh = Column(Float, nullable=True)
+    massasje_delta_kwh = Column(Float, nullable=True)
+    annet_delta_kwh = Column(Float, nullable=True)
+    differanse_fibaro_delta_kwh = Column(Float, nullable=True)
+    differanse_beregnet_delta_kwh = Column(Float, nullable=True)
+
+    inntak_reset = Column(Boolean, nullable=True)
+    varmepumper_reset = Column(Boolean, nullable=True)
+    belysning_reset = Column(Boolean, nullable=True)
+    massasje_reset = Column(Boolean, nullable=True)
+    annet_reset = Column(Boolean, nullable=True)
+    differanse_fibaro_reset = Column(Boolean, nullable=True)
+
+    extra = Column(JSON, nullable=True)
+
+
 class AiQueryLog(Base):
     __tablename__ = "ai_query_logs"
 
@@ -1068,6 +1111,28 @@ class EventDataIn(BaseModel):
     state: Optional[bool] = None
 
     values: Dict[str, Any] = Field(default_factory=dict)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class EnergyFibaroIn(BaseModel):
+    source: str = "HC3 ENERGI"
+    timestamp: Optional[datetime] = None
+    bucket_start: Optional[datetime] = None
+
+    inntak_w: Optional[float] = None
+    varmepumper_w: Optional[float] = None
+    belysning_w: Optional[float] = None
+    massasje_w: Optional[float] = None
+    annet_w: Optional[float] = None
+    differanse_fibaro_w: Optional[float] = None
+
+    inntak_kwh: Optional[float] = None
+    varmepumper_kwh: Optional[float] = None
+    belysning_kwh: Optional[float] = None
+    massasje_kwh: Optional[float] = None
+    annet_kwh: Optional[float] = None
+    differanse_fibaro_kwh: Optional[float] = None
+
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -1350,6 +1415,19 @@ ENERGY_IMPORT_COLUMNS = [
     "estimated_hours_count", "message", "raw",
 ]
 
+ENERGY_FIBARO_COLUMNS = [
+    "id", "timestamp", "bucket_start", "source",
+    "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w",
+    "differanse_fibaro_w", "differanse_beregnet_w",
+    "inntak_kwh", "varmepumper_kwh", "belysning_kwh", "massasje_kwh", "annet_kwh",
+    "differanse_fibaro_kwh", "differanse_beregnet_kwh",
+    "inntak_delta_kwh", "varmepumper_delta_kwh", "belysning_delta_kwh",
+    "massasje_delta_kwh", "annet_delta_kwh", "differanse_fibaro_delta_kwh",
+    "differanse_beregnet_delta_kwh",
+    "inntak_reset", "varmepumper_reset", "belysning_reset", "massasje_reset",
+    "annet_reset", "differanse_fibaro_reset", "extra",
+]
+
 AI_QUERY_COLUMNS = [
     "id", "timestamp", "username", "question", "answer", "ok", "error", "tool_calls_count", "raw",
 ]
@@ -1389,6 +1467,13 @@ AI_DATASETS = {
         "description": "Importerte Elvia-timesverdier med kWh, måler, dato og status.",
         "columns": ENERGY_HOURLY_COLUMNS,
         "time_column": "measured_at",
+    },
+    "energy_fibaro": {
+        "table": "energy_fibaro_samples",
+        "title": "Fibaro strømlogging",
+        "description": "Minuttlogging fra HC3 med realtime effekt, akkumulert kWh, beregnet differanse og reset-markering.",
+        "columns": ENERGY_FIBARO_COLUMNS,
+        "time_column": "bucket_start",
     },
     "light_events": {
         "table": "utelys_events",
@@ -2102,6 +2187,17 @@ STARTUP_COLUMNS = {
         ("imported_at", "TIMESTAMP"),
         ("raw", "JSON"),
     ],
+    "energy_fibaro_samples": [
+        ("differanse_beregnet_w", "DOUBLE PRECISION"),
+        ("differanse_beregnet_kwh", "DOUBLE PRECISION"),
+        ("differanse_beregnet_delta_kwh", "DOUBLE PRECISION"),
+        ("inntak_reset", "BOOLEAN"),
+        ("varmepumper_reset", "BOOLEAN"),
+        ("belysning_reset", "BOOLEAN"),
+        ("massasje_reset", "BOOLEAN"),
+        ("annet_reset", "BOOLEAN"),
+        ("differanse_fibaro_reset", "BOOLEAN"),
+    ],
 }
 
 PERFORMANCE_INDEXES = [
@@ -2166,6 +2262,16 @@ PERFORMANCE_INDEXES = [
         "ON energy_hourly_consumption (stat_date, meter_id)",
     ),
     (
+        "ix_energy_fibaro_bucket",
+        "CREATE INDEX IF NOT EXISTS ix_energy_fibaro_bucket "
+        "ON energy_fibaro_samples (bucket_start DESC)",
+    ),
+    (
+        "ix_energy_fibaro_timestamp",
+        "CREATE INDEX IF NOT EXISTS ix_energy_fibaro_timestamp "
+        "ON energy_fibaro_samples (timestamp DESC)",
+    ),
+    (
         "ix_vent_samples_bucket_mode",
         "CREATE INDEX IF NOT EXISTS ix_vent_samples_bucket_mode "
         "ON ventilasjon_samples (bucket_start, mode)",
@@ -2207,6 +2313,14 @@ IMPORT_JOB_DEFINITIONS = {
         "expected_interval_minutes": 70,
         "warning_after_minutes": 130,
         "description": "Værvarsel hentet fra Yr/MET når forrige varsel går ut.",
+    },
+    "hc3_energy_1min": {
+        "title": "Energi fra HC3",
+        "category": "Energi",
+        "source": "HC3",
+        "expected_interval_minutes": 2,
+        "warning_after_minutes": 5,
+        "description": "Minuttlogging av realtime effekt og akkumulert kWh fra Fibaro.",
     },
     "roborock_sync": {
         "title": "Roborock logger",
@@ -2784,7 +2898,7 @@ def is_public_request(request: Request) -> bool:
         return True
     if request.method == "GET" and (path == "/api/config" or path.startswith("/api/config/")):
         return True
-    return request.method == "POST" and path in {"/events", "/log"}
+    return request.method == "POST" and path in {"/events", "/log", "/api/energi/fibaro"}
 
 
 async def parse_form_body(request: Request) -> Dict[str, str]:
@@ -2903,6 +3017,19 @@ def sample_bucket(value: Optional[datetime]) -> datetime:
     stamp = value or datetime.utcnow()
     minute = (stamp.minute // 5) * 5
     return stamp.replace(minute=minute, second=0, microsecond=0)
+
+
+def normalize_local_naive(value: Optional[datetime]) -> Optional[datetime]:
+    if not value:
+        return None
+    if value.tzinfo is not None:
+        return value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return value.replace(tzinfo=None)
+
+
+def minute_bucket(value: Optional[datetime]) -> datetime:
+    stamp = normalize_local_naive(value) or local_now_naive()
+    return stamp.replace(second=0, microsecond=0)
 
 
 def parse_day(value: Optional[str]) -> date:
@@ -3873,6 +4000,44 @@ def format_short_number(value: Any, decimals: int = 0) -> str:
     return f"{round(number):,}".replace(",", " ")
 
 
+ENERGY_FIBARO_AREAS = [
+    {"key": "inntak", "label": "Inntak", "tone": "energy"},
+    {"key": "varmepumper", "label": "Varmepumper", "tone": "vent"},
+    {"key": "belysning", "label": "Belysning", "tone": "light"},
+    {"key": "massasje", "label": "Massasje", "tone": "sun2"},
+    {"key": "annet", "label": "Annet", "tone": "status"},
+    {"key": "differanse_beregnet", "label": "Differanse", "tone": "admin"},
+]
+
+ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "differanse_fibaro"]
+ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
+
+
+def sum_optional(values: list[Optional[float]]) -> Optional[float]:
+    if any(value is None for value in values):
+        return None
+    return sum(float(value or 0) for value in values)
+
+
+def calculated_difference(main_value: Optional[float], values: list[Optional[float]]) -> Optional[float]:
+    sub_sum = sum_optional(values)
+    if main_value is None or sub_sum is None:
+        return None
+    return float(main_value) - sub_sum
+
+
+def accumulated_delta(current: Optional[float], previous: Optional[float]) -> tuple[Optional[float], bool]:
+    if current is None:
+        return None, False
+    if previous is None:
+        return None, False
+    current_value = float(current)
+    previous_value = float(previous)
+    if current_value + 0.0001 >= previous_value:
+        return max(current_value - previous_value, 0.0), False
+    return max(current_value, 0.0), True
+
+
 def dashboard_alert(level: str, title: str, detail: str, href: str = "/status/datakilder") -> Dict[str, str]:
     return {"level": level, "title": title, "detail": detail, "href": href}
 
@@ -3964,6 +4129,12 @@ async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
     if job_name == "yr_weather_refresh":
         row = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().first()
         return {"last_success_at": row.timestamp if row else None, "message": row.weather_text if row else ""}
+    if job_name == "hc3_energy_1min":
+        row = (await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))).scalars().first()
+        return {
+            "last_success_at": row.bucket_start if row else None,
+            "message": f"Inntak {format_short_number(row.inntak_w)} W" if row and row.inntak_w is not None else "Sist funnet i energiloggen" if row else "",
+        }
     if job_name == "roborock_sync":
         row = (await session.execute(select(RoborockSyncRun).order_by(RoborockSyncRun.timestamp.desc()).limit(1))).scalars().first()
         return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.robots_count if row else None}
@@ -4539,6 +4710,108 @@ def row_to_dict(row, columns):
     if hasattr(row, "extra"):
         out["extra"] = row.extra or {}
     return out
+
+
+def energy_fibaro_sample_payload(data: EnergyFibaroIn, previous: Optional[EnergyFibaroSample]) -> Dict[str, Any]:
+    timestamp = normalize_local_naive(data.timestamp) or local_now_naive()
+    bucket_start = minute_bucket(data.bucket_start or timestamp)
+    values: Dict[str, Any] = {
+        "timestamp": timestamp,
+        "bucket_start": bucket_start,
+        "source": data.source,
+        "inntak_w": data.inntak_w,
+        "varmepumper_w": data.varmepumper_w,
+        "belysning_w": data.belysning_w,
+        "massasje_w": data.massasje_w,
+        "annet_w": data.annet_w,
+        "differanse_fibaro_w": data.differanse_fibaro_w,
+        "inntak_kwh": data.inntak_kwh,
+        "varmepumper_kwh": data.varmepumper_kwh,
+        "belysning_kwh": data.belysning_kwh,
+        "massasje_kwh": data.massasje_kwh,
+        "annet_kwh": data.annet_kwh,
+        "differanse_fibaro_kwh": data.differanse_fibaro_kwh,
+        "extra": data.extra or {},
+    }
+    values["differanse_beregnet_w"] = calculated_difference(
+        values["inntak_w"],
+        [values[f"{key}_w"] for key in ENERGY_SUB_KEYS],
+    )
+    values["differanse_beregnet_kwh"] = calculated_difference(
+        values["inntak_kwh"],
+        [values[f"{key}_kwh"] for key in ENERGY_SUB_KEYS],
+    )
+
+    reset_flags: Dict[str, bool] = {}
+    for key in ENERGY_ACCUMULATED_KEYS:
+        delta, reset = accumulated_delta(
+            values.get(f"{key}_kwh"),
+            getattr(previous, f"{key}_kwh", None) if previous else None,
+        )
+        values[f"{key}_delta_kwh"] = delta
+        if key != "differanse_fibaro":
+            values[f"{key}_reset"] = reset
+        else:
+            values["differanse_fibaro_reset"] = reset
+        reset_flags[key] = reset
+
+    values["differanse_beregnet_delta_kwh"] = calculated_difference(
+        values.get("inntak_delta_kwh"),
+        [values.get(f"{key}_delta_kwh") for key in ENERGY_SUB_KEYS],
+    )
+    values["extra"] = {
+        **(values.get("extra") or {}),
+        "reset_flags": reset_flags,
+        "calculated_by": "fibaro10",
+    }
+    return values
+
+
+async def upsert_energy_fibaro_sample(session, data: EnergyFibaroIn) -> EnergyFibaroSample:
+    timestamp = normalize_local_naive(data.timestamp) or local_now_naive()
+    bucket_start = minute_bucket(data.bucket_start or timestamp)
+    previous = (
+        await session.execute(
+            select(EnergyFibaroSample)
+            .where(EnergyFibaroSample.bucket_start < bucket_start)
+            .order_by(EnergyFibaroSample.bucket_start.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    values = energy_fibaro_sample_payload(
+        EnergyFibaroIn(**{**data.dict(), "timestamp": timestamp, "bucket_start": bucket_start}),
+        previous,
+    )
+    existing = (
+        await session.execute(
+            select(EnergyFibaroSample)
+            .where(EnergyFibaroSample.bucket_start == bucket_start)
+            .limit(1)
+        )
+    ).scalars().first()
+    if existing:
+        for key, value in values.items():
+            setattr(existing, key, value)
+        return existing
+    record = EnergyFibaroSample(**values)
+    session.add(record)
+    return record
+
+
+def energy_area_cards(latest: Optional[EnergyFibaroSample], totals: Dict[str, float], reset_counts: Dict[str, int]) -> list[Dict[str, Any]]:
+    cards = []
+    for area in ENERGY_FIBARO_AREAS:
+        key = area["key"]
+        cards.append(
+            {
+                **area,
+                "power_w": getattr(latest, f"{key}_w", None) if latest else None,
+                "energy_kwh": getattr(latest, f"{key}_kwh", None) if latest else None,
+                "today_kwh": totals.get(f"{key}_delta_kwh", 0.0),
+                "resets_today": reset_counts.get(key, 0),
+            }
+        )
+    return cards
 
 
 def merged_extra(data: EventDataIn):
@@ -5718,7 +5991,7 @@ async def health():
             "import_job_status", "import_job_runs",
             "sun2_room_daily_stats", "sun2_import_runs", "sun2_tanning_sessions",
             "sun2_beds", "sun2_session_import_runs", "energy_hourly_consumption",
-            "energy_import_runs", "ai_query_logs",
+            "energy_import_runs", "energy_fibaro_samples", "ai_query_logs",
         ],
     }
 
@@ -5955,7 +6228,7 @@ async def account_manual_view(request: Request):
 
 @app.get("/energi/testside", response_class=HTMLResponse)
 async def energy_view(request: Request):
-    return templates.TemplateResponse(request, "energy.html", {})
+    return RedirectResponse("/energi/status", status_code=307)
 
 
 async def admin_keys_context(
@@ -6276,6 +6549,23 @@ async def index(request: Request):
                 ).where(EnergyHourlyConsumption.stat_date == today)
             )
         ).one()
+        latest_energy_sample = (
+            await session.execute(
+                select(EnergyFibaroSample)
+                .order_by(EnergyFibaroSample.bucket_start.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        today_energy_fibaro = (
+            await session.execute(
+                select(
+                    func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("kwh"),
+                    func.count(EnergyFibaroSample.id).label("samples"),
+                )
+                .where(EnergyFibaroSample.bucket_start >= datetime.combine(today, time.min))
+                .where(EnergyFibaroSample.bucket_start < datetime.combine(today, time.min) + timedelta(days=1))
+            )
+        ).one()
         robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
         schedules = (
             await session.execute(
@@ -6424,10 +6714,14 @@ async def index(request: Request):
         },
         {
             "title": "Strøm i dag",
-            "value": format_short_number(today_energy.kwh, 1),
+            "value": format_short_number(today_energy_fibaro.kwh if today_energy_fibaro.samples else today_energy.kwh, 1),
             "unit": "kWh",
-            "detail": f"{today_energy.hours or 0} timer importert" + (f" - sist {today_energy.last_at.strftime('%H:%M')}" if today_energy.last_at else ""),
-            "href": "/energi/elvia",
+            "detail": (
+                f"Nå {format_short_number(latest_energy_sample.inntak_w)} W - {today_energy_fibaro.samples or 0} minuttverdier"
+                if latest_energy_sample
+                else f"{today_energy.hours or 0} timer importert" + (f" - sist {today_energy.last_at.strftime('%H:%M')}" if today_energy.last_at else "")
+            ),
+            "href": "/energi/status",
             "tone": "energy",
         },
         {
@@ -6892,17 +7186,129 @@ async def sun2_room_stats_json_legacy_redirect():
 
 @app.get("/energi")
 async def energy_redirect():
-    return RedirectResponse("/energi/elvia", status_code=307)
+    return RedirectResponse("/energi/status", status_code=307)
 
 
 @app.get("/energi/oversikt", response_class=HTMLResponse)
 async def energy_overview_legacy_redirect():
-    return RedirectResponse("/energi/elvia", status_code=307)
+    return RedirectResponse("/energi/status", status_code=307)
 
 
 @app.get("/energi/soling", response_class=HTMLResponse)
 async def energy_soling_legacy_redirect():
     return RedirectResponse("/soling/detaljer", status_code=307)
+
+
+@app.post("/api/energi/fibaro")
+async def energy_fibaro_ingest(data: EnergyFibaroIn):
+    async with async_session() as session:
+        record = await upsert_energy_fibaro_sample(session, data)
+        await session.flush()
+        await record_import_job(
+            session,
+            "hc3_energy_1min",
+            source=data.source or "HC3",
+            records_imported=1,
+            records_total=1,
+            message=f"Inntak {format_short_number(record.inntak_w)} W" if record.inntak_w is not None else "Energisample mottatt",
+            raw={"sample_id": record.id, "bucket_start": record.bucket_start.isoformat() if record.bucket_start else None},
+        )
+        await session.commit()
+        await session.refresh(record)
+    return {
+        "status": "ok",
+        "id": record.id,
+        "bucket_start": record.bucket_start.isoformat() if record.bucket_start else None,
+        "differanse_beregnet_w": record.differanse_beregnet_w,
+        "resets": {
+            "inntak": record.inntak_reset,
+            "varmepumper": record.varmepumper_reset,
+            "belysning": record.belysning_reset,
+            "massasje": record.massasje_reset,
+            "annet": record.annet_reset,
+            "differanse_fibaro": record.differanse_fibaro_reset,
+        },
+    }
+
+
+@app.get("/energi/status", response_class=HTMLResponse)
+async def energy_status_view(request: Request):
+    today = local_now_naive().date()
+    today_start = datetime.combine(today, time.min)
+    today_end = today_start + timedelta(days=1)
+    async with async_session() as session:
+        latest = (
+            await session.execute(
+                select(EnergyFibaroSample)
+                .order_by(EnergyFibaroSample.bucket_start.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        today_rows = (
+            await session.execute(
+                select(EnergyFibaroSample)
+                .where(EnergyFibaroSample.bucket_start >= today_start)
+                .where(EnergyFibaroSample.bucket_start < today_end)
+                .order_by(EnergyFibaroSample.bucket_start.desc())
+            )
+        ).scalars().all()
+        rows = (
+            await session.execute(
+                select(EnergyFibaroSample)
+                .order_by(EnergyFibaroSample.bucket_start.desc())
+                .limit(120)
+            )
+        ).scalars().all()
+        elvia_today = (
+            await session.execute(
+                select(func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0))
+                .where(EnergyHourlyConsumption.stat_date == today)
+            )
+        ).scalar_one()
+
+    totals = {
+        "inntak_delta_kwh": sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows),
+        "varmepumper_delta_kwh": sum(float_or_zero(row.varmepumper_delta_kwh) for row in today_rows),
+        "belysning_delta_kwh": sum(float_or_zero(row.belysning_delta_kwh) for row in today_rows),
+        "massasje_delta_kwh": sum(float_or_zero(row.massasje_delta_kwh) for row in today_rows),
+        "annet_delta_kwh": sum(float_or_zero(row.annet_delta_kwh) for row in today_rows),
+        "differanse_beregnet_delta_kwh": sum(float_or_zero(row.differanse_beregnet_delta_kwh) for row in today_rows),
+    }
+    reset_counts = {
+        "inntak": sum(1 for row in today_rows if row.inntak_reset),
+        "varmepumper": sum(1 for row in today_rows if row.varmepumper_reset),
+        "belysning": sum(1 for row in today_rows if row.belysning_reset),
+        "massasje": sum(1 for row in today_rows if row.massasje_reset),
+        "annet": sum(1 for row in today_rows if row.annet_reset),
+        "differanse_fibaro": sum(1 for row in today_rows if row.differanse_fibaro_reset),
+    }
+    return templates.TemplateResponse(
+        request,
+        "energy.html",
+        {
+            "latest": latest,
+            "rows": rows,
+            "area_cards": energy_area_cards(latest, totals, reset_counts),
+            "totals": totals,
+            "sample_count": len(today_rows),
+            "elvia_today_kwh": float_or_zero(elvia_today),
+            "today": today.isoformat(),
+        },
+    )
+
+
+@app.get("/api/energi/fibaro/json")
+async def energy_fibaro_json(limit: int = 300):
+    limit = max(1, min(limit, 5000))
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(EnergyFibaroSample)
+                .order_by(EnergyFibaroSample.bucket_start.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+    return {"rows": [row_to_dict(row, ENERGY_FIBARO_COLUMNS) for row in rows]}
 
 
 @app.get("/soling")
