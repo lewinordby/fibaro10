@@ -2,6 +2,8 @@ from datetime import date, datetime, time, timedelta
 from email.utils import parsedate_to_datetime
 from io import StringIO
 from copy import deepcopy
+from collections import defaultdict
+from statistics import median
 from typing import Any, Dict, Optional
 import asyncio
 import calendar
@@ -4814,6 +4816,237 @@ def energy_area_cards(latest: Optional[EnergyFibaroSample], totals: Dict[str, fl
     return cards
 
 
+def percentile(values: list[float], percent: float) -> Optional[float]:
+    if not values:
+        return None
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    position = (len(ordered) - 1) * percent
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[int(position)]
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+
+def sunbed_session_bounds(row: Sun2TanningSession) -> tuple[datetime, datetime] | None:
+    if not row.started_at:
+        return None
+    start_at = normalize_local_naive(row.started_at)
+    end_at = normalize_local_naive(row.ended_at)
+    if not start_at:
+        return None
+    if not end_at:
+        end_at = start_at + timedelta(minutes=float(row.duration_minutes or 15))
+    if end_at <= start_at:
+        end_at = start_at + timedelta(minutes=max(1.0, float(row.duration_minutes or 1)))
+    return start_at, end_at
+
+
+def build_sunbed_power_analysis(
+    sessions: list[Sun2TanningSession],
+    samples: list[Any],
+    bed_lookup: Dict[str, Any],
+) -> Dict[str, Any]:
+    session_items = []
+    for row in sessions:
+        room_id = normalize_room_id(row.room_id)
+        bounds = sunbed_session_bounds(row)
+        if not room_id or not bounds:
+            continue
+        start_at, end_at = bounds
+        session_items.append(
+            {
+                "id": row.id,
+                "room_id": room_id,
+                "sun2_bed_id": row.sun2_bed_id,
+                "start": start_at,
+                "end": end_at,
+                "duration_minutes": max(0.0, (end_at - start_at).total_seconds() / 60),
+            }
+        )
+
+    events = []
+    sessions_by_id = {}
+    for item in session_items:
+        sessions_by_id[item["id"]] = item
+        events.append((item["start"], 1, item["id"]))
+        events.append((item["end"], -1, item["id"]))
+    events.sort(key=lambda item: (item[0], item[1]))
+
+    sample_items = []
+    for sample in samples:
+        bucket = sample.get("bucket_start") if isinstance(sample, dict) else getattr(sample, "bucket_start", None)
+        bucket = normalize_local_naive(bucket)
+        value = sample.get("differanse_beregnet_w") if isinstance(sample, dict) else getattr(sample, "differanse_beregnet_w", None)
+        if value is None:
+            value = sample.get("differanse_fibaro_w") if isinstance(sample, dict) else getattr(sample, "differanse_fibaro_w", None)
+        try:
+            diff_w = float(value)
+        except (TypeError, ValueError):
+            continue
+        if bucket is not None:
+            sample_items.append({"time": bucket, "diff_w": diff_w})
+    sample_items.sort(key=lambda item: item["time"])
+
+    active: set[int] = set()
+    event_index = 0
+    classified = []
+    baseline_by_day_hour: Dict[tuple[date, int], list[float]] = defaultdict(list)
+    baseline_by_day: Dict[date, list[float]] = defaultdict(list)
+    baseline_global: list[float] = []
+    overlap_samples = 0
+
+    for sample in sample_items:
+        sample_time = sample["time"]
+        while event_index < len(events) and events[event_index][0] <= sample_time:
+            _, action, session_id = events[event_index]
+            if action == 1:
+                active.add(session_id)
+            else:
+                active.discard(session_id)
+            event_index += 1
+        if len(active) == 0:
+            baseline_by_day_hour[(sample_time.date(), sample_time.hour)].append(sample["diff_w"])
+            baseline_by_day[sample_time.date()].append(sample["diff_w"])
+            baseline_global.append(sample["diff_w"])
+            classified.append({**sample, "session_id": None, "state": "baseline"})
+        elif len(active) == 1:
+            session_id = next(iter(active))
+            classified.append({**sample, "session_id": session_id, "state": "single"})
+        else:
+            overlap_samples += 1
+            classified.append({**sample, "session_id": None, "state": "overlap", "active_count": len(active)})
+
+    global_baseline = median(baseline_global) if baseline_global else None
+    per_room: Dict[str, Dict[str, Any]] = {}
+    per_session: Dict[int, Dict[str, Any]] = {}
+    used_samples = 0
+    rejected_low = 0
+    missing_baseline = 0
+
+    for sample in classified:
+        if sample["state"] != "single":
+            continue
+        session_id = sample["session_id"]
+        session_item = sessions_by_id.get(session_id)
+        if not session_item:
+            continue
+        sample_time = sample["time"]
+        baseline_values = baseline_by_day_hour.get((sample_time.date(), sample_time.hour)) or baseline_by_day.get(sample_time.date())
+        baseline = median(baseline_values) if baseline_values else global_baseline
+        if baseline is None:
+            missing_baseline += 1
+            continue
+        net_w = sample["diff_w"] - baseline
+        if net_w <= 500:
+            rejected_low += 1
+            continue
+
+        room_id = session_item["room_id"]
+        bed = bed_lookup.get(room_id)
+        if room_id not in per_room:
+            per_room[room_id] = {
+                "room_id": room_id,
+                "label": sun2_room_label(room_id, getattr(bed, "name", None) if bed else None),
+                "sun2_bed_id": getattr(bed, "sun2_bed_id", None) if bed else session_item.get("sun2_bed_id"),
+                "bed_model": getattr(bed, "bed_model", None) if bed else None,
+                "samples_count": 0,
+                "sessions": set(),
+                "net_values": [],
+                "observed_values": [],
+                "baseline_values": [],
+                "estimated_kwh": 0.0,
+                "duration_minutes": 0.0,
+            }
+        target = per_room[room_id]
+        target["samples_count"] += 1
+        target["sessions"].add(session_id)
+        target["net_values"].append(net_w)
+        target["observed_values"].append(sample["diff_w"])
+        target["baseline_values"].append(baseline)
+        target["estimated_kwh"] += net_w / 1000 / 60
+        used_samples += 1
+
+        if session_id not in per_session:
+            per_session[session_id] = {
+                **session_item,
+                "label": target["label"],
+                "net_values": [],
+                "observed_values": [],
+                "baseline_values": [],
+            }
+        per_session[session_id]["net_values"].append(net_w)
+        per_session[session_id]["observed_values"].append(sample["diff_w"])
+        per_session[session_id]["baseline_values"].append(baseline)
+
+    rooms = []
+    for item in per_room.values():
+        net_values = item.pop("net_values")
+        observed_values = item.pop("observed_values")
+        baseline_values = item.pop("baseline_values")
+        session_count = len(item.pop("sessions"))
+        avg_w = sum(net_values) / len(net_values) if net_values else None
+        item.update(
+            {
+                "sessions_count": session_count,
+                "avg_w": avg_w,
+                "median_w": median(net_values) if net_values else None,
+                "p25_w": percentile(net_values, 0.25),
+                "p75_w": percentile(net_values, 0.75),
+                "min_w": min(net_values) if net_values else None,
+                "max_w": max(net_values) if net_values else None,
+                "avg_observed_w": sum(observed_values) / len(observed_values) if observed_values else None,
+                "avg_baseline_w": sum(baseline_values) / len(baseline_values) if baseline_values else None,
+                "kwh_10_min": (avg_w or 0) / 1000 * (10 / 60),
+                "kwh_15_min": (avg_w or 0) / 1000 * (15 / 60),
+                "kwh_20_min": (avg_w or 0) / 1000 * (20 / 60),
+                "confidence": "Høy" if len(net_values) >= 60 and session_count >= 5 else "Middels" if len(net_values) >= 20 and session_count >= 2 else "Lav",
+            }
+        )
+        rooms.append(item)
+    rooms.sort(key=lambda item: (item.get("room_id") or ""))
+
+    observations = []
+    for item in per_session.values():
+        net_values = item["net_values"]
+        if not net_values:
+            continue
+        observations.append(
+            {
+                "session_id": item["id"],
+                "room_id": item["room_id"],
+                "label": item["label"],
+                "start": item["start"],
+                "end": item["end"],
+                "duration_minutes": item["duration_minutes"],
+                "samples_count": len(net_values),
+                "avg_w": sum(net_values) / len(net_values),
+                "median_w": median(net_values),
+                "avg_observed_w": sum(item["observed_values"]) / len(item["observed_values"]),
+                "avg_baseline_w": sum(item["baseline_values"]) / len(item["baseline_values"]),
+            }
+        )
+    observations.sort(key=lambda item: item["start"], reverse=True)
+
+    return {
+        "rooms": rooms,
+        "observations": observations[:80],
+        "summary": {
+            "sessions_total": len(session_items),
+            "energy_samples_total": len(sample_items),
+            "baseline_samples": len(baseline_global),
+            "single_samples": used_samples,
+            "overlap_samples": overlap_samples,
+            "missing_baseline_samples": missing_baseline,
+            "rejected_low_samples": rejected_low,
+            "global_baseline_w": global_baseline,
+            "rooms_count": len(rooms),
+        },
+    }
+
+
 def merged_extra(data: EventDataIn):
     extra = dict(data.extra or {})
     if data.device_key:
@@ -7309,6 +7542,70 @@ async def energy_fibaro_json(limit: int = 300):
             )
         ).scalars().all()
     return {"rows": [row_to_dict(row, ENERGY_FIBARO_COLUMNS) for row in rows]}
+
+
+@app.get("/energi/forbruk-per-seng", response_class=HTMLResponse)
+async def energy_sunbed_consumption_view(
+    request: Request,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    today = local_now_naive().date()
+    end_day = parse_day(date_to) if date_to else today
+    start_day = parse_day(date_from) if date_from else end_day - timedelta(days=30)
+    if start_day > end_day:
+        start_day, end_day = end_day, start_day
+    max_days = 120
+    if (end_day - start_day).days > max_days:
+        start_day = end_day - timedelta(days=max_days)
+    start_at = datetime.combine(start_day, time.min)
+    end_at = datetime.combine(end_day + timedelta(days=1), time.min)
+
+    async with async_session() as session:
+        session_rows = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .where(Sun2TanningSession.started_at >= start_at)
+                .where(Sun2TanningSession.started_at < end_at)
+                .where(Sun2TanningSession.room_id.is_not(None))
+                .order_by(Sun2TanningSession.started_at.asc())
+            )
+        ).scalars().all()
+        energy_rows = (
+            await session.execute(
+                select(
+                    EnergyFibaroSample.bucket_start.label("bucket_start"),
+                    EnergyFibaroSample.differanse_beregnet_w.label("differanse_beregnet_w"),
+                    EnergyFibaroSample.differanse_fibaro_w.label("differanse_fibaro_w"),
+                )
+                .where(EnergyFibaroSample.bucket_start >= start_at)
+                .where(EnergyFibaroSample.bucket_start < end_at)
+                .order_by(EnergyFibaroSample.bucket_start.asc())
+            )
+        ).mappings().all()
+        bed_rows = (
+            await session.execute(
+                select(Sun2Bed).where(Sun2Bed.room_id.is_not(None))
+            )
+        ).scalars().all()
+
+    bed_lookup = {bed.room_id: bed for bed in bed_rows if bed.room_id}
+    analysis = build_sunbed_power_analysis(session_rows, [dict(row) for row in energy_rows], bed_lookup)
+    max_power = max([float_or_zero(room.get("avg_w")) for room in analysis["rooms"]] or [0.0])
+    return templates.TemplateResponse(
+        request,
+        "energy_sunbeds.html",
+        {
+            "date_from": start_day.isoformat(),
+            "date_to": end_day.isoformat(),
+            "max_days": max_days,
+            "analysis": analysis,
+            "rooms": analysis["rooms"],
+            "observations": analysis["observations"],
+            "summary": analysis["summary"],
+            "max_power": max_power,
+        },
+    )
 
 
 @app.get("/soling")

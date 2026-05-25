@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forbruk per seng</title>
+    {% include "_styles.html" %}
+    <style>
+        .page-title { margin:0 0 0.35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 0.95rem; color:var(--muted); font-size:0.88rem; }
+        .panel-card, .summary-card, .method-card {
+            background:var(--panel);
+            border:1px solid var(--line);
+            border-radius:10px;
+            box-shadow:var(--shadow-1);
+        }
+        .summary-grid { display:grid; gap:0.75rem; margin-bottom:0.95rem; }
+        .summary-card { padding:0.82rem; border-top:4px solid var(--energy-color); }
+        .summary-card span { display:block; color:var(--muted); font-size:0.76rem; font-weight:720; }
+        .summary-card strong { display:block; margin-top:0.18rem; font-size:1.2rem; color:var(--brand-dark); line-height:1; }
+        .summary-card small { display:block; margin-top:0.3rem; color:var(--muted); font-size:0.72rem; line-height:1.35; }
+        .filter-card { padding:0.82rem; margin-bottom:0.95rem; border-top:4px solid var(--energy-color); }
+        .filter-form { display:flex; flex-wrap:wrap; gap:0.55rem; align-items:end; margin:0; }
+        .field { display:grid; gap:0.22rem; }
+        .field label { color:var(--muted); font-size:0.74rem; font-weight:760; }
+        input[type="date"] { min-height:2.25rem; padding:0.42rem 0.55rem; border:1px solid var(--line); border-radius:8px; background:var(--panel-soft); color:var(--brand-dark); }
+        .button-primary { min-height:2.25rem; padding:0.45rem 0.8rem; border:1px solid var(--energy-color); border-radius:8px; background:var(--energy-color); color:white; font-weight:800; cursor:pointer; }
+        .method-card { padding:0.86rem; margin-bottom:0.95rem; border-left:4px solid var(--energy-color); }
+        .method-card h2, .section-title { margin:0 0 0.35rem; font-size:1rem; color:var(--brand-dark); }
+        .method-card p { margin:0; color:var(--muted); line-height:1.45; font-size:0.86rem; }
+        .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:920px; }
+        th, td { padding:0.56rem 0.62rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
+        th { color:var(--muted); font-size:0.72rem; font-weight:780; background:var(--panel-soft); text-transform:uppercase; }
+        td { font-size:0.84rem; }
+        tbody tr:last-child td { border-bottom:0; }
+        .room { font-weight:840; color:var(--brand-dark); }
+        .muted { color:var(--muted); }
+        .power { font-weight:860; color:#8a5a00; }
+        .confidence { display:inline-flex; align-items:center; justify-content:center; min-width:4.5rem; min-height:1.55rem; border-radius:999px; border:1px solid #e6c47a; background:#fff7e6; color:#8a5a00; font-size:0.74rem; font-weight:840; }
+        .confidence.high { border-color:#abd9b5; background:#edf8f1; color:#276846; }
+        .confidence.low { border-color:#efc1ba; background:#fff0ee; color:#9d3f31; }
+        .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin:1rem 0 0.5rem; }
+        .section-note { color:var(--muted); font-size:0.78rem; }
+        .bar-cell { min-width:8rem; }
+        .bar-track { height:0.55rem; border-radius:999px; background:#f1e5cf; overflow:hidden; }
+        .bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,var(--energy-color),#b97821); min-width:2px; }
+        @media (min-width: 820px) {
+            .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        }
+        @media (max-width: 640px) {
+            .filter-form { display:grid; grid-template-columns:1fr; }
+            .button-primary { width:100%; }
+        }
+    </style>
+</head>
+<body class="theme-energy">
+    {% include "_header.html" %}
+    <main>
+        <h1 class="page-title">Forbruk per solseng</h1>
+        <p class="page-subtitle">
+            Estimat basert på enkelttimer fra SUN2 og differanseforbruk fra HC3. Målet er å finne hva hver seng faktisk trekker når den går alene.
+        </p>
+
+        <article class="panel-card filter-card">
+            <form class="filter-form" method="get" action="/energi/forbruk-per-seng">
+                <div class="field">
+                    <label for="date_from">Fra</label>
+                    <input id="date_from" type="date" name="date_from" value="{{ date_from }}">
+                </div>
+                <div class="field">
+                    <label for="date_to">Til</label>
+                    <input id="date_to" type="date" name="date_to" value="{{ date_to }}">
+                </div>
+                <button class="button-primary" type="submit">Beregn</button>
+                <span class="page-subtitle">Maks {{ max_days }} dager per beregning for å holde siden rask.</span>
+            </form>
+        </article>
+
+        <section class="summary-grid">
+            <div class="summary-card">
+                <span>Senger med estimat</span>
+                <strong>{{ summary.rooms_count }}</strong>
+                <small>Rom der det finnes rene målepunkter.</small>
+            </div>
+            <div class="summary-card">
+                <span>Rene målepunkter</span>
+                <strong>{{ summary.single_samples }}</strong>
+                <small>Minuttverdier der nøyaktig én seng var aktiv.</small>
+            </div>
+            <div class="summary-card">
+                <span>Baseline</span>
+                <strong>{{ "{:,.0f}".format(summary.global_baseline_w or 0).replace(",", " ") }} W</strong>
+                <small>Median differanse når ingen solseng var aktiv.</small>
+            </div>
+            <div class="summary-card">
+                <span>Overlapp utelatt</span>
+                <strong>{{ summary.overlap_samples }}</strong>
+                <small>Målepunkter der flere senger gikk samtidig.</small>
+            </div>
+        </section>
+
+        <article class="method-card">
+            <h2>Metode</h2>
+            <p>
+                For hvert minutt ser appen hvilke solinger som er aktive. Hvis akkurat én seng går, brukes differanseforbruket fra HC3.
+                Deretter trekkes en baseline fra samme dag/time hvis mulig. Resultatet er estimert effekt for den ene senga.
+                Målinger under 500 W etter baseline fjernes som støy.
+            </p>
+        </article>
+
+        <div class="section-row">
+            <h2 class="section-title">Estimert effekt per seng</h2>
+            <span class="section-note">{{ date_from }} - {{ date_to }}</span>
+        </div>
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rom</th>
+                        <th>Seng</th>
+                        <th>Snitt W</th>
+                        <th>Median W</th>
+                        <th>Spenn</th>
+                        <th>Observasjoner</th>
+                        <th>Solinger</th>
+                        <th>15 min</th>
+                        <th>Målt kWh</th>
+                        <th>Tillit</th>
+                        <th>Visuelt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for room in rooms %}
+                    {% set confidence_class = "high" if room.confidence == "Høy" else "low" if room.confidence == "Lav" else "" %}
+                    <tr>
+                        <td class="room">{{ room.label }}</td>
+                        <td>{{ room.sun2_bed_id or "-" }}{% if room.bed_model %}<span class="muted"> · {{ room.bed_model }}</span>{% endif %}</td>
+                        <td class="power">{{ "{:,.0f}".format(room.avg_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(room.median_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(room.p25_w or 0).replace(",", " ") }} - {{ "{:,.0f}".format(room.p75_w or 0).replace(",", " ") }}</td>
+                        <td>{{ room.samples_count }}</td>
+                        <td>{{ room.sessions_count }}</td>
+                        <td>{{ "{:.2f}".format(room.kwh_15_min or 0) }} kWh</td>
+                        <td>{{ "{:.2f}".format(room.estimated_kwh or 0) }} kWh</td>
+                        <td><span class="confidence {{ confidence_class }}">{{ room.confidence }}</span></td>
+                        <td class="bar-cell">
+                            <div class="bar-track" title="{{ '{:,.0f}'.format(room.avg_w or 0).replace(',', ' ') }} W">
+                                <div class="bar-fill" style="width:{{ ((room.avg_w or 0) / (max_power or 1) * 100)|round(1) }}%;"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="11" class="muted">Ingen rene målepunkter i perioden. Prøv en lengre periode, eller vent til mer energidata er logget.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <div class="section-row">
+            <h2 class="section-title">Siste rene solinger</h2>
+            <span class="section-note">Bare solinger der én seng var aktiv samtidig</span>
+        </div>
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tid</th>
+                        <th>Rom</th>
+                        <th>Varighet</th>
+                        <th>Prøver</th>
+                        <th>Estimert W</th>
+                        <th>Diff målt</th>
+                        <th>Baseline</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in observations %}
+                    <tr>
+                        <td class="room">{{ item.start|localtime }}</td>
+                        <td>{{ item.label }}</td>
+                        <td>{{ "{:.0f}".format(item.duration_minutes or 0) }} min</td>
+                        <td>{{ item.samples_count }}</td>
+                        <td class="power">{{ "{:,.0f}".format(item.avg_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(item.avg_observed_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(item.avg_baseline_w or 0).replace(",", " ") }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="muted">Ingen enkeltobservasjoner å vise.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>

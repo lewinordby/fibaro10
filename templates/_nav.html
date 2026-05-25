@@ -128,6 +128,7 @@
         {% if is_energy %}
         <div class="nav-row nav-sub" aria-label="Undermeny for energi">
             {{ sub_button("/energi/status", "Status", "dashboard", current_path == "/energi/status") }}
+            {{ sub_button("/energi/forbruk-per-seng", "Forbruk/seng", "bed", current_path == "/energi/forbruk-per-seng") }}
             {{ sub_button("/energi/elvia", "Elvia", "chart", current_path == "/energi/elvia") }}
         </div>
         {% endif %}
