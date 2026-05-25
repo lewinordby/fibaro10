@@ -46,13 +46,11 @@
             <span class="nav-label">Status</span>
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
-        {% if is_status %}
-        <div class="nav-row nav-sub" aria-label="Undermeny for status">
+        <div class="nav-row nav-sub {% if is_status %}active-section{% endif %}" aria-label="Undermeny for status">
             {{ sub_button("/status/dashboard", "Dashboard", "dashboard", current_path == "/status/dashboard") }}
             {{ sub_button("/status/dagslinje", "Dagslinje", "timeline", current_path == "/status/dagslinje") }}
             {{ sub_button("/status/datakilder", "Datakilder", "list", current_path == "/status/datakilder") }}
         </div>
-        {% endif %}
 
         <a class="button nav-light has-sub {% if is_light %}active{% endif %}" href="/lys/hendelser" aria-label="Lys" title="Lys">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -61,14 +59,12 @@
             <span class="nav-label">Lys</span>
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
-        {% if is_light %}
-        <div class="nav-row nav-sub" aria-label="Undermeny for lys">
+        <div class="nav-row nav-sub {% if is_light %}active-section{% endif %}" aria-label="Undermeny for lys">
             {{ sub_button("/lys/hendelser", "Hendelser", "list", current_path == "/lys/hendelser") }}
             {{ sub_button("/lys/lux-logging", "Lux logg", "sun", current_path == "/lys/lux-logging") }}
             {{ sub_button("/lys/dagslogg-lux", "Dagslogg", "chart", current_path == "/lys/dagslogg-lux") }}
             {{ sub_button("/lys/innstillinger", "Innstillinger", "settings", current_path == "/lys/innstillinger") }}
         </div>
-        {% endif %}
 
         <a class="button nav-vent has-sub {% if is_vent %}active{% endif %}" href="/ventilasjon/hendelser" aria-label="Ventilasjon" title="Ventilasjon">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -77,15 +73,13 @@
             <span class="nav-label">Ventilasjon</span>
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
-        {% if is_vent %}
-        <div class="nav-row nav-sub" aria-label="Undermeny for ventilasjon">
+        <div class="nav-row nav-sub {% if is_vent %}active-section{% endif %}" aria-label="Undermeny for ventilasjon">
             {{ sub_button("/ventilasjon/hendelser", "Hendelser", "list", current_path == "/ventilasjon/hendelser") }}
             {{ sub_button("/ventilasjon/temp-logg", "Temp logg", "chart", current_path == "/ventilasjon/temp-logg") }}
             {{ sub_button("/ventilasjon/dagslogg-temp", "Dagslogg", "timeline", current_path == "/ventilasjon/dagslogg-temp") }}
             {{ sub_button("/ventilasjon/yr-logg", "Yr logg", "weather", current_path == "/ventilasjon/yr-logg") }}
             {{ sub_button("/ventilasjon/innstillinger", "Innstillinger", "settings", current_path == "/ventilasjon/innstillinger") }}
         </div>
-        {% endif %}
 
         <a class="button nav-cleaning has-sub {% if is_cleaning %}active{% endif %}" href="/renhold/oversikt" aria-label="Renhold" title="Renhold">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -94,11 +88,9 @@
             <span class="nav-label">Renhold</span>
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
-        {% if is_cleaning %}
-        <div class="nav-row nav-sub" aria-label="Undermeny for renhold">
+        <div class="nav-row nav-sub {% if is_cleaning %}active-section{% endif %}" aria-label="Undermeny for renhold">
             {{ sub_button("/renhold/oversikt", "Oversikt", "dashboard", current_path == "/renhold/oversikt") }}
         </div>
-        {% endif %}
 
         <a class="button nav-sun2 has-sub {% if is_sun2 %}active{% endif %}" href="/soling/dagslinje" aria-label="Soling" title="Soling">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -107,8 +99,7 @@
             <span class="nav-label">Soling</span>
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
-        {% if is_sun2 %}
-        <div class="nav-row nav-sub" aria-label="Undermeny for soling">
+        <div class="nav-row nav-sub {% if is_sun2 %}active-section{% endif %}" aria-label="Undermeny for soling">
             {{ sub_button("/soling/dagslinje", "Dagslinje", "timeline", current_path == "/soling/dagslinje") }}
             {{ sub_button("/soling/oversikt", "Statistikk", "dashboard", current_path == "/soling/oversikt") }}
             {{ sub_button("/soling/detaljer", "Detaljer", "chart", current_path == "/soling/detaljer") }}
@@ -116,7 +107,6 @@
             {{ sub_button("/soling/senger", "Senger", "bed", current_path == "/soling/senger") }}
             {{ sub_button("/soling/medlemmer", "Medlemmer", "users", current_path == "/soling/medlemmer") }}
         </div>
-        {% endif %}
 
         <a class="button nav-energy has-sub {% if is_energy %}active{% endif %}" href="/energi/status" aria-label="Energi" title="Energi">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -125,13 +115,11 @@
             <span class="nav-label">Energi</span>
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
-        {% if is_energy %}
-        <div class="nav-row nav-sub" aria-label="Undermeny for energi">
+        <div class="nav-row nav-sub {% if is_energy %}active-section{% endif %}" aria-label="Undermeny for energi">
             {{ sub_button("/energi/status", "Status", "dashboard", current_path == "/energi/status") }}
             {{ sub_button("/energi/forbruk-per-seng", "Forbruk/seng", "bed", current_path == "/energi/forbruk-per-seng") }}
             {{ sub_button("/energi/elvia", "Elvia", "chart", current_path == "/energi/elvia") }}
         </div>
-        {% endif %}
 
         <a class="button nav-ai has-sub {% if is_ai %}active{% endif %}" href="/ai/sok" aria-label="AI søk" title="AI søk">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -140,12 +128,10 @@
             <span class="nav-label">AI</span>
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
-        {% if is_ai %}
-        <div class="nav-row nav-sub" aria-label="Undermeny for AI">
+        <div class="nav-row nav-sub {% if is_ai %}active-section{% endif %}" aria-label="Undermeny for AI">
             {{ sub_button("/ai/sok", "Søk", "list", current_path == "/ai/sok") }}
             {{ sub_button("/ai/innstillinger", "Innstillinger", "settings", current_path == "/ai/innstillinger") }}
         </div>
-        {% endif %}
 
         <a class="button nav-account has-sub {% if is_account %}active{% endif %}" href="/konto/oversikt" aria-label="Konto" title="Konto">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -154,8 +140,7 @@
             <span class="nav-label">Konto</span>
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
-        {% if is_account %}
-        <div class="nav-row nav-sub" aria-label="Undermeny for konto">
+        <div class="nav-row nav-sub {% if is_account %}active-section{% endif %}" aria-label="Undermeny for konto">
             {{ sub_button("/konto/oversikt", "Oversikt", "dashboard", current_path == "/konto/oversikt") }}
             {{ sub_button("/konto/teknisk", "Teknisk", "list", current_path == "/konto/teknisk") }}
             {{ sub_button("/konto/manual", "Manual", "book", current_path == "/konto/manual") }}
@@ -171,6 +156,5 @@
                 </button>
             </form>
         </div>
-        {% endif %}
     </div>
 </nav>
