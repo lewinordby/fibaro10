@@ -7537,10 +7537,11 @@ async def energy_fibaro_ingest(data: EnergyFibaroIn):
 
 
 @app.get("/energi/status", response_class=HTMLResponse)
-async def energy_status_view(request: Request):
+async def energy_status_view(request: Request, day: Optional[str] = None):
     today = local_now_naive().date()
-    today_start = datetime.combine(today, time.min)
-    today_end = today_start + timedelta(days=1)
+    selected_day = parse_day(day)
+    day_start = datetime.combine(selected_day, time.min)
+    day_end = day_start + timedelta(days=1)
     async with async_session() as session:
         latest = (
             await session.execute(
@@ -7552,8 +7553,8 @@ async def energy_status_view(request: Request):
         today_rows = (
             await session.execute(
                 select(EnergyFibaroSample)
-                .where(EnergyFibaroSample.bucket_start >= today_start)
-                .where(EnergyFibaroSample.bucket_start < today_end)
+                .where(EnergyFibaroSample.bucket_start >= day_start)
+                .where(EnergyFibaroSample.bucket_start < day_end)
                 .order_by(EnergyFibaroSample.bucket_start.desc())
             )
         ).scalars().all()
@@ -7567,9 +7568,16 @@ async def energy_status_view(request: Request):
         elvia_today = (
             await session.execute(
                 select(func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0))
-                .where(EnergyHourlyConsumption.stat_date == today)
+                .where(EnergyHourlyConsumption.stat_date == selected_day)
             )
         ).scalar_one()
+        elvia_hours = (
+            await session.execute(
+                select(EnergyHourlyConsumption.hour, EnergyHourlyConsumption.consumption_kwh)
+                .where(EnergyHourlyConsumption.stat_date == selected_day)
+                .order_by(EnergyHourlyConsumption.hour)
+            )
+        ).all()
 
     totals = {
         "inntak_delta_kwh": sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows),
@@ -7587,6 +7595,42 @@ async def energy_status_view(request: Request):
         "annet": sum(1 for row in today_rows if row.annet_reset),
         "differanse_fibaro": sum(1 for row in today_rows if row.differanse_fibaro_reset),
     }
+    measured_by_hour = {hour: 0.0 for hour in range(24)}
+    for row in today_rows:
+        if row.bucket_start is None:
+            continue
+        measured_by_hour[row.bucket_start.hour] += float_or_zero(row.inntak_delta_kwh)
+
+    elvia_by_hour = {hour: 0.0 for hour in range(24)}
+    elvia_present = set()
+    for hour, consumption_kwh in elvia_hours:
+        if hour is None:
+            continue
+        elvia_by_hour[int(hour)] += float_or_zero(consumption_kwh)
+        elvia_present.add(int(hour))
+
+    hourly_max = max(
+        [0.1]
+        + [measured_by_hour[hour] for hour in range(24)]
+        + [elvia_by_hour[hour] for hour in range(24)]
+    )
+    hourly_energy = []
+    for hour in range(24):
+        measured_kwh = measured_by_hour[hour]
+        elvia_kwh = elvia_by_hour[hour]
+        hourly_energy.append(
+            {
+                "hour": f"{hour:02d}",
+                "measured_kwh": measured_kwh,
+                "elvia_kwh": elvia_kwh,
+                "has_elvia": hour in elvia_present,
+                "measured_height": round((measured_kwh / hourly_max) * 100, 2) if hourly_max else 0,
+                "elvia_height": round((elvia_kwh / hourly_max) * 100, 2) if hourly_max else 0,
+            }
+        )
+    measured_day_kwh = totals["inntak_delta_kwh"]
+    elvia_day_kwh = float_or_zero(elvia_today)
+    energy_deviation_kwh = measured_day_kwh - elvia_day_kwh
     return templates.TemplateResponse(
         request,
         "energy.html",
@@ -7596,7 +7640,15 @@ async def energy_status_view(request: Request):
             "area_cards": energy_area_cards(latest, totals, reset_counts),
             "totals": totals,
             "sample_count": len(today_rows),
-            "elvia_today_kwh": float_or_zero(elvia_today),
+            "elvia_today_kwh": elvia_day_kwh,
+            "hourly_energy": hourly_energy,
+            "hourly_max_kwh": hourly_max,
+            "energy_deviation_kwh": energy_deviation_kwh,
+            "selected_day": selected_day.isoformat(),
+            "selected_day_label": selected_day.strftime("%d.%m.%Y"),
+            "prev_day": (selected_day - timedelta(days=1)).isoformat(),
+            "next_day": (selected_day + timedelta(days=1)).isoformat(),
+            "is_today": selected_day == today,
             "today": today.isoformat(),
         },
     )

@@ -9,6 +9,11 @@
         .page-title { margin:0 0 0.35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
         .page-subtitle { margin:0 0 0.95rem; color:var(--muted); font-size:0.88rem; }
         .summary-grid { display:grid; gap:0.75rem; margin-bottom:0.95rem; }
+        form.day-form { display:grid; grid-template-columns:minmax(10rem,1fr) auto; gap:0.5rem; margin:0 0 0.75rem; align-items:stretch; }
+        .datebar { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; margin-bottom:0.95rem; }
+        .day-form input { width:100%; padding:0.62rem 0.7rem; border:1px solid var(--line); border-radius:8px; background:var(--panel); font:inherit; }
+        .day-form button, .datebar .button { display:inline-flex; align-items:center; justify-content:center; padding:0.62rem 0.78rem; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--brand-dark); text-decoration:none; font-weight:760; cursor:pointer; }
+        .day-form button { background:var(--energy-color); border-color:var(--energy-color); color:#fff; }
         .summary-card, .area-card, .panel-card {
             background:var(--panel);
             border:1px solid var(--line);
@@ -19,6 +24,25 @@
         .summary-card span, .area-card span { display:block; color:var(--muted); font-size:0.76rem; font-weight:720; }
         .summary-card strong { display:block; margin-top:0.18rem; font-size:1.38rem; color:var(--brand-dark); line-height:1; }
         .summary-card small { display:block; margin-top:0.32rem; color:var(--muted); font-size:0.72rem; }
+        .energy-hourly { padding:0.9rem; margin-bottom:0.95rem; }
+        .chart-head { display:flex; align-items:flex-start; justify-content:space-between; gap:0.8rem; margin-bottom:0.8rem; }
+        .chart-title { margin:0; color:var(--brand-dark); font-size:1rem; }
+        .chart-subtitle { margin:0.2rem 0 0; color:var(--muted); font-size:0.78rem; }
+        .chart-stats { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:0.4rem; }
+        .stat-pill { display:inline-flex; align-items:center; gap:0.32rem; border:1px solid var(--line); border-radius:999px; padding:0.28rem 0.48rem; color:var(--muted); font-size:0.74rem; font-weight:760; background:var(--panel-soft); }
+        .stat-pill strong { color:var(--brand-dark); }
+        .dot { width:0.62rem; height:0.62rem; border-radius:999px; background:var(--energy-color); }
+        .dot.elvia { background:#5b6b84; }
+        .dot.delta { background:#d66d5b; }
+        .hour-chart-wrap { overflow-x:auto; padding-bottom:0.3rem; }
+        .hour-chart { min-width:840px; height:235px; display:grid; grid-template-columns:repeat(24,minmax(0,1fr)); gap:0.38rem; align-items:end; padding:0.65rem 0.45rem 0.2rem; border:1px solid var(--line-soft); border-radius:10px; background:linear-gradient(180deg,#fff,#fbfcfe); }
+        .hour-group { min-width:0; height:100%; display:grid; grid-template-rows:1fr auto; gap:0.34rem; }
+        .bars { height:174px; display:flex; align-items:flex-end; justify-content:center; gap:0.12rem; border-bottom:1px solid #d9e1ea; }
+        .bar { width:38%; min-height:0; border-radius:6px 6px 0 0; background:var(--energy-color); box-shadow:inset 0 1px 0 rgba(255,255,255,0.35); }
+        .bar.has-value { min-height:3px; }
+        .bar.elvia { background:#5b6b84; opacity:0.9; }
+        .bar.elvia.missing { opacity:0.16; background:#cbd5e1; }
+        .hour-label { color:var(--muted); font-size:0.67rem; text-align:center; font-weight:720; }
         .area-grid { display:grid; gap:0.75rem; margin-bottom:0.95rem; }
         .area-card { padding:0.82rem; border-top:4px solid var(--energy-color); }
         .area-card.tone-light { border-top-color:var(--light-color); }
@@ -56,6 +80,11 @@
         @media (min-width: 1160px) {
             .area-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
         }
+        @media (max-width: 520px) {
+            form.day-form, .datebar { grid-template-columns:1fr; }
+            .chart-head { display:block; }
+            .chart-stats { justify-content:flex-start; margin-top:0.55rem; }
+        }
     </style>
 </head>
 <body class="theme-energy">
@@ -66,6 +95,16 @@
             Minuttlogging fra HC3. Realtime viser hva bygget bruker akkurat nå, mens akkumulert kWh brukes til dagsummer og kan sammenlignes mot Elvia.
         </p>
 
+        <form class="day-form" method="get" action="/energi/status">
+            <input type="date" name="day" value="{{ selected_day }}">
+            <button type="submit">Vis dag</button>
+        </form>
+        <div class="datebar">
+            <a class="button" href="/energi/status?day={{ prev_day }}">Forrige dag</a>
+            <a class="button" href="/energi/status">I dag</a>
+            <a class="button" href="/energi/status?day={{ next_day }}">Neste dag</a>
+        </div>
+
         <section class="summary-grid">
             <div class="summary-card">
                 <span>Inntak nå</span>
@@ -73,7 +112,7 @@
                 <small>{{ latest.bucket_start|source_time if latest else "Ingen HC3-måling ennå" }}</small>
             </div>
             <div class="summary-card">
-                <span>Forbruk i dag</span>
+                <span>Forbruk valgt dag</span>
                 <strong>{{ "{:,.1f}".format(totals.inntak_delta_kwh or 0).replace(",", " ") }} kWh</strong>
                 <small>{{ sample_count }} minuttverdier</small>
             </div>
@@ -83,9 +122,36 @@
                 <small>Inntak minus varmepumper, lys, massasje og annet</small>
             </div>
             <div class="summary-card">
-                <span>Elvia i dag</span>
+                <span>Elvia valgt dag</span>
                 <strong>{{ "{:,.1f}".format(elvia_today_kwh or 0).replace(",", " ") }} kWh</strong>
                 <small>Fasit når månedens fil er importert</small>
+            </div>
+        </section>
+
+        <section class="panel-card energy-hourly">
+            <div class="chart-head">
+                <div>
+                    <h2 class="chart-title">Timeforbruk {{ selected_day_label }}</h2>
+                    <p class="chart-subtitle">To søyler per time: HC3-målt forbruk og Elvia-forbruk der rapporten er importert.</p>
+                </div>
+                <div class="chart-stats" aria-label="Dagsummer">
+                    <span class="stat-pill"><span class="dot"></span>HC3 <strong>{{ "{:,.1f}".format(totals.inntak_delta_kwh or 0).replace(",", " ") }} kWh</strong></span>
+                    <span class="stat-pill"><span class="dot elvia"></span>Elvia <strong>{{ "{:,.1f}".format(elvia_today_kwh or 0).replace(",", " ") }} kWh</strong></span>
+                    <span class="stat-pill"><span class="dot delta"></span>Avvik <strong>{{ "{:+,.1f}".format(energy_deviation_kwh or 0).replace(",", " ") }} kWh</strong></span>
+                </div>
+            </div>
+            <div class="hour-chart-wrap">
+                <div class="hour-chart" role="img" aria-label="Forbruk hver time sammenlignet med Elvia">
+                    {% for hour in hourly_energy %}
+                    <div class="hour-group" title="{{ hour.hour }}:00 HC3 {{ '%.2f'|format(hour.measured_kwh) }} kWh{% if hour.has_elvia %}, Elvia {{ '%.2f'|format(hour.elvia_kwh) }} kWh{% else %}, Elvia ikke importert{% endif %}">
+                        <div class="bars">
+                            <span class="bar {% if hour.measured_kwh > 0 %}has-value{% endif %}" style="height: {{ hour.measured_height }}%"></span>
+                            <span class="bar elvia {% if hour.elvia_kwh > 0 %}has-value{% endif %} {% if not hour.has_elvia %}missing{% endif %}" style="height: {{ hour.elvia_height }}%"></span>
+                        </div>
+                        <span class="hour-label">{{ hour.hour }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </section>
 
@@ -99,7 +165,7 @@
                 <div class="area-power">{{ "{:,.0f}".format(card.power_w or 0).replace(",", " ") if latest else "-" }} W</div>
                 <div class="area-detail">
                     <div class="mini-metric">
-                        <span>I dag</span>
+                        <span>Valgt dag</span>
                         <strong>{{ "{:,.2f}".format(card.today_kwh or 0).replace(",", " ") }} kWh</strong>
                     </div>
                     <div class="mini-metric">
@@ -107,7 +173,7 @@
                         <strong>{{ "{:,.1f}".format(card.energy_kwh or 0).replace(",", " ") if card.energy_kwh is not none else "-" }}</strong>
                     </div>
                     <div class="mini-metric {% if card.resets_today %}warn{% endif %}">
-                        <span>Reset i dag</span>
+                        <span>Reset valgt dag</span>
                         <strong>{{ card.resets_today }}</strong>
                     </div>
                     <div class="mini-metric">
