@@ -5726,8 +5726,8 @@ async def health():
 @app.get("/favicon.ico")
 async def favicon():
     return FileResponse(
-        "static/sun2-blue-transparent.png",
-        media_type="image/png",
+        "static/favicon.ico",
+        media_type="image/x-icon",
         headers={"Cache-Control": "public, max-age=604800, immutable"},
     )
 
