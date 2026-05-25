@@ -6353,6 +6353,16 @@ async def ai_redirect():
     return RedirectResponse("/ai/sok", status_code=303)
 
 
+@app.get("/lys")
+async def lights_redirect():
+    return RedirectResponse("/lys/dagslogg-lux", status_code=307)
+
+
+@app.get("/ventilasjon")
+async def ventilation_redirect():
+    return RedirectResponse("/ventilasjon/dagslogg-temp", status_code=307)
+
+
 @app.get("/ai/sok", response_class=HTMLResponse)
 async def ai_search_view(request: Request):
     openai_settings = await effective_openai_settings()

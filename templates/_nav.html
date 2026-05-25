@@ -52,7 +52,7 @@
             {{ sub_button("/status/datakilder", "Datakilder", "list", current_path == "/status/datakilder") }}
         </div>
 
-        <a class="button nav-light has-sub {% if is_light %}active{% endif %}" href="/lys/hendelser" aria-label="Lys" title="Lys">
+        <a class="button nav-light has-sub {% if is_light %}active{% endif %}" href="/lys/dagslogg-lux" aria-label="Lys" title="Lys">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M9 18h6"></path><path d="M10 21h4"></path><path d="M8 12a4 4 0 1 1 8 0c0 1.4-.8 2.4-1.7 3.2-.6.5-.8 1-.8 1.8h-3c0-.8-.2-1.3-.8-1.8C8.8 14.4 8 13.4 8 12Z"></path><path d="M12 2.8v2"></path><path d="m4.8 5.8 1.4 1.4"></path><path d="m19.2 5.8-1.4 1.4"></path>
             </svg>
@@ -60,13 +60,13 @@
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         <div class="nav-row nav-sub {% if is_light %}active-section{% endif %}" aria-label="Undermeny for lys">
+            {{ sub_button("/lys/dagslogg-lux", "Dagslogg", "chart", current_path == "/lys/dagslogg-lux") }}
             {{ sub_button("/lys/hendelser", "Hendelser", "list", current_path == "/lys/hendelser") }}
             {{ sub_button("/lys/lux-logging", "Lux logg", "sun", current_path == "/lys/lux-logging") }}
-            {{ sub_button("/lys/dagslogg-lux", "Dagslogg", "chart", current_path == "/lys/dagslogg-lux") }}
             {{ sub_button("/lys/innstillinger", "Innstillinger", "settings", current_path == "/lys/innstillinger") }}
         </div>
 
-        <a class="button nav-vent has-sub {% if is_vent %}active{% endif %}" href="/ventilasjon/hendelser" aria-label="Ventilasjon" title="Ventilasjon">
+        <a class="button nav-vent has-sub {% if is_vent %}active{% endif %}" href="/ventilasjon/dagslogg-temp" aria-label="Ventilasjon" title="Ventilasjon">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="2.1"></circle><path d="M12 4.2c2 0 3.8 1.4 3.8 3.3 0 1.5-1.1 2.6-2.7 3.1"></path><path d="M19 15.8c-1 1.7-3.1 2.3-4.8 1.4-1.3-.8-1.8-2.2-1.4-3.8"></path><path d="M5 15.8c-1-1.7-.4-3.8 1.3-4.8 1.3-.8 2.8-.5 4 .7"></path>
             </svg>
@@ -74,9 +74,9 @@
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         <div class="nav-row nav-sub {% if is_vent %}active-section{% endif %}" aria-label="Undermeny for ventilasjon">
+            {{ sub_button("/ventilasjon/dagslogg-temp", "Dagslogg", "timeline", current_path == "/ventilasjon/dagslogg-temp") }}
             {{ sub_button("/ventilasjon/hendelser", "Hendelser", "list", current_path == "/ventilasjon/hendelser") }}
             {{ sub_button("/ventilasjon/temp-logg", "Temp logg", "chart", current_path == "/ventilasjon/temp-logg") }}
-            {{ sub_button("/ventilasjon/dagslogg-temp", "Dagslogg", "timeline", current_path == "/ventilasjon/dagslogg-temp") }}
             {{ sub_button("/ventilasjon/yr-logg", "Yr logg", "weather", current_path == "/ventilasjon/yr-logg") }}
             {{ sub_button("/ventilasjon/innstillinger", "Innstillinger", "settings", current_path == "/ventilasjon/innstillinger") }}
         </div>
