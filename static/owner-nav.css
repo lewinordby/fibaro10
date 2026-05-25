@@ -61,6 +61,62 @@ html body {
     text-decoration: none !important;
 }
 
+.app-nav {
+    --section-color: var(--status-color);
+    --section-soft: var(--status-soft);
+    --section-border: var(--status-border);
+    --section-ring: var(--status-ring);
+}
+
+.app-nav.section-light {
+    --section-color: var(--light-color);
+    --section-soft: var(--light-soft);
+    --section-border: var(--light-border);
+    --section-ring: var(--light-ring);
+}
+
+.app-nav.section-vent {
+    --section-color: var(--vent-color);
+    --section-soft: var(--vent-soft);
+    --section-border: var(--vent-border);
+    --section-ring: var(--vent-ring);
+}
+
+.app-nav.section-cleaning {
+    --section-color: var(--cleaning-color);
+    --section-soft: var(--cleaning-soft);
+    --section-border: var(--cleaning-border);
+    --section-ring: var(--cleaning-ring);
+}
+
+.app-nav.section-sun2 {
+    --section-color: var(--sun2-color);
+    --section-soft: var(--sun2-soft);
+    --section-border: var(--sun2-border);
+    --section-ring: var(--sun2-ring);
+}
+
+.app-nav.section-admin {
+    --section-color: var(--admin-color);
+    --section-soft: var(--admin-soft);
+    --section-border: var(--admin-border);
+    --section-ring: var(--admin-ring);
+}
+
+.app-nav.section-energy {
+    --section-color: var(--energy-color);
+    --section-soft: var(--energy-soft);
+    --section-border: var(--energy-border);
+    --section-ring: var(--energy-ring);
+}
+
+.app-nav.section-ai {
+    --section-color: var(--ai-color);
+    --section-soft: var(--ai-soft);
+    --section-border: var(--ai-border);
+    --section-ring: var(--ai-ring);
+}
+
 .app-nav .nav-icon,
 .app-nav .nav-sub-icon {
     fill: none;
