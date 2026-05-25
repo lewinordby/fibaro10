@@ -1,0 +1,9 @@
+services:
+  hc3_vedlikehold:
+    build: .
+    container_name: hc3_vedlikehold
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8108:8108"
