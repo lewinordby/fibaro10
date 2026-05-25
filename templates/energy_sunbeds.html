@@ -189,7 +189,7 @@
                 <tbody>
                     {% for item in observations %}
                     <tr>
-                        <td class="room">{{ item.start|localtime }}</td>
+                        <td class="room">{{ item.start|source_time }}</td>
                         <td>{{ item.label }}</td>
                         <td>{{ "{:.0f}".format(item.duration_minutes or 0) }} min</td>
                         <td>{{ item.samples_count }}</td>
