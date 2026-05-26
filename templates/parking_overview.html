@@ -34,7 +34,7 @@
             <div class="parking-card"><span>Kjøretøy</span><strong>{{ total.vehicles|short_number }}</strong></div>
             <div class="parking-card"><span>SVV-beriket</span><strong>{{ total.enriched|short_number }}</strong></div>
             <div class="parking-card"><span>Denne måneden</span><strong>{{ month.sessions|short_number }}</strong></div>
-            <div class="parking-card"><span>Periode</span><strong style="font-size:1rem">{{ total.first|source_time_short }} - {{ total.last|source_time_short }}</strong></div>
+            <div class="parking-card"><span>Periode</span><strong style="font-size:1rem">{{ total.first|source_time }} - {{ total.last|source_time }}</strong></div>
         </section>
 
         <section class="section-split">
