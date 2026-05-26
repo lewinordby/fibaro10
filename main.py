@@ -8030,13 +8030,14 @@ async def parking_overview_view(request: Request):
                 .limit(10)
             )
         ).all()
+        make_expr = func.coalesce(ParkingVehicleDetails.merke, "Ukjent")
         top_makes = (
             await session.execute(
                 select(
-                    func.coalesce(ParkingVehicleDetails.merke, "Ukjent"),
+                    make_expr,
                     func.count(ParkingVehicleDetails.plate),
                 )
-                .group_by(func.coalesce(ParkingVehicleDetails.merke, "Ukjent"))
+                .group_by(make_expr)
                 .order_by(func.count(ParkingVehicleDetails.plate).desc())
                 .limit(10)
             )
