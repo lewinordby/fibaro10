@@ -4036,6 +4036,9 @@ ENERGY_FIBARO_AREAS = [
 
 ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "differanse_fibaro"]
 ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
+# HC3 accumulated kWh samples are end-stamped. For hourly comparison against
+# Elvia, show the delta on the hour it belongs to, not the hour it was posted.
+ENERGY_HC3_HOURLY_DISPLAY_OFFSET = timedelta(hours=1)
 ENERGY_HOURLY_COMPARE_FIELDS = [
     "stat_date", "year", "month", "day", "hour", "consumption_kwh", "production_kwh",
     "status", "is_verified", "is_estimated", "is_public_holiday", "use_weekend_prices",
@@ -7873,6 +7876,16 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
                 .limit(120)
             )
         ).scalars().all()
+        compare_start = day_start + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
+        compare_end = day_end + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
+        compare_rows = (
+            await session.execute(
+                select(EnergyFibaroSample)
+                .where(EnergyFibaroSample.bucket_start >= compare_start)
+                .where(EnergyFibaroSample.bucket_start < compare_end)
+                .order_by(EnergyFibaroSample.bucket_start.asc())
+            )
+        ).scalars().all()
         elvia_today = (
             await session.execute(
                 select(func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0))
@@ -7918,10 +7931,13 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
         "differanse_fibaro": sum(1 for row in today_rows if row.differanse_fibaro_reset),
     }
     measured_by_hour = {hour: 0.0 for hour in range(24)}
-    for row in today_rows:
+    for row in compare_rows:
         if row.bucket_start is None:
             continue
-        measured_by_hour[row.bucket_start.hour] += float_or_zero(row.inntak_delta_kwh)
+        display_time = row.bucket_start - ENERGY_HC3_HOURLY_DISPLAY_OFFSET
+        if display_time.date() != selected_day:
+            continue
+        measured_by_hour[display_time.hour] += float_or_zero(row.inntak_delta_kwh)
 
     elvia_by_hour = {hour: 0.0 for hour in range(24)}
     elvia_present = set()
@@ -7951,8 +7967,9 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
             }
         )
     measured_day_kwh = totals["inntak_delta_kwh"]
+    measured_compare_kwh = sum(measured_by_hour.values())
     elvia_day_kwh = float_or_zero(elvia_today)
-    energy_deviation_kwh = measured_day_kwh - elvia_day_kwh
+    energy_deviation_kwh = measured_compare_kwh - elvia_day_kwh
     latest_elvia_day = latest_elvia.stat_date if latest_elvia else None
     elvia_missing_for_day = latest_elvia_day is None or selected_day > latest_elvia_day
     return templates.TemplateResponse(
@@ -7965,6 +7982,8 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
             "totals": totals,
             "sample_count": len(today_rows),
             "elvia_today_kwh": elvia_day_kwh,
+            "measured_compare_kwh": measured_compare_kwh,
+            "compare_sample_count": len(compare_rows),
             "hourly_energy": hourly_energy,
             "hourly_max_kwh": hourly_max,
             "energy_deviation_kwh": energy_deviation_kwh,

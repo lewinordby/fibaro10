@@ -147,10 +147,10 @@
             <div class="chart-head">
                 <div>
                     <h2 class="chart-title">Timeforbruk {{ selected_day_label }}</h2>
-                    <p class="chart-subtitle">To søyler per time: HC3-målt forbruk og Elvia-forbruk der rapporten er importert.</p>
+                    <p class="chart-subtitle">To søyler per time: HC3-målt forbruk og Elvia-forbruk. HC3-akkumulert vises på timen forbruket gjelder.</p>
                 </div>
                 <div class="chart-stats" aria-label="Dagsummer">
-                    <span class="stat-pill"><span class="dot"></span>HC3 <strong>{{ "{:,.1f}".format(totals.inntak_delta_kwh or 0).replace(",", " ") }} kWh</strong></span>
+                    <span class="stat-pill"><span class="dot"></span>HC3 <strong>{{ "{:,.1f}".format(measured_compare_kwh or 0).replace(",", " ") }} kWh</strong></span>
                     <span class="stat-pill"><span class="dot elvia"></span>Elvia <strong>{{ "{:,.1f}".format(elvia_today_kwh or 0).replace(",", " ") }} kWh</strong></span>
                     <span class="stat-pill"><span class="dot delta"></span>Avvik <strong>{{ "{:+,.1f}".format(energy_deviation_kwh or 0).replace(",", " ") }} kWh</strong></span>
                 </div>
