@@ -41,9 +41,18 @@
         .parking-table a:hover { color:var(--page-accent); text-decoration:none; }
         .empty-row { color:var(--muted); text-align:center; padding:1rem !important; }
         .amount { color:#856010; font-weight:850; white-space:nowrap; }
-        .duration, .time-cell { white-space:nowrap; }
-        .vehicle-cell { min-width:14rem; color:var(--brand-dark); font-weight:720; white-space:nowrap; }
-        .area-cell { color:var(--muted); min-width:8rem; font-weight:720; }
+        .duration { white-space:nowrap; }
+        .time-stack { display:grid; gap:.18rem; min-width:5.4rem; white-space:nowrap; }
+        .time-stack strong { color:var(--brand-dark); font-size:.96rem; line-height:1.05; }
+        .time-stack span { color:var(--muted); font-size:.78rem; font-weight:760; }
+        .vehicle-cell { min-width:19rem; color:var(--brand-dark); }
+        .vehicle-main { display:flex; flex-wrap:wrap; gap:.32rem .55rem; align-items:baseline; font-weight:780; }
+        .plate-link { font-size:1rem; letter-spacing:.02em; }
+        .vehicle-title { color:var(--muted); font-size:.86rem; font-weight:720; }
+        .vehicle-meta { display:flex; flex-wrap:wrap; gap:.28rem; margin-top:.34rem; }
+        .meta-chip { display:inline-flex; align-items:center; min-height:1.45rem; border:1px solid var(--line); border-radius:999px; padding:.08rem .48rem; background:#f8fafc; color:var(--muted); font-size:.75rem; font-weight:800; }
+        .meta-chip.name { border-color:#c9d8ec; background:#f1f6fd; color:#435978; }
+        .meta-chip.area { border-color:#e5d5a5; background:#fff9ea; color:#805b12; }
         .source-cell { color:var(--muted); white-space:nowrap; font-size:.86rem; }
         .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.15rem; min-height:1.8rem; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--brand-dark); text-decoration:none; font-weight:760; }
         .count-link:hover { border-color:var(--page-accent); background:#fffaf0; }
@@ -122,29 +131,34 @@
         <div class="table-scroll">
             <table class="parking-table">
                 <thead>
-                    <tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Bil</th><th>Område</th><th>Kilde</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
+                    <tr><th>Tid</th><th>Kjøretøy</th><th>Kilde</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
                 </thead>
                 <tbody>
                 {% for item in rows %}
                     {% set row = item.session %}
                     <tr>
-                        <td class="time-cell">{{ item.start_label }}</td>
-                        <td class="time-cell">{{ item.end_label }}</td>
                         <td>
-                            {% if item.plate %}
-                            <a href="/parkering/kjoretoy/{{ item.plate }}">{{ row.car_license_number or item.plate }}</a>
-                            {% else %}
-                            -
-                            {% endif %}
+                            <div class="time-stack">
+                                <strong>{{ item.start_label }}</strong>
+                                <span>{% if item.end_label %}{{ item.end_label }}{% else %}Pågår{% endif %}</span>
+                            </div>
                         </td>
                         <td class="vehicle-cell">
-                            {% if item.vehicle_title %}
-                            {{ item.vehicle_title }}
-                            {% else %}
-                            -
-                            {% endif %}
+                            <div class="vehicle-main">
+                                {% if item.plate %}
+                                <a class="plate-link" href="/parkering/kjoretoy/{{ item.plate }}">{{ row.car_license_number or item.plate }}</a>
+                                {% else %}
+                                <span>-</span>
+                                {% endif %}
+                                {% if item.vehicle_title %}
+                                <span class="vehicle-title">{{ item.vehicle_title }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="vehicle-meta">
+                                <span class="meta-chip name">Navn: {{ item.vehicle_name or "-" }}</span>
+                                <span class="meta-chip area">Område: {{ item.vehicle_area or "-" }}</span>
+                            </div>
                         </td>
-                        <td class="area-cell">{{ item.vehicle_area or "-" }}</td>
                         <td class="source-cell">{{ item.source_label }}</td>
                         <td>
                             {% if item.plate %}
@@ -157,7 +171,7 @@
                         <td class="amount">{{ row.fee_inc_vat|short_number }} kr</td>
                     </tr>
                 {% else %}
-                    <tr><td class="empty-row" colspan="9">Ingen parkeringer i denne gruppen.</td></tr>
+                    <tr><td class="empty-row" colspan="6">Ingen parkeringer i denne gruppen.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
