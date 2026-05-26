@@ -334,14 +334,10 @@ async def set_date_range(page, from_day: date | None, to_day: date | None) -> No
 
     from_field = date_fields.nth(3)
     to_field = date_fields.nth(4)
-    await from_field.click()
-    await page.keyboard.press("Control+A")
-    await page.keyboard.type(from_value)
-    await page.keyboard.press("Tab")
-    await to_field.click()
-    await page.keyboard.press("Control+A")
-    await page.keyboard.type(to_value)
-    await page.keyboard.press("Tab")
+    await from_field.fill(from_value)
+    await from_field.press("Tab")
+    await to_field.fill(to_value)
+    await to_field.press("Tab")
     await page.wait_for_timeout(1000)
 
     actual_values = await date_fields.evaluate_all("(fields) => fields.slice(3, 5).map((field) => field.value)")
