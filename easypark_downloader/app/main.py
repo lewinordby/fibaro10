@@ -371,4 +371,7 @@ async def status() -> dict[str, Any]:
 async def sync_now() -> dict[str, Any]:
     if lock.locked():
         return {"status": "busy", **state}
-    return await run_once()
+    try:
+        return await run_once()
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc), **state}
