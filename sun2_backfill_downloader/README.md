@@ -37,7 +37,7 @@ DAILY_DOWNLOAD_DAYS_BACK=1
 SCHEDULE_POLL_SECONDS=60
 
 # Brukes bare til aa rapportere status inn i Fibaro10.
-FIBARO10_API_BASE_URL=https://fibaro10.onrender.com
+FIBARO10_API_BASE_URL=http://fibaro10:8110
 FIBARO10_API_USERNAME=logger
 FIBARO10_API_PASSWORD=robotx
 COLLECTOR_ID=qnap-sun2-daily-downloader

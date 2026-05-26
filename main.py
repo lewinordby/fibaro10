@@ -53,7 +53,7 @@ def env_float(name: str, default: str) -> float:
 
 MET_LAT = env_float("MET_LAT", "61.1153")
 MET_LON = env_float("MET_LON", "10.4662")
-MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 https://fibaro10.onrender.com")
+MET_USER_AGENT = os.getenv("MET_USER_AGENT", "fibaro10/1.0 http://192.168.20.218:8110")
 MET_WEATHER_CACHE = {"expires": datetime.min, "value": None}
 SUMMARY_CACHE_TTL = timedelta(minutes=5)
 SUMMARY_CACHE: Dict[str, Dict[str, Any]] = {}
@@ -6410,7 +6410,7 @@ async def effective_openai_settings() -> Dict[str, Any]:
     stored_model = str(values.get("openai_model") or "").strip()
     return {
         "api_key": env_key or stored_key,
-        "source": "Render miljøvariabel" if env_key else ("App-innstilling" if stored_key else "Mangler"),
+        "source": "Servermiljøvariabel" if env_key else ("App-innstilling" if stored_key else "Mangler"),
         "has_env_key": bool(env_key),
         "has_stored_key": bool(stored_key),
         "stored_key_masked": mask_secret(stored_key),
@@ -6467,7 +6467,7 @@ async def ask_ai(question: str, username: str) -> Dict[str, Any]:
         return {
             "ok": False,
             "answer": "",
-            "error": "OpenAI API key mangler. Legg den inn under AI > Innstillinger eller som OPENAI_API_KEY i Render.",
+            "error": "OpenAI API key mangler. Legg den inn under AI > Innstillinger eller som OPENAI_API_KEY på serveren.",
             "tool_calls": [],
         }
 

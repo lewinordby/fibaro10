@@ -26,7 +26,7 @@ Fibaro10 lagrer data i:
 ## Miljovariabler
 
 ```env
-FIBARO10_API_BASE_URL=https://fibaro10.onrender.com
+FIBARO10_API_BASE_URL=http://fibaro10:8110
 FIBARO10_API_USERNAME=logger
 FIBARO10_API_PASSWORD=passord-fra-fibaro10
 COLLECTOR_ID=qnap-sun2-importer

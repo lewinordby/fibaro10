@@ -34,7 +34,7 @@
                     <strong>Status</strong>
                     <span>
                         {% if settings.has_env_key %}
-                        Appen bruker <code>OPENAI_API_KEY</code> fra Render. Denne overstyrer nøkkelen i databasen.
+                        Appen bruker <code>OPENAI_API_KEY</code> fra servermiljøet. Denne overstyrer nøkkelen i databasen.
                         {% elif settings.has_stored_key %}
                         Appen bruker lagret nøkkel: <code>{{ settings.stored_key_masked }}</code>.
                         {% else %}
@@ -71,7 +71,7 @@
                         <label for="clear_openai_api_key">Nullstill lagret nøkkel</label>
                         <div class="input-row">
                             <input id="clear_openai_api_key" name="clear_openai_api_key" type="checkbox" value="1">
-                            <span class="help">Fjerner bare nøkkelen i databasen, ikke Render-miljøvariabelen.</span>
+                            <span class="help">Fjerner bare nøkkelen i databasen, ikke servermiljøvariabelen.</span>
                         </div>
                     </div>
                 </div>

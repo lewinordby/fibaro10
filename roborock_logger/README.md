@@ -8,7 +8,7 @@ Den gjør tre ting:
 2. Leser robotene lokalt på LAN der det er mulig.
 3. Sender ferdig strukturerte data til Fibaro10 sitt API.
 
-Fibaro10 kan ligge eksternt på Render nå, og senere lokalt. Da endres bare `FIBARO10_API_BASE_URL`.
+Fibaro10 kjører lokalt på QNAP. Hvis den senere flyttes, endres bare `FIBARO10_API_BASE_URL`.
 
 ## Oppsett
 
@@ -22,7 +22,7 @@ Viktigste felter:
 
 ```env
 ROBOROCK_EMAIL=roborock.sun2@gmail.com
-FIBARO10_API_BASE_URL=https://fibaro10.onrender.com
+FIBARO10_API_BASE_URL=http://fibaro10:8110
 FIBARO10_API_USERNAME=logger
 FIBARO10_API_PASSWORD=passord-fra-fibaro10
 ```

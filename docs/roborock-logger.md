@@ -59,10 +59,10 @@ Webflate:
 http://QNAP-IP:8095
 ```
 
-Hvis Fibaro10 senere flyttes lokalt, endres bare API-base i loggerens miljø:
+Hvis Fibaro10 senere flyttes til en annen host eller port, endres bare API-base i loggerens miljø:
 
 ```env
-FIBARO10_API_BASE_URL=https://fibaro10.onrender.com
+FIBARO10_API_BASE_URL=http://fibaro10:8110
 ```
 
 til for eksempel:

@@ -259,7 +259,7 @@ def build_manual():
         table(
             [
                 ["Versjon", "Dato", "Miljø"],
-                ["1.0", datetime.now().strftime("%d.%m.%Y"), "fibaro10.onrender.com"],
+                ["1.0", datetime.now().strftime("%d.%m.%Y"), "QNAP 192.168.20.218:8110"],
             ],
             [4.2 * cm, 4.1 * cm, 7.9 * cm],
         ),
