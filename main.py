@@ -8496,10 +8496,11 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
                 errors.append(f"{plate}: {message}")
                 await upsert_vehicle_svv_data(session, plate, {}, 0, message)
             await session.commit()
+        job_ok = failed == 0 or updated > 0 or processed == 0
         await record_import_job(
             session,
             "parking_vehicle_svv_sync",
-            ok=failed == 0,
+            ok=job_ok,
             source=source,
             started_at=started_at,
             records_imported=updated,
