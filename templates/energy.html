@@ -31,6 +31,9 @@
         .chart-stats { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:0.4rem; }
         .stat-pill { display:inline-flex; align-items:center; gap:0.32rem; border:1px solid var(--line); border-radius:999px; padding:0.28rem 0.48rem; color:var(--muted); font-size:0.74rem; font-weight:760; background:var(--panel-soft); }
         .stat-pill strong { color:var(--brand-dark); }
+        .notice { margin:0 0 0.95rem; padding:0.72rem 0.85rem; border-radius:10px; border:1px solid #ecd28b; background:#fff8e7; color:#7b520b; font-size:0.84rem; line-height:1.45; }
+        .notice strong { color:#5d3d05; }
+        .notice a { color:#5d3d05; font-weight:850; }
         .dot { width:0.62rem; height:0.62rem; border-radius:999px; background:var(--energy-color); }
         .dot.elvia { background:#5b6b84; }
         .dot.delta { background:#d66d5b; }
@@ -105,6 +108,18 @@
             <a class="button" href="/energi/status?day={{ next_day }}">Neste dag</a>
         </div>
 
+        {% if elvia_missing_for_day %}
+        <p class="notice">
+            <strong>Elvia har ikke data for {{ selected_day_label }} ennå.</strong>
+            Siste importerte Elvia-time er
+            {% if latest_elvia %}{{ latest_elvia.measured_at|source_time }}{% else %}ikke funnet{% endif %}.
+            {% if latest_elvia_day %}
+                <a href="/energi/status?day={{ latest_elvia_day }}">Vis siste dag med Elvia-data</a>.
+            {% endif %}
+            Filnavnet kan gå til en nyere dato enn timene som faktisk ligger i eksporten.
+        </p>
+        {% endif %}
+
         <section class="summary-grid">
             <div class="summary-card">
                 <span>Inntak nå</span>
@@ -124,7 +139,7 @@
             <div class="summary-card">
                 <span>Elvia valgt dag</span>
                 <strong>{{ "{:,.1f}".format(elvia_today_kwh or 0).replace(",", " ") }} kWh</strong>
-                <small>Fasit når månedens fil er importert</small>
+                <small>Siste Elvia-time: {{ latest_elvia.measured_at|source_time if latest_elvia else "ingen" }}</small>
             </div>
         </section>
 

@@ -7886,6 +7886,20 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
                 .order_by(EnergyHourlyConsumption.hour)
             )
         ).all()
+        latest_elvia = (
+            await session.execute(
+                select(EnergyHourlyConsumption)
+                .order_by(EnergyHourlyConsumption.measured_at.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        latest_elvia_import = (
+            await session.execute(
+                select(EnergyImportRun)
+                .order_by(EnergyImportRun.timestamp.desc())
+                .limit(1)
+            )
+        ).scalars().first()
 
     totals = {
         "inntak_delta_kwh": sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows),
@@ -7939,6 +7953,8 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
     measured_day_kwh = totals["inntak_delta_kwh"]
     elvia_day_kwh = float_or_zero(elvia_today)
     energy_deviation_kwh = measured_day_kwh - elvia_day_kwh
+    latest_elvia_day = latest_elvia.stat_date if latest_elvia else None
+    elvia_missing_for_day = latest_elvia_day is None or selected_day > latest_elvia_day
     return templates.TemplateResponse(
         request,
         "energy.html",
@@ -7952,6 +7968,10 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
             "hourly_energy": hourly_energy,
             "hourly_max_kwh": hourly_max,
             "energy_deviation_kwh": energy_deviation_kwh,
+            "latest_elvia": latest_elvia,
+            "latest_elvia_import": latest_elvia_import,
+            "latest_elvia_day": latest_elvia_day.isoformat() if latest_elvia_day else None,
+            "elvia_missing_for_day": elvia_missing_for_day,
             "selected_day": selected_day.isoformat(),
             "selected_day_label": selected_day.strftime("%d.%m.%Y"),
             "prev_day": (selected_day - timedelta(days=1)).isoformat(),

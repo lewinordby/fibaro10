@@ -77,6 +77,12 @@
                 {% if elvia_status.duration_seconds %} ({{ "%.1f"|format(elvia_status.duration_seconds) }} sek){% endif %}
             </p>
         {% endif %}
+        {% if latest_import and latest_import.period_last %}
+            <p class="notice running">
+                Faktisk siste time i Elvia-data er {{ latest_import.period_last|source_time }}.
+                Filnavnet kan vise en nyere sluttdato enn det eksporten faktisk inneholder.
+            </p>
+        {% endif %}
 
         <section class="summary-grid">
             <div class="summary-card">
@@ -97,7 +103,13 @@
             <div class="summary-card">
                 <span>Siste import</span>
                 <strong>{{ latest_import.timestamp|localtime if latest_import else "-" }}</strong>
-                <small>{{ latest_import.source_file if latest_import else "Ingen import ennå" }}</small>
+                <small>
+                    {% if latest_import %}
+                        Data til {{ latest_import.period_last|source_time if latest_import.period_last else "-" }}
+                    {% else %}
+                        Ingen import ennå
+                    {% endif %}
+                </small>
             </div>
         </section>
 
