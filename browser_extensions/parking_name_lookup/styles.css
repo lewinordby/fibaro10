@@ -91,6 +91,12 @@ summary {
   font-weight: 900;
 }
 
+.settings-hint {
+  margin: 7px 0 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .status {
   display: flex;
   justify-content: space-between;

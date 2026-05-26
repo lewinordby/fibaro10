@@ -8,6 +8,7 @@ const DEFAULTS = {
 
 const ids = Object.keys(DEFAULTS);
 let stopRequested = false;
+let saveTimer = null;
 
 function el(id) {
   return document.getElementById(id);
@@ -37,6 +38,13 @@ function readSettings() {
 
 async function saveSettings() {
   await chrome.storage.local.set(readSettings());
+}
+
+function scheduleSettingsSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveSettings().then(() => setStatus("Oppsett lagret")).catch((error) => logLine(error.message, "err"));
+  }, 450);
 }
 
 async function loadSettings() {
@@ -239,6 +247,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadSettings();
   el("plates").addEventListener("input", updateCurrentPlate);
   el("currentIndex").addEventListener("input", updateCurrentPlate);
+  for (const id of ids) {
+    el(id).addEventListener("input", scheduleSettingsSave);
+    el(id).addEventListener("change", scheduleSettingsSave);
+  }
   el("saveSettings").addEventListener("click", () => saveSettings().then(() => logLine("Oppsett lagret.", "ok")).catch((error) => logLine(error.message, "err")));
   el("fetchBatch").addEventListener("click", () => fetchBatch().catch((error) => logLine(error.message, "err")));
   el("openCurrent").addEventListener("click", () => openCurrent().catch((error) => logLine(error.message, "err")));

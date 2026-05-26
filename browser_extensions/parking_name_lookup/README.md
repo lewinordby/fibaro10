@@ -16,6 +16,8 @@ selv, og lagrer bare grovt område, for eksempel `Lillehammer`.
 7. Fyll inn:
    - Fibaro10 URL
    - brukernavn/passord med innstillingstilgang
+   Verdiene lagres automatisk lokalt i nettleseren. Du kan også trykke
+   `Lagre oppsett`.
 8. Trykk `Hent 100 fra Fibaro10`.
 9. Trykk `Apne i Vegvesen`.
 10. Trykk `Les omrade og lagre` for å lese feltet `Område` og skrive det til Fibaro10.
