@@ -65,6 +65,7 @@ NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-
 NTFY_ACCESS_TOPIC = os.getenv("NTFY_ACCESS_TOPIC", f"sun2-tilgang-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
+EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 
 app = FastAPI(title="Fibaro10")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
@@ -8261,11 +8262,69 @@ def parking_vehicle_label(details: Optional[ParkingVehicleDetails]) -> str:
     return text or "Ukjent kjøretøy"
 
 
+def easypark_recent_period() -> tuple[date, date]:
+    today = local_now_naive().date()
+    return today - timedelta(days=1), today
+
+
+def easypark_downloader_request(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    query = urlencode({key: value for key, value in params.items() if value is not None})
+    url = f"{EASYPARK_DOWNLOADER_URL}{path}"
+    if query:
+        url = f"{url}?{query}"
+    request = urllib.request.Request(url, method="POST")
+    with urllib.request.urlopen(request, timeout=180) as response:
+        payload = response.read().decode("utf-8", errors="replace")
+    try:
+        return json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Ugyldig svar fra EasyPark-downloader: {payload[:240]}") from exc
+
+
+@app.post("/parkering/refresh")
+async def parking_refresh(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    from_day, to_day = easypark_recent_period()
+    started_at = local_now_naive()
+    try:
+        result = await asyncio.to_thread(
+            easypark_downloader_request,
+            "/sync-period",
+            {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
+        )
+        status = result.get("status")
+        if status == "busy":
+            outcome = "busy"
+        elif status == "error":
+            raise RuntimeError(str(result.get("detail") or result.get("last_error") or "EasyPark-import feilet"))
+        else:
+            outcome = "ok"
+    except Exception as exc:
+        async with async_session() as session:
+            await record_import_job(
+                session,
+                "easypark_parking_import",
+                ok=False,
+                source="EasyPark downloader",
+                started_at=started_at,
+                records_imported=0,
+                records_total=0,
+                message=str(exc),
+                raw={"period": {"from": from_day.isoformat(), "to": to_day.isoformat()}},
+            )
+            await session.commit()
+        outcome = "error"
+    return RedirectResponse(f"/parkering/oversikt?refresh={outcome}", status_code=303)
+
+
 @app.get("/parkering/oversikt", response_class=HTMLResponse)
 async def parking_overview_view(
     request: Request,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    refresh: Optional[str] = None,
 ):
     today = local_now_naive().date()
     month_start = today.replace(day=1)
@@ -8340,6 +8399,35 @@ async def parking_overview_view(
                 .limit(10)
             )
         ).all()
+        easypark_row = (
+            await session.execute(
+                select(ImportJobStatus).where(ImportJobStatus.job_name == "easypark_parking_import")
+            )
+        ).scalars().first()
+        easypark_status = None
+        if easypark_row:
+            definition = import_job_definition("easypark_parking_import")
+            if easypark_row.status == "running":
+                status, status_text = "running", "Kjører"
+            else:
+                status, status_text = import_job_status_from_age(
+                    easypark_row.last_success_at,
+                    definition.get("expected_interval_minutes"),
+                    definition.get("warning_after_minutes"),
+                )
+            easypark_status = {
+                "status": status,
+                "status_text": status_text,
+                "last_success_at": easypark_row.last_success_at,
+                "records_total": easypark_row.records_total,
+                "message": easypark_row.message,
+            }
+    refresh_messages = {
+        "ok": {"level": "good", "text": "EasyPark er hentet for i går og i dag."},
+        "busy": {"level": "warn", "text": "EasyPark-importen kjører allerede. Prøv igjen litt senere."},
+        "error": {"level": "bad", "text": "EasyPark-importen feilet. Se datakilder for detaljer."},
+    }
+    refresh_from, refresh_to = easypark_recent_period()
     return templates.TemplateResponse(
         request,
         "parking_overview.html",
@@ -8370,6 +8458,10 @@ async def parking_overview_view(
             },
             "top_plates": top_plates,
             "top_makes": top_makes,
+            "easypark_status": easypark_status,
+            "refresh_period": {"from_day": refresh_from, "to_day": refresh_to},
+            "refresh_message": refresh_messages.get(refresh or ""),
+            "can_settings": getattr(request.state, "auth_can_settings", False),
         },
     )
 

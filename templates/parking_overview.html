@@ -19,10 +19,21 @@
         .parking-filter-row label { display:flex; flex-direction:column; gap:.18rem; color:var(--muted); font-size:.76rem; font-weight:800; text-transform:uppercase; }
         .parking-filter-row input { min-height:2.25rem; border:1px solid var(--line); border-radius:8px; padding:.35rem .55rem; background:#fff; color:var(--brand-dark); }
         .parking-filter-row button, .parking-filter-row a { min-height:2.25rem; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; padding:.35rem .75rem; font-weight:820; text-decoration:none; }
+        .parking-sync-panel { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:1rem; align-items:center; margin:.75rem 0 1rem; padding:.9rem 1rem; border:1px solid var(--line); border-left:4px solid var(--page-accent); border-radius:10px; background:#fff; box-shadow:var(--shadow-1); }
+        .parking-sync-panel h2 { margin:0 0 .2rem; font-size:1rem; }
+        .parking-sync-panel p { margin:.12rem 0; color:var(--muted); font-size:.86rem; }
+        .parking-sync-meta { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.45rem; }
+        .parking-sync-pill { display:inline-flex; align-items:center; min-height:1.75rem; border-radius:999px; padding:.18rem .55rem; border:1px solid var(--line); background:#f8fafc; color:var(--brand-dark); font-size:.76rem; font-weight:850; }
+        .parking-sync-pill.ok, .parking-sync-pill.good { border-color:#b9dbc3; background:#edf8f0; color:#2f6d3d; }
+        .parking-sync-pill.warn { border-color:#efd392; background:#fff8e6; color:#805b12; }
+        .parking-sync-pill.bad { border-color:#efb8ad; background:#fff2ef; color:#9a3d2f; }
+        .parking-sync-pill.running { border-color:#bfd4f0; background:#edf5ff; color:#285c91; }
+        .parking-sync-form { display:flex; justify-content:flex-end; }
+        .parking-sync-form button { min-height:2.55rem; white-space:nowrap; }
         .early-badge { display:inline-flex; align-items:center; margin-top:.22rem; border-radius:999px; padding:.14rem .48rem; border:1px solid #f0c7bc; background:#fff3f0; color:#9a4a32; font-size:.68rem; font-weight:850; white-space:nowrap; }
         .vehicle-note { color:var(--muted); font-size:.78rem; }
         .parking-link-button { display:inline-flex; align-items:center; margin-top:.22rem; border-radius:999px; padding:.16rem .5rem; border:1px solid var(--line); background:#fff; color:var(--muted); font-size:.7rem; font-weight:850; text-decoration:none; white-space:nowrap; }
-        @media (max-width: 840px) { .section-split { grid-template-columns:1fr; } }
+        @media (max-width: 840px) { .section-split, .parking-sync-panel { grid-template-columns:1fr; } .parking-sync-form { justify-content:stretch; } .parking-sync-form button { width:100%; } }
     </style>
 </head>
 <body class="theme-parking">
@@ -33,6 +44,35 @@
                 <h1>Parkering</h1>
                 <p>EasyPark-historikk med kjøretøyberikelse fra Statens vegvesen.</p>
             </div>
+        </section>
+
+        <section class="parking-sync-panel">
+            <div>
+                <h2>EasyPark-innhenting</h2>
+                <p>Fast jobb kjører hver natt kl. 03:00. Manuell henting tar perioden {{ refresh_period.from_day.strftime('%d.%m.%Y') }} - {{ refresh_period.to_day.strftime('%d.%m.%Y') }}.</p>
+                <div class="parking-sync-meta">
+                    {% if easypark_status %}
+                    <span class="parking-sync-pill {{ easypark_status.status }}">{{ easypark_status.status_text }}</span>
+                    <span class="parking-sync-pill">Sist OK {{ easypark_status.last_success_at|localtime }}</span>
+                    {% if easypark_status.records_total is not none %}
+                    <span class="parking-sync-pill">{{ easypark_status.records_total|short_number }} rader sist</span>
+                    {% endif %}
+                    {% if easypark_status.message %}
+                    <span class="parking-sync-pill">{{ easypark_status.message }}</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="parking-sync-pill warn">Ingen status ennå</span>
+                    {% endif %}
+                    {% if refresh_message %}
+                    <span class="parking-sync-pill {{ refresh_message.level }}">{{ refresh_message.text }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if can_settings %}
+            <form class="parking-sync-form" method="post" action="/parkering/refresh">
+                <button class="primary" type="submit">Hent fra EasyPark nå</button>
+            </form>
+            {% endif %}
         </section>
 
         <section class="parking-grid">
