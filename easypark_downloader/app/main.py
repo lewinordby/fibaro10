@@ -300,6 +300,30 @@ def post_to_fibaro10(path: Path) -> dict[str, Any]:
     return response.json()
 
 
+def report_failure_to_fibaro10(started_at: str, message: str) -> None:
+    if not FIBARO10_USERNAME or not FIBARO10_PASSWORD:
+        return
+    try:
+        requests.post(
+            f"{FIBARO10_BASE_URL}/api/import-status/report",
+            params={"username": FIBARO10_USERNAME, "password": FIBARO10_PASSWORD},
+            json={
+                "job_name": "easypark_parking_import",
+                "ok": False,
+                "source": "EasyPark downloader",
+                "started_at": started_at,
+                "finished_at": utcnow_iso(),
+                "records_imported": 0,
+                "records_total": 0,
+                "message": message,
+                "raw": {"component": "easypark_downloader"},
+            },
+            timeout=30,
+        )
+    except Exception:
+        pass
+
+
 async def run_once() -> dict[str, Any]:
     async with lock:
         set_state(running=True, last_action="starting", last_error=None)
@@ -336,6 +360,7 @@ async def run_once() -> dict[str, Any]:
             return result
         except Exception as exc:
             set_state(running=False, last_error=str(exc), last_action="error")
+            report_failure_to_fibaro10(started, str(exc))
             raise
 
 
