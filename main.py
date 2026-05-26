@@ -8324,13 +8324,30 @@ def parking_duration_minutes(row: ParkingSession, now: Optional[datetime] = None
     return None
 
 
-def parking_row_context(row: ParkingSession, vehicle: Optional[ParkingVehicle] = None, now: Optional[datetime] = None) -> Dict[str, Any]:
+def parking_day_time_label(value: Optional[datetime], selected_day: date) -> str:
+    if not value:
+        return "-"
+    offset = (value.date() - selected_day).days
+    suffix = f" {offset:+d}" if offset else ""
+    return f"{value.strftime('%H:%M')}{suffix}"
+
+
+def parking_row_context(
+    row: ParkingSession,
+    vehicle: Optional[ParkingVehicle] = None,
+    now: Optional[datetime] = None,
+    selected_day: Optional[date] = None,
+) -> Dict[str, Any]:
     plate = normalize_plate(row.car_license_number)
+    selected_day = selected_day or local_now_naive().date()
     return {
         "session": row,
         "plate": plate,
+        "vehicle_name": vehicle.navn if vehicle else None,
         "parking_count": vehicle.parkering_count if vehicle else None,
         "duration_minutes": parking_duration_minutes(row, now),
+        "start_label": parking_day_time_label(row.start_time, selected_day),
+        "end_label": parking_day_time_label(row.end_time, selected_day),
     }
 
 
@@ -8403,48 +8420,63 @@ async def parking_refresh(request: Request):
             )
             await session.commit()
         outcome = "error"
-    return RedirectResponse(f"/parkering/oversikt?refresh={outcome}", status_code=303)
+    day = request.query_params.get("day")
+    suffix = f"?day={quote(day)}&refresh={outcome}" if day else f"?refresh={outcome}"
+    return RedirectResponse(f"/parkering/oversikt{suffix}", status_code=303)
 
 
 @app.get("/parkering/oversikt", response_class=HTMLResponse)
 async def parking_overview_view(
     request: Request,
     refresh: Optional[str] = None,
+    day: Optional[date] = Query(None),
 ):
     now = local_now_naive()
     today = now.date()
+    selected_day = day or today
+    selected_start = datetime.combine(selected_day, time.min)
+    selected_end = selected_start + timedelta(days=1)
     today_start = datetime.combine(today, time.min)
     tomorrow_start = today_start + timedelta(days=1)
+    yesterday_start = today_start - timedelta(days=1)
     month_start = today.replace(day=1)
     month_start_dt = datetime.combine(month_start, time.min)
+    previous_month_end = month_start_dt
+    previous_month_start = datetime.combine((month_start - timedelta(days=1)).replace(day=1), time.min)
     week_start = today_start - timedelta(days=today.weekday())
     previous_week_start = week_start - timedelta(days=7)
     normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
     async with async_session() as session:
         period_cards = [
             await parking_period_summary(session, "I dag", today_start, tomorrow_start),
+            await parking_period_summary(session, "I går", yesterday_start, today_start),
             await parking_period_summary(session, "Denne uken", week_start, tomorrow_start),
             await parking_period_summary(session, "Forrige uke", previous_week_start, week_start),
             await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start),
+            await parking_period_summary(session, "Forrige måned", previous_month_start, previous_month_end),
         ]
         today_rows = (
             await session.execute(
                 select(ParkingSession, ParkingVehicle)
                 .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
                 .where(
-                    ParkingSession.start_time >= today_start,
-                    ParkingSession.start_time < tomorrow_start,
+                    ParkingSession.start_time < selected_end,
+                    or_(
+                        ParkingSession.end_time.is_(None),
+                        ParkingSession.end_time >= selected_start,
+                        func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
+                    ),
                 )
                 .order_by(ParkingSession.start_time.desc())
             )
         ).all()
         ongoing_today = [
-            parking_row_context(row, vehicle, now)
+            parking_row_context(row, vehicle, now, selected_day)
             for row, vehicle in today_rows
             if (row.status or "").strip().lower() == "ongoing"
         ]
         completed_today = [
-            parking_row_context(row, vehicle, now)
+            parking_row_context(row, vehicle, now, selected_day)
             for row, vehicle in today_rows
             if (row.status or "").strip().lower() != "ongoing"
         ]
@@ -8487,6 +8519,9 @@ async def parking_overview_view(
         "parking_overview.html",
         {
             "today": today,
+            "selected_day": selected_day,
+            "previous_day": selected_day - timedelta(days=1),
+            "next_day": selected_day + timedelta(days=1),
             "period_cards": period_cards,
             "ongoing_today": ongoing_today,
             "completed_today": completed_today,
