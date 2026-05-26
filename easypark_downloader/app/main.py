@@ -8,6 +8,7 @@ from email.header import decode_header, make_header
 from email.message import Message
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
@@ -24,9 +25,11 @@ STATE_PATH = DATA_DIR / "state.json"
 
 REPORT_URL = os.getenv("EASYPARK_REPORT_URL", "https://dashboard.easypark.net/search-parkings/1")
 RUN_INTERVAL_MINUTES = int(os.getenv("EASYPARK_RUN_INTERVAL_MINUTES", "1440"))
+RUN_AT = os.getenv("EASYPARK_RUN_AT", "02:30").strip()
 RUN_ON_START = os.getenv("EASYPARK_RUN_ON_START", "false").strip().lower() in {"1", "true", "yes", "ja"}
 HEADLESS = os.getenv("EASYPARK_HEADLESS", "true").strip().lower() not in {"0", "false", "no", "nei"}
 CODE_COOLDOWN_MINUTES = int(os.getenv("EASYPARK_CODE_COOLDOWN_MINUTES", "5"))
+LOCAL_TZ = ZoneInfo("Europe/Oslo")
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://192.168.20.218:8110").rstrip("/")
 FIBARO10_USERNAME = os.getenv("FIBARO10_USERNAME", "")
@@ -371,11 +374,25 @@ async def worker_loop() -> None:
         except Exception:
             pass
     while True:
-        await asyncio.sleep(max(1, RUN_INTERVAL_MINUTES) * 60)
+        await asyncio.sleep(seconds_until_next_run())
         try:
             await run_once()
         except Exception:
             pass
+
+
+def seconds_until_next_run() -> int:
+    if RUN_AT:
+        match = re.match(r"^(\d{1,2}):(\d{2})$", RUN_AT)
+        if match:
+            hour = max(0, min(23, int(match.group(1))))
+            minute = max(0, min(59, int(match.group(2))))
+            now = datetime.now(LOCAL_TZ)
+            target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if target <= now:
+                target += timedelta(days=1)
+            return max(60, int((target - now).total_seconds()))
+    return max(1, RUN_INTERVAL_MINUTES) * 60
 
 
 @app.on_event("startup")
