@@ -70,7 +70,7 @@ def utcnow_iso() -> str:
 
 
 def fibaro10_datetime_iso() -> str:
-    return datetime.utcnow().replace(microsecond=0).isoformat()
+    return datetime.now(LOCAL_TZ).replace(tzinfo=None, microsecond=0).isoformat()
 
 
 def set_state(**values: Any) -> None:
