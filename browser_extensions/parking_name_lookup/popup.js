@@ -7,6 +7,7 @@ const DEFAULTS = {
 };
 
 const ids = Object.keys(DEFAULTS);
+let stopRequested = false;
 
 function el(id) {
   return document.getElementById(id);
@@ -99,14 +100,20 @@ async function openCurrent() {
   if (!plate) throw new Error("Ingen regnr valgt.");
   const template = settings.lookupUrlTemplate || DEFAULTS.lookupUrlTemplate;
   const url = template.replace("{plate}", encodeURIComponent(plate));
+  await openUrl(url);
+  await saveSettings();
+  setStatus(`Apnet ${plate}`);
+}
+
+async function openUrl(url) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id) {
     await chrome.tabs.update(tab.id, { url });
+    return tab.id;
   } else {
-    await chrome.tabs.create({ url });
+    const newTab = await chrome.tabs.create({ url });
+    return newTab.id;
   }
-  await saveSettings();
-  setStatus(`Apnet ${plate}`);
 }
 
 async function postArea(plate, area, settings) {
@@ -123,6 +130,88 @@ async function postArea(plate, area, settings) {
     throw new Error(`Fibaro10 ${response.status}: ${text.slice(0, 180)}`);
   }
   return response.json();
+}
+
+async function waitForTabComplete(tabId, timeoutMs = 25000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.status === "complete") return;
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  }
+}
+
+async function extractAreaFromActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) throw new Error("Fant ikke aktiv fane.");
+  const [{ result }] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      const norm = (value) => (value || "").replace(/\s+/g, " ").trim();
+      const labels = [...document.querySelectorAll("dt,.svv-dt")];
+      for (const label of labels) {
+        if (norm(label.textContent).toLowerCase() !== "område") continue;
+        const container = label.closest(".svv-dl-container") || label.parentElement;
+        const valueNode = container?.querySelector("dd,.svv-dd") || label.nextElementSibling;
+        const text = norm(valueNode?.textContent || "");
+        if (text) return text;
+      }
+      const bodyText = norm(document.body?.innerText || "");
+      const match = bodyText.match(/Område\s+([^\n\r]+?)(?:\s+EU-kontroll|\s+Registreringsdata|$)/i);
+      return match ? norm(match[1]) : "";
+    }
+  });
+  return (result || "").trim();
+}
+
+async function readAndSaveCurrent() {
+  const settings = readSettings();
+  if (!settings.apiBase) throw new Error("Fibaro10 URL mangler.");
+  const { plate } = currentState();
+  if (!plate) throw new Error("Ingen regnr valgt.");
+  const area = await extractAreaFromActiveTab();
+  if (!area) throw new Error("Fant ikke omrade pa siden.");
+  el("manualArea").value = area;
+  await postArea(plate, area, settings);
+  logLine(`${plate}: ${area}`, "ok");
+  await advance(1);
+  setStatus("Lagret");
+}
+
+async function autoRunList() {
+  stopRequested = false;
+  const settings = readSettings();
+  if (!settings.apiBase) throw new Error("Fibaro10 URL mangler.");
+  const state = currentState();
+  const plates = state.plates.slice(state.index);
+  if (!plates.length) throw new Error("Listen er tom.");
+  const template = settings.lookupUrlTemplate || DEFAULTS.lookupUrlTemplate;
+  for (const plate of plates) {
+    if (stopRequested) {
+      setStatus("Stoppet");
+      return;
+    }
+    const indexNow = parsePlates().indexOf(plate);
+    if (indexNow >= 0) {
+      el("currentIndex").value = indexNow;
+      updateCurrentPlate();
+    }
+    setStatus(`Apner ${plate}`);
+    const tabId = await openUrl(template.replace("{plate}", encodeURIComponent(plate)));
+    await waitForTabComplete(tabId);
+    await new Promise((resolve) => setTimeout(resolve, 1800));
+    const area = await extractAreaFromActiveTab();
+    if (!area) {
+      logLine(`${plate}: fant ikke omrade`, "err");
+      await advance(1);
+      continue;
+    }
+    await postArea(plate, area, settings);
+    logLine(`${plate}: ${area}`, "ok");
+    await advance(1);
+    await new Promise((resolve) => setTimeout(resolve, 900));
+  }
+  setStatus("Ferdig");
 }
 
 async function advance(delta = 1) {
@@ -153,6 +242,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   el("saveSettings").addEventListener("click", () => saveSettings().then(() => logLine("Oppsett lagret.", "ok")).catch((error) => logLine(error.message, "err")));
   el("fetchBatch").addEventListener("click", () => fetchBatch().catch((error) => logLine(error.message, "err")));
   el("openCurrent").addEventListener("click", () => openCurrent().catch((error) => logLine(error.message, "err")));
+  el("readAndSave").addEventListener("click", () => readAndSaveCurrent().catch((error) => logLine(error.message, "err")));
+  el("autoRun").addEventListener("click", () => autoRunList().catch((error) => logLine(error.message, "err")));
   el("saveAndNext").addEventListener("click", () => saveAndNext().catch((error) => logLine(error.message, "err")));
   el("skip").addEventListener("click", () => advance(1).then(() => setStatus("Hoppet over")).catch((error) => logLine(error.message, "err")));
+  el("stop").addEventListener("click", () => {
+    stopRequested = true;
+    setStatus("Stopper...");
+  });
 });

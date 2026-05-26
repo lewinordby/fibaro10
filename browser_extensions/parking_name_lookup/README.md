@@ -18,10 +18,10 @@ selv, og lagrer bare grovt område, for eksempel `Lillehammer`.
    - brukernavn/passord med innstillingstilgang
 8. Trykk `Hent 100 fra Fibaro10`.
 9. Trykk `Apne i Vegvesen`.
-10. Les området på siden og skriv/lim det inn i feltet.
-11. Trykk `Lagre og neste`.
+10. Trykk `Les omrade og lagre` for å lese feltet `Område` og skrive det til Fibaro10.
+11. Når dette fungerer på ett regnr kan du bruke `Auto liste`.
 
-Bruk `Hopp over` hvis et regnr ikke skal lagres.
+Bruk `Stopp` for å avbryte listen. Extensionen leser kun feltet `Område`.
 
 ## API
 
