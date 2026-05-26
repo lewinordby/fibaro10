@@ -8313,6 +8313,18 @@ def parking_vehicle_label(details: Optional[ParkingVehicleDetails]) -> str:
     return text or "Ukjent kjøretøy"
 
 
+def parking_vehicle_summary(details: Optional[ParkingVehicleDetails]) -> Optional[str]:
+    if not details:
+        return None
+    label = parking_vehicle_label(details)
+    year = parking_vehicle_year(details)
+    return f"{year} {label}" if year else label
+
+
+def parking_source_label(source_system: Optional[str]) -> str:
+    return (source_system or "").strip() or "-"
+
+
 def parking_duration_minutes(row: ParkingSession, now: Optional[datetime] = None) -> Optional[float]:
     if row.parking_time_min is not None:
         return row.parking_time_min
@@ -8345,8 +8357,8 @@ def parking_row_context(
         "session": row,
         "plate": plate,
         "vehicle_name": vehicle.navn if vehicle else None,
-        "vehicle_title": parking_vehicle_label(details) if details else None,
-        "vehicle_year": parking_vehicle_year(details),
+        "vehicle_title": parking_vehicle_summary(details),
+        "source_label": parking_source_label(row.source_system),
         "parking_count": vehicle.parkering_count if vehicle else None,
         "duration_minutes": parking_duration_minutes(row, now),
         "start_label": parking_day_time_label(row.start_time, selected_day),

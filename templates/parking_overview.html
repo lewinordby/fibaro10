@@ -11,15 +11,16 @@
         .parking-card span { display:block; color:var(--muted); font-size:.76rem; font-weight:850; text-transform:uppercase; }
         .parking-card strong { display:block; color:var(--brand-dark); font-size:1.45rem; line-height:1.05; margin-top:.22rem; }
         .parking-card small { display:block; color:var(--muted); font-size:.78rem; margin-top:.18rem; }
-        .parking-top-tools { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:.75rem; margin-bottom:1rem; }
+        .parking-top-tools { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(19rem,.85fr); gap:.75rem; margin-bottom:1rem; }
         .parking-refresh-form { margin:0; }
         .parking-sync-card { width:100%; min-height:100%; text-align:left; appearance:none; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.8rem 1rem; align-items:center; }
         .parking-sync-card.is-working { opacity:.72; filter:grayscale(.15); }
         .parking-sync-card .sync-line { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.35rem; }
         .parking-sync-action { border:1px solid var(--page-accent); background:var(--page-accent); color:#fff; border-radius:8px; padding:.62rem .9rem; font-size:.82rem; font-weight:850; cursor:pointer; white-space:nowrap; box-shadow:0 8px 18px rgba(0,0,0,.08); }
         .parking-sync-action:disabled { border-color:#a7b0bd; background:#a7b0bd; cursor:not-allowed; box-shadow:none; }
-        .parking-day-card { display:grid; gap:.65rem; align-content:center; }
-        .parking-day-card strong { font-size:1.25rem; }
+        .parking-day-card { display:grid; grid-template-columns:minmax(0,1fr); gap:.72rem; align-content:center; background:linear-gradient(180deg,#fff,#fbfcfe); }
+        .parking-day-head { display:flex; justify-content:space-between; gap:.8rem; align-items:flex-end; }
+        .parking-day-card strong { font-size:1.18rem; }
         .parking-day-nav { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.45rem; }
         .parking-day-nav a { display:flex; align-items:center; justify-content:center; min-height:2.2rem; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--brand-dark); text-decoration:none; font-size:.82rem; font-weight:780; }
         .parking-day-nav a:hover { border-color:var(--page-accent); color:var(--page-accent); }
@@ -41,9 +42,9 @@
         .empty-row { color:var(--muted); text-align:center; padding:1rem !important; }
         .amount { color:#856010; font-weight:850; white-space:nowrap; }
         .duration, .time-cell { white-space:nowrap; }
-        .vehicle-cell { min-width:12rem; color:var(--brand-dark); font-weight:720; }
-        .vehicle-cell small { display:block; margin-top:.08rem; color:var(--muted); font-size:.74rem; font-weight:760; }
+        .vehicle-cell { min-width:14rem; color:var(--brand-dark); font-weight:720; white-space:nowrap; }
         .name-cell { color:var(--muted); min-width:8rem; }
+        .source-cell { color:var(--muted); white-space:nowrap; font-size:.86rem; }
         .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.15rem; min-height:1.8rem; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--brand-dark); text-decoration:none; font-weight:760; }
         .count-link:hover { border-color:var(--page-accent); background:#fffaf0; }
         .table-scroll { overflow:auto; }
@@ -102,9 +103,11 @@
             </form>
 
             <div class="parking-card parking-day-card">
-                <div>
+                <div class="parking-day-head">
+                    <div>
                     <span>Valgt dag</span>
                     <strong>{{ selected_day.strftime('%d.%m.%Y') }}</strong>
+                    </div>
                     <small>Bla mellom dager i parkeringsloggen</small>
                 </div>
                 <div class="parking-day-nav">
@@ -119,7 +122,7 @@
         <div class="table-scroll">
             <table class="parking-table">
                 <thead>
-                    <tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Bil</th><th>Navn</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
+                    <tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Bil</th><th>Navn</th><th>Kilde</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
                 </thead>
                 <tbody>
                 {% for item in rows %}
@@ -136,12 +139,13 @@
                         </td>
                         <td class="vehicle-cell">
                             {% if item.vehicle_title %}
-                            {{ item.vehicle_title }}{% if item.vehicle_year %}<small>{{ item.vehicle_year }}</small>{% endif %}
+                            {{ item.vehicle_title }}
                             {% else %}
                             -
                             {% endif %}
                         </td>
                         <td class="name-cell">{{ item.vehicle_name or "-" }}</td>
+                        <td class="source-cell">{{ item.source_label }}</td>
                         <td>
                             {% if item.plate %}
                             <a class="count-link" href="/parkering/parkeringer?plate={{ item.plate }}">{{ item.parking_count|default(0, true)|short_number }}</a>
@@ -153,7 +157,7 @@
                         <td class="amount">{{ row.fee_inc_vat|short_number }} kr</td>
                     </tr>
                 {% else %}
-                    <tr><td class="empty-row" colspan="8">Ingen parkeringer i denne gruppen.</td></tr>
+                    <tr><td class="empty-row" colspan="9">Ingen parkeringer i denne gruppen.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
