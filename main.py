@@ -8883,6 +8883,8 @@ async def parking_statistics_view(request: Request):
                     ParkingVehicleDetails.merke,
                     ParkingVehicleDetails.modell,
                     ParkingVehicleDetails.kjoretoyklasse_navn,
+                    ParkingVehicle.navn,
+                    ParkingVehicle.omrade,
                 )
                 .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
                 .order_by(ParkingVehicle.parkering_count.desc().nullslast(), ParkingVehicle.paid_total.desc().nullslast())
@@ -8936,7 +8938,8 @@ async def parking_sessions_view(
     normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
     async with async_session() as session:
         stmt = (
-            select(ParkingSession, ParkingVehicleDetails)
+            select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
+            .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
             .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
             .order_by(ParkingSession.start_time.desc())
             .limit(limit)
@@ -8961,12 +8964,13 @@ async def parking_sessions_view(
             "rows": [
                 {
                     "session": row,
+                    "vehicle": vehicle,
                     "details": details,
                     "year": parking_vehicle_year(details),
                     "early_minutes": parking_slot_remainder_minutes(row),
                     "plate": normalize_plate(row.car_license_number),
                 }
-                for row, details in result_rows
+                for row, vehicle, details in result_rows
             ],
             "count": count,
             "statuses": statuses,
@@ -9232,7 +9236,7 @@ async def parking_vehicle_area_api(request: Request, plate: str, data: ParkingVe
     if not plate_value:
         return JSONResponse({"detail": "Mangler registreringsnummer"}, status_code=400)
     if not area:
-        return JSONResponse({"detail": "OmrÃ¥de mangler"}, status_code=400)
+        return JSONResponse({"detail": "Område mangler"}, status_code=400)
     async with async_session() as session:
         vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
         if not vehicle:

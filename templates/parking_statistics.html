@@ -5,15 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parkeringsstatistikk</title>
     {% include "_styles.html" %}
-    <style>
-        .parking-stats-grid { display:grid; grid-template-columns:1.2fr .8fr; gap:1rem; }
-        .parking-table { width:100%; border-collapse:separate; border-spacing:0; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; box-shadow:var(--shadow-1); }
-        .parking-table th, .parking-table td { padding:.65rem .75rem; border-bottom:1px solid var(--line-soft); text-align:left; vertical-align:top; }
-        .parking-table th { background:#f6f8fb; color:#627085; font-size:.75rem; text-transform:uppercase; }
-        .parking-table tr:last-child td { border-bottom:0; }
-        .parking-link-button { display:inline-flex; align-items:center; margin-top:.22rem; border-radius:999px; padding:.16rem .5rem; border:1px solid var(--line); background:#fff; color:var(--muted); font-size:.7rem; font-weight:850; text-decoration:none; white-space:nowrap; }
-        @media (max-width: 900px) { .parking-stats-grid { grid-template-columns:1fr; } }
-    </style>
 </head>
 <body class="theme-parking">
     {% include "_header.html" %}
@@ -30,13 +21,17 @@
                 <table class="parking-table">
                     <thead><tr><th>Regnr</th><th>Kjøretøy</th><th>Antall</th><th>Beløp</th></tr></thead>
                     <tbody>
-                    {% for plate, count, paid, merke, modell, klasse in top_plates %}
+                    {% for plate, count, paid, merke, modell, klasse, navn, omrade in top_plates %}
                         <tr>
                             <td>
                                 <a href="/parkering/kjoretoy/{{ plate }}">{{ plate }}</a>
                                 <br><a class="parking-link-button" href="/parkering/parkeringer?plate={{ plate }}">Parkeringer</a>
                             </td>
-                            <td>{{ merke or "Ukjent" }} {{ modell or "" }}<br><small>{{ klasse or "" }}</small></td>
+                            <td>
+                                {{ merke or "Ukjent" }} {{ modell or "" }}
+                                {% if klasse %}<br><small>{{ klasse }}</small>{% endif %}
+                                {% if navn or omrade %}<br><small>{{ [navn, omrade]|select|join(", ") }}</small>{% endif %}
+                            </td>
                             <td>{{ count|short_number }}</td>
                             <td>{{ paid|short_number }} kr</td>
                         </tr>

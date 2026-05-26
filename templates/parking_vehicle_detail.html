@@ -29,7 +29,6 @@
         .detail-table th { width:38%; color:var(--muted); background:#f6f8fb; font-size:.76rem; text-transform:uppercase; }
         .detail-table tr:last-child th, .detail-table tr:last-child td { border-bottom:0; }
         .parking-list { margin-top:1rem; }
-        .early-badge { display:inline-flex; align-items:center; margin-top:.18rem; border-radius:999px; padding:.12rem .44rem; border:1px solid #f0c7bc; background:#fff3f0; color:#9a4a32; font-size:.68rem; font-weight:850; white-space:nowrap; }
         pre.raw-json { max-height:22rem; overflow:auto; border:1px solid var(--line); border-radius:10px; background:#0f172a; color:#e5edf7; padding:.8rem; font-size:.78rem; line-height:1.4; }
         @media (max-width: 900px) {
             .vehicle-hero, .content-grid { grid-template-columns:1fr; }
@@ -50,7 +49,7 @@
                 <div class="meta-row">
                     {% if year %}<span class="meta-pill">Årsmodell {{ year }}</span>{% endif %}
                     {% if details and details.farge %}<span class="meta-pill">{{ details.farge|title }}</span>{% endif %}
-                    {% if vehicle.omrade %}<span class="meta-pill">OmrÃ¥de {{ vehicle.omrade }}</span>{% endif %}
+                    {% if vehicle.omrade %}<span class="meta-pill">Område {{ vehicle.omrade }}</span>{% endif %}
                     {% if details and details.kjoretoyklasse_navn %}<span class="meta-pill">{{ details.kjoretoyklasse_navn }}</span>{% endif %}
                     {% if details and details.registreringsstatus_tekst %}<span class="meta-pill">{{ details.registreringsstatus_tekst }}</span>{% endif %}
                 </div>
@@ -75,7 +74,7 @@
                 {% if saved %}<p class="saved-note">Lagret.</p>{% endif %}
                 <form class="vehicle-form" method="post">
                     <label>Navn <input name="navn" value="{{ vehicle.navn or '' }}" placeholder="F.eks. kunde eller firma"></label>
-                    <label>OmrÃ¥de <input name="omrade" value="{{ vehicle.omrade or '' }}" placeholder="F.eks. Lillehammer"></label>
+                    <label>Område <input name="omrade" value="{{ vehicle.omrade or '' }}" placeholder="F.eks. Lillehammer"></label>
                     <label>Sun2id <input name="sun2_id" value="{{ vehicle.sun2_id or '' }}" placeholder="Kobling mot solkunde"></label>
                     <label>Notat <textarea name="notat" placeholder="Interne notater om bilen">{{ vehicle.notat or '' }}</textarea></label>
                     {% if request.state.auth_can_settings %}
@@ -104,7 +103,7 @@
         <section class="vehicle-card parking-list">
             <h2>Siste parkeringer</h2>
             <div class="table-scroll">
-                <table>
+                <table class="parking-table">
                     <thead><tr><th>Start</th><th>Slutt</th><th>Varighet</th><th>Beløp</th><th>Område</th><th>Status</th></tr></thead>
                     <tbody>
                     {% for item in recent_sessions %}

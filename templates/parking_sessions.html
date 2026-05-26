@@ -5,11 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parkeringer</title>
     {% include "_styles.html" %}
-    <style>
-        .early-badge { display:inline-flex; align-items:center; margin-top:.22rem; border-radius:999px; padding:.14rem .48rem; border:1px solid #f0c7bc; background:#fff3f0; color:#9a4a32; font-size:.68rem; font-weight:850; white-space:nowrap; }
-        .vehicle-note { color:var(--muted); font-size:.78rem; }
-        .parking-link-button { display:inline-flex; align-items:center; margin-top:.22rem; border-radius:999px; padding:.16rem .5rem; border:1px solid var(--line); background:#fff; color:var(--muted); font-size:.7rem; font-weight:850; text-decoration:none; white-space:nowrap; }
-    </style>
 </head>
 <body class="theme-parking">
     {% include "_header.html" %}
@@ -30,11 +25,12 @@
         </form>
         <section class="panel">
             <div class="table-scroll">
-                <table>
+                <table class="parking-table">
                     <thead><tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Kjøretøy</th><th>Område</th><th>Varighet</th><th>Beløp</th><th>Kilde</th><th>Status</th></tr></thead>
                     <tbody>
                     {% for item in rows %}
                         {% set row = item.session %}
+                        {% set vehicle = item.vehicle %}
                         {% set details = item.details %}
                         <tr>
                             <td>{{ row.start_time|source_time }}</td>
@@ -49,6 +45,9 @@
                             </td>
                             <td>
                                 {{ details.merke if details else "Ukjent" }} {{ details.modell if details else "" }}
+                                {% if vehicle and (vehicle.navn or vehicle.omrade) %}
+                                <br><span class="vehicle-note">{{ [vehicle.navn, vehicle.omrade]|select|join(", ") }}</span>
+                                {% endif %}
                                 {% if item.year or (details and details.farge) %}
                                 <br><span class="vehicle-note">
                                     {% if item.year %}Årsmodell {{ item.year }}{% endif %}

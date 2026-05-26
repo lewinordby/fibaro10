@@ -1050,3 +1050,150 @@ body.theme-energy .dot:not(.elvia):not(.delta) {
         min-height: 2.42rem;
     }
 }
+
+/* Parking and operational list polish. Keeps dense data readable on desktop and mobile. */
+main :where(.filters) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+    gap: 0.65rem;
+    align-items: end;
+    margin: 0 0 0.9rem;
+    padding: 0.85rem;
+    border: 1px solid var(--surface-border);
+    border-top: 3px solid var(--page-accent);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--surface-shadow);
+}
+
+main :where(.filters label) {
+    display: grid;
+    gap: 0.26rem;
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-weight: 820;
+    text-transform: uppercase;
+}
+
+main :where(.table-scroll) {
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #b7c4d4 #eef3f8;
+}
+
+body.theme-parking main :where(.parking-card, .parking-panel, .vehicle-card, .parking-table) {
+    border-color: var(--surface-border) !important;
+    background: var(--surface) !important;
+    box-shadow: var(--surface-shadow) !important;
+}
+
+body.theme-parking main :where(.parking-card, .parking-panel, .vehicle-card) {
+    border-radius: var(--radius-lg) !important;
+}
+
+body.theme-parking main :where(.parking-panel header) {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfc 100%);
+}
+
+body.theme-parking main :where(.parking-table) {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+}
+
+body.theme-parking main :where(.parking-table th, .parking-table td) {
+    padding-top: 0.62rem;
+    padding-bottom: 0.62rem;
+    border-bottom: 1px solid var(--line-soft);
+    text-align: left;
+}
+
+body.theme-parking main :where(.parking-table th) {
+    background: #f6f8fb;
+    color: #627085;
+    text-transform: none !important;
+}
+
+body.theme-parking main :where(.parking-table tr:last-child td) {
+    border-bottom: 0;
+}
+
+body.theme-parking main :where(.parking-table a) {
+    color: var(--brand-dark);
+    font-weight: 760;
+    text-decoration: none;
+}
+
+body.theme-parking main :where(.parking-table a:hover) {
+    color: var(--page-accent);
+}
+
+body.theme-parking main :where(.vehicle-note, .vehicle-meta, .vehicle-title, small) {
+    overflow-wrap: anywhere;
+}
+
+body.theme-parking main :where(.amount) {
+    color: var(--energy-color);
+}
+
+body.theme-parking main :where(.parking-link-button, .count-link) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.22rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 850;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+body.theme-parking main :where(.parking-link-button) {
+    padding: 0.18rem 0.55rem;
+}
+
+body.theme-parking main :where(.count-link) {
+    min-width: 2.15rem;
+    min-height: 1.8rem;
+}
+
+body.theme-parking main :where(.parking-link-button:hover, .count-link:hover) {
+    border-color: var(--page-accent);
+    background: #fffaf0;
+}
+
+body.theme-parking main :where(.early-badge) {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0.22rem;
+    border: 1px solid #f0c7bc;
+    border-radius: 999px;
+    background: #fff3f0;
+    color: #9a4a32;
+    font-size: 0.68rem;
+    font-weight: 850;
+    padding: 0.14rem 0.48rem;
+    white-space: nowrap;
+}
+
+body.theme-parking main :where(.vehicle-note) {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+body.theme-parking main :where(.parking-stats-grid) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+    gap: 1rem;
+}
+
+@media (max-width: 900px) {
+    body.theme-parking main :where(.parking-stats-grid) {
+        grid-template-columns: 1fr;
+    }
+}

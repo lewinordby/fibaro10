@@ -21,14 +21,14 @@
         <section class="page-title">
             <div>
                 <h1>{{ title|default("Navneoppslag") }}</h1>
-                <p>{{ count|short_number }} {{ description|default("biler mangler navn. Denne siden gir extensionen neste pakke pÃ¥") }} {{ limit }} registreringsnummer.</p>
+                <p>{{ count|short_number }} {{ description|default("biler mangler navn. Denne siden gir extensionen neste pakke på") }} {{ limit }} registreringsnummer.</p>
             </div>
         </section>
 
         <section class="lookup-grid">
             <article class="panel">
                 <h2>Eksportpakke</h2>
-                <p class="lookup-note">Lim denne listen inn i extensionen, eller bruk knappen i extensionen for Ã¥ hente samme pakke direkte fra API-et.</p>
+                <p class="lookup-note">Lim denne listen inn i extensionen, eller bruk knappen i extensionen for å hente samme pakke direkte fra API-et.</p>
                 <textarea class="lookup-copy" readonly>{{ plates }}</textarea>
                 <div class="lookup-actions">
                     {% if mode == "omrade" %}
