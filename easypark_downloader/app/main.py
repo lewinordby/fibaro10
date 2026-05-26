@@ -343,6 +343,13 @@ async def run_once() -> dict[str, Any]:
                     accept_downloads=True,
                     downloads_path=str(DOWNLOAD_DIR),
                     viewport={"width": 1365, "height": 900},
+                    locale="en-US",
+                    timezone_id="Europe/Oslo",
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/125.0.0.0 Safari/537.36"
+                    ),
                 )
                 page = context.pages[0] if context.pages else await context.new_page()
                 try:
