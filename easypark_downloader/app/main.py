@@ -26,6 +26,8 @@ STATE_PATH = DATA_DIR / "state.json"
 REPORT_URL = os.getenv("EASYPARK_REPORT_URL", "https://dashboard.easypark.net/search-parkings/1")
 RUN_INTERVAL_MINUTES = int(os.getenv("EASYPARK_RUN_INTERVAL_MINUTES", "2"))
 RUN_AT = os.getenv("EASYPARK_RUN_AT", "").strip()
+RUN_EVERY_HOUR = os.getenv("EASYPARK_RUN_EVERY_HOUR", "false").strip().lower() in {"1", "true", "yes", "ja"}
+RUN_MINUTE = max(0, min(59, int(os.getenv("EASYPARK_RUN_MINUTE", "0"))))
 RUN_ON_START = os.getenv("EASYPARK_RUN_ON_START", "false").strip().lower() in {"1", "true", "yes", "ja"}
 SCHEDULE_MODE = os.getenv("EASYPARK_SCHEDULE_MODE", "recent").strip().lower()
 RECENT_DAYS = max(1, int(os.getenv("EASYPARK_RECENT_DAYS", "2")))
@@ -564,6 +566,12 @@ async def worker_loop() -> None:
 
 
 def seconds_until_next_run() -> int:
+    if RUN_EVERY_HOUR:
+        now = datetime.now(LOCAL_TZ)
+        target = now.replace(minute=RUN_MINUTE, second=0, microsecond=0)
+        if target <= now:
+            target += timedelta(hours=1)
+        return max(60, int((target - now).total_seconds()))
     if RUN_AT:
         match = re.match(r"^(\d{1,2}):(\d{2})$", RUN_AT)
         if match:

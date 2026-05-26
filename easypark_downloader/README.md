@@ -15,4 +15,4 @@ Containeren bruker persistent browserprofil i `./data/browser-profile`, slik at 
 
 EasyPark sitt datofilter tillater maks ett år per eksport. Backfill kjøres derfor i månedlige biter, og Fibaro10 dedupliserer på `source_system` + `parking_id`.
 
-Den faste bakgrunnskjøringen bruker som standard `EASYPARK_SCHEDULE_MODE=recent`, `EASYPARK_RECENT_DAYS=2` og `EASYPARK_RUN_INTERVAL_MINUTES=2`. Det betyr at appen normalt henter i går og i dag hvert andre minutt.
+Den faste bakgrunnskjøringen kan enten gå på intervall, fast klokkeslett eller hver hele time. Anbefalt drift er `EASYPARK_RUN_EVERY_HOUR=true`, `EASYPARK_RUN_MINUTE=0`, `EASYPARK_SCHEDULE_MODE=recent` og `EASYPARK_RECENT_DAYS=2`. Da henter appen i går og i dag på hel time.
