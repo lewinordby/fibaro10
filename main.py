@@ -2941,7 +2941,7 @@ def is_public_request(request: Request) -> bool:
         return True
     if request.method == "GET" and (path == "/api/config" or path.startswith("/api/config/")):
         return True
-    return request.method == "POST" and path in {"/events", "/log", "/api/energi/fibaro"}
+    return request.method == "POST" and path in {"/events", "/log", "/api/energi/fibaro", "/api/hc3/measurements/log"}
 
 
 async def parse_form_body(request: Request) -> Dict[str, str]:
