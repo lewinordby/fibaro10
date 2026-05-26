@@ -76,7 +76,7 @@ SCHEDULE_MEMBERS_TIME = env_value("SCHEDULE_MEMBERS_TIME", "03:10") or "03:10"
 LIVE_SYNC_ENABLED = (env_value("LIVE_SYNC_ENABLED", "1") or "1") == "1"
 LIVE_SYNC_INTERVAL_SECONDS = int(env_value("LIVE_SYNC_INTERVAL_SECONDS", "300") or "300")
 POST_TO_FIBARO10 = (env_value("POST_TO_FIBARO10", "0") or "0") == "1"
-FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "https://fibaro10.onrender.com") or "").rstrip("/")
+FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "http://fibaro10:8110") or "").rstrip("/")
 FIBARO10_API_USERNAME = env_value("FIBARO10_API_USERNAME", "") or ""
 FIBARO10_API_PASSWORD = env_value("FIBARO10_API_PASSWORD", "") or ""
 COLLECTOR_ID = env_value("COLLECTOR_ID", "qnap-sun2-session-scraper") or "qnap-sun2-session-scraper"

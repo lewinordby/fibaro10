@@ -49,7 +49,7 @@ DAILY_DOWNLOAD_ENABLED = (env_value("DAILY_DOWNLOAD_ENABLED", "1") or "1") == "1
 DAILY_DOWNLOAD_TIME = env_value("DAILY_DOWNLOAD_TIME", "01:05") or "01:05"
 DAILY_DOWNLOAD_DAYS_BACK = int(env_value("DAILY_DOWNLOAD_DAYS_BACK", "1") or "1")
 SCHEDULE_POLL_SECONDS = int(env_value("SCHEDULE_POLL_SECONDS", "60") or "60")
-FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "https://fibaro10.onrender.com") or "").rstrip("/")
+FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "http://fibaro10:8110") or "").rstrip("/")
 FIBARO10_API_USERNAME = env_value("FIBARO10_API_USERNAME", "") or ""
 FIBARO10_API_PASSWORD = env_value("FIBARO10_API_PASSWORD", "") or ""
 COLLECTOR_ID = env_value("COLLECTOR_ID", "qnap-sun2-daily-downloader") or "qnap-sun2-daily-downloader"

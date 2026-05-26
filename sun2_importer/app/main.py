@@ -22,7 +22,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 load_dotenv()
 
 COLLECTOR_ID = os.getenv("COLLECTOR_ID", "qnap-sun2-importer")
-FIBARO10_API_BASE_URL = os.getenv("FIBARO10_API_BASE_URL", "https://fibaro10.onrender.com").rstrip("/")
+FIBARO10_API_BASE_URL = os.getenv("FIBARO10_API_BASE_URL", "http://fibaro10:8110").rstrip("/")
 FIBARO10_API_USERNAME = os.getenv("FIBARO10_API_USERNAME", "")
 FIBARO10_API_PASSWORD = os.getenv("FIBARO10_API_PASSWORD", "")
 IMPORT_DIR = Path(os.getenv("IMPORT_DIR", "/data/incoming"))

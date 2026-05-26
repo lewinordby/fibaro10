@@ -432,7 +432,7 @@ def render_page(message: str | None = None, error: str | None = None) -> str:
             <div class="brand"><span class="brand-mark">P</span><span>HC3 vedlikehold</span></div>
             <div class="top-actions">
                 <a class="button secondary" href="/api/status">JSON status</a>
-                <a class="button secondary" href="https://fibaro10.onrender.com/energi/status">Fibaro10 energi</a>
+                <a class="button secondary" href="http://192.168.20.218:8110/energi/status">Fibaro10 energi</a>
             </div>
         </div>
     </header>

@@ -14,7 +14,7 @@
 -- KONFIGURASJON
 -- ============================================================
 
-local API_URL = "https://fibaro10.onrender.com/api/energi/fibaro"
+local API_URL = "http://192.168.20.218:8110/api/energi/fibaro"
 local SOURCE = "HC3 ENERGI | 1MIN"
 local INTERVAL_SECONDS = 60
 
