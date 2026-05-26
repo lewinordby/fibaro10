@@ -1,5 +1,4 @@
 import asyncio
-import csv
 import email
 import imaplib
 import os
@@ -7,7 +6,6 @@ import re
 from datetime import date, datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
-from io import StringIO
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -84,13 +82,6 @@ def parse_iso_date(value: str | None) -> date | None:
 
 def easypark_date(value: date) -> str:
     return value.strftime("%d/%m/%Y")
-
-
-def api_datetime(value: date, end_of_day: bool = False) -> str:
-    local_value = datetime.combine(value + (timedelta(days=1) if end_of_day else timedelta()), datetime.min.time(), LOCAL_TZ)
-    if end_of_day:
-        local_value -= timedelta(seconds=1)
-    return local_value.astimezone(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
 def period_label(from_day: date | None, to_day: date | None) -> str:
@@ -329,122 +320,58 @@ async def download_report(page) -> Path:
     return target
 
 
-def parking_api_payload(from_day: date, to_day: date, first_result: int = 0, max_results: int = 100) -> dict[str, Any]:
-    return {
-        "minstartdate": api_datetime(from_day),
-        "maxstartdate": api_datetime(to_day, end_of_day=True),
-        "areano": None,
-        "superzone": None,
-        "carlicenseno": "",
-        "ongoing": "",
-        "maxresults": max_results,
-        "firstresult": first_result,
-        "parkingsystem": "",
-        "inputinterfacetype": "",
-        "subtype": "",
-        "sortorder": "ASC",
-        "sortproperty": "start_date",
-        "areaIds": "",
-        "countryCode": "NO",
-        "countrycode": "NO",
-        "minenddate": api_datetime(from_day),
-        "maxenddate": api_datetime(to_day, end_of_day=True),
-        "searchwithpermits": False,
-    }
+MONTH_NAMES = {
+    "January": 1,
+    "February": 2,
+    "March": 3,
+    "April": 4,
+    "May": 5,
+    "June": 6,
+    "July": 7,
+    "August": 8,
+    "September": 9,
+    "October": 10,
+    "November": 11,
+    "December": 12,
+}
 
 
-async def fetch_parking_api_page(page, payload: dict[str, Any]) -> dict[str, Any]:
-    return await page.evaluate(
-        """async (payload) => {
-            const response = await fetch("/api/epic/searchParkings", {
-                method: "POST",
-                credentials: "include",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify(payload),
-            });
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(`EasyPark API ${response.status}: ${text.slice(0, 300)}`);
-            }
-            return await response.json();
-        }""",
-        payload,
-    )
+async def datepicker_month_year(page) -> tuple[int, int]:
+    text = (await page.locator(".react-datepicker__current-month").first.inner_text(timeout=5000)).strip()
+    parts = text.split()
+    if len(parts) != 2 or parts[0] not in MONTH_NAMES:
+        raise RuntimeError(f"Ukjent EasyPark-kalendermåned: {text}")
+    return MONTH_NAMES[parts[0]], int(parts[1])
 
 
-async def collect_parking_api_rows(page, from_day: date, to_day: date) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    first_result = 0
-    page_size = 10
-    total_count: int | None = None
-    while total_count is None or first_result < total_count:
-        payload = parking_api_payload(from_day, to_day, first_result=first_result, max_results=page_size)
-        result = await fetch_parking_api_page(page, payload)
-        elements = result.get("elements") or []
-        rows.extend(elements)
-        total_count = int(result.get("totalCount") or len(rows))
-        if not elements:
+async def pick_date(page, field_index: int, target_day: date) -> None:
+    date_fields = page.locator("input.form-control")
+    if await date_fields.count() <= field_index:
+        await save_debug(page, "easypark-date-fields-missing")
+        raise RuntimeError("Fant ikke EasyPark-feltene for fra/til-dato.")
+
+    await date_fields.nth(field_index).click()
+    await page.locator(".react-datepicker").wait_for(state="visible", timeout=5000)
+
+    for _ in range(24):
+        current_month, current_year = await datepicker_month_year(page)
+        delta = (target_day.year - current_year) * 12 + (target_day.month - current_month)
+        if delta == 0:
             break
-        first_result += page_size
-        set_state(last_action=f"fetch_period {len(rows)}/{total_count}", last_period=period_label(from_day, to_day))
+        selector = ".react-datepicker__navigation--next" if delta > 0 else ".react-datepicker__navigation--previous"
+        await page.locator(selector).first.click()
         await page.wait_for_timeout(250)
-    return rows
+    else:
+        await save_debug(page, "easypark-datepicker-navigation-failed")
+        raise RuntimeError(f"Klarte ikke å navigere EasyPark-kalenderen til {target_day.isoformat()}.")
 
-
-def status_label(row: dict[str, Any]) -> str:
-    if row.get("stopped") is False:
-        return "Ongoing"
-    return "Ended"
-
-
-def write_parking_api_csv(rows: list[dict[str, Any]], from_day: date, to_day: date) -> Path:
-    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    target = DOWNLOAD_DIR / f"easypark-parkings-{from_day.isoformat()}_til_{to_day.isoformat()}-{stamp()}.csv"
-    fieldnames = [
-        "Car license number",
-        "Parking area",
-        "Source parking system",
-        "Area number",
-        "Parking ID",
-        "Start date",
-        "End date",
-        "Parking time",
-        "Parking fee excluding VAT",
-        "Parking fee including VAT",
-        "Parking fee VAT",
-        "User interface",
-        "SubType",
-        "Status",
-    ]
-    buffer = StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=fieldnames, delimiter=";")
-    writer.writeheader()
-    for row in rows:
-        writer.writerow(
-            {
-                "Car license number": row.get("carLicenseNo") or "",
-                "Parking area": row.get("areaName") or "",
-                "Source parking system": row.get("sourceParkingSystem") or "EasyPark",
-                "Area number": row.get("areaNo") or "",
-                "Parking ID": row.get("parkingId") or "",
-                "Start date": row.get("startDate") or "",
-                "End date": row.get("endDate") or "",
-                "Parking time": "",
-                "Parking fee excluding VAT": "",
-                "Parking fee including VAT": row.get("parkingFeeInclusiveVat") or "",
-                "Parking fee VAT": "",
-                "User interface": row.get("inputInterfaceType") or "",
-                "SubType": row.get("subType") or "",
-                "Status": status_label(row),
-            }
-        )
-    target.write_text(buffer.getvalue(), encoding="utf-8-sig")
-    return target
-
-
-async def download_period_report(page, from_day: date, to_day: date) -> Path:
-    rows = await collect_parking_api_rows(page, from_day, to_day)
-    return write_parking_api_csv(rows, from_day, to_day)
+    day_selector = f".react-datepicker__day--{target_day.day:03d}:not(.react-datepicker__day--outside-month)"
+    day = page.locator(day_selector).first
+    if not await day.is_visible(timeout=3000):
+        await save_debug(page, "easypark-datepicker-day-missing")
+        raise RuntimeError(f"Fant ikke dato {target_day.isoformat()} i EasyPark-kalenderen.")
+    await day.click()
+    await page.wait_for_timeout(500)
 
 
 async def set_date_range(page, from_day: date | None, to_day: date | None) -> None:
@@ -452,23 +379,17 @@ async def set_date_range(page, from_day: date | None, to_day: date | None) -> No
     if not from_day or not to_day:
         return
 
-    from_value = easypark_date(from_day)
-    to_value = easypark_date(to_day)
     date_fields = page.locator("input.form-control")
     if await date_fields.count() < 5:
         await save_debug(page, "easypark-date-fields-missing")
         raise RuntimeError("Fant ikke EasyPark-feltene for fra/til-dato.")
 
-    from_field = date_fields.nth(3)
-    to_field = date_fields.nth(4)
-    await from_field.fill(from_value)
-    await from_field.press("Tab")
-    await to_field.fill(to_value)
-    await to_field.press("Tab")
+    await pick_date(page, 3, from_day)
+    await pick_date(page, 4, to_day)
     await page.wait_for_timeout(1000)
 
     actual_values = await date_fields.evaluate_all("(fields) => fields.slice(3, 5).map((field) => field.value)")
-    if actual_values[:2] != [from_value, to_value]:
+    if actual_values[:2] != [easypark_date(from_day), easypark_date(to_day)]:
         await save_debug(page, "easypark-date-values-not-set")
         raise RuntimeError(f"EasyPark beholdt feil datoer: {actual_values[:2]}")
 
@@ -562,8 +483,10 @@ async def run_download_import(from_day: date | None = None, to_day: date | None 
                 set_state(last_action="login")
                 await ensure_logged_in(page)
                 if from_day and to_day:
-                    set_state(last_action="fetch_period", last_period=period)
-                    file_path = await download_period_report(page, from_day, to_day)
+                    set_state(last_action="set_period", last_period=period)
+                    await set_date_range(page, from_day, to_day)
+                    set_state(last_action="download", last_period=period)
+                    file_path = await download_report(page)
                 else:
                     set_state(last_action="download")
                     file_path = await download_report(page)
