@@ -3,7 +3,7 @@ import email
 import imaplib
 import os
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
 from pathlib import Path
@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from playwright.async_api import async_playwright
 
 load_dotenv()
@@ -50,6 +50,7 @@ state: dict[str, Any] = {
     "last_error": None,
     "last_file": None,
     "last_import": None,
+    "last_period": None,
     "last_action": "init",
 }
 
@@ -71,6 +72,33 @@ def utcnow_iso() -> str:
 
 def fibaro10_datetime_iso() -> str:
     return datetime.now(LOCAL_TZ).replace(tzinfo=None, microsecond=0).isoformat()
+
+
+def parse_iso_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    return date.fromisoformat(value)
+
+
+def easypark_date(value: date) -> str:
+    return value.strftime("%d/%m/%Y")
+
+
+def period_label(from_day: date | None, to_day: date | None) -> str:
+    if not from_day and not to_day:
+        return "standard"
+    return f"{from_day.isoformat() if from_day else '-'} - {to_day.isoformat() if to_day else '-'}"
+
+
+def validate_period(from_day: date | None, to_day: date | None) -> None:
+    if bool(from_day) != bool(to_day):
+        raise RuntimeError("EasyPark-perioden må ha både fra- og til-dato.")
+    if not from_day or not to_day:
+        return
+    if from_day > to_day:
+        raise RuntimeError("Fra-dato kan ikke være etter til-dato.")
+    if to_day - from_day > timedelta(days=366):
+        raise RuntimeError("EasyPark tillater maks ett år per eksport.")
 
 
 def set_state(**values: Any) -> None:
@@ -292,6 +320,60 @@ async def download_report(page) -> Path:
     return target
 
 
+async def set_date_range(page, from_day: date | None, to_day: date | None) -> None:
+    validate_period(from_day, to_day)
+    if not from_day or not to_day:
+        return
+
+    from_value = easypark_date(from_day)
+    to_value = easypark_date(to_day)
+    changed = await page.evaluate(
+        """([fromValue, toValue]) => {
+            const inputs = Array.from(document.querySelectorAll("input.form-control"))
+                .filter((input) => !input.id && !!(input.offsetWidth || input.offsetHeight || input.getClientRects().length));
+            if (inputs.length < 2) return false;
+            const setValue = (input, value) => {
+                const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                setter.call(input, value);
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+                input.dispatchEvent(new Event("blur", { bubbles: true }));
+            };
+            setValue(inputs[0], fromValue);
+            setValue(inputs[1], toValue);
+            return true;
+        }""",
+        [from_value, to_value],
+    )
+    if not changed:
+        await save_debug(page, "easypark-date-fields-missing")
+        raise RuntimeError("Fant ikke EasyPark-feltene for fra/til-dato.")
+
+    clicked = await click_visible(page.get_by_role("button", name=re.compile("^Search$", re.I)))
+    if not clicked:
+        await save_debug(page, "easypark-search-button-missing")
+        raise RuntimeError("Fant ikke EasyPark-søkeknappen etter datovalg.")
+    await page.wait_for_timeout(8000)
+
+    body = await page_text(page)
+    if "Total:" not in body:
+        await save_debug(page, "easypark-period-search-no-total")
+        raise RuntimeError("EasyPark viste ikke total etter periodesøk.")
+
+
+def monthly_periods(year: int, end_day: date | None = None) -> list[tuple[date, date]]:
+    today = datetime.now(LOCAL_TZ).date()
+    last_allowed = min(end_day or today, today)
+    periods: list[tuple[date, date]] = []
+    month_start = date(year, 1, 1)
+    while month_start <= last_allowed and month_start.year == year:
+        next_month = date(year + 1, 1, 1) if month_start.month == 12 else date(year, month_start.month + 1, 1)
+        month_end = min(next_month - timedelta(days=1), last_allowed)
+        periods.append((month_start, month_end))
+        month_start = next_month
+    return periods
+
+
 def post_to_fibaro10(path: Path) -> dict[str, Any]:
     if not FIBARO10_USERNAME or not FIBARO10_PASSWORD:
         raise RuntimeError("FIBARO10_USERNAME/FIBARO10_PASSWORD mangler.")
@@ -331,51 +413,78 @@ def report_failure_to_fibaro10(started_at: str, message: str) -> None:
         pass
 
 
-async def run_once() -> dict[str, Any]:
-    async with lock:
-        set_state(running=True, last_action="starting", last_error=None)
-        started = fibaro10_datetime_iso()
-        try:
-            async with async_playwright() as playwright:
-                context = await playwright.chromium.launch_persistent_context(
-                    str(PROFILE_DIR),
-                    headless=HEADLESS,
-                    accept_downloads=True,
-                    downloads_path=str(DOWNLOAD_DIR),
-                    viewport={"width": 1365, "height": 900},
-                    locale="en-US",
-                    timezone_id="Europe/Oslo",
-                    user_agent=(
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/125.0.0.0 Safari/537.36"
-                    ),
-                )
-                page = context.pages[0] if context.pages else await context.new_page()
-                try:
-                    set_state(last_action="login")
-                    await ensure_logged_in(page)
-                    set_state(last_action="download")
-                    file_path = await download_report(page)
-                finally:
-                    await context.close()
-
-            set_state(last_action="import")
-            import_result = post_to_fibaro10(file_path)
-            result = {"ok": True, "started_at": started, "file": str(file_path), "import": import_result}
-            set_state(
-                running=False,
-                last_success_at=utcnow_iso(),
-                last_error=None,
-                last_file=str(file_path),
-                last_import=import_result,
-                last_action="done",
+async def run_download_import(from_day: date | None = None, to_day: date | None = None) -> dict[str, Any]:
+    validate_period(from_day, to_day)
+    period = period_label(from_day, to_day)
+    set_state(running=True, last_action="starting", last_error=None, last_period=period)
+    started = fibaro10_datetime_iso()
+    try:
+        async with async_playwright() as playwright:
+            context = await playwright.chromium.launch_persistent_context(
+                str(PROFILE_DIR),
+                headless=HEADLESS,
+                accept_downloads=True,
+                downloads_path=str(DOWNLOAD_DIR),
+                viewport={"width": 1365, "height": 900},
+                locale="en-US",
+                timezone_id="Europe/Oslo",
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/125.0.0.0 Safari/537.36"
+                ),
             )
-            return result
-        except Exception as exc:
-            set_state(running=False, last_error=str(exc), last_action="error")
-            report_failure_to_fibaro10(started, str(exc))
-            raise
+            page = context.pages[0] if context.pages else await context.new_page()
+            try:
+                set_state(last_action="login")
+                await ensure_logged_in(page)
+                set_state(last_action="set_period")
+                await set_date_range(page, from_day, to_day)
+                set_state(last_action="download")
+                file_path = await download_report(page)
+            finally:
+                await context.close()
+
+        set_state(last_action="import")
+        import_result = post_to_fibaro10(file_path)
+        result = {"ok": True, "started_at": started, "period": period, "file": str(file_path), "import": import_result}
+        set_state(
+            running=False,
+            last_success_at=utcnow_iso(),
+            last_error=None,
+            last_file=str(file_path),
+            last_import=import_result,
+            last_period=period,
+            last_action="done",
+        )
+        return result
+    except Exception as exc:
+        set_state(running=False, last_error=str(exc), last_action="error", last_period=period)
+        report_failure_to_fibaro10(started, str(exc))
+        raise
+
+
+async def run_once(from_day: date | None = None, to_day: date | None = None) -> dict[str, Any]:
+    async with lock:
+        return await run_download_import(from_day, to_day)
+
+
+async def run_backfill_year(year: int, end_day: date | None = None) -> dict[str, Any]:
+    async with lock:
+        results: list[dict[str, Any]] = []
+        set_state(running=True, last_action="backfill_start", last_error=None, last_period=str(year))
+        for from_day, to_day in monthly_periods(year, end_day):
+            set_state(last_action="backfill_period", last_period=period_label(from_day, to_day))
+            results.append(await run_download_import(from_day, to_day))
+        totals = {
+            "periods": len(results),
+            "inserted": sum(int(item.get("import", {}).get("inserted") or 0) for item in results),
+            "unchanged": sum(int(item.get("import", {}).get("unchanged") or 0) for item in results),
+            "skipped": sum(int(item.get("import", {}).get("skipped") or 0) for item in results),
+            "total": sum(int(item.get("import", {}).get("total") or 0) for item in results),
+        }
+        set_state(running=False, last_action="backfill_done", last_period=str(year))
+        return {"ok": True, "year": year, "totals": totals, "results": results}
 
 
 async def worker_loop() -> None:
@@ -425,10 +534,39 @@ async def status() -> dict[str, Any]:
 
 
 @app.post("/sync-now")
-async def sync_now() -> dict[str, Any]:
+async def sync_now(
+    from_date: str | None = Query(default=None),
+    to_date: str | None = Query(default=None),
+) -> dict[str, Any]:
     if lock.locked():
         return {"status": "busy", **state}
     try:
-        return await run_once()
+        return await run_once(parse_iso_date(from_date), parse_iso_date(to_date))
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc), **state}
+
+
+@app.post("/sync-period")
+async def sync_period(
+    from_date: str = Query(...),
+    to_date: str = Query(...),
+) -> dict[str, Any]:
+    if lock.locked():
+        return {"status": "busy", **state}
+    try:
+        return await run_once(parse_iso_date(from_date), parse_iso_date(to_date))
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc), **state}
+
+
+@app.post("/backfill-year")
+async def backfill_year(
+    year: int = Query(..., ge=2017, le=2100),
+    end_date: str | None = Query(default=None),
+) -> dict[str, Any]:
+    if lock.locked():
+        return {"status": "busy", **state}
+    try:
+        return await run_backfill_year(year, parse_iso_date(end_date))
     except Exception as exc:
         return {"status": "error", "detail": str(exc), **state}
