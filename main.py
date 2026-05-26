@@ -19,7 +19,7 @@ import urllib.request
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Query, Request
+from fastapi import BackgroundTasks, FastAPI, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -4036,6 +4036,10 @@ ENERGY_FIBARO_AREAS = [
 
 ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "differanse_fibaro"]
 ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
+ENERGY_HOURLY_COMPARE_FIELDS = [
+    "stat_date", "year", "month", "day", "hour", "consumption_kwh", "production_kwh",
+    "status", "is_verified", "is_estimated", "is_public_holiday", "use_weekend_prices",
+]
 
 
 def sum_optional(values: list[Optional[float]]) -> Optional[float]:
@@ -4061,6 +4065,21 @@ def accumulated_delta(current: Optional[float], previous: Optional[float]) -> tu
     if current_value + 0.0001 >= previous_value:
         return max(current_value - previous_value, 0.0), False
     return max(current_value, 0.0), True
+
+
+def energy_hour_has_changed(existing: EnergyHourlyConsumption, row: Dict[str, Any]) -> bool:
+    for field in ENERGY_HOURLY_COMPARE_FIELDS:
+        current = getattr(existing, field)
+        incoming = row.get(field)
+        if isinstance(current, float) or isinstance(incoming, float):
+            if current is None or incoming is None:
+                if current != incoming:
+                    return True
+            elif abs(float(current) - float(incoming)) > 0.000001:
+                return True
+        elif current != incoming:
+            return True
+    return False
 
 
 def dashboard_alert(level: str, title: str, detail: str, href: str = "/status/datakilder") -> Dict[str, str]:
@@ -4144,6 +4163,34 @@ async def record_import_job(
     return existing
 
 
+async def mark_import_job_running(
+    session,
+    job_name: str,
+    *,
+    message: Optional[str] = None,
+    source: Optional[str] = None,
+    raw: Optional[Dict[str, Any]] = None,
+) -> ImportJobStatus:
+    definition = import_job_definition(job_name)
+    started_at = local_now_naive()
+    existing = (
+        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == job_name))
+    ).scalars().first()
+    if not existing:
+        existing = ImportJobStatus(job_name=job_name, title=definition["title"], category=definition["category"])
+        session.add(existing)
+    existing.title = definition["title"]
+    existing.category = definition["category"]
+    existing.source = source or definition.get("source")
+    existing.status = "running"
+    existing.status_text = "Kjører"
+    existing.last_started_at = started_at
+    existing.last_run_at = started_at
+    existing.message = message or "Import kjører"
+    existing.raw = raw or {}
+    return existing
+
+
 async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
     if job_name == "hc3_light_5min":
         row = (await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))).scalars().first()
@@ -4203,12 +4250,15 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
             calculated_next = stamp + timedelta(minutes=expected_minutes)
             if not next_expected_at or abs((next_expected_at - calculated_next).total_seconds()) > 60:
                 next_expected_at = calculated_next
-        status, status_text = import_job_status_from_age(
-            stamp,
-            expected_minutes,
-            warning_minutes,
-        )
-        if last_failed_at and (not stamp or last_failed_at > stamp):
+        if row and row.status == "running":
+            status, status_text = "running", "Kjører"
+        else:
+            status, status_text = import_job_status_from_age(
+                stamp,
+                expected_minutes,
+                warning_minutes,
+            )
+        if row and row.status != "running" and last_failed_at and (not stamp or last_failed_at > stamp):
             status, status_text = "bad", "Feil"
         rows.append(
             {
@@ -6010,6 +6060,9 @@ async def ingest_elvia_hours(session, parsed: Dict[str, Any], batch_time: dateti
             session.add(existing)
             inserted += 1
         else:
+            if not energy_hour_has_changed(existing, row):
+                skipped += 1
+                continue
             updated += 1
 
         existing.stat_date = row["stat_date"]
@@ -6030,6 +6083,87 @@ async def ingest_elvia_hours(session, parsed: Dict[str, Any], batch_time: dateti
         existing.raw = row["raw"]
 
     return {"inserted": inserted, "updated": updated, "skipped": skipped}
+
+
+async def run_elvia_import_background(content: bytes, filename: str):
+    started_at = local_now_naive()
+    batch_time = datetime.utcnow()
+    try:
+        parsed = parse_elvia_json_payload(content, filename)
+        if not parsed["rows"]:
+            raise ValueError("Filen inneholder ingen timeverdier som kan importeres.")
+        async with async_session() as session:
+            counts = await ingest_elvia_hours(session, parsed, batch_time)
+            message = (
+                f"{counts['inserted']} nye, {counts['updated']} oppdatert, "
+                f"{counts['skipped']} uendret for måler {parsed['meter_id']}."
+            )
+            session.add(
+                EnergyImportRun(
+                    timestamp=batch_time,
+                    meter_id=parsed["meter_id"],
+                    source="elvia",
+                    ok=True,
+                    source_file=filename,
+                    period_first=parsed["first_at"],
+                    period_last=parsed["last_at"],
+                    days_count=parsed["days_count"],
+                    hours_count=parsed["hours_count"],
+                    inserted_count=counts["inserted"],
+                    updated_count=counts["updated"],
+                    skipped_count=counts["skipped"],
+                    total_kwh=parsed["total_kwh"],
+                    estimated_hours_count=parsed["estimated_hours_count"],
+                    message=message,
+                    raw={"partial_months": parsed["partial_months"]},
+                )
+            )
+            await record_import_job(
+                session,
+                "elvia_monthly_import",
+                source="elvia",
+                started_at=started_at,
+                finished_at=local_now_naive(),
+                records_imported=counts["inserted"] + counts["updated"],
+                records_total=parsed["hours_count"],
+                duration_seconds=(local_now_naive() - started_at).total_seconds(),
+                message=message,
+                raw={"source_file": filename, "partial_months": parsed["partial_months"], "counts": counts},
+            )
+            await session.commit()
+        clear_summary_cache("energy")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        error = "Filen kunne ikke leses som gyldig JSON."
+        async with async_session() as session:
+            session.add(EnergyImportRun(timestamp=batch_time, source="elvia", ok=False, source_file=filename, message=error))
+            await record_import_job(
+                session,
+                "elvia_monthly_import",
+                ok=False,
+                source="elvia",
+                started_at=started_at,
+                finished_at=local_now_naive(),
+                duration_seconds=(local_now_naive() - started_at).total_seconds(),
+                message=error,
+                raw={"source_file": filename},
+            )
+            await session.commit()
+    except Exception as exc:
+        error = str(exc)
+        async with async_session() as session:
+            session.add(EnergyImportRun(timestamp=batch_time, source="elvia", ok=False, source_file=filename, message=error))
+            await record_import_job(
+                session,
+                "elvia_monthly_import",
+                ok=False,
+                source="elvia",
+                started_at=started_at,
+                finished_at=local_now_naive(),
+                duration_seconds=(local_now_naive() - started_at).total_seconds(),
+                message=error,
+                raw={"source_file": filename},
+            )
+            await session.commit()
 
 
 async def fetch_rows(model, event_type, action, device_key, device_id, mode, source_contains, from_text, to_text, limit, time_basis: str = "source"):
@@ -8894,12 +9028,16 @@ async def energy_elvia_view(request: Request):
                 .limit(25)
             )
         ).scalars().all()
+        elvia_status = (
+            await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "elvia_monthly_import"))
+        ).scalars().first()
     return templates.TemplateResponse(
         request,
         "energy_elvia.html",
         {
             "rows": list(reversed(rows)),
             "imports": imports,
+            "elvia_status": elvia_status,
             "summaries": summaries,
             "message": message,
             "error": error,
@@ -8909,7 +9047,7 @@ async def energy_elvia_view(request: Request):
 
 
 @app.post("/energi/elvia", response_class=HTMLResponse)
-async def energy_elvia_upload(request: Request):
+async def energy_elvia_upload(request: Request, background_tasks: BackgroundTasks):
     message = ""
     error = ""
     import_result = None
@@ -8923,49 +9061,17 @@ async def energy_elvia_upload(request: Request):
             if not upload or not filename:
                 raise ValueError("Velg en JSON-fil fra Elvia før du importerer.")
             content = await upload.read()
-            parsed = parse_elvia_json_payload(content, filename)
-            if not parsed["rows"]:
-                raise ValueError("Filen inneholder ingen timeverdier som kan importeres.")
-            batch_time = datetime.utcnow()
             async with async_session() as session:
-                counts = await ingest_elvia_hours(session, parsed, batch_time)
-                import_result = {key: value for key, value in parsed.items() if key != "rows"}
-                import_result.update(counts)
-                session.add(
-                    EnergyImportRun(
-                        timestamp=batch_time,
-                        meter_id=parsed["meter_id"],
-                        source="elvia",
-                        ok=True,
-                        source_file=filename,
-                        period_first=parsed["first_at"],
-                        period_last=parsed["last_at"],
-                        days_count=parsed["days_count"],
-                        hours_count=parsed["hours_count"],
-                        inserted_count=counts["inserted"],
-                        updated_count=counts["updated"],
-                        skipped_count=counts["skipped"],
-                        total_kwh=parsed["total_kwh"],
-                        estimated_hours_count=parsed["estimated_hours_count"],
-                        message="Importert",
-                        raw={"partial_months": parsed["partial_months"]},
-                    )
-                )
-                await record_import_job(
+                await mark_import_job_running(
                     session,
                     "elvia_monthly_import",
-                    source="elvia",
-                    records_imported=counts["inserted"] + counts["updated"],
-                    records_total=parsed["hours_count"],
-                    message=f"{parsed['hours_count']} timer for måler {parsed['meter_id']}",
-                    raw={"source_file": filename, "partial_months": parsed["partial_months"], "counts": counts},
+                    source="Manuell opplasting",
+                    message=f"Importerer {filename}",
+                    raw={"source_file": filename},
                 )
                 await session.commit()
-            clear_summary_cache("energy")
-            message = (
-                f"Importerte {counts['inserted']} nye og oppdaterte {counts['updated']} timer "
-                f"for måler {parsed['meter_id']}."
-            )
+            background_tasks.add_task(run_elvia_import_background, content, filename)
+            message = f"Importen er startet for {filename}. Siden kan brukes mens jobben kjører."
             return redirect_with_query_params(request, "/energi/elvia", message=message)
         except (json.JSONDecodeError, UnicodeDecodeError):
             error = "Filen kunne ikke leses som gyldig JSON."
@@ -8988,12 +9094,16 @@ async def energy_elvia_upload(request: Request):
                 .limit(25)
             )
         ).scalars().all()
+        elvia_status = (
+            await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "elvia_monthly_import"))
+        ).scalars().first()
     return templates.TemplateResponse(
         request,
         "energy_elvia.html",
         {
             "rows": list(reversed(rows)),
             "imports": imports,
+            "elvia_status": elvia_status,
             "summaries": summaries,
             "message": message,
             "error": error,

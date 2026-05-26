@@ -22,6 +22,7 @@
         .button-primary { width:auto !important; min-height:2.3rem; padding:0.45rem 0.9rem; border:1px solid var(--energy-color); border-radius:8px; background:var(--energy-color); color:white; font-weight:780; cursor:pointer; }
         .notice { margin:0 0 0.8rem; padding:0.7rem 0.8rem; border-radius:8px; font-size:0.88rem; }
         .notice.ok { background:#edf8f1; border:1px solid #bce4c8; color:#276846; }
+        .notice.running { background:#fff8e7; border:1px solid #ecd28b; color:#7b520b; }
         .notice.error { background:#fbebe8; border:1px solid #f2c4bb; color:#9d3f31; }
         .section-row { display:flex; align-items:end; justify-content:space-between; gap:0.75rem; margin:1rem 0 0.5rem; }
         .section-title { margin:0; font-size:1rem; color:var(--brand-dark); }
@@ -58,6 +59,13 @@
 
         {% if message %}<p class="notice ok">{{ message }}</p>{% endif %}
         {% if error %}<p class="notice error">{{ error }}</p>{% endif %}
+        {% if elvia_status %}
+            <p class="notice {% if elvia_status.status == 'bad' %}error{% elif elvia_status.status == 'running' %}running{% else %}ok{% endif %}">
+                Importstatus: {{ elvia_status.status_text or elvia_status.status }}
+                {% if elvia_status.message %} - {{ elvia_status.message }}{% endif %}
+                {% if elvia_status.duration_seconds %} ({{ "%.1f"|format(elvia_status.duration_seconds) }} sek){% endif %}
+            </p>
+        {% endif %}
 
         <section class="summary-grid">
             <div class="summary-card">
@@ -222,6 +230,7 @@
                         <th>Timer</th>
                         <th>Nye</th>
                         <th>Oppdatert</th>
+                        <th>Uendret</th>
                         <th>kWh</th>
                         <th>Status</th>
                     </tr>
@@ -235,6 +244,7 @@
                         <td>{{ run.hours_count or 0 }}</td>
                         <td>{{ run.inserted_count or 0 }}</td>
                         <td>{{ run.updated_count or 0 }}</td>
+                        <td>{{ run.skipped_count or 0 }}</td>
                         <td class="kwh">{{ "{:,.0f}".format(run.total_kwh or 0).replace(",", " ") }}</td>
                         <td>{{ "OK" if run.ok else "Feil" }}</td>
                     </tr>
@@ -243,5 +253,10 @@
             </table>
         </section>
     </main>
+    {% if elvia_status and elvia_status.status == "running" %}
+    <script>
+        window.setTimeout(() => window.location.reload(), 5000);
+    </script>
+    {% endif %}
 </body>
 </html>
