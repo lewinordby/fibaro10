@@ -1,0 +1,9 @@
+services:
+  fibaro10:
+    build: .
+    container_name: fibaro10
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8110:8110"
