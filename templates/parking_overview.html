@@ -46,12 +46,12 @@
         .time-stack strong { color:var(--brand-dark); font-size:.96rem; line-height:1.05; }
         .time-stack span { color:var(--muted); font-size:.78rem; font-weight:760; }
         .vehicle-cell { min-width:19rem; color:var(--brand-dark); }
-        .vehicle-main { display:flex; flex-wrap:wrap; gap:.32rem .55rem; align-items:baseline; font-weight:780; }
-        .plate-link { font-size:1rem; letter-spacing:.02em; }
-        .vehicle-title { color:var(--muted); font-size:.86rem; font-weight:720; }
-        .vehicle-meta { display:grid; gap:.12rem; margin-top:.3rem; color:var(--muted); font-size:.78rem; line-height:1.25; }
+        .vehicle-main { display:grid; grid-template-columns:auto minmax(0,1fr); gap:.28rem .65rem; align-items:start; font-weight:780; }
+        .plate-link { font-size:1rem; letter-spacing:.02em; white-space:nowrap; }
+        .vehicle-info { min-width:0; }
+        .vehicle-title { display:block; color:var(--muted); font-size:.86rem; font-weight:720; line-height:1.22; }
+        .vehicle-meta { display:grid; gap:.12rem; margin-top:.22rem; color:var(--muted); font-size:.78rem; font-weight:760; line-height:1.25; }
         .vehicle-meta span { display:block; }
-        .vehicle-meta b { color:#627085; font-weight:850; }
         .source-cell { color:var(--muted); white-space:nowrap; font-size:.86rem; }
         .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.15rem; min-height:1.8rem; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--brand-dark); text-decoration:none; font-weight:760; }
         .count-link:hover { border-color:var(--page-accent); background:#fffaf0; }
@@ -144,18 +144,24 @@
                         </td>
                         <td class="vehicle-cell">
                             <div class="vehicle-main">
-                                {% if item.plate %}
-                                <a class="plate-link" href="/parkering/kjoretoy/{{ item.plate }}">{{ row.car_license_number or item.plate }}</a>
-                                {% else %}
-                                <span>-</span>
-                                {% endif %}
-                                {% if item.vehicle_title %}
-                                <span class="vehicle-title">{{ item.vehicle_title }}</span>
-                                {% endif %}
-                            </div>
-                            <div class="vehicle-meta">
-                                <span><b>Navn:</b> {{ item.vehicle_name or "-" }}</span>
-                                <span><b>Område:</b> {{ item.vehicle_area or "-" }}</span>
+                                <div>
+                                    {% if item.plate %}
+                                    <a class="plate-link" href="/parkering/kjoretoy/{{ item.plate }}">{{ row.car_license_number or item.plate }}</a>
+                                    {% else %}
+                                    <span>-</span>
+                                    {% endif %}
+                                </div>
+                                <div class="vehicle-info">
+                                    {% if item.vehicle_title %}
+                                    <span class="vehicle-title">{{ item.vehicle_title }}</span>
+                                    {% endif %}
+                                    {% if item.vehicle_name or item.vehicle_area %}
+                                    <div class="vehicle-meta">
+                                        {% if item.vehicle_name %}<span>{{ item.vehicle_name }}</span>{% endif %}
+                                        {% if item.vehicle_area %}<span>{{ item.vehicle_area }}</span>{% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </td>
                         <td class="source-cell">{{ item.source_label }}</td>
