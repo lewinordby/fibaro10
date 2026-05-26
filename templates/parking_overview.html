@@ -43,7 +43,7 @@
         .amount { color:#856010; font-weight:850; white-space:nowrap; }
         .duration, .time-cell { white-space:nowrap; }
         .vehicle-cell { min-width:14rem; color:var(--brand-dark); font-weight:720; white-space:nowrap; }
-        .name-cell { color:var(--muted); min-width:8rem; }
+        .area-cell { color:var(--muted); min-width:8rem; font-weight:720; }
         .source-cell { color:var(--muted); white-space:nowrap; font-size:.86rem; }
         .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.15rem; min-height:1.8rem; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--brand-dark); text-decoration:none; font-weight:760; }
         .count-link:hover { border-color:var(--page-accent); background:#fffaf0; }
@@ -122,7 +122,7 @@
         <div class="table-scroll">
             <table class="parking-table">
                 <thead>
-                    <tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Bil</th><th>Navn</th><th>Kilde</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
+                    <tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Bil</th><th>Område</th><th>Kilde</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
                 </thead>
                 <tbody>
                 {% for item in rows %}
@@ -144,7 +144,7 @@
                             -
                             {% endif %}
                         </td>
-                        <td class="name-cell">{{ item.vehicle_name or "-" }}</td>
+                        <td class="area-cell">{{ item.vehicle_area or "-" }}</td>
                         <td class="source-cell">{{ item.source_label }}</td>
                         <td>
                             {% if item.plate %}

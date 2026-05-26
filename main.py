@@ -8677,6 +8677,7 @@ def parking_row_context(
         "session": row,
         "plate": plate,
         "vehicle_name": vehicle.navn if vehicle else None,
+        "vehicle_area": vehicle.omrade if vehicle else None,
         "vehicle_title": parking_vehicle_summary(details),
         "source_label": parking_source_label(row.source_system),
         "parking_count": vehicle.parkering_count if vehicle else None,

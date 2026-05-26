@@ -207,7 +207,7 @@ async function autoRunList() {
     setStatus(`Apner ${plate}`);
     const tabId = await openUrl(template.replace("{plate}", encodeURIComponent(plate)));
     await waitForTabComplete(tabId);
-    await new Promise((resolve) => setTimeout(resolve, 1800));
+    await new Promise((resolve) => setTimeout(resolve, 800));
     const area = await extractAreaFromActiveTab();
     if (!area) {
       logLine(`${plate}: fant ikke omrade`, "err");
