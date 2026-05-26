@@ -375,7 +375,7 @@ async def fetch_parking_api_page(page, payload: dict[str, Any]) -> dict[str, Any
 async def collect_parking_api_rows(page, from_day: date, to_day: date) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     first_result = 0
-    page_size = 100
+    page_size = 10
     total_count: int | None = None
     while total_count is None or first_result < total_count:
         payload = parking_api_payload(from_day, to_day, first_result=first_result, max_results=page_size)
