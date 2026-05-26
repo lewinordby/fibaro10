@@ -6468,6 +6468,15 @@ def redirect_keep_query(request: Request, target: str, status_code: int = 307) -
     return RedirectResponse(target, status_code=status_code)
 
 
+def redirect_with_query_params(request: Request, target: str, status_code: int = 303, **params: Any) -> RedirectResponse:
+    query = dict(request.query_params)
+    query.update({key: str(value) for key, value in params.items() if value not in (None, "")})
+    if query:
+        separator = "&" if "?" in target else "?"
+        target = f"{target}{separator}{urlencode(query)}"
+    return RedirectResponse(target, status_code=status_code)
+
+
 @app.post("/auth/login")
 async def login_submit(request: Request):
     form = await parse_form_body(request)
@@ -8867,6 +8876,8 @@ async def sun2_sessions_json(limit: int = 300, sun2_user_id: Optional[str] = Non
 
 @app.get("/energi/elvia", response_class=HTMLResponse)
 async def energy_elvia_view(request: Request):
+    message = request.query_params.get("message", "")
+    error = request.query_params.get("error", "")
     async with async_session() as session:
         summaries = await get_energy_summaries(session)
         rows = (
@@ -8890,8 +8901,8 @@ async def energy_elvia_view(request: Request):
             "rows": list(reversed(rows)),
             "imports": imports,
             "summaries": summaries,
-            "message": "",
-            "error": "",
+            "message": message,
+            "error": error,
             "import_result": None,
         },
     )
@@ -8955,6 +8966,7 @@ async def energy_elvia_upload(request: Request):
                 f"Importerte {counts['inserted']} nye og oppdaterte {counts['updated']} timer "
                 f"for måler {parsed['meter_id']}."
             )
+            return redirect_with_query_params(request, "/energi/elvia", message=message)
         except (json.JSONDecodeError, UnicodeDecodeError):
             error = "Filen kunne ikke leses som gyldig JSON."
         except Exception as exc:

@@ -86,7 +86,7 @@
             <article class="panel-card accent">
                 <h2 class="section-title">Importer fil</h2>
                 <p class="page-subtitle">Velg JSON-filen du laster ned manuelt fra Elvia etter BankID.</p>
-                <form class="upload-form" method="post" action="/energi/elvia" enctype="multipart/form-data">
+                <form class="upload-form" method="post" action="/energi/elvia{% if request.url.query %}?{{ request.url.query }}{% endif %}" enctype="multipart/form-data">
                     <div class="upload-row">
                         <input type="file" name="file" accept=".json,application/json" required>
                         <button class="button-primary" type="submit">Importer</button>
