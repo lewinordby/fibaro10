@@ -1,0 +1,10 @@
+services:
+  easypark_downloader:
+    build: .
+    container_name: easypark_downloader
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8109:8109"
+    volumes:
+      - ./data:/data

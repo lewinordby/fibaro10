@@ -26,8 +26,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, case, delete, func, or_, select, text as sql_text, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
+from dateutil import parser as dtparser
 
 load_dotenv()
 
@@ -2516,6 +2518,14 @@ IMPORT_JOB_DEFINITIONS = {
         "expected_interval_minutes": 40 * 24 * 60,
         "warning_after_minutes": 55 * 24 * 60,
         "description": "Månedlig import av strømforbruk fra Elvia.",
+    },
+    "easypark_parking_import": {
+        "title": "EasyPark import",
+        "category": "Parkering",
+        "source": "EasyPark",
+        "expected_interval_minutes": 26 * 60,
+        "warning_after_minutes": 50 * 60,
+        "description": "Automatisk nedlasting og import av parkeringsliste fra EasyPark.",
     },
     "parking_history_import": {
         "title": "Parkering historikk",
@@ -7992,6 +8002,237 @@ async def parking_redirect(request: Request):
 
 def normalize_plate(value: Optional[str]) -> str:
     return re.sub(r"\s+", "", (value or "").strip().upper())
+
+
+EASYPARK_REQUIRED_COLUMNS = {
+    "Parking area",
+    "Source parking system",
+    "Area number",
+    "Parking ID",
+    "Start date",
+}
+
+
+def decode_easypark_csv(content: bytes) -> str:
+    if not content:
+        return ""
+    if content.startswith(b"\xff\xfe") or content.startswith(b"\xfe\xff"):
+        return content.decode("utf-16", errors="replace")
+    if len(content) > 2 and content[1] == 0:
+        return content.decode("utf-16le", errors="replace")
+    for encoding in ("utf-8-sig", "utf-16", "cp1252", "latin-1"):
+        try:
+            return content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return content.decode("utf-8", errors="replace")
+
+
+def clean_easypark_value(value: Any) -> str:
+    return str(value or "").replace("\x00", "").strip().strip('"').strip()
+
+
+def easypark_float(value: Any) -> Optional[float]:
+    text_value = clean_easypark_value(value).replace("\xa0", " ").replace(" ", "")
+    if not text_value:
+        return None
+    text_value = text_value.replace(",", ".")
+    try:
+        return float(text_value)
+    except ValueError:
+        return None
+
+
+def easypark_int(value: Any) -> Optional[int]:
+    number = easypark_float(value)
+    if number is None:
+        text_value = re.sub(r"\D+", "", clean_easypark_value(value))
+        return int(text_value) if text_value else None
+    return int(number)
+
+
+def easypark_timestamp(value: Any) -> Optional[datetime]:
+    text_value = clean_easypark_value(value)
+    if not text_value:
+        return None
+    parsed = dtparser.parse(text_value)
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return parsed.replace(tzinfo=None)
+
+
+def easypark_minutes(value: Any, start_at: Optional[datetime], end_at: Optional[datetime]) -> Optional[float]:
+    explicit = easypark_float(value)
+    if explicit is not None:
+        return explicit
+    if start_at and end_at:
+        return round((end_at - start_at).total_seconds() / 60, 2)
+    return None
+
+
+def parse_easypark_csv(content: bytes, filename: str) -> Dict[str, Any]:
+    text_value = decode_easypark_csv(content)
+    sample = text_value[:4096]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=";,")
+    except csv.Error:
+        dialect = csv.excel()
+        dialect.delimiter = ";"
+    reader = csv.DictReader(StringIO(text_value), dialect=dialect)
+    fieldnames = [clean_easypark_value(name) for name in (reader.fieldnames or [])]
+    missing = sorted(EASYPARK_REQUIRED_COLUMNS - set(fieldnames))
+    if missing:
+        raise ValueError(f"EasyPark-filen mangler kolonner: {', '.join(missing)}")
+
+    rows: list[Dict[str, Any]] = []
+    skipped = 0
+    for raw_row in reader:
+        row = {clean_easypark_value(key): clean_easypark_value(value) for key, value in raw_row.items() if key is not None}
+        parking_id = easypark_int(row.get("Parking ID"))
+        area_number = easypark_int(row.get("Area number"))
+        start_at = easypark_timestamp(row.get("Start date"))
+        if not parking_id or not area_number or not start_at:
+            skipped += 1
+            continue
+        end_at = easypark_timestamp(row.get("End date"))
+        rows.append(
+            {
+                "parking_area": row.get("Parking area") or "",
+                "source_system": row.get("Source parking system") or "EasyPark",
+                "area_number": area_number,
+                "parking_id": parking_id,
+                "start_time": start_at,
+                "end_time": end_at,
+                "parking_time_min": easypark_minutes(row.get("Parking time"), start_at, end_at),
+                "fee_ex_vat": easypark_float(row.get("Parking fee excluding VAT")),
+                "fee_inc_vat": easypark_float(row.get("Parking fee including VAT")),
+                "fee_vat": easypark_float(row.get("Parking fee VAT")),
+                "car_license_number": normalize_plate(row.get("Car license number")) or None,
+                "user_interface": row.get("User interface") or None,
+                "subtype": row.get("SubType") or None,
+                "status": row.get("Status") or "Ukjent",
+                "imported_at": datetime.utcnow(),
+                "raw_filename": filename,
+            }
+        )
+    return {"rows": rows, "skipped": skipped, "filename": filename}
+
+
+async def ingest_easypark_csv(session, content: bytes, filename: str) -> Dict[str, Any]:
+    parsed = parse_easypark_csv(content, filename)
+    rows = parsed["rows"]
+    if not rows:
+        return {"total": 0, "inserted": 0, "unchanged": 0, "skipped": parsed["skipped"], "first_at": None, "last_at": None}
+
+    inserted_count = 0
+    for start in range(0, len(rows), 1000):
+        chunk = rows[start:start + 1000]
+        stmt = (
+            pg_insert(ParkingSession)
+            .values(chunk)
+            .on_conflict_do_nothing(index_elements=["source_system", "parking_id"])
+            .returning(ParkingSession.id)
+        )
+        inserted_count += len((await session.execute(stmt)).scalars().all())
+    first_at = min(row["start_time"] for row in rows)
+    last_at = max(row["start_time"] for row in rows)
+    return {
+        "total": len(rows),
+        "inserted": inserted_count,
+        "unchanged": len(rows) - inserted_count,
+        "skipped": parsed["skipped"],
+        "first_at": first_at,
+        "last_at": last_at,
+    }
+
+
+async def refresh_parking_vehicle_summary(session) -> int:
+    result = await session.execute(
+        sql_text(
+            """
+            INSERT INTO kjoretoy (plate, first_seen, last_seen, parkering_count, paid_total, updated_at)
+            SELECT
+                upper(regexp_replace(car_license_number, '\\s+', '', 'g')) AS plate,
+                min(start_time) AS first_seen,
+                max(start_time) AS last_seen,
+                count(*) AS parkering_count,
+                round(sum(coalesce(fee_inc_vat, 0))::numeric, 2)::float AS paid_total,
+                now() AS updated_at
+            FROM parkering
+            WHERE car_license_number IS NOT NULL AND btrim(car_license_number) <> ''
+            GROUP BY 1
+            ON CONFLICT (plate) DO UPDATE SET
+                first_seen = coalesce(least(kjoretoy.first_seen, EXCLUDED.first_seen), kjoretoy.first_seen, EXCLUDED.first_seen),
+                last_seen = coalesce(greatest(kjoretoy.last_seen, EXCLUDED.last_seen), kjoretoy.last_seen, EXCLUDED.last_seen),
+                parkering_count = EXCLUDED.parkering_count,
+                paid_total = EXCLUDED.paid_total,
+                updated_at = now()
+            RETURNING plate
+            """
+        )
+    )
+    return len(result.fetchall())
+
+
+def import_counts_for_json(counts: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        key: (value.isoformat() if isinstance(value, datetime) else value)
+        for key, value in counts.items()
+    }
+
+
+@app.post("/api/parkering/import-csv")
+async def parking_easypark_import_csv(request: Request):
+    started_at = local_now_naive()
+    filename = "easypark.csv"
+    try:
+        form = await request.form()
+        upload = form.get("file")
+        if not upload or not hasattr(upload, "read"):
+            raise ValueError("Velg en CSV-fil fra EasyPark.")
+        filename = getattr(upload, "filename", None) or filename
+        content = await upload.read()
+        if not content:
+            raise ValueError("Filen er tom.")
+        async with async_session() as session:
+            counts = await ingest_easypark_csv(session, content, filename)
+            vehicle_count = await refresh_parking_vehicle_summary(session)
+            message = (
+                f"{counts['inserted']} nye, {counts['unchanged']} uendret, "
+                f"{counts['skipped']} hoppet over fra {filename}"
+            )
+            await record_import_job(
+                session,
+                "easypark_parking_import",
+                ok=True,
+                source="EasyPark CSV",
+                started_at=started_at,
+                records_imported=counts["inserted"],
+                records_total=counts["total"],
+                message=message,
+                raw={
+                    "filename": filename,
+                    "counts": import_counts_for_json(counts),
+                    "vehicles_refreshed": vehicle_count,
+                },
+            )
+            await session.commit()
+        return {"status": "ok", **counts, "vehicles_refreshed": vehicle_count}
+    except Exception as exc:
+        async with async_session() as session:
+            await record_import_job(
+                session,
+                "easypark_parking_import",
+                ok=False,
+                source="EasyPark CSV",
+                started_at=started_at,
+                records_imported=0,
+                records_total=0,
+                message=str(exc),
+                raw={"filename": filename},
+            )
+            await session.commit()
+        return JSONResponse({"status": "error", "detail": str(exc)}, status_code=400)
 
 
 def parking_slot_remainder_minutes(row: ParkingSession) -> Optional[int]:
