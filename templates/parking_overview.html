@@ -49,10 +49,9 @@
         .vehicle-main { display:flex; flex-wrap:wrap; gap:.32rem .55rem; align-items:baseline; font-weight:780; }
         .plate-link { font-size:1rem; letter-spacing:.02em; }
         .vehicle-title { color:var(--muted); font-size:.86rem; font-weight:720; }
-        .vehicle-meta { display:flex; flex-wrap:wrap; gap:.28rem; margin-top:.34rem; }
-        .meta-chip { display:inline-flex; align-items:center; min-height:1.45rem; border:1px solid var(--line); border-radius:999px; padding:.08rem .48rem; background:#f8fafc; color:var(--muted); font-size:.75rem; font-weight:800; }
-        .meta-chip.name { border-color:#c9d8ec; background:#f1f6fd; color:#435978; }
-        .meta-chip.area { border-color:#e5d5a5; background:#fff9ea; color:#805b12; }
+        .vehicle-meta { display:grid; gap:.12rem; margin-top:.3rem; color:var(--muted); font-size:.78rem; line-height:1.25; }
+        .vehicle-meta span { display:block; }
+        .vehicle-meta b { color:#627085; font-weight:850; }
         .source-cell { color:var(--muted); white-space:nowrap; font-size:.86rem; }
         .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.15rem; min-height:1.8rem; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--brand-dark); text-decoration:none; font-weight:760; }
         .count-link:hover { border-color:var(--page-accent); background:#fffaf0; }
@@ -155,8 +154,8 @@
                                 {% endif %}
                             </div>
                             <div class="vehicle-meta">
-                                <span class="meta-chip name">Navn: {{ item.vehicle_name or "-" }}</span>
-                                <span class="meta-chip area">Område: {{ item.vehicle_area or "-" }}</span>
+                                <span><b>Navn:</b> {{ item.vehicle_name or "-" }}</span>
+                                <span><b>Område:</b> {{ item.vehicle_area or "-" }}</span>
                             </div>
                         </td>
                         <td class="source-cell">{{ item.source_label }}</td>
