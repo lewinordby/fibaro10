@@ -19,7 +19,7 @@ import urllib.request
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, Query, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -1021,6 +1021,9 @@ class ParkingVehicle(Base):
     __tablename__ = "kjoretoy"
 
     plate = Column(Text, primary_key=True)
+    navn = Column(Text, nullable=True)
+    sun2_id = Column(Text, nullable=True, index=True)
+    notat = Column(Text, nullable=True)
     first_seen = Column(DateTime, nullable=True, index=True)
     last_seen = Column(DateTime, nullable=True, index=True)
     parkering_count = Column(BigInteger, nullable=True)
@@ -2253,6 +2256,11 @@ STARTUP_COLUMNS = {
         ("serial_number", "VARCHAR"),
         ("last_map_at", "TIMESTAMP"),
     ],
+    "kjoretoy": [
+        ("navn", "TEXT"),
+        ("sun2_id", "TEXT"),
+        ("notat", "TEXT"),
+    ],
     "sun2_room_daily_stats": [
         ("room_id", "VARCHAR"),
         ("room_key", "VARCHAR"),
@@ -2403,6 +2411,11 @@ PERFORMANCE_INDEXES = [
         "ix_kjoretoy_merke_modell",
         "CREATE INDEX IF NOT EXISTS ix_kjoretoy_merke_modell "
         "ON kjoretoy_nokkeldata (merke, modell)",
+    ),
+    (
+        "ix_kjoretoy_sun2_id",
+        "CREATE INDEX IF NOT EXISTS ix_kjoretoy_sun2_id "
+        "ON kjoretoy (sun2_id)",
     ),
 ]
 
@@ -8000,6 +8013,13 @@ def parking_vehicle_year(details: Optional[ParkingVehicleDetails]) -> Optional[i
     return source.year if source else None
 
 
+def parking_vehicle_label(details: Optional[ParkingVehicleDetails]) -> str:
+    if not details:
+        return "Ukjent kjøretøy"
+    text = " ".join(part for part in [details.merke, details.modell, details.typebetegnelse] if part)
+    return text or "Ukjent kjøretøy"
+
+
 @app.get("/parkering/oversikt", response_class=HTMLResponse)
 async def parking_overview_view(
     request: Request,
@@ -8099,6 +8119,7 @@ async def parking_overview_view(
                     "details": details,
                     "year": parking_vehicle_year(details),
                     "early_minutes": parking_slot_remainder_minutes(row),
+                    "plate": normalize_plate(row.car_license_number),
                 }
                 for row, details in latest_result
             ],
@@ -8165,6 +8186,7 @@ async def parking_sessions_view(
                     "details": details,
                     "year": parking_vehicle_year(details),
                     "early_minutes": parking_slot_remainder_minutes(row),
+                    "plate": normalize_plate(row.car_license_number),
                 }
                 for row, details in result_rows
             ],
@@ -8195,6 +8217,8 @@ async def parking_vehicles_view(
         conditions.append(
             or_(
                 func.upper(ParkingVehicle.plate).like(like),
+                func.upper(func.coalesce(ParkingVehicle.navn, "")).like(like),
+                func.upper(func.coalesce(ParkingVehicle.sun2_id, "")).like(like),
                 func.upper(func.coalesce(ParkingVehicleDetails.merke, "")).like(like),
                 func.upper(func.coalesce(ParkingVehicleDetails.modell, "")).like(like),
             )
@@ -8233,6 +8257,119 @@ async def parking_vehicles_view(
             "filters": {"q": q or "", "merke": merke or "", "limit": limit},
         },
     )
+
+
+@app.get("/parkering/kjoretoy/{plate}", response_class=HTMLResponse)
+async def parking_vehicle_detail_view(request: Request, plate: str, saved: Optional[str] = None):
+    plate_value = normalize_plate(plate)
+    if not plate_value:
+        raise HTTPException(status_code=404, detail="Mangler registreringsnummer")
+
+    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
+    async with async_session() as session:
+        result = (
+            await session.execute(
+                select(ParkingVehicle, ParkingVehicleDetails)
+                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                .where(ParkingVehicle.plate == plate_value)
+            )
+        ).first()
+        if not result:
+            raise HTTPException(status_code=404, detail="Kjøretøy ikke funnet")
+        vehicle, details = result
+        stats = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
+                    func.coalesce(func.sum(ParkingSession.parking_time_min), 0),
+                    func.min(ParkingSession.start_time),
+                    func.max(ParkingSession.start_time),
+                ).where(normalized_session_plate == plate_value)
+            )
+        ).first()
+        recent_sessions_result = (
+            await session.execute(
+                select(ParkingSession)
+                .where(normalized_session_plate == plate_value)
+                .order_by(ParkingSession.start_time.desc())
+                .limit(20)
+            )
+        ).scalars().all()
+
+    detail_rows = []
+    if details:
+        detail_rows = [
+            ("Merke", details.merke),
+            ("Modell", details.modell),
+            ("Typebetegnelse", details.typebetegnelse),
+            ("Årsmodell", parking_vehicle_year(details)),
+            ("Farge", details.farge),
+            ("Kjøretøyklasse", details.kjoretoyklasse_navn),
+            ("Registreringsstatus", details.registreringsstatus_tekst),
+            ("Førstegangsregistrert Norge", details.forstegangsregistrert_norge),
+            ("PKK kontrollfrist", details.pkk_kontrollfrist),
+            ("Egenvekt", f"{details.egenvekt_kg} kg" if details.egenvekt_kg is not None else None),
+            ("Nyttelast", f"{details.nyttelast_kg} kg" if details.nyttelast_kg is not None else None),
+            ("Tillatt totalvekt", f"{details.tillatt_totalvekt_kg} kg" if details.tillatt_totalvekt_kg is not None else None),
+            ("Seter", details.seter_totalt),
+            ("Lengde", f"{details.lengde_mm} mm" if details.lengde_mm is not None else None),
+            ("Bredde", f"{details.bredde_mm} mm" if details.bredde_mm is not None else None),
+            ("Høyde", f"{details.hoyde_mm} mm" if details.hoyde_mm is not None else None),
+            ("Rekkevidde WLTP", f"{details.rekkevidde_wltp_km} km" if details.rekkevidde_wltp_km is not None else None),
+            ("Elforbruk WLTP", f"{details.elforbruk_wltp_wh_km} Wh/km" if details.elforbruk_wltp_wh_km is not None else None),
+            ("Motoreffekt", f"{details.motoreffekt_samlet_kw} kW" if details.motoreffekt_samlet_kw is not None else None),
+            ("SVV teknisk gyldig fra", details.svv_teknisk_gyldig_fra),
+            ("Sist synkronisert", details.sist_synkronisert),
+            ("VIN", details.vin),
+        ]
+    detail_rows = [(label, value) for label, value in detail_rows if value not in (None, "")]
+
+    return templates.TemplateResponse(
+        request,
+        "parking_vehicle_detail.html",
+        {
+            "plate": plate_value,
+            "vehicle": vehicle,
+            "details": details,
+            "title": parking_vehicle_label(details),
+            "year": parking_vehicle_year(details),
+            "stats": {
+                "sessions": stats[0] or 0,
+                "paid": stats[1] or 0,
+                "minutes": stats[2] or 0,
+                "first": stats[3],
+                "last": stats[4],
+            },
+            "recent_sessions": [
+                {
+                    "session": row,
+                    "early_minutes": parking_slot_remainder_minutes(row),
+                }
+                for row in recent_sessions_result
+            ],
+            "detail_rows": detail_rows,
+            "saved": saved == "1",
+        },
+    )
+
+
+@app.post("/parkering/kjoretoy/{plate}", response_class=HTMLResponse)
+async def parking_vehicle_detail_save(request: Request, plate: str):
+    if not getattr(request.state, "auth_can_settings", False):
+        raise HTTPException(status_code=403, detail="Du må ha innstillingstilgang for å endre kjøretøyfelt.")
+    plate_value = normalize_plate(plate)
+    form = await request.form()
+    async with async_session() as session:
+        vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
+        if not vehicle:
+            raise HTTPException(status_code=404, detail="Kjøretøy ikke funnet")
+        vehicle.navn = (form.get("navn") or "").strip() or None
+        vehicle.sun2_id = (form.get("sun2_id") or "").strip() or None
+        vehicle.notat = (form.get("notat") or "").strip() or None
+        vehicle.updated_at = datetime.utcnow()
+        await session.commit()
+    return redirect_keep_query(request, f"/parkering/kjoretoy/{quote(plate_value)}?saved=1", status_code=303)
 
 
 @app.get("/energi")

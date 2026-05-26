@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ plate }} - kjøretøy</title>
+    {% include "_styles.html" %}
+    <style>
+        .vehicle-hero { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr); gap:1rem; align-items:stretch; }
+        .vehicle-card { background:var(--panel); border:1px solid var(--line); border-top:4px solid var(--page-accent); border-radius:12px; padding:1rem; box-shadow:var(--shadow-1); }
+        .plate-number { font-size:clamp(2rem, 6vw, 4.5rem); line-height:.95; color:var(--brand-dark); font-weight:900; letter-spacing:0; }
+        .vehicle-title { margin:.4rem 0 0; color:var(--muted); font-weight:780; }
+        .meta-row { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.8rem; }
+        .meta-pill { display:inline-flex; align-items:center; border:1px solid var(--line); background:var(--panel-soft); color:var(--brand-dark); border-radius:999px; padding:.25rem .58rem; font-size:.78rem; font-weight:820; }
+        .action-row { display:flex; flex-wrap:wrap; gap:.55rem; margin-top:1rem; }
+        .action-row a, .vehicle-form button { display:inline-flex; align-items:center; justify-content:center; min-height:2.35rem; border-radius:8px; padding:.35rem .78rem; font-weight:850; text-decoration:none; }
+        .vehicle-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+        .stat-box { border:1px solid var(--line); border-radius:10px; padding:.7rem; background:var(--panel-soft); }
+        .stat-box span { display:block; color:var(--muted); font-size:.74rem; font-weight:850; text-transform:uppercase; }
+        .stat-box strong { display:block; margin-top:.12rem; color:var(--brand-dark); font-size:1.18rem; }
+        .content-grid { display:grid; grid-template-columns:minmax(280px,.75fr) minmax(0,1.25fr); gap:1rem; margin-top:1rem; }
+        .vehicle-form { display:grid; gap:.7rem; }
+        .vehicle-form label { display:grid; gap:.24rem; color:var(--muted); font-size:.78rem; font-weight:850; text-transform:uppercase; }
+        .vehicle-form input, .vehicle-form textarea { width:100%; border:1px solid var(--line); border-radius:8px; padding:.55rem .65rem; color:var(--brand-dark); background:#fff; font:inherit; text-transform:none; }
+        .vehicle-form textarea { min-height:7rem; resize:vertical; }
+        .saved-note { color:#2f7a49; font-weight:850; }
+        .detail-table { width:100%; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+        .detail-table th, .detail-table td { padding:.55rem .65rem; border-bottom:1px solid var(--line-soft); text-align:left; vertical-align:top; }
+        .detail-table th { width:38%; color:var(--muted); background:#f6f8fb; font-size:.76rem; text-transform:uppercase; }
+        .detail-table tr:last-child th, .detail-table tr:last-child td { border-bottom:0; }
+        .parking-list { margin-top:1rem; }
+        .early-badge { display:inline-flex; align-items:center; margin-top:.18rem; border-radius:999px; padding:.12rem .44rem; border:1px solid #f0c7bc; background:#fff3f0; color:#9a4a32; font-size:.68rem; font-weight:850; white-space:nowrap; }
+        pre.raw-json { max-height:22rem; overflow:auto; border:1px solid var(--line); border-radius:10px; background:#0f172a; color:#e5edf7; padding:.8rem; font-size:.78rem; line-height:1.4; }
+        @media (max-width: 900px) {
+            .vehicle-hero, .content-grid { grid-template-columns:1fr; }
+            .vehicle-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        }
+        @media (max-width: 560px) {
+            .vehicle-stats { grid-template-columns:1fr; }
+        }
+    </style>
+</head>
+<body class="theme-parking">
+    {% include "_header.html" %}
+    <main>
+        <section class="vehicle-hero">
+            <article class="vehicle-card">
+                <div class="plate-number">{{ plate }}</div>
+                <h1 class="vehicle-title">{{ title }}</h1>
+                <div class="meta-row">
+                    {% if year %}<span class="meta-pill">Årsmodell {{ year }}</span>{% endif %}
+                    {% if details and details.farge %}<span class="meta-pill">{{ details.farge|title }}</span>{% endif %}
+                    {% if details and details.kjoretoyklasse_navn %}<span class="meta-pill">{{ details.kjoretoyklasse_navn }}</span>{% endif %}
+                    {% if details and details.registreringsstatus_tekst %}<span class="meta-pill">{{ details.registreringsstatus_tekst }}</span>{% endif %}
+                </div>
+                <div class="action-row">
+                    <a class="button primary" href="/parkering/parkeringer?plate={{ plate }}">Vis alle parkeringer</a>
+                    <a class="button" href="/parkering/kjoretoy">Til kjøretøylisten</a>
+                </div>
+            </article>
+            <article class="vehicle-card">
+                <div class="vehicle-stats">
+                    <div class="stat-box"><span>Parkeringer</span><strong>{{ stats.sessions|short_number }}</strong></div>
+                    <div class="stat-box"><span>Beløp</span><strong>{{ stats.paid|short_number }} kr</strong></div>
+                    <div class="stat-box"><span>Tid</span><strong>{{ (stats.minutes / 60)|short_number }} t</strong></div>
+                    <div class="stat-box"><span>Periode</span><strong style="font-size:.86rem">{{ stats.first|source_time }} - {{ stats.last|source_time }}</strong></div>
+                </div>
+            </article>
+        </section>
+
+        <section class="content-grid">
+            <article class="vehicle-card">
+                <h2>Egne felt</h2>
+                {% if saved %}<p class="saved-note">Lagret.</p>{% endif %}
+                <form class="vehicle-form" method="post">
+                    <label>Navn <input name="navn" value="{{ vehicle.navn or '' }}" placeholder="F.eks. kunde eller firma"></label>
+                    <label>Sun2id <input name="sun2_id" value="{{ vehicle.sun2_id or '' }}" placeholder="Kobling mot solkunde"></label>
+                    <label>Notat <textarea name="notat" placeholder="Interne notater om bilen">{{ vehicle.notat or '' }}</textarea></label>
+                    {% if request.state.auth_can_settings %}
+                    <button class="primary" type="submit">Lagre</button>
+                    {% else %}
+                    <p class="vehicle-title">Du må ha innstillingstilgang for å endre feltene.</p>
+                    {% endif %}
+                </form>
+            </article>
+
+            <article class="vehicle-card">
+                <h2>Opplysninger</h2>
+                <table class="detail-table">
+                    <tbody>
+                    {% for label, value in detail_rows %}
+                    <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
+                    {% endfor %}
+                    <tr><th>SVV status</th><td>{{ vehicle.svv_status or "-" }}{% if vehicle.svv_error %}<br><small>{{ vehicle.svv_error }}</small>{% endif %}</td></tr>
+                    <tr><th>SVV hentet</th><td>{{ vehicle.svv_fetched_at|localtime }}</td></tr>
+                    <tr><th>Oppdatert</th><td>{{ vehicle.updated_at|localtime }}</td></tr>
+                    </tbody>
+                </table>
+            </article>
+        </section>
+
+        <section class="vehicle-card parking-list">
+            <h2>Siste parkeringer</h2>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Start</th><th>Slutt</th><th>Varighet</th><th>Beløp</th><th>Område</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for item in recent_sessions %}
+                        {% set row = item.session %}
+                        <tr>
+                            <td>{{ row.start_time|source_time }}</td>
+                            <td>{{ row.end_time|source_time }}</td>
+                            <td>
+                                {{ row.parking_time_min|short_number }} min
+                                {% if item.early_minutes %}<br><span class="early-badge">Dro {{ item.early_minutes }} min før slottslutt</span>{% endif %}
+                            </td>
+                            <td>{{ row.fee_inc_vat|short_number }} kr</td>
+                            <td>{{ row.parking_area }}<br><small>{{ row.area_number }}</small></td>
+                            <td>{{ row.status }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        {% if vehicle.svv_data %}
+        <section class="vehicle-card parking-list">
+            <h2>Rådata fra SVV</h2>
+            <pre class="raw-json">{{ vehicle.svv_data|pretty_json }}</pre>
+        </section>
+        {% endif %}
+    </main>
+</body>
+</html>

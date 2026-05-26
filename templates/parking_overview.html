@@ -21,6 +21,7 @@
         .parking-filter-row button, .parking-filter-row a { min-height:2.25rem; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; padding:.35rem .75rem; font-weight:820; text-decoration:none; }
         .early-badge { display:inline-flex; align-items:center; margin-top:.22rem; border-radius:999px; padding:.14rem .48rem; border:1px solid #f0c7bc; background:#fff3f0; color:#9a4a32; font-size:.68rem; font-weight:850; white-space:nowrap; }
         .vehicle-note { color:var(--muted); font-size:.78rem; }
+        .parking-link-button { display:inline-flex; align-items:center; margin-top:.22rem; border-radius:999px; padding:.16rem .5rem; border:1px solid var(--line); background:#fff; color:var(--muted); font-size:.7rem; font-weight:850; text-decoration:none; white-space:nowrap; }
         @media (max-width: 840px) { .section-split { grid-template-columns:1fr; } }
     </style>
 </head>
@@ -62,7 +63,14 @@
                         {% set details = item.details %}
                         <tr>
                             <td>{{ row.start_time|source_time }}</td>
-                            <td><a href="/parkering/parkeringer?plate={{ row.car_license_number }}">{{ row.car_license_number or "-" }}</a></td>
+                            <td>
+                                {% if item.plate %}
+                                <a href="/parkering/kjoretoy/{{ item.plate }}">{{ row.car_license_number or item.plate }}</a>
+                                <br><a class="parking-link-button" href="/parkering/parkeringer?plate={{ item.plate }}">Parkeringer</a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
                             <td>
                                 {{ details.merke if details else "Ukjent" }} {{ details.modell if details else "" }}
                                 {% if item.year or (details and details.farge) %}
@@ -93,7 +101,10 @@
                     <tbody>
                     {% for plate, count, paid, merke, modell, klasse in top_plates %}
                         <tr>
-                            <td><a href="/parkering/kjoretoy?q={{ plate }}">{{ plate }}</a></td>
+                            <td>
+                                <a href="/parkering/kjoretoy/{{ plate }}">{{ plate }}</a>
+                                <br><a class="parking-link-button" href="/parkering/parkeringer?plate={{ plate }}">Parkeringer</a>
+                            </td>
                             <td>{{ merke or "Ukjent" }} {{ modell or "" }}<br><small>{{ klasse or "" }}</small></td>
                             <td>{{ count|short_number }}</td>
                             <td>{{ paid|short_number }} kr</td>

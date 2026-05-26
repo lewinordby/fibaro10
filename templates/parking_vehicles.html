@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kjøretøy</title>
     {% include "_styles.html" %}
+    <style>
+        .parking-link-button { display:inline-flex; align-items:center; border-radius:999px; padding:.18rem .55rem; border:1px solid var(--line); background:#fff; color:var(--muted); font-size:.72rem; font-weight:850; text-decoration:none; white-space:nowrap; }
+    </style>
 </head>
 <body class="theme-parking">
     {% include "_header.html" %}
@@ -28,7 +31,10 @@
                     <tbody>
                     {% for vehicle, details in rows %}
                         <tr>
-                            <td><a href="/parkering/parkeringer?plate={{ vehicle.plate }}">{{ vehicle.plate }}</a></td>
+                            <td>
+                                <a href="/parkering/kjoretoy/{{ vehicle.plate }}">{{ vehicle.plate }}</a>
+                                <br><a class="parking-link-button" href="/parkering/parkeringer?plate={{ vehicle.plate }}">Parkeringer</a>
+                            </td>
                             <td><strong>{{ details.merke if details else "" }} {{ details.modell if details else "" }}</strong><br><small>{{ details.typebetegnelse if details else "" }}</small></td>
                             <td>{{ details.kjoretoyklasse_navn if details else "-" }}<br><small>{{ details.registreringsstatus_tekst if details else "" }}</small></td>
                             <td>{{ vehicle.first_seen|source_time_short }}<br>{{ vehicle.last_seen|source_time_short }}</td>
