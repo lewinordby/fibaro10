@@ -41,6 +41,8 @@
         .empty-row { color:var(--muted); text-align:center; padding:1rem !important; }
         .amount { color:#856010; font-weight:850; white-space:nowrap; }
         .duration, .time-cell { white-space:nowrap; }
+        .vehicle-cell { min-width:12rem; color:var(--brand-dark); font-weight:720; }
+        .vehicle-cell small { display:block; margin-top:.08rem; color:var(--muted); font-size:.74rem; font-weight:760; }
         .name-cell { color:var(--muted); min-width:8rem; }
         .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.15rem; min-height:1.8rem; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--brand-dark); text-decoration:none; font-weight:760; }
         .count-link:hover { border-color:var(--page-accent); background:#fffaf0; }
@@ -117,7 +119,7 @@
         <div class="table-scroll">
             <table class="parking-table">
                 <thead>
-                    <tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Navn</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
+                    <tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Bil</th><th>Navn</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
                 </thead>
                 <tbody>
                 {% for item in rows %}
@@ -128,6 +130,13 @@
                         <td>
                             {% if item.plate %}
                             <a href="/parkering/kjoretoy/{{ item.plate }}">{{ row.car_license_number or item.plate }}</a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="vehicle-cell">
+                            {% if item.vehicle_title %}
+                            {{ item.vehicle_title }}{% if item.vehicle_year %}<small>{{ item.vehicle_year }}</small>{% endif %}
                             {% else %}
                             -
                             {% endif %}
@@ -144,7 +153,7 @@
                         <td class="amount">{{ row.fee_inc_vat|short_number }} kr</td>
                     </tr>
                 {% else %}
-                    <tr><td class="empty-row" colspan="7">Ingen parkeringer i denne gruppen.</td></tr>
+                    <tr><td class="empty-row" colspan="8">Ingen parkeringer i denne gruppen.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>

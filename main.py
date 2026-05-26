@@ -8335,6 +8335,7 @@ def parking_day_time_label(value: Optional[datetime], selected_day: date) -> str
 def parking_row_context(
     row: ParkingSession,
     vehicle: Optional[ParkingVehicle] = None,
+    details: Optional[ParkingVehicleDetails] = None,
     now: Optional[datetime] = None,
     selected_day: Optional[date] = None,
 ) -> Dict[str, Any]:
@@ -8344,6 +8345,8 @@ def parking_row_context(
         "session": row,
         "plate": plate,
         "vehicle_name": vehicle.navn if vehicle else None,
+        "vehicle_title": parking_vehicle_label(details) if details else None,
+        "vehicle_year": parking_vehicle_year(details),
         "parking_count": vehicle.parkering_count if vehicle else None,
         "duration_minutes": parking_duration_minutes(row, now),
         "start_label": parking_day_time_label(row.start_time, selected_day),
@@ -8457,8 +8460,9 @@ async def parking_overview_view(
         ]
         today_rows = (
             await session.execute(
-                select(ParkingSession, ParkingVehicle)
+                select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
                 .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
                 .where(
                     ParkingSession.start_time < selected_end,
                     or_(
@@ -8471,13 +8475,13 @@ async def parking_overview_view(
             )
         ).all()
         ongoing_today = [
-            parking_row_context(row, vehicle, now, selected_day)
-            for row, vehicle in today_rows
+            parking_row_context(row, vehicle, details, now, selected_day)
+            for row, vehicle, details in today_rows
             if (row.status or "").strip().lower() == "ongoing"
         ]
         completed_today = [
-            parking_row_context(row, vehicle, now, selected_day)
-            for row, vehicle in today_rows
+            parking_row_context(row, vehicle, details, now, selected_day)
+            for row, vehicle, details in today_rows
             if (row.status or "").strip().lower() != "ongoing"
         ]
         last_parking_at = (
