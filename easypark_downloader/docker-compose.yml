@@ -8,3 +8,11 @@ services:
       - "8109:8109"
     volumes:
       - ./data:/data
+    networks:
+      - default
+      - fibaro10
+
+networks:
+  fibaro10:
+    external: true
+    name: fibaro10_default
