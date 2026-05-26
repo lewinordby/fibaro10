@@ -2,70 +2,50 @@
 <html lang="no">
 <head>
   <meta charset="utf-8">
-  <title>Fibaro10 omradeoppslag</title>
+  <title>Fibaro10 områdeoppslag</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header>
-    <h1>Omradeoppslag</h1>
-    <p>Lagre kun grovt omrade for bilen.</p>
+    <h1>Områdeoppslag</h1>
+    <p>Henter biler som mangler område, leser Vegvesen-siden og skriver tilbake til Fibaro10.</p>
   </header>
 
   <section class="card">
-    <div class="row">
-      <button id="fetchBatch" class="secondary">Hent 100 fra Fibaro10</button>
-      <button id="saveSettings" class="secondary">Lagre oppsett</button>
-    </div>
-    <label>Registreringsnummer
-      <textarea id="plates" placeholder="AB12345&#10;CD67890"></textarea>
+    <label>Fibaro10 URL
+      <input id="apiBase" placeholder="https://fibaro10...">
     </label>
-  </section>
-
-  <section class="card settings">
-    <details>
-      <summary>Oppsett</summary>
-      <p class="settings-hint">URL, brukernavn og passord lagres lokalt i denne nettleseren.</p>
-      <label>Fibaro10 URL
-        <input id="apiBase" placeholder="https://fibaro10...">
+    <div class="cols">
+      <label>Brukernavn
+        <input id="apiUsername" autocomplete="username">
       </label>
-      <div class="cols">
-        <label>Brukernavn
-          <input id="apiUsername" autocomplete="username">
-        </label>
-        <label>Passord
-          <input id="apiPassword" type="password" autocomplete="current-password">
-        </label>
-      </div>
-      <div class="cols">
-        <label>Startposisjon
-          <input id="currentIndex" type="number" min="0" step="1">
-        </label>
-        <label>Vegvesen URL-mal
-          <input id="lookupUrlTemplate" placeholder="https://...kjennemerke={plate}">
-        </label>
-      </div>
-    </details>
+      <label>Passord
+        <input id="apiPassword" type="password" autocomplete="current-password">
+      </label>
+    </div>
+    <label>Vegvesen URL-mal
+      <input id="lookupUrlTemplate" placeholder="https://...kjennemerke={plate}">
+    </label>
+    <div class="actions">
+      <button id="saveSettings" class="secondary">Lagre oppsett</button>
+      <button id="runAll" class="primary">Hent og skriv 1000</button>
+    </div>
   </section>
 
-  <section class="card">
+  <section class="card status-card">
+    <div class="status-grid">
+      <div>
+        <span>Status</span>
+        <strong id="message">Klar</strong>
+      </div>
+      <div>
+        <span>Fremdrift</span>
+        <strong id="counter">0/0</strong>
+      </div>
+    </div>
     <div class="current">
-      <span>Neste regnr</span>
+      <span>Aktiv bil</span>
       <strong id="currentPlate">-</strong>
-    </div>
-    <label>Omrade du leser fra Vegvesen
-      <input id="manualArea" placeholder="F.eks. Lillehammer">
-    </label>
-    <div class="row">
-      <button id="openCurrent" class="primary">Apne i Vegvesen</button>
-      <button id="readAndSave" class="secondary">Les omrade og lagre</button>
-      <button id="autoRun" class="secondary">Auto liste</button>
-      <button id="saveAndNext" class="secondary">Lagre og neste</button>
-      <button id="skip" class="secondary">Hopp over</button>
-      <button id="stop" class="danger">Stopp</button>
-    </div>
-    <div class="status">
-      <span id="counter">0/0</span>
-      <span id="message">Klar</span>
     </div>
   </section>
 

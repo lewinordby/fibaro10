@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Fibaro10 parkering navneoppslag",
+  "name": "Fibaro10 parkering områdeoppslag",
   "version": "0.1.0",
-  "description": "Kjorer en liste med registreringsnummer mot en innlogget nettside og lagrer funnet navn i Fibaro10.",
+  "description": "Kjører en liste med registreringsnummer mot Vegvesen og lagrer område i Fibaro10.",
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "action": {
-    "default_title": "Fibaro10 navneoppslag",
+    "default_title": "Fibaro10 områdeoppslag",
     "default_popup": "popup.html"
   }
 }
