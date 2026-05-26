@@ -1,0 +1,113 @@
+:root {
+  color-scheme: light;
+  --bg: #f3f6fb;
+  --panel: #fff;
+  --line: #d9e2ee;
+  --text: #0b1734;
+  --muted: #66748a;
+  --brand: #071a45;
+  --gold: #d29713;
+  --bad: #b84533;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  width: 430px;
+  margin: 0;
+  padding: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, Segoe UI, sans-serif;
+}
+
+header { padding: 4px 2px 10px; }
+h1 { margin: 0; font-size: 19px; }
+p { margin: 3px 0 0; color: var(--muted); }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 8px 24px rgba(7, 26, 69, .08);
+}
+
+label {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+input, textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--text);
+  font: 13px/1.35 inherit;
+  text-transform: none;
+  outline: none;
+}
+
+textarea {
+  min-height: 116px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+input:focus, textarea:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(210, 151, 19, .18);
+}
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+button:hover { border-color: var(--gold); }
+button:disabled { opacity: .55; cursor: wait; }
+.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.danger { color: var(--bad); }
+.secondary { color: var(--brand); }
+
+summary {
+  cursor: pointer;
+  color: var(--brand);
+  font-weight: 900;
+}
+
+.status {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.log-card { max-height: 190px; overflow: auto; }
+.log-title { font-weight: 900; margin-bottom: 6px; }
+#log { display: grid; gap: 5px; }
+.log-line {
+  border-left: 3px solid var(--line);
+  padding-left: 7px;
+  color: var(--muted);
+  word-break: break-word;
+}
+.log-line.ok { border-left-color: #4f9d5d; color: #1d5f2d; }
+.log-line.err { border-left-color: var(--bad); color: var(--bad); }

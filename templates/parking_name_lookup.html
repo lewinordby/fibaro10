@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navneoppslag</title>
+    {% include "_styles.html" %}
+    <style>
+        .lookup-grid { display:grid; grid-template-columns:minmax(0, .95fr) minmax(320px, 1.05fr); gap:1rem; align-items:start; }
+        .lookup-copy { width:100%; min-height:24rem; border:1px solid var(--line); border-radius:10px; padding:.8rem; font:700 .92rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; color:var(--brand-dark); background:#fff; resize:vertical; }
+        .lookup-actions { display:flex; gap:.55rem; flex-wrap:wrap; margin-top:.75rem; }
+        .lookup-actions a { display:inline-flex; align-items:center; justify-content:center; min-height:2.35rem; border:1px solid var(--line); border-radius:8px; padding:.3rem .75rem; color:var(--brand-dark); text-decoration:none; font-weight:850; background:#fff; }
+        .lookup-note { color:var(--muted); margin:.3rem 0 0; max-width:58rem; }
+        .lookup-table td:first-child { font-weight:850; color:var(--brand-dark); }
+        @media (max-width: 900px) { .lookup-grid { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body class="theme-parking">
+    {% include "_header.html" %}
+    <main>
+        <section class="page-title">
+            <div>
+                <h1>Navneoppslag</h1>
+                <p>{{ count|short_number }} biler mangler navn. Denne siden gir extensionen neste pakke pÃ¥ {{ limit }} registreringsnummer.</p>
+            </div>
+        </section>
+
+        <section class="lookup-grid">
+            <article class="panel">
+                <h2>Eksportpakke</h2>
+                <p class="lookup-note">Lim denne listen inn i extensionen, eller bruk knappen i extensionen for Ã¥ hente samme pakke direkte fra API-et.</p>
+                <textarea class="lookup-copy" readonly>{{ plates }}</textarea>
+                <div class="lookup-actions">
+                    <a href="/api/parkering/kjoretoy/mangler-navn?limit={{ limit }}&offset={{ offset }}&format=txt">Last ned TXT</a>
+                    {% if offset > 0 %}<a href="/parkering/navn-oppslag?limit={{ limit }}&offset={{ prev_offset }}">Forrige 100</a>{% endif %}
+                    {% if next_offset < count %}<a href="/parkering/navn-oppslag?limit={{ limit }}&offset={{ next_offset }}">Neste 100</a>{% endif %}
+                </div>
+            </article>
+
+            <article class="panel">
+                <h2>Innhold i pakken</h2>
+                <div class="table-scroll">
+                    <table class="lookup-table">
+                        <thead><tr><th>Regnr</th><th>Bil</th><th>Sist sett</th><th>Parkeringer</th></tr></thead>
+                        <tbody>
+                        {% for vehicle, details in rows %}
+                            <tr>
+                                <td><a href="/parkering/kjoretoy/{{ vehicle.plate }}">{{ vehicle.plate }}</a></td>
+                                <td>{{ details.merke if details else "" }} {{ details.modell if details else "" }}<br><small>{{ details.farge if details else "" }}</small></td>
+                                <td>{{ vehicle.last_seen|source_time_short }}</td>
+                                <td>{{ vehicle.parkering_count|short_number }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

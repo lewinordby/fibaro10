@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Fibaro10 parkering navneoppslag",
+  "version": "0.1.0",
+  "description": "Kjorer en liste med registreringsnummer mot en innlogget nettside og lagrer funnet navn i Fibaro10.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Fibaro10 navneoppslag",
+    "default_popup": "popup.html"
+  }
+}

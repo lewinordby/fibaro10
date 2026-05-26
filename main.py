@@ -1413,6 +1413,14 @@ class ImportStatusReportIn(BaseModel):
     raw: Dict[str, Any] = Field(default_factory=dict)
 
 
+class ParkingVehicleNameUpdate(BaseModel):
+    navn: str = Field("", max_length=500)
+    sun2_id: Optional[str] = Field(None, max_length=120)
+    notat: Optional[str] = Field(None, max_length=2000)
+    source: Optional[str] = Field(None, max_length=120)
+    raw: Dict[str, Any] = Field(default_factory=dict)
+
+
 LIGHT_COLUMNS = [
     "id", "timestamp", "event_type", "action", "device_key", "device_id", "device_name",
     "mode", "reason", "source", "lux", "value", "state", "extra",
@@ -9014,6 +9022,121 @@ async def parking_vehicles_view(
             "filters": {"q": q or "", "merke": merke or "", "limit": limit},
         },
     )
+
+
+def vehicle_missing_name_condition():
+    return or_(ParkingVehicle.navn.is_(None), func.trim(ParkingVehicle.navn) == "")
+
+
+async def parking_missing_name_rows(session, limit: int, offset: int = 0):
+    return (
+        await session.execute(
+            select(ParkingVehicle, ParkingVehicleDetails)
+            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+            .where(vehicle_missing_name_condition())
+            .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+    ).all()
+
+
+def parking_vehicle_lookup_payload(vehicle: ParkingVehicle, details: Optional[ParkingVehicleDetails] = None) -> Dict[str, Any]:
+    return {
+        "plate": vehicle.plate,
+        "navn": vehicle.navn,
+        "sun2_id": vehicle.sun2_id,
+        "notat": vehicle.notat,
+        "last_seen": vehicle.last_seen.isoformat() if vehicle.last_seen else None,
+        "parkering_count": vehicle.parkering_count,
+        "vehicle": parking_vehicle_summary(details),
+        "make": details.merke if details else None,
+        "model": details.modell if details else None,
+        "year": parking_vehicle_year(details),
+    }
+
+
+@app.get("/parkering/navn-oppslag", response_class=HTMLResponse)
+async def parking_name_lookup_view(request: Request, limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)):
+    async with async_session() as session:
+        rows = await parking_missing_name_rows(session, limit, offset)
+        count = (
+            await session.execute(
+                select(func.count(ParkingVehicle.plate)).where(vehicle_missing_name_condition())
+            )
+        ).scalar_one()
+    plates = "\n".join(vehicle.plate for vehicle, _ in rows)
+    return templates.TemplateResponse(
+        request,
+        "parking_name_lookup.html",
+        {
+            "rows": rows,
+            "count": count,
+            "plates": plates,
+            "limit": limit,
+            "offset": offset,
+            "next_offset": offset + limit,
+            "prev_offset": max(0, offset - limit),
+        },
+    )
+
+
+@app.get("/api/parkering/kjoretoy/mangler-navn")
+async def parking_missing_names_api(
+    request: Request,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    format: str = "json",
+):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        rows = await parking_missing_name_rows(session, limit, offset)
+        count = (
+            await session.execute(
+                select(func.count(ParkingVehicle.plate)).where(vehicle_missing_name_condition())
+            )
+        ).scalar_one()
+    payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
+    if format == "txt":
+        text_body = "\n".join(item["plate"] for item in payload) + ("\n" if payload else "")
+        return StreamingResponse(iter([text_body]), media_type="text/plain; charset=utf-8")
+    return {"count": count, "limit": limit, "offset": offset, "rows": payload}
+
+
+@app.post("/api/parkering/kjoretoy/{plate}/navn")
+async def parking_vehicle_name_api(request: Request, plate: str, data: ParkingVehicleNameUpdate):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    plate_value = normalize_plate(plate)
+    name = (data.navn or "").strip()
+    if not plate_value:
+        return JSONResponse({"detail": "Mangler registreringsnummer"}, status_code=400)
+    if not name:
+        return JSONResponse({"detail": "Navn mangler"}, status_code=400)
+    async with async_session() as session:
+        vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
+        if not vehicle:
+            return JSONResponse({"detail": "Kjoretoy ikke funnet"}, status_code=404)
+        vehicle.navn = name
+        if data.sun2_id is not None:
+            vehicle.sun2_id = data.sun2_id.strip() or None
+        if data.notat is not None:
+            vehicle.notat = data.notat.strip() or None
+        note_bits = []
+        if data.source:
+            note_bits.append(f"kilde={data.source.strip()}")
+        if data.raw:
+            note_bits.append(f"raw={json.dumps(data.raw, ensure_ascii=False)[:1000]}")
+        if note_bits:
+            base_note = vehicle.notat.strip() if vehicle.notat else ""
+            auto_note = f"Automatisk navneoppslag {local_now_naive().strftime('%Y-%m-%d %H:%M')}: " + " | ".join(note_bits)
+            vehicle.notat = f"{base_note}\n{auto_note}".strip()
+        vehicle.updated_at = datetime.utcnow()
+        await session.commit()
+    return {"status": "ok", "plate": plate_value, "navn": name}
 
 
 @app.get("/parkering/kjoretoy/{plate}", response_class=HTMLResponse)
