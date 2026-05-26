@@ -100,6 +100,30 @@ summary {
   font-weight: 800;
 }
 
+.current {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.current span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.current strong {
+  color: var(--brand);
+  font-size: 24px;
+  letter-spacing: .04em;
+}
+
 .log-card { max-height: 190px; overflow: auto; }
 .log-title { font-weight: 900; margin-bottom: 6px; }
 #log { display: grid; gap: 5px; }

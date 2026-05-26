@@ -2,6 +2,10 @@
 
 Chrome/Edge-extension for manuelle nettsider der du allerede er innlogget.
 
+Extensionen henter ikke eiernavn automatisk fra siden. Den åpner riktig oppslag,
+lar deg lese og kontrollere navnet selv, og lagrer bare verdien du aktivt skriver
+inn.
+
 ## Bruk
 
 1. Gå til `chrome://extensions` eller `edge://extensions`.
@@ -13,14 +17,12 @@ Chrome/Edge-extension for manuelle nettsider der du allerede er innlogget.
 7. Fyll inn:
    - Fibaro10 URL
    - brukernavn/passord med innstillingstilgang
-   - CSS-selector for søkefelt
-   - CSS-selector for søkeknapp, eller la stå tomt for Enter
-   - CSS-selector for feltet som inneholder navnet
 8. Trykk `Hent 100 fra Fibaro10`.
-9. Trykk `Test 1`.
-10. Når første treff er riktig, trykk `Start`.
+9. Trykk `Apne i Vegvesen`.
+10. Les navnet på siden og skriv/lim det inn i feltet.
+11. Trykk `Lagre og neste`.
 
-Jobben stopper hvis popupen lukkes. La derfor extension-vinduet stå åpent mens listen kjøres.
+Bruk `Hopp over` hvis et regnr ikke skal lagres.
 
 ## API
 

@@ -35,34 +35,29 @@
           <input id="apiPassword" type="password" autocomplete="current-password">
         </label>
       </div>
-      <label>Sokefelt selector
-        <input id="searchInputSelector" placeholder="input[name='q']">
-      </label>
-      <label>Sokeknapp selector, tom = Enter
-        <input id="searchButtonSelector" placeholder="button[type='submit']">
-      </label>
-      <label>Resultat/navn selector
-        <input id="resultSelector" placeholder=".customer-name">
-      </label>
-      <label>Regex for navn, valgfritt
-        <input id="resultRegex" placeholder="Navn:\\s*(.+)">
-      </label>
       <div class="cols">
-        <label>Vent etter sok, ms
-          <input id="resultWaitMs" type="number" min="200" step="100">
+        <label>Startposisjon
+          <input id="currentIndex" type="number" min="0" step="1">
         </label>
-        <label>Pause mellom, ms
-          <input id="betweenDelayMs" type="number" min="0" step="100">
+        <label>Vegvesen URL-mal
+          <input id="lookupUrlTemplate" placeholder="https://...kjennemerke={plate}">
         </label>
       </div>
     </details>
   </section>
 
   <section class="card">
+    <div class="current">
+      <span>Neste regnr</span>
+      <strong id="currentPlate">-</strong>
+    </div>
+    <label>Navn du leser fra Vegvesen
+      <input id="manualName" placeholder="Skriv/lim inn navn">
+    </label>
     <div class="row">
-      <button id="start" class="primary">Start</button>
-      <button id="stop" class="danger">Stopp</button>
-      <button id="testOne" class="secondary">Test 1</button>
+      <button id="openCurrent" class="primary">Apne i Vegvesen</button>
+      <button id="saveAndNext" class="secondary">Lagre og neste</button>
+      <button id="skip" class="secondary">Hopp over</button>
     </div>
     <div class="status">
       <span id="counter">0/0</span>
