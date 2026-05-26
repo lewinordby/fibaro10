@@ -1,4 +1,5 @@
 import asyncio
+import csv
 import email
 import imaplib
 import os
@@ -6,6 +7,7 @@ import re
 from datetime import date, datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
+from io import StringIO
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -82,6 +84,13 @@ def parse_iso_date(value: str | None) -> date | None:
 
 def easypark_date(value: date) -> str:
     return value.strftime("%d/%m/%Y")
+
+
+def api_datetime(value: date, end_of_day: bool = False) -> str:
+    local_value = datetime.combine(value + (timedelta(days=1) if end_of_day else timedelta()), datetime.min.time(), LOCAL_TZ)
+    if end_of_day:
+        local_value -= timedelta(seconds=1)
+    return local_value.astimezone(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
 def period_label(from_day: date | None, to_day: date | None) -> str:
@@ -320,6 +329,124 @@ async def download_report(page) -> Path:
     return target
 
 
+def parking_api_payload(from_day: date, to_day: date, first_result: int = 0, max_results: int = 100) -> dict[str, Any]:
+    return {
+        "minstartdate": api_datetime(from_day),
+        "maxstartdate": api_datetime(to_day, end_of_day=True),
+        "areano": None,
+        "superzone": None,
+        "carlicenseno": "",
+        "ongoing": "",
+        "maxresults": max_results,
+        "firstresult": first_result,
+        "parkingsystem": "",
+        "inputinterfacetype": "",
+        "subtype": "",
+        "sortorder": "ASC",
+        "sortproperty": "start_date",
+        "areaIds": "",
+        "countryCode": "NO",
+        "countrycode": "NO",
+        "minenddate": api_datetime(from_day),
+        "maxenddate": api_datetime(to_day, end_of_day=True),
+        "searchwithpermits": False,
+    }
+
+
+async def fetch_parking_api_page(page, payload: dict[str, Any]) -> dict[str, Any]:
+    return await page.evaluate(
+        """async (payload) => {
+            const response = await fetch("/api/epic/searchParkings", {
+                method: "POST",
+                credentials: "include",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`EasyPark API ${response.status}: ${text.slice(0, 300)}`);
+            }
+            return await response.json();
+        }""",
+        payload,
+    )
+
+
+async def collect_parking_api_rows(page, from_day: date, to_day: date) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    first_result = 0
+    page_size = 100
+    total_count: int | None = None
+    while total_count is None or first_result < total_count:
+        payload = parking_api_payload(from_day, to_day, first_result=first_result, max_results=page_size)
+        result = await fetch_parking_api_page(page, payload)
+        elements = result.get("elements") or []
+        rows.extend(elements)
+        total_count = int(result.get("totalCount") or len(rows))
+        if not elements:
+            break
+        first_result += page_size
+        set_state(last_action=f"fetch_period {len(rows)}/{total_count}", last_period=period_label(from_day, to_day))
+        await page.wait_for_timeout(250)
+    return rows
+
+
+def status_label(row: dict[str, Any]) -> str:
+    if row.get("stopped") is False:
+        return "Ongoing"
+    return "Ended"
+
+
+def write_parking_api_csv(rows: list[dict[str, Any]], from_day: date, to_day: date) -> Path:
+    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    target = DOWNLOAD_DIR / f"easypark-parkings-{from_day.isoformat()}_til_{to_day.isoformat()}-{stamp()}.csv"
+    fieldnames = [
+        "Car license number",
+        "Parking area",
+        "Source parking system",
+        "Area number",
+        "Parking ID",
+        "Start date",
+        "End date",
+        "Parking time",
+        "Parking fee excluding VAT",
+        "Parking fee including VAT",
+        "Parking fee VAT",
+        "User interface",
+        "SubType",
+        "Status",
+    ]
+    buffer = StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=fieldnames, delimiter=";")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(
+            {
+                "Car license number": row.get("carLicenseNo") or "",
+                "Parking area": row.get("areaName") or "",
+                "Source parking system": row.get("sourceParkingSystem") or "EasyPark",
+                "Area number": row.get("areaNo") or "",
+                "Parking ID": row.get("parkingId") or "",
+                "Start date": row.get("startDate") or "",
+                "End date": row.get("endDate") or "",
+                "Parking time": "",
+                "Parking fee excluding VAT": "",
+                "Parking fee including VAT": row.get("parkingFeeInclusiveVat") or "",
+                "Parking fee VAT": "",
+                "User interface": row.get("inputInterfaceType") or "",
+                "SubType": row.get("subType") or "",
+                "Status": status_label(row),
+            }
+        )
+    target.write_text(buffer.getvalue(), encoding="utf-8-sig")
+    return target
+
+
+async def download_period_report(page, from_day: date, to_day: date) -> Path:
+    rows = await collect_parking_api_rows(page, from_day, to_day)
+    return write_parking_api_csv(rows, from_day, to_day)
+
+
 async def set_date_range(page, from_day: date | None, to_day: date | None) -> None:
     validate_period(from_day, to_day)
     if not from_day or not to_day:
@@ -434,10 +561,12 @@ async def run_download_import(from_day: date | None = None, to_day: date | None 
             try:
                 set_state(last_action="login")
                 await ensure_logged_in(page)
-                set_state(last_action="set_period")
-                await set_date_range(page, from_day, to_day)
-                set_state(last_action="download")
-                file_path = await download_report(page)
+                if from_day and to_day:
+                    set_state(last_action="fetch_period", last_period=period)
+                    file_path = await download_period_report(page, from_day, to_day)
+                else:
+                    set_state(last_action="download")
+                    file_path = await download_report(page)
             finally:
                 await context.close()
 
