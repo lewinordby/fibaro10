@@ -543,6 +543,7 @@ async def run_backfill_year(year: int, end_day: date | None = None) -> dict[str,
         totals = {
             "periods": len(results),
             "inserted": sum(int(item.get("import", {}).get("inserted") or 0) for item in results),
+            "updated": sum(int(item.get("import", {}).get("updated") or 0) for item in results),
             "unchanged": sum(int(item.get("import", {}).get("unchanged") or 0) for item in results),
             "skipped": sum(int(item.get("import", {}).get("skipped") or 0) for item in results),
             "total": sum(int(item.get("import", {}).get("total") or 0) for item in results),

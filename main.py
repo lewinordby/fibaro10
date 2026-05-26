@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, case, delete, func, or_, select, text as sql_text, update
+from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, case, delete, func, or_, select, text as sql_text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
@@ -8123,24 +8123,75 @@ async def ingest_easypark_csv(session, content: bytes, filename: str) -> Dict[st
     parsed = parse_easypark_csv(content, filename)
     rows = parsed["rows"]
     if not rows:
-        return {"total": 0, "inserted": 0, "unchanged": 0, "skipped": parsed["skipped"], "first_at": None, "last_at": None}
+        return {"total": 0, "inserted": 0, "updated": 0, "unchanged": 0, "skipped": parsed["skipped"], "first_at": None, "last_at": None}
 
     inserted_count = 0
+    updated_count = 0
     for start in range(0, len(rows), 1000):
         chunk = rows[start:start + 1000]
-        stmt = (
-            pg_insert(ParkingSession)
-            .values(chunk)
-            .on_conflict_do_nothing(index_elements=["source_system", "parking_id"])
-            .returning(ParkingSession.id)
+        keys = [(row["source_system"], row["parking_id"]) for row in chunk]
+        existing_keys = {
+            tuple(row)
+            for row in (
+                await session.execute(
+                    select(ParkingSession.source_system, ParkingSession.parking_id).where(
+                        tuple_(ParkingSession.source_system, ParkingSession.parking_id).in_(keys)
+                    )
+                )
+            ).all()
+        }
+        insert_stmt = pg_insert(ParkingSession).values(chunk)
+        excluded = insert_stmt.excluded
+        update_where = or_(
+            ParkingSession.end_time.is_(None),
+            func.lower(func.coalesce(ParkingSession.status, "")).in_(["ongoing", "active", "started"]),
+            ParkingSession.parking_area.is_distinct_from(excluded.parking_area),
+            ParkingSession.area_number.is_distinct_from(excluded.area_number),
+            ParkingSession.start_time.is_distinct_from(excluded.start_time),
+            ParkingSession.end_time.is_distinct_from(excluded.end_time),
+            ParkingSession.parking_time_min.is_distinct_from(excluded.parking_time_min),
+            ParkingSession.fee_ex_vat.is_distinct_from(excluded.fee_ex_vat),
+            ParkingSession.fee_inc_vat.is_distinct_from(excluded.fee_inc_vat),
+            ParkingSession.fee_vat.is_distinct_from(excluded.fee_vat),
+            ParkingSession.car_license_number.is_distinct_from(excluded.car_license_number),
+            ParkingSession.user_interface.is_distinct_from(excluded.user_interface),
+            ParkingSession.subtype.is_distinct_from(excluded.subtype),
+            ParkingSession.status.is_distinct_from(excluded.status),
         )
-        inserted_count += len((await session.execute(stmt)).scalars().all())
+        stmt = (
+            insert_stmt
+            .on_conflict_do_update(
+                index_elements=["source_system", "parking_id"],
+                set_={
+                    "parking_area": excluded.parking_area,
+                    "area_number": excluded.area_number,
+                    "start_time": excluded.start_time,
+                    "end_time": excluded.end_time,
+                    "parking_time_min": excluded.parking_time_min,
+                    "fee_ex_vat": excluded.fee_ex_vat,
+                    "fee_inc_vat": excluded.fee_inc_vat,
+                    "fee_vat": excluded.fee_vat,
+                    "car_license_number": excluded.car_license_number,
+                    "user_interface": excluded.user_interface,
+                    "subtype": excluded.subtype,
+                    "status": excluded.status,
+                    "imported_at": excluded.imported_at,
+                    "raw_filename": excluded.raw_filename,
+                },
+                where=update_where,
+            )
+            .returning(ParkingSession.source_system, ParkingSession.parking_id)
+        )
+        affected_keys = {tuple(row) for row in (await session.execute(stmt)).all()}
+        inserted_count += len(affected_keys - existing_keys)
+        updated_count += len(affected_keys & existing_keys)
     first_at = min(row["start_time"] for row in rows)
     last_at = max(row["start_time"] for row in rows)
     return {
         "total": len(rows),
         "inserted": inserted_count,
-        "unchanged": len(rows) - inserted_count,
+        "updated": updated_count,
+        "unchanged": len(rows) - inserted_count - updated_count,
         "skipped": parsed["skipped"],
         "first_at": first_at,
         "last_at": last_at,
@@ -8199,7 +8250,7 @@ async def parking_easypark_import_csv(request: Request):
             counts = await ingest_easypark_csv(session, content, filename)
             vehicle_count = await refresh_parking_vehicle_summary(session)
             message = (
-                f"{counts['inserted']} nye, {counts['unchanged']} uendret, "
+                f"{counts['inserted']} nye, {counts['updated']} oppdatert, {counts['unchanged']} uendret, "
                 f"{counts['skipped']} hoppet over fra {filename}"
             )
             await record_import_job(
@@ -8208,7 +8259,7 @@ async def parking_easypark_import_csv(request: Request):
                 ok=True,
                 source="EasyPark CSV",
                 started_at=started_at,
-                records_imported=counts["inserted"],
+                records_imported=counts["inserted"] + counts["updated"],
                 records_total=counts["total"],
                 message=message,
                 raw={
@@ -8384,7 +8435,7 @@ async def parking_overview_view(
                     ParkingSession.start_time >= today_start,
                     ParkingSession.start_time < tomorrow_start,
                 )
-                .order_by(ParkingSession.start_time.asc())
+                .order_by(ParkingSession.start_time.desc())
             )
         ).all()
         ongoing_today = [

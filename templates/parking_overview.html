@@ -12,9 +12,11 @@
         .parking-card strong { display:block; color:var(--brand-dark); font-size:1.45rem; line-height:1.05; margin-top:.22rem; }
         .parking-card small { display:block; color:var(--muted); font-size:.78rem; margin-top:.18rem; }
         .parking-refresh-form { margin-bottom:1rem; }
-        .parking-sync-card { width:100%; text-align:left; cursor:pointer; appearance:none; }
-        .parking-sync-card:disabled { opacity:.54; cursor:wait; filter:grayscale(.3); }
+        .parking-sync-card { width:100%; text-align:left; appearance:none; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.8rem 1rem; align-items:center; }
+        .parking-sync-card.is-working { opacity:.72; filter:grayscale(.15); }
         .parking-sync-card .sync-line { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.35rem; }
+        .parking-sync-action { border:1px solid var(--page-accent); background:var(--page-accent); color:#fff; border-radius:8px; padding:.62rem .9rem; font-size:.82rem; font-weight:850; cursor:pointer; white-space:nowrap; box-shadow:0 8px 18px rgba(0,0,0,.08); }
+        .parking-sync-action:disabled { border-color:#a7b0bd; background:#a7b0bd; cursor:not-allowed; box-shadow:none; }
         .sync-pill { display:inline-flex; align-items:center; min-height:1.45rem; border-radius:999px; padding:.12rem .48rem; border:1px solid var(--line); background:#f8fafc; color:var(--brand-dark); font-size:.7rem; font-weight:850; }
         .sync-pill.ok, .sync-pill.good { border-color:#b9dbc3; background:#edf8f0; color:#2f6d3d; }
         .sync-pill.warn { border-color:#efd392; background:#fff8e6; color:#805b12; }
@@ -28,15 +30,19 @@
         .parking-table th, .parking-table td { padding:.68rem .8rem; border-bottom:1px solid var(--line-soft); text-align:left; vertical-align:middle; }
         .parking-table th { background:#f6f8fb; color:#627085; font-size:.74rem; text-transform:uppercase; }
         .parking-table tr:last-child td { border-bottom:0; }
-        .parking-table a { font-weight:850; }
+        .parking-table a { color:var(--brand-dark); text-decoration:none; font-weight:720; }
+        .parking-table a:hover { color:var(--page-accent); text-decoration:none; }
         .empty-row { color:var(--muted); text-align:center; padding:1rem !important; }
         .amount { color:#856010; font-weight:850; white-space:nowrap; }
         .duration { white-space:nowrap; }
-        .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.15rem; min-height:1.8rem; border-radius:999px; border:1px solid var(--line); background:#fff; text-decoration:none; font-weight:850; }
+        .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.15rem; min-height:1.8rem; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--brand-dark); text-decoration:none; font-weight:760; }
+        .count-link:hover { border-color:var(--page-accent); background:#fffaf0; }
         .table-scroll { overflow:auto; }
         @media (max-width: 1100px) { .parking-cards { grid-template-columns:repeat(2,minmax(0,1fr)); } }
         @media (max-width: 680px) {
             .parking-cards { grid-template-columns:1fr; }
+            .parking-sync-card { grid-template-columns:1fr; }
+            .parking-sync-action { width:100%; }
             .parking-panel header { display:block; }
             .parking-table th, .parking-table td { padding:.58rem .62rem; font-size:.9rem; }
         }
@@ -63,33 +69,39 @@
         </section>
 
         <form class="parking-refresh-form" method="post" action="/parkering/refresh">
-            <button class="parking-card parking-sync-card" type="submit" {% if not can_settings %}disabled{% endif %}>
-                <span>Sist oppdatert</span>
-                <strong>{% if easypark_status and easypark_status.last_success_at %}{{ easypark_status.last_success_at|source_time }}{% elif last_parking_at %}{{ last_parking_at|source_time }}{% else %}-{% endif %}</strong>
-                <small>Trykk for å hente EasyPark for {{ refresh_period.from_day.strftime('%d.%m') }}-{{ refresh_period.to_day.strftime('%d.%m') }}</small>
-                <span class="sync-line">
-                    {% if easypark_status %}
-                    <span class="sync-pill {{ easypark_status.status }}">{{ easypark_status.status_text }}</span>
-                    {% if easypark_status.records_total is not none %}<span class="sync-pill">{{ easypark_status.records_total|short_number }} rader sist</span>{% endif %}
-                    {% else %}
-                    <span class="sync-pill warn">Ingen status ennå</span>
-                    {% endif %}
-                    {% if refresh_message %}<span class="sync-pill {{ refresh_message.level }}">{{ refresh_message.text }}</span>{% endif %}
-                </span>
-            </button>
+            <div class="parking-card parking-sync-card">
+                <div>
+                    <span>Sist oppdatert</span>
+                    <strong>{% if easypark_status and easypark_status.last_success_at %}{{ easypark_status.last_success_at|source_time }}{% elif last_parking_at %}{{ last_parking_at|source_time }}{% else %}-{% endif %}</strong>
+                    <small>Henter EasyPark for {{ refresh_period.from_day.strftime('%d.%m') }}-{{ refresh_period.to_day.strftime('%d.%m') }}</small>
+                    <span class="sync-line">
+                        {% if easypark_status %}
+                        <span class="sync-pill {{ easypark_status.status }}">{{ easypark_status.status_text }}</span>
+                        {% if easypark_status.records_total is not none %}<span class="sync-pill">{{ easypark_status.records_total|short_number }} rader sist</span>{% endif %}
+                        {% else %}
+                        <span class="sync-pill warn">Ingen status ennå</span>
+                        {% endif %}
+                        {% if refresh_message %}<span class="sync-pill {{ refresh_message.level }}">{{ refresh_message.text }}</span>{% endif %}
+                    </span>
+                </div>
+                <button class="parking-sync-action" type="submit" {% if not can_settings %}disabled{% endif %}>
+                    {% if can_settings %}Oppdater nå{% else %}Krever tilgang{% endif %}
+                </button>
+            </div>
         </form>
 
         {% macro parking_table(rows) -%}
         <div class="table-scroll">
             <table class="parking-table">
                 <thead>
-                    <tr><th>Start</th><th>Regnr</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
+                    <tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Antall</th><th>Varighet</th><th>Beløp</th></tr>
                 </thead>
                 <tbody>
                 {% for item in rows %}
                     {% set row = item.session %}
                     <tr>
                         <td>{{ row.start_time|source_time_short }}</td>
+                        <td>{% if row.end_time %}{{ row.end_time|source_time_short }}{% else %}-{% endif %}</td>
                         <td>
                             {% if item.plate %}
                             <a href="/parkering/kjoretoy/{{ item.plate }}">{{ row.car_license_number or item.plate }}</a>
@@ -108,7 +120,7 @@
                         <td class="amount">{{ row.fee_inc_vat|short_number }} kr</td>
                     </tr>
                 {% else %}
-                    <tr><td class="empty-row" colspan="5">Ingen parkeringer i denne gruppen.</td></tr>
+                    <tr><td class="empty-row" colspan="6">Ingen parkeringer i denne gruppen.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
@@ -119,7 +131,7 @@
             <header>
                 <div>
                     <h2>Pågående parkeringer</h2>
-                    <p>Sortert på starttid. Disse er fortsatt markert som Ongoing i EasyPark.</p>
+                    <p>Nyeste starttid øverst. Disse er fortsatt markert som Ongoing i EasyPark.</p>
                 </div>
                 <strong>{{ ongoing_today|length|short_number }}</strong>
             </header>
@@ -130,7 +142,7 @@
             <header>
                 <div>
                     <h2>Avsluttede parkeringer i dag</h2>
-                    <p>Resten av dagens parkeringer, sortert på starttid.</p>
+                    <p>Resten av dagens parkeringer, også med nyeste starttid øverst.</p>
                 </div>
                 <strong>{{ completed_today|length|short_number }}</strong>
             </header>
@@ -139,10 +151,15 @@
     </main>
     <script>
         document.querySelector(".parking-refresh-form")?.addEventListener("submit", (event) => {
-            const button = event.currentTarget.querySelector("button");
-            if (!button) return;
-            button.disabled = true;
-            button.querySelector("small").textContent = "Henter nye EasyPark-data...";
+            const card = event.currentTarget.querySelector(".parking-sync-card");
+            const action = event.currentTarget.querySelector(".parking-sync-action");
+            if (card) card.classList.add("is-working");
+            if (action) {
+                action.disabled = true;
+                action.textContent = "Oppdaterer...";
+            }
+            const text = event.currentTarget.querySelector("small");
+            if (text) text.textContent = "Henter nye EasyPark-data...";
         });
     </script>
 </body>
