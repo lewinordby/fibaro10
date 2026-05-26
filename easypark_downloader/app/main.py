@@ -224,7 +224,11 @@ async def ensure_logged_in(page) -> None:
         await page.wait_for_timeout(max(8000, CODE_COOLDOWN_MINUTES * 1000))
 
     body = await page_text(page)
-    if re.search(r"recaptcha|security check|please check your login or password", body, re.I):
+    if re.search(r"please check your login or password", body, re.I):
+        await save_debug(page, "easypark-login-rejected")
+        raise RuntimeError("EasyPark avviser brukernavn/passord eller blokkerer automatisk login.")
+
+    if re.search(r"recaptcha|security check", body, re.I):
         await save_debug(page, "easypark-security-check")
         raise RuntimeError("EasyPark krever manuell sikkerhetskontroll.")
 
