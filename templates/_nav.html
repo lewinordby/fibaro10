@@ -134,6 +134,7 @@
         <div class="nav-row nav-sub {% if is_parking %}active-section{% endif %}" aria-label="Undermeny for parkering">
             {{ sub_button("/parkering/oversikt", "Oversikt", "dashboard", current_path == "/parkering/oversikt") }}
             {{ sub_button("/parkering/parkeringer", "Parkeringer", "list", current_path == "/parkering/parkeringer") }}
+            {{ sub_button("/parkering/statistikk", "Statistikk", "chart", current_path == "/parkering/statistikk") }}
             {{ sub_button("/parkering/kjoretoy", "Kjøretøy", "parking", current_path == "/parkering/kjoretoy") }}
         </div>
 

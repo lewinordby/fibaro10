@@ -8262,6 +8262,42 @@ def parking_vehicle_label(details: Optional[ParkingVehicleDetails]) -> str:
     return text or "Ukjent kjøretøy"
 
 
+def parking_duration_minutes(row: ParkingSession, now: Optional[datetime] = None) -> Optional[float]:
+    if row.parking_time_min is not None:
+        return row.parking_time_min
+    if row.start_time and row.end_time:
+        return max(0, (row.end_time - row.start_time).total_seconds() / 60)
+    if row.start_time and (row.status or "").strip().lower() == "ongoing":
+        now = now or local_now_naive()
+        return max(0, (now - row.start_time).total_seconds() / 60)
+    return None
+
+
+def parking_row_context(row: ParkingSession, vehicle: Optional[ParkingVehicle] = None, now: Optional[datetime] = None) -> Dict[str, Any]:
+    plate = normalize_plate(row.car_license_number)
+    return {
+        "session": row,
+        "plate": plate,
+        "parking_count": vehicle.parkering_count if vehicle else None,
+        "duration_minutes": parking_duration_minutes(row, now),
+    }
+
+
+async def parking_period_summary(session, label: str, start_at: datetime, end_at: datetime) -> Dict[str, Any]:
+    row = (
+        await session.execute(
+            select(
+                func.count(ParkingSession.id),
+                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
+            ).where(
+                ParkingSession.start_time >= start_at,
+                ParkingSession.start_time < end_at,
+            )
+        )
+    ).first()
+    return {"label": label, "count": row[0] or 0, "paid": row[1] or 0}
+
+
 def easypark_recent_period() -> tuple[date, date]:
     today = local_now_naive().date()
     return today - timedelta(days=1), today
@@ -8322,83 +8358,50 @@ async def parking_refresh(request: Request):
 @app.get("/parkering/oversikt", response_class=HTMLResponse)
 async def parking_overview_view(
     request: Request,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
     refresh: Optional[str] = None,
 ):
-    today = local_now_naive().date()
+    now = local_now_naive()
+    today = now.date()
+    today_start = datetime.combine(today, time.min)
+    tomorrow_start = today_start + timedelta(days=1)
     month_start = today.replace(day=1)
-    from_day = parse_day(date_from) if date_from else None
-    to_day = parse_day(date_to) if date_to else None
-    latest_conditions = []
-    if from_day:
-        latest_conditions.append(ParkingSession.start_time >= datetime.combine(from_day, time.min))
-    if to_day:
-        latest_conditions.append(ParkingSession.start_time < datetime.combine(to_day + timedelta(days=1), time.min))
+    month_start_dt = datetime.combine(month_start, time.min)
+    week_start = today_start - timedelta(days=today.weekday())
+    previous_week_start = week_start - timedelta(days=7)
     normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
     async with async_session() as session:
-        total_row = (
+        period_cards = [
+            await parking_period_summary(session, "I dag", today_start, tomorrow_start),
+            await parking_period_summary(session, "Denne uken", week_start, tomorrow_start),
+            await parking_period_summary(session, "Forrige uke", previous_week_start, week_start),
+            await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start),
+        ]
+        today_rows = (
             await session.execute(
-                select(
-                    func.count(ParkingSession.id),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
-                    func.coalesce(func.sum(ParkingSession.parking_time_min), 0),
-                    func.min(ParkingSession.start_time),
-                    func.max(ParkingSession.start_time),
+                select(ParkingSession, ParkingVehicle)
+                .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                .where(
+                    ParkingSession.start_time >= today_start,
+                    ParkingSession.start_time < tomorrow_start,
                 )
-            )
-        ).first()
-        month_row = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
-                )
-                .where(ParkingSession.start_time >= datetime.combine(month_start, time.min))
-            )
-        ).first()
-        vehicle_count = (await session.execute(select(func.count(ParkingVehicle.plate)))).scalar_one()
-        enriched_count = (await session.execute(select(func.count(ParkingVehicleDetails.plate)))).scalar_one()
-        latest_stmt = (
-            select(ParkingSession, ParkingVehicleDetails)
-            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
-            .order_by(ParkingSession.start_time.desc())
-            .limit(25)
-        )
-        if latest_conditions:
-            latest_stmt = latest_stmt.where(*latest_conditions)
-        latest_result = (
-            await session.execute(
-                latest_stmt
+                .order_by(ParkingSession.start_time.asc())
             )
         ).all()
-        top_plates = (
+        ongoing_today = [
+            parking_row_context(row, vehicle, now)
+            for row, vehicle in today_rows
+            if (row.status or "").strip().lower() == "ongoing"
+        ]
+        completed_today = [
+            parking_row_context(row, vehicle, now)
+            for row, vehicle in today_rows
+            if (row.status or "").strip().lower() != "ongoing"
+        ]
+        last_parking_at = (
             await session.execute(
-                select(
-                    ParkingVehicle.plate,
-                    ParkingVehicle.parkering_count,
-                    ParkingVehicle.paid_total,
-                    ParkingVehicleDetails.merke,
-                    ParkingVehicleDetails.modell,
-                    ParkingVehicleDetails.kjoretoyklasse_navn,
-                )
-                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                .order_by(ParkingVehicle.parkering_count.desc().nullslast(), ParkingVehicle.paid_total.desc().nullslast())
-                .limit(10)
+                select(func.max(ParkingSession.imported_at))
             )
-        ).all()
-        make_expr = func.coalesce(ParkingVehicleDetails.merke, "Ukjent")
-        top_makes = (
-            await session.execute(
-                select(
-                    make_expr,
-                    func.count(ParkingVehicleDetails.plate),
-                )
-                .group_by(make_expr)
-                .order_by(func.count(ParkingVehicleDetails.plate).desc())
-                .limit(10)
-            )
-        ).all()
+        ).scalar_one()
         easypark_row = (
             await session.execute(
                 select(ImportJobStatus).where(ImportJobStatus.job_name == "easypark_parking_import")
@@ -8432,36 +8435,55 @@ async def parking_overview_view(
         request,
         "parking_overview.html",
         {
-            "total": {
-                "sessions": total_row[0] or 0,
-                "paid": total_row[1] or 0,
-                "minutes": total_row[2] or 0,
-                "first": total_row[3],
-                "last": total_row[4],
-                "vehicles": vehicle_count or 0,
-                "enriched": enriched_count or 0,
-            },
-            "month": {"sessions": month_row[0] or 0, "paid": month_row[1] or 0},
-            "latest": [
-                {
-                    "session": row,
-                    "details": details,
-                    "year": parking_vehicle_year(details),
-                    "early_minutes": parking_slot_remainder_minutes(row),
-                    "plate": normalize_plate(row.car_license_number),
-                }
-                for row, details in latest_result
-            ],
-            "latest_filters": {
-                "date_from": date_from or "",
-                "date_to": date_to or "",
-            },
-            "top_plates": top_plates,
-            "top_makes": top_makes,
+            "today": today,
+            "period_cards": period_cards,
+            "ongoing_today": ongoing_today,
+            "completed_today": completed_today,
+            "last_parking_at": last_parking_at,
             "easypark_status": easypark_status,
             "refresh_period": {"from_day": refresh_from, "to_day": refresh_to},
             "refresh_message": refresh_messages.get(refresh or ""),
             "can_settings": getattr(request.state, "auth_can_settings", False),
+        },
+    )
+
+
+@app.get("/parkering/statistikk", response_class=HTMLResponse)
+async def parking_statistics_view(request: Request):
+    async with async_session() as session:
+        top_plates = (
+            await session.execute(
+                select(
+                    ParkingVehicle.plate,
+                    ParkingVehicle.parkering_count,
+                    ParkingVehicle.paid_total,
+                    ParkingVehicleDetails.merke,
+                    ParkingVehicleDetails.modell,
+                    ParkingVehicleDetails.kjoretoyklasse_navn,
+                )
+                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                .order_by(ParkingVehicle.parkering_count.desc().nullslast(), ParkingVehicle.paid_total.desc().nullslast())
+                .limit(50)
+            )
+        ).all()
+        make_expr = func.coalesce(ParkingVehicleDetails.merke, "Ukjent")
+        top_makes = (
+            await session.execute(
+                select(
+                    make_expr,
+                    func.count(ParkingVehicleDetails.plate),
+                )
+                .group_by(make_expr)
+                .order_by(func.count(ParkingVehicleDetails.plate).desc())
+                .limit(50)
+            )
+        ).all()
+    return templates.TemplateResponse(
+        request,
+        "parking_statistics.html",
+        {
+            "top_plates": top_plates,
+            "top_makes": top_makes,
         },
     )
 
