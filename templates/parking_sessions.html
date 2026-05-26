@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parkeringer</title>
     {% include "_styles.html" %}
+    <style>
+        .early-badge { display:inline-flex; align-items:center; margin-top:.22rem; border-radius:999px; padding:.14rem .48rem; border:1px solid #f0c7bc; background:#fff3f0; color:#9a4a32; font-size:.68rem; font-weight:850; white-space:nowrap; }
+        .vehicle-note { color:var(--muted); font-size:.78rem; }
+    </style>
 </head>
 <body class="theme-parking">
     {% include "_header.html" %}
@@ -26,15 +30,26 @@
         <section class="panel">
             <div class="table-scroll">
                 <table>
-                    <thead><tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Område</th><th>Varighet</th><th>Beløp</th><th>Kilde</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Kjøretøy</th><th>Område</th><th>Varighet</th><th>Beløp</th><th>Kilde</th><th>Status</th></tr></thead>
                     <tbody>
-                    {% for row in rows %}
+                    {% for item in rows %}
+                        {% set row = item.session %}
+                        {% set details = item.details %}
                         <tr>
                             <td>{{ row.start_time|source_time }}</td>
                             <td>{{ row.end_time|source_time }}</td>
                             <td><a href="/parkering/kjoretoy?q={{ row.car_license_number }}">{{ row.car_license_number or "-" }}</a></td>
+                            <td>
+                                {{ details.merke if details else "Ukjent" }} {{ details.modell if details else "" }}
+                                {% if item.year %}<br><span class="vehicle-note">{{ item.year }}</span>{% endif %}
+                            </td>
                             <td>{{ row.parking_area }}<br><small>{{ row.area_number }}</small></td>
-                            <td>{{ row.parking_time_min|short_number }} min</td>
+                            <td>
+                                {{ row.parking_time_min|short_number }} min
+                                {% if item.early_minutes %}
+                                <br><span class="early-badge">Dro {{ item.early_minutes }} min før slottslutt</span>
+                                {% endif %}
+                            </td>
                             <td>{{ row.fee_inc_vat|short_number }} kr</td>
                             <td>{{ row.source_system }}<br><small>{{ row.user_interface or "" }} {{ row.subtype or "" }}</small></td>
                             <td>{{ row.status }}</td>

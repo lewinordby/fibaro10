@@ -7981,10 +7981,41 @@ def normalize_plate(value: Optional[str]) -> str:
     return re.sub(r"\s+", "", (value or "").strip().upper())
 
 
+def parking_slot_remainder_minutes(row: ParkingSession) -> Optional[int]:
+    duration = row.parking_time_min
+    if duration is None and row.start_time and row.end_time:
+        duration = (row.end_time - row.start_time).total_seconds() / 60
+    if duration is None or duration <= 0:
+        return None
+    remainder = duration % 30
+    if remainder < 1 or remainder > 29:
+        return None
+    return int(round(30 - remainder))
+
+
+def parking_vehicle_year(details: Optional[ParkingVehicleDetails]) -> Optional[int]:
+    if not details:
+        return None
+    source = details.forstegangsregistrert_norge or details.svv_teknisk_gyldig_fra
+    return source.year if source else None
+
+
 @app.get("/parkering/oversikt", response_class=HTMLResponse)
-async def parking_overview_view(request: Request):
+async def parking_overview_view(
+    request: Request,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
     today = local_now_naive().date()
     month_start = today.replace(day=1)
+    from_day = parse_day(date_from) if date_from else None
+    to_day = parse_day(date_to) if date_to else None
+    latest_conditions = []
+    if from_day:
+        latest_conditions.append(ParkingSession.start_time >= datetime.combine(from_day, time.min))
+    if to_day:
+        latest_conditions.append(ParkingSession.start_time < datetime.combine(to_day + timedelta(days=1), time.min))
+    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
     async with async_session() as session:
         total_row = (
             await session.execute(
@@ -8008,13 +8039,19 @@ async def parking_overview_view(request: Request):
         ).first()
         vehicle_count = (await session.execute(select(func.count(ParkingVehicle.plate)))).scalar_one()
         enriched_count = (await session.execute(select(func.count(ParkingVehicleDetails.plate)))).scalar_one()
-        latest = (
+        latest_stmt = (
+            select(ParkingSession, ParkingVehicleDetails)
+            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
+            .order_by(ParkingSession.start_time.desc())
+            .limit(25)
+        )
+        if latest_conditions:
+            latest_stmt = latest_stmt.where(*latest_conditions)
+        latest_result = (
             await session.execute(
-                select(ParkingSession)
-                .order_by(ParkingSession.start_time.desc())
-                .limit(10)
+                latest_stmt
             )
-        ).scalars().all()
+        ).all()
         top_plates = (
             await session.execute(
                 select(
@@ -8056,7 +8093,19 @@ async def parking_overview_view(request: Request):
                 "enriched": enriched_count or 0,
             },
             "month": {"sessions": month_row[0] or 0, "paid": month_row[1] or 0},
-            "latest": latest,
+            "latest": [
+                {
+                    "session": row,
+                    "details": details,
+                    "year": parking_vehicle_year(details),
+                    "early_minutes": parking_slot_remainder_minutes(row),
+                }
+                for row, details in latest_result
+            ],
+            "latest_filters": {
+                "date_from": date_from or "",
+                "date_to": date_to or "",
+            },
             "top_plates": top_plates,
             "top_makes": top_makes,
         },
@@ -8085,13 +8134,19 @@ async def parking_sessions_view(
     if status:
         conditions.append(ParkingSession.status == status)
 
+    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
     async with async_session() as session:
-        stmt = select(ParkingSession).order_by(ParkingSession.start_time.desc()).limit(limit)
+        stmt = (
+            select(ParkingSession, ParkingVehicleDetails)
+            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
+            .order_by(ParkingSession.start_time.desc())
+            .limit(limit)
+        )
         count_stmt = select(func.count(ParkingSession.id))
         if conditions:
             stmt = stmt.where(*conditions)
             count_stmt = count_stmt.where(*conditions)
-        rows = (await session.execute(stmt)).scalars().all()
+        result_rows = (await session.execute(stmt)).all()
         count = (await session.execute(count_stmt)).scalar_one()
         statuses = (
             await session.execute(
@@ -8104,7 +8159,15 @@ async def parking_sessions_view(
         request,
         "parking_sessions.html",
         {
-            "rows": rows,
+            "rows": [
+                {
+                    "session": row,
+                    "details": details,
+                    "year": parking_vehicle_year(details),
+                    "early_minutes": parking_slot_remainder_minutes(row),
+                }
+                for row, details in result_rows
+            ],
             "count": count,
             "statuses": statuses,
             "filters": {

@@ -15,6 +15,12 @@
         .parking-table th { background:#f6f8fb; color:#627085; font-size:.75rem; text-transform:uppercase; }
         .parking-table tr:last-child td { border-bottom:0; }
         .section-split { display:grid; grid-template-columns:1.15fr .85fr; gap:1rem; margin-top:1rem; }
+        .parking-filter-row { display:flex; flex-wrap:wrap; gap:.55rem; align-items:end; margin:.35rem 0 .75rem; }
+        .parking-filter-row label { display:flex; flex-direction:column; gap:.18rem; color:var(--muted); font-size:.76rem; font-weight:800; text-transform:uppercase; }
+        .parking-filter-row input { min-height:2.25rem; border:1px solid var(--line); border-radius:8px; padding:.35rem .55rem; background:#fff; color:var(--brand-dark); }
+        .parking-filter-row button, .parking-filter-row a { min-height:2.25rem; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; padding:.35rem .75rem; font-weight:820; text-decoration:none; }
+        .early-badge { display:inline-flex; align-items:center; margin-top:.22rem; border-radius:999px; padding:.14rem .48rem; border:1px solid #f0c7bc; background:#fff3f0; color:#9a4a32; font-size:.68rem; font-weight:850; white-space:nowrap; }
+        .vehicle-note { color:var(--muted); font-size:.78rem; }
         @media (max-width: 840px) { .section-split { grid-template-columns:1fr; } }
     </style>
 </head>
@@ -40,14 +46,33 @@
         <section class="section-split">
             <article>
                 <h2>Siste parkeringer</h2>
+                <form class="parking-filter-row" method="get">
+                    <label>Fra <input type="date" name="date_from" value="{{ latest_filters.date_from }}"></label>
+                    <label>Til <input type="date" name="date_to" value="{{ latest_filters.date_to }}"></label>
+                    <button class="primary" type="submit">Vis periode</button>
+                    {% if latest_filters.date_from or latest_filters.date_to %}
+                    <a class="button" href="/parkering/oversikt">Nullstill</a>
+                    {% endif %}
+                </form>
                 <table class="parking-table">
-                    <thead><tr><th>Tid</th><th>Regnr</th><th>Varighet</th><th>Beløp</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Tid</th><th>Regnr</th><th>Kjøretøy</th><th>Varighet</th><th>Beløp</th><th>Status</th></tr></thead>
                     <tbody>
-                    {% for row in latest %}
+                    {% for item in latest %}
+                        {% set row = item.session %}
+                        {% set details = item.details %}
                         <tr>
                             <td>{{ row.start_time|source_time }}</td>
                             <td><a href="/parkering/parkeringer?plate={{ row.car_license_number }}">{{ row.car_license_number or "-" }}</a></td>
-                            <td>{{ row.parking_time_min|short_number }} min</td>
+                            <td>
+                                {{ details.merke if details else "Ukjent" }} {{ details.modell if details else "" }}
+                                {% if item.year %}<br><span class="vehicle-note">{{ item.year }}</span>{% endif %}
+                            </td>
+                            <td>
+                                {{ row.parking_time_min|short_number }} min
+                                {% if item.early_minutes %}
+                                <br><span class="early-badge">Dro {{ item.early_minutes }} min før slottslutt</span>
+                                {% endif %}
+                            </td>
                             <td>{{ row.fee_inc_vat|short_number }} kr</td>
                             <td>{{ row.status }}</td>
                         </tr>
