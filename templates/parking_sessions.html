@@ -41,7 +41,13 @@
                             <td><a href="/parkering/kjoretoy?q={{ row.car_license_number }}">{{ row.car_license_number or "-" }}</a></td>
                             <td>
                                 {{ details.merke if details else "Ukjent" }} {{ details.modell if details else "" }}
-                                {% if item.year %}<br><span class="vehicle-note">Årsmodell {{ item.year }}</span>{% endif %}
+                                {% if item.year or (details and details.farge) %}
+                                <br><span class="vehicle-note">
+                                    {% if item.year %}Årsmodell {{ item.year }}{% endif %}
+                                    {% if item.year and details and details.farge %} · {% endif %}
+                                    {% if details and details.farge %}{{ details.farge|title }}{% endif %}
+                                </span>
+                                {% endif %}
                             </td>
                             <td>{{ row.parking_area }}<br><small>{{ row.area_number }}</small></td>
                             <td>
