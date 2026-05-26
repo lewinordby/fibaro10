@@ -327,27 +327,27 @@ async def set_date_range(page, from_day: date | None, to_day: date | None) -> No
 
     from_value = easypark_date(from_day)
     to_value = easypark_date(to_day)
-    changed = await page.evaluate(
-        """([fromValue, toValue]) => {
-            const inputs = Array.from(document.querySelectorAll("input.form-control"))
-                .filter((input) => !input.id && !!(input.offsetWidth || input.offsetHeight || input.getClientRects().length));
-            if (inputs.length < 2) return false;
-            const setValue = (input, value) => {
-                const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                setter.call(input, value);
-                input.dispatchEvent(new Event("input", { bubbles: true }));
-                input.dispatchEvent(new Event("change", { bubbles: true }));
-                input.dispatchEvent(new Event("blur", { bubbles: true }));
-            };
-            setValue(inputs[0], fromValue);
-            setValue(inputs[1], toValue);
-            return true;
-        }""",
-        [from_value, to_value],
-    )
-    if not changed:
+    date_fields = page.locator("input.form-control")
+    if await date_fields.count() < 5:
         await save_debug(page, "easypark-date-fields-missing")
         raise RuntimeError("Fant ikke EasyPark-feltene for fra/til-dato.")
+
+    from_field = date_fields.nth(3)
+    to_field = date_fields.nth(4)
+    await from_field.click()
+    await page.keyboard.press("Control+A")
+    await page.keyboard.type(from_value)
+    await page.keyboard.press("Tab")
+    await to_field.click()
+    await page.keyboard.press("Control+A")
+    await page.keyboard.type(to_value)
+    await page.keyboard.press("Tab")
+    await page.wait_for_timeout(1000)
+
+    actual_values = await date_fields.evaluate_all("(fields) => fields.slice(3, 5).map((field) => field.value)")
+    if actual_values[:2] != [from_value, to_value]:
+        await save_debug(page, "easypark-date-values-not-set")
+        raise RuntimeError(f"EasyPark beholdt feil datoer: {actual_values[:2]}")
 
     clicked = await click_visible(page.get_by_role("button", name=re.compile("^Search$", re.I)))
     if not clicked:
