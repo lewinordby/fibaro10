@@ -53,7 +53,7 @@
                 <div class="parking-sync-meta">
                     {% if easypark_status %}
                     <span class="parking-sync-pill {{ easypark_status.status }}">{{ easypark_status.status_text }}</span>
-                    <span class="parking-sync-pill">Sist OK {{ easypark_status.last_success_at|localtime }}</span>
+                    <span class="parking-sync-pill">Sist OK {{ easypark_status.last_success_at|source_time }}</span>
                     {% if easypark_status.records_total is not none %}
                     <span class="parking-sync-pill">{{ easypark_status.records_total|short_number }} rader sist</span>
                     {% endif %}
