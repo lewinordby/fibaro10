@@ -979,6 +979,21 @@ class EnergyFibaroSample(Base):
     extra = Column(JSON, nullable=True)
 
 
+class Hc3MeterReading(Base):
+    __tablename__ = "hc3_meter_readings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    kilde = Column(String, index=True, nullable=False)
+    status = Column(String, index=True, nullable=False)
+    fibaroid = Column(Integer, index=True, nullable=False)
+    verdi1 = Column(Float, nullable=False)
+    verdi2 = Column(Float, nullable=True)
+    forklaring = Column(Text, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
 class AiQueryLog(Base):
     __tablename__ = "ai_query_logs"
 
@@ -1056,6 +1071,17 @@ class LegacyLogIn(BaseModel):
     humidity: float
     timestamp: datetime
     source: str
+
+
+class Hc3MeterReadingIn(BaseModel):
+    kilde: str
+    status: str
+    fibaroid: int
+    verdi1: float
+    verdi2: Optional[float] = None
+    forklaring: Optional[str] = None
+    ts: Optional[datetime] = None
+    source: Optional[str] = "HC3"
 
 
 class EventDataIn(BaseModel):
@@ -2323,6 +2349,14 @@ IMPORT_JOB_DEFINITIONS = {
         "expected_interval_minutes": 2,
         "warning_after_minutes": 5,
         "description": "Minuttlogging av realtime effekt og akkumulert kWh fra Fibaro.",
+    },
+    "hc3_meter_readings": {
+        "title": "HC3 avlesninger",
+        "category": "Energi",
+        "source": "HC3",
+        "expected_interval_minutes": 12 * 60,
+        "warning_after_minutes": 36 * 60,
+        "description": "Midnatt/morgen-avlesninger fra gamle HC3 QNAP-scener.",
     },
     "roborock_sync": {
         "title": "Roborock logger",
@@ -6578,7 +6612,8 @@ async def health():
             "import_job_status", "import_job_runs",
             "sun2_room_daily_stats", "sun2_import_runs", "sun2_tanning_sessions",
             "sun2_beds", "sun2_session_import_runs", "energy_hourly_consumption",
-            "energy_import_runs", "energy_fibaro_samples", "ai_query_logs",
+            "energy_import_runs", "energy_fibaro_samples", "hc3_meter_readings",
+            "ai_query_logs",
         ],
     }
 
@@ -7527,6 +7562,36 @@ async def legacy_log_data(data: LegacyLogIn):
     )
     event_id = await save_record(record)
     return {"status": "ok", "id": event_id, "table": "event_data"}
+
+
+@app.post("/api/hc3/measurements/log")
+async def hc3_meter_reading_log(data: Hc3MeterReadingIn):
+    timestamp = normalize_local_naive(data.ts) or local_now_naive()
+    reading = Hc3MeterReading(
+        timestamp=timestamp,
+        kilde=data.kilde,
+        status=data.status,
+        fibaroid=data.fibaroid,
+        verdi1=data.verdi1,
+        verdi2=data.verdi2,
+        forklaring=data.forklaring,
+        source=data.source or "HC3",
+        raw=data.dict(),
+    )
+    async with async_session() as session:
+        session.add(reading)
+        await session.flush()
+        await record_import_job(
+            session,
+            "hc3_meter_readings",
+            source=data.source or "HC3",
+            records_imported=1,
+            records_total=1,
+            message=f"{data.status} {data.kilde} {data.verdi1:g}",
+            raw={"id": reading.id, "fibaroid": data.fibaroid, "kilde": data.kilde, "status": data.status},
+        )
+        await session.commit()
+        return {"status": "ok", "id": reading.id, "table": "hc3_meter_readings"}
 
 
 @app.post("/events")
