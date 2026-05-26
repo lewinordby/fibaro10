@@ -9113,7 +9113,7 @@ async def parking_name_lookup_view(request: Request, limit: int = Query(100, ge=
 
 
 @app.get("/parkering/omrade-oppslag", response_class=HTMLResponse)
-async def parking_area_lookup_view(request: Request, limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)):
+async def parking_area_lookup_view(request: Request, limit: int = Query(1000, ge=1, le=1000), offset: int = Query(0, ge=0)):
     async with async_session() as session:
         rows = await parking_missing_area_rows(session, limit, offset)
         count = (
@@ -9135,7 +9135,7 @@ async def parking_area_lookup_view(request: Request, limit: int = Query(100, ge=
             "prev_offset": max(0, offset - limit),
             "mode": "omrade",
             "title": "Områdeoppslag",
-            "description": "biler mangler område. Denne siden gir extensionen neste pakke pÃ¥",
+            "description": "biler mangler område. Denne siden gir extensionen neste pakke på",
         },
     )
 
@@ -9167,7 +9167,7 @@ async def parking_missing_names_api(
 @app.get("/api/parkering/kjoretoy/mangler-omrade")
 async def parking_missing_areas_api(
     request: Request,
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(1000, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     format: str = "json",
 ):

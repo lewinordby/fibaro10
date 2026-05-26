@@ -29,7 +29,7 @@ Bruk `Stopp` for å avbryte listen. Extensionen leser kun feltet `Område`.
 
 Extensionen bruker disse endepunktene:
 
-- `GET /api/parkering/kjoretoy/mangler-omrade?limit=100`
+- `GET /api/parkering/kjoretoy/mangler-omrade?limit=1000`
 - `POST /api/parkering/kjoretoy/{plate}/omrade`
 
 Begge krever bruker med innstillingstilgang via `x-access-username` og `x-access-password`.

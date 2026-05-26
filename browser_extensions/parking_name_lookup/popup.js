@@ -90,7 +90,7 @@ function authHeaders(settings) {
 async function fetchBatch() {
   const settings = readSettings();
   if (!settings.apiBase) throw new Error("Fibaro10 URL mangler.");
-  const response = await fetch(`${settings.apiBase}/api/parkering/kjoretoy/mangler-omrade?limit=100`, {
+  const response = await fetch(`${settings.apiBase}/api/parkering/kjoretoy/mangler-omrade?limit=1000`, {
     headers: authHeaders(settings)
   });
   if (!response.ok) throw new Error(`Fibaro10 svarte ${response.status}`);
@@ -99,7 +99,7 @@ async function fetchBatch() {
   el("currentIndex").value = 0;
   await saveSettings();
   setStatus(`Hentet ${data.rows.length}`);
-  logLine(`Hentet ${data.rows.length} registreringsnummer. ${data.count} mangler navn totalt.`, "ok");
+  logLine(`Hentet ${data.rows.length} registreringsnummer. ${data.count} mangler omrade totalt.`, "ok");
 }
 
 async function openCurrent() {
