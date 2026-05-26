@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, case, delete, func, or_, select, text as sql_text, update
+from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, case, delete, func, or_, select, text as sql_text, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
@@ -992,6 +992,81 @@ class Hc3MeterReading(Base):
     forklaring = Column(Text, nullable=True)
     source = Column(String, index=True, nullable=True)
     raw = Column(JSON, nullable=True)
+
+
+class ParkingSession(Base):
+    __tablename__ = "parkering"
+    __table_args__ = (UniqueConstraint("source_system", "parking_id", name="parkering_uq"),)
+
+    id = Column(BigInteger, primary_key=True, index=True)
+    parking_area = Column(Text, nullable=False)
+    source_system = Column(Text, nullable=False)
+    area_number = Column(Integer, nullable=False, index=True)
+    parking_id = Column(BigInteger, nullable=False, index=True)
+    start_time = Column(DateTime, nullable=False, index=True)
+    end_time = Column(DateTime, nullable=True, index=True)
+    parking_time_min = Column(Float, nullable=True)
+    fee_ex_vat = Column(Float, nullable=True)
+    fee_inc_vat = Column(Float, nullable=True)
+    fee_vat = Column(Float, nullable=True)
+    car_license_number = Column(Text, nullable=True, index=True)
+    user_interface = Column(Text, nullable=True)
+    subtype = Column(Text, nullable=True)
+    status = Column(Text, nullable=False, index=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    raw_filename = Column(Text, nullable=True)
+
+
+class ParkingVehicle(Base):
+    __tablename__ = "kjoretoy"
+
+    plate = Column(Text, primary_key=True)
+    first_seen = Column(DateTime, nullable=True, index=True)
+    last_seen = Column(DateTime, nullable=True, index=True)
+    parkering_count = Column(BigInteger, nullable=True)
+    paid_total = Column(Float, nullable=True)
+    svv_fetched_at = Column(DateTime, nullable=True, index=True)
+    svv_status = Column(Integer, nullable=True)
+    svv_error = Column(Text, nullable=True)
+    svv_data = Column(JSON, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ParkingVehicleDetails(Base):
+    __tablename__ = "kjoretoy_nokkeldata"
+
+    plate = Column(Text, primary_key=True)
+    vin = Column(Text, nullable=True)
+    merke = Column(Text, nullable=True, index=True)
+    modell = Column(Text, nullable=True, index=True)
+    typebetegnelse = Column(Text, nullable=True)
+    kjoretoyklasse_kode = Column(Text, nullable=True)
+    kjoretoyklasse_navn = Column(Text, nullable=True, index=True)
+    registreringsstatus_kode = Column(Text, nullable=True)
+    registreringsstatus_tekst = Column(Text, nullable=True)
+    forstegangsregistrert_norge = Column(Date, nullable=True)
+    pkk_kontrollfrist = Column(Date, nullable=True)
+    egenvekt_kg = Column(Integer, nullable=True)
+    nyttelast_kg = Column(Integer, nullable=True)
+    tillatt_totalvekt_kg = Column(Integer, nullable=True)
+    tillatt_vogntogvekt_kg = Column(Integer, nullable=True)
+    tillatt_tilhengervekt_med_brems_kg = Column(Integer, nullable=True)
+    tillatt_tilhengervekt_uten_brems_kg = Column(Integer, nullable=True)
+    seter_totalt = Column(Integer, nullable=True)
+    lengde_mm = Column(Integer, nullable=True)
+    bredde_mm = Column(Integer, nullable=True)
+    hoyde_mm = Column(Integer, nullable=True)
+    rekkevidde_wltp_km = Column(Integer, nullable=True)
+    elforbruk_wltp_wh_km = Column(Integer, nullable=True)
+    motoreffekt_samlet_kw = Column(Float, nullable=True)
+    motoreffekt_kontinuerlig_kw = Column(Float, nullable=True)
+    maks_hastighet_kmt = Column(Integer, nullable=True)
+    stoy_db = Column(Integer, nullable=True)
+    abs = Column(Boolean, nullable=True)
+    farge = Column(Text, nullable=True)
+    svv_godkjennings_id = Column(Text, nullable=True)
+    svv_teknisk_gyldig_fra = Column(Date, nullable=True)
+    sist_synkronisert = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class AiQueryLog(Base):
@@ -2314,6 +2389,21 @@ PERFORMANCE_INDEXES = [
         "CREATE INDEX IF NOT EXISTS ix_import_runs_job_finished "
         "ON import_job_runs (job_name, finished_at DESC)",
     ),
+    (
+        "ix_parkering_plate_start",
+        "CREATE INDEX IF NOT EXISTS ix_parkering_plate_start "
+        "ON parkering (upper(car_license_number), start_time DESC)",
+    ),
+    (
+        "ix_parkering_start_status",
+        "CREATE INDEX IF NOT EXISTS ix_parkering_start_status "
+        "ON parkering (start_time DESC, status)",
+    ),
+    (
+        "ix_kjoretoy_merke_modell",
+        "CREATE INDEX IF NOT EXISTS ix_kjoretoy_merke_modell "
+        "ON kjoretoy_nokkeldata (merke, modell)",
+    ),
 ]
 
 
@@ -2413,6 +2503,14 @@ IMPORT_JOB_DEFINITIONS = {
         "expected_interval_minutes": 40 * 24 * 60,
         "warning_after_minutes": 55 * 24 * 60,
         "description": "Månedlig import av strømforbruk fra Elvia.",
+    },
+    "parking_history_import": {
+        "title": "Parkering historikk",
+        "category": "Parkering",
+        "source": "QNAP appdb",
+        "expected_interval_minutes": None,
+        "warning_after_minutes": None,
+        "description": "Migrert EasyPark-historikk med kjoretoydata fra Statens vegvesen.",
     },
 }
 
@@ -4057,6 +4155,9 @@ def format_short_number(value: Any, decimals: int = 0) -> str:
     if decimals:
         return f"{number:,.{decimals}f}".replace(",", " ")
     return f"{round(number):,}".replace(",", " ")
+
+
+templates.env.filters["short_number"] = format_short_number
 
 
 ENERGY_FIBARO_AREAS = [
@@ -6613,7 +6714,7 @@ async def health():
             "sun2_room_daily_stats", "sun2_import_runs", "sun2_tanning_sessions",
             "sun2_beds", "sun2_session_import_runs", "energy_hourly_consumption",
             "energy_import_runs", "energy_fibaro_samples", "hc3_meter_readings",
-            "ai_query_logs",
+            "parkering", "kjoretoy", "kjoretoy_nokkeldata", "ai_query_logs",
         ],
     }
 
@@ -7869,6 +7970,205 @@ async def sun2_room_stats_legacy_redirect(request: Request):
 @app.get("/sun2/room-stats/json")
 async def sun2_room_stats_json_legacy_redirect(request: Request):
     return redirect_keep_query(request, "/api/sun2/room-stats/json", status_code=307)
+
+
+@app.get("/parkering")
+async def parking_redirect(request: Request):
+    return redirect_keep_query(request, "/parkering/oversikt", status_code=307)
+
+
+def normalize_plate(value: Optional[str]) -> str:
+    return re.sub(r"\s+", "", (value or "").strip().upper())
+
+
+@app.get("/parkering/oversikt", response_class=HTMLResponse)
+async def parking_overview_view(request: Request):
+    today = local_now_naive().date()
+    month_start = today.replace(day=1)
+    async with async_session() as session:
+        total_row = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
+                    func.coalesce(func.sum(ParkingSession.parking_time_min), 0),
+                    func.min(ParkingSession.start_time),
+                    func.max(ParkingSession.start_time),
+                )
+            )
+        ).first()
+        month_row = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
+                )
+                .where(ParkingSession.start_time >= datetime.combine(month_start, time.min))
+            )
+        ).first()
+        vehicle_count = (await session.execute(select(func.count(ParkingVehicle.plate)))).scalar_one()
+        enriched_count = (await session.execute(select(func.count(ParkingVehicleDetails.plate)))).scalar_one()
+        latest = (
+            await session.execute(
+                select(ParkingSession)
+                .order_by(ParkingSession.start_time.desc())
+                .limit(10)
+            )
+        ).scalars().all()
+        top_plates = (
+            await session.execute(
+                select(
+                    ParkingVehicle.plate,
+                    ParkingVehicle.parkering_count,
+                    ParkingVehicle.paid_total,
+                    ParkingVehicleDetails.merke,
+                    ParkingVehicleDetails.modell,
+                    ParkingVehicleDetails.kjoretoyklasse_navn,
+                )
+                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                .order_by(ParkingVehicle.parkering_count.desc().nullslast(), ParkingVehicle.paid_total.desc().nullslast())
+                .limit(10)
+            )
+        ).all()
+        top_makes = (
+            await session.execute(
+                select(
+                    func.coalesce(ParkingVehicleDetails.merke, "Ukjent"),
+                    func.count(ParkingVehicleDetails.plate),
+                )
+                .group_by(func.coalesce(ParkingVehicleDetails.merke, "Ukjent"))
+                .order_by(func.count(ParkingVehicleDetails.plate).desc())
+                .limit(10)
+            )
+        ).all()
+    return templates.TemplateResponse(
+        request,
+        "parking_overview.html",
+        {
+            "total": {
+                "sessions": total_row[0] or 0,
+                "paid": total_row[1] or 0,
+                "minutes": total_row[2] or 0,
+                "first": total_row[3],
+                "last": total_row[4],
+                "vehicles": vehicle_count or 0,
+                "enriched": enriched_count or 0,
+            },
+            "month": {"sessions": month_row[0] or 0, "paid": month_row[1] or 0},
+            "latest": latest,
+            "top_plates": top_plates,
+            "top_makes": top_makes,
+        },
+    )
+
+
+@app.get("/parkering/parkeringer", response_class=HTMLResponse)
+async def parking_sessions_view(
+    request: Request,
+    plate: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=500),
+):
+    conditions = []
+    plate_value = normalize_plate(plate)
+    if plate_value:
+        conditions.append(func.upper(func.replace(ParkingSession.car_license_number, " ", "")) == plate_value)
+    from_day = parse_day(date_from) if date_from else None
+    to_day = parse_day(date_to) if date_to else None
+    if from_day:
+        conditions.append(ParkingSession.start_time >= datetime.combine(from_day, time.min))
+    if to_day:
+        conditions.append(ParkingSession.start_time < datetime.combine(to_day + timedelta(days=1), time.min))
+    if status:
+        conditions.append(ParkingSession.status == status)
+
+    async with async_session() as session:
+        stmt = select(ParkingSession).order_by(ParkingSession.start_time.desc()).limit(limit)
+        count_stmt = select(func.count(ParkingSession.id))
+        if conditions:
+            stmt = stmt.where(*conditions)
+            count_stmt = count_stmt.where(*conditions)
+        rows = (await session.execute(stmt)).scalars().all()
+        count = (await session.execute(count_stmt)).scalar_one()
+        statuses = (
+            await session.execute(
+                select(ParkingSession.status)
+                .group_by(ParkingSession.status)
+                .order_by(ParkingSession.status)
+            )
+        ).scalars().all()
+    return templates.TemplateResponse(
+        request,
+        "parking_sessions.html",
+        {
+            "rows": rows,
+            "count": count,
+            "statuses": statuses,
+            "filters": {
+                "plate": plate or "",
+                "date_from": date_from or "",
+                "date_to": date_to or "",
+                "status": status or "",
+                "limit": limit,
+            },
+        },
+    )
+
+
+@app.get("/parkering/kjoretoy", response_class=HTMLResponse)
+async def parking_vehicles_view(
+    request: Request,
+    q: Optional[str] = None,
+    merke: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=500),
+):
+    conditions = []
+    query = (q or "").strip()
+    if query:
+        like = f"%{query.upper()}%"
+        conditions.append(
+            or_(
+                func.upper(ParkingVehicle.plate).like(like),
+                func.upper(func.coalesce(ParkingVehicleDetails.merke, "")).like(like),
+                func.upper(func.coalesce(ParkingVehicleDetails.modell, "")).like(like),
+            )
+        )
+    if merke:
+        conditions.append(ParkingVehicleDetails.merke == merke)
+
+    async with async_session() as session:
+        stmt = (
+            select(ParkingVehicle, ParkingVehicleDetails)
+            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+            .order_by(ParkingVehicle.last_seen.desc().nullslast())
+            .limit(limit)
+        )
+        count_stmt = select(func.count(ParkingVehicle.plate)).outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+        if conditions:
+            stmt = stmt.where(*conditions)
+            count_stmt = count_stmt.where(*conditions)
+        rows = (await session.execute(stmt)).all()
+        count = (await session.execute(count_stmt)).scalar_one()
+        makes = (
+            await session.execute(
+                select(ParkingVehicleDetails.merke)
+                .where(ParkingVehicleDetails.merke.isnot(None))
+                .group_by(ParkingVehicleDetails.merke)
+                .order_by(ParkingVehicleDetails.merke)
+            )
+        ).scalars().all()
+    return templates.TemplateResponse(
+        request,
+        "parking_vehicles.html",
+        {
+            "rows": rows,
+            "count": count,
+            "makes": makes,
+            "filters": {"q": q or "", "merke": merke or "", "limit": limit},
+        },
+    )
 
 
 @app.get("/energi")

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parkeringer</title>
+    {% include "_styles.html" %}
+</head>
+<body class="theme-parking">
+    {% include "_header.html" %}
+    <main>
+        <section class="page-title"><div><h1>Parkeringer</h1><p>{{ count|short_number }} treff i historikken.</p></div></section>
+        <form class="filters" method="get">
+            <label>Regnr <input name="plate" value="{{ filters.plate }}"></label>
+            <label>Fra <input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+            <label>Til <input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+            <label>Status
+                <select name="status">
+                    <option value="">Alle</option>
+                    {% for item in statuses %}<option value="{{ item }}" {% if filters.status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+                </select>
+            </label>
+            <label>Antall <input type="number" name="limit" min="1" max="500" value="{{ filters.limit }}"></label>
+            <button class="primary" type="submit">Filtrer</button>
+        </form>
+        <section class="panel">
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Start</th><th>Slutt</th><th>Regnr</th><th>Område</th><th>Varighet</th><th>Beløp</th><th>Kilde</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>{{ row.start_time|source_time }}</td>
+                            <td>{{ row.end_time|source_time }}</td>
+                            <td><a href="/parkering/kjoretoy?q={{ row.car_license_number }}">{{ row.car_license_number or "-" }}</a></td>
+                            <td>{{ row.parking_area }}<br><small>{{ row.area_number }}</small></td>
+                            <td>{{ row.parking_time_min|short_number }} min</td>
+                            <td>{{ row.fee_inc_vat|short_number }} kr</td>
+                            <td>{{ row.source_system }}<br><small>{{ row.user_interface or "" }} {{ row.subtype or "" }}</small></td>
+                            <td>{{ row.status }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

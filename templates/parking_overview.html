@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parkering</title>
+    {% include "_styles.html" %}
+    <style>
+        .parking-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(185px,1fr)); gap:.75rem; }
+        .parking-card { background:var(--panel); border:1px solid var(--line); border-top:4px solid var(--page-accent); border-radius:10px; padding:.85rem; box-shadow:var(--shadow-1); }
+        .parking-card span { display:block; color:var(--muted); font-size:.78rem; font-weight:800; text-transform:uppercase; }
+        .parking-card strong { display:block; color:var(--brand-dark); font-size:1.45rem; line-height:1.15; margin-top:.18rem; }
+        .parking-table { width:100%; border-collapse:separate; border-spacing:0; background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; box-shadow:var(--shadow-1); }
+        .parking-table th, .parking-table td { padding:.62rem .7rem; border-bottom:1px solid var(--line-soft); text-align:left; vertical-align:top; }
+        .parking-table th { background:#f6f8fb; color:#627085; font-size:.75rem; text-transform:uppercase; }
+        .parking-table tr:last-child td { border-bottom:0; }
+        .section-split { display:grid; grid-template-columns:1.15fr .85fr; gap:1rem; margin-top:1rem; }
+        @media (max-width: 840px) { .section-split { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body class="theme-parking">
+    {% include "_header.html" %}
+    <main>
+        <section class="page-title">
+            <div>
+                <h1>Parkering</h1>
+                <p>EasyPark-historikk med kjøretøyberikelse fra Statens vegvesen.</p>
+            </div>
+        </section>
+
+        <section class="parking-grid">
+            <div class="parking-card"><span>Parkeringer</span><strong>{{ total.sessions|short_number }}</strong></div>
+            <div class="parking-card"><span>Omsetning</span><strong>{{ total.paid|short_number }} kr</strong></div>
+            <div class="parking-card"><span>Kjøretøy</span><strong>{{ total.vehicles|short_number }}</strong></div>
+            <div class="parking-card"><span>SVV-beriket</span><strong>{{ total.enriched|short_number }}</strong></div>
+            <div class="parking-card"><span>Denne måneden</span><strong>{{ month.sessions|short_number }}</strong></div>
+            <div class="parking-card"><span>Periode</span><strong style="font-size:1rem">{{ total.first|source_time_short }} - {{ total.last|source_time_short }}</strong></div>
+        </section>
+
+        <section class="section-split">
+            <article>
+                <h2>Siste parkeringer</h2>
+                <table class="parking-table">
+                    <thead><tr><th>Tid</th><th>Regnr</th><th>Varighet</th><th>Beløp</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for row in latest %}
+                        <tr>
+                            <td>{{ row.start_time|source_time }}</td>
+                            <td><a href="/parkering/parkeringer?plate={{ row.car_license_number }}">{{ row.car_license_number or "-" }}</a></td>
+                            <td>{{ row.parking_time_min|short_number }} min</td>
+                            <td>{{ row.fee_inc_vat|short_number }} kr</td>
+                            <td>{{ row.status }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+            <article>
+                <h2>Mest brukte kjøretøy</h2>
+                <table class="parking-table">
+                    <thead><tr><th>Regnr</th><th>Kjøretøy</th><th>Antall</th><th>Beløp</th></tr></thead>
+                    <tbody>
+                    {% for plate, count, paid, merke, modell, klasse in top_plates %}
+                        <tr>
+                            <td><a href="/parkering/kjoretoy?q={{ plate }}">{{ plate }}</a></td>
+                            <td>{{ merke or "Ukjent" }} {{ modell or "" }}<br><small>{{ klasse or "" }}</small></td>
+                            <td>{{ count|short_number }}</td>
+                            <td>{{ paid|short_number }} kr</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </article>
+        </section>
+
+        <section style="margin-top:1rem">
+            <h2>Merker i historikken</h2>
+            <table class="parking-table">
+                <thead><tr><th>Merke</th><th>Kjøretøy</th></tr></thead>
+                <tbody>
+                {% for merke, count in top_makes %}
+                    <tr><td>{{ merke }}</td><td>{{ count|short_number }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>

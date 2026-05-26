@@ -110,6 +110,13 @@ html body {
     --section-ring: var(--energy-ring);
 }
 
+.app-nav.section-parking {
+    --section-color: var(--parking-color);
+    --section-soft: var(--parking-soft);
+    --section-border: var(--parking-border);
+    --section-ring: var(--parking-ring);
+}
+
 .app-nav.section-ai {
     --section-color: var(--ai-color);
     --section-soft: var(--ai-soft);

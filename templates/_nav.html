@@ -5,6 +5,7 @@
 {% set is_cleaning = current_path.startswith("/renhold") %}
 {% set is_sun2 = current_path.startswith("/soling") %}
 {% set is_energy = current_path.startswith("/energi") %}
+{% set is_parking = current_path.startswith("/parkering") %}
 {% set is_ai = current_path.startswith("/ai") %}
 {% set is_account = current_path.startswith("/konto") %}
 {% macro sub_button(path, label, icon, active) -%}
@@ -30,6 +31,8 @@
         <circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c.7-3.4 2.6-5 5.5-5"></path><circle cx="16.5" cy="9" r="2.5"></circle><path d="M14 14.5c2.8.3 4.6 1.8 5.2 4.5"></path>
         {% elif icon == "book" %}
         <path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 0-4-4V4Z"></path><path d="M5 16V4"></path>
+        {% elif icon == "parking" %}
+        <path d="M7 20V4h6.2a4.7 4.7 0 0 1 0 9.4H10.5"></path><path d="M10.5 13.4V20"></path>
         {% else %}
         <path d="M5 12h14"></path><path d="M12 5v14"></path>
         {% endif %}
@@ -37,7 +40,7 @@
     <span class="nav-sub-label">{{ label }}</span>
 </a>
 {%- endmacro %}
-<nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_cleaning %}section-cleaning{% elif is_sun2 %}section-sun2{% elif is_energy %}section-energy{% elif is_ai %}section-ai{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
+<nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_cleaning %}section-cleaning{% elif is_sun2 %}section-sun2{% elif is_energy %}section-energy{% elif is_parking %}section-parking{% elif is_ai %}section-ai{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
     <div class="nav-row nav-main">
         <a class="button nav-status has-sub {% if is_status %}active{% endif %}" href="/status/dashboard" aria-label="Status" title="Status">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -119,6 +122,19 @@
             {{ sub_button("/energi/status", "Status", "dashboard", current_path == "/energi/status") }}
             {{ sub_button("/energi/forbruk-per-seng", "Forbruk/seng", "bed", current_path == "/energi/forbruk-per-seng") }}
             {{ sub_button("/energi/elvia", "Elvia", "chart", current_path == "/energi/elvia") }}
+        </div>
+
+        <a class="button nav-parking has-sub {% if is_parking %}active{% endif %}" href="/parkering/oversikt" aria-label="Parkering" title="Parkering">
+            <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M7 20V4h6.2a4.7 4.7 0 0 1 0 9.4H10.5"></path><path d="M10.5 13.4V20"></path>
+            </svg>
+            <span class="nav-label">Parkering</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
+        </a>
+        <div class="nav-row nav-sub {% if is_parking %}active-section{% endif %}" aria-label="Undermeny for parkering">
+            {{ sub_button("/parkering/oversikt", "Oversikt", "dashboard", current_path == "/parkering/oversikt") }}
+            {{ sub_button("/parkering/parkeringer", "Parkeringer", "list", current_path == "/parkering/parkeringer") }}
+            {{ sub_button("/parkering/kjoretoy", "Kjøretøy", "parking", current_path == "/parkering/kjoretoy") }}
         </div>
 
         <a class="button nav-ai has-sub {% if is_ai %}active{% endif %}" href="/ai/sok" aria-label="AI søk" title="AI søk">

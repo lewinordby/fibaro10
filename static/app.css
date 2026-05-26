@@ -51,6 +51,10 @@
     --energy-soft: #fff4da;
     --energy-border: #dfc076;
     --energy-ring: rgba(154, 102, 15, 0.26);
+    --parking-color: #1f6f78;
+    --parking-soft: #e8f5f6;
+    --parking-border: #a9d7dc;
+    --parking-ring: rgba(31, 111, 120, 0.24);
     --ai-color: #4b63b6;
     --ai-soft: #edf2ff;
     --ai-border: #c8d5ff;
@@ -115,6 +119,13 @@ body.theme-energy {
     --page-accent-soft: var(--energy-soft);
     --page-accent-border: var(--energy-border);
     --page-accent-ring: var(--energy-ring);
+}
+
+body.theme-parking {
+    --page-accent: var(--parking-color);
+    --page-accent-soft: var(--parking-soft);
+    --page-accent-border: var(--parking-border);
+    --page-accent-ring: var(--parking-ring);
 }
 
 body.theme-sun2 {

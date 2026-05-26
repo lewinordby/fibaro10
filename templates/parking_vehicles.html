@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kjøretøy</title>
+    {% include "_styles.html" %}
+</head>
+<body class="theme-parking">
+    {% include "_header.html" %}
+    <main>
+        <section class="page-title"><div><h1>Kjøretøy</h1><p>{{ count|short_number }} treff med parkeringshistorikk og eventuell SVV-berikelse.</p></div></section>
+        <form class="filters" method="get">
+            <label>Søk <input name="q" value="{{ filters.q }}" placeholder="Regnr, merke eller modell"></label>
+            <label>Merke
+                <select name="merke">
+                    <option value="">Alle</option>
+                    {% for item in makes %}<option value="{{ item }}" {% if filters.merke == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+                </select>
+            </label>
+            <label>Antall <input type="number" name="limit" min="1" max="500" value="{{ filters.limit }}"></label>
+            <button class="primary" type="submit">Filtrer</button>
+        </form>
+        <section class="panel">
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Regnr</th><th>Kjøretøy</th><th>Klasse</th><th>Først/sist sett</th><th>Parkeringer</th><th>Beløp</th><th>SVV</th></tr></thead>
+                    <tbody>
+                    {% for vehicle, details in rows %}
+                        <tr>
+                            <td><a href="/parkering/parkeringer?plate={{ vehicle.plate }}">{{ vehicle.plate }}</a></td>
+                            <td><strong>{{ details.merke if details else "" }} {{ details.modell if details else "" }}</strong><br><small>{{ details.typebetegnelse if details else "" }}</small></td>
+                            <td>{{ details.kjoretoyklasse_navn if details else "-" }}<br><small>{{ details.registreringsstatus_tekst if details else "" }}</small></td>
+                            <td>{{ vehicle.first_seen|source_time_short }}<br>{{ vehicle.last_seen|source_time_short }}</td>
+                            <td>{{ vehicle.parkering_count|short_number }}</td>
+                            <td>{{ vehicle.paid_total|short_number }} kr</td>
+                            <td>{{ vehicle.svv_status or "-" }}<br><small>{{ vehicle.svv_fetched_at|localtime_short }}</small></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
