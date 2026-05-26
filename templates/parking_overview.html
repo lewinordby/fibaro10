@@ -50,7 +50,7 @@
         .plate-link { font-size:1rem; letter-spacing:.02em; white-space:nowrap; }
         .vehicle-info { min-width:0; }
         .vehicle-title { display:block; color:var(--muted); font-size:.86rem; font-weight:720; line-height:1.22; }
-        .vehicle-meta { display:grid; gap:.12rem; margin-top:.22rem; color:var(--muted); font-size:.78rem; font-weight:760; line-height:1.25; }
+        .vehicle-meta { margin-top:.18rem; color:var(--muted); font-size:.78rem; font-weight:760; line-height:1.25; }
         .vehicle-meta span { display:block; }
         .source-cell { color:var(--muted); white-space:nowrap; font-size:.86rem; }
         .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.15rem; min-height:1.8rem; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--brand-dark); text-decoration:none; font-weight:760; }
@@ -157,8 +157,7 @@
                                     {% endif %}
                                     {% if item.vehicle_name or item.vehicle_area %}
                                     <div class="vehicle-meta">
-                                        {% if item.vehicle_name %}<span>{{ item.vehicle_name }}</span>{% endif %}
-                                        {% if item.vehicle_area %}<span>{{ item.vehicle_area }}</span>{% endif %}
+                                        <span>{{ [item.vehicle_name, item.vehicle_area]|select|join(", ") }}</span>
                                     </div>
                                     {% endif %}
                                 </div>
