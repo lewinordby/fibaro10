@@ -2710,6 +2710,13 @@ def int_value(value: Any) -> Optional[int]:
 def float_value(value: Any) -> Optional[float]:
     if value is None or value == "":
         return None
+    if isinstance(value, str):
+        normalized = value.strip().replace("\u00a0", "").replace(" ", "")
+        if "," in normalized and "." in normalized:
+            normalized = normalized.replace(".", "").replace(",", ".")
+        elif "," in normalized:
+            normalized = normalized.replace(",", ".")
+        value = normalized
     try:
         return float(value)
     except (TypeError, ValueError):
