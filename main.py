@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, case, delete, func, or_, select, text as sql_text, tuple_, update
+from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, and_, case, delete, func, or_, select, text as sql_text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
@@ -63,6 +63,19 @@ NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
 NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_ACCESS_TOPIC = os.getenv("NTFY_ACCESS_TOPIC", f"sun2-tilgang-{MASTER_ACCESS_KEY_HASH[:12]}")
+SVV_API_KEY = os.getenv("SVV_API_KEY", "").strip()
+SVV_API_URL = os.getenv(
+    "SVV_API_URL",
+    "https://www.vegvesen.no/ws/no/vegvesen/kjoretoy/felles/datautlevering/enkeltoppslag/kjoretoydata",
+).strip()
+SVV_API_AUTH_HEADER = os.getenv("SVV_API_AUTH_HEADER", "SVV-Authorization").strip()
+SVV_API_AUTH_PREFIX = os.getenv("SVV_API_AUTH_PREFIX", "Apikey ").strip()
+SVV_SYNC_ENABLED = os.getenv("SVV_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+SVV_SYNC_INTERVAL_MINUTES = max(1, int(os.getenv("SVV_SYNC_INTERVAL_MINUTES", "10")))
+SVV_SYNC_BATCH_SIZE = max(1, int(os.getenv("SVV_SYNC_BATCH_SIZE", "50")))
+SVV_IMPORT_SYNC_BATCH_SIZE = max(0, int(os.getenv("SVV_IMPORT_SYNC_BATCH_SIZE", "5")))
+SVV_RETRY_AFTER_HOURS = max(1, int(os.getenv("SVV_RETRY_AFTER_HOURS", "24")))
+svv_sync_task: Optional[asyncio.Task] = None
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
@@ -2535,6 +2548,14 @@ IMPORT_JOB_DEFINITIONS = {
         "expected_interval_minutes": None,
         "warning_after_minutes": None,
         "description": "Migrert EasyPark-historikk med kjoretoydata fra Statens vegvesen.",
+    },
+    "parking_vehicle_svv_sync": {
+        "title": "Kjøretøydata fra SVV",
+        "category": "Parkering",
+        "source": "Statens vegvesen",
+        "expected_interval_minutes": 30,
+        "warning_after_minutes": 90,
+        "description": "Løpende berikelse av registreringsnummer som mangler tekniske kjøretøydata.",
     },
 }
 
@@ -6673,6 +6694,7 @@ async def recent_ai_logs(limit: int = 10) -> list[AiQueryLog]:
 
 @app.on_event("startup")
 async def startup():
+    global svv_sync_task
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         for table_name, columns in STARTUP_COLUMNS.items():
@@ -6723,6 +6745,8 @@ async def startup():
         for config_key in CONFIG_DEFINITIONS:
             await get_or_create_config(session, config_key)
         await session.commit()
+    if SVV_SYNC_ENABLED and SVV_API_KEY and svv_sync_task is None:
+        svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
 
 
 @app.get("/health")
@@ -8233,6 +8257,270 @@ def import_counts_for_json(counts: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def compact_plate(value: Optional[str]) -> str:
+    return re.sub(r"[^A-Za-z0-9]", "", value or "").upper()
+
+
+def first_value(*values: Any) -> Any:
+    for value in values:
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def data_path(data: Any, *path: Any) -> Any:
+    current = data
+    for key in path:
+        if current is None:
+            return None
+        if isinstance(key, int):
+            if not isinstance(current, list) or len(current) <= key:
+                return None
+            current = current[key]
+        elif isinstance(current, dict):
+            current = current.get(key)
+        else:
+            return None
+    return current
+
+
+def code_text(value: Any) -> Any:
+    if isinstance(value, dict):
+        return first_value(value.get("kodeNavn"), value.get("kodeBeskrivelse"), value.get("kodeVerdi"))
+    return value
+
+
+def parse_int_value(value: Any) -> Optional[int]:
+    if value in (None, ""):
+        return None
+    try:
+        return int(float(str(value).replace(",", ".")))
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_float_value(value: Any) -> Optional[float]:
+    if value in (None, ""):
+        return None
+    try:
+        return float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_date_value(value: Any) -> Optional[date]:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return None
+
+
+def first_vehicle_data(raw: Dict[str, Any]) -> Dict[str, Any]:
+    vehicles = raw.get("kjoretoydataListe")
+    if isinstance(vehicles, list) and vehicles:
+        return vehicles[0] if isinstance(vehicles[0], dict) else {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def svv_detail_values(plate: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+    vehicle = first_vehicle_data(raw)
+    tech = data_path(vehicle, "godkjenning", "tekniskGodkjenning")
+    data = data_path(tech, "tekniskeData") or {}
+    generelt = data_path(data, "generelt") or {}
+    klassifisering = data_path(tech, "kjoretoyklassifisering") or {}
+    weights = data_path(data, "vekter") or {}
+    dimensions = data_path(data, "dimensjoner") or {}
+    personer = data_path(data, "persontall") or {}
+    miljodata = data_path(data, "miljodata") or {}
+    motor = data_path(data, "motorOgDrivverk", "motor") or []
+    motor0 = motor[0] if isinstance(motor, list) and motor else {}
+    color = first_value(
+        code_text(data_path(data, "karosseriOgLasteplan", "rFarge", 0)),
+        code_text(data_path(data, "karosseriOgLasteplan", "farge", 0)),
+    )
+    return {
+        "plate": compact_plate(plate),
+        "vin": data_path(vehicle, "kjoretoyId", "understellsnummer"),
+        "merke": first_value(
+            data_path(generelt, "merke", 0, "merke"),
+            data_path(generelt, "merke", 0, "merkeNavn"),
+            data_path(generelt, "merke", 0),
+        ),
+        "modell": first_value(
+            data_path(generelt, "handelsbetegnelse", 0),
+            data_path(generelt, "modell"),
+        ),
+        "typebetegnelse": data_path(generelt, "typebetegnelse"),
+        "kjoretoyklasse_kode": data_path(klassifisering, "tekniskKode", "kodeVerdi"),
+        "kjoretoyklasse_navn": code_text(data_path(klassifisering, "tekniskKode")),
+        "registreringsstatus_kode": data_path(vehicle, "registrering", "registreringsstatus", "kodeVerdi"),
+        "registreringsstatus_tekst": code_text(data_path(vehicle, "registrering", "registreringsstatus")),
+        "forstegangsregistrert_norge": parse_date_value(data_path(vehicle, "forstegangsregistrering", "registrertForstegangNorgeDato")),
+        "pkk_kontrollfrist": parse_date_value(data_path(vehicle, "periodiskKjoretoyKontroll", "kontrollfrist")),
+        "egenvekt_kg": parse_int_value(first_value(data_path(weights, "egenvekt"), data_path(weights, "egenvektMinimum"))),
+        "nyttelast_kg": parse_int_value(data_path(weights, "nyttelast")),
+        "tillatt_totalvekt_kg": parse_int_value(data_path(weights, "tillattTotalvekt")),
+        "tillatt_vogntogvekt_kg": parse_int_value(data_path(weights, "tillattVogntogvekt")),
+        "tillatt_tilhengervekt_med_brems_kg": parse_int_value(data_path(weights, "tillattTilhengervektMedBrems")),
+        "tillatt_tilhengervekt_uten_brems_kg": parse_int_value(data_path(weights, "tillattTilhengervektUtenBrems")),
+        "seter_totalt": parse_int_value(first_value(data_path(personer, "sitteplasserTotalt"), data_path(personer, "sitteplasserForan"))),
+        "lengde_mm": parse_int_value(data_path(dimensions, "lengde")),
+        "bredde_mm": parse_int_value(data_path(dimensions, "bredde")),
+        "hoyde_mm": parse_int_value(data_path(dimensions, "hoyde")),
+        "rekkevidde_wltp_km": parse_int_value(data_path(miljodata, "wltpKjoretoyspesifikk", "rekkeviddeKm")),
+        "elforbruk_wltp_wh_km": parse_int_value(data_path(miljodata, "wltpKjoretoyspesifikk", "elforbrukWhPerKm")),
+        "motoreffekt_samlet_kw": parse_float_value(data_path(motor0, "drivstoff", 0, "maksEffektPrTime")),
+        "motoreffekt_kontinuerlig_kw": parse_float_value(data_path(motor0, "drivstoff", 0, "maksNettoEffekt")),
+        "maks_hastighet_kmt": parse_int_value(data_path(data, "maksimumHastighet", "hastighet")),
+        "stoy_db": parse_int_value(data_path(data, "miljodata", "stoy", "standstoy")),
+        "abs": data_path(data, "bremser", "abs"),
+        "farge": color,
+        "svv_godkjennings_id": first_value(
+            data_path(tech, "godkjenningsId"),
+            data_path(vehicle, "godkjenning", "forstegangsGodkjenning", "godkjenningsId"),
+        ),
+        "svv_teknisk_gyldig_fra": parse_date_value(first_value(data_path(tech, "gyldigFraDato"), data_path(tech, "gyldigFraDatoTid"))),
+        "sist_synkronisert": datetime.utcnow(),
+    }
+
+
+def svv_api_lookup_sync(plate: str) -> Dict[str, Any]:
+    if not SVV_API_KEY:
+        raise RuntimeError("SVV_API_KEY mangler.")
+    params = urlencode({"kjennemerke": compact_plate(plate)})
+    url = f"{SVV_API_URL}?{params}"
+    auth_value = f"{SVV_API_AUTH_PREFIX} {SVV_API_KEY}".strip() if SVV_API_AUTH_PREFIX else SVV_API_KEY
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            SVV_API_AUTH_HEADER: auth_value,
+            "User-Agent": "fibaro10/1.0",
+        },
+        method="GET",
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        payload = response.read().decode("utf-8", errors="replace")
+    return json.loads(payload)
+
+
+async def svv_candidate_plates(session, limit: int) -> list[str]:
+    retry_before = datetime.utcnow() - timedelta(hours=SVV_RETRY_AFTER_HOURS)
+    rows = (
+        await session.execute(
+            select(ParkingVehicle.plate)
+            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+            .where(ParkingVehicle.plate.isnot(None))
+            .where(ParkingVehicle.plate != "")
+            .where(
+                or_(
+                    ParkingVehicleDetails.plate.is_(None),
+                    ParkingVehicle.svv_status.is_(None),
+                    ParkingVehicle.svv_fetched_at.is_(None),
+                    and_(
+                        ParkingVehicle.svv_status != 200,
+                        ParkingVehicle.svv_fetched_at < retry_before,
+                    ),
+                )
+            )
+            .order_by(
+                case((ParkingVehicleDetails.plate.is_(None), 0), else_=1),
+                ParkingVehicle.svv_fetched_at.asc().nullsfirst(),
+                ParkingVehicle.last_seen.desc().nullslast(),
+            )
+            .limit(limit)
+        )
+    ).scalars().all()
+    return [plate for plate in rows if compact_plate(plate)]
+
+
+async def upsert_vehicle_svv_data(session, plate: str, raw: Dict[str, Any], status_code: int = 200, error: Optional[str] = None) -> bool:
+    plate_value = compact_plate(plate)
+    vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
+    if not vehicle:
+        return False
+    now = datetime.utcnow()
+    vehicle.svv_fetched_at = now
+    vehicle.svv_status = status_code
+    vehicle.svv_error = error
+    vehicle.svv_data = raw if raw else None
+    vehicle.updated_at = now
+    if status_code != 200 or not raw:
+        return False
+    values = svv_detail_values(plate_value, raw)
+    detail = (await session.execute(select(ParkingVehicleDetails).where(ParkingVehicleDetails.plate == plate_value))).scalars().first()
+    if not detail:
+        detail = ParkingVehicleDetails(plate=plate_value)
+        session.add(detail)
+    for key, value in values.items():
+        setattr(detail, key, value)
+    return True
+
+
+async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "background") -> Dict[str, Any]:
+    started_at = local_now_naive()
+    if not SVV_API_KEY:
+        async with async_session() as session:
+            await record_import_job(
+                session,
+                "parking_vehicle_svv_sync",
+                ok=False,
+                source=source,
+                started_at=started_at,
+                records_imported=0,
+                records_total=0,
+                message="SVV_API_KEY mangler.",
+            )
+            await session.commit()
+        return {"ok": False, "processed": 0, "updated": 0, "failed": 0, "message": "SVV_API_KEY mangler."}
+    processed = updated = failed = 0
+    errors: list[str] = []
+    async with async_session() as session:
+        plates = await svv_candidate_plates(session, limit)
+        for plate in plates:
+            processed += 1
+            try:
+                raw = await asyncio.to_thread(svv_api_lookup_sync, plate)
+                if await upsert_vehicle_svv_data(session, plate, raw, 200, None):
+                    updated += 1
+            except urllib.error.HTTPError as exc:
+                failed += 1
+                message = f"HTTP {exc.code}"
+                errors.append(f"{plate}: {message}")
+                await upsert_vehicle_svv_data(session, plate, {}, exc.code, message)
+            except Exception as exc:
+                failed += 1
+                message = str(exc)[:240]
+                errors.append(f"{plate}: {message}")
+                await upsert_vehicle_svv_data(session, plate, {}, 0, message)
+            await session.commit()
+        await record_import_job(
+            session,
+            "parking_vehicle_svv_sync",
+            ok=failed == 0,
+            source=source,
+            started_at=started_at,
+            records_imported=updated,
+            records_total=processed,
+            message=f"{updated} oppdatert, {failed} feilet, {processed} behandlet.",
+            raw={"errors": errors[:20]},
+        )
+        await session.commit()
+    return {"ok": failed == 0, "processed": processed, "updated": updated, "failed": failed, "errors": errors[:20]}
+
+
+async def parking_vehicle_svv_worker() -> None:
+    await asyncio.sleep(30)
+    while True:
+        try:
+            await run_vehicle_svv_sync(SVV_SYNC_BATCH_SIZE, "SVV bakgrunn")
+        except Exception:
+            pass
+        await asyncio.sleep(SVV_SYNC_INTERVAL_MINUTES * 60)
+
+
 @app.post("/api/parkering/import-csv")
 async def parking_easypark_import_csv(request: Request):
     started_at = local_now_naive()
@@ -8269,6 +8557,8 @@ async def parking_easypark_import_csv(request: Request):
                 },
             )
             await session.commit()
+        if SVV_IMPORT_SYNC_BATCH_SIZE and SVV_API_KEY and SVV_SYNC_ENABLED:
+            asyncio.create_task(run_vehicle_svv_sync(SVV_IMPORT_SYNC_BATCH_SIZE, "EasyPark import"))
         return {"status": "ok", **counts, "vehicles_refreshed": vehicle_count}
     except Exception as exc:
         async with async_session() as session:
@@ -8285,6 +8575,15 @@ async def parking_easypark_import_csv(request: Request):
             )
             await session.commit()
         return JSONResponse({"status": "error", "detail": str(exc)}, status_code=400)
+
+
+@app.post("/api/parkering/svv-sync")
+async def parking_vehicle_svv_sync_api(request: Request, limit: int = Query(SVV_SYNC_BATCH_SIZE, ge=1, le=500)):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    result = await run_vehicle_svv_sync(limit, "Manuell")
+    return result
 
 
 def parking_slot_remainder_minutes(row: ParkingSession) -> Optional[int]:
