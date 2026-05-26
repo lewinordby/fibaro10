@@ -24,9 +24,11 @@ ARTIFACT_DIR = DATA_DIR / "artifacts"
 STATE_PATH = DATA_DIR / "state.json"
 
 REPORT_URL = os.getenv("EASYPARK_REPORT_URL", "https://dashboard.easypark.net/search-parkings/1")
-RUN_INTERVAL_MINUTES = int(os.getenv("EASYPARK_RUN_INTERVAL_MINUTES", "1440"))
-RUN_AT = os.getenv("EASYPARK_RUN_AT", "02:30").strip()
+RUN_INTERVAL_MINUTES = int(os.getenv("EASYPARK_RUN_INTERVAL_MINUTES", "2"))
+RUN_AT = os.getenv("EASYPARK_RUN_AT", "").strip()
 RUN_ON_START = os.getenv("EASYPARK_RUN_ON_START", "false").strip().lower() in {"1", "true", "yes", "ja"}
+SCHEDULE_MODE = os.getenv("EASYPARK_SCHEDULE_MODE", "recent").strip().lower()
+RECENT_DAYS = max(1, int(os.getenv("EASYPARK_RECENT_DAYS", "2")))
 HEADLESS = os.getenv("EASYPARK_HEADLESS", "true").strip().lower() not in {"0", "false", "no", "nei"}
 CODE_COOLDOWN_MINUTES = int(os.getenv("EASYPARK_CODE_COOLDOWN_MINUTES", "5"))
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
@@ -99,6 +101,13 @@ def validate_period(from_day: date | None, to_day: date | None) -> None:
         raise RuntimeError("Fra-dato kan ikke være etter til-dato.")
     if to_day - from_day > timedelta(days=366):
         raise RuntimeError("EasyPark tillater maks ett år per eksport.")
+
+
+def scheduled_period() -> tuple[date | None, date | None]:
+    if SCHEDULE_MODE not in {"recent", "rolling"}:
+        return None, None
+    today = datetime.now(LOCAL_TZ).date()
+    return today - timedelta(days=RECENT_DAYS - 1), today
 
 
 def set_state(**values: Any) -> None:
@@ -517,6 +526,11 @@ async def run_once(from_day: date | None = None, to_day: date | None = None) -> 
         return await run_download_import(from_day, to_day)
 
 
+async def run_scheduled_once() -> dict[str, Any]:
+    from_day, to_day = scheduled_period()
+    return await run_once(from_day, to_day)
+
+
 async def run_backfill_year(year: int, end_day: date | None = None) -> dict[str, Any]:
     async with lock:
         results: list[dict[str, Any]] = []
@@ -538,13 +552,13 @@ async def run_backfill_year(year: int, end_day: date | None = None) -> dict[str,
 async def worker_loop() -> None:
     if RUN_ON_START:
         try:
-            await run_once()
+            await run_scheduled_once()
         except Exception:
             pass
     while True:
         await asyncio.sleep(seconds_until_next_run())
         try:
-            await run_once()
+            await run_scheduled_once()
         except Exception:
             pass
 
