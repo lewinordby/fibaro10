@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Fibaro10 parkering navneoppslag",
+  "version": "0.1.0",
+  "description": "Henter biler som mangler navn og lar deg skrive navn manuelt til Fibaro10.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Fibaro10 navneoppslag",
+    "default_popup": "popup.html"
+  }
+}

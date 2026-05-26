@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <title>Fibaro10 navneoppslag</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Navneoppslag</h1>
+    <p>Hent biler som mangler navn, skriv inn navn manuelt og lagre til Fibaro10.</p>
+  </header>
+
+  <section class="card">
+    <label>Fibaro10 URL
+      <input id="apiBase" placeholder="https://fibaro10...">
+    </label>
+    <div class="cols">
+      <label>Brukernavn
+        <input id="apiUsername" autocomplete="username">
+      </label>
+      <label>Passord
+        <input id="apiPassword" type="password" autocomplete="current-password">
+      </label>
+    </div>
+    <label>Oppslag URL-mal
+      <input id="lookupUrlTemplate" placeholder="https://...kjennemerke={plate}">
+    </label>
+    <div class="actions">
+      <button id="saveSettings" class="secondary">Lagre oppsett</button>
+      <button id="fetchBatch" class="primary">Hent liste</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="current">
+      <span>Aktiv bil</span>
+      <strong id="currentPlate">-</strong>
+    </div>
+    <label>Navn
+      <input id="vehicleName" placeholder="F.eks. firma eller kunde">
+    </label>
+    <div class="actions">
+      <button id="openCurrent" class="secondary">Åpne oppslag</button>
+      <button id="saveName" class="primary">Lagre og neste</button>
+    </div>
+    <div class="mini-actions">
+      <button id="previous" class="ghost">Forrige</button>
+      <button id="skip" class="ghost">Hopp over</button>
+    </div>
+  </section>
+
+  <section class="card status-card">
+    <div class="status-grid">
+      <div>
+        <span>Status</span>
+        <strong id="message">Klar</strong>
+      </div>
+      <div>
+        <span>Fremdrift</span>
+        <strong id="counter">0/0</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="card log-card">
+    <div class="log-title">Logg</div>
+    <div id="log"></div>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>
