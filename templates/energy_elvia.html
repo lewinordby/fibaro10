@@ -16,6 +16,16 @@
         .summary-card span { display:block; color:var(--muted); font-size:0.76rem; }
         .summary-card strong { display:block; margin-top:0.18rem; font-size:1.13rem; color:var(--brand-dark); }
         .summary-card small { display:block; margin-top:0.24rem; color:var(--muted); font-size:0.72rem; }
+        .recent-imports { display:grid; gap:0.7rem; margin:0 0 0.95rem; }
+        .import-card { background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--energy-color); border-radius:10px; padding:0.8rem; box-shadow:var(--shadow-1); }
+        .import-card.failed { border-left-color:#b65445; }
+        .import-card h2 { margin:0 0 0.2rem; color:var(--brand-dark); font-size:0.92rem; line-height:1.25; }
+        .import-card .meta { color:var(--muted); font-size:0.74rem; line-height:1.35; }
+        .import-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.45rem; margin-top:0.65rem; }
+        .import-metric { background:var(--panel-soft); border:1px solid var(--line-soft); border-radius:8px; padding:0.48rem; }
+        .import-metric span { display:block; color:var(--muted); font-size:0.68rem; }
+        .import-metric strong { display:block; margin-top:0.08rem; color:var(--brand-dark); font-size:0.98rem; }
+        .import-note { margin:0.55rem 0 0; color:#8a5d11; font-weight:760; font-size:0.78rem; }
         .upload-form { display:grid; gap:0.7rem; margin:0; }
         .upload-row { display:flex; flex-wrap:wrap; gap:0.55rem; align-items:center; }
         input[type="file"] { max-width:100%; padding:0.65rem; border:1px solid var(--line); border-radius:8px; background:var(--panel-soft); }
@@ -40,6 +50,7 @@
         .muted { color:var(--muted); }
         @media (min-width: 820px) {
             .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+            .recent-imports { grid-template-columns:repeat(3,minmax(0,1fr)); }
         }
         @media (min-width: 1160px) {
             .grid.two { grid-template-columns:minmax(0,0.85fr) minmax(0,1.15fr); align-items:start; }
@@ -89,6 +100,32 @@
                 <small>{{ latest_import.source_file if latest_import else "Ingen import ennå" }}</small>
             </div>
         </section>
+
+        {% if imports %}
+        <section class="recent-imports" aria-label="Siste Elvia-importer">
+            {% for run in imports[:3] %}
+            <article class="import-card {% if not run.ok %}failed{% endif %}">
+                <h2>{{ run.source_file or "Elvia-import" }}</h2>
+                <div class="meta">
+                    {{ run.timestamp|localtime }} · {{ run.hours_count or 0 }} timer
+                    {% if run.period_first and run.period_last %}
+                        · {{ run.period_first|source_time }} - {{ run.period_last|source_time }}
+                    {% endif %}
+                </div>
+                <div class="import-metrics">
+                    <div class="import-metric"><span>Nye</span><strong>{{ run.inserted_count or 0 }}</strong></div>
+                    <div class="import-metric"><span>Oppdatert</span><strong>{{ run.updated_count or 0 }}</strong></div>
+                    <div class="import-metric"><span>Uendret</span><strong>{{ run.skipped_count or 0 }}</strong></div>
+                </div>
+                {% if (run.inserted_count or 0) == 0 and (run.updated_count or 0) == 0 and (run.skipped_count or 0) > 0 %}
+                    <p class="import-note">Filen var allerede inne. Ingen timedata ble endret.</p>
+                {% elif run.message %}
+                    <p class="import-note">{{ run.message }}</p>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </section>
+        {% endif %}
 
         <section class="grid two">
             <article class="panel-card accent">
