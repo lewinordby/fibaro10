@@ -65,7 +65,7 @@
                             <td><a href="/parkering/parkeringer?plate={{ row.car_license_number }}">{{ row.car_license_number or "-" }}</a></td>
                             <td>
                                 {{ details.merke if details else "Ukjent" }} {{ details.modell if details else "" }}
-                                {% if item.year %}<br><span class="vehicle-note">{{ item.year }}</span>{% endif %}
+                                {% if item.year %}<br><span class="vehicle-note">Årsmodell {{ item.year }}</span>{% endif %}
                             </td>
                             <td>
                                 {{ row.parking_time_min|short_number }} min
