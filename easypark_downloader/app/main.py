@@ -69,6 +69,10 @@ def utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def fibaro10_datetime_iso() -> str:
+    return datetime.utcnow().replace(microsecond=0).isoformat()
+
+
 def set_state(**values: Any) -> None:
     state.update(values)
 
@@ -315,7 +319,7 @@ def report_failure_to_fibaro10(started_at: str, message: str) -> None:
                 "ok": False,
                 "source": "EasyPark downloader",
                 "started_at": started_at,
-                "finished_at": utcnow_iso(),
+                "finished_at": fibaro10_datetime_iso(),
                 "records_imported": 0,
                 "records_total": 0,
                 "message": message,
@@ -330,7 +334,7 @@ def report_failure_to_fibaro10(started_at: str, message: str) -> None:
 async def run_once() -> dict[str, Any]:
     async with lock:
         set_state(running=True, last_action="starting", last_error=None)
-        started = utcnow_iso()
+        started = fibaro10_datetime_iso()
         try:
             async with async_playwright() as playwright:
                 context = await playwright.chromium.launch_persistent_context(
