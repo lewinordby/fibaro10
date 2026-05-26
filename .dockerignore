@@ -12,3 +12,6 @@ _*.json
 sun2_session_scraper/data
 sun2_backfill_downloader/backfill_raw
 sun2_backfill_downloader/backfill_errors
+easypark_downloader/data
+easypark_downloader/artifacts
+easypark_downloader/downloads
