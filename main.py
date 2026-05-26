@@ -1038,6 +1038,9 @@ class ParkingVehicle(Base):
 
     plate = Column(Text, primary_key=True)
     navn = Column(Text, nullable=True)
+    omrade = Column(Text, nullable=True, index=True)
+    omrade_kilde = Column(Text, nullable=True)
+    omrade_oppdatert = Column(DateTime, nullable=True)
     sun2_id = Column(Text, nullable=True, index=True)
     notat = Column(Text, nullable=True)
     first_seen = Column(DateTime, nullable=True, index=True)
@@ -1417,6 +1420,12 @@ class ParkingVehicleNameUpdate(BaseModel):
     navn: str = Field("", max_length=500)
     sun2_id: Optional[str] = Field(None, max_length=120)
     notat: Optional[str] = Field(None, max_length=2000)
+    source: Optional[str] = Field(None, max_length=120)
+    raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ParkingVehicleAreaUpdate(BaseModel):
+    omrade: str = Field("", max_length=240)
     source: Optional[str] = Field(None, max_length=120)
     raw: Dict[str, Any] = Field(default_factory=dict)
 
@@ -2282,6 +2291,9 @@ STARTUP_COLUMNS = {
     ],
     "kjoretoy": [
         ("navn", "TEXT"),
+        ("omrade", "TEXT"),
+        ("omrade_kilde", "TEXT"),
+        ("omrade_oppdatert", "TIMESTAMP"),
         ("sun2_id", "TEXT"),
         ("notat", "TEXT"),
     ],
@@ -9028,6 +9040,10 @@ def vehicle_missing_name_condition():
     return or_(ParkingVehicle.navn.is_(None), func.trim(ParkingVehicle.navn) == "")
 
 
+def vehicle_missing_area_condition():
+    return or_(ParkingVehicle.omrade.is_(None), func.trim(ParkingVehicle.omrade) == "")
+
+
 async def parking_missing_name_rows(session, limit: int, offset: int = 0):
     return (
         await session.execute(
@@ -9041,10 +9057,24 @@ async def parking_missing_name_rows(session, limit: int, offset: int = 0):
     ).all()
 
 
+async def parking_missing_area_rows(session, limit: int, offset: int = 0):
+    return (
+        await session.execute(
+            select(ParkingVehicle, ParkingVehicleDetails)
+            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+            .where(vehicle_missing_area_condition())
+            .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+    ).all()
+
+
 def parking_vehicle_lookup_payload(vehicle: ParkingVehicle, details: Optional[ParkingVehicleDetails] = None) -> Dict[str, Any]:
     return {
         "plate": vehicle.plate,
         "navn": vehicle.navn,
+        "omrade": vehicle.omrade,
         "sun2_id": vehicle.sun2_id,
         "notat": vehicle.notat,
         "last_seen": vehicle.last_seen.isoformat() if vehicle.last_seen else None,
@@ -9081,6 +9111,34 @@ async def parking_name_lookup_view(request: Request, limit: int = Query(100, ge=
     )
 
 
+@app.get("/parkering/omrade-oppslag", response_class=HTMLResponse)
+async def parking_area_lookup_view(request: Request, limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)):
+    async with async_session() as session:
+        rows = await parking_missing_area_rows(session, limit, offset)
+        count = (
+            await session.execute(
+                select(func.count(ParkingVehicle.plate)).where(vehicle_missing_area_condition())
+            )
+        ).scalar_one()
+    plates = "\n".join(vehicle.plate for vehicle, _ in rows)
+    return templates.TemplateResponse(
+        request,
+        "parking_name_lookup.html",
+        {
+            "rows": rows,
+            "count": count,
+            "plates": plates,
+            "limit": limit,
+            "offset": offset,
+            "next_offset": offset + limit,
+            "prev_offset": max(0, offset - limit),
+            "mode": "omrade",
+            "title": "Områdeoppslag",
+            "description": "biler mangler område. Denne siden gir extensionen neste pakke pÃ¥",
+        },
+    )
+
+
 @app.get("/api/parkering/kjoretoy/mangler-navn")
 async def parking_missing_names_api(
     request: Request,
@@ -9096,6 +9154,30 @@ async def parking_missing_names_api(
         count = (
             await session.execute(
                 select(func.count(ParkingVehicle.plate)).where(vehicle_missing_name_condition())
+            )
+        ).scalar_one()
+    payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
+    if format == "txt":
+        text_body = "\n".join(item["plate"] for item in payload) + ("\n" if payload else "")
+        return StreamingResponse(iter([text_body]), media_type="text/plain; charset=utf-8")
+    return {"count": count, "limit": limit, "offset": offset, "rows": payload}
+
+
+@app.get("/api/parkering/kjoretoy/mangler-omrade")
+async def parking_missing_areas_api(
+    request: Request,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    format: str = "json",
+):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        rows = await parking_missing_area_rows(session, limit, offset)
+        count = (
+            await session.execute(
+                select(func.count(ParkingVehicle.plate)).where(vehicle_missing_area_condition())
             )
         ).scalar_one()
     payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
@@ -9137,6 +9219,29 @@ async def parking_vehicle_name_api(request: Request, plate: str, data: ParkingVe
         vehicle.updated_at = datetime.utcnow()
         await session.commit()
     return {"status": "ok", "plate": plate_value, "navn": name}
+
+
+@app.post("/api/parkering/kjoretoy/{plate}/omrade")
+async def parking_vehicle_area_api(request: Request, plate: str, data: ParkingVehicleAreaUpdate):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    plate_value = normalize_plate(plate)
+    area = (data.omrade or "").strip()
+    if not plate_value:
+        return JSONResponse({"detail": "Mangler registreringsnummer"}, status_code=400)
+    if not area:
+        return JSONResponse({"detail": "OmrÃ¥de mangler"}, status_code=400)
+    async with async_session() as session:
+        vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
+        if not vehicle:
+            return JSONResponse({"detail": "Kjoretoy ikke funnet"}, status_code=404)
+        vehicle.omrade = area
+        vehicle.omrade_kilde = (data.source or "manual-browser-helper").strip() or "manual-browser-helper"
+        vehicle.omrade_oppdatert = datetime.utcnow()
+        vehicle.updated_at = datetime.utcnow()
+        await session.commit()
+    return {"status": "ok", "plate": plate_value, "omrade": area}
 
 
 @app.get("/parkering/kjoretoy/{plate}", response_class=HTMLResponse)
@@ -9245,6 +9350,11 @@ async def parking_vehicle_detail_save(request: Request, plate: str):
         if not vehicle:
             raise HTTPException(status_code=404, detail="Kjøretøy ikke funnet")
         vehicle.navn = (form.get("navn") or "").strip() or None
+        previous_area = vehicle.omrade
+        vehicle.omrade = (form.get("omrade") or "").strip() or None
+        if vehicle.omrade and vehicle.omrade != previous_area:
+            vehicle.omrade_kilde = "manuell"
+            vehicle.omrade_oppdatert = datetime.utcnow()
         vehicle.sun2_id = (form.get("sun2_id") or "").strip() or None
         vehicle.notat = (form.get("notat") or "").strip() or None
         vehicle.updated_at = datetime.utcnow()

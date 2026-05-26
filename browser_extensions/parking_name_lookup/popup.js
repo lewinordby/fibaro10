@@ -81,7 +81,7 @@ function authHeaders(settings) {
 async function fetchBatch() {
   const settings = readSettings();
   if (!settings.apiBase) throw new Error("Fibaro10 URL mangler.");
-  const response = await fetch(`${settings.apiBase}/api/parkering/kjoretoy/mangler-navn?limit=100`, {
+  const response = await fetch(`${settings.apiBase}/api/parkering/kjoretoy/mangler-omrade?limit=100`, {
     headers: authHeaders(settings)
   });
   if (!response.ok) throw new Error(`Fibaro10 svarte ${response.status}`);
@@ -109,12 +109,12 @@ async function openCurrent() {
   setStatus(`Apnet ${plate}`);
 }
 
-async function postName(plate, name, settings) {
-  const response = await fetch(`${settings.apiBase}/api/parkering/kjoretoy/${encodeURIComponent(plate)}/navn`, {
+async function postArea(plate, area, settings) {
+  const response = await fetch(`${settings.apiBase}/api/parkering/kjoretoy/${encodeURIComponent(plate)}/omrade`, {
     method: "POST",
     headers: authHeaders(settings),
     body: JSON.stringify({
-      navn: name,
+      omrade: area,
       source: "manual-browser-helper"
     })
   });
@@ -128,7 +128,7 @@ async function postName(plate, name, settings) {
 async function advance(delta = 1) {
   const { plates, index } = currentState();
   el("currentIndex").value = Math.min(Math.max(index + delta, 0), Math.max(plates.length - 1, 0));
-  el("manualName").value = "";
+  el("manualArea").value = "";
   await saveSettings();
   updateCurrentPlate();
 }
@@ -137,11 +137,11 @@ async function saveAndNext() {
   const settings = readSettings();
   if (!settings.apiBase) throw new Error("Fibaro10 URL mangler.");
   const { plate } = currentState();
-  const name = el("manualName").value.trim();
+  const area = el("manualArea").value.trim();
   if (!plate) throw new Error("Ingen regnr valgt.");
-  if (!name) throw new Error("Navn mangler.");
-  await postName(plate, name, settings);
-  logLine(`${plate}: ${name}`, "ok");
+  if (!area) throw new Error("Omrade mangler.");
+  await postArea(plate, area, settings);
+  logLine(`${plate}: ${area}`, "ok");
   await advance(1);
   setStatus("Lagret");
 }

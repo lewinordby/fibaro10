@@ -1,10 +1,9 @@
-# Fibaro10 parkering navneoppslag
+# Fibaro10 parkering omradeoppslag
 
 Chrome/Edge-extension for manuelle nettsider der du allerede er innlogget.
 
-Extensionen henter ikke eiernavn automatisk fra siden. Den åpner riktig oppslag,
-lar deg lese og kontrollere navnet selv, og lagrer bare verdien du aktivt skriver
-inn.
+Extensionen lagrer ikke eiernavn. Den åpner riktig oppslag, lar deg lese område
+selv, og lagrer bare grovt område, for eksempel `Lillehammer`.
 
 ## Bruk
 
@@ -19,7 +18,7 @@ inn.
    - brukernavn/passord med innstillingstilgang
 8. Trykk `Hent 100 fra Fibaro10`.
 9. Trykk `Apne i Vegvesen`.
-10. Les navnet på siden og skriv/lim det inn i feltet.
+10. Les området på siden og skriv/lim det inn i feltet.
 11. Trykk `Lagre og neste`.
 
 Bruk `Hopp over` hvis et regnr ikke skal lagres.
@@ -28,7 +27,7 @@ Bruk `Hopp over` hvis et regnr ikke skal lagres.
 
 Extensionen bruker disse endepunktene:
 
-- `GET /api/parkering/kjoretoy/mangler-navn?limit=100`
-- `POST /api/parkering/kjoretoy/{plate}/navn`
+- `GET /api/parkering/kjoretoy/mangler-omrade?limit=100`
+- `POST /api/parkering/kjoretoy/{plate}/omrade`
 
 Begge krever bruker med innstillingstilgang via `x-access-username` og `x-access-password`.

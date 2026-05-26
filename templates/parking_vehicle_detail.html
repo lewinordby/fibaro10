@@ -50,6 +50,7 @@
                 <div class="meta-row">
                     {% if year %}<span class="meta-pill">Årsmodell {{ year }}</span>{% endif %}
                     {% if details and details.farge %}<span class="meta-pill">{{ details.farge|title }}</span>{% endif %}
+                    {% if vehicle.omrade %}<span class="meta-pill">OmrÃ¥de {{ vehicle.omrade }}</span>{% endif %}
                     {% if details and details.kjoretoyklasse_navn %}<span class="meta-pill">{{ details.kjoretoyklasse_navn }}</span>{% endif %}
                     {% if details and details.registreringsstatus_tekst %}<span class="meta-pill">{{ details.registreringsstatus_tekst }}</span>{% endif %}
                 </div>
@@ -74,6 +75,7 @@
                 {% if saved %}<p class="saved-note">Lagret.</p>{% endif %}
                 <form class="vehicle-form" method="post">
                     <label>Navn <input name="navn" value="{{ vehicle.navn or '' }}" placeholder="F.eks. kunde eller firma"></label>
+                    <label>OmrÃ¥de <input name="omrade" value="{{ vehicle.omrade or '' }}" placeholder="F.eks. Lillehammer"></label>
                     <label>Sun2id <input name="sun2_id" value="{{ vehicle.sun2_id or '' }}" placeholder="Kobling mot solkunde"></label>
                     <label>Notat <textarea name="notat" placeholder="Interne notater om bilen">{{ vehicle.notat or '' }}</textarea></label>
                     {% if request.state.auth_can_settings %}

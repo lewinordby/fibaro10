@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navneoppslag</title>
+    <title>{{ title|default("Navneoppslag") }}</title>
     {% include "_styles.html" %}
     <style>
         .lookup-grid { display:grid; grid-template-columns:minmax(0, .95fr) minmax(320px, 1.05fr); gap:1rem; align-items:start; }
@@ -20,8 +20,8 @@
     <main>
         <section class="page-title">
             <div>
-                <h1>Navneoppslag</h1>
-                <p>{{ count|short_number }} biler mangler navn. Denne siden gir extensionen neste pakke pÃ¥ {{ limit }} registreringsnummer.</p>
+                <h1>{{ title|default("Navneoppslag") }}</h1>
+                <p>{{ count|short_number }} {{ description|default("biler mangler navn. Denne siden gir extensionen neste pakke pÃ¥") }} {{ limit }} registreringsnummer.</p>
             </div>
         </section>
 
@@ -31,9 +31,15 @@
                 <p class="lookup-note">Lim denne listen inn i extensionen, eller bruk knappen i extensionen for Ã¥ hente samme pakke direkte fra API-et.</p>
                 <textarea class="lookup-copy" readonly>{{ plates }}</textarea>
                 <div class="lookup-actions">
+                    {% if mode == "omrade" %}
+                    <a href="/api/parkering/kjoretoy/mangler-omrade?limit={{ limit }}&offset={{ offset }}&format=txt">Last ned TXT</a>
+                    {% if offset > 0 %}<a href="/parkering/omrade-oppslag?limit={{ limit }}&offset={{ prev_offset }}">Forrige 100</a>{% endif %}
+                    {% if next_offset < count %}<a href="/parkering/omrade-oppslag?limit={{ limit }}&offset={{ next_offset }}">Neste 100</a>{% endif %}
+                    {% else %}
                     <a href="/api/parkering/kjoretoy/mangler-navn?limit={{ limit }}&offset={{ offset }}&format=txt">Last ned TXT</a>
                     {% if offset > 0 %}<a href="/parkering/navn-oppslag?limit={{ limit }}&offset={{ prev_offset }}">Forrige 100</a>{% endif %}
                     {% if next_offset < count %}<a href="/parkering/navn-oppslag?limit={{ limit }}&offset={{ next_offset }}">Neste 100</a>{% endif %}
+                    {% endif %}
                 </div>
             </article>
 
