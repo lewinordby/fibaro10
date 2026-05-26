@@ -6649,6 +6649,11 @@ def redirect_with_query_params(request: Request, target: str, status_code: int =
     return RedirectResponse(target, status_code=status_code)
 
 
+def should_use_secure_cookie(request: Request) -> bool:
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    return request.url.scheme == "https" or forwarded_proto == "https"
+
+
 @app.post("/auth/login")
 async def login_submit(request: Request):
     form = await parse_form_body(request)
@@ -6664,12 +6669,13 @@ async def login_submit(request: Request):
             status_code=401,
         )
     response = RedirectResponse("/status/dashboard", status_code=303)
+    secure_cookie = should_use_secure_cookie(request)
     response.set_cookie(
         AUTH_USER_COOKIE_NAME,
         username,
         max_age=60 * 60 * 24 * 365,
         httponly=True,
-        secure=True,
+        secure=secure_cookie,
         samesite="lax",
     )
     response.set_cookie(
@@ -6677,7 +6683,7 @@ async def login_submit(request: Request):
         password,
         max_age=60 * 60 * 24 * 365,
         httponly=True,
-        secure=True,
+        secure=secure_cookie,
         samesite="lax",
     )
     await log_access_attempt(request, True, "login", access_key)
