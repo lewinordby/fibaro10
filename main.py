@@ -2490,14 +2490,6 @@ IMPORT_JOB_DEFINITIONS = {
         "warning_after_minutes": 5,
         "description": "Minuttlogging av realtime effekt og akkumulert kWh fra Fibaro.",
     },
-    "hc3_meter_readings": {
-        "title": "HC3 avlesninger",
-        "category": "Energi",
-        "source": "HC3",
-        "expected_interval_minutes": 12 * 60,
-        "warning_after_minutes": 36 * 60,
-        "description": "Midnatt/morgen-avlesninger fra gamle HC3 QNAP-scener.",
-    },
     "roborock_sync": {
         "title": "Roborock logger",
         "category": "Renhold",
