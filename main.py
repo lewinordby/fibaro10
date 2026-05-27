@@ -9000,6 +9000,7 @@ async def parking_vehicles_view(
             or_(
                 func.upper(ParkingVehicle.plate).like(like),
                 func.upper(func.coalesce(ParkingVehicle.navn, "")).like(like),
+                func.upper(func.coalesce(ParkingVehicle.omrade, "")).like(like),
                 func.upper(func.coalesce(ParkingVehicle.sun2_id, "")).like(like),
                 func.upper(func.coalesce(ParkingVehicleDetails.merke, "")).like(like),
                 func.upper(func.coalesce(ParkingVehicleDetails.modell, "")).like(like),
