@@ -436,8 +436,9 @@ body main :where(.muted, .meta, .hint, .description) {
     }
 
     body.theme-status main .focus-card small,
-    body.theme-status main .now-details {
+    body.theme-status main .now-stack {
         justify-self: start !important;
+        width: min(12rem, 100%) !important;
         max-width: 100% !important;
         text-align: left !important;
     }
