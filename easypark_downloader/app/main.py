@@ -1,8 +1,10 @@
 import asyncio
 import email
 import imaplib
+import json
 import os
 import re
+import shutil
 from datetime import date, datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
@@ -22,6 +24,7 @@ PROFILE_DIR = DATA_DIR / "browser-profile"
 DOWNLOAD_DIR = DATA_DIR / "downloads"
 ARTIFACT_DIR = DATA_DIR / "artifacts"
 STATE_PATH = DATA_DIR / "state.json"
+AUTH_STATE_PATH = DATA_DIR / "auth-state.json"
 
 REPORT_URL = os.getenv("EASYPARK_REPORT_URL", "https://dashboard.easypark.net/search-parkings/1")
 RUN_INTERVAL_MINUTES = int(os.getenv("EASYPARK_RUN_INTERVAL_MINUTES", "2"))
@@ -33,6 +36,7 @@ SCHEDULE_MODE = os.getenv("EASYPARK_SCHEDULE_MODE", "recent").strip().lower()
 RECENT_DAYS = max(1, int(os.getenv("EASYPARK_RECENT_DAYS", "2")))
 HEADLESS = os.getenv("EASYPARK_HEADLESS", "true").strip().lower() not in {"0", "false", "no", "nei"}
 CODE_COOLDOWN_MINUTES = int(os.getenv("EASYPARK_CODE_COOLDOWN_MINUTES", "5"))
+AUTH_MAX_AGE_HOURS = max(1, int(os.getenv("EASYPARK_AUTH_MAX_AGE_HOURS", "24")))
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://192.168.20.218:8110").rstrip("/")
@@ -72,6 +76,16 @@ def stamp() -> str:
 
 def utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 def fibaro10_datetime_iso() -> str:
@@ -114,6 +128,39 @@ def scheduled_period() -> tuple[date | None, date | None]:
 
 def set_state(**values: Any) -> None:
     state.update(values)
+
+
+def read_auth_state() -> dict[str, Any]:
+    if not AUTH_STATE_PATH.exists():
+        return {}
+    try:
+        return json.loads(AUTH_STATE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def write_auth_state(**values: Any) -> None:
+    current = read_auth_state()
+    current.update(values)
+    AUTH_STATE_PATH.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def auth_is_expired() -> bool:
+    last_login = parse_iso_datetime(read_auth_state().get("last_login_at"))
+    if not last_login:
+        return True
+    return datetime.now(timezone.utc) - last_login >= timedelta(hours=AUTH_MAX_AGE_HOURS)
+
+
+def reset_browser_profile(reason: str) -> None:
+    if PROFILE_DIR.exists():
+        shutil.rmtree(PROFILE_DIR)
+    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    write_auth_state(last_reset_at=utcnow_iso(), last_reset_reason=reason, last_login_at=None)
+
+
+def mark_login_completed() -> None:
+    write_auth_state(last_login_at=utcnow_iso(), last_login_max_age_hours=AUTH_MAX_AGE_HOURS)
 
 
 def decoded_header(raw: str | None) -> str:
@@ -248,17 +295,19 @@ async def save_debug(page, name: str) -> None:
     await page.screenshot(path=str(ARTIFACT_DIR / f"{name}.png"), full_page=True)
 
 
-async def ensure_logged_in(page) -> None:
+async def ensure_logged_in(page) -> bool:
     await page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
     await page.wait_for_timeout(5000)
     if await looks_logged_in(page):
-        return
+        return False
 
+    performed_login = False
     body = await page_text(page)
     if re.search(r"sign in|username|password", body, re.I):
         await page.get_by_placeholder("Enter your username").fill(env_required("EASYPARK_USERNAME"))
         await page.get_by_placeholder("Enter your password").fill(env_required("EASYPARK_PASSWORD"))
         await page.get_by_role("button", name=re.compile("^Sign in$", re.I)).click()
+        performed_login = True
         await page.wait_for_timeout(6000)
 
     body = await page_text(page)
@@ -285,6 +334,7 @@ async def ensure_logged_in(page) -> None:
             raise RuntimeError("Fant ikke felt for EasyPark-verifikasjonskode.")
         await click_button_by_name(page, re.compile("verify|bekreft|continue|fortsett|submit|sign in|logg inn", re.I))
         await page.keyboard.press("Enter")
+        performed_login = True
         await page.wait_for_timeout(7000)
 
     if not await looks_logged_in(page):
@@ -296,6 +346,9 @@ async def ensure_logged_in(page) -> None:
     if not await looks_logged_in(page):
         await save_debug(page, "easypark-report-not-ready")
         raise RuntimeError("EasyPark-rapporten ble ikke tilgjengelig etter login.")
+    if performed_login:
+        mark_login_completed()
+    return performed_login
 
 
 async def download_report(page) -> Path:
@@ -474,6 +527,10 @@ async def run_download_import(from_day: date | None = None, to_day: date | None 
     set_state(running=True, last_action="starting", last_error=None, last_period=period)
     started = fibaro10_datetime_iso()
     try:
+        if auth_is_expired():
+            set_state(last_action="refresh_login", last_period=period)
+            reset_browser_profile(f"auth older than {AUTH_MAX_AGE_HOURS}h")
+
         async with async_playwright() as playwright:
             context = await playwright.chromium.launch_persistent_context(
                 str(PROFILE_DIR),
@@ -492,7 +549,9 @@ async def run_download_import(from_day: date | None = None, to_day: date | None 
             page = context.pages[0] if context.pages else await context.new_page()
             try:
                 set_state(last_action="login")
-                await ensure_logged_in(page)
+                login_performed = await ensure_logged_in(page)
+                if login_performed:
+                    set_state(last_action="login_completed")
                 if from_day and to_day:
                     set_state(last_action="set_period", last_period=period)
                     await set_date_range(page, from_day, to_day)
@@ -601,7 +660,7 @@ async def health() -> dict[str, Any]:
 
 @app.get("/status")
 async def status() -> dict[str, Any]:
-    return dict(state)
+    return {**state, "auth": read_auth_state()}
 
 
 @app.post("/sync-now")

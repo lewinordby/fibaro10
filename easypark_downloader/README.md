@@ -11,7 +11,9 @@ Liten QNAP-container som logger inn i EasyPark, laster ned CSV-rapport og sender
 - `POST /sync-period?from_date=2026-01-01&to_date=2026-01-31` er en tydelig variant for perioder.
 - `POST /backfill-year?year=2026` kjører måned for måned fra 1. januar til dagens dato.
 
-Containeren bruker persistent browserprofil i `./data/browser-profile`, slik at EasyPark-sesjonen kan gjenbrukes. Hvis EasyPark krever ny sikkerhetskontroll, forsøker appen å hente verifikasjonskode fra Gmail.
+Containeren bruker persistent browserprofil i `./data/browser-profile`, slik at EasyPark-sesjonen kan gjenbrukes gjennom dagen. I tillegg lagres tidspunkt for siste fullførte EasyPark-login i `./data/auth-state.json`. Når login er eldre enn `EASYPARK_AUTH_MAX_AGE_HOURS` (standard 24 timer), slettes browserprofilen og appen logger inn på nytt med fersk verifikasjonskode fra Gmail.
+
+Hvis EasyPark krever ny sikkerhetskontroll tidligere enn dette, forsøker appen fortsatt å hente verifikasjonskode fra Gmail når kodefeltet vises.
 
 EasyPark sitt datofilter tillater maks ett år per eksport. Backfill kjøres derfor i månedlige biter, og Fibaro10 dedupliserer på `source_system` + `parking_id`.
 
