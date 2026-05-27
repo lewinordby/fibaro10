@@ -6,32 +6,35 @@
     <title>Parkering</title>
     {% include "_styles.html" %}
     <style>
-        .parking-cards { display:grid; grid-template-columns:repeat(6,minmax(8.5rem,1fr)); gap:.65rem; margin-bottom:.85rem; }
-        .parking-card { background:rgba(255,255,255,.92); border:1px solid var(--line); border-top:3px solid var(--page-accent); border-radius:12px; padding:.74rem .82rem; box-shadow:0 8px 22px rgba(15,23,42,.055); min-height:4.8rem; }
+        .parking-cards { display:grid; grid-template-columns:repeat(6,minmax(8rem,1fr)); gap:.55rem; margin-bottom:.7rem; }
+        .parking-card { background:rgba(255,255,255,.9); border:1px solid var(--line); border-left:3px solid var(--page-accent); border-radius:10px; padding:.62rem .72rem; box-shadow:0 5px 14px rgba(15,23,42,.045); min-height:4.05rem; }
         .parking-card span { display:block; color:#66758a; font-size:.68rem; font-weight:850; text-transform:uppercase; letter-spacing:.03em; }
-        .parking-card strong { display:block; color:var(--brand-dark); font-size:1.25rem; line-height:1.05; margin-top:.18rem; }
-        .parking-card small { display:block; color:#738196; font-size:.74rem; margin-top:.16rem; }
-        .parking-top-tools { display:grid; grid-template-columns:minmax(0,1fr) minmax(18rem,22rem); gap:.75rem; align-items:stretch; margin-bottom:.85rem; }
+        .parking-card strong { display:block; color:var(--brand-dark); font-size:1.1rem; line-height:1.05; margin-top:.12rem; }
+        .parking-card small { display:block; color:#738196; font-size:.7rem; margin-top:.12rem; }
+        .parking-control-bar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.75rem; align-items:stretch; margin-bottom:.75rem; }
         .parking-refresh-form { margin:0; }
-        .parking-sync-card { width:100%; min-height:100%; text-align:left; appearance:none; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.7rem 1rem; align-items:center; }
+        .parking-sync-card { width:100%; min-height:100%; text-align:left; appearance:none; display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:.6rem .8rem; align-items:center; padding:.62rem .75rem; border-left-color:var(--page-accent); }
         .parking-sync-card.is-working { opacity:.72; filter:grayscale(.15); }
-        .parking-sync-card .sync-line { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.35rem; }
+        .parking-sync-card strong { font-size:.95rem; margin:0; white-space:nowrap; }
+        .parking-sync-card small { margin:0; }
+        .parking-sync-label { display:grid; gap:.1rem; }
+        .parking-sync-card .sync-line { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; }
         .parking-sync-action { border:1px solid var(--page-accent); background:var(--page-accent); color:#fff; border-radius:9px; padding:.58rem .84rem; font-size:.78rem; font-weight:850; cursor:pointer; white-space:nowrap; box-shadow:0 8px 18px rgba(0,0,0,.08); }
         .parking-sync-action:disabled { border-color:#a7b0bd; background:#a7b0bd; cursor:not-allowed; box-shadow:none; }
-        .parking-day-card { display:grid; grid-template-columns:minmax(0,1fr); gap:.55rem; align-content:center; background:linear-gradient(180deg,#fff,#fbfcfe); }
-        .parking-day-head { display:block; }
-        .parking-day-card strong { font-size:1.08rem; }
-        .parking-day-card small { line-height:1.25; }
-        .parking-day-nav { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.45rem; }
-        .parking-day-nav a { display:flex; align-items:center; justify-content:center; min-height:2.05rem; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--brand-dark); text-decoration:none; font-size:.78rem; font-weight:780; }
+        .parking-day-card { display:grid; grid-template-columns:auto auto; gap:.62rem; align-items:center; padding:.62rem .75rem; background:rgba(255,255,255,.9); border-left-color:var(--page-accent); }
+        .parking-day-head { display:grid; gap:.08rem; min-width:7.2rem; }
+        .parking-day-card strong { font-size:.95rem; margin:0; white-space:nowrap; }
+        .parking-day-card small { display:none; }
+        .parking-day-nav { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.35rem; min-width:15rem; }
+        .parking-day-nav a { display:flex; align-items:center; justify-content:center; min-height:2rem; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--brand-dark); text-decoration:none; font-size:.76rem; font-weight:820; padding:0 .55rem; }
         .parking-day-nav a:hover { border-color:var(--page-accent); color:var(--page-accent); }
         .sync-pill { display:inline-flex; align-items:center; min-height:1.45rem; border-radius:999px; padding:.12rem .48rem; border:1px solid var(--line); background:#f8fafc; color:var(--brand-dark); font-size:.7rem; font-weight:850; }
         .sync-pill.ok, .sync-pill.good { border-color:#b9dbc3; background:#edf8f0; color:#2f6d3d; }
         .sync-pill.warn { border-color:#efd392; background:#fff8e6; color:#805b12; }
         .sync-pill.bad { border-color:#efb8ad; background:#fff2ef; color:#9a3d2f; }
         .sync-pill.running { border-color:#bfd4f0; background:#edf5ff; color:#285c91; }
-        .parking-panel { margin-top:.85rem; background:var(--panel); border:1px solid var(--line); border-radius:13px; box-shadow:0 10px 24px rgba(15,23,42,.06); overflow:hidden; }
-        .parking-panel header { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; padding:.82rem 1rem; border-bottom:1px solid var(--line-soft); }
+        .parking-panel { margin-top:.75rem; background:var(--panel); border:1px solid var(--line); border-radius:11px; box-shadow:0 8px 20px rgba(15,23,42,.055); overflow:hidden; }
+        .parking-panel header { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; padding:.72rem .9rem; border-bottom:1px solid var(--line-soft); }
         .parking-panel h2 { margin:0; font-size:1.05rem; color:var(--brand-dark); }
         .parking-panel p { margin:.15rem 0 0; color:var(--muted); font-size:.84rem; }
         .parking-table { width:100%; border-collapse:separate; border-spacing:0; }
@@ -58,10 +61,10 @@
         .count-link:hover { border-color:var(--page-accent); background:#fffaf0; }
         .table-scroll { overflow:auto; }
         @media (max-width: 1450px) { .parking-cards { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-        @media (max-width: 900px) { .parking-top-tools { grid-template-columns:1fr; } }
+        @media (max-width: 1120px) { .parking-control-bar { grid-template-columns:1fr; } }
+        @media (max-width: 900px) { .parking-sync-card, .parking-day-card { grid-template-columns:1fr; } .parking-day-nav { min-width:0; } }
         @media (max-width: 680px) {
             .parking-cards { grid-template-columns:1fr 1fr; }
-            .parking-sync-card { grid-template-columns:1fr; }
             .parking-sync-action { width:100%; }
             .parking-panel header { display:block; }
             .parking-table th, .parking-table td { padding:.58rem .62rem; font-size:.9rem; }
@@ -88,12 +91,14 @@
             {% endfor %}
         </section>
 
-        <section class="parking-top-tools">
+        <section class="parking-control-bar">
             <form class="parking-refresh-form" method="post" action="/parkering/refresh?day={{ selected_day.isoformat() }}">
                 <div class="parking-card parking-sync-card">
-                    <div>
-                        <span>Sist oppdatert</span>
+                    <div class="parking-sync-label">
+                        <span>Oppdatert</span>
                         <strong>{% if easypark_status and easypark_status.last_success_at %}{{ easypark_status.last_success_at|source_time }}{% elif last_parking_at %}{{ last_parking_at|source_time }}{% else %}-{% endif %}</strong>
+                    </div>
+                    <div>
                         <small>Henter EasyPark for {{ refresh_period.from_day.strftime('%d.%m') }}-{{ refresh_period.to_day.strftime('%d.%m') }}</small>
                         <span class="sync-line">
                             {% if easypark_status %}
@@ -113,10 +118,8 @@
 
             <div class="parking-card parking-day-card">
                 <div class="parking-day-head">
-                    <div>
                     <span>Valgt dag</span>
                     <strong>{{ selected_day.strftime('%d.%m.%Y') }}</strong>
-                    </div>
                     <small>Bla mellom dager i parkeringsloggen</small>
                 </div>
                 <div class="parking-day-nav">
