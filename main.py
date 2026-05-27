@@ -9041,6 +9041,50 @@ async def parking_statistics_view(request: Request):
     )
 
 
+@app.get("/parkering/omrade", response_class=HTMLResponse)
+async def parking_area_overview_view(request: Request):
+    valid_area_condition = and_(
+        func.trim(func.coalesce(ParkingVehicle.omrade, "")) != "",
+        func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, ""))) != "ikke funnet",
+    )
+    area_expr = func.trim(ParkingVehicle.omrade)
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(
+                    area_expr.label("omrade"),
+                    func.count(func.distinct(ParkingVehicle.plate)).label("vehicle_count"),
+                    func.coalesce(func.sum(ParkingVehicle.parkering_count), 0).label("parking_count"),
+                    func.coalesce(func.sum(ParkingVehicle.paid_total), 0).label("paid_total"),
+                    func.max(ParkingVehicle.last_seen).label("last_seen"),
+                )
+                .where(valid_area_condition)
+                .group_by(area_expr)
+                .order_by(func.count(func.distinct(ParkingVehicle.plate)).desc(), area_expr.asc())
+            )
+        ).all()
+        vehicle_total = (
+            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))))
+        ).scalar_one()
+        vehicle_with_area = (
+            await session.execute(
+                select(func.count(func.distinct(ParkingVehicle.plate))).where(valid_area_condition)
+            )
+        ).scalar_one()
+    missing_area = max((vehicle_total or 0) - (vehicle_with_area or 0), 0)
+    return templates.TemplateResponse(
+        request,
+        "parking_areas.html",
+        {
+            "rows": rows,
+            "vehicle_total": vehicle_total,
+            "vehicle_with_area": vehicle_with_area,
+            "missing_area": missing_area,
+            "coverage_percent": round((vehicle_with_area / vehicle_total) * 100, 1) if vehicle_total else 0,
+        },
+    )
+
+
 @app.get("/parkering/parkeringer", response_class=HTMLResponse)
 async def parking_sessions_view(
     request: Request,

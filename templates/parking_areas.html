@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parkering område</title>
+    {% include "_styles.html" %}
+    <style>
+        .area-summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.65rem; margin-bottom:.85rem; }
+        .area-summary-card { border-left:3px solid var(--parking-color); }
+        .area-table .bar-cell { min-width:10rem; }
+        .area-bar { height:.44rem; border-radius:999px; background:#eef3f7; overflow:hidden; }
+        .area-bar span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,var(--parking-color),#6ba9b1); }
+        .area-actions { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; justify-content:flex-end; }
+        @media (max-width: 900px) {
+            .area-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        }
+        @media (max-width: 620px) {
+            .area-summary-grid { grid-template-columns:1fr; }
+        }
+    </style>
+</head>
+<body class="theme-parking">
+    {% include "_header.html" %}
+    <main>
+        <section class="page-title">
+            <div>
+                <h1>Område</h1>
+                <p>Oversikt over hvor bilene kommer fra, basert på område-feltet på kjøretøyene.</p>
+            </div>
+            <div class="area-actions">
+                <a class="button" href="/parkering/omrade-oppslag">Områdeoppslag</a>
+                <a class="button" href="/parkering/kjoretoy?omrade=&limit=100">Kjøretøy</a>
+            </div>
+        </section>
+
+        <section class="area-summary-grid">
+            <article class="parking-card area-summary-card">
+                <span>Unike bilnummer</span>
+                <strong>{{ vehicle_total|short_number }}</strong>
+                <small>Alle biler i parkeringshistorikken.</small>
+            </article>
+            <article class="parking-card area-summary-card">
+                <span>Har område</span>
+                <strong>{{ vehicle_with_area|short_number }}</strong>
+                <small>{{ coverage_percent }} % dekning.</small>
+            </article>
+            <article class="parking-card area-summary-card">
+                <span>Mangler område</span>
+                <strong>{{ missing_area|short_number }}</strong>
+                <small>Kan fylles via områdeoppslag.</small>
+            </article>
+            <article class="parking-card area-summary-card">
+                <span>Områder</span>
+                <strong>{{ rows|length|short_number }}</strong>
+                <small>Unike steder i datasettet.</small>
+            </article>
+        </section>
+
+        <section class="parking-panel">
+            <header>
+                <div>
+                    <h2>Biler per område</h2>
+                    <p>Sortert på flest unike bilnummer. Trykk på område for å filtrere kjøretøylisten.</p>
+                </div>
+                <strong>{{ rows|length|short_number }}</strong>
+            </header>
+            <div class="table-scroll">
+                <table class="parking-table area-table">
+                    <thead>
+                        <tr>
+                            <th>Område</th>
+                            <th>Unike biler</th>
+                            <th>Andel</th>
+                            <th>Parkeringer</th>
+                            <th>Beløp</th>
+                            <th>Sist sett</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in rows %}
+                        {% set pct = (row.vehicle_count / vehicle_with_area * 100) if vehicle_with_area else 0 %}
+                        <tr>
+                            <td><a href="/parkering/kjoretoy?omrade={{ row.omrade|urlencode }}">{{ row.omrade }}</a></td>
+                            <td>{{ row.vehicle_count|short_number }}</td>
+                            <td class="bar-cell">
+                                <div class="area-bar" aria-label="{{ "%.1f"|format(pct) }} prosent">
+                                    <span style="width:{{ "%.2f"|format(pct) }}%"></span>
+                                </div>
+                                <small>{{ "%.1f"|format(pct) }} %</small>
+                            </td>
+                            <td>{{ row.parking_count|short_number }}</td>
+                            <td class="amount">{{ row.paid_total|short_number }} kr</td>
+                            <td>{{ row.last_seen|source_time_short }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td class="empty-row" colspan="6">Ingen områdeverdier er registrert ennå.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
