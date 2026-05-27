@@ -9036,12 +9036,30 @@ async def parking_vehicles_view(
             count_stmt = count_stmt.where(*conditions)
         rows = (await session.execute(stmt)).all()
         count = (await session.execute(count_stmt)).scalar_one()
+        valid_area_condition = and_(
+            func.trim(func.coalesce(ParkingVehicle.omrade, "")) != "",
+            func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, ""))) != "ikke funnet",
+        )
+        vehicle_total = (
+            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))))
+        ).scalar_one()
+        vehicle_with_area = (
+            await session.execute(
+                select(func.count(func.distinct(ParkingVehicle.plate))).where(valid_area_condition)
+            )
+        ).scalar_one()
     return templates.TemplateResponse(
         request,
         "parking_vehicles.html",
         {
             "rows": rows,
             "count": count,
+            "vehicle_area_stats": {
+                "total": vehicle_total,
+                "with_area": vehicle_with_area,
+                "missing_area": max((vehicle_total or 0) - (vehicle_with_area or 0), 0),
+                "coverage_percent": round((vehicle_with_area / vehicle_total) * 100, 1) if vehicle_total else 0,
+            },
             "filters": {
                 "plate": plate or "",
                 "navn": navn or "",

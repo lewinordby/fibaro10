@@ -9,7 +9,13 @@
         .vehicle-maintenance-panel { padding:0.85rem 1rem; }
         .vehicle-maintenance-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
         .vehicle-maintenance-row p { margin:0.25rem 0 0; }
+        .vehicle-area-stats { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0.85rem; }
+        .vehicle-area-card { border-top:4px solid var(--parking-color, #726189); padding:0.9rem 1rem; }
+        .vehicle-area-card span { display:block; color:var(--muted); font-size:0.74rem; font-weight:800; text-transform:uppercase; }
+        .vehicle-area-card strong { display:block; margin-top:0.18rem; color:var(--brand-dark); font-size:clamp(1.35rem, 2.8vw, 1.9rem); line-height:1; }
+        .vehicle-area-card small { display:block; margin-top:0.35rem; color:var(--muted); font-size:0.78rem; }
         @media (max-width: 720px) {
+            .vehicle-area-stats { grid-template-columns:1fr; }
             .vehicle-maintenance-row { align-items:stretch; flex-direction:column; }
             .vehicle-maintenance-row .button { width:100%; }
         }
@@ -19,6 +25,23 @@
     {% include "_header.html" %}
     <main>
         <section class="page-title"><div><h1>Kjøretøy</h1><p>{{ count|short_number }} treff med parkeringshistorikk og eventuell SVV-berikelse.</p></div></section>
+        <section class="vehicle-area-stats">
+            <article class="panel vehicle-area-card">
+                <span>Unike bilnummer</span>
+                <strong>{{ vehicle_area_stats.total|short_number }}</strong>
+                <small>Alle kjøretøy i parkeringshistorikken.</small>
+            </article>
+            <article class="panel vehicle-area-card">
+                <span>Har område</span>
+                <strong>{{ vehicle_area_stats.with_area|short_number }}</strong>
+                <small>{{ vehicle_area_stats.coverage_percent }} % har gyldig område.</small>
+            </article>
+            <article class="panel vehicle-area-card">
+                <span>Mangler område</span>
+                <strong>{{ vehicle_area_stats.missing_area|short_number }}</strong>
+                <small>Tomme felt og "ikke funnet" teller som mangler.</small>
+            </article>
+        </section>
         <form class="filters" method="get">
             <label>Regnr <input name="plate" value="{{ filters.plate }}" placeholder="F.eks. EH54186"></label>
             <label>Navn <input name="navn" value="{{ filters.navn }}" placeholder="Navn/firma"></label>
