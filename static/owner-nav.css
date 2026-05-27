@@ -1,52 +1,48 @@
-/* Lilletorget navigation layer.
-   This file intentionally owns only the header/menu shell. Page surfaces live in app.css. */
+/* Lilletorget navigation shell.
+   Owns only logo, sidebar/mobile menu and page width offset. Page surfaces live
+   in app.css + lilletorget-system.css. */
+
 :root {
-    --owner-sidebar: 260px;
-    --owner-sidebar-closed: 76px;
+    --owner-sidebar: 248px;
+    --owner-sidebar-closed: 74px;
     --owner-mobile-header: 72px;
-    --owner-line: #e4e8ee;
-    --owner-row: #ffffff;
-    --owner-row-hover: #f7f8fa;
-    --owner-row-active: #f1f3f6;
-    --owner-sub-row: #fafbfc;
-    --owner-text: #3f4855;
-    --owner-muted: #697385;
-    --owner-navy: #071a45;
-    --owner-gold: #d29713;
-    --owner-mobile-pad: 1rem;
+    --owner-line: #e7edf4;
+    --owner-text: #26344c;
+    --owner-muted: #748198;
+    --owner-navy: #06163d;
+    --owner-gold: #c89216;
+    --owner-surface: #ffffff;
+    --owner-shadow: 8px 0 28px rgba(6, 22, 61, 0.04);
 }
 
-html body {
+.site-header {
+    background: var(--owner-surface);
+    color: var(--owner-text);
+}
+
+.site-header .brand-bar {
     background:
-        radial-gradient(circle at 0 0, rgba(210, 151, 19, 0.055), transparent 24rem),
-        linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%) !important;
-}
-
-.nav-chevron {
-    width: 0.48rem;
-    height: 0.48rem;
-    border-right: 2px solid currentColor;
-    border-bottom: 2px solid currentColor;
-    transform: rotate(-45deg);
-    opacity: 0.8;
+        radial-gradient(circle at 2rem 2.8rem, rgba(200, 146, 22, 0.07), transparent 11rem),
+        linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
 }
 
 .site-header .brand-mark-toggle.nav-toggle {
-    display: grid !important;
-    place-items: center !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    background: transparent !important;
-    color: var(--owner-navy) !important;
-    box-shadow: none !important;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--owner-navy);
+    box-shadow: none;
+    cursor: pointer;
 }
 
 .site-header .brand-mark-toggle.nav-toggle:hover,
 .site-header .brand-mark-toggle.nav-toggle:focus-visible {
-    background: #fff6e4 !important;
-    box-shadow: 0 0 0 3px rgba(210, 151, 19, 0.2) !important;
-    outline: none !important;
+    background: #fff6e4;
+    box-shadow: 0 0 0 3px rgba(200, 146, 22, 0.2);
+    outline: none;
 }
 
 .brand-toggle-mark,
@@ -57,8 +53,9 @@ html body {
     object-fit: contain;
 }
 
-.app-nav .button {
-    text-decoration: none !important;
+.brand-home.brand-lilletorget {
+    background: transparent;
+    text-decoration: none;
 }
 
 .app-nav {
@@ -66,6 +63,7 @@ html body {
     --section-soft: var(--status-soft);
     --section-border: var(--status-border);
     --section-ring: var(--status-ring);
+    background: transparent;
 }
 
 .app-nav.section-light {
@@ -96,13 +94,6 @@ html body {
     --section-ring: var(--sun2-ring);
 }
 
-.app-nav.section-admin {
-    --section-color: var(--admin-color);
-    --section-soft: var(--admin-soft);
-    --section-border: var(--admin-border);
-    --section-ring: var(--admin-ring);
-}
-
 .app-nav.section-energy {
     --section-color: var(--energy-color);
     --section-soft: var(--energy-soft);
@@ -124,6 +115,84 @@ html body {
     --section-ring: var(--ai-ring);
 }
 
+.app-nav.section-admin {
+    --section-color: var(--admin-color);
+    --section-soft: var(--admin-soft);
+    --section-border: var(--admin-border);
+    --section-ring: var(--admin-ring);
+}
+
+.app-nav .nav-main {
+    display: flex;
+    flex-direction: column;
+}
+
+.app-nav .button {
+    display: grid;
+    align-items: center;
+    text-decoration: none;
+    color: var(--owner-text);
+}
+
+.app-nav .nav-main > .button {
+    grid-template-columns: 1.2rem minmax(0, 1fr) 0.5rem;
+    gap: 0.86rem;
+    border: 1px solid transparent;
+    background: transparent;
+    box-shadow: none;
+    font-weight: 720;
+}
+
+.app-nav .nav-main > .button:hover {
+    border-color: #edf2f7;
+    background: #fbfcfe;
+}
+
+.app-nav .nav-main > .button.active.has-sub {
+    border-color: rgba(6, 22, 61, 0.08);
+    background: #ffffff;
+    color: var(--owner-navy);
+    box-shadow: inset 3px 0 0 var(--section-color), 0 8px 20px rgba(6, 22, 61, 0.055);
+}
+
+.app-nav .nav-main > .button.active.has-sub .nav-label {
+    font-weight: 850;
+}
+
+.app-nav .nav-main > .button.has-sub:not(.active):not(.expanded) + .nav-sub,
+html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + .nav-sub {
+    display: none;
+}
+
+.app-nav .nav-sub {
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #dde5ee;
+    background: transparent;
+}
+
+.app-nav .nav-sub .button,
+.app-nav .nav-sub-form .button {
+    grid-template-columns: 0.9rem minmax(0, 1fr);
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--owner-muted);
+    font-weight: 700;
+}
+
+.app-nav .nav-sub .button:hover,
+.app-nav .nav-sub-form .button:hover {
+    background: #fbfcfe;
+    color: var(--owner-navy);
+}
+
+.app-nav .nav-sub .button.active {
+    background: #ffffff;
+    color: var(--owner-navy);
+    box-shadow: inset 2px 0 0 var(--section-color);
+}
+
 .app-nav .nav-icon,
 .app-nav .nav-sub-icon {
     fill: none;
@@ -140,1012 +209,258 @@ html body {
     white-space: nowrap;
 }
 
-.app-nav .nav-main > .button.has-sub:not(.active):not(.expanded) + .nav-sub {
-    display: none !important;
+.nav-chevron {
+    width: 0.42rem;
+    height: 0.42rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    opacity: 0.62;
+}
+
+.app-nav .nav-main > .button.active .nav-chevron,
+.app-nav .nav-main > .button.expanded .nav-chevron {
+    transform: rotate(45deg);
+}
+
+.app-nav .nav-form {
+    margin: 0;
 }
 
 @media (min-width: 1020px) {
     .site-header {
-        position: fixed !important;
-        inset: 0 auto 0 0 !important;
-        z-index: 80 !important;
-        width: var(--owner-sidebar) !important;
-        height: 100vh !important;
-        padding: 0 !important;
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        background: #fff !important;
-        border-right: 1px solid var(--owner-line) !important;
-        border-bottom: 0 !important;
-        box-shadow: none !important;
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 80;
+        width: var(--owner-sidebar);
+        height: 100vh;
+        padding: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border-right: 1px solid var(--owner-line);
+        box-shadow: var(--owner-shadow);
+    }
+
+    html.nav-collapsed .site-header {
+        width: var(--owner-sidebar-closed);
     }
 
     .site-header .brand-bar {
-        width: 100% !important;
-        min-height: 100vh !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 0 !important;
-        background: #fff !important;
-    }
-
-    .site-header .brand-mark-toggle.nav-toggle {
-        position: absolute !important;
-        top: 1.05rem !important;
-        left: 0.86rem !important;
-        width: 3.25rem !important;
-        min-width: 3.25rem !important;
-        height: 3.25rem !important;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
     }
 
     .brand-home.brand-lilletorget {
-        min-height: 5.9rem !important;
-        width: 100% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        padding: 0.88rem 0.85rem 0.78rem 4.38rem !important;
-        border-bottom: 1px solid var(--owner-line) !important;
-        border-radius: 0 !important;
-        background: linear-gradient(180deg, #fff 0%, #fbfcff 100%) !important;
-        box-sizing: border-box !important;
+        min-height: 7.15rem;
+        padding: 1.05rem 1.2rem 1.05rem 4.3rem;
+        border-bottom: 1px solid var(--owner-line);
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
     }
 
     .brand-lilletorget-text-logo {
-        width: 9.8rem !important;
-        max-width: 100% !important;
+        width: 9.5rem;
+        max-width: 9.5rem;
     }
 
-    .app-nav {
-        flex: 1 1 auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #fff !important;
-        border: 0 !important;
-        box-shadow: none !important;
+    .site-header .brand-mark-toggle.nav-toggle {
+        position: absolute;
+        top: 1.42rem;
+        left: 0.92rem;
+        width: 2.75rem;
+        min-width: 2.75rem;
+        height: 2.75rem;
     }
 
-    .app-nav .nav-main {
-        display: flex !important;
-        flex-direction: column !important;
-        flex-wrap: nowrap !important;
-        align-items: stretch !important;
-        gap: 0 !important;
-        padding: 0 !important;
-    }
-
-    .app-nav .nav-main > .button {
-        min-height: 4rem !important;
-        width: 100% !important;
-        display: grid !important;
-        grid-template-columns: 1.42rem minmax(0, 1fr) 0.66rem !important;
-        align-items: center !important;
-        gap: 0.92rem !important;
-        padding: 0 1.12rem 0 2rem !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-        background: var(--owner-row) !important;
-        color: var(--owner-text) !important;
-        box-shadow: inset 0 -1px 0 var(--owner-line) !important;
-        font-size: 1.03rem !important;
-        font-weight: 520 !important;
-        line-height: 1 !important;
-        text-align: left !important;
-    }
-
-    .app-nav .nav-main > .button:hover {
-        background: var(--owner-row-hover) !important;
-        color: #202834 !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub {
-        min-height: 3.72rem !important;
-        width: calc(100% - 0.52rem) !important;
-        margin: 0.44rem 0.26rem 0 !important;
-        padding-left: 1.75rem !important;
-        border: 1px solid var(--section-border) !important;
-        border-radius: 5px !important;
-        background: linear-gradient(180deg, #ffffff 0%, var(--section-soft) 100%) !important;
-        color: var(--owner-navy) !important;
-        box-shadow: inset 4px 0 0 var(--section-color) !important;
-    }
-
-    .app-nav .nav-main > .button.active:not(.has-sub) {
-        background: var(--owner-row-active) !important;
-        color: #26323f !important;
-        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--owner-line) !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub .nav-label {
-        text-decoration: none !important;
-        font-weight: 740 !important;
-    }
-
-    .app-nav .nav-main > .button.active .nav-chevron {
-        transform: rotate(45deg);
-        opacity: 0.95;
-    }
-
-    .app-nav .nav-icon {
-        width: 1.38rem !important;
-        height: 1.38rem !important;
-        stroke-width: 2.08 !important;
-    }
-
-    .app-nav .nav-sub,
-    .app-nav .nav-main > .nav-sub {
-        width: calc(100% - 2.45rem) !important;
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 0 !important;
-        margin: 0.16rem 0 0.34rem 2.45rem !important;
-        padding: 0.18rem 0 0.24rem !important;
-        border: 0 !important;
-        background: var(--owner-sub-row) !important;
-        box-shadow: inset 3px 0 0 rgba(103, 114, 129, 0.16), inset 0 -1px 0 var(--owner-line) !important;
-    }
-
-    .app-nav .nav-sub .button,
-    .app-nav .nav-sub-form .button {
-        min-height: 2.48rem !important;
-        width: 100% !important;
-        display: grid !important;
-        grid-template-columns: 0.95rem minmax(0, 1fr) !important;
-        align-items: center !important;
-        gap: 0.64rem !important;
-        padding: 0 0.9rem 0 1.25rem !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-        background: transparent !important;
-        color: var(--owner-muted) !important;
-        box-shadow: none !important;
-        font-size: 0.86rem !important;
-        font-weight: 540 !important;
-        text-align: left !important;
-    }
-
-    .app-nav .nav-sub .button:hover,
-    .app-nav .nav-sub-form .button:hover {
-        background: #f1f4f7 !important;
-        color: #26323f !important;
-    }
-
-    .app-nav .nav-sub .button.active {
-        background: #ffffff !important;
-        color: var(--owner-navy) !important;
-        box-shadow: inset 3px 0 0 var(--section-color) !important;
-        font-weight: 720 !important;
-    }
-
-    .app-nav .nav-sub-icon {
-        width: 0.94rem !important;
-        height: 0.94rem !important;
-        stroke-width: 2.18 !important;
-    }
-
-    .app-nav .nav-form {
-        margin: 0 !important;
+    .brand-toggle-mark {
+        width: 2.55rem;
     }
 
     .site-header ~ main,
     .site-header ~ .container,
     body .site-header ~ main,
     body .site-header ~ .container {
-        box-sizing: border-box !important;
-        width: calc(100vw - var(--owner-sidebar) - 3rem) !important;
-        max-width: none !important;
-        margin: 0 1.5rem 0 calc(var(--owner-sidebar) + 1.5rem) !important;
-        padding-top: 1rem !important;
+        width: min(100% - 2rem, var(--page-width));
+        max-width: var(--page-width);
+        margin-left: calc(var(--owner-sidebar) + 1.15rem);
+        margin-right: 1rem;
+        padding-top: 1.05rem;
     }
 
-    html.nav-collapsed .site-header {
-        width: var(--owner-sidebar-closed) !important;
+    html.nav-collapsed .site-header ~ main,
+    html.nav-collapsed .site-header ~ .container,
+    html.nav-collapsed body .site-header ~ main,
+    html.nav-collapsed body .site-header ~ .container {
+        margin-left: calc(var(--owner-sidebar-closed) + 1.15rem);
     }
 
-    html.nav-collapsed .site-header .brand-mark-toggle.nav-toggle {
-        top: 0.72rem !important;
-        left: 50% !important;
-        width: 3.05rem !important;
-        min-width: 3.05rem !important;
-        height: 3.05rem !important;
-        transform: translateX(-50%) !important;
+    .app-nav .nav-main {
+        padding: 0.55rem 0 1rem;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.38rem;
+        width: calc(100% - 1.15rem);
+        margin: 0.06rem 0.58rem;
+        padding: 0 0.95rem 0 1.1rem;
+        border-radius: 15px;
+        font-size: 0.95rem;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        min-height: 3.42rem;
+        margin-top: 0.12rem;
+        margin-bottom: 0.1rem;
+        border-radius: 18px;
+    }
+
+    .app-nav .nav-icon {
+        width: 1.12rem;
+        height: 1.12rem;
+        stroke-width: 2.05;
+    }
+
+    .app-nav .nav-sub {
+        width: calc(100% - 4.35rem);
+        margin: 0.02rem 0 0.5rem 3.05rem;
+        padding: 0.1rem 0 0.1rem 0.55rem;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        min-height: 2.05rem;
+        padding: 0 0.58rem;
+        gap: 0.55rem;
+        border-radius: 10px;
+        font-size: 0.82rem;
+    }
+
+    .app-nav .nav-sub-icon {
+        width: 0.88rem;
+        height: 0.88rem;
     }
 
     html.nav-collapsed .brand-home.brand-lilletorget {
-        display: none !important;
+        display: none;
     }
 
     html.nav-collapsed .app-nav {
-        margin-top: 4.55rem !important;
+        margin-top: 4.55rem;
     }
 
     html.nav-collapsed .app-nav .nav-main > .button {
-        min-height: 3.38rem !important;
-        grid-template-columns: 1fr !important;
-        justify-items: center !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100% !important;
-        border: 0 !important;
-        border-radius: 0 !important;
+        width: 100%;
+        min-height: 3.2rem;
+        margin: 0;
+        padding: 0;
+        grid-template-columns: 1fr;
+        justify-items: center;
+        border-radius: 0;
     }
 
     html.nav-collapsed .app-nav .nav-main > .button.active.has-sub {
-        width: 100% !important;
-        margin: 0 !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-    }
-
-    html.nav-collapsed .app-nav .nav-main > .button.active {
-        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--owner-line) !important;
+        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--owner-line);
     }
 
     html.nav-collapsed .app-nav .nav-label,
     html.nav-collapsed .app-nav .nav-chevron,
     html.nav-collapsed .app-nav .nav-sub {
-        display: none !important;
-    }
-
-    html.nav-collapsed .site-header ~ main,
-    html.nav-collapsed .site-header ~ .container,
-    html.nav-collapsed body .site-header ~ main,
-    html.nav-collapsed body .site-header ~ .container {
-        width: calc(100vw - var(--owner-sidebar-closed) - 3rem) !important;
-        margin-left: calc(var(--owner-sidebar-closed) + 1.5rem) !important;
+        display: none;
     }
 }
 
 @media (max-width: 1019px) {
-    .site-header,
-    html.nav-collapsed .site-header {
-        position: sticky !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        z-index: 90 !important;
-        width: 100% !important;
-        height: auto !important;
-        padding: 0 !important;
-        overflow: visible !important;
-        background: #fff !important;
-        border-right: 0 !important;
-        border-bottom: 1px solid var(--owner-line) !important;
-        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04) !important;
-    }
-
-    .site-header .brand-bar,
-    html.nav-collapsed .site-header .brand-bar {
-        width: 100% !important;
-        min-height: var(--owner-mobile-header) !important;
-        margin: 0 !important;
-        padding: 0 var(--owner-mobile-pad) !important;
-        display: grid !important;
-        grid-template-columns: 3rem minmax(0, 1fr) !important;
-        align-items: center !important;
-        gap: 0.68rem !important;
-        box-sizing: border-box !important;
-        background: #fff !important;
-    }
-
-    .site-header .brand-mark-toggle.nav-toggle,
-    html.nav-collapsed .site-header .brand-mark-toggle.nav-toggle {
-        position: static !important;
-        width: 2.95rem !important;
-        min-width: 2.95rem !important;
-        height: 2.95rem !important;
-        justify-self: start !important;
-        transform: none !important;
-    }
-
-    .brand-home.brand-lilletorget,
-    html.nav-collapsed .brand-home.brand-lilletorget {
-        min-width: 0 !important;
-        max-width: none !important;
-        min-height: var(--owner-mobile-header) !important;
-        height: var(--owner-mobile-header) !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        padding: 0 !important;
-        border: 0 !important;
-        background: transparent !important;
-    }
-
-    .brand-lilletorget-text-logo,
-    html.nav-collapsed .brand-lilletorget-text-logo {
-        width: min(9.8rem, 50vw) !important;
-        max-width: 100% !important;
-    }
-
-    .app-nav,
-    html.nav-collapsed .app-nav {
-        grid-column: 1 / -1 !important;
-        width: 100vw !important;
-        max-width: none !important;
-        max-height: calc(100vh - var(--owner-mobile-header)) !important;
-        margin: 0 calc(-1 * var(--owner-mobile-pad)) !important;
-        padding: 0 !important;
-        overflow-x: hidden !important;
-        overflow-y: auto !important;
-        background: #fff !important;
-        border-top: 1px solid var(--owner-line) !important;
-        box-shadow: none !important;
-    }
-
-    html.nav-collapsed .app-nav {
-        display: none !important;
-    }
-
-    .app-nav .nav-main {
-        display: flex !important;
-        flex-direction: column !important;
-        flex-wrap: nowrap !important;
-        align-items: stretch !important;
-        gap: 0 !important;
-        padding: 0 !important;
-    }
-
-    .app-nav .nav-main > .button {
-        min-height: 3.62rem !important;
-        width: 100% !important;
-        display: grid !important;
-        grid-template-columns: 1.32rem minmax(0, 1fr) 0.64rem !important;
-        align-items: center !important;
-        gap: 0.84rem !important;
-        padding: 0 1rem 0 1.28rem !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-        background: #fff !important;
-        color: var(--owner-text) !important;
-        box-shadow: inset 0 -1px 0 var(--owner-line) !important;
-        font-size: 1rem !important;
-        font-weight: 560 !important;
-        text-align: left !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub {
-        min-height: 3.3rem !important;
-        width: calc(100% - 0.68rem) !important;
-        margin: 0.34rem 0.34rem 0 !important;
-        padding-left: 1rem !important;
-        border: 1px solid var(--section-border) !important;
-        border-radius: 5px !important;
-        background: linear-gradient(180deg, #ffffff 0%, var(--section-soft) 100%) !important;
-        box-shadow: inset 4px 0 0 var(--section-color) !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub .nav-label {
-        text-decoration: none !important;
-        font-weight: 740 !important;
-    }
-
-    .app-nav .nav-main > .button.active .nav-chevron {
-        transform: rotate(45deg);
-    }
-
-    .app-nav .nav-icon {
-        width: 1.24rem !important;
-        height: 1.24rem !important;
-        stroke-width: 2.08 !important;
-    }
-
-    .app-nav .nav-sub,
-    .app-nav .nav-main > .nav-sub {
-        width: calc(100% - 2.25rem) !important;
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 0 !important;
-        margin: 0.12rem 0 0.32rem 2.25rem !important;
-        padding: 0.16rem 0 0.22rem !important;
-        background: var(--owner-sub-row) !important;
-        box-shadow: inset 3px 0 0 rgba(103, 114, 129, 0.16), inset 0 -1px 0 var(--owner-line) !important;
-    }
-
-    .app-nav .nav-main > .button.has-sub:not(.active):not(.expanded) + .nav-sub {
-        display: none !important;
-    }
-
-    html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + .nav-sub {
-        display: none !important;
-    }
-
-    .app-nav .nav-sub .button,
-    .app-nav .nav-sub-form .button {
-        min-height: 2.35rem !important;
-        width: 100% !important;
-        display: grid !important;
-        grid-template-columns: 1rem minmax(0, 1fr) !important;
-        align-items: center !important;
-        gap: 0.7rem !important;
-        padding: 0 1rem 0 1.2rem !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-        background: transparent !important;
-        color: var(--owner-muted) !important;
-        box-shadow: none !important;
-        font-size: 0.9rem !important;
-        font-weight: 560 !important;
-        text-align: left !important;
-    }
-
-    .app-nav .nav-sub .button.active {
-        background: #ffffff !important;
-        color: var(--owner-navy) !important;
-        box-shadow: inset 3px 0 0 var(--section-color) !important;
-        font-weight: 720 !important;
-    }
-
-    .app-nav .nav-sub-icon {
-        width: 1rem !important;
-        height: 1rem !important;
-    }
-
-    .site-header ~ main,
-    .site-header ~ .container,
-    body .site-header ~ main,
-    body .site-header ~ .container {
-        width: min(100% - 1rem, var(--page-width)) !important;
-        max-width: var(--page-width) !important;
-        margin: 0 auto !important;
-        padding-top: 0.82rem !important;
-    }
-}
-
-@media (min-width: 1020px) {
-    body.theme-status .site-header,
-    body.theme-status .site-header .brand-bar,
-    body.theme-status .app-nav,
-    body.theme-status .brand-home.brand-lilletorget {
-        background: #ffffff !important;
-    }
-
-    body.theme-status .brand-home.brand-lilletorget {
-        border-bottom-color: #eef2f6 !important;
-    }
-
-    body.theme-status .site-header ~ main {
-        width: min(calc(100vw - var(--owner-sidebar) - 2.6rem), 1360px) !important;
-        max-width: 1360px !important;
-        margin: 0 auto 0 calc(var(--owner-sidebar) + 1.3rem) !important;
-        padding-top: 0.82rem !important;
-    }
-
-    html.nav-collapsed body.theme-status .site-header ~ main {
-        width: min(calc(100vw - var(--owner-sidebar-closed) - 2.6rem), 1360px) !important;
-        max-width: 1360px !important;
-        margin-left: calc(var(--owner-sidebar-closed) + 1.3rem) !important;
-    }
-}
-
-@media (min-width: 1020px) {
-    body.theme-parking .site-header ~ main {
-        width: min(calc(100vw - var(--owner-sidebar) - 2.3rem), 1180px) !important;
-        max-width: 1180px !important;
-        margin-left: calc(var(--owner-sidebar) + 1.15rem) !important;
-        margin-right: auto !important;
-    }
-
-    html.nav-collapsed body.theme-parking .site-header ~ main {
-        width: min(calc(100vw - var(--owner-sidebar-closed) - 2.3rem), 1180px) !important;
-        max-width: 1180px !important;
-        margin-left: calc(var(--owner-sidebar-closed) + 1.15rem) !important;
-        margin-right: auto !important;
-    }
-}
-
-@media (max-width: 430px) {
-    :root {
-        --owner-mobile-pad: 0.78rem;
-    }
-
-    .site-header .brand-bar,
-    html.nav-collapsed .site-header .brand-bar {
-        gap: 0.52rem !important;
-    }
-
-    .brand-lilletorget-text-logo,
-    html.nav-collapsed .brand-lilletorget-text-logo {
-        width: min(8.9rem, 48vw) !important;
-    }
-}
-
-/* Lilletorget premium navigation refresh. Mirrors the softer login surface. */
-:root {
-    --owner-line: #e4ebf3;
-    --owner-row: rgba(255,255,255,.76);
-    --owner-row-hover: #f8fafc;
-    --owner-row-active: #f3f6fb;
-    --owner-sub-row: rgba(248,250,252,.78);
-    --owner-text: #26334a;
-    --owner-muted: #728096;
-    --owner-navy: #071a45;
-    --owner-gold: #d29713;
-}
-
-html body {
-    background:
-        radial-gradient(circle at 2rem 1rem, rgba(210, 151, 19, 0.12), transparent 30rem),
-        linear-gradient(135deg, #fbfcfe 0%, #eef3f8 52%, #e7edf6 100%) !important;
-}
-
-@media (min-width: 1020px) {
     .site-header {
-        background: rgba(255,255,255,.86) !important;
-        border-right: 1px solid rgba(218,226,236,.92) !important;
-        box-shadow: 10px 0 34px rgba(7,26,69,.045) !important;
-        backdrop-filter: blur(18px);
+        position: sticky;
+        top: 0;
+        z-index: 90;
+        border-bottom: 1px solid var(--owner-line);
+        box-shadow: 0 10px 26px rgba(7, 26, 69, 0.055);
     }
 
     .site-header .brand-bar {
-        background: transparent !important;
-    }
-
-    .brand-home.brand-lilletorget {
-        min-height: 6.25rem !important;
-        background:
-            radial-gradient(circle at 84% 25%, rgba(210,151,19,.09), transparent 7rem),
-            linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.92)) !important;
-    }
-
-    .brand-lilletorget-text-logo {
-        width: 10.35rem !important;
-        filter: drop-shadow(0 8px 18px rgba(7,26,69,.08));
+        min-height: var(--owner-mobile-header);
+        display: grid;
+        grid-template-columns: 3rem minmax(0, 1fr);
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.55rem 0.8rem;
     }
 
     .site-header .brand-mark-toggle.nav-toggle {
-        width: 3.05rem !important;
-        min-width: 3.05rem !important;
-        height: 3.05rem !important;
-    }
-
-    .app-nav .nav-main > .button {
-        min-height: 3.82rem !important;
-        font-size: 0.98rem !important;
-        font-weight: 700 !important;
-        color: var(--owner-text) !important;
-    }
-
-    .app-nav .nav-main > .button:hover {
-        background: rgba(248,250,252,.9) !important;
-        color: var(--owner-navy) !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub {
-        min-height: 3.55rem !important;
-        border-color: color-mix(in srgb, var(--section-border) 70%, #ffffff) !important;
-        border-radius: 14px !important;
-        background: linear-gradient(180deg, rgba(255,255,255,.98), color-mix(in srgb, var(--section-soft) 70%, #ffffff)) !important;
-        box-shadow: inset 4px 0 0 var(--section-color), 0 10px 24px rgba(7,26,69,.055) !important;
-    }
-
-    .app-nav .nav-sub,
-    .app-nav .nav-main > .nav-sub {
-        width: calc(100% - 2.7rem) !important;
-        margin-left: 2.7rem !important;
-        border-radius: 0 0 14px 14px !important;
-        background: rgba(248,250,252,.68) !important;
-        box-shadow: inset 3px 0 0 rgba(103,114,129,.14) !important;
-    }
-
-    .app-nav .nav-sub .button,
-    .app-nav .nav-sub-form .button {
-        min-height: 2.32rem !important;
-        font-weight: 650 !important;
-    }
-
-    .app-nav .nav-sub .button.active {
-        border-radius: 10px !important;
-        background: rgba(255,255,255,.95) !important;
-        box-shadow: inset 3px 0 0 var(--section-color), 0 5px 14px rgba(7,26,69,.04) !important;
-    }
-
-    .site-header ~ main,
-    .site-header ~ .container,
-    body .site-header ~ main,
-    body .site-header ~ .container {
-        padding-top: 1.18rem !important;
-    }
-}
-
-@media (max-width: 1019px) {
-    .site-header,
-    html.nav-collapsed .site-header {
-        background: rgba(255,255,255,.9) !important;
-        backdrop-filter: blur(18px);
-        box-shadow: 0 12px 30px rgba(7,26,69,.08) !important;
-    }
-}
-
-/* Lilletorget profile navigation polish.
-   Final layer aligned with the logo: navy, gold, airy white menu. */
-:root {
-    --owner-line: #e5ebf3;
-    --owner-row: rgba(255,255,255,.86);
-    --owner-row-hover: #fbfcfe;
-    --owner-row-active: #f5f8fc;
-    --owner-sub-row: rgba(247,249,252,.84);
-    --owner-text: #26334a;
-    --owner-muted: #728096;
-    --owner-navy: #061942;
-    --owner-gold: #c99014;
-}
-
-.site-header .brand-mark-toggle.nav-toggle:hover,
-.site-header .brand-mark-toggle.nav-toggle:focus-visible {
-    background: #fff7e8 !important;
-    box-shadow: 0 0 0 4px rgba(201, 144, 20, 0.18) !important;
-}
-
-@media (min-width: 1020px) {
-    .site-header {
-        background: rgba(255,255,255,.92) !important;
-        border-right-color: rgba(224,232,241,.98) !important;
-        box-shadow: 12px 0 36px rgba(6,25,66,.052) !important;
-        backdrop-filter: blur(18px);
-    }
-
-    .site-header .brand-bar {
-        background:
-            radial-gradient(circle at 16% 4rem, rgba(201,144,20,.08), transparent 16rem),
-            linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,251,254,.95)) !important;
-    }
-
-    .brand-home.brand-lilletorget {
-        min-height: 6.55rem !important;
-        padding-left: 4.48rem !important;
-        border-bottom-color: var(--owner-line) !important;
-        background: transparent !important;
-    }
-
-    .brand-lilletorget-text-logo {
-        width: 10.1rem !important;
-        filter: drop-shadow(0 8px 18px rgba(6,25,66,.08));
-    }
-
-    .site-header .brand-mark-toggle.nav-toggle {
-        top: 1.05rem !important;
-        left: 0.8rem !important;
-        width: 3.18rem !important;
-        min-width: 3.18rem !important;
-        height: 3.18rem !important;
-    }
-
-    .app-nav {
-        background: transparent !important;
-    }
-
-    .app-nav .nav-main > .button {
-        min-height: 3.75rem !important;
-        padding-left: 1.7rem !important;
-        color: var(--owner-text) !important;
-        background: transparent !important;
-        box-shadow: inset 0 -1px 0 rgba(229,235,243,.9) !important;
-        font-weight: 680 !important;
-    }
-
-    .app-nav .nav-main > .button:hover {
-        background: rgba(255,255,255,.78) !important;
-        color: var(--owner-navy) !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub {
-        width: calc(100% - 0.78rem) !important;
-        margin: 0.4rem 0.39rem 0 !important;
-        padding-left: 1.48rem !important;
-        border-color: color-mix(in srgb, var(--section-border) 72%, #ffffff) !important;
-        border-radius: 16px !important;
-        background:
-            linear-gradient(90deg, color-mix(in srgb, var(--section-soft) 68%, #ffffff), #ffffff 76%) !important;
-        color: var(--owner-navy) !important;
-        box-shadow: inset 4px 0 0 var(--section-color), 0 12px 26px rgba(6,25,66,.06) !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub .nav-label {
-        font-weight: 820 !important;
-    }
-
-    .app-nav .nav-sub,
-    .app-nav .nav-main > .nav-sub {
-        width: calc(100% - 3.65rem) !important;
-        margin: 0.18rem 0 0.48rem 3.05rem !important;
-        padding: 0.2rem 0.32rem !important;
-        border-left: 1px solid rgba(114,128,150,.22) !important;
-        border-radius: 0 0 16px 16px !important;
-        background: transparent !important;
-        box-shadow: none !important;
-    }
-
-    .app-nav .nav-sub .button,
-    .app-nav .nav-sub-form .button {
-        min-height: 2.26rem !important;
-        padding-left: 0.68rem !important;
-        color: var(--owner-muted) !important;
-        border-radius: 10px !important;
-        font-weight: 660 !important;
-    }
-
-    .app-nav .nav-sub .button:hover,
-    .app-nav .nav-sub-form .button:hover {
-        background: rgba(255,255,255,.84) !important;
-        color: var(--owner-navy) !important;
-    }
-
-    .app-nav .nav-sub .button.active {
-        background: #ffffff !important;
-        color: var(--owner-navy) !important;
-        box-shadow: inset 3px 0 0 var(--section-color), 0 6px 16px rgba(6,25,66,.045) !important;
-        font-weight: 780 !important;
-    }
-
-    html.nav-collapsed .site-header {
-        width: var(--owner-sidebar-closed) !important;
-    }
-
-    html.nav-collapsed .brand-home.brand-lilletorget {
-        padding: 0 !important;
-        justify-content: center !important;
-    }
-}
-
-@media (max-width: 1019px) {
-    .site-header,
-    html.nav-collapsed .site-header {
-        background: rgba(255,255,255,.94) !important;
-        border-bottom: 1px solid rgba(224,232,241,.96) !important;
-        box-shadow: 0 12px 30px rgba(6,25,66,.08) !important;
-    }
-
-    .site-header .brand-bar {
-        background:
-            radial-gradient(circle at 1.7rem 1.4rem, rgba(201,144,20,.10), transparent 12rem),
-            rgba(255,255,255,.88) !important;
-    }
-
-    .brand-lilletorget-text-logo,
-    html.nav-collapsed .brand-lilletorget-text-logo {
-        width: min(9.45rem, 50vw) !important;
-    }
-
-    .site-header .brand-mark-toggle.nav-toggle,
-    html.nav-collapsed .site-header .brand-mark-toggle.nav-toggle {
-        width: 2.86rem !important;
-        min-width: 2.86rem !important;
-        height: 2.86rem !important;
-    }
-
-    .app-nav {
-        background: rgba(255,255,255,.95) !important;
-    }
-
-    .app-nav .nav-main > .button {
-        color: var(--owner-text) !important;
-        background: rgba(255,255,255,.96) !important;
-        font-weight: 700 !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub {
-        border-radius: 14px !important;
-        background: linear-gradient(90deg, color-mix(in srgb, var(--section-soft) 66%, #ffffff), #ffffff) !important;
-        box-shadow: inset 4px 0 0 var(--section-color), 0 10px 22px rgba(6,25,66,.06) !important;
-    }
-
-    .app-nav .nav-sub,
-    .app-nav .nav-main > .nav-sub {
-        width: calc(100% - 3rem) !important;
-        margin-left: 2.65rem !important;
-        border-left: 1px solid rgba(114,128,150,.24) !important;
-        background: transparent !important;
-        box-shadow: none !important;
-    }
-
-    .app-nav .nav-sub .button.active {
-        border-radius: 10px !important;
-        background: #ffffff !important;
-        box-shadow: inset 3px 0 0 var(--section-color), 0 6px 14px rgba(6,25,66,.045) !important;
-    }
-}
-
-/* Lilletorget navigation correction.
-   Cleaner, quieter sidebar: logo gets room, menu stops competing with the content. */
-:root {
-    --owner-sidebar: 248px;
-    --owner-sidebar-closed: 74px;
-    --owner-line: #e7edf4;
-    --owner-text: #26344c;
-    --owner-muted: #7a8698;
-    --owner-navy: #06163d;
-    --owner-gold: #c89216;
-}
-
-@media (min-width: 1020px) {
-    .site-header {
-        width: var(--owner-sidebar) !important;
-        background: rgba(255,255,255,.96) !important;
-        border-right: 1px solid var(--owner-line) !important;
-        box-shadow: 8px 0 28px rgba(6,22,61,.04) !important;
-    }
-
-    .site-header .brand-bar {
-        background:
-            radial-gradient(circle at 2rem 2.8rem, rgba(200,146,22,.07), transparent 11rem),
-            #ffffff !important;
-    }
-
-    .brand-home.brand-lilletorget {
-        min-height: 7.15rem !important;
-        padding: 1.05rem 1.2rem 1.05rem 4.3rem !important;
-        border-bottom: 1px solid var(--owner-line) !important;
-        justify-content: flex-start !important;
-        background: transparent !important;
-    }
-
-    .brand-lilletorget-text-logo {
-        width: 9.5rem !important;
-        max-width: 9.5rem !important;
-        filter: none !important;
-    }
-
-    .site-header .brand-mark-toggle.nav-toggle {
-        top: 1.42rem !important;
-        left: 0.92rem !important;
-        width: 2.75rem !important;
-        min-width: 2.75rem !important;
-        height: 2.75rem !important;
-        border-radius: 14px !important;
+        width: 2.55rem;
+        min-width: 2.55rem;
+        height: 2.55rem;
     }
 
     .brand-toggle-mark {
-        width: 2.55rem !important;
+        width: 2.36rem;
     }
 
-    .site-header ~ main,
-    .site-header ~ .container,
-    body .site-header ~ main,
-    body .site-header ~ .container {
-        width: min(100% - 2rem, var(--page-width)) !important;
-        margin-left: calc(var(--owner-sidebar) + 1.15rem) !important;
-        margin-right: 1rem !important;
-        padding-top: 1.05rem !important;
+    .brand-home.brand-lilletorget {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .brand-lilletorget-text-logo {
+        width: min(8.9rem, 48vw);
+    }
+
+    .app-nav {
+        grid-column: 1 / -1;
+        margin: 0.25rem -0.8rem -0.55rem;
+        border-top: 1px solid var(--owner-line);
+        background: #ffffff;
+    }
+
+    html.nav-collapsed .app-nav {
+        display: none;
     }
 
     .app-nav .nav-main {
-        padding: 0.55rem 0 1rem !important;
+        padding: 0.38rem 0 0.75rem;
     }
 
     .app-nav .nav-main > .button {
-        min-height: 3.38rem !important;
-        width: calc(100% - 1.15rem) !important;
-        margin: 0.06rem 0.58rem !important;
-        padding: 0 0.95rem 0 1.1rem !important;
-        grid-template-columns: 1.2rem minmax(0, 1fr) 0.5rem !important;
-        gap: 0.86rem !important;
-        border: 1px solid transparent !important;
-        border-radius: 15px !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        color: var(--owner-text) !important;
-        font-size: 0.95rem !important;
-        font-weight: 720 !important;
-    }
-
-    .app-nav .nav-main > .button:hover {
-        border-color: #edf2f7 !important;
-        background: #fbfcfe !important;
+        min-height: 3.15rem;
+        width: calc(100% - 1rem);
+        margin: 0.08rem 0.5rem;
+        padding: 0 0.92rem;
+        border-radius: 14px;
+        font-size: 0.96rem;
     }
 
     .app-nav .nav-main > .button.active.has-sub {
-        min-height: 3.42rem !important;
-        width: calc(100% - 1.15rem) !important;
-        margin: 0.12rem 0.58rem 0.1rem !important;
-        padding-left: 1.08rem !important;
-        border-color: rgba(6,22,61,.08) !important;
-        border-radius: 18px !important;
-        background: #ffffff !important;
-        color: var(--owner-navy) !important;
-        box-shadow: inset 3px 0 0 var(--section-color), 0 8px 20px rgba(6,22,61,.055) !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub .nav-label {
-        font-weight: 850 !important;
+        border-radius: 16px;
     }
 
     .app-nav .nav-icon {
-        width: 1.12rem !important;
-        height: 1.12rem !important;
-        stroke-width: 2.05 !important;
+        width: 1.12rem;
+        height: 1.12rem;
+        stroke-width: 2.05;
     }
 
-    .app-nav .nav-chevron {
-        width: 0.42rem !important;
-        height: 0.42rem !important;
-        opacity: 0.62 !important;
-    }
-
-    .app-nav .nav-sub,
-    .app-nav .nav-main > .nav-sub {
-        width: calc(100% - 4.35rem) !important;
-        margin: 0.02rem 0 0.5rem 3.05rem !important;
-        padding: 0.1rem 0 0.1rem 0.55rem !important;
-        border-left: 1px solid #dde5ee !important;
-        border-radius: 0 !important;
-        background: transparent !important;
-        box-shadow: none !important;
+    .app-nav .nav-sub {
+        width: calc(100% - 3.75rem);
+        margin: 0 0 0.45rem 3rem;
+        padding: 0.08rem 0 0.08rem 0.55rem;
     }
 
     .app-nav .nav-sub .button,
     .app-nav .nav-sub-form .button {
-        min-height: 2.05rem !important;
-        padding: 0 0.58rem !important;
-        gap: 0.55rem !important;
-        border-radius: 10px !important;
-        color: var(--owner-muted) !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        font-size: 0.82rem !important;
-        font-weight: 700 !important;
-    }
-
-    .app-nav .nav-sub .button.active {
-        background: #ffffff !important;
-        color: var(--owner-navy) !important;
-        box-shadow: inset 2px 0 0 var(--section-color) !important;
+        min-height: 2.22rem;
+        padding: 0 0.6rem;
+        gap: 0.56rem;
+        border-radius: 10px;
+        font-size: 0.84rem;
     }
 
     .app-nav .nav-sub-icon {
-        width: 0.88rem !important;
-        height: 0.88rem !important;
-    }
-
-    html.nav-collapsed .site-header ~ main,
-    html.nav-collapsed .site-header ~ .container,
-    html.nav-collapsed body .site-header ~ main,
-    html.nav-collapsed body .site-header ~ .container {
-        margin-left: calc(var(--owner-sidebar-closed) + 1.15rem) !important;
-    }
-}
-
-@media (max-width: 1019px) {
-    .site-header,
-    html.nav-collapsed .site-header {
-        background: rgba(255,255,255,.96) !important;
-    }
-
-    .brand-lilletorget-text-logo,
-    html.nav-collapsed .brand-lilletorget-text-logo {
-        width: min(8.9rem, 48vw) !important;
-    }
-
-    .site-header .brand-mark-toggle.nav-toggle,
-    html.nav-collapsed .site-header .brand-mark-toggle.nav-toggle {
-        width: 2.55rem !important;
-        min-width: 2.55rem !important;
-        height: 2.55rem !important;
-        border-radius: 13px !important;
-    }
-
-    .app-nav .nav-main > .button {
-        min-height: 3.15rem !important;
-        font-size: 0.96rem !important;
-        font-weight: 720 !important;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub {
-        width: calc(100% - 1rem) !important;
-        margin: 0.28rem 0.5rem 0.1rem !important;
-        border-radius: 16px !important;
-        background: #ffffff !important;
-        box-shadow: inset 3px 0 0 var(--section-color), 0 8px 18px rgba(6,22,61,.055) !important;
-    }
-
-    .app-nav .nav-sub,
-    .app-nav .nav-main > .nav-sub {
-        width: calc(100% - 3.75rem) !important;
-        margin-left: 3rem !important;
-        padding-left: 0.55rem !important;
-        border-left: 1px solid #dde5ee !important;
+        width: 0.92rem;
+        height: 0.92rem;
     }
 }
