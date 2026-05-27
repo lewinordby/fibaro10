@@ -7,3 +7,21 @@ services:
       - .env
     ports:
       - "8110:8110"
+
+  fibaro10_proxy:
+    image: caddy:2-alpine
+    container_name: fibaro10_proxy
+    restart: unless-stopped
+    depends_on:
+      - fibaro10
+    ports:
+      - "8081:80"
+      - "8443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - fibaro10_caddy_data:/data
+      - fibaro10_caddy_config:/config
+
+volumes:
+  fibaro10_caddy_data:
+  fibaro10_caddy_config:
