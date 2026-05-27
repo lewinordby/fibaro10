@@ -8988,26 +8988,39 @@ async def parking_sessions_view(
 @app.get("/parkering/kjoretoy", response_class=HTMLResponse)
 async def parking_vehicles_view(
     request: Request,
-    q: Optional[str] = None,
+    plate: Optional[str] = None,
+    navn: Optional[str] = None,
+    omrade: Optional[str] = None,
+    sun2_id: Optional[str] = None,
     merke: Optional[str] = None,
+    modell: Optional[str] = None,
     limit: int = Query(100, ge=1, le=500),
 ):
     conditions = []
-    query = (q or "").strip()
-    if query:
-        like = f"%{query.upper()}%"
+
+    def add_contains(column, value: Optional[str]):
+        query = (value or "").strip()
+        if query:
+            conditions.append(func.upper(func.coalesce(column, "")).like(f"%{query.upper()}%"))
+
+    plate_query = compact_plate(plate or "")
+    if plate_query:
+        conditions.append(func.upper(func.replace(ParkingVehicle.plate, " ", "")).like(f"%{plate_query.upper()}%"))
+
+    add_contains(ParkingVehicle.navn, navn)
+    add_contains(ParkingVehicle.omrade, omrade)
+    add_contains(ParkingVehicle.sun2_id, sun2_id)
+    add_contains(ParkingVehicleDetails.merke, merke)
+
+    model_query = (modell or "").strip()
+    if model_query:
+        like = f"%{model_query.upper()}%"
         conditions.append(
             or_(
-                func.upper(ParkingVehicle.plate).like(like),
-                func.upper(func.coalesce(ParkingVehicle.navn, "")).like(like),
-                func.upper(func.coalesce(ParkingVehicle.omrade, "")).like(like),
-                func.upper(func.coalesce(ParkingVehicle.sun2_id, "")).like(like),
-                func.upper(func.coalesce(ParkingVehicleDetails.merke, "")).like(like),
                 func.upper(func.coalesce(ParkingVehicleDetails.modell, "")).like(like),
+                func.upper(func.coalesce(ParkingVehicleDetails.typebetegnelse, "")).like(like),
             )
         )
-    if merke:
-        conditions.append(ParkingVehicleDetails.merke == merke)
 
     async with async_session() as session:
         stmt = (
@@ -9022,22 +9035,21 @@ async def parking_vehicles_view(
             count_stmt = count_stmt.where(*conditions)
         rows = (await session.execute(stmt)).all()
         count = (await session.execute(count_stmt)).scalar_one()
-        makes = (
-            await session.execute(
-                select(ParkingVehicleDetails.merke)
-                .where(ParkingVehicleDetails.merke.isnot(None))
-                .group_by(ParkingVehicleDetails.merke)
-                .order_by(ParkingVehicleDetails.merke)
-            )
-        ).scalars().all()
     return templates.TemplateResponse(
         request,
         "parking_vehicles.html",
         {
             "rows": rows,
             "count": count,
-            "makes": makes,
-            "filters": {"q": q or "", "merke": merke or "", "limit": limit},
+            "filters": {
+                "plate": plate or "",
+                "navn": navn or "",
+                "omrade": omrade or "",
+                "sun2_id": sun2_id or "",
+                "merke": merke or "",
+                "modell": modell or "",
+                "limit": limit,
+            },
         },
     )
 
