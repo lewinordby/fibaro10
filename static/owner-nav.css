@@ -595,6 +595,32 @@ html body {
     }
 }
 
+@media (min-width: 1020px) {
+    body.theme-status .site-header,
+    body.theme-status .site-header .brand-bar,
+    body.theme-status .app-nav,
+    body.theme-status .brand-home.brand-lilletorget {
+        background: #ffffff !important;
+    }
+
+    body.theme-status .brand-home.brand-lilletorget {
+        border-bottom-color: #eef2f6 !important;
+    }
+
+    body.theme-status .site-header ~ main {
+        width: min(calc(100vw - var(--owner-sidebar) - 2.6rem), 1360px) !important;
+        max-width: 1360px !important;
+        margin: 0 auto 0 calc(var(--owner-sidebar) + 1.3rem) !important;
+        padding-top: 0.82rem !important;
+    }
+
+    html.nav-collapsed body.theme-status .site-header ~ main {
+        width: min(calc(100vw - var(--owner-sidebar-closed) - 2.6rem), 1360px) !important;
+        max-width: 1360px !important;
+        margin-left: calc(var(--owner-sidebar-closed) + 1.3rem) !important;
+    }
+}
+
 @media (max-width: 430px) {
     :root {
         --owner-mobile-pad: 0.78rem;

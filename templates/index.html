@@ -304,108 +304,112 @@
         .dashboard-intro {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 0.75rem;
-            margin-bottom: 0.9rem;
+            gap: 0.48rem;
+            margin-bottom: 0.68rem;
         }
         .dashboard-title h1 {
-            font-size: clamp(1.65rem, 4.2vw, 2.45rem);
-            line-height: 1.02;
+            margin: 0;
+            font-size: clamp(1.36rem, 2.8vw, 1.78rem);
+            line-height: 1.08;
             color: #071943;
+            font-weight: 850;
         }
         .dashboard-title .sub {
-            max-width: 46rem;
-            font-size: 0.98rem;
+            max-width: 58rem;
+            font-size: 0.88rem;
         }
         .focus-grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 0.72rem;
-            margin: 0 0 1rem;
+            gap: 0.62rem;
+            margin: 0 0 0.78rem;
         }
         .focus-card {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
-            align-items: end;
-            gap: 0.8rem;
-            min-height: 8.6rem;
-            padding: 1rem 1.05rem;
-            border: 1px solid rgba(7,25,67,0.11);
-            border-top: 4px solid #d59a18;
-            border-radius: 14px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.86));
+            align-items: center;
+            gap: 0.7rem;
+            min-height: 5.25rem;
+            padding: 0.72rem 0.82rem;
+            border: 1px solid rgba(7,25,67,0.10);
+            border-left: 3px solid #d59a18;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.92);
             color: #071943;
             text-decoration: none;
-            box-shadow: 0 16px 38px rgba(7,25,67,0.08);
+            box-shadow: 0 7px 20px rgba(7,25,67,0.055);
         }
         .focus-card:hover { transform: translateY(-1px); border-color: rgba(7,25,67,0.2); }
-        .focus-card.parking { border-top-color: #4e8793; }
-        .focus-card.sun2 { border-top-color: #d66d5b; }
-        .focus-card.week { border-top-color: #d59a18; }
-        .focus-card.status { border-top-color: #071943; }
+        .focus-card.parking { border-left-color: #4e8793; }
+        .focus-card.sun2 { border-left-color: #d66d5b; }
+        .focus-card.week { border-left-color: #d59a18; }
+        .focus-card.status { border-left-color: #071943; }
         .focus-card span {
             display: block;
             color: #667085;
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             font-weight: 900;
             text-transform: uppercase;
         }
         .focus-card strong {
             display: flex;
             align-items: baseline;
-            gap: 0.24rem;
-            margin-top: 0.18rem;
-            font-size: clamp(2.05rem, 7vw, 3.15rem);
-            line-height: 0.95;
+            gap: 0.2rem;
+            margin-top: 0.12rem;
+            font-size: clamp(1.62rem, 3.4vw, 2.05rem);
+            line-height: 1;
             letter-spacing: 0;
+            white-space: nowrap;
         }
         .focus-card em {
             color: #667085;
-            font-size: 0.34em;
+            font-size: 0.38em;
             font-style: normal;
             font-weight: 900;
         }
         .focus-card small {
             justify-self: end;
-            max-width: 11rem;
+            max-width: 9.8rem;
             color: #536276;
-            font-size: 0.84rem;
+            font-size: 0.76rem;
             line-height: 1.28;
             text-align: right;
         }
         .compact-status {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 0.72rem;
-            margin-bottom: 1rem;
+            gap: 0.62rem;
+            margin-bottom: 0.78rem;
         }
         .compact-status .now-card {
-            min-height: 5.9rem;
-            border-radius: 12px;
-            box-shadow: 0 10px 26px rgba(7,25,67,0.06);
+            min-height: 4.7rem;
+            border-radius: 10px;
+            padding: 0.68rem 0.76rem;
+            box-shadow: 0 7px 20px rgba(7,25,67,0.05);
         }
         .compact-status .now-value {
-            font-size: clamp(1.35rem, 3vw, 1.75rem);
+            font-size: clamp(1.18rem, 2.2vw, 1.44rem);
         }
         .quiet-section {
             display: grid;
-            gap: 0.72rem;
-            margin-bottom: 1rem;
+            gap: 0.62rem;
+            margin-bottom: 0.78rem;
         }
         .quiet-card {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 0.75rem;
-            padding: 0.8rem 0.92rem;
+            padding: 0.58rem 0.74rem;
             border: 1px solid var(--line);
-            border-radius: 12px;
-            background: rgba(255,255,255,0.86);
+            border-radius: 9px;
+            background: rgba(255,255,255,0.88);
             color: var(--text);
             text-decoration: none;
-            box-shadow: 0 8px 24px rgba(7,25,67,0.05);
+            box-shadow: 0 4px 14px rgba(7,25,67,0.04);
         }
-        .quiet-card span { color: var(--muted); font-size: 0.8rem; }
-        .quiet-card strong { font-size: 1.05rem; }
+        .quiet-card span { color: var(--muted); font-size: 0.76rem; }
+        .quiet-card strong { font-size: 0.94rem; }
         .system-line {
             display: flex;
             flex-wrap: wrap;
@@ -417,6 +421,23 @@
         }
         .dashboard-v2 {
             display: block;
+        }
+        body.theme-status .attention-panel {
+            padding: 0.68rem 0.78rem;
+            border-radius: 10px;
+            box-shadow: 0 6px 18px rgba(7,25,67,0.045);
+        }
+        body.theme-status .ops-card {
+            min-height: 4.55rem;
+            padding: 0.64rem 0.74rem;
+            border-radius: 9px;
+            box-shadow: 0 5px 16px rgba(7,25,67,0.045);
+        }
+        body.theme-status .ops-card strong {
+            font-size: 1.18rem;
+        }
+        body.theme-status .ops-card small {
+            font-size: 0.72rem;
         }
         .attention-panel {
             margin: 0 0 1rem;
