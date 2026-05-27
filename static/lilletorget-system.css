@@ -428,6 +428,20 @@ body main :where(.muted, .meta, .hint, .description) {
         font-size: 1.36rem !important;
     }
 
+    body.theme-status main .focus-card,
+    body.theme-status main .compact-status .now-card {
+        grid-template-columns: 1fr !important;
+        gap: 0.4rem !important;
+        overflow: hidden !important;
+    }
+
+    body.theme-status main .focus-card small,
+    body.theme-status main .now-details {
+        justify-self: start !important;
+        max-width: 100% !important;
+        text-align: left !important;
+    }
+
     body main :where(.metric-card, .parking-card, .focus-card, .ops-card, .now-card, .quick-card, .status-card) {
         padding: 0.68rem 0.74rem !important;
     }
