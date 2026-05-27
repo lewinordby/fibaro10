@@ -75,6 +75,7 @@ SVV_SYNC_INTERVAL_MINUTES = max(1, int(os.getenv("SVV_SYNC_INTERVAL_MINUTES", "1
 SVV_SYNC_BATCH_SIZE = max(1, int(os.getenv("SVV_SYNC_BATCH_SIZE", "50")))
 SVV_IMPORT_SYNC_BATCH_SIZE = max(0, int(os.getenv("SVV_IMPORT_SYNC_BATCH_SIZE", "5")))
 SVV_RETRY_AFTER_HOURS = max(1, int(os.getenv("SVV_RETRY_AFTER_HOURS", "24")))
+SVV_PERMANENT_NO_DATA_STATUSES = {204, 400, 404}
 svv_sync_task: Optional[asyncio.Task] = None
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
@@ -8422,12 +8423,16 @@ def svv_api_lookup_sync(plate: str) -> Dict[str, Any]:
         method="GET",
     )
     with urllib.request.urlopen(request, timeout=30) as response:
+        status_code = response.getcode()
         payload = response.read().decode("utf-8", errors="replace")
+    if status_code == 204 or not payload.strip():
+        raise LookupError("Ingen kjøretøydata fra SVV")
     return json.loads(payload)
 
 
 async def svv_candidate_plates(session, limit: int) -> list[str]:
     retry_before = datetime.utcnow() - timedelta(hours=SVV_RETRY_AFTER_HOURS)
+    permanent_no_data = list(SVV_PERMANENT_NO_DATA_STATUSES)
     rows = (
         await session.execute(
             select(ParkingVehicle.plate)
@@ -8436,11 +8441,14 @@ async def svv_candidate_plates(session, limit: int) -> list[str]:
             .where(ParkingVehicle.plate != "")
             .where(
                 or_(
-                    ParkingVehicleDetails.plate.is_(None),
                     ParkingVehicle.svv_status.is_(None),
                     ParkingVehicle.svv_fetched_at.is_(None),
                     and_(
-                        ParkingVehicle.svv_status != 200,
+                        ParkingVehicleDetails.plate.is_(None),
+                        ParkingVehicle.svv_status.notin_(permanent_no_data),
+                    ),
+                    and_(
+                        ParkingVehicle.svv_status.notin_([200, *permanent_no_data]),
                         ParkingVehicle.svv_fetched_at < retry_before,
                     ),
                 )
@@ -8495,7 +8503,7 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
             )
             await session.commit()
         return {"ok": False, "processed": 0, "updated": 0, "failed": 0, "message": "SVV_API_KEY mangler."}
-    processed = updated = failed = 0
+    processed = updated = no_data = failed = 0
     errors: list[str] = []
     async with async_session() as session:
         plates = await svv_candidate_plates(session, limit)
@@ -8505,18 +8513,29 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
                 raw = await asyncio.to_thread(svv_api_lookup_sync, plate)
                 if await upsert_vehicle_svv_data(session, plate, raw, 200, None):
                     updated += 1
+            except LookupError as exc:
+                no_data += 1
+                message = str(exc)[:240] or "Ingen kjøretøydata fra SVV"
+                await upsert_vehicle_svv_data(session, plate, {}, 204, message)
             except urllib.error.HTTPError as exc:
-                failed += 1
-                message = f"HTTP {exc.code}"
-                errors.append(f"{plate}: {message}")
+                message = "Ikke funnet eller ugyldig kjennemerke hos SVV" if exc.code in SVV_PERMANENT_NO_DATA_STATUSES else f"HTTP {exc.code}"
+                if exc.code in SVV_PERMANENT_NO_DATA_STATUSES:
+                    no_data += 1
+                else:
+                    failed += 1
+                    errors.append(f"{plate}: {message}")
                 await upsert_vehicle_svv_data(session, plate, {}, exc.code, message)
+            except json.JSONDecodeError:
+                no_data += 1
+                message = "Tomt eller uleselig svar fra SVV"
+                await upsert_vehicle_svv_data(session, plate, {}, 204, message)
             except Exception as exc:
                 failed += 1
                 message = str(exc)[:240]
                 errors.append(f"{plate}: {message}")
                 await upsert_vehicle_svv_data(session, plate, {}, 0, message)
             await session.commit()
-        job_ok = failed == 0 or updated > 0 or processed == 0
+        job_ok = failed == 0
         await record_import_job(
             session,
             "parking_vehicle_svv_sync",
@@ -8525,11 +8544,11 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
             started_at=started_at,
             records_imported=updated,
             records_total=processed,
-            message=f"{updated} oppdatert, {failed} feilet, {processed} behandlet.",
-            raw={"errors": errors[:20]},
+            message=f"{updated} oppdatert, {no_data} uten treff, {failed} feilet, {processed} behandlet.",
+            raw={"errors": errors[:20], "no_data": no_data},
         )
         await session.commit()
-    return {"ok": failed == 0, "processed": processed, "updated": updated, "failed": failed, "errors": errors[:20]}
+    return {"ok": failed == 0, "processed": processed, "updated": updated, "no_data": no_data, "failed": failed, "errors": errors[:20]}
 
 
 async def parking_vehicle_svv_worker() -> None:
