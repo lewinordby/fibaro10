@@ -1852,3 +1852,91 @@ body.theme-status main .badge.off {
         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     }
 }
+
+/* Calmer dashboard typography: this is a drift view, not a poster. */
+body.theme-status main .dashboard-title h1 {
+    font-size: clamp(1.28rem, 2.1vw, 1.58rem) !important;
+    line-height: 1.12 !important;
+}
+
+body.theme-status main .dashboard-title .sub,
+body.theme-status main .attention-panel .sub {
+    font-size: 0.82rem !important;
+    line-height: 1.35 !important;
+}
+
+body.theme-status main .mode {
+    font-size: 0.7rem !important;
+    padding: 0.24rem 0.58rem !important;
+}
+
+body.theme-status main .focus-card {
+    min-height: 4.45rem !important;
+    padding: 0.62rem 0.74rem !important;
+}
+
+body.theme-status main .focus-card span,
+body.theme-status main .ops-card span,
+body.theme-status main .now-label {
+    font-size: 0.64rem !important;
+}
+
+body.theme-status main .focus-card strong {
+    font-size: clamp(1.18rem, 2.25vw, 1.55rem) !important;
+}
+
+body.theme-status main .focus-card small {
+    max-width: 10.5rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1.25 !important;
+}
+
+body.theme-status main .attention-panel h2,
+body.theme-status main .section-head h2 {
+    font-size: 0.98rem !important;
+}
+
+body.theme-status main .compact-status .now-card,
+body.theme-status main .now-card {
+    min-height: 5.45rem !important;
+    padding: 0.72rem 0.82rem !important;
+}
+
+body.theme-status main .compact-status .now-value,
+body.theme-status main .now-value {
+    font-size: clamp(1.22rem, 2.05vw, 1.55rem) !important;
+}
+
+body.theme-status main .now-card.weather-card .now-value {
+    font-size: clamp(1.02rem, 1.55vw, 1.22rem) !important;
+    line-height: 1.08 !important;
+}
+
+body.theme-status main .now-small .small-label {
+    font-size: 0.66rem !important;
+}
+
+body.theme-status main .now-small .small-value {
+    font-size: 0.78rem !important;
+}
+
+body.theme-status main .quiet-card {
+    padding: 0.52rem 0.66rem !important;
+}
+
+body.theme-status main .quiet-card strong {
+    font-size: 0.84rem !important;
+}
+
+body.theme-status main .quiet-card span {
+    font-size: 0.72rem !important;
+}
+
+body.theme-status main .ops-card {
+    min-height: 4.15rem !important;
+    padding: 0.64rem 0.76rem !important;
+}
+
+body.theme-status main .ops-card strong {
+    font-size: 1.04rem !important;
+}
