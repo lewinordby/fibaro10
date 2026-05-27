@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kjøretøy</title>
     {% include "_styles.html" %}
+    <style>
+        .vehicle-maintenance-panel { padding:0.85rem 1rem; }
+        .vehicle-maintenance-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+        .vehicle-maintenance-row p { margin:0.25rem 0 0; }
+        @media (max-width: 720px) {
+            .vehicle-maintenance-row { align-items:stretch; flex-direction:column; }
+            .vehicle-maintenance-row .button { width:100%; }
+        }
+    </style>
 </head>
 <body class="theme-parking">
     {% include "_header.html" %}
@@ -21,6 +30,24 @@
             <button class="primary" type="submit">Filtrer</button>
             <a class="button" href="/parkering/kjoretoy">Nullstill</a>
         </form>
+        {% if cleanup_count is not none %}
+        <section class="panel vehicle-maintenance-panel">
+            <strong>Opprydding fullført:</strong> {{ cleanup_count }} områdeverdier med "ikke funnet" ble tømt.
+        </section>
+        {% endif %}
+        {% if request.state.auth_can_settings %}
+        <section class="panel vehicle-maintenance-panel">
+            <form method="post" action="/parkering/kjoretoy/rydd-ikke-funnet{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+                <div class="vehicle-maintenance-row">
+                    <div>
+                        <strong>Områdeoppslag</strong>
+                        <p class="muted">Tøm verdien "ikke funnet" slik at kjøretøyene kommer med i neste områdekontroll.</p>
+                    </div>
+                    <button class="button" type="submit">Tøm "ikke funnet"</button>
+                </div>
+            </form>
+        </section>
+        {% endif %}
         <section class="panel">
             <div class="table-scroll">
                 <table class="parking-table">

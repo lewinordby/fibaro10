@@ -8994,6 +8994,7 @@ async def parking_vehicles_view(
     sun2_id: Optional[str] = None,
     merke: Optional[str] = None,
     modell: Optional[str] = None,
+    ryddet: Optional[int] = None,
     limit: int = Query(100, ge=1, le=500),
 ):
     conditions = []
@@ -9050,8 +9051,28 @@ async def parking_vehicles_view(
                 "modell": modell or "",
                 "limit": limit,
             },
+            "cleanup_count": ryddet,
         },
     )
+
+
+@app.post("/parkering/kjoretoy/rydd-ikke-funnet")
+async def parking_vehicle_clear_not_found_area(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        result = await session.execute(
+            update(ParkingVehicle)
+            .where(func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, ""))) == "ikke funnet")
+            .values(
+                omrade=None,
+                omrade_kilde=None,
+                omrade_oppdatert=None,
+            )
+        )
+        await session.commit()
+    return redirect_with_query_params(request, "/parkering/kjoretoy", ryddet=result.rowcount or 0)
 
 
 def vehicle_missing_name_condition():
