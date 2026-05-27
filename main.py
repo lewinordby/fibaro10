@@ -7591,7 +7591,7 @@ async def index(request: Request):
             "title": "Drift akkurat nå",
             "value": "Sjekk" if attention_items else "OK",
             "unit": f"{import_counts['ok']}/{import_counts['total']}",
-            "detail": f"{len(attention_items)} varsel - {now_status.mode.replace('_', ' ').lower() if now_status.mode else 'modus ukjent'}",
+            "detail": f"{len(attention_items)} varsel - {(now_status.get('mode') or 'modus ukjent').replace('_', ' ').lower()}",
             "href": "/status/datakilder" if attention_items else "/status/dagslinje",
             "tone": "status",
         },
