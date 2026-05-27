@@ -1197,3 +1197,202 @@ body.theme-parking main :where(.parking-stats-grid) {
         grid-template-columns: 1fr;
     }
 }
+
+/* Lilletorget premium refresh.
+   Global visual layer that aligns the full app with the newer login expression. */
+:root {
+    --brand: #071a45;
+    --brand-strong: #101f55;
+    --brand-dark: #071a45;
+    --brand-soft: #eef3fb;
+    --brand-ring: rgba(210, 151, 19, 0.22);
+    --bg: #eef3f8;
+    --panel: #ffffff;
+    --panel-soft: #f7f9fc;
+    --line: #e1e8f1;
+    --line-soft: #edf2f7;
+    --text: #18253a;
+    --muted: #748196;
+    --gold: #d29713;
+    --gold-soft: #fff6e3;
+    --surface: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(250,252,255,.94) 100%);
+    --shadow-1: 0 12px 32px rgba(7, 26, 69, 0.07);
+    --shadow-2: 0 22px 55px rgba(7, 26, 69, 0.11);
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --status-color: #467db5;
+    --status-soft: #edf5ff;
+    --status-border: #c9ddf0;
+    --light-color: #d29713;
+    --light-soft: #fff6e3;
+    --light-border: #ecd08d;
+    --vent-color: #4e9460;
+    --vent-soft: #eef8f1;
+    --vent-border: #c4e0ca;
+    --cleaning-color: #71618b;
+    --cleaning-soft: #f2eff7;
+    --cleaning-border: #d4cadf;
+    --sun2-color: #c96f5f;
+    --sun2-soft: #fff0ed;
+    --sun2-border: #eac0b8;
+    --energy-color: #a57416;
+    --energy-soft: #fff6e3;
+    --energy-border: #e2c784;
+    --parking-color: #276f78;
+    --parking-soft: #edf8f9;
+    --parking-border: #b8dce0;
+    --ai-color: #5167ad;
+    --ai-soft: #f0f3ff;
+    --ai-border: #cdd7ff;
+}
+
+html body {
+    background:
+        radial-gradient(circle at 3rem 2rem, rgba(210, 151, 19, 0.13), transparent 28rem),
+        radial-gradient(circle at 100% 0, rgba(7, 26, 69, 0.07), transparent 34rem),
+        linear-gradient(135deg, #fbfcfe 0%, #eef3f8 52%, #e7edf6 100%) !important;
+    color: var(--text) !important;
+}
+
+main {
+    --surface-border: rgba(215, 224, 235, 0.96);
+    --surface-shadow: 0 16px 42px rgba(7, 26, 69, 0.075);
+    --surface-shadow-hover: 0 22px 54px rgba(7, 26, 69, 0.105);
+    padding-top: 1.15rem !important;
+}
+
+main :where(.page-title) {
+    margin-bottom: 1rem !important;
+    padding: 0.1rem 0.1rem 0.25rem !important;
+}
+
+main :where(.page-title h1) {
+    font-size: clamp(1.55rem, 3vw, 2.15rem) !important;
+    font-weight: 850 !important;
+    letter-spacing: -0.01em !important;
+}
+
+main :where(.page-title p) {
+    max-width: 68rem;
+    color: var(--muted) !important;
+    font-size: 0.98rem !important;
+}
+
+main :where(.panel, .hero, .event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .chart-panel, .timeline-panel, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .filter-panel, .area-card, .clean-card, .data-card, .settings-card, .table-wrap, details) {
+    border: 1px solid var(--surface-border) !important;
+    border-radius: var(--radius-lg) !important;
+    background: var(--surface) !important;
+    box-shadow: var(--surface-shadow) !important;
+}
+
+main :where(.panel, .hero, main > details) {
+    overflow: hidden;
+}
+
+main :where(.panel, .hero, main > details)::before {
+    height: 2px !important;
+    background: linear-gradient(90deg, var(--page-accent), color-mix(in srgb, var(--page-accent) 35%, var(--gold))) !important;
+    opacity: 0.82 !important;
+}
+
+main :where(.event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .quick-card, .area-card):hover {
+    transform: translateY(-2px);
+}
+
+main :where(input, select, textarea) {
+    min-height: 2.75rem !important;
+    border-color: #dce5ef !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    color: var(--brand-dark) !important;
+    font-weight: 650;
+    box-shadow: inset 0 1px 1px rgba(7, 26, 69, 0.025) !important;
+}
+
+main :where(input, select, textarea):focus {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 0 4px rgba(210, 151, 19, 0.18), inset 0 1px 1px rgba(7, 26, 69, 0.025) !important;
+}
+
+main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button) {
+    min-height: 2.55rem !important;
+    border-color: #dce5ef !important;
+    border-radius: 13px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    color: var(--brand-dark) !important;
+    font-weight: 820 !important;
+}
+
+main :where(a.button:hover, button:not(.nav-toggle):hover, .chart-toggle:hover, .sun-chip:hover, .subscribe-button:hover) {
+    border-color: var(--page-accent-border) !important;
+    box-shadow: 0 14px 28px rgba(7, 26, 69, 0.08) !important;
+}
+
+main :where(a.button.active, button.active, .chart-toggle.active, .sun-chip.active, .active > .button, .button.primary, button.primary, .primary, .button-primary) {
+    border-color: var(--brand-dark) !important;
+    background: linear-gradient(135deg, var(--brand-dark), #162760) !important;
+    color: #ffffff !important;
+    box-shadow: 0 14px 28px rgba(7, 26, 69, 0.18) !important;
+}
+
+main :where(.filters) {
+    border-radius: var(--radius-lg) !important;
+    border-top: 0 !important;
+    background: rgba(255,255,255,.9) !important;
+    backdrop-filter: blur(16px);
+}
+
+main :where(th) {
+    background: #f6f8fb !important;
+    color: #697789 !important;
+    font-size: 0.72rem !important;
+    font-weight: 860 !important;
+}
+
+main :where(td, th) {
+    border-bottom-color: #edf2f7 !important;
+}
+
+main :where(tbody tr:hover td) {
+    background: color-mix(in srgb, var(--page-accent-soft) 46%, #ffffff) !important;
+}
+
+main :where(.badge, .pill, .status-pill, .mode, .flag, .live-pill, .stat-pill, .sync-pill, .count-link) {
+    border-radius: 999px !important;
+}
+
+body.theme-status .hero,
+body.theme-status .hero::before {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+}
+
+body.theme-status .now-card,
+body.theme-status .status-card,
+body.theme-status .quick-card {
+    border-radius: 20px !important;
+}
+
+body.theme-parking main :where(.parking-card, .parking-panel, .vehicle-card) {
+    border-radius: 18px !important;
+}
+
+body.theme-parking main :where(.parking-card) {
+    border-left-color: var(--parking-color) !important;
+}
+
+body.theme-parking main :where(.amount) {
+    color: #8f6713 !important;
+}
+
+@media (max-width: 640px) {
+    main {
+        width: min(100% - 0.9rem, var(--page-width)) !important;
+    }
+
+    main :where(.page-title h1) {
+        font-size: 1.45rem !important;
+    }
+}

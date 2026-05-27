@@ -610,3 +610,110 @@ html body {
         width: min(8.9rem, 48vw) !important;
     }
 }
+
+/* Lilletorget premium navigation refresh. Mirrors the softer login surface. */
+:root {
+    --owner-line: #e4ebf3;
+    --owner-row: rgba(255,255,255,.76);
+    --owner-row-hover: #f8fafc;
+    --owner-row-active: #f3f6fb;
+    --owner-sub-row: rgba(248,250,252,.78);
+    --owner-text: #26334a;
+    --owner-muted: #728096;
+    --owner-navy: #071a45;
+    --owner-gold: #d29713;
+}
+
+html body {
+    background:
+        radial-gradient(circle at 2rem 1rem, rgba(210, 151, 19, 0.12), transparent 30rem),
+        linear-gradient(135deg, #fbfcfe 0%, #eef3f8 52%, #e7edf6 100%) !important;
+}
+
+@media (min-width: 1020px) {
+    .site-header {
+        background: rgba(255,255,255,.86) !important;
+        border-right: 1px solid rgba(218,226,236,.92) !important;
+        box-shadow: 10px 0 34px rgba(7,26,69,.045) !important;
+        backdrop-filter: blur(18px);
+    }
+
+    .site-header .brand-bar {
+        background: transparent !important;
+    }
+
+    .brand-home.brand-lilletorget {
+        min-height: 6.25rem !important;
+        background:
+            radial-gradient(circle at 84% 25%, rgba(210,151,19,.09), transparent 7rem),
+            linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.92)) !important;
+    }
+
+    .brand-lilletorget-text-logo {
+        width: 10.35rem !important;
+        filter: drop-shadow(0 8px 18px rgba(7,26,69,.08));
+    }
+
+    .site-header .brand-mark-toggle.nav-toggle {
+        width: 3.05rem !important;
+        min-width: 3.05rem !important;
+        height: 3.05rem !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.82rem !important;
+        font-size: 0.98rem !important;
+        font-weight: 700 !important;
+        color: var(--owner-text) !important;
+    }
+
+    .app-nav .nav-main > .button:hover {
+        background: rgba(248,250,252,.9) !important;
+        color: var(--owner-navy) !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        min-height: 3.55rem !important;
+        border-color: color-mix(in srgb, var(--section-border) 70%, #ffffff) !important;
+        border-radius: 14px !important;
+        background: linear-gradient(180deg, rgba(255,255,255,.98), color-mix(in srgb, var(--section-soft) 70%, #ffffff)) !important;
+        box-shadow: inset 4px 0 0 var(--section-color), 0 10px 24px rgba(7,26,69,.055) !important;
+    }
+
+    .app-nav .nav-sub,
+    .app-nav .nav-main > .nav-sub {
+        width: calc(100% - 2.7rem) !important;
+        margin-left: 2.7rem !important;
+        border-radius: 0 0 14px 14px !important;
+        background: rgba(248,250,252,.68) !important;
+        box-shadow: inset 3px 0 0 rgba(103,114,129,.14) !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        min-height: 2.32rem !important;
+        font-weight: 650 !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        border-radius: 10px !important;
+        background: rgba(255,255,255,.95) !important;
+        box-shadow: inset 3px 0 0 var(--section-color), 0 5px 14px rgba(7,26,69,.04) !important;
+    }
+
+    .site-header ~ main,
+    .site-header ~ .container,
+    body .site-header ~ main,
+    body .site-header ~ .container {
+        padding-top: 1.18rem !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    .site-header,
+    html.nav-collapsed .site-header {
+        background: rgba(255,255,255,.9) !important;
+        backdrop-filter: blur(18px);
+        box-shadow: 0 12px 30px rgba(7,26,69,.08) !important;
+    }
+}
