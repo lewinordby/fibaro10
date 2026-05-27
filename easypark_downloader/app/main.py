@@ -148,7 +148,7 @@ def write_auth_state(**values: Any) -> None:
 def auth_is_expired() -> bool:
     last_login = parse_iso_datetime(read_auth_state().get("last_login_at"))
     if not last_login:
-        return True
+        return False
     return datetime.now(timezone.utc) - last_login >= timedelta(hours=AUTH_MAX_AGE_HOURS)
 
 
@@ -299,6 +299,8 @@ async def ensure_logged_in(page) -> bool:
     await page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
     await page.wait_for_timeout(5000)
     if await looks_logged_in(page):
+        if not parse_iso_datetime(read_auth_state().get("last_login_at")):
+            mark_login_completed()
         return False
 
     performed_login = False
