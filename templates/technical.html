@@ -53,7 +53,7 @@
                 <ul class="list">
                     <li><span class="key">Navn</span><span class="value">Fibaro10 / Lilletorget drift</span></li>
                     <li><span class="key">Lokal prod</span><span class="value"><code>http://192.168.20.218:8110</code> på QNAP.</span></li>
-                    <li><span class="key">Ekstern prod</span><span class="value"><code>https://fibaro10.onrender.com</code>. Brukes når løsningen skal nås utenfra.</span></li>
+                    <li><span class="key">Ekstern prod</span><span class="value">Offentlig HTTPS-adresse peker til QNAP-instansen.</span></li>
                     <li><span class="key">Kode</span><span class="value">GitHub-repo <code>lewinordby/fibaro10</code>. Produksjon bygges fra <code>main</code>.</span></li>
                     <li><span class="key">Backend</span><span class="value">FastAPI med PostgreSQL-database, server-renderte sider og GZip-komprimering.</span></li>
                     <li><span class="key">Frontend</span><span class="value">Server-renderte Jinja-maler. Felles design ligger i <code>static/app.css</code>, meny/header i <code>static/owner-nav.css</code>.</span></li>
@@ -146,7 +146,7 @@
                 <h2>Drift og deploy</h2>
                 <ul class="list">
                     <li><span class="key">QNAP deploy</span><span class="value">QNAP-instansen oppdateres fra GitHub <code>main</code> og bygges med <code>docker compose -f docker-compose.qnap.yml up -d --build fibaro10</code>.</span></li>
-                    <li><span class="key">Render deploy</span><span class="value">Render kjører samme repo/branch og kan trigges automatisk på commit eller manuelt via Render API.</span></li>
+                    <li><span class="key">Offentlig drift</span><span class="value">Ekstern tilgang skal gå mot QNAP via offentlig HTTPS/proxy. QNAP er eneste aktive driftsmiljø.</span></li>
                     <li><span class="key">Helsesjekk</span><span class="value"><code>/health</code> viser at appen svarer og hvilke datatabeller som finnes.</span></li>
                     <li><span class="key">Logger</span><span class="value">Containerlogger viser postinger fra HC3, Roborock, SUN2, EasyPark/importstatus og eventuelle 500-feil.</span></li>
                     <li><span class="key">Uten auth</span><span class="value">De fleste sider krever innlogging. <code>/health</code>, <code>/favicon.ico</code> og innloggingssiden er åpne.</span></li>
@@ -192,7 +192,7 @@
                 <li><span class="key">3</span><span class="value">Sjekk aktuell fagmeny: Lys, Ventilasjon, Renhold, Soling eller Energi.</span></li>
                 <li><span class="key">4</span><span class="value">Ved importfeil: sjekk lokal logger/QNAP først, deretter API-status i appen. For parkering: se Parkering → Oversikt og EasyPark-status.</span></li>
                 <li><span class="key">5</span><span class="value">Ved rare tider: kontroller om kilden leverer lokal tid eller UTC. SUN2 og Elvia vises som kildetid, HC3/Yr konverteres til Europe/Oslo ved visning.</span></li>
-                <li><span class="key">6</span><span class="value">Ved feil design etter deploy: sjekk at både QNAP og Render serverer ny <code>static/app.css</code>, siden disse kan være ulike miljøer.</span></li>
+                <li><span class="key">6</span><span class="value">Ved feil design etter deploy: sjekk at QNAP serverer ny <code>static/app.css</code>, og hard refresh nettleseren hvis gammel CSS henger igjen.</span></li>
             </ul>
             <div class="links">
                 <a class="button" href="/status/datakilder">Datakilder</a>
@@ -204,7 +204,7 @@
 
         <section class="panel">
             <h2>Sist oppdatert</h2>
-            <p>27.05.2026: teknisk dokumentasjon oppdatert med QNAP/Render-drift, parkering, EasyPark, kjøretøyberikelse, område/navn-utvidelser og siste oversiktssider.</p>
+            <p>27.05.2026: teknisk dokumentasjon oppdatert med QNAP som eneste driftsmiljø, parkering, EasyPark, kjøretøyberikelse, område/navn-utvidelser og siste oversiktssider.</p>
         </section>
     </main>
 </body>
