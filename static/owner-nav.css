@@ -621,6 +621,22 @@ html body {
     }
 }
 
+@media (min-width: 1020px) {
+    body.theme-parking .site-header ~ main {
+        width: min(calc(100vw - var(--owner-sidebar) - 2.3rem), 1180px) !important;
+        max-width: 1180px !important;
+        margin-left: calc(var(--owner-sidebar) + 1.15rem) !important;
+        margin-right: auto !important;
+    }
+
+    html.nav-collapsed body.theme-parking .site-header ~ main {
+        width: min(calc(100vw - var(--owner-sidebar-closed) - 2.3rem), 1180px) !important;
+        max-width: 1180px !important;
+        margin-left: calc(var(--owner-sidebar-closed) + 1.15rem) !important;
+        margin-right: auto !important;
+    }
+}
+
 @media (max-width: 430px) {
     :root {
         --owner-mobile-pad: 0.78rem;
