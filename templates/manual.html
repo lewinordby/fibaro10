@@ -8,16 +8,18 @@
         :root {
             color-scheme: light;
             --manual-line: #dbe3ec;
-            --manual-muted: #64748b;
-            --manual-text: #26323f;
-            --manual-soft: #f8fafc;
+            --manual-muted: #6b778d;
+            --manual-text: #081846;
+            --manual-soft: #f6f8fb;
+            --manual-gold: #a87917;
+            --manual-card: #ffffff;
         }
         * { box-sizing: border-box; }
         body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
         main.manual-page {
-            width: min(100% - 1.4rem, 1120px);
+            width: min(100% - 1.4rem, 1160px);
             margin: 0 auto;
-            padding: 1rem 0 2.6rem;
+            padding: 1rem 0 2.7rem;
             color: var(--manual-text);
         }
         .manual-hero,
@@ -27,43 +29,45 @@
         .manual-example {
             background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
             border: 1px solid var(--manual-line);
-            box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 10px 28px rgba(38,50,63,.06);
+            box-shadow: 0 1px 2px rgba(8,24,70,.04), 0 12px 30px rgba(8,24,70,.06);
         }
         .manual-hero {
-            border-top: 4px solid var(--page-accent);
-            border-radius: 12px;
-            padding: clamp(1rem, 2.4vw, 1.45rem);
+            border-top: 4px solid var(--manual-gold);
+            border-radius: 14px;
+            padding: clamp(1rem, 2.4vw, 1.55rem);
         }
         .manual-kicker {
             display: inline-flex;
             min-height: 1.8rem;
             align-items: center;
-            padding: .18rem .62rem;
+            padding: .18rem .64rem;
             border-radius: 999px;
-            background: var(--page-accent-soft);
-            color: var(--page-accent);
-            border: 1px solid var(--page-accent-border);
-            font-weight: 850;
-            font-size: .8rem;
+            background: rgba(168,121,23,.11);
+            color: var(--manual-gold);
+            border: 1px solid rgba(168,121,23,.26);
+            font-weight: 900;
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
         }
         .manual-hero h1 {
             max-width: 900px;
             margin: .7rem 0 0;
-            font-size: clamp(1.75rem, 4vw, 3rem);
-            line-height: 1.04;
+            font-size: clamp(1.75rem, 3.6vw, 2.65rem);
+            line-height: 1.05;
             letter-spacing: 0;
         }
         .manual-hero p {
-            max-width: 900px;
+            max-width: 930px;
             margin: .58rem 0 0;
             color: var(--manual-muted);
-            font-size: 1.02rem;
-            line-height: 1.5;
+            font-size: 1rem;
+            line-height: 1.52;
         }
         .manual-toc {
             margin-top: .9rem;
-            border-radius: 10px;
-            padding: .78rem;
+            border-radius: 12px;
+            padding: .82rem;
         }
         .manual-toc strong {
             display: block;
@@ -81,31 +85,31 @@
             align-items: center;
             padding: .32rem .68rem;
             border: 1px solid var(--manual-line);
-            border-radius: 7px;
+            border-radius: 8px;
             background: #fff;
             color: #526174;
             text-decoration: none;
-            font-weight: 780;
+            font-weight: 800;
             font-size: .86rem;
         }
-        .manual-section { margin-top: 1.05rem; scroll-margin-top: 5rem; }
+        .manual-section { margin-top: 1.08rem; scroll-margin-top: 5rem; }
         .manual-section h2 {
             margin: 0 0 .58rem;
             font-size: 1.22rem;
             letter-spacing: 0;
         }
         .manual-section > p {
-            margin: -.25rem 0 .7rem;
-            max-width: 900px;
+            margin: -.25rem 0 .75rem;
+            max-width: 940px;
             color: var(--manual-muted);
             line-height: 1.5;
         }
-        .manual-grid { display: grid; gap: .85rem; }
-        .manual-subgrid { margin-top: .85rem; }
+        .manual-grid { display: grid; gap: .88rem; }
+        .manual-subgrid { margin-top: .88rem; }
         .manual-card {
-            border-top: 4px solid var(--page-accent);
-            border-radius: 10px;
-            padding: .9rem;
+            border-top: 4px solid var(--page-accent, var(--manual-gold));
+            border-radius: 12px;
+            padding: .95rem;
         }
         .manual-card h3 {
             margin: 0;
@@ -125,13 +129,13 @@
         .manual-card.cleaning { border-top-color: var(--cleaning-color); }
         .manual-card.ai { border-top-color: var(--ai-color); }
         .manual-card.admin { border-top-color: var(--admin-color); }
-        .manual-steps { display: grid; gap: .65rem; counter-reset: step; }
+        .manual-steps { display: grid; gap: .68rem; counter-reset: step; }
         .manual-step {
             position: relative;
-            padding: .82rem .86rem .82rem 3.05rem;
+            padding: .82rem .86rem .82rem 3.08rem;
             background: #fff;
             border: 1px solid var(--manual-line);
-            border-radius: 10px;
+            border-radius: 12px;
         }
         .manual-step::before {
             counter-increment: step;
@@ -144,7 +148,7 @@
             display: grid;
             place-items: center;
             border-radius: 999px;
-            background: var(--page-accent);
+            background: var(--manual-gold);
             color: #fff;
             font-size: .82rem;
             font-weight: 900;
@@ -159,8 +163,8 @@
         .manual-list { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
         .manual-list li {
             display: grid;
-            grid-template-columns: minmax(0, 6.2rem) minmax(0,1fr);
-            gap: .75rem;
+            grid-template-columns: minmax(8.5rem, 12rem) minmax(0,1fr);
+            gap: .8rem;
             padding: .55rem 0;
             border-top: 1px solid #edf1f6;
         }
@@ -169,7 +173,6 @@
             color: var(--manual-text);
             font-weight: 860;
             line-height: 1.22;
-            overflow-wrap: anywhere;
         }
         .manual-value { color: var(--manual-muted); line-height: 1.44; }
         .manual-check { margin: .58rem 0 0; padding: 0; list-style: none; display: grid; gap: .45rem; }
@@ -186,19 +189,19 @@
             height: .48rem;
             margin-top: .42rem;
             border-radius: 999px;
-            background: var(--page-accent);
+            background: var(--manual-gold);
         }
         .manual-callout {
-            border-left: 4px solid var(--page-accent);
-            border-radius: 10px;
+            border-left: 4px solid var(--manual-gold);
+            border-radius: 12px;
             padding: .95rem;
         }
         .manual-callout strong { display: block; margin-bottom: .25rem; }
         .manual-example {
-            margin-top: .65rem;
-            border-left: 4px solid var(--page-accent-border);
-            border-radius: 9px;
-            padding: .78rem;
+            margin-top: .68rem;
+            border-left: 4px solid rgba(168,121,23,.32);
+            border-radius: 10px;
+            padding: .8rem;
             color: #526174;
             line-height: 1.45;
         }
@@ -237,9 +240,9 @@
             <span class="manual-kicker">Sluttbrukerveiledning</span>
             <h1>Lilletorget drift forklart enkelt</h1>
             <p>
-                Denne appen er kontrollrommet for Lilletorget: den viser hvordan lys, ventilasjon, solstudio,
-                renhold og strømforbruk oppfører seg. Manualen er skrevet for deg som skal bruke løsningen,
-                også om du ikke har vært med på å utvikle den.
+                Denne manualen forklarer hvordan du bruker Lilletorget drift i hverdagen. Appen samler
+                parkering, soling, lys, ventilasjon, energi, renhold og datastatus på ett sted. Den er laget
+                for rask sjekk på mobil, men de store tabellene og grafene er fortsatt enklest på PC.
             </p>
             <div class="manual-toc">
                 <strong>Innhold</strong>
@@ -247,16 +250,17 @@
                     <a href="#kortversjon">Kortversjon</a>
                     <a href="#dashboard">Dashboard</a>
                     <a href="#menyer">Menyer</a>
+                    <a href="#parkering">Parkering</a>
+                    <a href="#soling">Soling</a>
                     <a href="#lys">Lys</a>
                     <a href="#ventilasjon">Ventilasjon</a>
-                    <a href="#soling">Soling</a>
                     <a href="#energi">Energi</a>
-                    <a href="#parkering">Parkering</a>
                     <a href="#renhold">Renhold</a>
                     <a href="#data">Data</a>
                     <a href="#varsler">Varsler</a>
                     <a href="#tilgang">Tilgang</a>
                     <a href="#feil">Feilsøking</a>
+                    <a href="#ordliste">Ordliste</a>
                 </nav>
             </div>
         </section>
@@ -264,34 +268,38 @@
         <section class="manual-section" id="kortversjon">
             <h2>Kortversjon: slik bruker du appen</h2>
             <div class="manual-steps">
-                <div class="manual-step"><strong>Start på Dashboard</strong><span>Her ser du om bygget har normale verdier akkurat nå.</span></div>
-                <div class="manual-step"><strong>Se på farger og status</strong><span>Grønt betyr normalt i drift. Rødt eller gamle tidspunkter betyr at noe bør sjekkes.</span></div>
-                <div class="manual-step"><strong>Gå til riktig fagområde</strong><span>Trykk Lys, Ventilasjon, Soling, Energi, Parkering eller Renhold for mer detaljer.</span></div>
-                <div class="manual-step"><strong>Sjekk Datakilder ved tvil</strong><span>Hvis en graf virker gammel, se når appen sist mottok data.</span></div>
+                <div class="manual-step"><strong>Start på Dashboard</strong><span>Her ser du de viktigste tallene først: solinger, parkering, datakilder og nåstatus.</span></div>
+                <div class="manual-step"><strong>Bruk menyen etter område</strong><span>Parkering, Soling, Lys, Ventilasjon, Energi og Renhold har hver sine undersider.</span></div>
+                <div class="manual-step"><strong>Sjekk datoen</strong><span>Mange sider har datovelger. Pass på at du ser på riktig dag før du konkluderer.</span></div>
+                <div class="manual-step"><strong>Sjekk Datakilder ved tvil</strong><span>Hvis noe virker gammelt eller tomt, se først når datakilden sist leverte data.</span></div>
             </div>
             <div class="manual-example">
-                <strong>Eksempel:</strong> Hvis du lurer på om parkeringslysene faktisk slo seg på i kveld,
-                går du til <strong>Lys → Hendelser</strong> eller <strong>Lys → Dagslogg</strong>. Der ser du tidspunktet,
-                lux-nivået og hvilke lys som var på.
+                <strong>Eksempel:</strong> Hvis du lurer på om dagens parkeringstall stemmer, går du først til
+                <strong>Parkering &gt; Oversikt</strong>. Hvis tallene virker gamle, sjekker du boksen for sist oppdatert
+                og deretter <strong>Status &gt; Datakilder</strong>.
             </div>
         </section>
 
         <section class="manual-section" id="dashboard">
-            <h2>Dashboard: første side du bør sjekke</h2>
-            <p>Dashboard gir en samlet nåstatus. Tanken er at du raskt skal kunne se om bygget oppfører seg normalt uten å åpne mange undersider.</p>
+            <h2>Status og Dashboard</h2>
+            <p>Dashboard er startsiden. Den skal gi et raskt og rolig bilde av om driften ser normal ut.</p>
             <div class="manual-grid three">
                 <article class="manual-card">
+                    <h3>De viktigste tallene</h3>
+                    <p>Øverst vises dagens solinger, dagens parkering, uketall og om datagrunnlaget ser friskt ut.</p>
+                </article>
+                <article class="manual-card">
                     <h3>Nåstatus</h3>
-                    <p>Viser gjennomsnittlig innetemperatur, utetemperatur, lux og vær. Småtallene bak viser hvilke målere verdien bygger på.</p>
+                    <p>Viser innetemperatur, utetemperatur, lux og vær. Småtallene viser hvilke målere verdiene bygger på.</p>
                 </article>
                 <article class="manual-card">
-                    <h3>Siste hendelser</h3>
-                    <p>Viser de nyeste endringene, for eksempel at et lys gikk på, en vifte startet eller en import ble oppdatert.</p>
+                    <h3>Drift og snarveier</h3>
+                    <p>Nederst finner du korte statuskort og snarveier til sidene som brukes mest i daglig drift.</p>
                 </article>
-                <article class="manual-card">
-                    <h3>Datastatus</h3>
-                    <p>Viser om viktige datakilder har rapportert nylig. Dette er nyttig når noe ser tomt, gammelt eller rart ut.</p>
-                </article>
+            </div>
+            <div class="manual-example">
+                <strong>Husk:</strong> Dashboard skal være oversikt, ikke fasit på alle detaljer. Gå videre til fagområdet
+                hvis du trenger historikk, rådata eller forklaring på en hendelse.
             </div>
         </section>
 
@@ -301,177 +309,173 @@
                 <article class="manual-card">
                     <h3>Slik finner du frem</h3>
                     <ul class="manual-check">
-                        <li>Sol/P-symbolet åpner og lukker menyen.</li>
-                        <li>Teksten Lilletorget sender deg tilbake til Dashboard.</li>
-                        <li>Hovedmenyen velger område, for eksempel Lys eller Energi.</li>
-                        <li>Undermenyen viser sidene som hører til området du har valgt.</li>
+                        <li>Sol/P-symbolet i logoen åpner og lukker menyen.</li>
+                        <li>Teksten Lilletorget sender deg tilbake til øverste Dashboard.</li>
+                        <li>Hovedmenyen velger område. Undermenyen viser sidene som hører til.</li>
+                        <li>Rekkefølgen er Status, Parkering, Soling, Lys, Ventilasjon, Energi, Renhold, AI og Konto.</li>
                     </ul>
                 </article>
                 <article class="manual-card">
-                    <h3>Praktisk på mobil</h3>
-                    <p>Menyen tar mer plass på mobil. Åpne den når du skal bytte side, og velg ønsket underpunkt. Grafene er laget for å kunne leses på mobil, men store tabeller kan være enklere på PC.</p>
+                    <h3>På mobil</h3>
+                    <p>Åpne menyen når du skal bytte side. Når du velger et endepunkt, lukkes menyen slik at innholdet får plass. Store tabeller kan skyves sidelengs hvis skjermen er smal.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="manual-section" id="parkering">
+            <h2>Parkering</h2>
+            <p>Parkering viser EasyPark-data, pågående parkeringer, historikk, kjøretøyinformasjon og område/statistikk.</p>
+            <div class="manual-grid two">
+                <article class="manual-card parking">
+                    <h3>Oversikt</h3>
+                    <ul class="manual-check">
+                        <li>Fokuserer på valgt dag. Dagens dato åpnes som standard.</li>
+                        <li>Pågående parkeringer vises først, sortert med nyeste starttid øverst.</li>
+                        <li>Avsluttede parkeringer vises under, også med nyeste starttid øverst.</li>
+                        <li>Start og slutt vises uten dato. Hvis tiden ligger dagen før eller etter valgt dato, merkes den med -1 eller +1.</li>
+                        <li>Oppdateringsknappen henter EasyPark på nytt hvis du har tilgang til det.</li>
+                    </ul>
+                </article>
+                <article class="manual-card parking">
+                    <h3>Kjøretøy</h3>
+                    <ul class="manual-list">
+                        <li><span class="manual-key">Registreringsnummer</span><span class="manual-value">Åpner egen side for bilen med alle detaljer og historikk.</span></li>
+                        <li><span class="manual-key">Antall</span><span class="manual-value">Lenke til alle parkeringer for samme bil.</span></li>
+                        <li><span class="manual-key">Bilinfo</span><span class="manual-value">Årsmodell, merke, modell og farge vises når data finnes.</span></li>
+                        <li><span class="manual-key">Navn, sted</span><span class="manual-value">Egne felt som kan brukes for intern oversikt. Sted/område brukes til statistikk.</span></li>
+                    </ul>
+                </article>
+            </div>
+            <div class="manual-grid two manual-subgrid">
+                <article class="manual-card parking">
+                    <h3>Undersider</h3>
+                    <ul class="manual-list">
+                        <li><span class="manual-key">Parkeringer</span><span class="manual-value">Historisk liste med dato- og kjøretøyfilter.</span></li>
+                        <li><span class="manual-key">Statistikk</span><span class="manual-value">Topplister, summer og fordeling som ikke trenger å ligge på dagsoversikten.</span></li>
+                        <li><span class="manual-key">Område</span><span class="manual-value">Oversikt over hvor mange unike kjøretøy som har område, og hvilke som mangler.</span></li>
+                        <li><span class="manual-key">Oppslag</span><span class="manual-value">Brukes sammen med nettlesertillegg når område skal fylles inn.</span></li>
+                        <li><span class="manual-key">Kjøretøy</span><span class="manual-value">Avansert søk på registreringsnummer, navn, område, merke, modell og andre felt.</span></li>
+                    </ul>
+                </article>
+                <article class="manual-card parking">
+                    <h3>Import</h3>
+                    <p>EasyPark hentes lokalt. Nattkjøringen logger ut/inn før henting slik at neste døgn skal være stabilt. I tillegg kjøres faste oppdateringer på dagtid.</p>
+                    <div class="manual-example">
+                        <strong>Eksempel:</strong> En parkering kan først komme inn som pågående. Når EasyPark senere har sluttid og endelig beløp, oppdateres samme post.
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="manual-section" id="soling">
+            <h2>Soling</h2>
+            <p>Soling kombinerer dagssummer, enkelttimer, rom/senger og medlemmer fra SUN2.</p>
+            <div class="manual-grid two">
+                <article class="manual-card sun2">
+                    <h3>Viktigste sider</h3>
+                    <ul class="manual-list">
+                        <li><span class="manual-key">Dagslinje</span><span class="manual-value">Standard side for Soling. Viser solinger gjennom valgt dag per fysisk rom.</span></li>
+                        <li><span class="manual-key">Statistikk</span><span class="manual-value">Summer, beste dager/måneder og utvikling over tid.</span></li>
+                        <li><span class="manual-key">Detaljer</span><span class="manual-value">Mer detaljerte grafer og sammenligninger.</span></li>
+                        <li><span class="manual-key">Enkeltimer</span><span class="manual-value">Liste over hver soling som er hentet fra SUN2.</span></li>
+                        <li><span class="manual-key">Senger</span><span class="manual-value">Kobler rom, sengemodell og fysisk rom-id.</span></li>
+                        <li><span class="manual-key">Medlemmer</span><span class="manual-value">Medlemsgrunnlag der SUN2-id brukes som stabil nøkkel.</span></li>
+                    </ul>
+                </article>
+                <article class="manual-card sun2">
+                    <h3>Fysisk rom-id</h3>
+                    <p>Romnavn i SUN2 har endret seg over tid. Derfor bruker appen en egen fysisk rom-id der det er mulig. Det gjør historikk mer stabil når rom eller senger får nytt navn.</p>
+                    <div class="manual-example">
+                        <strong>Eksempel:</strong> Hvis gamle romnavn ikke matcher dagens rom, bruk fysisk rom-id og dagslinjen for å forstå faktisk rombruk.
+                    </div>
                 </article>
             </div>
         </section>
 
         <section class="manual-section" id="lys">
             <h2>Lys</h2>
-            <p>Lysstyringen bruker lux, åpningstid og egne grenser for de forskjellige lysgruppene. Lux betyr hvor lyst det er ute.</p>
+            <p>Lysstyringen bruker lux, tidsvinduer og egne grenser for hver lysgruppe. HC3-scenen vurderer dette jevnlig og logger hva som skjer.</p>
             <div class="manual-grid two">
                 <article class="manual-card light">
                     <h3>Hva styres?</h3>
                     <ul class="manual-list">
-                        <li><span class="manual-key">Lyslist</span><span class="manual-value">Dekorlys på fasaden. Skal være på når det gir synlig effekt.</span></li>
-                        <li><span class="manual-key">Reklame/spot</span><span class="manual-value">Lys ved fasade og reklamepunkter. Styres etter lysnivå og tidsrom.</span></li>
-                        <li><span class="manual-key">Inngang</span><span class="manual-value">Spotter ved inngang. Kan stå på litt lenger enn annen fasadebelysning.</span></li>
-                        <li><span class="manual-key">Parkering</span><span class="manual-value">Parkeringslys. Har egne regler og er mindre avhengig av åpningstid.</span></li>
+                        <li><span class="manual-key">Lyslist dekor</span><span class="manual-value">Fasadelys som skal være på når det gir synlig effekt.</span></li>
+                        <li><span class="manual-key">Reklameplakater</span><span class="manual-value">Spotter mot fasade/reklamefelt.</span></li>
+                        <li><span class="manual-key">Spot foran glassvegg</span><span class="manual-value">Ekstra spotter foran glassveggen.</span></li>
+                        <li><span class="manual-key">6xspot inngang</span><span class="manual-value">Spotter over inngang, kan stå litt lenger enn annet fasadelys.</span></li>
+                        <li><span class="manual-key">Parkeringslys</span><span class="manual-value">Gatelys/parkering, med egne regler og høyere sikkerhetsbehov.</span></li>
                     </ul>
                 </article>
                 <article class="manual-card light">
                     <h3>Sidene under Lys</h3>
                     <ul class="manual-check">
-                        <li><strong>Dagslogg</strong> viser lux-grafen og når valgte lysgrupper var på.</li>
-                        <li><strong>Hendelser</strong> viser hver gang appen har logget at et lys gikk av eller på.</li>
-                        <li><strong>Målinger</strong> viser rå lux-loggingen over tid.</li>
-                        <li><strong>Innstillinger</strong> viser styringsverdier og grenser som brukes av HC3-scenen.</li>
+                        <li><strong>Dagslogg</strong> viser lux-graf og når valgte lysgrupper var på.</li>
+                        <li><strong>Hendelser</strong> viser hver gang et lys gikk av eller på.</li>
+                        <li><strong>Målinger</strong> viser rå lux-målinger.</li>
+                        <li><strong>Innstillinger</strong> viser og endrer lux-grenser for de som har tilgang.</li>
                     </ul>
                 </article>
             </div>
             <div class="manual-example">
-                <strong>Eksempel:</strong> Hvis lyslisten ikke slo seg på, sjekk først <strong>Lys → Dagslogg</strong>.
-                Var lux høyere enn på-grensen? Da skulle den normalt ikke slå seg på. Var lux lav nok, sjekk
-                <strong>Lys → Hendelser</strong> for å se om scenen forsøkte å slå den på.
+                <strong>Eksempel:</strong> Hvis lyslisten ikke slår seg på, sjekk lux ved tidspunktet. Er lux over av-grensen,
+                er det riktig at lyset holder seg av. Er lux under på-grensen og innenfor tidsvindu, sjekk Hendelser.
             </div>
         </section>
 
         <section class="manual-section" id="ventilasjon">
             <h2>Ventilasjon</h2>
-            <p>Ventilasjonen vurderer temperatur inne, ute, loft og passiv innluft. Målet er å kjøle når det trengs, unngå unødvendig varmetap og ikke skape uheldig undertrykk.</p>
+            <p>Ventilasjonen vurderer temperatur inne, ute, loft og passiv innluft. Målet er kjøling når det trengs, minst mulig varmetap og trygg balanse mellom innluft og avtrekk.</p>
             <div class="manual-grid two">
                 <article class="manual-card vent">
                     <h3>Begreper</h3>
                     <ul class="manual-list">
-                        <li><span class="manual-key">Innetemp</span><span class="manual-value">Temperatur fra 1.etg, 2.etg og VIP. Brukes for å vurdere behov for kjøling.</span></li>
-                        <li><span class="manual-key">Utetemp</span><span class="manual-value">Både Fibaro/Netatmo og Yr kan vises. Forskjell mellom disse er normalt.</span></li>
-                        <li><span class="manual-key">Loft</span><span class="manual-value">Temperatur der solsengene blåser varme opp. Viktig for avtrekk og mulig varmegjenvinning.</span></li>
-                        <li><span class="manual-key">Modus</span><span class="manual-value">Appen kan vise for eksempel kjøling, passiv drift eller ingen endring.</span></li>
+                        <li><span class="manual-key">Innetemp</span><span class="manual-value">Temperatur fra 1.etg, 2.etg og VIP.</span></li>
+                        <li><span class="manual-key">Utetemp</span><span class="manual-value">Både HC3/Netatmo, Yr fra Fibaro og Yr API kan vises.</span></li>
+                        <li><span class="manual-key">Loft</span><span class="manual-value">Temperatur i loftet der solsengene blåser varme opp.</span></li>
+                        <li><span class="manual-key">Passiv innluft</span><span class="manual-value">Temperatur fra passiv lufttilførsel, vist som pass innluft.</span></li>
+                        <li><span class="manual-key">Modus</span><span class="manual-value">For eksempel kjøling, passiv drift eller ingen endring.</span></li>
                     </ul>
                 </article>
                 <article class="manual-card vent">
                     <h3>Sidene under Ventilasjon</h3>
                     <ul class="manual-check">
-                        <li><strong>Dagslogg</strong> viser temperaturutvikling og når viftene startet/stoppet.</li>
+                        <li><strong>Dagslogg</strong> viser temperaturer og viftestarter/stopp.</li>
                         <li><strong>Hendelser</strong> viser hvorfor en vifte endret status.</li>
                         <li><strong>Temp logg</strong> viser målepunktene som brukes for læring og justering.</li>
-                        <li><strong>Yr logg</strong> viser værdata som kan brukes i fremtidig forhåndslufting.</li>
-                        <li><strong>Innstillinger</strong> viser tersklene som styrer vifter og modus.</li>
+                        <li><strong>Yr logg</strong> viser værdata og prognoser som kan brukes senere.</li>
+                        <li><strong>Innstillinger</strong> viser terskler og regler.</li>
                     </ul>
-                </article>
-            </div>
-            <div class="manual-example">
-                <strong>Eksempel:</strong> Hvis takviften går selv om du forventer at den skal stoppe, åpne
-                <strong>Ventilasjon → Hendelser</strong>. Der skal du kunne se hvilken regel som sist startet eller holdt den i gang.
-                Gå deretter til <strong>Dagslogg</strong> for å se temperaturene rundt tidspunktet.
-            </div>
-        </section>
-
-        <section class="manual-section" id="soling">
-            <h2>Soling</h2>
-            <p>Soling-delen viser bruk av solstudioet. Den kombinerer dagssummer, enkelttimer, rom/senger og medlemmer fra SUN2.</p>
-            <div class="manual-grid two">
-                <article class="manual-card sun2">
-                    <h3>Hva viser Soling?</h3>
-                    <ul class="manual-list">
-                        <li><span class="manual-key">Dagslinje</span><span class="manual-value">Viser solinger gjennom dagen per fysisk rom. Dette er beste side for dagens aktivitet.</span></li>
-                        <li><span class="manual-key">Statistikk</span><span class="manual-value">Viser summer, beste dager/måneder og utvikling over tid.</span></li>
-                        <li><span class="manual-key">Enkeltimer</span><span class="manual-value">Detaljert liste over hver soling som er hentet fra SUN2.</span></li>
-                        <li><span class="manual-key">Senger</span><span class="manual-value">Oversikt over rom, sengemodell og kobling til fysisk rom-id.</span></li>
-                        <li><span class="manual-key">Medlemmer</span><span class="manual-value">Medlemsdata der SUN2-id brukes som stabil nøkkel.</span></li>
-                    </ul>
-                </article>
-                <article class="manual-card sun2">
-                    <h3>Viktig å vite</h3>
-                    <p>Romnavn i SUN2 kan ha endret seg gjennom årene. Derfor bruker appen fysisk rom-id der det er mulig. Det gjør historikk og søk mer stabilt enn bare romnavn.</p>
-                    <div class="manual-example">
-                        <strong>Eksempel:</strong> Søk på rom-id hvis romnavnet har endret seg. Da får du med historikk selv om sengen eller navnet har vært justert.
-                    </div>
                 </article>
             </div>
         </section>
 
         <section class="manual-section" id="energi">
             <h2>Energi</h2>
-            <p>Energi-delen viser strømdata fra HC3 og sammenligner etter hvert med Elvia, som er fasiten når filen lastes opp manuelt.</p>
+            <p>Energi viser strøm fra HC3 og sammenligner med Elvia når Elvia-fil er importert. HC3 gir løpende driftstall, mens Elvia brukes som fasit over tid.</p>
             <div class="manual-grid two">
                 <article class="manual-card energy">
-                    <h3>Hva måles?</h3>
+                    <h3>Målegrupper</h3>
                     <ul class="manual-list">
                         <li><span class="manual-key">Inntak</span><span class="manual-value">Total effekt inn til anlegget.</span></li>
-                        <li><span class="manual-key">Varmepumper</span><span class="manual-value">Egen gruppe for varmepumper.</span></li>
-                        <li><span class="manual-key">Belysning</span><span class="manual-value">Egen gruppe for lys.</span></li>
-                        <li><span class="manual-key">Massasje</span><span class="manual-value">Egen gruppe for massasjestol/relatert utstyr.</span></li>
+                        <li><span class="manual-key">Varmepumper</span><span class="manual-value">Forbruk fra varmepumpegruppen.</span></li>
+                        <li><span class="manual-key">Belysning</span><span class="manual-value">Forbruk knyttet til lys.</span></li>
+                        <li><span class="manual-key">Massasje</span><span class="manual-value">Forbruk fra massasjestol/relatert utstyr.</span></li>
                         <li><span class="manual-key">Annet</span><span class="manual-value">Restforbruk som er målt i egen gruppe.</span></li>
+                        <li><span class="manual-key">Differanse</span><span class="manual-value">Brukes som kontroll, men appen kan også beregne differanse selv.</span></li>
                     </ul>
                 </article>
                 <article class="manual-card energy">
                     <h3>Sidene under Energi</h3>
                     <ul class="manual-check">
-                        <li><strong>Status</strong> viser dagens timeforbruk og sammenligner HC3 med Elvia når Elvia-data finnes. Bruk datovelgeren for tidligere dager.</li>
-                        <li><strong>Forbruk/seng</strong> estimerer hvor mye hver solseng trekker når bare én seng er i bruk.</li>
-                        <li><strong>Elvia</strong> brukes for manuell opplasting av strømfil fra Elvia.</li>
+                        <li><strong>Status</strong> viser dagens timeforbruk og sammenligning mot Elvia.</li>
+                        <li><strong>Forbruk/seng</strong> estimerer effekt per solseng basert på perioder der bare én seng er i bruk.</li>
+                        <li><strong>Elvia</strong> brukes for manuell opplasting av strømfil.</li>
                     </ul>
                 </article>
             </div>
             <div class="manual-example">
-                <strong>Eksempel:</strong> Hvis HC3 viser 120 kWh en dag og Elvia viser 124 kWh, er avviket 4 kWh.
-                Da er loggingen trolig ganske nær. Store avvik over flere dager bør undersøkes.
-            </div>
-        </section>
-
-        <section class="manual-section" id="parkering">
-            <h2>Parkering</h2>
-            <p>Parkering-delen viser EasyPark-historikk, pågående parkeringer, bilinformasjon og enkle nøkkeltall for valgt dag.</p>
-            <div class="manual-grid two">
-                <article class="manual-card parking">
-                    <h3>Sidene under Parkering</h3>
-                    <ul class="manual-list">
-                        <li><span class="manual-key">Oversikt</span><span class="manual-value">Hovedsiden for dagens parkering. Viser pågående parkeringer øverst og avsluttede parkeringer under.</span></li>
-                        <li><span class="manual-key">Parkeringer</span><span class="manual-value">Historisk liste der du kan filtrere på dato, status og registreringsnummer.</span></li>
-                        <li><span class="manual-key">Statistikk</span><span class="manual-value">Topplister og merkeoversikt, flyttet ut fra dagsoversikten for å holde den ryddig.</span></li>
-                        <li><span class="manual-key">Kjøretøy</span><span class="manual-value">Samlet liste over biler med parkeringer, beløp, først/sist sett og eventuell kjøretøyinformasjon.</span></li>
-                        <li><span class="manual-key">Område</span><span class="manual-value">Hjelpeside for å finne biler som mangler område/sted.</span></li>
-                    </ul>
-                </article>
-                <article class="manual-card parking">
-                    <h3>Slik leser du oversikten</h3>
-                    <ul class="manual-check">
-                        <li>Statusboksene viser antall og beløp for valgt dag, i går, denne uka, forrige uke, denne måneden og forrige måned.</li>
-                        <li>Pågående parkeringer ligger i egen tabell øverst, slik at du raskt ser hvem som står inne nå.</li>
-                        <li>Registreringsnummeret åpner kjøretøysiden for bilen. Knappen/lenken for antall parkeringer viser alle parkeringer for den bilen.</li>
-                        <li>Hvis en parkering ikke dekker hele halvtimeslotten, vises et lite merke om at bilen dro før slottslutt.</li>
-                        <li>Sist oppdatert-boksen viser når EasyPark sist ble hentet. Med riktig tilgang kan du trykke den for manuell oppdatering.</li>
-                    </ul>
-                </article>
-            </div>
-            <div class="manual-grid two manual-subgrid">
-                <article class="manual-card parking">
-                    <h3>Kjøretøy og egne felt</h3>
-                    <p>På en kjøretøyside kan du se alt appen vet om bilen, inkludert historikk, merke/modell, årsmodell, farge, område og interne notater.</p>
-                    <ul class="manual-list manual-subgrid">
-                        <li><span class="manual-key">Navn</span><span class="manual-value">Internt felt, for eksempel kunde, firma eller annen gjenkjennelig tekst.</span></li>
-                        <li><span class="manual-key">Område</span><span class="manual-value">Sted/område bilen kommer fra. Brukes for enkel statistikk, ikke som kunderegister.</span></li>
-                        <li><span class="manual-key">Sun2id</span><span class="manual-value">Kan brukes for å koble bil mot solkunde dersom du vet riktig SUN2-id.</span></li>
-                        <li><span class="manual-key">Notat</span><span class="manual-value">Fritt internt notat om bilen.</span></li>
-                    </ul>
-                </article>
-                <article class="manual-card parking">
-                    <h3>Import og oppfrisking</h3>
-                    <p>EasyPark hentes av en lokal prosess og legges inn i appen. En parkering som først var pågående kan senere oppdateres med sluttid og endelig beløp.</p>
-                    <div class="manual-example">
-                        <strong>Eksempel:</strong> Hvis en bil fortsatt står som pågående lenge etter at den har dratt, bruk oppdateringsknappen på
-                        <strong>Parkering → Oversikt</strong>. Hvis den fortsatt ikke oppdateres, sjekk <strong>Status → Datakilder</strong>.
-                    </div>
-                </article>
+                <strong>Forbruk per seng:</strong> Beregningen bruker bare perioder der én seng er aktiv, venter etter oppstart,
+                stopper før slutt og krever at andre senger har vært stoppet lenge nok. Knappen Beregn lager beregningen på nytt fra datagrunnlaget.
             </div>
         </section>
 
@@ -485,45 +489,45 @@
                         <li>Om roboten er online og hvilken status den har.</li>
                         <li>Neste planlagte jobb og tidligere jobber.</li>
                         <li>Kart, romdata og rengjøringshistorikk der dette er tilgjengelig.</li>
-                        <li>Forbruksdeler og tekniske data, for eksempel serienummer og signalstyrke.</li>
+                        <li>Tekniske data som serienummer, modell og signalstyrke.</li>
                     </ul>
                 </article>
                 <article class="manual-card cleaning">
                     <h3>Når noe er feil</h3>
-                    <p>Sjekk først om loggeren nylig har sendt data. Hvis roboten ikke vises eller har gammel status, kan årsaken være Roborock-konto, lokal nettverkstilgang, QNAP-container eller at roboten er delt feil.</p>
+                    <p>Sjekk først om Roborock_logger nylig har sendt data. Hvis roboten ikke vises eller har gammel status, kan årsaken være Roborock-konto, lokal nettverkstilgang, QNAP-container eller deling av robot.</p>
                 </article>
             </div>
         </section>
 
         <section class="manual-section" id="data">
             <h2>Data, logging og import</h2>
-            <p>Noen data kommer automatisk hele tiden. Andre må importeres manuelt fordi de ligger bak innlogging eller BankID.</p>
+            <p>Noen data kommer automatisk hele tiden. Andre importeres periodisk eller manuelt fordi de ligger bak innlogging eller BankID.</p>
             <div class="manual-grid two">
                 <article class="manual-card">
-                    <h3>Automatisk logging</h3>
+                    <h3>Automatisk</h3>
                     <ul class="manual-list">
                         <li><span class="manual-key">Lys</span><span class="manual-value">HC3 sender lux og lysstatus omtrent hvert 5. minutt.</span></li>
                         <li><span class="manual-key">Ventilasjon</span><span class="manual-value">HC3 sender temperaturer, viftestatus og grunnlag omtrent hvert 5. minutt.</span></li>
                         <li><span class="manual-key">Energi</span><span class="manual-value">HC3 sender effekt og kWh omtrent hvert minutt.</span></li>
                         <li><span class="manual-key">Parkering</span><span class="manual-value">EasyPark hentes lokalt og importeres til parkeringsoversikten.</span></li>
-                        <li><span class="manual-key">Renhold</span><span class="manual-value">Roborock_logger sender data fra lokal QNAP-container.</span></li>
+                        <li><span class="manual-key">Renhold</span><span class="manual-value">Roborock_logger sender data fra QNAP.</span></li>
                         <li><span class="manual-key">SUN2 enkelttimer</span><span class="manual-value">Hentes løpende for å holde dagslinjen fersk.</span></li>
                     </ul>
                 </article>
                 <article class="manual-card">
-                    <h3>Manuell eller periodisk import</h3>
+                    <h3>Periodisk eller manuelt</h3>
                     <ul class="manual-list">
                         <li><span class="manual-key">Elvia</span><span class="manual-value">Lastes opp manuelt, normalt månedlig, og brukes som fasit for strøm.</span></li>
-                        <li><span class="manual-key">Kjøretøy</span><span class="manual-value">Merke, modell, årsmodell og farge kan berikes når data finnes. Område/navn kan suppleres med egne felt.</span></li>
                         <li><span class="manual-key">SUN2 dagsfiler</span><span class="manual-value">Gir dagssummer og kan kjøres nattlig/periodisk.</span></li>
-                        <li><span class="manual-key">Medlemmer</span><span class="manual-value">Synkes periodisk fra SUN2 for å holde medlemsgrunnlaget oppdatert.</span></li>
+                        <li><span class="manual-key">Medlemmer</span><span class="manual-value">Synkes periodisk fra SUN2.</span></li>
                         <li><span class="manual-key">Senger</span><span class="manual-value">Brukes for å koble rom, sengemodell og fysisk rom-id.</span></li>
+                        <li><span class="manual-key">Kjøretøyfelt</span><span class="manual-value">Navn, område, Sun2id og notat er egne interne felt som kan vedlikeholdes i appen.</span></li>
                     </ul>
                 </article>
             </div>
             <div class="manual-example">
-                <strong>Huskeregel:</strong> Hvis tall for strøm virker gamle, sjekk Elvia-importen. Hvis dagens solinger mangler,
-                sjekk enkelttime-importen. Hvis historiske summer avviker, sjekk SUN2 dagsfiler.
+                <strong>Huskeregel:</strong> Hvis dagens tall mangler, sjekk løpende logger. Hvis historiske summer avviker,
+                sjekk periodiske importer og manuelle filer.
             </div>
         </section>
 
@@ -531,17 +535,17 @@
             <h2>Varsler</h2>
             <div class="manual-grid two">
                 <article class="manual-card">
-                    <h3>ntfy-abonnement</h3>
-                    <p>Appen kan lage lenker som åpner ntfy på mobilen. Da kan du abonnere på varsler for lys, ventilasjon eller bruk av appen.</p>
+                    <h3>ntfy</h3>
+                    <p>Appen kan lage abonnementslenker til ntfy på mobilen. Dette brukes for varsler om lys, ventilasjon og bruk av appen.</p>
                     <ul class="manual-check">
                         <li>Lys varsler når en lysgruppe faktisk går av eller på.</li>
                         <li>Ventilasjon varsler når en vifte endrer status.</li>
-                        <li>Brukervarsler kan brukes av master for å se når andre logger inn eller bruker løsningen.</li>
+                        <li>Master kan bruke brukervarsler for å se når andre bruker løsningen.</li>
                     </ul>
                 </article>
                 <article class="manual-card">
-                    <h3>Når bør varsler brukes?</h3>
-                    <p>Varsler passer best for ting du faktisk vil reagere på. For mye varsling gjør at viktige ting drukner. Start heller med få varsler og legg til flere ved behov.</p>
+                    <h3>Ikke overdriv varsler</h3>
+                    <p>Varsler passer best for ting du faktisk vil reagere på. For mange varsler gjør at de viktige drukner.</p>
                 </article>
             </div>
         </section>
@@ -563,8 +567,8 @@
                 </article>
             </div>
             <div class="manual-example">
-                <strong>Eksempel:</strong> En teknisk ansvarlig som skal justere lysgrenser kan få rollen Innstillinger.
-                En person som bare skal sjekke om alt går normalt, bør være vanlig bruker.
+                <strong>Eksempel:</strong> Teknisk ansvarlig kan få rollen Innstillinger. En person som bare skal sjekke drift,
+                bør være vanlig bruker.
             </div>
         </section>
 
@@ -573,19 +577,19 @@
             <article class="manual-callout">
                 <strong>Rask feilsøking i riktig rekkefølge</strong>
                 <ul class="manual-check">
-                    <li>Start med <strong>Status → Dashboard</strong>. Se etter gamle tidspunkter, røde statuser eller manglende data.</li>
-                    <li>Åpne <strong>Status → Datakilder</strong>. Hvis en datakilde er gammel, er problemet ofte logging/import, ikke selve visningen.</li>
-                    <li>For lys: sjekk <strong>Lys → Dagslogg</strong> og <strong>Lys → Hendelser</strong>.</li>
-                    <li>For ventilasjon: sjekk <strong>Ventilasjon → Dagslogg</strong>, <strong>Hendelser</strong> og <strong>Temp logg</strong>.</li>
-                    <li>For soling: sjekk <strong>Soling → Dagslinje</strong> og <strong>Enkeltimer</strong>. Husk at dagssummer og enkelttimer kan oppdateres på ulik måte.</li>
-                    <li>For energi: sjekk <strong>Energi → Status</strong>. Sammenlign med Elvia når Elvia-fil er importert.</li>
-                    <li>For parkering: sjekk <strong>Parkering → Oversikt</strong>. Bruk oppdateringsknappen hvis EasyPark-tidspunktet er gammelt.</li>
-                    <li>For renhold: sjekk <strong>Renhold → Oversikt</strong> og om Roborock_logger har sendt data nylig.</li>
+                    <li>Start med <strong>Status &gt; Dashboard</strong>. Se etter gamle tidspunkter, varsler eller manglende data.</li>
+                    <li>Åpne <strong>Status &gt; Datakilder</strong>. Hvis en datakilde er gammel, er problemet ofte logging/import.</li>
+                    <li>For parkering: sjekk <strong>Parkering &gt; Oversikt</strong> og boksen for sist oppdatert.</li>
+                    <li>For soling: sjekk <strong>Soling &gt; Dagslinje</strong> og <strong>Enkeltimer</strong>.</li>
+                    <li>For lys: sjekk <strong>Lys &gt; Dagslogg</strong> og <strong>Hendelser</strong>.</li>
+                    <li>For ventilasjon: sjekk <strong>Ventilasjon &gt; Dagslogg</strong>, <strong>Hendelser</strong> og <strong>Temp logg</strong>.</li>
+                    <li>For energi: sjekk <strong>Energi &gt; Status</strong>. Sammenlign HC3 med Elvia når Elvia-data finnes.</li>
+                    <li>For renhold: sjekk <strong>Renhold &gt; Oversikt</strong> og om Roborock_logger har sendt data nylig.</li>
                 </ul>
             </article>
             <div class="manual-example">
-                <strong>Eksempel:</strong> Hvis en side viser 0 eller tom graf, betyr det ikke nødvendigvis at verdien er 0.
-                Det kan bety at importen ikke har kjørt, at valgt dato mangler data, eller at datakilden ikke har sendt inn noe ennå.
+                <strong>Eksempel:</strong> En tom graf betyr ikke nødvendigvis at verdien er 0. Det kan bety at valgt dato mangler data,
+                at importen ikke har kjørt, eller at datakilden ikke har sendt noe ennå.
             </div>
         </section>
 
@@ -596,7 +600,7 @@
                     <ul class="manual-list">
                         <li><span class="manual-key">Lux</span><span class="manual-value">Mål på lysstyrke ute. Lav lux betyr mørkere ute.</span></li>
                         <li><span class="manual-key">HC3</span><span class="manual-value">Fibaro Home Center 3. Brukes til styring og logging fra bygget.</span></li>
-                        <li><span class="manual-key">Yr</span><span class="manual-value">Værdata fra Meteorologisk institutt. Brukes som ekstra grunnlag for temperatur og vær.</span></li>
+                        <li><span class="manual-key">Yr</span><span class="manual-value">Værdata fra Meteorologisk institutt. Brukes for temperatur, vær og prognoser.</span></li>
                         <li><span class="manual-key">Elvia</span><span class="manual-value">Nettselskapets strømdata. Brukes som fasit når filen lastes opp.</span></li>
                         <li><span class="manual-key">EasyPark</span><span class="manual-value">Kilde for parkeringshistorikk og pågående parkeringer.</span></li>
                     </ul>
@@ -607,7 +611,7 @@
                         <li><span class="manual-key">Hendelse</span><span class="manual-value">En logget endring, for eksempel at et lys gikk på eller en vifte stoppet.</span></li>
                         <li><span class="manual-key">Fysisk rom-id</span><span class="manual-value">Stabil intern romkobling for solstudioet, selv om navn i SUN2 endres.</span></li>
                         <li><span class="manual-key">Område</span><span class="manual-value">Sted/område knyttet til et kjøretøy i parkeringsdelen.</span></li>
-                        <li><span class="manual-key">Logger</span><span class="manual-value">En liten app eller scene som henter data og sender det til Lilletorget drift.</span></li>
+                        <li><span class="manual-key">Logger</span><span class="manual-value">En liten app, container eller scene som henter data og sender det til Lilletorget drift.</span></li>
                     </ul>
                 </article>
             </div>
