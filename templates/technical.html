@@ -24,6 +24,7 @@
         .flow { display:grid; grid-template-columns:1fr; gap:.5rem; margin-top:.6rem; }
         .step { border:1px solid #e5eaf0; border-left:4px solid var(--page-accent); border-radius:7px; padding:.55rem .65rem; background:#fbfdff; }
         .step strong { display:block; margin-bottom:.1rem; }
+        .note { margin-top:.55rem; padding:.58rem .68rem; border:1px solid #e5eaf0; border-radius:7px; background:#fbfdff; color:var(--muted); }
         .links { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.65rem; }
         .button { display:inline-flex; align-items:center; min-height:2.15rem; padding:.38rem .68rem; border:1px solid var(--page-accent-border); border-radius:7px; background:var(--page-accent-soft); color:var(--page-accent); text-decoration:none; font-weight:800; }
         @media (min-width: 760px) {
@@ -51,9 +52,10 @@
                 <h2>Applikasjon</h2>
                 <ul class="list">
                     <li><span class="key">Navn</span><span class="value">Fibaro10 / Lilletorget drift</span></li>
-                    <li><span class="key">Produksjon</span><span class="value"><code>http://192.168.20.218:8110</code></span></li>
-                    <li><span class="key">Kode</span><span class="value">GitHub-repo kjøres på QNAP i Docker fra <code>main</code>.</span></li>
-                    <li><span class="key">Backend</span><span class="value">FastAPI med PostgreSQL-database på QNAP og GZip-komprimering.</span></li>
+                    <li><span class="key">Lokal prod</span><span class="value"><code>http://192.168.20.218:8110</code> på QNAP.</span></li>
+                    <li><span class="key">Ekstern prod</span><span class="value"><code>https://fibaro10.onrender.com</code>. Brukes når løsningen skal nås utenfra.</span></li>
+                    <li><span class="key">Kode</span><span class="value">GitHub-repo <code>lewinordby/fibaro10</code>. Produksjon bygges fra <code>main</code>.</span></li>
+                    <li><span class="key">Backend</span><span class="value">FastAPI med PostgreSQL-database, server-renderte sider og GZip-komprimering.</span></li>
                     <li><span class="key">Frontend</span><span class="value">Server-renderte Jinja-maler. Felles design ligger i <code>static/app.css</code>, meny/header i <code>static/owner-nav.css</code>.</span></li>
                     <li><span class="key">Branding</span><span class="value">Lilletorget-logo. Sol/P-symbol åpner/lukker meny, tekstlogo går til Status.</span></li>
                 </ul>
@@ -75,8 +77,9 @@
             <h2>Dataflyt</h2>
             <div class="flow">
                 <div class="step"><strong>HC3</strong><p>Poster lys, lux, ventilasjon, temperatur, energi og Yr-grunnlag til API-et.</p></div>
-                <div class="step"><strong>Lokale loggere</strong><p>QNAP/Docker henter Roborock og SUN2-data og sender strukturerte batcher inn.</p></div>
-                <div class="step"><strong>Database</strong><p>Data lagres i egne tabeller for lys, ventilasjon, renhold, soling, energi, AI, tilgang og importstatus.</p></div>
+                <div class="step"><strong>Lokale loggere</strong><p>QNAP/Docker henter Roborock, SUN2 og EasyPark-data og sender strukturerte batcher inn.</p></div>
+                <div class="step"><strong>Manuelle importer</strong><p>Elvia-timesfil lastes opp fra Energi. Område/navn kan suppleres via nettleserutvidelser.</p></div>
+                <div class="step"><strong>Database</strong><p>Data lagres i egne tabeller for lys, ventilasjon, renhold, soling, energi, parkering, AI, tilgang og importstatus.</p></div>
                 <div class="step"><strong>Grensesnitt</strong><p>Sidene viser status, tidslinjer, logger, grafer, innstillinger og feilsignaler fra samme datagrunnlag.</p></div>
             </div>
         </section>
@@ -113,6 +116,56 @@
             </article>
         </section>
 
+        <section class="grid two">
+            <article class="panel">
+                <h2>Parkering</h2>
+                <ul class="list">
+                    <li><span class="key">Kilde</span><span class="value">EasyPark-data hentes av lokal downloader og importeres til parkeringsmodulen.</span></li>
+                    <li><span class="key">Oppdatering</span><span class="value">Daglig jobb henter automatisk. Knappen i Parkering → Oversikt kan trigge manuell oppfrisking.</span></li>
+                    <li><span class="key">Deduplisering</span><span class="value">Importen oppdaterer eksisterende parkeringer når samme post kommer på nytt, slik at pågående parkeringer kan få sluttid senere.</span></li>
+                    <li><span class="key">Kjøretøy</span><span class="value">Regnr normaliseres og kobles mot kjøretøytabell med tellinger, beløp, første/siste sett og SVV-status.</span></li>
+                    <li><span class="key">Berikelse</span><span class="value">Merke, modell, årsmodell, farge og klasse lagres i <code>kjoretoy_nokkeldata</code> når data finnes.</span></li>
+                    <li><span class="key">Egne felt</span><span class="value">Navn, Sun2id, notat og område ligger i <code>kjoretoy</code>. Område brukes for sted/statistikk, navn for intern kobling.</span></li>
+                </ul>
+                <p class="note">Oversikten fokuserer på valgt dag: pågående parkeringer først, deretter avsluttede. Kjøretøyvisninger viser nå <em>navn, sted</em> under biltype der det finnes.</p>
+            </article>
+
+            <article class="panel">
+                <h2>Nettleserutvidelser</h2>
+                <ul class="list">
+                    <li><span class="key">Område</span><span class="value"><code>browser_extensions/parking_name_lookup</code> henter liste over biler uten område og kan skrive område tilbake via API.</span></li>
+                    <li><span class="key">Navn</span><span class="value"><code>browser_extensions/parking_manual_name</code> brukes når navn legges inn manuelt og lagres på samme kjøretøy-API.</span></li>
+                    <li><span class="key">Batch</span><span class="value">Områdeutvidelsen kan hente opptil 1000 regnr fra Fibaro10 når brukeren har nødvendig rettighet og lovlig tilgang hos kilden.</span></li>
+                    <li><span class="key">Sikkerhet</span><span class="value">Utvidelsene lagrer lokal konfigurasjon i nettleseren. Fibaro10 tar imot via innlogget bruker eller API-headers.</span></li>
+                </ul>
+            </article>
+        </section>
+
+        <section class="grid two">
+            <article class="panel">
+                <h2>Drift og deploy</h2>
+                <ul class="list">
+                    <li><span class="key">QNAP deploy</span><span class="value">QNAP-instansen oppdateres fra GitHub <code>main</code> og bygges med <code>docker compose -f docker-compose.qnap.yml up -d --build fibaro10</code>.</span></li>
+                    <li><span class="key">Render deploy</span><span class="value">Render kjører samme repo/branch og kan trigges automatisk på commit eller manuelt via Render API.</span></li>
+                    <li><span class="key">Helsesjekk</span><span class="value"><code>/health</code> viser at appen svarer og hvilke datatabeller som finnes.</span></li>
+                    <li><span class="key">Logger</span><span class="value">Containerlogger viser postinger fra HC3, Roborock, SUN2, EasyPark/importstatus og eventuelle 500-feil.</span></li>
+                    <li><span class="key">Uten auth</span><span class="value">De fleste sider krever innlogging. <code>/health</code>, <code>/favicon.ico</code> og innloggingssiden er åpne.</span></li>
+                </ul>
+            </article>
+
+            <article class="panel">
+                <h2>Oversiktssider</h2>
+                <ul class="list">
+                    <li><span class="key">Status</span><span class="value">Samler nåstatus, siste hendelser og datakildestatus.</span></li>
+                    <li><span class="key">Lys</span><span class="value">Dagslogg er standard underside og viser lux, lysperioder og sammenligning mot dagen før.</span></li>
+                    <li><span class="key">Ventilasjon</span><span class="value">Dagslogg er standard underside og kan vise flere temperaturer og viftestreker.</span></li>
+                    <li><span class="key">Soling</span><span class="value">Dagslinje viser fysisk romaktivitet. Statistikksider bruker aggregerte tabeller for ytelse.</span></li>
+                    <li><span class="key">Energi</span><span class="value">Status viser timeforbruk fra HC3 og Elvia når import finnes. Forbruk/seng beregnes fra sikre enkeltperioder.</span></li>
+                    <li><span class="key">Parkering</span><span class="value">Operativ dagsoversikt, historikk, statistikk, områdeoppslag og kjøretøydetaljer.</span></li>
+                </ul>
+            </article>
+        </section>
+
         <section class="panel">
             <h2>Viktige endepunkter</h2>
             <ul class="list">
@@ -125,6 +178,8 @@
                 <li><span class="key">Soling</span><span class="value"><code>/api/sun2/sessions/json</code>, <code>/api/sun2/members/json</code>, <code>/api/sun2/beds/json</code>, <code>/api/sun2/room-stats/json</code></span></li>
                 <li><span class="key">Energi</span><span class="value"><code>/api/energi/fibaro/json</code> og <code>/api/energi/elvia/json</code></span></li>
                 <li><span class="key">Renhold</span><span class="value"><code>/api/renhold/ingest</code> og <code>/renhold/json</code></span></li>
+                <li><span class="key">Parkering</span><span class="value"><code>/parkering/oversikt</code>, <code>/parkering/parkeringer</code>, <code>/parkering/kjoretoy</code>, <code>/parkering/omrade-oppslag</code></span></li>
+                <li><span class="key">Kjøretøy API</span><span class="value"><code>/api/parkering/kjoretoy/missing-area</code>, <code>/api/parkering/kjoretoy/{plate}/area</code>, <code>/api/parkering/kjoretoy/{plate}/name</code></span></li>
                 <li><span class="key">AI</span><span class="value"><code>/api/ai/datasets/json</code> og <code>/api/ai/logs/json</code></span></li>
             </ul>
         </section>
@@ -135,14 +190,21 @@
                 <li><span class="key">1</span><span class="value">Åpne Status → Datakilder og se om noe er tregt, gammelt eller feilet.</span></li>
                 <li><span class="key">2</span><span class="value">Sjekk Status → Dashboard for Driftsradar og siste hendelser.</span></li>
                 <li><span class="key">3</span><span class="value">Sjekk aktuell fagmeny: Lys, Ventilasjon, Renhold, Soling eller Energi.</span></li>
-                <li><span class="key">4</span><span class="value">Ved importfeil: sjekk lokal logger/QNAP først, deretter API-status i appen.</span></li>
+                <li><span class="key">4</span><span class="value">Ved importfeil: sjekk lokal logger/QNAP først, deretter API-status i appen. For parkering: se Parkering → Oversikt og EasyPark-status.</span></li>
                 <li><span class="key">5</span><span class="value">Ved rare tider: kontroller om kilden leverer lokal tid eller UTC. SUN2 og Elvia vises som kildetid, HC3/Yr konverteres til Europe/Oslo ved visning.</span></li>
+                <li><span class="key">6</span><span class="value">Ved feil design etter deploy: sjekk at både QNAP og Render serverer ny <code>static/app.css</code>, siden disse kan være ulike miljøer.</span></li>
             </ul>
             <div class="links">
                 <a class="button" href="/status/datakilder">Datakilder</a>
                 <a class="button" href="/status/dashboard">Dashboard</a>
+                <a class="button" href="/parkering/oversikt">Parkering</a>
                 <a class="button" href="/konto/manual">Manual</a>
             </div>
+        </section>
+
+        <section class="panel">
+            <h2>Sist oppdatert</h2>
+            <p>27.05.2026: teknisk dokumentasjon oppdatert med QNAP/Render-drift, parkering, EasyPark, kjøretøyberikelse, område/navn-utvidelser og siste oversiktssider.</p>
         </section>
     </main>
 </body>

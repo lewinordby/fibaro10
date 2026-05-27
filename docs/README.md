@@ -1,6 +1,6 @@
 # Dokumentasjonsoversikt
 
-Oppdatert 25.05.2026.
+Oppdatert 27.05.2026.
 
 Dette repoet dokumenterer både hovedappen `Fibaro10 / Lilletorget drift` og de lokale loggerne som fyller databasen.
 
@@ -26,7 +26,8 @@ Dette repoet dokumenterer både hovedappen `Fibaro10 / Lilletorget drift` og de 
 
 - Appen viser alltid data fra egen database, ikke direkte fra tredjeparts-API-er i brukergrensesnittet.
 - HC3 poster lys, ventilasjon og energi direkte til Fibaro10.
-- QNAP/Docker brukes for lokale loggere som Roborock og SUN2-skraping.
+- QNAP/Docker brukes for lokale loggere som Roborock, SUN2-skraping og EasyPark-nedlasting.
 - Elvia er manuell månedlig import fordi eksporten krever BankID.
+- Parkering består av EasyPark-import, kjøretøytabeller, manuell/SVV-berikelse og egne felt for navn, Sun2id, notat og område.
 - Status -> Datakilder er fasit for om en datakilde faktisk går.
 - SUN2/Elvia-tidspunkter behandles som kildens lokale tid, mens Yr/HC3 vises i Europe/Oslo.
