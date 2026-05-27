@@ -7357,6 +7357,56 @@ async def index(request: Request):
                 ).where(Sun2TanningSession.stat_date == today)
             )
         ).one()
+        week_start = today - timedelta(days=today.weekday())
+        today_start = datetime.combine(today, time.min)
+        tomorrow_start = today_start + timedelta(days=1)
+        week_start_dt = datetime.combine(week_start, time.min)
+        now_dt = local_now_naive()
+        week_sun = (
+            await session.execute(
+                select(
+                    func.count(Sun2TanningSession.id).label("sessions"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                ).where(
+                    Sun2TanningSession.stat_date >= week_start,
+                    Sun2TanningSession.stat_date <= today,
+                )
+            )
+        ).one()
+        today_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= today_start,
+                    ParkingSession.start_time < tomorrow_start,
+                )
+            )
+        ).one()
+        week_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= week_start_dt,
+                    ParkingSession.start_time < tomorrow_start,
+                )
+            )
+        ).one()
+        active_parking = (
+            await session.execute(
+                select(func.count(ParkingSession.id)).where(
+                    ParkingSession.start_time <= now_dt,
+                    or_(
+                        ParkingSession.end_time.is_(None),
+                        ParkingSession.end_time >= now_dt,
+                        func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
+                    ),
+                )
+            )
+        ).scalar_one()
         today_energy = (
             await session.execute(
                 select(
@@ -7512,6 +7562,40 @@ async def index(request: Request):
         if robot.last_seen_at and robot.last_seen_at >= recent_robot_cutoff
     ]
     next_schedule = sorted(schedules, key=roborock_next_schedule_score)[0] if schedules else None
+    focus_cards = [
+        {
+            "title": "Solinger i dag",
+            "value": format_short_number(today_sun.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(today_sun.paid)} kr - {format_short_number(today_sun.minutes / 60, 1)} timer - {today_sun.rooms or 0} rom",
+            "href": f"/soling/dagslinje?day={today.isoformat()}",
+            "tone": "sun2",
+        },
+        {
+            "title": "Parkering i dag",
+            "value": format_short_number(today_parking.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive nå",
+            "href": f"/parkering/oversikt?day={today.isoformat()}",
+            "tone": "parking",
+        },
+        {
+            "title": "Denne uken",
+            "value": f"{format_short_number(week_sun.sessions)} / {format_short_number(week_parking.sessions)}",
+            "unit": "sol / park",
+            "detail": f"{format_short_number(week_sun.paid)} kr soling - {format_short_number(week_parking.paid)} kr parkering",
+            "href": "/soling/statistikk",
+            "tone": "week",
+        },
+        {
+            "title": "Drift akkurat nå",
+            "value": "Sjekk" if attention_items else "OK",
+            "unit": f"{import_counts['ok']}/{import_counts['total']}",
+            "detail": f"{len(attention_items)} varsel - {now_status.mode.replace('_', ' ').lower() if now_status.mode else 'modus ukjent'}",
+            "href": "/status/datakilder" if attention_items else "/status/dagslinje",
+            "tone": "status",
+        },
+    ]
     ops_cards = [
         {
             "title": "Datakilder",
@@ -7568,6 +7652,7 @@ async def index(request: Request):
             "ntfy_ventilation_web_url": ntfy_topic_url(NTFY_VENTILATION_TOPIC),
             "vent_status": vent_status,
             "freshness_items": freshness_items,
+            "focus_cards": focus_cards,
             "ops_cards": ops_cards,
             "attention_items": attention_items,
         },

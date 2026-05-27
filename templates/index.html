@@ -301,6 +301,123 @@
         .ops-card strong { display: flex; align-items: baseline; gap: 0.22rem; margin-top: 0.1rem; font-size: 1.5rem; line-height: 1; }
         .ops-card em { color: var(--muted); font-size: 0.72rem; font-style: normal; font-weight: 800; }
         .ops-card small { display: block; color: #536276; font-size: 0.78rem; line-height: 1.28; }
+        .dashboard-intro {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+            margin-bottom: 0.9rem;
+        }
+        .dashboard-title h1 {
+            font-size: clamp(1.65rem, 4.2vw, 2.45rem);
+            line-height: 1.02;
+            color: #071943;
+        }
+        .dashboard-title .sub {
+            max-width: 46rem;
+            font-size: 0.98rem;
+        }
+        .focus-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.72rem;
+            margin: 0 0 1rem;
+        }
+        .focus-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: end;
+            gap: 0.8rem;
+            min-height: 8.6rem;
+            padding: 1rem 1.05rem;
+            border: 1px solid rgba(7,25,67,0.11);
+            border-top: 4px solid #d59a18;
+            border-radius: 14px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.86));
+            color: #071943;
+            text-decoration: none;
+            box-shadow: 0 16px 38px rgba(7,25,67,0.08);
+        }
+        .focus-card:hover { transform: translateY(-1px); border-color: rgba(7,25,67,0.2); }
+        .focus-card.parking { border-top-color: #4e8793; }
+        .focus-card.sun2 { border-top-color: #d66d5b; }
+        .focus-card.week { border-top-color: #d59a18; }
+        .focus-card.status { border-top-color: #071943; }
+        .focus-card span {
+            display: block;
+            color: #667085;
+            font-size: 0.72rem;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+        .focus-card strong {
+            display: flex;
+            align-items: baseline;
+            gap: 0.24rem;
+            margin-top: 0.18rem;
+            font-size: clamp(2.05rem, 7vw, 3.15rem);
+            line-height: 0.95;
+            letter-spacing: 0;
+        }
+        .focus-card em {
+            color: #667085;
+            font-size: 0.34em;
+            font-style: normal;
+            font-weight: 900;
+        }
+        .focus-card small {
+            justify-self: end;
+            max-width: 11rem;
+            color: #536276;
+            font-size: 0.84rem;
+            line-height: 1.28;
+            text-align: right;
+        }
+        .compact-status {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.72rem;
+            margin-bottom: 1rem;
+        }
+        .compact-status .now-card {
+            min-height: 5.9rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 26px rgba(7,25,67,0.06);
+        }
+        .compact-status .now-value {
+            font-size: clamp(1.35rem, 3vw, 1.75rem);
+        }
+        .quiet-section {
+            display: grid;
+            gap: 0.72rem;
+            margin-bottom: 1rem;
+        }
+        .quiet-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.8rem 0.92rem;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.86);
+            color: var(--text);
+            text-decoration: none;
+            box-shadow: 0 8px 24px rgba(7,25,67,0.05);
+        }
+        .quiet-card span { color: var(--muted); font-size: 0.8rem; }
+        .quiet-card strong { font-size: 1.05rem; }
+        .system-line {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            margin-top: 0.55rem;
+        }
+        body.theme-status main > :not(.dashboard-v2) {
+            display: none;
+        }
+        .dashboard-v2 {
+            display: block;
+        }
         .attention-panel {
             margin: 0 0 1rem;
             padding: 0.85rem;
@@ -556,6 +673,10 @@
             .now-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .now-card { min-height: 8.2rem; }
             .health-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .dashboard-intro { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+            .focus-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .compact-status { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .quiet-section { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .ops-radar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .quick-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -576,6 +697,170 @@
 <body class="theme-status">
     {% include "_header.html" %}
     <main>
+        <div class="dashboard-v2">
+            <section class="dashboard-intro" aria-label="Oversikt">
+                <div class="dashboard-title">
+                    <h1>Oversikt</h1>
+                    <p class="sub">
+                        Det viktigste først: solinger, parkering og om datagrunnlaget ser friskt ut.
+                        {% if now_status.timestamp %} Sist lest {{ now_status.timestamp.strftime("%d.%m.%Y %H:%M") }}.{% endif %}
+                    </p>
+                </div>
+                {% if now_status.mode %}
+                {% set mode_label = "Utenfor driftstid" if now_status.mode == "UTENFOR_DRIFTSTID" else ((now_status.mode or "UKJENT")|replace("_", " ")|replace("KJOLING", "KJØLING")|replace("FORKJOLING", "FORKJØLING")) %}
+                <span class="mode {% if now_status.mode == 'VARMEBEVARING' %}heat{% elif now_status.mode not in ['KJOLING', 'FORKJOLING'] %}normal{% endif %}">
+                    {{ mode_label }}
+                </span>
+                {% endif %}
+            </section>
+
+            <section class="focus-grid" aria-label="Dagens viktigste tall">
+                {% for card in focus_cards %}
+                <a class="focus-card {{ card.tone }}" href="{{ card.href }}">
+                    <div>
+                        <span>{{ card.title }}</span>
+                        <strong>{{ card.value }} <em>{{ card.unit }}</em></strong>
+                    </div>
+                    <small>{{ card.detail }}</small>
+                </a>
+                {% endfor %}
+            </section>
+
+            <section class="attention-panel {% if attention_items %}has-items{% endif %}" aria-label="Ting som bør sjekkes">
+                <div class="section-head" style="margin:0;">
+                    <div>
+                        <h2>{% if attention_items %}Bør sjekkes{% else %}Alt ser rolig ut{% endif %}</h2>
+                        <p class="sub">{% if attention_items %}Kort liste over ting som kan trenge oppfølging.{% else %}Ingen tydelige dataproblemer eller ukjente statuser akkurat nå.{% endif %}</p>
+                    </div>
+                    <a href="/status/datakilder">Datakilder</a>
+                </div>
+                {% if attention_items %}
+                <div class="attention-list">
+                    {% for item in attention_items %}
+                    <a class="attention-item {{ item.level }}" href="{{ item.href }}">
+                        <span class="attention-dot" aria-hidden="true"></span>
+                        <span>
+                            <span class="attention-title">{{ item.title }}</span>
+                            <span class="attention-detail">{{ item.detail }}</span>
+                        </span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </section>
+
+            {% if now_status.has_data %}
+            <section class="compact-status" aria-label="Nåstatus">
+                <article class="now-card temp-card">
+                    <div>
+                        <span class="now-label">Innetemp</span>
+                        <div class="now-value">{% if now_status.indoor_avg is not none %}{{ "%.1f"|format(now_status.indoor_avg) }}{% else %}-{% endif %}<span class="unit">°</span></div>
+                    </div>
+                    <div class="now-stack" aria-label="Innetemperaturer">
+                        {% for item in now_status.indoor_values %}
+                        <div class="now-small">
+                            <span class="small-label">{{ item.label }}</span>
+                            <span class="small-value">{% if item.value is not none %}{{ "%.1f"|format(item.value) }}°{% else %}-{% endif %}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                <article class="now-card temp-card">
+                    <div>
+                        <span class="now-label">Utetemp</span>
+                        <div class="now-value">{% if now_status.outdoor_avg is not none %}{{ "%.1f"|format(now_status.outdoor_avg) }}{% else %}-{% endif %}<span class="unit">°</span></div>
+                    </div>
+                    <div class="now-stack" aria-label="Utetemperaturer">
+                        {% for item in now_status.outdoor_values %}
+                        <div class="now-small">
+                            <span class="small-label">{{ item.label }}</span>
+                            <span class="small-value">{% if item.value is not none %}{{ "%.1f"|format(item.value) }}°{% else %}-{% endif %}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                <article class="now-card lux-card">
+                    <div>
+                        <span class="now-label">Lux</span>
+                        <div class="now-value">{% if now_status.lux is not none %}{{ "%.0f"|format(now_status.lux) }}{% else %}-{% endif %}</div>
+                    </div>
+                </article>
+                <article class="now-card weather-card">
+                    <div>
+                        <span class="now-label">Yr / vær</span>
+                        <div class="now-value">{{ now_status.weather_card.text or "Ikke logget" }}</div>
+                    </div>
+                    <div class="now-stack" aria-label="Værdata fra Yr">
+                        <div class="now-small">
+                            <span class="small-label">Temp</span>
+                            <span class="small-value">{% if now_status.weather_card.temperature is not none %}{{ "%.1f"|format(now_status.weather_card.temperature) }}°{% else %}-{% endif %}</span>
+                        </div>
+                        <div class="now-small">
+                            <span class="small-label">+6t</span>
+                            <span class="small-value">{% if now_status.weather_card.temp_6h is not none %}{{ "%.1f"|format(now_status.weather_card.temp_6h) }}°{% else %}-{% endif %}</span>
+                        </div>
+                        <div class="now-small">
+                            <span class="small-label">Nedbør</span>
+                            <span class="small-value">{% if now_status.weather_card.precipitation is not none %}{{ "%.1f"|format(now_status.weather_card.precipitation) }} mm{% else %}-{% endif %}</span>
+                        </div>
+                    </div>
+                </article>
+            </section>
+            {% endif %}
+
+            {% set light_ns = namespace(on=0, off=0, unknown=0) %}
+            {% for item in light_status %}
+                {% if item.state == true %}{% set light_ns.on = light_ns.on + 1 %}
+                {% elif item.state == false %}{% set light_ns.off = light_ns.off + 1 %}
+                {% else %}{% set light_ns.unknown = light_ns.unknown + 1 %}{% endif %}
+            {% endfor %}
+            {% set vent_ns = namespace(on=0, off=0, unknown=0) %}
+            {% for item in vent_status %}
+                {% set state = item.state if item.state is not none else (item.row.state if item.row and item.row.state is not none else none) %}
+                {% if state == true %}{% set vent_ns.on = vent_ns.on + 1 %}
+                {% elif state == false %}{% set vent_ns.off = vent_ns.off + 1 %}
+                {% else %}{% set vent_ns.unknown = vent_ns.unknown + 1 %}{% endif %}
+            {% endfor %}
+
+            <section class="quiet-section" aria-label="Snarveier og systemstatus">
+                <a class="quiet-card" href="/parkering/oversikt">
+                    <span>Parkering</span>
+                    <strong>Åpne dagen</strong>
+                </a>
+                <a class="quiet-card" href="/soling/dagslinje">
+                    <span>Soling</span>
+                    <strong>Dagslinje</strong>
+                </a>
+                <a class="quiet-card" href="/lys/dagslogg-lux">
+                    <span>Lys</span>
+                    <strong>{{ light_ns.on }} på / {{ light_ns.off }} av</strong>
+                </a>
+                <a class="quiet-card" href="/ventilasjon/dagslogg-temp">
+                    <span>Ventilasjon</span>
+                    <strong>{{ vent_ns.on }} på / {{ vent_ns.off }} av</strong>
+                </a>
+            </section>
+
+            <section class="section" aria-label="Drift">
+                <div class="section-head">
+                    <h2>Drift</h2>
+                    <a href="/status/datakilder">Se datakilder</a>
+                </div>
+                <div class="ops-radar">
+                    {% for card in ops_cards %}
+                    {% if card.title != "Soling i dag" %}
+                    <a class="ops-card {{ card.tone }}" href="{{ card.href }}">
+                        <div>
+                            <span>{{ card.title }}</span>
+                            <strong>{{ card.value }} <em>{{ card.unit }}</em></strong>
+                        </div>
+                        <small>{{ card.detail }}</small>
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
         <section class="hero">
             <div class="hero-top">
                 <div>
