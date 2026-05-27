@@ -338,6 +338,140 @@ body main .amount {
     font-weight: 850 !important;
 }
 
+/*
+   Global Lilletorget shell
+   ------------------------
+   Keep logo, sidebar and navigation visually identical on every section.
+   Older theme-specific CSS is still present, so this block deliberately lives
+   late in the final stylesheet and uses the same surface on all pages.
+*/
+
+.site-header,
+html.nav-collapsed .site-header {
+    background: #ffffff !important;
+    border-right: 1px solid var(--lt-border) !important;
+    box-shadow: 10px 0 30px rgba(7, 26, 69, 0.045) !important;
+}
+
+.site-header .brand-bar,
+html.nav-collapsed .site-header .brand-bar,
+body.theme-status .site-header .brand-bar,
+body.theme-light .site-header .brand-bar,
+body.theme-vent .site-header .brand-bar,
+body.theme-cleaning .site-header .brand-bar,
+body.theme-sun2 .site-header .brand-bar,
+body.theme-energy .site-header .brand-bar,
+body.theme-parking .site-header .brand-bar,
+body.theme-ai .site-header .brand-bar,
+body.theme-admin .site-header .brand-bar {
+    background:
+        radial-gradient(circle at 1.8rem 2.6rem, rgba(210, 151, 19, 0.07), transparent 10rem),
+        linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%) !important;
+}
+
+.brand-home.brand-lilletorget,
+html.nav-collapsed .brand-home.brand-lilletorget,
+body.theme-status .brand-home.brand-lilletorget,
+body.theme-light .brand-home.brand-lilletorget,
+body.theme-vent .brand-home.brand-lilletorget,
+body.theme-cleaning .brand-home.brand-lilletorget,
+body.theme-sun2 .brand-home.brand-lilletorget,
+body.theme-energy .brand-home.brand-lilletorget,
+body.theme-parking .brand-home.brand-lilletorget,
+body.theme-ai .brand-home.brand-lilletorget,
+body.theme-admin .brand-home.brand-lilletorget {
+    background: transparent !important;
+    border-bottom-color: var(--lt-border-soft) !important;
+}
+
+.app-nav,
+html.nav-collapsed .app-nav,
+body.theme-status .app-nav,
+body.theme-light .app-nav,
+body.theme-vent .app-nav,
+body.theme-cleaning .app-nav,
+body.theme-sun2 .app-nav,
+body.theme-energy .app-nav,
+body.theme-parking .app-nav,
+body.theme-ai .app-nav,
+body.theme-admin .app-nav {
+    background: transparent !important;
+}
+
+.app-nav .nav-main > .button {
+    color: var(--lt-text) !important;
+}
+
+.app-nav .nav-main > .button.active.has-sub {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--section-soft, #eef5f6) 62%, #ffffff), #ffffff) !important;
+}
+
+body main :where(
+    .panel-card,
+    .timeline-panel,
+    .sample,
+    .area-card,
+    .vehicle-card,
+    .parking-panel,
+    .parking-table,
+    .import-card,
+    .note-card,
+    .group,
+    .stat-card,
+    .stat-box,
+    .detail-card,
+    .detail-table,
+    .mini-metric,
+    .import-metric,
+    .energy-card,
+    .event-card,
+    .manual-card,
+    .config-card,
+    .admin-card
+) {
+    border: 1px solid var(--lt-border) !important;
+    border-radius: var(--lt-radius-card) !important;
+    background: var(--lt-card) !important;
+    box-shadow: var(--lt-shadow-card) !important;
+}
+
+body main :where(
+    .timeline-panel,
+    .parking-panel,
+    .parking-table,
+    .detail-table,
+    .table-wrap,
+    .chart-panel,
+    .import-card,
+    .manual-card,
+    .config-card
+) {
+    border-radius: var(--lt-radius-panel) !important;
+    box-shadow: var(--lt-shadow-panel) !important;
+    overflow: hidden;
+}
+
+body main :where(.panel-card, .area-card, .vehicle-card, .stat-card, .stat-box, .detail-card, .energy-card, .event-card, .admin-card) {
+    padding: 0.78rem 0.88rem !important;
+}
+
+body main :where(.badge, .pill, .chip, .status-pill, .access-pill) {
+    border: 1px solid var(--lt-border) !important;
+    border-radius: 999px !important;
+    background: #ffffff !important;
+    color: var(--lt-navy) !important;
+    font-size: 0.68rem !important;
+    font-weight: 820 !important;
+}
+
+body main :where(.page-actions, .toolbar, .actions, .button-row) {
+    gap: 0.5rem !important;
+}
+
+body main :where(.muted, .meta, .hint, .description) {
+    color: var(--lt-muted) !important;
+}
+
 @media (max-width: 1220px) {
     body.theme-parking main .parking-control-bar {
         grid-template-columns: 1fr !important;
@@ -349,6 +483,21 @@ body main .amount {
 }
 
 @media (max-width: 760px) {
+    .site-header,
+    html.nav-collapsed .site-header {
+        background: #ffffff !important;
+        border-bottom: 1px solid var(--lt-border) !important;
+        border-right: 0 !important;
+        box-shadow: 0 10px 26px rgba(7, 26, 69, 0.055) !important;
+    }
+
+    .site-header .brand-bar,
+    html.nav-collapsed .site-header .brand-bar {
+        background:
+            radial-gradient(circle at 2.1rem 1.7rem, rgba(210, 151, 19, 0.07), transparent 9rem),
+            #ffffff !important;
+    }
+
     body main {
         font-size: 0.86rem;
     }
