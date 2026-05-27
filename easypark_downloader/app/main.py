@@ -29,6 +29,7 @@ AUTH_STATE_PATH = DATA_DIR / "auth-state.json"
 REPORT_URL = os.getenv("EASYPARK_REPORT_URL", "https://dashboard.easypark.net/search-parkings/1")
 RUN_INTERVAL_MINUTES = int(os.getenv("EASYPARK_RUN_INTERVAL_MINUTES", "2"))
 RUN_AT = os.getenv("EASYPARK_RUN_AT", "").strip()
+RUN_TIMES = os.getenv("EASYPARK_RUN_TIMES", "").strip()
 RUN_EVERY_HOUR = os.getenv("EASYPARK_RUN_EVERY_HOUR", "false").strip().lower() in {"1", "true", "yes", "ja"}
 RUN_MINUTE = max(0, min(59, int(os.getenv("EASYPARK_RUN_MINUTE", "0"))))
 RUN_ON_START = os.getenv("EASYPARK_RUN_ON_START", "false").strip().lower() in {"1", "true", "yes", "ja"}
@@ -37,6 +38,7 @@ RECENT_DAYS = max(1, int(os.getenv("EASYPARK_RECENT_DAYS", "2")))
 HEADLESS = os.getenv("EASYPARK_HEADLESS", "true").strip().lower() not in {"0", "false", "no", "nei"}
 CODE_COOLDOWN_MINUTES = int(os.getenv("EASYPARK_CODE_COOLDOWN_MINUTES", "5"))
 AUTH_MAX_AGE_HOURS = max(1, int(os.getenv("EASYPARK_AUTH_MAX_AGE_HOURS", "24")))
+FORCE_LOGIN_TIMES = os.getenv("EASYPARK_FORCE_LOGIN_TIMES", "03:00").strip()
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://192.168.20.218:8110").rstrip("/")
@@ -156,11 +158,32 @@ def reset_browser_profile(reason: str) -> None:
     if PROFILE_DIR.exists():
         shutil.rmtree(PROFILE_DIR)
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
-    write_auth_state(last_reset_at=utcnow_iso(), last_reset_reason=reason, last_login_at=None)
+    write_auth_state(
+        last_reset_at=utcnow_iso(),
+        last_reset_reason=reason,
+        last_logout_at=utcnow_iso(),
+        last_login_at=None,
+    )
 
 
 def mark_login_completed() -> None:
     write_auth_state(last_login_at=utcnow_iso(), last_login_max_age_hours=AUTH_MAX_AGE_HOURS)
+
+
+def parse_run_times(value: str) -> list[tuple[int, int]]:
+    times: list[tuple[int, int]] = []
+    for part in re.split(r"[,;\s]+", value.strip()):
+        if not part:
+            continue
+        match = re.match(r"^(\d{1,2})(?::(\d{2}))?$", part)
+        if not match:
+            continue
+        hour = max(0, min(23, int(match.group(1))))
+        minute = max(0, min(59, int(match.group(2) or "0")))
+        item = (hour, minute)
+        if item not in times:
+            times.append(item)
+    return sorted(times)
 
 
 def decoded_header(raw: str | None) -> str:
@@ -353,6 +376,60 @@ async def ensure_logged_in(page) -> bool:
     return performed_login
 
 
+async def logout_easypark(page) -> bool:
+    try:
+        await page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
+        await page.wait_for_timeout(2000)
+        if not await looks_logged_in(page):
+            return False
+        patterns = [
+            re.compile(r"sign out|log out|logout", re.I),
+            re.compile(r"logg ut", re.I),
+        ]
+        for pattern in patterns:
+            if await click_visible(page.get_by_role("button", name=pattern)):
+                await page.wait_for_timeout(2000)
+                return True
+            if await click_visible(page.get_by_role("link", name=pattern)):
+                await page.wait_for_timeout(2000)
+                return True
+        menu_candidates = [
+            page.locator('[aria-label*="user" i], [aria-label*="account" i], [aria-label*="profile" i]'),
+            page.locator(".user-menu, .profile-menu, .account-menu, .dropdown-toggle"),
+        ]
+        for menu in menu_candidates:
+            if await click_visible(menu):
+                await page.wait_for_timeout(1000)
+                for pattern in patterns:
+                    if await click_visible(page.get_by_role("button", name=pattern)):
+                        await page.wait_for_timeout(2000)
+                        return True
+                    if await click_visible(page.get_by_role("link", name=pattern)):
+                        await page.wait_for_timeout(2000)
+                        return True
+    except Exception:
+        return False
+    return False
+
+
+async def try_logout_existing_session(playwright) -> bool:
+    if not PROFILE_DIR.exists():
+        return False
+    context = await playwright.chromium.launch_persistent_context(
+        str(PROFILE_DIR),
+        headless=HEADLESS,
+        accept_downloads=False,
+        viewport={"width": 1365, "height": 900},
+        locale="en-US",
+        timezone_id="Europe/Oslo",
+    )
+    page = context.pages[0] if context.pages else await context.new_page()
+    try:
+        return await logout_easypark(page)
+    finally:
+        await context.close()
+
+
 async def download_report(page) -> Path:
     body = await page_text(page)
     if not re.search(r"export to file", body, re.I):
@@ -523,17 +600,25 @@ def report_failure_to_fibaro10(started_at: str, message: str) -> None:
         pass
 
 
-async def run_download_import(from_day: date | None = None, to_day: date | None = None) -> dict[str, Any]:
+async def run_download_import(
+    from_day: date | None = None,
+    to_day: date | None = None,
+    force_login: bool = False,
+) -> dict[str, Any]:
     validate_period(from_day, to_day)
     period = period_label(from_day, to_day)
     set_state(running=True, last_action="starting", last_error=None, last_period=period)
     started = fibaro10_datetime_iso()
     try:
-        if auth_is_expired():
-            set_state(last_action="refresh_login", last_period=period)
-            reset_browser_profile(f"auth older than {AUTH_MAX_AGE_HOURS}h")
-
         async with async_playwright() as playwright:
+            if force_login or auth_is_expired():
+                reason = "scheduled fresh login" if force_login else f"auth older than {AUTH_MAX_AGE_HOURS}h"
+                if force_login:
+                    set_state(last_action="logout_before_login", last_period=period)
+                    await try_logout_existing_session(playwright)
+                set_state(last_action="refresh_login", last_period=period)
+                reset_browser_profile(reason)
+
             context = await playwright.chromium.launch_persistent_context(
                 str(PROFILE_DIR),
                 headless=HEADLESS,
@@ -589,9 +674,18 @@ async def run_once(from_day: date | None = None, to_day: date | None = None) -> 
         return await run_download_import(from_day, to_day)
 
 
+def should_force_login_now() -> bool:
+    now = datetime.now(LOCAL_TZ)
+    for hour, minute in parse_run_times(FORCE_LOGIN_TIMES):
+        if now.hour == hour and now.minute == minute:
+            return True
+    return False
+
+
 async def run_scheduled_once() -> dict[str, Any]:
     from_day, to_day = scheduled_period()
-    return await run_once(from_day, to_day)
+    async with lock:
+        return await run_download_import(from_day, to_day, force_login=should_force_login_now())
 
 
 async def run_backfill_year(year: int, end_day: date | None = None) -> dict[str, Any]:
@@ -600,7 +694,7 @@ async def run_backfill_year(year: int, end_day: date | None = None) -> dict[str,
         set_state(running=True, last_action="backfill_start", last_error=None, last_period=str(year))
         for from_day, to_day in monthly_periods(year, end_day):
             set_state(last_action="backfill_period", last_period=period_label(from_day, to_day))
-            results.append(await run_download_import(from_day, to_day))
+            results.append(await run_download_import(from_day, to_day, force_login=False))
         totals = {
             "periods": len(results),
             "inserted": sum(int(item.get("import", {}).get("inserted") or 0) for item in results),
@@ -628,6 +722,16 @@ async def worker_loop() -> None:
 
 
 def seconds_until_next_run() -> int:
+    schedule_times = parse_run_times(RUN_TIMES)
+    if schedule_times:
+        now = datetime.now(LOCAL_TZ)
+        candidates = [
+            now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            for hour, minute in schedule_times
+        ]
+        future = [candidate for candidate in candidates if candidate > now]
+        target = min(future) if future else min(candidates) + timedelta(days=1)
+        return max(60, int((target - now).total_seconds()))
     if RUN_EVERY_HOUR:
         now = datetime.now(LOCAL_TZ)
         target = now.replace(minute=RUN_MINUTE, second=0, microsecond=0)
@@ -662,18 +766,30 @@ async def health() -> dict[str, Any]:
 
 @app.get("/status")
 async def status() -> dict[str, Any]:
-    return {**state, "auth": read_auth_state()}
+    return {
+        **state,
+        "auth": read_auth_state(),
+        "schedule": {
+            "run_times": [f"{hour:02d}:{minute:02d}" for hour, minute in parse_run_times(RUN_TIMES)],
+            "run_at": RUN_AT,
+            "run_every_hour": RUN_EVERY_HOUR,
+            "force_login_times": [f"{hour:02d}:{minute:02d}" for hour, minute in parse_run_times(FORCE_LOGIN_TIMES)],
+            "recent_days": RECENT_DAYS,
+        },
+    }
 
 
 @app.post("/sync-now")
 async def sync_now(
     from_date: str | None = Query(default=None),
     to_date: str | None = Query(default=None),
+    force_login: bool = Query(default=False),
 ) -> dict[str, Any]:
     if lock.locked():
         return {"status": "busy", **state}
     try:
-        return await run_once(parse_iso_date(from_date), parse_iso_date(to_date))
+        async with lock:
+            return await run_download_import(parse_iso_date(from_date), parse_iso_date(to_date), force_login=force_login)
     except Exception as exc:
         return {"status": "error", "detail": str(exc), **state}
 
@@ -682,11 +798,13 @@ async def sync_now(
 async def sync_period(
     from_date: str = Query(...),
     to_date: str = Query(...),
+    force_login: bool = Query(default=False),
 ) -> dict[str, Any]:
     if lock.locked():
         return {"status": "busy", **state}
     try:
-        return await run_once(parse_iso_date(from_date), parse_iso_date(to_date))
+        async with lock:
+            return await run_download_import(parse_iso_date(from_date), parse_iso_date(to_date), force_login=force_login)
     except Exception as exc:
         return {"status": "error", "detail": str(exc), **state}
 
