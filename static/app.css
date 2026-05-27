@@ -1940,3 +1940,35 @@ body.theme-status main .ops-card {
 body.theme-status main .ops-card strong {
     font-size: 1.04rem !important;
 }
+
+body.theme-status main .lux-card {
+    align-content: space-between !important;
+    gap: 0.34rem !important;
+}
+
+body.theme-status main .lux-mini-chart {
+    display: block;
+    width: 100%;
+    height: 1.55rem;
+    margin-top: 0.18rem;
+    overflow: visible;
+}
+
+body.theme-status main .lux-mini-axis {
+    stroke: rgba(154, 108, 16, 0.18);
+    stroke-width: 2;
+}
+
+body.theme-status main .lux-mini-ref {
+    stroke: rgba(154, 108, 16, 0.12);
+    stroke-width: 1.3;
+}
+
+body.theme-status main .lux-mini-line {
+    fill: none;
+    stroke: #9a6c10;
+    stroke-width: 9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}

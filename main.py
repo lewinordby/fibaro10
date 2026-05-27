@@ -4989,6 +4989,27 @@ async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: da
     }
 
 
+def build_lux_sparkline(sample_rows, day_start: datetime, day_end: datetime):
+    rows = dedupe_samples_by_bucket(sample_rows)
+    values = []
+    points = []
+    for row in rows:
+        sample_time = row.bucket_start or row.timestamp
+        lux_value = row.lux if row.lux is not None else row.value
+        if sample_time is None or lux_value is None:
+            continue
+        values.append(float(lux_value))
+        points.append((sample_time, float(lux_value)))
+    if not points:
+        return {"polyline": "", "count": 0}
+    max_lux = lux_scale(values)["max"]
+    polyline = " ".join(
+        f"{percent_between(sample_time, day_start, day_end) * 10:.2f},{lux_y(value, max_lux):.2f}"
+        for sample_time, value in points
+    )
+    return {"polyline": polyline, "count": len(points)}
+
+
 async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: datetime):
     series_config = [
         {"key": "temp_1etg", "label": "1.etg", "class": "one", "color": "#df705d", "default": True},
@@ -7347,6 +7368,20 @@ async def index(request: Request):
         samples = (await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))).scalars().all()
         yr_samples = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().all()
         import_rows = await import_status_rows(session)
+        today = local_now_naive().date()
+        week_start = today - timedelta(days=today.weekday())
+        today_start = datetime.combine(today, time.min)
+        tomorrow_start = today_start + timedelta(days=1)
+        week_start_dt = datetime.combine(week_start, time.min)
+        now_dt = local_now_naive()
+        lux_spark_rows = (
+            await session.execute(
+                select(OutdoorLightSample)
+                .where(OutdoorLightSample.timestamp >= today_start)
+                .where(OutdoorLightSample.timestamp < min(now_dt, tomorrow_start))
+                .order_by(OutdoorLightSample.timestamp.asc())
+            )
+        ).scalars().all()
         today_sun = (
             await session.execute(
                 select(
@@ -7357,11 +7392,6 @@ async def index(request: Request):
                 ).where(Sun2TanningSession.stat_date == today)
             )
         ).one()
-        week_start = today - timedelta(days=today.weekday())
-        today_start = datetime.combine(today, time.min)
-        tomorrow_start = today_start + timedelta(days=1)
-        week_start_dt = datetime.combine(week_start, time.min)
-        now_dt = local_now_naive()
         week_sun = (
             await session.execute(
                 select(
@@ -7459,6 +7489,7 @@ async def index(request: Request):
     latest_yr_sample = yr_samples[0] if yr_samples else None
     latest_light = lights[0] if lights else None
     now_status = build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
+    lux_sparkline = build_lux_sparkline(lux_spark_rows, today_start, tomorrow_start)
 
     light_status = []
     for device in LIGHT_TIMELINE_DEVICES:
@@ -7580,20 +7611,20 @@ async def index(request: Request):
             "tone": "parking",
         },
         {
-            "title": "Denne uken",
+            "title": "Sol uke",
             "value": format_short_number(week_sun.sessions),
             "unit": "sol",
-            "detail": f"{format_short_number(week_parking.sessions)} parkering · {format_short_number(week_sun.paid + week_parking.paid)} kr",
             "href": "/soling/statistikk",
+            "detail": f"{format_short_number(week_sun.paid)} kr hittil denne uken",
             "tone": "week",
         },
         {
-            "title": "Drift akkurat nå",
-            "value": "Sjekk" if attention_items else "OK",
-            "unit": f"{import_counts['ok']}/{import_counts['total']}",
-            "detail": f"{len(attention_items)} varsel · {(now_status.get('mode') or 'modus ukjent').replace('_', ' ').lower()}",
-            "href": "/status/datakilder" if attention_items else "/status/dagslinje",
-            "tone": "status",
+            "title": "Parkering uke",
+            "value": format_short_number(week_parking.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(week_parking.paid)} kr - {active_parking or 0} aktive nå",
+            "href": f"/parkering/oversikt?day={today.isoformat()}",
+            "tone": "parking",
         },
     ]
     ops_cards = [
@@ -7654,6 +7685,7 @@ async def index(request: Request):
             "freshness_items": freshness_items,
             "focus_cards": focus_cards,
             "ops_cards": ops_cards,
+            "lux_sparkline": lux_sparkline,
             "attention_items": attention_items,
         },
     )

@@ -805,6 +805,13 @@
                         <span class="now-label">Lux</span>
                         <div class="now-value">{% if now_status.lux is not none %}{{ "%.0f"|format(now_status.lux) }}{% else %}-{% endif %}</div>
                     </div>
+                    <svg class="lux-mini-chart" viewBox="0 0 1000 330" preserveAspectRatio="none" role="img" aria-label="Lux hittil i dag">
+                        <line class="lux-mini-axis" x1="0" y1="278" x2="1000" y2="278"></line>
+                        <line class="lux-mini-ref" x1="0" y1="150" x2="1000" y2="150"></line>
+                        {% if lux_sparkline and lux_sparkline.polyline %}
+                        <polyline class="lux-mini-line" points="{{ lux_sparkline.polyline }}"></polyline>
+                        {% endif %}
+                    </svg>
                 </article>
                 <article class="now-card weather-card">
                     <div>
