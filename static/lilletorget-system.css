@@ -1,0 +1,369 @@
+/*
+   Lilletorget UI system
+   ---------------------
+   This layer is loaded last and acts as the shared design system for the app.
+   Older pages may still have local styles, so these rules normalize the common
+   building blocks without requiring a full template rewrite in one step.
+*/
+
+:root {
+    --lt-navy: #071a45;
+    --lt-gold: #d29713;
+    --lt-bg: #f3f6fa;
+    --lt-card: rgba(255, 255, 255, 0.96);
+    --lt-card-solid: #ffffff;
+    --lt-border: #dfe6ee;
+    --lt-border-soft: #edf2f7;
+    --lt-muted: #6b778c;
+    --lt-text: #182436;
+    --lt-radius-card: 14px;
+    --lt-radius-panel: 16px;
+    --lt-shadow-card: 0 8px 22px rgba(7, 26, 69, 0.055);
+    --lt-shadow-panel: 0 12px 30px rgba(7, 26, 69, 0.07);
+    --lt-focus: 0 0 0 3px var(--page-accent-ring, rgba(31, 111, 120, 0.22));
+    --lt-font-xs: 0.68rem;
+    --lt-font-sm: 0.76rem;
+    --lt-font-base: 0.88rem;
+    --lt-font-lg: 1rem;
+    --lt-font-xl: 1.28rem;
+}
+
+html body {
+    color: var(--lt-text) !important;
+    background:
+        radial-gradient(circle at 2rem 2rem, rgba(210, 151, 19, 0.055), transparent 24rem),
+        linear-gradient(180deg, #f7f9fc 0%, var(--lt-bg) 48%, #eef3f8 100%) !important;
+}
+
+body main {
+    font-size: var(--lt-font-base);
+}
+
+body main h1 {
+    color: var(--lt-navy) !important;
+    font-size: clamp(1.42rem, 2.15vw, 1.92rem) !important;
+    font-weight: 850 !important;
+    line-height: 1.08 !important;
+}
+
+body main h2 {
+    color: var(--lt-navy) !important;
+    font-size: clamp(1.02rem, 1.35vw, 1.16rem) !important;
+    font-weight: 830 !important;
+}
+
+body main h3 {
+    color: var(--lt-navy) !important;
+    font-size: 0.94rem !important;
+    font-weight: 820 !important;
+}
+
+body main p,
+body main .sub,
+body main small {
+    color: var(--lt-muted);
+}
+
+body main .page-title,
+body main .sun-title,
+body main .dashboard-intro {
+    margin: 0 0 0.85rem !important;
+}
+
+body main .page-title h1,
+body main .sun-title h1,
+body.theme-status main .dashboard-title h1 {
+    margin: 0 !important;
+    font-size: clamp(1.38rem, 2vw, 1.78rem) !important;
+    line-height: 1.08 !important;
+}
+
+body main .page-title p,
+body main .sun-title p,
+body.theme-status main .dashboard-title .sub {
+    margin-top: 0.18rem !important;
+    max-width: 62rem !important;
+    font-size: 0.84rem !important;
+    line-height: 1.38 !important;
+}
+
+body main :where(.panel, .hero, .summary-card, .metric-card, .parking-card, .focus-card, .now-card, .ops-card, .quick-card, .status-card, .health-card, .timeline-card, .chart-panel, .filter-panel, .data-card, .settings-card, .clean-card, .robot-card, .job-card, details) {
+    border: 1px solid var(--lt-border) !important;
+    border-radius: var(--lt-radius-card) !important;
+    background: var(--lt-card) !important;
+    box-shadow: var(--lt-shadow-card) !important;
+}
+
+body main :where(.panel, .hero, .timeline-card, .chart-panel, .table-wrap, .parking-panel) {
+    border-radius: var(--lt-radius-panel) !important;
+    box-shadow: var(--lt-shadow-panel) !important;
+}
+
+body main :where(.panel, .hero, .filter-panel, .settings-card, .data-card) {
+    padding: 0.88rem 0.96rem !important;
+}
+
+body main :where(.metric-card, .parking-card, .focus-card, .ops-card, .now-card, .quick-card, .status-card) {
+    padding: 0.72rem 0.82rem !important;
+}
+
+body main :where(.metric-card, .parking-card, .focus-card, .ops-card, .now-card) {
+    min-height: 4.25rem !important;
+}
+
+body main :where(.metric-card span, .parking-card span, .focus-card span, .ops-card span, .now-label, .label) {
+    color: var(--lt-muted) !important;
+    font-size: var(--lt-font-xs) !important;
+    font-weight: 850 !important;
+    line-height: 1.15 !important;
+    text-transform: uppercase !important;
+}
+
+body main :where(.metric-card strong, .parking-card strong, .focus-card strong, .ops-card strong, .value) {
+    color: var(--lt-navy) !important;
+    font-size: clamp(1.05rem, 1.7vw, 1.36rem) !important;
+    font-weight: 850 !important;
+    line-height: 1.04 !important;
+}
+
+body main :where(.metric-card small, .parking-card small, .focus-card small, .ops-card small) {
+    color: var(--lt-muted) !important;
+    font-size: var(--lt-font-sm) !important;
+    line-height: 1.25 !important;
+}
+
+body main :where(a.button, button, .button, .button-primary, .primary, input[type="submit"]) {
+    min-height: 2.26rem;
+    border-radius: 10px !important;
+    border: 1px solid var(--lt-border) !important;
+    background: #ffffff !important;
+    color: var(--lt-navy) !important;
+    font-size: 0.8rem !important;
+    font-weight: 820 !important;
+    text-decoration: none !important;
+    box-shadow: 0 4px 12px rgba(7, 26, 69, 0.04) !important;
+}
+
+body main :where(a.button:hover, button:hover, .button:hover, .primary:hover) {
+    border-color: var(--page-accent, var(--lt-gold)) !important;
+    color: var(--page-accent, var(--lt-gold)) !important;
+}
+
+body main :where(a.button:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible) {
+    outline: none !important;
+    box-shadow: var(--lt-focus) !important;
+}
+
+body main :where(input, select, textarea) {
+    border: 1px solid var(--lt-border) !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    color: var(--lt-text) !important;
+    font-size: 0.86rem !important;
+}
+
+body main :where(.filters, form.day-form, .filter-panel, .filter-grid) {
+    gap: 0.58rem !important;
+}
+
+body main :where(label) {
+    color: var(--lt-muted);
+    font-size: 0.78rem;
+    font-weight: 760;
+}
+
+body main :where(table) {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--lt-text);
+    font-size: 0.84rem;
+}
+
+body main :where(th) {
+    background: #f7f9fc !important;
+    color: #657187 !important;
+    font-size: 0.66rem !important;
+    font-weight: 850 !important;
+    line-height: 1.2 !important;
+    text-transform: uppercase !important;
+}
+
+body main :where(td, th) {
+    padding: 0.58rem 0.72rem !important;
+    border-bottom: 1px solid var(--lt-border-soft) !important;
+    vertical-align: middle !important;
+}
+
+body main :where(tbody tr:hover) {
+    background: #fbfdff;
+}
+
+body main :where(table a) {
+    color: var(--lt-navy);
+    font-weight: 780;
+    text-decoration: none;
+}
+
+body main :where(table a:hover) {
+    color: var(--page-accent, var(--lt-gold));
+}
+
+body main :where(.table-scroll, .table-wrap) {
+    overflow: auto;
+    border-radius: var(--lt-radius-panel);
+}
+
+body.theme-status main .focus-grid,
+body.theme-status main .compact-status,
+body.theme-status main .quiet-section,
+body.theme-status main .ops-radar {
+    gap: 0.68rem !important;
+}
+
+body.theme-status main .focus-card {
+    min-height: 4.15rem !important;
+}
+
+body.theme-status main .focus-card strong {
+    font-size: clamp(1.18rem, 1.9vw, 1.48rem) !important;
+}
+
+body.theme-status main .now-value {
+    font-size: clamp(1.2rem, 1.85vw, 1.5rem) !important;
+}
+
+body.theme-status main .now-card.weather-card .now-value {
+    font-size: clamp(1rem, 1.35vw, 1.14rem) !important;
+}
+
+body.theme-status main .attention-panel {
+    padding: 0.72rem 0.9rem !important;
+}
+
+body.theme-parking .site-header ~ main {
+    --page-width: 1180px;
+}
+
+body.theme-parking main .page-title h1 {
+    font-size: clamp(1.42rem, 2vw, 1.78rem) !important;
+}
+
+body.theme-parking main .parking-cards {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(9.6rem, 1fr)) !important;
+    gap: 0.58rem !important;
+    margin-bottom: 0.72rem !important;
+}
+
+body.theme-parking main .parking-card {
+    border-left: 3px solid var(--page-accent-border) !important;
+    min-height: 4.05rem !important;
+}
+
+body.theme-parking main .parking-control-bar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 25rem) !important;
+    gap: 0.68rem !important;
+    align-items: stretch !important;
+    margin-bottom: 0.72rem !important;
+}
+
+body.theme-parking main .parking-sync-card {
+    display: grid !important;
+    grid-template-columns: minmax(8.5rem, 11.5rem) minmax(0, 1fr) auto !important;
+    gap: 0.5rem 0.7rem !important;
+    align-items: center !important;
+    overflow: hidden !important;
+}
+
+body.theme-parking main .parking-day-card {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.52rem !important;
+}
+
+body.theme-parking main .parking-day-nav {
+    gap: 0.34rem !important;
+}
+
+body.theme-parking main .parking-day-nav a {
+    min-height: 2rem !important;
+    border-radius: 9px !important;
+    font-size: 0.72rem !important;
+}
+
+body.theme-parking main .parking-panel {
+    margin-top: 0.76rem !important;
+    background: var(--lt-card-solid) !important;
+    overflow: hidden !important;
+}
+
+body.theme-parking main .parking-panel header {
+    padding: 0.72rem 0.86rem 0.62rem !important;
+    border-bottom: 1px solid var(--lt-border-soft) !important;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+}
+
+body.theme-parking main .parking-panel h2 {
+    font-size: 1rem !important;
+}
+
+body.theme-parking main .parking-panel p {
+    font-size: 0.78rem !important;
+}
+
+body.theme-parking main .vehicle-cell {
+    min-width: 17rem !important;
+}
+
+body.theme-parking main .vehicle-title {
+    font-size: 0.78rem !important;
+}
+
+body.theme-parking main .vehicle-meta {
+    font-size: 0.72rem !important;
+}
+
+body.theme-parking main .time-stack strong {
+    font-size: 0.88rem !important;
+}
+
+body.theme-parking main .time-stack span {
+    font-size: 0.72rem !important;
+}
+
+body main .amount {
+    color: #8a6410 !important;
+    font-weight: 850 !important;
+}
+
+@media (max-width: 1220px) {
+    body.theme-parking main .parking-control-bar {
+        grid-template-columns: 1fr !important;
+    }
+
+    body.theme-parking main .parking-sync-card {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@media (max-width: 760px) {
+    body main {
+        font-size: 0.86rem;
+    }
+
+    body main .page-title h1,
+    body main .sun-title h1,
+    body.theme-status main .dashboard-title h1 {
+        font-size: 1.36rem !important;
+    }
+
+    body main :where(.metric-card, .parking-card, .focus-card, .ops-card, .now-card, .quick-card, .status-card) {
+        padding: 0.68rem 0.74rem !important;
+    }
+
+    body.theme-parking main .parking-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
