@@ -55,6 +55,37 @@
             {{ sub_button("/status/datakilder", "Datakilder", "list", current_path == "/status/datakilder") }}
         </div>
 
+        <a class="button nav-parking has-sub {% if is_parking %}active{% endif %}" href="/parkering/oversikt" aria-label="Parkering" title="Parkering">
+            <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M7 20V4h6.2a4.7 4.7 0 0 1 0 9.4H10.5"></path><path d="M10.5 13.4V20"></path>
+            </svg>
+            <span class="nav-label">Parkering</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
+        </a>
+        <div class="nav-row nav-sub {% if is_parking %}active-section{% endif %}" aria-label="Undermeny for parkering">
+            {{ sub_button("/parkering/oversikt", "Oversikt", "dashboard", current_path == "/parkering/oversikt") }}
+            {{ sub_button("/parkering/parkeringer", "Parkeringer", "list", current_path == "/parkering/parkeringer") }}
+            {{ sub_button("/parkering/statistikk", "Statistikk", "chart", current_path == "/parkering/statistikk") }}
+            {{ sub_button("/parkering/omrade-oppslag", "Område", "parking", current_path == "/parkering/omrade-oppslag") }}
+            {{ sub_button("/parkering/kjoretoy", "Kjøretøy", "parking", current_path == "/parkering/kjoretoy") }}
+        </div>
+
+        <a class="button nav-sun2 has-sub {% if is_sun2 %}active{% endif %}" href="/soling/dagslinje" aria-label="Soling" title="Soling">
+            <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3.6"></circle><path d="M12 2.5v3"></path><path d="M12 18.5v3"></path><path d="M2.5 12h3"></path><path d="M18.5 12h3"></path><path d="m5.3 5.3 2.1 2.1"></path><path d="m16.6 16.6 2.1 2.1"></path><path d="m18.7 5.3-2.1 2.1"></path><path d="m7.4 16.6-2.1 2.1"></path>
+            </svg>
+            <span class="nav-label">Soling</span>
+            <span class="nav-chevron" aria-hidden="true"></span>
+        </a>
+        <div class="nav-row nav-sub {% if is_sun2 %}active-section{% endif %}" aria-label="Undermeny for soling">
+            {{ sub_button("/soling/dagslinje", "Dagslinje", "timeline", current_path == "/soling/dagslinje") }}
+            {{ sub_button("/soling/oversikt", "Statistikk", "dashboard", current_path == "/soling/oversikt") }}
+            {{ sub_button("/soling/detaljer", "Detaljer", "chart", current_path == "/soling/detaljer") }}
+            {{ sub_button("/soling/enkeltimer", "Enkeltimer", "list", current_path == "/soling/enkeltimer") }}
+            {{ sub_button("/soling/senger", "Senger", "bed", current_path == "/soling/senger") }}
+            {{ sub_button("/soling/medlemmer", "Medlemmer", "users", current_path == "/soling/medlemmer") }}
+        </div>
+
         <a class="button nav-light has-sub {% if is_light %}active{% endif %}" href="/lys/dagslogg-lux" aria-label="Lys" title="Lys">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M9 18h6"></path><path d="M10 21h4"></path><path d="M8 12a4 4 0 1 1 8 0c0 1.4-.8 2.4-1.7 3.2-.6.5-.8 1-.8 1.8h-3c0-.8-.2-1.3-.8-1.8C8.8 14.4 8 13.4 8 12Z"></path><path d="M12 2.8v2"></path><path d="m4.8 5.8 1.4 1.4"></path><path d="m19.2 5.8-1.4 1.4"></path>
@@ -84,33 +115,6 @@
             {{ sub_button("/ventilasjon/innstillinger", "Innstillinger", "settings", current_path == "/ventilasjon/innstillinger") }}
         </div>
 
-        <a class="button nav-cleaning has-sub {% if is_cleaning %}active{% endif %}" href="/renhold/oversikt" aria-label="Renhold" title="Renhold">
-            <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="7.2"></circle><circle cx="9.4" cy="10.2" r="0.7"></circle><circle cx="14.6" cy="10.2" r="0.7"></circle><path d="M8.4 15h7.2"></path><path d="M12 4.8v3.1"></path><path d="M6.8 17.2c1.3 1.25 3 2 5.2 2s3.9-.75 5.2-2"></path>
-            </svg>
-            <span class="nav-label">Renhold</span>
-            <span class="nav-chevron" aria-hidden="true"></span>
-        </a>
-        <div class="nav-row nav-sub {% if is_cleaning %}active-section{% endif %}" aria-label="Undermeny for renhold">
-            {{ sub_button("/renhold/oversikt", "Oversikt", "dashboard", current_path == "/renhold/oversikt") }}
-        </div>
-
-        <a class="button nav-sun2 has-sub {% if is_sun2 %}active{% endif %}" href="/soling/dagslinje" aria-label="Soling" title="Soling">
-            <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="3.6"></circle><path d="M12 2.5v3"></path><path d="M12 18.5v3"></path><path d="M2.5 12h3"></path><path d="M18.5 12h3"></path><path d="m5.3 5.3 2.1 2.1"></path><path d="m16.6 16.6 2.1 2.1"></path><path d="m18.7 5.3-2.1 2.1"></path><path d="m7.4 16.6-2.1 2.1"></path>
-            </svg>
-            <span class="nav-label">Soling</span>
-            <span class="nav-chevron" aria-hidden="true"></span>
-        </a>
-        <div class="nav-row nav-sub {% if is_sun2 %}active-section{% endif %}" aria-label="Undermeny for soling">
-            {{ sub_button("/soling/dagslinje", "Dagslinje", "timeline", current_path == "/soling/dagslinje") }}
-            {{ sub_button("/soling/oversikt", "Statistikk", "dashboard", current_path == "/soling/oversikt") }}
-            {{ sub_button("/soling/detaljer", "Detaljer", "chart", current_path == "/soling/detaljer") }}
-            {{ sub_button("/soling/enkeltimer", "Enkeltimer", "list", current_path == "/soling/enkeltimer") }}
-            {{ sub_button("/soling/senger", "Senger", "bed", current_path == "/soling/senger") }}
-            {{ sub_button("/soling/medlemmer", "Medlemmer", "users", current_path == "/soling/medlemmer") }}
-        </div>
-
         <a class="button nav-energy has-sub {% if is_energy %}active{% endif %}" href="/energi/status" aria-label="Energi" title="Energi">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M13 2.8 5.8 13H12l-1 8.2L18.2 10H12l1-7.2Z"></path>
@@ -124,19 +128,15 @@
             {{ sub_button("/energi/elvia", "Elvia", "chart", current_path == "/energi/elvia") }}
         </div>
 
-        <a class="button nav-parking has-sub {% if is_parking %}active{% endif %}" href="/parkering/oversikt" aria-label="Parkering" title="Parkering">
+        <a class="button nav-cleaning has-sub {% if is_cleaning %}active{% endif %}" href="/renhold/oversikt" aria-label="Renhold" title="Renhold">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
-                <path d="M7 20V4h6.2a4.7 4.7 0 0 1 0 9.4H10.5"></path><path d="M10.5 13.4V20"></path>
+                <circle cx="12" cy="12" r="7.2"></circle><circle cx="9.4" cy="10.2" r="0.7"></circle><circle cx="14.6" cy="10.2" r="0.7"></circle><path d="M8.4 15h7.2"></path><path d="M12 4.8v3.1"></path><path d="M6.8 17.2c1.3 1.25 3 2 5.2 2s3.9-.75 5.2-2"></path>
             </svg>
-            <span class="nav-label">Parkering</span>
+            <span class="nav-label">Renhold</span>
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
-        <div class="nav-row nav-sub {% if is_parking %}active-section{% endif %}" aria-label="Undermeny for parkering">
-            {{ sub_button("/parkering/oversikt", "Oversikt", "dashboard", current_path == "/parkering/oversikt") }}
-            {{ sub_button("/parkering/parkeringer", "Parkeringer", "list", current_path == "/parkering/parkeringer") }}
-            {{ sub_button("/parkering/statistikk", "Statistikk", "chart", current_path == "/parkering/statistikk") }}
-            {{ sub_button("/parkering/omrade-oppslag", "Område", "parking", current_path == "/parkering/omrade-oppslag") }}
-            {{ sub_button("/parkering/kjoretoy", "Kjøretøy", "parking", current_path == "/parkering/kjoretoy") }}
+        <div class="nav-row nav-sub {% if is_cleaning %}active-section{% endif %}" aria-label="Undermeny for renhold">
+            {{ sub_button("/renhold/oversikt", "Oversikt", "dashboard", current_path == "/renhold/oversikt") }}
         </div>
 
         <a class="button nav-ai has-sub {% if is_ai %}active{% endif %}" href="/ai/sok" aria-label="AI søk" title="AI søk">
