@@ -1396,3 +1396,200 @@ body.theme-parking main :where(.amount) {
         font-size: 1.45rem !important;
     }
 }
+
+/* Lilletorget profile unification.
+   Final visual pass: calm white surfaces, deep navy text, warm gold accents. */
+:root {
+    --brand: #061942;
+    --brand-strong: #0d245b;
+    --brand-dark: #061942;
+    --brand-soft: #f2f6fc;
+    --brand-ring: rgba(198, 143, 15, 0.22);
+    --bg: #f2f6fb;
+    --panel: #ffffff;
+    --panel-soft: #f8fafc;
+    --line: #e5ebf3;
+    --line-soft: #eff3f8;
+    --text: #10203b;
+    --muted: #728096;
+    --gold: #c99014;
+    --gold-strong: #a8740a;
+    --gold-soft: #fff7e8;
+    --surface: linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(253,254,255,.94) 100%);
+    --shadow-1: 0 14px 42px rgba(6, 25, 66, 0.075);
+    --shadow-2: 0 24px 62px rgba(6, 25, 66, 0.12);
+    --radius-sm: 12px;
+    --radius-md: 16px;
+    --radius-lg: 22px;
+    --status-color: #0d245b;
+    --status-soft: #f2f6fc;
+    --status-border: #d9e3ef;
+    --light-color: #c99014;
+    --light-soft: #fff7e8;
+    --light-border: #efd9a2;
+    --vent-color: #5e9a6a;
+    --vent-soft: #f1f8f3;
+    --vent-border: #cde3d0;
+    --cleaning-color: #6f638d;
+    --cleaning-soft: #f5f2fa;
+    --cleaning-border: #d9d1e5;
+    --sun2-color: #cf735f;
+    --sun2-soft: #fff1ee;
+    --sun2-border: #edc4ba;
+    --energy-color: #b47d12;
+    --energy-soft: #fff7e8;
+    --energy-border: #e8cf8d;
+    --parking-color: #2d7480;
+    --parking-soft: #eef8fa;
+    --parking-border: #bfdfe3;
+    --ai-color: #5165a7;
+    --ai-soft: #f2f4ff;
+    --ai-border: #d2daf7;
+}
+
+html body {
+    background:
+        radial-gradient(circle at 4rem 3rem, rgba(201, 144, 20, 0.14), transparent 29rem),
+        radial-gradient(circle at 92% 0, rgba(6, 25, 66, 0.075), transparent 37rem),
+        linear-gradient(135deg, #fbfcfe 0%, #f2f6fb 46%, #e9eff7 100%) !important;
+}
+
+main {
+    --surface-border: rgba(222, 229, 238, 0.98);
+    --surface-shadow: 0 14px 38px rgba(6, 25, 66, 0.07);
+    --surface-shadow-hover: 0 20px 52px rgba(6, 25, 66, 0.105);
+}
+
+main :where(.page-title, .section-head, .section-title) {
+    color: var(--brand-dark) !important;
+}
+
+main :where(.page-title h1, h1, h2, h3) {
+    color: var(--brand-dark) !important;
+    letter-spacing: 0 !important;
+}
+
+main :where(.page-title p, .muted, .subtitle, .description, .hint, small) {
+    color: var(--muted) !important;
+}
+
+main :where(.panel, .hero, .event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .chart-panel, .timeline-panel, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .filter-panel, .area-card, .clean-card, .data-card, .settings-card, .table-wrap, details) {
+    border-color: var(--surface-border) !important;
+    background: var(--surface) !important;
+    box-shadow: var(--surface-shadow) !important;
+}
+
+main :where(.panel, .hero, .chart-panel, .timeline-panel, .filter-panel, details) {
+    border-radius: 22px !important;
+}
+
+main :where(.event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .area-card, .clean-card, .data-card, .settings-card) {
+    border-radius: 18px !important;
+}
+
+main :where(.panel, .hero, .chart-panel, .timeline-panel, .filter-panel, details)::before {
+    height: 3px !important;
+    background: linear-gradient(90deg, var(--page-accent), color-mix(in srgb, var(--gold) 70%, #ffffff)) !important;
+    opacity: 0.95 !important;
+}
+
+main :where(.event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .quick-card, .area-card):hover {
+    transform: translateY(-1px) !important;
+    box-shadow: var(--surface-shadow-hover) !important;
+}
+
+main :where(input, select, textarea) {
+    border-color: #dfe7f0 !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    color: var(--brand-dark) !important;
+    box-shadow: 0 1px 0 rgba(6, 25, 66, 0.025) !important;
+}
+
+main :where(input, select, textarea):focus {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 0 4px rgba(201, 144, 20, 0.18) !important;
+}
+
+main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button) {
+    border-color: #dfe7f0 !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    color: var(--brand-dark) !important;
+    box-shadow: 0 6px 14px rgba(6, 25, 66, 0.045) !important;
+}
+
+main :where(a.button:hover, button:not(.nav-toggle):hover, .chart-toggle:hover, .sun-chip:hover, .subscribe-button:hover) {
+    border-color: color-mix(in srgb, var(--page-accent) 52%, #dfe7f0) !important;
+    background: color-mix(in srgb, var(--page-accent-soft) 42%, #ffffff) !important;
+    box-shadow: 0 12px 24px rgba(6, 25, 66, 0.075) !important;
+}
+
+main :where(a.button.active, button.active, .chart-toggle.active, .sun-chip.active, .active > .button, .button.primary, button.primary, .primary, .button-primary) {
+    border-color: var(--brand-dark) !important;
+    background: linear-gradient(135deg, var(--brand-dark), #13265b) !important;
+    color: #ffffff !important;
+    box-shadow: 0 14px 30px rgba(6, 25, 66, 0.18) !important;
+}
+
+main :where(.badge, .pill, .status-pill, .mode, .flag, .live-pill, .stat-pill, .sync-pill, .count-link) {
+    border-color: #dde6ef !important;
+    background: #ffffff !important;
+    color: var(--brand-dark) !important;
+}
+
+main :where(.badge.ok, .status-pill.ok, .pill.ok, .live-pill.on, .state-on, .ok) {
+    border-color: #bfdfc6 !important;
+    background: #eff9f1 !important;
+    color: #397a45 !important;
+}
+
+main :where(.badge.warn, .status-pill.warn, .pill.warn, .warning) {
+    border-color: #efd9a2 !important;
+    background: var(--gold-soft) !important;
+    color: #8c6210 !important;
+}
+
+main :where(.badge.error, .status-pill.error, .pill.error, .error) {
+    border-color: #efc5bd !important;
+    background: #fff0ed !important;
+    color: #9a3f2d !important;
+}
+
+main :where(table) {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+main :where(th) {
+    background: #f8fafc !important;
+    color: #69778c !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.01em !important;
+}
+
+main :where(td) {
+    color: var(--text) !important;
+}
+
+main :where(td, th) {
+    border-bottom-color: var(--line-soft) !important;
+}
+
+main :where(tbody tr:hover td) {
+    background: color-mix(in srgb, var(--page-accent-soft) 34%, #ffffff) !important;
+}
+
+body.theme-status main :where(.now-card, .status-card, .quick-card),
+body.theme-energy main :where(.energy-card, .metric-card),
+body.theme-parking main :where(.parking-card, .parking-panel, .vehicle-card) {
+    border-top-color: var(--page-accent-border) !important;
+}
+
+body.theme-parking main :where(.amount, .parking-amount, .price) {
+    color: #926811 !important;
+}
+
+body.theme-parking main :where(.parking-link-button, .count-link) {
+    color: var(--brand-dark) !important;
+}

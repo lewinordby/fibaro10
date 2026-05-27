@@ -717,3 +717,192 @@ html body {
         box-shadow: 0 12px 30px rgba(7,26,69,.08) !important;
     }
 }
+
+/* Lilletorget profile navigation polish.
+   Final layer aligned with the logo: navy, gold, airy white menu. */
+:root {
+    --owner-line: #e5ebf3;
+    --owner-row: rgba(255,255,255,.86);
+    --owner-row-hover: #fbfcfe;
+    --owner-row-active: #f5f8fc;
+    --owner-sub-row: rgba(247,249,252,.84);
+    --owner-text: #26334a;
+    --owner-muted: #728096;
+    --owner-navy: #061942;
+    --owner-gold: #c99014;
+}
+
+.site-header .brand-mark-toggle.nav-toggle:hover,
+.site-header .brand-mark-toggle.nav-toggle:focus-visible {
+    background: #fff7e8 !important;
+    box-shadow: 0 0 0 4px rgba(201, 144, 20, 0.18) !important;
+}
+
+@media (min-width: 1020px) {
+    .site-header {
+        background: rgba(255,255,255,.92) !important;
+        border-right-color: rgba(224,232,241,.98) !important;
+        box-shadow: 12px 0 36px rgba(6,25,66,.052) !important;
+        backdrop-filter: blur(18px);
+    }
+
+    .site-header .brand-bar {
+        background:
+            radial-gradient(circle at 16% 4rem, rgba(201,144,20,.08), transparent 16rem),
+            linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,251,254,.95)) !important;
+    }
+
+    .brand-home.brand-lilletorget {
+        min-height: 6.55rem !important;
+        padding-left: 4.48rem !important;
+        border-bottom-color: var(--owner-line) !important;
+        background: transparent !important;
+    }
+
+    .brand-lilletorget-text-logo {
+        width: 10.1rem !important;
+        filter: drop-shadow(0 8px 18px rgba(6,25,66,.08));
+    }
+
+    .site-header .brand-mark-toggle.nav-toggle {
+        top: 1.05rem !important;
+        left: 0.8rem !important;
+        width: 3.18rem !important;
+        min-width: 3.18rem !important;
+        height: 3.18rem !important;
+    }
+
+    .app-nav {
+        background: transparent !important;
+    }
+
+    .app-nav .nav-main > .button {
+        min-height: 3.75rem !important;
+        padding-left: 1.7rem !important;
+        color: var(--owner-text) !important;
+        background: transparent !important;
+        box-shadow: inset 0 -1px 0 rgba(229,235,243,.9) !important;
+        font-weight: 680 !important;
+    }
+
+    .app-nav .nav-main > .button:hover {
+        background: rgba(255,255,255,.78) !important;
+        color: var(--owner-navy) !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        width: calc(100% - 0.78rem) !important;
+        margin: 0.4rem 0.39rem 0 !important;
+        padding-left: 1.48rem !important;
+        border-color: color-mix(in srgb, var(--section-border) 72%, #ffffff) !important;
+        border-radius: 16px !important;
+        background:
+            linear-gradient(90deg, color-mix(in srgb, var(--section-soft) 68%, #ffffff), #ffffff 76%) !important;
+        color: var(--owner-navy) !important;
+        box-shadow: inset 4px 0 0 var(--section-color), 0 12px 26px rgba(6,25,66,.06) !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub .nav-label {
+        font-weight: 820 !important;
+    }
+
+    .app-nav .nav-sub,
+    .app-nav .nav-main > .nav-sub {
+        width: calc(100% - 3.65rem) !important;
+        margin: 0.18rem 0 0.48rem 3.05rem !important;
+        padding: 0.2rem 0.32rem !important;
+        border-left: 1px solid rgba(114,128,150,.22) !important;
+        border-radius: 0 0 16px 16px !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-sub .button,
+    .app-nav .nav-sub-form .button {
+        min-height: 2.26rem !important;
+        padding-left: 0.68rem !important;
+        color: var(--owner-muted) !important;
+        border-radius: 10px !important;
+        font-weight: 660 !important;
+    }
+
+    .app-nav .nav-sub .button:hover,
+    .app-nav .nav-sub-form .button:hover {
+        background: rgba(255,255,255,.84) !important;
+        color: var(--owner-navy) !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        background: #ffffff !important;
+        color: var(--owner-navy) !important;
+        box-shadow: inset 3px 0 0 var(--section-color), 0 6px 16px rgba(6,25,66,.045) !important;
+        font-weight: 780 !important;
+    }
+
+    html.nav-collapsed .site-header {
+        width: var(--owner-sidebar-closed) !important;
+    }
+
+    html.nav-collapsed .brand-home.brand-lilletorget {
+        padding: 0 !important;
+        justify-content: center !important;
+    }
+}
+
+@media (max-width: 1019px) {
+    .site-header,
+    html.nav-collapsed .site-header {
+        background: rgba(255,255,255,.94) !important;
+        border-bottom: 1px solid rgba(224,232,241,.96) !important;
+        box-shadow: 0 12px 30px rgba(6,25,66,.08) !important;
+    }
+
+    .site-header .brand-bar {
+        background:
+            radial-gradient(circle at 1.7rem 1.4rem, rgba(201,144,20,.10), transparent 12rem),
+            rgba(255,255,255,.88) !important;
+    }
+
+    .brand-lilletorget-text-logo,
+    html.nav-collapsed .brand-lilletorget-text-logo {
+        width: min(9.45rem, 50vw) !important;
+    }
+
+    .site-header .brand-mark-toggle.nav-toggle,
+    html.nav-collapsed .site-header .brand-mark-toggle.nav-toggle {
+        width: 2.86rem !important;
+        min-width: 2.86rem !important;
+        height: 2.86rem !important;
+    }
+
+    .app-nav {
+        background: rgba(255,255,255,.95) !important;
+    }
+
+    .app-nav .nav-main > .button {
+        color: var(--owner-text) !important;
+        background: rgba(255,255,255,.96) !important;
+        font-weight: 700 !important;
+    }
+
+    .app-nav .nav-main > .button.active.has-sub {
+        border-radius: 14px !important;
+        background: linear-gradient(90deg, color-mix(in srgb, var(--section-soft) 66%, #ffffff), #ffffff) !important;
+        box-shadow: inset 4px 0 0 var(--section-color), 0 10px 22px rgba(6,25,66,.06) !important;
+    }
+
+    .app-nav .nav-sub,
+    .app-nav .nav-main > .nav-sub {
+        width: calc(100% - 3rem) !important;
+        margin-left: 2.65rem !important;
+        border-left: 1px solid rgba(114,128,150,.24) !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .app-nav .nav-sub .button.active {
+        border-radius: 10px !important;
+        background: #ffffff !important;
+        box-shadow: inset 3px 0 0 var(--section-color), 0 6px 14px rgba(6,25,66,.045) !important;
+    }
+}
