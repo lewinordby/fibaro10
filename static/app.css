@@ -1593,3 +1593,262 @@ body.theme-parking main :where(.amount, .parking-amount, .price) {
 body.theme-parking main :where(.parking-link-button, .count-link) {
     color: var(--brand-dark) !important;
 }
+
+/* Lilletorget design correction.
+   This tones down the previous pass and makes the dashboard feel like the login page. */
+:root {
+    --brand: #06163d;
+    --brand-strong: #10245a;
+    --brand-dark: #06163d;
+    --bg: #f4f7fb;
+    --panel: #ffffff;
+    --panel-soft: #fafbfd;
+    --line: #e7edf4;
+    --line-soft: #f0f4f8;
+    --text: #12203a;
+    --muted: #768399;
+    --gold: #c89216;
+    --gold-soft: #fff8e9;
+    --surface: #ffffff;
+    --shadow-1: 0 8px 22px rgba(6, 22, 61, 0.055);
+    --shadow-2: 0 14px 34px rgba(6, 22, 61, 0.085);
+    --radius-sm: 12px;
+    --radius-md: 16px;
+    --radius-lg: 20px;
+    --status-color: #06163d;
+    --status-soft: #f5f7fb;
+    --status-border: #e1e8f1;
+    --light-color: #c89216;
+    --light-soft: #fff8e9;
+    --light-border: #ead69e;
+    --vent-color: #5a9364;
+    --vent-soft: #f3f9f4;
+    --vent-border: #c9dfcd;
+}
+
+html body {
+    background:
+        radial-gradient(circle at 1.8rem 1.8rem, rgba(200, 146, 22, 0.10), transparent 21rem),
+        radial-gradient(circle at 96% 2rem, rgba(6, 22, 61, 0.045), transparent 30rem),
+        linear-gradient(135deg, #fbfcfe 0%, #f4f7fb 58%, #edf2f8 100%) !important;
+}
+
+main {
+    --surface-border: rgba(225, 232, 241, 0.98);
+    --surface-shadow: 0 8px 22px rgba(6, 22, 61, 0.052);
+    --surface-shadow-hover: 0 12px 28px rgba(6, 22, 61, 0.075);
+}
+
+main :where(.panel, .hero, .event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .chart-panel, .timeline-panel, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .filter-panel, .area-card, .clean-card, .data-card, .settings-card, .table-wrap, details) {
+    background: #ffffff !important;
+    border-color: var(--surface-border) !important;
+    box-shadow: var(--surface-shadow) !important;
+}
+
+main :where(.panel, .hero, .chart-panel, .timeline-panel, .filter-panel, details) {
+    border-radius: 20px !important;
+}
+
+main :where(.event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .timeline-card, .metric-card, .quick-card, .sample, .job-card, .area-card, .clean-card, .data-card, .settings-card) {
+    border-radius: 16px !important;
+}
+
+main :where(.panel, .hero, .chart-panel, .timeline-panel, .filter-panel, details)::before {
+    height: 0 !important;
+    opacity: 0 !important;
+}
+
+main :where(.event-card, .status-card, .health-card, .summary-card, .robot-card, .panel-card, .quick-card, .area-card):hover {
+    transform: none !important;
+    box-shadow: var(--surface-shadow-hover) !important;
+}
+
+main :where(.page-title h1, h1, h2, h3, .name, .value, .now-value) {
+    color: var(--brand-dark) !important;
+}
+
+main :where(.label, .now-label, .muted, .sub, .time, .detail, .now-small .small-label, .now-note) {
+    color: var(--muted) !important;
+}
+
+main :where(a.button, button:not(.nav-toggle), .chart-toggle, .sun-chip, .subscribe-button) {
+    border-color: #e0e7f0 !important;
+    border-radius: 13px !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(6, 22, 61, 0.04) !important;
+}
+
+main :where(a.button.active, button.active, .chart-toggle.active, .sun-chip.active, .active > .button, .button.primary, button.primary, .primary, .button-primary) {
+    background: linear-gradient(135deg, var(--brand-dark), #15275c) !important;
+    box-shadow: 0 10px 22px rgba(6, 22, 61, 0.16) !important;
+}
+
+body.theme-status main {
+    padding-top: 0.95rem !important;
+}
+
+body.theme-status main .hero {
+    margin-bottom: 1.1rem !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+body.theme-status main .hero-top {
+    margin-bottom: 0.75rem !important;
+}
+
+body.theme-status main .hero-top h2,
+body.theme-status main .section-head h2 {
+    font-size: 1.05rem !important;
+    font-weight: 850 !important;
+}
+
+body.theme-status main .now-grid,
+body.theme-status main .ops-radar,
+body.theme-status main .quick-grid,
+body.theme-status main .fan-grid,
+body.theme-status main .cards {
+    gap: 0.9rem !important;
+}
+
+body.theme-status main .now-card,
+body.theme-status main .ops-card,
+body.theme-status main .quick-card,
+body.theme-status main .status-card,
+body.theme-status main .attention-panel {
+    border: 1px solid var(--line) !important;
+    border-radius: 18px !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 22px rgba(6, 22, 61, 0.055) !important;
+}
+
+body.theme-status main .now-card {
+    min-height: 7.15rem !important;
+    padding: 0.95rem 1.05rem !important;
+    border-top: 0 !important;
+    border-left: 4px solid #dfe7f0 !important;
+}
+
+body.theme-status main .now-card.temp-card {
+    border-left-color: var(--vent-color) !important;
+    background: linear-gradient(90deg, rgba(90,147,100,.055), #ffffff 36%) !important;
+}
+
+body.theme-status main .now-card.lux-card {
+    border-left-color: var(--gold) !important;
+    background: linear-gradient(90deg, rgba(200,146,22,.07), #ffffff 34%) !important;
+}
+
+body.theme-status main .now-card.weather-card {
+    border-left-color: var(--brand-dark) !important;
+    background: linear-gradient(90deg, rgba(6,22,61,.045), #ffffff 34%) !important;
+}
+
+body.theme-status main .now-label {
+    font-size: 0.7rem !important;
+    letter-spacing: 0.04em !important;
+}
+
+body.theme-status main .now-value {
+    font-size: clamp(1.62rem, 2.7vw, 2.05rem) !important;
+    font-weight: 860 !important;
+}
+
+body.theme-status main .now-card.lux-card .now-value {
+    color: #9a6c10 !important;
+}
+
+body.theme-status main .now-stack {
+    gap: 0.22rem !important;
+}
+
+body.theme-status main .now-small {
+    border-left-width: 2px !important;
+    padding-left: 0.56rem !important;
+}
+
+body.theme-status main .ops-card {
+    min-height: 4.75rem !important;
+    border-top-width: 3px !important;
+    padding: 0.8rem 0.95rem !important;
+}
+
+body.theme-status main .ops-card strong {
+    font-size: 1.35rem !important;
+}
+
+body.theme-status main .attention-panel {
+    border-left: 4px solid var(--vent-color) !important;
+    padding: 0.85rem 1rem !important;
+}
+
+body.theme-status main .quick-card {
+    min-height: 4rem !important;
+    border-left: 0 !important;
+    padding: 0.78rem 0.95rem !important;
+}
+
+body.theme-status main .quick-card i {
+    width: 2rem !important;
+    height: 2rem !important;
+    background: #f5f7fb !important;
+    color: var(--brand-dark) !important;
+}
+
+body.theme-status main .quick-card.light i {
+    background: var(--gold-soft) !important;
+    color: #9a6c10 !important;
+}
+
+body.theme-status main .quick-card.vent i {
+    background: var(--vent-soft) !important;
+    color: var(--vent-color) !important;
+}
+
+body.theme-status main .section-head {
+    margin-top: 0.2rem !important;
+    margin-bottom: 0.65rem !important;
+}
+
+body.theme-status main .status-card {
+    min-height: 7.15rem !important;
+    border-top: 0 !important;
+    border-left-width: 4px !important;
+    padding: 0.82rem 0.9rem !important;
+}
+
+body.theme-status main .status-card.vent-card,
+body.theme-status main .status-card.vent-card.on,
+body.theme-status main .status-card.vent-card.off {
+    border-left-color: var(--vent-color) !important;
+}
+
+body.theme-status main .status-card.light-card,
+body.theme-status main .status-card.light-card.on,
+body.theme-status main .status-card.light-card.off {
+    border-left-color: var(--gold) !important;
+}
+
+body.theme-status main .badge.on {
+    background: #edf8f0 !important;
+    border-color: #c8e2cf !important;
+    color: #407d4b !important;
+}
+
+body.theme-status main .badge.off {
+    background: #fff3f0 !important;
+    border-color: #efc9c0 !important;
+    color: #a24b36 !important;
+}
+
+@media (min-width: 700px) {
+    body.theme-status main .now-grid,
+    body.theme-status main .ops-radar,
+    body.theme-status main .quick-grid,
+    body.theme-status main .fan-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+}
