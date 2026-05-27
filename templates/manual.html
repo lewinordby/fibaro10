@@ -101,6 +101,7 @@
             line-height: 1.5;
         }
         .manual-grid { display: grid; gap: .85rem; }
+        .manual-subgrid { margin-top: .85rem; }
         .manual-card {
             border-top: 4px solid var(--page-accent);
             border-radius: 10px;
@@ -120,6 +121,7 @@
         .manual-card.vent { border-top-color: var(--vent-color); }
         .manual-card.sun2 { border-top-color: var(--sun2-color); }
         .manual-card.energy { border-top-color: var(--energy-color); }
+        .manual-card.parking { border-top-color: var(--parking-color); }
         .manual-card.cleaning { border-top-color: var(--cleaning-color); }
         .manual-card.ai { border-top-color: var(--ai-color); }
         .manual-card.admin { border-top-color: var(--admin-color); }
@@ -249,6 +251,7 @@
                     <a href="#ventilasjon">Ventilasjon</a>
                     <a href="#soling">Soling</a>
                     <a href="#energi">Energi</a>
+                    <a href="#parkering">Parkering</a>
                     <a href="#renhold">Renhold</a>
                     <a href="#data">Data</a>
                     <a href="#varsler">Varsler</a>
@@ -263,7 +266,7 @@
             <div class="manual-steps">
                 <div class="manual-step"><strong>Start på Dashboard</strong><span>Her ser du om bygget har normale verdier akkurat nå.</span></div>
                 <div class="manual-step"><strong>Se på farger og status</strong><span>Grønt betyr normalt i drift. Rødt eller gamle tidspunkter betyr at noe bør sjekkes.</span></div>
-                <div class="manual-step"><strong>Gå til riktig fagområde</strong><span>Trykk Lys, Ventilasjon, Soling, Energi eller Renhold for mer detaljer.</span></div>
+                <div class="manual-step"><strong>Gå til riktig fagområde</strong><span>Trykk Lys, Ventilasjon, Soling, Energi, Parkering eller Renhold for mer detaljer.</span></div>
                 <div class="manual-step"><strong>Sjekk Datakilder ved tvil</strong><span>Hvis en graf virker gammel, se når appen sist mottok data.</span></div>
             </div>
             <div class="manual-example">
@@ -413,7 +416,7 @@
                 <article class="manual-card energy">
                     <h3>Sidene under Energi</h3>
                     <ul class="manual-check">
-                        <li><strong>Status</strong> viser dagens timeforbruk og sammenligner HC3 med Elvia når Elvia-data finnes.</li>
+                        <li><strong>Status</strong> viser dagens timeforbruk og sammenligner HC3 med Elvia når Elvia-data finnes. Bruk datovelgeren for tidligere dager.</li>
                         <li><strong>Forbruk/seng</strong> estimerer hvor mye hver solseng trekker når bare én seng er i bruk.</li>
                         <li><strong>Elvia</strong> brukes for manuell opplasting av strømfil fra Elvia.</li>
                     </ul>
@@ -422,6 +425,53 @@
             <div class="manual-example">
                 <strong>Eksempel:</strong> Hvis HC3 viser 120 kWh en dag og Elvia viser 124 kWh, er avviket 4 kWh.
                 Da er loggingen trolig ganske nær. Store avvik over flere dager bør undersøkes.
+            </div>
+        </section>
+
+        <section class="manual-section" id="parkering">
+            <h2>Parkering</h2>
+            <p>Parkering-delen viser EasyPark-historikk, pågående parkeringer, bilinformasjon og enkle nøkkeltall for valgt dag.</p>
+            <div class="manual-grid two">
+                <article class="manual-card parking">
+                    <h3>Sidene under Parkering</h3>
+                    <ul class="manual-list">
+                        <li><span class="manual-key">Oversikt</span><span class="manual-value">Hovedsiden for dagens parkering. Viser pågående parkeringer øverst og avsluttede parkeringer under.</span></li>
+                        <li><span class="manual-key">Parkeringer</span><span class="manual-value">Historisk liste der du kan filtrere på dato, status og registreringsnummer.</span></li>
+                        <li><span class="manual-key">Statistikk</span><span class="manual-value">Topplister og merkeoversikt, flyttet ut fra dagsoversikten for å holde den ryddig.</span></li>
+                        <li><span class="manual-key">Kjøretøy</span><span class="manual-value">Samlet liste over biler med parkeringer, beløp, først/sist sett og eventuell kjøretøyinformasjon.</span></li>
+                        <li><span class="manual-key">Område</span><span class="manual-value">Hjelpeside for å finne biler som mangler område/sted.</span></li>
+                    </ul>
+                </article>
+                <article class="manual-card parking">
+                    <h3>Slik leser du oversikten</h3>
+                    <ul class="manual-check">
+                        <li>Statusboksene viser antall og beløp for valgt dag, i går, denne uka, forrige uke, denne måneden og forrige måned.</li>
+                        <li>Pågående parkeringer ligger i egen tabell øverst, slik at du raskt ser hvem som står inne nå.</li>
+                        <li>Registreringsnummeret åpner kjøretøysiden for bilen. Knappen/lenken for antall parkeringer viser alle parkeringer for den bilen.</li>
+                        <li>Hvis en parkering ikke dekker hele halvtimeslotten, vises et lite merke om at bilen dro før slottslutt.</li>
+                        <li>Sist oppdatert-boksen viser når EasyPark sist ble hentet. Med riktig tilgang kan du trykke den for manuell oppdatering.</li>
+                    </ul>
+                </article>
+            </div>
+            <div class="manual-grid two manual-subgrid">
+                <article class="manual-card parking">
+                    <h3>Kjøretøy og egne felt</h3>
+                    <p>På en kjøretøyside kan du se alt appen vet om bilen, inkludert historikk, merke/modell, årsmodell, farge, område og interne notater.</p>
+                    <ul class="manual-list manual-subgrid">
+                        <li><span class="manual-key">Navn</span><span class="manual-value">Internt felt, for eksempel kunde, firma eller annen gjenkjennelig tekst.</span></li>
+                        <li><span class="manual-key">Område</span><span class="manual-value">Sted/område bilen kommer fra. Brukes for enkel statistikk, ikke som kunderegister.</span></li>
+                        <li><span class="manual-key">Sun2id</span><span class="manual-value">Kan brukes for å koble bil mot solkunde dersom du vet riktig SUN2-id.</span></li>
+                        <li><span class="manual-key">Notat</span><span class="manual-value">Fritt internt notat om bilen.</span></li>
+                    </ul>
+                </article>
+                <article class="manual-card parking">
+                    <h3>Import og oppfrisking</h3>
+                    <p>EasyPark hentes av en lokal prosess og legges inn i appen. En parkering som først var pågående kan senere oppdateres med sluttid og endelig beløp.</p>
+                    <div class="manual-example">
+                        <strong>Eksempel:</strong> Hvis en bil fortsatt står som pågående lenge etter at den har dratt, bruk oppdateringsknappen på
+                        <strong>Parkering → Oversikt</strong>. Hvis den fortsatt ikke oppdateres, sjekk <strong>Status → Datakilder</strong>.
+                    </div>
+                </article>
             </div>
         </section>
 
@@ -455,6 +505,7 @@
                         <li><span class="manual-key">Lys</span><span class="manual-value">HC3 sender lux og lysstatus omtrent hvert 5. minutt.</span></li>
                         <li><span class="manual-key">Ventilasjon</span><span class="manual-value">HC3 sender temperaturer, viftestatus og grunnlag omtrent hvert 5. minutt.</span></li>
                         <li><span class="manual-key">Energi</span><span class="manual-value">HC3 sender effekt og kWh omtrent hvert minutt.</span></li>
+                        <li><span class="manual-key">Parkering</span><span class="manual-value">EasyPark hentes lokalt og importeres til parkeringsoversikten.</span></li>
                         <li><span class="manual-key">Renhold</span><span class="manual-value">Roborock_logger sender data fra lokal QNAP-container.</span></li>
                         <li><span class="manual-key">SUN2 enkelttimer</span><span class="manual-value">Hentes løpende for å holde dagslinjen fersk.</span></li>
                     </ul>
@@ -463,6 +514,7 @@
                     <h3>Manuell eller periodisk import</h3>
                     <ul class="manual-list">
                         <li><span class="manual-key">Elvia</span><span class="manual-value">Lastes opp manuelt, normalt månedlig, og brukes som fasit for strøm.</span></li>
+                        <li><span class="manual-key">Kjøretøy</span><span class="manual-value">Merke, modell, årsmodell og farge kan berikes når data finnes. Område/navn kan suppleres med egne felt.</span></li>
                         <li><span class="manual-key">SUN2 dagsfiler</span><span class="manual-value">Gir dagssummer og kan kjøres nattlig/periodisk.</span></li>
                         <li><span class="manual-key">Medlemmer</span><span class="manual-value">Synkes periodisk fra SUN2 for å holde medlemsgrunnlaget oppdatert.</span></li>
                         <li><span class="manual-key">Senger</span><span class="manual-value">Brukes for å koble rom, sengemodell og fysisk rom-id.</span></li>
@@ -527,6 +579,7 @@
                     <li>For ventilasjon: sjekk <strong>Ventilasjon → Dagslogg</strong>, <strong>Hendelser</strong> og <strong>Temp logg</strong>.</li>
                     <li>For soling: sjekk <strong>Soling → Dagslinje</strong> og <strong>Enkeltimer</strong>. Husk at dagssummer og enkelttimer kan oppdateres på ulik måte.</li>
                     <li>For energi: sjekk <strong>Energi → Status</strong>. Sammenlign med Elvia når Elvia-fil er importert.</li>
+                    <li>For parkering: sjekk <strong>Parkering → Oversikt</strong>. Bruk oppdateringsknappen hvis EasyPark-tidspunktet er gammelt.</li>
                     <li>For renhold: sjekk <strong>Renhold → Oversikt</strong> og om Roborock_logger har sendt data nylig.</li>
                 </ul>
             </article>
@@ -545,6 +598,7 @@
                         <li><span class="manual-key">HC3</span><span class="manual-value">Fibaro Home Center 3. Brukes til styring og logging fra bygget.</span></li>
                         <li><span class="manual-key">Yr</span><span class="manual-value">Værdata fra Meteorologisk institutt. Brukes som ekstra grunnlag for temperatur og vær.</span></li>
                         <li><span class="manual-key">Elvia</span><span class="manual-value">Nettselskapets strømdata. Brukes som fasit når filen lastes opp.</span></li>
+                        <li><span class="manual-key">EasyPark</span><span class="manual-value">Kilde for parkeringshistorikk og pågående parkeringer.</span></li>
                     </ul>
                 </article>
                 <article class="manual-card">
@@ -552,6 +606,7 @@
                         <li><span class="manual-key">Dagslinje</span><span class="manual-value">Graf som viser hva som skjer gjennom en valgt dag.</span></li>
                         <li><span class="manual-key">Hendelse</span><span class="manual-value">En logget endring, for eksempel at et lys gikk på eller en vifte stoppet.</span></li>
                         <li><span class="manual-key">Fysisk rom-id</span><span class="manual-value">Stabil intern romkobling for solstudioet, selv om navn i SUN2 endres.</span></li>
+                        <li><span class="manual-key">Område</span><span class="manual-value">Sted/område knyttet til et kjøretøy i parkeringsdelen.</span></li>
                         <li><span class="manual-key">Logger</span><span class="manual-value">En liten app eller scene som henter data og sender det til Lilletorget drift.</span></li>
                     </ul>
                 </article>
@@ -559,7 +614,7 @@
         </section>
 
         <p class="manual-foot">
-            Oppdatert 25.05.2026. Dette er den levende sluttbrukerdokumentasjonen for Lilletorget drift og erstatter tidligere PDF-manual.
+            Oppdatert 27.05.2026. Dette er den levende sluttbrukerdokumentasjonen for Lilletorget drift og erstatter tidligere PDF-manual.
         </p>
     </main>
 </body>
