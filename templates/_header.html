@@ -1,72 +1,8 @@
 <header class="site-header">
     <div class="brand-bar">
-        <button class="nav-toggle brand-mark-toggle" type="button" aria-label="Åpne eller lukk meny" title="Åpne eller lukk meny">
-            <img class="brand-toggle-mark" src="/static/lilletorget-mark.png?v=20260525-mobile1" alt="" aria-hidden="true">
-        </button>
         <a class="brand-home brand-lilletorget" href="/status/dashboard" aria-label="Gå til status">
             <img class="brand-logo brand-lilletorget-text-logo" src="/static/lilletorget-text.png?v=20260525-mobile1" alt="Lilletorget">
         </a>
         {% include "_nav.html" %}
     </div>
 </header>
-<script>
-    (() => {
-        const root = document.documentElement;
-        const desktopKey = "fibaro10_nav_collapsed_desktop_v2";
-        const mobileKey = "fibaro10_nav_collapsed_mobile_v2";
-        const mobileQuery = window.matchMedia("(max-width: 1179px)");
-        const storageKey = () => mobileQuery.matches ? mobileKey : desktopKey;
-        const apply = (collapsed) => {
-            root.classList.toggle("nav-collapsed", collapsed);
-            document.querySelector(".nav-toggle")?.setAttribute("aria-pressed", collapsed ? "true" : "false");
-        };
-        const collapseMobileMenu = () => {
-            if (!mobileQuery.matches) return;
-            localStorage.setItem(mobileKey, "1");
-            root.classList.remove("nav-section-expanded");
-            apply(true);
-        };
-        const restore = () => {
-            const stored = localStorage.getItem(storageKey());
-            apply(stored === null ? mobileQuery.matches : stored === "1");
-        };
-        const openMobileSection = (button) => {
-            if (!mobileQuery.matches) return false;
-            document.querySelectorAll(".app-nav .has-sub.expanded").forEach((item) => {
-                if (item !== button) item.classList.remove("expanded");
-            });
-            button.classList.toggle("expanded", true);
-            root.classList.add("nav-section-expanded");
-            localStorage.setItem(mobileKey, "0");
-            apply(false);
-            return true;
-        };
-        restore();
-        document.querySelector(".app-nav .button.active.has-sub")?.classList.add("expanded");
-        document.addEventListener("click", (event) => {
-            const button = event.target.closest(".nav-toggle");
-            if (button) {
-                const collapsed = !root.classList.contains("nav-collapsed");
-                localStorage.setItem(storageKey(), collapsed ? "1" : "0");
-                apply(collapsed);
-                return;
-            }
-
-            const navLink = event.target.closest(".app-nav a[href]");
-            if (navLink?.classList.contains("has-sub") && openMobileSection(navLink)) {
-                event.preventDefault();
-                return;
-            }
-
-            if (navLink || event.target.closest(".brand-home")) {
-                collapseMobileMenu();
-            }
-        });
-        document.addEventListener("submit", (event) => {
-            if (event.target.closest(".app-nav")) {
-                collapseMobileMenu();
-            }
-        });
-        mobileQuery.addEventListener?.("change", restore);
-    })();
-</script>

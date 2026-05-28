@@ -37,6 +37,7 @@ html body {
 
 body main {
     font-size: var(--lt-font-base);
+    min-height: calc(100vh - 36px);
 }
 
 body main h1 {
@@ -257,8 +258,15 @@ body.theme-status.status-day-page .site-header ~ main {
     --page-width: 1540px;
 }
 
-body.theme-parking .site-header ~ main {
-    --page-width: 1180px;
+body.theme-parking .site-header ~ main,
+body.theme-sun2 .site-header ~ main,
+body.theme-energy .site-header ~ main,
+body.theme-light .site-header ~ main,
+body.theme-vent .site-header ~ main,
+body.theme-cleaning .site-header ~ main,
+body.theme-ai .site-header ~ main,
+body.theme-admin .site-header ~ main {
+    --page-width: 1500px;
 }
 
 body.theme-parking main .page-title h1 {
@@ -421,49 +429,4 @@ body main :where(.page-actions, .toolbar, .actions, .button-row) {
 
 body main :where(.muted, .meta, .hint, .description) {
     color: var(--lt-muted) !important;
-}
-
-@media (max-width: 1220px) {
-    body.theme-parking main .parking-control-bar {
-        grid-template-columns: 1fr !important;
-    }
-
-    body.theme-parking main .parking-sync-card {
-        grid-template-columns: 1fr !important;
-    }
-}
-
-@media (max-width: 760px) {
-    body main {
-        font-size: 0.86rem;
-    }
-
-    body main .page-title h1,
-    body main .sun-title h1,
-    body.theme-status main .dashboard-title h1 {
-        font-size: 1.36rem !important;
-    }
-
-    body.theme-status main .focus-card,
-    body.theme-status main .compact-status .now-card {
-        grid-template-columns: 1fr !important;
-        gap: 0.4rem !important;
-        overflow: hidden !important;
-    }
-
-    body.theme-status main .focus-card small,
-    body.theme-status main .now-stack {
-        justify-self: start !important;
-        width: min(12rem, 100%) !important;
-        max-width: 100% !important;
-        text-align: left !important;
-    }
-
-    body main :where(.metric-card, .parking-card, .focus-card, .ops-card, .now-card, .quick-card, .status-card) {
-        padding: 0.68rem 0.74rem !important;
-    }
-
-    body.theme-parking main .parking-cards {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    }
 }

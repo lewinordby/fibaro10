@@ -1,59 +1,78 @@
-/* Lilletorget navigation shell.
-   Owns only logo, sidebar/mobile menu and page width offset. Page surfaces live
-   in app.css + lilletorget-system.css. */
+/* Lilletorget desktop shell.
+   The main app is now a PC-first tool. Mobile presentation is handled by the
+   separate online dashboard, so this file keeps the navigation fixed, simple
+   and predictable. */
 
 :root {
-    --owner-sidebar: 248px;
-    --owner-sidebar-closed: 74px;
-    --owner-mobile-header: 72px;
-    --owner-line: #e7edf4;
-    --owner-text: #26344c;
-    --owner-muted: #748198;
+    --owner-sidebar: 270px;
+    --owner-page-gap: 22px;
+    --owner-line: #e2e9f1;
+    --owner-text: #25344d;
+    --owner-muted: #717d92;
     --owner-navy: #06163d;
     --owner-gold: #c89216;
     --owner-surface: #ffffff;
-    --owner-shadow: 8px 0 28px rgba(6, 22, 61, 0.04);
+    --owner-soft: #f8fafc;
+    --owner-shadow: 10px 0 30px rgba(6, 22, 61, 0.045);
+}
+
+html {
+    min-width: 1280px;
+    overflow-x: auto;
 }
 
 .site-header {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 80;
+    width: var(--owner-sidebar);
+    height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-right: 1px solid var(--owner-line);
     background: var(--owner-surface);
+    box-shadow: var(--owner-shadow);
     color: var(--owner-text);
 }
 
 .site-header .brand-bar {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
 }
 
-.site-header .brand-mark-toggle.nav-toggle {
-    display: grid;
-    place-items: center;
-    padding: 0;
-    border: 0;
-    border-radius: 14px;
-    background: transparent;
-    color: var(--owner-navy);
-    box-shadow: none;
-    cursor: pointer;
+.brand-home.brand-lilletorget {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 118px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--owner-line);
+    background: #ffffff;
+    text-decoration: none;
 }
 
-.site-header .brand-mark-toggle.nav-toggle:hover,
-.site-header .brand-mark-toggle.nav-toggle:focus-visible {
-    background: #fff6e4;
-    box-shadow: 0 0 0 3px rgba(200, 146, 22, 0.2);
-    outline: none;
-}
-
-.brand-toggle-mark,
 .brand-lilletorget-text-logo {
     display: block;
-    width: 100%;
+    width: 206px;
+    max-width: 100%;
     height: auto;
     object-fit: contain;
 }
 
-.brand-home.brand-lilletorget {
-    background: #ffffff;
-    text-decoration: none;
+.site-header ~ main,
+.site-header ~ .container,
+body .site-header ~ main,
+body .site-header ~ .container {
+    width: auto !important;
+    max-width: min(var(--page-width, 1520px), calc(100vw - var(--owner-sidebar) - (var(--owner-page-gap) * 2))) !important;
+    margin-left: calc(var(--owner-sidebar) + var(--owner-page-gap)) !important;
+    margin-right: var(--owner-page-gap) !important;
+    padding-top: 18px !important;
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 .app-nav {
@@ -61,6 +80,7 @@
     --section-soft: var(--status-soft);
     --section-border: var(--status-border);
     --section-ring: var(--status-ring);
+    padding: 14px 12px 22px;
     background: transparent;
 }
 
@@ -123,6 +143,7 @@
 .app-nav .nav-main {
     display: flex;
     flex-direction: column;
+    gap: 3px;
 }
 
 .app-nav .button {
@@ -133,62 +154,65 @@
 }
 
 .app-nav .nav-main > .button {
-    grid-template-columns: 1.2rem minmax(0, 1fr) 0.5rem;
-    gap: 0.86rem;
+    grid-template-columns: 20px minmax(0, 1fr) 8px;
+    gap: 12px;
+    min-height: 44px;
+    padding: 0 14px;
     border: 1px solid transparent;
+    border-radius: 13px;
     background: transparent;
     box-shadow: none;
-    font-weight: 720;
+    font-size: 14px;
+    font-weight: 760;
 }
 
 .app-nav .nav-main > .button:hover {
-    border-color: #edf2f7;
-    background: #fbfcfe;
+    border-color: #e9eff6;
+    background: var(--owner-soft);
 }
 
 .app-nav .nav-main > .button.active.has-sub {
-    border-color: rgba(6, 22, 61, 0.08);
+    border-color: var(--section-border);
     background: #ffffff;
     color: var(--owner-navy);
     box-shadow: inset 3px 0 0 var(--section-color), 0 8px 20px rgba(6, 22, 61, 0.055);
 }
 
 .app-nav .nav-main > .button.active.has-sub .nav-label {
-    font-weight: 850;
+    font-weight: 880;
 }
 
-.app-nav .nav-main > .button.has-sub:not(.active):not(.expanded) + .nav-sub,
-html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + .nav-sub {
+.app-nav .nav-main > .button.has-sub:not(.active) + .nav-sub {
     display: none;
 }
 
 .app-nav .nav-sub {
     display: flex;
     flex-direction: column;
-    border-left: 1px solid #dde5ee;
-    background: transparent;
-    overflow: visible;
-    min-width: 12.5rem;
+    gap: 2px;
+    margin: 2px 0 7px 34px;
+    padding: 4px 0 4px 12px;
+    border-left: 1px solid #dbe4ee;
 }
 
 .app-nav .nav-sub .button,
 .app-nav .nav-sub-form .button {
-    grid-template-columns: 0.9rem auto;
-    justify-content: start;
-    justify-self: start;
-    width: max-content;
-    max-width: 100%;
-    overflow: visible;
+    grid-template-columns: 15px minmax(0, 1fr);
+    gap: 9px;
+    min-height: 31px;
+    padding: 0 10px;
     border: 0;
+    border-radius: 9px;
     background: transparent;
     box-shadow: none;
     color: var(--owner-muted);
-    font-weight: 700;
+    font-size: 12.5px;
+    font-weight: 720;
 }
 
 .app-nav .nav-sub .button:hover,
 .app-nav .nav-sub-form .button:hover {
-    background: #fbfcfe;
+    background: var(--owner-soft);
     color: var(--owner-navy);
 }
 
@@ -200,10 +224,24 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
 
 .app-nav .nav-icon,
 .app-nav .nav-sub-icon {
+    width: 100%;
+    height: 100%;
     fill: none;
     stroke: currentColor;
     stroke-linecap: round;
     stroke-linejoin: round;
+}
+
+.app-nav .nav-icon {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.05;
+}
+
+.app-nav .nav-sub-icon {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.95;
 }
 
 .app-nav .nav-label,
@@ -214,267 +252,19 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     white-space: nowrap;
 }
 
-.app-nav .nav-sub-label {
-    max-width: none;
-    overflow: visible !important;
-    text-overflow: clip !important;
-}
-
 .nav-chevron {
-    width: 0.42rem;
-    height: 0.42rem;
+    width: 7px;
+    height: 7px;
     border-right: 2px solid currentColor;
     border-bottom: 2px solid currentColor;
+    opacity: 0.55;
     transform: rotate(-45deg);
-    opacity: 0.62;
 }
 
-.app-nav .nav-main > .button.active .nav-chevron,
-.app-nav .nav-main > .button.expanded .nav-chevron {
+.app-nav .nav-main > .button.active .nav-chevron {
     transform: rotate(45deg);
 }
 
 .app-nav .nav-form {
     margin: 0;
-}
-
-@media (min-width: 1180px) {
-    .site-header {
-        position: fixed;
-        inset: 0 auto 0 0;
-        z-index: 80;
-        width: var(--owner-sidebar);
-        height: 100vh;
-        padding: 0;
-        overflow-x: hidden;
-        overflow-y: auto;
-        border-right: 1px solid var(--owner-line);
-        box-shadow: var(--owner-shadow);
-    }
-
-    html.nav-collapsed .site-header {
-        width: var(--owner-sidebar-closed);
-    }
-
-    .site-header .brand-bar {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .brand-home.brand-lilletorget {
-        min-height: 7.15rem;
-        padding: 1.05rem 1.2rem 1.05rem 4.3rem;
-        border-bottom: 1px solid var(--owner-line);
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-    }
-
-    .brand-lilletorget-text-logo {
-        width: 9.5rem;
-        max-width: 9.5rem;
-    }
-
-    .site-header .brand-mark-toggle.nav-toggle {
-        position: absolute;
-        top: 1.42rem;
-        left: 0.92rem;
-        width: 2.75rem;
-        min-width: 2.75rem;
-        height: 2.75rem;
-    }
-
-    .brand-toggle-mark {
-        width: 2.55rem;
-    }
-
-    .site-header ~ main,
-    .site-header ~ .container,
-    body .site-header ~ main,
-    body .site-header ~ .container {
-        width: auto !important;
-        max-width: min(var(--page-width), calc(100vw - var(--owner-sidebar) - 2.3rem)) !important;
-        margin-left: calc(var(--owner-sidebar) + 1.15rem);
-        margin-right: 1.15rem;
-        padding-top: 1.05rem;
-        box-sizing: border-box;
-        min-width: 0;
-    }
-
-    html.nav-collapsed .site-header ~ main,
-    html.nav-collapsed .site-header ~ .container,
-    html.nav-collapsed body .site-header ~ main,
-    html.nav-collapsed body .site-header ~ .container {
-        max-width: min(var(--page-width), calc(100vw - var(--owner-sidebar-closed) - 2.3rem)) !important;
-        margin-left: calc(var(--owner-sidebar-closed) + 1.15rem);
-    }
-
-    .app-nav .nav-main {
-        padding: 0.55rem 0 1rem;
-    }
-
-    .app-nav .nav-main > .button {
-        min-height: 3.38rem;
-        width: calc(100% - 1.15rem);
-        margin: 0.06rem 0.58rem;
-        padding: 0 0.95rem 0 1.1rem;
-        border-radius: 15px;
-        font-size: 0.95rem;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub {
-        min-height: 3.42rem;
-        margin-top: 0.12rem;
-        margin-bottom: 0.1rem;
-        border-radius: 18px;
-    }
-
-    .app-nav .nav-icon {
-        width: 1.12rem;
-        height: 1.12rem;
-        stroke-width: 2.05;
-    }
-
-    .app-nav .nav-sub {
-        width: auto;
-        margin: 0.02rem 0.58rem 0.5rem 3.05rem;
-        padding: 0.1rem 0 0.1rem 0.55rem;
-    }
-
-    .app-nav .nav-sub .button,
-    .app-nav .nav-sub-form .button {
-        min-height: 2.05rem;
-        padding: 0 0.58rem;
-        gap: 0.55rem;
-        border-radius: 10px;
-        font-size: 0.82rem;
-    }
-
-    .app-nav .nav-sub-icon {
-        width: 0.88rem;
-        height: 0.88rem;
-    }
-
-    html.nav-collapsed .brand-home.brand-lilletorget {
-        display: none;
-    }
-
-    html.nav-collapsed .app-nav {
-        margin-top: 4.55rem;
-    }
-
-    html.nav-collapsed .app-nav .nav-main > .button {
-        width: 100%;
-        min-height: 3.2rem;
-        margin: 0;
-        padding: 0;
-        grid-template-columns: 1fr;
-        justify-items: center;
-        border-radius: 0;
-    }
-
-    html.nav-collapsed .app-nav .nav-main > .button.active.has-sub {
-        box-shadow: inset 4px 0 0 var(--section-color), inset 0 -1px 0 var(--owner-line);
-    }
-
-    html.nav-collapsed .app-nav .nav-label,
-    html.nav-collapsed .app-nav .nav-chevron,
-    html.nav-collapsed .app-nav .nav-sub {
-        display: none;
-    }
-}
-
-@media (max-width: 1179px) {
-    .site-header {
-        position: sticky;
-        top: 0;
-        z-index: 90;
-        border-bottom: 1px solid var(--owner-line);
-        box-shadow: 0 10px 26px rgba(7, 26, 69, 0.055);
-    }
-
-    .site-header .brand-bar {
-        min-height: var(--owner-mobile-header);
-        display: grid;
-        grid-template-columns: 3rem minmax(0, 1fr);
-        align-items: center;
-        gap: 0.6rem;
-        padding: 0.55rem 0.8rem;
-    }
-
-    .site-header .brand-mark-toggle.nav-toggle {
-        width: 2.55rem;
-        min-width: 2.55rem;
-        height: 2.55rem;
-    }
-
-    .brand-toggle-mark {
-        width: 2.36rem;
-    }
-
-    .brand-home.brand-lilletorget {
-        display: flex;
-        align-items: center;
-        min-width: 0;
-    }
-
-    .brand-lilletorget-text-logo {
-        width: min(8.9rem, 48vw);
-    }
-
-    .app-nav {
-        grid-column: 1 / -1;
-        margin: 0.25rem -0.8rem -0.55rem;
-        border-top: 1px solid var(--owner-line);
-        background: #ffffff;
-    }
-
-    html.nav-collapsed .app-nav {
-        display: none;
-    }
-
-    .app-nav .nav-main {
-        padding: 0.38rem 0 0.75rem;
-    }
-
-    .app-nav .nav-main > .button {
-        min-height: 3.15rem;
-        width: calc(100% - 1rem);
-        margin: 0.08rem 0.5rem;
-        padding: 0 0.92rem;
-        border-radius: 14px;
-        font-size: 0.96rem;
-    }
-
-    .app-nav .nav-main > .button.active.has-sub {
-        border-radius: 16px;
-    }
-
-    .app-nav .nav-icon {
-        width: 1.12rem;
-        height: 1.12rem;
-        stroke-width: 2.05;
-    }
-
-    .app-nav .nav-sub {
-        width: auto;
-        margin: 0 0.5rem 0.45rem 3rem;
-        padding: 0.08rem 0 0.08rem 0.55rem;
-    }
-
-    .app-nav .nav-sub .button,
-    .app-nav .nav-sub-form .button {
-        min-height: 2.22rem;
-        padding: 0 0.6rem;
-        gap: 0.56rem;
-        border-radius: 10px;
-        font-size: 0.84rem;
-    }
-
-    .app-nav .nav-sub-icon {
-        width: 0.92rem;
-        height: 0.92rem;
-    }
 }
