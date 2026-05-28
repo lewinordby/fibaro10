@@ -167,12 +167,16 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     flex-direction: column;
     border-left: 1px solid #dde5ee;
     background: transparent;
+    overflow: visible;
 }
 
 .app-nav .nav-sub .button,
 .app-nav .nav-sub-form .button {
     grid-template-columns: 0.9rem auto;
     justify-content: start;
+    justify-self: start;
+    width: max-content;
+    max-width: 100%;
     border: 0;
     background: transparent;
     box-shadow: none;
