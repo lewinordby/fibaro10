@@ -252,6 +252,11 @@ body.theme-status main .attention-panel {
     padding: 0.72rem 0.9rem !important;
 }
 
+body.theme-status.status-dashboard-page .site-header ~ main,
+body.theme-status.status-day-page .site-header ~ main {
+    --page-width: 1540px;
+}
+
 body.theme-parking .site-header ~ main {
     --page-width: 1180px;
 }
