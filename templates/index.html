@@ -800,7 +800,7 @@
                         {% endfor %}
                     </div>
                 </article>
-                <article class="now-card lux-card">
+                <a class="now-card lux-card" href="/lys/dagslogg-lux" aria-label="Åpne stor luxvisning">
                     <div>
                         <span class="now-label">Lux</span>
                         <div class="now-value">{% if now_status.lux is not none %}{{ "%.0f"|format(now_status.lux) }}{% else %}-{% endif %}</div>
@@ -812,7 +812,7 @@
                         <polyline class="lux-mini-line" points="{{ lux_sparkline.polyline }}"></polyline>
                         {% endif %}
                     </svg>
-                </article>
+                </a>
                 <article class="now-card weather-card">
                     <div>
                         <span class="now-label">Yr / vær</span>
@@ -944,7 +944,7 @@
                         {% endfor %}
                     </div>
                 </article>
-                <article class="now-card lux-card">
+                <a class="now-card lux-card" href="/lys/dagslogg-lux" aria-label="Åpne stor luxvisning">
                     <div>
                         <span class="now-label">LUX</span>
                         <div class="now-value">
@@ -954,7 +954,7 @@
                             Siste leste luxverdi
                         </div>
                     </div>
-                </article>
+                </a>
                 <article class="now-card weather-card">
                     <div>
                         <span class="now-label">Yr / Vær</span>

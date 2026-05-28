@@ -1949,14 +1949,40 @@ body.theme-status main .ops-card strong {
 
 body.theme-status main .lux-card {
     align-content: space-between !important;
-    gap: 0.34rem !important;
+    gap: 0 !important;
+    min-height: 5.4rem !important;
+    padding: 0.72rem 0.92rem 0.48rem !important;
+    position: relative;
+    overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+}
+
+body.theme-status main .lux-card > div:first-child {
+    position: absolute;
+    top: 0.66rem;
+    left: 0.92rem;
+    z-index: 2;
+    max-width: 42%;
+}
+
+body.theme-status main .lux-card .now-label {
+    font-size: 0.62rem !important;
+    line-height: 1;
+}
+
+body.theme-status main .lux-card .now-value {
+    margin-top: 0.12rem !important;
+    font-size: clamp(1.2rem, 2vw, 1.48rem) !important;
+    line-height: 0.95 !important;
 }
 
 body.theme-status main .lux-mini-chart {
     display: block;
     width: 100%;
-    height: 1.4rem;
-    margin-top: 0.18rem;
+    height: 3.25rem;
+    margin-top: 0.64rem;
+    align-self: end;
     overflow: visible;
 }
 
