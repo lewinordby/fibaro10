@@ -159,6 +159,16 @@ def reset_browser_profile(reason: str) -> None:
     )
 
 
+def clear_stale_browser_locks() -> None:
+    for filename in ("SingletonLock", "SingletonCookie", "SingletonSocket"):
+        path = PROFILE_DIR / filename
+        try:
+            if path.exists() or path.is_symlink():
+                path.unlink()
+        except Exception:
+            pass
+
+
 def mark_login_completed() -> None:
     write_auth_state(last_login_at=utcnow_iso())
 
@@ -433,6 +443,7 @@ async def try_logout_existing_session(playwright) -> bool:
     launch_options: dict[str, Any] = {}
     if EDGE_EXECUTABLE_PATH and Path(EDGE_EXECUTABLE_PATH).exists():
         launch_options["executable_path"] = EDGE_EXECUTABLE_PATH
+    clear_stale_browser_locks()
     context = await playwright.chromium.launch_persistent_context(
         str(PROFILE_DIR),
         headless=HEADLESS,
@@ -648,6 +659,7 @@ async def run_download_import(
             if EDGE_EXECUTABLE_PATH and Path(EDGE_EXECUTABLE_PATH).exists():
                 launch_options["executable_path"] = EDGE_EXECUTABLE_PATH
 
+            clear_stale_browser_locks()
             context = await playwright.chromium.launch_persistent_context(
                 str(PROFILE_DIR),
                 headless=HEADLESS,
