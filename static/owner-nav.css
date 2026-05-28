@@ -171,7 +171,8 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
 
 .app-nav .nav-sub .button,
 .app-nav .nav-sub-form .button {
-    grid-template-columns: 0.9rem minmax(0, 1fr);
+    grid-template-columns: 0.9rem auto;
+    justify-content: start;
     border: 0;
     background: transparent;
     box-shadow: none;
@@ -205,6 +206,11 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.app-nav .nav-sub-label {
+    overflow: visible;
+    text-overflow: clip;
 }
 
 .nav-chevron {
