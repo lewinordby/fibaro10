@@ -12,7 +12,7 @@ online.lilletorget.net {
         -Server
     }
 
-    reverse_proxy fibaro10:8110 {
+    reverse_proxy online_dashboard:8111 {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-For {remote_host}
