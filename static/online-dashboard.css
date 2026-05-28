@@ -105,6 +105,11 @@ h2 { font-size: 1.35rem; }
     letter-spacing: -.04em;
 }
 .metric-card small { display: block; margin-top: .55rem; font-size: 1rem; }
+.metric-card .updated-line {
+    margin-top: .85rem;
+    font-size: .82rem;
+    font-weight: 800;
+}
 .accent-parking { border-left-color: var(--parking); }
 
 .temperature-card {

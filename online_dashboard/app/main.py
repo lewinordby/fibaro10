@@ -167,7 +167,8 @@ async def dashboard_data() -> dict[str, Any]:
         """
         select count(*) as count,
                coalesce(sum(duration_minutes), 0) as minutes,
-               coalesce(sum(paid_amount_kr), 0) as amount
+               coalesce(sum(paid_amount_kr), 0) as amount,
+               max(imported_at) as updated_at
         from sun2_tanning_sessions
         where stat_date = :today
         """,
@@ -177,7 +178,8 @@ async def dashboard_data() -> dict[str, Any]:
         """
         select count(*) as count,
                coalesce(sum(fee_inc_vat), 0) as amount,
-               count(*) filter (where lower(coalesce(status, '')) <> 'ended') as active_count
+               count(*) filter (where lower(coalesce(status, '')) <> 'ended') as active_count,
+               max(imported_at) as updated_at
         from parkering
         where start_time >= :start and start_time < :end
         """,
@@ -295,9 +297,11 @@ async def dashboard(request: Request):
         "{{ soling_count }}": fmt_int(data["soling"].get("count")),
         "{{ soling_amount }}": fmt_money(data["soling"].get("amount")),
         "{{ soling_minutes }}": f"{soling_hours:.1f} t".replace(".", ","),
+        "{{ soling_time }}": fmt_time(data["soling"].get("updated_at")),
         "{{ parking_count }}": fmt_int(data["parking"].get("count")),
         "{{ parking_amount }}": fmt_money(data["parking"].get("amount")),
         "{{ parking_active }}": fmt_int(data["parking"].get("active_count")),
+        "{{ parking_time }}": fmt_time(data["parking"].get("updated_at")),
         "{{ inside_avg }}": fmt_temp(data["inside_avg"]),
         "{{ outside }}": fmt_temp(data["outside"]),
         "{{ loft }}": fmt_temp(data["vent"].get("temp_loft")),
@@ -381,22 +385,18 @@ DASHBOARD_HTML = """<!doctype html>
     <form method="post" action="/logg-ut"><button type="submit">Logg ut</button></form>
   </header>
   <main class="dashboard">
-    <section class="hero">
-      <p class="eyebrow">Nøkkeltall akkurat nå</p>
-      <h1>Oversikt</h1>
-      <p>Sist lest {{ now }} · {{ user }}</p>
-    </section>
-
     <section class="metric-grid">
       <article class="metric-card accent-sun">
         <span>Solinger i dag</span>
         <strong>{{ soling_count }}</strong>
         <small>{{ soling_amount }} · {{ soling_minutes }}</small>
+        <small class="updated-line">Oppdatert {{ soling_time }}</small>
       </article>
       <article class="metric-card accent-parking">
         <span>Parkering i dag</span>
         <strong>{{ parking_count }}</strong>
         <small>{{ parking_amount }} · {{ parking_active }} aktive</small>
+        <small class="updated-line">Oppdatert {{ parking_time }}</small>
       </article>
     </section>
 
@@ -415,23 +415,24 @@ DASHBOARD_HTML = """<!doctype html>
         <p><span>2.etg</span><strong>{{ temp_2etg }}</strong></p>
         <p><span>VIP</span><strong>{{ temp_vip }}</strong></p>
       </div>
-      <small class="card-time">Ventilasjon {{ temp_time }}</small>
+      <small class="card-time">Oppdatert {{ temp_time }}</small>
     </section>
 
     <section class="section-block">
       <div class="section-title-row">
-        <div><p class="eyebrow">Lys</p><h2>Utebelysning</h2></div>
+        <h2>LYS</h2>
         <div class="lux-pill"><span>Lux</span><strong>{{ lux }}</strong></div>
       </div>
       <div class="state-grid">{{ light_cards }}</div>
-      <small class="card-time">Lys {{ light_time }}</small>
+      <small class="card-time">Oppdatert {{ light_time }}</small>
     </section>
 
     <section class="section-block">
       <div class="section-title-row">
-        <div><p class="eyebrow">Ventilasjon</p><h2>Vifter</h2></div>
+        <h2>VENTILASJON</h2>
       </div>
       <div class="state-grid">{{ fan_cards }}</div>
+      <small class="card-time">Oppdatert {{ temp_time }}</small>
     </section>
   </main>
 </body>
