@@ -76,6 +76,14 @@ def fmt_time(value: Any) -> str:
     return value.strftime("%d.%m %H:%M")
 
 
+def fmt_utc_time(value: Any) -> str:
+    if not isinstance(value, datetime):
+        return "-"
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("UTC"))
+    return value.astimezone(LOCAL_TZ).strftime("%d.%m %H:%M")
+
+
 def state_label(value: Any) -> str:
     if value is True:
         return "PÅ"
@@ -176,9 +184,26 @@ async def dashboard_data() -> dict[str, Any]:
     )
     session_import = await one_mapping(
         """
-        select max(timestamp) as updated_at
-        from sun2_session_import_runs
-        where ok = true
+        select last_success_at as updated_at
+        from import_job_status
+        where job_name = 'sun2_sessions_import'
+        limit 1
+        """
+    )
+    if not session_import.get("updated_at"):
+        session_import = await one_mapping(
+            """
+            select max(timestamp) as updated_at
+            from sun2_session_import_runs
+            where ok = true
+            """
+        )
+    parking_import = await one_mapping(
+        """
+        select last_success_at as updated_at
+        from import_job_status
+        where job_name = 'easypark_parking_import'
+        limit 1
         """
     )
     parking = await one_mapping(
@@ -227,6 +252,7 @@ async def dashboard_data() -> dict[str, Any]:
         "now": local_now(),
         "soling": soling,
         "session_import": session_import,
+        "parking_import": parking_import,
         "parking": parking,
         "lights": lights,
         "vent": vent,
@@ -305,11 +331,11 @@ async def dashboard(request: Request):
         "{{ soling_count }}": fmt_int(data["soling"].get("count")),
         "{{ soling_amount }}": fmt_money(data["soling"].get("amount")),
         "{{ soling_minutes }}": f"{soling_hours:.1f} t".replace(".", ","),
-        "{{ soling_time }}": fmt_time(data["session_import"].get("updated_at") or data["soling"].get("updated_at")),
+        "{{ soling_time }}": fmt_utc_time(data["session_import"].get("updated_at")) if data["session_import"].get("updated_at") else fmt_time(data["soling"].get("updated_at")),
         "{{ parking_count }}": fmt_int(data["parking"].get("count")),
         "{{ parking_amount }}": fmt_money(data["parking"].get("amount")),
         "{{ parking_active }}": fmt_int(data["parking"].get("active_count")),
-        "{{ parking_time }}": fmt_time(data["parking"].get("updated_at")),
+        "{{ parking_time }}": fmt_utc_time(data["parking_import"].get("updated_at")) if data["parking_import"].get("updated_at") else fmt_time(data["parking"].get("updated_at")),
         "{{ inside_avg }}": fmt_temp(data["inside_avg"]),
         "{{ outside }}": fmt_temp(data["outside"]),
         "{{ loft }}": fmt_temp(data["vent"].get("temp_loft")),
@@ -413,15 +439,15 @@ DASHBOARD_HTML = """<!doctype html>
         <span>Inne</span>
         <strong>{{ inside_avg }}</strong>
       </div>
-      <div class="temperature-list">
-        <p><span>Ute</span><strong>{{ outside }}</strong></p>
-        <p><span>Loft</span><strong>{{ loft }}</strong></p>
-        <p><span>Innluft</span><strong>{{ innluft }}</strong></p>
-      </div>
-      <div class="temperature-list compact">
+      <div class="temperature-list temperature-list-main">
         <p><span>1.etg</span><strong>{{ temp_1etg }}</strong></p>
         <p><span>2.etg</span><strong>{{ temp_2etg }}</strong></p>
         <p><span>VIP</span><strong>{{ temp_vip }}</strong></p>
+      </div>
+      <div class="temperature-list compact">
+        <p><span>Ute</span><strong>{{ outside }}</strong></p>
+        <p><span>Loft</span><strong>{{ loft }}</strong></p>
+        <p><span>Innluft</span><strong>{{ innluft }}</strong></p>
       </div>
       <small class="card-time">Oppdatert {{ temp_time }}</small>
     </section>
