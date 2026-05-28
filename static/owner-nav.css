@@ -325,7 +325,7 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     }
 
     .app-nav .nav-sub {
-        width: min(62%, calc(100% - 3.9rem));
+        width: calc(100% - 3.9rem);
         margin: 0.02rem 0 0.5rem 3.05rem;
         padding: 0.1rem 0 0.1rem 0.55rem;
     }
@@ -446,7 +446,7 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     }
 
     .app-nav .nav-sub {
-        width: min(62%, calc(100% - 3.8rem));
+        width: calc(100% - 3.8rem);
         margin: 0 0 0.45rem 3rem;
         padding: 0.08rem 0 0.08rem 0.55rem;
     }
