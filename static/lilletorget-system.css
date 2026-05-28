@@ -222,11 +222,22 @@ body.theme-status main .ops-radar {
 }
 
 body.theme-status main .focus-card {
+    grid-template-columns: 1fr !important;
+    align-items: start !important;
+    align-content: space-between !important;
+    gap: 0.42rem !important;
     min-height: 4.15rem !important;
 }
 
 body.theme-status main .focus-card strong {
     font-size: clamp(1.18rem, 1.9vw, 1.48rem) !important;
+}
+
+body.theme-status main .focus-card small {
+    justify-self: start !important;
+    max-width: 100% !important;
+    text-align: left !important;
+    font-size: 0.7rem !important;
 }
 
 body.theme-status main .now-value {

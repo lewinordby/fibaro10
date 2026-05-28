@@ -225,7 +225,7 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     margin: 0;
 }
 
-@media (min-width: 1020px) {
+@media (min-width: 1180px) {
     .site-header {
         position: fixed;
         inset: 0 auto 0 0;
@@ -373,7 +373,7 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     }
 }
 
-@media (max-width: 1019px) {
+@media (max-width: 1179px) {
     .site-header {
         position: sticky;
         top: 0;

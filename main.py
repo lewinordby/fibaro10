@@ -4215,6 +4215,24 @@ def format_short_number(value: Any, decimals: int = 0) -> str:
     return f"{round(number):,}".replace(",", " ")
 
 
+def format_signed_short_number(value: Any, decimals: int = 0) -> str:
+    number = float_or_zero(value)
+    sign = "+" if number > 0 else ""
+    return f"{sign}{format_short_number(number, decimals)}"
+
+
+def dashboard_compare_detail(
+    label: str,
+    current_count: Any,
+    current_paid: Any,
+    previous_count: Any,
+    previous_paid: Any,
+) -> str:
+    count_delta = float_or_zero(current_count) - float_or_zero(previous_count)
+    paid_delta = float_or_zero(current_paid) - float_or_zero(previous_paid)
+    return f"vs {label}: {format_signed_short_number(count_delta)} stk / {format_signed_short_number(paid_delta)} kr"
+
+
 templates.env.filters["short_number"] = format_short_number
 
 
@@ -7369,14 +7387,29 @@ async def index(request: Request):
         yr_samples = (await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))).scalars().all()
         import_rows = await import_status_rows(session)
         today = local_now_naive().date()
+        yesterday = today - timedelta(days=1)
         week_start = today - timedelta(days=today.weekday())
         month_start = today.replace(day=1)
         year_start = today.replace(month=1, day=1)
+        previous_week_start = week_start - timedelta(days=7)
+        previous_month_last = month_start - timedelta(days=1)
+        previous_month_start = previous_month_last.replace(day=1)
+        previous_year_start = date(today.year - 1, 1, 1)
         today_start = datetime.combine(today, time.min)
+        yesterday_start = today_start - timedelta(days=1)
         tomorrow_start = today_start + timedelta(days=1)
         week_start_dt = datetime.combine(week_start, time.min)
         month_start_dt = datetime.combine(month_start, time.min)
         year_start_dt = datetime.combine(year_start, time.min)
+        previous_week_start_dt = datetime.combine(previous_week_start, time.min)
+        previous_month_start_dt = datetime.combine(previous_month_start, time.min)
+        previous_year_start_dt = datetime.combine(previous_year_start, time.min)
+        current_week_span = tomorrow_start - week_start_dt
+        current_month_span = tomorrow_start - month_start_dt
+        current_year_span = tomorrow_start - year_start_dt
+        previous_week_end_dt = previous_week_start_dt + current_week_span
+        previous_month_end_dt = min(previous_month_start_dt + current_month_span, month_start_dt)
+        previous_year_end_dt = min(previous_year_start_dt + current_year_span, year_start_dt)
         now_dt = local_now_naive()
         lux_spark_rows = (
             await session.execute(
@@ -7433,6 +7466,47 @@ async def index(request: Request):
                 )
             )
         ).one()
+        yesterday_sun = (
+            await session.execute(
+                select(
+                    func.count(Sun2TanningSession.id).label("sessions"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                ).where(Sun2TanningSession.stat_date == yesterday)
+            )
+        ).one()
+        previous_week_sun = (
+            await session.execute(
+                select(
+                    func.count(Sun2TanningSession.id).label("sessions"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                ).where(
+                    Sun2TanningSession.stat_date >= previous_week_start,
+                    Sun2TanningSession.stat_date < previous_week_end_dt.date(),
+                )
+            )
+        ).one()
+        previous_month_sun = (
+            await session.execute(
+                select(
+                    func.count(Sun2TanningSession.id).label("sessions"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                ).where(
+                    Sun2TanningSession.stat_date >= previous_month_start,
+                    Sun2TanningSession.stat_date < previous_month_end_dt.date(),
+                )
+            )
+        ).one()
+        previous_year_sun = (
+            await session.execute(
+                select(
+                    func.count(Sun2TanningSession.id).label("sessions"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                ).where(
+                    Sun2TanningSession.stat_date >= previous_year_start,
+                    Sun2TanningSession.stat_date < previous_year_end_dt.date(),
+                )
+            )
+        ).one()
         today_parking = (
             await session.execute(
                 select(
@@ -7474,6 +7548,50 @@ async def index(request: Request):
                 ).where(
                     ParkingSession.start_time >= year_start_dt,
                     ParkingSession.start_time < tomorrow_start,
+                )
+            )
+        ).one()
+        yesterday_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= yesterday_start,
+                    ParkingSession.start_time < today_start,
+                )
+            )
+        ).one()
+        previous_week_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= previous_week_start_dt,
+                    ParkingSession.start_time < previous_week_end_dt,
+                )
+            )
+        ).one()
+        previous_month_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= previous_month_start_dt,
+                    ParkingSession.start_time < previous_month_end_dt,
+                )
+            )
+        ).one()
+        previous_year_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= previous_year_start_dt,
+                    ParkingSession.start_time < previous_year_end_dt,
                 )
             )
         ).one()
@@ -7650,7 +7768,7 @@ async def index(request: Request):
             "title": "Solinger i dag",
             "value": format_short_number(today_sun.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(today_sun.paid)} kr · {format_short_number(today_sun.minutes / 60, 1)} t · {today_sun.rooms or 0} rom",
+            "detail": f"{format_short_number(today_sun.paid)} kr - {format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom | {dashboard_compare_detail('i gaar', today_sun.sessions, today_sun.paid, yesterday_sun.sessions, yesterday_sun.paid)}",
             "href": f"/soling/dagslinje?day={today.isoformat()}",
             "tone": "sun2",
         },
@@ -7658,7 +7776,7 @@ async def index(request: Request):
             "title": "Parkering i dag",
             "value": format_short_number(today_parking.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(today_parking.paid)} kr · {active_parking or 0} aktive nå",
+            "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive naa | {dashboard_compare_detail('i gaar', today_parking.sessions, today_parking.paid, yesterday_parking.sessions, yesterday_parking.paid)}",
             "href": f"/parkering/oversikt?day={today.isoformat()}",
             "tone": "parking",
         },
@@ -7667,14 +7785,14 @@ async def index(request: Request):
             "value": format_short_number(week_sun.sessions),
             "unit": "sol",
             "href": "/soling/statistikk",
-            "detail": f"{format_short_number(week_sun.paid)} kr hittil denne uken",
+            "detail": f"{format_short_number(week_sun.paid)} kr hittil | {dashboard_compare_detail('forrige uke', week_sun.sessions, week_sun.paid, previous_week_sun.sessions, previous_week_sun.paid)}",
             "tone": "week",
         },
         {
             "title": "Parkering uke",
             "value": format_short_number(week_parking.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(week_parking.paid)} kr - {active_parking or 0} aktive nå",
+            "detail": f"{format_short_number(week_parking.paid)} kr - {active_parking or 0} aktive naa | {dashboard_compare_detail('forrige uke', week_parking.sessions, week_parking.paid, previous_week_parking.sessions, previous_week_parking.paid)}",
             "href": f"/parkering/oversikt?day={today.isoformat()}",
             "tone": "parking",
         },
@@ -7682,7 +7800,7 @@ async def index(request: Request):
             "title": "Sol hittil mnd",
             "value": format_short_number(month_sun.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(month_sun.paid)} kr - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom",
+            "detail": f"{format_short_number(month_sun.paid)} kr - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom | {dashboard_compare_detail('forrige mnd', month_sun.sessions, month_sun.paid, previous_month_sun.sessions, previous_month_sun.paid)}",
             "href": "/soling/statistikk",
             "tone": "sun2",
         },
@@ -7711,10 +7829,16 @@ async def index(request: Request):
             "tone": "parking",
         },
     ]
-    focus_cards[-3]["detail"] = f"{format_short_number(month_parking.paid)} kr hittil i mnd"
-    focus_cards[-2]["title"] = f"Sol hittil {today.year}"
-    focus_cards[-1]["title"] = f"Parkering hittil {today.year}"
-    focus_cards[-1]["detail"] = f"{format_short_number(year_parking.paid)} kr hittil i {today.year}"
+    focus_cards[0]["detail"] = f"{format_short_number(today_sun.paid)} kr - {format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom | {dashboard_compare_detail('i gaar', today_sun.sessions, today_sun.paid, yesterday_sun.sessions, yesterday_sun.paid)}"
+    focus_cards[1]["detail"] = f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive naa | {dashboard_compare_detail('i gaar', today_parking.sessions, today_parking.paid, yesterday_parking.sessions, yesterday_parking.paid)}"
+    focus_cards[2]["detail"] = f"{format_short_number(week_sun.paid)} kr hittil | {dashboard_compare_detail('forrige uke', week_sun.sessions, week_sun.paid, previous_week_sun.sessions, previous_week_sun.paid)}"
+    focus_cards[3]["detail"] = f"{format_short_number(week_parking.paid)} kr - {active_parking or 0} aktive naa | {dashboard_compare_detail('forrige uke', week_parking.sessions, week_parking.paid, previous_week_parking.sessions, previous_week_parking.paid)}"
+    focus_cards[4]["detail"] = f"{format_short_number(month_sun.paid)} kr - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom | {dashboard_compare_detail('forrige mnd', month_sun.sessions, month_sun.paid, previous_month_sun.sessions, previous_month_sun.paid)}"
+    focus_cards[5]["detail"] = f"{format_short_number(month_parking.paid)} kr hittil | {dashboard_compare_detail('forrige mnd', month_parking.sessions, month_parking.paid, previous_month_parking.sessions, previous_month_parking.paid)}"
+    focus_cards[6]["title"] = f"Sol hittil {today.year}"
+    focus_cards[6]["detail"] = f"{format_short_number(year_sun.paid)} kr - {format_short_number(year_sun.minutes / 60, 1)} t | {dashboard_compare_detail(str(today.year - 1), year_sun.sessions, year_sun.paid, previous_year_sun.sessions, previous_year_sun.paid)}"
+    focus_cards[7]["title"] = f"Parkering hittil {today.year}"
+    focus_cards[7]["detail"] = f"{format_short_number(year_parking.paid)} kr hittil | {dashboard_compare_detail(str(today.year - 1), year_parking.sessions, year_parking.paid, previous_year_parking.sessions, previous_year_parking.paid)}"
     ops_cards = [
         {
             "title": "Datakilder",
