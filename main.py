@@ -4387,6 +4387,12 @@ def sun2_apply_tempo(actual: float, expected: float, minimum: float = 0.62, maxi
 
 
 async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict[str, Any]:
+    cache_key = f"sun2_forecast:{today.isoformat()}:{now_local.hour:02d}:{now_local.minute // 5}"
+    now_utc = datetime.utcnow()
+    cached = SUMMARY_CACHE.get(cache_key)
+    if cached and cached.get("expires", datetime.min) > now_utc:
+        return cached["value"]
+
     summaries = await get_sun2_summaries(session)
     history: Dict[date, Dict[str, float]] = {}
     for item in summaries.get("daily", []):
@@ -4400,6 +4406,14 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
             "paid": float_or_zero(item.get("totalt_inntjent_kr")),
             "minutes": float_or_zero(item.get("total_soletid_minutter")),
         }
+    model_cutoff = today - timedelta(days=1461)
+    model_history = {
+        day: item
+        for day, item in history.items()
+        if model_cutoff <= day < today
+    }
+    if len(model_history) < 180:
+        model_history = {day: item for day, item in history.items() if day < today}
 
     actual_today = history.get(today, {"sessions": 0.0, "paid": 0.0, "minutes": 0.0})
     minute_of_day = now_local.hour * 60 + now_local.minute
@@ -4413,7 +4427,7 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
         linear_fraction = (minute_of_day - opening_minute) / (closing_minute - opening_minute)
         day_fraction = 0.08 + (linear_fraction ** 0.86) * 0.92
     day_fraction = max(0.08, min(1.0, day_fraction))
-    model_today = sun2_daily_model(today, history, today)
+    model_today = sun2_daily_model(today, model_history, today)
     day_sessions = max(float_or_zero(actual_today.get("sessions")), float_or_zero(actual_today.get("sessions")) / day_fraction)
     day_paid = max(float_or_zero(actual_today.get("paid")), float_or_zero(actual_today.get("paid")) / day_fraction)
     day_minutes = max(float_or_zero(actual_today.get("minutes")), float_or_zero(actual_today.get("minutes")) / day_fraction)
@@ -4429,7 +4443,7 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
         remaining_base = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
         future_days = []
         for day in iter_dates(start, end):
-            model = sun2_daily_model(day, history, today)
+            model = sun2_daily_model(day, model_history, today)
             if day <= today:
                 expected_so_far["sessions"] += model["sessions"]
                 expected_so_far["paid"] += model["paid"]
@@ -4488,7 +4502,7 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
         "remaining_fraction": max(0.0, 1.0 - day_fraction),
         "comparable_days": model_today["comparable_days"],
     }
-    return {
+    value = {
         "day": day,
         "month": month,
         "year": year,
@@ -4496,6 +4510,8 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
         "history_last_date": summaries.get("last_date"),
         "generated_at": now_local,
     }
+    SUMMARY_CACHE[cache_key] = {"expires": now_utc + timedelta(minutes=3), "value": value}
+    return value
 
 
 templates.env.filters["short_number"] = format_short_number
