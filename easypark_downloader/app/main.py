@@ -446,7 +446,10 @@ async def try_logout_existing_session(playwright) -> bool:
     try:
         return await logout_easypark(page)
     finally:
-        await context.close()
+        try:
+            await context.close()
+        except Exception:
+            pass
 
 
 async def download_report(page) -> Path:
@@ -670,7 +673,10 @@ async def run_download_import(
                     set_state(last_action="download")
                     file_path = await download_report(page)
             finally:
-                await context.close()
+                try:
+                    await context.close()
+                except Exception:
+                    pass
 
         set_state(last_action="import")
         import_result = post_to_fibaro10(file_path)
