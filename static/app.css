@@ -68,7 +68,13 @@
 }
 
 * {
+    box-sizing: border-box;
     letter-spacing: 0 !important;
+}
+
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
 body {
