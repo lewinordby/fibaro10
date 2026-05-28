@@ -3,6 +3,7 @@ from email.utils import parsedate_to_datetime
 from io import StringIO
 from copy import deepcopy
 from collections import defaultdict
+from functools import lru_cache
 from statistics import median
 from typing import Any, Dict, Optional
 import asyncio
@@ -4267,6 +4268,7 @@ def dashboard_money_compare(current: Any, previous: Any) -> str:
     return f"{format_short_number(current)}/{format_short_number(previous)} kr"
 
 
+@lru_cache(maxsize=64)
 def easter_sunday(year: int) -> date:
     a = year % 19
     b = year // 100
@@ -4285,6 +4287,7 @@ def easter_sunday(year: int) -> date:
     return date(year, month, day)
 
 
+@lru_cache(maxsize=4096)
 def norwegian_holiday_name(day: date) -> str:
     easter = easter_sunday(day.year)
     holidays = {
@@ -4400,29 +4403,15 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
 
     actual_today = history.get(today, {"sessions": 0.0, "paid": 0.0, "minutes": 0.0})
     minute_of_day = now_local.hour * 60 + now_local.minute
-    minute_expr = func.extract("hour", Sun2TanningSession.started_at) * 60 + func.extract("minute", Sun2TanningSession.started_at)
-    intraday_rows = (
-        await session.execute(
-            select(
-                Sun2TanningSession.stat_date.label("stat_date"),
-                func.count(Sun2TanningSession.id).label("total_count"),
-                func.coalesce(func.sum(case((minute_expr <= minute_of_day, 1), else_=0)), 0).label("elapsed_count"),
-            )
-            .where(Sun2TanningSession.stat_date < today)
-            .where(Sun2TanningSession.stat_date >= today - timedelta(days=1460))
-            .group_by(Sun2TanningSession.stat_date)
-        )
-    ).mappings().all()
-    elapsed_weight = 0.0
-    total_weight = 0.0
-    for row in intraday_rows:
-        stat_date = row.get("stat_date")
-        weight = sun2_history_weight(today, stat_date, today) if stat_date else 0.0
-        if weight <= 0:
-            continue
-        elapsed_weight += float_or_zero(row.get("elapsed_count")) * weight
-        total_weight += float_or_zero(row.get("total_count")) * weight
-    day_fraction = elapsed_weight / total_weight if total_weight > 0 else max(0.08, min(1.0, minute_of_day / (23 * 60)))
+    opening_minute = 7 * 60
+    closing_minute = 23 * 60
+    if minute_of_day <= opening_minute:
+        day_fraction = 0.08
+    elif minute_of_day >= closing_minute:
+        day_fraction = 1.0
+    else:
+        linear_fraction = (minute_of_day - opening_minute) / (closing_minute - opening_minute)
+        day_fraction = 0.08 + (linear_fraction ** 0.86) * 0.92
     day_fraction = max(0.08, min(1.0, day_fraction))
     model_today = sun2_daily_model(today, history, today)
     day_sessions = max(float_or_zero(actual_today.get("sessions")), float_or_zero(actual_today.get("sessions")) / day_fraction)
