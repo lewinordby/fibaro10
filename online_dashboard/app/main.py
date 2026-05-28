@@ -174,6 +174,13 @@ async def dashboard_data() -> dict[str, Any]:
         """,
         {"today": today},
     )
+    session_import = await one_mapping(
+        """
+        select max(timestamp) as updated_at
+        from sun2_session_import_runs
+        where ok = true
+        """
+    )
     parking = await one_mapping(
         """
         select count(*) as count,
@@ -219,6 +226,7 @@ async def dashboard_data() -> dict[str, Any]:
     return {
         "now": local_now(),
         "soling": soling,
+        "session_import": session_import,
         "parking": parking,
         "lights": lights,
         "vent": vent,
@@ -297,7 +305,7 @@ async def dashboard(request: Request):
         "{{ soling_count }}": fmt_int(data["soling"].get("count")),
         "{{ soling_amount }}": fmt_money(data["soling"].get("amount")),
         "{{ soling_minutes }}": f"{soling_hours:.1f} t".replace(".", ","),
-        "{{ soling_time }}": fmt_time(data["soling"].get("updated_at")),
+        "{{ soling_time }}": fmt_time(data["session_import"].get("updated_at") or data["soling"].get("updated_at")),
         "{{ parking_count }}": fmt_int(data["parking"].get("count")),
         "{{ parking_amount }}": fmt_money(data["parking"].get("amount")),
         "{{ parking_active }}": fmt_int(data["parking"].get("active_count")),
@@ -329,8 +337,8 @@ def render_state_cards(items: list[tuple[str, Any]], icon_class: str) -> str:
                 <span class="state-dot"></span>
                 <div>
                     <strong>{label}</strong>
-                    <small>{state_label(value)}</small>
                 </div>
+                <small class="state-pill">{state_label(value)}</small>
             </article>
             """
         )

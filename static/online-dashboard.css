@@ -72,9 +72,10 @@ h2 { font-size: 1.35rem; }
 
 .metric-grid, .state-grid {
     display: grid;
-    grid-template-columns: 1fr;
     gap: .85rem;
 }
+.metric-grid { grid-template-columns: 1fr; }
+.state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
 
 .metric-card, .temperature-card, .section-block {
     position: relative;
@@ -86,8 +87,8 @@ h2 { font-size: 1.35rem; }
 }
 
 .metric-card {
-    min-height: 8.4rem;
-    padding: 1.15rem;
+    min-height: 7.4rem;
+    padding: 1rem;
     border-left: .32rem solid var(--gold);
 }
 .metric-card span, .temperature-main span {
@@ -99,15 +100,15 @@ h2 { font-size: 1.35rem; }
 }
 .metric-card strong {
     display: block;
-    margin-top: .45rem;
-    font-size: 3rem;
+    margin-top: .35rem;
+    font-size: 2.35rem;
     line-height: .95;
     letter-spacing: -.04em;
 }
-.metric-card small { display: block; margin-top: .55rem; font-size: 1rem; }
+.metric-card small { display: block; margin-top: .45rem; font-size: .92rem; }
 .metric-card .updated-line {
-    margin-top: .85rem;
-    font-size: .82rem;
+    margin-top: .7rem;
+    font-size: .78rem;
     font-weight: 800;
 }
 .accent-parking { border-left-color: var(--parking); }
@@ -123,7 +124,7 @@ h2 { font-size: 1.35rem; }
 .temperature-main strong {
     display: block;
     margin-top: .35rem;
-    font-size: 3.35rem;
+    font-size: 2.85rem;
     line-height: .95;
     letter-spacing: -.05em;
 }
@@ -133,9 +134,10 @@ h2 { font-size: 1.35rem; }
     align-content: center;
 }
 .temperature-list p {
-    display: flex;
-    justify-content: space-between;
-    gap: .6rem;
+    display: grid;
+    grid-template-columns: minmax(4.2rem, 1fr) auto;
+    align-items: baseline;
+    column-gap: .65rem;
     border-left: 3px solid var(--green);
     padding-left: .65rem;
 }
@@ -180,26 +182,45 @@ h2 { font-size: 1.35rem; }
 .lux-pill strong { font-size: 1.2rem; }
 
 .state-card {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: .85rem;
-    min-height: 4.4rem;
-    padding: .85rem;
+    gap: .55rem;
+    min-height: 3.75rem;
+    padding: .7rem;
     border: 1px solid var(--line);
     border-radius: 1rem;
     background: #fff;
 }
-.state-card strong { display: block; font-size: 1.05rem; }
-.state-card small { font-weight: 900; }
+.state-card strong {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    font-size: .92rem;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+}
+.state-pill {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-top: .1rem;
+    padding: .2rem .5rem;
+    border-radius: 999px;
+    background: #eef2f6;
+    font-size: .75rem;
+    font-weight: 900;
+}
 .state-dot {
-    width: 1rem;
-    height: 1rem;
+    width: .78rem;
+    height: .78rem;
     border-radius: 50%;
     background: #a7b0c0;
-    box-shadow: 0 0 0 .45rem rgba(167,176,192,.13);
+    box-shadow: 0 0 0 .32rem rgba(167,176,192,.13);
 }
-.is-on .state-dot { background: var(--green); box-shadow: 0 0 0 .45rem rgba(102,151,106,.14); }
-.is-off .state-dot { background: var(--red); box-shadow: 0 0 0 .45rem rgba(200,106,85,.14); }
+.is-on .state-dot { background: var(--green); box-shadow: 0 0 0 .32rem rgba(102,151,106,.14); }
+.is-off .state-dot { background: var(--red); box-shadow: 0 0 0 .32rem rgba(200,106,85,.14); }
+.is-on .state-pill { color: #32663c; background: rgba(102,151,106,.14); }
+.is-off .state-pill { color: #9b3e2e; background: rgba(200,106,85,.14); }
 
 .login-page {
     display: grid;
@@ -238,7 +259,6 @@ h2 { font-size: 1.35rem; }
 
 @media (min-width: 680px) {
     .metric-grid { grid-template-columns: repeat(2, 1fr); }
-    .state-grid { grid-template-columns: repeat(2, 1fr); }
     .login-shell { grid-template-columns: 1.1fr .9fr; align-items: center; }
     .login-brand { display: block; }
 }
