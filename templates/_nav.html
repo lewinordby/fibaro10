@@ -80,6 +80,7 @@
         </a>
         <div class="nav-row nav-sub {% if is_sun2 %}active-section{% endif %}" aria-label="Undermeny for soling">
             {{ sub_button("/soling/dagslinje", "Dagslinje", "timeline", current_path == "/soling/dagslinje") }}
+            {{ sub_button("/soling/prognose", "Prognose", "chart", current_path == "/soling/prognose") }}
             {{ sub_button("/soling/oversikt", "Statistikk", "dashboard", current_path == "/soling/oversikt") }}
             {{ sub_button("/soling/detaljer", "Detaljer", "chart", current_path == "/soling/detaljer") }}
             {{ sub_button("/soling/enkeltimer", "Enkeltimer", "list", current_path == "/soling/enkeltimer") }}

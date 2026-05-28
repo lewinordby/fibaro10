@@ -4267,6 +4267,248 @@ def dashboard_money_compare(current: Any, previous: Any) -> str:
     return f"{format_short_number(current)}/{format_short_number(previous)} kr"
 
 
+def easter_sunday(year: int) -> date:
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+
+def norwegian_holiday_name(day: date) -> str:
+    easter = easter_sunday(day.year)
+    holidays = {
+        date(day.year, 1, 1): "Nyttårsdag",
+        easter - timedelta(days=3): "Skjærtorsdag",
+        easter - timedelta(days=2): "Langfredag",
+        easter: "1. påskedag",
+        easter + timedelta(days=1): "2. påskedag",
+        date(day.year, 5, 1): "Arbeidernes dag",
+        date(day.year, 5, 17): "17. mai",
+        easter + timedelta(days=39): "Kristi himmelfartsdag",
+        easter + timedelta(days=49): "1. pinsedag",
+        easter + timedelta(days=50): "2. pinsedag",
+        date(day.year, 12, 25): "1. juledag",
+        date(day.year, 12, 26): "2. juledag",
+    }
+    return holidays.get(day, "")
+
+
+def month_distance(a: int, b: int) -> int:
+    raw = abs(a - b)
+    return min(raw, 12 - raw)
+
+
+def iter_dates(start: date, end: date):
+    current = start
+    while current <= end:
+        yield current
+        current += timedelta(days=1)
+
+
+def month_end(day: date) -> date:
+    return date(day.year, day.month, calendar.monthrange(day.year, day.month)[1])
+
+
+def weighted_average(values: list[tuple[float, float]]) -> tuple[float, float, int]:
+    weighted_sum = sum(value * weight for value, weight in values)
+    weight_sum = sum(weight for _, weight in values)
+    if weight_sum <= 0:
+        return 0.0, 0.0, 0
+    return weighted_sum / weight_sum, weight_sum, len(values)
+
+
+def sun2_history_weight(target_day: date, historical_day: date, today: date) -> float:
+    if historical_day >= today:
+        return 0.0
+    age_years = max(0.0, (today - historical_day).days / 365.25)
+    recency = 0.72 ** age_years
+    month_diff = month_distance(target_day.month, historical_day.month)
+    season = {0: 1.75, 1: 1.35, 2: 1.05, 3: 0.82}.get(month_diff, 0.55)
+    weekday = 1.35 if target_day.weekday() == historical_day.weekday() else 0.82
+    target_holiday = bool(norwegian_holiday_name(target_day))
+    history_holiday = bool(norwegian_holiday_name(historical_day))
+    holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.55
+    return max(0.0, recency * season * weekday * holiday)
+
+
+def sun2_daily_model(target_day: date, history: Dict[date, Dict[str, float]], today: date) -> Dict[str, Any]:
+    sessions_values = []
+    paid_values = []
+    minutes_values = []
+    for historical_day, item in history.items():
+        weight = sun2_history_weight(target_day, historical_day, today)
+        if weight <= 0:
+            continue
+        sessions_values.append((float_or_zero(item.get("sessions")), weight))
+        paid_values.append((float_or_zero(item.get("paid")), weight))
+        minutes_values.append((float_or_zero(item.get("minutes")), weight))
+    sessions, weight_sum, comparable_days = weighted_average(sessions_values)
+    paid, _, _ = weighted_average(paid_values)
+    minutes, _, _ = weighted_average(minutes_values)
+    return {
+        "day": target_day,
+        "sessions": sessions,
+        "paid": paid,
+        "minutes": minutes,
+        "weight_sum": weight_sum,
+        "comparable_days": comparable_days,
+        "holiday": norwegian_holiday_name(target_day),
+    }
+
+
+def sun2_period_actual(history: Dict[date, Dict[str, float]], start: date, end: date) -> Dict[str, float]:
+    total = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
+    for day in iter_dates(start, end):
+        item = history.get(day) or {}
+        total["sessions"] += float_or_zero(item.get("sessions"))
+        total["paid"] += float_or_zero(item.get("paid"))
+        total["minutes"] += float_or_zero(item.get("minutes"))
+    return total
+
+
+def sun2_apply_tempo(actual: float, expected: float, minimum: float = 0.62, maximum: float = 1.65) -> float:
+    if expected <= 0:
+        return 1.0
+    return max(minimum, min(maximum, actual / expected))
+
+
+async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict[str, Any]:
+    summaries = await get_sun2_summaries(session)
+    history: Dict[date, Dict[str, float]] = {}
+    for item in summaries.get("daily", []):
+        period = item.get("period")
+        try:
+            day = date.fromisoformat(period)
+        except (TypeError, ValueError):
+            continue
+        history[day] = {
+            "sessions": float_or_zero(item.get("totalt_antall_solinger")),
+            "paid": float_or_zero(item.get("totalt_inntjent_kr")),
+            "minutes": float_or_zero(item.get("total_soletid_minutter")),
+        }
+
+    actual_today = history.get(today, {"sessions": 0.0, "paid": 0.0, "minutes": 0.0})
+    minute_of_day = now_local.hour * 60 + now_local.minute
+    minute_expr = func.extract("hour", Sun2TanningSession.started_at) * 60 + func.extract("minute", Sun2TanningSession.started_at)
+    intraday_rows = (
+        await session.execute(
+            select(
+                Sun2TanningSession.stat_date.label("stat_date"),
+                func.count(Sun2TanningSession.id).label("total_count"),
+                func.coalesce(func.sum(case((minute_expr <= minute_of_day, 1), else_=0)), 0).label("elapsed_count"),
+            )
+            .where(Sun2TanningSession.stat_date < today)
+            .where(Sun2TanningSession.stat_date >= today - timedelta(days=1460))
+            .group_by(Sun2TanningSession.stat_date)
+        )
+    ).mappings().all()
+    elapsed_weight = 0.0
+    total_weight = 0.0
+    for row in intraday_rows:
+        stat_date = row.get("stat_date")
+        weight = sun2_history_weight(today, stat_date, today) if stat_date else 0.0
+        if weight <= 0:
+            continue
+        elapsed_weight += float_or_zero(row.get("elapsed_count")) * weight
+        total_weight += float_or_zero(row.get("total_count")) * weight
+    day_fraction = elapsed_weight / total_weight if total_weight > 0 else max(0.08, min(1.0, minute_of_day / (23 * 60)))
+    day_fraction = max(0.08, min(1.0, day_fraction))
+    model_today = sun2_daily_model(today, history, today)
+    day_sessions = max(float_or_zero(actual_today.get("sessions")), float_or_zero(actual_today.get("sessions")) / day_fraction)
+    day_paid = max(float_or_zero(actual_today.get("paid")), float_or_zero(actual_today.get("paid")) / day_fraction)
+    day_minutes = max(float_or_zero(actual_today.get("minutes")), float_or_zero(actual_today.get("minutes")) / day_fraction)
+    if float_or_zero(actual_today.get("sessions")) <= 0 and model_today["sessions"] > 0:
+        day_sessions = model_today["sessions"] * max(0.35, min(1.0, day_fraction + 0.18))
+        day_paid = model_today["paid"] * max(0.35, min(1.0, day_fraction + 0.18))
+        day_minutes = model_today["minutes"] * max(0.35, min(1.0, day_fraction + 0.18))
+
+    def forecast_period(start: date, end: date, label: str) -> Dict[str, Any]:
+        actual_end = min(today, end)
+        actual = sun2_period_actual(history, start, actual_end) if actual_end >= start else {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
+        expected_so_far = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
+        remaining_base = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
+        future_days = []
+        for day in iter_dates(start, end):
+            model = sun2_daily_model(day, history, today)
+            if day <= today:
+                expected_so_far["sessions"] += model["sessions"]
+                expected_so_far["paid"] += model["paid"]
+                expected_so_far["minutes"] += model["minutes"]
+            else:
+                remaining_base["sessions"] += model["sessions"]
+                remaining_base["paid"] += model["paid"]
+                remaining_base["minutes"] += model["minutes"]
+                future_days.append(model)
+        tempo_sessions = sun2_apply_tempo(actual["sessions"], expected_so_far["sessions"])
+        tempo_paid = sun2_apply_tempo(actual["paid"], expected_so_far["paid"])
+        tempo_minutes = sun2_apply_tempo(actual["minutes"], expected_so_far["minutes"])
+        if start <= today <= end:
+            today_remaining_factor = max(0.0, 1.0 - day_fraction)
+            actual["sessions"] = max(actual["sessions"], float_or_zero(actual_today.get("sessions")))
+            actual["paid"] = max(actual["paid"], float_or_zero(actual_today.get("paid")))
+            actual["minutes"] = max(actual["minutes"], float_or_zero(actual_today.get("minutes")))
+            remaining_base["sessions"] += max(0.0, day_sessions - float_or_zero(actual_today.get("sessions"))) * today_remaining_factor
+            remaining_base["paid"] += max(0.0, day_paid - float_or_zero(actual_today.get("paid"))) * today_remaining_factor
+            remaining_base["minutes"] += max(0.0, day_minutes - float_or_zero(actual_today.get("minutes"))) * today_remaining_factor
+        forecast = {
+            "sessions": actual["sessions"] + remaining_base["sessions"] * tempo_sessions,
+            "paid": actual["paid"] + remaining_base["paid"] * tempo_paid,
+            "minutes": actual["minutes"] + remaining_base["minutes"] * tempo_minutes,
+        }
+        important_days = sorted(
+            [item for item in future_days if item.get("holiday")],
+            key=lambda item: item["day"],
+        )[:8]
+        return {
+            "label": label,
+            "start": start,
+            "end": end,
+            "actual": actual,
+            "expected_so_far": expected_so_far,
+            "forecast": forecast,
+            "tempo": tempo_sessions,
+            "remaining_days": max(0, (end - today).days),
+            "important_days": important_days,
+        }
+
+    month_start = date(today.year, today.month, 1)
+    year_start = date(today.year, 1, 1)
+    month = forecast_period(month_start, month_end(today), "Inneværende måned")
+    year = forecast_period(year_start, date(today.year, 12, 31), "Inneværende år")
+    weekday_names = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"]
+    day = {
+        "label": "I dag",
+        "date": today,
+        "weekday": weekday_names[today.weekday()],
+        "holiday": norwegian_holiday_name(today),
+        "actual": actual_today,
+        "forecast": {"sessions": day_sessions, "paid": day_paid, "minutes": day_minutes},
+        "model": model_today,
+        "day_fraction": day_fraction,
+        "remaining_fraction": max(0.0, 1.0 - day_fraction),
+        "comparable_days": model_today["comparable_days"],
+    }
+    return {
+        "day": day,
+        "month": month,
+        "year": year,
+        "history_first_date": summaries.get("first_date"),
+        "history_last_date": summaries.get("last_date"),
+        "generated_at": now_local,
+    }
+
+
 templates.env.filters["short_number"] = format_short_number
 
 
@@ -7824,7 +8066,7 @@ async def index(request: Request):
             "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions),
             "unit": "stk",
             "detail": f"{dashboard_money_compare(today_sun.paid, yesterday_sun.paid)} - {format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom",
-            "href": f"/soling/dagslinje?day={today.isoformat()}",
+            "href": "/soling/prognose",
             "tone": "sun2",
             "compare": True,
         },
@@ -7841,7 +8083,7 @@ async def index(request: Request):
             "title": "Sol uke",
             "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions),
             "unit": "sol",
-            "href": "/soling/statistikk",
+            "href": "/soling/prognose",
             "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)} hittil",
             "tone": "week",
             "compare": True,
@@ -7860,7 +8102,7 @@ async def index(request: Request):
             "value": dashboard_compare_value(month_sun.sessions, previous_month_sun.sessions),
             "unit": "stk",
             "detail": f"{dashboard_money_compare(month_sun.paid, previous_month_sun.paid)} - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom",
-            "href": "/soling/statistikk",
+            "href": "/soling/prognose",
             "tone": "sun2",
             "compare": True,
         },
@@ -7878,7 +8120,7 @@ async def index(request: Request):
             "value": format_short_number(year_sun.sessions),
             "unit": "stk",
             "detail": f"{format_short_number(year_sun.paid)} kr - {format_short_number(year_sun.minutes / 60, 1)} t",
-            "href": "/soling/statistikk",
+            "href": "/soling/prognose",
             "tone": "sun2",
         },
         {
@@ -10187,6 +10429,26 @@ async def sun2_overview_view(request: Request):
             "latest_import": latest_import,
         },
     )
+
+
+@app.get("/soling/prognose", response_class=HTMLResponse)
+async def sun2_forecast_view(request: Request):
+    now_local = datetime.now(LOCAL_TZ)
+    today = now_local.date()
+    async with async_session() as session:
+        forecast = await build_sun2_forecast(session, today, now_local)
+    response = templates.TemplateResponse(
+        request,
+        "sun2_forecast.html",
+        {
+            "forecast": forecast,
+            "day": forecast["day"],
+            "month": forecast["month"],
+            "year": forecast["year"],
+        },
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/soling/detaljer", response_class=HTMLResponse)
