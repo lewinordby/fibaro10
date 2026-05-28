@@ -168,6 +168,7 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     border-left: 1px solid #dde5ee;
     background: transparent;
     overflow: visible;
+    min-width: 12.5rem;
 }
 
 .app-nav .nav-sub .button,
@@ -177,6 +178,7 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     justify-self: start;
     width: max-content;
     max-width: 100%;
+    overflow: visible;
     border: 0;
     background: transparent;
     box-shadow: none;
@@ -213,8 +215,9 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
 }
 
 .app-nav .nav-sub-label {
-    overflow: visible;
-    text-overflow: clip;
+    max-width: none;
+    overflow: visible !important;
+    text-overflow: clip !important;
 }
 
 .nav-chevron {
@@ -335,8 +338,8 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     }
 
     .app-nav .nav-sub {
-        width: calc(100% - 3.9rem);
-        margin: 0.02rem 0 0.5rem 3.05rem;
+        width: auto;
+        margin: 0.02rem 0.58rem 0.5rem 3.05rem;
         padding: 0.1rem 0 0.1rem 0.55rem;
     }
 
@@ -456,8 +459,8 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     }
 
     .app-nav .nav-sub {
-        width: calc(100% - 3.8rem);
-        margin: 0 0 0.45rem 3rem;
+        width: auto;
+        margin: 0 0.5rem 0.45rem 3rem;
         padding: 0.08rem 0 0.08rem 0.55rem;
     }
 
