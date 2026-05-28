@@ -7370,9 +7370,13 @@ async def index(request: Request):
         import_rows = await import_status_rows(session)
         today = local_now_naive().date()
         week_start = today - timedelta(days=today.weekday())
+        month_start = today.replace(day=1)
+        year_start = today.replace(month=1, day=1)
         today_start = datetime.combine(today, time.min)
         tomorrow_start = today_start + timedelta(days=1)
         week_start_dt = datetime.combine(week_start, time.min)
+        month_start_dt = datetime.combine(month_start, time.min)
+        year_start_dt = datetime.combine(year_start, time.min)
         now_dt = local_now_naive()
         lux_spark_rows = (
             await session.execute(
@@ -7403,6 +7407,32 @@ async def index(request: Request):
                 )
             )
         ).one()
+        month_sun = (
+            await session.execute(
+                select(
+                    func.count(Sun2TanningSession.id).label("sessions"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                    func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
+                ).where(
+                    Sun2TanningSession.stat_date >= month_start,
+                    Sun2TanningSession.stat_date <= today,
+                )
+            )
+        ).one()
+        year_sun = (
+            await session.execute(
+                select(
+                    func.count(Sun2TanningSession.id).label("sessions"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                    func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
+                ).where(
+                    Sun2TanningSession.stat_date >= year_start,
+                    Sun2TanningSession.stat_date <= today,
+                )
+            )
+        ).one()
         today_parking = (
             await session.execute(
                 select(
@@ -7421,6 +7451,28 @@ async def index(request: Request):
                     func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
                 ).where(
                     ParkingSession.start_time >= week_start_dt,
+                    ParkingSession.start_time < tomorrow_start,
+                )
+            )
+        ).one()
+        month_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= month_start_dt,
+                    ParkingSession.start_time < tomorrow_start,
+                )
+            )
+        ).one()
+        year_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= year_start_dt,
                     ParkingSession.start_time < tomorrow_start,
                 )
             )
@@ -7624,6 +7676,38 @@ async def index(request: Request):
             "unit": "stk",
             "detail": f"{format_short_number(week_parking.paid)} kr - {active_parking or 0} aktive nå",
             "href": f"/parkering/oversikt?day={today.isoformat()}",
+            "tone": "parking",
+        },
+        {
+            "title": "Sol hittil mnd",
+            "value": format_short_number(month_sun.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(month_sun.paid)} kr - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom",
+            "href": "/soling/statistikk",
+            "tone": "sun2",
+        },
+        {
+            "title": "Parkering hittil mnd",
+            "value": format_short_number(month_parking.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(month_parking.paid)} kr hittil denne mÃ¥neden",
+            "href": f"/parkering/oversikt?day={today.isoformat()}",
+            "tone": "parking",
+        },
+        {
+            "title": "Sol hittil Ã¥r",
+            "value": format_short_number(year_sun.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(year_sun.paid)} kr - {format_short_number(year_sun.minutes / 60, 1)} t",
+            "href": "/soling/statistikk",
+            "tone": "sun2",
+        },
+        {
+            "title": "Parkering hittil Ã¥r",
+            "value": format_short_number(year_parking.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(year_parking.paid)} kr hittil i Ã¥r",
+            "href": "/parkering/statistikk",
             "tone": "parking",
         },
     ]
