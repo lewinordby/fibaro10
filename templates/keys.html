@@ -19,6 +19,7 @@
         .panel button { padding: 0.72rem 0.85rem; border: 1px solid var(--line); border-radius: 4px; background: white; color: #333; text-decoration: none; cursor: pointer; }
         .primary { background: #4b7fbb; border-color: #4779b1; color: white; }
         .danger { color: #9d3f31; border-color: #efc1b8; background: #fbebe8; }
+        .success { color: #266b3a; border-color: #bfe2c9; background: #edf8f0; }
         .created { border: 1px solid #b8d8f0; background: #f0f7fc; padding: 0.8rem; border-radius: 4px; margin-bottom: 0.8rem; }
         .error { border: 1px solid #df705d; background: #fbebe8; color: #9d3f31; padding: 0.8rem; border-radius: 4px; margin-bottom: 0.8rem; }
         code { display: block; margin-top: 0.45rem; padding: 0.75rem; background: white; border: 1px solid #b8d8f0; border-radius: 4px; overflow-wrap: anywhere; }
@@ -130,10 +131,10 @@
                             <td>{{ key.last_ip or "-" }}</td>
                             <td>{{ key.uses_count or 0 }}</td>
                             <td>
-                                {% if not key.is_master and key.active %}
-                                <form method="post" action="/konto/brukere-og-tilgang/deaktiver">
+                                {% if not key.is_master %}
+                                <form method="post" action="{% if key.active %}/konto/brukere-og-tilgang/deaktiver{% else %}/konto/brukere-og-tilgang/aktiver{% endif %}">
                                     <input type="hidden" name="key_id" value="{{ key.id }}">
-                                    <button class="danger" type="submit">Deaktiver</button>
+                                    <button class="{% if key.active %}danger{% else %}success{% endif %}" type="submit">{% if key.active %}Deaktiver{% else %}Aktiver{% endif %}</button>
                                 </form>
                                 {% endif %}
                             </td>

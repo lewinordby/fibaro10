@@ -7239,6 +7239,27 @@ async def keys_disable(request: Request):
     return RedirectResponse("/konto/brukere-og-tilgang", status_code=303)
 
 
+@app.post("/konto/brukere-og-tilgang/aktiver")
+async def keys_enable(request: Request):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    form = await parse_form_body(request)
+    try:
+        key_id = int(form.get("key_id") or "0")
+    except ValueError:
+        key_id = 0
+    async with async_session() as session:
+        await session.execute(
+            update(AccessKey)
+            .where(AccessKey.id == key_id)
+            .where(AccessKey.is_master == False)
+            .values(active=True)
+        )
+        await session.commit()
+    return RedirectResponse("/konto/brukere-og-tilgang", status_code=303)
+
+
 @app.post("/konto/brukere-og-tilgang/rolle")
 async def keys_role_update(request: Request):
     forbidden = require_master(request)
