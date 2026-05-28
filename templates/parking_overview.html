@@ -6,79 +6,99 @@
     <title>Parkering</title>
     {% include "_styles.html" %}
     <style>
-        main { padding-top: 1.05rem; }
-        .page-title { margin-bottom: .95rem; }
-        .page-title h1 { font-size: clamp(1.72rem, 2.6vw, 2.45rem); line-height: 1.04; letter-spacing: 0; }
-        .page-title p { max-width: 58rem; font-size: .92rem; }
-        .parking-cards { display:grid; grid-template-columns:repeat(6,minmax(8.7rem,1fr)); gap:.7rem; margin-bottom:.85rem; }
-        .parking-card { min-width:0; background:#fff; border:1px solid #e3ebf3; border-left:3px solid #d6e4e8; border-radius:15px; padding:.74rem .86rem; box-shadow:0 8px 20px rgba(6,22,61,.045); min-height:4.55rem; }
-        .parking-card span { display:block; color:#6d7890; font-size:.66rem; font-weight:850; text-transform:uppercase; letter-spacing:.055em; }
-        .parking-card strong { display:block; color:var(--brand-dark); font-size:1.22rem; line-height:1.05; margin-top:.18rem; font-weight:860; letter-spacing:0; }
-        .parking-card small { display:block; color:#7b879c; font-size:.72rem; margin-top:.18rem; }
-        .parking-control-bar { display:grid; grid-template-columns:minmax(0,1fr) minmax(22rem,30rem); gap:.8rem; align-items:stretch; margin-bottom:.8rem; }
+        main { padding-top: .86rem; }
+        .page-title { margin-bottom: .68rem; }
+        .page-title h1 { font-size: clamp(1.42rem, 2vw, 1.86rem); line-height: 1.04; letter-spacing: 0; }
+        .page-title p { max-width: 58rem; font-size: .82rem; }
+        .parking-cards { display:grid; grid-template-columns:repeat(6,minmax(8.4rem,1fr)); gap:.55rem; margin-bottom:.68rem; }
+        .parking-card { min-width:0; background:#fff; border:1px solid #e2eaf3; border-left:3px solid #d7e6e9; border-radius:13px; padding:.58rem .68rem; box-shadow:0 6px 16px rgba(6,22,61,.04); min-height:3.55rem; }
+        .parking-card span { display:block; color:#69758b; font-size:.61rem; font-weight:850; text-transform:uppercase; letter-spacing:.05em; }
+        .parking-card strong { display:block; color:var(--brand-dark); font-size:1.06rem; line-height:1.05; margin-top:.12rem; font-weight:860; letter-spacing:0; }
+        .parking-card small { display:block; color:#7b879c; font-size:.68rem; margin-top:.12rem; }
+        .parking-control-bar { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(20rem,.62fr); gap:.68rem; align-items:stretch; margin-bottom:.74rem; }
         .parking-refresh-form { margin:0; min-width:0; }
-        .parking-sync-card { width:100%; min-height:100%; text-align:left; appearance:none; display:grid; grid-template-columns:minmax(10rem,13rem) minmax(0,1fr) auto; gap:.65rem .9rem; align-items:center; padding:.8rem .95rem; border-left-color:#d6e4e8; overflow:hidden; }
+        .parking-sync-card { width:100%; min-height:100%; text-align:left; appearance:none; display:grid; grid-template-columns:minmax(13rem,auto) minmax(0,1fr) auto; gap:.5rem .8rem; align-items:center; padding:.62rem .78rem; border-left-color:#d6e4e8; overflow:visible; }
         .parking-sync-card.is-working { opacity:.72; filter:grayscale(.15); }
-        .parking-sync-card strong { font-size:1.02rem; margin:0; white-space:nowrap; font-weight:840; }
+        .parking-sync-card strong { font-size:.94rem; margin:0; white-space:normal; font-weight:840; }
         .parking-sync-card small { margin:0; color:#738196; }
         .parking-sync-label { display:grid; gap:.12rem; }
-        .parking-sync-detail { min-width:0; display:grid; gap:.3rem; }
+        .parking-sync-detail { min-width:0; display:flex; flex-wrap:wrap; gap:.28rem .42rem; align-items:center; }
+        .parking-sync-detail small { flex:1 1 12rem; min-width:0; }
         .parking-sync-card .sync-line { display:flex; flex-wrap:wrap; gap:.32rem; align-items:center; }
-        .parking-sync-action { border:1px solid var(--page-accent); background:var(--page-accent); color:#fff; border-radius:12px; padding:.58rem .88rem; font-size:.76rem; font-weight:850; cursor:pointer; white-space:nowrap; box-shadow:0 8px 18px rgba(31,111,120,.13); }
+        .parking-sync-action { border:1px solid var(--page-accent); background:var(--page-accent); color:#fff; border-radius:10px; padding:.48rem .74rem; font-size:.71rem; font-weight:850; cursor:pointer; white-space:nowrap; box-shadow:0 7px 15px rgba(31,111,120,.12); }
         .parking-sync-action:disabled { border-color:#a7b0bd; background:#a7b0bd; cursor:not-allowed; box-shadow:none; }
-        .parking-day-card { display:grid; grid-template-columns:minmax(7.4rem,auto) minmax(0,1fr); gap:.72rem; align-items:center; padding:.8rem .95rem; background:#fff; border-left-color:#d6e4e8; }
+        .parking-day-card { display:grid; grid-template-columns:minmax(7.2rem,auto) minmax(0,1fr); gap:.62rem; align-items:center; padding:.62rem .78rem; background:#fff; border-left-color:#d6e4e8; }
         .parking-day-head { display:grid; gap:.08rem; min-width:0; }
-        .parking-day-card strong { font-size:1.02rem; margin:0; white-space:nowrap; font-weight:840; }
+        .parking-day-card strong { font-size:.94rem; margin:0; white-space:nowrap; font-weight:840; }
         .parking-day-card small { display:none; }
         .parking-day-nav { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.36rem; min-width:0; }
-        .parking-day-nav a { display:flex; align-items:center; justify-content:center; min-height:2.15rem; border:1px solid #e1e8f1; border-radius:10px; background:#fff; color:var(--brand-dark); text-decoration:none; font-size:.74rem; font-weight:820; padding:0 .55rem; }
+        .parking-day-nav a { display:flex; align-items:center; justify-content:center; min-height:1.92rem; border:1px solid #e1e8f1; border-radius:9px; background:#fff; color:var(--brand-dark); text-decoration:none; font-size:.69rem; font-weight:820; padding:0 .5rem; }
         .parking-day-nav a:hover { border-color:var(--page-accent); color:var(--page-accent); background:#f7fcfd; }
-        .sync-pill { display:inline-flex; align-items:center; min-height:1.35rem; border-radius:999px; padding:.1rem .44rem; border:1px solid #e1e8f1; background:#f8fafc; color:var(--brand-dark); font-size:.66rem; font-weight:850; }
+        .sync-pill { display:inline-flex; align-items:center; min-height:1.22rem; border-radius:999px; padding:.08rem .38rem; border:1px solid #e1e8f1; background:#f8fafc; color:var(--brand-dark); font-size:.61rem; font-weight:850; }
         .sync-pill.ok, .sync-pill.good { border-color:#b9dbc3; background:#edf8f0; color:#2f6d3d; }
         .sync-pill.warn { border-color:#efd392; background:#fff8e6; color:#805b12; }
         .sync-pill.bad { border-color:#efb8ad; background:#fff2ef; color:#9a3d2f; }
         .sync-pill.running { border-color:#bfd4f0; background:#edf5ff; color:#285c91; }
-        .parking-panel { margin-top:.82rem; background:#fff; border:1px solid #e1e8f1; border-radius:18px; box-shadow:0 9px 24px rgba(6,22,61,.05); overflow:hidden; }
-        .parking-panel header { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; padding:.9rem 1rem .78rem; border-bottom:1px solid #eef3f7; }
-        .parking-panel h2 { margin:0; font-size:1.05rem; color:var(--brand-dark); font-weight:850; }
-        .parking-panel p { margin:.12rem 0 0; color:#768399; font-size:.82rem; }
-        .parking-panel header > strong { color:var(--brand-dark); font-size:1rem; }
-        .parking-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.9rem; }
-        .parking-table th, .parking-table td { padding:.68rem .86rem; border-bottom:1px solid #eef3f7; text-align:left; vertical-align:middle; }
-        .parking-table th { background:#f8fafc; color:#657187; font-size:.68rem; text-transform:uppercase; letter-spacing:.035em; font-weight:850; }
+        .parking-panel { margin-top:.7rem; background:#fff; border:1px solid #e1e8f1; border-radius:15px; box-shadow:0 7px 18px rgba(6,22,61,.045); overflow:hidden; }
+        .parking-panel header { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; padding:.68rem .82rem .6rem; border-bottom:1px solid #eef3f7; }
+        .parking-panel h2 { margin:0; font-size:.95rem; color:var(--brand-dark); font-weight:850; }
+        .parking-panel p { margin:.1rem 0 0; color:#768399; font-size:.74rem; }
+        .parking-panel header > strong { color:var(--brand-dark); font-size:.92rem; }
+        .parking-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.82rem; }
+        .parking-table th, .parking-table td { padding:.5rem .72rem; border-bottom:1px solid #eef3f7; text-align:left; vertical-align:middle; }
+        .parking-table th { background:#f8fafc; color:#657187; font-size:.62rem; text-transform:uppercase; letter-spacing:.035em; font-weight:850; }
         .parking-table tr:last-child td { border-bottom:0; }
         .parking-table tbody tr:hover { background:#fbfdff; }
         .parking-table a { color:var(--brand-dark); text-decoration:none; font-weight:780; }
         .parking-table a:hover { color:var(--page-accent); text-decoration:none; }
-        .empty-row { color:var(--muted); text-align:center; padding:1rem !important; }
+        .empty-row { color:var(--muted); text-align:center; padding:.78rem !important; }
         .amount { color:#856010; font-weight:850; white-space:nowrap; }
         .duration { white-space:nowrap; color:#26344c; }
         .time-stack { display:grid; gap:.12rem; min-width:4.7rem; white-space:nowrap; }
-        .time-stack strong { color:var(--brand-dark); font-size:.96rem; line-height:1.05; font-weight:850; }
-        .time-stack span { color:#7b879c; font-size:.76rem; font-weight:720; }
-        .vehicle-cell { min-width:22rem; color:var(--brand-dark); }
+        .time-stack strong { color:var(--brand-dark); font-size:.86rem; line-height:1.05; font-weight:850; }
+        .time-stack span { color:#7b879c; font-size:.69rem; font-weight:720; }
+        .vehicle-cell { min-width:20rem; color:var(--brand-dark); }
         .vehicle-main { display:grid; grid-template-columns:5.35rem minmax(0,1fr); gap:.28rem .55rem; align-items:start; }
-        .plate-link { font-size:.95rem; letter-spacing:.015em; white-space:nowrap; font-weight:860 !important; }
+        .plate-link { font-size:.84rem; letter-spacing:.015em; white-space:nowrap; font-weight:860 !important; }
         .vehicle-info { min-width:0; }
-        .vehicle-title { display:block; color:#66758a; font-size:.83rem; font-weight:780; line-height:1.22; }
-        .vehicle-meta { margin-top:.14rem; color:#6f7b91; font-size:.77rem; font-weight:720; line-height:1.25; }
+        .vehicle-title { display:block; color:#66758a; font-size:.75rem; font-weight:780; line-height:1.22; }
+        .vehicle-meta { margin-top:.12rem; color:#6f7b91; font-size:.7rem; font-weight:720; line-height:1.25; }
         .vehicle-meta span { display:block; }
-        .source-cell { color:#5f6d82; white-space:nowrap; font-size:.84rem; }
-        .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.05rem; min-height:1.7rem; border-radius:999px; border:1px solid #e1e8f1; background:#fff; color:var(--brand-dark); text-decoration:none; font-size:.76rem; font-weight:820; }
+        .source-cell { color:#5f6d82; white-space:nowrap; font-size:.77rem; }
+        .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:1.82rem; min-height:1.48rem; border-radius:999px; border:1px solid #e1e8f1; background:#fff; color:var(--brand-dark); text-decoration:none; font-size:.68rem; font-weight:820; }
         .count-link:hover { border-color:var(--page-accent); background:#f7fcfd; }
         .table-scroll { overflow:auto; }
         body.theme-parking main .parking-card { border-left-color:#d6e4e8 !important; border-top-color:#e3ebf3 !important; }
-        body.theme-parking main .parking-table th { text-transform:uppercase !important; letter-spacing:.035em !important; }
+        body.theme-parking main .page-title { margin-bottom:.68rem !important; }
+        body.theme-parking main .page-title h1 { font-size:clamp(1.42rem,2vw,1.86rem) !important; }
+        body.theme-parking main .page-title p { font-size:.82rem !important; }
+        body.theme-parking main .parking-cards { grid-template-columns:repeat(auto-fit,minmax(8.4rem,1fr)) !important; gap:.55rem !important; margin-bottom:.68rem !important; }
+        body.theme-parking main .parking-card { min-height:3.55rem !important; padding:.58rem .68rem !important; border-radius:13px !important; box-shadow:0 6px 16px rgba(6,22,61,.04) !important; }
+        body.theme-parking main .parking-card strong { font-size:1.06rem !important; }
+        body.theme-parking main .parking-card span { font-size:.61rem !important; }
+        body.theme-parking main .parking-card small { font-size:.68rem !important; }
+        body.theme-parking main .parking-control-bar { grid-template-columns:minmax(0,1.45fr) minmax(20rem,.62fr) !important; gap:.68rem !important; margin-bottom:.74rem !important; }
+        body.theme-parking main .parking-sync-card { grid-template-columns:minmax(13rem,auto) minmax(0,1fr) auto !important; gap:.5rem .8rem !important; overflow:visible !important; }
+        body.theme-parking main .parking-sync-card strong, body.theme-parking main .parking-day-card strong { font-size:.94rem !important; white-space:normal !important; }
+        body.theme-parking main .parking-day-card { grid-template-columns:minmax(7.2rem,auto) minmax(0,1fr) !important; gap:.62rem !important; }
+        body.theme-parking main .parking-day-nav a { min-height:1.92rem !important; font-size:.69rem !important; }
+        body.theme-parking main .parking-panel { margin-top:.7rem !important; border-radius:15px !important; }
+        body.theme-parking main .parking-panel header { padding:.68rem .82rem .6rem !important; }
+        body.theme-parking main .parking-panel h2 { font-size:.95rem !important; }
+        body.theme-parking main .parking-panel p { font-size:.74rem !important; }
+        body.theme-parking main .parking-table th { text-transform:uppercase !important; letter-spacing:.035em !important; font-size:.62rem !important; }
+        body.theme-parking main .parking-table td { font-size:.82rem !important; }
+        body.theme-parking main .parking-table th, body.theme-parking main .parking-table td { padding:.5rem .72rem !important; }
         body.theme-parking main .parking-table a { font-weight:780 !important; }
         @media (max-width: 1500px) { .parking-cards { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-        @media (max-width: 1220px) { .parking-control-bar { grid-template-columns:1fr; } }
-        @media (max-width: 900px) { .parking-sync-card, .parking-day-card { grid-template-columns:1fr; } .parking-day-nav { min-width:0; } }
+        @media (max-width: 1220px) { .parking-control-bar { grid-template-columns:1fr; } body.theme-parking main .parking-control-bar { grid-template-columns:1fr !important; } }
+        @media (max-width: 900px) { .parking-sync-card, .parking-day-card { grid-template-columns:1fr; } body.theme-parking main .parking-sync-card, body.theme-parking main .parking-day-card { grid-template-columns:1fr !important; } .parking-day-nav { min-width:0; } }
         @media (max-width: 680px) {
-            .page-title h1 { font-size:1.7rem; }
+            .page-title h1 { font-size:1.5rem; }
             .parking-cards { grid-template-columns:1fr 1fr; }
             .parking-sync-action { width:100%; }
             .parking-panel header { display:block; }
-            .parking-table th, .parking-table td { padding:.58rem .62rem; font-size:.86rem; }
+            .parking-table th, .parking-table td { padding:.5rem .58rem; font-size:.78rem; }
             .vehicle-main { grid-template-columns:1fr; gap:.16rem; }
             .vehicle-cell { min-width:15rem; }
         }
