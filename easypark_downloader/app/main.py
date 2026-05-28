@@ -37,7 +37,6 @@ SCHEDULE_MODE = os.getenv("EASYPARK_SCHEDULE_MODE", "recent").strip().lower()
 RECENT_DAYS = max(1, int(os.getenv("EASYPARK_RECENT_DAYS", "2")))
 HEADLESS = os.getenv("EASYPARK_HEADLESS", "true").strip().lower() not in {"0", "false", "no", "nei"}
 CODE_COOLDOWN_MINUTES = int(os.getenv("EASYPARK_CODE_COOLDOWN_MINUTES", "5"))
-AUTH_MAX_AGE_HOURS = max(1, int(os.getenv("EASYPARK_AUTH_MAX_AGE_HOURS", "24")))
 FORCE_LOGIN_TIMES = os.getenv("EASYPARK_FORCE_LOGIN_TIMES", "03:00").strip()
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 
@@ -147,13 +146,6 @@ def write_auth_state(**values: Any) -> None:
     AUTH_STATE_PATH.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def auth_is_expired() -> bool:
-    last_login = parse_iso_datetime(read_auth_state().get("last_login_at"))
-    if not last_login:
-        return False
-    return datetime.now(timezone.utc) - last_login >= timedelta(hours=AUTH_MAX_AGE_HOURS)
-
-
 def reset_browser_profile(reason: str) -> None:
     if PROFILE_DIR.exists():
         shutil.rmtree(PROFILE_DIR)
@@ -167,7 +159,7 @@ def reset_browser_profile(reason: str) -> None:
 
 
 def mark_login_completed() -> None:
-    write_auth_state(last_login_at=utcnow_iso(), last_login_max_age_hours=AUTH_MAX_AGE_HOURS)
+    write_auth_state(last_login_at=utcnow_iso())
 
 
 def parse_run_times(value: str) -> list[tuple[int, int]]:
@@ -611,13 +603,11 @@ async def run_download_import(
     started = fibaro10_datetime_iso()
     try:
         async with async_playwright() as playwright:
-            if force_login or auth_is_expired():
-                reason = "scheduled fresh login" if force_login else f"auth older than {AUTH_MAX_AGE_HOURS}h"
-                if force_login:
-                    set_state(last_action="logout_before_login", last_period=period)
-                    await try_logout_existing_session(playwright)
+            if force_login:
+                set_state(last_action="logout_before_login", last_period=period)
+                await try_logout_existing_session(playwright)
                 set_state(last_action="refresh_login", last_period=period)
-                reset_browser_profile(reason)
+                reset_browser_profile("scheduled fresh login")
 
             context = await playwright.chromium.launch_persistent_context(
                 str(PROFILE_DIR),

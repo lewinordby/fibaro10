@@ -11,7 +11,7 @@ Liten QNAP-container som logger inn i EasyPark, laster ned CSV-rapport og sender
 - `POST /sync-period?from_date=2026-01-01&to_date=2026-01-31` er en tydelig variant for perioder.
 - `POST /backfill-year?year=2026` kjører måned for måned fra 1. januar til dagens dato.
 
-Containeren bruker persistent browserprofil i `./data/browser-profile`, slik at EasyPark-sesjonen kan gjenbrukes gjennom dagen. I tillegg lagres tidspunkt for siste fullførte EasyPark-login i `./data/auth-state.json`. Når vi kjenner login-tidspunktet og det er eldre enn `EASYPARK_AUTH_MAX_AGE_HOURS` (standard 24 timer), slettes browserprofilen og appen logger inn på nytt med fersk verifikasjonskode fra Gmail. Hvis auth-state mangler, beholdes eksisterende profil og tidspunktet settes først når appen bekrefter at den faktisk er innlogget.
+Containeren bruker persistent browserprofil i `./data/browser-profile`, slik at EasyPark-sesjonen kan gjenbrukes gjennom dagen. Tidspunkt for siste fullførte EasyPark-login lagres i `./data/auth-state.json`, men brukes bare som statusinformasjon. Appen kaster ikke lenger sesjonen bare fordi den har blitt eldre enn et visst antall timer. Ny full login tvinges kun på tidspunktene i `EASYPARK_FORCE_LOGIN_TIMES`, normalt nattjobben kl. 03:00.
 
 Hvis EasyPark krever ny sikkerhetskontroll tidligere enn dette, forsøker appen fortsatt å hente verifikasjonskode fra Gmail når kodefeltet vises.
 
