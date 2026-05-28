@@ -7711,6 +7711,10 @@ async def index(request: Request):
             "tone": "parking",
         },
     ]
+    focus_cards[-3]["detail"] = f"{format_short_number(month_parking.paid)} kr hittil i mnd"
+    focus_cards[-2]["title"] = f"Sol hittil {today.year}"
+    focus_cards[-1]["title"] = f"Parkering hittil {today.year}"
+    focus_cards[-1]["detail"] = f"{format_short_number(year_parking.paid)} kr hittil i {today.year}"
     ops_cards = [
         {
             "title": "Datakilder",
