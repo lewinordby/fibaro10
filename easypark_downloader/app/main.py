@@ -330,14 +330,32 @@ async def ensure_logged_in(page) -> bool:
     body = await page_text(page)
     requested_at: datetime | None = None
     if re.search(r"send code via email", body, re.I):
+        mfa_errors: list[str] = []
+
+        async def capture_mfa_response(response) -> None:
+            if "/api/login-flow/authentication/mfa" not in response.url:
+                return
+            try:
+                text = await response.text()
+            except Exception:
+                text = ""
+            if "RECAPTCHA_FAILED" in text:
+                mfa_errors.append("recaptcha")
+
+        page.on("response", lambda response: asyncio.create_task(capture_mfa_response(response)))
         await page.get_by_role("button", name=re.compile("^Send code via email$", re.I)).click()
         requested_at = datetime.now(timezone.utc)
         set_state(last_action="requested_email_code")
         await page.wait_for_timeout(max(8000, CODE_COOLDOWN_MINUTES * 1000))
+        if mfa_errors:
+            await save_debug(page, "easypark-recaptcha-email-code")
+            raise RuntimeError("EasyPark stopper automatisk bestilling av e-postkode med reCAPTCHA.")
 
     body = await page_text(page)
     if re.search(r"please check your login or password", body, re.I):
         await save_debug(page, "easypark-login-rejected")
+        if requested_at:
+            raise RuntimeError("EasyPark stopper automatisk bestilling av e-postkode, selv om brukernavn/passord ble akseptert.")
         raise RuntimeError("EasyPark avviser brukernavn/passord eller blokkerer automatisk login.")
 
     if re.search(r"recaptcha|security check", body, re.I):
