@@ -14,7 +14,7 @@
         const root = document.documentElement;
         const desktopKey = "fibaro10_nav_collapsed_desktop_v2";
         const mobileKey = "fibaro10_nav_collapsed_mobile_v2";
-        const mobileQuery = window.matchMedia("(max-width: 1019px)");
+        const mobileQuery = window.matchMedia("(max-width: 1179px)");
         const storageKey = () => mobileQuery.matches ? mobileKey : desktopKey;
         const apply = (collapsed) => {
             root.classList.toggle("nav-collapsed", collapsed);
