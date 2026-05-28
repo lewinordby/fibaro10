@@ -42,6 +42,7 @@ MASTER_ACCESS_KEY_HASH = os.getenv(
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
+ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
 PUBLIC_PREFIXES = ("/static/",)
 PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
 
@@ -3115,20 +3116,20 @@ async def log_access_attempt(
 ):
     notify_master = success and should_publish_access_ntfy(request, access_key, reason)
     now_value = datetime.utcnow()
+    normalized_attempted_username = normalize_username(attempted_username or "")
     async with async_session() as session:
-        session.add(
-            AccessLog(
-                access_key_id=access_key.id if access_key else None,
-                key_name=access_key.name if access_key else normalize_username(attempted_username or "") or None,
-                key_prefix=access_key.key_prefix if access_key else None,
-                path=request.url.path,
-                method=request.method,
-                ip=client_ip(request),
-                user_agent=request.headers.get("user-agent", ""),
-                success=success,
-                reason=reason,
-            )
+        log_row = AccessLog(
+            access_key_id=access_key.id if access_key else None,
+            key_name=access_key.name if access_key else normalized_attempted_username or None,
+            key_prefix=access_key.key_prefix if access_key else None,
+            path=request.url.path,
+            method=request.method,
+            ip=client_ip(request),
+            user_agent=request.headers.get("user-agent", ""),
+            success=success,
+            reason=reason,
         )
+        session.add(log_row)
         if access_key and success:
             values = {
                 "last_seen_at": now_value,
@@ -3139,6 +3140,31 @@ async def log_access_attempt(
             if notify_master:
                 values["last_notified_at"] = now_value
             await session.execute(update(AccessKey).where(AccessKey.id == access_key.id).values(**values))
+        elif not success and normalized_attempted_username and normalized_attempted_username != "master":
+            await session.flush()
+            user_result = await session.execute(
+                select(AccessKey)
+                .where(AccessKey.name == normalized_attempted_username)
+                .where(AccessKey.is_master == False)
+                .where(AccessKey.active == True)
+                .order_by(AccessKey.id.desc())
+                .limit(1)
+            )
+            user_key = user_result.scalars().first()
+            if user_key:
+                recent_failures = (
+                    await session.execute(
+                        select(AccessLog.success)
+                        .where(AccessLog.key_name == normalized_attempted_username)
+                        .order_by(AccessLog.timestamp.desc(), AccessLog.id.desc())
+                        .limit(ACCESS_FAILED_DISABLE_THRESHOLD)
+                    )
+                ).scalars().all()
+                if len(recent_failures) >= ACCESS_FAILED_DISABLE_THRESHOLD and all(value is False for value in recent_failures):
+                    user_key.active = False
+                    log_row.access_key_id = user_key.id
+                    log_row.key_prefix = user_key.key_prefix
+                    log_row.reason = f"{reason}_auto_deactivated_after_{ACCESS_FAILED_DISABLE_THRESHOLD}_failures"
         await session.commit()
     if notify_master and access_key:
         asyncio.create_task(
