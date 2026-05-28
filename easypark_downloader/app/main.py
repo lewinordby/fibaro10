@@ -321,6 +321,10 @@ async def ensure_logged_in(page) -> bool:
     performed_login = False
     body = await page_text(page)
     if re.search(r"sign in|username|password", body, re.I):
+        # EasyPark can leave the login form in a stale state after logout.
+        # Reload before entering credentials so the MFA/email-code flow is initialized cleanly.
+        await page.reload(wait_until="domcontentloaded", timeout=60000)
+        await page.wait_for_timeout(5000)
         await page.get_by_placeholder("Enter your username").fill(env_required("EASYPARK_USERNAME"))
         await page.get_by_placeholder("Enter your password").fill(env_required("EASYPARK_PASSWORD"))
         await page.get_by_role("button", name=re.compile("^Sign in$", re.I)).click()
