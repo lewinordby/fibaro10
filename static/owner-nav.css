@@ -283,17 +283,20 @@ html.nav-section-expanded .app-nav .nav-main > .button.has-sub:not(.expanded) + 
     .site-header ~ .container,
     body .site-header ~ main,
     body .site-header ~ .container {
-        width: min(100% - 2rem, var(--page-width));
-        max-width: var(--page-width);
+        width: auto !important;
+        max-width: min(var(--page-width), calc(100vw - var(--owner-sidebar) - 2.3rem)) !important;
         margin-left: calc(var(--owner-sidebar) + 1.15rem);
-        margin-right: 1rem;
+        margin-right: 1.15rem;
         padding-top: 1.05rem;
+        box-sizing: border-box;
+        min-width: 0;
     }
 
     html.nav-collapsed .site-header ~ main,
     html.nav-collapsed .site-header ~ .container,
     html.nav-collapsed body .site-header ~ main,
     html.nav-collapsed body .site-header ~ .container {
+        max-width: min(var(--page-width), calc(100vw - var(--owner-sidebar-closed) - 2.3rem)) !important;
         margin-left: calc(var(--owner-sidebar-closed) + 1.15rem);
     }
 
