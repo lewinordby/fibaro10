@@ -629,7 +629,12 @@ async def run_download_import(
                 set_state(last_action="logout_before_login", last_period=period)
                 await try_logout_existing_session(playwright)
                 set_state(last_action="refresh_login", last_period=period)
-                reset_browser_profile("scheduled fresh login")
+                write_auth_state(
+                    last_reset_at=utcnow_iso(),
+                    last_reset_reason="scheduled logout/login without profile reset",
+                    last_logout_at=utcnow_iso(),
+                    last_login_at=None,
+                )
 
             context = await playwright.chromium.launch_persistent_context(
                 str(PROFILE_DIR),
