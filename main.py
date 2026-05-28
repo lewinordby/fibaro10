@@ -4259,6 +4259,14 @@ def dashboard_compare_detail(
     return f"vs {label}: {format_signed_short_number(count_delta)} stk / {format_signed_short_number(paid_delta)} kr"
 
 
+def dashboard_compare_value(current: Any, previous: Any) -> str:
+    return f"{format_short_number(current)}/{format_short_number(previous)}"
+
+
+def dashboard_money_compare(current: Any, previous: Any) -> str:
+    return f"{format_short_number(current)}/{format_short_number(previous)} kr"
+
+
 templates.env.filters["short_number"] = format_short_number
 
 
@@ -7813,51 +7821,57 @@ async def index(request: Request):
     focus_cards = [
         {
             "title": "Solinger i dag",
-            "value": format_short_number(today_sun.sessions),
+            "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(today_sun.paid)} kr - {format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom | {dashboard_compare_detail('i gaar', today_sun.sessions, today_sun.paid, yesterday_sun.sessions, yesterday_sun.paid)}",
+            "detail": f"{dashboard_money_compare(today_sun.paid, yesterday_sun.paid)} - {format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom",
             "href": f"/soling/dagslinje?day={today.isoformat()}",
             "tone": "sun2",
+            "compare": True,
         },
         {
             "title": "Parkering i dag",
-            "value": format_short_number(today_parking.sessions),
+            "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive naa | {dashboard_compare_detail('i gaar', today_parking.sessions, today_parking.paid, yesterday_parking.sessions, yesterday_parking.paid)}",
+            "detail": f"{dashboard_money_compare(today_parking.paid, yesterday_parking.paid)} - {active_parking or 0} aktive naa",
             "href": f"/parkering/oversikt?day={today.isoformat()}",
             "tone": "parking",
+            "compare": True,
         },
         {
             "title": "Sol uke",
-            "value": format_short_number(week_sun.sessions),
+            "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions),
             "unit": "sol",
             "href": "/soling/statistikk",
-            "detail": f"{format_short_number(week_sun.paid)} kr hittil | {dashboard_compare_detail('forrige uke', week_sun.sessions, week_sun.paid, previous_week_sun.sessions, previous_week_sun.paid)}",
+            "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)} hittil",
             "tone": "week",
+            "compare": True,
         },
         {
             "title": "Parkering uke",
-            "value": format_short_number(week_parking.sessions),
+            "value": dashboard_compare_value(week_parking.sessions, previous_week_parking.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(week_parking.paid)} kr - {active_parking or 0} aktive naa | {dashboard_compare_detail('forrige uke', week_parking.sessions, week_parking.paid, previous_week_parking.sessions, previous_week_parking.paid)}",
+            "detail": f"{dashboard_money_compare(week_parking.paid, previous_week_parking.paid)} - {active_parking or 0} aktive naa",
             "href": f"/parkering/oversikt?day={today.isoformat()}",
             "tone": "parking",
+            "compare": True,
         },
         {
             "title": "Sol hittil mnd",
-            "value": format_short_number(month_sun.sessions),
+            "value": dashboard_compare_value(month_sun.sessions, previous_month_sun.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(month_sun.paid)} kr - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom | {dashboard_compare_detail('forrige mnd', month_sun.sessions, month_sun.paid, previous_month_sun.sessions, previous_month_sun.paid)}",
+            "detail": f"{dashboard_money_compare(month_sun.paid, previous_month_sun.paid)} - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom",
             "href": "/soling/statistikk",
             "tone": "sun2",
+            "compare": True,
         },
         {
             "title": "Parkering hittil mnd",
-            "value": format_short_number(month_parking.sessions),
+            "value": dashboard_compare_value(month_parking.sessions, previous_month_parking.sessions),
             "unit": "stk",
             "detail": f"{format_short_number(month_parking.paid)} kr hittil denne mÃ¥neden",
             "href": f"/parkering/oversikt?day={today.isoformat()}",
             "tone": "parking",
+            "compare": True,
         },
         {
             "title": "Sol hittil Ã¥r",
@@ -7876,16 +7890,26 @@ async def index(request: Request):
             "tone": "parking",
         },
     ]
-    focus_cards[0]["detail"] = f"{format_short_number(today_sun.paid)} kr - {format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom | {dashboard_compare_detail('i gaar', today_sun.sessions, today_sun.paid, yesterday_sun.sessions, yesterday_sun.paid)}"
-    focus_cards[1]["detail"] = f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive naa | {dashboard_compare_detail('i gaar', today_parking.sessions, today_parking.paid, yesterday_parking.sessions, yesterday_parking.paid)}"
-    focus_cards[2]["detail"] = f"{format_short_number(week_sun.paid)} kr hittil | {dashboard_compare_detail('forrige uke', week_sun.sessions, week_sun.paid, previous_week_sun.sessions, previous_week_sun.paid)}"
-    focus_cards[3]["detail"] = f"{format_short_number(week_parking.paid)} kr - {active_parking or 0} aktive naa | {dashboard_compare_detail('forrige uke', week_parking.sessions, week_parking.paid, previous_week_parking.sessions, previous_week_parking.paid)}"
-    focus_cards[4]["detail"] = f"{format_short_number(month_sun.paid)} kr - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom | {dashboard_compare_detail('forrige mnd', month_sun.sessions, month_sun.paid, previous_month_sun.sessions, previous_month_sun.paid)}"
-    focus_cards[5]["detail"] = f"{format_short_number(month_parking.paid)} kr hittil | {dashboard_compare_detail('forrige mnd', month_parking.sessions, month_parking.paid, previous_month_parking.sessions, previous_month_parking.paid)}"
     focus_cards[6]["title"] = f"Sol hittil {today.year}"
-    focus_cards[6]["detail"] = f"{format_short_number(year_sun.paid)} kr - {format_short_number(year_sun.minutes / 60, 1)} t | {dashboard_compare_detail(str(today.year - 1), year_sun.sessions, year_sun.paid, previous_year_sun.sessions, previous_year_sun.paid)}"
     focus_cards[7]["title"] = f"Parkering hittil {today.year}"
-    focus_cards[7]["detail"] = f"{format_short_number(year_parking.paid)} kr hittil | {dashboard_compare_detail(str(today.year - 1), year_parking.sessions, year_parking.paid, previous_year_parking.sessions, previous_year_parking.paid)}"
+    focus_cards[0]["value"] = dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions)
+    focus_cards[0]["detail"] = f"{dashboard_money_compare(today_sun.paid, yesterday_sun.paid)} - {format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom"
+    focus_cards[1]["value"] = dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions)
+    focus_cards[1]["detail"] = f"{dashboard_money_compare(today_parking.paid, yesterday_parking.paid)} - {active_parking or 0} aktive naa"
+    focus_cards[2]["value"] = dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions)
+    focus_cards[2]["detail"] = f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)} hittil"
+    focus_cards[3]["value"] = dashboard_compare_value(week_parking.sessions, previous_week_parking.sessions)
+    focus_cards[3]["detail"] = f"{dashboard_money_compare(week_parking.paid, previous_week_parking.paid)} - {active_parking or 0} aktive naa"
+    focus_cards[4]["value"] = dashboard_compare_value(month_sun.sessions, previous_month_sun.sessions)
+    focus_cards[4]["detail"] = f"{dashboard_money_compare(month_sun.paid, previous_month_sun.paid)} - {format_short_number(month_sun.minutes / 60, 1)} t - {month_sun.rooms or 0} rom"
+    focus_cards[5]["value"] = dashboard_compare_value(month_parking.sessions, previous_month_parking.sessions)
+    focus_cards[5]["detail"] = f"{dashboard_money_compare(month_parking.paid, previous_month_parking.paid)} hittil"
+    focus_cards[6]["value"] = dashboard_compare_value(year_sun.sessions, previous_year_sun.sessions)
+    focus_cards[6]["detail"] = f"{dashboard_money_compare(year_sun.paid, previous_year_sun.paid)} - {format_short_number(year_sun.minutes / 60, 1)} t"
+    focus_cards[7]["value"] = dashboard_compare_value(year_parking.sessions, previous_year_parking.sessions)
+    focus_cards[7]["detail"] = f"{dashboard_money_compare(year_parking.paid, previous_year_parking.paid)} hittil"
+    for card in focus_cards:
+        card["compare"] = True
     ops_cards = [
         {
             "title": "Datakilder",

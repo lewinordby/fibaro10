@@ -1891,6 +1891,14 @@ body.theme-status main .focus-card strong {
     font-size: clamp(1.18rem, 2.25vw, 1.55rem) !important;
 }
 
+body.theme-status main .focus-card.compare-card strong {
+    font-size: clamp(1.06rem, 1.75vw, 1.32rem) !important;
+}
+
+body.theme-status main .focus-card.compare-card em {
+    font-size: 0.5em !important;
+}
+
 body.theme-status main .focus-card small {
     max-width: 10.5rem !important;
     font-size: 0.72rem !important;

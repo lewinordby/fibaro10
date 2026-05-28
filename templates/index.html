@@ -361,11 +361,17 @@
             letter-spacing: 0;
             white-space: nowrap;
         }
+        .focus-card.compare-card strong {
+            font-size: clamp(1.12rem, 2.25vw, 1.42rem);
+        }
         .focus-card em {
             color: #667085;
             font-size: 0.38em;
             font-style: normal;
             font-weight: 900;
+        }
+        .focus-card.compare-card em {
+            font-size: 0.5em;
         }
         .focus-card small {
             justify-self: end;
@@ -737,7 +743,7 @@
 
             <section class="focus-grid" aria-label="Dagens viktigste tall">
                 {% for card in focus_cards %}
-                <a class="focus-card {{ card.tone }}" href="{{ card.href }}">
+                <a class="focus-card {{ card.tone }} {% if card.compare %}compare-card{% endif %}" href="{{ card.href }}">
                     <div>
                         <span>{{ card.title }}</span>
                         <strong>{{ card.value }} <em>{{ card.unit }}</em></strong>
