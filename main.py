@@ -86,17 +86,27 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1002")
+APP_BUILD = os.getenv("APP_BUILD", "1003")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1003",
+        "date": "29.05.2026",
+        "title": "Retter tegnsett i buildlogg",
+        "changes": [
+            "Rydder buildloggen slik at norske tegn vises riktig.",
+            "Ingen funksjonell endring i prognoser eller \u00f8vrige sider.",
+        ],
+    },
     {
         "version": "1",
         "build": "1002",
         "date": "29.05.2026",
         "title": "Lagrede prognoser",
         "changes": [
-            "Legger til knapp for Ã¥ lagre prognose pÃ¥ bÃ¥de Soling/Prognose og Parkering/Prognose.",
-            "Hver lagring tar vare pÃ¥ dag-, mÃ¥neds- og Ã¥rsprognosen slik den sÃ¥ ut akkurat da.",
-            "Prognosesidene viser en tabell med lagrede prognoser og faktisk utvikling sÃ¥ langt.",
+            "Legger til knapp for \u00e5 lagre prognose p\u00e5 b\u00e5de Soling/Prognose og Parkering/Prognose.",
+            "Hver lagring tar vare p\u00e5 dag-, m\u00e5neds- og \u00e5rsprognosen slik den s\u00e5 ut akkurat da.",
+            "Prognosesidene viser en tabell med lagrede prognoser og faktisk utvikling s\u00e5 langt.",
             "Avvik vises for antall og kroner slik at vi kan se hvor godt modellen treffer over tid.",
         ],
     },
