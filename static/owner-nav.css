@@ -22,11 +22,17 @@ html {
     overflow-x: auto;
 }
 
+body {
+    min-width: 1360px;
+}
+
 .site-header {
     position: fixed;
     inset: 0 auto 0 0;
     z-index: 80;
     width: var(--owner-sidebar);
+    min-width: var(--owner-sidebar);
+    max-width: var(--owner-sidebar);
     height: 100vh;
     overflow-x: hidden;
     overflow-y: auto;
@@ -67,6 +73,10 @@ html {
 .site-header ~ .container,
 body .site-header ~ main,
 body .site-header ~ .container {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
     width: min(var(--page-width, 1500px), calc(100vw - var(--owner-sidebar) - (var(--owner-page-gap) * 2))) !important;
     max-width: none !important;
     margin-left: calc(var(--owner-sidebar) + var(--owner-page-gap)) !important;
@@ -133,6 +143,8 @@ body .site-header ~ .container {
 }
 
 .app-nav .nav-main {
+    width: var(--owner-nav-item);
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -149,7 +161,7 @@ body .site-header ~ .container {
 }
 
 .app-nav .nav-main > .button {
-    width: var(--owner-nav-item);
+    width: 100%;
     grid-template-columns: 24px minmax(0, 1fr) 12px;
     gap: 12px;
     min-height: 48px;
@@ -183,7 +195,7 @@ body .site-header ~ .container {
 }
 
 .app-nav .nav-sub {
-    width: calc(var(--owner-nav-item) - var(--owner-sub-indent));
+    width: calc(100% - var(--owner-sub-indent));
     display: flex;
     flex-direction: column;
     gap: 1px;
