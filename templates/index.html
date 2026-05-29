@@ -28,27 +28,12 @@
             background: var(--bg);
             color: var(--text);
         }
-        header {
-            position: sticky;
-            top: 0;
-            z-index: 5;
-            padding: 0.9rem 1rem;
-            background: rgba(238,242,246,0.97);
-            border-bottom: 1px solid var(--line);
-            backdrop-filter: blur(8px);
-        }
         h1 { margin: 0; font-size: 1.35rem; letter-spacing: 0; }
         h2 { margin: 0; font-size: 1.05rem; letter-spacing: 0; }
         h3 { margin: 0; font-size: 0.92rem; letter-spacing: 0; }
         p { margin: 0; }
         main { max-width: 1060px; margin: 0 auto; padding: 0.85rem; }
         .sub { margin-top: 0.15rem; color: var(--muted); font-size: 0.9rem; }
-        .nav {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            margin-bottom: 0.85rem;
-        }
         .button {
             display: block;
             padding: 0.65rem 0.75rem;
@@ -694,7 +679,6 @@
         }
         @media (min-width: 700px) {
             main { padding: 1.2rem; }
-            .nav { display: flex; }
             .hero-top { grid-template-columns: 1fr auto; align-items: start; }
             .summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .now-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
