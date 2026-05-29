@@ -34,6 +34,20 @@
         .assumption { border:1px solid var(--line-soft); border-radius:10px; padding:0.65rem; background:var(--panel-soft); }
         .assumption span { color:var(--muted); font-size:0.72rem; font-weight:760; text-transform:uppercase; }
         .assumption strong { display:block; color:var(--brand-dark); font-size:1.05rem; margin-top:0.1rem; }
+        .forecast-actions { display:flex; align-items:center; gap:0.7rem; margin:0 0 1rem; }
+        .forecast-actions button { border:0; border-radius:999px; background:var(--brand-dark); color:#fff; padding:0.72rem 1.05rem; font-weight:850; cursor:pointer; box-shadow:var(--shadow-1); }
+        .forecast-actions span { color:#4c8b62; font-weight:850; }
+        .saved-forecasts { margin-top:1rem; overflow:hidden; }
+        .saved-forecasts header { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin-bottom:0.8rem; }
+        .saved-forecasts h2 { margin:0; font-size:1.05rem; color:var(--brand-dark); }
+        .saved-forecasts p { margin:0.2rem 0 0; color:var(--muted); font-size:0.82rem; }
+        .forecast-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+        .forecast-table th { text-align:left; color:var(--muted); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.02em; background:var(--panel-soft); padding:0.55rem; }
+        .forecast-table td { border-top:1px solid var(--line-soft); padding:0.58rem; vertical-align:top; color:var(--text); }
+        .forecast-table strong { color:var(--brand-dark); }
+        .forecast-table .muted { display:block; color:var(--muted); font-size:0.74rem; margin-top:0.12rem; }
+        .forecast-table .done { color:#4c8b62; font-weight:850; }
+        .forecast-table .open { color:#9b6b13; font-weight:850; }
         @media (min-width: 920px) {
             .forecast-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
             .model-grid { grid-template-columns:1.15fr 0.85fr; }
@@ -54,6 +68,10 @@
             og justerer resten av perioden etter hvordan vi ligger an akkurat nå.
             Sist beregnet {{ forecast.generated_at|localtime }}.
         </p>
+        <form class="forecast-actions" method="post" action="/soling/prognose/lagre">
+            <button type="submit">Lagre prognose</button>
+            {% if saved %}<span>Prognosen er lagret.</span>{% endif %}
+        </form>
 
         <section class="forecast-grid" aria-label="Prognoser">
             <article class="forecast-card primary">
@@ -114,6 +132,54 @@
                     Årsprognosen tar med sesongvariasjoner fremover og lar årets faktiske utvikling påvirke resten av året.
                 </p>
             </article>
+        </section>
+
+        <section class="model-card saved-forecasts">
+            <header>
+                <div>
+                    <h2>Lagrede prognoser</h2>
+                    <p>Viser hva modellen trodde da prognosen ble lagret, sammenlignet med faktisk status nå.</p>
+                </div>
+            </header>
+            <table class="forecast-table">
+                <thead>
+                    <tr>
+                        <th>Lagret</th>
+                        <th>Periode</th>
+                        <th>Prognose</th>
+                        <th>Faktisk nå</th>
+                        <th>Avvik</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in saved_forecasts %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.created_at|localtime }}</strong>
+                            <span class="muted">{{ item.created_by or "-" }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ item.period_label }}</strong>
+                            <span class="{{ 'done' if item.period_done else 'open' }}">{{ 'Ferdig' if item.period_done else 'Pågår' }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ item.forecast.sessions|short_number }} stk</strong>
+                            <span class="muted">{{ item.forecast.paid|short_number }} kr · {{ (item.forecast.minutes / 60)|short_number(1) }} t</span>
+                        </td>
+                        <td>
+                            <strong>{{ item.actual.sessions|short_number }} stk</strong>
+                            <span class="muted">{{ item.actual.paid|short_number }} kr · {{ (item.actual.minutes / 60)|short_number(1) }} t</span>
+                        </td>
+                        <td>
+                            <strong>{{ item.delta.sessions|short_number }} stk</strong>
+                            <span class="muted">{{ item.delta.paid|short_number }} kr</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">Ingen lagrede prognoser ennå.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </section>
 
         <section class="model-grid">

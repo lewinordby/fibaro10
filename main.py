@@ -86,8 +86,20 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1001")
+APP_BUILD = os.getenv("APP_BUILD", "1002")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1002",
+        "date": "29.05.2026",
+        "title": "Lagrede prognoser",
+        "changes": [
+            "Legger til knapp for Ã¥ lagre prognose pÃ¥ bÃ¥de Soling/Prognose og Parkering/Prognose.",
+            "Hver lagring tar vare pÃ¥ dag-, mÃ¥neds- og Ã¥rsprognosen slik den sÃ¥ ut akkurat da.",
+            "Prognosesidene viser en tabell med lagrede prognoser og faktisk utvikling sÃ¥ langt.",
+            "Avvik vises for antall og kroner slik at vi kan se hvor godt modellen treffer over tid.",
+        ],
+    },
     {
         "version": "1",
         "build": "1001",
@@ -1067,6 +1079,34 @@ class ParkingSession(Base):
     status = Column(Text, nullable=False, index=True)
     imported_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     raw_filename = Column(Text, nullable=True)
+
+
+class ForecastSnapshot(Base):
+    __tablename__ = "forecast_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    domain = Column(String, nullable=False, index=True)
+    period_type = Column(String, nullable=False, index=True)
+    period_start = Column(Date, nullable=False, index=True)
+    period_end = Column(Date, nullable=False, index=True)
+    generated_at = Column(DateTime, nullable=True)
+    created_by = Column(String, nullable=True)
+
+    forecast_sessions = Column(Float, nullable=True)
+    forecast_paid = Column(Float, nullable=True)
+    forecast_minutes = Column(Float, nullable=True)
+    forecast_vehicles = Column(Float, nullable=True)
+
+    actual_sessions_at_save = Column(Float, nullable=True)
+    actual_paid_at_save = Column(Float, nullable=True)
+    actual_minutes_at_save = Column(Float, nullable=True)
+    actual_vehicles_at_save = Column(Float, nullable=True)
+
+    model_sessions = Column(Float, nullable=True)
+    day_fraction = Column(Float, nullable=True)
+    tempo = Column(Float, nullable=True)
+    raw = Column(JSON, nullable=True)
 
 
 class ParkingVehicle(Base):
@@ -4821,7 +4861,7 @@ def parking_daily_model(target_day: date, history: Dict[date, Dict[str, float]],
     minutes_values = []
     vehicles_values = []
     for historical_day, item in history.items():
-        weight = sun2_history_weight(target_day, historical_day, today)
+        weight = parking_history_weight(target_day, historical_day, today)
         if weight <= 0:
             continue
         sessions_values.append((float_or_zero(item.get("sessions")), weight))
@@ -4853,6 +4893,31 @@ def parking_period_actual(history: Dict[date, Dict[str, float]], start: date, en
         total["minutes"] += float_or_zero(item.get("minutes"))
         total["vehicles"] += float_or_zero(item.get("vehicles"))
     return total
+
+
+def parking_history_weight(target_day: date, historical_day: date, today: date) -> float:
+    if historical_day >= today:
+        return 0.0
+    age_years = max(0.0, (today - historical_day).days / 365.25)
+    recency = 0.74 ** age_years
+    month_diff = month_distance(target_day.month, historical_day.month)
+    season = {0: 1.85, 1: 1.38, 2: 1.05, 3: 0.78}.get(month_diff, 0.48)
+
+    target_weekday = target_day.weekday()
+    history_weekday = historical_day.weekday()
+    target_is_sunday = target_weekday == 6
+    history_is_sunday = history_weekday == 6
+    if target_is_sunday:
+        weekday = 3.2 if history_is_sunday else 0.035
+    elif history_is_sunday:
+        weekday = 0.10
+    else:
+        weekday = 1.45 if target_weekday == history_weekday else 0.78
+
+    target_holiday = bool(norwegian_holiday_name(target_day))
+    history_holiday = bool(norwegian_holiday_name(historical_day))
+    holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.50
+    return max(0.0, recency * season * weekday * holiday)
 
 
 async def build_parking_forecast(session, today: date, now_local: datetime) -> Dict[str, Any]:
@@ -4997,6 +5062,175 @@ async def build_parking_forecast(session, today: date, now_local: datetime) -> D
     }
     SUMMARY_CACHE[cache_key] = {"expires": now_utc + timedelta(minutes=3), "value": value}
     return value
+
+
+def forecast_period_label(period_type: str, start: date, end: date) -> str:
+    if period_type == "day":
+        return start.strftime("%d.%m.%Y")
+    if period_type == "month":
+        return start.strftime("%m.%Y")
+    if period_type == "year":
+        return str(start.year)
+    return f"{start.strftime('%d.%m.%Y')} - {end.strftime('%d.%m.%Y')}"
+
+
+def db_naive_utc(value: Optional[datetime]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        return value.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+    return value
+
+
+async def actual_for_forecast_period(session, domain: str, start: date, end: date) -> Dict[str, float]:
+    if domain == "sun2":
+        row = await sun2_period_snapshot(session, start, end + timedelta(days=1))
+        return {
+            "sessions": float_or_zero(row.sessions),
+            "paid": float_or_zero(row.paid),
+            "minutes": float_or_zero(row.minutes),
+            "vehicles": 0.0,
+        }
+
+    start_at = datetime.combine(start, time.min)
+    end_at = datetime.combine(end + timedelta(days=1), time.min)
+    row = (
+        await session.execute(
+            select(
+                func.count(ParkingSession.id).label("sessions"),
+                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                func.coalesce(func.sum(ParkingSession.parking_time_min), 0).label("minutes"),
+                func.count(func.distinct(ParkingSession.car_license_number)).label("vehicles"),
+            ).where(
+                ParkingSession.start_time >= start_at,
+                ParkingSession.start_time < end_at,
+            )
+        )
+    ).one()
+    return {
+        "sessions": float_or_zero(row.sessions),
+        "paid": float_or_zero(row.paid),
+        "minutes": float_or_zero(row.minutes),
+        "vehicles": float_or_zero(row.vehicles),
+    }
+
+
+def forecast_snapshot_from_period(
+    *,
+    domain: str,
+    period_type: str,
+    start: date,
+    end: date,
+    period: Dict[str, Any],
+    generated_at: Optional[datetime],
+    created_by: Optional[str],
+) -> ForecastSnapshot:
+    forecast = period.get("forecast") or {}
+    actual = period.get("actual") or {}
+    model = period.get("model") or {}
+    return ForecastSnapshot(
+        domain=domain,
+        period_type=period_type,
+        period_start=start,
+        period_end=end,
+        generated_at=db_naive_utc(generated_at),
+        created_by=created_by,
+        forecast_sessions=float_or_zero(forecast.get("sessions")),
+        forecast_paid=float_or_zero(forecast.get("paid")),
+        forecast_minutes=float_or_zero(forecast.get("minutes")),
+        forecast_vehicles=float_or_zero(forecast.get("vehicles")),
+        actual_sessions_at_save=float_or_zero(actual.get("sessions")),
+        actual_paid_at_save=float_or_zero(actual.get("paid")),
+        actual_minutes_at_save=float_or_zero(actual.get("minutes")),
+        actual_vehicles_at_save=float_or_zero(actual.get("vehicles")),
+        model_sessions=float_or_zero(model.get("sessions")),
+        day_fraction=period.get("day_fraction"),
+        tempo=period.get("tempo"),
+        raw={
+            "label": period.get("label"),
+            "holiday": period.get("holiday"),
+            "comparable_days": period.get("comparable_days"),
+            "remaining_days": period.get("remaining_days"),
+        },
+    )
+
+
+async def save_forecast_snapshots(session, domain: str, forecast: Dict[str, Any], created_by: Optional[str]) -> None:
+    today = forecast["day"]["date"]
+    month = forecast["month"]
+    year = forecast["year"]
+    session.add(
+        forecast_snapshot_from_period(
+            domain=domain,
+            period_type="day",
+            start=today,
+            end=today,
+            period=forecast["day"],
+            generated_at=forecast.get("generated_at"),
+            created_by=created_by,
+        )
+    )
+    session.add(
+        forecast_snapshot_from_period(
+            domain=domain,
+            period_type="month",
+            start=month["start"],
+            end=month["end"],
+            period=month,
+            generated_at=forecast.get("generated_at"),
+            created_by=created_by,
+        )
+    )
+    session.add(
+        forecast_snapshot_from_period(
+            domain=domain,
+            period_type="year",
+            start=year["start"],
+            end=year["end"],
+            period=year,
+            generated_at=forecast.get("generated_at"),
+            created_by=created_by,
+        )
+    )
+
+
+async def saved_forecast_table(session, domain: str, limit: int = 18) -> list[Dict[str, Any]]:
+    rows = (
+        await session.execute(
+            select(ForecastSnapshot)
+            .where(ForecastSnapshot.domain == domain)
+            .order_by(ForecastSnapshot.created_at.desc(), ForecastSnapshot.id.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    today = local_now_naive().date()
+    items = []
+    for row in rows:
+        actual = await actual_for_forecast_period(session, domain, row.period_start, row.period_end)
+        forecast = {
+            "sessions": float_or_zero(row.forecast_sessions),
+            "paid": float_or_zero(row.forecast_paid),
+            "minutes": float_or_zero(row.forecast_minutes),
+            "vehicles": float_or_zero(row.forecast_vehicles),
+        }
+        items.append(
+            {
+                "id": row.id,
+                "created_at": row.created_at,
+                "created_by": row.created_by,
+                "period_type": row.period_type,
+                "period_label": forecast_period_label(row.period_type, row.period_start, row.period_end),
+                "period_done": row.period_end < today,
+                "forecast": forecast,
+                "actual": actual,
+                "delta": {
+                    "sessions": actual["sessions"] - forecast["sessions"],
+                    "paid": actual["paid"] - forecast["paid"],
+                    "minutes": actual["minutes"] - forecast["minutes"],
+                },
+            }
+        )
+    return items
 
 
 templates.env.filters["short_number"] = format_short_number
@@ -10092,6 +10326,7 @@ async def parking_forecast_view(request: Request):
     today = now_local.date()
     async with async_session() as session:
         forecast = await build_parking_forecast(session, today, now_local)
+        saved_forecasts = await saved_forecast_table(session, "parking")
     response = templates.TemplateResponse(
         request,
         "parking_forecast.html",
@@ -10100,10 +10335,23 @@ async def parking_forecast_view(request: Request):
             "day": forecast["day"],
             "month": forecast["month"],
             "year": forecast["year"],
+            "saved_forecasts": saved_forecasts,
+            "saved": request.query_params.get("saved") == "1",
         },
     )
     response.headers["Cache-Control"] = "no-store"
     return response
+
+
+@app.post("/parkering/prognose/lagre")
+async def parking_forecast_save(request: Request):
+    now_local = datetime.now(LOCAL_TZ)
+    today = now_local.date()
+    async with async_session() as session:
+        forecast = await build_parking_forecast(session, today, now_local)
+        await save_forecast_snapshots(session, "parking", forecast, getattr(request.state, "access_key_name", None))
+        await session.commit()
+    return RedirectResponse("/parkering/prognose?saved=1", status_code=303)
 
 
 @app.get("/parkering/bilstatistikk", response_class=HTMLResponse)
@@ -11029,6 +11277,7 @@ async def sun2_forecast_view(request: Request):
     today = now_local.date()
     async with async_session() as session:
         forecast = await build_sun2_forecast(session, today, now_local)
+        saved_forecasts = await saved_forecast_table(session, "sun2")
     response = templates.TemplateResponse(
         request,
         "sun2_forecast.html",
@@ -11037,10 +11286,23 @@ async def sun2_forecast_view(request: Request):
             "day": forecast["day"],
             "month": forecast["month"],
             "year": forecast["year"],
+            "saved_forecasts": saved_forecasts,
+            "saved": request.query_params.get("saved") == "1",
         },
     )
     response.headers["Cache-Control"] = "no-store"
     return response
+
+
+@app.post("/soling/prognose/lagre")
+async def sun2_forecast_save(request: Request):
+    now_local = datetime.now(LOCAL_TZ)
+    today = now_local.date()
+    async with async_session() as session:
+        forecast = await build_sun2_forecast(session, today, now_local)
+        await save_forecast_snapshots(session, "sun2", forecast, getattr(request.state, "access_key_name", None))
+        await session.commit()
+    return RedirectResponse("/soling/prognose?saved=1", status_code=303)
 
 
 @app.get("/soling/detaljer", response_class=HTMLResponse)
