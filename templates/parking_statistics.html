@@ -5,17 +5,191 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parkeringsstatistikk</title>
     {% include "_styles.html" %}
+    <style>
+        .page-title { margin:0 0 .35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 .95rem; color:var(--muted); font-size:.88rem; }
+        .hero-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:.95rem; }
+        .hero-card { background:var(--panel); border:1px solid var(--line); border-top:4px solid var(--parking-color); border-radius:12px; padding:.95rem; box-shadow:var(--shadow-1); }
+        .hero-card.secondary { border-top-color:var(--energy-color); }
+        .hero-card span { display:block; color:var(--muted); font-size:.78rem; font-weight:720; }
+        .hero-card strong { display:block; margin-top:.2rem; font-size:1.45rem; line-height:1.08; color:var(--brand-dark); }
+        .hero-card small { display:block; margin-top:.35rem; color:var(--muted); font-size:.78rem; }
+        .metric-row { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.75rem; }
+        .pill { display:inline-flex; align-items:center; gap:.25rem; border:1px solid var(--line); background:var(--panel-soft); color:var(--brand-dark); border-radius:999px; padding:.32rem .55rem; font-size:.78rem; font-weight:720; }
+        .summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.7rem; margin-bottom:1rem; }
+        .summary-card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:.78rem .85rem; box-shadow:var(--shadow-1); }
+        .summary-card span { color:var(--muted); font-size:.76rem; }
+        .summary-card strong { display:block; margin-top:.16rem; font-size:1.03rem; color:var(--brand-dark); }
+        .top-grid { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; align-items:start; }
+        .count-grid { margin-top:1rem; }
+        .section-row { display:flex; align-items:end; justify-content:space-between; gap:.75rem; margin:.2rem 0 .5rem; }
+        .section-title { margin:0; font-size:1rem; color:var(--brand-dark); }
+        .section-note { color:var(--muted); font-size:.78rem; }
+        .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:620px; }
+        th, td { padding:.58rem .65rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
+        th { color:var(--muted); font-size:.76rem; font-weight:760; background:var(--panel-soft); }
+        td { font-size:.88rem; }
+        tbody tr:last-child td { border-bottom:0; }
+        .rank { width:2.2rem; color:var(--muted); font-weight:760; }
+        .period { font-weight:780; color:var(--brand-dark); }
+        .money { color:#9a660f; font-weight:800; }
+        .extra-section { margin-top:1rem; }
+    </style>
 </head>
 <body class="theme-parking">
     {% include "_header.html" %}
     <main>
-        <section class="page-title">
-            <div>
-                <h1>Parkeringsstatistikk</h1>
-                <p>Topplister og merkeoversikt flyttet ut fra dagens operative oversikt.</p>
+        {% set best_day = top_days[0] if top_days else None %}
+        {% set best_month = top_months[0] if top_months else None %}
+        <h1 class="page-title">Parkeringsstatistikk</h1>
+        <p class="page-subtitle">
+            Topplister for parkering etter samme prinsipp som soling.
+            {% if first_date and last_date %}Datagrunnlag fra {{ first_date }} til {{ last_date }}.{% endif %}
+        </p>
+
+        <section class="hero-grid">
+            <article class="hero-card">
+                <span>Beste dag</span>
+                <strong>{{ best_day.period_label if best_day else "-" }}</strong>
+                <div class="metric-row">
+                    <span class="pill">{{ (best_day.paid if best_day else 0)|short_number }} kr</span>
+                    <span class="pill">{{ (best_day.sessions if best_day else 0)|short_number }} parkeringer</span>
+                    <span class="pill">{{ ((best_day.minutes if best_day else 0) / 60)|short_number }} t</span>
+                </div>
+                <small>Summerer alle parkeringer med start denne datoen.</small>
+            </article>
+            <article class="hero-card secondary">
+                <span>Beste måned</span>
+                <strong>{{ best_month.period if best_month else "-" }}</strong>
+                <div class="metric-row">
+                    <span class="pill">{{ (best_month.paid if best_month else 0)|short_number }} kr</span>
+                    <span class="pill">{{ (best_month.sessions if best_month else 0)|short_number }} parkeringer</span>
+                    <span class="pill">{{ ((best_month.minutes if best_month else 0) / 60)|short_number }} t</span>
+                </div>
+                <small>Summerer alle dager i måneden.</small>
+            </article>
+        </section>
+
+        <section class="summary-grid">
+            <div class="summary-card">
+                <span>Totalt beløp</span>
+                <strong>{{ grand_total.paid|short_number }} kr</strong>
+            </div>
+            <div class="summary-card">
+                <span>Totalt parkeringer</span>
+                <strong>{{ grand_total.sessions|short_number }}</strong>
+            </div>
+            <div class="summary-card">
+                <span>Total tid</span>
+                <strong>{{ (grand_total.minutes / 60)|short_number }} t</strong>
+            </div>
+            <div class="summary-card">
+                <span>Dager med data</span>
+                <strong>{{ grand_total.days_count|short_number }}</strong>
             </div>
         </section>
-        <section class="parking-stats-grid">
+
+        <section class="top-grid">
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 beste dager</h2>
+                    <span class="section-note">Sortert på beløp</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead><tr><th>#</th><th>Dato</th><th>Beløp</th><th>Parkeringer</th><th>Timer</th><th>Biler</th></tr></thead>
+                        <tbody>
+                        {% for item in top_days %}
+                            <tr>
+                                <td class="rank">{{ loop.index }}</td>
+                                <td class="period">{{ item.period_label }}</td>
+                                <td class="money">{{ item.paid|short_number }} kr</td>
+                                <td>{{ item.sessions|short_number }}</td>
+                                <td>{{ (item.minutes / 60)|short_number }}</td>
+                                <td>{{ item.vehicles|short_number }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 beste måneder</h2>
+                    <span class="section-note">Sortert på beløp</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead><tr><th>#</th><th>Måned</th><th>Beløp</th><th>Parkeringer</th><th>Timer</th><th>Dager</th></tr></thead>
+                        <tbody>
+                        {% for item in top_months %}
+                            <tr>
+                                <td class="rank">{{ loop.index }}</td>
+                                <td class="period">{{ item.period }}</td>
+                                <td class="money">{{ item.paid|short_number }} kr</td>
+                                <td>{{ item.sessions|short_number }}</td>
+                                <td>{{ (item.minutes / 60)|short_number }}</td>
+                                <td>{{ item.days_count|short_number }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </section>
+
+        <section class="top-grid count-grid">
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 flest parkeringer per dag</h2>
+                    <span class="section-note">Sortert på antall</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead><tr><th>#</th><th>Dato</th><th>Parkeringer</th><th>Beløp</th><th>Timer</th><th>Biler</th></tr></thead>
+                        <tbody>
+                        {% for item in top_days_by_count %}
+                            <tr>
+                                <td class="rank">{{ loop.index }}</td>
+                                <td class="period">{{ item.period_label }}</td>
+                                <td>{{ item.sessions|short_number }}</td>
+                                <td class="money">{{ item.paid|short_number }} kr</td>
+                                <td>{{ (item.minutes / 60)|short_number }}</td>
+                                <td>{{ item.vehicles|short_number }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">10 flest parkeringer per måned</h2>
+                    <span class="section-note">Sortert på antall</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead><tr><th>#</th><th>Måned</th><th>Parkeringer</th><th>Beløp</th><th>Timer</th><th>Dager</th></tr></thead>
+                        <tbody>
+                        {% for item in top_months_by_count %}
+                            <tr>
+                                <td class="rank">{{ loop.index }}</td>
+                                <td class="period">{{ item.period }}</td>
+                                <td>{{ item.sessions|short_number }}</td>
+                                <td class="money">{{ item.paid|short_number }} kr</td>
+                                <td>{{ (item.minutes / 60)|short_number }}</td>
+                                <td>{{ item.days_count|short_number }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </section>
+
+        <section class="parking-stats-grid extra-section">
             <article>
                 <h2>Mest brukte kjøretøy</h2>
                 <table class="parking-table">

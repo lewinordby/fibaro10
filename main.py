@@ -5,6 +5,7 @@ from copy import deepcopy
 from collections import defaultdict
 from functools import lru_cache
 from statistics import median
+from types import SimpleNamespace
 from typing import Any, Dict, Optional
 import asyncio
 import calendar
@@ -2184,6 +2185,181 @@ async def get_sun2_summaries(session, force: bool = False) -> Dict[str, Any]:
 
 async def get_energy_summaries(session, force: bool = False) -> Dict[str, Any]:
     return await cached_summaries("energy", build_energy_summaries_fast, session, force)
+
+
+async def sun2_period_snapshot(session, start_day: date, end_day: date) -> SimpleNamespace:
+    """Return SUN2 totals using daily files where available and live sessions only for missing days."""
+    daily_rows = (
+        await session.execute(
+            select(
+                Sun2RoomDailyStat.stat_date.label("stat_date"),
+                *sun2_sum_columns(),
+                func.count(func.distinct(Sun2RoomDailyStat.room)).label("rooms"),
+            )
+            .where(Sun2RoomDailyStat.stat_date >= start_day, Sun2RoomDailyStat.stat_date < end_day)
+            .group_by(Sun2RoomDailyStat.stat_date)
+        )
+    ).mappings().all()
+    daily_dates = {row["stat_date"] for row in daily_rows if row.get("stat_date")}
+    totals = {"sessions": 0, "minutes": 0.0, "paid": 0.0, "rooms": 0}
+    for row in daily_rows:
+        totals["sessions"] += int_or_zero(row.get("totalt_antall_solinger"))
+        totals["minutes"] += float_or_zero(row.get("total_soletid_minutter"))
+        totals["paid"] += float_or_zero(row.get("totalt_inntjent_kr"))
+        totals["rooms"] = max(totals["rooms"], int_or_zero(row.get("rooms")))
+
+    session_filters = [
+        Sun2TanningSession.stat_date >= start_day,
+        Sun2TanningSession.stat_date < end_day,
+    ]
+    if daily_dates:
+        session_filters.append(Sun2TanningSession.stat_date.not_in(daily_dates))
+    session_row = (
+        await session.execute(
+            select(
+                func.count(Sun2TanningSession.id).label("sessions"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
+            ).where(*session_filters)
+        )
+    ).one()
+    totals["sessions"] += int_or_zero(session_row.sessions)
+    totals["minutes"] += float_or_zero(session_row.minutes)
+    totals["paid"] += float_or_zero(session_row.paid)
+    totals["rooms"] = max(totals["rooms"], int_or_zero(session_row.rooms))
+    return SimpleNamespace(**totals)
+
+
+def empty_parking_summary(period: str, period_label: Optional[str] = None) -> Dict[str, Any]:
+    return {
+        "period": period,
+        "period_label": period_label or period,
+        "sessions": 0,
+        "paid": 0.0,
+        "minutes": 0.0,
+        "vehicles": 0,
+        "days_count": 0,
+    }
+
+
+async def build_parking_summaries_fast(session) -> Dict[str, Any]:
+    stat_date_expr = func.date(ParkingSession.start_time).label("stat_date")
+    daily_rows = (
+        await session.execute(
+            select(
+                stat_date_expr,
+                func.count(ParkingSession.id).label("sessions"),
+                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                func.coalesce(func.sum(ParkingSession.parking_time_min), 0).label("minutes"),
+                func.count(func.distinct(ParkingSession.car_license_number)).label("vehicles"),
+            )
+            .group_by(stat_date_expr)
+            .order_by(stat_date_expr.desc())
+        )
+    ).mappings().all()
+
+    daily_items = []
+    monthly: Dict[str, Dict[str, Any]] = {}
+    yearly: Dict[str, Dict[str, Any]] = {}
+    total = empty_parking_summary("Totalt")
+    first_date = None
+    last_date = None
+
+    for row in daily_rows:
+        stat_day = row.get("stat_date")
+        if not stat_day:
+            continue
+        if isinstance(stat_day, str):
+            stat_day = date.fromisoformat(stat_day)
+        first_date = stat_day if first_date is None else min(first_date, stat_day)
+        last_date = stat_day if last_date is None else max(last_date, stat_day)
+        item = empty_parking_summary(stat_day.isoformat(), stat_day.strftime("%d.%m.%Y"))
+        item["sessions"] = int_or_zero(row.get("sessions"))
+        item["paid"] = float_or_zero(row.get("paid"))
+        item["minutes"] = float_or_zero(row.get("minutes"))
+        item["vehicles"] = int_or_zero(row.get("vehicles"))
+        item["days_count"] = 1
+        daily_items.append(item)
+
+        month_key = stat_day.strftime("%Y-%m")
+        year_key = str(stat_day.year)
+        monthly.setdefault(month_key, empty_parking_summary(month_key))
+        yearly.setdefault(year_key, empty_parking_summary(year_key))
+        for target in (monthly[month_key], yearly[year_key], total):
+            target["sessions"] += item["sessions"]
+            target["paid"] += item["paid"]
+            target["minutes"] += item["minutes"]
+            target["vehicles"] = max(target["vehicles"], item["vehicles"])
+            target["days_count"] += 1
+
+    monthly_items = [monthly[key] for key in sorted(monthly, reverse=True)]
+    yearly_items = [yearly[key] for key in sorted(yearly, reverse=True)]
+    top_sort = lambda item: (item["paid"], item["sessions"], item["minutes"])
+    count_sort = lambda item: (item["sessions"], item["paid"], item["minutes"])
+    return {
+        "daily": daily_items,
+        "monthly": monthly_items,
+        "yearly": yearly_items,
+        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
+        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
+        "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:10],
+        "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:10],
+        "total": total,
+        "first_date": first_date,
+        "last_date": last_date,
+    }
+
+
+async def get_parking_summaries(session, force: bool = False) -> Dict[str, Any]:
+    return await cached_summaries("parking", build_parking_summaries_fast, session, force)
+
+
+def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> Dict[str, Any]:
+    def combine_items(left: list[Dict[str, Any]], right: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+        combined: Dict[str, Dict[str, Any]] = {}
+        for item in left:
+            key = item["period"]
+            combined.setdefault(
+                key,
+                {
+                    "period": key,
+                    "period_label": item.get("period_label", key),
+                    "sun_paid": 0.0,
+                    "parking_paid": 0.0,
+                    "sun_count": 0,
+                    "parking_count": 0,
+                },
+            )
+            combined[key]["sun_paid"] += float_or_zero(item.get("totalt_inntjent_kr"))
+            combined[key]["sun_count"] += int_or_zero(item.get("totalt_antall_solinger"))
+        for item in right:
+            key = item["period"]
+            combined.setdefault(
+                key,
+                {
+                    "period": key,
+                    "period_label": item.get("period_label", key),
+                    "sun_paid": 0.0,
+                    "parking_paid": 0.0,
+                    "sun_count": 0,
+                    "parking_count": 0,
+                },
+            )
+            combined[key]["parking_paid"] += float_or_zero(item.get("paid"))
+            combined[key]["parking_count"] += int_or_zero(item.get("sessions"))
+        for item in combined.values():
+            item["total_paid"] = item["sun_paid"] + item["parking_paid"]
+            item["total_count"] = item["sun_count"] + item["parking_count"]
+        return list(combined.values())
+
+    daily = combine_items(sun.get("daily", []), parking.get("daily", []))
+    monthly = combine_items(sun.get("monthly", []), parking.get("monthly", []))
+    top_sort = lambda item: (item["total_paid"], item["total_count"])
+    return {
+        "top_days": sorted(daily, key=top_sort, reverse=True)[:10],
+        "top_months": sorted(monthly, key=top_sort, reverse=True)[:10],
+    }
 
 
 def clear_summary_cache(*keys: str) -> None:
@@ -7853,6 +8029,18 @@ async def index(request: Request):
                 )
             )
         ).one()
+        tomorrow = today + timedelta(days=1)
+        today_sun = await sun2_period_snapshot(session, today, tomorrow)
+        yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
+        week_sun = await sun2_period_snapshot(session, week_start, tomorrow)
+        month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
+        year_sun = await sun2_period_snapshot(session, year_start, tomorrow)
+        previous_week_sun = await sun2_period_snapshot(session, previous_week_start, previous_week_end_dt.date())
+        previous_month_sun = await sun2_period_snapshot(session, previous_month_start, previous_month_end_dt.date())
+        previous_year_sun = await sun2_period_snapshot(session, previous_year_start, previous_year_end_dt.date())
+        sun_summaries = await get_sun2_summaries(session)
+        parking_summaries = await get_parking_summaries(session)
+        combined_stats = combine_business_summaries(sun_summaries, parking_summaries)
         today_parking = (
             await session.execute(
                 select(
@@ -8261,6 +8449,7 @@ async def index(request: Request):
             "ops_cards": ops_cards,
             "lux_sparkline": lux_sparkline,
             "attention_items": attention_items,
+            "combined_stats": combined_stats,
         },
     )
 
@@ -9280,6 +9469,7 @@ async def parking_easypark_import_csv(request: Request):
                 },
             )
             await session.commit()
+        clear_summary_cache("parking")
         if SVV_IMPORT_SYNC_BATCH_SIZE and SVV_API_KEY and SVV_SYNC_ENABLED:
             asyncio.create_task(run_vehicle_svv_sync(SVV_IMPORT_SYNC_BATCH_SIZE, "EasyPark import"))
         return {"status": "ok", **counts, "vehicles_refreshed": vehicle_count}
@@ -9576,6 +9766,7 @@ async def parking_overview_view(
 @app.get("/parkering/statistikk", response_class=HTMLResponse)
 async def parking_statistics_view(request: Request):
     async with async_session() as session:
+        summaries = await get_parking_summaries(session)
         top_plates = (
             await session.execute(
                 select(
@@ -9611,6 +9802,13 @@ async def parking_statistics_view(request: Request):
         {
             "top_plates": top_plates,
             "top_makes": top_makes,
+            "top_days": summaries["top_days"],
+            "top_months": summaries["top_months"],
+            "top_days_by_count": summaries["top_days_by_count"],
+            "top_months_by_count": summaries["top_months_by_count"],
+            "grand_total": summaries["total"],
+            "first_date": summaries["first_date"],
+            "last_date": summaries["last_date"],
         },
     )
 
