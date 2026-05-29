@@ -8,9 +8,7 @@
     <style>
         .area-summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.65rem; margin-bottom:.85rem; }
         .area-summary-card { border-left:3px solid var(--parking-color); }
-        .area-table .bar-cell { min-width:10rem; }
-        .area-bar { height:.44rem; border-radius:999px; background:#eef3f7; overflow:hidden; }
-        .area-bar span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,var(--parking-color),#6ba9b1); }
+        .area-table .share-cell { white-space:nowrap; font-weight:800; color:var(--brand-dark); }
         .area-actions { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; justify-content:flex-end; }
         @media (max-width: 900px) {
             .area-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -73,28 +71,26 @@
                             <th>Unike biler</th>
                             <th>Andel unike biler</th>
                             <th>Parkeringer</th>
+                            <th>Andel parkeringer</th>
                             <th>Beløp</th>
                             <th>Sist sett</th>
                         </tr>
                     </thead>
                     <tbody>
                     {% for row in rows %}
-                        {% set pct = (row.vehicle_count / vehicle_with_area * 100) if vehicle_with_area else 0 %}
+                        {% set vehicle_pct = (row.vehicle_count / vehicle_with_area * 100) if vehicle_with_area else 0 %}
+                        {% set parking_pct = (row.parking_count / parking_with_area * 100) if parking_with_area else 0 %}
                         <tr>
                             <td><a href="/parkering/kjoretoy?omrade={{ row.omrade|urlencode }}">{{ row.omrade }}</a></td>
                             <td>{{ row.vehicle_count|short_number }}</td>
-                            <td class="bar-cell">
-                                <div class="area-bar" aria-label="{{ "%.1f"|format(pct) }} prosent">
-                                    <span style="width:{{ "%.2f"|format(pct) }}%"></span>
-                                </div>
-                                <small>{{ "%.1f"|format(pct) }} %</small>
-                            </td>
+                            <td class="share-cell">{{ "%.1f"|format(vehicle_pct) }} %</td>
                             <td>{{ row.parking_count|short_number }}</td>
+                            <td class="share-cell">{{ "%.1f"|format(parking_pct) }} %</td>
                             <td class="amount">{{ row.paid_total|short_number }} kr</td>
                             <td>{{ row.last_seen|source_time_short }}</td>
                         </tr>
                     {% else %}
-                        <tr><td class="empty-row" colspan="6">Ingen områdeverdier er registrert ennå.</td></tr>
+                        <tr><td class="empty-row" colspan="7">Ingen områdeverdier er registrert ennå.</td></tr>
                     {% endfor %}
                     </tbody>
                 </table>

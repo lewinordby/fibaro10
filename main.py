@@ -9939,6 +9939,7 @@ async def parking_area_overview_view(request: Request):
                 select(func.count(func.distinct(ParkingVehicle.plate))).where(valid_area_condition)
             )
         ).scalar_one()
+        parking_with_area = sum(int(getattr(row, "parking_count", 0) or 0) for row in rows)
     missing_area = max((vehicle_total or 0) - (vehicle_with_area or 0), 0)
     return templates.TemplateResponse(
         request,
@@ -9948,6 +9949,7 @@ async def parking_area_overview_view(request: Request):
             "vehicle_total": vehicle_total,
             "vehicle_with_area": vehicle_with_area,
             "missing_area": missing_area,
+            "parking_with_area": parking_with_area,
             "coverage_percent": round((vehicle_with_area / vehicle_total) * 100, 1) if vehicle_total else 0,
         },
     )
