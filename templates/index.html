@@ -418,10 +418,10 @@
         }
         .combined-table th,
         .combined-table td {
-            padding: 0.42rem 0.38rem;
+            padding: 0.4rem 0.32rem;
             border-bottom: 1px solid #edf1f6;
             text-align: right;
-            font-size: 0.76rem;
+            font-size: 0.72rem;
             white-space: nowrap;
         }
         .combined-table th:first-child,
@@ -441,6 +441,10 @@
         .combined-table .money {
             color: #9a660f;
             font-weight: 850;
+        }
+        .combined-table .muted {
+            color: #667085;
+            font-weight: 720;
         }
         .compact-status {
             display: grid;
@@ -818,20 +822,29 @@
                 <div class="combined-head">
                     <div>
                         <h2>Soling + parkering</h2>
-                        <p>Samlet omsetning, med solinger og parkeringer vist hver for seg.</p>
+                        <p>Beste 10 rangert på samlet beløp. Sol og parkering vises hver for seg.</p>
                     </div>
                 </div>
                 <div class="combined-grid">
                     <div>
                         <table class="combined-table">
                             <thead>
-                                <tr><th>Beste dager</th><th>Totalt</th><th>Sol</th><th>Park</th></tr>
+                                <tr>
+                                    <th>Beste dager</th>
+                                    <th>Totalt kr</th>
+                                    <th>Sol kr</th>
+                                    <th>Park kr</th>
+                                    <th>Sol</th>
+                                    <th>Park</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 {% for item in combined_stats.top_days %}
                                 <tr>
                                     <td class="period">{{ item.period_label }}</td>
                                     <td class="money">{{ item.total_paid|short_number }} kr</td>
+                                    <td class="muted">{{ item.sun_paid|short_number }}</td>
+                                    <td class="muted">{{ item.parking_paid|short_number }}</td>
                                     <td>{{ item.sun_count|short_number }}</td>
                                     <td>{{ item.parking_count|short_number }}</td>
                                 </tr>
@@ -842,13 +855,22 @@
                     <div>
                         <table class="combined-table">
                             <thead>
-                                <tr><th>Beste måneder</th><th>Totalt</th><th>Sol</th><th>Park</th></tr>
+                                <tr>
+                                    <th>Beste måneder</th>
+                                    <th>Totalt kr</th>
+                                    <th>Sol kr</th>
+                                    <th>Park kr</th>
+                                    <th>Sol</th>
+                                    <th>Park</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 {% for item in combined_stats.top_months %}
                                 <tr>
                                     <td class="period">{{ item.period_label }}</td>
                                     <td class="money">{{ item.total_paid|short_number }} kr</td>
+                                    <td class="muted">{{ item.sun_paid|short_number }}</td>
+                                    <td class="muted">{{ item.parking_paid|short_number }}</td>
                                     <td>{{ item.sun_count|short_number }}</td>
                                     <td>{{ item.parking_count|short_number }}</td>
                                 </tr>
