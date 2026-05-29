@@ -5,7 +5,14 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      TZ: Europe/Oslo
     ports:
       - "8099:8098"
     volumes:
       - ./data:/data
+
+networks:
+  default:
+    name: fibaro10_default
+    external: true
