@@ -8038,9 +8038,6 @@ async def index(request: Request):
         previous_week_sun = await sun2_period_snapshot(session, previous_week_start, previous_week_end_dt.date())
         previous_month_sun = await sun2_period_snapshot(session, previous_month_start, previous_month_end_dt.date())
         previous_year_sun = await sun2_period_snapshot(session, previous_year_start, previous_year_end_dt.date())
-        sun_summaries = await get_sun2_summaries(session)
-        parking_summaries = await get_parking_summaries(session)
-        combined_stats = combine_business_summaries(sun_summaries, parking_summaries)
         today_parking = (
             await session.execute(
                 select(
@@ -8449,8 +8446,20 @@ async def index(request: Request):
             "ops_cards": ops_cards,
             "lux_sparkline": lux_sparkline,
             "attention_items": attention_items,
-            "combined_stats": combined_stats,
         },
+    )
+
+
+@app.get("/status/statistikk", response_class=HTMLResponse)
+async def status_statistics_view(request: Request):
+    async with async_session() as session:
+        sun_summaries = await get_sun2_summaries(session)
+        parking_summaries = await get_parking_summaries(session)
+    combined_stats = combine_business_summaries(sun_summaries, parking_summaries)
+    return templates.TemplateResponse(
+        request,
+        "status_statistics.html",
+        {"combined_stats": combined_stats},
     )
 
 

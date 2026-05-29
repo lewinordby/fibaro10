@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statusstatistikk</title>
+    {% include "_styles.html" %}
+    <style>
+        .page-title { margin:0 0 .35rem; font-size:1.28rem; font-weight:820; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 1rem; color:var(--muted); font-size:.86rem; }
+        .stat-shell { display:grid; gap:1rem; }
+        .combined-stats {
+            padding:1rem;
+            border:1px solid var(--line);
+            border-left:4px solid var(--status-color);
+            border-radius:16px;
+            background:#fff;
+            box-shadow:var(--shadow-1);
+        }
+        .combined-head {
+            display:flex;
+            align-items:end;
+            justify-content:space-between;
+            gap:1rem;
+            margin-bottom:.8rem;
+        }
+        .combined-head h2 { margin:0; color:var(--brand-dark); font-size:1.05rem; }
+        .combined-head p { margin:.16rem 0 0; color:var(--muted); font-size:.8rem; }
+        .combined-grid { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; align-items:start; }
+        .table-wrap { overflow:auto; border:1px solid var(--line-soft); border-radius:12px; background:#fff; }
+        .combined-table { width:100%; border-collapse:collapse; min-width:620px; }
+        .combined-table th,
+        .combined-table td {
+            padding:.58rem .62rem;
+            border-bottom:1px solid var(--line-soft);
+            text-align:right;
+            white-space:nowrap;
+            font-size:.82rem;
+        }
+        .combined-table th:first-child,
+        .combined-table td:first-child,
+        .combined-table th:nth-child(2),
+        .combined-table td:nth-child(2) { text-align:left; }
+        .combined-table th {
+            color:var(--muted);
+            background:var(--panel-soft);
+            font-size:.68rem;
+            font-weight:850;
+            text-transform:uppercase;
+        }
+        .rank { width:2rem; color:var(--muted); font-weight:760; }
+        .period { color:var(--brand-dark); font-weight:820; }
+        .money { color:#9a660f; font-weight:850; }
+        .muted-value { color:var(--muted); font-weight:720; }
+    </style>
+</head>
+<body class="theme-status">
+    {% include "_header.html" %}
+    <main>
+        <h1 class="page-title">Statistikk</h1>
+        <p class="page-subtitle">Samlede topplister for soling og parkering. Beløp rangerer listene, mens kolonnene viser hva som kommer fra hvert område.</p>
+
+        <div class="stat-shell">
+            <section class="combined-stats" aria-label="Soling og parkering">
+                <div class="combined-head">
+                    <div>
+                        <h2>Soling + parkering</h2>
+                        <p>Beste 10 dager og måneder rangert på samlet beløp.</p>
+                    </div>
+                </div>
+                <div class="combined-grid">
+                    <div>
+                        <div class="table-wrap">
+                            <table class="combined-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Beste dager</th>
+                                        <th>Totalt kr</th>
+                                        <th>Sol kr</th>
+                                        <th>Park kr</th>
+                                        <th>Sol</th>
+                                        <th>Park</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in combined_stats.top_days %}
+                                    <tr>
+                                        <td class="rank">{{ loop.index }}</td>
+                                        <td class="period">{{ item.period_label }}</td>
+                                        <td class="money">{{ item.total_paid|short_number }} kr</td>
+                                        <td class="muted-value">{{ item.sun_paid|short_number }}</td>
+                                        <td class="muted-value">{{ item.parking_paid|short_number }}</td>
+                                        <td>{{ item.sun_count|short_number }}</td>
+                                        <td>{{ item.parking_count|short_number }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="table-wrap">
+                            <table class="combined-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Beste måneder</th>
+                                        <th>Totalt kr</th>
+                                        <th>Sol kr</th>
+                                        <th>Park kr</th>
+                                        <th>Sol</th>
+                                        <th>Park</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in combined_stats.top_months %}
+                                    <tr>
+                                        <td class="rank">{{ loop.index }}</td>
+                                        <td class="period">{{ item.period_label }}</td>
+                                        <td class="money">{{ item.total_paid|short_number }} kr</td>
+                                        <td class="muted-value">{{ item.sun_paid|short_number }}</td>
+                                        <td class="muted-value">{{ item.parking_paid|short_number }}</td>
+                                        <td>{{ item.sun_count|short_number }}</td>
+                                        <td>{{ item.parking_count|short_number }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+</html>
