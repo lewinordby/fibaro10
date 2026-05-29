@@ -48,6 +48,79 @@
             font-weight:850;
             text-transform:uppercase;
         }
+        .chart-panel {
+            margin:0 0 1rem;
+            padding:1rem;
+            border:1px solid var(--line);
+            border-left:4px solid var(--status-color);
+            border-radius:16px;
+            background:#fff;
+            box-shadow:var(--shadow-1);
+            overflow:hidden;
+        }
+        .chart-head { display:flex; align-items:end; justify-content:space-between; gap:1rem; margin-bottom:.75rem; }
+        .chart-title { margin:0; color:var(--brand-dark); font-size:1.05rem; }
+        .chart-head p { margin:.16rem 0 0; color:var(--muted); font-size:.8rem; }
+        .chart-controls { display:flex; gap:.35rem; flex-wrap:wrap; }
+        .chart-toggle {
+            border:1px solid var(--line);
+            border-radius:999px;
+            background:var(--panel-soft);
+            color:var(--muted);
+            padding:.28rem .58rem;
+            font:inherit;
+            font-size:.76rem;
+            font-weight:760;
+            cursor:pointer;
+        }
+        .chart-toggle.active { background:var(--status-color); border-color:var(--status-color); color:#fff; }
+        .weekly-chart-wrap { width:100%; overflow:hidden; position:relative; }
+        .weekly-chart { width:100%; height:auto; display:block; background:#fff; border:1px solid var(--line-soft); border-radius:12px; }
+        .weekly-grid { stroke:#e6edf5; stroke-width:1; }
+        .weekly-axis { stroke:#cbd5e1; stroke-width:1.1; }
+        .weekly-line { fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+        .weekly-point { stroke:#fff; stroke-width:1.2; opacity:.9; transition:opacity .12s ease, r .12s ease, stroke-width .12s ease; }
+        .weekly-hit { fill:transparent; cursor:crosshair; pointer-events:all; }
+        .weekly-point-group:hover .weekly-point { opacity:1; r:4.8; stroke-width:1.8; }
+        .weekly-tooltip {
+            position:absolute;
+            z-index:4;
+            min-width:145px;
+            pointer-events:none;
+            transform:translate(-50%, calc(-100% - 12px));
+            background:#17202a;
+            color:#fff;
+            border-radius:8px;
+            padding:.52rem .6rem;
+            box-shadow:0 12px 28px rgba(15,23,42,.2);
+            font-size:.78rem;
+            line-height:1.28;
+            opacity:0;
+            visibility:hidden;
+            transition:opacity .1s ease;
+        }
+        .weekly-tooltip.visible { opacity:1; visibility:visible; }
+        .weekly-tooltip strong { display:block; font-size:.82rem; margin-bottom:.12rem; }
+        .weekly-tooltip span { display:block; color:#d9e7f5; white-space:nowrap; }
+        .weekly-label { fill:var(--muted); font-size:10px; font-weight:700; }
+        .weekly-legend { display:flex; flex-wrap:wrap; gap:.45rem .58rem; margin-top:.65rem; }
+        .weekly-year {
+            display:inline-flex;
+            align-items:center;
+            gap:.34rem;
+            border:1px solid var(--line);
+            background:var(--panel-soft);
+            border-radius:999px;
+            padding:.27rem .52rem .27rem .42rem;
+            color:var(--muted);
+            font-size:.78rem;
+            font-weight:740;
+            cursor:pointer;
+            user-select:none;
+        }
+        .weekly-year input { width:.9rem; height:.9rem; margin:0; accent-color:var(--year-color); cursor:pointer; }
+        .weekly-year i { width:.65rem; height:.65rem; border-radius:999px; display:inline-block; background:var(--year-color); }
+        .weekly-year:has(input:not(:checked)) { opacity:.48; }
         .rank { width:2rem; color:var(--muted); font-weight:760; }
         .period { color:var(--brand-dark); font-weight:820; }
         .money { color:#9a660f; font-weight:850; }
@@ -61,6 +134,24 @@
         <p class="page-subtitle">Samlede topplister for soling og parkering. Beløp rangerer listene, mens kolonnene viser hva som kommer fra hvert område.</p>
 
         <div class="stat-shell">
+            <section class="chart-panel" aria-label="Ukesutvikling soling og parkering">
+                <div class="chart-head">
+                    <div>
+                        <h2 class="chart-title">Ukesutvikling soling + parkering</h2>
+                        <p>Samlet uke for uke fra og med 2023. Én linje per år.</p>
+                    </div>
+                    <div class="chart-controls">
+                        <button class="chart-toggle active" type="button" data-weekly-metric="revenue">Beløp</button>
+                        <button class="chart-toggle" type="button" data-weekly-metric="count">Antall</button>
+                    </div>
+                </div>
+                <div class="weekly-chart-wrap">
+                    <svg class="weekly-chart" viewBox="0 0 980 360" role="img" aria-label="Linjediagram over samlet soling og parkering per uke og år"></svg>
+                    <div class="weekly-tooltip" id="weeklyTooltip" role="status" aria-live="polite"></div>
+                </div>
+                <div class="weekly-legend" id="weeklyLegend"></div>
+            </section>
+
             <section class="combined-stats" aria-label="Soling og parkering">
                 <div class="combined-head">
                     <div>
@@ -133,5 +224,160 @@
             </section>
         </div>
     </main>
+    <script>
+        (() => {
+            const data = {{ combined_stats.weekly_chart|tojson }};
+            const svg = document.querySelector(".weekly-chart");
+            const tooltip = document.querySelector("#weeklyTooltip");
+            const legend = document.querySelector("#weeklyLegend");
+            const buttons = document.querySelectorAll("[data-weekly-metric]");
+            if (!svg || !data.length) return;
+            const storageKey = "status_combined_weekly_visible_years";
+            const allYears = data.map((series) => String(series.year));
+            const storedYears = (() => {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(storageKey) || "[]");
+                    return Array.isArray(parsed) ? parsed.map(String).filter((year) => allYears.includes(year)) : [];
+                } catch {
+                    return [];
+                }
+            })();
+            const activeYears = new Set(storedYears.length ? storedYears : allYears);
+            let currentMetric = "revenue";
+
+            const width = 980;
+            const height = 360;
+            const margin = { top: 18, right: 18, bottom: 38, left: 72 };
+            const plotWidth = width - margin.left - margin.right;
+            const plotHeight = height - margin.top - margin.bottom;
+            const weeks = Array.from({ length: 53 }, (_, index) => index + 1);
+
+            const formatValue = (value, metric) => {
+                if (metric === "count") return Math.round(value).toLocaleString("nb-NO");
+                if (value >= 1000000) return `${(value / 1000000).toFixed(1).replace(".", ",")}M`;
+                if (value >= 1000) return `${Math.round(value / 1000).toLocaleString("nb-NO")}k`;
+                return Math.round(value).toLocaleString("nb-NO");
+            };
+
+            const pointsToPath = (points) => {
+                let path = "";
+                let open = false;
+                points.forEach((point) => {
+                    if (!point) {
+                        open = false;
+                        return;
+                    }
+                    path += `${open ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)} `;
+                    open = true;
+                });
+                return path.trim();
+            };
+
+            const render = (metric) => {
+                currentMetric = metric;
+                const visibleData = data.filter((series) => activeYears.has(String(series.year)));
+                buttons.forEach((button) => button.classList.toggle("active", button.dataset.weeklyMetric === metric));
+                const maxValue = Math.max(1, ...visibleData.flatMap((series) => series[metric].filter((value) => value !== null)));
+                const yMax = Math.ceil(maxValue / 5) * 5;
+                const yTicks = [0, 0.25, 0.5, 0.75, 1].map((factor) => Math.round(yMax * factor));
+                const xForWeek = (week) => margin.left + ((week - 1) / 52) * plotWidth;
+                const yForValue = (value) => margin.top + plotHeight - (value / yMax) * plotHeight;
+
+                const grid = yTicks.map((tick) => {
+                    const y = yForValue(tick);
+                    return `<line class="weekly-grid" x1="${margin.left}" x2="${width - margin.right}" y1="${y}" y2="${y}"></line>
+                        <text class="weekly-label" x="${margin.left - 10}" y="${y + 3}" text-anchor="end">${formatValue(tick, metric)}</text>`;
+                }).join("");
+                const xLabels = [1, 10, 20, 30, 40, 50, 53].map((week) => {
+                    const x = xForWeek(week);
+                    return `<line class="weekly-grid" x1="${x}" x2="${x}" y1="${margin.top}" y2="${margin.top + plotHeight}"></line>
+                        <text class="weekly-label" x="${x}" y="${height - 12}" text-anchor="middle">${week}</text>`;
+                }).join("");
+                const lines = visibleData.map((series) => {
+                    const points = weeks.map((week, index) => {
+                        const value = series[metric][index];
+                        if (value === null || value === undefined) return null;
+                        return { x: xForWeek(week), y: yForValue(value) };
+                    });
+                    return `<path class="weekly-line" d="${pointsToPath(points)}" stroke="${series.color}"></path>`;
+                }).join("");
+                const pointGroups = visibleData.map((series) => {
+                    return weeks.map((week, index) => {
+                        const value = series[metric][index];
+                        if (value === null || value === undefined) return "";
+                        const count = series.count[index] ?? 0;
+                        const revenue = series.revenue[index] ?? 0;
+                        const x = xForWeek(week);
+                        const y = yForValue(value);
+                        return `<g class="weekly-point-group" data-year="${series.year}" data-week="${week}" data-count="${count}" data-revenue="${revenue}" data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}">
+                            <circle class="weekly-point" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="${series.color}"></circle>
+                            <circle class="weekly-hit" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8"></circle>
+                        </g>`;
+                    }).join("");
+                }).join("");
+
+                svg.innerHTML = `
+                    <rect x="0" y="0" width="${width}" height="${height}" fill="#fff"></rect>
+                    ${grid}
+                    ${xLabels}
+                    <line class="weekly-axis" x1="${margin.left}" x2="${width - margin.right}" y1="${margin.top + plotHeight}" y2="${margin.top + plotHeight}"></line>
+                    <line class="weekly-axis" x1="${margin.left}" x2="${margin.left}" y1="${margin.top}" y2="${margin.top + plotHeight}"></line>
+                    <text class="weekly-label" x="${width / 2}" y="${height - 2}" text-anchor="middle">Uke</text>
+                    ${lines}
+                    ${pointGroups}
+                `;
+            };
+
+            const hideTooltip = () => {
+                if (!tooltip) return;
+                tooltip.classList.remove("visible");
+            };
+
+            const showTooltip = (event) => {
+                if (!tooltip) return;
+                const group = event.target.closest(".weekly-point-group");
+                if (!group) {
+                    hideTooltip();
+                    return;
+                }
+                const { year, week, count, revenue, x, y } = group.dataset;
+                tooltip.innerHTML = `<strong>${year} - uke ${week}</strong>
+                    <span>${Number(count || 0).toLocaleString("nb-NO")} sol/park</span>
+                    <span>${Number(revenue || 0).toLocaleString("nb-NO", { maximumFractionDigits: 0 })} kr</span>`;
+                const svgRect = svg.getBoundingClientRect();
+                const wrapRect = svg.parentElement.getBoundingClientRect();
+                tooltip.style.left = `${svgRect.left - wrapRect.left + (Number(x) / width) * svgRect.width}px`;
+                tooltip.style.top = `${svgRect.top - wrapRect.top + (Number(y) / height) * svgRect.height}px`;
+                tooltip.classList.add("visible");
+            };
+
+            const renderLegend = () => {
+                legend.innerHTML = data.map((series) => `
+                    <label class="weekly-year" style="--year-color:${series.color}">
+                        <input type="checkbox" value="${series.year}" ${activeYears.has(String(series.year)) ? "checked" : ""} aria-label="Vis ${series.year}">
+                        <i aria-hidden="true"></i>
+                        <span>${series.year}</span>
+                    </label>
+                `).join("");
+                legend.querySelectorAll("input").forEach((input) => {
+                    input.addEventListener("change", () => {
+                        if (input.checked) {
+                            activeYears.add(String(input.value));
+                        } else {
+                            activeYears.delete(String(input.value));
+                        }
+                        localStorage.setItem(storageKey, JSON.stringify([...activeYears]));
+                        render(currentMetric);
+                    });
+                });
+            };
+
+            buttons.forEach((button) => button.addEventListener("click", () => render(button.dataset.weeklyMetric)));
+            svg.addEventListener("mousemove", showTooltip);
+            svg.addEventListener("mouseleave", hideTooltip);
+            renderLegend();
+            render("revenue");
+        })();
+    </script>
 </body>
 </html>

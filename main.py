@@ -2375,10 +2375,55 @@ def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> 
 
     daily = combine_items(sun.get("daily", []), parking.get("daily", []))
     monthly = combine_items(sun.get("monthly", []), parking.get("monthly", []))
+    weekly: Dict[str, Dict[str, Any]] = {}
+    palette = ["#4e8793", "#d59a18", "#071943", "#52a464", "#df705d", "#726189", "#2f8fa3", "#8b5cf6"]
+    for source in (sun.get("weekly_chart", []), parking.get("weekly_chart", [])):
+        for series in source:
+            year = str(series.get("year") or "")
+            if not year.isdigit() or int(year) < 2023:
+                continue
+            weekly.setdefault(
+                year,
+                {
+                    "year": year,
+                    "revenue": [0.0 for _ in range(53)],
+                    "count": [0 for _ in range(53)],
+                    "has_value": [False for _ in range(53)],
+                },
+            )
+            for index in range(53):
+                revenue_values = series.get("revenue") or []
+                count_values = series.get("count") or []
+                revenue = revenue_values[index] if index < len(revenue_values) else None
+                count = count_values[index] if index < len(count_values) else None
+                if revenue is not None:
+                    weekly[year]["revenue"][index] += float_or_zero(revenue)
+                    weekly[year]["has_value"][index] = True
+                if count is not None:
+                    weekly[year]["count"][index] += int_or_zero(count)
+                    weekly[year]["has_value"][index] = True
+    weekly_chart = []
+    for index, year in enumerate(sorted(weekly.keys())):
+        item = weekly[year]
+        weekly_chart.append(
+            {
+                "year": year,
+                "color": palette[index % len(palette)],
+                "revenue": [
+                    round(item["revenue"][week], 2) if item["has_value"][week] else None
+                    for week in range(53)
+                ],
+                "count": [
+                    item["count"][week] if item["has_value"][week] else None
+                    for week in range(53)
+                ],
+            }
+        )
     top_sort = lambda item: (item["total_paid"], item["total_count"])
     return {
         "top_days": sorted(daily, key=top_sort, reverse=True)[:10],
         "top_months": sorted(monthly, key=top_sort, reverse=True)[:10],
+        "weekly_chart": weekly_chart,
     }
 
 
