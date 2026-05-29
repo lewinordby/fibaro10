@@ -20,6 +20,8 @@ AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
 PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
 PUBLIC_PREFIXES = ("/static/",)
+ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
+ONLINE_ACCESS_LOG_COOLDOWN_SECONDS = max(0, int(os.getenv("ONLINE_ACCESS_LOG_COOLDOWN_SECONDS", "0")))
 
 app = FastAPI(title="Lilletorget online", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -117,7 +119,7 @@ async def find_access_key(username: Optional[str], password: Optional[str]) -> O
             await session.execute(
                 text(
                     """
-                    select id, name, role, is_master, active
+                    select id, name, key_prefix, role, is_master, active
                     from access_keys
                     where name = :name and key_hash = :hash and active = true
                     limit 1
@@ -126,19 +128,183 @@ async def find_access_key(username: Optional[str], password: Optional[str]) -> O
                 {"name": normalized, "hash": hashed},
             )
         ).mappings().first()
-        if row:
+        return dict(row) if row else None
+
+
+def client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",", 1)[0].strip()
+    return request.client.host if request.client else ""
+
+
+async def should_log_online_activity(request: Request, access_key: dict[str, Any]) -> bool:
+    if request.method != "GET" or not wants_html(request):
+        return False
+    if request.url.path.startswith("/auth/"):
+        return False
+    if ONLINE_ACCESS_LOG_COOLDOWN_SECONDS <= 0:
+        return True
+    async with async_session() as session:
+        row = (
+            await session.execute(
+                text(
+                    """
+                    select timestamp
+                    from access_logs
+                    where access_key_id = :access_key_id
+                      and success = true
+                      and reason = 'online_dashboard'
+                      and path = :path
+                    order by timestamp desc, id desc
+                    limit 1
+                    """
+                ),
+                {"access_key_id": access_key["id"], "path": request.url.path},
+            )
+        ).mappings().first()
+    if not row or not isinstance(row.get("timestamp"), datetime):
+        return True
+    return datetime.utcnow() - row["timestamp"] >= timedelta(seconds=ONLINE_ACCESS_LOG_COOLDOWN_SECONDS)
+
+
+async def touch_access_key(access_key: dict[str, Any], request: Request) -> None:
+    async with async_session() as session:
+        await session.execute(
+            text(
+                """
+                update access_keys
+                set last_seen_at = :now,
+                    last_ip = :ip,
+                    last_user_agent = :user_agent,
+                    uses_count = coalesce(uses_count, 0) + 1
+                where id = :id
+                """
+            ),
+            {
+                "now": datetime.utcnow(),
+                "id": access_key["id"],
+                "ip": client_ip(request),
+                "user_agent": request.headers.get("user-agent", ""),
+            },
+        )
+        await session.commit()
+
+
+async def log_access_attempt(
+    request: Request,
+    success: bool,
+    reason: str,
+    access_key: Optional[dict[str, Any]] = None,
+    attempted_username: Optional[str] = None,
+) -> None:
+    key_name = access_key["name"] if access_key else normalize_username(attempted_username or "") or None
+    key_prefix = access_key.get("key_prefix") if access_key else None
+    final_reason = reason
+    async with async_session() as session:
+        insert_result = await session.execute(
+            text(
+                """
+                insert into access_logs
+                    (timestamp, access_key_id, key_name, key_prefix, path, method, ip, user_agent, success, reason)
+                values
+                    (:timestamp, :access_key_id, :key_name, :key_prefix, :path, :method, :ip, :user_agent, :success, :reason)
+                returning id
+                """
+            ),
+            {
+                "timestamp": datetime.utcnow(),
+                "access_key_id": access_key["id"] if access_key else None,
+                "key_name": key_name,
+                "key_prefix": key_prefix,
+                "path": request.url.path,
+                "method": request.method,
+                "ip": client_ip(request),
+                "user_agent": request.headers.get("user-agent", ""),
+                "success": success,
+                "reason": final_reason,
+            },
+        )
+        log_id = insert_result.scalar_one()
+        if access_key and success:
             await session.execute(
                 text(
                     """
                     update access_keys
-                    set last_seen_at = now(), uses_count = coalesce(uses_count, 0) + 1
+                    set last_seen_at = :now,
+                        last_ip = :ip,
+                        last_user_agent = :user_agent,
+                        uses_count = coalesce(uses_count, 0) + 1
                     where id = :id
                     """
                 ),
-                {"id": row["id"]},
+                {
+                    "now": datetime.utcnow(),
+                    "id": access_key["id"],
+                    "ip": client_ip(request),
+                    "user_agent": request.headers.get("user-agent", ""),
+                },
             )
-            await session.commit()
-        return dict(row) if row else None
+        elif not success and key_name and key_name != "master":
+            user_row = (
+                await session.execute(
+                    text(
+                        """
+                        select id, key_prefix
+                        from access_keys
+                        where name = :name and is_master = false and active = true
+                        order by id desc
+                        limit 1
+                        """
+                    ),
+                    {"name": key_name},
+                )
+            ).mappings().first()
+            if user_row:
+                recent_failures = (
+                    await session.execute(
+                        text(
+                            """
+                            select success
+                            from access_logs
+                            where key_name = :name
+                            order by timestamp desc, id desc
+                            limit :limit
+                            """
+                        ),
+                        {"name": key_name, "limit": ACCESS_FAILED_DISABLE_THRESHOLD},
+                    )
+                ).scalars().all()
+                if len(recent_failures) >= ACCESS_FAILED_DISABLE_THRESHOLD and all(value is False for value in recent_failures):
+                    final_reason = f"{reason}_auto_deactivated_after_{ACCESS_FAILED_DISABLE_THRESHOLD}_failures"
+                    await session.execute(
+                        text(
+                            """
+                            update access_keys
+                            set active = false
+                            where id = :id
+                            """
+                        ),
+                        {"id": user_row["id"]},
+                    )
+                    await session.execute(
+                        text(
+                            """
+                            update access_logs
+                            set access_key_id = :access_key_id,
+                                key_prefix = :key_prefix,
+                                reason = :reason
+                            where id = :log_id
+                            """
+                        ),
+                        {
+                            "log_id": log_id,
+                            "access_key_id": user_row["id"],
+                            "key_prefix": user_row["key_prefix"],
+                            "reason": final_reason,
+                        },
+                    )
+        await session.commit()
 
 
 def wants_html(request: Request) -> bool:
@@ -154,10 +320,15 @@ async def auth_middleware(request: Request, call_next):
     username, password = presented_credentials(request)
     access_key = await find_access_key(username, password)
     if not access_key:
+        await log_access_attempt(request, False, "online_missing_or_invalid_key", attempted_username=username)
         if wants_html(request):
             return RedirectResponse("/auth/login", status_code=303)
         return JSONResponse({"detail": "Ugyldig eller manglende innlogging"}, status_code=401)
     request.state.access_key = access_key
+    if await should_log_online_activity(request, access_key):
+        await log_access_attempt(request, True, "online_dashboard", access_key)
+    else:
+        await touch_access_key(access_key, request)
     return await call_next(request)
 
 
@@ -302,12 +473,14 @@ async def login_submit(request: Request):
     password = str(form.get("password") or "").strip()
     access_key = await find_access_key(username, password)
     if not access_key:
+        await log_access_attempt(request, False, "online_failed_login", attempted_username=username)
         return render_login("Ugyldig brukernavn eller passord")
     response = RedirectResponse("/", status_code=303)
     forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
     secure_cookie = request.url.scheme == "https" or forwarded_proto == "https"
     response.set_cookie(AUTH_USER_COOKIE_NAME, username, max_age=60 * 60 * 24 * 365, httponly=True, secure=secure_cookie, samesite="lax")
     response.set_cookie(AUTH_COOKIE_NAME, password, max_age=60 * 60 * 24 * 365, httponly=True, secure=secure_cookie, samesite="lax")
+    await log_access_attempt(request, True, "online_login", access_key)
     return response
 
 
