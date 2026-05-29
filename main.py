@@ -86,8 +86,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1003")
+APP_BUILD = os.getenv("APP_BUILD", "1004")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1004",
+        "date": "29.05.2026",
+        "title": "Felles sidetopper",
+        "changes": [
+            "Innf\u00f8rer et felles system for overskrifter, hjelpetekster og topphandlinger p\u00e5 sidene.",
+            "Legger til manglende sidetopper p\u00e5 status-dagslinje, lyslogg og ventilasjonslogg.",
+            "Rydder fontst\u00f8rrelser og avstand i toppfelt slik at sidene starter mer likt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1003",

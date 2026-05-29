@@ -633,3 +633,63 @@ body.theme-sun2 main :where(.metric-card strong),
 body.theme-energy main :where(.summary-card strong) {
     font-size: clamp(1.06rem, 1.45vw, 1.32rem) !important;
 }
+
+/* Canonical page header system.
+   All ordinary pages should start with one of these wrappers:
+   .page-title, .page-head, .sun-title, .dashboard-intro or a first .hero.
+   The rules deliberately neutralize older local heading styles so every
+   section starts with the same scale, spacing and action layout. */
+html body main > :is(.page-title, .page-head, .sun-title, .dashboard-intro, .hero):first-child,
+html body main > h1.page-title:first-child {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: auto !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+    gap: 1rem !important;
+    margin: 0 0 0.95rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+html body main > :is(.page-title, .page-head, .sun-title, .dashboard-intro, .hero):first-child > :first-child {
+    min-width: 0 !important;
+}
+
+html body main > :is(.page-title, .page-head, .sun-title, .dashboard-intro, .hero):first-child :where(h1),
+html body main > h1.page-title:first-child {
+    margin: 0 !important;
+    color: var(--lt-navy) !important;
+    font-family: var(--lt-font-family) !important;
+    font-size: clamp(1.42rem, 1.65vw, 1.82rem) !important;
+    font-weight: 860 !important;
+    line-height: 1.06 !important;
+    letter-spacing: 0 !important;
+    text-wrap: balance !important;
+}
+
+html body main > :is(.page-title, .page-head, .sun-title, .dashboard-intro, .hero):first-child :where(p, .sub, .subtitle) {
+    max-width: 66rem !important;
+    margin: 0.22rem 0 0 !important;
+    color: var(--lt-muted) !important;
+    font-size: 0.84rem !important;
+    font-weight: 520 !important;
+    line-height: 1.38 !important;
+    letter-spacing: 0 !important;
+}
+
+html body main > :is(.page-title, .page-head, .sun-title, .dashboard-intro, .hero):first-child :where(a, button, .button) {
+    flex: 0 0 auto !important;
+}
+
+html body main > :is(.page-title, .page-head, .sun-title, .dashboard-intro, .hero):first-child + :is(.summary, .parking-cards, .metric-grid, .forecast-actions, .toolbar, .filter-panel, .panel, .card-grid) {
+    margin-top: 0 !important;
+}
+
+html body main > :is(.page-title, .page-head, .sun-title, .dashboard-intro, .hero):first-child + .forecast-actions {
+    margin-bottom: 0.85rem !important;
+}

@@ -23,9 +23,13 @@
 <body class="theme-admin">
     {% include "_header.html" %}
     <main>
+        <section class="page-title">
+            <div>
+                <h1>Konto</h1>
+                <p>Innlogget bruker og tilgangsnivå.</p>
+            </div>
+        </section>
         <section class="panel">
-            <h1>Konto</h1>
-            <p>Innlogget bruker og tilgangsnivå.</p>
             <div class="line">
                 <span class="badge">{{ request.state.access_key_name or "Ukjent bruker" }}</span>
                 <span class="badge">{% if request.state.auth_is_master %}Master{% elif request.state.auth_role == "settings" %}Innstillinger{% else %}Vanlig bruker{% endif %}</span>

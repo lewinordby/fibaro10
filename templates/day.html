@@ -62,6 +62,12 @@
 <body class="theme-status status-day-page">
     {% include "_header.html" %}
     <main>
+        <section class="page-title">
+            <div>
+                <h1>Dagslinje</h1>
+                <p>Lys og ventilasjon samlet for valgt dag.</p>
+            </div>
+        </section>
         <form method="get" action="/status/dagslinje">
             <input type="date" name="day" value="{{ selected_day }}">
             <input type="hidden" name="zoom" value="{{ zoom }}">
