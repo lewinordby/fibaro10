@@ -58,11 +58,9 @@
         .time-stack strong { color:var(--brand-dark); font-size:.86rem; line-height:1.05; font-weight:850; }
         .time-stack span { color:#7b879c; font-size:.69rem; font-weight:720; }
         .vehicle-cell { min-width:23rem; color:var(--brand-dark); }
-        .vehicle-main { display:grid; grid-template-columns:auto auto minmax(0,1fr); gap:.22rem .46rem; align-items:start; }
+        .vehicle-main { display:grid; grid-template-columns:auto minmax(0,1fr); gap:.22rem .55rem; align-items:start; }
         .plate-link { display:inline-flex; align-items:center; justify-content:center; min-width:4.9rem; min-height:1.5rem; padding:.08rem .46rem; border-radius:999px; border:1px solid #e1e8f1; background:#fff; color:var(--brand-dark); text-decoration:none; font-size:.72rem; letter-spacing:.015em; white-space:nowrap; font-weight:840 !important; }
         .plate-link:hover { border-color:var(--page-accent); background:#f7fcfd; color:var(--page-accent); }
-        .vehicle-color { display:inline-block; max-width:7.6rem; padding-top:.18rem; color:#66758a; font-size:.72rem; font-weight:780; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .vehicle-color.empty { color:#a1aaba; font-weight:700; }
         .vehicle-info { min-width:0; }
         .vehicle-title { display:block; color:#66758a; font-size:.75rem; font-weight:780; line-height:1.22; }
         .vehicle-meta { margin-top:.12rem; color:#6f7b91; font-size:.7rem; font-weight:720; line-height:1.25; }
@@ -102,7 +100,7 @@
             .parking-sync-action { width:100%; }
             .parking-panel header { display:block; }
             .parking-table th, .parking-table td { padding:.5rem .58rem; font-size:.78rem; }
-            .vehicle-main { grid-template-columns:auto auto minmax(0,1fr); gap:.16rem .34rem; }
+            .vehicle-main { grid-template-columns:auto minmax(0,1fr); gap:.16rem .34rem; }
             .vehicle-cell { min-width:18rem; }
         }
     </style>
@@ -189,13 +187,6 @@
                                     <a class="plate-link" href="/parkering/kjoretoy/{{ item.plate }}">{{ row.car_license_number or item.plate }}</a>
                                     {% else %}
                                     <span>-</span>
-                                    {% endif %}
-                                </div>
-                                <div>
-                                    {% if item.vehicle_color %}
-                                    <span class="vehicle-color">{{ item.vehicle_color }}</span>
-                                    {% else %}
-                                    <span class="vehicle-color empty">-</span>
                                     {% endif %}
                                 </div>
                                 <div class="vehicle-info">

@@ -9604,7 +9604,9 @@ def parking_vehicle_summary(details: Optional[ParkingVehicleDetails]) -> Optiona
         return None
     label = parking_vehicle_label(details)
     year = parking_vehicle_year(details)
-    return f"{year} {label}" if year else label
+    summary = f"{year} {label}" if year else label
+    color = (details.farge or "").strip()
+    return f"{summary} - {color}" if color else summary
 
 
 def parking_source_label(source_system: Optional[str]) -> str:
@@ -9645,7 +9647,6 @@ def parking_row_context(
         "vehicle_name": vehicle.navn if vehicle else None,
         "vehicle_area": vehicle.omrade if vehicle else None,
         "vehicle_title": parking_vehicle_summary(details),
-        "vehicle_color": details.farge if details else None,
         "source_label": parking_source_label(row.source_system),
         "parking_count": vehicle.parkering_count if vehicle else None,
         "duration_minutes": parking_duration_minutes(row, now),
