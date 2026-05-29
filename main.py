@@ -85,11 +85,29 @@ svv_sync_task: Optional[asyncio.Task] = None
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
+APP_VERSION = os.getenv("APP_VERSION", "1")
+APP_BUILD = os.getenv("APP_BUILD", "1000")
+BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1000",
+        "date": "29.05.2026",
+        "title": "Første nummererte build",
+        "changes": [
+            "Innfører fast versjonsnummer og buildnummer i menyen.",
+            "Buildnummeret er klikkbart og åpner denne buildloggen.",
+            "Mobilappen logger nå innlogging, refresh og avviste innlogginger som brukeraktivitet.",
+            "Parkering/Område viser både andel unike biler og andel parkeringer, uten grafisk stolpefelt.",
+            "Dette er startpunktet for videre bygglogg: fremtidige endringer legges inn her med nytt buildnummer.",
+        ],
+    }
+]
 
 app = FastAPI(title="Fibaro10")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+templates.env.globals.update(app_version=APP_VERSION, app_build=APP_BUILD, build_log=BUILD_LOG)
 
 
 def format_local_datetime(value: Optional[datetime]) -> str:
@@ -7634,6 +7652,19 @@ async def account_view(request: Request):
             "ntfy_access_subscribe_url": ntfy_subscribe_url(NTFY_ACCESS_TOPIC, "SUN2 tilgang"),
             "ntfy_access_web_url": ntfy_topic_url(NTFY_ACCESS_TOPIC),
             "ntfy_access_cooldown_minutes": int(NTFY_ACCESS_COOLDOWN_MINUTES),
+        },
+    )
+
+
+@app.get("/konto/build", response_class=HTMLResponse)
+async def account_build_view(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "build_log.html",
+        {
+            "current_version": APP_VERSION,
+            "current_build": APP_BUILD,
+            "build_rows": BUILD_LOG,
         },
     )
 

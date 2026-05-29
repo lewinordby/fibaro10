@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buildlogg</title>
+    {% include "_styles.html" %}
+    <style>
+        .build-page { display: grid; gap: 1rem; }
+        .build-current {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .75rem;
+        }
+        .build-current .stat-card { border-left: 4px solid var(--admin-color); }
+        .build-entry { padding: 1rem; }
+        .build-entry header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: .8rem;
+        }
+        .build-entry h2 { margin: 0; }
+        .build-entry .build-tag {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            padding: .28rem .7rem;
+            color: var(--brand-dark);
+            font-weight: 850;
+            background: #fff;
+        }
+        .build-change-list {
+            margin: 0;
+            padding-left: 1.2rem;
+            color: var(--text);
+        }
+        .build-change-list li { margin: .35rem 0; }
+    </style>
+</head>
+<body class="theme-admin">
+    {% include "_header.html" %}
+    <main class="build-page">
+        <section class="page-title">
+            <div>
+                <h1>Buildlogg</h1>
+                <p>Klartekst over hva som er endret i hver build.</p>
+            </div>
+        </section>
+
+        <section class="build-current">
+            <article class="stat-card">
+                <span>Aktiv versjon</span>
+                <strong>{{ current_version }}</strong>
+                <small>Hovedversjon for løsningen.</small>
+            </article>
+            <article class="stat-card">
+                <span>Aktiv build</span>
+                <strong>{{ current_build }}</strong>
+                <small>Buildnummeret økes ved nye leveranser.</small>
+            </article>
+        </section>
+
+        {% for row in build_rows %}
+        <article class="panel build-entry">
+            <header>
+                <div>
+                    <h2>{{ row.title }}</h2>
+                    <p>{{ row.date }}</p>
+                </div>
+                <span class="build-tag">v{{ row.version }} · build {{ row.build }}</span>
+            </header>
+            <ul class="build-change-list">
+                {% for change in row.changes %}
+                <li>{{ change }}</li>
+                {% endfor %}
+            </ul>
+        </article>
+        {% endfor %}
+    </main>
+</body>
+</html>

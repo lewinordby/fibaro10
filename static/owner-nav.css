@@ -239,3 +239,35 @@ body {
     margin: 0 !important;
     padding: 0 !important;
 }
+
+.app-nav .nav-build-info {
+    margin: 14px 0 0 !important;
+    padding: 10px 9px 0 !important;
+    border-top: 1px solid var(--owner-nav-line) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    color: var(--owner-nav-muted) !important;
+    font-size: 10.5px !important;
+    font-weight: 760 !important;
+    letter-spacing: 0 !important;
+}
+
+.app-nav .nav-build-info a {
+    display: inline-flex !important;
+    align-items: center !important;
+    min-height: 22px !important;
+    padding: 0 8px !important;
+    border: 1px solid var(--owner-nav-line) !important;
+    border-radius: 999px !important;
+    background: #fff !important;
+    color: var(--owner-nav-navy) !important;
+    text-decoration: none !important;
+    box-shadow: 0 5px 14px rgba(6, 22, 61, 0.06) !important;
+}
+
+.app-nav .nav-build-info a:hover {
+    border-color: var(--section-color) !important;
+    color: var(--section-color) !important;
+}

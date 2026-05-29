@@ -166,6 +166,7 @@
         </a>
         <div class="nav-row nav-sub {% if is_account %}active-section{% endif %}" aria-label="Undermeny for konto">
             {{ sub_button("/konto/oversikt", "Oversikt", "dashboard", current_path == "/konto/oversikt") }}
+            {{ sub_button("/konto/build", "Build", "list", current_path == "/konto/build") }}
             {{ sub_button("/konto/teknisk", "Teknisk", "list", current_path == "/konto/teknisk") }}
             {{ sub_button("/konto/manual", "Manual", "book", current_path == "/konto/manual") }}
             {% if request.state.auth_is_master %}
@@ -180,5 +181,9 @@
                 </button>
             </form>
         </div>
+    </div>
+    <div class="nav-build-info" aria-label="Versjon og build">
+        <span>Versjon {{ app_version }}</span>
+        <a href="/konto/build">Build {{ app_build }}</a>
     </div>
 </nav>
