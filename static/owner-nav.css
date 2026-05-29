@@ -1,29 +1,27 @@
-/* Lilletorget desktop shell.
-   Mobile use is handled by online_dashboard, so the main application can use
-   a fixed PC-first navigation without collapsed/mobile states. */
+/* Lilletorget desktop navigation
+   The main Fibaro10 app is now PC-first. This file owns the fixed left shell
+   and intentionally keeps the menu compact, flat and predictable. */
 
 :root {
-    --owner-sidebar: 284px;
-    --owner-page-gap: 24px;
-    --owner-nav-pad: 16px;
-    --owner-nav-item: 232px;
-    --owner-sub-indent: 54px;
-    --owner-line: #e1e8f1;
-    --owner-text: #1e2d46;
-    --owner-muted: #738096;
-    --owner-navy: #06163d;
-    --owner-surface: #ffffff;
-    --owner-soft: #f7f9fc;
-    --owner-shadow: 10px 0 28px rgba(6, 22, 61, 0.055);
+    --owner-sidebar: 248px;
+    --owner-page-gap: 22px;
+    --owner-nav-pad: 18px;
+    --owner-logo-height: 118px;
+    --owner-nav-line: #e4ebf3;
+    --owner-nav-soft: #f6f8fb;
+    --owner-nav-text: #14213a;
+    --owner-nav-muted: #748197;
+    --owner-nav-navy: #06163d;
+    --owner-nav-shadow: 8px 0 26px rgba(6, 22, 61, 0.052);
+}
+
+html,
+body {
+    min-width: 1360px;
 }
 
 html {
-    min-width: 1360px;
     overflow-x: auto;
-}
-
-body {
-    min-width: 1360px;
 }
 
 .site-header {
@@ -31,22 +29,19 @@ body {
     inset: 0 auto 0 0;
     z-index: 80;
     width: var(--owner-sidebar);
-    min-width: var(--owner-sidebar);
-    max-width: var(--owner-sidebar);
     height: 100vh;
     overflow-x: hidden;
     overflow-y: auto;
-    border-right: 1px solid var(--owner-line);
-    background: var(--owner-surface);
-    box-shadow: var(--owner-shadow);
-    color: var(--owner-text);
+    border-right: 1px solid var(--owner-nav-line);
+    background: #ffffff;
+    box-shadow: var(--owner-nav-shadow);
+    color: var(--owner-nav-text);
 }
 
 .site-header .brand-bar {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
     background: #ffffff;
 }
 
@@ -54,101 +49,56 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 126px;
-    padding: 20px var(--owner-nav-pad) 18px;
-    border-bottom: 1px solid var(--owner-line);
+    min-height: var(--owner-logo-height);
+    padding: 18px var(--owner-nav-pad) 16px;
+    border-bottom: 1px solid var(--owner-nav-line);
     background: #ffffff;
     text-decoration: none;
 }
 
 .brand-lilletorget-text-logo {
     display: block;
-    width: 220px;
+    width: 198px;
     max-width: 100%;
     height: auto;
     object-fit: contain;
 }
 
 .site-header ~ main,
-.site-header ~ .container,
-body .site-header ~ main,
-body .site-header ~ .container {
+.site-header ~ .container {
     position: relative !important;
     left: auto !important;
     right: auto !important;
     transform: none !important;
+    box-sizing: border-box;
     width: min(var(--page-width, 1500px), calc(100vw - var(--owner-sidebar) - (var(--owner-page-gap) * 2))) !important;
     max-width: none !important;
+    min-width: 0;
     margin-left: calc(var(--owner-sidebar) + var(--owner-page-gap)) !important;
     margin-right: var(--owner-page-gap) !important;
     padding-top: 18px !important;
-    box-sizing: border-box;
-    min-width: 0;
 }
 
 .app-nav {
-    --section-color: var(--status-color);
-    --section-soft: var(--status-soft);
-    --section-border: var(--status-border);
-    padding: 16px var(--owner-nav-pad) 26px;
-    background: transparent;
+    --section-color: var(--status-color, #06163d);
+    --section-soft: var(--status-soft, #f5f7fb);
+    padding: 14px var(--owner-nav-pad) 28px;
+    background: #ffffff;
 }
 
-.app-nav.section-light {
-    --section-color: var(--light-color);
-    --section-soft: var(--light-soft);
-    --section-border: var(--light-border);
-}
-
-.app-nav.section-vent {
-    --section-color: var(--vent-color);
-    --section-soft: var(--vent-soft);
-    --section-border: var(--vent-border);
-}
-
-.app-nav.section-cleaning {
-    --section-color: var(--cleaning-color);
-    --section-soft: var(--cleaning-soft);
-    --section-border: var(--cleaning-border);
-}
-
-.app-nav.section-sun2 {
-    --section-color: var(--sun2-color);
-    --section-soft: var(--sun2-soft);
-    --section-border: var(--sun2-border);
-}
-
-.app-nav.section-energy {
-    --section-color: var(--energy-color);
-    --section-soft: var(--energy-soft);
-    --section-border: var(--energy-border);
-}
-
-.app-nav.section-parking {
-    --section-color: var(--parking-color);
-    --section-soft: var(--parking-soft);
-    --section-border: var(--parking-border);
-}
-
-.app-nav.section-ai {
-    --section-color: var(--ai-color);
-    --section-soft: var(--ai-soft);
-    --section-border: var(--ai-border);
-}
-
-.app-nav.section-admin {
-    --section-color: var(--admin-color);
-    --section-soft: var(--admin-soft);
-    --section-border: var(--admin-border);
-}
+.app-nav.section-parking { --section-color: var(--parking-color); --section-soft: var(--parking-soft); }
+.app-nav.section-sun2 { --section-color: var(--sun2-color); --section-soft: var(--sun2-soft); }
+.app-nav.section-light { --section-color: var(--light-color); --section-soft: var(--light-soft); }
+.app-nav.section-vent { --section-color: var(--vent-color); --section-soft: var(--vent-soft); }
+.app-nav.section-energy { --section-color: var(--energy-color); --section-soft: var(--energy-soft); }
+.app-nav.section-cleaning { --section-color: var(--cleaning-color); --section-soft: var(--cleaning-soft); }
+.app-nav.section-ai { --section-color: var(--ai-color); --section-soft: var(--ai-soft); }
+.app-nav.section-admin { --section-color: var(--admin-color); --section-soft: var(--admin-soft); }
 
 .app-nav .nav-main {
-    width: var(--owner-nav-item);
-    margin: 0 auto;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 5px;
+    gap: 2px;
 }
 
 .app-nav .button {
@@ -156,37 +106,35 @@ body .site-header ~ .container {
     display: grid;
     align-items: center;
     min-width: 0;
+    border: 0 !important;
     text-decoration: none;
-    color: var(--owner-text);
+    color: var(--owner-nav-text);
+    box-shadow: none !important;
 }
 
 .app-nav .nav-main > .button {
-    width: 100%;
-    grid-template-columns: 24px minmax(0, 1fr) 12px;
-    gap: 12px;
-    min-height: 48px;
-    padding: 0 15px;
-    border: 1px solid transparent;
-    border-radius: 14px;
-    background: transparent;
-    box-shadow: none;
-    font-size: 14px;
+    grid-template-columns: 24px minmax(0, 1fr) 10px;
+    gap: 11px;
+    min-height: 40px;
+    padding: 0 10px;
+    border-radius: 10px;
+    background: transparent !important;
+    font-size: 13.5px;
     font-weight: 760;
 }
 
 .app-nav .nav-main > .button:hover {
-    border-color: #e7edf5;
-    background: var(--owner-soft);
+    background: var(--owner-nav-soft) !important;
+    color: var(--owner-nav-navy);
 }
 
-.app-nav .nav-main > .button.active.has-sub {
-    border-color: var(--section-border);
-    background: #ffffff;
-    color: var(--owner-navy);
-    box-shadow: inset 3px 0 0 var(--section-color), 0 8px 18px rgba(6, 22, 61, 0.055);
+.app-nav .nav-main > .button.active {
+    background: var(--section-soft) !important;
+    color: var(--owner-nav-navy);
+    box-shadow: inset 3px 0 0 var(--section-color) !important;
 }
 
-.app-nav .nav-main > .button.active.has-sub .nav-label {
+.app-nav .nav-main > .button.active .nav-label {
     font-weight: 860;
 }
 
@@ -195,45 +143,42 @@ body .site-header ~ .container {
 }
 
 .app-nav .nav-sub {
-    width: calc(100% - var(--owner-sub-indent));
     display: flex;
     flex-direction: column;
     gap: 1px;
-    margin: 0 0 8px var(--owner-sub-indent);
-    padding: 5px 0 5px 12px;
-    border-left: 1px solid #d8e1ec;
+    margin: 2px 0 8px 34px;
+    padding: 3px 0 4px 14px;
+    border-left: 1px solid #dce5ef;
 }
 
 .app-nav .nav-sub .button,
 .app-nav .nav-sub-form .button {
-    width: 100%;
-    grid-template-columns: 16px minmax(0, 1fr);
-    gap: 9px;
-    min-height: 32px;
-    padding: 0 9px;
-    border: 0;
-    border-radius: 9px;
-    background: transparent;
-    box-shadow: none;
-    color: var(--owner-muted);
-    font-size: 12.25px;
-    font-weight: 720;
+    grid-template-columns: 15px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 29px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: transparent !important;
+    color: var(--owner-nav-muted);
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .app-nav .nav-sub .button:hover,
 .app-nav .nav-sub-form .button:hover {
-    background: var(--owner-soft);
-    color: var(--owner-navy);
+    background: var(--owner-nav-soft) !important;
+    color: var(--owner-nav-navy);
 }
 
 .app-nav .nav-sub .button.active {
-    background: #ffffff;
-    color: var(--owner-navy);
-    box-shadow: inset 2px 0 0 var(--section-color);
+    background: transparent !important;
+    color: var(--owner-nav-navy);
+    box-shadow: inset 2px 0 0 var(--section-color) !important;
 }
 
 .app-nav .nav-icon,
 .app-nav .nav-sub-icon {
+    justify-self: center;
     fill: none;
     stroke: currentColor;
     stroke-linecap: round;
@@ -244,14 +189,12 @@ body .site-header ~ .container {
     width: 18px;
     height: 18px;
     stroke-width: 2.05;
-    justify-self: center;
 }
 
 .app-nav .nav-sub-icon {
-    width: 14px;
-    height: 14px;
-    stroke-width: 1.95;
-    justify-self: center;
+    width: 13px;
+    height: 13px;
+    stroke-width: 1.9;
 }
 
 .app-nav .nav-label,
@@ -267,7 +210,7 @@ body .site-header ~ .container {
     height: 7px;
     border-right: 2px solid currentColor;
     border-bottom: 2px solid currentColor;
-    opacity: 0.55;
+    opacity: 0.54;
     transform: rotate(-45deg);
     justify-self: center;
 }

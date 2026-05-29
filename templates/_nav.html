@@ -42,7 +42,7 @@
     <span class="nav-sub-label">{{ label }}</span>
 </a>
 {%- endmacro %}
-<nav class="nav app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_cleaning %}section-cleaning{% elif is_sun2 %}section-sun2{% elif is_energy %}section-energy{% elif is_parking %}section-parking{% elif is_ai %}section-ai{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
+<nav class="app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_cleaning %}section-cleaning{% elif is_sun2 %}section-sun2{% elif is_energy %}section-energy{% elif is_parking %}section-parking{% elif is_ai %}section-ai{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
     <div class="nav-row nav-main">
         <a class="button nav-status has-sub {% if is_status %}active{% endif %}" href="/status/dashboard" aria-label="Status" title="Status">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
