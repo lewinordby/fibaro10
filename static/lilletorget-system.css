@@ -66,18 +66,23 @@ body main small {
     color: var(--lt-muted);
 }
 
-body main .page-title,
+body main :where(section.page-title, div.page-title, header.page-title),
 body main .sun-title,
 body main .dashboard-intro {
     margin: 0 0 0.85rem !important;
 }
 
 body main .page-title h1,
+body main h1.page-title,
 body main .sun-title h1,
 body.theme-status main .dashboard-title h1 {
     margin: 0 !important;
     font-size: clamp(1.38rem, 2vw, 1.78rem) !important;
     line-height: 1.08 !important;
+}
+
+body main h1.page-title {
+    margin: 0 0 0.85rem !important;
 }
 
 body main .page-title p,
@@ -121,7 +126,7 @@ body main :where(.metric-card span, .parking-card span, .focus-card span, .ops-c
     text-transform: uppercase !important;
 }
 
-body main :where(.metric-card strong, .parking-card strong, .focus-card strong, .ops-card strong, .value) {
+body main :where(.metric-card strong, .parking-card strong, .focus-card strong, .ops-card strong, .stat-card .value, .cell > .value, .metric > .value) {
     color: var(--lt-navy) !important;
     font-size: clamp(1.05rem, 1.7vw, 1.36rem) !important;
     font-weight: 850 !important;
@@ -428,7 +433,7 @@ body main :where(.muted, .meta, .hint, .description) {
     color: var(--lt-muted) !important;
 }
 
-body main :where(.page-title, .sun-title, .dashboard-title) {
+body main :where(section.page-title, div.page-title, header.page-title, .sun-title, .dashboard-title) {
     display: flex;
     flex-direction: column;
     gap: 0.18rem;
@@ -515,7 +520,7 @@ body main :where(.now-label, .control-title, .summary-card span, .metric-card sp
     letter-spacing: 0 !important;
 }
 
-body main :where(.value, .now-value, .summary-card strong, .metric-card strong, .parking-card strong, .focus-card strong, .ops-card strong, .stat-card .value, .mini-metric strong, .import-metric strong) {
+body main :where(.now-value, .summary-card strong, .metric-card strong, .parking-card strong, .focus-card strong, .ops-card strong, .stat-card .value, .cell > .value, .metric > .value, .mini-metric strong, .import-metric strong) {
     color: var(--lt-navy) !important;
     font-size: clamp(1.03rem, 1.35vw, 1.28rem) !important;
     font-weight: 830 !important;
@@ -584,6 +589,22 @@ body main :where(svg text, .chart-label, .y-label, .ref-label) {
 
 body main :where(pre, code, .api) {
     font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace !important;
+}
+
+body main.tech-page :where(.value, .note, .step p, .list li) {
+    color: var(--lt-text) !important;
+    font-size: 0.82rem !important;
+    font-weight: 520 !important;
+    line-height: 1.38 !important;
+}
+
+body main.tech-page :where(.key) {
+    color: var(--lt-muted) !important;
+    font-size: 0.66rem !important;
+    font-weight: 820 !important;
+    line-height: 1.16 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0 !important;
 }
 
 /* Page-specific scale trims, still using the shared type scale. */
