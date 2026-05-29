@@ -253,11 +253,6 @@ body.theme-status main .attention-panel {
     padding: 0.72rem 0.9rem !important;
 }
 
-body.theme-status.status-dashboard-page .site-header ~ main,
-body.theme-status.status-day-page .site-header ~ main {
-    --page-width: 1540px;
-}
-
 body.theme-parking .site-header ~ main,
 body.theme-sun2 .site-header ~ main,
 body.theme-energy .site-header ~ main,
@@ -265,7 +260,8 @@ body.theme-light .site-header ~ main,
 body.theme-vent .site-header ~ main,
 body.theme-cleaning .site-header ~ main,
 body.theme-ai .site-header ~ main,
-body.theme-admin .site-header ~ main {
+body.theme-admin .site-header ~ main,
+body.theme-status .site-header ~ main {
     --page-width: 1500px;
 }
 
@@ -429,4 +425,27 @@ body main :where(.page-actions, .toolbar, .actions, .button-row) {
 
 body main :where(.muted, .meta, .hint, .description) {
     color: var(--lt-muted) !important;
+}
+
+body main :where(.page-title, .sun-title, .dashboard-title) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+}
+
+body main :where(.summary-grid, .metric-grid, .stats-grid, .top-grid, .panel-grid, .grid.two, .cards, .parking-cards, .focus-grid) {
+    gap: 0.68rem !important;
+}
+
+body main :where(.table-wrap, .table-scroll, .parking-panel, .timeline-panel) {
+    border: 1px solid var(--lt-border) !important;
+}
+
+body main :where(.section-row, .section-head, .panel-head) {
+    margin-bottom: 0.52rem !important;
+}
+
+body main :where(.section-note, .subtle, .secondary-text) {
+    color: var(--lt-muted) !important;
+    font-size: 0.76rem !important;
 }

@@ -8,6 +8,8 @@
 {% set is_parking = current_path.startswith("/parkering") %}
 {% set is_ai = current_path.startswith("/ai") %}
 {% set is_account = current_path.startswith("/konto") %}
+{% set parking_vehicles_active = current_path == "/parkering/kjoretoy" or current_path.startswith("/parkering/kjoretoy/") %}
+{% set cleaning_overview_active = current_path == "/renhold/oversikt" or current_path.startswith("/renhold/robot/") %}
 {% macro sub_button(path, label, icon, active) -%}
 <a class="button {% if active %}active{% endif %}" href="{{ path }}">
     <svg class="nav-sub-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -69,7 +71,7 @@
             {{ sub_button("/parkering/bilstatistikk", "Bilstatistikk", "parking", current_path == "/parkering/bilstatistikk") }}
             {{ sub_button("/parkering/omrade", "Område", "parking", current_path == "/parkering/omrade") }}
             {{ sub_button("/parkering/omrade-oppslag", "Oppslag", "list", current_path == "/parkering/omrade-oppslag") }}
-            {{ sub_button("/parkering/kjoretoy", "Kjøretøy", "parking", current_path == "/parkering/kjoretoy") }}
+            {{ sub_button("/parkering/kjoretoy", "Kjøretøy", "parking", parking_vehicles_active) }}
         </div>
 
         <a class="button nav-sun2 has-sub {% if is_sun2 %}active{% endif %}" href="/soling/dagslinje" aria-label="Soling" title="Soling">
@@ -139,7 +141,7 @@
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         <div class="nav-row nav-sub {% if is_cleaning %}active-section{% endif %}" aria-label="Undermeny for renhold">
-            {{ sub_button("/renhold/oversikt", "Oversikt", "dashboard", current_path == "/renhold/oversikt") }}
+            {{ sub_button("/renhold/oversikt", "Oversikt", "dashboard", cleaning_overview_active) }}
         </div>
 
         <a class="button nav-ai has-sub {% if is_ai %}active{% endif %}" href="/ai/sok" aria-label="AI søk" title="AI søk">

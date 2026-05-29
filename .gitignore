@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .env
 roborock_output/
+outputs/
 roborock_logger/.env
 roborock_logger/data/
 sun2_session_scraper/.env
