@@ -7,82 +7,279 @@
     <style>
         :root {
             color-scheme: light;
-            --tech-bg: #eef2f6;
-            --tech-panel: #fff;
-            --tech-line: #dbe3ec;
             --tech-text: #081846;
-            --tech-muted: #6b778d;
+            --tech-muted: #6f7b92;
+            --tech-line: #dce4ee;
+            --tech-card: #fff;
+            --tech-soft: #f6f8fb;
             --tech-gold: #a87917;
+            --tech-blue: #081846;
+            --tech-green: #5f8f62;
+            --tech-red: #bf6d59;
         }
         * { box-sizing: border-box; }
-        body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 0; background: var(--tech-bg); color: var(--tech-text); }
-        main.tech-page { width: min(100% - 1.4rem, 1160px); margin: 0 auto; padding: 1rem 0 2.5rem; }
-        .page-head {
-            margin: 0 0 1rem;
+        body {
+            margin: 0;
+            background:
+                radial-gradient(circle at 12% 0%, rgba(168,121,23,.10), transparent 26rem),
+                linear-gradient(120deg, #f7f9fc 0%, #eef3f8 100%);
+            color: var(--tech-text);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        main.tech-page {
+            width: min(100% - 2rem, 1280px);
+            margin: 0 auto;
+            padding: 1.45rem 0 3rem;
+        }
+        .tech-hero {
+            display: grid;
+            gap: .65rem;
+            margin-bottom: 1rem;
+        }
+        .tech-kicker {
+            color: var(--tech-gold);
+            font-size: .78rem;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .tech-hero h1 {
+            margin: 0;
+            font-size: 2rem;
+            line-height: 1.05;
+            letter-spacing: 0;
+        }
+        .tech-hero p {
+            max-width: 78rem;
+            margin: 0;
+            color: var(--tech-muted);
+            font-size: 1.02rem;
+            line-height: 1.5;
+        }
+        .tech-section {
+            margin-top: 1rem;
+        }
+        .tech-section-head {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 1rem;
+            margin: 0 0 .65rem;
+        }
+        .tech-section-head h2 {
+            margin: 0;
+            font-size: 1.22rem;
+            line-height: 1.15;
+        }
+        .tech-section-head p {
+            margin: 0;
+            color: var(--tech-muted);
+            line-height: 1.4;
+        }
+        .tech-grid {
+            display: grid;
+            gap: .85rem;
+        }
+        .tech-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .tech-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .tech-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .tech-card {
+            min-width: 0;
             padding: 1rem;
             border: 1px solid var(--tech-line);
-            border-top: 4px solid var(--tech-gold);
-            border-radius: 14px;
+            border-top: 4px solid var(--accent, var(--tech-gold));
+            border-radius: 16px;
             background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
-            box-shadow: 0 1px 2px rgba(8,24,70,.04), 0 12px 30px rgba(8,24,70,.06);
+            box-shadow: 0 1px 2px rgba(8,24,70,.04), 0 18px 34px rgba(8,24,70,.07);
         }
-        h1 { margin: 0 0 .25rem; font-size: clamp(1.55rem, 3vw, 2.15rem); line-height: 1.08; }
-        h2 { margin: 0 0 .55rem; font-size: 1rem; }
-        h3 { margin: 0 0 .35rem; font-size: .96rem; }
-        p { margin: 0; color: var(--tech-muted); line-height: 1.45; }
-        code { background: #eef2f7; border: 1px solid #e0e7ef; border-radius: 4px; padding: .08rem .28rem; }
-        .grid { display: grid; gap: .88rem; }
-        .panel {
-            background: var(--tech-panel);
-            border: 1px solid var(--tech-line);
-            border-top: 4px solid var(--page-accent, var(--tech-gold));
-            border-radius: 12px;
-            padding: .95rem;
-            box-shadow: 0 1px 2px rgba(8,24,70,.04), 0 12px 30px rgba(8,24,70,.06);
+        .tech-card h3 {
+            margin: 0 0 .35rem;
+            font-size: 1rem;
+            line-height: 1.2;
         }
-        .panel.parking { border-top-color: var(--parking-color); }
-        .panel.sun2 { border-top-color: var(--sun2-color); }
-        .panel.light { border-top-color: var(--light-color); }
-        .panel.vent { border-top-color: var(--vent-color); }
-        .panel.energy { border-top-color: var(--energy-color); }
-        .panel.cleaning { border-top-color: var(--cleaning-color); }
-        .panel.ai { border-top-color: var(--ai-color); }
-        .list { display: grid; gap: .48rem; margin: .55rem 0 0; padding: 0; list-style: none; }
-        .list li {
+        .tech-card p,
+        .tech-card li {
+            color: var(--tech-muted);
+            line-height: 1.45;
+        }
+        .tech-card p { margin: 0; }
+        .accent-blue { --accent: var(--tech-blue); }
+        .accent-gold { --accent: var(--tech-gold); }
+        .accent-green { --accent: var(--tech-green); }
+        .accent-red { --accent: var(--tech-red); }
+        .accent-parking { --accent: var(--parking-color, #668b98); }
+        .accent-sun { --accent: var(--sun2-color, #cf7662); }
+        .accent-light { --accent: var(--light-color, #c99a12); }
+        .accent-vent { --accent: var(--vent-color, #6f9b69); }
+        .accent-energy { --accent: var(--energy-color, #8c6a1c); }
+        .accent-cleaning { --accent: var(--cleaning-color, #6d668b); }
+        .tech-list {
             display: grid;
-            grid-template-columns: minmax(8.7rem, 12rem) minmax(0,1fr);
-            gap: .65rem;
+            gap: .44rem;
+            margin: .6rem 0 0;
+            padding: 0;
+            list-style: none;
+        }
+        .tech-list li {
+            display: grid;
+            grid-template-columns: 10.5rem minmax(0, 1fr);
+            gap: .75rem;
             padding: .46rem 0;
             border-top: 1px solid #edf1f6;
         }
-        .list li:first-child { border-top: 0; }
-        .key { color: #526174; font-size: .77rem; font-weight: 850; text-transform: uppercase; letter-spacing: .025em; }
-        .value { color: var(--tech-text); overflow-wrap: anywhere; line-height: 1.42; }
-        .flow { display: grid; grid-template-columns: 1fr; gap: .55rem; margin-top: .6rem; }
-        .step { border: 1px solid #e5eaf0; border-left: 4px solid var(--tech-gold); border-radius: 8px; padding: .58rem .68rem; background: #fbfdff; }
-        .step strong { display: block; margin-bottom: .1rem; }
-        .note { margin-top: .58rem; padding: .62rem .7rem; border: 1px solid #e5eaf0; border-radius: 8px; background: #fbfdff; color: var(--tech-muted); }
-        .links { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .68rem; }
-        .button {
+        .tech-list li:first-child { border-top: 0; }
+        .tech-key {
+            color: #68758a;
+            font-size: .76rem;
+            font-weight: 900;
+            letter-spacing: .035em;
+            text-transform: uppercase;
+        }
+        .tech-value {
+            min-width: 0;
+            color: var(--tech-text);
+            line-height: 1.42;
+            overflow-wrap: anywhere;
+        }
+        .tech-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .45rem;
+            margin-top: .7rem;
+        }
+        .tech-link {
             display: inline-flex;
             align-items: center;
-            min-height: 2.1rem;
-            padding: .36rem .68rem;
-            border: 1px solid rgba(168,121,23,.28);
-            border-radius: 8px;
-            background: rgba(168,121,23,.1);
-            color: var(--tech-gold);
+            min-height: 2.15rem;
+            padding: .38rem .68rem;
+            border: 1px solid rgba(8,24,70,.13);
+            border-radius: 999px;
+            background: #fff;
+            color: var(--tech-text);
             text-decoration: none;
+            font-size: .86rem;
             font-weight: 850;
+            box-shadow: 0 1px 2px rgba(8,24,70,.04);
         }
-        @media (min-width: 760px) {
-            main.tech-page { padding-top: 1.25rem; }
-            .grid.two { grid-template-columns: repeat(2,minmax(0,1fr)); }
-            .grid.three { grid-template-columns: repeat(3,minmax(0,1fr)); }
-            .flow { grid-template-columns: repeat(5,minmax(0,1fr)); }
+        .tech-link:hover {
+            border-color: rgba(168,121,23,.42);
+            color: var(--tech-gold);
         }
-        @media (max-width: 560px) {
-            .list li { grid-template-columns: 1fr; gap: .12rem; }
+        .tech-table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--tech-line);
+            border-radius: 14px;
+            background: #fff;
+        }
+        .tech-table {
+            width: 100%;
+            min-width: 940px;
+            border-collapse: collapse;
+        }
+        .tech-table th,
+        .tech-table td {
+            padding: .68rem .78rem;
+            border-bottom: 1px solid #edf1f6;
+            text-align: left;
+            vertical-align: top;
+        }
+        .tech-table th {
+            background: #f5f7fa;
+            color: #657287;
+            font-size: .76rem;
+            font-weight: 900;
+            letter-spacing: .035em;
+            text-transform: uppercase;
+        }
+        .tech-table td {
+            color: var(--tech-text);
+            line-height: 1.38;
+        }
+        .tech-table tr:last-child td { border-bottom: 0; }
+        .tech-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            padding: .16rem .48rem;
+            border: 1px solid #dce4ee;
+            border-radius: 999px;
+            background: #f8fafc;
+            color: #5d6a80;
+            font-size: .78rem;
+            font-weight: 850;
+            white-space: nowrap;
+        }
+        .tech-badge.ok {
+            border-color: rgba(95,143,98,.22);
+            background: rgba(95,143,98,.10);
+            color: #4f8052;
+        }
+        .tech-badge.local {
+            border-color: rgba(8,24,70,.16);
+            background: rgba(8,24,70,.06);
+            color: var(--tech-blue);
+        }
+        .tech-flow {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: .7rem;
+        }
+        .tech-flow-step {
+            position: relative;
+            min-height: 8rem;
+            padding: .82rem;
+            border: 1px solid var(--tech-line);
+            border-radius: 14px;
+            background: var(--tech-card);
+        }
+        .tech-flow-step strong {
+            display: block;
+            margin-bottom: .25rem;
+        }
+        .tech-flow-step span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.7rem;
+            height: 1.7rem;
+            margin-bottom: .45rem;
+            border-radius: 50%;
+            background: rgba(168,121,23,.12);
+            color: var(--tech-gold);
+            font-size: .8rem;
+            font-weight: 900;
+        }
+        .tech-note {
+            margin-top: .7rem;
+            padding: .72rem .82rem;
+            border: 1px solid #e0e7ef;
+            border-left: 4px solid var(--accent, var(--tech-gold));
+            border-radius: 10px;
+            background: #fbfdff;
+            color: var(--tech-muted);
+            line-height: 1.45;
+        }
+        code {
+            padding: .08rem .28rem;
+            border: 1px solid #dde6ef;
+            border-radius: 5px;
+            background: #f1f5f9;
+            color: #23324f;
+            font-size: .88em;
+        }
+        @media (max-width: 1100px) {
+            .tech-grid.three,
+            .tech-grid.four,
+            .tech-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 760px) {
+            main.tech-page { width: min(100% - 1rem, 1280px); }
+            .tech-grid.two,
+            .tech-grid.three,
+            .tech-grid.four,
+            .tech-flow { grid-template-columns: 1fr; }
+            .tech-list li { grid-template-columns: 1fr; gap: .12rem; }
+            .tech-section-head { align-items: start; flex-direction: column; }
         }
     </style>
     {% include "_styles.html" %}
@@ -90,218 +287,354 @@
 <body class="theme-admin">
     {% include "_header.html" %}
     <main class="tech-page">
-        <div class="page-head">
+        <header class="tech-hero">
+            <div class="tech-kicker">Drift og arkitektur</div>
             <h1>Teknisk oversikt</h1>
-            <p>Teknisk dokumentasjon for Lilletorget drift: driftmiljø, dataflyt, importer, API-er, lokale loggere og hvor feil bør sjekkes først.</p>
-        </div>
+            <p>Samlet dokumentasjon for løsningene bak Lilletorget: hovedappen, mobil nøkkeltall-app, QNAP-containere, HC3, SUN2, EasyPark, Elvia, Roborock, browser-tillegg og vedlikeholdslenker.</p>
+        </header>
 
-        <section class="grid two">
-            <article class="panel">
-                <h2>Produksjonsmiljø</h2>
-                <ul class="list">
-                    <li><span class="key">Navn</span><span class="value">Lilletorget drift, tidligere Fibaro10.</span></li>
-                    <li><span class="key">Offentlig URL</span><span class="value"><code>https://online.lilletorget.net</code>.</span></li>
-                    <li><span class="key">Lokal app</span><span class="value"><code>http://192.168.20.218:8110</code> på QNAP.</span></li>
-                    <li><span class="key">QNAP</span><span class="value">TS-473A på internt nett. Appdata ligger under <code>/share/CACHEDEV1_DATA/Public/containerdata/fibaro10</code>.</span></li>
-                    <li><span class="key">Container</span><span class="value"><code>fibaro10</code> kjører FastAPI/uvicorn på port 8110.</span></li>
-                    <li><span class="key">Proxy</span><span class="value"><code>fibaro10_proxy</code> kjører Caddy. UniFi forwarder 443 til QNAP port 8443.</span></li>
-                    <li><span class="key">Kode</span><span class="value">GitHub-repo <code>lewinordby/fibaro10</code>. Produksjon bygges fra <code>main</code>.</span></li>
-                </ul>
-            </article>
-
-            <article class="panel">
-                <h2>Applikasjon</h2>
-                <ul class="list">
-                    <li><span class="key">Backend</span><span class="value">FastAPI, SQLAlchemy async, PostgreSQL, server-renderte Jinja-sider og GZip-komprimering.</span></li>
-                    <li><span class="key">Frontend</span><span class="value">Jinja-maler med felles CSS i <code>static/app.css</code>, meny/header i <code>static/owner-nav.css</code> og Lilletorget-tema i <code>static/lilletorget-system.css</code>.</span></li>
-                    <li><span class="key">Branding</span><span class="value">Lilletorget-logo. Sol/P-symbol åpner/lukker meny, tekstlogo går til Status/Dashboard.</span></li>
-                    <li><span class="key">Helse</span><span class="value"><code>/health</code> svarer uten innlogging og viser at appen og datalaget er tilgjengelig.</span></li>
-                    <li><span class="key">Innlogging</span><span class="value">Brukernavn og passord. Automatiske loggere bruker egen bruker/API-headere der det er satt opp.</span></li>
-                    <li><span class="key">Roller</span><span class="value">Master, Innstillinger og Vanlig bruker.</span></li>
-                </ul>
-            </article>
-        </section>
-
-        <section class="panel">
-            <h2>Dataflyt</h2>
-            <div class="flow">
-                <div class="step"><strong>HC3</strong><p>Poster lys, lux, ventilasjon, temperatur og energi til API-et.</p></div>
-                <div class="step"><strong>QNAP-loggere</strong><p>Lokale containere henter SUN2, EasyPark og Roborock.</p></div>
-                <div class="step"><strong>Manuelle importer</strong><p>Elvia lastes opp manuelt. Kjøretøyfelt kan fylles via app eller browser-tillegg.</p></div>
-                <div class="step"><strong>Database</strong><p>PostgreSQL lagrer egne tabeller for hvert domene og importstatus.</p></div>
-                <div class="step"><strong>Grensesnitt</strong><p>Viser status, grafer, tabeller, innstillinger og feilsignaler fra samme grunnlag.</p></div>
+        <section class="tech-section">
+            <div class="tech-grid four">
+                <article class="tech-card accent-blue">
+                    <h3>Hovedapp</h3>
+                    <p><strong>Fibaro10 / Lilletorget drift</strong><br>Full intern app på QNAP.</p>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">URL</span><span class="tech-value"><a href="http://192.168.20.218:8110">http://192.168.20.218:8110</a></span></li>
+                        <li><span class="tech-key">Tilgang</span><span class="tech-value">Internt nett eller VPN. Skal ikke eksponeres direkte mot internett.</span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-gold">
+                    <h3>Offentlig visning</h3>
+                    <p><strong>Online Dashboard</strong><br>Isolert mobilvennlig nøkkeltall-app.</p>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">URL</span><span class="tech-value"><a href="https://online.lilletorget.net">https://online.lilletorget.net</a></span></li>
+                        <li><span class="tech-key">Proxy</span><span class="tech-value">UniFi 443 til QNAP 8443, Caddy til <code>online_dashboard:8111</code>.</span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-green">
+                    <h3>QNAP</h3>
+                    <p><strong>TS-473A</strong><br>Containerhost og lokal driftsmaskin.</p>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">IP</span><span class="tech-value"><code>192.168.20.218</code></span></li>
+                        <li><span class="tech-key">Appdata</span><span class="tech-value"><code>/share/CACHEDEV1_DATA/Public/containerdata/fibaro10</code></span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-red">
+                    <h3>HC3</h3>
+                    <p><strong>Fibaro Home Center 3</strong><br>Kjører styringslogikk for lys, ventilasjon og energimåling.</p>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">IP</span><span class="tech-value"><code>192.168.1.10</code></span></li>
+                        <li><span class="tech-key">Ansvar</span><span class="tech-value">Scener/QuickApps sender målinger og henter config fra hovedappen.</span></li>
+                    </ul>
+                </article>
             </div>
         </section>
 
-        <section class="grid three">
-            <article class="panel light">
-                <h2>HC3 og lys</h2>
-                <ul class="list">
-                    <li><span class="key">Styring</span><span class="value">HC3 Lua-scene styrer alle utelys etter lux, tidsvinduer og config fra API.</span></li>
-                    <li><span class="key">Logging</span><span class="value">Lux og lysstatus logges omtrent hvert 5. minutt. Endringer får egen hendelse.</span></li>
-                    <li><span class="key">Test</span><span class="value">HC3-testvariabel kan overstyre lux midlertidig. Scenen skal tømme testverdien etter kjøring.</span></li>
-                    <li><span class="key">Varsler</span><span class="value">ntfy kan varsle når lysgrupper faktisk går av/på.</span></li>
-                </ul>
-            </article>
-
-            <article class="panel vent">
-                <h2>HC3 og ventilasjon</h2>
-                <ul class="list">
-                    <li><span class="key">Styring</span><span class="value">Lua-scene vurderer temperatur inne, ute, loft, passiv innluft og estimert belastning.</span></li>
-                    <li><span class="key">Logging</span><span class="value">Temperaturer, viftestatus, modus og begrunnelse logges omtrent hvert 5. minutt.</span></li>
-                    <li><span class="key">Yr</span><span class="value">Yr-data lagres i egen tabell når varselet fornyes. Brukes for visning og fremtidig forhåndslufting.</span></li>
-                    <li><span class="key">Varsler</span><span class="value">ntfy kan varsle ved vifteendringer.</span></li>
-                </ul>
-            </article>
-
-            <article class="panel energy">
-                <h2>HC3 og energi</h2>
-                <ul class="list">
-                    <li><span class="key">Realtime</span><span class="value">QuickApps i HC3 sender W omtrent hvert minutt for inntak, varmepumper, belysning, massasje og annet.</span></li>
-                    <li><span class="key">Akkumulert</span><span class="value">kWh sendes også, men enkelte målere kan nulle seg. Derfor brukes reset-håndtering i beregninger.</span></li>
-                    <li><span class="key">Differanse</span><span class="value">Differanse kan leses fra HC3, men appen kan beregne egen differanse fra gruppene.</span></li>
-                    <li><span class="key">Visning</span><span class="value">HC3-timesforbruk vises forskjøvet til timen forbruket tilhører, slik at det matcher Elvia bedre.</span></li>
-                </ul>
-            </article>
-        </section>
-
-        <section class="grid two">
-            <article class="panel parking">
-                <h2>Parkering og EasyPark</h2>
-                <ul class="list">
-                    <li><span class="key">Kilde</span><span class="value">EasyPark-data hentes av lokal downloader og importeres i <code>parkering</code>-tabellen.</span></li>
-                    <li><span class="key">Faste jobber</span><span class="value">Nattkjøring logger ut/inn før henting. I tillegg kjøres faste dagoppdateringer, blant annet kl. 12, 15, 18 og 21.</span></li>
-                    <li><span class="key">Manuell jobb</span><span class="value">Parkering &gt; Oversikt kan trigge ny henting for nyere periode når brukeren har tilgang.</span></li>
-                    <li><span class="key">Oppdatering</span><span class="value">Importen oppdaterer eksisterende poster. Pågående parkeringer kan derfor få sluttid og endelig beløp senere.</span></li>
-                    <li><span class="key">Kjøretøy</span><span class="value"><code>kjoretoy</code> lagrer regnr, interne felt, antall, summer, først/sist sett og område.</span></li>
-                    <li><span class="key">Nøkkeldata</span><span class="value"><code>kjoretoy_nokkeldata</code> lagrer merke, modell, årsmodell, farge, klasse og SVV-status når data finnes.</span></li>
-                </ul>
-                <p class="note">Parkeringsoversikten er operativ: valgt dag, pågående øverst, avsluttede under. Statistikk og områdefordeling ligger på egne undersider.</p>
-            </article>
-
-            <article class="panel sun2">
-                <h2>SUN2</h2>
-                <ul class="list">
-                    <li><span class="key">Dagsfiler</span><span class="value">Gir summer per dag/rom: soltid, antall og omsetning. Brukes for historiske oversikter.</span></li>
-                    <li><span class="key">Enkeltimer</span><span class="value">Skrapes løpende, typisk hvert 5. minutt, og brukes i dagslinje og forbruk per seng.</span></li>
-                    <li><span class="key">Deduplisering</span><span class="value">Enkeltimer lagres med naturlig nøkkel fra tidspunkt, rom/seng, varighet og brukerdata der tilgjengelig.</span></li>
-                    <li><span class="key">Medlemmer</span><span class="value">Synkes periodisk. SUN2-id er stabil nøkkel når navn/visning endres.</span></li>
-                    <li><span class="key">Senger</span><span class="value">Sengedata gir kobling mellom SUN2-navn, fysisk rom-id, modell og aktiv status.</span></li>
-                    <li><span class="key">Rom-id</span><span class="value">Fysisk rom-id brukes for å håndtere gamle navneendringer og tidligere rom 10.</span></li>
-                </ul>
-            </article>
-        </section>
-
-        <section class="grid two">
-            <article class="panel cleaning">
-                <h2>Roborock / Renhold</h2>
-                <ul class="list">
-                    <li><span class="key">App</span><span class="value"><code>roborock_logger</code> kjører lokalt på QNAP og sender data til hoved-API-et.</span></li>
-                    <li><span class="key">Data</span><span class="value">Robotmetadata, status, jobber, planer, forbruksdeler og kart/snapshots der dette er tilgjengelig.</span></li>
-                    <li><span class="key">Fremtid</span><span class="value">Loggeren er laget som egen app slik at den kan peke til ekstern eller lokal Fibaro10 via én setting.</span></li>
-                    <li><span class="key">Feil</span><span class="value">Ved gammel status: sjekk Roborock-konto, delt robot, lokal nettverkstilgang og containerlogg.</span></li>
-                </ul>
-            </article>
-
-            <article class="panel energy">
-                <h2>Elvia og forbruk/seng</h2>
-                <ul class="list">
-                    <li><span class="key">Elvia</span><span class="value">JSON-fil lastes opp manuelt under Energi &gt; Elvia. Den brukes som fasit for historisk strøm.</span></li>
-                    <li><span class="key">Import</span><span class="value">Importen er idempotent. Samme fil kan kjøres flere ganger uten å lage duplikater.</span></li>
-                    <li><span class="key">Forbruk/seng</span><span class="value">Beregnes fra SUN2 enkelttimer og HC3 differanseforbruk når nøyaktig én seng er aktiv.</span></li>
-                    <li><span class="key">Målevindu</span><span class="value">Beregningen venter 2 min etter oppstart, stopper 1 min før slutt, krever minst 3 målinger og krever at andre senger har stoppet minst 3 min.</span></li>
-                    <li><span class="key">Reberegning</span><span class="value">Knappen Beregn overskriver gamle beregninger og regner på nytt fra tilgjengelig datagrunnlag.</span></li>
-                </ul>
-            </article>
-        </section>
-
-        <section class="grid two">
-            <article class="panel">
-                <h2>Nettleserutvidelser</h2>
-                <ul class="list">
-                    <li><span class="key">Område</span><span class="value"><code>browser_extensions/parking_name_lookup</code> henter liste over biler uten område og kan skrive område tilbake til API.</span></li>
-                    <li><span class="key">Navn</span><span class="value"><code>browser_extensions/parking_manual_name</code> brukes for manuell innlegging av navn på samme kjøretøy-API.</span></li>
-                    <li><span class="key">Batch</span><span class="value">Områdeutvidelsen kan hente opptil 1000 regnr fra appen når brukeren har nødvendig tilgang.</span></li>
-                    <li><span class="key">API</span><span class="value">Bruker kjøretøyendepunkter for å hente manglende biler og skrive område/navn.</span></li>
-                </ul>
-            </article>
-
-            <article class="panel ai">
-                <h2>AI</h2>
-                <ul class="list">
-                    <li><span class="key">Formål</span><span class="value">AI-søk kan bruke registrerte datasett for frie spørsmål på norsk.</span></li>
-                    <li><span class="key">Nøkkel</span><span class="value">OpenAI API-nøkkel kan legges inn i AI &gt; Innstillinger eller som miljøvariabel.</span></li>
-                    <li><span class="key">Kvoter</span><span class="value">ChatGPT-abonnement og API-kvote er separate. API krever egen billing/kvote.</span></li>
-                    <li><span class="key">Logging</span><span class="value">AI-spørringer logges i egen tabell for feilsøking og oversikt.</span></li>
-                </ul>
-            </article>
-        </section>
-
-        <section class="grid two">
-            <article class="panel">
-                <h2>Drift og deploy</h2>
-                <ul class="list">
-                    <li><span class="key">Deploy</span><span class="value">QNAP oppdateres fra GitHub <code>main</code> og bygges med <code>docker compose -f docker-compose.qnap.yml up -d --build</code>.</span></li>
-                    <li><span class="key">Compose</span><span class="value"><code>fibaro10</code> eksponerer 8110. <code>fibaro10_proxy</code> eksponerer 8081/8443 og terminerer HTTPS via Caddy.</span></li>
-                    <li><span class="key">Caddy</span><span class="value"><code>online.lilletorget.net</code> reverse proxies til <code>fibaro10:8110</code> og setter sikkerhetsheadere.</span></li>
-                    <li><span class="key">UniFi</span><span class="value">Port forward fra offentlig 443 til <code>192.168.20.218:8443</code>. QNAP-admin skal ikke eksponeres eksternt.</span></li>
-                    <li><span class="key">Logger</span><span class="value">Sjekk containerlogger for postinger, importer og eventuelle 500-feil.</span></li>
-                    <li><span class="key">Render</span><span class="value">Render er ikke lenger aktivt driftsmiljø og skal ikke brukes for produksjonsflyt.</span></li>
-                </ul>
-            </article>
-
-            <article class="panel">
-                <h2>Lokale hjelpeapper</h2>
-                <ul class="list">
-                    <li><span class="key">HC3 vedlikehold</span><span class="value"><code>hc3_vedlikehold</code>, lokalt verktøy på port 8108 for å inspisere HC3-grupper/undermålere.</span></li>
-                    <li><span class="key">EasyPark</span><span class="value"><code>easypark_downloader</code>, lokal nedlasting/innlogging/import mot hoved-API.</span></li>
-                    <li><span class="key">SUN2 backfill</span><span class="value"><code>sun2_backfill_downloader</code>, historisk engangs-/vedlikeholdsjobb.</span></li>
-                    <li><span class="key">SUN2 import</span><span class="value"><code>sun2_importer</code>, import av dagsfiler og romsummer.</span></li>
-                    <li><span class="key">SUN2 timer</span><span class="value"><code>sun2_session_scraper</code>, løpende enkelttimer.</span></li>
-                    <li><span class="key">Roborock</span><span class="value"><code>roborock_logger</code>, lokal robotlogger.</span></li>
-                </ul>
-            </article>
-        </section>
-
-        <section class="panel">
-            <h2>Viktige endepunkter</h2>
-            <ul class="list">
-                <li><span class="key">Helse</span><span class="value"><code>/health</code></span></li>
-                <li><span class="key">HC3 inn</span><span class="value"><code>/events</code>, eldre <code>/log</code>, <code>/api/energi/fibaro</code></span></li>
-                <li><span class="key">Datakilder</span><span class="value"><code>/api/import-status/json</code></span></li>
-                <li><span class="key">Config</span><span class="value"><code>/api/config</code>, <code>/api/config/lights</code>, <code>/api/config/ventilation</code></span></li>
-                <li><span class="key">Lys</span><span class="value"><code>/lights/json</code>, <code>/lights/samples/json</code></span></li>
-                <li><span class="key">Ventilasjon</span><span class="value"><code>/ventilation/json</code>, <code>/ventilation/samples/json</code>, <code>/yr/samples/json</code></span></li>
-                <li><span class="key">Soling</span><span class="value"><code>/api/sun2/sessions/json</code>, <code>/api/sun2/members/json</code>, <code>/api/sun2/beds/json</code>, <code>/api/sun2/room-stats/json</code></span></li>
-                <li><span class="key">Energi</span><span class="value"><code>/api/energi/fibaro/json</code>, <code>/api/energi/elvia/json</code></span></li>
-                <li><span class="key">Renhold</span><span class="value"><code>/api/renhold/ingest</code>, <code>/renhold/json</code></span></li>
-                <li><span class="key">Parkering</span><span class="value"><code>/parkering/oversikt</code>, <code>/parkering/parkeringer</code>, <code>/parkering/kjoretoy</code>, <code>/parkering/omrade-oppslag</code></span></li>
-                <li><span class="key">Kjøretøy</span><span class="value"><code>/api/parkering/kjoretoy/missing-area</code>, <code>/api/parkering/kjoretoy/{plate}/area</code>, <code>/api/parkering/kjoretoy/{plate}/name</code></span></li>
-                <li><span class="key">AI</span><span class="value"><code>/api/ai/datasets/json</code>, <code>/api/ai/logs/json</code></span></li>
-            </ul>
-        </section>
-
-        <section class="panel">
-            <h2>Feilsøking først</h2>
-            <ul class="list">
-                <li><span class="key">1</span><span class="value">Åpne <strong>Status &gt; Datakilder</strong> og se om en kilde er treg, gammel eller feilet.</span></li>
-                <li><span class="key">2</span><span class="value">Sjekk <strong>Status &gt; Dashboard</strong> for driftsradar og siste hendelser.</span></li>
-                <li><span class="key">3</span><span class="value">Sjekk aktuell fagmeny: Parkering, Soling, Lys, Ventilasjon, Energi eller Renhold.</span></li>
-                <li><span class="key">4</span><span class="value">Ved importfeil: sjekk lokal QNAP-logger/container først, deretter importstatus i appen.</span></li>
-                <li><span class="key">5</span><span class="value">Ved rare tider: kontroller om kilden leverer lokal tid eller UTC. SUN2, EasyPark og Elvia skal vises som lokal tid, HC3/Yr normaliseres mot Europe/Oslo.</span></li>
-                <li><span class="key">6</span><span class="value">Ved design etter deploy: sjekk at ny CSS serveres fra QNAP og hard refresh nettleseren hvis gammel cache ligger igjen.</span></li>
-            </ul>
-            <div class="links">
-                <a class="button" href="/status/datakilder">Datakilder</a>
-                <a class="button" href="/status/dashboard">Dashboard</a>
-                <a class="button" href="/parkering/oversikt">Parkering</a>
-                <a class="button" href="/konto/manual">Manual</a>
+        <section class="tech-section">
+            <div class="tech-section-head">
+                <div>
+                    <h2>Vedlikeholdslenker</h2>
+                    <p>De viktigste stedene å gå når noe skal sjekkes, justeres eller feilsøkes.</p>
+                </div>
+            </div>
+            <div class="tech-grid three">
+                <article class="tech-card accent-blue">
+                    <h3>Drift</h3>
+                    <div class="tech-links">
+                        <a class="tech-link" href="/status/dashboard">Status dashboard</a>
+                        <a class="tech-link" href="/status/datakilder">Datakilder</a>
+                        <a class="tech-link" href="/status/statistikk">Samlet statistikk</a>
+                        <a class="tech-link" href="/konto/build">Buildlogg</a>
+                        <a class="tech-link" href="/konto/manual">Brukermanual</a>
+                        <a class="tech-link" href="/konto/teknisk">Teknisk side</a>
+                    </div>
+                </article>
+                <article class="tech-card accent-parking">
+                    <h3>Parkering</h3>
+                    <div class="tech-links">
+                        <a class="tech-link" href="/parkering/oversikt">Dagens parkering</a>
+                        <a class="tech-link" href="/parkering/statistikk">Statistikk</a>
+                        <a class="tech-link" href="/parkering/prognose">Prognose</a>
+                        <a class="tech-link" href="/parkering/omrade">Område</a>
+                        <a class="tech-link" href="/parkering/kjoretoy">Kjøretøy</a>
+                        <a class="tech-link" href="/parkering/omrade-oppslag">Område-oppslag</a>
+                    </div>
+                </article>
+                <article class="tech-card accent-sun">
+                    <h3>Soling</h3>
+                    <div class="tech-links">
+                        <a class="tech-link" href="/soling/dagslinje">Dagslinje</a>
+                        <a class="tech-link" href="/soling/oversikt">Statistikk</a>
+                        <a class="tech-link" href="/soling/prognose">Prognose</a>
+                        <a class="tech-link" href="/soling/enkeltimer">Enkeltimer</a>
+                        <a class="tech-link" href="/soling/senger">Senger</a>
+                        <a class="tech-link" href="/soling/medlemmer">Medlemmer</a>
+                    </div>
+                </article>
+                <article class="tech-card accent-light">
+                    <h3>Lys</h3>
+                    <div class="tech-links">
+                        <a class="tech-link" href="/lys/dagslogg-lux">Dagslogg lux</a>
+                        <a class="tech-link" href="/lys/hendelser">Hendelser</a>
+                        <a class="tech-link" href="/lys/lux-logging">Målinger</a>
+                        <a class="tech-link" href="/lys/innstillinger">Innstillinger</a>
+                    </div>
+                </article>
+                <article class="tech-card accent-vent">
+                    <h3>Ventilasjon</h3>
+                    <div class="tech-links">
+                        <a class="tech-link" href="/ventilasjon/dagslogg-temp">Dagslogg temp</a>
+                        <a class="tech-link" href="/ventilasjon/hendelser">Hendelser</a>
+                        <a class="tech-link" href="/ventilasjon/temp-logg">Temp logg</a>
+                        <a class="tech-link" href="/ventilasjon/yr-logg">Yr logg</a>
+                        <a class="tech-link" href="/ventilasjon/innstillinger">Innstillinger</a>
+                    </div>
+                </article>
+                <article class="tech-card accent-energy">
+                    <h3>Energi, renhold og AI</h3>
+                    <div class="tech-links">
+                        <a class="tech-link" href="/energi/status">Energi status</a>
+                        <a class="tech-link" href="/energi/elvia">Elvia-import</a>
+                        <a class="tech-link" href="/energi/forbruk-per-seng">Forbruk per seng</a>
+                        <a class="tech-link" href="/renhold/oversikt">Renhold</a>
+                        <a class="tech-link" href="/ai/sok">AI-søk</a>
+                        <a class="tech-link" href="/ai/innstillinger">AI-innstillinger</a>
+                    </div>
+                </article>
             </div>
         </section>
 
-        <section class="panel">
-            <h2>Sist oppdatert</h2>
-            <p>27.05.2026: oppdatert etter flytting til QNAP/online.lilletorget.net, med tydeligere drift, proxy, EasyPark-plan, HC3 energi, SUN2 enkelttimer, parkering/kjøretøy, browser-tillegg, Roborock og feilsøking.</p>
+        <section class="tech-section">
+            <div class="tech-section-head">
+                <div>
+                    <h2>Containere og lokale apper</h2>
+                    <p>Dette er komponentene som normalt er i bruk rundt hovedappen.</p>
+                </div>
+            </div>
+            <div class="tech-table-wrap">
+                <table class="tech-table">
+                    <thead>
+                        <tr>
+                            <th>Løsning</th>
+                            <th>Kjører hvor</th>
+                            <th>Port / grensesnitt</th>
+                            <th>Ansvar</th>
+                            <th>Driftsrytme</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>fibaro10</strong></td>
+                            <td>QNAP container</td>
+                            <td><code>192.168.20.218:8110</code></td>
+                            <td>Hovedapp, database-API, rapporter, innstillinger, intern drift.</td>
+                            <td>Alltid på</td>
+                            <td><span class="tech-badge ok">Produksjon</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>online_dashboard</strong></td>
+                            <td>QNAP container</td>
+                            <td>Intern port <code>8111</code>, offentlig via Caddy</td>
+                            <td>Liten isolert mobilapp med solinger, parkering, lys, vifter og temperaturer.</td>
+                            <td>Alltid på</td>
+                            <td><span class="tech-badge ok">Offentlig</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>fibaro10_proxy</strong></td>
+                            <td>QNAP container, Caddy</td>
+                            <td><code>8081</code>/<code>8443</code></td>
+                            <td>TLS og reverse proxy for <code>online.lilletorget.net</code>.</td>
+                            <td>Alltid på</td>
+                            <td><span class="tech-badge ok">Proxy</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>easypark_downloader</strong></td>
+                            <td>QNAP lokal app/container</td>
+                            <td>Logger til hoved-API</td>
+                            <td>Logger inn i EasyPark, laster ned parkeringsrapport og importerer poster.</td>
+                            <td>Nattjobb med ny login, faste kjøringer kl. 12, 15, 18 og 21, samt manuell knapp.</td>
+                            <td><span class="tech-badge ok">Planlagt jobb</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>sun2_session_scraper</strong></td>
+                            <td>QNAP lokal app/container</td>
+                            <td>Poster til hoved-API</td>
+                            <td>Henter enkeltsolinger fra SUN2 slik at dagslinje, rom og forbruk per seng kan beregnes.</td>
+                            <td>Ca. hvert 5. minutt mellom 07:00 og 00:00. Står stille om natten.</td>
+                            <td><span class="tech-badge ok">Løpende</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>sun2_importer</strong></td>
+                            <td>QNAP lokal app/container</td>
+                            <td>Poster til hoved-API</td>
+                            <td>Importerer SUN2 dagsfiler, romsummer og historiske summer.</td>
+                            <td>Nattlig/ved behov</td>
+                            <td><span class="tech-badge ok">Import</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>sun2_backfill_downloader</strong></td>
+                            <td>QNAP vedlikeholdsapp</td>
+                            <td>Filbasert / API</td>
+                            <td>Historisk backfill av SUN2-data fra 2017 og fremover.</td>
+                            <td>Ikke fast daglig jobb. Brukes ved vedlikehold.</td>
+                            <td><span class="tech-badge local">Behold som verktøy</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>roborock_logger</strong></td>
+                            <td>QNAP lokal app/container</td>
+                            <td>Poster til hoved-API</td>
+                            <td>Henter robotstatus, jobber, planer og metadata fra Roborock.</td>
+                            <td>Periodisk</td>
+                            <td><span class="tech-badge ok">Renhold</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>hc3_vedlikehold</strong></td>
+                            <td>QNAP lokal hjelpeapp</td>
+                            <td><code>192.168.20.218:8108</code></td>
+                            <td>Inspeksjon av HC3-enheter, undermålere og grupper.</td>
+                            <td>Startes/brukes ved behov</td>
+                            <td><span class="tech-badge local">Intern</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="tech-section">
+            <div class="tech-section-head">
+                <div>
+                    <h2>Dataflyt</h2>
+                    <p>Prinsippet er at hver kilde har én tydelig vei inn, og at statusen vises under Status &gt; Datakilder.</p>
+                </div>
+            </div>
+            <div class="tech-flow">
+                <div class="tech-flow-step"><span>1</span><strong>Kilde</strong><p>HC3, SUN2, EasyPark, Elvia, Roborock, Yr eller browser-tillegg.</p></div>
+                <div class="tech-flow-step"><span>2</span><strong>Innhenting</strong><p>Lua-scene, QuickApp, lokal QNAP-app, manuell opplasting eller nettleserutvidelse.</p></div>
+                <div class="tech-flow-step"><span>3</span><strong>API</strong><p>Data sendes til faste endepunkter i hovedappen. Importer er laget for å tåle gjentakelser.</p></div>
+                <div class="tech-flow-step"><span>4</span><strong>Database</strong><p>PostgreSQL lagrer domene-tabeller, importstatus, brukeraktivitet og prognoser.</p></div>
+                <div class="tech-flow-step"><span>5</span><strong>Visning</strong><p>Dashboard, fagmenyer, grafer, prognoser og teknisk status bygger på samme datagrunnlag.</p></div>
+            </div>
+        </section>
+
+        <section class="tech-section">
+            <div class="tech-grid three">
+                <article class="tech-card accent-light">
+                    <h3>Lys</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">Kilde</span><span class="tech-value">HC3 Lua-scene og luxmåler.</span></li>
+                        <li><span class="tech-key">Rytme</span><span class="tech-value">Ca. hvert 5. minutt.</span></li>
+                        <li><span class="tech-key">Config</span><span class="tech-value">Lys &gt; Innstillinger. HC3 henter navn, terskler, tidsvinduer og device-id.</span></li>
+                        <li><span class="tech-key">Logg</span><span class="tech-value">Dagslogg lux, hendelser og målinger. Endringer kan varsles via ntfy.</span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-vent">
+                    <h3>Ventilasjon</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">Kilde</span><span class="tech-value">HC3 Lua-scene, Netatmo/HC3-temperaturer, Yr og effekt-differanse.</span></li>
+                        <li><span class="tech-key">Rytme</span><span class="tech-value">Ca. hvert 5. minutt i styringsscenen.</span></li>
+                        <li><span class="tech-key">Config</span><span class="tech-value">Ventilasjon &gt; Innstillinger.</span></li>
+                        <li><span class="tech-key">Regler</span><span class="tech-value">Temperatur, åpningstid, uteforhold og belastning vurderes samlet før vifter styres.</span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-energy">
+                    <h3>Energi</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">Realtime</span><span class="tech-value">HC3 QuickApps sender W for inntak, varmepumper, belysning, massasje og annet.</span></li>
+                        <li><span class="tech-key">Akkumulert</span><span class="tech-value">kWh sendes også, men kan nullstilles av kilden. Appen håndterer reset.</span></li>
+                        <li><span class="tech-key">Elvia</span><span class="tech-value">Manuell JSON-import brukes som historisk fasit.</span></li>
+                        <li><span class="tech-key">Seng</span><span class="tech-value">Forbruk per seng beregnes bare når nøyaktig én seng er aktiv og målevinduet er rent.</span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-parking">
+                    <h3>Parkering</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">Kilde</span><span class="tech-value">EasyPark downloader på QNAP.</span></li>
+                        <li><span class="tech-key">Oppdatering</span><span class="tech-value">Eksisterende poster oppdateres, spesielt pågående parkeringer.</span></li>
+                        <li><span class="tech-key">Kjøretøy</span><span class="tech-value">Egne tabeller for parkeringer, kjøretøy, område, navn og nøkkeldata.</span></li>
+                        <li><span class="tech-key">Utvidelser</span><span class="tech-value">Browser-tillegg kan hente manglende område/navn og skrive tilbake via API.</span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-sun">
+                    <h3>SUN2</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">Dagsfiler</span><span class="tech-value">Summer per dag og rom. Brukes til historikk og topp 10-lister.</span></li>
+                        <li><span class="tech-key">Enkeltimer</span><span class="tech-value">Brukes til dagslinje, fysisk rom-id, kundekobling og strøm per seng.</span></li>
+                        <li><span class="tech-key">Medlemmer</span><span class="tech-value">SUN2-id brukes som stabil nøkkel.</span></li>
+                        <li><span class="tech-key">Senger</span><span class="tech-value">Kobler SUN2-romnavn mot fysisk rom og sengemodell.</span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-cleaning">
+                    <h3>Renhold</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">Kilde</span><span class="tech-value">Roborock-konto delt med loggerbruker.</span></li>
+                        <li><span class="tech-key">Data</span><span class="tech-value">Robotstatus, siste jobber, planlagte jobber, forbruksdeler og metadata.</span></li>
+                        <li><span class="tech-key">Arkitektur</span><span class="tech-value">Egen loggerapp slik at lesing fra cloud/lokalt kan endres uten å bygge om hovedappen.</span></li>
+                        <li><span class="tech-key">Visning</span><span class="tech-value">Renhold &gt; Oversikt og robotside per robot.</span></li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section class="tech-section">
+            <div class="tech-grid two">
+                <article class="tech-card accent-blue">
+                    <h3>API og viktige endepunkter</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">Helse</span><span class="tech-value"><code>/health</code></span></li>
+                        <li><span class="tech-key">HC3 inn</span><span class="tech-value"><code>/events</code>, <code>/log</code>, <code>/api/energi/fibaro</code>, <code>/api/hc3/measurements/log</code></span></li>
+                        <li><span class="tech-key">Config</span><span class="tech-value"><code>/api/config/lights</code>, <code>/api/config/ventilation</code></span></li>
+                        <li><span class="tech-key">Datakilder</span><span class="tech-value"><code>/api/import-status/json</code></span></li>
+                        <li><span class="tech-key">Soling</span><span class="tech-value"><code>/api/sun2/sessions/json</code>, <code>/api/sun2/members/json</code>, <code>/api/sun2/beds/json</code></span></li>
+                        <li><span class="tech-key">Parkering</span><span class="tech-value"><code>/api/parkering/import-csv</code>, <code>/parkering/refresh</code>, <code>/api/parkering/kjoretoy/mangler-omrade</code>, <code>/api/parkering/kjoretoy/{plate}/omrade</code></span></li>
+                        <li><span class="tech-key">Renhold</span><span class="tech-value"><code>/api/renhold/ingest</code>, <code>/renhold/json</code></span></li>
+                        <li><span class="tech-key">AI</span><span class="tech-value"><code>/api/ai/datasets/json</code>, <code>/api/ai/logs/json</code></span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-green">
+                    <h3>Driftsrutine</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">Daglig</span><span class="tech-value">Sjekk Status &gt; Datakilder. Treg/gammel kilde er første tegn på at en logger henger.</span></li>
+                        <li><span class="tech-key">Parkering</span><span class="tech-value">Sjekk at nattjobben har kjørt, og at dagkjøringene oppdaterer pågående poster.</span></li>
+                        <li><span class="tech-key">Soling</span><span class="tech-value">Sjekk enkelttimer etter åpning. Den skal ikke kjøre mellom 00:00 og 07:00.</span></li>
+                        <li><span class="tech-key">Energi</span><span class="tech-value">Sjekk at minuttdata fra HC3 kommer inn. Last opp Elvia-fil månedlig når den er tilgjengelig.</span></li>
+                        <li><span class="tech-key">Deploy</span><span class="tech-value">Bygg på QNAP med <code>docker compose -f docker-compose.qnap.yml up -d --build</code>. Full app skal fortsatt kun være intern.</span></li>
+                        <li><span class="tech-key">Sikkerhet</span><span class="tech-value">Ikke legg passord/API-nøkler i dokumentasjon. Bruk <code>.env</code>, tilgangsroller og brukerloggen.</span></li>
+                    </ul>
+                </article>
+            </div>
+        </section>
+
+        <section class="tech-section">
+            <div class="tech-grid two">
+                <article class="tech-card accent-red">
+                    <h3>Feilsøking først</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">1</span><span class="tech-value">Åpne <a href="/status/datakilder">Status &gt; Datakilder</a> og se hvilken kilde som er treg, gammel eller feilet.</span></li>
+                        <li><span class="tech-key">2</span><span class="tech-value">Åpne fagområdet som feiler og kontroller siste poster, tidsstempler og filtrene.</span></li>
+                        <li><span class="tech-key">3</span><span class="tech-value">Sjekk containerloggen på QNAP for aktuell logger eller hovedappen.</span></li>
+                        <li><span class="tech-key">4</span><span class="tech-value">Ved feil tid: kontroller om kilden leverer lokal tid eller UTC. EasyPark og SUN2 skal behandles som lokal tid.</span></li>
+                        <li><span class="tech-key">5</span><span class="tech-value">Ved manglende designendring: hard refresh, kontroller buildnummer og at riktig container faktisk er bygget.</span></li>
+                    </ul>
+                </article>
+                <article class="tech-card accent-gold">
+                    <h3>Hva kan ryddes bort?</h3>
+                    <ul class="tech-list">
+                        <li><span class="tech-key">Trygt å arkivere</span><span class="tech-value">Gamle eksportfiler, midlertidige testfiler og historiske backfill-output når import er verifisert.</span></li>
+                        <li><span class="tech-key">Behold</span><span class="tech-value"><code>.env</code>, databasevolum, <code>docker-compose.qnap.yml</code>, <code>Caddyfile</code>, <code>static</code>, <code>templates</code> og alle aktive loggerapper.</span></li>
+                        <li><span class="tech-key">Render</span><span class="tech-value">Render skal ikke brukes i produksjon. Gamle Render-oppsett kan avvikles når QNAP og online-dashboard er verifisert.</span></li>
+                        <li><span class="tech-key">Backfill</span><span class="tech-value"><code>sun2_backfill_downloader</code> trengs ikke daglig, men bør beholdes som verktøy til historiske reparasjoner.</span></li>
+                    </ul>
+                    <p class="tech-note">Slett aldri databasevolum eller <code>.env</code> uten eksplisitt backup. Det er de to stedene det er lettest å gjøre en liten opprydding dyr.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="tech-section">
+            <article class="tech-card accent-blue">
+                <h3>Sist oppdatert</h3>
+                <p>29.05.2026, build 1007: teknisk side oppdatert etter flytting til QNAP, egen offentlig online-dashboard-app og intern hovedapp. Dokumentasjonen beskriver nå containere, vedlikeholdslenker, dataflyt, rutiner, API-endepunkter, feilsøking og hva som bør beholdes eller kan arkiveres.</p>
+            </article>
         </section>
     </main>
 </body>
