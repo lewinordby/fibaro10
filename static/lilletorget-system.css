@@ -221,6 +221,82 @@ body main :where(.table-scroll, .table-wrap) {
     border-radius: var(--lt-radius-panel);
 }
 
+body main :where(.filters) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+    align-items: end;
+    margin: 0 0 0.82rem;
+    padding: 0.78rem;
+    border: 1px solid var(--lt-border) !important;
+    border-radius: var(--lt-radius-panel) !important;
+    background: var(--lt-card) !important;
+    box-shadow: var(--lt-shadow-card) !important;
+}
+
+body main :where(.filters label) {
+    display: grid;
+    gap: 0.22rem;
+    color: var(--lt-muted) !important;
+    font-size: 0.68rem !important;
+    font-weight: 820 !important;
+    text-transform: uppercase;
+}
+
+body.theme-parking main :where(.parking-link-button, .count-link) {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 1.62rem !important;
+    padding: 0.16rem 0.54rem !important;
+    border: 1px solid var(--lt-border) !important;
+    border-radius: 999px !important;
+    background: #fff !important;
+    color: var(--lt-navy) !important;
+    font-size: 0.68rem !important;
+    font-weight: 820 !important;
+    line-height: 1 !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    box-shadow: none !important;
+}
+
+body.theme-parking main :where(.parking-link-button:hover, .count-link:hover) {
+    border-color: var(--parking-color) !important;
+    color: var(--parking-color) !important;
+    background: var(--parking-soft) !important;
+}
+
+body.theme-parking main :where(.count-link) {
+    min-width: 1.82rem !important;
+}
+
+body.theme-parking main :where(.early-badge) {
+    display: inline-flex !important;
+    align-items: center !important;
+    margin-top: 0.2rem !important;
+    padding: 0.14rem 0.48rem !important;
+    border: 1px solid #f0c7bc !important;
+    border-radius: 999px !important;
+    background: #fff3f0 !important;
+    color: #9a4a32 !important;
+    font-size: 0.66rem !important;
+    font-weight: 820 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+}
+
+body.theme-parking main :where(.parking-stats-grid) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+    gap: 0.78rem;
+}
+
+@media (max-width: 1100px) {
+    body.theme-parking main :where(.parking-stats-grid) {
+        grid-template-columns: 1fr;
+    }
+}
+
 body.theme-status main .focus-grid,
 body.theme-status main .compact-status,
 body.theme-status main .quiet-section,
