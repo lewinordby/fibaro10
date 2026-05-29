@@ -36,6 +36,8 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
+SUN2_SESSIONS_QUIET_START_HOUR = 0
+SUN2_SESSIONS_QUIET_END_HOUR = 7
 MASTER_ACCESS_KEY_HASH = os.getenv(
     "MASTER_ACCESS_KEY_HASH",
     "752ede847bd180ef3d2700d117d297ced1b25664b946a3639fb7a3b2be93d5d1",
@@ -4218,6 +4220,10 @@ def import_job_definition(job_name: str) -> Dict[str, Any]:
 
 def import_job_status_from_age(stamp: Optional[datetime], expected_minutes: Optional[int], warning_minutes: Optional[int]) -> tuple[str, str]:
     age_minutes = minutes_since(stamp)
+    return import_job_status_from_minutes(age_minutes, expected_minutes, warning_minutes)
+
+
+def import_job_status_from_minutes(age_minutes: Optional[int], expected_minutes: Optional[int], warning_minutes: Optional[int]) -> tuple[str, str]:
     if age_minutes is None:
         return "bad", "Mangler"
     if expected_minutes is None:
@@ -4228,6 +4234,30 @@ def import_job_status_from_age(stamp: Optional[datetime], expected_minutes: Opti
     if age_minutes <= warning_minutes:
         return "warn", "Treg"
     return "bad", "Gammel"
+
+
+def sun2_sessions_active_minutes_since(stamp: Optional[datetime], now_value: Optional[datetime] = None) -> Optional[int]:
+    if stamp is None:
+        return None
+    now_value = now_value or local_now_naive()
+    if stamp.tzinfo is not None:
+        stamp = stamp.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    if now_value.tzinfo is not None:
+        now_value = now_value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    if stamp >= now_value:
+        return 0
+
+    total = 0.0
+    day = stamp.date()
+    while day <= now_value.date():
+        active_start = datetime.combine(day, time(hour=SUN2_SESSIONS_QUIET_END_HOUR))
+        active_end = datetime.combine(day + timedelta(days=1), time.min)
+        segment_start = max(stamp, active_start)
+        segment_end = min(now_value, active_end)
+        if segment_end > segment_start:
+            total += (segment_end - segment_start).total_seconds() / 60
+        day += timedelta(days=1)
+    return int(total)
 
 
 def import_job_age(row: Optional[ImportJobStatus]) -> str:
@@ -4745,8 +4775,22 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
             calculated_next = stamp + timedelta(minutes=expected_minutes)
             if not next_expected_at or abs((next_expected_at - calculated_next).total_seconds()) > 60:
                 next_expected_at = calculated_next
+        if job_name == "sun2_sessions_import" and expected_minutes:
+            now_for_sun2 = local_now_naive()
+            live_start_today = datetime.combine(now_for_sun2.date(), time(hour=SUN2_SESSIONS_QUIET_END_HOUR))
+            if now_for_sun2 < live_start_today:
+                next_expected_at = live_start_today
+            elif stamp and stamp < live_start_today:
+                next_expected_at = live_start_today + timedelta(minutes=expected_minutes)
         if row and row.status == "running":
             status, status_text = "running", "Kjører"
+        elif job_name == "sun2_sessions_import":
+            active_age_minutes = sun2_sessions_active_minutes_since(stamp)
+            status, status_text = import_job_status_from_minutes(
+                active_age_minutes,
+                expected_minutes,
+                warning_minutes,
+            )
         else:
             status, status_text = import_job_status_from_age(
                 stamp,
@@ -4764,7 +4808,7 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
                 "description": definition.get("description", ""),
                 "status": status,
                 "status_text": status_text,
-                "age": import_job_age(row) if row else age_label(minutes_since(stamp)),
+                "age": age_label(sun2_sessions_active_minutes_since(stamp)) if job_name == "sun2_sessions_import" else (import_job_age(row) if row else age_label(minutes_since(stamp))),
                 "last_success_at": stamp,
                 "last_run_at": row.last_run_at if row else stamp,
                 "last_failed_at": last_failed_at,

@@ -75,6 +75,8 @@ SCHEDULE_BEDS_TIME = env_value("SCHEDULE_BEDS_TIME", "02:40") or "02:40"
 SCHEDULE_MEMBERS_TIME = env_value("SCHEDULE_MEMBERS_TIME", "03:10") or "03:10"
 LIVE_SYNC_ENABLED = (env_value("LIVE_SYNC_ENABLED", "1") or "1") == "1"
 LIVE_SYNC_INTERVAL_SECONDS = int(env_value("LIVE_SYNC_INTERVAL_SECONDS", "300") or "300")
+LIVE_SYNC_QUIET_START_HOUR = int(env_value("LIVE_SYNC_QUIET_START_HOUR", "0") or "0")
+LIVE_SYNC_QUIET_END_HOUR = int(env_value("LIVE_SYNC_QUIET_END_HOUR", "7") or "7")
 POST_TO_FIBARO10 = (env_value("POST_TO_FIBARO10", "0") or "0") == "1"
 FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "http://fibaro10:8110") or "").rstrip("/")
 FIBARO10_API_USERNAME = env_value("FIBARO10_API_USERNAME", "") or ""
@@ -149,6 +151,16 @@ def mark_scheduled_attempt(job_key: str, now: datetime) -> None:
     last_runs = state.setdefault("scheduled_last_runs", {})
     last_runs[job_key] = now.date().isoformat()
     state["scheduler_last_action"] = f"{job_key} {now:%Y-%m-%d %H:%M:%S}"
+
+
+def live_sync_is_quiet(now: datetime) -> bool:
+    start = max(0, min(23, LIVE_SYNC_QUIET_START_HOUR))
+    end = max(0, min(24, LIVE_SYNC_QUIET_END_HOUR))
+    if start == end:
+        return False
+    if start < end:
+        return start <= now.hour < end
+    return now.hour >= start or now.hour < end
 
 
 def parse_date(value: str | None, default: date) -> date:
@@ -1450,7 +1462,9 @@ async def nightly_scheduler_loop() -> None:
             state["scheduler_last_check"] = now.isoformat()
             if SCHEDULE_ENABLED:
                 if schedule_due("sessions", SCHEDULE_SESSIONS_TIME, now):
-                    if task and not task.done():
+                    if live_sync_is_quiet(now):
+                        state["scheduler_last_action"] = f"sessions pause {LIVE_SYNC_QUIET_START_HOUR:02d}:00-{LIVE_SYNC_QUIET_END_HOUR:02d}:00"
+                    elif task and not task.done():
                         state["scheduler_last_action"] = "sessions venter paa range-jobb"
                     else:
                         await run_scheduled_job("sessions", "sun2_sessions_import", current_month_runner)
@@ -1468,9 +1482,12 @@ async def nightly_scheduler_loop() -> None:
 async def live_sync_loop() -> None:
     while True:
         try:
-            state["live_last_check"] = local_now().isoformat()
+            now = local_now()
+            state["live_last_check"] = now.isoformat()
             if LIVE_SYNC_ENABLED:
-                if task and not task.done():
+                if live_sync_is_quiet(now):
+                    state["live_last_action"] = f"pause {LIVE_SYNC_QUIET_START_HOUR:02d}:00-{LIVE_SYNC_QUIET_END_HOUR:02d}:00"
+                elif task and not task.done():
                     state["live_last_action"] = "venter paa range-jobb"
                 elif schedule_lock.locked():
                     state["live_last_action"] = "venter paa annen scraper-jobb"
