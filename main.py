@@ -2262,6 +2262,7 @@ async def build_parking_summaries_fast(session) -> Dict[str, Any]:
     daily_items = []
     monthly: Dict[str, Dict[str, Any]] = {}
     yearly: Dict[str, Dict[str, Any]] = {}
+    weekly: Dict[str, Dict[int, Dict[str, Any]]] = {}
     total = empty_parking_summary("Totalt")
     first_date = None
     last_date = None
@@ -2284,8 +2285,14 @@ async def build_parking_summaries_fast(session) -> Dict[str, Any]:
 
         month_key = stat_day.strftime("%Y-%m")
         year_key = str(stat_day.year)
+        iso_year, iso_week, _ = stat_day.isocalendar()
+        iso_year_key = str(iso_year)
         monthly.setdefault(month_key, empty_parking_summary(month_key))
         yearly.setdefault(year_key, empty_parking_summary(year_key))
+        weekly.setdefault(iso_year_key, {})
+        weekly[iso_year_key].setdefault(iso_week, {"revenue": 0.0, "count": 0})
+        weekly[iso_year_key][iso_week]["revenue"] += item["paid"]
+        weekly[iso_year_key][iso_week]["count"] += item["sessions"]
         for target in (monthly[month_key], yearly[year_key], total):
             target["sessions"] += item["sessions"]
             target["paid"] += item["paid"]
@@ -2295,12 +2302,25 @@ async def build_parking_summaries_fast(session) -> Dict[str, Any]:
 
     monthly_items = [monthly[key] for key in sorted(monthly, reverse=True)]
     yearly_items = [yearly[key] for key in sorted(yearly, reverse=True)]
+    palette = ["#4e8793", "#d59a18", "#071943", "#52a464", "#df705d", "#726189", "#2f8fa3", "#8b5cf6"]
+    weekly_chart = []
+    for index, year in enumerate(sorted(weekly.keys())):
+        weeks = weekly[year]
+        weekly_chart.append(
+            {
+                "year": year,
+                "color": palette[index % len(palette)],
+                "revenue": [round(weeks[week]["revenue"], 2) if week in weeks else None for week in range(1, 54)],
+                "count": [weeks[week]["count"] if week in weeks else None for week in range(1, 54)],
+            }
+        )
     top_sort = lambda item: (item["paid"], item["sessions"], item["minutes"])
     count_sort = lambda item: (item["sessions"], item["paid"], item["minutes"])
     return {
         "daily": daily_items,
         "monthly": monthly_items,
         "yearly": yearly_items,
+        "weekly_chart": weekly_chart,
         "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
         "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
         "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:10],
@@ -9784,6 +9804,7 @@ async def parking_statistics_view(request: Request):
             "top_months": summaries["top_months"],
             "top_days_by_count": summaries["top_days_by_count"],
             "top_months_by_count": summaries["top_months_by_count"],
+            "weekly_chart": summaries["weekly_chart"],
             "grand_total": summaries["total"],
             "first_date": summaries["first_date"],
             "last_date": summaries["last_date"],
