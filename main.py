@@ -86,8 +86,20 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1000")
+APP_BUILD = os.getenv("APP_BUILD", "1001")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1001",
+        "date": "29.05.2026",
+        "title": "Parkering prognose",
+        "changes": [
+            "Legger til egen prognoseside for parkering under Parkering.",
+            "Prognosen beregner forventet antall parkeringer, inntekt og varighet for dag, måned og år.",
+            "Modellen bruker historikk, ukedag, sesong, helligdager og tempo hittil i perioden.",
+            "Parkering-menyen har fått nytt valg for prognose.",
+        ],
+    },
     {
         "version": "1",
         "build": "1000",
@@ -4786,6 +4798,190 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
         "holiday": norwegian_holiday_name(today),
         "actual": actual_today,
         "forecast": {"sessions": day_sessions, "paid": day_paid, "minutes": day_minutes},
+        "model": model_today,
+        "day_fraction": day_fraction,
+        "remaining_fraction": max(0.0, 1.0 - day_fraction),
+        "comparable_days": model_today["comparable_days"],
+    }
+    value = {
+        "day": day,
+        "month": month,
+        "year": year,
+        "history_first_date": summaries.get("first_date"),
+        "history_last_date": summaries.get("last_date"),
+        "generated_at": now_local,
+    }
+    SUMMARY_CACHE[cache_key] = {"expires": now_utc + timedelta(minutes=3), "value": value}
+    return value
+
+
+def parking_daily_model(target_day: date, history: Dict[date, Dict[str, float]], today: date) -> Dict[str, Any]:
+    sessions_values = []
+    paid_values = []
+    minutes_values = []
+    vehicles_values = []
+    for historical_day, item in history.items():
+        weight = sun2_history_weight(target_day, historical_day, today)
+        if weight <= 0:
+            continue
+        sessions_values.append((float_or_zero(item.get("sessions")), weight))
+        paid_values.append((float_or_zero(item.get("paid")), weight))
+        minutes_values.append((float_or_zero(item.get("minutes")), weight))
+        vehicles_values.append((float_or_zero(item.get("vehicles")), weight))
+    sessions, weight_sum, comparable_days = weighted_average(sessions_values)
+    paid, _, _ = weighted_average(paid_values)
+    minutes, _, _ = weighted_average(minutes_values)
+    vehicles, _, _ = weighted_average(vehicles_values)
+    return {
+        "day": target_day,
+        "sessions": sessions,
+        "paid": paid,
+        "minutes": minutes,
+        "vehicles": vehicles,
+        "weight_sum": weight_sum,
+        "comparable_days": comparable_days,
+        "holiday": norwegian_holiday_name(target_day),
+    }
+
+
+def parking_period_actual(history: Dict[date, Dict[str, float]], start: date, end: date) -> Dict[str, float]:
+    total = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
+    for day in iter_dates(start, end):
+        item = history.get(day) or {}
+        total["sessions"] += float_or_zero(item.get("sessions"))
+        total["paid"] += float_or_zero(item.get("paid"))
+        total["minutes"] += float_or_zero(item.get("minutes"))
+        total["vehicles"] += float_or_zero(item.get("vehicles"))
+    return total
+
+
+async def build_parking_forecast(session, today: date, now_local: datetime) -> Dict[str, Any]:
+    cache_key = f"parking_forecast:{today.isoformat()}:{now_local.hour:02d}:{now_local.minute // 5}"
+    now_utc = datetime.utcnow()
+    cached = SUMMARY_CACHE.get(cache_key)
+    if cached and cached.get("expires", datetime.min) > now_utc:
+        return cached["value"]
+
+    summaries = await get_parking_summaries(session)
+    history: Dict[date, Dict[str, float]] = {}
+    for item in summaries.get("daily", []):
+        period = item.get("period")
+        try:
+            day = date.fromisoformat(period)
+        except (TypeError, ValueError):
+            continue
+        history[day] = {
+            "sessions": float_or_zero(item.get("sessions")),
+            "paid": float_or_zero(item.get("paid")),
+            "minutes": float_or_zero(item.get("minutes")),
+            "vehicles": float_or_zero(item.get("vehicles")),
+        }
+
+    model_cutoff = today - timedelta(days=1461)
+    model_history = {
+        day: item
+        for day, item in history.items()
+        if model_cutoff <= day < today
+    }
+    if len(model_history) < 180:
+        model_history = {day: item for day, item in history.items() if day < today}
+
+    actual_today = history.get(today, {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0})
+    minute_of_day = now_local.hour * 60 + now_local.minute
+    opening_minute = 7 * 60
+    closing_minute = 23 * 60
+    if minute_of_day <= opening_minute:
+        day_fraction = 0.07
+    elif minute_of_day >= closing_minute:
+        day_fraction = 1.0
+    else:
+        linear_fraction = (minute_of_day - opening_minute) / (closing_minute - opening_minute)
+        day_fraction = 0.07 + (linear_fraction ** 0.9) * 0.93
+    day_fraction = max(0.07, min(1.0, day_fraction))
+
+    model_today = parking_daily_model(today, model_history, today)
+    actual_sessions = float_or_zero(actual_today.get("sessions"))
+    actual_paid = float_or_zero(actual_today.get("paid"))
+    actual_minutes = float_or_zero(actual_today.get("minutes"))
+    actual_vehicles = float_or_zero(actual_today.get("vehicles"))
+    day_sessions = max(actual_sessions, actual_sessions / day_fraction)
+    day_paid = max(actual_paid, actual_paid / day_fraction)
+    day_minutes = max(actual_minutes, actual_minutes / day_fraction)
+    day_vehicles = max(actual_vehicles, actual_vehicles / day_fraction)
+    if actual_sessions <= 0 and model_today["sessions"] > 0:
+        startup_factor = max(0.28, min(1.0, day_fraction + 0.16))
+        day_sessions = model_today["sessions"] * startup_factor
+        day_paid = model_today["paid"] * startup_factor
+        day_minutes = model_today["minutes"] * startup_factor
+        day_vehicles = model_today["vehicles"] * startup_factor
+
+    def forecast_period(start: date, end: date, label: str) -> Dict[str, Any]:
+        actual_end = min(today, end)
+        actual = parking_period_actual(history, start, actual_end) if actual_end >= start else {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
+        expected_so_far = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
+        remaining_base = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
+        future_days = []
+        for day in iter_dates(start, end):
+            model = parking_daily_model(day, model_history, today)
+            if day <= today:
+                expected_so_far["sessions"] += model["sessions"]
+                expected_so_far["paid"] += model["paid"]
+                expected_so_far["minutes"] += model["minutes"]
+                expected_so_far["vehicles"] += model["vehicles"]
+            else:
+                remaining_base["sessions"] += model["sessions"]
+                remaining_base["paid"] += model["paid"]
+                remaining_base["minutes"] += model["minutes"]
+                remaining_base["vehicles"] += model["vehicles"]
+                future_days.append(model)
+        tempo_sessions = sun2_apply_tempo(actual["sessions"], expected_so_far["sessions"])
+        tempo_paid = sun2_apply_tempo(actual["paid"], expected_so_far["paid"])
+        tempo_minutes = sun2_apply_tempo(actual["minutes"], expected_so_far["minutes"])
+        tempo_vehicles = sun2_apply_tempo(actual["vehicles"], expected_so_far["vehicles"])
+        if start <= today <= end:
+            today_remaining_factor = max(0.0, 1.0 - day_fraction)
+            actual["sessions"] = max(actual["sessions"], actual_sessions)
+            actual["paid"] = max(actual["paid"], actual_paid)
+            actual["minutes"] = max(actual["minutes"], actual_minutes)
+            actual["vehicles"] = max(actual["vehicles"], actual_vehicles)
+            remaining_base["sessions"] += max(0.0, day_sessions - actual_sessions) * today_remaining_factor
+            remaining_base["paid"] += max(0.0, day_paid - actual_paid) * today_remaining_factor
+            remaining_base["minutes"] += max(0.0, day_minutes - actual_minutes) * today_remaining_factor
+            remaining_base["vehicles"] += max(0.0, day_vehicles - actual_vehicles) * today_remaining_factor
+        forecast = {
+            "sessions": actual["sessions"] + remaining_base["sessions"] * tempo_sessions,
+            "paid": actual["paid"] + remaining_base["paid"] * tempo_paid,
+            "minutes": actual["minutes"] + remaining_base["minutes"] * tempo_minutes,
+            "vehicles": actual["vehicles"] + remaining_base["vehicles"] * tempo_vehicles,
+        }
+        important_days = sorted(
+            [item for item in future_days if item.get("holiday")],
+            key=lambda item: item["day"],
+        )[:8]
+        return {
+            "label": label,
+            "start": start,
+            "end": end,
+            "actual": actual,
+            "expected_so_far": expected_so_far,
+            "forecast": forecast,
+            "tempo": tempo_sessions,
+            "remaining_days": max(0, (end - today).days),
+            "important_days": important_days,
+        }
+
+    month_start = date(today.year, today.month, 1)
+    year_start = date(today.year, 1, 1)
+    month = forecast_period(month_start, month_end(today), "InnevÃ¦rende mÃ¥ned")
+    year = forecast_period(year_start, date(today.year, 12, 31), "InnevÃ¦rende Ã¥r")
+    weekday_names = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lÃ¸rdag", "sÃ¸ndag"]
+    day = {
+        "label": "I dag",
+        "date": today,
+        "weekday": weekday_names[today.weekday()],
+        "holiday": norwegian_holiday_name(today),
+        "actual": actual_today,
+        "forecast": {"sessions": day_sessions, "paid": day_paid, "minutes": day_minutes, "vehicles": day_vehicles},
         "model": model_today,
         "day_fraction": day_fraction,
         "remaining_fraction": max(0.0, 1.0 - day_fraction),
@@ -9888,6 +10084,26 @@ async def parking_statistics_view(request: Request):
             "last_date": summaries["last_date"],
         },
     )
+
+
+@app.get("/parkering/prognose", response_class=HTMLResponse)
+async def parking_forecast_view(request: Request):
+    now_local = datetime.now(LOCAL_TZ)
+    today = now_local.date()
+    async with async_session() as session:
+        forecast = await build_parking_forecast(session, today, now_local)
+    response = templates.TemplateResponse(
+        request,
+        "parking_forecast.html",
+        {
+            "forecast": forecast,
+            "day": forecast["day"],
+            "month": forecast["month"],
+            "year": forecast["year"],
+        },
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/parkering/bilstatistikk", response_class=HTMLResponse)

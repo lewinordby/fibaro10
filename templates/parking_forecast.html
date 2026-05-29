@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parkering prognose</title>
+    {% include "_styles.html" %}
+    <style>
+        .page-title { margin:0 0 0.25rem; font-size:clamp(1.55rem,3vw,2.25rem); font-weight:850; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 1rem; color:var(--muted); font-size:0.9rem; max-width:70rem; }
+        .forecast-grid { display:grid; gap:0.85rem; margin:0 0 1rem; }
+        .forecast-card { position:relative; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--parking-color); border-radius:14px; box-shadow:var(--shadow-1); padding:1rem; }
+        .forecast-card.primary { border-left-color:#4e8793; }
+        .forecast-card.year { border-left-color:var(--brand-dark); }
+        .forecast-card h2 { margin:0; font-size:0.88rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.02em; }
+        .forecast-main { display:flex; align-items:end; justify-content:space-between; gap:1rem; margin-top:0.45rem; }
+        .forecast-main strong { display:block; color:var(--brand-dark); font-size:clamp(2rem,5vw,3.1rem); line-height:0.95; letter-spacing:0; }
+        .forecast-main span { color:var(--muted); font-size:0.8rem; font-weight:760; }
+        .forecast-detail { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.55rem; margin-top:0.9rem; }
+        .forecast-detail div { border:1px solid var(--line-soft); border-radius:10px; padding:0.55rem; background:linear-gradient(180deg,#fff,rgba(246,249,252,0.72)); }
+        .forecast-detail small { display:block; color:var(--muted); font-size:0.68rem; font-weight:760; text-transform:uppercase; }
+        .forecast-detail b { display:block; color:var(--brand-dark); font-size:1rem; margin-top:0.1rem; }
+        .progress-track { height:0.55rem; border-radius:999px; background:#edf2f7; overflow:hidden; margin-top:0.9rem; }
+        .progress-track i { display:block; height:100%; width:var(--progress); background:linear-gradient(90deg,#4e8793,#d59a17); border-radius:inherit; }
+        .forecast-note { margin:0.65rem 0 0; color:var(--muted); font-size:0.78rem; line-height:1.38; }
+        .model-grid { display:grid; gap:0.85rem; margin-top:1rem; }
+        .model-card { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow-1); padding:1rem; }
+        .model-card h2 { margin:0 0 0.5rem; font-size:1rem; color:var(--brand-dark); }
+        .model-list { margin:0; padding:0; list-style:none; display:grid; gap:0.42rem; color:var(--muted); font-size:0.85rem; line-height:1.4; }
+        .model-list strong { color:var(--brand-dark); }
+        .holiday-list { display:flex; flex-wrap:wrap; gap:0.45rem; margin-top:0.6rem; }
+        .holiday-pill { border:1px solid #ead9a8; background:#fff8e8; color:#8a5e0d; border-radius:999px; padding:0.28rem 0.5rem; font-size:0.74rem; font-weight:760; }
+        .assumption-grid { display:grid; gap:0.65rem; margin-top:0.65rem; }
+        .assumption { border:1px solid var(--line-soft); border-radius:10px; padding:0.65rem; background:var(--panel-soft); }
+        .assumption span { color:var(--muted); font-size:0.72rem; font-weight:760; text-transform:uppercase; }
+        .assumption strong { display:block; color:var(--brand-dark); font-size:1.05rem; margin-top:0.1rem; }
+        @media (min-width: 920px) {
+            .forecast-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+            .model-grid { grid-template-columns:1.15fr 0.85fr; }
+            .assumption-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        }
+        @media (max-width: 720px) {
+            .forecast-detail { grid-template-columns:1fr; }
+            .forecast-main { align-items:start; flex-direction:column; }
+        }
+    </style>
+</head>
+<body class="theme-parking">
+    {% include "_header.html" %}
+    <main>
+        <h1 class="page-title">Prognose parkering</h1>
+        <p class="page-subtitle">
+            Modellen bruker historiske parkeringer, vekt på sesong, ukedag og norske helligdager,
+            og justerer resten av perioden etter hvordan vi ligger an akkurat nå.
+            Sist beregnet {{ forecast.generated_at|localtime }}.
+        </p>
+
+        <section class="forecast-grid" aria-label="Prognoser">
+            <article class="forecast-card primary">
+                <h2>I dag {{ day.date.strftime("%d.%m") }}</h2>
+                <div class="forecast-main">
+                    <div>
+                        <strong>{{ day.forecast.sessions|short_number }}</strong>
+                        <span>forventede parkeringer</span>
+                    </div>
+                    <span>{{ day.actual.sessions|short_number }} registrert nå</span>
+                </div>
+                <div class="forecast-detail">
+                    <div><small>Inntekt</small><b>{{ day.forecast.paid|short_number }} kr</b></div>
+                    <div><small>Varighet</small><b>{{ (day.forecast.minutes / 60)|short_number(1) }} t</b></div>
+                    <div><small>Dagen lest</small><b>{{ (day.day_fraction * 100)|short_number }} %</b></div>
+                </div>
+                <div class="progress-track" style="--progress:{{ (day.day_fraction * 100)|round(0) }}%"><i></i></div>
+                <p class="forecast-note">
+                    {{ day.weekday|capitalize }}{% if day.holiday %}, {{ day.holiday }}{% endif %}.
+                    Dagens tempo sammenlignes med {{ day.comparable_days }} historiske dager.
+                </p>
+            </article>
+
+            <article class="forecast-card">
+                <h2>{{ month.label }}</h2>
+                <div class="forecast-main">
+                    <div>
+                        <strong>{{ month.forecast.sessions|short_number }}</strong>
+                        <span>prognose parkeringer</span>
+                    </div>
+                    <span>{{ month.actual.sessions|short_number }} hittil</span>
+                </div>
+                <div class="forecast-detail">
+                    <div><small>Inntekt</small><b>{{ month.forecast.paid|short_number }} kr</b></div>
+                    <div><small>Varighet</small><b>{{ (month.forecast.minutes / 60)|short_number }} t</b></div>
+                    <div><small>Tempo</small><b>{{ (month.tempo * 100)|short_number }} %</b></div>
+                </div>
+                <p class="forecast-note">
+                    Resten av måneden modelleres dag for dag. Tempo over 100 % betyr at måneden ligger foran historisk forventning.
+                </p>
+            </article>
+
+            <article class="forecast-card year">
+                <h2>{{ year.label }}</h2>
+                <div class="forecast-main">
+                    <div>
+                        <strong>{{ year.forecast.sessions|short_number }}</strong>
+                        <span>prognose parkeringer</span>
+                    </div>
+                    <span>{{ year.actual.sessions|short_number }} hittil</span>
+                </div>
+                <div class="forecast-detail">
+                    <div><small>Inntekt</small><b>{{ year.forecast.paid|short_number }} kr</b></div>
+                    <div><small>Varighet</small><b>{{ (year.forecast.minutes / 60)|short_number }} t</b></div>
+                    <div><small>Tempo</small><b>{{ (year.tempo * 100)|short_number }} %</b></div>
+                </div>
+                <p class="forecast-note">
+                    Årsprognosen tar med sesongvariasjoner fremover og lar årets faktiske utvikling påvirke resten av året.
+                </p>
+            </article>
+        </section>
+
+        <section class="model-grid">
+            <article class="model-card">
+                <h2>Hvordan prognosen regnes</h2>
+                <ul class="model-list">
+                    <li><strong>Dagens prognose:</strong> faktiske parkeringer hittil deles på hvor stor del av normal aktiv dag som er ferdig på dette klokkeslettet.</li>
+                    <li><strong>Månedsprognose:</strong> faktiske tall hittil beholdes, og resten av måneden beregnes med historiske dager som ligner på dato, sesong, ukedag og helligdagstype.</li>
+                    <li><strong>Årsprognose:</strong> samme prinsipp som måned, men for alle gjenstående dager i året.</li>
+                    <li><strong>Tempo:</strong> dersom perioden ligger over eller under forventning hittil, justeres resten av perioden i samme retning.</li>
+                </ul>
+                <div class="assumption-grid">
+                    <div class="assumption"><span>Datagrunnlag fra</span><strong>{{ forecast.history_first_date or "-" }}</strong></div>
+                    <div class="assumption"><span>Datagrunnlag til</span><strong>{{ forecast.history_last_date or "-" }}</strong></div>
+                    <div class="assumption"><span>Dagens modell</span><strong>{{ day.model.sessions|short_number }} normalnivå</strong></div>
+                </div>
+            </article>
+
+            <article class="model-card">
+                <h2>Helligdager fremover</h2>
+                <ul class="model-list">
+                    <li>Helligdager får egen vekt fordi parkeringsmønsteret ofte avviker fra vanlig ukedag.</li>
+                    <li>Når en helligdag kommer i perioden, sammenlignes den primært med tidligere helligdager og samme sesong.</li>
+                </ul>
+                <div class="holiday-list">
+                    {% set holidays = month.important_days + year.important_days %}
+                    {% for item in holidays[:10] %}
+                    <span class="holiday-pill">{{ item.day.strftime("%d.%m") }} {{ item.holiday }}</span>
+                    {% else %}
+                    <span class="holiday-pill">Ingen registrerte helligdager i resten av måneden</span>
+                    {% endfor %}
+                </div>
+            </article>
+        </section>
+    </main>
+</body>
+</html>
