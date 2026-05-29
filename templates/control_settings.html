@@ -70,6 +70,12 @@
 <body class="{{ definition.theme }}">
     {% include "_header.html" %}
     <main>
+        <section class="page-title">
+            <div>
+                <h1>{{ definition.title }}</h1>
+                <p>{{ definition.subtitle }}</p>
+            </div>
+        </section>
         {% if saved %}
         <div class="saved">Innstillingene er lagret som versjon {{ config.version }}. HC3 henter ny versjon neste gang runner-scenen kjøres.</div>
         {% endif %}

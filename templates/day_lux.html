@@ -71,6 +71,12 @@
 <body class="theme-light">
     {% include "_header.html" %}
     <main>
+        <section class="page-title">
+            <div>
+                <h1>Dagslogg lux</h1>
+                <p>Lux gjennom valgt dag, med sammenligning mot dagen før.</p>
+            </div>
+        </section>
         <form class="day-form" method="get" action="/lys/dagslogg-lux">
             <input type="date" name="day" value="{{ selected_day }}">
             <label class="compare-toggle"><input type="checkbox" name="compare_previous" value="1" {% if compare_previous %}checked{% endif %}> Sammenlign med dagen før</label>
