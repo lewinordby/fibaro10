@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilstatistikk</title>
+    {% include "_styles.html" %}
+    <style>
+        .page-title { margin:0 0 .35rem; font-size:1.24rem; font-weight:780; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 .95rem; color:var(--muted); font-size:.88rem; }
+        .summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.7rem; margin-bottom:1rem; }
+        .summary-card { background:var(--panel); border:1px solid var(--line); border-top:4px solid var(--parking-color); border-radius:10px; padding:.78rem .85rem; box-shadow:var(--shadow-1); }
+        .summary-card span { color:var(--muted); font-size:.76rem; font-weight:760; }
+        .summary-card strong { display:block; margin-top:.16rem; font-size:1.12rem; color:var(--brand-dark); }
+        .stats-grid { display:grid; grid-template-columns:1.45fr .8fr; gap:.9rem; align-items:start; }
+        .section-row { display:flex; align-items:end; justify-content:space-between; gap:.75rem; margin:.2rem 0 .5rem; }
+        .section-title { margin:0; font-size:1rem; color:var(--brand-dark); }
+        .section-note { color:var(--muted); font-size:.78rem; }
+        .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
+        table { width:100%; border-collapse:collapse; min-width:620px; }
+        .make-table { min-width:340px; }
+        th, td { padding:.58rem .65rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
+        th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
+        th { color:var(--muted); font-size:.76rem; font-weight:760; background:var(--panel-soft); }
+        td { font-size:.88rem; }
+        tbody tr:last-child td { border-bottom:0; }
+        .plate-link { color:var(--brand-dark); font-weight:820; text-decoration:none; }
+        .plate-link:hover { text-decoration:underline; }
+        .vehicle-main { color:var(--brand-dark); font-weight:760; }
+        .vehicle-meta { color:var(--muted); font-size:.78rem; margin-top:.1rem; }
+        .money { color:#9a660f; font-weight:800; }
+    </style>
+</head>
+<body class="theme-parking">
+    {% include "_header.html" %}
+    <main>
+        <h1 class="page-title">Bilstatistikk</h1>
+        <p class="page-subtitle">Kjøretøy, merker og bruksfrekvens fra parkeringshistorikken.</p>
+
+        <section class="summary-grid">
+            <div class="summary-card">
+                <span>Unike kjøretøy</span>
+                <strong>{{ vehicle_total|short_number }}</strong>
+            </div>
+            <div class="summary-card">
+                <span>Med kjøretøydata</span>
+                <strong>{{ vehicle_with_details|short_number }}</strong>
+            </div>
+            <div class="summary-card">
+                <span>Dekning</span>
+                <strong>{{ ((vehicle_with_details / vehicle_total * 100) if vehicle_total else 0)|round(1) }}%</strong>
+            </div>
+        </section>
+
+        <section class="stats-grid">
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">Mest brukte kjøretøy</h2>
+                    <span class="section-note">Sortert på antall parkeringer</span>
+                </div>
+                <section class="table-wrap">
+                    <table>
+                        <thead><tr><th>Regnr</th><th>Kjøretøy</th><th>Antall</th><th>Beløp</th></tr></thead>
+                        <tbody>
+                        {% for plate, count, paid, merke, modell, klasse, navn, omrade in top_plates %}
+                            <tr>
+                                <td><a class="plate-link" href="/parkering/kjoretoy/{{ plate }}">{{ plate }}</a></td>
+                                <td>
+                                    <div class="vehicle-main">{{ merke or "Ukjent" }} {{ modell or "" }}</div>
+                                    {% if klasse %}<div class="vehicle-meta">{{ klasse }}</div>{% endif %}
+                                    {% if navn or omrade %}<div class="vehicle-meta">{{ [navn, omrade]|select|join(", ") }}</div>{% endif %}
+                                </td>
+                                <td>{{ count|short_number }}</td>
+                                <td class="money">{{ paid|short_number }} kr</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+            <div>
+                <div class="section-row">
+                    <h2 class="section-title">Merker</h2>
+                    <span class="section-note">Kjøretøy med beriket data</span>
+                </div>
+                <section class="table-wrap">
+                    <table class="make-table">
+                        <thead><tr><th>Merke</th><th>Kjøretøy</th></tr></thead>
+                        <tbody>
+                        {% for merke, count in top_makes %}
+                            <tr><td>{{ merke }}</td><td>{{ count|short_number }}</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

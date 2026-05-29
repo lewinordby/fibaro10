@@ -9767,6 +9767,24 @@ async def parking_overview_view(
 async def parking_statistics_view(request: Request):
     async with async_session() as session:
         summaries = await get_parking_summaries(session)
+    return templates.TemplateResponse(
+        request,
+        "parking_statistics.html",
+        {
+            "top_days": summaries["top_days"],
+            "top_months": summaries["top_months"],
+            "top_days_by_count": summaries["top_days_by_count"],
+            "top_months_by_count": summaries["top_months_by_count"],
+            "grand_total": summaries["total"],
+            "first_date": summaries["first_date"],
+            "last_date": summaries["last_date"],
+        },
+    )
+
+
+@app.get("/parkering/bilstatistikk", response_class=HTMLResponse)
+async def parking_vehicle_statistics_view(request: Request):
+    async with async_session() as session:
         top_plates = (
             await session.execute(
                 select(
@@ -9796,19 +9814,20 @@ async def parking_statistics_view(request: Request):
                 .limit(50)
             )
         ).all()
+        vehicle_total = (
+            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))))
+        ).scalar_one()
+        vehicle_with_details = (
+            await session.execute(select(func.count(func.distinct(ParkingVehicleDetails.plate))))
+        ).scalar_one()
     return templates.TemplateResponse(
         request,
-        "parking_statistics.html",
+        "parking_vehicle_statistics.html",
         {
             "top_plates": top_plates,
             "top_makes": top_makes,
-            "top_days": summaries["top_days"],
-            "top_months": summaries["top_months"],
-            "top_days_by_count": summaries["top_days_by_count"],
-            "top_months_by_count": summaries["top_months_by_count"],
-            "grand_total": summaries["total"],
-            "first_date": summaries["first_date"],
-            "last_date": summaries["last_date"],
+            "vehicle_total": vehicle_total,
+            "vehicle_with_details": vehicle_with_details,
         },
     )
 

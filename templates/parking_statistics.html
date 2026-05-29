@@ -189,42 +189,6 @@
             </div>
         </section>
 
-        <section class="parking-stats-grid extra-section">
-            <article>
-                <h2>Mest brukte kjøretøy</h2>
-                <table class="parking-table">
-                    <thead><tr><th>Regnr</th><th>Kjøretøy</th><th>Antall</th><th>Beløp</th></tr></thead>
-                    <tbody>
-                    {% for plate, count, paid, merke, modell, klasse, navn, omrade in top_plates %}
-                        <tr>
-                            <td>
-                                <a href="/parkering/kjoretoy/{{ plate }}">{{ plate }}</a>
-                                <br><a class="parking-link-button" href="/parkering/parkeringer?plate={{ plate }}">Parkeringer</a>
-                            </td>
-                            <td>
-                                {{ merke or "Ukjent" }} {{ modell or "" }}
-                                {% if klasse %}<br><small>{{ klasse }}</small>{% endif %}
-                                {% if navn or omrade %}<br><small>{{ [navn, omrade]|select|join(", ") }}</small>{% endif %}
-                            </td>
-                            <td>{{ count|short_number }}</td>
-                            <td>{{ paid|short_number }} kr</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </article>
-            <article>
-                <h2>Merker i historikken</h2>
-                <table class="parking-table">
-                    <thead><tr><th>Merke</th><th>Kjøretøy</th></tr></thead>
-                    <tbody>
-                    {% for merke, count in top_makes %}
-                        <tr><td>{{ merke }}</td><td>{{ count|short_number }}</td></tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </article>
-        </section>
     </main>
 </body>
 </html>
