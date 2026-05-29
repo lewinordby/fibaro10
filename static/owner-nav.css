@@ -1,23 +1,24 @@
 /* Lilletorget desktop shell.
-   The main app is now a PC-first tool. Mobile presentation is handled by the
-   separate online dashboard, so this file keeps the navigation fixed, simple
-   and predictable. */
+   Mobile use is handled by online_dashboard, so the main application can use
+   a fixed PC-first navigation without collapsed/mobile states. */
 
 :root {
-    --owner-sidebar: 270px;
-    --owner-page-gap: 22px;
-    --owner-line: #e2e9f1;
-    --owner-text: #25344d;
-    --owner-muted: #717d92;
+    --owner-sidebar: 284px;
+    --owner-page-gap: 24px;
+    --owner-nav-pad: 16px;
+    --owner-nav-item: 232px;
+    --owner-sub-indent: 54px;
+    --owner-line: #e1e8f1;
+    --owner-text: #1e2d46;
+    --owner-muted: #738096;
     --owner-navy: #06163d;
-    --owner-gold: #c89216;
     --owner-surface: #ffffff;
-    --owner-soft: #f8fafc;
-    --owner-shadow: 10px 0 30px rgba(6, 22, 61, 0.045);
+    --owner-soft: #f7f9fc;
+    --owner-shadow: 10px 0 28px rgba(6, 22, 61, 0.055);
 }
 
 html {
-    min-width: 1280px;
+    min-width: 1360px;
     overflow-x: auto;
 }
 
@@ -40,15 +41,15 @@ html {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+    background: #ffffff;
 }
 
 .brand-home.brand-lilletorget {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 118px;
-    padding: 18px 20px;
+    min-height: 126px;
+    padding: 20px var(--owner-nav-pad) 18px;
     border-bottom: 1px solid var(--owner-line);
     background: #ffffff;
     text-decoration: none;
@@ -56,7 +57,7 @@ html {
 
 .brand-lilletorget-text-logo {
     display: block;
-    width: 206px;
+    width: 220px;
     max-width: 100%;
     height: auto;
     object-fit: contain;
@@ -66,8 +67,8 @@ html {
 .site-header ~ .container,
 body .site-header ~ main,
 body .site-header ~ .container {
-    width: auto !important;
-    max-width: min(var(--page-width, 1520px), calc(100vw - var(--owner-sidebar) - (var(--owner-page-gap) * 2))) !important;
+    width: min(var(--page-width, 1500px), calc(100vw - var(--owner-sidebar) - (var(--owner-page-gap) * 2))) !important;
+    max-width: none !important;
     margin-left: calc(var(--owner-sidebar) + var(--owner-page-gap)) !important;
     margin-right: var(--owner-page-gap) !important;
     padding-top: 18px !important;
@@ -79,8 +80,7 @@ body .site-header ~ .container {
     --section-color: var(--status-color);
     --section-soft: var(--status-soft);
     --section-border: var(--status-border);
-    --section-ring: var(--status-ring);
-    padding: 14px 12px 22px;
+    padding: 16px var(--owner-nav-pad) 26px;
     background: transparent;
 }
 
@@ -88,78 +88,74 @@ body .site-header ~ .container {
     --section-color: var(--light-color);
     --section-soft: var(--light-soft);
     --section-border: var(--light-border);
-    --section-ring: var(--light-ring);
 }
 
 .app-nav.section-vent {
     --section-color: var(--vent-color);
     --section-soft: var(--vent-soft);
     --section-border: var(--vent-border);
-    --section-ring: var(--vent-ring);
 }
 
 .app-nav.section-cleaning {
     --section-color: var(--cleaning-color);
     --section-soft: var(--cleaning-soft);
     --section-border: var(--cleaning-border);
-    --section-ring: var(--cleaning-ring);
 }
 
 .app-nav.section-sun2 {
     --section-color: var(--sun2-color);
     --section-soft: var(--sun2-soft);
     --section-border: var(--sun2-border);
-    --section-ring: var(--sun2-ring);
 }
 
 .app-nav.section-energy {
     --section-color: var(--energy-color);
     --section-soft: var(--energy-soft);
     --section-border: var(--energy-border);
-    --section-ring: var(--energy-ring);
 }
 
 .app-nav.section-parking {
     --section-color: var(--parking-color);
     --section-soft: var(--parking-soft);
     --section-border: var(--parking-border);
-    --section-ring: var(--parking-ring);
 }
 
 .app-nav.section-ai {
     --section-color: var(--ai-color);
     --section-soft: var(--ai-soft);
     --section-border: var(--ai-border);
-    --section-ring: var(--ai-ring);
 }
 
 .app-nav.section-admin {
     --section-color: var(--admin-color);
     --section-soft: var(--admin-soft);
     --section-border: var(--admin-border);
-    --section-ring: var(--admin-ring);
 }
 
 .app-nav .nav-main {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    align-items: stretch;
+    gap: 5px;
 }
 
 .app-nav .button {
+    box-sizing: border-box;
     display: grid;
     align-items: center;
+    min-width: 0;
     text-decoration: none;
     color: var(--owner-text);
 }
 
 .app-nav .nav-main > .button {
-    grid-template-columns: 20px minmax(0, 1fr) 8px;
+    width: var(--owner-nav-item);
+    grid-template-columns: 24px minmax(0, 1fr) 12px;
     gap: 12px;
-    min-height: 44px;
-    padding: 0 14px;
+    min-height: 48px;
+    padding: 0 15px;
     border: 1px solid transparent;
-    border-radius: 13px;
+    border-radius: 14px;
     background: transparent;
     box-shadow: none;
     font-size: 14px;
@@ -167,7 +163,7 @@ body .site-header ~ .container {
 }
 
 .app-nav .nav-main > .button:hover {
-    border-color: #e9eff6;
+    border-color: #e7edf5;
     background: var(--owner-soft);
 }
 
@@ -175,11 +171,11 @@ body .site-header ~ .container {
     border-color: var(--section-border);
     background: #ffffff;
     color: var(--owner-navy);
-    box-shadow: inset 3px 0 0 var(--section-color), 0 8px 20px rgba(6, 22, 61, 0.055);
+    box-shadow: inset 3px 0 0 var(--section-color), 0 8px 18px rgba(6, 22, 61, 0.055);
 }
 
 .app-nav .nav-main > .button.active.has-sub .nav-label {
-    font-weight: 880;
+    font-weight: 860;
 }
 
 .app-nav .nav-main > .button.has-sub:not(.active) + .nav-sub {
@@ -187,26 +183,28 @@ body .site-header ~ .container {
 }
 
 .app-nav .nav-sub {
+    width: calc(var(--owner-nav-item) - var(--owner-sub-indent));
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    margin: 2px 0 7px 34px;
-    padding: 4px 0 4px 12px;
-    border-left: 1px solid #dbe4ee;
+    gap: 1px;
+    margin: 0 0 8px var(--owner-sub-indent);
+    padding: 5px 0 5px 12px;
+    border-left: 1px solid #d8e1ec;
 }
 
 .app-nav .nav-sub .button,
 .app-nav .nav-sub-form .button {
-    grid-template-columns: 15px minmax(0, 1fr);
+    width: 100%;
+    grid-template-columns: 16px minmax(0, 1fr);
     gap: 9px;
-    min-height: 31px;
-    padding: 0 10px;
+    min-height: 32px;
+    padding: 0 9px;
     border: 0;
     border-radius: 9px;
     background: transparent;
     box-shadow: none;
     color: var(--owner-muted);
-    font-size: 12.5px;
+    font-size: 12.25px;
     font-weight: 720;
 }
 
@@ -224,8 +222,6 @@ body .site-header ~ .container {
 
 .app-nav .nav-icon,
 .app-nav .nav-sub-icon {
-    width: 100%;
-    height: 100%;
     fill: none;
     stroke: currentColor;
     stroke-linecap: round;
@@ -236,12 +232,14 @@ body .site-header ~ .container {
     width: 18px;
     height: 18px;
     stroke-width: 2.05;
+    justify-self: center;
 }
 
 .app-nav .nav-sub-icon {
     width: 14px;
     height: 14px;
     stroke-width: 1.95;
+    justify-self: center;
 }
 
 .app-nav .nav-label,
@@ -259,6 +257,7 @@ body .site-header ~ .container {
     border-bottom: 2px solid currentColor;
     opacity: 0.55;
     transform: rotate(-45deg);
+    justify-self: center;
 }
 
 .app-nav .nav-main > .button.active .nav-chevron {
