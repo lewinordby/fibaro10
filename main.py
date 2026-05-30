@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1012")
+APP_BUILD = os.getenv("APP_BUILD", "1013")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1013",
+        "date": "30.05.2026",
+        "title": "Retter norske tegn",
+        "changes": [
+            "Retter feil kodede norske tegn i parkeringsprognose og dashboardkort.",
+            "Retter ukedagsnavn og års-/månedsoverskrifter som kunne vises som mojibake.",
+            "Retter tegn i små SUN2-statusapper slik at På og går vises riktig.",
+        ],
+    },
     {
         "version": "1",
         "build": "1012",
@@ -5154,9 +5165,9 @@ async def build_parking_forecast(session, today: date, now_local: datetime) -> D
 
     month_start = date(today.year, today.month, 1)
     year_start = date(today.year, 1, 1)
-    month = forecast_period(month_start, month_end(today), "InnevÃ¦rende mÃ¥ned")
-    year = forecast_period(year_start, date(today.year, 12, 31), "InnevÃ¦rende Ã¥r")
-    weekday_names = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lÃ¸rdag", "sÃ¸ndag"]
+    month = forecast_period(month_start, month_end(today), "Inneværende måned")
+    year = forecast_period(year_start, date(today.year, 12, 31), "Inneværende år")
+    weekday_names = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag", "søndag"]
     day = {
         "label": "I dag",
         "date": today,
@@ -8987,13 +8998,13 @@ async def index(request: Request):
             "title": "Parkering hittil mnd",
             "value": dashboard_compare_value(month_parking.sessions, previous_month_parking.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(month_parking.paid)} kr hittil denne mÃ¥neden",
+            "detail": f"{format_short_number(month_parking.paid)} kr hittil denne måneden",
             "href": f"/parkering/oversikt?day={today.isoformat()}",
             "tone": "parking",
             "compare": True,
         },
         {
-            "title": "Sol hittil Ã¥r",
+            "title": "Sol hittil år",
             "value": format_short_number(year_sun.sessions),
             "unit": "stk",
             "detail": f"{format_short_number(year_sun.paid)} kr - {format_short_number(year_sun.minutes / 60, 1)} t",
@@ -9001,10 +9012,10 @@ async def index(request: Request):
             "tone": "sun2",
         },
         {
-            "title": "Parkering hittil Ã¥r",
+            "title": "Parkering hittil år",
             "value": format_short_number(year_parking.sessions),
             "unit": "stk",
-            "detail": f"{format_short_number(year_parking.paid)} kr hittil i Ã¥r",
+            "detail": f"{format_short_number(year_parking.paid)} kr hittil i år",
             "href": "/parkering/statistikk",
             "tone": "parking",
         },

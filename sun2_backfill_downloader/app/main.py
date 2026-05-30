@@ -463,7 +463,7 @@ button{{border:0;border-radius:8px;background:#4b86c2;color:white;padding:.65rem
 <div class="metric"><span>Lastet ned</span><strong>{state.get('downloaded', 0)}</strong></div>
 <div class="metric"><span>Hoppet over</span><strong>{state.get('skipped', 0)}</strong></div>
 <div class="metric"><span>Feil</span><strong>{state.get('failed', 0)}</strong></div>
-<div class="metric"><span>Nattlig dagsfil</span><strong>{'PÃ¥' if DAILY_DOWNLOAD_ENABLED else 'Av'}</strong></div>
+<div class="metric"><span>Nattlig dagsfil</span><strong>{'På' if DAILY_DOWNLOAD_ENABLED else 'Av'}</strong></div>
 <div class="metric"><span>Natt-tid</span><strong>{DAILY_DOWNLOAD_TIME}</strong></div>
 <div class="metric"><span>Daglig mappe</span><strong>{DAILY_OUT_DIR}</strong></div>
 <div class="metric"><span>Siste nattjobb</span><strong>{state.get('daily_last_action') or '-'}</strong></div>
@@ -471,7 +471,7 @@ button{{border:0;border-radius:8px;background:#4b86c2;color:white;padding:.65rem
 <section class="card">
 <form method="post" action="/start" style="display:inline"><button type="submit">Start</button></form>
 <form method="post" action="/stop" style="display:inline"><button class="stop" type="submit">Stopp</button></form>
-<form method="post" action="/download-yesterday" style="display:inline"><button type="submit">Last ned i gÃ¥r</button></form>
+<form method="post" action="/download-yesterday" style="display:inline"><button type="submit">Last ned i går</button></form>
 </section>
 <section class="card"><pre>{json.dumps(state, ensure_ascii=False, indent=2)}</pre></section>
 </main></body></html>

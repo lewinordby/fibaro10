@@ -1554,11 +1554,11 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <div class="metric"><span>Siste rader</span><strong>{state.get('rows_last_file', 0)}</strong></div>
 <div class="metric"><span>Medlemmer</span><strong>{state.get('members_last_count', 0)}</strong></div>
 <div class="metric"><span>Navn funnet</span><strong>{state.get('members_last_named_count', 0)}</strong></div>
-<div class="metric"><span>Nattjobb</span><strong>{'PÃ¥' if SCHEDULE_ENABLED else 'Av'}</strong></div>
+<div class="metric"><span>Nattjobb</span><strong>{'På' if SCHEDULE_ENABLED else 'Av'}</strong></div>
 <div class="metric"><span>Tider</span><strong>{SCHEDULE_SESSIONS_TIME} / {SCHEDULE_BEDS_TIME} / {SCHEDULE_MEMBERS_TIME}</strong></div>
 <div class="metric"><span>Siste sjekk</span><strong>{state.get('scheduler_last_check') or '-'}</strong></div>
 <div class="metric"><span>Siste nattjobb</span><strong>{state.get('scheduler_last_action') or '-'}</strong></div>
-<div class="metric"><span>Live-sync</span><strong>{'PÃ¥' if LIVE_SYNC_ENABLED else 'Av'} / {LIVE_SYNC_INTERVAL_SECONDS}s</strong></div>
+<div class="metric"><span>Live-sync</span><strong>{'På' if LIVE_SYNC_ENABLED else 'Av'} / {LIVE_SYNC_INTERVAL_SECONDS}s</strong></div>
 <div class="metric"><span>Siste live</span><strong>{state.get('live_last_action') or '-'}</strong></div>
 </section>
 <section class="card">
