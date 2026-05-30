@@ -134,19 +134,19 @@
         <p class="page-subtitle">Samlede topplister for soling og parkering. Beløp rangerer listene, mens kolonnene viser hva som kommer fra hvert område.</p>
 
         <div class="stat-shell">
-            <section class="chart-panel" aria-label="Ukesutvikling soling og parkering">
+            <section class="chart-panel" aria-label="Inntektsutvikling soling og parkering">
                 <div class="chart-head">
                     <div>
-                        <h2 class="chart-title">Ukesutvikling soling + parkering</h2>
-                        <p>Samlet uke for uke fra og med 2023. Én linje per år.</p>
+                        <h2 class="chart-title">Inntekt soling + parkering</h2>
+                        <p>Samlet beløp fra og med 2023. Bytt mellom ukevis beløp og akkumulert årskurve.</p>
                     </div>
                     <div class="chart-controls">
-                        <button class="chart-toggle active" type="button" data-weekly-metric="revenue">Beløp</button>
-                        <button class="chart-toggle" type="button" data-weekly-metric="count">Antall</button>
+                        <button class="chart-toggle active" type="button" data-chart-mode="weekly">Uke</button>
+                        <button class="chart-toggle" type="button" data-chart-mode="cumulative">Akkumulert</button>
                     </div>
                 </div>
                 <div class="weekly-chart-wrap">
-                    <svg class="weekly-chart" viewBox="0 0 980 360" role="img" aria-label="Linjediagram over samlet soling og parkering per uke og år"></svg>
+                    <svg class="weekly-chart" viewBox="0 0 980 360" role="img" aria-label="Linjediagram over samlet inntekt fra soling og parkering per uke og år"></svg>
                     <div class="weekly-tooltip" id="weeklyTooltip" role="status" aria-live="polite"></div>
                 </div>
                 <div class="weekly-legend" id="weeklyLegend"></div>
@@ -230,7 +230,7 @@
             const svg = document.querySelector(".weekly-chart");
             const tooltip = document.querySelector("#weeklyTooltip");
             const legend = document.querySelector("#weeklyLegend");
-            const buttons = document.querySelectorAll("[data-weekly-metric]");
+            const buttons = document.querySelectorAll("[data-chart-mode]");
             if (!svg || !data.length) return;
             const storageKey = "status_combined_weekly_visible_years";
             const allYears = data.map((series) => String(series.year));
@@ -243,7 +243,7 @@
                 }
             })();
             const activeYears = new Set(storedYears.length ? storedYears : allYears);
-            let currentMetric = "revenue";
+            let currentMode = "weekly";
 
             const width = 980;
             const height = 360;
@@ -252,11 +252,19 @@
             const plotHeight = height - margin.top - margin.bottom;
             const weeks = Array.from({ length: 53 }, (_, index) => index + 1);
 
-            const formatValue = (value, metric) => {
-                if (metric === "count") return Math.round(value).toLocaleString("nb-NO");
+            const formatValue = (value) => {
                 if (value >= 1000000) return `${(value / 1000000).toFixed(1).replace(".", ",")}M`;
                 if (value >= 1000) return `${Math.round(value / 1000).toLocaleString("nb-NO")}k`;
                 return Math.round(value).toLocaleString("nb-NO");
+            };
+
+            const seriesValues = (series, mode) => {
+                let running = 0;
+                return series.revenue.map((value) => {
+                    if (value === null || value === undefined) return null;
+                    running += Number(value || 0);
+                    return mode === "cumulative" ? running : Number(value || 0);
+                });
             };
 
             const pointsToPath = (points) => {
@@ -273,11 +281,12 @@
                 return path.trim();
             };
 
-            const render = (metric) => {
-                currentMetric = metric;
+            const render = (mode) => {
+                currentMode = mode;
                 const visibleData = data.filter((series) => activeYears.has(String(series.year)));
-                buttons.forEach((button) => button.classList.toggle("active", button.dataset.weeklyMetric === metric));
-                const maxValue = Math.max(1, ...visibleData.flatMap((series) => series[metric].filter((value) => value !== null)));
+                buttons.forEach((button) => button.classList.toggle("active", button.dataset.chartMode === mode));
+                const valuesByYear = new Map(visibleData.map((series) => [String(series.year), seriesValues(series, mode)]));
+                const maxValue = Math.max(1, ...[...valuesByYear.values()].flat().filter((value) => value !== null));
                 const yMax = Math.ceil(maxValue / 5) * 5;
                 const yTicks = [0, 0.25, 0.5, 0.75, 1].map((factor) => Math.round(yMax * factor));
                 const xForWeek = (week) => margin.left + ((week - 1) / 52) * plotWidth;
@@ -286,7 +295,7 @@
                 const grid = yTicks.map((tick) => {
                     const y = yForValue(tick);
                     return `<line class="weekly-grid" x1="${margin.left}" x2="${width - margin.right}" y1="${y}" y2="${y}"></line>
-                        <text class="weekly-label" x="${margin.left - 10}" y="${y + 3}" text-anchor="end">${formatValue(tick, metric)}</text>`;
+                        <text class="weekly-label" x="${margin.left - 10}" y="${y + 3}" text-anchor="end">${formatValue(tick)}</text>`;
                 }).join("");
                 const xLabels = [1, 10, 20, 30, 40, 50, 53].map((week) => {
                     const x = xForWeek(week);
@@ -294,22 +303,24 @@
                         <text class="weekly-label" x="${x}" y="${height - 12}" text-anchor="middle">${week}</text>`;
                 }).join("");
                 const lines = visibleData.map((series) => {
+                    const values = valuesByYear.get(String(series.year)) || [];
                     const points = weeks.map((week, index) => {
-                        const value = series[metric][index];
+                        const value = values[index];
                         if (value === null || value === undefined) return null;
                         return { x: xForWeek(week), y: yForValue(value) };
                     });
                     return `<path class="weekly-line" d="${pointsToPath(points)}" stroke="${series.color}"></path>`;
                 }).join("");
                 const pointGroups = visibleData.map((series) => {
+                    const values = valuesByYear.get(String(series.year)) || [];
                     return weeks.map((week, index) => {
-                        const value = series[metric][index];
+                        const value = values[index];
                         if (value === null || value === undefined) return "";
-                        const count = series.count[index] ?? 0;
                         const revenue = series.revenue[index] ?? 0;
+                        const cumulative = values[index] ?? 0;
                         const x = xForWeek(week);
                         const y = yForValue(value);
-                        return `<g class="weekly-point-group" data-year="${series.year}" data-week="${week}" data-count="${count}" data-revenue="${revenue}" data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}">
+                        return `<g class="weekly-point-group" data-year="${series.year}" data-week="${week}" data-mode="${mode}" data-revenue="${revenue}" data-cumulative="${cumulative}" data-x="${x.toFixed(1)}" data-y="${y.toFixed(1)}">
                             <circle class="weekly-point" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="${series.color}"></circle>
                             <circle class="weekly-hit" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8"></circle>
                         </g>`;
@@ -340,10 +351,12 @@
                     hideTooltip();
                     return;
                 }
-                const { year, week, count, revenue, x, y } = group.dataset;
+                const { year, week, mode, revenue, cumulative, x, y } = group.dataset;
+                const weeklyRevenue = Number(revenue || 0).toLocaleString("nb-NO", { maximumFractionDigits: 0 });
+                const cumulativeRevenue = Number(cumulative || 0).toLocaleString("nb-NO", { maximumFractionDigits: 0 });
                 tooltip.innerHTML = `<strong>${year} - uke ${week}</strong>
-                    <span>${Number(count || 0).toLocaleString("nb-NO")} sol/park</span>
-                    <span>${Number(revenue || 0).toLocaleString("nb-NO", { maximumFractionDigits: 0 })} kr</span>`;
+                    <span>${mode === "cumulative" ? "Akkumulert" : "Denne uken"}: ${mode === "cumulative" ? cumulativeRevenue : weeklyRevenue} kr</span>
+                    ${mode === "cumulative" ? `<span>Uken: ${weeklyRevenue} kr</span>` : ""}`;
                 const svgRect = svg.getBoundingClientRect();
                 const wrapRect = svg.parentElement.getBoundingClientRect();
                 tooltip.style.left = `${svgRect.left - wrapRect.left + (Number(x) / width) * svgRect.width}px`;
@@ -367,16 +380,16 @@
                             activeYears.delete(String(input.value));
                         }
                         localStorage.setItem(storageKey, JSON.stringify([...activeYears]));
-                        render(currentMetric);
+                        render(currentMode);
                     });
                 });
             };
 
-            buttons.forEach((button) => button.addEventListener("click", () => render(button.dataset.weeklyMetric)));
+            buttons.forEach((button) => button.addEventListener("click", () => render(button.dataset.chartMode)));
             svg.addEventListener("mousemove", showTooltip);
             svg.addEventListener("mouseleave", hideTooltip);
             renderLegend();
-            render("revenue");
+            render("weekly");
         })();
     </script>
 </body>
