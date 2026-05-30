@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1013")
+APP_BUILD = os.getenv("APP_BUILD", "1014")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1014",
+        "date": "30.05.2026",
+        "title": "CSS-gjennomgang",
+        "changes": [
+            "Rydder ansvarsdelingen mellom app.css, Lilletorget designsystem og fast venstremeny.",
+            "Reduserer app.css til tokens, baseoppsett og få sidespesifikke regler slik at komponenter ikke defineres dobbelt.",
+            "Oppdaterer CSS-cache for å sikre at QNAP-løsningen laster den ryddede stilstrukturen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1013",
