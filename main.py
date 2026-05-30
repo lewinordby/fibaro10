@@ -88,8 +88,21 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1008")
+APP_BUILD = os.getenv("APP_BUILD", "1009")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1009",
+        "date": "30.05.2026",
+        "title": "SVV og statusstatistikk",
+        "changes": [
+            "Gjør SVV-berikelsen mer robust ved midlertidige feil fra Statens vegvesen.",
+            "Stopper SVV-batchen etter første 429/500/502/503/504 slik at mange biler ikke feilmerkes når tjenesten er nede.",
+            "Viser tydelig statusmelding når kjøretøy venter på ny SVV-prøve etter midlertidig feil.",
+            "Endrer Status/Statistikk slik at grafen bare viser samlet beløp for soling og parkering.",
+            "Legger inn valg mellom ukevis beløp og akkumulert årskurve på Status/Statistikk.",
+        ],
+    },
     {
         "version": "1",
         "build": "1008",
