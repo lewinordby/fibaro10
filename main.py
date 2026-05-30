@@ -74,13 +74,15 @@ SVV_API_URL = os.getenv(
     "https://www.vegvesen.no/ws/no/vegvesen/kjoretoy/felles/datautlevering/enkeltoppslag/kjoretoydata",
 ).strip()
 SVV_API_AUTH_HEADER = os.getenv("SVV_API_AUTH_HEADER", "SVV-Authorization").strip()
-SVV_API_AUTH_PREFIX = os.getenv("SVV_API_AUTH_PREFIX", "Apikey ").strip()
+SVV_API_AUTH_PREFIX = os.getenv("SVV_API_AUTH_PREFIX", "Apikey").strip()
 SVV_SYNC_ENABLED = os.getenv("SVV_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 SVV_SYNC_INTERVAL_MINUTES = max(1, int(os.getenv("SVV_SYNC_INTERVAL_MINUTES", "10")))
 SVV_SYNC_BATCH_SIZE = max(1, int(os.getenv("SVV_SYNC_BATCH_SIZE", "50")))
 SVV_IMPORT_SYNC_BATCH_SIZE = max(0, int(os.getenv("SVV_IMPORT_SYNC_BATCH_SIZE", "5")))
 SVV_RETRY_AFTER_HOURS = max(1, int(os.getenv("SVV_RETRY_AFTER_HOURS", "24")))
+SVV_TRANSIENT_RETRY_AFTER_MINUTES = max(5, int(os.getenv("SVV_TRANSIENT_RETRY_AFTER_MINUTES", "30")))
 SVV_PERMANENT_NO_DATA_STATUSES = {204, 400, 404}
+SVV_TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
 svv_sync_task: Optional[asyncio.Task] = None
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
@@ -9884,7 +9886,7 @@ def svv_api_lookup_sync(plate: str) -> Dict[str, Any]:
         raise RuntimeError("SVV_API_KEY mangler.")
     params = urlencode({"kjennemerke": compact_plate(plate)})
     url = f"{SVV_API_URL}?{params}"
-    auth_value = f"{SVV_API_AUTH_PREFIX} {SVV_API_KEY}".strip() if SVV_API_AUTH_PREFIX else SVV_API_KEY
+    auth_value = " ".join(part for part in [SVV_API_AUTH_PREFIX, SVV_API_KEY] if part).strip()
     request = urllib.request.Request(
         url,
         headers={
@@ -9904,7 +9906,9 @@ def svv_api_lookup_sync(plate: str) -> Dict[str, Any]:
 
 async def svv_candidate_plates(session, limit: int) -> list[str]:
     retry_before = datetime.utcnow() - timedelta(hours=SVV_RETRY_AFTER_HOURS)
+    transient_retry_before = datetime.utcnow() - timedelta(minutes=SVV_TRANSIENT_RETRY_AFTER_MINUTES)
     permanent_no_data = list(SVV_PERMANENT_NO_DATA_STATUSES)
+    transient_statuses = list(SVV_TRANSIENT_STATUSES)
     rows = (
         await session.execute(
             select(ParkingVehicle.plate)
@@ -9918,10 +9922,16 @@ async def svv_candidate_plates(session, limit: int) -> list[str]:
                     and_(
                         ParkingVehicleDetails.plate.is_(None),
                         ParkingVehicle.svv_status.notin_(permanent_no_data),
+                        ParkingVehicle.svv_status.notin_(transient_statuses),
                     ),
                     and_(
                         ParkingVehicle.svv_status.notin_([200, *permanent_no_data]),
+                        ParkingVehicle.svv_status.notin_(transient_statuses),
                         ParkingVehicle.svv_fetched_at < retry_before,
+                    ),
+                    and_(
+                        ParkingVehicle.svv_status.in_(transient_statuses),
+                        ParkingVehicle.svv_fetched_at < transient_retry_before,
                     ),
                 )
             )
@@ -9979,6 +9989,33 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
     errors: list[str] = []
     async with async_session() as session:
         plates = await svv_candidate_plates(session, limit)
+        if not plates:
+            transient_retry_before = datetime.utcnow() - timedelta(minutes=SVV_TRANSIENT_RETRY_AFTER_MINUTES)
+            transient_waiting = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(ParkingVehicle)
+                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                    .where(ParkingVehicleDetails.plate.is_(None))
+                    .where(ParkingVehicle.svv_status.in_(list(SVV_TRANSIENT_STATUSES)))
+                    .where(ParkingVehicle.svv_fetched_at >= transient_retry_before)
+                )
+            ).scalar_one()
+            if transient_waiting:
+                message = f"SVV svarte midlertidig feil sist. {transient_waiting} kj\u00f8ret\u00f8y venter p\u00e5 ny pr\u00f8ve."
+                await record_import_job(
+                    session,
+                    "parking_vehicle_svv_sync",
+                    ok=False,
+                    source=source,
+                    started_at=started_at,
+                    records_imported=0,
+                    records_total=transient_waiting,
+                    message=message,
+                    raw={"transient_waiting": transient_waiting},
+                )
+                await session.commit()
+                return {"ok": False, "processed": 0, "updated": 0, "no_data": 0, "failed": transient_waiting, "errors": [message]}
         for plate in plates:
             processed += 1
             try:
@@ -9991,12 +10028,19 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
                 await upsert_vehicle_svv_data(session, plate, {}, 204, message)
             except urllib.error.HTTPError as exc:
                 message = "Ikke funnet eller ugyldig kjennemerke hos SVV" if exc.code in SVV_PERMANENT_NO_DATA_STATUSES else f"HTTP {exc.code}"
+                if exc.code not in SVV_PERMANENT_NO_DATA_STATUSES:
+                    body = exc.read().decode("utf-8", errors="replace").strip()[:160]
+                    if body:
+                        message = f"{message}: {body}"
                 if exc.code in SVV_PERMANENT_NO_DATA_STATUSES:
                     no_data += 1
                 else:
                     failed += 1
                     errors.append(f"{plate}: {message}")
                 await upsert_vehicle_svv_data(session, plate, {}, exc.code, message)
+                if exc.code in SVV_TRANSIENT_STATUSES:
+                    await session.commit()
+                    break
             except json.JSONDecodeError:
                 no_data += 1
                 message = "Tomt eller uleselig svar fra SVV"
