@@ -88,8 +88,21 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1009")
+APP_BUILD = os.getenv("APP_BUILD", "1010")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1010",
+        "date": "30.05.2026",
+        "title": "Design- og CSS-opprydding",
+        "changes": [
+            "Rydder app.css ned til rene grunnvariabler, temafarger og felles komponentregler.",
+            "Gjør owner-nav.css til eneste kilde for fast venstremeny og gjør menyen mer kompakt.",
+            "Fjerner gamle overlappende mobil- og layoutregler fra app.css som kunne gi ulik bredde mellom sider.",
+            "Oppdaterer CSS-cache slik at QNAP-løsningen laster det nye designlaget umiddelbart.",
+            "Beholder buildloggen som fast historikk for synlige endringer i løsningen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1009",

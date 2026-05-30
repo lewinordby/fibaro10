@@ -3,16 +3,16 @@
    old page-local header/button rules cannot change the navigation. */
 
 :root {
-    --owner-sidebar: 248px;
-    --owner-page-gap: 22px;
-    --owner-nav-pad: 18px;
-    --owner-logo-height: 118px;
+    --owner-sidebar: 232px;
+    --owner-page-gap: 20px;
+    --owner-nav-pad: 14px;
+    --owner-logo-height: 108px;
     --owner-nav-line: #e4ebf3;
     --owner-nav-soft: #f7f9fc;
     --owner-nav-text: #14213a;
     --owner-nav-muted: #738096;
     --owner-nav-navy: #06163d;
-    --owner-nav-shadow: 8px 0 26px rgba(6, 22, 61, 0.052);
+    --owner-nav-shadow: 7px 0 22px rgba(6, 22, 61, 0.045);
 }
 
 html,
@@ -51,7 +51,7 @@ body {
     align-items: center !important;
     justify-content: center !important;
     min-height: var(--owner-logo-height) !important;
-    padding: 18px var(--owner-nav-pad) 16px !important;
+    padding: 16px var(--owner-nav-pad) 14px !important;
     border: 0 !important;
     border-bottom: 1px solid var(--owner-nav-line) !important;
     background: #ffffff !important;
@@ -61,7 +61,7 @@ body {
 
 .brand-lilletorget-text-logo {
     display: block !important;
-    width: 198px !important;
+    width: 184px !important;
     max-width: 100% !important;
     height: auto !important;
     object-fit: contain !important;
@@ -79,14 +79,14 @@ body {
     min-width: 0 !important;
     margin-left: calc(var(--owner-sidebar) + var(--owner-page-gap)) !important;
     margin-right: var(--owner-page-gap) !important;
-    padding-top: 18px !important;
+    padding-top: 16px !important;
 }
 
 .app-nav {
     --section-color: var(--status-color, #06163d);
     --section-soft: var(--status-soft, #f5f7fb);
     display: block !important;
-    padding: 14px var(--owner-nav-pad) 28px !important;
+    padding: 12px var(--owner-nav-pad) 24px !important;
     margin: 0 !important;
     background: #ffffff !important;
 }
@@ -103,7 +103,7 @@ body {
 .app-nav .nav-main {
     display: flex !important;
     flex-direction: column !important;
-    gap: 1px !important;
+    gap: 2px !important;
     margin: 0 !important;
     padding: 0 !important;
 }
@@ -132,9 +132,9 @@ body {
 .app-nav .nav-main > .button {
     grid-template-columns: 22px minmax(0, 1fr) 10px !important;
     gap: 10px !important;
-    min-height: 38px !important;
-    padding: 0 9px !important;
-    border-radius: 9px !important;
+    min-height: 36px !important;
+    padding: 0 8px !important;
+    border-radius: 8px !important;
     font-size: 13px !important;
     font-weight: 760 !important;
     line-height: 1 !important;
@@ -148,7 +148,7 @@ body {
 .app-nav .nav-main > .button.active {
     background: var(--section-soft) !important;
     color: var(--owner-nav-navy) !important;
-    box-shadow: inset 3px 0 0 var(--section-color) !important;
+    box-shadow: inset 2px 0 0 var(--section-color) !important;
 }
 
 .app-nav .nav-main > .button.has-sub:not(.active) + .nav-sub {
@@ -158,9 +158,9 @@ body {
 .app-nav .nav-sub {
     display: flex !important;
     flex-direction: column !important;
-    gap: 1px !important;
-    margin: 2px 0 7px 32px !important;
-    padding: 3px 0 4px 12px !important;
+    gap: 0 !important;
+    margin: 2px 0 6px 30px !important;
+    padding: 2px 0 3px 10px !important;
     border: 0 !important;
     border-left: 1px solid #dce5ef !important;
     background: transparent !important;
@@ -171,11 +171,11 @@ body {
 .app-nav .nav-sub-form .button {
     grid-template-columns: 14px minmax(0, 1fr) !important;
     gap: 8px !important;
-    min-height: 28px !important;
-    padding: 0 7px !important;
+    min-height: 26px !important;
+    padding: 0 6px !important;
     border-radius: 8px !important;
     color: var(--owner-nav-muted) !important;
-    font-size: 11.5px !important;
+    font-size: 11px !important;
     font-weight: 700 !important;
     line-height: 1 !important;
 }
@@ -241,8 +241,8 @@ body {
 }
 
 .app-nav .nav-build-info {
-    margin: 14px 0 0 !important;
-    padding: 10px 9px 0 !important;
+    margin: 12px 0 0 !important;
+    padding: 9px 8px 0 !important;
     border-top: 1px solid var(--owner-nav-line) !important;
     display: flex !important;
     align-items: center !important;
