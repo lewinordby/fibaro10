@@ -88,8 +88,20 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1010")
+APP_BUILD = os.getenv("APP_BUILD", "1011")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1011",
+        "date": "30.05.2026",
+        "title": "Kontrollert fargeløft",
+        "changes": [
+            "Legger inn et samlet fargelag i designsystemet med svake aksentflater per hovedområde.",
+            "Gir kort, paneler, tabellhoder og statusmerker mer visuell retning uten å endre layout.",
+            "Beholder grønn/rød statuslogikk for på/av og ok/feil slik at driftssignaler fortsatt er tydelige.",
+            "Oppdaterer CSS-cache slik at QNAP-løsningen laster det nye uttrykket med en gang.",
+        ],
+    },
     {
         "version": "1",
         "build": "1010",

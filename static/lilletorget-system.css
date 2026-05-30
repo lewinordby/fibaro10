@@ -801,3 +801,83 @@ html body .site-header ~ main > .dashboard-v2 > .dashboard-intro:first-child + .
 html body .site-header ~ main > .sun-page > .sun-title:first-child + .forecast-actions {
     margin-bottom: 0.85rem !important;
 }
+
+/* Controlled color lift.
+   This block only adds visual hierarchy to existing components. Spacing,
+   typography and page geometry stay owned by the shared system above. */
+body main {
+    --lt-tint: color-mix(in srgb, var(--page-accent-soft, #f5f7fb) 55%, #ffffff 45%);
+    --lt-tint-strong: color-mix(in srgb, var(--page-accent-soft, #f5f7fb) 76%, #ffffff 24%);
+    --lt-accent-text: color-mix(in srgb, var(--page-accent, var(--lt-navy)) 72%, var(--lt-muted) 28%);
+}
+
+body main :where(.panel, .hero, .chart-panel, .filter-panel, .settings-card, .data-card, .manual-card, .config-card, .import-card, details) {
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.99) 0%, rgba(255, 255, 255, 0.96) 62%, var(--lt-tint) 100%) !important;
+    border-color: color-mix(in srgb, var(--lt-border) 76%, var(--page-accent-border, var(--lt-border)) 24%) !important;
+}
+
+body main :where(.metric-card, .summary-card, .parking-card, .focus-card, .ops-card, .now-card, .quick-card, .status-card, .health-card, .timeline-card, .clean-card, .robot-card, .job-card, .panel-card, .area-card, .vehicle-card, .stat-card, .stat-box, .detail-card, .energy-card, .event-card, .admin-card) {
+    background:
+        linear-gradient(145deg, #ffffff 0%, #ffffff 56%, var(--lt-tint) 100%) !important;
+    border-color: color-mix(in srgb, var(--lt-border) 70%, var(--page-accent-border, var(--lt-border)) 30%) !important;
+    border-top-color: color-mix(in srgb, var(--page-accent, var(--lt-gold)) 68%, #ffffff 32%) !important;
+    border-top-width: 2px !important;
+}
+
+body main :where(.metric-card span, .summary-card span, .parking-card span, .focus-card span, .ops-card span, .now-label, .stat-card .label, .mini-metric span, .import-metric span) {
+    color: var(--lt-accent-text) !important;
+}
+
+body main :where(th) {
+    background: linear-gradient(180deg, var(--lt-tint-strong), #f8fafc) !important;
+    color: var(--lt-accent-text) !important;
+}
+
+body main :where(.badge, .pill, .chip, .status-pill, .access-pill, .mode, .flag, .live-pill, .sync-pill, .stat-pill, .tag) {
+    background: var(--lt-tint-strong) !important;
+    border-color: color-mix(in srgb, var(--page-accent-border, var(--lt-border)) 66%, #ffffff 34%) !important;
+    color: var(--lt-accent-text) !important;
+}
+
+body main :where(.badge.on, .flag.on, .live-pill.on, .sync-pill.ok, .sync-pill.good, .status-pill.ok) {
+    background: #e6f4ec !important;
+    border-color: #b9dfc2 !important;
+    color: #2f6d3d !important;
+}
+
+body main :where(.badge.off, .flag.off, .live-pill.off, .sync-pill.bad, .sync-pill.error, .status-pill.warn, .status-pill.bad) {
+    background: #faebe8 !important;
+    border-color: #e6b4ad !important;
+    color: #9a3d2f !important;
+}
+
+body.theme-status main :where(.focus-card.sun2) {
+    --page-accent: var(--sun2-color);
+    --page-accent-soft: var(--sun2-soft);
+    --page-accent-border: var(--sun2-border);
+}
+
+body.theme-status main :where(.focus-card.parking) {
+    --page-accent: var(--parking-color);
+    --page-accent-soft: var(--parking-soft);
+    --page-accent-border: var(--parking-border);
+}
+
+body.theme-status main :where(.focus-card.week, .now-card.lux-card, .quick-card.light) {
+    --page-accent: var(--light-color);
+    --page-accent-soft: var(--light-soft);
+    --page-accent-border: var(--light-border);
+}
+
+body.theme-status main :where(.now-card.temp-card, .quick-card.vent) {
+    --page-accent: var(--vent-color);
+    --page-accent-soft: var(--vent-soft);
+    --page-accent-border: var(--vent-border);
+}
+
+body.theme-status main :where(.weather-card, .focus-card.status) {
+    --page-accent: var(--lt-navy);
+    --page-accent-soft: #eef3fb;
+    --page-accent-border: #c7d3e4;
+}
