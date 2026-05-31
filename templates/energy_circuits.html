@@ -17,8 +17,22 @@
         .panel-card { padding:0.92rem 1rem; margin-bottom:1rem; border-left:4px solid var(--energy-color); }
         .panel-card h2 { margin:0 0 0.35rem; font-size:1rem; color:var(--brand-dark); }
         .panel-card p { margin:0; color:var(--muted); line-height:1.45; font-size:0.88rem; }
+        .toolbar { display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin:0 0 0.85rem; }
+        .button-primary, .button-secondary {
+            min-height:2.2rem;
+            border-radius:9px;
+            padding:0.46rem 0.78rem;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            font-weight:850;
+            text-decoration:none;
+            white-space:nowrap;
+        }
+        .button-primary { background:var(--energy-color); border:1px solid var(--energy-color); color:#fff; }
+        .button-secondary { background:var(--panel); border:1px solid var(--line); color:var(--brand-dark); }
         .table-wrap { overflow:auto; }
-        table { width:100%; border-collapse:collapse; min-width:1180px; }
+        table { width:100%; border-collapse:collapse; min-width:1280px; }
         th, td { padding:0.58rem 0.7rem; border-bottom:1px solid var(--line-soft); vertical-align:top; }
         th { color:var(--muted); background:var(--panel-soft); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.02em; font-weight:820; text-align:left; white-space:nowrap; }
         td { color:var(--brand-dark); font-size:0.86rem; line-height:1.35; }
@@ -32,6 +46,22 @@
         .status-pill.warn { background:#fff6e6; border-color:#ead19a; color:#8a5f12; }
         .load-link { color:var(--brand-dark); text-decoration:none; font-weight:820; }
         .load-link:hover { text-decoration:underline; }
+        .edit-input, .edit-textarea {
+            width:100%;
+            border:1px solid var(--line);
+            border-radius:8px;
+            background:var(--panel-soft);
+            color:var(--brand-dark);
+            padding:0.42rem 0.5rem;
+            font:inherit;
+            min-width:0;
+        }
+        .edit-textarea { min-height:4.3rem; resize:vertical; }
+        .edit-small { min-width:4.7rem; }
+        .edit-medium { min-width:7rem; }
+        .edit-wide { min-width:16rem; }
+        .save-cell { min-width:7rem; }
+        .inline-form { margin:0; }
         @media (max-width: 1350px) {
             .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
         }
@@ -81,6 +111,21 @@
             </p>
         </article>
 
+        <div class="toolbar">
+            <span class="page-subtitle" style="margin:0;">
+                {% if edit_mode %}
+                    Redigeringsmodus er aktiv. Hver rad lagres separat.
+                {% else %}
+                    Normalvisning. Slå på redigering når kurslisten skal ajourføres.
+                {% endif %}
+            </span>
+            {% if edit_mode %}
+                <a class="button-secondary" href="/energi/kurser">Avslutt redigering</a>
+            {% else %}
+                <a class="button-primary" href="/energi/kurser?edit=1">Rediger kursliste</a>
+            {% endif %}
+        </div>
+
         <section class="table-wrap">
             <table>
                 <thead>
@@ -90,18 +135,35 @@
                         <th>Vern</th>
                         <th>Kabel</th>
                         <th>Installasjon</th>
+                        {% if edit_mode %}<th>Rekke/kl.</th>{% endif %}
                         <th>JFB</th>
                         <th class="num">Laster</th>
                         <th class="num">Effekt</th>
                         <th>Status</th>
                         <th>Notat</th>
+                        {% if edit_mode %}<th>Handling</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for circuit in circuits %}
                     {% set load_info = load_lookup.get(circuit.circuit_no, {"count": 0, "expected_power_w": 0}) %}
-                    <tr>
+                    <tr id="kurs-{{ circuit.circuit_no }}">
                         <td><a class="course-no" href="/energi/laster?circuit={{ circuit.circuit_no }}">{{ circuit.circuit_no }}</a></td>
+                        {% if edit_mode %}
+                        <td><textarea class="edit-textarea edit-wide" name="description" form="course-form-{{ circuit.circuit_no }}">{{ circuit.description or "" }}</textarea></td>
+                        <td>
+                            <input class="edit-input edit-medium" name="breaker_type" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.breaker_type or "" }}" placeholder="Type">
+                            <input class="edit-input edit-small" name="breaker_rating_a" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.breaker_rating_a is not none %}{{ "{:g}".format(circuit.breaker_rating_a) }}{% endif %}" placeholder="A">
+                            <input class="edit-input edit-small" name="breaker_characteristic" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.breaker_characteristic or "" }}" placeholder="Kar.">
+                        </td>
+                        <td>
+                            <input class="edit-input edit-medium" name="cable_spec" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.cable_spec or "" }}" placeholder="Kabel">
+                            <input class="edit-input edit-small" name="cable_length_m" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.cable_length_m is not none %}{{ "{:g}".format(circuit.cable_length_m) }}{% endif %}" placeholder="m">
+                        </td>
+                        <td><input class="edit-input edit-small" name="install_method" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.install_method or "" }}"></td>
+                        <td><input class="edit-input edit-medium" name="terminal_ref" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.terminal_ref or "" }}"></td>
+                        <td><input class="edit-input edit-small" name="rcd_ma" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.rcd_ma is not none %}{{ "{:g}".format(circuit.rcd_ma) }}{% endif %}" placeholder="mA"></td>
+                        {% else %}
                         <td class="description">{{ circuit.description or "-" }}</td>
                         <td>{{ circuit_technical_label(circuit) }}</td>
                         <td>
@@ -112,13 +174,24 @@
                         </td>
                         <td>{{ circuit.install_method or "-" }}</td>
                         <td>{% if circuit.rcd_ma is not none %}{{ "{:g}".format(circuit.rcd_ma) }} mA{% else %}-{% endif %}</td>
+                        {% endif %}
                         <td class="num"><a class="load-link" href="/energi/laster?circuit={{ circuit.circuit_no }}">{{ load_info.count }}</a></td>
                         <td class="num">{{ "{:,.0f}".format(load_info.expected_power_w or 0).replace(",", " ") }} W</td>
+                        {% if edit_mode %}
+                        <td><input class="edit-input edit-medium" name="status" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.status or "" }}"></td>
+                        <td><textarea class="edit-textarea edit-wide" name="note" form="course-form-{{ circuit.circuit_no }}">{{ circuit.note or "" }}</textarea></td>
+                        <td class="save-cell">
+                            <form id="course-form-{{ circuit.circuit_no }}" class="inline-form" method="post" action="/energi/kurser/{{ circuit.circuit_no }}">
+                                <button class="button-primary" type="submit">Lagre</button>
+                            </form>
+                        </td>
+                        {% else %}
                         <td>
                             {% set status = circuit.status or "ukjent" %}
                             <span class="status-pill {% if status == 'aktiv' or status == 'hovedvern' %}ok{% elif 'mangler' in status %}warn{% endif %}">{{ status }}</span>
                         </td>
                         <td class="muted">{{ circuit.note or "-" }}</td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>

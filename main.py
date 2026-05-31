@@ -88,8 +88,18 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1016")
+APP_BUILD = os.getenv("APP_BUILD", "1017")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1017",
+        "date": "31.05.2026",
+        "title": "Redigerbar kursliste",
+        "changes": [
+            "Legger inn edit-modus pa Energi > Kurser slik at kursbeskrivelse, vern, kabel, JFB, status og notat kan endres direkte i grensesnittet.",
+            "Lagring skjer per kursrad slik at tavledokumentasjonen kan holdes levende uten ny Excel-import.",
+        ],
+    },
     {
         "version": "1",
         "build": "1016",
@@ -11641,7 +11651,7 @@ def circuit_technical_label(circuit: EnergyCircuit) -> str:
 
 
 @app.get("/energi/kurser", response_class=HTMLResponse)
-async def energy_circuits_view(request: Request):
+async def energy_circuits_view(request: Request, edit: Optional[str] = None):
     async with async_session() as session:
         circuits = (
             await session.execute(
@@ -11673,6 +11683,7 @@ async def energy_circuits_view(request: Request):
         "loads": sum(item["count"] for item in load_lookup.values()),
         "expected_power_w": sum(item["expected_power_w"] for item in load_lookup.values()),
     }
+    edit_mode = (edit or "").strip().lower() in {"1", "true", "yes", "ja"}
     return templates.TemplateResponse(
         request,
         "energy_circuits.html",
@@ -11680,9 +11691,37 @@ async def energy_circuits_view(request: Request):
             "circuits": circuits,
             "load_lookup": load_lookup,
             "summary": summary,
+            "edit_mode": edit_mode,
             "circuit_technical_label": circuit_technical_label,
         },
     )
+
+
+@app.post("/energi/kurser/{circuit_no}")
+async def energy_circuit_save(request: Request, circuit_no: int):
+    form = await request.form()
+    async with async_session() as session:
+        circuit = (
+            await session.execute(
+                select(EnergyCircuit).where(EnergyCircuit.circuit_no == circuit_no)
+            )
+        ).scalars().first()
+        if not circuit:
+            raise HTTPException(status_code=404, detail="Kurs ikke funnet")
+        circuit.description = form_text(form, "description")
+        circuit.breaker_type = form_text(form, "breaker_type")
+        circuit.breaker_rating_a = form_float(form, "breaker_rating_a")
+        circuit.breaker_characteristic = form_text(form, "breaker_characteristic")
+        circuit.cable_spec = form_text(form, "cable_spec")
+        circuit.cable_length_m = form_float(form, "cable_length_m")
+        circuit.install_method = form_text(form, "install_method")
+        circuit.terminal_ref = form_text(form, "terminal_ref")
+        circuit.rcd_ma = form_float(form, "rcd_ma")
+        circuit.status = form_text(form, "status") or "ukjent"
+        circuit.note = form_text(form, "note")
+        circuit.updated_at = datetime.utcnow()
+        await session.commit()
+    return RedirectResponse(f"/energi/kurser?edit=1#kurs-{circuit_no}", status_code=303)
 
 
 @app.get("/energi/laster", response_class=HTMLResponse)
