@@ -702,6 +702,7 @@ async def dashboard(request: Request):
         "{{ open_detail }}": data["open_state"]["detail"],
         "{{ open_progress }}": str(data["open_state"]["progress"]),
         "{{ soling_count }}": fmt_int(data["soling"].get("count")),
+        "{{ soling_yesterday_count }}": fmt_int(data["soling_yesterday"].get("count")),
         "{{ soling_amount }}": fmt_money(data["soling"].get("amount")),
         "{{ soling_minutes }}": f"{soling_hours:.1f} t".replace(".", ","),
         "{{ soling_compare }}": compare_text(data["soling"].get("count"), data["soling_yesterday"].get("count"), " stk"),
@@ -713,6 +714,7 @@ async def dashboard(request: Request):
         "{{ latest_soling }}": latest_soling,
         "{{ soling_time }}": fmt_time(data["session_import"].get("updated_at")) if data["session_import"].get("updated_at") else fmt_time(data["soling"].get("updated_at")),
         "{{ parking_count }}": fmt_int(data["parking"].get("count")),
+        "{{ parking_yesterday_count }}": fmt_int(data["parking_yesterday"].get("count")),
         "{{ parking_amount }}": fmt_money(data["parking"].get("amount")),
         "{{ parking_active }}": fmt_int(data["parking"].get("active_count")),
         "{{ parking_compare }}": compare_text(data["parking"].get("count"), data["parking_yesterday"].get("count"), " stk"),
@@ -1077,28 +1079,17 @@ DASHBOARD_HTML = """<!doctype html>
 
     <section class="metric-grid">
       <a class="metric-card accent-sun card-link" href="/soling">
-        <span>Solinger i dag</span>
-        <strong>{{ soling_count }}</strong>
-        <small>{{ soling_amount }} · {{ soling_minutes }}</small>
-        <small class="compare-line">{{ soling_compare }}</small>
-        <small>{{ latest_soling }}</small>
+        <span>Solinger</span>
+        <strong>{{ soling_count }}<em>/{{ soling_yesterday_count }}</em></strong>
+        <small>I dag / i går</small>
         <small class="updated-line">Oppdatert {{ soling_time }}</small>
       </a>
       <a class="metric-card accent-parking card-link" href="/parkering">
-        <span>Parkering i dag</span>
-        <strong>{{ parking_count }}</strong>
-        <small>{{ parking_amount }} · {{ parking_active }} aktive</small>
-        <small class="compare-line">{{ parking_compare }}</small>
-        <small>{{ latest_parking }}</small>
+        <span>Parkering</span>
+        <strong>{{ parking_count }}<em>/{{ parking_yesterday_count }}</em></strong>
+        <small>I dag / i går · {{ parking_active }} aktive</small>
         <small class="updated-line">Oppdatert {{ parking_time }}</small>
       </a>
-    </section>
-
-    <section class="insight-grid">
-      <article><span>Sol uke</span><strong>{{ soling_week_count }}</strong><small>{{ soling_week_amount }} · {{ soling_week_minutes }}</small></article>
-      <article><span>Park uke</span><strong>{{ parking_week_count }}</strong><small>{{ parking_week_amount }}</small></article>
-      <article><span>Sol mnd</span><strong>{{ soling_month_count }}</strong><small>{{ soling_month_amount }}</small></article>
-      <article><span>Park mnd</span><strong>{{ parking_month_count }}</strong><small>{{ parking_month_amount }}</small></article>
     </section>
 
     <a class="temperature-card card-link" href="/temperatur">

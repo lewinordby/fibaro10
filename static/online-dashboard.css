@@ -106,7 +106,7 @@ h2 { font-size: 1.05rem; }
 }
 
 .metric-card {
-    min-height: 8rem;
+    min-height: 5.8rem;
     padding: .8rem;
     border-left: .26rem solid var(--gold);
 }
@@ -147,9 +147,15 @@ h2 { font-size: 1.05rem; }
 .metric-card strong {
     display: block;
     margin-top: .25rem;
-    font-size: 1.85rem;
+    font-size: 2rem;
     line-height: 1;
     letter-spacing: -.04em;
+}
+.metric-card strong em {
+    color: var(--muted);
+    font-size: 1.05rem;
+    font-style: normal;
+    letter-spacing: 0;
 }
 .metric-card small { display: block; margin-top: .32rem; font-size: .75rem; line-height: 1.2; }
 .metric-card .updated-line, .pulse-card .updated-line {

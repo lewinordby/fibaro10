@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1021")
+APP_BUILD = os.getenv("APP_BUILD", "1022")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1022",
+        "date": "31.05.2026",
+        "title": "Enklere mobilforside",
+        "changes": [
+            "Forenkler forsiden i online-dashboardet slik at soling og parkering viser i dag/i går kompakt med skråstrek.",
+            "Flytter detaljer som beløp, siste hendelser, uke og måned til undersidene.",
+            "Reduserer høyden på hovedkortene for et raskere mobiloverblikk.",
+        ],
+    },
     {
         "version": "1",
         "build": "1021",
