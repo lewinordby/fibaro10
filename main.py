@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1015")
+APP_BUILD = os.getenv("APP_BUILD", "1016")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1016",
+        "date": "31.05.2026",
+        "title": "Energi kurs og laster",
+        "changes": [
+            "Legger inn egne datatabeller for elektriske kurser og praktiske laster under Energi.",
+            "Seeder kursliste 37 som tavledokumentasjon uten a overskrive senere endringer.",
+            "Legger inn sider for kursliste og lastregister med kobling mot kurs, Fibaro-id, Z-Wave-id og forventet effekt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1015",
@@ -1191,6 +1202,49 @@ class EnergyFibaroSample(Base):
     differanse_fibaro_reset = Column(Boolean, nullable=True)
 
     extra = Column(JSON, nullable=True)
+
+
+class EnergyCircuit(Base):
+    __tablename__ = "energy_circuits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    circuit_no = Column(Integer, unique=True, index=True, nullable=False)
+    description = Column(Text, nullable=True)
+    breaker_type = Column(String, nullable=True)
+    breaker_rating_a = Column(Float, nullable=True)
+    breaker_characteristic = Column(String, nullable=True)
+    cable_spec = Column(String, nullable=True)
+    cable_length_m = Column(Float, nullable=True)
+    install_method = Column(String, nullable=True)
+    terminal_ref = Column(String, nullable=True)
+    rcd_ma = Column(Float, nullable=True)
+    note = Column(Text, nullable=True)
+    status = Column(String, index=True, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class EnergyLoad(Base):
+    __tablename__ = "energy_loads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    load_type = Column(String, index=True, nullable=True)
+    area = Column(String, index=True, nullable=True)
+    circuit_no = Column(Integer, index=True, nullable=True)
+    expected_power_w = Column(Float, nullable=True)
+    measured_direct = Column(Boolean, nullable=True)
+    fibaro_device_id = Column(Integer, index=True, nullable=True)
+    fibaro_meter_id = Column(Integer, index=True, nullable=True)
+    zwave_switch_id = Column(Integer, index=True, nullable=True)
+    controllable = Column(Boolean, nullable=True)
+    critical = Column(Boolean, nullable=True)
+    active = Column(Boolean, index=True, default=True)
+    note = Column(Text, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class Hc3MeterReading(Base):
@@ -5517,6 +5571,47 @@ ENERGY_FIBARO_AREAS = [
     {"key": "differanse_beregnet", "label": "Differanse", "tone": "admin"},
 ]
 
+ENERGY_CIRCUIT_SEED_SOURCE = "kursliste_37.xlsx"
+ENERGY_CIRCUIT_SEED_ROWS = [
+    {"circuit_no": 1, "description": "SENG ROM 1", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 18, "install_method": "B", "rcd_ma": 30},
+    {"circuit_no": 2, "description": "ROM 2 SENG", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 17, "install_method": "B2", "rcd_ma": 30},
+    {"circuit_no": 3, "description": "VARMEPUMPE \u00d8ST + stikk loft vip mrk 3.", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 20, "install_method": "B2", "rcd_ma": 30},
+    {"circuit_no": 4, "description": "VARMEPUMPE VEST/OVER HOVEDINNGANG", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 5, "description": "TERMINAL/ REGISTRERING OG KREMAUTOMAT", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 12, "install_method": "A2", "rcd_ma": 30},
+    {"circuit_no": 6, "description": "LOFT OVER LAGER/TAVLEROM vip", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 7, "description": "PARKERINGSAUTOMAT/STIKK LOFT VIP MRK. 7", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 40, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 8, "description": "LOFT NORD (OVER SENG 1+2+3) BOD NOR + TILFLUKTSTR\u00d8M/LAGER", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 40, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 9, "description": "STIKK BODROM VED SOL 7 og 8, STIKK KRYP FRA SOL 9 + STIKK V/DATASKAP BOD SSKAP", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 18, "install_method": "B2", "rcd_ma": 30, "note": "STIKK MASSAJE (h\u00e5ndskrift)"},
+    {"circuit_no": 10, "description": "LYS MIDTEN+STIKK TELLUS+TV NEDE+LOFT SYD", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 40, "install_method": "B2", "rcd_ma": 30},
+    {"circuit_no": 11, "description": "LYS SOLROM 1-10 + GANG OPPE", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 43, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 12, "description": "SOL ROM 3", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 13, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 13, "description": "ROM 4 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 14, "description": "ROM 5 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 13, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 15, "description": "ROM 6 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 16, "description": "ROM 8 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 17, "description": "ROM 7 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 13, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 18, "description": "ROM 10 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 19, "description": "ROM 9 SOL", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 13, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 20, "description": "HOVEDBRYTER 21 TIL 30", "breaker_type": "LAST", "breaker_rating_a": 63, "cable_spec": "3x10+J", "cable_length_m": 1, "install_method": "E"},
+    {"circuit_no": 21, "description": "LYS VIP (ROM 11,12,13 OG FELLESAREALE)", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 16, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 22, "description": "STIKK UTVENDIG FOR SKILT P\u00c5 TEGELVEGG", "breaker_type": "Malthe Win", "breaker_rating_a": 15, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 23, "description": "STIKK OVER VINDUER HOVEDINNGANG + BRUSAUTOMAT", "breaker_type": "Malthe Win", "breaker_rating_a": 15, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 24, "description": "Parkeringsautomat, plakatlys, front spot vip, 2xgatelys parkering", "status": "mangler vern-data"},
+    {"circuit_no": 25, "description": "LOFT 9 OG 10 LYS/STIKK", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30, "note": "VASKEMASKIN MAS. (h\u00e5ndskrift)"},
+    {"circuit_no": 26, "description": "LYS SSKAP,LAGER,WC-VASK,B\u00d8TTEKOTT (vip)", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30, "note": "LYSBAD MAS (h\u00e5ndskrift)"},
+    {"circuit_no": 27, "description": "VIFTE VIP, VARMEKABEL TAKRENNE", "breaker_type": "Malthe Win", "breaker_rating_a": 13, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 28, "description": "STIKK LOFT SYD(EKSTRA)", "breaker_type": "Malthe Win", "breaker_rating_a": 10, "breaker_characteristic": "C", "cable_spec": "2x1,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30, "note": "VARME FOLIE MAS. (h\u00e5ndskrift)"},
+    {"circuit_no": 29, "description": "VVBEREDER UNDER ROM 8 + STIKK VIP BOD", "breaker_type": "Malthe Win", "breaker_rating_a": 15, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 15, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 30, "description": "VARMEPUMPE VIP", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "2x2,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 31, "description": "BRYTER VARMEKABEL I TAKRENNE", "status": "mangler vern-data"},
+    {"circuit_no": 32, "description": "ROM 11 SOL (vip)", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 10, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 33, "description": "ROM 12 SOL (vip)", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 14, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 34, "description": "ROM 13 SOL (vip)", "breaker_type": "Malthe Win", "breaker_rating_a": 32, "breaker_characteristic": "C", "cable_spec": "3x6+J", "cable_length_m": 16, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 35, "description": "AVTREKKSVIFTE TAK (LOFT SYD OVER ROM 9)", "breaker_type": "Malthe Win", "breaker_rating_a": 16, "breaker_characteristic": "C", "cable_spec": "3x1,5+J", "cable_length_m": 12, "install_method": "C", "rcd_ma": 30},
+    {"circuit_no": 36, "description": "KOBLINGSUR FOR AVTREKK VIP", "status": "mangler vern-data"},
+    {"circuit_no": 37, "description": "HOVEDSIKRING/OVERBELASTNINGSVERN", "breaker_type": "NH", "install_method": "GL", "status": "hovedvern"},
+]
+
 ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "differanse_fibaro"]
 ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
 # HC3 accumulated kWh samples are end-stamped. For hourly comparison against
@@ -5526,6 +5621,34 @@ ENERGY_HOURLY_COMPARE_FIELDS = [
     "stat_date", "year", "month", "day", "hour", "consumption_kwh", "production_kwh",
     "status", "is_verified", "is_estimated", "is_public_holiday", "use_weekend_prices",
 ]
+
+
+async def seed_energy_circuits(session) -> None:
+    count = await session.scalar(select(func.count(EnergyCircuit.id)))
+    if count:
+        return
+    now_value = datetime.utcnow()
+    for row in ENERGY_CIRCUIT_SEED_ROWS:
+        status = row.get("status") or ("aktiv" if row.get("breaker_rating_a") else "ukjent")
+        session.add(
+            EnergyCircuit(
+                circuit_no=row["circuit_no"],
+                description=row.get("description"),
+                breaker_type=row.get("breaker_type"),
+                breaker_rating_a=row.get("breaker_rating_a"),
+                breaker_characteristic=row.get("breaker_characteristic"),
+                cable_spec=row.get("cable_spec"),
+                cable_length_m=row.get("cable_length_m"),
+                install_method=row.get("install_method"),
+                terminal_ref=row.get("terminal_ref"),
+                rcd_ma=row.get("rcd_ma"),
+                note=row.get("note"),
+                status=status,
+                source=ENERGY_CIRCUIT_SEED_SOURCE,
+                imported_at=now_value,
+                updated_at=now_value,
+            )
+        )
 
 
 def sum_optional(values: list[Optional[float]]) -> Optional[float]:
@@ -8082,6 +8205,7 @@ async def startup():
     async with async_session() as session:
         for config_key in CONFIG_DEFINITIONS:
             await get_or_create_config(session, config_key)
+        await seed_energy_circuits(session)
         await session.commit()
     if SVV_SYNC_ENABLED and SVV_API_KEY and svv_sync_task is None:
         svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
@@ -8099,7 +8223,7 @@ async def health():
             "import_job_status", "import_job_runs",
             "sun2_room_daily_stats", "sun2_import_runs", "sun2_tanning_sessions",
             "sun2_beds", "sun2_session_import_runs", "energy_hourly_consumption",
-            "energy_import_runs", "energy_fibaro_samples", "hc3_meter_readings",
+            "energy_import_runs", "energy_fibaro_samples", "energy_circuits", "energy_loads", "hc3_meter_readings",
             "parkering", "kjoretoy", "kjoretoy_nokkeldata", "ai_query_logs",
         ],
     }
@@ -11469,6 +11593,216 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
             "today": today.isoformat(),
         },
     )
+
+
+def form_text(form, key: str) -> Optional[str]:
+    value = form.get(key)
+    if value is None:
+        return None
+    text_value = str(value).strip()
+    return text_value or None
+
+
+def form_int(form, key: str) -> Optional[int]:
+    value = form_text(form, key)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def form_float(form, key: str) -> Optional[float]:
+    value = form_text(form, key)
+    if value is None:
+        return None
+    try:
+        return float(value.replace(",", "."))
+    except ValueError:
+        return None
+
+
+def form_bool(form, key: str, default: bool = False) -> bool:
+    if key not in form:
+        return default
+    return str(form.get(key)).strip().lower() in {"1", "true", "on", "yes", "ja"}
+
+
+def circuit_technical_label(circuit: EnergyCircuit) -> str:
+    parts = []
+    if circuit.breaker_type:
+        parts.append(circuit.breaker_type)
+    if circuit.breaker_rating_a is not None:
+        parts.append(f"{circuit.breaker_rating_a:g} A")
+    if circuit.breaker_characteristic:
+        parts.append(str(circuit.breaker_characteristic))
+    return " / ".join(parts) if parts else "-"
+
+
+@app.get("/energi/kurser", response_class=HTMLResponse)
+async def energy_circuits_view(request: Request):
+    async with async_session() as session:
+        circuits = (
+            await session.execute(
+                select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc())
+            )
+        ).scalars().all()
+        load_rows = (
+            await session.execute(
+                select(
+                    EnergyLoad.circuit_no,
+                    func.count(EnergyLoad.id).label("count"),
+                    func.coalesce(func.sum(EnergyLoad.expected_power_w), 0).label("expected_power_w"),
+                )
+                .where(EnergyLoad.circuit_no.is_not(None))
+                .group_by(EnergyLoad.circuit_no)
+            )
+        ).all()
+    load_lookup = {
+        row.circuit_no: {
+            "count": int(row.count or 0),
+            "expected_power_w": float_or_zero(row.expected_power_w),
+        }
+        for row in load_rows
+    }
+    summary = {
+        "circuits": len(circuits),
+        "with_breaker": sum(1 for row in circuits if row.breaker_rating_a is not None),
+        "missing_breaker": sum(1 for row in circuits if row.breaker_rating_a is None),
+        "loads": sum(item["count"] for item in load_lookup.values()),
+        "expected_power_w": sum(item["expected_power_w"] for item in load_lookup.values()),
+    }
+    return templates.TemplateResponse(
+        request,
+        "energy_circuits.html",
+        {
+            "circuits": circuits,
+            "load_lookup": load_lookup,
+            "summary": summary,
+            "circuit_technical_label": circuit_technical_label,
+        },
+    )
+
+
+@app.get("/energi/laster", response_class=HTMLResponse)
+async def energy_loads_view(
+    request: Request,
+    q: Optional[str] = None,
+    circuit: Optional[int] = None,
+    load_type: Optional[str] = None,
+    active: Optional[str] = None,
+):
+    q_value = (q or "").strip()
+    async with async_session() as session:
+        circuits = (
+            await session.execute(
+                select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc())
+            )
+        ).scalars().all()
+        type_rows = (
+            await session.execute(
+                select(EnergyLoad.load_type)
+                .where(EnergyLoad.load_type.is_not(None))
+                .where(func.trim(EnergyLoad.load_type) != "")
+                .distinct()
+                .order_by(EnergyLoad.load_type.asc())
+            )
+        ).all()
+        query = select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
+        if q_value:
+            pattern = f"%{q_value}%"
+            query = query.where(
+                or_(
+                    EnergyLoad.name.ilike(pattern),
+                    EnergyLoad.area.ilike(pattern),
+                    EnergyLoad.note.ilike(pattern),
+                    EnergyLoad.load_type.ilike(pattern),
+                )
+            )
+        if circuit:
+            query = query.where(EnergyLoad.circuit_no == circuit)
+        if load_type:
+            query = query.where(EnergyLoad.load_type == load_type)
+        if active == "1":
+            query = query.where(EnergyLoad.active.is_(True))
+        elif active == "0":
+            query = query.where(EnergyLoad.active.is_(False))
+        loads = (await session.execute(query)).scalars().all()
+        all_loads = (await session.execute(select(EnergyLoad))).scalars().all()
+    circuit_lookup = {row.circuit_no: row for row in circuits}
+    summary = {
+        "loads": len(all_loads),
+        "active": sum(1 for row in all_loads if row.active),
+        "direct": sum(1 for row in all_loads if row.measured_direct),
+        "expected_power_w": sum(float_or_zero(row.expected_power_w) for row in all_loads if row.active),
+    }
+    return templates.TemplateResponse(
+        request,
+        "energy_loads.html",
+        {
+            "loads": loads,
+            "circuits": circuits,
+            "circuit_lookup": circuit_lookup,
+            "load_types": [row.load_type for row in type_rows if row.load_type],
+            "summary": summary,
+            "filters": {
+                "q": q_value,
+                "circuit": circuit,
+                "load_type": load_type or "",
+                "active": active or "",
+            },
+        },
+    )
+
+
+@app.post("/energi/laster", response_class=HTMLResponse)
+async def energy_load_save(request: Request):
+    form = await request.form()
+    name = form_text(form, "name")
+    if not name:
+        return redirect_keep_query(request, "/energi/laster?error=missing_name", status_code=303)
+    load_id = form_int(form, "load_id")
+    now_value = datetime.utcnow()
+    async with async_session() as session:
+        if load_id:
+            load = await session.get(EnergyLoad, load_id)
+            if not load:
+                raise HTTPException(status_code=404, detail="Last ikke funnet")
+        else:
+            load = EnergyLoad(created_at=now_value)
+            session.add(load)
+        load.name = name
+        load.load_type = form_text(form, "load_type")
+        load.area = form_text(form, "area")
+        load.circuit_no = form_int(form, "circuit_no")
+        load.expected_power_w = form_float(form, "expected_power_w")
+        load.measured_direct = form_bool(form, "measured_direct")
+        load.fibaro_device_id = form_int(form, "fibaro_device_id")
+        load.fibaro_meter_id = form_int(form, "fibaro_meter_id")
+        load.zwave_switch_id = form_int(form, "zwave_switch_id")
+        load.controllable = form_bool(form, "controllable")
+        load.critical = form_bool(form, "critical")
+        load.active = form_bool(form, "active", default=True)
+        load.note = form_text(form, "note")
+        load.source = "manual"
+        load.updated_at = now_value
+        await session.commit()
+    suffix = f"?circuit={load.circuit_no}" if load.circuit_no else ""
+    return redirect_keep_query(request, f"/energi/laster{suffix}", status_code=303)
+
+
+@app.post("/energi/laster/{load_id}/aktiv")
+async def energy_load_toggle_active(request: Request, load_id: int):
+    form = await request.form()
+    async with async_session() as session:
+        load = await session.get(EnergyLoad, load_id)
+        if not load:
+            raise HTTPException(status_code=404, detail="Last ikke funnet")
+        load.active = form_bool(form, "active")
+        load.updated_at = datetime.utcnow()
+        await session.commit()
+    return redirect_keep_query(request, "/energi/laster", status_code=303)
 
 
 @app.get("/api/energi/fibaro/json")

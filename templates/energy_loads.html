@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energi laster</title>
+    {% include "_styles.html" %}
+    <style>
+        .page-title { margin:0 0 0.32rem; font-size:1.32rem; font-weight:820; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 1rem; color:var(--muted); font-size:0.9rem; line-height:1.45; }
+        .summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0.75rem; margin-bottom:1rem; }
+        .metric-card, .panel-card, .table-wrap { background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-1); }
+        .metric-card { padding:0.86rem 0.95rem; border-top:4px solid var(--energy-color); min-height:5.2rem; }
+        .metric-card span { display:block; color:var(--muted); font-size:0.72rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
+        .metric-card strong { display:block; margin-top:0.24rem; color:var(--brand-dark); font-size:1.34rem; line-height:1; }
+        .metric-card small { display:block; margin-top:0.28rem; color:var(--muted); font-size:0.74rem; }
+        .panel-card { padding:0.95rem; margin-bottom:1rem; border-left:4px solid var(--energy-color); }
+        .panel-title { margin:0 0 0.7rem; color:var(--brand-dark); font-size:1rem; }
+        .filter-form, .load-form { display:grid; gap:0.62rem; align-items:end; }
+        .filter-form { grid-template-columns:minmax(14rem,1fr) minmax(12rem,0.8fr) minmax(10rem,0.7fr) minmax(8rem,0.55fr) auto; }
+        .load-form { grid-template-columns:repeat(6,minmax(0,1fr)); }
+        .field { display:grid; gap:0.24rem; min-width:0; }
+        .field.wide { grid-column:span 2; }
+        .field.full { grid-column:1 / -1; }
+        .field label, .check-row span { color:var(--muted); font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.02em; }
+        .field input, .field select, .field textarea {
+            width:100%;
+            min-height:2.25rem;
+            border:1px solid var(--line);
+            border-radius:9px;
+            background:var(--panel-soft);
+            color:var(--brand-dark);
+            padding:0.48rem 0.58rem;
+            font:inherit;
+        }
+        .field textarea { min-height:4.4rem; resize:vertical; }
+        .check-grid { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:0.5rem; }
+        .check-row { display:flex; align-items:center; gap:0.42rem; min-height:2.25rem; padding:0 0.65rem; border:1px solid var(--line); border-radius:999px; background:var(--panel-soft); }
+        .button-primary, .button-secondary {
+            min-height:2.25rem;
+            border-radius:9px;
+            padding:0.48rem 0.78rem;
+            font-weight:850;
+            cursor:pointer;
+            text-decoration:none;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+        }
+        .button-primary { border:1px solid var(--energy-color); background:var(--energy-color); color:white; }
+        .button-secondary { border:1px solid var(--line); background:var(--panel); color:var(--brand-dark); }
+        .table-wrap { overflow:auto; }
+        table { width:100%; border-collapse:collapse; min-width:1180px; }
+        th, td { padding:0.58rem 0.7rem; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+        th { color:var(--muted); background:var(--panel-soft); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.02em; font-weight:820; text-align:left; white-space:nowrap; }
+        td { color:var(--brand-dark); font-size:0.86rem; line-height:1.35; }
+        td.num, th.num { text-align:right; white-space:nowrap; }
+        tbody tr:last-child td { border-bottom:0; }
+        .load-name { font-weight:850; }
+        .muted { color:var(--muted); }
+        .course-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.2rem; height:1.55rem; border-radius:999px; background:#fff7e8; border:1px solid #edd29b; color:#8a5f12; font-weight:850; text-decoration:none; }
+        .tag-row { display:flex; flex-wrap:wrap; gap:0.32rem; margin-top:0.28rem; }
+        .tag { display:inline-flex; align-items:center; min-height:1.35rem; padding:0.08rem 0.42rem; border-radius:999px; border:1px solid var(--line); background:var(--panel-soft); color:var(--muted); font-size:0.7rem; font-weight:780; }
+        .tag.ok { background:#edf8f1; border-color:#b9ddc2; color:#286b47; }
+        .tag.warn { background:#fff0ee; border-color:#efc1ba; color:#9d3f31; }
+        .inline-form { margin:0; }
+        @media (max-width: 1450px) {
+            .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .filter-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .load-form { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        }
+    </style>
+</head>
+<body class="theme-energy">
+    {% include "_header.html" %}
+    <main>
+        <h1 class="page-title">Energi laster</h1>
+        <p class="page-subtitle">
+            Lastregisteret er den praktiske oversikten over hva som faktisk bruker strøm. Her kan hver last kobles til kurs, forventet effekt, Fibaro/Z-Wave-id og om den kan styres.
+        </p>
+
+        <section class="summary-grid">
+            <article class="metric-card">
+                <span>Laster</span>
+                <strong>{{ summary.loads }}</strong>
+                <small>Totalt registrert</small>
+            </article>
+            <article class="metric-card">
+                <span>Aktive</span>
+                <strong>{{ summary.active }}</strong>
+                <small>Med i dokumentasjonen nå</small>
+            </article>
+            <article class="metric-card">
+                <span>Direkte målt</span>
+                <strong>{{ summary.direct }}</strong>
+                <small>Har egen måler/bryter</small>
+            </article>
+            <article class="metric-card">
+                <span>Forventet effekt</span>
+                <strong>{{ "{:,.0f}".format(summary.expected_power_w or 0).replace(",", " ") }} W</strong>
+                <small>Sum aktive laster</small>
+            </article>
+        </section>
+
+        <article class="panel-card">
+            <h2 class="panel-title">Finn laster</h2>
+            <form class="filter-form" method="get" action="/energi/laster">
+                <div class="field">
+                    <label for="q">Søk</label>
+                    <input id="q" name="q" value="{{ filters.q }}" placeholder="Navn, område eller notat">
+                </div>
+                <div class="field">
+                    <label for="circuit">Kurs</label>
+                    <select id="circuit" name="circuit">
+                        <option value="">Alle kurser</option>
+                        {% for circuit in circuits %}
+                        <option value="{{ circuit.circuit_no }}" {% if filters.circuit == circuit.circuit_no %}selected{% endif %}>{{ circuit.circuit_no }} · {{ circuit.description }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="load_type">Type</label>
+                    <select id="load_type" name="load_type">
+                        <option value="">Alle typer</option>
+                        {% for item in load_types %}
+                        <option value="{{ item }}" {% if filters.load_type == item %}selected{% endif %}>{{ item }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="active">Status</label>
+                    <select id="active" name="active">
+                        <option value="" {% if filters.active == "" %}selected{% endif %}>Alle</option>
+                        <option value="1" {% if filters.active == "1" %}selected{% endif %}>Aktive</option>
+                        <option value="0" {% if filters.active == "0" %}selected{% endif %}>Inaktive</option>
+                    </select>
+                </div>
+                <button class="button-primary" type="submit">Filtrer</button>
+            </form>
+        </article>
+
+        <article class="panel-card">
+            <h2 class="panel-title">Registrer ny last</h2>
+            <form class="load-form" method="post" action="/energi/laster">
+                <div class="field wide">
+                    <label for="name">Navn</label>
+                    <input id="name" name="name" required placeholder="F.eks. Rom 5 solseng">
+                </div>
+                <div class="field">
+                    <label for="load_type_new">Type</label>
+                    <select id="load_type_new" name="load_type">
+                        <option value="solseng">Solseng</option>
+                        <option value="lys">Lys</option>
+                        <option value="vifte">Vifte</option>
+                        <option value="varmepumpe">Varmepumpe</option>
+                        <option value="varme">Varme</option>
+                        <option value="automat">Automat</option>
+                        <option value="stikk">Stikk</option>
+                        <option value="annet">Annet</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="area">Område</label>
+                    <input id="area" name="area" placeholder="1.etg, VIP, ute">
+                </div>
+                <div class="field">
+                    <label for="circuit_no">Kurs</label>
+                    <select id="circuit_no" name="circuit_no">
+                        <option value="">Ikke valgt</option>
+                        {% for circuit in circuits %}
+                        <option value="{{ circuit.circuit_no }}">{{ circuit.circuit_no }} · {{ circuit.description }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="expected_power_w">Forventet W</label>
+                    <input id="expected_power_w" name="expected_power_w" inputmode="decimal" placeholder="7500">
+                </div>
+                <div class="field">
+                    <label for="fibaro_device_id">Fibaro enhet</label>
+                    <input id="fibaro_device_id" name="fibaro_device_id" inputmode="numeric">
+                </div>
+                <div class="field">
+                    <label for="fibaro_meter_id">Fibaro måler</label>
+                    <input id="fibaro_meter_id" name="fibaro_meter_id" inputmode="numeric">
+                </div>
+                <div class="field">
+                    <label for="zwave_switch_id">Z-Wave bryter</label>
+                    <input id="zwave_switch_id" name="zwave_switch_id" inputmode="numeric">
+                </div>
+                <div class="check-grid">
+                    <label class="check-row"><input type="checkbox" name="active" checked><span>Aktiv</span></label>
+                    <label class="check-row"><input type="checkbox" name="measured_direct"><span>Direkte målt</span></label>
+                    <label class="check-row"><input type="checkbox" name="controllable"><span>Kan styres</span></label>
+                    <label class="check-row"><input type="checkbox" name="critical"><span>Kritisk last</span></label>
+                </div>
+                <div class="field full">
+                    <label for="note">Notat</label>
+                    <textarea id="note" name="note" placeholder="Kommentar, fysisk plassering, avvik eller hva som bør sjekkes senere"></textarea>
+                </div>
+                <button class="button-primary" type="submit">Lagre last</button>
+            </form>
+        </article>
+
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Last</th>
+                        <th>Type og område</th>
+                        <th>Kurs</th>
+                        <th class="num">Effekt</th>
+                        <th>Måling og styring</th>
+                        <th>Status</th>
+                        <th>Notat</th>
+                        <th>Handling</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for load in loads %}
+                    {% set circuit = circuit_lookup.get(load.circuit_no) if load.circuit_no else none %}
+                    <tr>
+                        <td class="load-name">{{ load.name }}</td>
+                        <td>
+                            {{ load.load_type or "-" }}
+                            {% if load.area %}<span class="muted">· {{ load.area }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if circuit %}
+                            <a class="course-link" href="/energi/kurser">{{ load.circuit_no }}</a>
+                            <span class="muted"> {{ circuit.description }}</span>
+                            {% elif load.circuit_no %}
+                            <span class="course-link">{{ load.circuit_no }}</span>
+                            {% else %}
+                            <span class="muted">Ikke valgt</span>
+                            {% endif %}
+                        </td>
+                        <td class="num">{% if load.expected_power_w is not none %}{{ "{:,.0f}".format(load.expected_power_w).replace(",", " ") }} W{% else %}-{% endif %}</td>
+                        <td>
+                            <div class="tag-row">
+                                {% if load.fibaro_device_id %}<span class="tag">Fibaro enhet {{ load.fibaro_device_id }}</span>{% endif %}
+                                {% if load.fibaro_meter_id %}<span class="tag">Måler {{ load.fibaro_meter_id }}</span>{% endif %}
+                                {% if load.zwave_switch_id %}<span class="tag">Z-Wave {{ load.zwave_switch_id }}</span>{% endif %}
+                                {% if load.measured_direct %}<span class="tag ok">Direkte målt</span>{% endif %}
+                                {% if load.controllable %}<span class="tag ok">Kan styres</span>{% endif %}
+                                {% if not load.fibaro_device_id and not load.fibaro_meter_id and not load.zwave_switch_id and not load.measured_direct and not load.controllable %}<span class="muted">Ingen id-er ennå</span>{% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="tag-row">
+                                <span class="tag {% if load.active %}ok{% else %}warn{% endif %}">{{ "Aktiv" if load.active else "Inaktiv" }}</span>
+                                {% if load.critical %}<span class="tag warn">Kritisk</span>{% endif %}
+                            </div>
+                        </td>
+                        <td class="muted">{{ load.note or "-" }}</td>
+                        <td>
+                            <form class="inline-form" method="post" action="/energi/laster/{{ load.id }}/aktiv">
+                                {% if load.active %}
+                                <input type="hidden" name="active" value="0">
+                                <button class="button-secondary" type="submit">Deaktiver</button>
+                                {% else %}
+                                <input type="hidden" name="active" value="1">
+                                <button class="button-secondary" type="submit">Aktiver</button>
+                                {% endif %}
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="muted">Ingen laster matcher filteret. Registrer første last i skjemaet over.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>

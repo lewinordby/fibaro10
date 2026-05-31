@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energi kurser</title>
+    {% include "_styles.html" %}
+    <style>
+        .page-title { margin:0 0 0.32rem; font-size:1.32rem; font-weight:820; color:var(--brand-dark); }
+        .page-subtitle { margin:0 0 1rem; color:var(--muted); font-size:0.9rem; line-height:1.45; }
+        .summary-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0.75rem; margin-bottom:1rem; }
+        .metric-card, .panel-card, .table-wrap { background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-1); }
+        .metric-card { padding:0.86rem 0.95rem; border-top:4px solid var(--energy-color); min-height:5.2rem; }
+        .metric-card span { display:block; color:var(--muted); font-size:0.72rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
+        .metric-card strong { display:block; margin-top:0.24rem; color:var(--brand-dark); font-size:1.34rem; line-height:1; }
+        .metric-card small { display:block; margin-top:0.28rem; color:var(--muted); font-size:0.74rem; }
+        .panel-card { padding:0.92rem 1rem; margin-bottom:1rem; border-left:4px solid var(--energy-color); }
+        .panel-card h2 { margin:0 0 0.35rem; font-size:1rem; color:var(--brand-dark); }
+        .panel-card p { margin:0; color:var(--muted); line-height:1.45; font-size:0.88rem; }
+        .table-wrap { overflow:auto; }
+        table { width:100%; border-collapse:collapse; min-width:1180px; }
+        th, td { padding:0.58rem 0.7rem; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+        th { color:var(--muted); background:var(--panel-soft); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.02em; font-weight:820; text-align:left; white-space:nowrap; }
+        td { color:var(--brand-dark); font-size:0.86rem; line-height:1.35; }
+        td.num, th.num { text-align:right; white-space:nowrap; }
+        tbody tr:last-child td { border-bottom:0; }
+        .course-no { display:inline-flex; align-items:center; justify-content:center; min-width:2.2rem; height:1.7rem; border-radius:999px; background:#fff7e8; border:1px solid #edd29b; color:#8a5f12; font-weight:850; text-decoration:none; }
+        .description { font-weight:800; }
+        .muted { color:var(--muted); }
+        .status-pill { display:inline-flex; align-items:center; justify-content:center; min-height:1.45rem; padding:0.12rem 0.5rem; border-radius:999px; border:1px solid var(--line); background:var(--panel-soft); color:var(--muted); font-size:0.72rem; font-weight:820; white-space:nowrap; }
+        .status-pill.ok { background:#edf8f1; border-color:#b9ddc2; color:#286b47; }
+        .status-pill.warn { background:#fff6e6; border-color:#ead19a; color:#8a5f12; }
+        .load-link { color:var(--brand-dark); text-decoration:none; font-weight:820; }
+        .load-link:hover { text-decoration:underline; }
+        @media (max-width: 1350px) {
+            .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        }
+    </style>
+</head>
+<body class="theme-energy">
+    {% include "_header.html" %}
+    <main>
+        <h1 class="page-title">Energi kurser</h1>
+        <p class="page-subtitle">
+            Kurslisten er tavlegrunnlaget fra kursliste 37. Den brukes som fast referanse for å koble praktiske laster, målepunkter og Fibaro/Z-Wave-id-er til riktig kurs.
+        </p>
+
+        <section class="summary-grid">
+            <article class="metric-card">
+                <span>Kurser</span>
+                <strong>{{ summary.circuits }}</strong>
+                <small>Fra importert kursliste</small>
+            </article>
+            <article class="metric-card">
+                <span>Med vern-data</span>
+                <strong>{{ summary.with_breaker }}</strong>
+                <small>Kurs med ampere oppgitt</small>
+            </article>
+            <article class="metric-card">
+                <span>Mangler vern-data</span>
+                <strong>{{ summary.missing_breaker }}</strong>
+                <small>Bør kompletteres senere</small>
+            </article>
+            <article class="metric-card">
+                <span>Registrerte laster</span>
+                <strong>{{ summary.loads }}</strong>
+                <small>Koblet til kurs</small>
+            </article>
+            <article class="metric-card">
+                <span>Forventet effekt</span>
+                <strong>{{ "{:,.0f}".format(summary.expected_power_w or 0).replace(",", " ") }} W</strong>
+                <small>Sum aktive registrerte laster</small>
+            </article>
+        </section>
+
+        <article class="panel-card">
+            <h2>Slik brukes denne siden</h2>
+            <p>
+                Kurser er den elektriske fasiten. Laster er den praktiske virkeligheten: solsenger, lys, vifter, varmepumper og annet utstyr.
+                Klikk på en kurs for å filtrere lastregisteret og bygge opp dokumentasjonen kurs for kurs.
+            </p>
+        </article>
+
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Kurs</th>
+                        <th>Beskrivelse</th>
+                        <th>Vern</th>
+                        <th>Kabel</th>
+                        <th>Installasjon</th>
+                        <th>JFB</th>
+                        <th class="num">Laster</th>
+                        <th class="num">Effekt</th>
+                        <th>Status</th>
+                        <th>Notat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for circuit in circuits %}
+                    {% set load_info = load_lookup.get(circuit.circuit_no, {"count": 0, "expected_power_w": 0}) %}
+                    <tr>
+                        <td><a class="course-no" href="/energi/laster?circuit={{ circuit.circuit_no }}">{{ circuit.circuit_no }}</a></td>
+                        <td class="description">{{ circuit.description or "-" }}</td>
+                        <td>{{ circuit_technical_label(circuit) }}</td>
+                        <td>
+                            {{ circuit.cable_spec or "-" }}
+                            {% if circuit.cable_length_m is not none %}
+                                <span class="muted">· {{ "{:g}".format(circuit.cable_length_m) }} m</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ circuit.install_method or "-" }}</td>
+                        <td>{% if circuit.rcd_ma is not none %}{{ "{:g}".format(circuit.rcd_ma) }} mA{% else %}-{% endif %}</td>
+                        <td class="num"><a class="load-link" href="/energi/laster?circuit={{ circuit.circuit_no }}">{{ load_info.count }}</a></td>
+                        <td class="num">{{ "{:,.0f}".format(load_info.expected_power_w or 0).replace(",", " ") }} W</td>
+                        <td>
+                            {% set status = circuit.status or "ukjent" %}
+                            <span class="status-pill {% if status == 'aktiv' or status == 'hovedvern' %}ok{% elif 'mangler' in status %}warn{% endif %}">{{ status }}</span>
+                        </td>
+                        <td class="muted">{{ circuit.note or "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>
