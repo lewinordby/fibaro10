@@ -416,10 +416,12 @@ async def dashboard_data() -> dict[str, Any]:
     now = local_now()
     today = now.date()
     yesterday = today - timedelta(days=1)
+    last_week_same_day = today - timedelta(days=7)
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
     start, end = day_bounds(today)
     yesterday_start, yesterday_end = day_bounds(yesterday)
+    last_week_same_day_start, last_week_same_day_end = day_bounds(last_week_same_day)
     week_start_dt = datetime.combine(week_start, datetime.min.time())
     month_start_dt = datetime.combine(month_start, datetime.min.time())
 
@@ -518,6 +520,15 @@ async def dashboard_data() -> dict[str, Any]:
         """,
         {"start": yesterday_start, "end": yesterday_end},
     )
+    parking_last_week_same_day = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(fee_inc_vat), 0) as amount
+        from parkering
+        where start_time >= :start and start_time < :end
+        """,
+        {"start": last_week_same_day_start, "end": last_week_same_day_end},
+    )
     parking_week = await one_mapping(
         """
         select count(*) as count,
@@ -606,6 +617,7 @@ async def dashboard_data() -> dict[str, Any]:
         "parking_import": parking_import,
         "parking": parking,
         "parking_yesterday": parking_yesterday,
+        "parking_last_week_same_day": parking_last_week_same_day,
         "parking_week": parking_week,
         "parking_month": parking_month,
         "latest_parking": latest_parking,
@@ -822,6 +834,11 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
     body = detail_stats(
         [
             ("I dag", fmt_int(data["parking"].get("count")), fmt_money(data["parking"].get("amount"))),
+            (
+                "Samme dag forrige uke",
+                fmt_int(data["parking_last_week_same_day"].get("count")),
+                fmt_money(data["parking_last_week_same_day"].get("amount")),
+            ),
             ("Aktive", fmt_int(data["parking"].get("active_count")), "nå"),
             ("Denne uken", fmt_int(data["parking_week"].get("count")), fmt_money(data["parking_week"].get("amount"))),
             ("Denne måneden", fmt_int(data["parking_month"].get("count")), fmt_money(data["parking_month"].get("amount"))),
