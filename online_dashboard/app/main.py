@@ -446,6 +446,16 @@ async def dashboard_data() -> dict[str, Any]:
         """,
         {"day": yesterday},
     )
+    soling_last_week_same_day = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(duration_minutes), 0) as minutes,
+               coalesce(sum(paid_amount_kr), 0) as amount
+        from sun2_tanning_sessions
+        where stat_date = :day
+        """,
+        {"day": last_week_same_day},
+    )
     soling_week = await one_mapping(
         """
         select count(*) as count,
@@ -610,6 +620,7 @@ async def dashboard_data() -> dict[str, Any]:
         "open_state": operating_window(now),
         "soling": soling,
         "soling_yesterday": soling_yesterday,
+        "soling_last_week_same_day": soling_last_week_same_day,
         "soling_week": soling_week,
         "soling_month": soling_month,
         "latest_soling": latest_soling,
@@ -779,6 +790,11 @@ async def soling_detail(request: Request):
     body = detail_stats(
         [
             ("I dag", fmt_int(data["soling"].get("count")), fmt_money(data["soling"].get("amount"))),
+            (
+                "Samme dag forrige uke",
+                fmt_int(data["soling_last_week_same_day"].get("count")),
+                fmt_money(data["soling_last_week_same_day"].get("amount")),
+            ),
             ("Denne uken", fmt_int(data["soling_week"].get("count")), fmt_money(data["soling_week"].get("amount"))),
             ("Denne måneden", fmt_int(data["soling_month"].get("count")), fmt_money(data["soling_month"].get("amount"))),
         ]
