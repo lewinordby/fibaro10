@@ -88,7 +88,7 @@
                                 {% if vehicle.navn or vehicle.omrade %}<br><small>{{ [vehicle.navn, vehicle.omrade]|select|join(", ") }}</small>{% endif %}
                             </td>
                             <td>{{ details.kjoretoyklasse_navn if details else "-" }}<br><small>{{ details.registreringsstatus_tekst if details else "" }}</small></td>
-                            <td>{{ vehicle.first_seen|source_time_short }}<br>{{ vehicle.last_seen|source_time_short }}</td>
+                            <td>{{ vehicle.first_seen|source_datetime_short }}<br>{{ vehicle.last_seen|source_datetime_short }}</td>
                             <td>{{ vehicle.parkering_count|short_number }}</td>
                             <td>{{ vehicle.paid_total|short_number }} kr</td>
                             <td>{{ vehicle.svv_status or "-" }}<br><small>{{ vehicle.svv_fetched_at|localtime_short }}</small></td>

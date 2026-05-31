@@ -88,8 +88,18 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1025")
+APP_BUILD = os.getenv("APP_BUILD", "1026")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1026",
+        "date": "31.05.2026",
+        "title": "Dato i kjøretøytabell",
+        "changes": [
+            "Endrer Parkering/Kjøretøy slik at først sett og sist sett viser både dato og klokkeslett.",
+            "Legger inn eget kort datoformat for historikkfelt som ikke bare skal vise klokkeslett.",
+        ],
+    },
     {
         "version": "1",
         "build": "1025",
@@ -432,10 +442,21 @@ def format_source_time(value: Optional[datetime]) -> str:
     return value.strftime("%H:%M")
 
 
+def format_source_datetime_short(value: Optional[datetime]) -> str:
+    if not value:
+        return "-"
+    if isinstance(value, (int, float)):
+        value = datetime.fromtimestamp(value)
+    if value.tzinfo is not None:
+        value = value.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return value.strftime("%d.%m.%Y %H:%M")
+
+
 templates.env.filters["localtime"] = format_local_datetime
 templates.env.filters["localtime_short"] = format_local_time
 templates.env.filters["source_time"] = format_source_datetime
 templates.env.filters["source_time_short"] = format_source_time
+templates.env.filters["source_datetime_short"] = format_source_datetime_short
 
 
 ROBOROCK_STATE_LABELS = {
