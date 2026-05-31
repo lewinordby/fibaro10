@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1024")
+APP_BUILD = os.getenv("APP_BUILD", "1025")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1025",
+        "date": "31.05.2026",
+        "title": "Deler temperaturkort",
+        "changes": [
+            "Splitter temperaturfeltet i online-dashboardet i to kort: Inne og Ute.",
+            "Inne-kortet viser snittet stort med 1.etg, 2.etg og VIP som underverdier.",
+            "Ute-kortet viser beregnet utetemperatur stort med Ute, Innluft og Yr som underverdier.",
+        ],
+    },
     {
         "version": "1",
         "build": "1024",

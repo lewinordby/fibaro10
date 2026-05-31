@@ -98,7 +98,7 @@ h1 { font-size: clamp(2rem, 10vw, 3.4rem); line-height: .95; letter-spacing: -.0
 h2 { font-size: 1.05rem; }
 .hero p:last-child, .lead, small, .card-time { color: var(--muted); }
 
-.metric-grid, .state-grid, .pulse-grid, .insight-grid {
+.metric-grid, .state-grid, .pulse-grid, .insight-grid, .temperature-grid {
     display: grid;
     gap: .85rem;
 }
@@ -106,6 +106,7 @@ h2 { font-size: 1.05rem; }
 .state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
 .pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-bottom: .65rem; }
 .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; margin-top: .65rem; }
+.temperature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-top: .7rem; }
 
 .metric-card, .temperature-card, .section-block, .pulse-card, .insight-grid article {
     position: relative;
@@ -278,6 +279,13 @@ h2 { font-size: 1.05rem; }
     padding: .85rem;
     border-top: .26rem solid var(--green);
 }
+.temperature-grid .temperature-card {
+    margin-top: 0;
+}
+.temperature-card.temperature-mini {
+    grid-template-columns: 1fr;
+    align-content: start;
+}
 .temperature-main, .temperature-list, .temperature-list p {
     min-width: 0;
 }
@@ -306,6 +314,9 @@ h2 { font-size: 1.05rem; }
 .temperature-list.compact {
     grid-column: 1 / -1;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.temperature-mini .temperature-list.compact {
+    grid-template-columns: 1fr;
 }
 .card-time {
     grid-column: 1 / -1;
@@ -447,7 +458,7 @@ h2 { font-size: 1.05rem; }
         font-size: clamp(1.75rem, 9vw, 2.4rem);
     }
 
-    .metric-grid, .pulse-grid {
+    .metric-grid, .pulse-grid, .temperature-grid {
         gap: .55rem;
     }
 
@@ -474,6 +485,10 @@ h2 { font-size: 1.05rem; }
         gap: .45rem .5rem;
         padding: .72rem;
         border-radius: 1.05rem;
+    }
+
+    .temperature-card.temperature-mini {
+        grid-template-columns: 1fr;
     }
 
     .temperature-main strong {
@@ -537,7 +552,7 @@ h2 { font-size: 1.05rem; }
 }
 
 @media (max-width: 360px) {
-    .metric-grid, .pulse-grid {
+    .metric-grid, .pulse-grid, .temperature-grid {
         grid-template-columns: 1fr;
     }
 

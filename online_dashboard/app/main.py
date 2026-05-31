@@ -590,9 +590,9 @@ async def dashboard_data() -> dict[str, Any]:
     if inside_avg is None and inside_values:
         inside_avg = sum(inside_values) / len(inside_values)
 
-    outside = vent.get("temp_ute")
-    if outside is None:
-        outside = vent.get("temp_yr")
+    outside_values = [vent.get("temp_ute"), vent.get("temp_yr")]
+    outside_values = [float(value) for value in outside_values if value is not None]
+    outside = sum(outside_values) / len(outside_values) if outside_values else None
 
     return {
         "now": now,
@@ -615,6 +615,8 @@ async def dashboard_data() -> dict[str, Any]:
         "energy_today": energy_today,
         "inside_avg": inside_avg,
         "outside": outside,
+        "outside_sensor": vent.get("temp_ute"),
+        "yr_temp": vent.get("temp_yr"),
         "innluft": vent.get("temp_luftinntak") if vent.get("temp_luftinntak") is not None else vent.get("temp_passiv"),
         "light_items": [
             ("Lyslist", lights.get("light_lyslist")),
@@ -731,6 +733,8 @@ async def dashboard(request: Request):
         "{{ energy_time }}": fmt_time(data["energy_now"].get("bucket_start") or data["energy_now"].get("timestamp")),
         "{{ inside_avg }}": fmt_temp(data["inside_avg"]),
         "{{ outside }}": fmt_temp(data["outside"]),
+        "{{ outside_sensor }}": fmt_temp(data["outside_sensor"]),
+        "{{ yr_temp }}": fmt_temp(data["yr_temp"]),
         "{{ loft }}": fmt_temp(data["vent"].get("temp_loft")),
         "{{ innluft }}": fmt_temp(data["innluft"]),
         "{{ temp_1etg }}": fmt_temp(data["vent"].get("temp_1etg")),
@@ -1092,23 +1096,32 @@ DASHBOARD_HTML = """<!doctype html>
       </a>
     </section>
 
-    <a class="temperature-card card-link" href="/temperatur">
-      <div class="temperature-main">
-        <span>Inne</span>
-        <strong>{{ inside_avg }}</strong>
-      </div>
-      <div class="temperature-list temperature-list-main">
-        <p><span>1.etg</span><strong>{{ temp_1etg }}</strong></p>
-        <p><span>2.etg</span><strong>{{ temp_2etg }}</strong></p>
-        <p><span>VIP</span><strong>{{ temp_vip }}</strong></p>
-      </div>
-      <div class="temperature-list compact">
-        <p><span>Ute</span><strong>{{ outside }}</strong></p>
-        <p><span>Loft</span><strong>{{ loft }}</strong></p>
-        <p><span>Innluft</span><strong>{{ innluft }}</strong></p>
-      </div>
-      <small class="card-time">Oppdatert {{ temp_time }}</small>
-    </a>
+    <section class="temperature-grid">
+      <a class="temperature-card temperature-mini card-link" href="/temperatur">
+        <div class="temperature-main">
+          <span>Inne</span>
+          <strong>{{ inside_avg }}</strong>
+        </div>
+        <div class="temperature-list compact">
+          <p><span>1.etg</span><strong>{{ temp_1etg }}</strong></p>
+          <p><span>2.etg</span><strong>{{ temp_2etg }}</strong></p>
+          <p><span>VIP</span><strong>{{ temp_vip }}</strong></p>
+        </div>
+        <small class="card-time">Oppdatert {{ temp_time }}</small>
+      </a>
+      <a class="temperature-card temperature-mini card-link" href="/temperatur">
+        <div class="temperature-main">
+          <span>Ute</span>
+          <strong>{{ outside }}</strong>
+        </div>
+        <div class="temperature-list compact">
+          <p><span>Ute</span><strong>{{ outside_sensor }}</strong></p>
+          <p><span>Innluft</span><strong>{{ innluft }}</strong></p>
+          <p><span>Yr</span><strong>{{ yr_temp }}</strong></p>
+        </div>
+        <small class="card-time">Oppdatert {{ temp_time }}</small>
+      </a>
+    </section>
 
     <a class="section-block card-link" href="/lys">
       <div class="section-title-row">
