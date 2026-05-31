@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, and_, case, delete, func, or_, select, text as sql_text, tuple_, update
+from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, and_, case, cast, delete, func, or_, select, text as sql_text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1014")
+APP_BUILD = os.getenv("APP_BUILD", "1015")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1015",
+        "date": "31.05.2026",
+        "title": "Bedre prognosemodell",
+        "changes": [
+            "Retter dagsprognoser slik at soling ikke straffes for manglende natt- og for-apning-data.",
+            "Endrer maneds- og arsprognose slik at dagens tempo sammenlignes med forventet aktivitet hittil, ikke hele dagen.",
+            "Fjerner dobbel nedjustering av resterende del av innevarende dag i prognosegrunnlaget.",
+        ],
+    },
     {
         "version": "1",
         "build": "1014",
@@ -4866,6 +4877,124 @@ def sun2_apply_tempo(actual: float, expected: float, minimum: float = 0.62, maxi
     return max(minimum, min(maximum, actual / expected))
 
 
+def opening_day_fraction(minute_of_day: int, opening_minute: int = 7 * 60, closing_minute: int = 23 * 60, power: float = 0.92) -> float:
+    if minute_of_day <= opening_minute:
+        return 0.0
+    if minute_of_day >= closing_minute:
+        return 1.0
+    linear_fraction = (minute_of_day - opening_minute) / (closing_minute - opening_minute)
+    return max(0.0, min(1.0, linear_fraction ** power))
+
+
+def weighted_intraday_fraction(
+    target_day: date,
+    today: date,
+    rows: list[tuple[date, float, float]],
+    weight_fn,
+    fallback_fraction: float,
+    min_weighted_total: float = 25.0,
+) -> float:
+    elapsed_weighted = 0.0
+    total_weighted = 0.0
+    for historical_day, elapsed_count, total_count in rows:
+        total_count = float_or_zero(total_count)
+        if total_count <= 0:
+            continue
+        weight = weight_fn(target_day, historical_day, today)
+        if weight <= 0:
+            continue
+        elapsed_weighted += float_or_zero(elapsed_count) * weight
+        total_weighted += total_count * weight
+    if total_weighted < min_weighted_total:
+        return fallback_fraction
+    return max(0.0, min(1.0, elapsed_weighted / total_weighted))
+
+
+async def sun2_historical_day_fraction(
+    session,
+    target_day: date,
+    today: date,
+    history: Dict[date, Dict[str, float]],
+    minute_of_day: int,
+    fallback_fraction: float,
+) -> float:
+    if fallback_fraction <= 0.0 or fallback_fraction >= 1.0 or not history:
+        return fallback_fraction
+    first_day = min(history)
+    minute_expr = func.extract("hour", Sun2TanningSession.started_at) * 60 + func.extract("minute", Sun2TanningSession.started_at)
+    result = await session.execute(
+        select(
+            Sun2TanningSession.stat_date,
+            func.coalesce(func.sum(case((minute_expr <= minute_of_day, 1), else_=0)), 0),
+            func.count(Sun2TanningSession.id),
+        )
+        .where(Sun2TanningSession.stat_date >= first_day)
+        .where(Sun2TanningSession.stat_date < today)
+        .group_by(Sun2TanningSession.stat_date)
+    )
+    rows = [(row[0], row[1], row[2]) for row in result.all()]
+    return weighted_intraday_fraction(target_day, today, rows, sun2_history_weight, fallback_fraction)
+
+
+async def parking_historical_day_fraction(
+    session,
+    target_day: date,
+    today: date,
+    history: Dict[date, Dict[str, float]],
+    minute_of_day: int,
+    fallback_fraction: float,
+) -> float:
+    if fallback_fraction <= 0.0 or fallback_fraction >= 1.0 or not history:
+        return fallback_fraction
+    first_day = min(history)
+    minute_expr = func.extract("hour", ParkingSession.start_time) * 60 + func.extract("minute", ParkingSession.start_time)
+    result = await session.execute(
+        select(
+            cast(ParkingSession.start_time, Date),
+            func.coalesce(func.sum(case((minute_expr <= minute_of_day, 1), else_=0)), 0),
+            func.count(ParkingSession.id),
+        )
+        .where(ParkingSession.start_time >= datetime.combine(first_day, time.min))
+        .where(ParkingSession.start_time < datetime.combine(today, time.min))
+        .group_by(cast(ParkingSession.start_time, Date))
+    )
+    rows = [(row[0], row[1], row[2]) for row in result.all()]
+    return weighted_intraday_fraction(target_day, today, rows, parking_history_weight, fallback_fraction)
+
+
+def intraday_forecast_value(
+    actual: float,
+    model: float,
+    day_fraction: float,
+    minute_of_day: int,
+    opening_minute: int,
+    minimum_expected_now: float = 3.0,
+) -> tuple[float, float]:
+    actual = float_or_zero(actual)
+    model = float_or_zero(model)
+    day_fraction = max(0.01, min(1.0, day_fraction))
+    if model <= 0:
+        projected = actual / day_fraction if day_fraction > 0 else actual
+        return max(actual, projected), 1.0
+
+    expected_now = model * day_fraction
+    if minute_of_day <= opening_minute or expected_now < minimum_expected_now:
+        return max(actual, model), 1.0
+
+    observed_tempo = actual / expected_now if expected_now > 0 else 1.0
+    confidence = max(0.0, min(1.0, (day_fraction - 0.14) / 0.55))
+    blended_tempo = 1.0 + (observed_tempo - 1.0) * confidence
+
+    if day_fraction < 0.35:
+        min_tempo, max_tempo = (0.78, 1.35)
+    elif day_fraction < 0.65:
+        min_tempo, max_tempo = (0.58, 1.55)
+    else:
+        min_tempo, max_tempo = (0.42, 1.75)
+    tempo = max(min_tempo, min(max_tempo, blended_tempo))
+    return max(actual, model * tempo), tempo
+
+
 async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict[str, Any]:
     cache_key = f"sun2_forecast:{today.isoformat()}:{now_local.hour:02d}:{now_local.minute // 5}"
     now_utc = datetime.utcnow()
@@ -4899,35 +5028,40 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
     minute_of_day = now_local.hour * 60 + now_local.minute
     opening_minute = 7 * 60
     closing_minute = 23 * 60
-    if minute_of_day <= opening_minute:
-        day_fraction = 0.08
-    elif minute_of_day >= closing_minute:
-        day_fraction = 1.0
-    else:
-        linear_fraction = (minute_of_day - opening_minute) / (closing_minute - opening_minute)
-        day_fraction = 0.08 + (linear_fraction ** 0.86) * 0.92
-    day_fraction = max(0.08, min(1.0, day_fraction))
+    day_fraction = opening_day_fraction(minute_of_day, opening_minute, closing_minute, power=0.86)
+    day_fraction = await sun2_historical_day_fraction(session, today, today, model_history, minute_of_day, day_fraction)
     model_today = sun2_daily_model(today, model_history, today)
-    day_sessions = max(float_or_zero(actual_today.get("sessions")), float_or_zero(actual_today.get("sessions")) / day_fraction)
-    day_paid = max(float_or_zero(actual_today.get("paid")), float_or_zero(actual_today.get("paid")) / day_fraction)
-    day_minutes = max(float_or_zero(actual_today.get("minutes")), float_or_zero(actual_today.get("minutes")) / day_fraction)
-    if float_or_zero(actual_today.get("sessions")) <= 0 and model_today["sessions"] > 0:
-        day_sessions = model_today["sessions"] * max(0.35, min(1.0, day_fraction + 0.18))
-        day_paid = model_today["paid"] * max(0.35, min(1.0, day_fraction + 0.18))
-        day_minutes = model_today["minutes"] * max(0.35, min(1.0, day_fraction + 0.18))
+    actual_sessions = float_or_zero(actual_today.get("sessions"))
+    actual_paid = float_or_zero(actual_today.get("paid"))
+    actual_minutes = float_or_zero(actual_today.get("minutes"))
+    day_sessions, session_tempo = intraday_forecast_value(
+        actual_sessions,
+        model_today["sessions"],
+        day_fraction,
+        minute_of_day,
+        opening_minute,
+        minimum_expected_now=3.0,
+    )
+    day_paid = max(actual_paid, float_or_zero(model_today.get("paid")) * session_tempo)
+    day_minutes = max(actual_minutes, float_or_zero(model_today.get("minutes")) * session_tempo)
 
     def forecast_period(start: date, end: date, label: str) -> Dict[str, Any]:
         actual_end = min(today, end)
         actual = sun2_period_actual(history, start, actual_end) if actual_end >= start else {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
         expected_so_far = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
         remaining_base = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
+        today_remaining = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
         future_days = []
         for day in iter_dates(start, end):
             model = sun2_daily_model(day, model_history, today)
-            if day <= today:
+            if day < today:
                 expected_so_far["sessions"] += model["sessions"]
                 expected_so_far["paid"] += model["paid"]
                 expected_so_far["minutes"] += model["minutes"]
+            elif day == today:
+                expected_so_far["sessions"] += model["sessions"] * day_fraction
+                expected_so_far["paid"] += model["paid"] * day_fraction
+                expected_so_far["minutes"] += model["minutes"] * day_fraction
             else:
                 remaining_base["sessions"] += model["sessions"]
                 remaining_base["paid"] += model["paid"]
@@ -4937,17 +5071,16 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
         tempo_paid = sun2_apply_tempo(actual["paid"], expected_so_far["paid"])
         tempo_minutes = sun2_apply_tempo(actual["minutes"], expected_so_far["minutes"])
         if start <= today <= end:
-            today_remaining_factor = max(0.0, 1.0 - day_fraction)
-            actual["sessions"] = max(actual["sessions"], float_or_zero(actual_today.get("sessions")))
-            actual["paid"] = max(actual["paid"], float_or_zero(actual_today.get("paid")))
-            actual["minutes"] = max(actual["minutes"], float_or_zero(actual_today.get("minutes")))
-            remaining_base["sessions"] += max(0.0, day_sessions - float_or_zero(actual_today.get("sessions"))) * today_remaining_factor
-            remaining_base["paid"] += max(0.0, day_paid - float_or_zero(actual_today.get("paid"))) * today_remaining_factor
-            remaining_base["minutes"] += max(0.0, day_minutes - float_or_zero(actual_today.get("minutes"))) * today_remaining_factor
+            actual["sessions"] = max(actual["sessions"], actual_sessions)
+            actual["paid"] = max(actual["paid"], actual_paid)
+            actual["minutes"] = max(actual["minutes"], actual_minutes)
+            today_remaining["sessions"] = max(0.0, day_sessions - actual_sessions)
+            today_remaining["paid"] = max(0.0, day_paid - actual_paid)
+            today_remaining["minutes"] = max(0.0, day_minutes - actual_minutes)
         forecast = {
-            "sessions": actual["sessions"] + remaining_base["sessions"] * tempo_sessions,
-            "paid": actual["paid"] + remaining_base["paid"] * tempo_paid,
-            "minutes": actual["minutes"] + remaining_base["minutes"] * tempo_minutes,
+            "sessions": actual["sessions"] + today_remaining["sessions"] + remaining_base["sessions"] * tempo_sessions,
+            "paid": actual["paid"] + today_remaining["paid"] + remaining_base["paid"] * tempo_paid,
+            "minutes": actual["minutes"] + today_remaining["minutes"] + remaining_base["minutes"] * tempo_minutes,
         }
         important_days = sorted(
             [item for item in future_days if item.get("holiday")],
@@ -5094,44 +5227,45 @@ async def build_parking_forecast(session, today: date, now_local: datetime) -> D
     minute_of_day = now_local.hour * 60 + now_local.minute
     opening_minute = 7 * 60
     closing_minute = 23 * 60
-    if minute_of_day <= opening_minute:
-        day_fraction = 0.07
-    elif minute_of_day >= closing_minute:
-        day_fraction = 1.0
-    else:
-        linear_fraction = (minute_of_day - opening_minute) / (closing_minute - opening_minute)
-        day_fraction = 0.07 + (linear_fraction ** 0.9) * 0.93
-    day_fraction = max(0.07, min(1.0, day_fraction))
+    day_fraction = opening_day_fraction(minute_of_day, opening_minute, closing_minute, power=0.9)
+    day_fraction = await parking_historical_day_fraction(session, today, today, model_history, minute_of_day, day_fraction)
 
     model_today = parking_daily_model(today, model_history, today)
     actual_sessions = float_or_zero(actual_today.get("sessions"))
     actual_paid = float_or_zero(actual_today.get("paid"))
     actual_minutes = float_or_zero(actual_today.get("minutes"))
     actual_vehicles = float_or_zero(actual_today.get("vehicles"))
-    day_sessions = max(actual_sessions, actual_sessions / day_fraction)
-    day_paid = max(actual_paid, actual_paid / day_fraction)
-    day_minutes = max(actual_minutes, actual_minutes / day_fraction)
-    day_vehicles = max(actual_vehicles, actual_vehicles / day_fraction)
-    if actual_sessions <= 0 and model_today["sessions"] > 0:
-        startup_factor = max(0.28, min(1.0, day_fraction + 0.16))
-        day_sessions = model_today["sessions"] * startup_factor
-        day_paid = model_today["paid"] * startup_factor
-        day_minutes = model_today["minutes"] * startup_factor
-        day_vehicles = model_today["vehicles"] * startup_factor
+    day_sessions, session_tempo = intraday_forecast_value(
+        actual_sessions,
+        model_today["sessions"],
+        day_fraction,
+        minute_of_day,
+        opening_minute,
+        minimum_expected_now=4.0,
+    )
+    day_paid = max(actual_paid, float_or_zero(model_today.get("paid")) * session_tempo)
+    day_minutes = max(actual_minutes, float_or_zero(model_today.get("minutes")) * session_tempo)
+    day_vehicles = max(actual_vehicles, float_or_zero(model_today.get("vehicles")) * session_tempo)
 
     def forecast_period(start: date, end: date, label: str) -> Dict[str, Any]:
         actual_end = min(today, end)
         actual = parking_period_actual(history, start, actual_end) if actual_end >= start else {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
         expected_so_far = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
         remaining_base = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
+        today_remaining = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
         future_days = []
         for day in iter_dates(start, end):
             model = parking_daily_model(day, model_history, today)
-            if day <= today:
+            if day < today:
                 expected_so_far["sessions"] += model["sessions"]
                 expected_so_far["paid"] += model["paid"]
                 expected_so_far["minutes"] += model["minutes"]
                 expected_so_far["vehicles"] += model["vehicles"]
+            elif day == today:
+                expected_so_far["sessions"] += model["sessions"] * day_fraction
+                expected_so_far["paid"] += model["paid"] * day_fraction
+                expected_so_far["minutes"] += model["minutes"] * day_fraction
+                expected_so_far["vehicles"] += model["vehicles"] * day_fraction
             else:
                 remaining_base["sessions"] += model["sessions"]
                 remaining_base["paid"] += model["paid"]
@@ -5143,20 +5277,19 @@ async def build_parking_forecast(session, today: date, now_local: datetime) -> D
         tempo_minutes = sun2_apply_tempo(actual["minutes"], expected_so_far["minutes"])
         tempo_vehicles = sun2_apply_tempo(actual["vehicles"], expected_so_far["vehicles"])
         if start <= today <= end:
-            today_remaining_factor = max(0.0, 1.0 - day_fraction)
             actual["sessions"] = max(actual["sessions"], actual_sessions)
             actual["paid"] = max(actual["paid"], actual_paid)
             actual["minutes"] = max(actual["minutes"], actual_minutes)
             actual["vehicles"] = max(actual["vehicles"], actual_vehicles)
-            remaining_base["sessions"] += max(0.0, day_sessions - actual_sessions) * today_remaining_factor
-            remaining_base["paid"] += max(0.0, day_paid - actual_paid) * today_remaining_factor
-            remaining_base["minutes"] += max(0.0, day_minutes - actual_minutes) * today_remaining_factor
-            remaining_base["vehicles"] += max(0.0, day_vehicles - actual_vehicles) * today_remaining_factor
+            today_remaining["sessions"] = max(0.0, day_sessions - actual_sessions)
+            today_remaining["paid"] = max(0.0, day_paid - actual_paid)
+            today_remaining["minutes"] = max(0.0, day_minutes - actual_minutes)
+            today_remaining["vehicles"] = max(0.0, day_vehicles - actual_vehicles)
         forecast = {
-            "sessions": actual["sessions"] + remaining_base["sessions"] * tempo_sessions,
-            "paid": actual["paid"] + remaining_base["paid"] * tempo_paid,
-            "minutes": actual["minutes"] + remaining_base["minutes"] * tempo_minutes,
-            "vehicles": actual["vehicles"] + remaining_base["vehicles"] * tempo_vehicles,
+            "sessions": actual["sessions"] + today_remaining["sessions"] + remaining_base["sessions"] * tempo_sessions,
+            "paid": actual["paid"] + today_remaining["paid"] + remaining_base["paid"] * tempo_paid,
+            "minutes": actual["minutes"] + today_remaining["minutes"] + remaining_base["minutes"] * tempo_minutes,
+            "vehicles": actual["vehicles"] + today_remaining["vehicles"] + remaining_base["vehicles"] * tempo_vehicles,
         }
         important_days = sorted(
             [item for item in future_days if item.get("holiday")],
