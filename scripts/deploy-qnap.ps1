@@ -1,6 +1,7 @@
 param(
     [string]$QnapHost = "admin@192.168.20.218",
     [string]$IdentityFile = "$env:USERPROFILE\.ssh\id_ed25519_qnap_fibaro10",
+    [string]$Git = "",
     [string]$RemoteDir = "/share/CACHEDEV1_DATA/Public/containerdata/fibaro10",
     [string]$Docker = "/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker",
     [switch]$SkipPush,
@@ -18,16 +19,20 @@ function Run($exe, [string[]]$arguments) {
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $repoRoot
+if (-not $Git) {
+    $defaultGit = "C:\Program Files\Git\cmd\git.exe"
+    $Git = if (Test-Path $defaultGit) { $defaultGit } else { "git" }
+}
 
-Run "git" @("fetch", "origin", "main")
-$status = (& git status --porcelain)
+Run $Git @("fetch", "origin", "main")
+$status = (& $Git status --porcelain)
 if ($status -and -not $AllowDirty) {
     Write-Host $status
     throw "Working tree is not clean. Commit or stash changes, or pass -AllowDirty."
 }
 
 if (-not $SkipPush) {
-    Run "git" @("push", "origin", "main")
+    Run $Git @("push", "origin", "main")
 }
 
 $remote = @"
