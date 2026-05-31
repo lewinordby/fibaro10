@@ -16,6 +16,7 @@
         .metric-card small { display:block; margin-top:0.28rem; color:var(--muted); font-size:0.74rem; }
         .panel-card { padding:0.95rem; margin-bottom:1rem; border-left:4px solid var(--energy-color); }
         .panel-title { margin:0 0 0.7rem; color:var(--brand-dark); font-size:1rem; }
+        .toolbar { display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin:0 0 0.85rem; }
         .filter-form, .load-form { display:grid; gap:0.62rem; align-items:end; }
         .filter-form { grid-template-columns:minmax(14rem,1fr) minmax(12rem,0.8fr) minmax(10rem,0.7fr) minmax(8rem,0.55fr) auto; }
         .load-form { grid-template-columns:repeat(6,minmax(0,1fr)); }
@@ -78,6 +79,11 @@
         <p class="page-subtitle">
             Lastregisteret er den praktiske oversikten over hva som faktisk bruker strøm. Her kan hver last kobles til kurs, forventet effekt, Fibaro/Z-Wave-id og om den kan styres.
         </p>
+
+        <div class="toolbar">
+            <span class="page-subtitle" style="margin:0;">PDF-uttaket følger filteret som er valgt på siden.</span>
+            <a class="button-secondary" href="/energi/laster/pdf{% if request.url.query %}?{{ request.url.query }}{% endif %}">Last ned PDF</a>
+        </div>
 
         <section class="summary-grid">
             <article class="metric-card">
