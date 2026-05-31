@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1019")
+APP_BUILD = os.getenv("APP_BUILD", "1020")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1020",
+        "date": "31.05.2026",
+        "title": "Rikere mobilapp",
+        "changes": [
+            "Utvider online-dashboardet med åpningstid, strøm akkurat nå og forbruk hittil i dag.",
+            "Legger inn sammenligning mot i går for soling og parkering, samt siste registrerte soling og parkering.",
+            "Legger inn kompakte uke- og månedstall for soling og parkering i den offentlige mobilvisningen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1019",

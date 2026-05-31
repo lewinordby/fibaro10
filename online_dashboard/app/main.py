@@ -72,6 +72,23 @@ def fmt_temp(value: Any) -> str:
         return "-"
 
 
+def fmt_watt(value: Any) -> str:
+    try:
+        watts = float(value or 0)
+    except (TypeError, ValueError):
+        return "0 W"
+    if abs(watts) >= 1000:
+        return f"{watts / 1000:.1f} kW".replace(".", ",")
+    return f"{watts:.0f} W".replace(".", ",")
+
+
+def fmt_kwh(value: Any) -> str:
+    try:
+        return f"{float(value or 0):.1f} kWh".replace(".", ",")
+    except (TypeError, ValueError):
+        return "0,0 kWh"
+
+
 def fmt_time(value: Any) -> str:
     if not isinstance(value, datetime):
         return "-"
@@ -312,6 +329,31 @@ def wants_html(request: Request) -> bool:
     return "text/html" in accept or "*/*" in accept
 
 
+def compare_text(current: Any, previous: Any, noun: str = "") -> str:
+    try:
+        current_i = int(current or 0)
+        previous_i = int(previous or 0)
+    except (TypeError, ValueError):
+        return "I går -"
+    diff = current_i - previous_i
+    if diff == 0:
+        return f"Lik som i går ({fmt_int(previous_i)}{noun})"
+    sign = "+" if diff > 0 else "-"
+    return f"{sign}{fmt_int(abs(diff))}{noun} mot i går ({fmt_int(previous_i)})"
+
+
+def operating_window(now: datetime) -> dict[str, Any]:
+    open_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=7)
+    close_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=23)
+    if now < open_at:
+        return {"label": "Stengt", "detail": "Åpner 07:00", "progress": 0}
+    if now >= close_at:
+        return {"label": "Stengt", "detail": "Stengte 23:00", "progress": 100}
+    total_seconds = (close_at - open_at).total_seconds()
+    progress = int(((now - open_at).total_seconds() / total_seconds) * 100)
+    return {"label": "Åpent", "detail": "Stenger 23:00", "progress": max(0, min(100, progress))}
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
@@ -339,8 +381,15 @@ async def one_mapping(query: str, params: Optional[dict[str, Any]] = None) -> di
 
 
 async def dashboard_data() -> dict[str, Any]:
-    today = local_now().date()
+    now = local_now()
+    today = now.date()
+    yesterday = today - timedelta(days=1)
+    week_start = today - timedelta(days=today.weekday())
+    month_start = today.replace(day=1)
     start, end = day_bounds(today)
+    yesterday_start, yesterday_end = day_bounds(yesterday)
+    week_start_dt = datetime.combine(week_start, datetime.min.time())
+    month_start_dt = datetime.combine(month_start, datetime.min.time())
 
     soling = await one_mapping(
         """
@@ -350,6 +399,46 @@ async def dashboard_data() -> dict[str, Any]:
                max(imported_at) as updated_at
         from sun2_tanning_sessions
         where stat_date = :today
+        """,
+        {"today": today},
+    )
+    soling_yesterday = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(duration_minutes), 0) as minutes,
+               coalesce(sum(paid_amount_kr), 0) as amount
+        from sun2_tanning_sessions
+        where stat_date = :day
+        """,
+        {"day": yesterday},
+    )
+    soling_week = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(duration_minutes), 0) as minutes,
+               coalesce(sum(paid_amount_kr), 0) as amount
+        from sun2_tanning_sessions
+        where stat_date >= :start and stat_date <= :today
+        """,
+        {"start": week_start, "today": today},
+    )
+    soling_month = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(duration_minutes), 0) as minutes,
+               coalesce(sum(paid_amount_kr), 0) as amount
+        from sun2_tanning_sessions
+        where stat_date >= :start and stat_date <= :today
+        """,
+        {"start": month_start, "today": today},
+    )
+    latest_soling = await one_mapping(
+        """
+        select started_at, room
+        from sun2_tanning_sessions
+        where stat_date = :today
+        order by started_at desc
+        limit 1
         """,
         {"today": today},
     )
@@ -388,6 +477,43 @@ async def dashboard_data() -> dict[str, Any]:
         """,
         {"start": start, "end": end},
     )
+    parking_yesterday = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(fee_inc_vat), 0) as amount
+        from parkering
+        where start_time >= :start and start_time < :end
+        """,
+        {"start": yesterday_start, "end": yesterday_end},
+    )
+    parking_week = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(fee_inc_vat), 0) as amount
+        from parkering
+        where start_time >= :start and start_time < :end
+        """,
+        {"start": week_start_dt, "end": end},
+    )
+    parking_month = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(fee_inc_vat), 0) as amount
+        from parkering
+        where start_time >= :start and start_time < :end
+        """,
+        {"start": month_start_dt, "end": end},
+    )
+    latest_parking = await one_mapping(
+        """
+        select start_time, car_license_number
+        from parkering
+        where start_time >= :start and start_time < :end
+        order by start_time desc
+        limit 1
+        """,
+        {"start": start, "end": end},
+    )
     lights = await one_mapping(
         """
         select timestamp, bucket_start, lux,
@@ -408,6 +534,23 @@ async def dashboard_data() -> dict[str, Any]:
         limit 1
         """
     )
+    energy_now = await one_mapping(
+        """
+        select bucket_start, timestamp, inntak_w, belysning_w, varmepumper_w, differanse_beregnet_w
+        from energy_fibaro_samples
+        order by bucket_start desc
+        limit 1
+        """
+    )
+    energy_today = await one_mapping(
+        """
+        select coalesce(sum(inntak_delta_kwh), 0) as kwh,
+               count(*) as samples
+        from energy_fibaro_samples
+        where bucket_start >= :start and bucket_start < :end
+        """,
+        {"start": start, "end": end},
+    )
 
     inside_values = [vent.get("temp_1etg"), vent.get("temp_2etg"), vent.get("temp_vip")]
     inside_values = [float(value) for value in inside_values if value is not None]
@@ -420,13 +563,24 @@ async def dashboard_data() -> dict[str, Any]:
         outside = vent.get("temp_yr")
 
     return {
-        "now": local_now(),
+        "now": now,
+        "open_state": operating_window(now),
         "soling": soling,
+        "soling_yesterday": soling_yesterday,
+        "soling_week": soling_week,
+        "soling_month": soling_month,
+        "latest_soling": latest_soling,
         "session_import": session_import,
         "parking_import": parking_import,
         "parking": parking,
+        "parking_yesterday": parking_yesterday,
+        "parking_week": parking_week,
+        "parking_month": parking_month,
+        "latest_parking": latest_parking,
         "lights": lights,
         "vent": vent,
+        "energy_now": energy_now,
+        "energy_today": energy_today,
         "inside_avg": inside_avg,
         "outside": outside,
         "innluft": vent.get("temp_luftinntak") if vent.get("temp_luftinntak") is not None else vent.get("temp_passiv"),
@@ -497,18 +651,50 @@ async def dashboard(request: Request):
     data = await dashboard_data()
     user = escape(request.state.access_key["name"])
     soling_hours = float(data["soling"].get("minutes") or 0) / 60
+    week_soling_hours = float(data["soling_week"].get("minutes") or 0) / 60
+    latest_soling_room = escape(str(data["latest_soling"].get("room") or "").strip())
+    latest_soling = "Siste soling -"
+    if data["latest_soling"].get("started_at"):
+        room_suffix = f" · {latest_soling_room}" if latest_soling_room else ""
+        latest_soling = f"Siste {fmt_time(data['latest_soling'].get('started_at'))}{room_suffix}"
+    latest_parking_plate = escape(str(data["latest_parking"].get("car_license_number") or "").strip())
+    latest_parking = "Siste parkering -"
+    if data["latest_parking"].get("start_time"):
+        plate_suffix = f" · {latest_parking_plate}" if latest_parking_plate else ""
+        latest_parking = f"Siste {fmt_time(data['latest_parking'].get('start_time'))}{plate_suffix}"
     html = DASHBOARD_HTML
     replacements = {
         "{{ user }}": user,
         "{{ now }}": data["now"].strftime("%d.%m.%Y %H:%M"),
+        "{{ open_label }}": data["open_state"]["label"],
+        "{{ open_detail }}": data["open_state"]["detail"],
+        "{{ open_progress }}": str(data["open_state"]["progress"]),
         "{{ soling_count }}": fmt_int(data["soling"].get("count")),
         "{{ soling_amount }}": fmt_money(data["soling"].get("amount")),
         "{{ soling_minutes }}": f"{soling_hours:.1f} t".replace(".", ","),
+        "{{ soling_compare }}": compare_text(data["soling"].get("count"), data["soling_yesterday"].get("count"), " stk"),
+        "{{ soling_week_count }}": fmt_int(data["soling_week"].get("count")),
+        "{{ soling_week_amount }}": fmt_money(data["soling_week"].get("amount")),
+        "{{ soling_week_minutes }}": f"{week_soling_hours:.1f} t".replace(".", ","),
+        "{{ soling_month_count }}": fmt_int(data["soling_month"].get("count")),
+        "{{ soling_month_amount }}": fmt_money(data["soling_month"].get("amount")),
+        "{{ latest_soling }}": latest_soling,
         "{{ soling_time }}": fmt_time(data["session_import"].get("updated_at")) if data["session_import"].get("updated_at") else fmt_time(data["soling"].get("updated_at")),
         "{{ parking_count }}": fmt_int(data["parking"].get("count")),
         "{{ parking_amount }}": fmt_money(data["parking"].get("amount")),
         "{{ parking_active }}": fmt_int(data["parking"].get("active_count")),
+        "{{ parking_compare }}": compare_text(data["parking"].get("count"), data["parking_yesterday"].get("count"), " stk"),
+        "{{ parking_week_count }}": fmt_int(data["parking_week"].get("count")),
+        "{{ parking_week_amount }}": fmt_money(data["parking_week"].get("amount")),
+        "{{ parking_month_count }}": fmt_int(data["parking_month"].get("count")),
+        "{{ parking_month_amount }}": fmt_money(data["parking_month"].get("amount")),
+        "{{ latest_parking }}": latest_parking,
         "{{ parking_time }}": fmt_time(data["parking_import"].get("updated_at")) if data["parking_import"].get("updated_at") else fmt_time(data["parking"].get("updated_at")),
+        "{{ energy_watt }}": fmt_watt(data["energy_now"].get("inntak_w")),
+        "{{ energy_kwh }}": fmt_kwh(data["energy_today"].get("kwh")),
+        "{{ energy_samples }}": fmt_int(data["energy_today"].get("samples")),
+        "{{ energy_diff }}": fmt_watt(data["energy_now"].get("differanse_beregnet_w")),
+        "{{ energy_time }}": fmt_time(data["energy_now"].get("bucket_start") or data["energy_now"].get("timestamp")),
         "{{ inside_avg }}": fmt_temp(data["inside_avg"]),
         "{{ outside }}": fmt_temp(data["outside"]),
         "{{ loft }}": fmt_temp(data["vent"].get("temp_loft")),
@@ -592,19 +778,45 @@ DASHBOARD_HTML = """<!doctype html>
     <form method="post" action="/logg-ut"><button type="submit">Logg ut</button></form>
   </header>
   <main class="dashboard">
+    <section class="pulse-grid">
+      <article class="pulse-card accent-open">
+        <span>Åpningstid</span>
+        <strong>{{ open_label }}</strong>
+        <small>{{ open_detail }}</small>
+        <div class="progress"><i style="width: {{ open_progress }}%"></i></div>
+      </article>
+      <article class="pulse-card accent-energy">
+        <span>Strøm nå</span>
+        <strong>{{ energy_watt }}</strong>
+        <small>{{ energy_kwh }} i dag · {{ energy_samples }} målinger</small>
+        <small class="updated-line">Diff {{ energy_diff }} · {{ energy_time }}</small>
+      </article>
+    </section>
+
     <section class="metric-grid">
       <article class="metric-card accent-sun">
         <span>Solinger i dag</span>
         <strong>{{ soling_count }}</strong>
         <small>{{ soling_amount }} · {{ soling_minutes }}</small>
+        <small class="compare-line">{{ soling_compare }}</small>
+        <small>{{ latest_soling }}</small>
         <small class="updated-line">Oppdatert {{ soling_time }}</small>
       </article>
       <article class="metric-card accent-parking">
         <span>Parkering i dag</span>
         <strong>{{ parking_count }}</strong>
         <small>{{ parking_amount }} · {{ parking_active }} aktive</small>
+        <small class="compare-line">{{ parking_compare }}</small>
+        <small>{{ latest_parking }}</small>
         <small class="updated-line">Oppdatert {{ parking_time }}</small>
       </article>
+    </section>
+
+    <section class="insight-grid">
+      <article><span>Sol uke</span><strong>{{ soling_week_count }}</strong><small>{{ soling_week_amount }} · {{ soling_week_minutes }}</small></article>
+      <article><span>Park uke</span><strong>{{ parking_week_count }}</strong><small>{{ parking_week_amount }}</small></article>
+      <article><span>Sol mnd</span><strong>{{ soling_month_count }}</strong><small>{{ soling_month_amount }}</small></article>
+      <article><span>Park mnd</span><strong>{{ parking_month_count }}</strong><small>{{ parking_month_amount }}</small></article>
     </section>
 
     <section class="temperature-card">

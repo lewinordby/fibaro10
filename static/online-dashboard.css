@@ -70,14 +70,16 @@ h1 { font-size: clamp(2rem, 10vw, 3.4rem); line-height: .95; letter-spacing: -.0
 h2 { font-size: 1.05rem; }
 .hero p:last-child, .lead, small, .card-time { color: var(--muted); }
 
-.metric-grid, .state-grid {
+.metric-grid, .state-grid, .pulse-grid, .insight-grid {
     display: grid;
     gap: .85rem;
 }
 .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
 .state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+.pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-bottom: .65rem; }
+.insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; margin-top: .65rem; }
 
-.metric-card, .temperature-card, .section-block {
+.metric-card, .temperature-card, .section-block, .pulse-card, .insight-grid article {
     position: relative;
     overflow: hidden;
     background: rgba(255,255,255,.94);
@@ -87,11 +89,38 @@ h2 { font-size: 1.05rem; }
 }
 
 .metric-card {
-    min-height: 6.05rem;
+    min-height: 8rem;
     padding: .8rem;
     border-left: .26rem solid var(--gold);
 }
-.metric-card span, .temperature-main span {
+.pulse-card, .insight-grid article {
+    padding: .72rem .78rem;
+    border-left: .24rem solid var(--green);
+}
+.pulse-card strong, .insight-grid strong {
+    display: block;
+    margin-top: .18rem;
+    font-size: 1.45rem;
+    line-height: 1;
+    letter-spacing: -.04em;
+}
+.pulse-card small, .insight-grid small { display: block; margin-top: .25rem; color: var(--muted); font-size: .72rem; line-height: 1.2; }
+.accent-energy { border-left-color: var(--navy); }
+.accent-open { border-left-color: var(--green); }
+.progress {
+    height: .35rem;
+    margin-top: .55rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e8eef5;
+}
+.progress i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--green), var(--gold));
+}
+.metric-card span, .temperature-main span, .pulse-card span, .insight-grid span {
     display: block;
     color: var(--muted);
     text-transform: uppercase;
@@ -106,11 +135,12 @@ h2 { font-size: 1.05rem; }
     letter-spacing: -.04em;
 }
 .metric-card small { display: block; margin-top: .32rem; font-size: .75rem; line-height: 1.2; }
-.metric-card .updated-line {
+.metric-card .updated-line, .pulse-card .updated-line {
     margin-top: .45rem;
     font-size: .68rem;
     font-weight: 800;
 }
+.compare-line { color: var(--navy); font-weight: 900; }
 .accent-parking { border-left-color: var(--parking); }
 
 .temperature-card {
