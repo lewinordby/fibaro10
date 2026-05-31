@@ -1,9 +1,17 @@
 __pycache__/
 *.py[cod]
 .env
+.env.*
 roborock_output/
 outputs/
 roborock_logger/.env
 roborock_logger/data/
+easypark_downloader/.env
+easypark_downloader/.env.*
+easypark_downloader/data/
+easypark_downloader/artifacts/
+easypark_downloader/downloads/
 sun2_session_scraper/.env
 sun2_session_scraper/data/
+sun2_backfill_downloader/backfill_raw/
+sun2_backfill_downloader/backfill_errors/
