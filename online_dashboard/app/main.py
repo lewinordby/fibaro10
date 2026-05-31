@@ -1,8 +1,12 @@
 from datetime import date, datetime, timedelta
 import hashlib
 from html import escape
+import asyncio
+import json
 import os
 from typing import Any, Optional
+from urllib.parse import urlencode
+import urllib.request
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
@@ -22,6 +26,7 @@ PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
 PUBLIC_PREFIXES = ("/static/",)
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
 ONLINE_ACCESS_LOG_COOLDOWN_SECONDS = max(0, int(os.getenv("ONLINE_ACCESS_LOG_COOLDOWN_SECONDS", "0")))
+EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://192.168.20.218:8109").rstrip("/")
 
 app = FastAPI(title="Lilletorget online", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -354,6 +359,27 @@ def operating_window(now: datetime) -> dict[str, Any]:
     return {"label": "Åpent", "detail": "Stenger 23:00", "progress": max(0, min(100, progress))}
 
 
+def can_manage(access_key: dict[str, Any]) -> bool:
+    role = "master" if access_key.get("is_master") else (access_key.get("role") or "viewer").strip().lower()
+    return role in {"master", "settings"}
+
+
+def easypark_period() -> tuple[date, date]:
+    today = local_now().date()
+    return today - timedelta(days=1), today
+
+
+def easypark_downloader_request(path: str, params: dict[str, Any]) -> dict[str, Any]:
+    query = urlencode({key: value for key, value in params.items() if value is not None})
+    url = f"{EASYPARK_DOWNLOADER_URL}{path}"
+    if query:
+        url = f"{url}?{query}"
+    request = urllib.request.Request(url, method="POST")
+    with urllib.request.urlopen(request, timeout=180) as response:
+        payload = response.read().decode("utf-8", errors="replace")
+    return json.loads(payload)
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
@@ -378,6 +404,12 @@ async def one_mapping(query: str, params: Optional[dict[str, Any]] = None) -> di
     async with async_session() as session:
         row = (await session.execute(text(query), params or {})).mappings().first()
     return dict(row) if row else {}
+
+
+async def many_mappings(query: str, params: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
+    async with async_session() as session:
+        rows = (await session.execute(text(query), params or {})).mappings().all()
+    return [dict(row) for row in rows]
 
 
 async def dashboard_data() -> dict[str, Any]:
@@ -713,6 +745,210 @@ async def dashboard(request: Request):
     return HTMLResponse(html)
 
 
+@app.get("/soling", response_class=HTMLResponse)
+async def soling_detail(request: Request):
+    data = await dashboard_data()
+    rows = await many_mappings(
+        """
+        select started_at, room, duration_minutes, paid_amount_kr
+        from sun2_tanning_sessions
+        where stat_date = :today
+        order by started_at desc
+        limit 12
+        """,
+        {"today": data["now"].date()},
+    )
+    body = detail_stats(
+        [
+            ("I dag", fmt_int(data["soling"].get("count")), fmt_money(data["soling"].get("amount"))),
+            ("Denne uken", fmt_int(data["soling_week"].get("count")), fmt_money(data["soling_week"].get("amount"))),
+            ("Denne måneden", fmt_int(data["soling_month"].get("count")), fmt_money(data["soling_month"].get("amount"))),
+        ]
+    )
+    body += render_list(
+        "Siste solinger",
+        [
+            (
+                fmt_time(row.get("started_at")),
+                escape(str(row.get("room") or "Ukjent rom")),
+                f"{float(row.get('duration_minutes') or 0):.0f} min · {fmt_money(row.get('paid_amount_kr'))}",
+            )
+            for row in rows
+        ],
+    )
+    return render_detail_page("Soling", "Dagens solinger og utvikling hittil.", body)
+
+
+@app.get("/parkering", response_class=HTMLResponse)
+async def parking_detail(request: Request, refresh: Optional[str] = None):
+    data = await dashboard_data()
+    start, end = day_bounds(data["now"].date())
+    rows = await many_mappings(
+        """
+        select start_time, end_time, car_license_number, fee_inc_vat, parking_time_min, status
+        from parkering
+        where start_time >= :start and start_time < :end
+        order by start_time desc
+        limit 14
+        """,
+        {"start": start, "end": end},
+    )
+    can_refresh = can_manage(request.state.access_key)
+    from_day, to_day = easypark_period()
+    refresh_label = {
+        "ok": "Oppdatering startet/ferdig.",
+        "busy": "EasyPark jobber allerede.",
+        "denied": "Brukeren mangler driftstilgang.",
+        "error": "Oppdatering feilet.",
+    }.get(refresh or "", "")
+    button = (
+        f"""
+        <form method="post" action="/parkering/oppdater" class="detail-action">
+          <button type="submit">Oppdater dagens tall</button>
+          <small>Henter EasyPark for {from_day.strftime('%d.%m')}-{to_day.strftime('%d.%m')}.</small>
+        </form>
+        """
+        if can_refresh
+        else '<p class="notice">Oppdatering krever master eller innstillingsbruker.</p>'
+    )
+    if refresh_label:
+        button += f'<p class="notice">{escape(refresh_label)}</p>'
+    body = detail_stats(
+        [
+            ("I dag", fmt_int(data["parking"].get("count")), fmt_money(data["parking"].get("amount"))),
+            ("Aktive", fmt_int(data["parking"].get("active_count")), "nå"),
+            ("Denne uken", fmt_int(data["parking_week"].get("count")), fmt_money(data["parking_week"].get("amount"))),
+            ("Denne måneden", fmt_int(data["parking_month"].get("count")), fmt_money(data["parking_month"].get("amount"))),
+        ]
+    )
+    body += button
+    body += render_list(
+        "Siste parkeringer",
+        [
+            (
+                fmt_time(row.get("start_time")),
+                escape(str(row.get("car_license_number") or "Uten regnr")),
+                f"{fmt_money(row.get('fee_inc_vat'))} · {float(row.get('parking_time_min') or 0):.0f} min",
+            )
+            for row in rows
+        ],
+    )
+    return render_detail_page("Parkering", "Dagens parkeringer med trygg manuell oppdatering.", body)
+
+
+@app.post("/parkering/oppdater")
+async def parking_refresh(request: Request):
+    if not can_manage(request.state.access_key):
+        return RedirectResponse("/parkering?refresh=denied", status_code=303)
+    from_day, to_day = easypark_period()
+    try:
+        result = await asyncio.to_thread(
+            easypark_downloader_request,
+            "/sync-period",
+            {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
+        )
+        status = result.get("status")
+        outcome = "busy" if status == "busy" else "ok"
+        if status == "error":
+            outcome = "error"
+    except Exception:
+        outcome = "error"
+    return RedirectResponse(f"/parkering?refresh={outcome}", status_code=303)
+
+
+@app.get("/energi", response_class=HTMLResponse)
+async def energy_detail(request: Request):
+    data = await dashboard_data()
+    now = data["energy_now"]
+    body = detail_stats(
+        [
+            ("Inntak nå", fmt_watt(now.get("inntak_w")), fmt_time(now.get("bucket_start") or now.get("timestamp"))),
+            ("I dag", fmt_kwh(data["energy_today"].get("kwh")), f"{fmt_int(data['energy_today'].get('samples'))} målinger"),
+            ("Belysning", fmt_watt(now.get("belysning_w")), "nå"),
+            ("Varmepumper", fmt_watt(now.get("varmepumper_w")), "nå"),
+        ]
+    )
+    body += f'<p class="notice">Beregnet differanse akkurat nå: <strong>{fmt_watt(now.get("differanse_beregnet_w"))}</strong>.</p>'
+    return render_detail_page("Energi", "Strømstatus fra siste HC3-avlesning.", body)
+
+
+@app.get("/temperatur", response_class=HTMLResponse)
+async def temperature_detail(request: Request):
+    data = await dashboard_data()
+    start, end = day_bounds(data["now"].date())
+    ranges = await one_mapping(
+        """
+        select min(temp_avg_inne) as min_inne, max(temp_avg_inne) as max_inne,
+               min(temp_ute) as min_ute, max(temp_ute) as max_ute,
+               min(temp_loft) as min_loft, max(temp_loft) as max_loft
+        from ventilasjon_samples
+        where bucket_start >= :start and bucket_start < :end
+        """,
+        {"start": start, "end": end},
+    )
+    body = detail_stats(
+        [
+            ("Inne nå", fmt_temp(data["inside_avg"]), f"{fmt_temp(ranges.get('min_inne'))} - {fmt_temp(ranges.get('max_inne'))}"),
+            ("Ute nå", fmt_temp(data["outside"]), f"{fmt_temp(ranges.get('min_ute'))} - {fmt_temp(ranges.get('max_ute'))}"),
+            ("Loft nå", fmt_temp(data["vent"].get("temp_loft")), f"{fmt_temp(ranges.get('min_loft'))} - {fmt_temp(ranges.get('max_loft'))}"),
+            ("Innluft", fmt_temp(data["innluft"]), f"Oppdatert {fmt_time(data['vent'].get('bucket_start') or data['vent'].get('timestamp'))}"),
+        ]
+    )
+    return render_detail_page("Temperatur", "Nåverdier og spenn hittil i dag.", body)
+
+
+@app.get("/lys", response_class=HTMLResponse)
+async def light_detail(request: Request):
+    data = await dashboard_data()
+    events = await many_mappings(
+        """
+        select timestamp, device_name, action, lux, reason
+        from utelys_events
+        order by timestamp desc
+        limit 10
+        """
+    )
+    body = f'<section class="section-block"><div class="section-title-row"><h2>LYS</h2><div class="lux-pill"><span>Lux</span><strong>{fmt_int(data["lights"].get("lux"))}</strong></div></div><div class="state-grid">{render_state_cards(data["light_items"], "light")}</div><small class="card-time">Oppdatert {fmt_time(data["lights"].get("bucket_start") or data["lights"].get("timestamp"))}</small></section>'
+    body += render_list(
+        "Siste lysendringer",
+        [
+            (
+                fmt_time(row.get("timestamp")),
+                escape(str(row.get("device_name") or "Lys")),
+                escape(f"{row.get('action') or ''} · lux {fmt_int(row.get('lux'))} · {row.get('reason') or ''}"),
+            )
+            for row in events
+        ],
+    )
+    return render_detail_page("Lys", "Status og siste hendelser.", body)
+
+
+@app.get("/ventilasjon", response_class=HTMLResponse)
+async def ventilation_detail(request: Request):
+    data = await dashboard_data()
+    events = await many_mappings(
+        """
+        select timestamp, device_name, action, mode, reason
+        from ventilasjon_events
+        order by timestamp desc
+        limit 10
+        """
+    )
+    body = f'<section class="section-block"><div class="section-title-row"><h2>VENTILASJON</h2></div><div class="state-grid">{render_state_cards(data["fan_items"], "fan")}</div><small class="card-time">Oppdatert {fmt_time(data["vent"].get("bucket_start") or data["vent"].get("timestamp"))}</small></section>'
+    body += render_list(
+        "Siste viftehendelser",
+        [
+            (
+                fmt_time(row.get("timestamp")),
+                escape(str(row.get("device_name") or "Vifte")),
+                escape(f"{row.get('action') or ''} · {row.get('mode') or ''} · {row.get('reason') or ''}"),
+            )
+            for row in events
+        ],
+    )
+    return render_detail_page("Ventilasjon", "Status og siste hendelser.", body)
+
+
 def render_state_cards(items: list[tuple[str, Any]], icon_class: str) -> str:
     cards = []
     for label, value in items:
@@ -728,6 +964,50 @@ def render_state_cards(items: list[tuple[str, Any]], icon_class: str) -> str:
             """
         )
     return "\n".join(cards)
+
+
+def detail_stats(items: list[tuple[str, str, str]]) -> str:
+    cards = []
+    for label, value, subtext in items:
+        cards.append(
+            f"""
+            <article>
+                <span>{escape(label)}</span>
+                <strong>{escape(value)}</strong>
+                <small>{escape(subtext)}</small>
+            </article>
+            """
+        )
+    return f'<section class="insight-grid detail-stats">{"".join(cards)}</section>'
+
+
+def render_list(title: str, rows: list[tuple[str, str, str]]) -> str:
+    if not rows:
+        content = '<p class="empty-list">Ingen registreringer akkurat nå.</p>'
+    else:
+        content = "".join(
+            f"""
+            <li>
+                <time>{escape(time_text)}</time>
+                <strong>{main}</strong>
+                <small>{detail}</small>
+            </li>
+            """
+            for time_text, main, detail in rows
+        )
+    return f'<section class="section-block detail-list"><h2>{escape(title)}</h2><ul>{content}</ul></section>'
+
+
+def render_detail_page(title: str, subtitle: str, body: str) -> HTMLResponse:
+    html = DETAIL_HTML
+    replacements = {
+        "{{ title }}": escape(title),
+        "{{ subtitle }}": escape(subtitle),
+        "{{ body }}": body,
+    }
+    for key, value in replacements.items():
+        html = html.replace(key, value)
+    return HTMLResponse(html)
 
 
 LOGIN_HTML = """<!doctype html>
@@ -774,7 +1054,9 @@ DASHBOARD_HTML = """<!doctype html>
 </head>
 <body>
   <header class="topbar">
-    <img src="/static/lilletorget-text.png" alt="Lilletorget">
+    <a class="logo-link" href="/" aria-label="Til forsiden">
+      <img src="/static/lilletorget-text.png" alt="Lilletorget">
+    </a>
     <form method="post" action="/logg-ut"><button type="submit">Logg ut</button></form>
   </header>
   <main class="dashboard">
@@ -785,31 +1067,31 @@ DASHBOARD_HTML = """<!doctype html>
         <small>{{ open_detail }}</small>
         <div class="progress"><i style="width: {{ open_progress }}%"></i></div>
       </article>
-      <article class="pulse-card accent-energy">
+      <a class="pulse-card accent-energy card-link" href="/energi">
         <span>Strøm nå</span>
         <strong>{{ energy_watt }}</strong>
         <small>{{ energy_kwh }} i dag · {{ energy_samples }} målinger</small>
         <small class="updated-line">Diff {{ energy_diff }} · {{ energy_time }}</small>
-      </article>
+      </a>
     </section>
 
     <section class="metric-grid">
-      <article class="metric-card accent-sun">
+      <a class="metric-card accent-sun card-link" href="/soling">
         <span>Solinger i dag</span>
         <strong>{{ soling_count }}</strong>
         <small>{{ soling_amount }} · {{ soling_minutes }}</small>
         <small class="compare-line">{{ soling_compare }}</small>
         <small>{{ latest_soling }}</small>
         <small class="updated-line">Oppdatert {{ soling_time }}</small>
-      </article>
-      <article class="metric-card accent-parking">
+      </a>
+      <a class="metric-card accent-parking card-link" href="/parkering">
         <span>Parkering i dag</span>
         <strong>{{ parking_count }}</strong>
         <small>{{ parking_amount }} · {{ parking_active }} aktive</small>
         <small class="compare-line">{{ parking_compare }}</small>
         <small>{{ latest_parking }}</small>
         <small class="updated-line">Oppdatert {{ parking_time }}</small>
-      </article>
+      </a>
     </section>
 
     <section class="insight-grid">
@@ -819,7 +1101,7 @@ DASHBOARD_HTML = """<!doctype html>
       <article><span>Park mnd</span><strong>{{ parking_month_count }}</strong><small>{{ parking_month_amount }}</small></article>
     </section>
 
-    <section class="temperature-card">
+    <a class="temperature-card card-link" href="/temperatur">
       <div class="temperature-main">
         <span>Inne</span>
         <strong>{{ inside_avg }}</strong>
@@ -835,24 +1117,52 @@ DASHBOARD_HTML = """<!doctype html>
         <p><span>Innluft</span><strong>{{ innluft }}</strong></p>
       </div>
       <small class="card-time">Oppdatert {{ temp_time }}</small>
-    </section>
+    </a>
 
-    <section class="section-block">
+    <a class="section-block card-link" href="/lys">
       <div class="section-title-row">
         <h2>LYS</h2>
         <div class="lux-pill"><span>Lux</span><strong>{{ lux }}</strong></div>
       </div>
       <div class="state-grid">{{ light_cards }}</div>
       <small class="card-time">Oppdatert {{ light_time }}</small>
-    </section>
+    </a>
 
-    <section class="section-block">
+    <a class="section-block card-link" href="/ventilasjon">
       <div class="section-title-row">
         <h2>VENTILASJON</h2>
       </div>
       <div class="state-grid">{{ fan_cards }}</div>
       <small class="card-time">Oppdatert {{ temp_time }}</small>
+    </a>
+  </main>
+</body>
+</html>"""
+
+
+DETAIL_HTML = """<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · Lilletorget</title>
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="stylesheet" href="/static/online-dashboard.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo-link" href="/" aria-label="Til forsiden">
+      <img src="/static/lilletorget-text.png" alt="Lilletorget">
+    </a>
+    <form method="post" action="/logg-ut"><button type="submit">Logg ut</button></form>
+  </header>
+  <main class="dashboard detail-page">
+    <section class="detail-hero">
+      <a href="/" class="back-link">← Forside</a>
+      <h1>{{ title }}</h1>
+      <p>{{ subtitle }}</p>
     </section>
+    {{ body }}
   </main>
 </body>
 </html>"""

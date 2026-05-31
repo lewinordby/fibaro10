@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1020")
+APP_BUILD = os.getenv("APP_BUILD", "1021")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1021",
+        "date": "31.05.2026",
+        "title": "Mobilapp med detaljsider",
+        "changes": [
+            "Gjør logoen i online-dashboardet til fast vei tilbake til forsiden.",
+            "Legger inn ett-nivå detaljsider for soling, parkering, energi, temperatur, lys og ventilasjon.",
+            "Gjør aktuelle kort klikkbare og legger en tilgangsstyrt EasyPark-oppdatering på parkeringsdetaljen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1020",
