@@ -52,7 +52,14 @@ done
 [ -d easypark_downloader/data ] && mkdir -p "`$backup_dir/easypark_downloader" && cp -a easypark_downloader/data "`$backup_dir/easypark_downloader/data"
 git fetch origin main
 git reset --hard origin/main
-git clean -fd -e .env -e ".env.*" -e easypark_downloader/.env -e "easypark_downloader/.env.*" -e easypark_downloader/data
+git clean -fdx
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.*; do
+    source="`$backup_dir/`$file"
+    [ -f "`$source" ] || continue
+    mkdir -p "`$(dirname "`$file")"
+    cp -p "`$source" "`$file"
+done
+[ -d "`$backup_dir/easypark_downloader/data" ] && mkdir -p easypark_downloader && cp -a "`$backup_dir/easypark_downloader/data" easypark_downloader/data
 "$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 online_dashboard
 "$Docker" compose -f docker-compose.qnap.yml ps
 echo "Backup: `$backup_dir"
