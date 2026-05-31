@@ -6,42 +6,67 @@
     <title>Energi kurser</title>
     {% include "_styles.html" %}
     <style>
-        .page-title { margin:0 0 0.32rem; font-size:1.32rem; font-weight:820; color:var(--brand-dark); }
-        .page-subtitle { margin:0 0 1rem; color:var(--muted); font-size:0.9rem; line-height:1.45; }
-        .summary-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0.75rem; margin-bottom:1rem; }
-        .metric-card, .panel-card, .table-wrap { background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-1); }
-        .metric-card { padding:0.86rem 0.95rem; border-top:4px solid var(--energy-color); min-height:5.2rem; }
-        .metric-card span { display:block; color:var(--muted); font-size:0.72rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
-        .metric-card strong { display:block; margin-top:0.24rem; color:var(--brand-dark); font-size:1.34rem; line-height:1; }
-        .metric-card small { display:block; margin-top:0.28rem; color:var(--muted); font-size:0.74rem; }
-        .panel-card { padding:0.92rem 1rem; margin-bottom:1rem; border-left:4px solid var(--energy-color); }
-        .panel-card h2 { margin:0 0 0.35rem; font-size:1rem; color:var(--brand-dark); }
-        .panel-card p { margin:0; color:var(--muted); line-height:1.45; font-size:0.88rem; }
-        .toolbar { display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin:0 0 0.85rem; }
+        .energy-page { display:grid; gap:1rem; }
+        .page-title { margin:0; font-size:1.28rem; font-weight:820; color:var(--brand-dark); }
+        .page-subtitle { margin:0.25rem 0 0; color:var(--muted); font-size:0.88rem; line-height:1.45; max-width:62rem; }
+        .command-card, .metric-card, .table-wrap {
+            background:var(--panel);
+            border:1px solid var(--line);
+            border-radius:12px;
+            box-shadow:var(--shadow-1);
+        }
+        .command-card {
+            display:grid;
+            grid-template-columns:minmax(0,1fr) auto;
+            gap:1rem;
+            align-items:center;
+            padding:1rem 1.05rem;
+            border-left:4px solid var(--energy-color);
+        }
+        .command-title { margin:0; color:var(--brand-dark); font-size:1rem; font-weight:830; }
+        .command-text { margin:0.22rem 0 0; color:var(--muted); font-size:0.84rem; line-height:1.42; }
+        .action-row { display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:flex-end; align-items:center; }
         .button-primary, .button-secondary {
-            min-height:2.2rem;
+            min-height:2.14rem;
             border-radius:9px;
-            padding:0.46rem 0.78rem;
+            padding:0.43rem 0.72rem;
             display:inline-flex;
             align-items:center;
             justify-content:center;
+            font-size:0.82rem;
             font-weight:850;
             text-decoration:none;
             white-space:nowrap;
         }
         .button-primary { background:var(--energy-color); border:1px solid var(--energy-color); color:#fff; }
         .button-secondary { background:var(--panel); border:1px solid var(--line); color:var(--brand-dark); }
+        .summary-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0.72rem; }
+        .metric-card { padding:0.78rem 0.88rem; border-top:3px solid var(--energy-color); min-height:4.75rem; }
+        .metric-card span { display:block; color:var(--muted); font-size:0.68rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
+        .metric-card strong { display:block; margin-top:0.22rem; color:var(--brand-dark); font-size:1.2rem; line-height:1; }
+        .metric-card small { display:block; margin-top:0.25rem; color:var(--muted); font-size:0.7rem; }
+        .table-card-title {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:1rem;
+            padding:0.82rem 0.95rem;
+            border-bottom:1px solid var(--line-soft);
+        }
+        .table-card-title h2 { margin:0; color:var(--brand-dark); font-size:1rem; }
+        .table-card-title span { color:var(--muted); font-size:0.76rem; }
         .table-wrap { overflow:auto; }
-        table { width:100%; border-collapse:collapse; min-width:1280px; }
-        th, td { padding:0.58rem 0.7rem; border-bottom:1px solid var(--line-soft); vertical-align:top; }
-        th { color:var(--muted); background:var(--panel-soft); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.02em; font-weight:820; text-align:left; white-space:nowrap; }
-        td { color:var(--brand-dark); font-size:0.86rem; line-height:1.35; }
+        table { width:100%; border-collapse:collapse; min-width:1260px; }
+        th, td { padding:0.54rem 0.62rem; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+        th { color:var(--muted); background:var(--panel-soft); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.02em; font-weight:820; text-align:left; white-space:nowrap; }
+        td { color:var(--brand-dark); font-size:0.82rem; line-height:1.34; }
         td.num, th.num { text-align:right; white-space:nowrap; }
         tbody tr:last-child td { border-bottom:0; }
-        .course-no { display:inline-flex; align-items:center; justify-content:center; min-width:2.2rem; height:1.7rem; border-radius:999px; background:#fff7e8; border:1px solid #edd29b; color:#8a5f12; font-weight:850; text-decoration:none; }
+        tbody tr:hover td { background:rgba(15,31,73,0.018); }
+        .course-no { display:inline-flex; align-items:center; justify-content:center; min-width:2rem; height:1.55rem; border-radius:999px; background:#fff7e8; border:1px solid #edd29b; color:#8a5f12; font-weight:850; text-decoration:none; }
         .description { font-weight:800; }
         .muted { color:var(--muted); }
-        .status-pill { display:inline-flex; align-items:center; justify-content:center; min-height:1.45rem; padding:0.12rem 0.5rem; border-radius:999px; border:1px solid var(--line); background:var(--panel-soft); color:var(--muted); font-size:0.72rem; font-weight:820; white-space:nowrap; }
+        .status-pill { display:inline-flex; align-items:center; justify-content:center; min-height:1.38rem; padding:0.1rem 0.46rem; border-radius:999px; border:1px solid var(--line); background:var(--panel-soft); color:var(--muted); font-size:0.68rem; font-weight:820; white-space:nowrap; }
         .status-pill.ok { background:#edf8f1; border-color:#b9ddc2; color:#286b47; }
         .status-pill.warn { background:#fff6e6; border-color:#ead19a; color:#8a5f12; }
         .load-link { color:var(--brand-dark); text-decoration:none; font-weight:820; }
@@ -52,28 +77,54 @@
             border-radius:8px;
             background:var(--panel-soft);
             color:var(--brand-dark);
-            padding:0.42rem 0.5rem;
+            padding:0.38rem 0.46rem;
             font:inherit;
             min-width:0;
         }
-        .edit-textarea { min-height:4.3rem; resize:vertical; }
-        .edit-small { min-width:4.7rem; }
-        .edit-medium { min-width:7rem; }
-        .edit-wide { min-width:16rem; }
-        .save-cell { min-width:7rem; }
+        .edit-textarea { min-height:3.8rem; resize:vertical; }
+        .edit-stack { display:grid; gap:0.32rem; }
+        .edit-small { min-width:4.6rem; }
+        .edit-medium { min-width:6.8rem; }
+        .edit-wide { min-width:15rem; }
+        .save-cell { min-width:6.6rem; }
         .inline-form { margin:0; }
         @media (max-width: 1350px) {
             .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+            .command-card { grid-template-columns:1fr; }
+            .action-row { justify-content:flex-start; }
         }
     </style>
 </head>
 <body class="theme-energy">
     {% include "_header.html" %}
-    <main>
-        <h1 class="page-title">Energi kurser</h1>
-        <p class="page-subtitle">
-            Kurslisten er tavlegrunnlaget fra kursliste 37. Den brukes som fast referanse for å koble praktiske laster, målepunkter og Fibaro/Z-Wave-id-er til riktig kurs.
-        </p>
+    <main class="energy-page">
+        <header>
+            <h1 class="page-title">Energi kurser</h1>
+            <p class="page-subtitle">
+                Tavlegrunnlag fra kursliste 37, brukt som fast referanse for laster, målepunkter og Fibaro/Z-Wave-id-er.
+            </p>
+        </header>
+
+        <section class="command-card">
+            <div>
+                <h2 class="command-title">Kursliste</h2>
+                <p class="command-text">
+                    {% if edit_mode %}
+                        Redigeringsmodus er aktiv. Hver kurs lagres separat, slik at du kan oppdatere én rad uten å røre resten.
+                    {% else %}
+                        Normalvisning for daglig oppslag. Slå på redigering når tavledokumentasjonen skal ajourføres.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="action-row">
+                <a class="button-secondary" href="/energi/kurser/pdf">PDF kursliste</a>
+                {% if edit_mode %}
+                    <a class="button-secondary" href="/energi/kurser">Avslutt redigering</a>
+                {% else %}
+                    <a class="button-primary" href="/energi/kurser?edit=1">Rediger kursliste</a>
+                {% endif %}
+            </div>
+        </section>
 
         <section class="summary-grid">
             <article class="metric-card">
@@ -103,31 +154,11 @@
             </article>
         </section>
 
-        <article class="panel-card">
-            <h2>Slik brukes denne siden</h2>
-            <p>
-                Kurser er den elektriske fasiten. Laster er den praktiske virkeligheten: solsenger, lys, vifter, varmepumper og annet utstyr.
-                Klikk på en kurs for å filtrere lastregisteret og bygge opp dokumentasjonen kurs for kurs.
-            </p>
-        </article>
-
-        <div class="toolbar">
-            <span class="page-subtitle" style="margin:0;">
-                {% if edit_mode %}
-                    Redigeringsmodus er aktiv. Hver rad lagres separat.
-                {% else %}
-                    Normalvisning. Slå på redigering når kurslisten skal ajourføres.
-                {% endif %}
-            </span>
-            <a class="button-secondary" href="/energi/kurser/pdf">Last ned PDF</a>
-            {% if edit_mode %}
-                <a class="button-secondary" href="/energi/kurser">Avslutt redigering</a>
-            {% else %}
-                <a class="button-primary" href="/energi/kurser?edit=1">Rediger kursliste</a>
-            {% endif %}
-        </div>
-
         <section class="table-wrap">
+            <div class="table-card-title">
+                <h2>Kursoversikt</h2>
+                <span>Klikk kursnummer for å se laster på valgt kurs</span>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -135,7 +166,7 @@
                         <th>Beskrivelse</th>
                         <th>Vern</th>
                         <th>Kabel</th>
-                        <th>Installasjon</th>
+                        <th>Inst.</th>
                         {% if edit_mode %}<th>Rekke/kl.</th>{% endif %}
                         <th>JFB</th>
                         <th class="num">Laster</th>
@@ -152,15 +183,15 @@
                         <td><a class="course-no" href="/energi/laster?circuit={{ circuit.circuit_no }}">{{ circuit.circuit_no }}</a></td>
                         {% if edit_mode %}
                         <td><textarea class="edit-textarea edit-wide" name="description" form="course-form-{{ circuit.circuit_no }}">{{ circuit.description or "" }}</textarea></td>
-                        <td>
+                        <td><div class="edit-stack">
                             <input class="edit-input edit-medium" name="breaker_type" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.breaker_type or "" }}" placeholder="Type">
                             <input class="edit-input edit-small" name="breaker_rating_a" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.breaker_rating_a is not none %}{{ "{:g}".format(circuit.breaker_rating_a) }}{% endif %}" placeholder="A">
                             <input class="edit-input edit-small" name="breaker_characteristic" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.breaker_characteristic or "" }}" placeholder="Kar.">
-                        </td>
-                        <td>
+                        </div></td>
+                        <td><div class="edit-stack">
                             <input class="edit-input edit-medium" name="cable_spec" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.cable_spec or "" }}" placeholder="Kabel">
                             <input class="edit-input edit-small" name="cable_length_m" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.cable_length_m is not none %}{{ "{:g}".format(circuit.cable_length_m) }}{% endif %}" placeholder="m">
-                        </td>
+                        </div></td>
                         <td><input class="edit-input edit-small" name="install_method" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.install_method or "" }}"></td>
                         <td><input class="edit-input edit-medium" name="terminal_ref" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.terminal_ref or "" }}"></td>
                         <td><input class="edit-input edit-small" name="rcd_ma" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.rcd_ma is not none %}{{ "{:g}".format(circuit.rcd_ma) }}{% endif %}" placeholder="mA"></td>

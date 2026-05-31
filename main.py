@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1018")
+APP_BUILD = os.getenv("APP_BUILD", "1019")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1019",
+        "date": "31.05.2026",
+        "title": "Ryddigere energioversikter",
+        "changes": [
+            "Rydder opp i grensesnittet for Energi > Kurser og Energi > Laster.",
+            "Gjør handlingsknapper, filter, PDF-uttak og registrering mer samlet og mindre støyende.",
+            "Legger registrering av ny last i et sammenleggbart panel slik at oversikten er lettere å bruke til daglig.",
+        ],
+    },
     {
         "version": "1",
         "build": "1018",

@@ -6,62 +6,106 @@
     <title>Energi laster</title>
     {% include "_styles.html" %}
     <style>
-        .page-title { margin:0 0 0.32rem; font-size:1.32rem; font-weight:820; color:var(--brand-dark); }
-        .page-subtitle { margin:0 0 1rem; color:var(--muted); font-size:0.9rem; line-height:1.45; }
-        .summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0.75rem; margin-bottom:1rem; }
-        .metric-card, .panel-card, .table-wrap { background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-1); }
-        .metric-card { padding:0.86rem 0.95rem; border-top:4px solid var(--energy-color); min-height:5.2rem; }
-        .metric-card span { display:block; color:var(--muted); font-size:0.72rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
-        .metric-card strong { display:block; margin-top:0.24rem; color:var(--brand-dark); font-size:1.34rem; line-height:1; }
-        .metric-card small { display:block; margin-top:0.28rem; color:var(--muted); font-size:0.74rem; }
-        .panel-card { padding:0.95rem; margin-bottom:1rem; border-left:4px solid var(--energy-color); }
+        .energy-page { display:grid; gap:1rem; }
+        .page-title { margin:0; font-size:1.28rem; font-weight:820; color:var(--brand-dark); }
+        .page-subtitle { margin:0.25rem 0 0; color:var(--muted); font-size:0.88rem; line-height:1.45; max-width:64rem; }
+        .command-card, .metric-card, .panel-card, .table-wrap {
+            background:var(--panel);
+            border:1px solid var(--line);
+            border-radius:12px;
+            box-shadow:var(--shadow-1);
+        }
+        .command-card {
+            display:grid;
+            grid-template-columns:minmax(0,1fr) auto;
+            gap:1rem;
+            align-items:center;
+            padding:1rem 1.05rem;
+            border-left:4px solid var(--energy-color);
+        }
+        .command-title { margin:0; color:var(--brand-dark); font-size:1rem; font-weight:830; }
+        .command-text { margin:0.22rem 0 0; color:var(--muted); font-size:0.84rem; line-height:1.42; }
+        .action-row { display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:flex-end; align-items:center; }
+        .summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0.72rem; }
+        .metric-card { padding:0.78rem 0.88rem; border-top:3px solid var(--energy-color); min-height:4.75rem; }
+        .metric-card span { display:block; color:var(--muted); font-size:0.68rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
+        .metric-card strong { display:block; margin-top:0.22rem; color:var(--brand-dark); font-size:1.2rem; line-height:1; }
+        .metric-card small { display:block; margin-top:0.25rem; color:var(--muted); font-size:0.7rem; }
+        .panel-card { padding:0.92rem 1rem; border-left:4px solid var(--energy-color); }
         .panel-title { margin:0 0 0.7rem; color:var(--brand-dark); font-size:1rem; }
-        .toolbar { display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin:0 0 0.85rem; }
-        .filter-form, .load-form { display:grid; gap:0.62rem; align-items:end; }
-        .filter-form { grid-template-columns:minmax(14rem,1fr) minmax(12rem,0.8fr) minmax(10rem,0.7fr) minmax(8rem,0.55fr) auto; }
-        .load-form { grid-template-columns:repeat(6,minmax(0,1fr)); }
-        .field { display:grid; gap:0.24rem; min-width:0; }
+        .filter-form, .load-form { display:grid; gap:0.58rem; align-items:end; }
+        .filter-form { grid-template-columns:minmax(14rem,1fr) minmax(12rem,0.85fr) minmax(10rem,0.7fr) minmax(8rem,0.55fr) auto; }
+        .load-form { grid-template-columns:repeat(6,minmax(0,1fr)); padding-top:0.75rem; border-top:1px solid var(--line-soft); }
+        .field { display:grid; gap:0.22rem; min-width:0; }
         .field.wide { grid-column:span 2; }
         .field.full { grid-column:1 / -1; }
-        .field label, .check-row span { color:var(--muted); font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0.02em; }
+        .field label, .check-row span { color:var(--muted); font-size:0.68rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
         .field input, .field select, .field textarea {
             width:100%;
-            min-height:2.25rem;
+            min-height:2.14rem;
             border:1px solid var(--line);
             border-radius:9px;
             background:var(--panel-soft);
             color:var(--brand-dark);
-            padding:0.48rem 0.58rem;
+            padding:0.43rem 0.52rem;
             font:inherit;
+            font-size:0.84rem;
         }
-        .field textarea { min-height:4.4rem; resize:vertical; }
-        .check-grid { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:0.5rem; }
-        .check-row { display:flex; align-items:center; gap:0.42rem; min-height:2.25rem; padding:0 0.65rem; border:1px solid var(--line); border-radius:999px; background:var(--panel-soft); }
+        .field textarea { min-height:4.1rem; resize:vertical; }
+        details.register-panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow-1); overflow:hidden; }
+        details.register-panel summary {
+            cursor:pointer;
+            display:flex;
+            justify-content:space-between;
+            gap:1rem;
+            padding:0.92rem 1rem;
+            font-weight:850;
+            color:var(--brand-dark);
+            list-style:none;
+        }
+        details.register-panel summary::-webkit-details-marker { display:none; }
+        details.register-panel summary span { color:var(--muted); font-weight:700; font-size:0.82rem; }
+        .register-body { padding:0 1rem 1rem; }
+        .check-grid { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:0.45rem; }
+        .check-row { display:flex; align-items:center; gap:0.38rem; min-height:2.08rem; padding:0 0.6rem; border:1px solid var(--line); border-radius:999px; background:var(--panel-soft); }
         .button-primary, .button-secondary {
-            min-height:2.25rem;
+            min-height:2.14rem;
             border-radius:9px;
-            padding:0.48rem 0.78rem;
+            padding:0.43rem 0.72rem;
+            font-size:0.82rem;
             font-weight:850;
             cursor:pointer;
             text-decoration:none;
             display:inline-flex;
             align-items:center;
             justify-content:center;
+            white-space:nowrap;
         }
         .button-primary { border:1px solid var(--energy-color); background:var(--energy-color); color:white; }
         .button-secondary { border:1px solid var(--line); background:var(--panel); color:var(--brand-dark); }
         .table-wrap { overflow:auto; }
+        .table-card-title {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:1rem;
+            padding:0.82rem 0.95rem;
+            border-bottom:1px solid var(--line-soft);
+        }
+        .table-card-title h2 { margin:0; color:var(--brand-dark); font-size:1rem; }
+        .table-card-title span { color:var(--muted); font-size:0.76rem; }
         table { width:100%; border-collapse:collapse; min-width:1180px; }
-        th, td { padding:0.58rem 0.7rem; border-bottom:1px solid var(--line-soft); vertical-align:top; }
-        th { color:var(--muted); background:var(--panel-soft); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.02em; font-weight:820; text-align:left; white-space:nowrap; }
-        td { color:var(--brand-dark); font-size:0.86rem; line-height:1.35; }
+        th, td { padding:0.54rem 0.62rem; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+        th { color:var(--muted); background:var(--panel-soft); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.02em; font-weight:820; text-align:left; white-space:nowrap; }
+        td { color:var(--brand-dark); font-size:0.82rem; line-height:1.34; }
         td.num, th.num { text-align:right; white-space:nowrap; }
         tbody tr:last-child td { border-bottom:0; }
+        tbody tr:hover td { background:rgba(15,31,73,0.018); }
         .load-name { font-weight:850; }
         .muted { color:var(--muted); }
-        .course-link { display:inline-flex; align-items:center; justify-content:center; min-width:2.2rem; height:1.55rem; border-radius:999px; background:#fff7e8; border:1px solid #edd29b; color:#8a5f12; font-weight:850; text-decoration:none; }
-        .tag-row { display:flex; flex-wrap:wrap; gap:0.32rem; margin-top:0.28rem; }
-        .tag { display:inline-flex; align-items:center; min-height:1.35rem; padding:0.08rem 0.42rem; border-radius:999px; border:1px solid var(--line); background:var(--panel-soft); color:var(--muted); font-size:0.7rem; font-weight:780; }
+        .course-link { display:inline-flex; align-items:center; justify-content:center; min-width:2rem; height:1.42rem; border-radius:999px; background:#fff7e8; border:1px solid #edd29b; color:#8a5f12; font-weight:850; text-decoration:none; }
+        .tag-row { display:flex; flex-wrap:wrap; gap:0.28rem; margin-top:0.22rem; }
+        .tag { display:inline-flex; align-items:center; min-height:1.25rem; padding:0.06rem 0.38rem; border-radius:999px; border:1px solid var(--line); background:var(--panel-soft); color:var(--muted); font-size:0.66rem; font-weight:780; }
         .tag.ok { background:#edf8f1; border-color:#b9ddc2; color:#286b47; }
         .tag.warn { background:#fff0ee; border-color:#efc1ba; color:#9d3f31; }
         .inline-form { margin:0; }
@@ -69,21 +113,31 @@
             .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
             .filter-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
             .load-form { grid-template-columns:repeat(3,minmax(0,1fr)); }
+            .command-card { grid-template-columns:1fr; }
+            .action-row { justify-content:flex-start; }
         }
     </style>
 </head>
 <body class="theme-energy">
     {% include "_header.html" %}
-    <main>
-        <h1 class="page-title">Energi laster</h1>
-        <p class="page-subtitle">
-            Lastregisteret er den praktiske oversikten over hva som faktisk bruker strøm. Her kan hver last kobles til kurs, forventet effekt, Fibaro/Z-Wave-id og om den kan styres.
-        </p>
+    <main class="energy-page">
+        <header>
+            <h1 class="page-title">Energi laster</h1>
+            <p class="page-subtitle">
+                Praktisk oversikt over utstyr som bruker strøm, koblet mot kurs, forventet effekt og eventuelle Fibaro/Z-Wave-id-er.
+            </p>
+        </header>
 
-        <div class="toolbar">
-            <span class="page-subtitle" style="margin:0;">PDF-uttaket følger filteret som er valgt på siden.</span>
-            <a class="button-secondary" href="/energi/laster/pdf{% if request.url.query %}?{{ request.url.query }}{% endif %}">Last ned PDF</a>
-        </div>
+        <section class="command-card">
+            <div>
+                <h2 class="command-title">Lastregister</h2>
+                <p class="command-text">Bruk filteret til daglig oppslag. PDF-uttaket følger filteret som er valgt på siden.</p>
+            </div>
+            <div class="action-row">
+                <a class="button-secondary" href="/energi/laster/pdf{% if request.url.query %}?{{ request.url.query }}{% endif %}">PDF laster</a>
+                <a class="button-secondary" href="/energi/kurser">Til kursliste</a>
+            </div>
+        </section>
 
         <section class="summary-grid">
             <article class="metric-card">
@@ -145,70 +199,79 @@
             </form>
         </article>
 
-        <article class="panel-card">
-            <h2 class="panel-title">Registrer ny last</h2>
-            <form class="load-form" method="post" action="/energi/laster">
-                <div class="field wide">
-                    <label for="name">Navn</label>
-                    <input id="name" name="name" required placeholder="F.eks. Rom 5 solseng">
-                </div>
-                <div class="field">
-                    <label for="load_type_new">Type</label>
-                    <select id="load_type_new" name="load_type">
-                        <option value="solseng">Solseng</option>
-                        <option value="lys">Lys</option>
-                        <option value="vifte">Vifte</option>
-                        <option value="varmepumpe">Varmepumpe</option>
-                        <option value="varme">Varme</option>
-                        <option value="automat">Automat</option>
-                        <option value="stikk">Stikk</option>
-                        <option value="annet">Annet</option>
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="area">Område</label>
-                    <input id="area" name="area" placeholder="1.etg, VIP, ute">
-                </div>
-                <div class="field">
-                    <label for="circuit_no">Kurs</label>
-                    <select id="circuit_no" name="circuit_no">
-                        <option value="">Ikke valgt</option>
-                        {% for circuit in circuits %}
-                        <option value="{{ circuit.circuit_no }}">{{ circuit.circuit_no }} · {{ circuit.description }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="field">
-                    <label for="expected_power_w">Forventet W</label>
-                    <input id="expected_power_w" name="expected_power_w" inputmode="decimal" placeholder="7500">
-                </div>
-                <div class="field">
-                    <label for="fibaro_device_id">Fibaro enhet</label>
-                    <input id="fibaro_device_id" name="fibaro_device_id" inputmode="numeric">
-                </div>
-                <div class="field">
-                    <label for="fibaro_meter_id">Fibaro måler</label>
-                    <input id="fibaro_meter_id" name="fibaro_meter_id" inputmode="numeric">
-                </div>
-                <div class="field">
-                    <label for="zwave_switch_id">Z-Wave bryter</label>
-                    <input id="zwave_switch_id" name="zwave_switch_id" inputmode="numeric">
-                </div>
-                <div class="check-grid">
-                    <label class="check-row"><input type="checkbox" name="active" checked><span>Aktiv</span></label>
-                    <label class="check-row"><input type="checkbox" name="measured_direct"><span>Direkte målt</span></label>
-                    <label class="check-row"><input type="checkbox" name="controllable"><span>Kan styres</span></label>
-                    <label class="check-row"><input type="checkbox" name="critical"><span>Kritisk last</span></label>
-                </div>
-                <div class="field full">
-                    <label for="note">Notat</label>
-                    <textarea id="note" name="note" placeholder="Kommentar, fysisk plassering, avvik eller hva som bør sjekkes senere"></textarea>
-                </div>
-                <button class="button-primary" type="submit">Lagre last</button>
-            </form>
-        </article>
+        <details class="register-panel">
+            <summary>
+                Registrer ny last
+                <span>Åpne skjema når noe nytt skal legges til</span>
+            </summary>
+            <div class="register-body">
+                <form class="load-form" method="post" action="/energi/laster">
+                    <div class="field wide">
+                        <label for="name">Navn</label>
+                        <input id="name" name="name" required placeholder="F.eks. Rom 5 solseng">
+                    </div>
+                    <div class="field">
+                        <label for="load_type_new">Type</label>
+                        <select id="load_type_new" name="load_type">
+                            <option value="solseng">Solseng</option>
+                            <option value="lys">Lys</option>
+                            <option value="vifte">Vifte</option>
+                            <option value="varmepumpe">Varmepumpe</option>
+                            <option value="varme">Varme</option>
+                            <option value="automat">Automat</option>
+                            <option value="stikk">Stikk</option>
+                            <option value="annet">Annet</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="area">Område</label>
+                        <input id="area" name="area" placeholder="1.etg, VIP, ute">
+                    </div>
+                    <div class="field">
+                        <label for="circuit_no">Kurs</label>
+                        <select id="circuit_no" name="circuit_no">
+                            <option value="">Ikke valgt</option>
+                            {% for circuit in circuits %}
+                            <option value="{{ circuit.circuit_no }}">{{ circuit.circuit_no }} · {{ circuit.description }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="expected_power_w">Forventet W</label>
+                        <input id="expected_power_w" name="expected_power_w" inputmode="decimal" placeholder="7500">
+                    </div>
+                    <div class="field">
+                        <label for="fibaro_device_id">Fibaro enhet</label>
+                        <input id="fibaro_device_id" name="fibaro_device_id" inputmode="numeric">
+                    </div>
+                    <div class="field">
+                        <label for="fibaro_meter_id">Fibaro måler</label>
+                        <input id="fibaro_meter_id" name="fibaro_meter_id" inputmode="numeric">
+                    </div>
+                    <div class="field">
+                        <label for="zwave_switch_id">Z-Wave bryter</label>
+                        <input id="zwave_switch_id" name="zwave_switch_id" inputmode="numeric">
+                    </div>
+                    <div class="check-grid">
+                        <label class="check-row"><input type="checkbox" name="active" checked><span>Aktiv</span></label>
+                        <label class="check-row"><input type="checkbox" name="measured_direct"><span>Direkte målt</span></label>
+                        <label class="check-row"><input type="checkbox" name="controllable"><span>Kan styres</span></label>
+                        <label class="check-row"><input type="checkbox" name="critical"><span>Kritisk last</span></label>
+                    </div>
+                    <div class="field full">
+                        <label for="note">Notat</label>
+                        <textarea id="note" name="note" placeholder="Kommentar, fysisk plassering, avvik eller hva som bør sjekkes senere"></textarea>
+                    </div>
+                    <button class="button-primary" type="submit">Lagre last</button>
+                </form>
+            </div>
+        </details>
 
         <section class="table-wrap">
+            <div class="table-card-title">
+                <h2>Laster</h2>
+                <span>{{ loads|length }} vist</span>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -233,7 +296,7 @@
                         </td>
                         <td>
                             {% if circuit %}
-                            <a class="course-link" href="/energi/kurser">{{ load.circuit_no }}</a>
+                            <a class="course-link" href="/energi/laster?circuit={{ load.circuit_no }}">{{ load.circuit_no }}</a>
                             <span class="muted"> {{ circuit.description }}</span>
                             {% elif load.circuit_no %}
                             <span class="course-link">{{ load.circuit_no }}</span>
@@ -273,7 +336,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="muted">Ingen laster matcher filteret. Registrer første last i skjemaet over.</td>
+                        <td colspan="8" class="muted">Ingen laster matcher filteret. Åpne registreringspanelet for å legge inn første last.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
