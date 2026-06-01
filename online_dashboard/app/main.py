@@ -415,6 +415,10 @@ def can_manage(access_key: dict[str, Any]) -> bool:
     return role in {"master", "settings"}
 
 
+def money_if_allowed(access_key: dict[str, Any], value: Any) -> str:
+    return fmt_money(value) if can_manage(access_key) else "Skjult"
+
+
 def easypark_period() -> tuple[date, date]:
     today = local_now().date()
     return today - timedelta(days=1), today
@@ -938,6 +942,8 @@ async def logout():
 async def dashboard(request: Request):
     data = await dashboard_data()
     user = escape(request.state.access_key["name"])
+    show_revenue = can_manage(request.state.access_key)
+    money = lambda value: money_if_allowed(request.state.access_key, value)
     soling_hours = float(data["soling"].get("minutes") or 0) / 60
     week_soling_hours = float(data["soling_week"].get("minutes") or 0) / 60
     latest_soling_room = escape(str(data["latest_soling"].get("room") or "").strip())
@@ -950,6 +956,16 @@ async def dashboard(request: Request):
     if data["latest_parking"].get("start_time"):
         plate_suffix = f" · {latest_parking_plate}" if latest_parking_plate else ""
         latest_parking = f"Siste {fmt_time(data['latest_parking'].get('start_time'))}{plate_suffix}"
+    revenue_card = ""
+    if show_revenue:
+        revenue_card = f"""
+      <a class="metric-card accent-revenue is-wide card-link" href="/omsetning" data-revenue-card="1" style="grid-column: 1 / -1; width: 100%;">
+        <span>Omsetning</span>
+        <strong>{fmt_money(data["revenue"].get("today"))}<em>/{fmt_money(data["revenue"].get("yesterday"))}</em></strong>
+        <small>I dag / i går - sol {fmt_money(data["soling"].get("amount"))} - parkering {fmt_money(data["parking"].get("amount"))}</small>
+        <small class="updated-line">Oppdatert {fmt_time(data["revenue_updated_at"])}</small>
+      </a>
+        """
     html = DASHBOARD_HTML
     replacements = {
         "{{ user }}": user,
@@ -959,32 +975,28 @@ async def dashboard(request: Request):
         "{{ open_progress }}": str(data["open_state"]["progress"]),
         "{{ soling_count }}": fmt_int(data["soling"].get("count")),
         "{{ soling_yesterday_count }}": fmt_int(data["soling_yesterday"].get("count")),
-        "{{ soling_amount }}": fmt_money(data["soling"].get("amount")),
+        "{{ soling_amount }}": money(data["soling"].get("amount")),
         "{{ soling_minutes }}": f"{soling_hours:.1f} t".replace(".", ","),
         "{{ soling_compare }}": compare_text(data["soling"].get("count"), data["soling_yesterday"].get("count"), " stk"),
         "{{ soling_week_count }}": fmt_int(data["soling_week"].get("count")),
-        "{{ soling_week_amount }}": fmt_money(data["soling_week"].get("amount")),
+        "{{ soling_week_amount }}": money(data["soling_week"].get("amount")),
         "{{ soling_week_minutes }}": f"{week_soling_hours:.1f} t".replace(".", ","),
         "{{ soling_month_count }}": fmt_int(data["soling_month"].get("count")),
-        "{{ soling_month_amount }}": fmt_money(data["soling_month"].get("amount")),
+        "{{ soling_month_amount }}": money(data["soling_month"].get("amount")),
         "{{ latest_soling }}": latest_soling,
         "{{ soling_time }}": fmt_time(data["session_import"].get("updated_at")) if data["session_import"].get("updated_at") else fmt_time(data["soling"].get("updated_at")),
         "{{ parking_count }}": fmt_int(data["parking"].get("count")),
         "{{ parking_yesterday_count }}": fmt_int(data["parking_yesterday"].get("count")),
-        "{{ parking_amount }}": fmt_money(data["parking"].get("amount")),
+        "{{ parking_amount }}": money(data["parking"].get("amount")),
         "{{ parking_active }}": fmt_int(data["parking"].get("active_count")),
         "{{ parking_compare }}": compare_text(data["parking"].get("count"), data["parking_yesterday"].get("count"), " stk"),
         "{{ parking_week_count }}": fmt_int(data["parking_week"].get("count")),
-        "{{ parking_week_amount }}": fmt_money(data["parking_week"].get("amount")),
+        "{{ parking_week_amount }}": money(data["parking_week"].get("amount")),
         "{{ parking_month_count }}": fmt_int(data["parking_month"].get("count")),
-        "{{ parking_month_amount }}": fmt_money(data["parking_month"].get("amount")),
+        "{{ parking_month_amount }}": money(data["parking_month"].get("amount")),
         "{{ latest_parking }}": latest_parking,
         "{{ parking_time }}": fmt_time(data["parking_import"].get("updated_at")) if data["parking_import"].get("updated_at") else fmt_time(data["parking"].get("updated_at")),
-        "{{ revenue_today }}": fmt_money(data["revenue"].get("today")),
-        "{{ revenue_yesterday }}": fmt_money(data["revenue"].get("yesterday")),
-        "{{ revenue_soling_today }}": fmt_money(data["soling"].get("amount")),
-        "{{ revenue_parking_today }}": fmt_money(data["parking"].get("amount")),
-        "{{ revenue_time }}": fmt_time(data["revenue_updated_at"]),
+        "{{ revenue_card }}": revenue_card,
         "{{ energy_watt }}": fmt_watt(data["energy_now"].get("inntak_w")),
         "{{ energy_kwh }}": fmt_kwh(data["energy_today"].get("kwh")),
         "{{ energy_samples }}": fmt_int(data["energy_today"].get("samples")),
@@ -1013,6 +1025,8 @@ async def dashboard(request: Request):
 @app.get("/soling", response_class=HTMLResponse)
 async def soling_detail(request: Request):
     data = await dashboard_data()
+    can_view_money = can_manage(request.state.access_key)
+    money = lambda value: money_if_allowed(request.state.access_key, value)
     session_import_at = data["session_import"].get("updated_at")
     latest_soling_at = data["latest_soling"].get("started_at")
     latest_soling_room = str(data["latest_soling"].get("room") or "").strip()
@@ -1027,6 +1041,13 @@ async def soling_detail(request: Request):
         """,
         {"today": data["now"].date()},
     )
+    soling_today_detail = compare_short(
+        data["soling"].get("count"),
+        data["soling_last_week_same_day"].get("count"),
+        "samme dag forrige uke",
+    )
+    if can_view_money:
+        soling_today_detail = f"{money(data['soling'].get('amount'))} - {soling_today_detail}"
     body = detail_stats(
         [
             ("Siste import", fmt_clock(session_import_at), fmt_date(session_import_at)),
@@ -1034,17 +1055,17 @@ async def soling_detail(request: Request):
             (
                 "I dag",
                 fmt_int(data["soling"].get("count")),
-                f"{fmt_money(data['soling'].get('amount'))} · {compare_short(data['soling'].get('count'), data['soling_last_week_same_day'].get('count'), 'samme dag forrige uke')}",
+                soling_today_detail,
             ),
             (
                 "Samme dag forrige uke",
                 fmt_int(data["soling_last_week_same_day"].get("count")),
-                fmt_money(data["soling_last_week_same_day"].get("amount")),
+                money(data["soling_last_week_same_day"].get("amount")),
             ),
-            ("Denne uken", fmt_int(data["soling_week"].get("count")), fmt_money(data["soling_week"].get("amount"))),
-            ("Forrige uke", fmt_int(data["soling_previous_week"].get("count")), fmt_money(data["soling_previous_week"].get("amount"))),
-            ("Denne måneden", fmt_int(data["soling_month"].get("count")), fmt_money(data["soling_month"].get("amount"))),
-            ("Forrige måned", fmt_int(data["soling_previous_month"].get("count")), fmt_money(data["soling_previous_month"].get("amount"))),
+            ("Denne uken", fmt_int(data["soling_week"].get("count")), money(data["soling_week"].get("amount"))),
+            ("Forrige uke", fmt_int(data["soling_previous_week"].get("count")), money(data["soling_previous_week"].get("amount"))),
+            ("Denne måneden", fmt_int(data["soling_month"].get("count")), money(data["soling_month"].get("amount"))),
+            ("Forrige måned", fmt_int(data["soling_previous_month"].get("count")), money(data["soling_previous_month"].get("amount"))),
         ]
     )
     body += render_list(
@@ -1053,7 +1074,7 @@ async def soling_detail(request: Request):
             (
                 fmt_time(row.get("started_at")),
                 escape(str(row.get("room") or "Ukjent rom")),
-                f"{float(row.get('duration_minutes') or 0):.0f} min · {fmt_money(row.get('paid_amount_kr'))}",
+                f"{float(row.get('duration_minutes') or 0):.0f} min" + (f" - {money(row.get('paid_amount_kr'))}" if can_view_money else ""),
             )
             for row in rows
         ],
@@ -1063,17 +1084,19 @@ async def soling_detail(request: Request):
 
 @app.get("/omsetning", response_class=HTMLResponse)
 async def revenue_detail(request: Request):
+    if not can_manage(request.state.access_key):
+        return RedirectResponse("/", status_code=303)
     data = await dashboard_data()
     body = detail_stats(
         [
             ("Sist oppdatert", fmt_clock(data["revenue_updated_at"]), fmt_date(data["revenue_updated_at"])),
-            ("I dag", fmt_money(data["revenue"].get("today")), f"Sol {fmt_money(data['soling'].get('amount'))} · parkering {fmt_money(data['parking'].get('amount'))}"),
-            ("I går", fmt_money(data["revenue"].get("yesterday")), f"Sol {fmt_money(data['soling_yesterday'].get('amount'))} · parkering {fmt_money(data['parking_yesterday'].get('amount'))}"),
+            ("I dag", fmt_money(data["revenue"].get("today")), f"Sol {fmt_money(data['soling'].get('amount'))} - parkering {fmt_money(data['parking'].get('amount'))}"),
+            ("I går", fmt_money(data["revenue"].get("yesterday")), f"Sol {fmt_money(data['soling_yesterday'].get('amount'))} - parkering {fmt_money(data['parking_yesterday'].get('amount'))}"),
             ("Samme dag forrige uke", fmt_money(data["revenue"].get("last_week_same_day")), money_compare_short(data["revenue"].get("today"), data["revenue"].get("last_week_same_day"), "samme dag forrige uke")),
-            ("Denne uken", fmt_money(data["revenue"].get("week")), f"Sol {fmt_money(data['soling_week'].get('amount'))} · parkering {fmt_money(data['parking_week'].get('amount'))}"),
-            ("Forrige uke", fmt_money(data["revenue"].get("previous_week")), f"Sol {fmt_money(data['soling_previous_week'].get('amount'))} · parkering {fmt_money(data['parking_previous_week'].get('amount'))}"),
-            ("Denne måneden", fmt_money(data["revenue"].get("month")), f"Sol {fmt_money(data['soling_month'].get('amount'))} · parkering {fmt_money(data['parking_month'].get('amount'))}"),
-            ("Forrige måned", fmt_money(data["revenue"].get("previous_month")), f"Sol {fmt_money(data['soling_previous_month'].get('amount'))} · parkering {fmt_money(data['parking_previous_month'].get('amount'))}"),
+            ("Denne uken", fmt_money(data["revenue"].get("week")), f"Sol {fmt_money(data['soling_week'].get('amount'))} - parkering {fmt_money(data['parking_week'].get('amount'))}"),
+            ("Forrige uke", fmt_money(data["revenue"].get("previous_week")), f"Sol {fmt_money(data['soling_previous_week'].get('amount'))} - parkering {fmt_money(data['parking_previous_week'].get('amount'))}"),
+            ("Denne måneden", fmt_money(data["revenue"].get("month")), f"Sol {fmt_money(data['soling_month'].get('amount'))} - parkering {fmt_money(data['parking_month'].get('amount'))}"),
+            ("Forrige måned", fmt_money(data["revenue"].get("previous_month")), f"Sol {fmt_money(data['soling_previous_month'].get('amount'))} - parkering {fmt_money(data['parking_previous_month'].get('amount'))}"),
         ]
     )
     body += render_list(
@@ -1082,21 +1105,22 @@ async def revenue_detail(request: Request):
             (
                 "I dag",
                 "Soling",
-                f"{fmt_int(data['soling'].get('count'))} solinger · {fmt_money(data['soling'].get('amount'))}",
+                f"{fmt_int(data['soling'].get('count'))} solinger - {fmt_money(data['soling'].get('amount'))}",
             ),
             (
                 "I dag",
                 "Parkering",
-                f"{fmt_int(data['parking'].get('count'))} parkeringer · {fmt_money(data['parking'].get('amount'))}",
+                f"{fmt_int(data['parking'].get('count'))} parkeringer - {fmt_money(data['parking'].get('amount'))}",
             ),
         ],
     )
     return render_detail_page("Omsetning", "Samlet inntekt fra soling og parkering.", body)
 
-
 @app.get("/parkering", response_class=HTMLResponse)
 async def parking_detail(request: Request, refresh: Optional[str] = None, reason: Optional[str] = None):
     data = await dashboard_data()
+    can_view_money = can_manage(request.state.access_key)
+    money = lambda value: money_if_allowed(request.state.access_key, value)
     easypark_status = easypark_downloader_status()
     parking_import_at = data["parking_import"].get("updated_at")
     parking_failed_at = data["parking_import"].get("last_failed_at")
@@ -1158,6 +1182,13 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
     )
     if refresh_label:
         button += f'<p class="notice">{escape(refresh_label)}</p>'
+    parking_today_detail = compare_short(
+        data["parking"].get("count"),
+        data["parking_last_week_same_day"].get("count"),
+        "samme dag forrige uke",
+    )
+    if can_view_money:
+        parking_today_detail = f"{money(data['parking'].get('amount'))} - {parking_today_detail}"
     body = detail_stats(
         [
             ("Siste import", fmt_clock(parking_import_at), fmt_date(parking_import_at)),
@@ -1165,17 +1196,17 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
             (
                 "I dag",
                 fmt_int(data["parking"].get("count")),
-                f"{fmt_money(data['parking'].get('amount'))} · {compare_short(data['parking'].get('count'), data['parking_last_week_same_day'].get('count'), 'samme dag forrige uke')}",
+                parking_today_detail,
             ),
             (
                 "Samme dag forrige uke",
                 fmt_int(data["parking_last_week_same_day"].get("count")),
-                fmt_money(data["parking_last_week_same_day"].get("amount")),
+                money(data["parking_last_week_same_day"].get("amount")),
             ),
-            ("Denne uken", fmt_int(data["parking_week"].get("count")), fmt_money(data["parking_week"].get("amount"))),
-            ("Forrige uke", fmt_int(data["parking_previous_week"].get("count")), fmt_money(data["parking_previous_week"].get("amount"))),
-            ("Denne måneden", fmt_int(data["parking_month"].get("count")), fmt_money(data["parking_month"].get("amount"))),
-            ("Forrige måned", fmt_int(data["parking_previous_month"].get("count")), fmt_money(data["parking_previous_month"].get("amount"))),
+            ("Denne uken", fmt_int(data["parking_week"].get("count")), money(data["parking_week"].get("amount"))),
+            ("Forrige uke", fmt_int(data["parking_previous_week"].get("count")), money(data["parking_previous_week"].get("amount"))),
+            ("Denne måneden", fmt_int(data["parking_month"].get("count")), money(data["parking_month"].get("amount"))),
+            ("Forrige måned", fmt_int(data["parking_previous_month"].get("count")), money(data["parking_previous_month"].get("amount"))),
         ]
     )
     body += button
@@ -1186,7 +1217,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
             (
                 fmt_time(row.get("start_time")),
                 escape(str(row.get("car_license_number") or "Uten regnr")),
-                f"{fmt_money(row.get('fee_inc_vat'))} · {float(row.get('parking_time_min') or 0):.0f} min",
+                (f"{money(row.get('fee_inc_vat'))} - " if can_view_money else "") + f"{float(row.get('parking_time_min') or 0):.0f} min",
             )
             for row in rows
         ],
@@ -1483,12 +1514,7 @@ DASHBOARD_HTML = """<!doctype html>
         <small>I dag / i går · {{ parking_active }} aktive</small>
         <small class="updated-line">Oppdatert {{ parking_time }}</small>
       </a>
-      <a class="metric-card accent-revenue is-wide card-link" href="/omsetning" style="grid-column: 1 / -1; width: 100%;">
-        <span>Omsetning</span>
-        <strong>{{ revenue_today }}<em>/{{ revenue_yesterday }}</em></strong>
-        <small>I dag / i går · sol {{ revenue_soling_today }} · parkering {{ revenue_parking_today }}</small>
-        <small class="updated-line">Oppdatert {{ revenue_time }}</small>
-      </a>
+      {{ revenue_card }}
     </section>
 
     <section class="temperature-grid">
