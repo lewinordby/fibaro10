@@ -39,6 +39,7 @@ HEADLESS = os.getenv("EASYPARK_HEADLESS", "true").strip().lower() not in {"0", "
 CODE_COOLDOWN_MINUTES = int(os.getenv("EASYPARK_CODE_COOLDOWN_MINUTES", "5"))
 FORCE_LOGIN_TIMES = os.getenv("EASYPARK_FORCE_LOGIN_TIMES", "03:00").strip()
 EDGE_EXECUTABLE_PATH = os.getenv("EASYPARK_EDGE_EXECUTABLE_PATH", "/usr/bin/microsoft-edge")
+JOB_TIMEOUT_SECONDS = max(60, int(os.getenv("EASYPARK_JOB_TIMEOUT_SECONDS", "300")))
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://192.168.20.218:8110").rstrip("/")
@@ -633,7 +634,7 @@ def report_failure_to_fibaro10(started_at: str, message: str) -> None:
         pass
 
 
-async def run_download_import(
+async def _run_download_import(
     from_day: date | None = None,
     to_day: date | None = None,
     force_login: bool = False,
@@ -707,6 +708,24 @@ async def run_download_import(
         set_state(running=False, last_error=str(exc), last_action="error", last_period=period)
         report_failure_to_fibaro10(started, str(exc))
         raise
+
+
+async def run_download_import(
+    from_day: date | None = None,
+    to_day: date | None = None,
+    force_login: bool = False,
+) -> dict[str, Any]:
+    try:
+        return await asyncio.wait_for(
+            _run_download_import(from_day, to_day, force_login),
+            timeout=JOB_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError as exc:
+        period = period_label(from_day, to_day)
+        message = f"EasyPark-importen stoppet etter {JOB_TIMEOUT_SECONDS} sekunder."
+        set_state(running=False, last_error=message, last_action="timeout", last_period=period)
+        report_failure_to_fibaro10(fibaro10_datetime_iso(), message)
+        raise RuntimeError(message) from exc
 
 
 async def run_once(from_day: date | None = None, to_day: date | None = None) -> dict[str, Any]:
