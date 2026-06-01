@@ -365,6 +365,19 @@ def compare_text(current: Any, previous: Any, noun: str = "") -> str:
     return f"{sign}{fmt_int(abs(diff))}{noun} mot i går ({fmt_int(previous_i)})"
 
 
+def compare_short(current: Any, previous: Any, label: str) -> str:
+    try:
+        current_i = int(current or 0)
+        previous_i = int(previous or 0)
+    except (TypeError, ValueError):
+        return "-"
+    diff = current_i - previous_i
+    if diff == 0:
+        return f"Lik mot {label}"
+    sign = "+" if diff > 0 else "-"
+    return f"{sign}{fmt_int(abs(diff))} mot {label}"
+
+
 def operating_window(now: datetime) -> dict[str, Any]:
     open_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=7)
     close_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=23)
@@ -933,7 +946,11 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
         [
             ("Siste import", fmt_clock(parking_import_at), fmt_date(parking_import_at)),
             ("Aktive", fmt_int(data["parking"].get("active_count")), f"Samme tidspunkt {fmt_clock(parking_import_at)}"),
-            ("I dag", fmt_int(data["parking"].get("count")), fmt_money(data["parking"].get("amount"))),
+            (
+                "I dag",
+                fmt_int(data["parking"].get("count")),
+                f"{fmt_money(data['parking'].get('amount'))} · {compare_short(data['parking'].get('count'), data['parking_last_week_same_day'].get('count'), 'samme dag forrige uke')}",
+            ),
             (
                 "Samme dag forrige uke",
                 fmt_int(data["parking_last_week_same_day"].get("count")),
