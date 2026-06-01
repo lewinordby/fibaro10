@@ -467,6 +467,35 @@ def friendly_easypark_error(reason: str, status: dict[str, Any]) -> str:
     return messages.get(code, messages["unknown"])
 
 
+def short_message(value: Any, max_length: int = 110) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= max_length:
+        return text
+    return f"{text[: max_length - 3].rstrip()}..."
+
+
+def import_run_rows(runs: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
+    rows: list[tuple[str, str, str]] = []
+    for run in runs:
+        ok = run.get("ok")
+        status = "OK" if ok is True else "Feil" if ok is False else str(run.get("status") or "-")
+        imported = run.get("records_imported")
+        total = run.get("records_total")
+        if imported is not None and total is not None:
+            records = f"{fmt_int(imported)} / {fmt_int(total)} rader"
+        elif total is not None:
+            records = f"{fmt_int(total)} rader"
+        elif imported is not None:
+            records = f"{fmt_int(imported)} rader"
+        else:
+            records = "Ingen radtall"
+        message = short_message(run.get("message")) or "Ingen melding"
+        stamp = run.get("finished_at") or run.get("started_at")
+        return_time = fmt_time(stamp)
+        rows.append((return_time, escape(status), escape(f"{records} · {message}")))
+    return rows
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
@@ -984,6 +1013,15 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
         """,
         {"start": start, "end": end},
     )
+    import_runs = await many_mappings(
+        """
+        select finished_at, started_at, ok, status, records_imported, records_total, message
+        from import_job_runs
+        where job_name = 'easypark_parking_import'
+        order by finished_at desc nulls last, id desc
+        limit 5
+        """
+    )
     can_refresh = can_manage(request.state.access_key)
     cooldown_remaining = parking_refresh_cooldown_remaining_seconds()
     refresh_state = "ready"
@@ -1040,6 +1078,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
         ]
     )
     body += button
+    body += render_list("Siste importforsøk", import_run_rows(import_runs))
     body += render_list(
         "Siste parkeringer",
         [
