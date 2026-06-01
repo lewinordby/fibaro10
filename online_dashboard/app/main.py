@@ -486,6 +486,16 @@ async def dashboard_data() -> dict[str, Any]:
         """,
         {"start": week_start, "today": today},
     )
+    soling_previous_week = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(duration_minutes), 0) as minutes,
+               coalesce(sum(paid_amount_kr), 0) as amount
+        from sun2_tanning_sessions
+        where stat_date >= :start and stat_date < :end
+        """,
+        {"start": previous_week_start, "end": previous_week_end},
+    )
     soling_month = await one_mapping(
         """
         select count(*) as count,
@@ -495,6 +505,16 @@ async def dashboard_data() -> dict[str, Any]:
         where stat_date >= :start and stat_date <= :today
         """,
         {"start": month_start, "today": today},
+    )
+    soling_previous_month = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(duration_minutes), 0) as minutes,
+               coalesce(sum(paid_amount_kr), 0) as amount
+        from sun2_tanning_sessions
+        where stat_date >= :start and stat_date < :end
+        """,
+        {"start": previous_month_start, "end": previous_month_end},
     )
     latest_soling = await one_mapping(
         """
@@ -660,7 +680,9 @@ async def dashboard_data() -> dict[str, Any]:
         "soling_yesterday": soling_yesterday,
         "soling_last_week_same_day": soling_last_week_same_day,
         "soling_week": soling_week,
+        "soling_previous_week": soling_previous_week,
         "soling_month": soling_month,
+        "soling_previous_month": soling_previous_month,
         "latest_soling": latest_soling,
         "session_import": session_import,
         "parking_import": parking_import,
@@ -817,6 +839,10 @@ async def dashboard(request: Request):
 @app.get("/soling", response_class=HTMLResponse)
 async def soling_detail(request: Request):
     data = await dashboard_data()
+    session_import_at = data["session_import"].get("updated_at")
+    latest_soling_at = data["latest_soling"].get("started_at")
+    latest_soling_room = str(data["latest_soling"].get("room") or "").strip()
+    latest_soling_detail = f"Rom {latest_soling_room}" if latest_soling_room else fmt_date(latest_soling_at)
     rows = await many_mappings(
         """
         select started_at, room, duration_minutes, paid_amount_kr
@@ -829,6 +855,8 @@ async def soling_detail(request: Request):
     )
     body = detail_stats(
         [
+            ("Siste import", fmt_clock(session_import_at), fmt_date(session_import_at)),
+            ("Siste soling", fmt_clock(latest_soling_at), latest_soling_detail),
             ("I dag", fmt_int(data["soling"].get("count")), fmt_money(data["soling"].get("amount"))),
             (
                 "Samme dag forrige uke",
@@ -836,7 +864,9 @@ async def soling_detail(request: Request):
                 fmt_money(data["soling_last_week_same_day"].get("amount")),
             ),
             ("Denne uken", fmt_int(data["soling_week"].get("count")), fmt_money(data["soling_week"].get("amount"))),
+            ("Forrige uke", fmt_int(data["soling_previous_week"].get("count")), fmt_money(data["soling_previous_week"].get("amount"))),
             ("Denne måneden", fmt_int(data["soling_month"].get("count")), fmt_money(data["soling_month"].get("amount"))),
+            ("Forrige måned", fmt_int(data["soling_previous_month"].get("count")), fmt_money(data["soling_previous_month"].get("amount"))),
         ]
     )
     body += render_list(
