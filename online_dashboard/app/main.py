@@ -112,34 +112,6 @@ def fmt_clock(value: Any) -> str:
     return value.strftime("kl. %H:%M")
 
 
-def display_stamp(value: Any) -> str:
-    if not isinstance(value, datetime):
-        return "-"
-    return value.strftime("%d.%m kl. %H:%M")
-
-
-def minutes_since_stamp(now: datetime, stamp: Any) -> Optional[float]:
-    if not isinstance(stamp, datetime):
-        return None
-    return max(0, (now - stamp.replace(tzinfo=None)).total_seconds() / 60)
-
-
-def freshness_state(now: datetime, stamp: Any, ok_minutes: int, warn_minutes: int) -> tuple[str, str]:
-    age = minutes_since_stamp(now, stamp)
-    if age is None:
-        return "bad", "Mangler"
-    if age <= ok_minutes:
-        return "good", "Fersk"
-    if age <= warn_minutes:
-        return "warn", "Sjekk"
-    return "bad", "Gammel"
-
-
-def latest_datetime(*values: Any) -> Optional[datetime]:
-    stamps = [value for value in values if isinstance(value, datetime)]
-    return max(stamps) if stamps else None
-
-
 def fmt_utc_time(value: Any) -> str:
     if not isinstance(value, datetime):
         return "-"
@@ -387,79 +359,6 @@ def compare_text(current: Any, previous: Any, noun: str = "") -> str:
     return f"{sign}{fmt_int(abs(diff))}{noun} mot i går ({fmt_int(previous_i)})"
 
 
-def trend_line(current: Any, previous: Any, label: str = "forrige uke") -> str:
-    try:
-        current_i = int(current or 0)
-        previous_i = int(previous or 0)
-    except (TypeError, ValueError):
-        return '<small class="trend-line trend-flat">Trend -</small>'
-    diff = current_i - previous_i
-    if diff == 0:
-        return f'<small class="trend-line trend-flat">Lik mot {escape(label)} ({fmt_int(previous_i)})</small>'
-    css = "trend-up" if diff > 0 else "trend-down"
-    sign = "+" if diff > 0 else "-"
-    return f'<small class="trend-line {css}">{sign}{fmt_int(abs(diff))} mot {escape(label)} ({fmt_int(previous_i)})</small>'
-
-
-def source_state(now: datetime, row: dict[str, Any], fallback_stamp: Any, ok_minutes: int, warn_minutes: int) -> tuple[str, str, Any]:
-    stamp = row.get("updated_at") or fallback_stamp
-    failed = row.get("last_failed_at")
-    if isinstance(failed, datetime) and (not isinstance(stamp, datetime) or failed > stamp):
-        return "bad", "Feil", failed
-    status = str(row.get("status") or "").strip().lower()
-    if status == "running":
-        return "warn", "KjÃ¸rer", stamp
-    state, label = freshness_state(now, stamp, ok_minutes, warn_minutes)
-    return state, label, stamp
-
-
-def render_source_status(data: dict[str, Any]) -> str:
-    now = data["now"]
-    sol_state, sol_label, sol_stamp = source_state(now, data["session_import"], data["soling"].get("updated_at"), 90, 240)
-    park_state, park_label, park_stamp = source_state(now, data["parking_import"], data["parking"].get("updated_at"), 360, 720)
-    tech_state, tech_label = freshness_state(now, data.get("technical_updated_at"), 15, 45)
-    items = [
-        ("Soling", sol_stamp, sol_state, sol_label),
-        ("Parkering", park_stamp, park_state, park_label),
-        ("Teknisk", data.get("technical_updated_at"), tech_state, tech_label),
-    ]
-    cards = "".join(
-        f"""
-        <article class="source-card health-{state}">
-          <span><i aria-hidden="true"></i>{escape(label)}</span>
-          <strong>{display_stamp(stamp)}</strong>
-          <small>{escape(status_text)}</small>
-        </article>
-        """
-        for label, stamp, state, status_text in items
-    )
-    return f'<section class="source-strip" aria-label="Datastatus">{cards}</section>'
-
-
-def render_now_grid(data: dict[str, Any]) -> str:
-    latest_soling_room = escape(str(data["latest_soling"].get("room") or "").strip())
-    latest_soling_detail = f"Rom {latest_soling_room}" if latest_soling_room else "Ingen i dag"
-    latest_parking_plate = escape(str(data["latest_parking"].get("car_license_number") or "").strip())
-    latest_parking_detail = latest_parking_plate or f'{fmt_int(data["parking"].get("active_count"))} aktive'
-    items = [
-        ("Ã…pent nÃ¥", data["open_state"]["label"], data["open_state"]["detail"], "accent-open"),
-        ("Aktiv parkering", fmt_int(data["parking"].get("active_count")), f'Import {fmt_clock(data["parking_import"].get("updated_at"))}', "accent-parking"),
-        ("Siste soling", fmt_clock(data["latest_soling"].get("started_at")), latest_soling_detail, "accent-sun"),
-        ("StrÃ¸m nÃ¥", fmt_watt(data["energy_now"].get("inntak_w")), fmt_kwh(data["energy_today"].get("kwh")), "accent-energy"),
-    ]
-    cards = "".join(
-        f"""
-        <article class="now-card {css_class}">
-          <span>{escape(label)}</span>
-          <strong>{escape(value)}</strong>
-          <small>{escape(detail)}</small>
-        </article>
-        """
-        for label, value, detail, css_class in items
-    )
-    return f'<section class="now-grid" aria-label="Akkurat nÃ¥">{cards}</section>'
-
-
 def operating_window(now: datetime) -> dict[str, Any]:
     open_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=7)
     close_at = datetime.combine(now.date(), datetime.min.time()).replace(hour=23)
@@ -629,12 +528,7 @@ async def dashboard_data() -> dict[str, Any]:
     )
     session_import = await one_mapping(
         """
-        select last_success_at as updated_at,
-               last_failed_at,
-               status,
-               status_text,
-               message,
-               records_total
+        select last_success_at as updated_at
         from import_job_status
         where job_name = 'sun2_sessions_import'
         limit 1
@@ -650,12 +544,7 @@ async def dashboard_data() -> dict[str, Any]:
         )
     parking_import = await one_mapping(
         """
-        select last_success_at as updated_at,
-               last_failed_at,
-               status,
-               status_text,
-               message,
-               records_total
+        select last_success_at as updated_at
         from import_job_status
         where job_name = 'easypark_parking_import'
         limit 1
@@ -783,14 +672,6 @@ async def dashboard_data() -> dict[str, Any]:
     outside_values = [vent.get("temp_ute"), vent.get("temp_yr")]
     outside_values = [float(value) for value in outside_values if value is not None]
     outside = sum(outside_values) / len(outside_values) if outside_values else None
-    technical_updated_at = latest_datetime(
-        lights.get("bucket_start"),
-        lights.get("timestamp"),
-        vent.get("bucket_start"),
-        vent.get("timestamp"),
-        energy_now.get("bucket_start"),
-        energy_now.get("timestamp"),
-    )
 
     return {
         "now": now,
@@ -817,7 +698,6 @@ async def dashboard_data() -> dict[str, Any]:
         "vent": vent,
         "energy_now": energy_now,
         "energy_today": energy_today,
-        "technical_updated_at": technical_updated_at,
         "inside_avg": inside_avg,
         "outside": outside,
         "outside_sensor": vent.get("temp_ute"),
@@ -901,24 +781,18 @@ async def dashboard(request: Request):
     if data["latest_parking"].get("start_time"):
         plate_suffix = f" · {latest_parking_plate}" if latest_parking_plate else ""
         latest_parking = f"Siste {fmt_time(data['latest_parking'].get('start_time'))}{plate_suffix}"
-    soling_health = source_state(data["now"], data["session_import"], data["soling"].get("updated_at"), 90, 240)[0]
-    parking_health = source_state(data["now"], data["parking_import"], data["parking"].get("updated_at"), 360, 720)[0]
     html = DASHBOARD_HTML
     replacements = {
         "{{ user }}": user,
         "{{ now }}": data["now"].strftime("%d.%m.%Y %H:%M"),
-        "{{ source_status }}": render_source_status(data),
-        "{{ now_grid }}": render_now_grid(data),
         "{{ open_label }}": data["open_state"]["label"],
         "{{ open_detail }}": data["open_state"]["detail"],
         "{{ open_progress }}": str(data["open_state"]["progress"]),
-        "{{ soling_health_class }}": f"health-{soling_health}",
         "{{ soling_count }}": fmt_int(data["soling"].get("count")),
         "{{ soling_yesterday_count }}": fmt_int(data["soling_yesterday"].get("count")),
         "{{ soling_amount }}": fmt_money(data["soling"].get("amount")),
         "{{ soling_minutes }}": f"{soling_hours:.1f} t".replace(".", ","),
         "{{ soling_compare }}": compare_text(data["soling"].get("count"), data["soling_yesterday"].get("count"), " stk"),
-        "{{ soling_trend }}": trend_line(data["soling"].get("count"), data["soling_last_week_same_day"].get("count"), "samme dag forrige uke"),
         "{{ soling_week_count }}": fmt_int(data["soling_week"].get("count")),
         "{{ soling_week_amount }}": fmt_money(data["soling_week"].get("amount")),
         "{{ soling_week_minutes }}": f"{week_soling_hours:.1f} t".replace(".", ","),
@@ -926,13 +800,11 @@ async def dashboard(request: Request):
         "{{ soling_month_amount }}": fmt_money(data["soling_month"].get("amount")),
         "{{ latest_soling }}": latest_soling,
         "{{ soling_time }}": fmt_time(data["session_import"].get("updated_at")) if data["session_import"].get("updated_at") else fmt_time(data["soling"].get("updated_at")),
-        "{{ parking_health_class }}": f"health-{parking_health}",
         "{{ parking_count }}": fmt_int(data["parking"].get("count")),
         "{{ parking_yesterday_count }}": fmt_int(data["parking_yesterday"].get("count")),
         "{{ parking_amount }}": fmt_money(data["parking"].get("amount")),
         "{{ parking_active }}": fmt_int(data["parking"].get("active_count")),
         "{{ parking_compare }}": compare_text(data["parking"].get("count"), data["parking_yesterday"].get("count"), " stk"),
-        "{{ parking_trend }}": trend_line(data["parking"].get("count"), data["parking_last_week_same_day"].get("count"), "samme dag forrige uke"),
         "{{ parking_week_count }}": fmt_int(data["parking_week"].get("count")),
         "{{ parking_week_amount }}": fmt_money(data["parking_week"].get("amount")),
         "{{ parking_month_count }}": fmt_int(data["parking_month"].get("count")),
@@ -1033,12 +905,6 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
         "denied": "Brukeren mangler driftstilgang.",
         "error": "Oppdatering feilet.",
     }.get(refresh or "", "")
-    parking_import_failed_at = data["parking_import"].get("last_failed_at")
-    parking_import_attempt_at = latest_datetime(parking_import_at, parking_import_failed_at)
-    update_state = "bad" if isinstance(parking_import_failed_at, datetime) and (not isinstance(parking_import_at, datetime) or parking_import_failed_at > parking_import_at) else "good"
-    update_status = f"Sist forsÃ¸kt {display_stamp(parking_import_attempt_at)}. Sist OK {display_stamp(parking_import_at)}."
-    if update_state == "bad" and data["parking_import"].get("message"):
-        update_status = f"{update_status} {str(data['parking_import'].get('message'))[:120]}"
     button = (
         f"""
         <form method="post" action="/parkering/oppdater" class="detail-action">
@@ -1048,7 +914,6 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
         if can_refresh
         else '<p class="notice">Oppdatering krever master eller innstillingsbruker.</p>'
     )
-    button += f'<p class="notice update-status health-{update_state}">{escape(update_status)}</p>'
     if refresh_label:
         button += f'<p class="notice">{escape(refresh_label)}</p>'
     body = detail_stats(
@@ -1306,8 +1171,6 @@ DASHBOARD_HTML = """<!doctype html>
     <form method="post" action="/logg-ut"><button type="submit">Logg ut</button></form>
   </header>
   <main class="dashboard">
-    {{ source_status }}
-    {{ now_grid }}
     <section class="pulse-grid">
       <article class="pulse-card accent-open">
         <span>Åpningstid</span>
@@ -1324,18 +1187,16 @@ DASHBOARD_HTML = """<!doctype html>
     </section>
 
     <section class="metric-grid">
-      <a class="metric-card accent-sun card-link {{ soling_health_class }}" href="/soling">
+      <a class="metric-card accent-sun card-link" href="/soling">
         <span>Solinger</span>
         <strong>{{ soling_count }}<em>/{{ soling_yesterday_count }}</em></strong>
         <small>I dag / i går</small>
-        {{ soling_trend }}
         <small class="updated-line">Oppdatert {{ soling_time }}</small>
       </a>
-      <a class="metric-card accent-parking card-link {{ parking_health_class }}" href="/parkering">
+      <a class="metric-card accent-parking card-link" href="/parkering">
         <span>Parkering</span>
         <strong>{{ parking_count }}<em>/{{ parking_yesterday_count }}</em></strong>
         <small>I dag / i går · {{ parking_active }} aktive</small>
-        {{ parking_trend }}
         <small class="updated-line">Oppdatert {{ parking_time }}</small>
       </a>
     </section>
@@ -1411,16 +1272,5 @@ DETAIL_HTML = """<!doctype html>
     </section>
     {{ body }}
   </main>
-  <script>
-    document.querySelectorAll(".detail-action").forEach((form) => {
-      form.addEventListener("submit", () => {
-        const button = form.querySelector("button");
-        if (button) {
-          button.disabled = true;
-          button.textContent = "Oppdaterer...";
-        }
-      });
-    });
-  </script>
 </body>
 </html>"""
