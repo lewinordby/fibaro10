@@ -1272,5 +1272,16 @@ DETAIL_HTML = """<!doctype html>
     </section>
     {{ body }}
   </main>
+  <script>
+    document.querySelectorAll(".detail-action").forEach((form) => {
+      form.addEventListener("submit", () => {
+        const button = form.querySelector("button");
+        if (button) {
+          button.disabled = true;
+          button.textContent = "Oppdaterer...";
+        }
+      });
+    });
+  </script>
 </body>
 </html>"""
