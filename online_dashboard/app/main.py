@@ -871,7 +871,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
             ("Aktive", fmt_int(data["parking"].get("active_count")), "nå"),
             ("Denne uken", fmt_int(data["parking_week"].get("count")), fmt_money(data["parking_week"].get("amount"))),
             ("Denne måneden", fmt_int(data["parking_month"].get("count")), fmt_money(data["parking_month"].get("amount"))),
-            ("Siste EasyPark-import", fmt_date(parking_import_at), fmt_clock(parking_import_at)),
+            ("Siste EasyPark-import", fmt_clock(parking_import_at), fmt_date(parking_import_at)),
         ]
     )
     body += button
