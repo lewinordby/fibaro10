@@ -94,7 +94,7 @@ button {
     font-weight: 900;
 }
 h1, h2, p { margin: 0; }
-h1 { font-size: clamp(2rem, 10vw, 3.4rem); line-height: .95; letter-spacing: -.03em; }
+h1 { font-size: 2.8rem; line-height: .95; letter-spacing: 0; }
 h2 { font-size: 1.05rem; }
 .hero p:last-child, .lead, small, .card-time { color: var(--muted); }
 
@@ -132,7 +132,7 @@ h2 { font-size: 1.05rem; }
     margin-top: .18rem;
     font-size: 1.45rem;
     line-height: 1;
-    letter-spacing: -.04em;
+    letter-spacing: 0;
 }
 .pulse-card small, .insight-grid small { display: block; margin-top: .25rem; color: var(--muted); font-size: .72rem; line-height: 1.2; }
 .accent-energy { border-left-color: var(--navy); }
@@ -162,7 +162,7 @@ h2 { font-size: 1.05rem; }
     margin-top: .25rem;
     font-size: 2rem;
     line-height: 1;
-    letter-spacing: -.04em;
+    letter-spacing: 0;
 }
 .metric-card strong em {
     color: var(--muted);
@@ -186,7 +186,7 @@ h2 { font-size: 1.05rem; }
 }
 .detail-hero h1 {
     margin-top: .35rem;
-    font-size: clamp(1.95rem, 9vw, 3rem);
+    font-size: 2.45rem;
 }
 .detail-hero p {
     margin-top: .28rem;
@@ -302,7 +302,7 @@ h2 { font-size: 1.05rem; }
     margin-top: .25rem;
     font-size: 2.2rem;
     line-height: 1;
-    letter-spacing: -.05em;
+    letter-spacing: 0;
 }
 .temperature-list {
     display: grid;
@@ -438,6 +438,14 @@ h2 { font-size: 1.05rem; }
 @media (min-width: 680px) {
     .login-shell { grid-template-columns: 1.1fr .9fr; align-items: center; }
     .login-brand { display: block; }
+
+    h1 {
+        font-size: 3.2rem;
+    }
+
+    .detail-hero h1 {
+        font-size: 2.8rem;
+    }
 }
 
 @media (max-width: 520px) {
@@ -463,7 +471,11 @@ h2 { font-size: 1.05rem; }
     }
 
     h1 {
-        font-size: clamp(1.75rem, 9vw, 2.4rem);
+        font-size: 2.1rem;
+    }
+
+    .detail-hero h1 {
+        font-size: 2rem;
     }
 
     .metric-grid, .pulse-grid, .temperature-grid {
