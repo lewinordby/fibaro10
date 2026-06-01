@@ -416,7 +416,7 @@ def can_manage(access_key: dict[str, Any]) -> bool:
 
 
 def money_if_allowed(access_key: dict[str, Any], value: Any) -> str:
-    return fmt_money(value) if can_manage(access_key) else "Skjult"
+    return fmt_money(value) if can_manage(access_key) else ""
 
 
 def easypark_period() -> tuple[date, date]:
@@ -1167,7 +1167,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
         "ok": "Oppdatering startet/ferdig.",
         "busy": "EasyPark jobber allerede.",
         "cooldown": "Oppdatering nylig sendt. Vent litt før neste forsøk.",
-        "denied": "Brukeren mangler driftstilgang.",
+        "denied": "",
         "error": f"Oppdatering feilet: {friendly_easypark_error(reason or '', easypark_status)}",
     }.get(refresh or "", "")
     button = (
@@ -1178,7 +1178,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
         </form>
         """
         if can_refresh
-        else '<p class="notice">Oppdatering krever master eller innstillingsbruker.</p>'
+        else ""
     )
     if refresh_label:
         button += f'<p class="notice">{escape(refresh_label)}</p>'
@@ -1395,12 +1395,13 @@ def render_state_cards(items: list[tuple[str, Any]], icon_class: str) -> str:
 def detail_stats(items: list[tuple[str, str, str]]) -> str:
     cards = []
     for label, value, subtext in items:
+        subtext_html = f"<small>{escape(subtext)}</small>" if subtext else ""
         cards.append(
             f"""
             <article>
                 <span>{escape(label)}</span>
                 <strong>{escape(value)}</strong>
-                <small>{escape(subtext)}</small>
+                {subtext_html}
             </article>
             """
         )
@@ -1416,7 +1417,7 @@ def render_list(title: str, rows: list[tuple[str, str, str]]) -> str:
             <li>
                 <time>{escape(time_text)}</time>
                 <strong>{main}</strong>
-                <small>{detail}</small>
+                {f"<small>{detail}</small>" if detail else ""}
             </li>
             """
             for time_text, main, detail in rows
