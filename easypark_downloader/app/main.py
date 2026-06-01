@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import time
 from datetime import date, datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
@@ -40,6 +41,9 @@ CODE_COOLDOWN_MINUTES = int(os.getenv("EASYPARK_CODE_COOLDOWN_MINUTES", "5"))
 FORCE_LOGIN_TIMES = os.getenv("EASYPARK_FORCE_LOGIN_TIMES", "03:00").strip()
 EDGE_EXECUTABLE_PATH = os.getenv("EASYPARK_EDGE_EXECUTABLE_PATH", "/usr/bin/microsoft-edge")
 JOB_TIMEOUT_SECONDS = max(60, int(os.getenv("EASYPARK_JOB_TIMEOUT_SECONDS", "300")))
+WATCHDOG_INTERVAL_SECONDS = max(10, int(os.getenv("EASYPARK_WATCHDOG_INTERVAL_SECONDS", "30")))
+STALE_JOB_SECONDS = max(JOB_TIMEOUT_SECONDS + 30, int(os.getenv("EASYPARK_STALE_JOB_SECONDS", "600")))
+AUTO_RESTART_ON_BROWSER_FAILURE = os.getenv("EASYPARK_AUTO_RESTART_ON_BROWSER_FAILURE", "true").strip().lower() in {"1", "true", "yes", "ja"}
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://192.168.20.218:8110").rstrip("/")
@@ -54,6 +58,8 @@ CODE_RE = re.compile(r"verification code is:\s*(\d{4,8})", re.IGNORECASE)
 app = FastAPI(title="EasyPark downloader")
 lock = asyncio.Lock()
 worker_task: asyncio.Task | None = None
+watchdog_task: asyncio.Task | None = None
+running_started_monotonic: float | None = None
 state: dict[str, Any] = {
     "started_at": datetime.now(timezone.utc).isoformat(),
     "running": False,
@@ -130,7 +136,35 @@ def scheduled_period() -> tuple[date | None, date | None]:
 
 
 def set_state(**values: Any) -> None:
+    global running_started_monotonic
+    if "running" in values:
+        running_started_monotonic = time.monotonic() if values["running"] else None
     state.update(values)
+
+
+def should_restart_after_error(message: str) -> bool:
+    normalized = message.casefold()
+    return (
+        "launch_persistent_context" in normalized
+        or ("browsertype" in normalized and "timeout" in normalized)
+        or "target page, context or browser has been closed" in normalized
+        or "easypark-importen stoppet etter" in normalized
+    )
+
+
+def schedule_self_restart(reason: str) -> None:
+    if not AUTO_RESTART_ON_BROWSER_FAILURE:
+        return
+
+    async def exit_soon() -> None:
+        set_state(running=False, last_error=reason, last_action="restarting")
+        await asyncio.sleep(2)
+        os._exit(1)
+
+    try:
+        asyncio.create_task(exit_soon())
+    except RuntimeError:
+        os._exit(1)
 
 
 def read_auth_state() -> dict[str, Any]:
@@ -705,8 +739,11 @@ async def _run_download_import(
         )
         return result
     except Exception as exc:
-        set_state(running=False, last_error=str(exc), last_action="error", last_period=period)
-        report_failure_to_fibaro10(started, str(exc))
+        message = str(exc)
+        set_state(running=False, last_error=message, last_action="error", last_period=period)
+        report_failure_to_fibaro10(started, message)
+        if should_restart_after_error(message):
+            schedule_self_restart(message)
         raise
 
 
@@ -725,6 +762,7 @@ async def run_download_import(
         message = f"EasyPark-importen stoppet etter {JOB_TIMEOUT_SECONDS} sekunder."
         set_state(running=False, last_error=message, last_action="timeout", last_period=period)
         report_failure_to_fibaro10(fibaro10_datetime_iso(), message)
+        schedule_self_restart(message)
         raise RuntimeError(message) from exc
 
 
@@ -780,6 +818,21 @@ async def worker_loop() -> None:
             pass
 
 
+async def watchdog_loop() -> None:
+    while True:
+        await asyncio.sleep(WATCHDOG_INTERVAL_SECONDS)
+        if not state.get("running") or running_started_monotonic is None:
+            continue
+        elapsed = time.monotonic() - running_started_monotonic
+        if elapsed < STALE_JOB_SECONDS:
+            continue
+        message = f"EasyPark-importen har kjørt i over {STALE_JOB_SECONDS} sekunder og restartes automatisk."
+        set_state(running=False, last_error=message, last_action="watchdog_restart")
+        report_failure_to_fibaro10(fibaro10_datetime_iso(), message)
+        schedule_self_restart(message)
+        return
+
+
 def seconds_until_next_run() -> int:
     schedule_times = parse_run_times(RUN_TIMES)
     if schedule_times:
@@ -814,8 +867,9 @@ def seconds_until_next_run() -> int:
 async def startup() -> None:
     for path in (DATA_DIR, PROFILE_DIR, DOWNLOAD_DIR, ARTIFACT_DIR):
         path.mkdir(parents=True, exist_ok=True)
-    global worker_task
+    global worker_task, watchdog_task
     worker_task = asyncio.create_task(worker_loop())
+    watchdog_task = asyncio.create_task(watchdog_loop())
 
 
 @app.get("/health")
@@ -834,6 +888,10 @@ async def status() -> dict[str, Any]:
             "run_every_hour": RUN_EVERY_HOUR,
             "force_login_times": [f"{hour:02d}:{minute:02d}" for hour, minute in parse_run_times(FORCE_LOGIN_TIMES)],
             "recent_days": RECENT_DAYS,
+        },
+        "watchdog": {
+            "stale_job_seconds": STALE_JOB_SECONDS,
+            "auto_restart": AUTO_RESTART_ON_BROWSER_FAILURE,
         },
     }
 

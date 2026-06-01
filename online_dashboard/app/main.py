@@ -429,6 +429,44 @@ def easypark_downloader_request(path: str, params: dict[str, Any]) -> dict[str, 
     return json.loads(payload)
 
 
+def easypark_downloader_status() -> dict[str, Any]:
+    try:
+        with urllib.request.urlopen(f"{EASYPARK_DOWNLOADER_URL}/status", timeout=4) as response:
+            payload = response.read().decode("utf-8", errors="replace")
+        return json.loads(payload)
+    except Exception:
+        return {}
+
+
+def classify_easypark_error(message: Any) -> str:
+    if not message:
+        return ""
+    normalized = str(message).casefold()
+    if "launch_persistent_context" in normalized or ("browser" in normalized and "timeout" in normalized):
+        return "browser_timeout"
+    if "easypark-importen stoppet etter" in normalized:
+        return "job_timeout"
+    if "target page, context or browser has been closed" in normalized:
+        return "browser_closed"
+    if "timed out" in normalized or "timeout" in normalized:
+        return "timeout"
+    return "unknown"
+
+
+def friendly_easypark_error(reason: str, status: dict[str, Any]) -> str:
+    status_reason = classify_easypark_error(status.get("last_error"))
+    code = reason or status_reason
+    messages = {
+        "browser_timeout": "EasyPark-browseren startet ikke innen tidsfristen. Containeren restartes automatisk.",
+        "job_timeout": "EasyPark-importen brukte for lang tid. Containeren restartes automatisk.",
+        "browser_closed": "EasyPark-browseren lukket seg under import. Prøv igjen om litt.",
+        "timeout": "EasyPark svarte ikke innen tidsfristen.",
+        "unavailable": "EasyPark-importøren svarte ikke akkurat nå.",
+        "unknown": "Se siste EasyPark-status under knappen.",
+    }
+    return messages.get(code, messages["unknown"])
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
@@ -927,8 +965,9 @@ async def soling_detail(request: Request):
 
 
 @app.get("/parkering", response_class=HTMLResponse)
-async def parking_detail(request: Request, refresh: Optional[str] = None):
+async def parking_detail(request: Request, refresh: Optional[str] = None, reason: Optional[str] = None):
     data = await dashboard_data()
+    easypark_status = easypark_downloader_status()
     parking_import_at = data["parking_import"].get("updated_at")
     parking_failed_at = data["parking_import"].get("last_failed_at")
     import_status_text = f"Sist OK: {display_stamp(parking_import_at)}"
@@ -951,7 +990,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
     refresh_button_text = "Oppdater tall"
     refresh_status_text = f"Klar for oppdatering. {import_status_text}"
     refresh_disabled = ""
-    if parking_refresh_lock.locked():
+    if parking_refresh_lock.locked() or easypark_status.get("running") is True:
         refresh_state = "busy"
         refresh_button_text = "Oppdaterer..."
         refresh_status_text = f"Oppdatering kjører nå. {import_status_text}"
@@ -966,7 +1005,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
         "busy": "EasyPark jobber allerede.",
         "cooldown": "Oppdatering nylig sendt. Vent litt før neste forsøk.",
         "denied": "Brukeren mangler driftstilgang.",
-        "error": "Oppdatering feilet.",
+        "error": f"Oppdatering feilet: {friendly_easypark_error(reason or '', easypark_status)}",
     }.get(refresh or "", "")
     button = (
         f"""
@@ -1040,11 +1079,17 @@ async def parking_refresh(request: Request):
             )
             status = result.get("status")
             outcome = "busy" if status == "busy" else "ok"
+            reason = ""
             if status == "error":
                 outcome = "error"
-        except Exception:
+                reason = classify_easypark_error(result.get("detail") or result.get("last_error"))
+        except Exception as exc:
             outcome = "error"
-    return RedirectResponse(f"/parkering?refresh={outcome}", status_code=303)
+            reason = classify_easypark_error(str(exc)) or "unavailable"
+    query = {"refresh": outcome}
+    if outcome == "error" and reason:
+        query["reason"] = reason
+    return RedirectResponse(f"/parkering?{urlencode(query)}", status_code=303)
 
 
 @app.get("/energi", response_class=HTMLResponse)
