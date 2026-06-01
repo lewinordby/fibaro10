@@ -431,11 +431,19 @@ async def dashboard_data() -> dict[str, Any]:
     last_week_same_day = today - timedelta(days=7)
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
+    previous_week_start = week_start - timedelta(days=7)
+    previous_week_end = week_start
+    previous_month_end = month_start
+    previous_month_start = (month_start - timedelta(days=1)).replace(day=1)
     start, end = day_bounds(today)
     yesterday_start, yesterday_end = day_bounds(yesterday)
     last_week_same_day_start, last_week_same_day_end = day_bounds(last_week_same_day)
     week_start_dt = datetime.combine(week_start, datetime.min.time())
+    previous_week_start_dt = datetime.combine(previous_week_start, datetime.min.time())
+    previous_week_end_dt = datetime.combine(previous_week_end, datetime.min.time())
     month_start_dt = datetime.combine(month_start, datetime.min.time())
+    previous_month_start_dt = datetime.combine(previous_month_start, datetime.min.time())
+    previous_month_end_dt = datetime.combine(previous_month_end, datetime.min.time())
 
     soling = await one_mapping(
         """
@@ -560,6 +568,15 @@ async def dashboard_data() -> dict[str, Any]:
         """,
         {"start": week_start_dt, "end": end},
     )
+    parking_previous_week = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(fee_inc_vat), 0) as amount
+        from parkering
+        where start_time >= :start and start_time < :end
+        """,
+        {"start": previous_week_start_dt, "end": previous_week_end_dt},
+    )
     parking_month = await one_mapping(
         """
         select count(*) as count,
@@ -568,6 +585,15 @@ async def dashboard_data() -> dict[str, Any]:
         where start_time >= :start and start_time < :end
         """,
         {"start": month_start_dt, "end": end},
+    )
+    parking_previous_month = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(fee_inc_vat), 0) as amount
+        from parkering
+        where start_time >= :start and start_time < :end
+        """,
+        {"start": previous_month_start_dt, "end": previous_month_end_dt},
     )
     latest_parking = await one_mapping(
         """
@@ -642,7 +668,9 @@ async def dashboard_data() -> dict[str, Any]:
         "parking_yesterday": parking_yesterday,
         "parking_last_week_same_day": parking_last_week_same_day,
         "parking_week": parking_week,
+        "parking_previous_week": parking_previous_week,
         "parking_month": parking_month,
+        "parking_previous_month": parking_previous_month,
         "latest_parking": latest_parking,
         "lights": lights,
         "vent": vent,
@@ -841,7 +869,6 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
         {"start": start, "end": end},
     )
     can_refresh = can_manage(request.state.access_key)
-    from_day, to_day = easypark_period()
     refresh_label = {
         "ok": "Oppdatering startet/ferdig.",
         "busy": "EasyPark jobber allerede.",
@@ -851,8 +878,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
     button = (
         f"""
         <form method="post" action="/parkering/oppdater" class="detail-action">
-          <button type="submit">Oppdater dagens tall</button>
-          <small>Henter EasyPark for {from_day.strftime('%d.%m')}-{to_day.strftime('%d.%m')}.</small>
+          <button type="submit">Oppdater tall</button>
         </form>
         """
         if can_refresh
@@ -862,16 +888,18 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
         button += f'<p class="notice">{escape(refresh_label)}</p>'
     body = detail_stats(
         [
+            ("Siste import", fmt_clock(parking_import_at), fmt_date(parking_import_at)),
+            ("Aktive", fmt_int(data["parking"].get("active_count")), f"Samme tidspunkt {fmt_clock(parking_import_at)}"),
             ("I dag", fmt_int(data["parking"].get("count")), fmt_money(data["parking"].get("amount"))),
             (
                 "Samme dag forrige uke",
                 fmt_int(data["parking_last_week_same_day"].get("count")),
                 fmt_money(data["parking_last_week_same_day"].get("amount")),
             ),
-            ("Aktive", fmt_int(data["parking"].get("active_count")), "nå"),
             ("Denne uken", fmt_int(data["parking_week"].get("count")), fmt_money(data["parking_week"].get("amount"))),
+            ("Forrige uke", fmt_int(data["parking_previous_week"].get("count")), fmt_money(data["parking_previous_week"].get("amount"))),
             ("Denne måneden", fmt_int(data["parking_month"].get("count")), fmt_money(data["parking_month"].get("amount"))),
-            ("Siste EasyPark-import", fmt_clock(parking_import_at), fmt_date(parking_import_at)),
+            ("Forrige måned", fmt_int(data["parking_previous_month"].get("count")), fmt_money(data["parking_previous_month"].get("amount"))),
         ]
     )
     body += button
