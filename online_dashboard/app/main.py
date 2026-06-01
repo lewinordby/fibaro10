@@ -4,6 +4,7 @@ from html import escape
 import asyncio
 import json
 import os
+import time
 from typing import Any, Optional
 from urllib.parse import urlencode
 import urllib.request
@@ -27,12 +28,15 @@ PUBLIC_PREFIXES = ("/static/",)
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
 ONLINE_ACCESS_LOG_COOLDOWN_SECONDS = max(0, int(os.getenv("ONLINE_ACCESS_LOG_COOLDOWN_SECONDS", "0")))
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://192.168.20.218:8109").rstrip("/")
+PARKING_REFRESH_COOLDOWN_SECONDS = max(0, int(os.getenv("PARKING_REFRESH_COOLDOWN_SECONDS", "180")))
 
 app = FastAPI(title="Lilletorget online", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
+parking_refresh_lock = asyncio.Lock()
+parking_refresh_last_started_monotonic: Optional[float] = None
 
 
 def normalize_username(value: str) -> str:
@@ -931,6 +935,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
     refresh_label = {
         "ok": "Oppdatering startet/ferdig.",
         "busy": "EasyPark jobber allerede.",
+        "cooldown": "Oppdatering nylig sendt. Vent litt før neste forsøk.",
         "denied": "Brukeren mangler driftstilgang.",
         "error": "Oppdatering feilet.",
     }.get(refresh or "", "")
@@ -983,21 +988,33 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
 
 @app.post("/parkering/oppdater")
 async def parking_refresh(request: Request):
+    global parking_refresh_last_started_monotonic
     if not can_manage(request.state.access_key):
         return RedirectResponse("/parkering?refresh=denied", status_code=303)
-    from_day, to_day = easypark_period()
-    try:
-        result = await asyncio.to_thread(
-            easypark_downloader_request,
-            "/sync-period",
-            {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
-        )
-        status = result.get("status")
-        outcome = "busy" if status == "busy" else "ok"
-        if status == "error":
+    if parking_refresh_lock.locked():
+        return RedirectResponse("/parkering?refresh=busy", status_code=303)
+    async with parking_refresh_lock:
+        now = time.monotonic()
+        if (
+            parking_refresh_last_started_monotonic is not None
+            and now - parking_refresh_last_started_monotonic < PARKING_REFRESH_COOLDOWN_SECONDS
+        ):
+            return RedirectResponse("/parkering?refresh=cooldown", status_code=303)
+        parking_refresh_last_started_monotonic = now
+
+        from_day, to_day = easypark_period()
+        try:
+            result = await asyncio.to_thread(
+                easypark_downloader_request,
+                "/sync-period",
+                {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
+            )
+            status = result.get("status")
+            outcome = "busy" if status == "busy" else "ok"
+            if status == "error":
+                outcome = "error"
+        except Exception:
             outcome = "error"
-    except Exception:
-        outcome = "error"
     return RedirectResponse(f"/parkering?refresh={outcome}", status_code=303)
 
 
