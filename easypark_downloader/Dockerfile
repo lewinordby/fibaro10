@@ -20,4 +20,4 @@ COPY app ./app
 
 EXPOSE 8109
 
-CMD ["sh", "-c", "Xvfb :99 -screen 0 1365x900x24 -nolisten tcp >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; exec uvicorn app.main:app --host 0.0.0.0 --port 8109"]
+CMD ["sh", "-c", "rm -f /tmp/.X99-lock /tmp/.X11-unix/X99; Xvfb :99 -screen 0 1365x900x24 -nolisten tcp >/tmp/xvfb.log 2>&1 & export DISPLAY=:99; exec uvicorn app.main:app --host 0.0.0.0 --port 8109"]
