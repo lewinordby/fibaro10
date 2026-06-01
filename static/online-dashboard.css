@@ -123,6 +123,9 @@ h2 { font-size: 1.05rem; }
     padding: .8rem;
     border-left: .26rem solid var(--gold);
 }
+.metric-card.is-wide {
+    grid-column: 1 / -1;
+}
 .pulse-card, .insight-grid article {
     padding: .72rem .78rem;
     border-left: .24rem solid var(--green);
@@ -177,6 +180,7 @@ h2 { font-size: 1.05rem; }
     font-weight: 800;
 }
 .accent-parking { border-left-color: var(--parking); }
+.accent-revenue { border-left-color: var(--navy); }
 
 .detail-page {
     padding-bottom: 2.4rem;

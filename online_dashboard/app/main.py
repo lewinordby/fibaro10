@@ -513,6 +513,29 @@ def import_run_rows(runs: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
     return rows
 
 
+def amount_sum(*values: Any) -> float:
+    total = 0.0
+    for value in values:
+        try:
+            total += float(value or 0)
+        except (TypeError, ValueError):
+            pass
+    return total
+
+
+def money_compare_short(current: Any, previous: Any, label: str) -> str:
+    try:
+        current_f = float(current or 0)
+        previous_f = float(previous or 0)
+    except (TypeError, ValueError):
+        return "-"
+    diff = current_f - previous_f
+    if round(diff) == 0:
+        return f"Lik mot {label}"
+    sign = "+" if diff > 0 else "-"
+    return f"{sign}{fmt_money(abs(diff))} mot {label}"
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
@@ -796,7 +819,7 @@ async def dashboard_data() -> dict[str, Any]:
     outside_values = [float(value) for value in outside_values if value is not None]
     outside = sum(outside_values) / len(outside_values) if outside_values else None
 
-    return {
+    data = {
         "now": now,
         "open_state": operating_window(now),
         "soling": soling,
@@ -838,6 +861,29 @@ async def dashboard_data() -> dict[str, Any]:
             ("Tak/loft", vent.get("fan_tak")),
         ],
     }
+    data["revenue"] = {
+        "today": amount_sum(data["soling"].get("amount"), data["parking"].get("amount")),
+        "yesterday": amount_sum(data["soling_yesterday"].get("amount"), data["parking_yesterday"].get("amount")),
+        "last_week_same_day": amount_sum(data["soling_last_week_same_day"].get("amount"), data["parking_last_week_same_day"].get("amount")),
+        "week": amount_sum(data["soling_week"].get("amount"), data["parking_week"].get("amount")),
+        "previous_week": amount_sum(data["soling_previous_week"].get("amount"), data["parking_previous_week"].get("amount")),
+        "month": amount_sum(data["soling_month"].get("amount"), data["parking_month"].get("amount")),
+        "previous_month": amount_sum(data["soling_previous_month"].get("amount"), data["parking_previous_month"].get("amount")),
+    }
+    data["revenue_updated_at"] = max(
+        (
+            stamp
+            for stamp in (
+                data["session_import"].get("updated_at"),
+                data["soling"].get("updated_at"),
+                data["parking_import"].get("updated_at"),
+                data["parking"].get("updated_at"),
+            )
+            if isinstance(stamp, datetime)
+        ),
+        default=None,
+    )
+    return data
 
 
 def render_login(error: str = "") -> HTMLResponse:
@@ -934,6 +980,11 @@ async def dashboard(request: Request):
         "{{ parking_month_amount }}": fmt_money(data["parking_month"].get("amount")),
         "{{ latest_parking }}": latest_parking,
         "{{ parking_time }}": fmt_time(data["parking_import"].get("updated_at")) if data["parking_import"].get("updated_at") else fmt_time(data["parking"].get("updated_at")),
+        "{{ revenue_today }}": fmt_money(data["revenue"].get("today")),
+        "{{ revenue_yesterday }}": fmt_money(data["revenue"].get("yesterday")),
+        "{{ revenue_soling_today }}": fmt_money(data["soling"].get("amount")),
+        "{{ revenue_parking_today }}": fmt_money(data["parking"].get("amount")),
+        "{{ revenue_time }}": fmt_time(data["revenue_updated_at"]),
         "{{ energy_watt }}": fmt_watt(data["energy_now"].get("inntak_w")),
         "{{ energy_kwh }}": fmt_kwh(data["energy_today"].get("kwh")),
         "{{ energy_samples }}": fmt_int(data["energy_today"].get("samples")),
@@ -1008,6 +1059,39 @@ async def soling_detail(request: Request):
         ],
     )
     return render_detail_page("Soling", "Dagens solinger og utvikling hittil.", body)
+
+
+@app.get("/omsetning", response_class=HTMLResponse)
+async def revenue_detail(request: Request):
+    data = await dashboard_data()
+    body = detail_stats(
+        [
+            ("Sist oppdatert", fmt_clock(data["revenue_updated_at"]), fmt_date(data["revenue_updated_at"])),
+            ("I dag", fmt_money(data["revenue"].get("today")), f"Sol {fmt_money(data['soling'].get('amount'))} · parkering {fmt_money(data['parking'].get('amount'))}"),
+            ("I går", fmt_money(data["revenue"].get("yesterday")), f"Sol {fmt_money(data['soling_yesterday'].get('amount'))} · parkering {fmt_money(data['parking_yesterday'].get('amount'))}"),
+            ("Samme dag forrige uke", fmt_money(data["revenue"].get("last_week_same_day")), money_compare_short(data["revenue"].get("today"), data["revenue"].get("last_week_same_day"), "samme dag forrige uke")),
+            ("Denne uken", fmt_money(data["revenue"].get("week")), f"Sol {fmt_money(data['soling_week'].get('amount'))} · parkering {fmt_money(data['parking_week'].get('amount'))}"),
+            ("Forrige uke", fmt_money(data["revenue"].get("previous_week")), f"Sol {fmt_money(data['soling_previous_week'].get('amount'))} · parkering {fmt_money(data['parking_previous_week'].get('amount'))}"),
+            ("Denne måneden", fmt_money(data["revenue"].get("month")), f"Sol {fmt_money(data['soling_month'].get('amount'))} · parkering {fmt_money(data['parking_month'].get('amount'))}"),
+            ("Forrige måned", fmt_money(data["revenue"].get("previous_month")), f"Sol {fmt_money(data['soling_previous_month'].get('amount'))} · parkering {fmt_money(data['parking_previous_month'].get('amount'))}"),
+        ]
+    )
+    body += render_list(
+        "Fordeling i dag",
+        [
+            (
+                "I dag",
+                "Soling",
+                f"{fmt_int(data['soling'].get('count'))} solinger · {fmt_money(data['soling'].get('amount'))}",
+            ),
+            (
+                "I dag",
+                "Parkering",
+                f"{fmt_int(data['parking'].get('count'))} parkeringer · {fmt_money(data['parking'].get('amount'))}",
+            ),
+        ],
+    )
+    return render_detail_page("Omsetning", "Samlet inntekt fra soling og parkering.", body)
 
 
 @app.get("/parkering", response_class=HTMLResponse)
@@ -1398,6 +1482,12 @@ DASHBOARD_HTML = """<!doctype html>
         <strong>{{ parking_count }}<em>/{{ parking_yesterday_count }}</em></strong>
         <small>I dag / i går · {{ parking_active }} aktive</small>
         <small class="updated-line">Oppdatert {{ parking_time }}</small>
+      </a>
+      <a class="metric-card accent-revenue is-wide card-link" href="/omsetning">
+        <span>Omsetning</span>
+        <strong>{{ revenue_today }}<em>/{{ revenue_yesterday }}</em></strong>
+        <small>I dag / i går · sol {{ revenue_soling_today }} · parkering {{ revenue_parking_today }}</small>
+        <small class="updated-line">Oppdatert {{ revenue_time }}</small>
       </a>
     </section>
 
