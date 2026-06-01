@@ -122,6 +122,20 @@ def display_stamp(value: Any) -> str:
     return value.strftime("%d.%m kl. %H:%M")
 
 
+def format_duration_short(seconds: int) -> str:
+    if seconds <= 60:
+        return "under 1 min"
+    minutes = (seconds + 59) // 60
+    return f"{minutes} min"
+
+
+def parking_refresh_cooldown_remaining_seconds() -> int:
+    if PARKING_REFRESH_COOLDOWN_SECONDS <= 0 or parking_refresh_last_started_monotonic is None:
+        return 0
+    elapsed = time.monotonic() - parking_refresh_last_started_monotonic
+    return max(0, int(PARKING_REFRESH_COOLDOWN_SECONDS - elapsed + 0.999))
+
+
 def fmt_utc_time(value: Any) -> str:
     if not isinstance(value, datetime):
         return "-"
@@ -932,6 +946,21 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
         {"start": start, "end": end},
     )
     can_refresh = can_manage(request.state.access_key)
+    cooldown_remaining = parking_refresh_cooldown_remaining_seconds()
+    refresh_state = "ready"
+    refresh_button_text = "Oppdater tall"
+    refresh_status_text = f"Klar for oppdatering. {import_status_text}"
+    refresh_disabled = ""
+    if parking_refresh_lock.locked():
+        refresh_state = "busy"
+        refresh_button_text = "Oppdaterer..."
+        refresh_status_text = f"Oppdatering kjører nå. {import_status_text}"
+        refresh_disabled = " disabled"
+    elif cooldown_remaining > 0:
+        refresh_state = "cooldown"
+        refresh_button_text = "Vent litt"
+        refresh_status_text = f"Klar igjen om {format_duration_short(cooldown_remaining)}. {import_status_text}"
+        refresh_disabled = " disabled"
     refresh_label = {
         "ok": "Oppdatering startet/ferdig.",
         "busy": "EasyPark jobber allerede.",
@@ -941,9 +970,9 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
     }.get(refresh or "", "")
     button = (
         f"""
-        <form method="post" action="/parkering/oppdater" class="detail-action">
-          <button type="submit">Oppdater tall</button>
-          <small>{escape(import_status_text)}</small>
+        <form method="post" action="/parkering/oppdater" class="detail-action is-{refresh_state}">
+          <button type="submit"{refresh_disabled}>{escape(refresh_button_text)}</button>
+          <small>{escape(refresh_status_text)}</small>
         </form>
         """
         if can_refresh

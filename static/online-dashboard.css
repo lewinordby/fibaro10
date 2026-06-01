@@ -226,6 +226,33 @@ h2 { font-size: 1.05rem; }
 .detail-action button {
     width: 100%;
     border-radius: 1rem;
+    transition: background .16s ease, border-color .16s ease, color .16s ease, opacity .16s ease;
+}
+.detail-action.is-ready {
+    border-left-color: var(--green);
+}
+.detail-action.is-ready button {
+    background: var(--green);
+    border-color: var(--green);
+}
+.detail-action.is-busy {
+    border-left-color: var(--gold);
+}
+.detail-action.is-busy button {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--navy);
+}
+.detail-action.is-cooldown {
+    border-left-color: #8a94a6;
+}
+.detail-action.is-cooldown button {
+    background: #8a94a6;
+    border-color: #8a94a6;
+}
+.detail-action button:disabled {
+    cursor: not-allowed;
+    opacity: .78;
 }
 .notice {
     margin: .7rem 0;
