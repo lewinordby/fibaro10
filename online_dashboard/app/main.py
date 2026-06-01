@@ -100,6 +100,18 @@ def fmt_time(value: Any) -> str:
     return value.strftime("%d.%m %H:%M")
 
 
+def fmt_date(value: Any) -> str:
+    if not isinstance(value, datetime):
+        return "-"
+    return value.strftime("%d.%m.%Y")
+
+
+def fmt_clock(value: Any) -> str:
+    if not isinstance(value, datetime):
+        return "-"
+    return value.strftime("kl. %H:%M")
+
+
 def fmt_utc_time(value: Any) -> str:
     if not isinstance(value, datetime):
         return "-"
@@ -816,6 +828,7 @@ async def soling_detail(request: Request):
 @app.get("/parkering", response_class=HTMLResponse)
 async def parking_detail(request: Request, refresh: Optional[str] = None):
     data = await dashboard_data()
+    parking_import_at = data["parking_import"].get("updated_at")
     start, end = day_bounds(data["now"].date())
     rows = await many_mappings(
         """
@@ -858,6 +871,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
             ("Aktive", fmt_int(data["parking"].get("active_count")), "nå"),
             ("Denne uken", fmt_int(data["parking_week"].get("count")), fmt_money(data["parking_week"].get("amount"))),
             ("Denne måneden", fmt_int(data["parking_month"].get("count")), fmt_money(data["parking_month"].get("amount"))),
+            ("Siste EasyPark-import", fmt_date(parking_import_at), fmt_clock(parking_import_at)),
         ]
     )
     body += button
@@ -1195,7 +1209,6 @@ DETAIL_HTML = """<!doctype html>
   </header>
   <main class="dashboard detail-page">
     <section class="detail-hero">
-      <a href="/" class="back-link">← Forside</a>
       <h1>{{ title }}</h1>
       <p>{{ subtitle }}</p>
     </section>
