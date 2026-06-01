@@ -112,6 +112,12 @@ def fmt_clock(value: Any) -> str:
     return value.strftime("kl. %H:%M")
 
 
+def display_stamp(value: Any) -> str:
+    if not isinstance(value, datetime):
+        return "-"
+    return value.strftime("%d.%m kl. %H:%M")
+
+
 def fmt_utc_time(value: Any) -> str:
     if not isinstance(value, datetime):
         return "-"
@@ -528,7 +534,8 @@ async def dashboard_data() -> dict[str, Any]:
     )
     session_import = await one_mapping(
         """
-        select last_success_at as updated_at
+        select last_success_at as updated_at,
+               last_failed_at
         from import_job_status
         where job_name = 'sun2_sessions_import'
         limit 1
@@ -544,7 +551,8 @@ async def dashboard_data() -> dict[str, Any]:
         )
     parking_import = await one_mapping(
         """
-        select last_success_at as updated_at
+        select last_success_at as updated_at,
+               last_failed_at
         from import_job_status
         where job_name = 'easypark_parking_import'
         limit 1
@@ -887,6 +895,10 @@ async def soling_detail(request: Request):
 async def parking_detail(request: Request, refresh: Optional[str] = None):
     data = await dashboard_data()
     parking_import_at = data["parking_import"].get("updated_at")
+    parking_failed_at = data["parking_import"].get("last_failed_at")
+    import_status_text = f"Sist OK: {display_stamp(parking_import_at)}"
+    if isinstance(parking_failed_at, datetime) and (not isinstance(parking_import_at, datetime) or parking_failed_at > parking_import_at):
+        import_status_text = f"Siste forsøk feilet. Sist OK: {display_stamp(parking_import_at)}"
     start, end = day_bounds(data["now"].date())
     rows = await many_mappings(
         """
@@ -909,6 +921,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None):
         f"""
         <form method="post" action="/parkering/oppdater" class="detail-action">
           <button type="submit">Oppdater tall</button>
+          <small>{escape(import_status_text)}</small>
         </form>
         """
         if can_refresh
