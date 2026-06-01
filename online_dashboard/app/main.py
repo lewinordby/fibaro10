@@ -878,7 +878,11 @@ async def soling_detail(request: Request):
         [
             ("Siste import", fmt_clock(session_import_at), fmt_date(session_import_at)),
             ("Siste soling", fmt_clock(latest_soling_at), latest_soling_detail),
-            ("I dag", fmt_int(data["soling"].get("count")), fmt_money(data["soling"].get("amount"))),
+            (
+                "I dag",
+                fmt_int(data["soling"].get("count")),
+                f"{fmt_money(data['soling'].get('amount'))} · {compare_short(data['soling'].get('count'), data['soling_last_week_same_day'].get('count'), 'samme dag forrige uke')}",
+            ),
             (
                 "Samme dag forrige uke",
                 fmt_int(data["soling_last_week_same_day"].get("count")),
