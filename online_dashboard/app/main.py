@@ -1277,7 +1277,6 @@ DETAIL_HTML = """<!doctype html>
       form.addEventListener("submit", () => {
         const button = form.querySelector("button");
         if (button) {
-          button.disabled = true;
           button.textContent = "Oppdaterer...";
         }
       });
