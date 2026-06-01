@@ -124,7 +124,8 @@ h2 { font-size: 1.05rem; }
     border-left: .26rem solid var(--gold);
 }
 .metric-card.is-wide {
-    grid-column: 1 / -1;
+    grid-column: span 2;
+    width: 100%;
 }
 .pulse-card, .insight-grid article {
     padding: .72rem .78rem;
@@ -614,7 +615,7 @@ h2 { font-size: 1.05rem; }
 }
 
 @media (max-width: 360px) {
-    .metric-grid, .pulse-grid, .temperature-grid {
+    .pulse-grid, .temperature-grid {
         grid-template-columns: 1fr;
     }
 
