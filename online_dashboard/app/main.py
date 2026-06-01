@@ -1412,7 +1412,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260601-revenue-wide">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1445,7 +1445,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260601-revenue-wide">
 </head>
 <body>
   <header class="topbar">
@@ -1483,7 +1483,7 @@ DASHBOARD_HTML = """<!doctype html>
         <small>I dag / i går · {{ parking_active }} aktive</small>
         <small class="updated-line">Oppdatert {{ parking_time }}</small>
       </a>
-      <a class="metric-card accent-revenue is-wide card-link" href="/omsetning">
+      <a class="metric-card accent-revenue is-wide card-link" href="/omsetning" style="grid-column: 1 / -1; width: 100%;">
         <span>Omsetning</span>
         <strong>{{ revenue_today }}<em>/{{ revenue_yesterday }}</em></strong>
         <small>I dag / i går · sol {{ revenue_soling_today }} · parkering {{ revenue_parking_today }}</small>
@@ -1546,7 +1546,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260601-revenue-wide">
 </head>
 <body>
   <header class="topbar">
