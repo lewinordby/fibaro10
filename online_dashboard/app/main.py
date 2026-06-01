@@ -28,6 +28,8 @@ PUBLIC_PREFIXES = ("/static/",)
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
 ONLINE_ACCESS_LOG_COOLDOWN_SECONDS = max(0, int(os.getenv("ONLINE_ACCESS_LOG_COOLDOWN_SECONDS", "0")))
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://192.168.20.218:8109").rstrip("/")
+EASYPARK_DOWNLOADER_TIMEOUT_SECONDS = max(60, int(os.getenv("EASYPARK_DOWNLOADER_TIMEOUT_SECONDS", "360")))
+EASYPARK_REFRESH_RETRY_WAIT_SECONDS = max(0, int(os.getenv("EASYPARK_REFRESH_RETRY_WAIT_SECONDS", "30")))
 PARKING_REFRESH_COOLDOWN_SECONDS = max(0, int(os.getenv("PARKING_REFRESH_COOLDOWN_SECONDS", "180")))
 
 app = FastAPI(title="Lilletorget online", docs_url=None, redoc_url=None)
@@ -424,7 +426,7 @@ def easypark_downloader_request(path: str, params: dict[str, Any]) -> dict[str, 
     if query:
         url = f"{url}?{query}"
     request = urllib.request.Request(url, method="POST")
-    with urllib.request.urlopen(request, timeout=180) as response:
+    with urllib.request.urlopen(request, timeout=EASYPARK_DOWNLOADER_TIMEOUT_SECONDS) as response:
         payload = response.read().decode("utf-8", errors="replace")
     return json.loads(payload)
 
@@ -465,6 +467,21 @@ def friendly_easypark_error(reason: str, status: dict[str, Any]) -> str:
         "unknown": "Se siste EasyPark-status under knappen.",
     }
     return messages.get(code, messages["unknown"])
+
+
+def should_retry_easypark_refresh(reason: str) -> bool:
+    return reason in {"browser_timeout", "job_timeout", "browser_closed", "timeout", "unavailable"}
+
+
+async def wait_for_easypark_ready(timeout_seconds: int = EASYPARK_REFRESH_RETRY_WAIT_SECONDS) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout_seconds
+    last_status: dict[str, Any] = {}
+    while time.monotonic() <= deadline:
+        last_status = await asyncio.to_thread(easypark_downloader_status)
+        if last_status and last_status.get("running") is not True:
+            return last_status
+        await asyncio.sleep(2)
+    return last_status
 
 
 def short_message(value: Any, max_length: int = 110) -> str:
@@ -1110,21 +1127,40 @@ async def parking_refresh(request: Request):
         parking_refresh_last_started_monotonic = now
 
         from_day, to_day = easypark_period()
-        try:
-            result = await asyncio.to_thread(
-                easypark_downloader_request,
-                "/sync-period",
-                {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
-            )
-            status = result.get("status")
-            outcome = "busy" if status == "busy" else "ok"
-            reason = ""
-            if status == "error":
+        outcome = "error"
+        reason = "unknown"
+        for attempt in range(2):
+            try:
+                result = await asyncio.to_thread(
+                    easypark_downloader_request,
+                    "/sync-period",
+                    {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
+                )
+                status = result.get("status")
+                reason = ""
+                if status == "busy":
+                    easypark_status = await asyncio.to_thread(easypark_downloader_status)
+                    if attempt == 0 and easypark_status.get("running") is not True:
+                        await asyncio.sleep(2)
+                        continue
+                    outcome = "busy"
+                    break
+                if status == "error":
+                    reason = classify_easypark_error(result.get("detail") or result.get("last_error")) or "unknown"
+                    if attempt == 0 and should_retry_easypark_refresh(reason):
+                        await wait_for_easypark_ready()
+                        continue
+                    outcome = "error"
+                    break
+                outcome = "ok"
+                break
+            except Exception as exc:
+                reason = classify_easypark_error(str(exc)) or "unavailable"
+                if attempt == 0 and should_retry_easypark_refresh(reason):
+                    await wait_for_easypark_ready()
+                    continue
                 outcome = "error"
-                reason = classify_easypark_error(result.get("detail") or result.get("last_error"))
-        except Exception as exc:
-            outcome = "error"
-            reason = classify_easypark_error(str(exc)) or "unavailable"
+                break
     query = {"refresh": outcome}
     if outcome == "error" and reason:
         query["reason"] = reason
