@@ -98,17 +98,20 @@ h1 { font-size: 2.8rem; line-height: .95; letter-spacing: 0; }
 h2 { font-size: 1.05rem; }
 .hero p:last-child, .lead, small, .card-time { color: var(--muted); }
 
-.metric-grid, .state-grid, .pulse-grid, .insight-grid, .temperature-grid {
+.metric-grid, .state-grid, .pulse-grid, .insight-grid, .temperature-grid, .source-strip, .now-grid {
     display: grid;
     gap: .85rem;
 }
+.source-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .42rem; margin-bottom: .55rem; }
+.now-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; margin-bottom: .65rem; }
 .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
 .state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
 .pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-bottom: .65rem; }
+.dashboard > .pulse-grid { display: none; }
 .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; margin-top: .65rem; }
 .temperature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-top: .7rem; }
 
-.metric-card, .temperature-card, .section-block, .pulse-card, .insight-grid article {
+.metric-card, .temperature-card, .section-block, .pulse-card, .insight-grid article, .source-card, .now-card {
     position: relative;
     min-width: 0;
     overflow: hidden;
@@ -123,6 +126,56 @@ h2 { font-size: 1.05rem; }
     padding: .8rem;
     border-left: .26rem solid var(--gold);
 }
+.source-card, .now-card {
+    min-height: 3.7rem;
+    padding: .58rem .62rem;
+    border-left: .22rem solid var(--line);
+}
+.source-card span, .now-card span {
+    display: flex;
+    align-items: center;
+    gap: .28rem;
+    min-width: 0;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-size: .6rem;
+    font-weight: 900;
+}
+.source-card span i {
+    width: .48rem;
+    height: .48rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 0 0 .18rem rgba(116,128,152,.14);
+}
+.source-card strong, .now-card strong {
+    display: block;
+    margin-top: .18rem;
+    color: var(--navy);
+    font-size: .92rem;
+    line-height: 1.05;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+}
+.source-card small, .now-card small {
+    display: block;
+    margin-top: .18rem;
+    color: var(--muted);
+    font-size: .66rem;
+    font-weight: 800;
+    line-height: 1.15;
+}
+.health-good { border-left-color: var(--green); }
+.health-good span { color: #477a4d; }
+.health-warn { border-left-color: var(--gold); }
+.health-warn span { color: #8c6411; }
+.health-bad { border-left-color: var(--red); }
+.health-bad span { color: #a34939; }
+.now-card.accent-parking { border-left-color: var(--parking); }
+.now-card.accent-energy { border-left-color: var(--navy); }
+.now-card.accent-open { border-left-color: var(--green); }
+.now-card.accent-sun { border-left-color: var(--gold); }
 .pulse-card, .insight-grid article {
     padding: .72rem .78rem;
     border-left: .24rem solid var(--green);
@@ -171,6 +224,15 @@ h2 { font-size: 1.05rem; }
     letter-spacing: 0;
 }
 .metric-card small { display: block; margin-top: .32rem; font-size: .75rem; line-height: 1.2; }
+.trend-line {
+    display: block;
+    margin-top: .34rem;
+    font-size: .7rem;
+    font-weight: 900;
+}
+.trend-up { color: #477a4d; }
+.trend-down { color: #a34939; }
+.trend-flat { color: var(--muted); }
 .metric-card .updated-line, .pulse-card .updated-line {
     margin-top: .45rem;
     font-size: .68rem;
@@ -236,6 +298,13 @@ h2 { font-size: 1.05rem; }
     color: var(--muted);
     font-weight: 750;
 }
+.update-status {
+    margin-top: .55rem;
+    font-size: .75rem;
+    line-height: 1.25;
+}
+.update-status.health-good { background: rgba(102,151,106,.10); color: #32663c; }
+.update-status.health-bad { background: rgba(200,106,85,.10); color: #9b3e2e; }
 .detail-list h2 {
     margin-bottom: .65rem;
 }
@@ -478,7 +547,7 @@ h2 { font-size: 1.05rem; }
         font-size: 2rem;
     }
 
-    .metric-grid, .pulse-grid, .temperature-grid {
+    .metric-grid, .pulse-grid, .temperature-grid, .source-strip, .now-grid {
         gap: .55rem;
     }
 
@@ -583,7 +652,7 @@ h2 { font-size: 1.05rem; }
 }
 
 @media (max-width: 360px) {
-    .metric-grid, .pulse-grid, .temperature-grid {
+    .metric-grid, .pulse-grid, .temperature-grid, .now-grid {
         grid-template-columns: 1fr;
     }
 
