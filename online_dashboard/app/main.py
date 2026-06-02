@@ -1485,12 +1485,12 @@ METRIC_ICONS = {
 """,
     "revenue": """
 <svg class="metric-icon revenue-icon" viewBox="0 0 24 24" aria-hidden="true">
-  <ellipse cx="16" cy="5.3" rx="5.2" ry="2"></ellipse>
-  <path d="M10.8 5.3v9.2c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2V5.3"></path>
-  <path d="M10.8 9.8c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2"></path>
-  <path d="M10.8 14.4c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2"></path>
-  <circle cx="7.2" cy="16.2" r="5.6"></circle>
-  <text x="7.2" y="18">kr</text>
+  <ellipse cx="16.8" cy="4.9" rx="4.9" ry="1.9"></ellipse>
+  <path d="M11.9 4.9v8.8c0 1 2.2 1.9 4.9 1.9s4.9-.9 4.9-1.9V4.9"></path>
+  <path d="M11.9 9.2c0 1 2.2 1.9 4.9 1.9s4.9-.9 4.9-1.9"></path>
+  <path d="M11.9 13.6c0 1 2.2 1.9 4.9 1.9s4.9-.9 4.9-1.9"></path>
+  <circle cx="6.3" cy="16.8" r="5.9"></circle>
+  <text x="6.3" y="18.7">kr</text>
 </svg>
 """,
     "energy": """
@@ -1534,7 +1534,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-readable">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-more-readable">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1567,7 +1567,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-readable">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-more-readable">
 </head>
 <body>
   <header class="topbar">
@@ -1670,7 +1670,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-readable">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-more-readable">
 </head>
 <body>
   <header class="topbar">
