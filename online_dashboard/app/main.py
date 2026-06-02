@@ -1478,9 +1478,11 @@ METRIC_ICONS = {
 </svg>
 """,
     "parking": """
-<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M8 21V3h6.2a5.2 5.2 0 0 1 0 10.4H8"></path>
-  <path d="M8 13.4h6"></path>
+<svg class="metric-icon parking-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M6.4 20.5V4.2h7.3a4.8 4.8 0 0 1 0 9.6H9.6"></path>
+  <path d="M9.6 13.8h4.2"></path>
+  <path d="M16.8 4.5c2.3 1.8 3.7 4.6 3.7 7.8 0 3-1.2 5.6-3.2 7.4"></path>
+  <path d="M4.3 20.5h15.4"></path>
 </svg>
 """,
     "revenue": """
