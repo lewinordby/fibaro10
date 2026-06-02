@@ -1485,11 +1485,14 @@ METRIC_ICONS = {
 """,
     "revenue": """
 <svg class="metric-icon revenue-icon" viewBox="0 0 24 24" aria-hidden="true">
-  <circle cx="12" cy="5.1" r="4.1"></circle>
-  <text x="12" y="6.95">kr</text>
-  <path d="M6.2 14.5c0-2.7 2.8-4.8 6.4-4.8h2.1c3 0 5.3 1.5 6.1 3.7h1.4v3.3h-1.7a6.2 6.2 0 0 1-2.6 2.3l.5 2.1h-2.8l-.7-1.2a13.4 13.4 0 0 1-5.5 0l-.7 1.2H5.9l.5-2.2a5.3 5.3 0 0 1-2.2-4.2"></path>
-  <path d="M16.8 10.1l1.9-1.3.3 2.2"></path>
-  <path d="M18.3 14.3h.01"></path>
+  <circle cx="12" cy="12" r="9.2"></circle>
+  <path d="M7.2 5.9a7 7 0 0 0-1.9 4.3"></path>
+  <path d="M6.4 18a7.1 7.1 0 0 0 3.2 1.8"></path>
+  <path d="M17.4 6.6l.8.7"></path>
+  <path d="M18.8 10.2h2.1"></path>
+  <path d="M18.8 12.9h2.1"></path>
+  <path d="M17.7 15.6h1.7"></path>
+  <text x="12" y="14.75">kr</text>
 </svg>
 """,
     "energy": """
@@ -1533,7 +1536,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-piggy-kr">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-coin">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1566,7 +1569,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-piggy-kr">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-coin">
 </head>
 <body>
   <header class="topbar">
@@ -1669,7 +1672,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-piggy-kr">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-coin">
 </head>
 <body>
   <header class="topbar">
