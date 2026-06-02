@@ -1126,7 +1126,7 @@ async def revenue_detail(request: Request):
             ("I dag", fmt_amount(data["revenue"].get("today")), f"Sol {fmt_amount(data['soling'].get('amount'))} - park {fmt_amount(data['parking'].get('amount'))}"),
             ("I går", fmt_amount(data["revenue"].get("yesterday")), f"Sol {fmt_amount(data['soling_yesterday'].get('amount'))} - park {fmt_amount(data['parking_yesterday'].get('amount'))}"),
             ("Samme dag forrige uke", fmt_amount(data["revenue"].get("last_week_same_day")), f"Sol {fmt_amount(data['soling_last_week_same_day'].get('amount'))} - park {fmt_amount(data['parking_last_week_same_day'].get('amount'))}"),
-            ("Samme dag for to uker siden", fmt_amount(data["revenue"].get("two_weeks_same_day")), f"Sol {fmt_amount(data['soling_two_weeks_same_day'].get('amount'))} - park {fmt_amount(data['parking_two_weeks_same_day'].get('amount'))}"),
+            ("Samme to uker siden", fmt_amount(data["revenue"].get("two_weeks_same_day")), f"Sol {fmt_amount(data['soling_two_weeks_same_day'].get('amount'))} - park {fmt_amount(data['parking_two_weeks_same_day'].get('amount'))}"),
             ("Denne uken", fmt_amount(data["revenue"].get("week")), f"Sol {fmt_amount(data['soling_week'].get('amount'))} - park {fmt_amount(data['parking_week'].get('amount'))}"),
             ("Forrige uke", fmt_amount(data["revenue"].get("previous_week")), f"Sol {fmt_amount(data['soling_previous_week'].get('amount'))} - park {fmt_amount(data['parking_previous_week'].get('amount'))}"),
             ("Denne måneden", fmt_amount(data["revenue"].get("month")), f"Sol {fmt_amount(data['soling_month'].get('amount'))} - park {fmt_amount(data['parking_month'].get('amount'))}"),
