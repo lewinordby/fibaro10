@@ -1365,7 +1365,7 @@ async def temperature_detail(request: Request):
             ("Innluft", fmt_temp(data["innluft"]), f"Oppdatert {fmt_time(data['vent'].get('bucket_start') or data['vent'].get('timestamp'))}"),
         ]
     )
-    return render_detail_page("Temperatur", "Nåverdier og spenn hittil i dag.", body)
+    return render_detail_page("Temperatur", "Nåverdier og spenn hittil i dag.", body, icon="temperature")
 
 
 @app.get("/lys", response_class=HTMLResponse)
@@ -1497,6 +1497,13 @@ METRIC_ICONS = {
   <path d="M13.4 2.8 5.8 13h6.1l-1.3 8.2 7.6-10.3h-6.1z"></path>
 </svg>
 """,
+    "temperature": """
+<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M10 14.6V5.5a3 3 0 0 1 6 0v9.1a4.8 4.8 0 1 1-6 0z"></path>
+  <path d="M13 8.2v7.6"></path>
+  <path d="M13 18.8h.01"></path>
+</svg>
+""",
 }
 
 
@@ -1526,7 +1533,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-red">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-open-temp-colors">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1559,7 +1566,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-red">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-open-temp-colors">
 </head>
 <body>
   <header class="topbar">
@@ -1662,7 +1669,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-red">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-open-temp-colors">
 </head>
 <body>
   <header class="topbar">

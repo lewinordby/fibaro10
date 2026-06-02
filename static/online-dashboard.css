@@ -9,6 +9,8 @@
     --green: #66976a;
     --red: #c86a55;
     --parking: #279bd3;
+    --open: #111827;
+    --temperature: #7477b8;
     --shadow: 0 20px 50px rgba(6, 22, 66, 0.10);
 }
 
@@ -206,7 +208,7 @@ h2 { font-size: 1.05rem; }
 }
 .pulse-card small, .insight-grid small { display: block; margin-top: .25rem; color: var(--muted); font-size: .72rem; line-height: 1.2; }
 .accent-energy { border-left-color: var(--green); }
-.accent-open { border-left-color: var(--green); }
+.accent-open { border-left-color: var(--open); }
 .progress {
     height: .35rem;
     margin-top: .55rem;
@@ -293,6 +295,12 @@ h2 { font-size: 1.05rem; }
     color: var(--red);
     border-left-color: var(--red);
 }
+.detail-temperature .detail-title .metric-icon,
+.detail-temperature .detail-stats article,
+.detail-temperature .detail-list {
+    color: var(--temperature);
+    border-left-color: var(--temperature);
+}
 .detail-parking .detail-stats strong,
 .detail-parking .detail-list strong,
 .detail-sun .detail-stats strong,
@@ -300,7 +308,9 @@ h2 { font-size: 1.05rem; }
 .detail-energy .detail-stats strong,
 .detail-energy .detail-list strong,
 .detail-revenue .detail-stats strong,
-.detail-revenue .detail-list strong {
+.detail-revenue .detail-list strong,
+.detail-temperature .detail-stats strong,
+.detail-temperature .detail-list strong {
     color: var(--navy);
 }
 .detail-parking .detail-stats small,
@@ -314,7 +324,10 @@ h2 { font-size: 1.05rem; }
 .detail-energy .detail-list time,
 .detail-revenue .detail-stats small,
 .detail-revenue .detail-list small,
-.detail-revenue .detail-list time {
+.detail-revenue .detail-list time,
+.detail-temperature .detail-stats small,
+.detail-temperature .detail-list small,
+.detail-temperature .detail-list time {
     color: var(--muted);
 }
 .detail-hero h1 {
@@ -458,7 +471,7 @@ h2 { font-size: 1.05rem; }
     gap: .55rem .75rem;
     margin-top: .7rem;
     padding: .85rem;
-    border-top: .26rem solid var(--green);
+    border-top: .26rem solid var(--temperature);
 }
 .temperature-grid .temperature-card {
     margin-top: 0;
