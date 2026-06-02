@@ -999,6 +999,7 @@ async def dashboard(request: Request):
         "{{ latest_parking }}": latest_parking,
         "{{ parking_time }}": fmt_time(data["parking_import"].get("updated_at")) if data["parking_import"].get("updated_at") else fmt_time(data["parking"].get("updated_at")),
         "{{ revenue_card }}": revenue_card,
+        "{{ energy_icon }}": metric_icon("energy"),
         "{{ energy_watt }}": fmt_watt(data["energy_now"].get("inntak_w")),
         "{{ energy_kwh }}": fmt_kwh(data["energy_today"].get("kwh")),
         "{{ energy_samples }}": fmt_int(data["energy_today"].get("samples")),
@@ -1297,7 +1298,7 @@ async def energy_detail(request: Request):
         ]
     )
     body += f'<p class="notice">Beregnet differanse akkurat nå: <strong>{fmt_watt(now.get("differanse_beregnet_w"))}</strong>.</p>'
-    return render_detail_page("Energi", "Strømstatus fra siste HC3-avlesning.", body)
+    return render_detail_page("Energi", "Strømstatus fra siste HC3-avlesning.", body, icon="energy")
 
 
 @app.get("/temperatur", response_class=HTMLResponse)
@@ -1449,6 +1450,11 @@ METRIC_ICONS = {
   <path d="M6.2 9.5l5.8-4.2 5.8 5.5"></path>
 </svg>
 """,
+    "energy": """
+<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M13.4 2.8 5.8 13h6.1l-1.3 8.2 7.6-10.3h-6.1z"></path>
+</svg>
+""",
 }
 
 
@@ -1476,7 +1482,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-icons">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-energy-icon">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1509,7 +1515,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-icons">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-energy-icon">
 </head>
 <body>
   <header class="topbar">
@@ -1527,7 +1533,7 @@ DASHBOARD_HTML = """<!doctype html>
         <div class="progress"><i style="width: {{ open_progress }}%"></i></div>
       </article>
       <a class="pulse-card accent-energy card-link" href="/energi">
-        <span>Strøm nå</span>
+        <div class="metric-head"><span>Strøm nå</span>{{ energy_icon }}</div>
         <strong>{{ energy_watt }}</strong>
         <small>{{ energy_kwh }} i dag · {{ energy_samples }} målinger</small>
         <small class="updated-line">Diff {{ energy_diff }} · {{ energy_time }}</small>
@@ -1605,7 +1611,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-icons">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-energy-icon">
 </head>
 <body>
   <header class="topbar">

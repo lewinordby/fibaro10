@@ -208,6 +208,7 @@ h2 { font-size: 1.05rem; }
 .accent-sun .metric-icon { color: var(--gold); }
 .accent-parking .metric-icon { color: var(--parking); }
 .accent-revenue .metric-icon { color: var(--navy); }
+.accent-energy .metric-icon { color: var(--navy); }
 
 .detail-page {
     padding-bottom: 2.4rem;
