@@ -341,6 +341,13 @@ h2 { font-size: 1.05rem; }
     background: var(--green);
     border-color: var(--green);
 }
+.detail-parking .detail-action.is-ready {
+    border-left-color: var(--parking);
+}
+.detail-parking .detail-action.is-ready button {
+    background: var(--parking);
+    border-color: var(--parking);
+}
 .detail-action.is-busy {
     border-left-color: var(--gold);
 }
