@@ -269,6 +269,21 @@ h2 { font-size: 1.05rem; }
     width: 2.1rem;
     height: 2.1rem;
 }
+.detail-parking .detail-title .metric-icon,
+.detail-parking .detail-stats article,
+.detail-parking .detail-list {
+    color: var(--parking);
+    border-left-color: var(--parking);
+}
+.detail-parking .detail-stats strong,
+.detail-parking .detail-list strong {
+    color: var(--navy);
+}
+.detail-parking .detail-stats small,
+.detail-parking .detail-list small,
+.detail-parking .detail-list time {
+    color: var(--muted);
+}
 .detail-hero h1 {
     margin-top: .35rem;
     font-size: 2.45rem;

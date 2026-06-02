@@ -1506,11 +1506,13 @@ def metric_icon(name: str) -> str:
 
 def render_detail_page(title: str, subtitle: str, body: str, icon: str = "") -> HTMLResponse:
     html = DETAIL_HTML
+    detail_class = f"detail-{icon}" if icon else "detail-default"
     replacements = {
         "{{ title }}": escape(title),
         "{{ subtitle }}": escape(subtitle),
         "{{ body }}": body,
         "{{ detail_icon }}": metric_icon(icon),
+        "{{ detail_class }}": detail_class,
     }
     for key, value in replacements.items():
         html = html.replace(key, value)
@@ -1524,7 +1526,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-parking-mark">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-parking-profile">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1557,7 +1559,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-parking-mark">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-parking-profile">
 </head>
 <body>
   <header class="topbar">
@@ -1660,7 +1662,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-parking-mark">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-parking-profile">
 </head>
 <body>
   <header class="topbar">
@@ -1676,7 +1678,7 @@ DETAIL_HTML = """<!doctype html>
       </button>
     </form>
   </header>
-  <main class="dashboard detail-page">
+  <main class="dashboard detail-page {{ detail_class }}">
     <section class="detail-hero">
       <div class="detail-title">{{ detail_icon }}<h1>{{ title }}</h1></div>
     </section>
