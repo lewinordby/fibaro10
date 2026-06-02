@@ -247,10 +247,10 @@ h2 { font-size: 1.05rem; }
     font-weight: 800;
 }
 .accent-parking { border-left-color: var(--parking); }
-.accent-revenue { border-left-color: var(--navy); }
+.accent-revenue { border-left-color: var(--red); }
 .accent-sun .metric-icon { color: var(--gold); }
 .accent-parking .metric-icon { color: var(--parking); }
-.accent-revenue .metric-icon { color: var(--navy); }
+.accent-revenue .metric-icon { color: var(--red); }
 .accent-energy .metric-icon { color: var(--green); }
 
 .detail-page {
@@ -287,12 +287,20 @@ h2 { font-size: 1.05rem; }
     color: var(--green);
     border-left-color: var(--green);
 }
+.detail-revenue .detail-title .metric-icon,
+.detail-revenue .detail-stats article,
+.detail-revenue .detail-list {
+    color: var(--red);
+    border-left-color: var(--red);
+}
 .detail-parking .detail-stats strong,
 .detail-parking .detail-list strong,
 .detail-sun .detail-stats strong,
 .detail-sun .detail-list strong,
 .detail-energy .detail-stats strong,
-.detail-energy .detail-list strong {
+.detail-energy .detail-list strong,
+.detail-revenue .detail-stats strong,
+.detail-revenue .detail-list strong {
     color: var(--navy);
 }
 .detail-parking .detail-stats small,
@@ -303,7 +311,10 @@ h2 { font-size: 1.05rem; }
 .detail-sun .detail-list time,
 .detail-energy .detail-stats small,
 .detail-energy .detail-list small,
-.detail-energy .detail-list time {
+.detail-energy .detail-list time,
+.detail-revenue .detail-stats small,
+.detail-revenue .detail-list small,
+.detail-revenue .detail-list time {
     color: var(--muted);
 }
 .detail-hero h1 {
