@@ -1479,10 +1479,8 @@ METRIC_ICONS = {
 """,
     "parking": """
 <svg class="metric-icon parking-icon" viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M6.4 20.5V4.2h7.3a4.8 4.8 0 0 1 0 9.6H9.6"></path>
-  <path d="M9.6 13.8h4.2"></path>
-  <path d="M16.8 4.5c2.3 1.8 3.7 4.6 3.7 7.8 0 3-1.2 5.6-3.2 7.4"></path>
-  <path d="M4.3 20.5h15.4"></path>
+  <path class="parking-mark" d="M6.1 21.2V7.9c0-3.3 2.2-5.5 5.5-5.5h4.2c3.5 0 6.1 2.6 6.1 6.1v4.5c0 3.5-2.6 6.1-6.1 6.1h-5.3v2.1a2.1 2.1 0 0 1-2.1 2.1H8.2a2.1 2.1 0 0 1-2.1-2.1z"></path>
+  <path class="parking-cutout" d="M10.5 7.9h4.9c1.3 0 2.3 1 2.3 2.3v2.7c0 1.3-1 2.3-2.3 2.3h-4.6v-2.1l-6.1 3.9 6.1 3.9v-2.2h5.4c2.7 0 4.8-2.1 4.8-4.8V9.5c0-2.7-2.1-4.8-4.8-4.8h-5.7z"></path>
 </svg>
 """,
     "revenue": """
@@ -1526,7 +1524,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-logout-icon">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-parking-mark">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1559,7 +1557,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-logout-icon">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-parking-mark">
 </head>
 <body>
   <header class="topbar">
@@ -1662,7 +1660,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-logout-icon">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-parking-mark">
 </head>
 <body>
   <header class="topbar">

@@ -8,7 +8,7 @@
     --gold: #c9911a;
     --green: #66976a;
     --red: #c86a55;
-    --parking: #5f8c98;
+    --parking: #279bd3;
     --shadow: 0 20px 50px rgba(6, 22, 66, 0.10);
 }
 
@@ -179,6 +179,15 @@ h2 { font-size: 1.05rem; }
 .metric-icon circle {
     stroke: currentColor;
     fill: rgba(201, 145, 26, .12);
+}
+.parking-icon {
+    stroke: none;
+}
+.parking-icon .parking-mark {
+    fill: currentColor;
+}
+.parking-icon .parking-cutout {
+    fill: #fff;
 }
 .metric-card.is-wide {
     grid-column: span 2;
