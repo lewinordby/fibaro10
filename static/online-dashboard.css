@@ -500,7 +500,7 @@ h2 { font-size: 1.05rem; }
     grid-template-columns: minmax(2.9rem, max-content) minmax(0, auto);
     align-items: baseline;
     column-gap: .45rem;
-    border-left: 3px solid var(--green);
+    border-left: 3px solid var(--temperature);
     padding-left: .55rem;
 }
 .temperature-list span { color: var(--muted); font-size: .82rem; font-weight: 800; }
