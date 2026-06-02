@@ -1617,7 +1617,6 @@ DETAIL_HTML = """<!doctype html>
   <main class="dashboard detail-page">
     <section class="detail-hero">
       <div class="detail-title">{{ detail_icon }}<h1>{{ title }}</h1></div>
-      <p>{{ subtitle }}</p>
     </section>
     {{ body }}
   </main>
