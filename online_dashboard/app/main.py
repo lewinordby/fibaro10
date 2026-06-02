@@ -962,7 +962,7 @@ async def dashboard(request: Request):
       <a class="metric-card accent-revenue is-wide card-link" href="/omsetning" data-revenue-card="1" style="grid-column: 1 / -1; width: 100%;">
         <div class="metric-head"><span>Omsetning</span>{metric_icon("revenue")}</div>
         <strong>{fmt_money(data["revenue"].get("today"))}<em>/{fmt_money(data["revenue"].get("yesterday"))}</em></strong>
-        <small>I dag / i går - sol {fmt_money(data["soling"].get("amount"))} - parkering {fmt_money(data["parking"].get("amount"))}</small>
+        <small>I dag / i går - sol {fmt_money(data["soling"].get("amount"))} - park {fmt_money(data["parking"].get("amount"))}</small>
         <small class="updated-line">Oppdatert {fmt_time(data["revenue_updated_at"])}</small>
       </a>
         """
@@ -1093,13 +1093,13 @@ async def revenue_detail(request: Request):
     body = detail_stats(
         [
             ("Sist oppdatert", fmt_clock(data["revenue_updated_at"]), fmt_date(data["revenue_updated_at"])),
-            ("I dag", fmt_money(data["revenue"].get("today")), f"Sol {fmt_money(data['soling'].get('amount'))} - parkering {fmt_money(data['parking'].get('amount'))}"),
-            ("I går", fmt_money(data["revenue"].get("yesterday")), f"Sol {fmt_money(data['soling_yesterday'].get('amount'))} - parkering {fmt_money(data['parking_yesterday'].get('amount'))}"),
-            ("Samme dag forrige uke", fmt_money(data["revenue"].get("last_week_same_day")), f"Sol {fmt_money(data['soling_last_week_same_day'].get('amount'))} - parkering {fmt_money(data['parking_last_week_same_day'].get('amount'))}"),
-            ("Denne uken", fmt_money(data["revenue"].get("week")), f"Sol {fmt_money(data['soling_week'].get('amount'))} - parkering {fmt_money(data['parking_week'].get('amount'))}"),
-            ("Forrige uke", fmt_money(data["revenue"].get("previous_week")), f"Sol {fmt_money(data['soling_previous_week'].get('amount'))} - parkering {fmt_money(data['parking_previous_week'].get('amount'))}"),
-            ("Denne måneden", fmt_money(data["revenue"].get("month")), f"Sol {fmt_money(data['soling_month'].get('amount'))} - parkering {fmt_money(data['parking_month'].get('amount'))}"),
-            ("Forrige måned", fmt_money(data["revenue"].get("previous_month")), f"Sol {fmt_money(data['soling_previous_month'].get('amount'))} - parkering {fmt_money(data['parking_previous_month'].get('amount'))}"),
+            ("I dag", fmt_money(data["revenue"].get("today")), f"Sol {fmt_money(data['soling'].get('amount'))} - park {fmt_money(data['parking'].get('amount'))}"),
+            ("I går", fmt_money(data["revenue"].get("yesterday")), f"Sol {fmt_money(data['soling_yesterday'].get('amount'))} - park {fmt_money(data['parking_yesterday'].get('amount'))}"),
+            ("Samme dag forrige uke", fmt_money(data["revenue"].get("last_week_same_day")), f"Sol {fmt_money(data['soling_last_week_same_day'].get('amount'))} - park {fmt_money(data['parking_last_week_same_day'].get('amount'))}"),
+            ("Denne uken", fmt_money(data["revenue"].get("week")), f"Sol {fmt_money(data['soling_week'].get('amount'))} - park {fmt_money(data['parking_week'].get('amount'))}"),
+            ("Forrige uke", fmt_money(data["revenue"].get("previous_week")), f"Sol {fmt_money(data['soling_previous_week'].get('amount'))} - park {fmt_money(data['parking_previous_week'].get('amount'))}"),
+            ("Denne måneden", fmt_money(data["revenue"].get("month")), f"Sol {fmt_money(data['soling_month'].get('amount'))} - park {fmt_money(data['parking_month'].get('amount'))}"),
+            ("Forrige måned", fmt_money(data["revenue"].get("previous_month")), f"Sol {fmt_money(data['soling_previous_month'].get('amount'))} - park {fmt_money(data['parking_previous_month'].get('amount'))}"),
         ]
     )
     body += render_list(
