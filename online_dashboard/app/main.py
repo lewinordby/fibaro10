@@ -1060,7 +1060,7 @@ async def dashboard(request: Request):
 async def soling_detail(request: Request):
     data = await dashboard_data()
     can_view_money = can_manage(request.state.access_key)
-    money = lambda value: money_if_allowed(request.state.access_key, value)
+    amount = lambda value: fmt_amount(value) if can_view_money else ""
     session_import_at = data["session_import"].get("updated_at")
     latest_soling_at = data["latest_soling"].get("started_at")
     latest_soling_room = str(data["latest_soling"].get("room") or "").strip()
@@ -1081,10 +1081,9 @@ async def soling_detail(request: Request):
         "samme dag forrige uke",
     )
     if can_view_money:
-        soling_today_detail = f"{money(data['soling'].get('amount'))} - {soling_today_detail}"
+        soling_today_detail = f"{amount(data['soling'].get('amount'))} - {soling_today_detail}"
     body = detail_stats(
         [
-            ("Siste import", fmt_clock(session_import_at), fmt_date(session_import_at)),
             ("Siste soling", fmt_clock(latest_soling_at), latest_soling_detail),
             (
                 "I dag",
@@ -1094,21 +1093,27 @@ async def soling_detail(request: Request):
             (
                 "Samme dag forrige uke",
                 fmt_int(data["soling_last_week_same_day"].get("count")),
-                money(data["soling_last_week_same_day"].get("amount")),
+                amount(data["soling_last_week_same_day"].get("amount")),
             ),
-            ("Denne uken", fmt_int(data["soling_week"].get("count")), money(data["soling_week"].get("amount"))),
-            ("Forrige uke", fmt_int(data["soling_previous_week"].get("count")), money(data["soling_previous_week"].get("amount"))),
-            ("Denne måneden", fmt_int(data["soling_month"].get("count")), money(data["soling_month"].get("amount"))),
-            ("Forrige måned", fmt_int(data["soling_previous_month"].get("count")), money(data["soling_previous_month"].get("amount"))),
+            (
+                "Samme to uker siden",
+                fmt_int(data["soling_two_weeks_same_day"].get("count")),
+                amount(data["soling_two_weeks_same_day"].get("amount")),
+            ),
+            ("Denne uken", fmt_int(data["soling_week"].get("count")), amount(data["soling_week"].get("amount"))),
+            ("Forrige uke", fmt_int(data["soling_previous_week"].get("count")), amount(data["soling_previous_week"].get("amount"))),
+            ("Denne måneden", fmt_int(data["soling_month"].get("count")), amount(data["soling_month"].get("amount"))),
+            ("Forrige måned", fmt_int(data["soling_previous_month"].get("count")), amount(data["soling_previous_month"].get("amount"))),
         ]
     )
+    body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(session_import_at)} {fmt_date(session_import_at)}</p>'
     body += render_list(
         "Siste solinger",
         [
             (
                 fmt_time(row.get("started_at")),
                 escape(str(row.get("room") or "Ukjent rom")),
-                f"{float(row.get('duration_minutes') or 0):.0f} min" + (f" - {money(row.get('paid_amount_kr'))}" if can_view_money else ""),
+                f"{float(row.get('duration_minutes') or 0):.0f} min" + (f" - {amount(row.get('paid_amount_kr'))}" if can_view_money else ""),
             )
             for row in rows
         ],
@@ -1155,7 +1160,7 @@ async def revenue_detail(request: Request):
 async def parking_detail(request: Request, refresh: Optional[str] = None, reason: Optional[str] = None):
     data = await dashboard_data()
     can_view_money = can_manage(request.state.access_key)
-    money = lambda value: money_if_allowed(request.state.access_key, value)
+    amount = lambda value: fmt_amount(value) if can_view_money else ""
     easypark_status = easypark_downloader_status()
     parking_import_at = data["parking_import"].get("updated_at")
     parking_failed_at = data["parking_import"].get("last_failed_at")
@@ -1223,10 +1228,9 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
         "samme dag forrige uke",
     )
     if can_view_money:
-        parking_today_detail = f"{money(data['parking'].get('amount'))} - {parking_today_detail}"
+        parking_today_detail = f"{amount(data['parking'].get('amount'))} - {parking_today_detail}"
     body = detail_stats(
         [
-            ("Siste import", fmt_clock(parking_import_at), fmt_date(parking_import_at)),
             ("Aktive", fmt_int(data["parking"].get("active_count")), f"Samme tidspunkt {fmt_clock(parking_import_at)}"),
             (
                 "I dag",
@@ -1236,14 +1240,20 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
             (
                 "Samme dag forrige uke",
                 fmt_int(data["parking_last_week_same_day"].get("count")),
-                money(data["parking_last_week_same_day"].get("amount")),
+                amount(data["parking_last_week_same_day"].get("amount")),
             ),
-            ("Denne uken", fmt_int(data["parking_week"].get("count")), money(data["parking_week"].get("amount"))),
-            ("Forrige uke", fmt_int(data["parking_previous_week"].get("count")), money(data["parking_previous_week"].get("amount"))),
-            ("Denne måneden", fmt_int(data["parking_month"].get("count")), money(data["parking_month"].get("amount"))),
-            ("Forrige måned", fmt_int(data["parking_previous_month"].get("count")), money(data["parking_previous_month"].get("amount"))),
+            (
+                "Samme to uker siden",
+                fmt_int(data["parking_two_weeks_same_day"].get("count")),
+                amount(data["parking_two_weeks_same_day"].get("amount")),
+            ),
+            ("Denne uken", fmt_int(data["parking_week"].get("count")), amount(data["parking_week"].get("amount"))),
+            ("Forrige uke", fmt_int(data["parking_previous_week"].get("count")), amount(data["parking_previous_week"].get("amount"))),
+            ("Denne måneden", fmt_int(data["parking_month"].get("count")), amount(data["parking_month"].get("amount"))),
+            ("Forrige måned", fmt_int(data["parking_previous_month"].get("count")), amount(data["parking_previous_month"].get("amount"))),
         ]
     )
+    body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(parking_import_at)} {fmt_date(parking_import_at)}</p>'
     body += button
     body += render_list("Siste importforsøk", import_run_rows(import_runs))
     body += render_list(
@@ -1252,7 +1262,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
             (
                 fmt_time(row.get("start_time")),
                 escape(str(row.get("car_license_number") or "Uten regnr")),
-                (f"{money(row.get('fee_inc_vat'))} - " if can_view_money else "") + f"{float(row.get('parking_time_min') or 0):.0f} min",
+                (f"{amount(row.get('fee_inc_vat'))} - " if can_view_money else "") + f"{float(row.get('parking_time_min') or 0):.0f} min",
             )
             for row in rows
         ],
