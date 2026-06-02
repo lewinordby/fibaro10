@@ -1485,11 +1485,11 @@ METRIC_ICONS = {
 """,
     "revenue": """
 <svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M4 19.5h16"></path>
-  <path d="M6.2 17V9.5"></path>
-  <path d="M12 17V5"></path>
-  <path d="M17.8 17v-6.2"></path>
-  <path d="M6.2 9.5l5.8-4.2 5.8 5.5"></path>
+  <circle cx="9" cy="9" r="5.2"></circle>
+  <path d="M7.2 9h3.8"></path>
+  <path d="M9.1 6.9v4.2"></path>
+  <path d="M13.2 11.2a5.2 5.2 0 1 1-2.4 7.5"></path>
+  <path d="M15.7 16.2h3.4"></path>
 </svg>
 """,
     "energy": """
