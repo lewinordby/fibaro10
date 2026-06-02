@@ -960,7 +960,7 @@ async def dashboard(request: Request):
     if show_revenue:
         revenue_card = f"""
       <a class="metric-card accent-revenue is-wide card-link" href="/omsetning" data-revenue-card="1" style="grid-column: 1 / -1; width: 100%;">
-        <span>Omsetning</span>
+        <div class="metric-head"><span>Omsetning</span>{metric_icon("revenue")}</div>
         <strong>{fmt_money(data["revenue"].get("today"))}<em>/{fmt_money(data["revenue"].get("yesterday"))}</em></strong>
         <small>I dag / i går - sol {fmt_money(data["soling"].get("amount"))} - parkering {fmt_money(data["parking"].get("amount"))}</small>
         <small class="updated-line">Oppdatert {fmt_time(data["revenue_updated_at"])}</small>
@@ -973,6 +973,7 @@ async def dashboard(request: Request):
         "{{ open_label }}": data["open_state"]["label"],
         "{{ open_detail }}": data["open_state"]["detail"],
         "{{ open_progress }}": str(data["open_state"]["progress"]),
+        "{{ sun_icon }}": metric_icon("sun"),
         "{{ soling_count }}": fmt_int(data["soling"].get("count")),
         "{{ soling_yesterday_count }}": fmt_int(data["soling_yesterday"].get("count")),
         "{{ soling_amount }}": money(data["soling"].get("amount")),
@@ -985,6 +986,7 @@ async def dashboard(request: Request):
         "{{ soling_month_amount }}": money(data["soling_month"].get("amount")),
         "{{ latest_soling }}": latest_soling,
         "{{ soling_time }}": fmt_time(data["session_import"].get("updated_at")) if data["session_import"].get("updated_at") else fmt_time(data["soling"].get("updated_at")),
+        "{{ parking_icon }}": metric_icon("parking"),
         "{{ parking_count }}": fmt_int(data["parking"].get("count")),
         "{{ parking_yesterday_count }}": fmt_int(data["parking_yesterday"].get("count")),
         "{{ parking_amount }}": money(data["parking"].get("amount")),
@@ -1079,7 +1081,7 @@ async def soling_detail(request: Request):
             for row in rows
         ],
     )
-    return render_detail_page("Soling", "Dagens solinger og utvikling hittil.", body)
+    return render_detail_page("Soling", "Dagens solinger og utvikling hittil.", body, icon="sun")
 
 
 @app.get("/omsetning", response_class=HTMLResponse)
@@ -1114,7 +1116,7 @@ async def revenue_detail(request: Request):
             ),
         ],
     )
-    return render_detail_page("Omsetning", "Samlet inntekt fra soling og parkering.", body)
+    return render_detail_page("Omsetning", "Samlet inntekt fra soling og parkering.", body, icon="revenue")
 
 @app.get("/parkering", response_class=HTMLResponse)
 async def parking_detail(request: Request, refresh: Optional[str] = None, reason: Optional[str] = None):
@@ -1222,7 +1224,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
             for row in rows
         ],
     )
-    return render_detail_page("Parkering", "Dagens parkeringer med trygg manuell oppdatering.", body)
+    return render_detail_page("Parkering", "Dagens parkeringer med trygg manuell oppdatering.", body, icon="parking")
 
 
 @app.post("/parkering/oppdater")
@@ -1425,12 +1427,42 @@ def render_list(title: str, rows: list[tuple[str, str, str]]) -> str:
     return f'<section class="section-block detail-list"><h2>{escape(title)}</h2><ul>{content}</ul></section>'
 
 
-def render_detail_page(title: str, subtitle: str, body: str) -> HTMLResponse:
+METRIC_ICONS = {
+    "sun": """
+<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <circle cx="12" cy="12" r="4.4"></circle>
+  <path d="M12 2.8v2.2M12 19v2.2M4.1 4.1l1.6 1.6M18.3 18.3l1.6 1.6M2.8 12h2.2M19 12h2.2M4.1 19.9l1.6-1.6M18.3 5.7l1.6-1.6"></path>
+</svg>
+""",
+    "parking": """
+<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M8 21V3h6.2a5.2 5.2 0 0 1 0 10.4H8"></path>
+  <path d="M8 13.4h6"></path>
+</svg>
+""",
+    "revenue": """
+<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M4 19.5h16"></path>
+  <path d="M6.2 17V9.5"></path>
+  <path d="M12 17V5"></path>
+  <path d="M17.8 17v-6.2"></path>
+  <path d="M6.2 9.5l5.8-4.2 5.8 5.5"></path>
+</svg>
+""",
+}
+
+
+def metric_icon(name: str) -> str:
+    return METRIC_ICONS.get(name, "")
+
+
+def render_detail_page(title: str, subtitle: str, body: str, icon: str = "") -> HTMLResponse:
     html = DETAIL_HTML
     replacements = {
         "{{ title }}": escape(title),
         "{{ subtitle }}": escape(subtitle),
         "{{ body }}": body,
+        "{{ detail_icon }}": metric_icon(icon),
     }
     for key, value in replacements.items():
         html = html.replace(key, value)
@@ -1444,7 +1476,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260601-revenue-wide">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-icons">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1477,7 +1509,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260601-revenue-wide">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-icons">
 </head>
 <body>
   <header class="topbar">
@@ -1504,13 +1536,13 @@ DASHBOARD_HTML = """<!doctype html>
 
     <section class="metric-grid">
       <a class="metric-card accent-sun card-link" href="/soling">
-        <span>Solinger</span>
+        <div class="metric-head"><span>Solinger</span>{{ sun_icon }}</div>
         <strong>{{ soling_count }}<em>/{{ soling_yesterday_count }}</em></strong>
         <small>I dag / i går</small>
         <small class="updated-line">Oppdatert {{ soling_time }}</small>
       </a>
       <a class="metric-card accent-parking card-link" href="/parkering">
-        <span>Parkering</span>
+        <div class="metric-head"><span>Parkering</span>{{ parking_icon }}</div>
         <strong>{{ parking_count }}<em>/{{ parking_yesterday_count }}</em></strong>
         <small>I dag / i går · {{ parking_active }} aktive</small>
         <small class="updated-line">Oppdatert {{ parking_time }}</small>
@@ -1573,7 +1605,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260601-revenue-wide">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-icons">
 </head>
 <body>
   <header class="topbar">
@@ -1584,7 +1616,7 @@ DETAIL_HTML = """<!doctype html>
   </header>
   <main class="dashboard detail-page">
     <section class="detail-hero">
-      <h1>{{ title }}</h1>
+      <div class="detail-title">{{ detail_icon }}<h1>{{ title }}</h1></div>
       <p>{{ subtitle }}</p>
     </section>
     {{ body }}

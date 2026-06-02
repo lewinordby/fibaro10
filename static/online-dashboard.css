@@ -123,6 +123,29 @@ h2 { font-size: 1.05rem; }
     padding: .8rem;
     border-left: .26rem solid var(--gold);
 }
+.metric-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .45rem;
+    min-height: 1.55rem;
+}
+.metric-icon {
+    flex: 0 0 auto;
+    width: 1.55rem;
+    height: 1.55rem;
+    color: var(--gold);
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    opacity: .95;
+}
+.metric-icon circle {
+    stroke: currentColor;
+    fill: rgba(201, 145, 26, .12);
+}
 .metric-card.is-wide {
     grid-column: span 2;
     width: 100%;
@@ -182,12 +205,25 @@ h2 { font-size: 1.05rem; }
 }
 .accent-parking { border-left-color: var(--parking); }
 .accent-revenue { border-left-color: var(--navy); }
+.accent-sun .metric-icon { color: var(--gold); }
+.accent-parking .metric-icon { color: var(--parking); }
+.accent-revenue .metric-icon { color: var(--navy); }
 
 .detail-page {
     padding-bottom: 2.4rem;
 }
 .detail-hero {
     margin: .25rem 0 .85rem;
+}
+.detail-title {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 0;
+}
+.detail-title .metric-icon {
+    width: 2.1rem;
+    height: 2.1rem;
 }
 .detail-hero h1 {
     margin-top: .35rem;
