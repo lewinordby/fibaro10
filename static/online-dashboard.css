@@ -205,7 +205,7 @@ h2 { font-size: 1.05rem; }
     letter-spacing: 0;
 }
 .pulse-card small, .insight-grid small { display: block; margin-top: .25rem; color: var(--muted); font-size: .72rem; line-height: 1.2; }
-.accent-energy { border-left-color: var(--navy); }
+.accent-energy { border-left-color: var(--green); }
 .accent-open { border-left-color: var(--green); }
 .progress {
     height: .35rem;
@@ -251,7 +251,7 @@ h2 { font-size: 1.05rem; }
 .accent-sun .metric-icon { color: var(--gold); }
 .accent-parking .metric-icon { color: var(--parking); }
 .accent-revenue .metric-icon { color: var(--navy); }
-.accent-energy .metric-icon { color: var(--navy); }
+.accent-energy .metric-icon { color: var(--green); }
 
 .detail-page {
     padding-bottom: 2.4rem;
@@ -275,13 +275,35 @@ h2 { font-size: 1.05rem; }
     color: var(--parking);
     border-left-color: var(--parking);
 }
+.detail-sun .detail-title .metric-icon,
+.detail-sun .detail-stats article,
+.detail-sun .detail-list {
+    color: var(--gold);
+    border-left-color: var(--gold);
+}
+.detail-energy .detail-title .metric-icon,
+.detail-energy .detail-stats article,
+.detail-energy .detail-list {
+    color: var(--green);
+    border-left-color: var(--green);
+}
 .detail-parking .detail-stats strong,
-.detail-parking .detail-list strong {
+.detail-parking .detail-list strong,
+.detail-sun .detail-stats strong,
+.detail-sun .detail-list strong,
+.detail-energy .detail-stats strong,
+.detail-energy .detail-list strong {
     color: var(--navy);
 }
 .detail-parking .detail-stats small,
 .detail-parking .detail-list small,
-.detail-parking .detail-list time {
+.detail-parking .detail-list time,
+.detail-sun .detail-stats small,
+.detail-sun .detail-list small,
+.detail-sun .detail-list time,
+.detail-energy .detail-stats small,
+.detail-energy .detail-list small,
+.detail-energy .detail-list time {
     color: var(--muted);
 }
 .detail-hero h1 {
