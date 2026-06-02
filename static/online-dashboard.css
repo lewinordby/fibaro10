@@ -191,6 +191,15 @@ h2 { font-size: 1.05rem; }
 .parking-icon .parking-cutout {
     fill: #fff;
 }
+.revenue-icon text {
+    fill: currentColor;
+    stroke: none;
+    font-size: .34rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-anchor: middle;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
 .metric-card.is-wide {
     grid-column: span 2;
     width: 100%;

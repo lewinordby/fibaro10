@@ -1484,13 +1484,13 @@ METRIC_ICONS = {
 </svg>
 """,
     "revenue": """
-<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
-  <rect x="3.5" y="6.2" width="13.5" height="9.2" rx="1.8"></rect>
-  <path d="M6 9.2h4.6"></path>
-  <path d="M6 12.3h2.8"></path>
-  <circle cx="16.7" cy="15.4" r="4.1"></circle>
-  <path d="M15.1 15.4h3.2"></path>
-  <path d="M16.7 13.5v3.8"></path>
+<svg class="metric-icon revenue-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <ellipse cx="14.8" cy="5.2" rx="6" ry="2.2"></ellipse>
+  <path d="M8.8 5.2v9.4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V5.2"></path>
+  <path d="M8.8 9.9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"></path>
+  <path d="M8.8 14.5c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"></path>
+  <circle cx="8.1" cy="15.2" r="5.1"></circle>
+  <text x="8.1" y="16.9">kr</text>
 </svg>
 """,
     "energy": """
@@ -1534,7 +1534,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-temperature-markers">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-stack">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1567,7 +1567,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-temperature-markers">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-stack">
 </head>
 <body>
   <header class="topbar">
@@ -1670,7 +1670,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-temperature-markers">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-stack">
 </head>
 <body>
   <header class="topbar">
