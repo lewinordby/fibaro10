@@ -246,6 +246,12 @@ h2 { font-size: 1.05rem; }
     margin-top: 0;
     margin-bottom: .7rem;
 }
+.detail-updated-line {
+    margin: -.15rem 0 .75rem;
+    color: var(--muted);
+    font-size: .76rem;
+    font-weight: 800;
+}
 .detail-stats article {
     min-height: 5.05rem;
 }
