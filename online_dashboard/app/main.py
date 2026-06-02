@@ -1524,7 +1524,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-centered-logo">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-logout-icon">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1557,14 +1557,21 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-centered-logo">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-logout-icon">
 </head>
 <body>
   <header class="topbar">
     <a class="logo-link" href="/" aria-label="Til forsiden">
       <img src="/static/lilletorget-text.png" alt="Lilletorget">
     </a>
-    <form method="post" action="/logg-ut"><button type="submit">Logg ut</button></form>
+    <form method="post" action="/logg-ut">
+      <button class="logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3v8" />
+          <path d="M7.1 6.5a8 8 0 1 0 9.8 0" />
+        </svg>
+      </button>
+    </form>
   </header>
   <main class="dashboard">
     <section class="pulse-grid">
@@ -1653,14 +1660,21 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-centered-logo">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-logout-icon">
 </head>
 <body>
   <header class="topbar">
     <a class="logo-link" href="/" aria-label="Til forsiden">
       <img src="/static/lilletorget-text.png" alt="Lilletorget">
     </a>
-    <form method="post" action="/logg-ut"><button type="submit">Logg ut</button></form>
+    <form method="post" action="/logg-ut">
+      <button class="logout-button" type="submit" aria-label="Logg ut" title="Logg ut">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3v8" />
+          <path d="M7.1 6.5a8 8 0 1 0 9.8 0" />
+        </svg>
+      </button>
+    </form>
   </header>
   <main class="dashboard detail-page">
     <section class="detail-hero">

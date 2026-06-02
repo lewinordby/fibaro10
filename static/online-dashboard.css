@@ -60,6 +60,33 @@ body {
     justify-self: end;
 }
 
+.logout-button {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border-color: rgba(6, 22, 66, .12);
+    background: rgba(255, 255, 255, .72);
+    color: var(--muted);
+    box-shadow: none;
+}
+
+.logout-button svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.logout-button:hover {
+    border-color: rgba(6, 22, 66, .22);
+    background: #fff;
+    color: var(--navy);
+}
+
 button {
     border: 1px solid var(--line);
     border-radius: 999px;
