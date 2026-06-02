@@ -1485,12 +1485,12 @@ METRIC_ICONS = {
 """,
     "revenue": """
 <svg class="metric-icon revenue-icon" viewBox="0 0 24 24" aria-hidden="true">
-  <ellipse cx="14.8" cy="5.2" rx="6" ry="2.2"></ellipse>
-  <path d="M8.8 5.2v9.4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V5.2"></path>
-  <path d="M8.8 9.9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"></path>
-  <path d="M8.8 14.5c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"></path>
-  <circle cx="8.1" cy="15.2" r="5.1"></circle>
-  <text x="8.1" y="16.9">kr</text>
+  <ellipse cx="16" cy="5.3" rx="5.2" ry="2"></ellipse>
+  <path d="M10.8 5.3v9.2c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2V5.3"></path>
+  <path d="M10.8 9.8c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2"></path>
+  <path d="M10.8 14.4c0 1.1 2.3 2 5.2 2s5.2-.9 5.2-2"></path>
+  <circle cx="7.2" cy="16.2" r="5.6"></circle>
+  <text x="7.2" y="18">kr</text>
 </svg>
 """,
     "energy": """
@@ -1534,7 +1534,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-stack">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-readable">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1567,7 +1567,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-stack">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-readable">
 </head>
 <body>
   <header class="topbar">
@@ -1670,7 +1670,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-stack">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-readable">
 </head>
 <body>
   <header class="topbar">
