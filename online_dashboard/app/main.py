@@ -1524,7 +1524,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-compact">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-centered-logo">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1557,7 +1557,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-compact">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-centered-logo">
 </head>
 <body>
   <header class="topbar">
@@ -1653,7 +1653,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-compact">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-centered-logo">
 </head>
 <body>
   <header class="topbar">

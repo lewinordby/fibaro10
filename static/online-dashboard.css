@@ -35,9 +35,9 @@ body {
     position: sticky;
     top: 0;
     z-index: 2;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    justify-content: space-between;
     gap: 1rem;
     padding: .6rem .8rem;
     background: rgba(255,255,255,.86);
@@ -47,10 +47,17 @@ body {
 
 .topbar img { width: min(10.8rem, 52vw); max-width: 100%; height: auto; }
 .logo-link {
+    grid-column: 2;
+    justify-self: center;
     min-width: 0;
     display: inline-flex;
     align-items: center;
     text-decoration: none;
+}
+
+.topbar form {
+    grid-column: 3;
+    justify-self: end;
 }
 
 button {
