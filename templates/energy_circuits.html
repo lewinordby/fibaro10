@@ -57,7 +57,7 @@
         .table-card-title h2 { margin:0; color:var(--brand-dark); font-size:1rem; }
         .table-card-title span { color:var(--muted); font-size:0.76rem; }
         .table-wrap { overflow:auto; }
-        table { width:100%; border-collapse:collapse; min-width:1260px; }
+        table { width:100%; border-collapse:collapse; min-width:900px; }
         th, td { padding:0.54rem 0.62rem; border-bottom:1px solid var(--line-soft); vertical-align:top; }
         th { color:var(--muted); background:var(--panel-soft); font-size:0.68rem; text-transform:uppercase; letter-spacing:0.02em; font-weight:820; text-align:left; white-space:nowrap; }
         td { color:var(--brand-dark); font-size:0.82rem; line-height:1.34; }
@@ -77,6 +77,10 @@
         .load-details { border:1px solid var(--line-soft); border-radius:10px; background:var(--panel-soft); overflow:hidden; }
         .load-details summary { cursor:pointer; padding:0.56rem 0.68rem; color:var(--brand-dark); font-weight:850; list-style:none; }
         .load-details summary::-webkit-details-marker { display:none; }
+        .course-detail-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0.45rem; padding:0 0.68rem 0.68rem; }
+        .course-detail { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:0.48rem 0.55rem; }
+        .course-detail span { display:block; color:var(--muted); font-size:0.64rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
+        .course-detail strong { display:block; margin-top:0.14rem; color:var(--brand-dark); font-size:0.78rem; }
         .load-tree { display:grid; gap:0.42rem; padding:0 0.68rem 0.68rem; }
         .load-tree-item { display:grid; grid-template-columns:minmax(12rem,1fr) minmax(8rem,0.55fr) minmax(7rem,0.45fr) auto; gap:0.5rem; align-items:center; padding:0.52rem 0.58rem; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
         .load-tree-item strong { font-size:0.82rem; }
@@ -102,6 +106,10 @@
             .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
             .command-card { grid-template-columns:1fr; }
             .action-row { justify-content:flex-start; }
+            .course-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        }
+        @media (max-width: 760px) {
+            .course-detail-grid { grid-template-columns:1fr; }
         }
     </style>
 </head>
@@ -151,12 +159,12 @@
                 <small>Fra importert kursliste</small>
             </article>
             <article class="metric-card">
-                <span>Med vern-data</span>
+                <span>Med A</span>
                 <strong>{{ summary.with_breaker }}</strong>
                 <small>Kurs med ampere oppgitt</small>
             </article>
             <article class="metric-card">
-                <span>Mangler vern-data</span>
+                <span>Mangler A</span>
                 <strong>{{ summary.missing_breaker }}</strong>
                 <small>Bør kompletteres senere</small>
             </article>
@@ -188,11 +196,7 @@
                         <th>Kurs</th>
                         <th>Beskrivelse</th>
                         <th>Solseng</th>
-                        <th>Vern</th>
-                        <th>Kabel</th>
-                        <th>Inst.</th>
-                        {% if edit_mode %}<th>Rekke/kl.</th>{% endif %}
-                        <th>JFB</th>
+                        <th class="num">A</th>
                         <th class="num">Laster</th>
                         <th class="num">Effekt</th>
                         <th>Status</th>
@@ -213,18 +217,7 @@
                                 <option value="1" {% if energy_circuit_is_sunbed(circuit) %}selected{% endif %}>Ja</option>
                             </select>
                         </td>
-                        <td><div class="edit-stack">
-                            <input class="edit-input edit-medium" name="breaker_type" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.breaker_type or "" }}" placeholder="Type">
-                            <input class="edit-input edit-small" name="breaker_rating_a" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.breaker_rating_a is not none %}{{ "{:g}".format(circuit.breaker_rating_a) }}{% endif %}" placeholder="A">
-                            <input class="edit-input edit-small" name="breaker_characteristic" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.breaker_characteristic or "" }}" placeholder="Kar.">
-                        </div></td>
-                        <td><div class="edit-stack">
-                            <input class="edit-input edit-medium" name="cable_spec" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.cable_spec or "" }}" placeholder="Kabel">
-                            <input class="edit-input edit-small" name="cable_length_m" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.cable_length_m is not none %}{{ "{:g}".format(circuit.cable_length_m) }}{% endif %}" placeholder="m">
-                        </div></td>
-                        <td><input class="edit-input edit-small" name="install_method" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.install_method or "" }}"></td>
-                        <td><input class="edit-input edit-medium" name="terminal_ref" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.terminal_ref or "" }}"></td>
-                        <td><input class="edit-input edit-small" name="rcd_ma" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.rcd_ma is not none %}{{ "{:g}".format(circuit.rcd_ma) }}{% endif %}" placeholder="mA"></td>
+                        <td class="num"><input class="edit-input edit-small" name="breaker_rating_a" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.breaker_rating_a is not none %}{{ "{:g}".format(circuit.breaker_rating_a) }}{% endif %}" placeholder="A"></td>
                         {% else %}
                         <td class="description">{{ circuit.description or "-" }}</td>
                         <td>
@@ -232,15 +225,7 @@
                                 {{ "Ja" if energy_circuit_is_sunbed(circuit) else "Nei" }}
                             </span>
                         </td>
-                        <td>{{ circuit_technical_label(circuit) }}</td>
-                        <td>
-                            {{ circuit.cable_spec or "-" }}
-                            {% if circuit.cable_length_m is not none %}
-                                <span class="muted">· {{ "{:g}".format(circuit.cable_length_m) }} m</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ circuit.install_method or "-" }}</td>
-                        <td>{% if circuit.rcd_ma is not none %}{{ "{:g}".format(circuit.rcd_ma) }} mA{% else %}-{% endif %}</td>
+                        <td class="num">{% if circuit.breaker_rating_a is not none %}{{ "{:g}".format(circuit.breaker_rating_a) }} A{% else %}-{% endif %}</td>
                         {% endif %}
                         <td class="num"><a class="load-link" href="/energi/laster?circuit={{ circuit.circuit_no }}">{{ load_info.count }}</a></td>
                         <td class="num">{{ "{:,.0f}".format(load_info.expected_power_w or 0).replace(",", " ") }} W</td>
@@ -265,9 +250,30 @@
                     {% if hierarchy_mode %}
                     {% set loads_for_course = course_load_lookup.get(circuit.circuit_no, []) %}
                     <tr>
-                        <td colspan="{{ 13 if edit_mode else 11 }}">
+                        <td colspan="{{ 9 if edit_mode else 8 }}">
                             <details class="load-details">
                                 <summary>{{ load_info.count }} laster på kurs {{ circuit.circuit_no }}</summary>
+                                <div class="course-detail-grid">
+                                    <div class="course-detail">
+                                        <span>Vern</span>
+                                        <strong>{{ circuit_technical_label(circuit) }}</strong>
+                                    </div>
+                                    <div class="course-detail">
+                                        <span>Kabel</span>
+                                        <strong>
+                                            {{ circuit.cable_spec or "-" }}
+                                            {% if circuit.cable_length_m is not none %} · {{ "{:g}".format(circuit.cable_length_m) }} m{% endif %}
+                                        </strong>
+                                    </div>
+                                    <div class="course-detail">
+                                        <span>Inst.</span>
+                                        <strong>{{ circuit.install_method or "-" }}</strong>
+                                    </div>
+                                    <div class="course-detail">
+                                        <span>JFB</span>
+                                        <strong>{% if circuit.rcd_ma is not none %}{{ "{:g}".format(circuit.rcd_ma) }} mA{% else %}-{% endif %}</strong>
+                                    </div>
+                                </div>
                                 {% if loads_for_course %}
                                 <div class="load-tree">
                                     {% for load in loads_for_course %}

@@ -12059,18 +12059,30 @@ async def energy_circuit_save(request: Request, circuit_no: int):
         ).scalars().first()
         if not circuit:
             raise HTTPException(status_code=404, detail="Kurs ikke funnet")
-        circuit.description = form_text(form, "description")
-        circuit.breaker_type = form_text(form, "breaker_type")
-        circuit.breaker_rating_a = form_float(form, "breaker_rating_a")
-        circuit.breaker_characteristic = form_text(form, "breaker_characteristic")
-        circuit.cable_spec = form_text(form, "cable_spec")
-        circuit.cable_length_m = form_float(form, "cable_length_m")
-        circuit.install_method = form_text(form, "install_method")
-        circuit.terminal_ref = form_text(form, "terminal_ref")
-        circuit.rcd_ma = form_float(form, "rcd_ma")
-        circuit.is_sunbed = form_bool(form, "is_sunbed")
-        circuit.status = form_text(form, "status") or "ukjent"
-        circuit.note = form_text(form, "note")
+        if "description" in form:
+            circuit.description = form_text(form, "description")
+        if "breaker_type" in form:
+            circuit.breaker_type = form_text(form, "breaker_type")
+        if "breaker_rating_a" in form:
+            circuit.breaker_rating_a = form_float(form, "breaker_rating_a")
+        if "breaker_characteristic" in form:
+            circuit.breaker_characteristic = form_text(form, "breaker_characteristic")
+        if "cable_spec" in form:
+            circuit.cable_spec = form_text(form, "cable_spec")
+        if "cable_length_m" in form:
+            circuit.cable_length_m = form_float(form, "cable_length_m")
+        if "install_method" in form:
+            circuit.install_method = form_text(form, "install_method")
+        if "terminal_ref" in form:
+            circuit.terminal_ref = form_text(form, "terminal_ref")
+        if "rcd_ma" in form:
+            circuit.rcd_ma = form_float(form, "rcd_ma")
+        if "is_sunbed" in form:
+            circuit.is_sunbed = form_bool(form, "is_sunbed")
+        if "status" in form:
+            circuit.status = form_text(form, "status") or "ukjent"
+        if "note" in form:
+            circuit.note = form_text(form, "note")
         circuit.updated_at = datetime.utcnow()
         await session.commit()
     return_view = "hierarki" if form_text(form, "return_view") == "hierarki" else ""
@@ -12116,17 +12128,7 @@ async def energy_circuits_pdf(sunbeds: Optional[str] = None):
             [
                 circuit.circuit_no,
                 circuit.description or "-",
-                circuit_technical_label(circuit),
-                " ".join(
-                    part
-                    for part in [
-                        circuit.cable_spec,
-                        f"{circuit.cable_length_m:g} m" if circuit.cable_length_m is not None else None,
-                    ]
-                    if part
-                ) or "-",
-                circuit.install_method or "-",
-                f"{circuit.rcd_ma:g} mA" if circuit.rcd_ma is not None else "-",
+                f"{circuit.breaker_rating_a:g} A" if circuit.breaker_rating_a is not None else "-",
                 "ja" if energy_circuit_is_sunbed(circuit) else "nei",
                 load_info["count"],
                 f"{load_info['expected_power_w']:,.0f} W".replace(",", " "),
@@ -12140,16 +12142,13 @@ async def energy_circuits_pdf(sunbeds: Optional[str] = None):
         + (" PDF-en følger valgt solsengfilter." if sunbed_filter else ""),
         [
             {"label": "Kurs", "width": 34, "align": "right"},
-            {"label": "Beskrivelse", "width": 185},
-            {"label": "Vern", "width": 88},
-            {"label": "Kabel", "width": 82},
-            {"label": "Inst.", "width": 44},
-            {"label": "JFB", "width": 52},
+            {"label": "Beskrivelse", "width": 255},
+            {"label": "A", "width": 45, "align": "right"},
             {"label": "Solseng", "width": 48},
             {"label": "Laster", "width": 44, "align": "right"},
             {"label": "Effekt", "width": 70, "align": "right"},
             {"label": "Status", "width": 72},
-            {"label": "Notat", "width": 132},
+            {"label": "Notat", "width": 178},
         ],
         rows,
     )
