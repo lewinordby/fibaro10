@@ -1336,6 +1336,7 @@ class EnergyCircuit(Base):
     install_method = Column(String, nullable=True)
     terminal_ref = Column(String, nullable=True)
     rcd_ma = Column(Float, nullable=True)
+    is_sunbed = Column(Boolean, index=True, nullable=True)
     note = Column(Text, nullable=True)
     status = Column(String, index=True, nullable=True)
     source = Column(String, index=True, nullable=True)
@@ -2982,6 +2983,9 @@ STARTUP_COLUMNS = {
         ("massasje_reset", "BOOLEAN"),
         ("annet_reset", "BOOLEAN"),
         ("differanse_fibaro_reset", "BOOLEAN"),
+    ],
+    "energy_circuits": [
+        ("is_sunbed", "BOOLEAN"),
     ],
 }
 
@@ -11758,6 +11762,36 @@ def circuit_technical_label(circuit: EnergyCircuit) -> str:
     return " / ".join(parts) if parts else "-"
 
 
+def energy_circuit_is_sunbed(circuit: EnergyCircuit) -> bool:
+    if circuit.is_sunbed is not None:
+        return bool(circuit.is_sunbed)
+    return "solseng" in (circuit.description or "").strip().lower()
+
+
+def normalize_energy_sunbed_filter(value: Optional[str]) -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in {"hide", "skjul", "exclude", "nei", "0"}:
+        return "hide"
+    if normalized in {"only", "kun", "ja", "1"}:
+        return "only"
+    return ""
+
+
+def filter_energy_circuits_by_sunbed(circuits: list[EnergyCircuit], sunbeds: Optional[str]) -> list[EnergyCircuit]:
+    sunbed_filter = normalize_energy_sunbed_filter(sunbeds)
+    if sunbed_filter == "hide":
+        return [row for row in circuits if not energy_circuit_is_sunbed(row)]
+    if sunbed_filter == "only":
+        return [row for row in circuits if energy_circuit_is_sunbed(row)]
+    return circuits
+
+
+def energy_query_url(path: str, **params: Any) -> str:
+    clean = {key: value for key, value in params.items() if value not in (None, "", False)}
+    query = urlencode(clean)
+    return f"{path}?{query}" if query else path
+
+
 def pdf_literal(value: Any) -> bytes:
     text_value = "" if value is None else str(value)
     raw = text_value.encode("cp1252", errors="replace")
@@ -11930,13 +11964,22 @@ def pdf_response(pdf_bytes: bytes, filename: str) -> StreamingResponse:
 
 
 @app.get("/energi/kurser", response_class=HTMLResponse)
-async def energy_circuits_view(request: Request, edit: Optional[str] = None):
+async def energy_circuits_view(
+    request: Request,
+    edit: Optional[str] = None,
+    sunbeds: Optional[str] = None,
+    view: Optional[str] = None,
+):
+    sunbed_filter = normalize_energy_sunbed_filter(sunbeds)
+    hierarchy_mode = (view or "").strip().lower() in {"hierarki", "hierarchy", "tree"}
     async with async_session() as session:
-        circuits = (
+        all_circuits = (
             await session.execute(
                 select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc())
             )
         ).scalars().all()
+        circuits = filter_energy_circuits_by_sunbed(all_circuits, sunbed_filter)
+        visible_circuit_numbers = [row.circuit_no for row in circuits]
         load_rows = (
             await session.execute(
                 select(
@@ -11945,9 +11988,18 @@ async def energy_circuits_view(request: Request, edit: Optional[str] = None):
                     func.coalesce(func.sum(EnergyLoad.expected_power_w), 0).label("expected_power_w"),
                 )
                 .where(EnergyLoad.circuit_no.is_not(None))
+                .where(EnergyLoad.circuit_no.in_(visible_circuit_numbers))
                 .group_by(EnergyLoad.circuit_no)
             )
         ).all()
+        course_load_rows = (
+            await session.execute(
+                select(EnergyLoad)
+                .where(EnergyLoad.circuit_no.is_not(None))
+                .where(EnergyLoad.circuit_no.in_(visible_circuit_numbers))
+                .order_by(EnergyLoad.circuit_no.asc(), EnergyLoad.active.desc(), EnergyLoad.name.asc())
+            )
+        ).scalars().all()
     load_lookup = {
         row.circuit_no: {
             "count": int(row.count or 0),
@@ -11955,23 +12007,43 @@ async def energy_circuits_view(request: Request, edit: Optional[str] = None):
         }
         for row in load_rows
     }
+    course_load_lookup = defaultdict(list)
+    for row in course_load_rows:
+        course_load_lookup[row.circuit_no].append(row)
     summary = {
         "circuits": len(circuits),
         "with_breaker": sum(1 for row in circuits if row.breaker_rating_a is not None),
         "missing_breaker": sum(1 for row in circuits if row.breaker_rating_a is None),
+        "sunbed_circuits": sum(1 for row in circuits if energy_circuit_is_sunbed(row)),
         "loads": sum(item["count"] for item in load_lookup.values()),
         "expected_power_w": sum(item["expected_power_w"] for item in load_lookup.values()),
     }
     edit_mode = (edit or "").strip().lower() in {"1", "true", "yes", "ja"}
+    view_value = "hierarki" if hierarchy_mode else ""
+    urls = {
+        "all": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", view=view_value),
+        "hide_sunbeds": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", sunbeds="hide", view=view_value),
+        "only_sunbeds": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", sunbeds="only", view=view_value),
+        "hierarchy": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", sunbeds=sunbed_filter, view="hierarki"),
+        "table": energy_query_url("/energi/kurser", edit="1" if edit_mode else "", sunbeds=sunbed_filter),
+        "edit": energy_query_url("/energi/kurser", edit="1", sunbeds=sunbed_filter, view=view_value),
+        "view": energy_query_url("/energi/kurser", sunbeds=sunbed_filter, view=view_value),
+        "pdf": energy_query_url("/energi/kurser/pdf", sunbeds=sunbed_filter),
+    }
     return templates.TemplateResponse(
         request,
         "energy_circuits.html",
         {
             "circuits": circuits,
             "load_lookup": load_lookup,
+            "course_load_lookup": course_load_lookup,
             "summary": summary,
             "edit_mode": edit_mode,
+            "hierarchy_mode": hierarchy_mode,
+            "sunbed_filter": sunbed_filter,
+            "urls": urls,
             "circuit_technical_label": circuit_technical_label,
+            "energy_circuit_is_sunbed": energy_circuit_is_sunbed,
         },
     )
 
@@ -11996,21 +12068,28 @@ async def energy_circuit_save(request: Request, circuit_no: int):
         circuit.install_method = form_text(form, "install_method")
         circuit.terminal_ref = form_text(form, "terminal_ref")
         circuit.rcd_ma = form_float(form, "rcd_ma")
+        circuit.is_sunbed = form_bool(form, "is_sunbed")
         circuit.status = form_text(form, "status") or "ukjent"
         circuit.note = form_text(form, "note")
         circuit.updated_at = datetime.utcnow()
         await session.commit()
-    return RedirectResponse(f"/energi/kurser?edit=1#kurs-{circuit_no}", status_code=303)
+    return_view = "hierarki" if form_text(form, "return_view") == "hierarki" else ""
+    return_sunbeds = normalize_energy_sunbed_filter(form_text(form, "return_sunbeds"))
+    target = energy_query_url("/energi/kurser", edit="1", sunbeds=return_sunbeds, view=return_view)
+    return RedirectResponse(f"{target}#kurs-{circuit_no}", status_code=303)
 
 
 @app.get("/energi/kurser/pdf")
-async def energy_circuits_pdf():
+async def energy_circuits_pdf(sunbeds: Optional[str] = None):
+    sunbed_filter = normalize_energy_sunbed_filter(sunbeds)
     async with async_session() as session:
-        circuits = (
+        all_circuits = (
             await session.execute(
                 select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc())
             )
         ).scalars().all()
+        circuits = filter_energy_circuits_by_sunbed(all_circuits, sunbed_filter)
+        visible_circuit_numbers = [row.circuit_no for row in circuits]
         load_rows = (
             await session.execute(
                 select(
@@ -12019,6 +12098,7 @@ async def energy_circuits_pdf():
                     func.coalesce(func.sum(EnergyLoad.expected_power_w), 0).label("expected_power_w"),
                 )
                 .where(EnergyLoad.circuit_no.is_not(None))
+                .where(EnergyLoad.circuit_no.in_(visible_circuit_numbers))
                 .group_by(EnergyLoad.circuit_no)
             )
         ).all()
@@ -12047,6 +12127,7 @@ async def energy_circuits_pdf():
                 ) or "-",
                 circuit.install_method or "-",
                 f"{circuit.rcd_ma:g} mA" if circuit.rcd_ma is not None else "-",
+                "ja" if energy_circuit_is_sunbed(circuit) else "nei",
                 load_info["count"],
                 f"{load_info['expected_power_w']:,.0f} W".replace(",", " "),
                 circuit.status or "-",
@@ -12055,18 +12136,20 @@ async def energy_circuits_pdf():
         )
     pdf_bytes = build_table_pdf(
         "Energi - kursliste",
-        "Elektriske kurser med vern, kabel, jordfeilbryter og koblede laster.",
+        "Elektriske kurser med vern, kabel, jordfeilbryter og koblede laster."
+        + (" PDF-en følger valgt solsengfilter." if sunbed_filter else ""),
         [
             {"label": "Kurs", "width": 34, "align": "right"},
-            {"label": "Beskrivelse", "width": 205},
-            {"label": "Vern", "width": 92},
-            {"label": "Kabel", "width": 88},
+            {"label": "Beskrivelse", "width": 185},
+            {"label": "Vern", "width": 88},
+            {"label": "Kabel", "width": 82},
             {"label": "Inst.", "width": 44},
             {"label": "JFB", "width": 52},
+            {"label": "Solseng", "width": 48},
             {"label": "Laster", "width": 44, "align": "right"},
             {"label": "Effekt", "width": 70, "align": "right"},
             {"label": "Status", "width": 72},
-            {"label": "Notat", "width": 150},
+            {"label": "Notat", "width": 132},
         ],
         rows,
     )
@@ -12080,8 +12163,10 @@ async def energy_loads_view(
     circuit: Optional[int] = None,
     load_type: Optional[str] = None,
     active: Optional[str] = None,
+    sunbeds: Optional[str] = None,
 ):
     q_value = (q or "").strip()
+    sunbed_filter = normalize_energy_sunbed_filter(sunbeds)
     async with async_session() as session:
         circuits = (
             await session.execute(
@@ -12097,6 +12182,7 @@ async def energy_loads_view(
                 .order_by(EnergyLoad.load_type.asc())
             )
         ).all()
+        sunbed_circuit_numbers = [row.circuit_no for row in circuits if energy_circuit_is_sunbed(row)]
         query = select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
         if q_value:
             pattern = f"%{q_value}%"
@@ -12116,6 +12202,10 @@ async def energy_loads_view(
             query = query.where(EnergyLoad.active.is_(True))
         elif active == "0":
             query = query.where(EnergyLoad.active.is_(False))
+        if sunbed_filter == "hide":
+            query = query.where(or_(EnergyLoad.circuit_no.is_(None), ~EnergyLoad.circuit_no.in_(sunbed_circuit_numbers)))
+        elif sunbed_filter == "only":
+            query = query.where(EnergyLoad.circuit_no.in_(sunbed_circuit_numbers))
         loads = (await session.execute(query)).scalars().all()
         all_loads = (await session.execute(select(EnergyLoad))).scalars().all()
     circuit_lookup = {row.circuit_no: row for row in circuits}
@@ -12139,7 +12229,9 @@ async def energy_loads_view(
                 "circuit": circuit,
                 "load_type": load_type or "",
                 "active": active or "",
+                "sunbeds": sunbed_filter,
             },
+            "energy_circuit_is_sunbed": energy_circuit_is_sunbed,
         },
     )
 
@@ -12150,14 +12242,17 @@ async def energy_loads_pdf(
     circuit: Optional[int] = None,
     load_type: Optional[str] = None,
     active: Optional[str] = None,
+    sunbeds: Optional[str] = None,
 ):
     q_value = (q or "").strip()
+    sunbed_filter = normalize_energy_sunbed_filter(sunbeds)
     async with async_session() as session:
         circuit_rows = (
             await session.execute(
                 select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc())
             )
         ).scalars().all()
+        sunbed_circuit_numbers = [row.circuit_no for row in circuit_rows if energy_circuit_is_sunbed(row)]
         query = select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
         if q_value:
             pattern = f"%{q_value}%"
@@ -12177,6 +12272,10 @@ async def energy_loads_pdf(
             query = query.where(EnergyLoad.active.is_(True))
         elif active == "0":
             query = query.where(EnergyLoad.active.is_(False))
+        if sunbed_filter == "hide":
+            query = query.where(or_(EnergyLoad.circuit_no.is_(None), ~EnergyLoad.circuit_no.in_(sunbed_circuit_numbers)))
+        elif sunbed_filter == "only":
+            query = query.where(EnergyLoad.circuit_no.in_(sunbed_circuit_numbers))
         loads = (await session.execute(query)).scalars().all()
     circuit_lookup = {row.circuit_no: row for row in circuit_rows}
     rows = []
@@ -12199,6 +12298,8 @@ async def energy_loads_pdf(
         if load.circuit_no:
             circuit = circuit_lookup.get(load.circuit_no)
             circuit_label = f"{load.circuit_no} - {circuit.description}" if circuit else str(load.circuit_no)
+            if circuit and energy_circuit_is_sunbed(circuit):
+                circuit_label += " (solseng)"
         rows.append(
             [
                 load.name,
@@ -12213,7 +12314,7 @@ async def energy_loads_pdf(
             ]
         )
     subtitle = "Praktiske laster med kurs, forventet effekt og Fibaro/Z-Wave-koblinger."
-    if q_value or circuit or load_type or active:
+    if q_value or circuit or load_type or active or sunbed_filter:
         subtitle += " PDF-en følger filtreringen i skjermbildet."
     pdf_bytes = build_table_pdf(
         "Energi - lastregister",

@@ -34,7 +34,7 @@
         .panel-card { padding:0.92rem 1rem; border-left:4px solid var(--energy-color); }
         .panel-title { margin:0 0 0.7rem; color:var(--brand-dark); font-size:1rem; }
         .filter-form, .load-form { display:grid; gap:0.58rem; align-items:end; }
-        .filter-form { grid-template-columns:minmax(14rem,1fr) minmax(12rem,0.85fr) minmax(10rem,0.7fr) minmax(8rem,0.55fr) auto; }
+        .filter-form { grid-template-columns:minmax(14rem,1fr) minmax(12rem,0.85fr) minmax(10rem,0.7fr) minmax(10rem,0.62fr) minmax(8rem,0.55fr) auto; }
         .load-form { grid-template-columns:repeat(6,minmax(0,1fr)); padding-top:0.75rem; border-top:1px solid var(--line-soft); }
         .field { display:grid; gap:0.22rem; min-width:0; }
         .field.wide { grid-column:span 2; }
@@ -108,6 +108,7 @@
         .tag { display:inline-flex; align-items:center; min-height:1.25rem; padding:0.06rem 0.38rem; border-radius:999px; border:1px solid var(--line); background:var(--panel-soft); color:var(--muted); font-size:0.66rem; font-weight:780; }
         .tag.ok { background:#edf8f1; border-color:#b9ddc2; color:#286b47; }
         .tag.warn { background:#fff0ee; border-color:#efc1ba; color:#9d3f31; }
+        .tag.sunbed { background:#fff7e8; border-color:#edd29b; color:#8a5f12; }
         .inline-form { margin:0; }
         @media (max-width: 1450px) {
             .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -185,6 +186,14 @@
                         {% for item in load_types %}
                         <option value="{{ item }}" {% if filters.load_type == item %}selected{% endif %}>{{ item }}</option>
                         {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="sunbeds">Solsengkurs</label>
+                    <select id="sunbeds" name="sunbeds">
+                        <option value="" {% if filters.sunbeds == "" %}selected{% endif %}>Alle</option>
+                        <option value="hide" {% if filters.sunbeds == "hide" %}selected{% endif %}>Skjul solsenger</option>
+                        <option value="only" {% if filters.sunbeds == "only" %}selected{% endif %}>Kun solsenger</option>
                     </select>
                 </div>
                 <div class="field">
@@ -298,6 +307,7 @@
                             {% if circuit %}
                             <a class="course-link" href="/energi/laster?circuit={{ load.circuit_no }}">{{ load.circuit_no }}</a>
                             <span class="muted"> {{ circuit.description }}</span>
+                            {% if energy_circuit_is_sunbed(circuit) %}<div class="tag-row"><span class="tag sunbed">Solsengkurs</span></div>{% endif %}
                             {% elif load.circuit_no %}
                             <span class="course-link">{{ load.circuit_no }}</span>
                             {% else %}

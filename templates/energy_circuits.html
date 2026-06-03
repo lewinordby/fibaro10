@@ -40,6 +40,7 @@
         }
         .button-primary { background:var(--energy-color); border:1px solid var(--energy-color); color:#fff; }
         .button-secondary { background:var(--panel); border:1px solid var(--line); color:var(--brand-dark); }
+        .button-secondary.active { border-color:var(--energy-color); color:var(--energy-color); background:#edf8f1; }
         .summary-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0.72rem; }
         .metric-card { padding:0.78rem 0.88rem; border-top:3px solid var(--energy-color); min-height:4.75rem; }
         .metric-card span { display:block; color:var(--muted); font-size:0.68rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
@@ -69,8 +70,17 @@
         .status-pill { display:inline-flex; align-items:center; justify-content:center; min-height:1.38rem; padding:0.1rem 0.46rem; border-radius:999px; border:1px solid var(--line); background:var(--panel-soft); color:var(--muted); font-size:0.68rem; font-weight:820; white-space:nowrap; }
         .status-pill.ok { background:#edf8f1; border-color:#b9ddc2; color:#286b47; }
         .status-pill.warn { background:#fff6e6; border-color:#ead19a; color:#8a5f12; }
+        .status-pill.sunbed { background:#fff7e8; border-color:#edd29b; color:#8a5f12; }
         .load-link { color:var(--brand-dark); text-decoration:none; font-weight:820; }
         .load-link:hover { text-decoration:underline; }
+        .filter-state { display:inline-flex; align-items:center; min-height:1.45rem; padding:0.08rem 0.45rem; border-radius:999px; background:var(--panel-soft); border:1px solid var(--line); color:var(--muted); font-size:0.7rem; font-weight:800; }
+        .load-details { border:1px solid var(--line-soft); border-radius:10px; background:var(--panel-soft); overflow:hidden; }
+        .load-details summary { cursor:pointer; padding:0.56rem 0.68rem; color:var(--brand-dark); font-weight:850; list-style:none; }
+        .load-details summary::-webkit-details-marker { display:none; }
+        .load-tree { display:grid; gap:0.42rem; padding:0 0.68rem 0.68rem; }
+        .load-tree-item { display:grid; grid-template-columns:minmax(12rem,1fr) minmax(8rem,0.55fr) minmax(7rem,0.45fr) auto; gap:0.5rem; align-items:center; padding:0.52rem 0.58rem; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+        .load-tree-item strong { font-size:0.82rem; }
+        .load-tree-item span { color:var(--muted); font-size:0.74rem; }
         .edit-input, .edit-textarea {
             width:100%;
             border:1px solid var(--line);
@@ -117,11 +127,19 @@
                 </p>
             </div>
             <div class="action-row">
-                <a class="button-secondary" href="/energi/kurser/pdf">PDF kursliste</a>
-                {% if edit_mode %}
-                    <a class="button-secondary" href="/energi/kurser">Avslutt redigering</a>
+                <a class="button-secondary {% if sunbed_filter == '' %}active{% endif %}" href="{{ urls.all }}">Alle kurser</a>
+                <a class="button-secondary {% if sunbed_filter == 'hide' %}active{% endif %}" href="{{ urls.hide_sunbeds }}">Skjul solsenger</a>
+                <a class="button-secondary {% if sunbed_filter == 'only' %}active{% endif %}" href="{{ urls.only_sunbeds }}">Kun solsenger</a>
+                {% if hierarchy_mode %}
+                    <a class="button-secondary" href="{{ urls.table }}">Tabell</a>
                 {% else %}
-                    <a class="button-primary" href="/energi/kurser?edit=1">Rediger kursliste</a>
+                    <a class="button-secondary" href="{{ urls.hierarchy }}">Hierarki</a>
+                {% endif %}
+                <a class="button-secondary" href="{{ urls.pdf }}">PDF kursliste</a>
+                {% if edit_mode %}
+                    <a class="button-secondary" href="{{ urls.view }}">Avslutt redigering</a>
+                {% else %}
+                    <a class="button-primary" href="{{ urls.edit }}">Rediger kursliste</a>
                 {% endif %}
             </div>
         </section>
@@ -157,13 +175,19 @@
         <section class="table-wrap">
             <div class="table-card-title">
                 <h2>Kursoversikt</h2>
-                <span>Klikk kursnummer for å se laster på valgt kurs</span>
+                <span>
+                    {% if sunbed_filter == "hide" %}<span class="filter-state">Solsenger skjult</span>
+                    {% elif sunbed_filter == "only" %}<span class="filter-state">Kun solsenger</span>
+                    {% elif hierarchy_mode %}<span class="filter-state">Hierarki</span>
+                    {% else %}Klikk kursnummer for å se laster på valgt kurs{% endif %}
+                </span>
             </div>
             <table>
                 <thead>
                     <tr>
                         <th>Kurs</th>
                         <th>Beskrivelse</th>
+                        <th>Solseng</th>
                         <th>Vern</th>
                         <th>Kabel</th>
                         <th>Inst.</th>
@@ -183,6 +207,12 @@
                         <td><a class="course-no" href="/energi/laster?circuit={{ circuit.circuit_no }}">{{ circuit.circuit_no }}</a></td>
                         {% if edit_mode %}
                         <td><textarea class="edit-textarea edit-wide" name="description" form="course-form-{{ circuit.circuit_no }}">{{ circuit.description or "" }}</textarea></td>
+                        <td>
+                            <select class="edit-input edit-small" name="is_sunbed" form="course-form-{{ circuit.circuit_no }}">
+                                <option value="0" {% if not energy_circuit_is_sunbed(circuit) %}selected{% endif %}>Nei</option>
+                                <option value="1" {% if energy_circuit_is_sunbed(circuit) %}selected{% endif %}>Ja</option>
+                            </select>
+                        </td>
                         <td><div class="edit-stack">
                             <input class="edit-input edit-medium" name="breaker_type" form="course-form-{{ circuit.circuit_no }}" value="{{ circuit.breaker_type or "" }}" placeholder="Type">
                             <input class="edit-input edit-small" name="breaker_rating_a" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.breaker_rating_a is not none %}{{ "{:g}".format(circuit.breaker_rating_a) }}{% endif %}" placeholder="A">
@@ -197,6 +227,11 @@
                         <td><input class="edit-input edit-small" name="rcd_ma" form="course-form-{{ circuit.circuit_no }}" value="{% if circuit.rcd_ma is not none %}{{ "{:g}".format(circuit.rcd_ma) }}{% endif %}" placeholder="mA"></td>
                         {% else %}
                         <td class="description">{{ circuit.description or "-" }}</td>
+                        <td>
+                            <span class="status-pill {% if energy_circuit_is_sunbed(circuit) %}sunbed{% endif %}">
+                                {{ "Ja" if energy_circuit_is_sunbed(circuit) else "Nei" }}
+                            </span>
+                        </td>
                         <td>{{ circuit_technical_label(circuit) }}</td>
                         <td>
                             {{ circuit.cable_spec or "-" }}
@@ -214,6 +249,8 @@
                         <td><textarea class="edit-textarea edit-wide" name="note" form="course-form-{{ circuit.circuit_no }}">{{ circuit.note or "" }}</textarea></td>
                         <td class="save-cell">
                             <form id="course-form-{{ circuit.circuit_no }}" class="inline-form" method="post" action="/energi/kurser/{{ circuit.circuit_no }}">
+                                <input type="hidden" name="return_sunbeds" value="{{ sunbed_filter }}">
+                                <input type="hidden" name="return_view" value="{{ 'hierarki' if hierarchy_mode else '' }}">
                                 <button class="button-primary" type="submit">Lagre</button>
                             </form>
                         </td>
@@ -225,6 +262,32 @@
                         <td class="muted">{{ circuit.note or "-" }}</td>
                         {% endif %}
                     </tr>
+                    {% if hierarchy_mode %}
+                    {% set loads_for_course = course_load_lookup.get(circuit.circuit_no, []) %}
+                    <tr>
+                        <td colspan="{{ 13 if edit_mode else 11 }}">
+                            <details class="load-details">
+                                <summary>{{ load_info.count }} laster på kurs {{ circuit.circuit_no }}</summary>
+                                {% if loads_for_course %}
+                                <div class="load-tree">
+                                    {% for load in loads_for_course %}
+                                    <article class="load-tree-item">
+                                        <strong>{{ load.name }}</strong>
+                                        <span>{{ load.load_type or "Uten type" }}{% if load.area %} · {{ load.area }}{% endif %}</span>
+                                        <span>{% if load.expected_power_w is not none %}{{ "{:,.0f}".format(load.expected_power_w).replace(",", " ") }} W{% else %}Uten effekt{% endif %}</span>
+                                        <span class="status-pill {% if load.active %}ok{% else %}warn{% endif %}">{{ "Aktiv" if load.active else "Inaktiv" }}</span>
+                                    </article>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="load-tree">
+                                    <span class="muted">Ingen registrerte laster på denne kursen.</span>
+                                </div>
+                                {% endif %}
+                            </details>
+                        </td>
+                    </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
