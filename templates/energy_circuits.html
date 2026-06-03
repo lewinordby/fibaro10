@@ -76,10 +76,6 @@
         .filter-state { display:inline-flex; align-items:center; min-height:1.45rem; padding:0.08rem 0.45rem; border-radius:999px; background:var(--panel-soft); border:1px solid var(--line); color:var(--muted); font-size:0.7rem; font-weight:800; }
         .load-details { border:1px solid var(--line-soft); border-radius:10px; background:var(--panel-soft); overflow:hidden; }
         .load-details-title { padding:0.56rem 0.68rem; color:var(--brand-dark); font-weight:850; }
-        .course-detail-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0.45rem; padding:0 0.68rem 0.68rem; }
-        .course-detail { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:0.48rem 0.55rem; }
-        .course-detail span { display:block; color:var(--muted); font-size:0.64rem; font-weight:820; text-transform:uppercase; letter-spacing:0.02em; }
-        .course-detail strong { display:block; margin-top:0.14rem; color:var(--brand-dark); font-size:0.78rem; }
         .load-tree { display:grid; gap:0.42rem; margin:0 0.68rem 0.68rem 1.35rem; padding-left:0.78rem; border-left:3px solid rgba(70,157,96,0.28); }
         .load-tree-item { position:relative; display:grid; grid-template-columns:minmax(12rem,1fr) minmax(8rem,0.55fr) minmax(7rem,0.45fr) auto; gap:0.5rem; align-items:center; padding:0.52rem 0.58rem; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
         .load-tree-item::before { content:""; position:absolute; left:-0.78rem; top:50%; width:0.78rem; border-top:1px solid rgba(70,157,96,0.38); }
@@ -106,11 +102,9 @@
             .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
             .command-card { grid-template-columns:1fr; }
             .action-row { justify-content:flex-start; }
-            .course-detail-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
             .load-tree-item { grid-template-columns:minmax(12rem,1fr) minmax(8rem,0.65fr) auto; }
         }
         @media (max-width: 760px) {
-            .course-detail-grid { grid-template-columns:1fr; }
             .load-tree { margin-left:0.78rem; padding-left:0.55rem; }
             .load-tree-item { grid-template-columns:1fr; }
             .load-tree-item::before { left:-0.55rem; width:0.55rem; }
@@ -257,27 +251,6 @@
                         <td colspan="{{ 9 if edit_mode else 8 }}">
                             <div class="load-details">
                                 <div class="load-details-title">{{ load_info.count }} laster på kurs {{ circuit.circuit_no }}</div>
-                                <div class="course-detail-grid">
-                                    <div class="course-detail">
-                                        <span>Vern</span>
-                                        <strong>{{ circuit_technical_label(circuit) }}</strong>
-                                    </div>
-                                    <div class="course-detail">
-                                        <span>Kabel</span>
-                                        <strong>
-                                            {{ circuit.cable_spec or "-" }}
-                                            {% if circuit.cable_length_m is not none %} · {{ "{:g}".format(circuit.cable_length_m) }} m{% endif %}
-                                        </strong>
-                                    </div>
-                                    <div class="course-detail">
-                                        <span>Inst.</span>
-                                        <strong>{{ circuit.install_method or "-" }}</strong>
-                                    </div>
-                                    <div class="course-detail">
-                                        <span>JFB</span>
-                                        <strong>{% if circuit.rcd_ma is not none %}{{ "{:g}".format(circuit.rcd_ma) }} mA{% else %}-{% endif %}</strong>
-                                    </div>
-                                </div>
                                 {% if loads_for_course %}
                                 <div class="load-tree">
                                     {% for load in loads_for_course %}
