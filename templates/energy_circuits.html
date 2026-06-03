@@ -74,10 +74,8 @@
         .load-link { color:var(--brand-dark); text-decoration:none; font-weight:820; }
         .load-link:hover { text-decoration:underline; }
         .filter-state { display:inline-flex; align-items:center; min-height:1.45rem; padding:0.08rem 0.45rem; border-radius:999px; background:var(--panel-soft); border:1px solid var(--line); color:var(--muted); font-size:0.7rem; font-weight:800; }
-        .load-details { border:1px solid var(--line-soft); border-radius:10px; background:var(--panel-soft); overflow:hidden; }
-        .load-details-title { padding:0.56rem 0.68rem; color:var(--brand-dark); font-weight:850; }
-        .load-tree { display:grid; gap:0.42rem; margin:0 0.68rem 0.68rem 1.35rem; padding-left:0.78rem; border-left:3px solid rgba(70,157,96,0.28); }
-        .load-tree-item { position:relative; display:grid; grid-template-columns:minmax(12rem,1fr) minmax(8rem,0.55fr) minmax(7rem,0.45fr) auto; gap:0.5rem; align-items:center; padding:0.52rem 0.58rem; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+        .load-tree { display:grid; gap:0.28rem; margin:0 0 0.1rem 1.35rem; padding:0.28rem 0 0.4rem 0.78rem; border-left:3px solid rgba(70,157,96,0.28); }
+        .load-tree-item { position:relative; display:grid; grid-template-columns:minmax(12rem,1fr) minmax(8rem,0.55fr) minmax(7rem,0.45fr) auto; gap:0.5rem; align-items:center; padding:0.24rem 0.1rem; }
         .load-tree-item::before { content:""; position:absolute; left:-0.78rem; top:50%; width:0.78rem; border-top:1px solid rgba(70,157,96,0.38); }
         .load-tree-item strong { font-size:0.82rem; }
         .load-tree-item span { color:var(--muted); font-size:0.74rem; }
@@ -245,28 +243,19 @@
                         <td class="muted">{{ circuit.note or "-" }}</td>
                         {% endif %}
                     </tr>
-                    {% if hierarchy_mode %}
                     {% set loads_for_course = course_load_lookup.get(circuit.circuit_no, []) %}
+                    {% if hierarchy_mode and loads_for_course %}
                     <tr>
                         <td colspan="{{ 9 if edit_mode else 8 }}">
-                            <div class="load-details">
-                                <div class="load-details-title">{{ load_info.count }} laster på kurs {{ circuit.circuit_no }}</div>
-                                {% if loads_for_course %}
-                                <div class="load-tree">
-                                    {% for load in loads_for_course %}
-                                    <article class="load-tree-item">
-                                        <strong>{{ load.name }}</strong>
-                                        <span>{{ load.load_type or "Uten type" }}{% if load.area %} · {{ load.area }}{% endif %}</span>
-                                        <span>{% if load.expected_power_w is not none %}{{ "{:,.0f}".format(load.expected_power_w).replace(",", " ") }} W{% else %}Uten effekt{% endif %}</span>
-                                        <span class="status-pill {% if load.active %}ok{% else %}warn{% endif %}">{{ "Aktiv" if load.active else "Inaktiv" }}</span>
-                                    </article>
-                                    {% endfor %}
-                                </div>
-                                {% else %}
-                                <div class="load-tree">
-                                    <span class="muted">Ingen registrerte laster på denne kursen.</span>
-                                </div>
-                                {% endif %}
+                            <div class="load-tree">
+                                {% for load in loads_for_course %}
+                                <article class="load-tree-item">
+                                    <strong>{{ load.name }}</strong>
+                                    <span>{{ load.load_type or "Uten type" }}{% if load.area %} · {{ load.area }}{% endif %}</span>
+                                    <span>{% if load.expected_power_w is not none %}{{ "{:,.0f}".format(load.expected_power_w).replace(",", " ") }} W{% else %}Uten effekt{% endif %}</span>
+                                    <span class="status-pill {% if load.active %}ok{% else %}warn{% endif %}">{{ "Aktiv" if load.active else "Inaktiv" }}</span>
+                                </article>
+                                {% endfor %}
                             </div>
                         </td>
                     </tr>
