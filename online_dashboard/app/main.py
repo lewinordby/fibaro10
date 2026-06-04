@@ -719,6 +719,10 @@ async def dashboard_data() -> dict[str, Any]:
         limit 1
         """
     )
+    parking_reference_at = parking_import.get("updated_at")
+    if not isinstance(parking_reference_at, datetime):
+        parking_reference_at = now
+    last_week_same_time_end = datetime.combine(last_week_same_day, parking_reference_at.time())
     parking = await one_mapping(
         """
         select count(*) as count,
@@ -747,6 +751,15 @@ async def dashboard_data() -> dict[str, Any]:
         where start_time >= :start and start_time < :end
         """,
         {"start": last_week_same_day_start, "end": last_week_same_day_end},
+    )
+    parking_last_week_same_time = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(fee_inc_vat), 0) as amount
+        from parkering
+        where start_time >= :start and start_time < :end
+        """,
+        {"start": last_week_same_day_start, "end": last_week_same_time_end},
     )
     parking_two_weeks_same_day = await one_mapping(
         """
@@ -868,6 +881,7 @@ async def dashboard_data() -> dict[str, Any]:
         "parking": parking,
         "parking_yesterday": parking_yesterday,
         "parking_last_week_same_day": parking_last_week_same_day,
+        "parking_last_week_same_time": parking_last_week_same_time,
         "parking_two_weeks_same_day": parking_two_weeks_same_day,
         "parking_week": parking_week,
         "parking_previous_week": parking_previous_week,
@@ -1224,8 +1238,8 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
         button += f'<p class="notice">{escape(refresh_label)}</p>'
     parking_today_detail = compare_short(
         data["parking"].get("count"),
-        data["parking_last_week_same_day"].get("count"),
-        "samme dag forrige uke",
+        data["parking_last_week_same_time"].get("count"),
+        "samme tidspunkt forrige uke",
     )
     if can_view_money:
         parking_today_detail = f"{amount(data['parking'].get('amount'))} - {parking_today_detail}"
