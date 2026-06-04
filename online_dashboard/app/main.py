@@ -1559,8 +1559,7 @@ def render_list(title: str, rows: list[tuple[str, str, str]]) -> str:
 
 def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> str:
     weekday_labels = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"]
-    totals = [amount_sum(row.get("sol"), row.get("parking")) for row in rows]
-    max_total = max(max(totals), 1.0)
+    scale_max = 35000.0
     week_end = week_start + timedelta(days=6)
     previous_url = f"/omsetning?{urlencode({'week': (week_start - timedelta(days=7)).isoformat()})}"
     next_url = f"/omsetning?{urlencode({'week': (week_start + timedelta(days=7)).isoformat()})}"
@@ -1573,8 +1572,8 @@ def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> s
         sol = float(row.get("sol") or 0)
         parking = float(row.get("parking") or 0)
         total = sol + parking
-        sol_height = 0 if sol <= 0 else max(3.0, sol / max_total * 100)
-        parking_height = 0 if parking <= 0 else max(3.0, parking / max_total * 100)
+        sol_height = 0 if sol <= 0 else max(3.0, sol / scale_max * 100)
+        parking_height = 0 if parking <= 0 else max(3.0, parking / scale_max * 100)
         if sol_height + parking_height > 100:
             scale = 100 / (sol_height + parking_height)
             sol_height *= scale
@@ -1597,7 +1596,7 @@ def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> s
         <header>
             <div>
                 <h2>Uke {week_start.strftime('%d.%m')} - {week_end.strftime('%d.%m')}</h2>
-                <p>Omsetning per dag fordelt på soling og parkering.</p>
+                <p>Omsetning per dag fordelt på soling og parkering. Fast skala til 35 000.</p>
             </div>
             <nav class="revenue-week-nav" aria-label="Velg uke">
                 <a href="{previous_url}">Forrige</a>

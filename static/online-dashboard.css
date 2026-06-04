@@ -444,19 +444,21 @@ h2 { font-size: 1.05rem; }
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: .48rem;
-    align-items: end;
+    align-items: start;
     margin-top: .78rem;
 }
 .revenue-day {
     min-width: 0;
     display: grid;
+    grid-template-rows: 9.5rem auto auto auto;
     gap: .26rem;
     justify-items: center;
     text-align: center;
 }
 .revenue-bar {
     width: min(2.15rem, 100%);
-    height: 9.5rem;
+    height: 100%;
+    align-self: end;
     display: flex;
     flex-direction: column-reverse;
     justify-content: flex-start;
@@ -827,8 +829,11 @@ h2 { font-size: 1.05rem; }
     }
 
     .revenue-bar {
-        height: 7.4rem;
         width: min(1.55rem, 100%);
+    }
+
+    .revenue-day {
+        grid-template-rows: 7.4rem auto auto;
     }
 
     .revenue-day strong {
