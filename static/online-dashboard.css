@@ -373,6 +373,116 @@ h2 { font-size: 1.05rem; }
 .detail-stats small {
     overflow-wrap: anywhere;
 }
+.revenue-week-chart {
+    margin: .8rem 0;
+    padding: .9rem;
+    border: 1px solid var(--line);
+    border-left: .24rem solid var(--red);
+    border-radius: 1.2rem;
+    background: rgba(255,255,255,.94);
+    box-shadow: var(--shadow);
+}
+.revenue-week-chart header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .75rem;
+    align-items: start;
+}
+.revenue-week-chart h2 {
+    margin: 0;
+    color: var(--navy);
+    font-size: 1rem;
+}
+.revenue-week-chart p {
+    margin: .18rem 0 0;
+    color: var(--muted);
+    font-size: .74rem;
+    font-weight: 750;
+}
+.revenue-week-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    justify-content: flex-end;
+}
+.revenue-week-nav a {
+    min-height: 1.92rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .36rem .58rem;
+    border: 1px solid var(--line);
+    border-radius: .75rem;
+    background: #fff;
+    color: var(--navy);
+    text-decoration: none;
+    font-size: .72rem;
+    font-weight: 900;
+}
+.revenue-legend {
+    display: flex;
+    gap: .7rem;
+    margin-top: .72rem;
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 850;
+}
+.revenue-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+}
+.revenue-legend i {
+    width: .65rem;
+    height: .65rem;
+    border-radius: 999px;
+    display: inline-block;
+}
+.revenue-legend .sun { background: var(--gold); }
+.revenue-legend .parking { background: var(--parking); }
+.revenue-bars {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: .48rem;
+    align-items: end;
+    margin-top: .78rem;
+}
+.revenue-day {
+    min-width: 0;
+    display: grid;
+    gap: .26rem;
+    justify-items: center;
+    text-align: center;
+}
+.revenue-bar {
+    width: min(2.15rem, 100%);
+    height: 9.5rem;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-start;
+    overflow: hidden;
+    border-radius: .7rem .7rem .42rem .42rem;
+    background: rgba(15,31,73,.06);
+    border: 1px solid rgba(15,31,73,.08);
+}
+.revenue-segment {
+    display: block;
+    width: 100%;
+}
+.revenue-segment.sun { background: var(--gold); }
+.revenue-segment.parking { background: var(--parking); }
+.revenue-day strong {
+    color: var(--navy);
+    font-size: .78rem;
+    line-height: 1.05;
+}
+.revenue-day span,
+.revenue-day small {
+    color: var(--muted);
+    font-size: .66rem;
+    font-weight: 800;
+    line-height: 1.12;
+}
 .detail-action {
     display: grid;
     gap: .35rem;
@@ -693,6 +803,40 @@ h2 { font-size: 1.05rem; }
 
     .metric-card small {
         font-size: .7rem;
+    }
+
+    .revenue-week-chart {
+        padding: .72rem;
+        border-radius: 1.05rem;
+    }
+
+    .revenue-week-chart header {
+        grid-template-columns: 1fr;
+    }
+
+    .revenue-week-nav {
+        justify-content: stretch;
+    }
+
+    .revenue-week-nav a {
+        flex: 1 1 auto;
+    }
+
+    .revenue-bars {
+        gap: .32rem;
+    }
+
+    .revenue-bar {
+        height: 7.4rem;
+        width: min(1.55rem, 100%);
+    }
+
+    .revenue-day strong {
+        font-size: .66rem;
+    }
+
+    .revenue-day small {
+        display: none;
     }
 
     .temperature-card {

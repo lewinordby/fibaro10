@@ -534,6 +534,58 @@ def amount_sum(*values: Any) -> float:
     return total
 
 
+def normalize_week_start(value: Optional[str], fallback: date) -> date:
+    try:
+        parsed = date.fromisoformat((value or "").strip())
+    except ValueError:
+        parsed = fallback
+    return parsed - timedelta(days=parsed.weekday())
+
+
+def date_key(value: Any) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value))
+
+
+async def revenue_week_data(week_start: date) -> list[dict[str, Any]]:
+    week_end = week_start + timedelta(days=7)
+    week_start_dt = datetime.combine(week_start, datetime.min.time())
+    week_end_dt = datetime.combine(week_end, datetime.min.time())
+    sol_rows = await many_mappings(
+        """
+        select stat_date as day,
+               coalesce(sum(paid_amount_kr), 0) as amount
+        from sun2_tanning_sessions
+        where stat_date >= :start and stat_date < :end
+        group by stat_date
+        """,
+        {"start": week_start, "end": week_end},
+    )
+    parking_rows = await many_mappings(
+        """
+        select start_time::date as day,
+               coalesce(sum(fee_inc_vat), 0) as amount
+        from parkering
+        where start_time >= :start and start_time < :end
+        group by start_time::date
+        """,
+        {"start": week_start_dt, "end": week_end_dt},
+    )
+    sol_by_day = {date_key(row.get("day")): float(row.get("amount") or 0) for row in sol_rows}
+    parking_by_day = {date_key(row.get("day")): float(row.get("amount") or 0) for row in parking_rows}
+    return [
+        {
+            "day": week_start + timedelta(days=offset),
+            "sol": sol_by_day.get(week_start + timedelta(days=offset), 0.0),
+            "parking": parking_by_day.get(week_start + timedelta(days=offset), 0.0),
+        }
+        for offset in range(7)
+    ]
+
+
 def money_compare_short(current: Any, previous: Any, label: str) -> str:
     try:
         current_f = float(current or 0)
@@ -1153,10 +1205,13 @@ async def soling_detail(request: Request):
 
 
 @app.get("/omsetning", response_class=HTMLResponse)
-async def revenue_detail(request: Request):
+async def revenue_detail(request: Request, week: Optional[str] = None):
     if not can_manage(request.state.access_key):
         return RedirectResponse("/", status_code=303)
     data = await dashboard_data()
+    today = data["now"].date()
+    week_start = normalize_week_start(week, today - timedelta(days=today.weekday()))
+    week_rows = await revenue_week_data(week_start)
     body = detail_stats(
         [
             ("I dag", fmt_amount(data["revenue"].get("today")), f"Sol {fmt_amount(data['soling'].get('amount'))} - park {fmt_amount(data['parking'].get('amount'))}"),
@@ -1170,6 +1225,7 @@ async def revenue_detail(request: Request):
         ]
     )
     body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(data["revenue_updated_at"])} {fmt_date(data["revenue_updated_at"])}</p>'
+    body += render_revenue_week_chart(week_start, week_rows)
     body += render_list(
         "Fordeling i dag",
         [
@@ -1501,6 +1557,63 @@ def render_list(title: str, rows: list[tuple[str, str, str]]) -> str:
     return f'<section class="section-block detail-list"><h2>{escape(title)}</h2><ul>{content}</ul></section>'
 
 
+def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> str:
+    weekday_labels = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"]
+    totals = [amount_sum(row.get("sol"), row.get("parking")) for row in rows]
+    max_total = max(max(totals), 1.0)
+    week_end = week_start + timedelta(days=6)
+    previous_url = f"/omsetning?{urlencode({'week': (week_start - timedelta(days=7)).isoformat()})}"
+    next_url = f"/omsetning?{urlencode({'week': (week_start + timedelta(days=7)).isoformat()})}"
+    today = local_now().date()
+    today_week = today - timedelta(days=today.weekday())
+    today_url = f"/omsetning?{urlencode({'week': today_week.isoformat()})}"
+    bars = []
+    for row in rows:
+        day = row["day"]
+        sol = float(row.get("sol") or 0)
+        parking = float(row.get("parking") or 0)
+        total = sol + parking
+        sol_height = 0 if sol <= 0 else max(3.0, sol / max_total * 100)
+        parking_height = 0 if parking <= 0 else max(3.0, parking / max_total * 100)
+        if sol_height + parking_height > 100:
+            scale = 100 / (sol_height + parking_height)
+            sol_height *= scale
+            parking_height *= scale
+        bars.append(
+            f"""
+            <article class="revenue-day">
+                <div class="revenue-bar" aria-label="{weekday_labels[day.weekday()]} {day.strftime('%d.%m')} omsetning {fmt_amount(total)}">
+                    <span class="revenue-segment parking" style="height:{parking_height:.2f}%"></span>
+                    <span class="revenue-segment sun" style="height:{sol_height:.2f}%"></span>
+                </div>
+                <strong>{fmt_amount(total)}</strong>
+                <span>{weekday_labels[day.weekday()]} {day.strftime('%d.%m')}</span>
+                <small>Sol {fmt_amount(sol)} · park {fmt_amount(parking)}</small>
+            </article>
+            """
+        )
+    return f"""
+    <section class="section-block revenue-week-chart">
+        <header>
+            <div>
+                <h2>Uke {week_start.strftime('%d.%m')} - {week_end.strftime('%d.%m')}</h2>
+                <p>Omsetning per dag fordelt på soling og parkering.</p>
+            </div>
+            <nav class="revenue-week-nav" aria-label="Velg uke">
+                <a href="{previous_url}">Forrige</a>
+                <a href="{today_url}">Denne uken</a>
+                <a href="{next_url}">Neste</a>
+            </nav>
+        </header>
+        <div class="revenue-legend">
+            <span><i class="sun"></i>Soling</span>
+            <span><i class="parking"></i>Parkering</span>
+        </div>
+        <div class="revenue-bars">{"".join(bars)}</div>
+    </section>
+    """
+
+
 METRIC_ICONS = {
     "sun": """
 <svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -1567,7 +1680,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-coin">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260604-revenue-week-chart">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1600,7 +1713,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-coin">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260604-revenue-week-chart">
 </head>
 <body>
   <header class="topbar">
@@ -1703,7 +1816,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260602-revenue-kr-coin">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260604-revenue-week-chart">
 </head>
 <body>
   <header class="topbar">
