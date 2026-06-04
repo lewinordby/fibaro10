@@ -1559,7 +1559,7 @@ def render_list(title: str, rows: list[tuple[str, str, str]]) -> str:
 
 def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> str:
     weekday_labels = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"]
-    scale_max = 35000.0
+    scale_max = 25000.0
     week_end = week_start + timedelta(days=6)
     previous_url = f"/omsetning?{urlencode({'week': (week_start - timedelta(days=7)).isoformat()})}"
     next_url = f"/omsetning?{urlencode({'week': (week_start + timedelta(days=7)).isoformat()})}"
@@ -1596,7 +1596,7 @@ def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> s
         <header>
             <div>
                 <h2>Uke {week_start.strftime('%d.%m')} - {week_end.strftime('%d.%m')}</h2>
-                <p>Omsetning per dag fordelt på soling og parkering. Fast skala til 35 000.</p>
+                <p>Omsetning per dag fordelt på soling og parkering. Fast skala til 25 000.</p>
             </div>
             <nav class="revenue-week-nav" aria-label="Velg uke">
                 <a href="{previous_url}">Forrige</a>
