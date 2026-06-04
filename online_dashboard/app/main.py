@@ -710,6 +710,22 @@ async def dashboard_data() -> dict[str, Any]:
             where ok = true
             """
         )
+    soling_reference_at = session_import.get("updated_at")
+    if not isinstance(soling_reference_at, datetime):
+        soling_reference_at = soling.get("updated_at")
+    if not isinstance(soling_reference_at, datetime):
+        soling_reference_at = now
+    last_week_soling_same_time_end = datetime.combine(last_week_same_day, soling_reference_at.time())
+    soling_last_week_same_time = await one_mapping(
+        """
+        select count(*) as count,
+               coalesce(sum(duration_minutes), 0) as minutes,
+               coalesce(sum(paid_amount_kr), 0) as amount
+        from sun2_tanning_sessions
+        where started_at >= :start and started_at < :end
+        """,
+        {"start": last_week_same_day_start, "end": last_week_soling_same_time_end},
+    )
     parking_import = await one_mapping(
         """
         select last_success_at as updated_at,
@@ -870,6 +886,7 @@ async def dashboard_data() -> dict[str, Any]:
         "soling": soling,
         "soling_yesterday": soling_yesterday,
         "soling_last_week_same_day": soling_last_week_same_day,
+        "soling_last_week_same_time": soling_last_week_same_time,
         "soling_two_weeks_same_day": soling_two_weeks_same_day,
         "soling_week": soling_week,
         "soling_previous_week": soling_previous_week,
@@ -1091,8 +1108,8 @@ async def soling_detail(request: Request):
     )
     soling_today_detail = compare_short(
         data["soling"].get("count"),
-        data["soling_last_week_same_day"].get("count"),
-        "samme dag forrige uke",
+        data["soling_last_week_same_time"].get("count"),
+        "samme tidspunkt forrige uke",
     )
     if can_view_money:
         soling_today_detail = f"{amount(data['soling'].get('amount'))} - {soling_today_detail}"
