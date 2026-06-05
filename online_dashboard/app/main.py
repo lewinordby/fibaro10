@@ -1605,9 +1605,10 @@ def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> s
 
 
 def render_revenue_week_chart_selectable(week_start: date, rows: list[dict[str, Any]]) -> str:
-    weekday_labels = ["Man", "Tir", "Ons", "Tor", "Fre", "L\u00f8r", "S\u00f8n"]
+    weekday_labels = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "L\u00f8rdag", "S\u00f8ndag"]
     scale_max = 25000.0
     week_end = week_start + timedelta(days=6)
+    iso_year, iso_week, _ = week_start.isocalendar()
     previous_url = f"/omsetning?{urlencode({'week': (week_start - timedelta(days=7)).isoformat()})}"
     next_url = f"/omsetning?{urlencode({'week': (week_start + timedelta(days=7)).isoformat()})}"
     today = local_now().date()
@@ -1617,7 +1618,7 @@ def render_revenue_week_chart_selectable(week_start: date, rows: list[dict[str, 
     selected_row = next((row for row in rows if row["day"] == selected_day), rows[0])
 
     def day_label(day: date) -> str:
-        return f"{weekday_labels[day.weekday()]} {day.strftime('%d.%m')}"
+        return f"{weekday_labels[day.weekday()]} {day.strftime('%d.%m.%Y')}"
 
     def distribution_values(row: dict[str, Any]) -> dict[str, str]:
         sol = float(row.get("sol") or 0)
@@ -1671,8 +1672,8 @@ def render_revenue_week_chart_selectable(week_start: date, rows: list[dict[str, 
     <section class="section-block revenue-week-chart">
         <header>
             <div>
-                <h2>Uke {week_start.strftime('%d.%m')} - {week_end.strftime('%d.%m')}</h2>
-                <p>Omsetning per dag fordelt p\u00e5 soling og parkering. Fast skala til 25 000.</p>
+                <h2>Uke {iso_week}, {iso_year} · {week_start.strftime('%d.%m.%Y')} - {week_end.strftime('%d.%m.%Y')}</h2>
+                <p>Omsetning per dag fordelt p\u00e5 soling og parkering.</p>
             </div>
             <nav class="revenue-week-nav" aria-label="Velg uke">
                 <a href="{previous_url}">Forrige</a>
@@ -1803,7 +1804,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-top">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-labels">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1836,7 +1837,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-top">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-labels">
 </head>
 <body>
   <header class="topbar">
@@ -1939,7 +1940,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-top">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-labels">
 </head>
 <body>
   <header class="topbar">
