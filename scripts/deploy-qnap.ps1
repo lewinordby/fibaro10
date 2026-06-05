@@ -65,6 +65,8 @@ done
 echo "Backup: `$backup_dir"
 "@
 
+$remote = $remote -replace "`r`n", "`n" -replace "`r", "`n"
+
 Run "ssh" @("-i", $IdentityFile, $QnapHost, $remote)
 
 Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "health-check.ps1"))
