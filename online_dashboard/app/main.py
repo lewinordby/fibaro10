@@ -1231,8 +1231,8 @@ async def revenue_detail(request: Request, week: Optional[str] = None):
             ("Forrige måned", fmt_amount(data["revenue"].get("previous_month")), f"Sol {fmt_amount(data['soling_previous_month'].get('amount'))} - park {fmt_amount(data['parking_previous_month'].get('amount'))}"),
         ]
     )
-    body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(data["revenue_updated_at"])} {fmt_date(data["revenue_updated_at"])}</p>'
-    return render_detail_page("Omsetning", "Samlet inntekt fra soling og parkering.", body, icon="revenue")
+    updated_note = f'<p class="detail-hero-note">Sist oppdatert {fmt_clock(data["revenue_updated_at"])} {fmt_date(data["revenue_updated_at"])}</p>'
+    return render_detail_page("Omsetning", "Samlet inntekt fra soling og parkering.", body, icon="revenue", hero_note=updated_note)
 
 @app.get("/parkering", response_class=HTMLResponse)
 async def parking_detail(request: Request, refresh: Optional[str] = None, reason: Optional[str] = None):
@@ -1672,7 +1672,7 @@ def render_revenue_week_chart_selectable(week_start: date, rows: list[dict[str, 
     <section class="section-block revenue-week-chart">
         <header>
             <div>
-                <h2>Uke {iso_week}, {iso_year} · {week_start.strftime('%d.%m.%Y')} - {week_end.strftime('%d.%m.%Y')}</h2>
+                <h2>{iso_year} · Uke {iso_week} · {week_start.strftime('%d.%m')} - {week_end.strftime('%d.%m')}</h2>
                 <p>Omsetning per dag fordelt p\u00e5 soling og parkering.</p>
             </div>
             <nav class="revenue-week-nav" aria-label="Velg uke">
@@ -1782,7 +1782,7 @@ def metric_icon(name: str) -> str:
     return METRIC_ICONS.get(name, "")
 
 
-def render_detail_page(title: str, subtitle: str, body: str, icon: str = "") -> HTMLResponse:
+def render_detail_page(title: str, subtitle: str, body: str, icon: str = "", hero_note: str = "") -> HTMLResponse:
     html = DETAIL_HTML
     detail_class = f"detail-{icon}" if icon else "detail-default"
     replacements = {
@@ -1791,6 +1791,7 @@ def render_detail_page(title: str, subtitle: str, body: str, icon: str = "") -> 
         "{{ body }}": body,
         "{{ detail_icon }}": metric_icon(icon),
         "{{ detail_class }}": detail_class,
+        "{{ hero_note }}": hero_note,
     }
     for key, value in replacements.items():
         html = html.replace(key, value)
@@ -1804,7 +1805,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-labels">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-header-update">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1837,7 +1838,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-labels">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-header-update">
 </head>
 <body>
   <header class="topbar">
@@ -1940,7 +1941,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-labels">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-header-update">
 </head>
 <body>
   <header class="topbar">
@@ -1959,6 +1960,7 @@ DETAIL_HTML = """<!doctype html>
   <main class="dashboard detail-page {{ detail_class }}">
     <section class="detail-hero">
       <div class="detail-title">{{ detail_icon }}<h1>{{ title }}</h1></div>
+      {{ hero_note }}
     </section>
     {{ body }}
   </main>

@@ -280,6 +280,12 @@ h2 { font-size: 1.05rem; }
     width: 2.1rem;
     height: 2.1rem;
 }
+.detail-hero-note {
+    margin: .28rem 0 0 2.75rem;
+    color: var(--muted);
+    font-size: .78rem;
+    font-weight: 850;
+}
 .detail-parking .detail-title .metric-icon,
 .detail-parking .detail-stats article,
 .detail-parking .detail-list {
