@@ -211,12 +211,16 @@ h2 { font-size: 1.05rem; }
 }
 .revenue-main-link {
     min-height: inherit;
-    padding: .8rem 3.25rem .8rem .8rem;
+    padding: .8rem .8rem 1.05rem .8rem;
+}
+.revenue-main-link .updated-line {
+    padding-right: 2.9rem;
 }
 .revenue-chart-link {
     position: absolute;
-    top: .62rem;
+    top: auto;
     right: .62rem;
+    bottom: .62rem;
     z-index: 2;
     width: 2.25rem;
     height: 2.25rem;
@@ -224,7 +228,8 @@ h2 { font-size: 1.05rem; }
     place-items: center;
     border: 1px solid rgba(194,73,68,.22);
     border-radius: 999px;
-    background: rgba(194,73,68,.1);
+    background: #fff;
+    box-shadow: 0 .28rem .8rem rgba(15,31,73,.1);
     color: var(--red);
     text-decoration: none;
 }
@@ -933,12 +938,12 @@ h2 { font-size: 1.05rem; }
     }
 
     .revenue-main-link {
-        padding: .72rem 3rem .72rem .72rem;
+        padding: .72rem .72rem 1rem .72rem;
     }
 
     .revenue-chart-link {
-        top: .52rem;
         right: .52rem;
+        bottom: .52rem;
         width: 2.05rem;
         height: 2.05rem;
     }
