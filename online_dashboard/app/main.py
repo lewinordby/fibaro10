@@ -1804,13 +1804,13 @@ METRIC_ICONS = {
     "chart": """
 <svg class="metric-icon chart-icon" viewBox="0 0 24 24" aria-hidden="true">
   <path d="M4 19.5h16"></path>
-  <path d="M5.4 16.5v-3.8"></path>
-  <path d="M7.6 16.5V9.6"></path>
-  <path d="M9.8 16.5v-5.4"></path>
+  <path d="M4.8 16.5v-3.8"></path>
+  <path d="M7.2 16.5V9.6"></path>
+  <path d="M9.6 16.5v-5.4"></path>
   <path d="M12 16.5V5.8"></path>
-  <path d="M14.2 16.5v-7.1"></path>
-  <path d="M16.4 16.5v-4.8"></path>
-  <path d="M18.6 16.5V7.4"></path>
+  <path d="M14.4 16.5v-7.1"></path>
+  <path d="M16.8 16.5v-4.8"></path>
+  <path d="M19.2 16.5V7.4"></path>
 </svg>
 """,
     "energy": """
@@ -1855,7 +1855,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-seven">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-spaced">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1888,7 +1888,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-seven">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-spaced">
 </head>
 <body>
   <header class="topbar">
@@ -1991,7 +1991,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-seven">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-spaced">
 </head>
 <body>
   <header class="topbar">
