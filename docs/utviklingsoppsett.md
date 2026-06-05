@@ -54,7 +54,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 
 `dev-check.ps1` verifiserer lokal Git-status, GitHub-push dry-run, QNAP SSH, QNAP repo/Docker og web health/smoke.
 
-`qnap-status.ps1` viser QNAP host, git commit/status, compose-status, siste containerlogger og health-watch-logg.
+`qnap-status.ps1` viser QNAP host, git commit/status, compose-status, siste containerlogger og health-watch-logg. Loggutskrift redakterer `username=` og `password=` query-parametre.
 
 `smoke-check.ps1` sjekker de viktigste sidene etter deploy. Auth-beskyttede sider kan svare `401` eller `403`; det regnes som OK naar health-endepunktene svarer og auth-laget beskytter siden.
 
