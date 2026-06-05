@@ -557,6 +557,7 @@ async def revenue_week_data(week_start: date) -> list[dict[str, Any]]:
     sol_rows = await many_mappings(
         """
         select stat_date as day,
+               count(*) as count,
                coalesce(sum(paid_amount_kr), 0) as amount
         from sun2_tanning_sessions
         where stat_date >= :start and stat_date < :end
@@ -567,6 +568,7 @@ async def revenue_week_data(week_start: date) -> list[dict[str, Any]]:
     parking_rows = await many_mappings(
         """
         select start_time::date as day,
+               count(*) as count,
                coalesce(sum(fee_inc_vat), 0) as amount
         from parkering
         where start_time >= :start and start_time < :end
@@ -575,12 +577,16 @@ async def revenue_week_data(week_start: date) -> list[dict[str, Any]]:
         {"start": week_start_dt, "end": week_end_dt},
     )
     sol_by_day = {date_key(row.get("day")): float(row.get("amount") or 0) for row in sol_rows}
+    sol_count_by_day = {date_key(row.get("day")): int(row.get("count") or 0) for row in sol_rows}
     parking_by_day = {date_key(row.get("day")): float(row.get("amount") or 0) for row in parking_rows}
+    parking_count_by_day = {date_key(row.get("day")): int(row.get("count") or 0) for row in parking_rows}
     return [
         {
             "day": week_start + timedelta(days=offset),
             "sol": sol_by_day.get(week_start + timedelta(days=offset), 0.0),
+            "sol_count": sol_count_by_day.get(week_start + timedelta(days=offset), 0),
             "parking": parking_by_day.get(week_start + timedelta(days=offset), 0.0),
+            "parking_count": parking_count_by_day.get(week_start + timedelta(days=offset), 0),
         }
         for offset in range(7)
     ]
@@ -1225,22 +1231,7 @@ async def revenue_detail(request: Request, week: Optional[str] = None):
         ]
     )
     body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(data["revenue_updated_at"])} {fmt_date(data["revenue_updated_at"])}</p>'
-    body += render_revenue_week_chart(week_start, week_rows)
-    body += render_list(
-        "Fordeling i dag",
-        [
-            (
-                "I dag",
-                "Soling",
-                f"{fmt_int(data['soling'].get('count'))} solinger - {fmt_amount(data['soling'].get('amount'))}",
-            ),
-            (
-                "I dag",
-                "Parkering",
-                f"{fmt_int(data['parking'].get('count'))} parkeringer - {fmt_amount(data['parking'].get('amount'))}",
-            ),
-        ],
-    )
+    body += render_revenue_week_chart_selectable(week_start, week_rows)
     return render_detail_page("Omsetning", "Samlet inntekt fra soling og parkering.", body, icon="revenue")
 
 @app.get("/parkering", response_class=HTMLResponse)
@@ -1613,6 +1604,139 @@ def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> s
     """
 
 
+def render_revenue_week_chart_selectable(week_start: date, rows: list[dict[str, Any]]) -> str:
+    weekday_labels = ["Man", "Tir", "Ons", "Tor", "Fre", "L\u00f8r", "S\u00f8n"]
+    scale_max = 25000.0
+    week_end = week_start + timedelta(days=6)
+    previous_url = f"/omsetning?{urlencode({'week': (week_start - timedelta(days=7)).isoformat()})}"
+    next_url = f"/omsetning?{urlencode({'week': (week_start + timedelta(days=7)).isoformat()})}"
+    today = local_now().date()
+    today_week = today - timedelta(days=today.weekday())
+    today_url = f"/omsetning?{urlencode({'week': today_week.isoformat()})}"
+    selected_day = today if week_start <= today <= week_end else week_start
+    selected_row = next((row for row in rows if row["day"] == selected_day), rows[0])
+
+    def day_label(day: date) -> str:
+        return f"{weekday_labels[day.weekday()]} {day.strftime('%d.%m')}"
+
+    def distribution_values(row: dict[str, Any]) -> dict[str, str]:
+        sol = float(row.get("sol") or 0)
+        parking = float(row.get("parking") or 0)
+        sol_count = int(row.get("sol_count") or 0)
+        parking_count = int(row.get("parking_count") or 0)
+        return {
+            "label": day_label(row["day"]),
+            "total": fmt_amount(sol + parking),
+            "sol": fmt_amount(sol),
+            "sol_count": f"{fmt_int(sol_count)} solinger",
+            "parking": fmt_amount(parking),
+            "parking_count": f"{fmt_int(parking_count)} parkeringer",
+        }
+
+    selected = distribution_values(selected_row)
+    bars = []
+    for row in rows:
+        day = row["day"]
+        sol = float(row.get("sol") or 0)
+        parking = float(row.get("parking") or 0)
+        total = sol + parking
+        sol_height = 0 if sol <= 0 else max(3.0, sol / scale_max * 100)
+        parking_height = 0 if parking <= 0 else max(3.0, parking / scale_max * 100)
+        if sol_height + parking_height > 100:
+            scale = 100 / (sol_height + parking_height)
+            sol_height *= scale
+            parking_height *= scale
+        values = distribution_values(row)
+        selected_class = " is-selected" if day == selected_day else ""
+        aria_pressed = "true" if day == selected_day else "false"
+        bars.append(
+            f"""
+            <button class="revenue-day{selected_class}" type="button" data-revenue-day
+                data-label="{escape(values['label'])}"
+                data-total="{escape(values['total'])}"
+                data-sol="{escape(values['sol'])}"
+                data-sol-count="{escape(values['sol_count'])}"
+                data-parking="{escape(values['parking'])}"
+                data-parking-count="{escape(values['parking_count'])}"
+                aria-pressed="{aria_pressed}"
+                aria-label="Velg {escape(values['label'])}, omsetning {escape(fmt_amount(total))}">
+                <span class="revenue-bar">
+                    <span class="revenue-segment parking" style="height:{parking_height:.2f}%"></span>
+                    <span class="revenue-segment sun" style="height:{sol_height:.2f}%"></span>
+                </span>
+            </button>
+            """
+        )
+    return f"""
+    <section class="section-block revenue-week-chart">
+        <header>
+            <div>
+                <h2>Uke {week_start.strftime('%d.%m')} - {week_end.strftime('%d.%m')}</h2>
+                <p>Omsetning per dag fordelt p\u00e5 soling og parkering. Fast skala til 25 000.</p>
+            </div>
+            <nav class="revenue-week-nav" aria-label="Velg uke">
+                <a href="{previous_url}">Forrige</a>
+                <a href="{today_url}">Denne uken</a>
+                <a href="{next_url}">Neste</a>
+            </nav>
+        </header>
+        <div class="revenue-legend">
+            <span><i class="sun"></i>Soling</span>
+            <span><i class="parking"></i>Parkering</span>
+        </div>
+        <div class="revenue-bars">{"".join(bars)}</div>
+        <div class="revenue-selected-day" aria-live="polite">
+            <span>Valgt dag</span>
+            <strong data-revenue-selected-label>{escape(selected['label'])}</strong>
+            <div class="revenue-selected-grid">
+                <article>
+                    <span>Total</span>
+                    <strong data-revenue-selected-total>{escape(selected['total'])}</strong>
+                </article>
+                <article class="sun">
+                    <span>Soling</span>
+                    <strong data-revenue-selected-sol>{escape(selected['sol'])}</strong>
+                    <small data-revenue-selected-sol-count>{escape(selected['sol_count'])}</small>
+                </article>
+                <article class="parking">
+                    <span>Parkering</span>
+                    <strong data-revenue-selected-parking>{escape(selected['parking'])}</strong>
+                    <small data-revenue-selected-parking-count>{escape(selected['parking_count'])}</small>
+                </article>
+            </div>
+        </div>
+    </section>
+    <script>
+    (() => {{
+        const root = document.currentScript.previousElementSibling;
+        const buttons = Array.from(root.querySelectorAll("[data-revenue-day]"));
+        const fields = {{
+            label: root.querySelector("[data-revenue-selected-label]"),
+            total: root.querySelector("[data-revenue-selected-total]"),
+            sol: root.querySelector("[data-revenue-selected-sol]"),
+            solCount: root.querySelector("[data-revenue-selected-sol-count]"),
+            parking: root.querySelector("[data-revenue-selected-parking]"),
+            parkingCount: root.querySelector("[data-revenue-selected-parking-count]"),
+        }};
+        const selectDay = (button) => {{
+            buttons.forEach((item) => {{
+                const selected = item === button;
+                item.classList.toggle("is-selected", selected);
+                item.setAttribute("aria-pressed", selected ? "true" : "false");
+            }});
+            fields.label.textContent = button.dataset.label;
+            fields.total.textContent = button.dataset.total;
+            fields.sol.textContent = button.dataset.sol;
+            fields.solCount.textContent = button.dataset.solCount;
+            fields.parking.textContent = button.dataset.parking;
+            fields.parkingCount.textContent = button.dataset.parkingCount;
+        }};
+        buttons.forEach((button) => button.addEventListener("click", () => selectDay(button)));
+    }})();
+    </script>
+    """
+
+
 METRIC_ICONS = {
     "sun": """
 <svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -1679,7 +1803,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260604-revenue-week-chart">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-select-day">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1712,7 +1836,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260604-revenue-week-chart">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-select-day">
 </head>
 <body>
   <header class="topbar">
@@ -1815,7 +1939,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260604-revenue-week-chart">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-select-day">
 </head>
 <body>
   <header class="topbar">
