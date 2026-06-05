@@ -1218,7 +1218,8 @@ async def revenue_detail(request: Request, week: Optional[str] = None):
     today = data["now"].date()
     week_start = normalize_week_start(week, today - timedelta(days=today.weekday()))
     week_rows = await revenue_week_data(week_start)
-    body = detail_stats(
+    body = render_revenue_week_chart_selectable(week_start, week_rows)
+    body += detail_stats(
         [
             ("I dag", fmt_amount(data["revenue"].get("today")), f"Sol {fmt_amount(data['soling'].get('amount'))} - park {fmt_amount(data['parking'].get('amount'))}"),
             ("I går", fmt_amount(data["revenue"].get("yesterday")), f"Sol {fmt_amount(data['soling_yesterday'].get('amount'))} - park {fmt_amount(data['parking_yesterday'].get('amount'))}"),
@@ -1231,7 +1232,6 @@ async def revenue_detail(request: Request, week: Optional[str] = None):
         ]
     )
     body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(data["revenue_updated_at"])} {fmt_date(data["revenue_updated_at"])}</p>'
-    body += render_revenue_week_chart_selectable(week_start, week_rows)
     return render_detail_page("Omsetning", "Samlet inntekt fra soling og parkering.", body, icon="revenue")
 
 @app.get("/parkering", response_class=HTMLResponse)
@@ -1803,7 +1803,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-select-day">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-top">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1836,7 +1836,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-select-day">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-top">
 </head>
 <body>
   <header class="topbar">
@@ -1939,7 +1939,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-select-day">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-top">
 </head>
 <body>
   <header class="topbar">

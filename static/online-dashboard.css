@@ -454,7 +454,7 @@ h2 { font-size: 1.05rem; }
     padding: 0;
     min-width: 0;
     display: grid;
-    grid-template-rows: 9.5rem;
+    grid-template-rows: 14.25rem;
     justify-items: center;
     cursor: pointer;
 }
@@ -891,7 +891,7 @@ h2 { font-size: 1.05rem; }
     }
 
     .revenue-day {
-        grid-template-rows: 7.4rem;
+        grid-template-rows: 11.1rem;
     }
 
     .revenue-selected-day {
