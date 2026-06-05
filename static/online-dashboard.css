@@ -204,6 +204,42 @@ h2 { font-size: 1.05rem; }
     grid-column: span 2;
     width: 100%;
 }
+.revenue-card {
+    grid-column: 1 / -1;
+    width: 100%;
+    padding: 0;
+}
+.revenue-main-link {
+    min-height: inherit;
+    padding: .8rem 3.25rem .8rem .8rem;
+}
+.revenue-chart-link {
+    position: absolute;
+    top: .62rem;
+    right: .62rem;
+    z-index: 2;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(194,73,68,.22);
+    border-radius: 999px;
+    background: rgba(194,73,68,.1);
+    color: var(--red);
+    text-decoration: none;
+}
+.revenue-chart-link:active {
+    transform: translateY(1px);
+}
+.revenue-chart-link:focus-visible {
+    outline: 3px solid rgba(194,73,68,.24);
+    outline-offset: 3px;
+}
+.revenue-chart-link .metric-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: currentColor;
+}
 .pulse-card, .insight-grid article {
     padding: .72rem .78rem;
     border-left: .24rem solid var(--green);
@@ -890,6 +926,21 @@ h2 { font-size: 1.05rem; }
         min-height: 5.25rem;
         padding: .72rem;
         border-radius: 1.05rem;
+    }
+
+    .revenue-card {
+        padding: 0;
+    }
+
+    .revenue-main-link {
+        padding: .72rem 3rem .72rem .72rem;
+    }
+
+    .revenue-chart-link {
+        top: .52rem;
+        right: .52rem;
+        width: 2.05rem;
+        height: 2.05rem;
     }
 
     .metric-card strong {

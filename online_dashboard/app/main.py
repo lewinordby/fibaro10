@@ -1079,12 +1079,15 @@ async def dashboard(request: Request):
     revenue_card = ""
     if show_revenue:
         revenue_card = f"""
-      <a class="metric-card accent-revenue is-wide card-link" href="/omsetning" data-revenue-card="1" style="grid-column: 1 / -1; width: 100%;">
+      <article class="metric-card accent-revenue is-wide revenue-card" data-revenue-card="1">
+        <a class="card-link revenue-main-link" href="/omsetning" aria-label="Apne omsetning">
         <div class="metric-head"><span>Omsetning</span>{metric_icon("revenue")}</div>
         <strong>{fmt_money(data["revenue"].get("today"))}<em>/{fmt_money(data["revenue"].get("yesterday"))}</em></strong>
         <small>I dag / i går - sol {fmt_money(data["soling"].get("amount"))} - park {fmt_money(data["parking"].get("amount"))}</small>
         <small class="updated-line">Oppdatert {fmt_time(data["revenue_updated_at"])}</small>
-      </a>
+        </a>
+        <a class="revenue-chart-link" href="/omsetning/uke" aria-label="Apne omsetningsdiagram">{metric_icon("chart")}</a>
+      </article>
         """
     html = DASHBOARD_HTML
     replacements = {
@@ -1215,11 +1218,7 @@ async def revenue_detail(request: Request, week: Optional[str] = None):
     if not can_manage(request.state.access_key):
         return RedirectResponse("/", status_code=303)
     data = await dashboard_data()
-    today = data["now"].date()
-    week_start = normalize_week_start(week, today - timedelta(days=today.weekday()))
-    week_rows = await revenue_week_data(week_start)
-    body = render_revenue_week_chart_selectable(week_start, week_rows)
-    body += detail_stats(
+    body = detail_stats(
         [
             ("I dag", fmt_amount(data["revenue"].get("today")), f"Sol {fmt_amount(data['soling'].get('amount'))} - park {fmt_amount(data['parking'].get('amount'))}"),
             ("I går", fmt_amount(data["revenue"].get("yesterday")), f"Sol {fmt_amount(data['soling_yesterday'].get('amount'))} - park {fmt_amount(data['parking_yesterday'].get('amount'))}"),
@@ -1233,6 +1232,20 @@ async def revenue_detail(request: Request, week: Optional[str] = None):
     )
     updated_note = f'<p class="detail-hero-note">Sist oppdatert {fmt_clock(data["revenue_updated_at"])} {fmt_date(data["revenue_updated_at"])}</p>'
     return render_detail_page("Omsetning", "Samlet inntekt fra soling og parkering.", body, icon="revenue", hero_note=updated_note)
+
+
+@app.get("/omsetning/uke", response_class=HTMLResponse)
+async def revenue_week_detail(request: Request, week: Optional[str] = None):
+    if not can_manage(request.state.access_key):
+        return RedirectResponse("/", status_code=303)
+    data = await dashboard_data()
+    today = data["now"].date()
+    week_start = normalize_week_start(week, today - timedelta(days=today.weekday()))
+    week_rows = await revenue_week_data(week_start)
+    body = render_revenue_week_chart_selectable(week_start, week_rows)
+    updated_note = f'<p class="detail-hero-note">Sist oppdatert {fmt_clock(data["revenue_updated_at"])} {fmt_date(data["revenue_updated_at"])}</p>'
+    return render_detail_page("Omsetning diagram", "Ukevis omsetning fra soling og parkering.", body, icon="revenue", hero_note=updated_note)
+
 
 @app.get("/parkering", response_class=HTMLResponse)
 async def parking_detail(request: Request, refresh: Optional[str] = None, reason: Optional[str] = None):
@@ -1609,11 +1622,11 @@ def render_revenue_week_chart_selectable(week_start: date, rows: list[dict[str, 
     scale_max = 25000.0
     week_end = week_start + timedelta(days=6)
     iso_year, iso_week, _ = week_start.isocalendar()
-    previous_url = f"/omsetning?{urlencode({'week': (week_start - timedelta(days=7)).isoformat()})}"
-    next_url = f"/omsetning?{urlencode({'week': (week_start + timedelta(days=7)).isoformat()})}"
+    previous_url = f"/omsetning/uke?{urlencode({'week': (week_start - timedelta(days=7)).isoformat()})}"
+    next_url = f"/omsetning/uke?{urlencode({'week': (week_start + timedelta(days=7)).isoformat()})}"
     today = local_now().date()
     today_week = today - timedelta(days=today.weekday())
-    today_url = f"/omsetning?{urlencode({'week': today_week.isoformat()})}"
+    today_url = f"/omsetning/uke?{urlencode({'week': today_week.isoformat()})}"
     selected_day = today if week_start <= today <= week_end else week_start
     selected_row = next((row for row in rows if row["day"] == selected_day), rows[0])
 
@@ -1788,6 +1801,14 @@ METRIC_ICONS = {
   <text x="12" y="14.75">kr</text>
 </svg>
 """,
+    "chart": """
+<svg class="metric-icon chart-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M4 19.5h16"></path>
+  <path d="M7 16.5V10"></path>
+  <path d="M12 16.5V5.8"></path>
+  <path d="M17 16.5v-8.2"></path>
+</svg>
+""",
     "energy": """
 <svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
   <path d="M13.4 2.8 5.8 13h6.1l-1.3 8.2 7.6-10.3h-6.1z"></path>
@@ -1830,7 +1851,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-total">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-entry">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1863,7 +1884,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-total">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-entry">
 </head>
 <body>
   <header class="topbar">
@@ -1966,7 +1987,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-total">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-entry">
 </head>
 <body>
   <header class="topbar">
