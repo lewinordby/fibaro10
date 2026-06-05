@@ -383,7 +383,6 @@ h2 { font-size: 1.05rem; }
     margin: .8rem 0;
     padding: .9rem;
     border: 1px solid var(--line);
-    border-left: .24rem solid var(--red);
     border-radius: 1.2rem;
     background: rgba(255,255,255,.94);
     box-shadow: var(--shadow);
