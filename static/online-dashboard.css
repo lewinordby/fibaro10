@@ -214,7 +214,7 @@ h2 { font-size: 1.05rem; }
     padding: .8rem .8rem 1.05rem .8rem;
 }
 .revenue-main-link .updated-line {
-    padding-right: 5.35rem;
+    padding-right: 6.7rem;
 }
 .revenue-chart-link {
     position: absolute;
@@ -222,7 +222,7 @@ h2 { font-size: 1.05rem; }
     right: .62rem;
     bottom: .62rem;
     z-index: 2;
-    width: 4.65rem;
+    width: 5.9rem;
     height: 3.35rem;
     display: grid;
     place-items: center;
@@ -241,7 +241,7 @@ h2 { font-size: 1.05rem; }
     outline-offset: 3px;
 }
 .revenue-chart-link .metric-icon {
-    width: 3.65rem;
+    width: 4.8rem;
     height: 2.45rem;
     color: currentColor;
 }
@@ -944,12 +944,12 @@ h2 { font-size: 1.05rem; }
     .revenue-chart-link {
         right: .52rem;
         bottom: .52rem;
-        width: 4.1rem;
+        width: 5.25rem;
         height: 3rem;
     }
 
     .revenue-chart-link .metric-icon {
-        width: 3.25rem;
+        width: 4.25rem;
         height: 2.15rem;
     }
 
