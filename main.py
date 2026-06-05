@@ -88,8 +88,17 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1026")
+APP_BUILD = os.getenv("APP_BUILD", "1027")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1027",
+        "date": "05.06.2026",
+        "title": "Teller pågående parkeringer",
+        "changes": [
+            "Viser antall pågående parkeringer direkte i overskriften på Parkering/Oversikt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1026",

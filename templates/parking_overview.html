@@ -223,10 +223,9 @@
         <section class="parking-panel">
             <header>
                 <div>
-                    <h2>Pågående parkeringer</h2>
+                    <h2>Pågående parkeringer ({{ ongoing_today|length|short_number }})</h2>
                     <p>Nyeste starttid øverst. Tabellen viser parkeringer som overlapper valgt dag.</p>
                 </div>
-                <strong>{{ ongoing_today|length|short_number }}</strong>
             </header>
             {{ parking_table(ongoing_today) }}
         </section>
