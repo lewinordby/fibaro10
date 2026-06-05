@@ -1804,9 +1804,11 @@ METRIC_ICONS = {
     "chart": """
 <svg class="metric-icon chart-icon" viewBox="0 0 24 24" aria-hidden="true">
   <path d="M4 19.5h16"></path>
-  <path d="M7 16.5V10"></path>
+  <path d="M6.2 16.5v-4.2"></path>
+  <path d="M9.1 16.5V8.8"></path>
   <path d="M12 16.5V5.8"></path>
-  <path d="M17 16.5v-8.2"></path>
+  <path d="M14.9 16.5v-6.3"></path>
+  <path d="M17.8 16.5V7.4"></path>
 </svg>
 """,
     "energy": """
@@ -1851,7 +1853,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-button-lg">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-pill">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1884,7 +1886,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-button-lg">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-pill">
 </head>
 <body>
   <header class="topbar">
@@ -1987,7 +1989,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-button-lg">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-pill">
 </head>
 <body>
   <header class="topbar">

@@ -214,7 +214,7 @@ h2 { font-size: 1.05rem; }
     padding: .8rem .8rem 1.05rem .8rem;
 }
 .revenue-main-link .updated-line {
-    padding-right: 4.2rem;
+    padding-right: 5.35rem;
 }
 .revenue-chart-link {
     position: absolute;
@@ -222,7 +222,7 @@ h2 { font-size: 1.05rem; }
     right: .62rem;
     bottom: .62rem;
     z-index: 2;
-    width: 3.35rem;
+    width: 4.65rem;
     height: 3.35rem;
     display: grid;
     place-items: center;
@@ -241,8 +241,8 @@ h2 { font-size: 1.05rem; }
     outline-offset: 3px;
 }
 .revenue-chart-link .metric-icon {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 3.65rem;
+    height: 2.45rem;
     color: currentColor;
 }
 .pulse-card, .insight-grid article {
@@ -944,13 +944,13 @@ h2 { font-size: 1.05rem; }
     .revenue-chart-link {
         right: .52rem;
         bottom: .52rem;
-        width: 3rem;
+        width: 4.1rem;
         height: 3rem;
     }
 
     .revenue-chart-link .metric-icon {
-        width: 2.2rem;
-        height: 2.2rem;
+        width: 3.25rem;
+        height: 2.15rem;
     }
 
     .metric-card strong {
