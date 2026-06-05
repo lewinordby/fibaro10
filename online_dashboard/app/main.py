@@ -1634,6 +1634,15 @@ def render_revenue_week_chart_selectable(week_start: date, rows: list[dict[str, 
             "parking_count": f"{fmt_int(parking_count)} parkeringer",
         }
 
+    week_sol = sum(float(row.get("sol") or 0) for row in rows)
+    week_parking = sum(float(row.get("parking") or 0) for row in rows)
+    week_total = week_sol + week_parking
+
+    def share_text(value: float) -> str:
+        if week_total <= 0:
+            return "0% av total"
+        return f"{value / week_total * 100:.0f}% av total"
+
     selected = distribution_values(selected_row)
     bars = []
     for row in rows:
@@ -1684,6 +1693,22 @@ def render_revenue_week_chart_selectable(week_start: date, rows: list[dict[str, 
         <div class="revenue-legend">
             <span><i class="sun"></i>Soling</span>
             <span><i class="parking"></i>Parkering</span>
+        </div>
+        <div class="revenue-week-summary">
+            <article>
+                <span>Total valgt uke</span>
+                <strong>{escape(fmt_amount(week_total))}</strong>
+            </article>
+            <article class="sun">
+                <span>Soling</span>
+                <strong>{escape(fmt_amount(week_sol))}</strong>
+                <small>{escape(share_text(week_sol))}</small>
+            </article>
+            <article class="parking">
+                <span>Parkering</span>
+                <strong>{escape(fmt_amount(week_parking))}</strong>
+                <small>{escape(share_text(week_parking))}</small>
+            </article>
         </div>
         <div class="revenue-bars">{"".join(bars)}</div>
         <div class="revenue-selected-day" aria-live="polite">
@@ -1805,7 +1830,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-clean">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-total">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -1838,7 +1863,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-clean">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-total">
 </head>
 <body>
   <header class="topbar">
@@ -1941,7 +1966,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-clean">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-week-total">
 </head>
 <body>
   <header class="topbar">

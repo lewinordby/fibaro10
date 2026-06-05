@@ -445,6 +445,40 @@ h2 { font-size: 1.05rem; }
 }
 .revenue-legend .sun { background: var(--gold); }
 .revenue-legend .parking { background: var(--parking); }
+.revenue-week-summary {
+    display: grid;
+    grid-template-columns: 1.18fr 1fr 1fr;
+    gap: .48rem;
+    margin-top: .58rem;
+}
+.revenue-week-summary article {
+    min-width: 0;
+    padding: .62rem;
+    border: 1px solid rgba(15,31,73,.08);
+    border-left: .22rem solid var(--red);
+    border-radius: .82rem;
+    background: rgba(15,31,73,.035);
+}
+.revenue-week-summary article.sun { border-left-color: var(--gold); }
+.revenue-week-summary article.parking { border-left-color: var(--parking); }
+.revenue-week-summary span,
+.revenue-week-summary small {
+    display: block;
+    color: var(--muted);
+    font-size: .68rem;
+    font-weight: 850;
+    line-height: 1.12;
+}
+.revenue-week-summary strong {
+    display: block;
+    margin-top: .12rem;
+    color: var(--navy);
+    font-size: .98rem;
+    line-height: 1.05;
+}
+.revenue-week-summary small {
+    margin-top: .16rem;
+}
 .revenue-bars {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -889,6 +923,11 @@ h2 { font-size: 1.05rem; }
 
     .revenue-bars {
         gap: .32rem;
+    }
+
+    .revenue-week-summary {
+        grid-template-columns: 1fr;
+        gap: .38rem;
     }
 
     .revenue-bar {
