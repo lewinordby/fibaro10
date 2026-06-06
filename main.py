@@ -88,8 +88,17 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1027")
+APP_BUILD = os.getenv("APP_BUILD", "1028")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1028",
+        "date": "06.06.2026",
+        "title": "Retter HC3 målerlogging",
+        "changes": [
+            "Gjør rådata fra HC3 måleravlesninger JSON-sikre slik at timestamp ikke stopper lagring.",
+        ],
+    },
     {
         "version": "1",
         "build": "1027",
@@ -683,6 +692,12 @@ def roborock_rounds_label(value: Any) -> str:
 
 def roborock_json(value: Any) -> str:
     return json.dumps(value or {}, ensure_ascii=False, indent=2, default=str)
+
+
+def json_safe_model_payload(model: BaseModel) -> Dict[str, Any]:
+    if hasattr(model, "model_dump"):
+        return model.model_dump(mode="json")
+    return json.loads(model.json())
 
 
 templates.env.filters["roborock_state"] = roborock_state_label
@@ -9686,7 +9701,7 @@ async def hc3_meter_reading_log(data: Hc3MeterReadingIn):
         verdi2=data.verdi2,
         forklaring=data.forklaring,
         source=data.source or "HC3",
-        raw=data.dict(),
+        raw=json_safe_model_payload(data),
     )
     async with async_session() as session:
         session.add(reading)
