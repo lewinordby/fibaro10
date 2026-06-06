@@ -1322,7 +1322,7 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
         parking_today_detail = f"{amount(data['parking'].get('amount'))} - {parking_today_detail}"
     body = detail_stats(
         [
-            ("Aktive", fmt_int(data["parking"].get("active_count")), f"Samme tidspunkt {fmt_clock(parking_import_at)}"),
+            ("I går", fmt_int(data["parking_yesterday"].get("count")), amount(data["parking_yesterday"].get("amount"))),
             (
                 "I dag",
                 fmt_int(data["parking"].get("count")),
