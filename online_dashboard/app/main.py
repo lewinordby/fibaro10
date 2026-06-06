@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+import hmac
 import hashlib
 from html import escape
 import asyncio
@@ -20,9 +21,14 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql+asyncpg://" + DATABASE_URL.removeprefix("postgres://")
+elif DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = "postgresql+asyncpg://" + DATABASE_URL.removeprefix("postgresql://")
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
+SNAPSHOT_SESSION_COOKIE_NAME = "lilletorget_online_session"
 PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
 PUBLIC_PREFIXES = ("/static/",)
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
@@ -31,6 +37,21 @@ EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://192.168.2
 EASYPARK_DOWNLOADER_TIMEOUT_SECONDS = max(60, int(os.getenv("EASYPARK_DOWNLOADER_TIMEOUT_SECONDS", "360")))
 EASYPARK_REFRESH_RETRY_WAIT_SECONDS = max(0, int(os.getenv("EASYPARK_REFRESH_RETRY_WAIT_SECONDS", "30")))
 PARKING_REFRESH_COOLDOWN_SECONDS = max(0, int(os.getenv("PARKING_REFRESH_COOLDOWN_SECONDS", "180")))
+ONLINE_DASHBOARD_MODE = os.getenv("ONLINE_DASHBOARD_MODE", "source").strip().lower()
+SNAPSHOT_MODE = ONLINE_DASHBOARD_MODE == "snapshot"
+SOURCE_MODE = not SNAPSHOT_MODE
+PUBLIC_DASHBOARD_PUBLIC = os.getenv("PUBLIC_DASHBOARD_PUBLIC", "0").strip().lower() in {"1", "true", "yes", "on"}
+PUBLIC_DASHBOARD_SHOW_MONEY = os.getenv("PUBLIC_DASHBOARD_SHOW_MONEY", "0").strip().lower() in {"1", "true", "yes", "on"}
+PUBLIC_DASHBOARD_USERNAME = os.getenv("PUBLIC_DASHBOARD_USERNAME", "").strip()
+PUBLIC_DASHBOARD_PASSWORD = os.getenv("PUBLIC_DASHBOARD_PASSWORD", "")
+PUBLIC_DASHBOARD_SESSION_SECRET = os.getenv("PUBLIC_DASHBOARD_SESSION_SECRET", "")
+PUBLIC_DASHBOARD_INGEST_TOKEN = os.getenv("PUBLIC_DASHBOARD_INGEST_TOKEN", "")
+PUBLIC_DASHBOARD_SYNC_ENABLED = os.getenv("PUBLIC_DASHBOARD_SYNC_ENABLED", "0").strip().lower() in {"1", "true", "yes", "on"}
+PUBLIC_DASHBOARD_SYNC_URL = os.getenv("PUBLIC_DASHBOARD_SYNC_URL", "").strip()
+PUBLIC_DASHBOARD_SYNC_TOKEN = os.getenv("PUBLIC_DASHBOARD_SYNC_TOKEN", "")
+PUBLIC_DASHBOARD_SYNC_INTERVAL_SECONDS = max(5, int(os.getenv("PUBLIC_DASHBOARD_SYNC_INTERVAL_SECONDS", "15")))
+PUBLIC_DASHBOARD_SYNC_TIMEOUT_SECONDS = max(3, int(os.getenv("PUBLIC_DASHBOARD_SYNC_TIMEOUT_SECONDS", "12")))
+PUBLIC_DASHBOARD_SNAPSHOT_NAME = os.getenv("PUBLIC_DASHBOARD_SNAPSHOT_NAME", "current").strip() or "current"
 
 app = FastAPI(title="Lilletorget online", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -39,6 +60,86 @@ engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 parking_refresh_lock = asyncio.Lock()
 parking_refresh_last_started_monotonic: Optional[float] = None
+public_dashboard_sync_task: Optional[asyncio.Task] = None
+
+SNAPSHOT_TABLE_SQL = """
+create table if not exists online_dashboard_snapshots (
+    name text primary key,
+    payload jsonb not null,
+    payload_hash text not null,
+    source_published_at timestamp null,
+    received_at timestamp not null default now()
+)
+"""
+
+
+def public_access_key() -> dict[str, Any]:
+    return {
+        "id": 0,
+        "name": "public-dashboard",
+        "key_prefix": "public",
+        "role": "settings" if PUBLIC_DASHBOARD_SHOW_MONEY else "viewer",
+        "is_master": PUBLIC_DASHBOARD_SHOW_MONEY,
+        "active": True,
+    }
+
+
+def canonical_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=json_safe)
+
+
+def json_safe(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if hasattr(value, "as_tuple"):
+        return float(value)
+    return str(value)
+
+
+def hydrate_value(value: Any) -> Any:
+    if isinstance(value, list):
+        return [hydrate_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: hydrate_value(item) for key, item in value.items()}
+    if isinstance(value, str):
+        try:
+            if "T" in value or (" " in value and ":" in value):
+                return datetime.fromisoformat(value)
+            if len(value) == 10 and value[4] == "-" and value[7] == "-":
+                return date.fromisoformat(value)
+        except ValueError:
+            return value
+    return value
+
+
+def snapshot_session_secret() -> str:
+    return PUBLIC_DASHBOARD_SESSION_SECRET or PUBLIC_DASHBOARD_PASSWORD
+
+
+def snapshot_session_token(username: str) -> str:
+    issued_at = str(int(time.time()))
+    message = f"{username}\0{issued_at}"
+    signature = hmac.new(snapshot_session_secret().encode("utf-8"), message.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{username}:{issued_at}:{signature}"
+
+
+def valid_snapshot_session(request: Request) -> bool:
+    token = request.cookies.get(SNAPSHOT_SESSION_COOKIE_NAME, "")
+    if not token or not snapshot_session_secret():
+        return False
+    try:
+        username, issued_at, signature = token.split(":", 2)
+        issued_i = int(issued_at)
+    except ValueError:
+        return False
+    if username != normalize_username(PUBLIC_DASHBOARD_USERNAME):
+        return False
+    if time.time() - issued_i > 60 * 60 * 24 * 30:
+        return False
+    expected = hmac.new(snapshot_session_secret().encode("utf-8"), f"{username}\0{issued_at}".encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(signature, expected)
 
 
 def normalize_username(value: str) -> str:
@@ -608,6 +709,16 @@ def money_compare_short(current: Any, previous: Any, label: str) -> str:
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
+    if SNAPSHOT_MODE:
+        if path in PUBLIC_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES) or path == "/api/snapshot/ingest":
+            return await call_next(request)
+        if PUBLIC_DASHBOARD_PUBLIC or valid_snapshot_session(request):
+            request.state.access_key = public_access_key()
+            return await call_next(request)
+        if wants_html(request):
+            return RedirectResponse("/auth/login", status_code=303)
+        return JSONResponse({"detail": "Ugyldig eller manglende innlogging"}, status_code=401)
+
     if path in PUBLIC_PATHS or any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES):
         return await call_next(request)
     username, password = presented_credentials(request)
@@ -637,7 +748,7 @@ async def many_mappings(query: str, params: Optional[dict[str, Any]] = None) -> 
     return [dict(row) for row in rows]
 
 
-async def dashboard_data() -> dict[str, Any]:
+async def source_dashboard_data() -> dict[str, Any]:
     now = local_now()
     today = now.date()
     yesterday = today - timedelta(days=1)
@@ -1010,6 +1121,185 @@ async def dashboard_data() -> dict[str, Any]:
     return data
 
 
+async def latest_snapshot_payload() -> dict[str, Any]:
+    async with async_session() as session:
+        row = (
+            await session.execute(
+                text(
+                    """
+                    select payload, received_at
+                    from online_dashboard_snapshots
+                    where name = :name
+                    limit 1
+                    """
+                ),
+                {"name": PUBLIC_DASHBOARD_SNAPSHOT_NAME},
+            )
+        ).mappings().first()
+    if not row:
+        now = local_now()
+        empty = {
+            "now": now,
+            "open_state": operating_window(now),
+            "soling": {},
+            "soling_yesterday": {},
+            "soling_last_week_same_day": {},
+            "soling_last_week_same_time": {},
+            "soling_two_weeks_same_day": {},
+            "soling_week": {},
+            "soling_previous_week": {},
+            "soling_month": {},
+            "soling_previous_month": {},
+            "latest_soling": {},
+            "session_import": {},
+            "parking_import": {},
+            "parking": {},
+            "parking_yesterday": {},
+            "parking_last_week_same_day": {},
+            "parking_last_week_same_time": {},
+            "parking_two_weeks_same_day": {},
+            "parking_week": {},
+            "parking_previous_week": {},
+            "parking_month": {},
+            "parking_previous_month": {},
+            "latest_parking": {},
+            "lights": {},
+            "vent": {},
+            "energy_now": {},
+            "energy_today": {},
+            "inside_avg": None,
+            "outside": None,
+            "outside_sensor": None,
+            "yr_temp": None,
+            "innluft": None,
+            "light_items": [],
+            "fan_items": [],
+            "revenue": {},
+            "revenue_updated_at": None,
+            "_snapshot": {"missing": True},
+        }
+        return empty
+    payload = hydrate_value(row["payload"])
+    data = payload.get("data", payload)
+    now_value = local_now()
+    data["now"] = now_value
+    data["open_state"] = operating_window(now_value)
+    data["_snapshot"] = {
+        **dict(data.get("_snapshot") or {}),
+        "received_at": row.get("received_at"),
+    }
+    return data
+
+
+async def dashboard_data() -> dict[str, Any]:
+    if SNAPSHOT_MODE:
+        return await latest_snapshot_payload()
+    return await source_dashboard_data()
+
+
+async def temperature_ranges(day: date) -> dict[str, Any]:
+    start, end = day_bounds(day)
+    return await one_mapping(
+        """
+        select min(temp_avg_inne) as min_inne, max(temp_avg_inne) as max_inne,
+               min(temp_ute) as min_ute, max(temp_ute) as max_ute,
+               min(temp_loft) as min_loft, max(temp_loft) as max_loft
+        from ventilasjon_samples
+        where bucket_start >= :start and bucket_start < :end
+        """,
+        {"start": start, "end": end},
+    )
+
+
+def public_dashboard_ingest_url() -> str:
+    url = PUBLIC_DASHBOARD_SYNC_URL.rstrip("/")
+    if not url:
+        return ""
+    if not url.endswith("/api/snapshot/ingest"):
+        url = f"{url}/api/snapshot/ingest"
+    return url
+
+
+def snapshot_change_hash(payload: dict[str, Any]) -> str:
+    comparable = json.loads(canonical_json(payload))
+    data = comparable.get("data") or {}
+    for volatile_key in ["now", "open_state", "_snapshot"]:
+        data.pop(volatile_key, None)
+    comparable.pop("published_at", None)
+    return hashlib.sha256(canonical_json(comparable).encode("utf-8")).hexdigest()
+
+
+async def build_public_dashboard_snapshot() -> dict[str, Any]:
+    source_data = await source_dashboard_data()
+    now_value = local_now()
+    today = source_data["now"].date()
+    week_start = today - timedelta(days=today.weekday())
+    public_data = json.loads(canonical_json(source_data))
+
+    latest_parking = public_data.get("latest_parking") or {}
+    public_data["latest_parking"] = {"start_time": latest_parking.get("start_time")}
+    public_data["_snapshot"] = {
+        "schema_version": 1,
+        "published_at": now_value.isoformat(),
+        "source": "qnap-fibaro10",
+        "privacy": "aggregates_only",
+    }
+    public_data["_charts"] = {
+        "revenue_week": {
+            "week_start": week_start.isoformat(),
+            "rows": json.loads(canonical_json(await revenue_week_data(week_start))),
+        }
+    }
+    public_data["_ranges"] = {
+        "temperature_today": json.loads(canonical_json(await temperature_ranges(today))),
+    }
+    return {
+        "schema_version": 1,
+        "name": PUBLIC_DASHBOARD_SNAPSHOT_NAME,
+        "source": "qnap-fibaro10",
+        "published_at": now_value.isoformat(),
+        "data": public_data,
+    }
+
+
+def post_snapshot_sync(payload: dict[str, Any]) -> dict[str, Any]:
+    url = public_dashboard_ingest_url()
+    if not url:
+        raise RuntimeError("PUBLIC_DASHBOARD_SYNC_URL mangler.")
+    body = canonical_json(payload).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {PUBLIC_DASHBOARD_SYNC_TOKEN}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=PUBLIC_DASHBOARD_SYNC_TIMEOUT_SECONDS) as response:
+        response_body = response.read().decode("utf-8", errors="replace")
+    return json.loads(response_body) if response_body else {"status": "ok"}
+
+
+async def public_dashboard_sync_worker() -> None:
+    last_hash = ""
+    while True:
+        try:
+            payload = await build_public_dashboard_snapshot()
+            payload_hash = snapshot_change_hash(payload)
+            if payload_hash != last_hash:
+                await asyncio.to_thread(post_snapshot_sync, payload)
+                last_hash = payload_hash
+        except Exception as exc:
+            print(f"public dashboard sync failed: {exc}", flush=True)
+        await asyncio.sleep(PUBLIC_DASHBOARD_SYNC_INTERVAL_SECONDS)
+
+
+async def ensure_snapshot_table() -> None:
+    async with engine.begin() as conn:
+        await conn.execute(text(SNAPSHOT_TABLE_SQL))
+
+
 def render_login(error: str = "") -> HTMLResponse:
     return HTMLResponse(
         LOGIN_HTML.replace("{{ error }}", error),
@@ -1017,9 +1307,65 @@ def render_login(error: str = "") -> HTMLResponse:
     )
 
 
+@app.on_event("startup")
+async def startup():
+    global public_dashboard_sync_task
+    if SNAPSHOT_MODE:
+        await ensure_snapshot_table()
+    elif PUBLIC_DASHBOARD_SYNC_ENABLED and PUBLIC_DASHBOARD_SYNC_TOKEN and public_dashboard_ingest_url():
+        public_dashboard_sync_task = asyncio.create_task(public_dashboard_sync_worker())
+
+
 @app.get("/health")
 async def health():
-    return {"ok": True, "service": "online_dashboard"}
+    return {"ok": True, "service": "online_dashboard", "mode": ONLINE_DASHBOARD_MODE}
+
+
+@app.post("/api/snapshot/ingest")
+async def ingest_snapshot(request: Request):
+    if not SNAPSHOT_MODE:
+        return JSONResponse({"detail": "Snapshot ingest er bare aktiv i snapshot-modus."}, status_code=404)
+    if not PUBLIC_DASHBOARD_INGEST_TOKEN:
+        return JSONResponse({"detail": "PUBLIC_DASHBOARD_INGEST_TOKEN mangler."}, status_code=503)
+    auth = request.headers.get("authorization", "")
+    expected = f"Bearer {PUBLIC_DASHBOARD_INGEST_TOKEN}"
+    if not hmac.compare_digest(auth, expected):
+        return JSONResponse({"detail": "Ugyldig ingest-token."}, status_code=401)
+    payload = await request.json()
+    if not isinstance(payload, dict) or int(payload.get("schema_version") or 0) < 1 or "data" not in payload:
+        return JSONResponse({"detail": "Ugyldig snapshot-payload."}, status_code=400)
+    name = str(payload.get("name") or PUBLIC_DASHBOARD_SNAPSHOT_NAME).strip() or PUBLIC_DASHBOARD_SNAPSHOT_NAME
+    payload_hash = hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+    source_published_at = payload.get("published_at")
+    try:
+        source_published = datetime.fromisoformat(str(source_published_at)) if source_published_at else None
+    except ValueError:
+        source_published = None
+    async with async_session() as session:
+        await session.execute(
+            text(
+                """
+                insert into online_dashboard_snapshots
+                    (name, payload, payload_hash, source_published_at, received_at)
+                values
+                    (:name, cast(:payload as jsonb), :payload_hash, :source_published_at, :received_at)
+                on conflict (name) do update
+                set payload = excluded.payload,
+                    payload_hash = excluded.payload_hash,
+                    source_published_at = excluded.source_published_at,
+                    received_at = excluded.received_at
+                """
+            ),
+            {
+                "name": name,
+                "payload": canonical_json(payload),
+                "payload_hash": payload_hash,
+                "source_published_at": source_published,
+                "received_at": datetime.utcnow(),
+            },
+        )
+        await session.commit()
+    return {"ok": True, "name": name, "payload_hash": payload_hash}
 
 
 @app.get("/favicon.ico")
@@ -1037,6 +1383,29 @@ async def login_submit(request: Request):
     form = await request.form()
     username = normalize_username(str(form.get("username") or ""))
     password = str(form.get("password") or "").strip()
+    if SNAPSHOT_MODE:
+        expected_user = normalize_username(PUBLIC_DASHBOARD_USERNAME)
+        valid = (
+            bool(expected_user)
+            and bool(PUBLIC_DASHBOARD_PASSWORD)
+            and username == expected_user
+            and hmac.compare_digest(password, PUBLIC_DASHBOARD_PASSWORD)
+        )
+        if not valid:
+            return render_login("Ugyldig brukernavn eller passord")
+        response = RedirectResponse("/", status_code=303)
+        forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+        secure_cookie = request.url.scheme == "https" or forwarded_proto == "https"
+        response.set_cookie(
+            SNAPSHOT_SESSION_COOKIE_NAME,
+            snapshot_session_token(expected_user),
+            max_age=60 * 60 * 24 * 30,
+            httponly=True,
+            secure=secure_cookie,
+            samesite="lax",
+        )
+        return response
+
     access_key = await find_access_key(username, password)
     if not access_key:
         await log_access_attempt(request, False, "online_failed_login", attempted_username=username)
@@ -1055,6 +1424,7 @@ async def logout():
     response = RedirectResponse("/auth/login", status_code=303)
     response.delete_cookie(AUTH_USER_COOKIE_NAME)
     response.delete_cookie(AUTH_COOKIE_NAME)
+    response.delete_cookie(SNAPSHOT_SESSION_COOKIE_NAME)
     return response
 
 
@@ -1157,16 +1527,18 @@ async def soling_detail(request: Request):
     latest_soling_at = data["latest_soling"].get("started_at")
     latest_soling_room = str(data["latest_soling"].get("room") or "").strip()
     latest_soling_detail = f"Rom {latest_soling_room}" if latest_soling_room else fmt_date(latest_soling_at)
-    rows = await many_mappings(
-        """
-        select started_at, room, duration_minutes, paid_amount_kr
-        from sun2_tanning_sessions
-        where stat_date = :today
-        order by started_at desc
-        limit 12
-        """,
-        {"today": data["now"].date()},
-    )
+    rows = []
+    if SOURCE_MODE:
+        rows = await many_mappings(
+            """
+            select started_at, room, duration_minutes, paid_amount_kr
+            from sun2_tanning_sessions
+            where stat_date = :today
+            order by started_at desc
+            limit 12
+            """,
+            {"today": data["now"].date()},
+        )
     soling_today_detail = compare_short(
         data["soling"].get("count"),
         data["soling_last_week_same_time"].get("count"),
@@ -1199,17 +1571,18 @@ async def soling_detail(request: Request):
         ]
     )
     body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(session_import_at)} {fmt_date(session_import_at)}</p>'
-    body += render_list(
-        "Siste solinger",
-        [
-            (
-                fmt_time(row.get("started_at")),
-                escape(str(row.get("room") or "Ukjent rom")),
-                f"{float(row.get('duration_minutes') or 0):.0f} min" + (f" - {amount(row.get('paid_amount_kr'))}" if can_view_money else ""),
-            )
-            for row in rows
-        ],
-    )
+    if rows:
+        body += render_list(
+            "Siste solinger",
+            [
+                (
+                    fmt_time(row.get("started_at")),
+                    escape(str(row.get("room") or "Ukjent rom")),
+                    f"{float(row.get('duration_minutes') or 0):.0f} min" + (f" - {amount(row.get('paid_amount_kr'))}" if can_view_money else ""),
+                )
+                for row in rows
+            ],
+        )
     return render_detail_page("Soling", "Dagens solinger og utvikling hittil.", body, icon="sun")
 
 
@@ -1241,7 +1614,14 @@ async def revenue_week_detail(request: Request, week: Optional[str] = None):
     data = await dashboard_data()
     today = data["now"].date()
     week_start = normalize_week_start(week, today - timedelta(days=today.weekday()))
-    week_rows = await revenue_week_data(week_start)
+    snapshot_week = ((data.get("_charts") or {}).get("revenue_week") or {})
+    snapshot_week_start = hydrate_value(snapshot_week.get("week_start"))
+    if SNAPSHOT_MODE:
+        if isinstance(snapshot_week_start, date):
+            week_start = snapshot_week_start
+        week_rows = snapshot_week.get("rows") or []
+    else:
+        week_rows = await revenue_week_data(week_start)
     body = render_revenue_week_chart_selectable(week_start, week_rows)
     updated_note = f'<p class="detail-hero-note">Sist oppdatert {fmt_clock(data["revenue_updated_at"])} {fmt_date(data["revenue_updated_at"])}</p>'
     return render_detail_page("Omsetning diagram", "Ukevis omsetning fra soling og parkering.", body, icon="revenue", hero_note=updated_note)
@@ -1252,33 +1632,36 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
     data = await dashboard_data()
     can_view_money = can_manage(request.state.access_key)
     amount = lambda value: fmt_amount(value) if can_view_money else ""
-    easypark_status = easypark_downloader_status()
+    easypark_status = easypark_downloader_status() if SOURCE_MODE else {}
     parking_import_at = data["parking_import"].get("updated_at")
     parking_failed_at = data["parking_import"].get("last_failed_at")
     import_status_text = f"Sist OK: {display_stamp(parking_import_at)}"
     if isinstance(parking_failed_at, datetime) and (not isinstance(parking_import_at, datetime) or parking_failed_at > parking_import_at):
         import_status_text = f"Siste forsøk feilet. Sist OK: {display_stamp(parking_import_at)}"
-    start, end = day_bounds(data["now"].date())
-    rows = await many_mappings(
-        """
-        select start_time, end_time, car_license_number, fee_inc_vat, parking_time_min, status
-        from parkering
-        where start_time >= :start and start_time < :end
-        order by start_time desc
-        limit 14
-        """,
-        {"start": start, "end": end},
-    )
-    import_runs = await many_mappings(
-        """
-        select finished_at, started_at, ok, status, records_imported, records_total, message
-        from import_job_runs
-        where job_name = 'easypark_parking_import'
-        order by finished_at desc nulls last, id desc
-        limit 5
-        """
-    )
-    can_refresh = can_manage(request.state.access_key)
+    rows = []
+    import_runs = []
+    if SOURCE_MODE:
+        start, end = day_bounds(data["now"].date())
+        rows = await many_mappings(
+            """
+            select start_time, end_time, car_license_number, fee_inc_vat, parking_time_min, status
+            from parkering
+            where start_time >= :start and start_time < :end
+            order by start_time desc
+            limit 14
+            """,
+            {"start": start, "end": end},
+        )
+        import_runs = await many_mappings(
+            """
+            select finished_at, started_at, ok, status, records_imported, records_total, message
+            from import_job_runs
+            where job_name = 'easypark_parking_import'
+            order by finished_at desc nulls last, id desc
+            limit 5
+            """
+        )
+    can_refresh = SOURCE_MODE and can_manage(request.state.access_key)
     cooldown_remaining = parking_refresh_cooldown_remaining_seconds()
     refresh_state = "ready"
     refresh_button_text = "Oppdater tall"
@@ -1346,6 +1729,8 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
     )
     body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(parking_import_at)} {fmt_date(parking_import_at)}</p>'
     body += button
+    if SNAPSHOT_MODE:
+        return render_detail_page("Parkering", "Dagens parkeringer med trygg manuell oppdatering.", body, icon="parking")
     body += render_list("Siste importforsøk", import_run_rows(import_runs))
     body += render_list(
         "Siste parkeringer",
@@ -1364,6 +1749,8 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
 @app.post("/parkering/oppdater")
 async def parking_refresh(request: Request):
     global parking_refresh_last_started_monotonic
+    if SNAPSHOT_MODE:
+        return RedirectResponse("/parkering?refresh=denied", status_code=303)
     if not can_manage(request.state.access_key):
         return RedirectResponse("/parkering?refresh=denied", status_code=303)
     if parking_refresh_lock.locked():
@@ -1437,17 +1824,10 @@ async def energy_detail(request: Request):
 @app.get("/temperatur", response_class=HTMLResponse)
 async def temperature_detail(request: Request):
     data = await dashboard_data()
-    start, end = day_bounds(data["now"].date())
-    ranges = await one_mapping(
-        """
-        select min(temp_avg_inne) as min_inne, max(temp_avg_inne) as max_inne,
-               min(temp_ute) as min_ute, max(temp_ute) as max_ute,
-               min(temp_loft) as min_loft, max(temp_loft) as max_loft
-        from ventilasjon_samples
-        where bucket_start >= :start and bucket_start < :end
-        """,
-        {"start": start, "end": end},
-    )
+    if SNAPSHOT_MODE:
+        ranges = ((data.get("_ranges") or {}).get("temperature_today") or {})
+    else:
+        ranges = await temperature_ranges(data["now"].date())
     body = detail_stats(
         [
             ("Inne nå", fmt_temp(data["inside_avg"]), f"{fmt_temp(ranges.get('min_inne'))} - {fmt_temp(ranges.get('max_inne'))}"),
@@ -1462,15 +1842,19 @@ async def temperature_detail(request: Request):
 @app.get("/lys", response_class=HTMLResponse)
 async def light_detail(request: Request):
     data = await dashboard_data()
-    events = await many_mappings(
-        """
-        select timestamp, device_name, action, lux, reason
-        from utelys_events
-        order by timestamp desc
-        limit 10
-        """
-    )
+    events = []
+    if SOURCE_MODE:
+        events = await many_mappings(
+            """
+            select timestamp, device_name, action, lux, reason
+            from utelys_events
+            order by timestamp desc
+            limit 10
+            """
+        )
     body = f'<section class="section-block"><div class="section-title-row"><h2>LYS</h2><div class="lux-pill"><span>Lux</span><strong>{fmt_int(data["lights"].get("lux"))}</strong></div></div><div class="state-grid">{render_state_cards(data["light_items"], "light")}</div><small class="card-time">Oppdatert {fmt_time(data["lights"].get("bucket_start") or data["lights"].get("timestamp"))}</small></section>'
+    if SNAPSHOT_MODE:
+        return render_detail_page("Lys", "Status og siste hendelser.", body)
     body += render_list(
         "Siste lysendringer",
         [
@@ -1488,15 +1872,19 @@ async def light_detail(request: Request):
 @app.get("/ventilasjon", response_class=HTMLResponse)
 async def ventilation_detail(request: Request):
     data = await dashboard_data()
-    events = await many_mappings(
-        """
-        select timestamp, device_name, action, mode, reason
-        from ventilasjon_events
-        order by timestamp desc
-        limit 10
-        """
-    )
+    events = []
+    if SOURCE_MODE:
+        events = await many_mappings(
+            """
+            select timestamp, device_name, action, mode, reason
+            from ventilasjon_events
+            order by timestamp desc
+            limit 10
+            """
+        )
     body = f'<section class="section-block"><div class="section-title-row"><h2>VENTILASJON</h2></div><div class="state-grid">{render_state_cards(data["fan_items"], "fan")}</div><small class="card-time">Oppdatert {fmt_time(data["vent"].get("bucket_start") or data["vent"].get("timestamp"))}</small></section>'
+    if SNAPSHOT_MODE:
+        return render_detail_page("Ventilasjon", "Status og siste hendelser.", body)
     body += render_list(
         "Siste viftehendelser",
         [

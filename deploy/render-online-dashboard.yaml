@@ -1,0 +1,31 @@
+databases:
+  - name: lilletorget-online-dashboard-db
+    databaseName: lilletorget_online_dashboard
+    user: lilletorget_online_dashboard
+
+services:
+  - type: web
+    name: lilletorget-online-dashboard
+    runtime: docker
+    dockerfilePath: ./online_dashboard/Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lilletorget-online-dashboard-db
+          property: connectionString
+      - key: ONLINE_DASHBOARD_MODE
+        value: snapshot
+      - key: PUBLIC_DASHBOARD_INGEST_TOKEN
+        sync: false
+      - key: PUBLIC_DASHBOARD_USERNAME
+        sync: false
+      - key: PUBLIC_DASHBOARD_PASSWORD
+        sync: false
+      - key: PUBLIC_DASHBOARD_SESSION_SECRET
+        sync: false
+      - key: PUBLIC_DASHBOARD_SHOW_MONEY
+        value: "1"
+      - key: PUBLIC_DASHBOARD_PUBLIC
+        value: "0"
