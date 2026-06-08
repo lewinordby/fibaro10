@@ -1,9 +1,11 @@
-import { Card, Space, Table, Tabs, Tag, Typography } from "antd";
+import { Button, Card, Input, Segmented, Space, Table, Tabs, Tag, Typography, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useParams } from "react-router-dom";
-import { fetchModule, type ModuleCard, type ModuleTable } from "../api";
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { fetchModule, runModuleAction, type ModuleAction, type ModuleCard, type ModuleTable } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
+import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -68,6 +70,14 @@ function moduleColumns(table: ModuleTable): ColumnsType<Record<string, unknown>>
   }));
 }
 
+function filterRows(rows: Record<string, unknown>[], columns: string[], query: string) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return rows;
+  return rows.filter((row) =>
+    columns.some((column) => displayValue(row[column]).toLowerCase().includes(normalized)),
+  );
+}
+
 function ModuleMetric({ card }: { card: ModuleCard }) {
   return (
     <Card className={`metric-card module-metric tone-${card.tone ?? "status"}`}>
@@ -81,23 +91,67 @@ function ModuleMetric({ card }: { card: ModuleCard }) {
   );
 }
 
-export default function ModulePage({ module, view: explicitView }: { module: string; view?: string }) {
+export default function ModulePage({ module }: { module: string }) {
   const params = useParams();
-  const view = explicitView ?? params.view;
-  const { data, loading, error } = useAsyncData(() => fetchModule(module, view), [module, view]);
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [runningAction, setRunningAction] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+  const view = params.view ?? defaultModuleView(module);
+  const viewItems = MODULE_VIEWS[module] ?? [];
+  const { data, loading, error } = useAsyncData(() => fetchModule(module, view), [module, view, reloadToken]);
+
+  async function handleAction(action: ModuleAction) {
+    if (action.confirm && !window.confirm(action.confirm)) return;
+    setRunningAction(action.key);
+    try {
+      const result = await runModuleAction(action);
+      message.success(String(result.message || "Handling utført"));
+      setReloadToken((value) => value + 1);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Handling feilet");
+    } finally {
+      setRunningAction(null);
+    }
+  }
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
   return (
     <Space direction="vertical" size={18} className="page-stack">
-      <section className="section-head">
+      <section className="section-head module-head">
         <div>
           <Typography.Text className="eyebrow">Desktop v2</Typography.Text>
           <Typography.Title level={1}>{data.title}</Typography.Title>
           <Typography.Paragraph>{data.subtitle}</Typography.Paragraph>
         </div>
+        {viewItems.length > 1 ? (
+          <Segmented
+            className="module-view-switcher"
+            value={view}
+            options={viewItems.map((item) => ({ label: item.label, value: item.key }))}
+            onChange={(next) => navigate(modulePath(module, String(next)))}
+          />
+        ) : null}
       </section>
+
+      {data.actions?.length ? (
+        <Card className="work-card module-actions">
+          <Space>
+            {data.actions.map((action) => (
+              <Button
+                key={action.key}
+                type={action.tone === "primary" ? "primary" : "default"}
+                loading={runningAction === action.key}
+                onClick={() => handleAction(action)}
+              >
+                {action.label}
+              </Button>
+            ))}
+          </Space>
+        </Card>
+      ) : null}
 
       <div className="metric-grid primary-grid">
         {data.cards.map((card) => (
@@ -106,6 +160,14 @@ export default function ModulePage({ module, view: explicitView }: { module: str
       </div>
 
       <Card className="table-card module-table-card">
+        <div className="table-toolbar">
+          <Input.Search
+            allowClear
+            placeholder="Søk i tabellene"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
         <Tabs
           items={data.tables.map((table) => ({
             key: table.title,
@@ -115,7 +177,7 @@ export default function ModulePage({ module, view: explicitView }: { module: str
                 rowKey={(_, index) => `${table.title}-${index}`}
                 size="small"
                 columns={moduleColumns(table)}
-                dataSource={table.rows}
+                dataSource={filterRows(table.rows, table.columns, query)}
                 pagination={{ pageSize: 25, showSizeChanger: true }}
                 scroll={{ x: "max-content" }}
               />

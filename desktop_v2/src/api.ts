@@ -78,11 +78,21 @@ export type ModuleTable = {
   rows: Record<string, unknown>[];
 };
 
+export type ModuleAction = {
+  key: string;
+  label: string;
+  method: "POST";
+  path: string;
+  confirm?: string;
+  tone?: "primary" | "default";
+};
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;
   cards: ModuleCard[];
   tables: ModuleTable[];
+  actions?: ModuleAction[];
 };
 
 async function apiGet<T>(path: string): Promise<T> {
@@ -108,4 +118,17 @@ export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse>
 export function fetchModule(module: string, view?: string): Promise<ModuleResponse> {
   const query = view ? `?view=${encodeURIComponent(view)}` : "";
   return apiGet<ModuleResponse>(`/api/v2/modules/${encodeURIComponent(module)}${query}`);
+}
+
+export async function runModuleAction(action: ModuleAction): Promise<Record<string, unknown>> {
+  const response = await fetch(action.path, {
+    method: action.method,
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
 }

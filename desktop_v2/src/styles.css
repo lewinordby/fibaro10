@@ -149,6 +149,11 @@ a {
   min-height: 98px;
 }
 
+.module-head {
+  align-items: center;
+  gap: 18px;
+}
+
 .hero-band h1.ant-typography,
 .section-head h1.ant-typography {
   margin: 0;
@@ -181,6 +186,21 @@ a {
 .hero-meta strong {
   color: #ffffff;
   font-size: 14px;
+}
+
+.module-view-switcher {
+  max-width: 720px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.module-view-switcher .ant-segmented-item {
+  color: #e5e7eb;
+}
+
+.module-view-switcher .ant-segmented-item-selected {
+  color: #111827;
+  font-weight: 650;
 }
 
 .metric-grid {
@@ -314,6 +334,10 @@ a {
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
+.module-actions .ant-card-body {
+  padding: 12px 14px;
+}
+
 .work-card .ant-card-head,
 .chart-card .ant-card-head,
 .table-card .ant-card-head {
@@ -394,6 +418,16 @@ a {
 
 .module-table-card .ant-card-body {
   padding-top: 10px;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.table-toolbar .ant-input-search {
+  max-width: 360px;
 }
 
 .module-table-card .ant-tabs-nav {

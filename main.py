@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1053")
+APP_BUILD = os.getenv("APP_BUILD", "1054")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1054",
+        "date": "08.06.2026",
+        "title": "Rydder v2-meny og arbeidsflate",
+        "changes": [
+            "Forenkler venstremenyen til hovedområder og flytter undersider til lokale faner.",
+            "Legger inn søk i v2-tabeller og tydeligere modulhandlinger.",
+            "Legger inn v2-handlinger for EasyPark-oppdatering og SVV-sync.",
+        ],
+    },
     {
         "version": "1",
         "build": "1053",
@@ -11432,6 +11443,24 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
                 ],
                 "tables": tables,
+                "actions": [
+                    {
+                        "key": "easypark-refresh",
+                        "label": "Oppdater EasyPark",
+                        "method": "POST",
+                        "path": "/api/v2/actions/parkering/refresh",
+                        "confirm": "Starte EasyPark-oppdatering for siste periode?",
+                        "tone": "primary",
+                    },
+                    {
+                        "key": "svv-sync",
+                        "label": "Kjør SVV-sync",
+                        "method": "POST",
+                        "path": "/api/v2/actions/parkering/svv-sync",
+                        "confirm": "Starte SVV-synk for kjøretøy?",
+                        "tone": "default",
+                    },
+                ],
             }
 
         if module == "soling":
@@ -11665,6 +11694,69 @@ async def api_v2_module(module: str, view: Optional[str] = None):
             }
 
     raise HTTPException(status_code=404, detail="Ukjent v2-modul")
+
+
+@app.post("/api/v2/actions/parkering/refresh")
+async def api_v2_parking_refresh(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    from_day, to_day = easypark_recent_period()
+    started_at = local_now_naive()
+    try:
+        result = await asyncio.to_thread(
+            easypark_downloader_request,
+            "/sync-period",
+            {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
+        )
+        status = result.get("status")
+        if status == "busy":
+            message = "EasyPark-downloader kjører allerede."
+            ok = True
+        elif status == "error":
+            raise RuntimeError(str(result.get("detail") or result.get("last_error") or "EasyPark-import feilet"))
+        else:
+            message = "EasyPark-oppdatering er kjørt."
+            ok = True
+        async with async_session() as session:
+            await record_import_job(
+                session,
+                "easypark_parking_import",
+                ok=ok,
+                source="EasyPark downloader",
+                started_at=started_at,
+                records_imported=result.get("inserted") or result.get("updated") or None,
+                records_total=result.get("total"),
+                message=message,
+                raw={"period": {"from": from_day.isoformat(), "to": to_day.isoformat()}, "result": result},
+            )
+            await session.commit()
+        clear_summary_cache("parking")
+        return {"status": "ok", "message": message, "result": result}
+    except Exception as exc:
+        async with async_session() as session:
+            await record_import_job(
+                session,
+                "easypark_parking_import",
+                ok=False,
+                source="EasyPark downloader",
+                started_at=started_at,
+                records_imported=0,
+                records_total=0,
+                message=str(exc),
+                raw={"period": {"from": from_day.isoformat(), "to": to_day.isoformat()}},
+            )
+            await session.commit()
+        return JSONResponse({"status": "error", "message": str(exc)}, status_code=500)
+
+
+@app.post("/api/v2/actions/parkering/svv-sync")
+async def api_v2_parking_svv_sync(request: Request, limit: int = Query(SVV_SYNC_BATCH_SIZE, ge=1, le=500)):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    result = await run_vehicle_svv_sync(limit, "V2")
+    return {"status": "ok", "message": "SVV-sync er kjørt.", "result": result}
 
 
 @app.get("/status/omsetning", response_class=HTMLResponse)
