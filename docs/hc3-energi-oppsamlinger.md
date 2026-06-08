@@ -72,6 +72,8 @@ Body: {"value": 30}
 - Kurs 5 `TERMINAL/ REGISTRERING OG KREMAUTOMAT` har måler og skal ikke regnes som en umalt hovedkandidat uten ny kontroll.
 - Kurs 29 `VVBEREDER UNDER ROM 8 + STIKK VIP BOD` har måler via HC3 `84.0 Varmtvann`: device 399 for realtime W og 398 for akkumulert kWh. Den ligger i Massasje-gruppen.
 
+Solsenganalysen bruker ra energidifferanse, men korrigerer analyseverdien for kjente umalte laster med kjent status. Per 08.06.2026 trekkes 320 W fra nar ventilasjonsloggen viser at takvifte/avtrekk er pa. Selve energiloggen endres ikke.
+
 ## Kontroll
 
 HC3-vedlikeholdsappen kan brukes til live-kontroll:

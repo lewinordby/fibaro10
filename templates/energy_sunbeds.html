@@ -50,7 +50,7 @@
             .summary-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
         }
         @media (min-width: 1120px) {
-            .summary-grid { grid-template-columns:repeat(5,minmax(0,1fr)); }
+            .summary-grid { grid-template-columns:repeat(6,minmax(0,1fr)); }
         }
         @media (max-width: 640px) {
             .filter-form { display:grid; grid-template-columns:1fr; }
@@ -90,7 +90,7 @@
             <div class="summary-card">
                 <span>Rene målepunkter</span>
                 <strong>{{ summary.single_samples }}</strong>
-                <small>Minuttverdier der nøyaktig én seng var aktiv.</small>
+                <small>30-sekundersmålinger der nøyaktig én seng var aktiv.</small>
             </div>
             <div class="summary-card">
                 <span>Baseline</span>
@@ -103,6 +103,11 @@
                 <small>Målepunkter der flere senger gikk samtidig eller var i etterkjøling.</small>
             </div>
             <div class="summary-card">
+                <span>Takvifte korrigert</span>
+                <strong>{{ summary.roof_exhaust_adjusted_samples }}</strong>
+                <small>Trekker fra {{ "{:,.0f}".format(summary.roof_exhaust_adjustment_w or 0).replace(",", " ") }} W når takvifta er registrert på.</small>
+            </div>
+            <div class="summary-card">
                 <span>For få prøver</span>
                 <strong>{{ summary.rejected_short_sessions }}</strong>
                 <small>Solinger med under {{ summary.min_samples_per_session }} rene målinger.</small>
@@ -112,11 +117,12 @@
         <article class="method-card">
             <h2>Metode</h2>
             <p>
-                For hvert minutt ser appen hvilke senger som kan påvirke differansen. En måling brukes bare når nøyaktig én seng er i bruk,
+                For hver 30-sekundersmåling ser appen hvilke senger som kan påvirke differansen. En måling brukes bare når nøyaktig én seng er i bruk,
                 og alle andre senger har vært stoppet i minst {{ summary.cooldown_minutes }} minutter. En seng regnes derfor som opptatt fra
                 start til {{ summary.cooldown_minutes }} minutter etter slutt, fordi kjøling fortsatt trekker strøm. For selve effektmålingen
                 brukes bare prøver fra {{ summary.warmup_minutes }} minutter etter oppstart og frem til {{ summary.stop_before_end_minutes }}
-                minutt før solingen slutter. Solingen må ha minst {{ summary.min_samples_per_session }} rene minuttmålinger før den brukes.
+                minutt før solingen slutter. Solingen må ha minst {{ summary.min_samples_per_session }} rene 30-sekundersmålinger før den brukes.
+                Når takvifta er registrert på i ventilasjonsloggen, trekkes {{ "{:,.0f}".format(summary.roof_exhaust_adjustment_w or 0).replace(",", " ") }} W fra differansen før baseline og solsengestimat beregnes.
                 Estimatet bruker medianen fordi den tåler enkeltmålinger som stikker seg ut bedre enn vanlig snitt.
                 Normalområde viser 25-75 % av målingene, mens min-maks viser hele spennet. Beregn-knappen regner alltid på nytt fra rådata.
             </p>

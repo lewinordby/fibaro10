@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1045")
+APP_BUILD = os.getenv("APP_BUILD", "1046")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1046",
+        "date": "08.06.2026",
+        "title": "Korrigerer solsenganalyse for takvifte",
+        "changes": [
+            "Trekker fra estimert 320 W for umalt takavtrekk når ventilasjonsloggen viser at takvifta gar.",
+            "Bruker korrigert differanse i baseline og solsengestimat uten aa endre ra energilogg.",
+            "Viser antall takviftekorrigerte samples pa forbruk-per-seng-siden.",
+        ],
+    },
     {
         "version": "1",
         "build": "1045",
@@ -6138,6 +6149,8 @@ ENERGY_CIRCUIT_SEED_ROWS = [
 ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "avfukter"]
 ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
 ENERGY_REALTIME_MAX_DELTA_SECONDS = 300
+ROOF_EXHAUST_UNMETERED_W = 320.0
+SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS = 180
 # HC3 accumulated kWh samples are end-stamped. For hourly comparison against
 # Elvia, show the delta on the hour it belongs to, not the hour it was posted.
 ENERGY_HC3_HOURLY_DISPLAY_OFFSET = timedelta(hours=1)
@@ -7285,6 +7298,7 @@ def build_sunbed_power_analysis(
     sessions: list[Sun2TanningSession],
     samples: list[Any],
     bed_lookup: Dict[str, Any],
+    ventilation_samples: Optional[list[Any]] = None,
 ) -> Dict[str, Any]:
     warmup_minutes = 2
     cooldown_minutes = 3
@@ -7319,6 +7333,24 @@ def build_sunbed_power_analysis(
         events.append((item["occupied_end"], -1, item["id"]))
     events.sort(key=lambda item: (item[0], item[1]))
 
+    ventilation_items = []
+    for row in ventilation_samples or []:
+        bucket = row.get("bucket_start") if isinstance(row, dict) else getattr(row, "bucket_start", None)
+        bucket = normalize_local_naive(bucket)
+        fan_tak = row.get("fan_tak") if isinstance(row, dict) else getattr(row, "fan_tak", None)
+        if bucket is not None:
+            ventilation_items.append({"time": bucket, "fan_tak": bool(fan_tak)})
+    ventilation_items.sort(key=lambda item: item["time"])
+
+    def roof_exhaust_adjustment(sample_time: datetime) -> float:
+        if not ventilation_items:
+            return 0.0
+        nearest = min(ventilation_items, key=lambda item: abs((sample_time - item["time"]).total_seconds()))
+        distance = abs((sample_time - nearest["time"]).total_seconds())
+        if distance <= SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS and nearest["fan_tak"]:
+            return ROOF_EXHAUST_UNMETERED_W
+        return 0.0
+
     sample_items = []
     for sample in samples:
         bucket = sample.get("bucket_start") if isinstance(sample, dict) else getattr(sample, "bucket_start", None)
@@ -7329,7 +7361,13 @@ def build_sunbed_power_analysis(
         except (TypeError, ValueError):
             continue
         if bucket is not None:
-            sample_items.append({"time": bucket, "diff_w": diff_w})
+            adjustment_w = roof_exhaust_adjustment(bucket)
+            sample_items.append({
+                "time": bucket,
+                "diff_w": diff_w,
+                "analysis_diff_w": diff_w - adjustment_w,
+                "roof_exhaust_adjustment_w": adjustment_w,
+            })
     sample_items.sort(key=lambda item: item["time"])
 
     active: set[int] = set()
@@ -7350,9 +7388,9 @@ def build_sunbed_power_analysis(
                 active.discard(session_id)
             event_index += 1
         if len(active) == 0:
-            baseline_by_day_hour[(sample_time.date(), sample_time.hour)].append(sample["diff_w"])
-            baseline_by_day[sample_time.date()].append(sample["diff_w"])
-            baseline_global.append(sample["diff_w"])
+            baseline_by_day_hour[(sample_time.date(), sample_time.hour)].append(sample["analysis_diff_w"])
+            baseline_by_day[sample_time.date()].append(sample["analysis_diff_w"])
+            baseline_global.append(sample["analysis_diff_w"])
             classified.append({**sample, "session_id": None, "state": "baseline"})
         elif len(active) == 1:
             session_id = next(iter(active))
@@ -7388,7 +7426,7 @@ def build_sunbed_power_analysis(
         if baseline is None:
             missing_baseline += 1
             continue
-        net_w = sample["diff_w"] - baseline
+        net_w = sample["analysis_diff_w"] - baseline
         if net_w <= 500:
             rejected_low += 1
             continue
@@ -7500,6 +7538,8 @@ def build_sunbed_power_analysis(
         "summary": {
             "sessions_total": len(session_items),
             "energy_samples_total": len(sample_items),
+            "roof_exhaust_adjusted_samples": sum(1 for sample in sample_items if sample.get("roof_exhaust_adjustment_w")),
+            "roof_exhaust_adjustment_w": ROOF_EXHAUST_UNMETERED_W,
             "baseline_samples": len(baseline_global),
             "single_samples": used_samples,
             "overlap_samples": overlap_samples,
@@ -13062,6 +13102,17 @@ async def energy_sunbed_consumption_view(
                 .order_by(EnergyFibaroSample.bucket_start.asc())
             )
         ).mappings().all()
+        ventilation_rows = (
+            await session.execute(
+                select(
+                    VentilationSample.bucket_start.label("bucket_start"),
+                    VentilationSample.fan_tak.label("fan_tak"),
+                )
+                .where(VentilationSample.bucket_start >= start_at)
+                .where(VentilationSample.bucket_start < end_at)
+                .order_by(VentilationSample.bucket_start.asc())
+            )
+        ).mappings().all()
         bed_rows = (
             await session.execute(
                 select(Sun2Bed).where(Sun2Bed.room_id.is_not(None))
@@ -13069,7 +13120,12 @@ async def energy_sunbed_consumption_view(
         ).scalars().all()
 
     bed_lookup = {bed.room_id: bed for bed in bed_rows if bed.room_id}
-    analysis = build_sunbed_power_analysis(session_rows, [dict(row) for row in energy_rows], bed_lookup)
+    analysis = build_sunbed_power_analysis(
+        session_rows,
+        [dict(row) for row in energy_rows],
+        bed_lookup,
+        [dict(row) for row in ventilation_rows],
+    )
     max_power = max([float_or_zero(room.get("estimate_w")) for room in analysis["rooms"]] or [0.0])
     response = templates.TemplateResponse(
         request,
