@@ -43,6 +43,29 @@ QuickApp 331 `Differanse R` og 334 `Differanse A` finnes i HC3, men sendes ikke 
 
 Forbruksdelta og dagsforbruk i Fibaro10 beregnes fra realtime W-samples hvert 30. sekund. Fibaro10 lagrer energisamples i 30-sekunders bucket, slik at to samples i samme minutt ikke overskriver hverandre. Akkumulerte kWh-verdier fra HC3 logges som kontrollverdier, men brukes ikke som grunnlag for dagsforbruket. Dette er valgt fordi reset i en akkumulerende undermaler kan skjules i en samlet QuickApp-verdi.
 
+## Rapporteringsfrekvens
+
+Kontroll 08.06.2026 viste at Fibaro10 leste HC3 hvert 30. sekund, men flere Fibaro Switch 2-enheter hadde `Periodic power reports` satt til standardverdien 3600 sekunder. Dette gir for treg periodisk W-rapportering for realtime-basert forbruksberegning.
+
+Endret i HC3:
+
+- Parameter 58 `Periodic power reports` er satt til 30 sekunder på Fibaro FGS213/FGS223-noder 51, 52, 53, 65, 66, 68, 69, 70, 85, 89 og 92.
+- Parameter 59 `Periodic energy reports` er ikke endret, siden Fibaro10 ikke bruker akkumulert kWh som grunnlag for dagsforbruk. Unntak: node 85 hadde allerede parameter 59 satt til 15 sekunder.
+- Dimmere og ukjente modeller ble ikke endret. For disse må rapporteringsparametre vurderes separat per modell.
+
+HC3-endepunkt brukt for lesing:
+
+```text
+/api/zwave/hc/configuration/{nodeId}
+```
+
+HC3-endepunkt brukt for endring:
+
+```text
+POST /api/zwave/configuration_parameters/{addr}/58/value
+Body: {"value": 30}
+```
+
 ## Kontroll
 
 HC3-vedlikeholdsappen kan brukes til live-kontroll:
