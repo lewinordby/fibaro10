@@ -24,7 +24,7 @@ local REALTIME_IDS = {
   belysning = 305,
   massasje = 333,
   annet = 332,
-  avfukter = 450,
+  avfukter = { id = 449, property = "power" },
   differanse_fibaro = 331
 }
 
@@ -34,7 +34,7 @@ local ACCUMULATED_IDS = {
   belysning = 336,
   massasje = 337,
   annet = 328,
-  avfukter = 451,
+  avfukter = { id = 449, property = "energy" },
   differanse_fibaro = 334
 }
 
@@ -56,26 +56,38 @@ local function numberValue(deviceId)
   return value
 end
 
+local function meterValue(source)
+  if type(source) == "table" then
+    local raw = fibaro.getValue(source.id, source.property or "value")
+    local value = tonumber(raw)
+    if value == nil then
+      fibaro.warning("Energi", "Kan ikke lese " .. tostring(source.property or "value") .. " fra device " .. tostring(source.id) .. " (" .. tostring(raw) .. ")")
+    end
+    return value
+  end
+  return numberValue(source)
+end
+
 local function buildPayload()
   return {
     source = SOURCE,
     timestamp = timestamp(),
 
-    inntak_w = numberValue(REALTIME_IDS.inntak),
-    varmepumper_w = numberValue(REALTIME_IDS.varmepumper),
-    belysning_w = numberValue(REALTIME_IDS.belysning),
-    massasje_w = numberValue(REALTIME_IDS.massasje),
-    annet_w = numberValue(REALTIME_IDS.annet),
-    avfukter_w = numberValue(REALTIME_IDS.avfukter),
-    differanse_fibaro_w = numberValue(REALTIME_IDS.differanse_fibaro),
+    inntak_w = meterValue(REALTIME_IDS.inntak),
+    varmepumper_w = meterValue(REALTIME_IDS.varmepumper),
+    belysning_w = meterValue(REALTIME_IDS.belysning),
+    massasje_w = meterValue(REALTIME_IDS.massasje),
+    annet_w = meterValue(REALTIME_IDS.annet),
+    avfukter_w = meterValue(REALTIME_IDS.avfukter),
+    differanse_fibaro_w = meterValue(REALTIME_IDS.differanse_fibaro),
 
-    inntak_kwh = numberValue(ACCUMULATED_IDS.inntak),
-    varmepumper_kwh = numberValue(ACCUMULATED_IDS.varmepumper),
-    belysning_kwh = numberValue(ACCUMULATED_IDS.belysning),
-    massasje_kwh = numberValue(ACCUMULATED_IDS.massasje),
-    annet_kwh = numberValue(ACCUMULATED_IDS.annet),
-    avfukter_kwh = numberValue(ACCUMULATED_IDS.avfukter),
-    differanse_fibaro_kwh = numberValue(ACCUMULATED_IDS.differanse_fibaro),
+    inntak_kwh = meterValue(ACCUMULATED_IDS.inntak),
+    varmepumper_kwh = meterValue(ACCUMULATED_IDS.varmepumper),
+    belysning_kwh = meterValue(ACCUMULATED_IDS.belysning),
+    massasje_kwh = meterValue(ACCUMULATED_IDS.massasje),
+    annet_kwh = meterValue(ACCUMULATED_IDS.annet),
+    avfukter_kwh = meterValue(ACCUMULATED_IDS.avfukter),
+    differanse_fibaro_kwh = meterValue(ACCUMULATED_IDS.differanse_fibaro),
 
     extra = {
       realtime_ids = REALTIME_IDS,
