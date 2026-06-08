@@ -22,6 +22,13 @@ Dette repoet dokumenterer både hovedappen `Fibaro10 / Lilletorget drift` og de 
 | `docs/roborock.md` | Historisk testnotat for Roborock-integrasjonen. |
 | `docs/gjennomgang_2026-05-23.md` | Tidligere gjennomgang, nå oppdatert med dagens status. |
 
+## HC3-scener i repoet
+
+| Fil | Bruk |
+| --- | --- |
+| `scripts/hc3_energy_logger.lua` | Logger HC3 effekt og akkumulert kWh til `/api/energi/fibaro`, inkludert avfukter 450/451. |
+| `scripts/hc3_basement_dehumidifier.lua` | Styrer avfukter 449 fra kjellertemperatur 444 og kjellerfukt 445, med terskler fra `/api/config/ventilation`. |
+
 ## Viktige prinsipper
 
 - Appen viser alltid data fra egen database, ikke direkte fra tredjeparts-API-er i brukergrensesnittet.
