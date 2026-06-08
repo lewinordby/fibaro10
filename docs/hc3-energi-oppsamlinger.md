@@ -66,6 +66,11 @@ POST /api/zwave/configuration_parameters/{addr}/58/value
 Body: {"value": 30}
 ```
 
+## Kjente umalte laster
+
+- Kurs 35 `AVTREKKSVIFTE TAK (LOFT SYD OVER ROM 9)` er en 3-fas avtrekksvifte uten effektmåler. Den styres av HC3 device 134 og er registrert i Fibaro10 lastregister som estimert 300 W når den gar.
+- Kurs 5 `TERMINAL/ REGISTRERING OG KREMAUTOMAT` har måler og skal ikke regnes som en umalt hovedkandidat uten ny kontroll.
+
 ## Kontroll
 
 HC3-vedlikeholdsappen kan brukes til live-kontroll:
