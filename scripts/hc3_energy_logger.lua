@@ -2,6 +2,7 @@
   LILLETORGET - ENERGILOGGING TIL FIBARO10
 
   Logger realtime effekt (W) og akkumulert energi (kWh) hvert minutt.
+  Fibaro10 beregner forbruksdelta fra realtime W. Akkumulert kWh logges som kontroll.
   Differanse fra Fibaro sendes med som kontrollverdi, men fibaro10 beregner
   egen differanse fra Inntak minus Varmepumper, Belysning, Massasje og Annet.
   Avfukter logges fortsatt separat, men inngar ogsa i Annet-oppsamlingen i HC3.

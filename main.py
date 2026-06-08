@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1041")
+APP_BUILD = os.getenv("APP_BUILD", "1042")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1042",
+        "date": "08.06.2026",
+        "title": "Beregner forbruk fra realtime",
+        "changes": [
+            "Beregner kWh-delta fra realtime W-verdier i stedet for akkumulerte HC3-maalerverdier.",
+            "Lar akkumulerte HC3-verdier bli logget som kontrollverdier, men ikke styre dagsforbruket.",
+            "Unngaar at reset i akkumulerte maalere paavirker beregnet forbruk.",
+        ],
+    },
     {
         "version": "1",
         "build": "1041",
@@ -6089,6 +6100,7 @@ ENERGY_CIRCUIT_SEED_ROWS = [
 
 ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "avfukter", "differanse_fibaro"]
 ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
+ENERGY_REALTIME_MAX_DELTA_SECONDS = 300
 # HC3 accumulated kWh samples are end-stamped. For hourly comparison against
 # Elvia, show the delta on the hour it belongs to, not the hour it was posted.
 ENERGY_HC3_HOURLY_DISPLAY_OFFSET = timedelta(hours=1)
@@ -6149,6 +6161,24 @@ def accumulated_delta(current: Optional[float], previous: Optional[float]) -> tu
     if current_value + 0.0001 >= previous_value:
         return max(current_value - previous_value, 0.0), False
     return max(current_value, 0.0), True
+
+
+def realtime_power_delta_kwh(
+    current_w: Optional[float],
+    previous_w: Optional[float],
+    current_time: Optional[datetime],
+    previous_time: Optional[datetime],
+) -> Optional[float]:
+    if current_w is None or current_time is None or previous_time is None:
+        return None
+    seconds = (current_time - previous_time).total_seconds()
+    if seconds <= 0 or seconds > ENERGY_REALTIME_MAX_DELTA_SECONDS:
+        return None
+    if previous_w is None:
+        average_w = float(current_w)
+    else:
+        average_w = (float(previous_w) + float(current_w)) / 2
+    return max(average_w, 0.0) * seconds / 3600000
 
 
 def energy_hour_has_changed(existing: EnergyHourlyConsumption, row: Dict[str, Any]) -> bool:
@@ -7106,25 +7136,37 @@ def energy_fibaro_sample_payload(data: EnergyFibaroIn, previous: Optional[Energy
     )
 
     reset_flags: Dict[str, bool] = {}
+    accumulated_control_deltas: Dict[str, Optional[float]] = {}
     for key in ENERGY_ACCUMULATED_KEYS:
         delta, reset = accumulated_delta(
             values.get(f"{key}_kwh"),
             getattr(previous, f"{key}_kwh", None) if previous else None,
         )
-        values[f"{key}_delta_kwh"] = delta
+        accumulated_control_deltas[key] = delta
+        values[f"{key}_delta_kwh"] = realtime_power_delta_kwh(
+            values.get(f"{key}_w"),
+            getattr(previous, f"{key}_w", None) if previous else None,
+            timestamp,
+            previous.timestamp if previous else None,
+        )
         if key != "differanse_fibaro":
             values[f"{key}_reset"] = reset
         else:
             values["differanse_fibaro_reset"] = reset
         reset_flags[key] = reset
 
-    values["differanse_beregnet_delta_kwh"] = calculated_difference(
-        values.get("inntak_delta_kwh"),
-        [values.get(f"{key}_delta_kwh") for key in ENERGY_SUB_KEYS],
+    values["differanse_beregnet_delta_kwh"] = realtime_power_delta_kwh(
+        values.get("differanse_beregnet_w"),
+        getattr(previous, "differanse_beregnet_w", None) if previous else None,
+        timestamp,
+        previous.timestamp if previous else None,
     )
     values["extra"] = {
         **(values.get("extra") or {}),
         "reset_flags": reset_flags,
+        "accumulated_control_deltas": accumulated_control_deltas,
+        "delta_source": "realtime_w",
+        "delta_max_interval_seconds": ENERGY_REALTIME_MAX_DELTA_SECONDS,
         "calculated_by": "fibaro10",
     }
     return values

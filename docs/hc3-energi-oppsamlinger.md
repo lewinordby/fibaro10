@@ -41,6 +41,8 @@ Lagt inn i Lys/Belysning:
 
 Fibaro10 logger fortsatt avfukter separat som `avfukter_w` og `avfukter_kwh`, men beregnet differanse trekker ikke avfukter separat etter denne endringen siden avfukter inngar i Annet.
 
+Forbruksdelta og dagsforbruk i Fibaro10 beregnes fra realtime W-samples hvert minutt. Akkumulerte kWh-verdier fra HC3 logges som kontrollverdier, men brukes ikke som grunnlag for dagsforbruket. Dette er valgt fordi reset i en akkumulerende undermaler kan skjules i en samlet QuickApp-verdi.
+
 ## Kontroll
 
 HC3-vedlikeholdsappen kan brukes til live-kontroll:

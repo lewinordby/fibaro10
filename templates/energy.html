@@ -204,7 +204,7 @@
         <article class="panel-card">
             <h2 class="section-title">Slik brukes målingene</h2>
             <p class="page-subtitle">
-                HC3 sender både realtime W og akkumulert kWh. Appen beregner differanse selv fra hovedgruppene Varmepumper, Belysning, Massasje og Annet, mens Fibaro sin differanse tas med som kontrollverdi. Avfukter logges separat, men inngår nå også i Annet. Hvis en akkumulert måler starter på 0 igjen markeres reset, og negativt forbruk brukes aldri i dagsummen.
+                HC3 sender både realtime W og akkumulert kWh. Dagsforbruk og delta beregnes fra realtime W målt hvert minutt, slik at reset i akkumulerte målere ikke påvirker forbruksberegningen. Akkumulerte kWh-verdier logges som kontrollverdier. Avfukter logges separat, men inngår nå også i Annet.
             </p>
             <p class="page-subtitle">
                 Vedlikehold av HC3-siden ligger lokalt på QNAP:
