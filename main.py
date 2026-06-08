@@ -88,8 +88,18 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1038")
+APP_BUILD = os.getenv("APP_BUILD", "1039")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1039",
+        "date": "08.06.2026",
+        "title": "Henter komplett Yr-varsel",
+        "changes": [
+            "Bytter Yr/MET-henting fra compact til complete for å få vindkast og nedbørsannsynlighet.",
+            "Lar de nye analysefeltene fylles når MET leverer dem.",
+        ],
+    },
     {
         "version": "1",
         "build": "1038",
@@ -4968,7 +4978,7 @@ def met_forecast_from_payload(payload: Dict[str, Any]) -> Optional[Dict[str, Any
 
 
 def fetch_met_weather() -> Optional[Dict[str, Any]]:
-    url = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={MET_LAT:.4f}&lon={MET_LON:.4f}"
+    url = f"https://api.met.no/weatherapi/locationforecast/2.0/complete?lat={MET_LAT:.4f}&lon={MET_LON:.4f}"
     request = urllib.request.Request(
         url,
         headers={
