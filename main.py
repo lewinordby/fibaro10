@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1030")
+APP_BUILD = os.getenv("APP_BUILD", "1031")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1031",
+        "date": "08.06.2026",
+        "title": "Rydder temp logg",
+        "changes": [
+            "Deler temp loggen inn i gruppene Inne, Ute og loft, og Teknisk.",
+            "Viser temperatur og fukt samlet per sone for raskere lesing.",
+            "Beholder viftestatus, modus og regelhjelp øverst i hver måling.",
+        ],
+    },
     {
         "version": "1",
         "build": "1030",

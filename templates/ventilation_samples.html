@@ -34,12 +34,23 @@
         .rule-title { font-weight: 850; margin-bottom: 0.35rem; }
         .rule-body p { margin: 0 0 0.55rem; color: #344054; line-height: 1.35; }
         .rule-body ul { margin: 0; padding-left: 1.1rem; color: #344054; line-height: 1.35; }
-        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #e5eaf0; border-radius: 8px; overflow: hidden; margin: 0.75rem 0 0.65rem; background: var(--soft); }
-        .cell { padding: 0.56rem 0.62rem; min-width: 0; border-right: 1px solid #e5eaf0; border-bottom: 1px solid #e5eaf0; }
-        .cell:nth-child(2n) { border-right: 0; }
-        .cell:nth-last-child(-n+1) { border-bottom: 0; }
-        .label { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.1; }
-        .value { display: block; font-weight: 800; margin-top: 0.16rem; font-size: 1.02rem; line-height: 1.1; }
+        .metrics { display: grid; gap: 0.62rem; margin: 0.75rem 0 0.65rem; }
+        .metric-section { border: 1px solid #e5eaf0; border-radius: 8px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); overflow: hidden; }
+        .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; padding: 0.52rem 0.68rem; border-bottom: 1px solid #e9eef5; background: rgba(248,250,252,0.86); }
+        .section-title { color: #344054; font-size: 0.76rem; font-weight: 850; text-transform: uppercase; letter-spacing: 0.02em; }
+        .section-meta { color: var(--muted); font-size: 0.72rem; font-weight: 680; text-align: right; }
+        .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .metric { min-width: 0; padding: 0.58rem 0.68rem; border-right: 1px solid #e9eef5; border-bottom: 1px solid #e9eef5; }
+        .metric:nth-child(2n) { border-right: 0; }
+        .metric:nth-last-child(-n+2) { border-bottom: 0; }
+        .metric-label { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .metric-values { display: flex; align-items: baseline; gap: 0.42rem; min-width: 0; margin-top: 0.18rem; }
+        .metric-value { display: block; color: var(--text); font-weight: 850; font-size: 1.08rem; line-height: 1.05; white-space: nowrap; }
+        .metric-humidity { color: #0f766e; font-weight: 780; font-size: 0.82rem; line-height: 1.05; white-space: nowrap; }
+        .metric-muted { color: var(--muted); font-weight: 760; font-size: 0.82rem; line-height: 1.05; white-space: nowrap; }
+        .metric.primary .metric-value { color: var(--mode-color); }
+        .metric.compact .metric-value { font-size: 0.96rem; }
+        .metric.technical .metric-value { color: #475569; }
         .fan-grid { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.35rem; min-width: 0; }
         .fan-card { display: grid; grid-template-columns: 1.15rem auto; gap: 0.3rem; align-items: center; border-radius: 999px; border: 1px solid var(--line); padding: 0.24rem 0.44rem; min-width: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.65); }
         .fan-card.on { background: #dffaf2; border-color: #7dd3c7; color: var(--on); }
@@ -63,10 +74,8 @@
             main { padding: 1.25rem; }
             .nav { display: flex; }
             form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-            .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-            .cell:nth-child(2n) { border-right: 1px solid #e5eaf0; }
-            .cell:nth-child(6n) { border-right: 0; }
-            .cell:nth-last-child(-n+5) { border-bottom: 0; }
+            .metrics { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 0.9fr); align-items: start; }
+            .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 560px) {
             .top { grid-template-columns: 1fr auto; gap: 0.55rem; }
@@ -184,27 +193,43 @@
                     </details>
                 </div>
             </div>
-            <div class="grid">
-                <div class="cell"><span class="label">1.etg</span><span class="value">{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">2.etg</span><span class="value">{% if row.temp_2etg is not none %}{{ "%.1f"|format(row.temp_2etg) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">VIP</span><span class="value">{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Fukt 1.etg</span><span class="value">{% if row.humidity_1etg is not none %}{{ "%.0f"|format(row.humidity_1etg) }}%{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Fukt 2.etg</span><span class="value">{% if row.humidity_2etg is not none %}{{ "%.0f"|format(row.humidity_2etg) }}%{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Fukt VIP</span><span class="value">{% if row.humidity_vip is not none %}{{ "%.0f"|format(row.humidity_vip) }}%{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Ute brukt</span><span class="value">{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Netatmo ute</span><span class="value">{% if row.temp_ute_netatmo is not none %}{{ "%.1f"|format(row.temp_ute_netatmo) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">YR</span><span class="value">{% if row.temp_yr is not none %}{{ "%.1f"|format(row.temp_yr) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Fukt ute</span><span class="value">{% if row.humidity_ute is not none %}{{ "%.0f"|format(row.humidity_ute) }}%{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Fukt Yr</span><span class="value">{% if row.humidity_yr is not none %}{{ "%.0f"|format(row.humidity_yr) }}%{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Loft</span><span class="value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Fukt loft</span><span class="value">{% if row.humidity_loft is not none %}{{ "%.0f"|format(row.humidity_loft) }}%{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Kjeller</span><span class="value">{% if row.temp_kjeller is not none %}{{ "%.1f"|format(row.temp_kjeller) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Fukt kjeller</span><span class="value">{% if row.humidity_kjeller is not none %}{{ "%.0f"|format(row.humidity_kjeller) }}%{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Pass innluft</span><span class="value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Fukt innluft</span><span class="value">{% if row.humidity_luftinntak is not none %}{{ "%.0f"|format(row.humidity_luftinntak) }}%{% elif row.humidity_passiv is not none %}{{ "%.0f"|format(row.humidity_passiv) }}%{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Min/avg/max</span><span class="value">{% if row.temp_min_inne is not none %}{{ "%.1f"|format(row.temp_min_inne) }}/{{ "%.1f"|format(row.temp_avg_inne) }}/{{ "%.1f"|format(row.temp_max_inne) }}°{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Diff W</span><span class="value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span></div>
-                <div class="cell"><span class="label">Solsenger</span><span class="value">{{ row.estimated_sunbeds if row.estimated_sunbeds is not none else "-" }}</span></div>
+            <div class="metrics">
+                <section class="metric-section">
+                    <div class="section-head">
+                        <span class="section-title">Inne</span>
+                        <span class="section-meta">{% if row.temp_min_inne is not none %}{{ "%.1f"|format(row.temp_min_inne) }}/{{ "%.1f"|format(row.temp_avg_inne) }}/{{ "%.1f"|format(row.temp_max_inne) }}°{% else %}min/snitt/maks{% endif %}</span>
+                    </div>
+                    <div class="metric-grid">
+                        <div class="metric primary"><span class="metric-label">1.etg</span><span class="metric-values"><span class="metric-value">{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_1etg is not none %}{{ "%.0f"|format(row.humidity_1etg) }}%{% endif %}</span></span></div>
+                        <div class="metric primary"><span class="metric-label">2.etg</span><span class="metric-values"><span class="metric-value">{% if row.temp_2etg is not none %}{{ "%.1f"|format(row.temp_2etg) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_2etg is not none %}{{ "%.0f"|format(row.humidity_2etg) }}%{% endif %}</span></span></div>
+                        <div class="metric primary"><span class="metric-label">VIP</span><span class="metric-values"><span class="metric-value">{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_vip is not none %}{{ "%.0f"|format(row.humidity_vip) }}%{% endif %}</span></span></div>
+                        <div class="metric compact"><span class="metric-label">Solsenger</span><span class="metric-values"><span class="metric-value">{{ row.estimated_sunbeds if row.estimated_sunbeds is not none else "-" }}</span><span class="metric-muted">estimert</span></span></div>
+                    </div>
+                </section>
+                <section class="metric-section">
+                    <div class="section-head">
+                        <span class="section-title">Ute og loft</span>
+                        <span class="section-meta">styringsgrunnlag</span>
+                    </div>
+                    <div class="metric-grid">
+                        <div class="metric primary"><span class="metric-label">Ute brukt</span><span class="metric-values"><span class="metric-value">{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_ute is not none %}{{ "%.0f"|format(row.humidity_ute) }}%{% endif %}</span></span></div>
+                        <div class="metric"><span class="metric-label">Yr</span><span class="metric-values"><span class="metric-value">{% if row.temp_yr is not none %}{{ "%.1f"|format(row.temp_yr) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_yr is not none %}{{ "%.0f"|format(row.humidity_yr) }}%{% endif %}</span></span></div>
+                        <div class="metric"><span class="metric-label">Netatmo ute</span><span class="metric-values"><span class="metric-value">{% if row.temp_ute_netatmo is not none %}{{ "%.1f"|format(row.temp_ute_netatmo) }}°{% else %}-{% endif %}</span></span></div>
+                        <div class="metric"><span class="metric-label">Loft</span><span class="metric-values"><span class="metric-value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_loft is not none %}{{ "%.0f"|format(row.humidity_loft) }}%{% endif %}</span></span></div>
+                    </div>
+                </section>
+                <section class="metric-section">
+                    <div class="section-head">
+                        <span class="section-title">Teknisk</span>
+                        <span class="section-meta">kjeller og innluft</span>
+                    </div>
+                    <div class="metric-grid">
+                        <div class="metric"><span class="metric-label">Kjeller</span><span class="metric-values"><span class="metric-value">{% if row.temp_kjeller is not none %}{{ "%.1f"|format(row.temp_kjeller) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_kjeller is not none %}{{ "%.0f"|format(row.humidity_kjeller) }}%{% endif %}</span></span></div>
+                        <div class="metric"><span class="metric-label">Innluft</span><span class="metric-values"><span class="metric-value">{% if row.temp_luftinntak is not none %}{{ "%.1f"|format(row.temp_luftinntak) }}°{% elif row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_luftinntak is not none %}{{ "%.0f"|format(row.humidity_luftinntak) }}%{% elif row.humidity_passiv is not none %}{{ "%.0f"|format(row.humidity_passiv) }}%{% endif %}</span></span></div>
+                        <div class="metric technical"><span class="metric-label">Diff</span><span class="metric-values"><span class="metric-value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span><span class="metric-muted">W</span></span></div>
+                        <div class="metric technical compact"><span class="metric-label">Kilde</span><span class="metric-values"><span class="metric-value">{{ row.source or "-" }}</span></span></div>
+                    </div>
+                </section>
             </div>
             <div class="flags">
                 <span class="flag {% if row.open_time %}on{% else %}off{% endif %}">Åpent</span>
