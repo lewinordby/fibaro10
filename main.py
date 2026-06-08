@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1044")
+APP_BUILD = os.getenv("APP_BUILD", "1045")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1045",
+        "date": "08.06.2026",
+        "title": "Slutter aa logge HC3-differanse",
+        "changes": [
+            "Fjerner HC3 sin differanse-QA fra aktiv energilogg.",
+            "Bruker kun Fibaro10 sin beregnede differanse fra realtime W.",
+            "Rydder energioversikten for gammel differanse-kontrollverdi.",
+        ],
+    },
     {
         "version": "1",
         "build": "1044",
@@ -2275,7 +2286,7 @@ AI_DATASETS = {
     "energy_fibaro": {
         "table": "energy_fibaro_samples",
         "title": "Fibaro strømlogging",
-        "description": "Minuttlogging fra HC3 med realtime effekt, akkumulert kWh, beregnet differanse og reset-markering.",
+        "description": "30-sekunders logging fra HC3 med realtime effekt, akkumulert kWh som kontrollverdi, beregnet differanse og reset-markering.",
         "columns": ENERGY_FIBARO_COLUMNS,
         "time_column": "bucket_start",
     },
@@ -3443,7 +3454,7 @@ IMPORT_JOB_DEFINITIONS = {
         "source": "HC3",
         "expected_interval_minutes": 2,
         "warning_after_minutes": 5,
-        "description": "Minuttlogging av realtime effekt og akkumulert kWh fra Fibaro.",
+        "description": "30-sekunders logging av realtime effekt og akkumulert kWh fra Fibaro.",
     },
     "roborock_sync": {
         "title": "Roborock logger",
@@ -6124,7 +6135,7 @@ ENERGY_CIRCUIT_SEED_ROWS = [
     {"circuit_no": 37, "description": "HOVEDSIKRING/OVERBELASTNINGSVERN", "breaker_type": "NH", "install_method": "GL", "status": "hovedvern"},
 ]
 
-ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "avfukter", "differanse_fibaro"]
+ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "avfukter"]
 ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
 ENERGY_REALTIME_MAX_DELTA_SECONDS = 300
 # HC3 accumulated kWh samples are end-stamped. For hourly comparison against
@@ -7142,14 +7153,14 @@ def energy_fibaro_sample_payload(data: EnergyFibaroIn, previous: Optional[Energy
         "massasje_w": data.massasje_w,
         "annet_w": data.annet_w,
         "avfukter_w": data.avfukter_w,
-        "differanse_fibaro_w": data.differanse_fibaro_w,
+        "differanse_fibaro_w": None,
         "inntak_kwh": data.inntak_kwh,
         "varmepumper_kwh": data.varmepumper_kwh,
         "belysning_kwh": data.belysning_kwh,
         "massasje_kwh": data.massasje_kwh,
         "annet_kwh": data.annet_kwh,
         "avfukter_kwh": data.avfukter_kwh,
-        "differanse_fibaro_kwh": data.differanse_fibaro_kwh,
+        "differanse_fibaro_kwh": None,
         "extra": data.extra or {},
     }
     values["differanse_beregnet_w"] = calculated_difference(
@@ -7175,10 +7186,7 @@ def energy_fibaro_sample_payload(data: EnergyFibaroIn, previous: Optional[Energy
             timestamp,
             previous.timestamp if previous else None,
         )
-        if key != "differanse_fibaro":
-            values[f"{key}_reset"] = reset
-        else:
-            values["differanse_fibaro_reset"] = reset
+        values[f"{key}_reset"] = reset
         reset_flags[key] = reset
 
     values["differanse_beregnet_delta_kwh"] = realtime_power_delta_kwh(
@@ -7316,8 +7324,6 @@ def build_sunbed_power_analysis(
         bucket = sample.get("bucket_start") if isinstance(sample, dict) else getattr(sample, "bucket_start", None)
         bucket = normalize_local_naive(bucket)
         value = sample.get("differanse_beregnet_w") if isinstance(sample, dict) else getattr(sample, "differanse_beregnet_w", None)
-        if value is None:
-            value = sample.get("differanse_fibaro_w") if isinstance(sample, dict) else getattr(sample, "differanse_fibaro_w", None)
         try:
             diff_w = float(value)
         except (TypeError, ValueError):
@@ -10059,7 +10065,7 @@ async def index(request: Request):
             "value": format_short_number(today_energy_fibaro.kwh if today_energy_fibaro.samples else today_energy.kwh, 1),
             "unit": "kWh",
             "detail": (
-                f"Nå {format_short_number(latest_energy_sample.inntak_w)} W - {today_energy_fibaro.samples or 0} minuttverdier"
+                f"Nå {format_short_number(latest_energy_sample.inntak_w)} W - {today_energy_fibaro.samples or 0} 30-sekundersmålinger"
                 if latest_energy_sample
                 else f"{today_energy.hours or 0} timer importert" + (f" - sist {today_energy.last_at.strftime('%H:%M')}" if today_energy.last_at else "")
             ),
@@ -12179,7 +12185,6 @@ async def energy_fibaro_ingest(data: EnergyFibaroIn):
             "massasje": record.massasje_reset,
             "annet": record.annet_reset,
             "avfukter": record.avfukter_reset,
-            "differanse_fibaro": record.differanse_fibaro_reset,
         },
     }
 
@@ -12267,7 +12272,6 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
         "massasje": sum(1 for row in today_rows if row.massasje_reset),
         "annet": sum(1 for row in today_rows if row.annet_reset),
         "avfukter": sum(1 for row in today_rows if row.avfukter_reset),
-        "differanse_fibaro": sum(1 for row in today_rows if row.differanse_fibaro_reset),
     }
     measured_by_hour = {hour: 0.0 for hour in range(24)}
     for row in compare_rows:
@@ -13052,7 +13056,6 @@ async def energy_sunbed_consumption_view(
                 select(
                     EnergyFibaroSample.bucket_start.label("bucket_start"),
                     EnergyFibaroSample.differanse_beregnet_w.label("differanse_beregnet_w"),
-                    EnergyFibaroSample.differanse_fibaro_w.label("differanse_fibaro_w"),
                 )
                 .where(EnergyFibaroSample.bucket_start >= start_at)
                 .where(EnergyFibaroSample.bucket_start < end_at)

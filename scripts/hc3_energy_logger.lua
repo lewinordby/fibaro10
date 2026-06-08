@@ -3,8 +3,8 @@
 
   Logger realtime effekt (W) og akkumulert energi (kWh) hvert 30. sekund.
   Fibaro10 beregner forbruksdelta fra realtime W. Akkumulert kWh logges som kontroll.
-  Differanse fra Fibaro sendes med som kontrollverdi, men fibaro10 beregner
-  egen differanse fra Inntak minus Varmepumper, Belysning, Massasje og Annet.
+  Fibaro10 beregner egen differanse fra Inntak minus Varmepumper,
+  Belysning, Massasje og Annet.
   Avfukter logges fortsatt separat, men inngar ogsa i Annet-oppsamlingen i HC3.
 
   Anbefalt bruk:
@@ -26,8 +26,7 @@ local REALTIME_IDS = {
   belysning = 305,
   massasje = 333,
   annet = 332,
-  avfukter = { id = 449, property = "power" },
-  differanse_fibaro = 331
+  avfukter = { id = 449, property = "power" }
 }
 
 local ACCUMULATED_IDS = {
@@ -36,8 +35,7 @@ local ACCUMULATED_IDS = {
   belysning = 336,
   massasje = 337,
   annet = 328,
-  avfukter = { id = 449, property = "energy" },
-  differanse_fibaro = 334
+  avfukter = { id = 449, property = "energy" }
 }
 
 -- ============================================================
@@ -81,7 +79,6 @@ local function buildPayload()
     massasje_w = meterValue(REALTIME_IDS.massasje),
     annet_w = meterValue(REALTIME_IDS.annet),
     avfukter_w = meterValue(REALTIME_IDS.avfukter),
-    differanse_fibaro_w = meterValue(REALTIME_IDS.differanse_fibaro),
 
     inntak_kwh = meterValue(ACCUMULATED_IDS.inntak),
     varmepumper_kwh = meterValue(ACCUMULATED_IDS.varmepumper),
@@ -89,7 +86,6 @@ local function buildPayload()
     massasje_kwh = meterValue(ACCUMULATED_IDS.massasje),
     annet_kwh = meterValue(ACCUMULATED_IDS.annet),
     avfukter_kwh = meterValue(ACCUMULATED_IDS.avfukter),
-    differanse_fibaro_kwh = meterValue(ACCUMULATED_IDS.differanse_fibaro),
 
     extra = {
       realtime_ids = REALTIME_IDS,

@@ -95,7 +95,7 @@
     <main>
         <h1 class="page-title">Energi status</h1>
         <p class="page-subtitle">
-            Minuttlogging fra HC3. Realtime viser hva bygget bruker akkurat nå, mens akkumulert kWh brukes til dagsummer og kan sammenlignes mot Elvia.
+            30-sekunders logging fra HC3. Realtime viser hva bygget bruker akkurat nå, mens akkumulert kWh lagres som kontrollverdi og kan sammenlignes mot Elvia.
         </p>
 
         <form class="day-form" method="get" action="/energi/status">
@@ -129,12 +129,12 @@
             <div class="summary-card">
                 <span>Forbruk valgt dag</span>
                 <strong>{{ "{:,.1f}".format(totals.inntak_delta_kwh or 0).replace(",", " ") }} kWh</strong>
-                <small>{{ sample_count }} minuttverdier</small>
+                <small>{{ sample_count }} 30-sekundersmålinger</small>
             </div>
             <div class="summary-card">
                 <span>Differanse nå</span>
                 <strong>{{ "{:,.0f}".format(latest.differanse_beregnet_w or 0).replace(",", " ") if latest else "-" }} W</strong>
-                <small>Inntak minus varmepumper, lys, massasje, avfukter og annet</small>
+                <small>Inntak minus varmepumper, lys, massasje og annet</small>
             </div>
             <div class="summary-card">
                 <span>Elvia valgt dag</span>
@@ -147,7 +147,7 @@
             <div class="chart-head">
                 <div>
                     <h2 class="chart-title">Timeforbruk {{ selected_day_label }}</h2>
-                    <p class="chart-subtitle">To søyler per time: HC3-målt forbruk og Elvia-forbruk. HC3-akkumulert vises på timen forbruket gjelder.</p>
+                    <p class="chart-subtitle">To søyler per time: Fibaro10-beregnet forbruk fra realtime W og Elvia-forbruk.</p>
                 </div>
                 <div class="chart-stats" aria-label="Dagsummer">
                     <span class="stat-pill"><span class="dot"></span>HC3 <strong>{{ "{:,.1f}".format(measured_compare_kwh or 0).replace(",", " ") }} kWh</strong></span>
@@ -204,7 +204,7 @@
         <article class="panel-card">
             <h2 class="section-title">Slik brukes målingene</h2>
             <p class="page-subtitle">
-                HC3 sender både realtime W og akkumulert kWh. Dagsforbruk og delta beregnes fra realtime W målt hvert minutt, slik at reset i akkumulerte målere ikke påvirker forbruksberegningen. Akkumulerte kWh-verdier logges som kontrollverdier. Avfukter logges separat, men inngår nå også i Annet.
+                HC3 sender både realtime W og akkumulert kWh. Dagsforbruk og delta beregnes fra realtime W målt hvert 30. sekund, slik at reset i akkumulerte målere ikke påvirker forbruksberegningen. Akkumulerte kWh-verdier logges som kontrollverdier. Avfukter logges separat, men inngår nå også i Annet.
             </p>
             <p class="page-subtitle">
                 Vedlikehold av HC3-siden ligger lokalt på QNAP:
@@ -213,7 +213,7 @@
         </article>
 
         <div class="section-row">
-            <h2 class="section-title">Siste minuttmålinger</h2>
+            <h2 class="section-title">Siste 30-sekundersmålinger</h2>
             <span class="section-note">Nyeste først</span>
         </div>
         <section class="table-wrap">
@@ -228,7 +228,6 @@
                         <th>Annet W</th>
                         <th>Avfukter W</th>
                         <th>Diff beregnet W</th>
-                        <th>Diff Fibaro W</th>
                         <th>Inntak kWh</th>
                         <th>Reset</th>
                     </tr>
@@ -244,14 +243,13 @@
                         <td>{{ "{:,.0f}".format(row.annet_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.0f}".format(row.avfukter_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.0f}".format(row.differanse_beregnet_w or 0).replace(",", " ") }}</td>
-                        <td>{{ "{:,.0f}".format(row.differanse_fibaro_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.2f}".format(row.inntak_kwh or 0).replace(",", " ") }}</td>
                         <td>
-                            <span class="reset-dot {% if row.inntak_reset or row.varmepumper_reset or row.belysning_reset or row.massasje_reset or row.annet_reset or row.avfukter_reset or row.differanse_fibaro_reset %}on{% endif %}"></span>
+                            <span class="reset-dot {% if row.inntak_reset or row.varmepumper_reset or row.belysning_reset or row.massasje_reset or row.annet_reset or row.avfukter_reset %}on{% endif %}"></span>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="11" class="muted">Ingen energimålinger er mottatt ennå.</td></tr>
+                    <tr><td colspan="10" class="muted">Ingen energimålinger er mottatt ennå.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

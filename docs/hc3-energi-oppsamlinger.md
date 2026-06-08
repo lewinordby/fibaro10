@@ -12,7 +12,6 @@ Denne oversikten dokumenterer hvilke HC3 QuickApps som summerer realtime effekt 
 | 305 | Belysning R | 201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440 |
 | 333 | Massasje R | 309, 314, 319, 324, 399 |
 | 332 | Annet R | 269, 247, 368, 373, 378, 405, 406, 160, 130, 449 |
-| 331 | Differanse R | 221 minus 237, 305, 333 og 332 |
 
 ## Akkumulert kWh
 
@@ -22,7 +21,6 @@ Denne oversikten dokumenterer hvilke HC3 QuickApps som summerer realtime effekt 
 | 336 | Lys A | 201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440 |
 | 337 | Massasje A | 398, 308, 313, 318, 323 |
 | 328 | Annet A | 269, 247, 367, 372, 377, 405, 406, 160, 130, 449 |
-| 334 | Differanse A | 220 minus 335, 336, 337 og 328 |
 
 ## Endring 08.06.2026
 
@@ -40,6 +38,8 @@ Lagt inn i Lys/Belysning:
 - 440: 92.1 Gatelys parkering x2
 
 Fibaro10 logger fortsatt avfukter separat som `avfukter_w` og `avfukter_kwh`, men beregnet differanse trekker ikke avfukter separat etter denne endringen siden avfukter inngar i Annet.
+
+QuickApp 331 `Differanse R` og 334 `Differanse A` finnes i HC3, men sendes ikke lenger til Fibaro10. Differanse har ingen hensikt aa logge separat fordi Fibaro10 beregner den fra realtime-verdiene.
 
 Forbruksdelta og dagsforbruk i Fibaro10 beregnes fra realtime W-samples hvert 30. sekund. Fibaro10 lagrer energisamples i 30-sekunders bucket, slik at to samples i samme minutt ikke overskriver hverandre. Akkumulerte kWh-verdier fra HC3 logges som kontrollverdier, men brukes ikke som grunnlag for dagsforbruket. Dette er valgt fordi reset i en akkumulerende undermaler kan skjules i en samlet QuickApp-verdi.
 
