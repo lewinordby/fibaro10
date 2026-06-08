@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nokkeltall</title>
+    <style>
+        :root {
+            --key-bg:#eef2f6;
+            --key-panel:#ffffff;
+            --key-line:#dce4ee;
+            --key-text:#071943;
+            --key-muted:#667085;
+            --key-status:#071943;
+            --key-revenue:#8a5a17;
+            --key-sun2:#d66d5b;
+            --key-parking:#4e8793;
+            --key-energy:#db9734;
+            --key-vent:#52a464;
+            --key-light:#df705d;
+            --key-weather:#5292d6;
+        }
+        body.theme-status main {
+            max-width: 1480px;
+        }
+        .key-page {
+            display: grid;
+            gap: 0.85rem;
+        }
+        .key-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 1rem;
+            padding: 0.9rem 0.98rem;
+            border: 1px solid var(--key-line);
+            border-radius: 10px;
+            background: var(--key-panel);
+            box-shadow: 0 7px 20px rgba(7,25,67,0.045);
+        }
+        .key-head h1 {
+            margin: 0;
+            color: var(--key-text);
+            font-size: clamp(1.45rem, 2.3vw, 2rem);
+            line-height: 1.08;
+        }
+        .key-head p {
+            margin: 0.18rem 0 0;
+            max-width: 66rem;
+            color: var(--key-muted);
+            font-size: 0.88rem;
+        }
+        .key-updated {
+            flex: 0 0 auto;
+            color: var(--key-muted);
+            font-size: 0.78rem;
+            font-weight: 780;
+        }
+        .latest-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.62rem;
+        }
+        .latest-card,
+        .key-card,
+        .state-panel {
+            min-width: 0;
+            border: 1px solid var(--key-line);
+            border-radius: 8px;
+            background: var(--key-panel);
+            box-shadow: 0 5px 16px rgba(7,25,67,0.04);
+        }
+        .latest-card {
+            display: grid;
+            gap: 0.08rem;
+            padding: 0.62rem 0.74rem;
+            color: var(--key-text);
+            text-decoration: none;
+        }
+        .latest-card span,
+        .key-card span {
+            color: var(--key-muted);
+            font-size: 0.68rem;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+        .latest-card strong {
+            color: var(--key-text);
+            font-size: 1.05rem;
+            line-height: 1.1;
+        }
+        .latest-card small,
+        .key-card small {
+            color: #536276;
+            font-size: 0.76rem;
+            line-height: 1.25;
+        }
+        .key-section {
+            display: grid;
+            gap: 0.54rem;
+        }
+        .key-section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1rem;
+            padding: 0 0.1rem;
+        }
+        .key-section-head h2 {
+            margin: 0;
+            color: var(--key-text);
+            font-size: 1rem;
+        }
+        .key-section-head span {
+            color: var(--key-muted);
+            font-size: 0.76rem;
+        }
+        .key-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.62rem;
+        }
+        .key-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 0.7rem;
+            min-height: 5.5rem;
+            padding: 0.72rem 0.8rem;
+            border-left: 4px solid var(--tone, var(--key-status));
+            color: var(--key-text);
+            text-decoration: none;
+        }
+        .key-card:hover,
+        .latest-card:hover {
+            border-color: #b9c7d8;
+            transform: translateY(-1px);
+        }
+        .key-card.status { --tone: var(--key-status); }
+        .key-card.revenue { --tone: var(--key-revenue); }
+        .key-card.sun2 { --tone: var(--key-sun2); }
+        .key-card.parking { --tone: var(--key-parking); }
+        .key-card.energy { --tone: var(--key-energy); }
+        .key-card.vent { --tone: var(--key-vent); }
+        .key-card.light { --tone: var(--key-light); }
+        .key-card.weather { --tone: var(--key-weather); }
+        .key-card strong {
+            display: flex;
+            align-items: baseline;
+            gap: 0.22rem;
+            margin-top: 0.1rem;
+            color: var(--key-text);
+            font-size: clamp(1.32rem, 2.4vw, 1.82rem);
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .key-card em {
+            color: var(--key-muted);
+            font-size: 0.42em;
+            font-style: normal;
+            font-weight: 900;
+        }
+        .key-card small {
+            justify-self: end;
+            max-width: 10rem;
+            text-align: right;
+        }
+        .state-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.62rem;
+        }
+        .state-panel {
+            padding: 0.74rem;
+        }
+        .state-panel h2 {
+            margin: 0 0 0.55rem;
+            color: var(--key-text);
+            font-size: 0.98rem;
+        }
+        .state-list {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.45rem;
+        }
+        .state-pill {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.45rem;
+            min-width: 0;
+            padding: 0.46rem 0.54rem;
+            border: 1px solid #e5eaf0;
+            border-radius: 7px;
+            background: #fbfdff;
+        }
+        .state-pill span {
+            min-width: 0;
+            overflow: hidden;
+            color: var(--key-text);
+            font-size: 0.78rem;
+            font-weight: 760;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .state-dot {
+            width: 0.68rem;
+            height: 0.68rem;
+            flex: 0 0 auto;
+            border-radius: 999px;
+            background: #94a3b8;
+            box-shadow: 0 0 0 3px #eef2f7;
+        }
+        .state-pill.on .state-dot { background: #0f766e; box-shadow: 0 0 0 3px #dffaf2; }
+        .state-pill.off .state-dot { background: #9f1239; box-shadow: 0 0 0 3px #fff1f2; }
+        @media (max-width: 1280px) {
+            .key-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .latest-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .state-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 760px) {
+            .key-head { display: grid; }
+            .key-grid,
+            .latest-strip,
+            .state-grid,
+            .state-list { grid-template-columns: 1fr; }
+            .key-card { grid-template-columns: 1fr; }
+            .key-card small { justify-self: start; max-width: none; text-align: left; }
+        }
+    </style>
+    {% include "_styles.html" %}
+</head>
+<body class="theme-status">
+    {% include "_header.html" %}
+    <main>
+        <div class="key-page">
+            <section class="key-head">
+                <div>
+                    <h1>N&oslash;kkeltall</h1>
+                    <p>Intern PC-visning av kortene fra mobilappen, med direkte lenker videre til de fulle sidene i Fibaro10.</p>
+                </div>
+                <span class="key-updated">Oppdatert {{ now.strftime("%d.%m.%Y %H:%M") }}</span>
+            </section>
+
+            <section class="latest-strip" aria-label="Siste hendelser">
+                {% for item in latest_items %}
+                <a class="latest-card" href="{{ item.href }}">
+                    <span>{{ item.label }}</span>
+                    <strong>{{ item.value }}</strong>
+                    <small>{% if item.detail %}{{ item.detail }}{% else %}&nbsp;{% endif %}</small>
+                </a>
+                {% endfor %}
+            </section>
+
+            {% for group, cards in cards_by_group.items() %}
+            <section class="key-section" aria-label="{{ group }}">
+                <div class="key-section-head">
+                    <h2>{{ group }}</h2>
+                    <span>{{ cards|length }} kort</span>
+                </div>
+                <div class="key-grid">
+                    {% for card in cards %}
+                    <a class="key-card {{ card.tone }}" href="{{ card.href }}">
+                        <div>
+                            <span>{{ card.title }}</span>
+                            <strong>{{ card.value }}{% if card.unit %} <em>{{ card.unit }}</em>{% endif %}</strong>
+                        </div>
+                        <small>{{ card.detail }}</small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+
+            <section class="state-grid" aria-label="Statuslister">
+                <article class="state-panel">
+                    <h2>Lys</h2>
+                    <div class="state-list">
+                        {% for item in light_items %}
+                        <div class="state-pill {% if item.state == true %}on{% elif item.state == false %}off{% else %}unknown{% endif %}">
+                            <span>{{ item.label }}</span>
+                            <i class="state-dot" aria-hidden="true"></i>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                <article class="state-panel">
+                    <h2>Ventilasjon</h2>
+                    <div class="state-list">
+                        {% for item in fan_items %}
+                        <div class="state-pill {% if item.state == true %}on{% elif item.state == false %}off{% else %}unknown{% endif %}">
+                            <span>{{ item.label }}</span>
+                            <i class="state-dot" aria-hidden="true"></i>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

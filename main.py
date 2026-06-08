@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1046")
+APP_BUILD = os.getenv("APP_BUILD", "1047")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1047",
+        "date": "08.06.2026",
+        "title": "Tester PC-side for mobilkort",
+        "changes": [
+            "Legger inn en intern status/nokkeltall-side som samler kortene fra mobilvisningen for PC.",
+            "Knytter hvert nokkeltallskort videre til riktig intern detaljside.",
+            "Holder PC-visningen pa hovedappens databasegrunnlag i stedet for a avhenge av online-dashboardet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1046",
@@ -5346,6 +5357,18 @@ def dashboard_money_compare(current: Any, previous: Any) -> str:
     return f"{format_short_number(current)}/{format_short_number(previous)} kr"
 
 
+def operating_window(now: datetime) -> Dict[str, Any]:
+    open_at = datetime.combine(now.date(), time.min).replace(hour=7)
+    close_at = datetime.combine(now.date(), time.min).replace(hour=23)
+    if now < open_at:
+        return {"label": "Stengt", "detail": "Apner 07:00", "progress": 0}
+    if now >= close_at:
+        return {"label": "Stengt", "detail": "Stengte 23:00", "progress": 100}
+    total_seconds = (close_at - open_at).total_seconds()
+    progress = int(((now - open_at).total_seconds() / total_seconds) * 100)
+    return {"label": "Apent", "detail": "Stenger 23:00", "progress": max(0, min(100, progress))}
+
+
 @lru_cache(maxsize=64)
 def easter_sunday(year: int) -> date:
     a = year % 19
@@ -10143,6 +10166,321 @@ async def index(request: Request):
             "ops_cards": ops_cards,
             "lux_sparkline": lux_sparkline,
             "attention_items": attention_items,
+        },
+    )
+
+
+@app.get("/status/nokkeltall", response_class=HTMLResponse)
+async def status_key_metrics_view(request: Request):
+    now_dt = local_now_naive()
+    today = now_dt.date()
+    yesterday = today - timedelta(days=1)
+    week_start = today - timedelta(days=today.weekday())
+    month_start = today.replace(day=1)
+    tomorrow = today + timedelta(days=1)
+    today_start = datetime.combine(today, time.min)
+    tomorrow_start = datetime.combine(tomorrow, time.min)
+    yesterday_start = datetime.combine(yesterday, time.min)
+    week_start_dt = datetime.combine(week_start, time.min)
+    month_start_dt = datetime.combine(month_start, time.min)
+    async with async_session() as session:
+        latest_light_sample = (
+            await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
+        ).scalars().first()
+        latest_light = (
+            await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(1))
+        ).scalars().first()
+        latest_sample = (
+            await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))
+        ).scalars().first()
+        latest_yr_sample = (
+            await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))
+        ).scalars().first()
+        import_rows = await import_status_rows(session)
+        today_sun = await sun2_period_snapshot(session, today, tomorrow)
+        yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
+        week_sun = await sun2_period_snapshot(session, week_start, tomorrow)
+        month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
+        latest_soling = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .where(Sun2TanningSession.stat_date == today)
+                .order_by(Sun2TanningSession.started_at.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        today_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= today_start,
+                    ParkingSession.start_time < tomorrow_start,
+                )
+            )
+        ).one()
+        yesterday_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= yesterday_start,
+                    ParkingSession.start_time < today_start,
+                )
+            )
+        ).one()
+        week_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= week_start_dt,
+                    ParkingSession.start_time < tomorrow_start,
+                )
+            )
+        ).one()
+        month_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= month_start_dt,
+                    ParkingSession.start_time < tomorrow_start,
+                )
+            )
+        ).one()
+        active_parking = (
+            await session.execute(
+                select(func.count(ParkingSession.id)).where(
+                    ParkingSession.start_time <= now_dt,
+                    or_(
+                        ParkingSession.end_time.is_(None),
+                        ParkingSession.end_time >= now_dt,
+                        func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
+                    ),
+                )
+            )
+        ).scalar_one()
+        latest_parking = (
+            await session.execute(
+                select(ParkingSession)
+                .where(ParkingSession.start_time >= today_start)
+                .where(ParkingSession.start_time < tomorrow_start)
+                .order_by(ParkingSession.start_time.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        latest_energy_sample = (
+            await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
+        ).scalars().first()
+        today_energy_fibaro = (
+            await session.execute(
+                select(
+                    func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("kwh"),
+                    func.count(EnergyFibaroSample.id).label("samples"),
+                )
+                .where(EnergyFibaroSample.bucket_start >= today_start)
+                .where(EnergyFibaroSample.bucket_start < tomorrow_start)
+            )
+        ).one()
+
+    now_status = build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
+    import_counts = {
+        "ok": sum(1 for row in import_rows if row["status"] == "ok"),
+        "warn": sum(1 for row in import_rows if row["status"] == "warn"),
+        "bad": sum(1 for row in import_rows if row["status"] == "bad"),
+        "total": len(import_rows),
+    }
+    light_items = [
+        {"label": device["name"], "state": light_sample_state(latest_light_sample, device) if latest_light_sample else None}
+        for device in LIGHT_TIMELINE_DEVICES
+    ]
+    fan_items = [
+        {"label": device["name"], "state": sample_state(latest_sample, device)}
+        for device in VENT_TIMELINE_DEVICES
+    ]
+    revenue_today = float_or_zero(today_sun.paid) + float_or_zero(today_parking.paid)
+    revenue_yesterday = float_or_zero(yesterday_sun.paid) + float_or_zero(yesterday_parking.paid)
+    cards = [
+        {
+            "group": "Drift",
+            "title": "Apning",
+            "value": operating_window(now_dt)["label"],
+            "unit": "",
+            "detail": operating_window(now_dt)["detail"],
+            "href": "/status/dashboard",
+            "tone": "status",
+        },
+        {
+            "group": "Drift",
+            "title": "Datakilder",
+            "value": f"{import_counts['ok']}/{import_counts['total']}",
+            "unit": "OK",
+            "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel",
+            "href": "/status/datakilder",
+            "tone": "status",
+        },
+        {
+            "group": "Omsetning",
+            "title": "Omsetning i dag",
+            "value": dashboard_compare_value(revenue_today, revenue_yesterday),
+            "unit": "kr",
+            "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr",
+            "href": "/status/statistikk",
+            "tone": "revenue",
+        },
+        {
+            "group": "Soling",
+            "title": "Soling i dag",
+            "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom",
+            "href": f"/soling/dagslinje?day={today.isoformat()}",
+            "tone": "sun2",
+        },
+        {
+            "group": "Soling",
+            "title": "Sol uke",
+            "value": format_short_number(week_sun.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(week_sun.paid)} kr hittil",
+            "href": "/soling/prognose",
+            "tone": "sun2",
+        },
+        {
+            "group": "Soling",
+            "title": "Sol mnd",
+            "value": format_short_number(month_sun.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(month_sun.paid)} kr - {format_short_number(month_sun.minutes / 60, 1)} t",
+            "href": "/soling/oversikt",
+            "tone": "sun2",
+        },
+        {
+            "group": "Parkering",
+            "title": "Parkering i dag",
+            "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive na",
+            "href": f"/parkering/oversikt?day={today.isoformat()}",
+            "tone": "parking",
+        },
+        {
+            "group": "Parkering",
+            "title": "Parkering uke",
+            "value": format_short_number(week_parking.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(week_parking.paid)} kr hittil",
+            "href": "/parkering/statistikk",
+            "tone": "parking",
+        },
+        {
+            "group": "Parkering",
+            "title": "Parkering mnd",
+            "value": format_short_number(month_parking.sessions),
+            "unit": "stk",
+            "detail": f"{format_short_number(month_parking.paid)} kr hittil",
+            "href": "/parkering/statistikk",
+            "tone": "parking",
+        },
+        {
+            "group": "Energi",
+            "title": "Strom na",
+            "value": format_short_number(latest_energy_sample.inntak_w if latest_energy_sample else 0),
+            "unit": "W",
+            "detail": f"{format_short_number(today_energy_fibaro.kwh, 1)} kWh i dag - {today_energy_fibaro.samples or 0} samples",
+            "href": "/energi/status",
+            "tone": "energy",
+        },
+        {
+            "group": "Energi",
+            "title": "Diff",
+            "value": format_short_number(latest_energy_sample.differanse_beregnet_w if latest_energy_sample else 0),
+            "unit": "W",
+            "detail": "Beregnet fra realtime malere",
+            "href": "/energi/status",
+            "tone": "energy",
+        },
+        {
+            "group": "Temperatur",
+            "title": "Innetemp",
+            "value": format_short_number(now_status.get("indoor_avg"), 1),
+            "unit": "grader",
+            "detail": "Snitt av interne temperaturer",
+            "href": "/ventilasjon/temp-logg",
+            "tone": "vent",
+        },
+        {
+            "group": "Temperatur",
+            "title": "Utetemp",
+            "value": format_short_number(now_status.get("outdoor_avg"), 1),
+            "unit": "grader",
+            "detail": weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light) or "Vaer ikke logget",
+            "href": "/ventilasjon/yr-logg",
+            "tone": "weather",
+        },
+        {
+            "group": "Lys",
+            "title": "Lux",
+            "value": format_short_number(now_status.get("lux")),
+            "unit": "",
+            "detail": f"{sum(1 for item in light_items if item['state'] is True)} pa / {sum(1 for item in light_items if item['state'] is False)} av",
+            "href": "/lys/dagslogg-lux",
+            "tone": "light",
+        },
+        {
+            "group": "Ventilasjon",
+            "title": "Vifter",
+            "value": f"{sum(1 for item in fan_items if item['state'] is True)}/{len(fan_items)}",
+            "unit": "pa",
+            "detail": f"Modus {latest_sample.mode if latest_sample and latest_sample.mode else '-'}",
+            "href": "/ventilasjon/dagslogg-temp",
+            "tone": "vent",
+        },
+    ]
+    latest_items = [
+        {
+            "label": "Siste soling",
+            "value": latest_soling.started_at.strftime("%H:%M") if latest_soling and latest_soling.started_at else "-",
+            "detail": f"Rom {latest_soling.room}" if latest_soling and latest_soling.room else "",
+            "href": "/soling/dagslinje",
+        },
+        {
+            "label": "Siste parkering",
+            "value": latest_parking.start_time.strftime("%H:%M") if latest_parking and latest_parking.start_time else "-",
+            "detail": latest_parking.car_license_number if latest_parking and latest_parking.car_license_number else "",
+            "href": "/parkering/oversikt",
+        },
+        {
+            "label": "Energi sist lest",
+            "value": latest_energy_sample.bucket_start.strftime("%H:%M") if latest_energy_sample and latest_energy_sample.bucket_start else "-",
+            "detail": f"{format_short_number(latest_energy_sample.inntak_w)} W" if latest_energy_sample else "",
+            "href": "/energi/status",
+        },
+        {
+            "label": "Temp sist lest",
+            "value": now_status["timestamp"].strftime("%H:%M") if now_status.get("timestamp") else "-",
+            "detail": now_status.get("weather") or "",
+            "href": "/ventilasjon/temp-logg",
+        },
+    ]
+    grouped_cards = defaultdict(list)
+    for card in cards:
+        grouped_cards[card["group"]].append(card)
+    return templates.TemplateResponse(
+        request,
+        "status_key_metrics.html",
+        {
+            "now": now_dt,
+            "cards_by_group": dict(grouped_cards),
+            "latest_items": latest_items,
+            "light_items": light_items,
+            "fan_items": fan_items,
+            "now_status": now_status,
         },
     )
 
