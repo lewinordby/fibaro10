@@ -125,6 +125,10 @@
                         <div class="fan-icon" aria-hidden="true"><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-core"></span></div>
                         <div class="fan-name">Tak <span class="fan-state">{% if row.fan_tak %}PÅ{% else %}AV{% endif %}</span></div>
                     </div>
+                    <div class="fan-card {% if row.fan_avfukter %}on{% else %}off{% endif %}">
+                        <div class="fan-icon" aria-hidden="true"><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-blade"></span><span class="fan-core"></span></div>
+                        <div class="fan-name">Avfukter <span class="fan-state">{% if row.fan_avfukter %}PÅ{% else %}AV{% endif %}</span></div>
+                    </div>
                 </div>
                 <div class="top-actions">
                     <span class="mode">{{ row.mode or "" }}</span>
@@ -188,6 +192,8 @@
                 <div class="cell"><span class="label">Netatmo ute</span><span class="value">{% if row.temp_ute_netatmo is not none %}{{ "%.1f"|format(row.temp_ute_netatmo) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">YR</span><span class="value">{% if row.temp_yr is not none %}{{ "%.1f"|format(row.temp_yr) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Loft</span><span class="value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Kjeller</span><span class="value">{% if row.temp_kjeller is not none %}{{ "%.1f"|format(row.temp_kjeller) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Fukt kjeller</span><span class="value">{% if row.humidity_kjeller is not none %}{{ "%.0f"|format(row.humidity_kjeller) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Pass innluft</span><span class="value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Min/avg/max</span><span class="value">{% if row.temp_min_inne is not none %}{{ "%.1f"|format(row.temp_min_inne) }}/{{ "%.1f"|format(row.temp_avg_inne) }}/{{ "%.1f"|format(row.temp_max_inne) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Diff W</span><span class="value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span></div>

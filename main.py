@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1028")
+APP_BUILD = os.getenv("APP_BUILD", "1029")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1029",
+        "date": "08.06.2026",
+        "title": "Legger inn kjeller og avfukter",
+        "changes": [
+            "Logger temperatur og fukt fra kjeller i ventilasjonsloggen.",
+            "Legger avfukter inn som styrbar klimaenhet.",
+            "Logger avfukterens effekt og kWh i HC3 energiloggen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1028",
@@ -806,6 +817,8 @@ class VentilationEvent(Base):
     temp_vip = Column(Float, nullable=True)
     temp_ute = Column(Float, nullable=True)
     temp_loft = Column(Float, nullable=True)
+    temp_kjeller = Column(Float, nullable=True)
+    humidity_kjeller = Column(Float, nullable=True)
     temp_passiv = Column(Float, nullable=True)
     temp_luftinntak = Column(Float, nullable=True)
     diff_w = Column(Float, nullable=True)
@@ -815,6 +828,7 @@ class VentilationEvent(Base):
     fan_vip = Column(Boolean, nullable=True)
     fan_2etg = Column(Boolean, nullable=True)
     fan_tak = Column(Boolean, nullable=True)
+    fan_avfukter = Column(Boolean, nullable=True)
     extra = Column(JSON, nullable=True)
 
 
@@ -834,6 +848,8 @@ class VentilationSample(Base):
     temp_ute_netatmo = Column(Float, nullable=True)
     temp_yr = Column(Float, nullable=True)
     temp_loft = Column(Float, nullable=True)
+    temp_kjeller = Column(Float, nullable=True)
+    humidity_kjeller = Column(Float, nullable=True)
     temp_passiv = Column(Float, nullable=True)
     temp_luftinntak = Column(Float, nullable=True)
     temp_min_inne = Column(Float, nullable=True)
@@ -852,6 +868,7 @@ class VentilationSample(Base):
     fan_vip = Column(Boolean, nullable=True)
     fan_2etg = Column(Boolean, nullable=True)
     fan_tak = Column(Boolean, nullable=True)
+    fan_avfukter = Column(Boolean, nullable=True)
     extra = Column(JSON, nullable=True)
 
 
@@ -1317,6 +1334,7 @@ class EnergyFibaroSample(Base):
     belysning_w = Column(Float, nullable=True)
     massasje_w = Column(Float, nullable=True)
     annet_w = Column(Float, nullable=True)
+    avfukter_w = Column(Float, nullable=True)
     differanse_fibaro_w = Column(Float, nullable=True)
     differanse_beregnet_w = Column(Float, nullable=True)
 
@@ -1325,6 +1343,7 @@ class EnergyFibaroSample(Base):
     belysning_kwh = Column(Float, nullable=True)
     massasje_kwh = Column(Float, nullable=True)
     annet_kwh = Column(Float, nullable=True)
+    avfukter_kwh = Column(Float, nullable=True)
     differanse_fibaro_kwh = Column(Float, nullable=True)
     differanse_beregnet_kwh = Column(Float, nullable=True)
 
@@ -1333,6 +1352,7 @@ class EnergyFibaroSample(Base):
     belysning_delta_kwh = Column(Float, nullable=True)
     massasje_delta_kwh = Column(Float, nullable=True)
     annet_delta_kwh = Column(Float, nullable=True)
+    avfukter_delta_kwh = Column(Float, nullable=True)
     differanse_fibaro_delta_kwh = Column(Float, nullable=True)
     differanse_beregnet_delta_kwh = Column(Float, nullable=True)
 
@@ -1341,6 +1361,7 @@ class EnergyFibaroSample(Base):
     belysning_reset = Column(Boolean, nullable=True)
     massasje_reset = Column(Boolean, nullable=True)
     annet_reset = Column(Boolean, nullable=True)
+    avfukter_reset = Column(Boolean, nullable=True)
     differanse_fibaro_reset = Column(Boolean, nullable=True)
 
     extra = Column(JSON, nullable=True)
@@ -1624,6 +1645,8 @@ class EventDataIn(BaseModel):
     temp_ute_netatmo: Optional[float] = None
     temp_yr: Optional[float] = None
     temp_loft: Optional[float] = None
+    temp_kjeller: Optional[float] = None
+    humidity_kjeller: Optional[float] = None
     temp_passiv: Optional[float] = None
     temp_luftinntak: Optional[float] = None
     temp_min_inne: Optional[float] = None
@@ -1644,6 +1667,7 @@ class EventDataIn(BaseModel):
     fan_vip: Optional[bool] = None
     fan_2etg: Optional[bool] = None
     fan_tak: Optional[bool] = None
+    fan_avfukter: Optional[bool] = None
     light_lyslist: Optional[bool] = None
     light_reklame: Optional[bool] = None
     light_spot_glass_275: Optional[bool] = None
@@ -1672,6 +1696,7 @@ class EnergyFibaroIn(BaseModel):
     belysning_w: Optional[float] = None
     massasje_w: Optional[float] = None
     annet_w: Optional[float] = None
+    avfukter_w: Optional[float] = None
     differanse_fibaro_w: Optional[float] = None
 
     inntak_kwh: Optional[float] = None
@@ -1679,6 +1704,7 @@ class EnergyFibaroIn(BaseModel):
     belysning_kwh: Optional[float] = None
     massasje_kwh: Optional[float] = None
     annet_kwh: Optional[float] = None
+    avfukter_kwh: Optional[float] = None
     differanse_fibaro_kwh: Optional[float] = None
 
     extra: Dict[str, Any] = Field(default_factory=dict)
@@ -1867,8 +1893,9 @@ LIGHT_SAMPLE_COLUMNS = [
 VENT_COLUMNS = [
     "id", "timestamp", "event_type", "action", "device_key", "device_id", "device_name",
     "mode", "reason", "source", "value", "state", "temp_1etg", "temp_2etg",
-    "temp_vip", "temp_ute", "temp_loft", "temp_passiv", "temp_luftinntak",
-    "diff_w", "power_w", "energy_kwh", "fan_vip", "fan_2etg", "fan_tak", "extra",
+    "temp_vip", "temp_ute", "temp_loft", "temp_kjeller", "humidity_kjeller",
+    "temp_passiv", "temp_luftinntak", "diff_w", "power_w", "energy_kwh",
+    "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter", "extra",
 ]
 
 GENERIC_COLUMNS = [
@@ -1879,9 +1906,10 @@ GENERIC_COLUMNS = [
 VENT_SAMPLE_COLUMNS = [
     "id", "timestamp", "bucket_start", "mode", "source", "temp_1etg", "temp_2etg",
     "temp_vip", "temp_ute", "temp_ute_netatmo", "temp_yr", "temp_loft", "temp_passiv",
-    "temp_luftinntak", "temp_min_inne", "temp_avg_inne", "temp_max_inne", "diff_w",
-    "estimated_sunbeds", "afterrun_active", "heat_need", "cool_need", "open_time",
-    "pre_cooling", "exhaust_time_allowed", "fan_vip", "fan_2etg", "fan_tak", "extra",
+    "temp_kjeller", "humidity_kjeller", "temp_luftinntak", "temp_min_inne",
+    "temp_avg_inne", "temp_max_inne", "diff_w", "estimated_sunbeds",
+    "afterrun_active", "heat_need", "cool_need", "open_time", "pre_cooling",
+    "exhaust_time_allowed", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter", "extra",
 ]
 
 YR_SAMPLE_COLUMNS = [
@@ -1979,15 +2007,15 @@ ENERGY_IMPORT_COLUMNS = [
 
 ENERGY_FIBARO_COLUMNS = [
     "id", "timestamp", "bucket_start", "source",
-    "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w",
+    "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w",
     "differanse_fibaro_w", "differanse_beregnet_w",
-    "inntak_kwh", "varmepumper_kwh", "belysning_kwh", "massasje_kwh", "annet_kwh",
+    "inntak_kwh", "varmepumper_kwh", "belysning_kwh", "massasje_kwh", "annet_kwh", "avfukter_kwh",
     "differanse_fibaro_kwh", "differanse_beregnet_kwh",
     "inntak_delta_kwh", "varmepumper_delta_kwh", "belysning_delta_kwh",
-    "massasje_delta_kwh", "annet_delta_kwh", "differanse_fibaro_delta_kwh",
+    "massasje_delta_kwh", "annet_delta_kwh", "avfukter_delta_kwh", "differanse_fibaro_delta_kwh",
     "differanse_beregnet_delta_kwh",
     "inntak_reset", "varmepumper_reset", "belysning_reset", "massasje_reset",
-    "annet_reset", "differanse_fibaro_reset", "extra",
+    "annet_reset", "avfukter_reset", "differanse_fibaro_reset", "extra",
 ]
 
 AI_QUERY_COLUMNS = [
@@ -2866,6 +2894,7 @@ VENT_TIMELINE_DEVICES = [
     {"key": "vip_intake", "name": "Innluft VIP", "sample_attr": "fan_vip", "legacy_ids": [130]},
     {"key": "floor_intake", "name": "Innluft 2.etg", "sample_attr": "fan_2etg", "legacy_ids": [160]},
     {"key": "roof_exhaust", "name": "Avtrekk tak/loft", "sample_attr": "fan_tak", "legacy_ids": [134]},
+    {"key": "dehumidifier_basement", "name": "Avfukter kjeller", "sample_attr": "fan_avfukter", "legacy_ids": [449]},
 ]
 
 DAY_ZOOM_OPTIONS = [
@@ -2912,6 +2941,9 @@ STARTUP_COLUMNS = {
     ],
     "ventilasjon_events": [
         ("device_key", "VARCHAR"),
+        ("temp_kjeller", "DOUBLE PRECISION"),
+        ("humidity_kjeller", "DOUBLE PRECISION"),
+        ("fan_avfukter", "BOOLEAN"),
     ],
     "event_data": [
         ("device_key", "VARCHAR"),
@@ -2925,6 +2957,8 @@ STARTUP_COLUMNS = {
     "ventilasjon_samples": [
         ("temp_ute_netatmo", "DOUBLE PRECISION"),
         ("temp_yr", "DOUBLE PRECISION"),
+        ("temp_kjeller", "DOUBLE PRECISION"),
+        ("humidity_kjeller", "DOUBLE PRECISION"),
         ("temp_min_inne", "DOUBLE PRECISION"),
         ("temp_avg_inne", "DOUBLE PRECISION"),
         ("temp_max_inne", "DOUBLE PRECISION"),
@@ -2935,6 +2969,7 @@ STARTUP_COLUMNS = {
         ("open_time", "BOOLEAN"),
         ("pre_cooling", "BOOLEAN"),
         ("exhaust_time_allowed", "BOOLEAN"),
+        ("fan_avfukter", "BOOLEAN"),
     ],
     "access_keys": [
         ("key_plaintext", "VARCHAR"),
@@ -3006,6 +3041,10 @@ STARTUP_COLUMNS = {
         ("belysning_reset", "BOOLEAN"),
         ("massasje_reset", "BOOLEAN"),
         ("annet_reset", "BOOLEAN"),
+        ("avfukter_w", "DOUBLE PRECISION"),
+        ("avfukter_kwh", "DOUBLE PRECISION"),
+        ("avfukter_delta_kwh", "DOUBLE PRECISION"),
+        ("avfukter_reset", "BOOLEAN"),
         ("differanse_fibaro_reset", "BOOLEAN"),
     ],
     "energy_circuits": [
@@ -3318,6 +3357,15 @@ CONFIG_DEFINITIONS = {
                     {"key": "afterrun_minutes", "label": "Ettergang", "type": "int", "default": 20, "unit": "min", "help": "Hvor lenge vifter kan gå etter siste tydelige varmebelastning."},
                 ],
             },
+            {
+                "title": "Kjeller og avfukter",
+                "description": "Avfukteren styres av fukt i kjeller med hysterese.",
+                "fields": [
+                    {"key": "basement_humidity_start", "label": "Avfukter på over", "type": "float", "default": 60.0, "unit": "%", "help": "Starter avfukter når kjellerfukt er over denne verdien."},
+                    {"key": "basement_humidity_stop", "label": "Avfukter av under", "type": "float", "default": 55.0, "unit": "%", "help": "Stopper avfukter når kjellerfukt er under denne verdien."},
+                    {"key": "basement_min_temp", "label": "Sperr under kjellertemp", "type": "float", "default": 5.0, "unit": "°C", "help": "Hindrer drift hvis kjelleren er for kald for trygg avfukting."},
+                ],
+            },
         ],
     },
 }
@@ -3378,12 +3426,15 @@ CONTROL_DEVICES = {
         "sensors": {
             "outdoor_temp": {"key": "outdoor_temp", "name": "Utetemperatur"},
             "netatmo_main": {"key": "netatmo_main", "name": "Netatmo hovedenhet"},
+            "basement_temp": {"key": "basement_temp", "name": "Kjeller temperatur", "device_id": 444},
+            "basement_humidity": {"key": "basement_humidity", "name": "Kjeller fukt", "device_id": 445},
             "passive_intake": {"name": "Pass innluft"},
         },
         "fans": [
             {"key": "vip_intake", "name": "Innluft VIP", "zone": "VIP"},
             {"key": "floor_intake", "name": "Innluft 1./2.etg", "zone": "1.etg/2.etg"},
             {"key": "roof_exhaust", "name": "Takvifte avtrekk", "zone": "Loft"},
+            {"key": "dehumidifier_basement", "name": "Avfukter kjeller", "zone": "Kjeller", "device_id": 449},
         ],
     },
 }
@@ -4028,6 +4079,7 @@ def validate_config_values(key: str, values: Dict[str, Any]) -> list[str]:
         require_lower_stop("VIP innluft", "vip_stop_temp", "vip_start_temp")
         require_lower_stop("1./2.etg innluft", "floor_stop_temp", "floor_start_temp")
         require_lower_stop("Takvifte loft", "loft_exhaust_stop_temp", "loft_exhaust_start_temp")
+        require_lower_stop("Avfukter kjeller", "basement_humidity_stop", "basement_humidity_start")
         if int(values["afterrun_minutes"]) < 0 or int(values["afterrun_minutes"]) > 180:
             errors.append("Ettergang bør være mellom 0 og 180 minutter.")
         if int(values["exhaust_stop_before_close_minutes"]) < 0 or int(values["exhaust_stop_before_close_minutes"]) > 240:
@@ -4111,6 +4163,14 @@ def config_summary_rows(key: str, values: Dict[str, Any]) -> list[Dict[str, str]
                 "stop": f"Loft under {values['loft_exhaust_stop_temp']}°C",
                 "window": f"Stopper {values['exhaust_stop_before_close_minutes']} min før stenging",
                 "note": f"Ikke tillatt hvis inne er under {values['indoor_allow_exhaust_temp']}°C",
+            },
+            {
+                "name": "Avfukter kjeller",
+                "device": "dehumidifier_basement",
+                "start": f"Fukt over {values['basement_humidity_start']}%",
+                "stop": f"Fukt under {values['basement_humidity_stop']}%",
+                "window": f"Sperret under {values['basement_min_temp']}°C",
+                "note": "Bruker kjeller temperatur/fukt fra HC3 444/445",
             },
             {
                 "name": "Mekanisk sperre",
@@ -4358,6 +4418,10 @@ async def publish_ventilation_ntfy(event: VentilationEvent) -> bool:
         temps.append(f"2.etg {event.temp_2etg:.1f}\u00b0")
     if event.temp_vip is not None:
         temps.append(f"VIP {event.temp_vip:.1f}\u00b0")
+    if event.temp_kjeller is not None:
+        temps.append(f"kjeller {event.temp_kjeller:.1f}\u00b0")
+    if event.humidity_kjeller is not None:
+        temps.append(f"fukt kjeller {event.humidity_kjeller:.0f}%")
     if event.temp_ute is not None:
         temps.append(f"ute {event.temp_ute:.1f}\u00b0")
     if event.temp_loft is not None:
@@ -4787,6 +4851,7 @@ def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr
         {"label": "1.etg", "value": latest_sample.temp_1etg if latest_sample else None},
         {"label": "2.etg", "value": latest_sample.temp_2etg if latest_sample else None},
         {"label": "VIP", "value": latest_sample.temp_vip if latest_sample else None},
+        {"label": "Kjeller", "value": latest_sample.temp_kjeller if latest_sample else None},
     ]
     outdoor_ute = None
     outdoor_yr = None
@@ -4815,6 +4880,7 @@ def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr
         "wind": latest_yr_sample.wind_speed if latest_yr_sample else None,
         "precipitation": latest_yr_sample.precipitation_next_1h if latest_yr_sample else None,
         "clouds": latest_yr_sample.cloud_area_fraction if latest_yr_sample else None,
+        "basement_humidity": latest_sample.humidity_kjeller if latest_sample else None,
         "timestamp": latest_yr_sample.timestamp if latest_yr_sample else None,
         "api_updated_at": latest_yr_sample.api_updated_at if latest_yr_sample else None,
         "expires_at": latest_yr_sample.expires_at if latest_yr_sample else None,
@@ -5714,6 +5780,7 @@ ENERGY_FIBARO_AREAS = [
     {"key": "belysning", "label": "Belysning", "tone": "light"},
     {"key": "massasje", "label": "Massasje", "tone": "sun2"},
     {"key": "annet", "label": "Annet", "tone": "status"},
+    {"key": "avfukter", "label": "Avfukter", "tone": "vent"},
     {"key": "differanse_beregnet", "label": "Differanse", "tone": "admin"},
 ]
 
@@ -5758,8 +5825,8 @@ ENERGY_CIRCUIT_SEED_ROWS = [
     {"circuit_no": 37, "description": "HOVEDSIKRING/OVERBELASTNINGSVERN", "breaker_type": "NH", "install_method": "GL", "status": "hovedvern"},
 ]
 
-ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "differanse_fibaro"]
-ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
+ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "avfukter", "differanse_fibaro"]
+ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet", "avfukter"]
 # HC3 accumulated kWh samples are end-stamped. For hourly comparison against
 # Elvia, show the delta on the hour it belongs to, not the hour it was posted.
 ENERGY_HC3_HOURLY_DISPLAY_OFFSET = timedelta(hours=1)
@@ -6071,6 +6138,10 @@ def event_detail(system: str, row) -> str:
             pieces.append(f"2.etg {row.temp_2etg:.1f}°")
         if row.temp_vip is not None:
             pieces.append(f"VIP {row.temp_vip:.1f}°")
+        if row.temp_kjeller is not None:
+            pieces.append(f"kjeller {row.temp_kjeller:.1f}°")
+        if row.humidity_kjeller is not None:
+            pieces.append(f"fukt kjeller {row.humidity_kjeller:.0f}%")
         if row.temp_ute is not None:
             pieces.append(f"ute {row.temp_ute:.1f}°")
         if row.diff_w is not None:
@@ -6592,6 +6663,7 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
         {"key": "temp_ute_netatmo", "label": "Ute Netatmo", "class": "outdoor-netatmo", "color": "#14b8a6", "default": False},
         {"key": "temp_yr", "label": "Yr API", "class": "yr", "color": "#4b7fbb", "default": True},
         {"key": "temp_loft", "label": "Loft", "class": "loft", "color": "#726189", "default": True},
+        {"key": "temp_kjeller", "label": "Kjeller", "class": "basement", "color": "#2f8fa3", "default": True},
         {"key": "temp_passiv", "label": "Pass innluft", "class": "passive", "color": "#52a464", "default": False},
         {"key": "temp_luftinntak", "label": "Luftinntak", "class": "intake", "color": "#9a660f", "default": False},
         {"key": "temp_min_inne", "label": "Min inne", "class": "indoor-min", "color": "#93c5fd", "default": False},
@@ -6602,6 +6674,7 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
         {**VENT_TIMELINE_DEVICES[0], "short": "VIP", "color": "#52a464", "default": True},
         {**VENT_TIMELINE_DEVICES[1], "short": "2.etg", "color": "#3f7fbd", "default": True},
         {**VENT_TIMELINE_DEVICES[2], "short": "Tak", "color": "#726189", "default": True},
+        {**VENT_TIMELINE_DEVICES[3], "short": "Avf.", "color": "#2f8fa3", "default": True},
     ]
     fan_by_key = {fan["key"]: fan for fan in fan_config}
 
@@ -6744,12 +6817,14 @@ def energy_fibaro_sample_payload(data: EnergyFibaroIn, previous: Optional[Energy
         "belysning_w": data.belysning_w,
         "massasje_w": data.massasje_w,
         "annet_w": data.annet_w,
+        "avfukter_w": data.avfukter_w,
         "differanse_fibaro_w": data.differanse_fibaro_w,
         "inntak_kwh": data.inntak_kwh,
         "varmepumper_kwh": data.varmepumper_kwh,
         "belysning_kwh": data.belysning_kwh,
         "massasje_kwh": data.massasje_kwh,
         "annet_kwh": data.annet_kwh,
+        "avfukter_kwh": data.avfukter_kwh,
         "differanse_fibaro_kwh": data.differanse_fibaro_kwh,
         "extra": data.extra or {},
     }
@@ -7262,6 +7337,8 @@ def vent_from_payload(data: EventDataIn) -> VentilationEvent:
         temp_vip=value_from_payload(data, "temp_vip"),
         temp_ute=value_from_payload(data, "temp_ute"),
         temp_loft=value_from_payload(data, "temp_loft"),
+        temp_kjeller=value_from_payload(data, "temp_kjeller"),
+        humidity_kjeller=value_from_payload(data, "humidity_kjeller"),
         temp_passiv=value_from_payload(data, "temp_passiv"),
         temp_luftinntak=value_from_payload(data, "temp_luftinntak"),
         diff_w=value_from_payload(data, "diff_w"),
@@ -7270,6 +7347,7 @@ def vent_from_payload(data: EventDataIn) -> VentilationEvent:
         fan_vip=value_from_payload(data, "fan_vip"),
         fan_2etg=value_from_payload(data, "fan_2etg"),
         fan_tak=value_from_payload(data, "fan_tak"),
+        fan_avfukter=value_from_payload(data, "fan_avfukter"),
         extra=merged_extra(data),
     )
 
@@ -7288,6 +7366,8 @@ def vent_sample_from_payload(data: EventDataIn) -> VentilationSample:
         temp_ute_netatmo=value_from_payload(data, "temp_ute_netatmo"),
         temp_yr=value_from_payload(data, "temp_yr"),
         temp_loft=value_from_payload(data, "temp_loft"),
+        temp_kjeller=value_from_payload(data, "temp_kjeller"),
+        humidity_kjeller=value_from_payload(data, "humidity_kjeller"),
         temp_passiv=value_from_payload(data, "temp_passiv"),
         temp_luftinntak=value_from_payload(data, "temp_luftinntak"),
         temp_min_inne=value_from_payload(data, "temp_min_inne"),
@@ -7304,8 +7384,46 @@ def vent_sample_from_payload(data: EventDataIn) -> VentilationSample:
         fan_vip=value_from_payload(data, "fan_vip"),
         fan_2etg=value_from_payload(data, "fan_2etg"),
         fan_tak=value_from_payload(data, "fan_tak"),
+        fan_avfukter=value_from_payload(data, "fan_avfukter"),
         extra=merged_extra(data),
     )
+
+
+async def upsert_kjeller_measurement_sample(session, timestamp: datetime, fibaroid: int, value: float, source: str) -> Optional[int]:
+    field_map = {
+        444: "temp_kjeller",
+        445: "humidity_kjeller",
+    }
+    field = field_map.get(fibaroid)
+    if not field:
+        return None
+    bucket_start = sample_bucket(timestamp)
+    row = (
+        await session.execute(
+            select(VentilationSample)
+            .where(VentilationSample.bucket_start == bucket_start)
+            .order_by(VentilationSample.id.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    if not row:
+        row = VentilationSample(
+            timestamp=timestamp,
+            bucket_start=bucket_start,
+            source=source,
+            extra={"measurement_source": "hc3_meter_readings"},
+        )
+        session.add(row)
+        await session.flush()
+    else:
+        row.timestamp = max(row.timestamp or timestamp, timestamp)
+        row.source = row.source or source
+        row.extra = {
+            **(row.extra or {}),
+            "measurement_source": "hc3_meter_readings",
+        }
+    setattr(row, field, value)
+    return row.id
 
 
 def generic_from_payload(data: EventDataIn) -> GenericEvent:
@@ -9706,6 +9824,13 @@ async def hc3_meter_reading_log(data: Hc3MeterReadingIn):
     async with async_session() as session:
         session.add(reading)
         await session.flush()
+        kjeller_sample_id = await upsert_kjeller_measurement_sample(
+            session,
+            timestamp,
+            data.fibaroid,
+            data.verdi1,
+            data.source or "HC3",
+        )
         await record_import_job(
             session,
             "hc3_meter_readings",
@@ -9713,10 +9838,16 @@ async def hc3_meter_reading_log(data: Hc3MeterReadingIn):
             records_imported=1,
             records_total=1,
             message=f"{data.status} {data.kilde} {data.verdi1:g}",
-            raw={"id": reading.id, "fibaroid": data.fibaroid, "kilde": data.kilde, "status": data.status},
+            raw={
+                "id": reading.id,
+                "fibaroid": data.fibaroid,
+                "kilde": data.kilde,
+                "status": data.status,
+                "kjeller_sample_id": kjeller_sample_id,
+            },
         )
         await session.commit()
-        return {"status": "ok", "id": reading.id, "table": "hc3_meter_readings"}
+        return {"status": "ok", "id": reading.id, "table": "hc3_meter_readings", "kjeller_sample_id": kjeller_sample_id}
 
 
 @app.post("/events")
@@ -11582,6 +11713,7 @@ async def energy_fibaro_ingest(data: EnergyFibaroIn):
             "belysning": record.belysning_reset,
             "massasje": record.massasje_reset,
             "annet": record.annet_reset,
+            "avfukter": record.avfukter_reset,
             "differanse_fibaro": record.differanse_fibaro_reset,
         },
     }
@@ -11660,6 +11792,7 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
         "belysning_delta_kwh": sum(float_or_zero(row.belysning_delta_kwh) for row in today_rows),
         "massasje_delta_kwh": sum(float_or_zero(row.massasje_delta_kwh) for row in today_rows),
         "annet_delta_kwh": sum(float_or_zero(row.annet_delta_kwh) for row in today_rows),
+        "avfukter_delta_kwh": sum(float_or_zero(row.avfukter_delta_kwh) for row in today_rows),
         "differanse_beregnet_delta_kwh": sum(float_or_zero(row.differanse_beregnet_delta_kwh) for row in today_rows),
     }
     reset_counts = {
@@ -11668,6 +11801,7 @@ async def energy_status_view(request: Request, day: Optional[str] = None):
         "belysning": sum(1 for row in today_rows if row.belysning_reset),
         "massasje": sum(1 for row in today_rows if row.massasje_reset),
         "annet": sum(1 for row in today_rows if row.annet_reset),
+        "avfukter": sum(1 for row in today_rows if row.avfukter_reset),
         "differanse_fibaro": sum(1 for row in today_rows if row.differanse_fibaro_reset),
     }
     measured_by_hour = {hour: 0.0 for hour in range(24)}

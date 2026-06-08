@@ -66,7 +66,7 @@
         .section-note { color:var(--muted); font-size:0.78rem; }
         .panel-card { padding:0.9rem; margin-bottom:0.95rem; }
         .table-wrap { overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow-1); }
-        table { width:100%; border-collapse:collapse; min-width:900px; }
+        table { width:100%; border-collapse:collapse; min-width:980px; }
         th, td { padding:0.56rem 0.62rem; border-bottom:1px solid var(--line-soft); text-align:right; white-space:nowrap; }
         th:first-child, td:first-child { text-align:left; }
         th { color:var(--muted); font-size:0.74rem; font-weight:780; background:var(--panel-soft); }
@@ -134,7 +134,7 @@
             <div class="summary-card">
                 <span>Differanse nå</span>
                 <strong>{{ "{:,.0f}".format(latest.differanse_beregnet_w or 0).replace(",", " ") if latest else "-" }} W</strong>
-                <small>Inntak minus varmepumper, lys, massasje og annet</small>
+                <small>Inntak minus varmepumper, lys, massasje, avfukter og annet</small>
             </div>
             <div class="summary-card">
                 <span>Elvia valgt dag</span>
@@ -226,6 +226,7 @@
                         <th>Lys W</th>
                         <th>Massasje W</th>
                         <th>Annet W</th>
+                        <th>Avfukter W</th>
                         <th>Diff beregnet W</th>
                         <th>Diff Fibaro W</th>
                         <th>Inntak kWh</th>
@@ -241,15 +242,16 @@
                         <td>{{ "{:,.0f}".format(row.belysning_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.0f}".format(row.massasje_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.0f}".format(row.annet_w or 0).replace(",", " ") }}</td>
+                        <td>{{ "{:,.0f}".format(row.avfukter_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.0f}".format(row.differanse_beregnet_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.0f}".format(row.differanse_fibaro_w or 0).replace(",", " ") }}</td>
                         <td>{{ "{:,.2f}".format(row.inntak_kwh or 0).replace(",", " ") }}</td>
                         <td>
-                            <span class="reset-dot {% if row.inntak_reset or row.varmepumper_reset or row.belysning_reset or row.massasje_reset or row.annet_reset or row.differanse_fibaro_reset %}on{% endif %}"></span>
+                            <span class="reset-dot {% if row.inntak_reset or row.varmepumper_reset or row.belysning_reset or row.massasje_reset or row.annet_reset or row.avfukter_reset or row.differanse_fibaro_reset %}on{% endif %}"></span>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="10" class="muted">Ingen energimålinger er mottatt ennå.</td></tr>
+                    <tr><td colspan="11" class="muted">Ingen energimålinger er mottatt ennå.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

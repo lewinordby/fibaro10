@@ -1014,8 +1014,9 @@ async def source_dashboard_data() -> dict[str, Any]:
         """
         select timestamp, bucket_start, mode,
                temp_1etg, temp_2etg, temp_vip, temp_avg_inne,
-               temp_ute, temp_yr, temp_loft, temp_passiv, temp_luftinntak,
-               fan_vip, fan_2etg, fan_tak
+               temp_ute, temp_yr, temp_loft, temp_kjeller, humidity_kjeller,
+               temp_passiv, temp_luftinntak,
+               fan_vip, fan_2etg, fan_tak, fan_avfukter
         from ventilasjon_samples
         order by bucket_start desc
         limit 1
@@ -1023,7 +1024,7 @@ async def source_dashboard_data() -> dict[str, Any]:
     )
     energy_now = await one_mapping(
         """
-        select bucket_start, timestamp, inntak_w, belysning_w, varmepumper_w, differanse_beregnet_w
+        select bucket_start, timestamp, inntak_w, belysning_w, varmepumper_w, avfukter_w, differanse_beregnet_w
         from energy_fibaro_samples
         order by bucket_start desc
         limit 1
@@ -1093,6 +1094,7 @@ async def source_dashboard_data() -> dict[str, Any]:
             ("VIP", vent.get("fan_vip")),
             ("2.etg", vent.get("fan_2etg")),
             ("Tak/loft", vent.get("fan_tak")),
+            ("Avfukter", vent.get("fan_avfukter")),
         ],
     }
     data["revenue"] = {
@@ -1503,6 +1505,8 @@ async def dashboard(request: Request):
         "{{ outside_sensor }}": fmt_temp(data["outside_sensor"]),
         "{{ yr_temp }}": fmt_temp(data["yr_temp"]),
         "{{ loft }}": fmt_temp(data["vent"].get("temp_loft")),
+        "{{ temp_kjeller }}": fmt_temp(data["vent"].get("temp_kjeller")),
+        "{{ humidity_kjeller }}": f'{fmt_int(data["vent"].get("humidity_kjeller"))}%' if data["vent"].get("humidity_kjeller") is not None else "-",
         "{{ innluft }}": fmt_temp(data["innluft"]),
         "{{ temp_1etg }}": fmt_temp(data["vent"].get("temp_1etg")),
         "{{ temp_2etg }}": fmt_temp(data["vent"].get("temp_2etg")),
@@ -1815,6 +1819,7 @@ async def energy_detail(request: Request):
             ("I dag", fmt_kwh(data["energy_today"].get("kwh")), f"{fmt_int(data['energy_today'].get('samples'))} målinger"),
             ("Belysning", fmt_watt(now.get("belysning_w")), "nå"),
             ("Varmepumper", fmt_watt(now.get("varmepumper_w")), "nå"),
+            ("Avfukter", fmt_watt(now.get("avfukter_w")), "nå"),
         ]
     )
     body += f'<p class="notice">Beregnet differanse akkurat nå: <strong>{fmt_watt(now.get("differanse_beregnet_w"))}</strong>.</p>'
@@ -1833,6 +1838,7 @@ async def temperature_detail(request: Request):
             ("Inne nå", fmt_temp(data["inside_avg"]), f"{fmt_temp(ranges.get('min_inne'))} - {fmt_temp(ranges.get('max_inne'))}"),
             ("Ute nå", fmt_temp(data["outside"]), f"{fmt_temp(ranges.get('min_ute'))} - {fmt_temp(ranges.get('max_ute'))}"),
             ("Loft nå", fmt_temp(data["vent"].get("temp_loft")), f"{fmt_temp(ranges.get('min_loft'))} - {fmt_temp(ranges.get('max_loft'))}"),
+            ("Kjeller nå", fmt_temp(data["vent"].get("temp_kjeller")), f"Fukt {fmt_int(data['vent'].get('humidity_kjeller'))}%" if data["vent"].get("humidity_kjeller") is not None else "Fukt -"),
             ("Innluft", fmt_temp(data["innluft"]), f"Oppdatert {fmt_time(data['vent'].get('bucket_start') or data['vent'].get('timestamp'))}"),
         ]
     )
@@ -2334,6 +2340,8 @@ DASHBOARD_HTML = """<!doctype html>
           <p><span>1.etg</span><strong>{{ temp_1etg }}</strong></p>
           <p><span>2.etg</span><strong>{{ temp_2etg }}</strong></p>
           <p><span>VIP</span><strong>{{ temp_vip }}</strong></p>
+          <p><span>Kjeller</span><strong>{{ temp_kjeller }}</strong></p>
+          <p><span>Fukt</span><strong>{{ humidity_kjeller }}</strong></p>
         </div>
         <small class="card-time">Oppdatert {{ temp_time }}</small>
       </a>

@@ -821,6 +821,10 @@
                             <span class="small-label">Nedbør</span>
                             <span class="small-value">{% if now_status.weather_card.precipitation is not none %}{{ "%.1f"|format(now_status.weather_card.precipitation) }} mm{% else %}-{% endif %}</span>
                         </div>
+                        <div class="now-small">
+                            <span class="small-label">Fukt kjeller</span>
+                            <span class="small-value">{% if now_status.weather_card.basement_humidity is not none %}{{ "%.0f"|format(now_status.weather_card.basement_humidity) }}%{% else %}-{% endif %}</span>
+                        </div>
                     </div>
                 </article>
             </section>
@@ -964,6 +968,10 @@
                         <div class="now-small">
                             <span class="small-label">Nedbør</span>
                             <span class="small-value">{% if now_status.weather_card.precipitation is not none %}{{ "%.1f"|format(now_status.weather_card.precipitation) }} mm{% else %}-{% endif %}</span>
+                        </div>
+                        <div class="now-small">
+                            <span class="small-label">Fukt kjeller</span>
+                            <span class="small-value">{% if now_status.weather_card.basement_humidity is not none %}{{ "%.0f"|format(now_status.weather_card.basement_humidity) }}%{% else %}-{% endif %}</span>
                         </div>
                     </div>
                 </article>
