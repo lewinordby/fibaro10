@@ -16,17 +16,18 @@ const columns: ColumnsType<RevenueDay> = [
   {
     title: "Dag",
     dataIndex: "dayLabel",
+    sorter: (left, right) => left.day.localeCompare(right.day),
     render: (_, row) => (
       <span className={row.isToday ? "today-cell" : undefined}>
         {row.dayLabel} · {row.weekday}
       </span>
     ),
   },
-  { title: "Soling", dataIndex: "sol", align: "right", render: (value) => `${nok(value)} kr` },
-  { title: "Solinger", dataIndex: "solCount", align: "right" },
-  { title: "Parkering", dataIndex: "parking", align: "right", render: (value) => `${nok(value)} kr` },
-  { title: "Parkeringer", dataIndex: "parkingCount", align: "right" },
-  { title: "Total", dataIndex: "total", align: "right", render: (value) => <strong>{nok(value)} kr</strong> },
+  { title: "Soling", dataIndex: "sol", align: "right", sorter: (left, right) => left.sol - right.sol, render: (value) => `${nok(value)} kr` },
+  { title: "Solinger", dataIndex: "solCount", align: "right", sorter: (left, right) => left.solCount - right.solCount },
+  { title: "Parkering", dataIndex: "parking", align: "right", sorter: (left, right) => left.parking - right.parking, render: (value) => `${nok(value)} kr` },
+  { title: "Parkeringer", dataIndex: "parkingCount", align: "right", sorter: (left, right) => left.parkingCount - right.parkingCount },
+  { title: "Total", dataIndex: "total", align: "right", sorter: (left, right) => left.total - right.total, render: (value) => <strong>{nok(value)} kr</strong> },
 ];
 
 export default function RevenueMonthPage() {

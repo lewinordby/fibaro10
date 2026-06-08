@@ -172,12 +172,41 @@ function labelize(column: string): string {
   return labels[column] ?? column.replaceAll("_", " ");
 }
 
+function sortableValue(value: unknown): number | string {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : "";
+  const text = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    const time = new Date(text).getTime();
+    if (!Number.isNaN(time)) return time;
+  }
+  const numeric = Number(text.replace(",", "."));
+  if (Number.isFinite(numeric) && text.trim() !== "") return numeric;
+  return text.toLocaleLowerCase("nb-NO");
+}
+
+function compareValues(left: unknown, right: unknown): number {
+  const a = sortableValue(left);
+  const b = sortableValue(right);
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b), "nb-NO", { numeric: true, sensitivity: "base" });
+}
+
+function numericColumn(column: string): boolean {
+  return /(_w|_kr|_kwh|_min|_m2|_count|count|paid|fee|duration|minutes|hour|age|battery|rssi|lux|temp|humidity|wind|cloud|precipitation|breaker|power|energy)$/i.test(
+    column,
+  );
+}
+
 function moduleColumns(table: ModuleTable): ColumnsType<Record<string, unknown>> {
   return table.columns.map((column) => ({
     title: labelize(column),
     dataIndex: column,
     key: column,
+    align: numericColumn(column) ? "right" : undefined,
     ellipsis: true,
+    sorter: (left, right) => compareValues(left[column], right[column]),
     render: (value: unknown) => {
       if (typeof value === "boolean") {
         return <Tag color={value ? "green" : "default"}>{displayValue(value)}</Tag>;
@@ -213,6 +242,22 @@ function ModuleMetric({ card }: { card: ModuleCard }) {
   );
 }
 
+function tableRowKey(row: Record<string, unknown>, tableTitle: string, index?: number) {
+  const stableValue =
+    row.id ??
+    row.plate ??
+    row.sun2_user_id ??
+    row.room_id ??
+    row.duid ??
+    row.robot_duid ??
+    row.record_id ??
+    row.bucket_start ??
+    row.timestamp ??
+    row.started_at ??
+    row.start_time;
+  return `${tableTitle}-${stableValue ?? index ?? 0}`;
+}
+
 function countText(filteredCount: number, totalCount: number, query: string): string {
   if (query.trim() && filteredCount !== totalCount) return `Viser ${filteredCount} av ${totalCount} rader`;
   return `${totalCount} rader`;
@@ -236,7 +281,7 @@ function ModuleTablePane({ table, query }: { table: ModuleTable; query: string }
         {countText(filteredRows.length, table.rows.length, query)}
       </Typography.Text>
       <Table
-        rowKey={(_, index) => `${table.title}-${index}`}
+        rowKey={(row, index) => tableRowKey(row, table.title, index)}
         size="small"
         columns={moduleColumns(table)}
         dataSource={filteredRows}
