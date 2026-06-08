@@ -64,6 +64,27 @@ export type RevenueMonthResponse = {
   rows: RevenueDay[];
 };
 
+export type ModuleCard = {
+  title: string;
+  value: string;
+  unit?: string;
+  detail?: string;
+  tone?: string;
+};
+
+export type ModuleTable = {
+  title: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
+};
+
+export type ModuleResponse = {
+  title: string;
+  subtitle: string;
+  cards: ModuleCard[];
+  tables: ModuleTable[];
+};
+
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -82,4 +103,8 @@ export function fetchOverview(): Promise<OverviewResponse> {
 export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse> {
   const query = month ? `?month=${encodeURIComponent(month)}` : "";
   return apiGet<RevenueMonthResponse>(`/api/v2/revenue/month${query}`);
+}
+
+export function fetchModule(module: string): Promise<ModuleResponse> {
+  return apiGet<ModuleResponse>(`/api/v2/modules/${encodeURIComponent(module)}`);
 }

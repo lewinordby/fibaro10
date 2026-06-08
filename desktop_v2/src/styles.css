@@ -207,6 +207,10 @@ a {
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
 }
 
+.module-metric {
+  height: 136px;
+}
+
 .metric-card .ant-card-body {
   display: flex;
   flex-direction: column;
@@ -386,6 +390,30 @@ a {
 .table-note {
   display: block;
   margin-top: 12px;
+}
+
+.module-table-card .ant-card-body {
+  padding-top: 10px;
+}
+
+.module-table-card .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+
+.module-table-card .ant-table {
+  font-size: 12px;
+}
+
+.module-table-card .ant-table-thead > tr > th {
+  color: #374151;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #f9fafb;
+}
+
+.module-table-card .ant-table-cell {
+  max-width: 260px;
 }
 
 .today-cell {

@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1051")
+APP_BUILD = os.getenv("APP_BUILD", "1052")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1052",
+        "date": "08.06.2026",
+        "title": "Gjor desktop v2 til primaer UI",
+        "changes": [
+            "Legger v2-sider for parkering, soling, energi, ventilasjon, lys, renhold og admin.",
+            "Eksponerer felles moduldata under /api/v2/modules/{module}.",
+            "Flytter rotadressen til /v2 og fjerner gamle UI-lenker fra v2-menyen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1051",
@@ -967,6 +978,30 @@ engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
+def legacy_ui_target(path: str) -> Optional[str]:
+    if path.startswith(("/v2", "/api", "/static", "/auth", "/health", "/favicon.ico")):
+        return None
+    if path.endswith("/json") or path.endswith("/download") or path == "/download":
+        return None
+    redirects = [
+        ("/status/omsetning", "/v2/omsetning"),
+        ("/status/datakilder", "/v2/drift"),
+        ("/status", "/v2/oversikt"),
+        ("/parkering", "/v2/parkering"),
+        ("/soling", "/v2/soling"),
+        ("/energi", "/v2/energi"),
+        ("/ventilasjon", "/v2/ventilasjon"),
+        ("/lys", "/v2/lys"),
+        ("/renhold", "/v2/renhold"),
+        ("/konto", "/v2/admin"),
+        ("/ai", "/v2/admin"),
+    ]
+    for prefix, target in redirects:
+        if path == prefix or path.startswith(f"{prefix}/"):
+            return target
+    return None
+
+
 @app.middleware("http")
 async def access_key_middleware(request: Request, call_next):
     if is_public_request(request):
@@ -991,6 +1026,10 @@ async def access_key_middleware(request: Request, call_next):
     request.state.auth_is_master = request.state.auth_role == "master"
     request.state.auth_can_settings = request.state.auth_role in ["master", "settings"]
     await log_access_attempt(request, True, "ok", access_key)
+    if request.method == "GET" and wants_html(request):
+        target = legacy_ui_target(request.url.path)
+        if target:
+            return redirect_keep_query(request, target, status_code=303)
     return await call_next(request)
 
 
@@ -9691,7 +9730,7 @@ async def update_settings(request: Request, config_key: str):
 
 @app.get("/")
 async def root_redirect(request: Request):
-    return redirect_keep_query(request, "/status/dashboard", status_code=303)
+    return redirect_keep_query(request, "/v2", status_code=303)
 
 
 @app.get("/v2", response_class=HTMLResponse)
@@ -11106,26 +11145,26 @@ async def api_v2_overview():
         for device in VENT_TIMELINE_DEVICES
     ]
     cards = [
-        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/status/dashboard", "tone": "status"},
+        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/v2/oversikt", "tone": "status"},
         {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/v2/drift", "tone": "status"},
         {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/v2/omsetning", "tone": "revenue"},
         {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/v2/omsetning", "tone": "revenue"},
         {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/v2/omsetning", "tone": "revenue"},
-        {"group": "Soling", "title": "Soling i dag", "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions), "unit": "stk", "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom", "href": "/soling/dagslinje", "tone": "sun2"},
-        {"group": "Soling", "title": "Sol uke", "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions), "unit": "stk", "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)}", "href": "/soling/prognose", "tone": "sun2"},
-        {"group": "Parkering", "title": "Parkering i dag", "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions), "unit": "stk", "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive n\u00e5", "href": "/parkering/oversikt", "tone": "parking"},
-        {"group": "Parkering", "title": "Samme dag forrige uke", "value": format_short_number(last_week_parking.sessions), "unit": "stk", "detail": f"{format_short_number(last_week_parking.paid)} kr", "href": "/parkering/statistikk", "tone": "parking"},
-        {"group": "Energi", "title": "Str\u00f8m n\u00e5", "value": format_short_number(latest_energy_sample.inntak_w if latest_energy_sample else 0), "unit": "W", "detail": f"{format_short_number(today_energy_fibaro.kwh, 1)} kWh i dag - {today_energy_fibaro.samples or 0} samples", "href": "/energi/status", "tone": "energy"},
-        {"group": "Energi", "title": "Diff", "value": format_short_number(latest_energy_sample.differanse_beregnet_w if latest_energy_sample else 0), "unit": "W", "detail": "Beregnet fra realtime m\u00e5lere", "href": "/energi/status", "tone": "energy"},
-        {"group": "Temperatur", "title": "Innetemp", "value": format_short_number(now_status.get("indoor_avg"), 1), "unit": "grader", "detail": f"Ute {format_short_number(now_status.get('outdoor_avg'), 1)} grader", "href": "/ventilasjon/temp-logg", "tone": "vent"},
-        {"group": "Temperatur", "title": "Kjeller", "value": format_short_number(latest_sample.temp_kjeller if latest_sample else None, 1), "unit": "grader", "detail": f"Fukt {format_short_number(latest_sample.humidity_kjeller if latest_sample else None)}%", "href": "/ventilasjon/temp-logg", "tone": "vent"},
-        {"group": "V\u00e6r", "title": "Yr", "value": weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light) or "-", "detail": f"Vind {format_short_number(latest_yr_sample.wind_speed if latest_yr_sample else None, 1)} m/s - sky {format_short_number(latest_yr_sample.cloud_area_fraction if latest_yr_sample else None)}%", "href": "/ventilasjon/yr-logg", "tone": "weather"},
+        {"group": "Soling", "title": "Soling i dag", "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions), "unit": "stk", "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom", "href": "/v2/soling", "tone": "sun2"},
+        {"group": "Soling", "title": "Sol uke", "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions), "unit": "stk", "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)}", "href": "/v2/soling", "tone": "sun2"},
+        {"group": "Parkering", "title": "Parkering i dag", "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions), "unit": "stk", "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive n\u00e5", "href": "/v2/parkering", "tone": "parking"},
+        {"group": "Parkering", "title": "Samme dag forrige uke", "value": format_short_number(last_week_parking.sessions), "unit": "stk", "detail": f"{format_short_number(last_week_parking.paid)} kr", "href": "/v2/parkering", "tone": "parking"},
+        {"group": "Energi", "title": "Str\u00f8m n\u00e5", "value": format_short_number(latest_energy_sample.inntak_w if latest_energy_sample else 0), "unit": "W", "detail": f"{format_short_number(today_energy_fibaro.kwh, 1)} kWh i dag - {today_energy_fibaro.samples or 0} samples", "href": "/v2/energi", "tone": "energy"},
+        {"group": "Energi", "title": "Diff", "value": format_short_number(latest_energy_sample.differanse_beregnet_w if latest_energy_sample else 0), "unit": "W", "detail": "Beregnet fra realtime m\u00e5lere", "href": "/v2/energi", "tone": "energy"},
+        {"group": "Temperatur", "title": "Innetemp", "value": format_short_number(now_status.get("indoor_avg"), 1), "unit": "grader", "detail": f"Ute {format_short_number(now_status.get('outdoor_avg'), 1)} grader", "href": "/v2/ventilasjon", "tone": "vent"},
+        {"group": "Temperatur", "title": "Kjeller", "value": format_short_number(latest_sample.temp_kjeller if latest_sample else None, 1), "unit": "grader", "detail": f"Fukt {format_short_number(latest_sample.humidity_kjeller if latest_sample else None)}%", "href": "/v2/ventilasjon", "tone": "vent"},
+        {"group": "V\u00e6r", "title": "Yr", "value": weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light) or "-", "detail": f"Vind {format_short_number(latest_yr_sample.wind_speed if latest_yr_sample else None, 1)} m/s - sky {format_short_number(latest_yr_sample.cloud_area_fraction if latest_yr_sample else None)}%", "href": "/v2/ventilasjon", "tone": "weather"},
     ]
     latest_items = [
-        {"label": "Siste soling", "value": latest_soling.started_at.strftime("%H:%M") if latest_soling and latest_soling.started_at else "-", "detail": f"Rom {latest_soling.room}" if latest_soling and latest_soling.room else "", "href": "/soling/dagslinje"},
-        {"label": "Siste parkering", "value": latest_parking.start_time.strftime("%H:%M") if latest_parking and latest_parking.start_time else "-", "detail": latest_parking.car_license_number if latest_parking and latest_parking.car_license_number else "", "href": "/parkering/oversikt"},
-        {"label": "Energi sist lest", "value": latest_energy_sample.bucket_start.strftime("%H:%M") if latest_energy_sample and latest_energy_sample.bucket_start else "-", "detail": f"{format_short_number(latest_energy_sample.inntak_w)} W" if latest_energy_sample else "", "href": "/energi/status"},
-        {"label": "Temp sist lest", "value": now_status["timestamp"].strftime("%H:%M") if now_status.get("timestamp") else "-", "detail": now_status.get("weather") or "", "href": "/ventilasjon/temp-logg"},
+        {"label": "Siste soling", "value": latest_soling.started_at.strftime("%H:%M") if latest_soling and latest_soling.started_at else "-", "detail": f"Rom {latest_soling.room}" if latest_soling and latest_soling.room else "", "href": "/v2/soling"},
+        {"label": "Siste parkering", "value": latest_parking.start_time.strftime("%H:%M") if latest_parking and latest_parking.start_time else "-", "detail": latest_parking.car_license_number if latest_parking and latest_parking.car_license_number else "", "href": "/v2/parkering"},
+        {"label": "Energi sist lest", "value": latest_energy_sample.bucket_start.strftime("%H:%M") if latest_energy_sample and latest_energy_sample.bucket_start else "-", "detail": f"{format_short_number(latest_energy_sample.inntak_w)} W" if latest_energy_sample else "", "href": "/v2/energi"},
+        {"label": "Temp sist lest", "value": now_status["timestamp"].strftime("%H:%M") if now_status.get("timestamp") else "-", "detail": now_status.get("weather") or "", "href": "/v2/ventilasjon"},
     ]
     services = [
         {
@@ -11169,6 +11208,286 @@ async def api_v2_revenue_month(month: Optional[str] = None):
         },
         "rows": [api_revenue_day(row) for row in context["rows"]],
     }
+
+
+def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]]) -> Dict[str, Any]:
+    return {
+        "title": title,
+        "columns": columns,
+        "rows": rows,
+    }
+
+
+def api_card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status") -> Dict[str, str]:
+    return {
+        "title": title,
+        "value": str(value if value is not None else "-"),
+        "unit": unit,
+        "detail": detail,
+        "tone": tone,
+    }
+
+
+def api_pick(row: Any, columns: list[str]) -> Dict[str, Any]:
+    return row_to_dict(row, columns)
+
+
+def parking_row_api(row: ParkingSession) -> Dict[str, Any]:
+    return {
+        "id": row.id,
+        "start_time": row.start_time.isoformat() if row.start_time else None,
+        "end_time": row.end_time.isoformat() if row.end_time else None,
+        "parking_time_min": row.parking_time_min,
+        "fee_inc_vat": row.fee_inc_vat,
+        "car_license_number": row.car_license_number,
+        "parking_area": row.parking_area,
+        "status": row.status,
+    }
+
+
+def circuit_row_api(row: EnergyCircuit) -> Dict[str, Any]:
+    return {
+        "circuit_no": row.circuit_no,
+        "description": row.description,
+        "breaker": f"{row.breaker_rating_a:g} A" if row.breaker_rating_a is not None else None,
+        "breaker_type": row.breaker_type,
+        "is_sunbed": bool(row.is_sunbed),
+        "status": row.status,
+        "note": row.note,
+    }
+
+
+def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
+    return {
+        "id": row.id,
+        "name": row.name,
+        "load_type": row.load_type,
+        "area": row.area,
+        "circuit_no": row.circuit_no,
+        "expected_power_w": row.expected_power_w,
+        "fibaro_device_id": row.fibaro_device_id,
+        "fibaro_meter_id": row.fibaro_meter_id,
+        "active": row.active,
+    }
+
+
+@app.get("/api/v2/modules/{module}")
+async def api_v2_module(module: str):
+    module = module.strip().lower()
+    now_dt = local_now_naive()
+    today = now_dt.date()
+    tomorrow = today + timedelta(days=1)
+    today_start = datetime.combine(today, time.min)
+    tomorrow_start = datetime.combine(tomorrow, time.min)
+    month_start = today.replace(day=1)
+    month_start_dt = datetime.combine(month_start, time.min)
+
+    async with async_session() as session:
+        if module == "parkering":
+            latest_rows = (
+                await session.execute(
+                    select(ParkingSession).order_by(ParkingSession.start_time.desc()).limit(120)
+                )
+            ).scalars().all()
+            today_summary = await parking_period_summary(session, "I dag", today_start, tomorrow_start)
+            month_summary = await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start)
+            active = (
+                await session.execute(
+                    select(func.count(ParkingSession.id)).where(
+                        ParkingSession.start_time <= now_dt,
+                        or_(
+                            ParkingSession.end_time.is_(None),
+                            ParkingSession.end_time >= now_dt,
+                            func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
+                        ),
+                    )
+                )
+            ).scalar_one()
+            vehicle_count = (await session.execute(select(func.count()).select_from(ParkingVehicle))).scalar_one()
+            return {
+                "title": "Parkering",
+                "subtitle": "EasyPark, aktive parkeringer og kjøretøygrunnlag.",
+                "cards": [
+                    api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking"),
+                    api_card("Pågående", active, "stk", "Akkurat nå", "parking"),
+                    api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue"),
+                    api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
+                ],
+                "tables": [
+                    api_table(
+                        "Siste parkeringer",
+                        ["start_time", "car_license_number", "fee_inc_vat", "parking_time_min", "status", "parking_area"],
+                        [parking_row_api(row) for row in latest_rows],
+                    )
+                ],
+            }
+
+        if module == "soling":
+            today_sun = await sun2_period_snapshot(session, today, tomorrow)
+            month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
+            latest_sessions = (
+                await session.execute(
+                    select(Sun2TanningSession).order_by(Sun2TanningSession.started_at.desc()).limit(120)
+                )
+            ).scalars().all()
+            beds = (
+                await session.execute(
+                    select(Sun2Bed).order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id).limit(80)
+                )
+            ).scalars().all()
+            members = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
+            return {
+                "title": "Soling",
+                "subtitle": "SUN2 enkeltimer, rom, senger og medlemsgrunnlag.",
+                "cards": [
+                    api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2"),
+                    api_card("Timer i dag", format_short_number(today_sun.minutes / 60, 1), "t", f"{today_sun.rooms or 0} rom brukt", "sun2"),
+                    api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue"),
+                    api_card("Medlemmer", members, "stk", "Importert fra SUN2", "status"),
+                ],
+                "tables": [
+                    api_table("Siste solinger", ["started_at", "room", "duration_minutes", "paid_amount_kr", "user_name", "status"], [api_pick(row, SUN2_SESSION_COLUMNS) for row in latest_sessions]),
+                    api_table("Senger", ["physical_room_number", "name", "bed_model", "status", "current_price_per_min", "imported_at"], [api_pick(row, SUN2_BED_COLUMNS) for row in beds]),
+                ],
+            }
+
+        if module == "energi":
+            latest = (
+                await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
+            ).scalars().first()
+            today_rows = (
+                await session.execute(
+                    select(EnergyFibaroSample)
+                    .where(EnergyFibaroSample.bucket_start >= today_start)
+                    .where(EnergyFibaroSample.bucket_start < tomorrow_start)
+                    .order_by(EnergyFibaroSample.bucket_start.desc())
+                )
+            ).scalars().all()
+            recent = (
+                await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(120))
+            ).scalars().all()
+            circuits = (
+                await session.execute(select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc()).limit(120))
+            ).scalars().all()
+            loads = (
+                await session.execute(select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.name.asc()).limit(120))
+            ).scalars().all()
+            total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows)
+            return {
+                "title": "Energi",
+                "subtitle": "Realtime HC3-måling, kursregister og lastregister.",
+                "cards": [
+                    api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy"),
+                    api_card("Forbruk i dag", format_short_number(total_kwh, 1), "kWh", f"{len(today_rows)} samples", "energy"),
+                    api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy"),
+                    api_card("Laster", len(loads), "stk", "Aktive og registrerte", "status"),
+                ],
+                "tables": [
+                    api_table("Siste energisamples", ["bucket_start", "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w"], [api_pick(row, ENERGY_FIBARO_COLUMNS) for row in recent]),
+                    api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status"], [circuit_row_api(row) for row in circuits]),
+                    api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads]),
+                ],
+            }
+
+        if module == "ventilasjon":
+            latest = (
+                await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(1))
+            ).scalars().first()
+            samples = (
+                await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(120))
+            ).scalars().all()
+            yr_rows = (
+                await session.execute(select(YrForecastSample).order_by(YrForecastSample.bucket_start.desc()).limit(80))
+            ).scalars().all()
+            events = (
+                await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(80))
+            ).scalars().all()
+            fan_on = sum(1 for device in VENT_TIMELINE_DEVICES if latest and sample_state(latest, device) is True)
+            return {
+                "title": "Ventilasjon",
+                "subtitle": "Temperatur, fukt, Yr og viftestatus.",
+                "cards": [
+                    api_card("Innetemp", format_short_number(latest.temp_avg_inne if latest else None, 1), "grader", "Snitt inne", "vent"),
+                    api_card("Kjeller", format_short_number(latest.temp_kjeller if latest else None, 1), "grader", f"Fukt {format_short_number(latest.humidity_kjeller if latest else None)}%", "vent"),
+                    api_card("Vifter", f"{fan_on}/{len(VENT_TIMELINE_DEVICES)}", "på", latest.mode if latest and latest.mode else "", "vent"),
+                    api_card("Yr", yr_rows[0].weather_text if yr_rows else "-", "", f"Vind {format_short_number(yr_rows[0].wind_speed if yr_rows else None, 1)} m/s", "weather"),
+                ],
+                "tables": [
+                    api_table("Temperatur og fukt", ["bucket_start", "temp_avg_inne", "temp_ute", "temp_loft", "temp_luftinntak", "temp_kjeller", "humidity_1etg", "humidity_2etg", "humidity_vip", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], [api_pick(row, VENT_SAMPLE_COLUMNS) for row in samples]),
+                    api_table("Yr", ["bucket_start", "weather_text", "air_temperature", "relative_humidity", "wind_speed", "wind_speed_of_gust", "cloud_area_fraction", "precipitation_next_1h"], [api_pick(row, YR_SAMPLE_COLUMNS) for row in yr_rows]),
+                    api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], [api_pick(row, VENT_COLUMNS) for row in events]),
+                ],
+            }
+
+        if module == "lys":
+            latest = (
+                await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(1))
+            ).scalars().first()
+            samples = (
+                await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(120))
+            ).scalars().all()
+            events = (
+                await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(120))
+            ).scalars().all()
+            light_on = sum(1 for device in LIGHT_TIMELINE_DEVICES if latest and light_sample_state(latest, device) is True)
+            return {
+                "title": "Lys",
+                "subtitle": "Utelys, lux, modus og hendelser.",
+                "cards": [
+                    api_card("Lux", format_short_number(latest.lux if latest else None), "", latest.mode if latest and latest.mode else "", "light"),
+                    api_card("Lys på", f"{light_on}/{len(LIGHT_TIMELINE_DEVICES)}", "stk", "Fra siste sample", "light"),
+                    api_card("Siste sample", latest.bucket_start.strftime("%H:%M") if latest and latest.bucket_start else "-", "", "Dagslogg", "status"),
+                    api_card("Hendelser", len(events), "siste", "Siste loggede lysendringer", "status"),
+                ],
+                "tables": [
+                    api_table("Lux-samples", ["bucket_start", "mode", "lux", "light_lyslist", "light_reklame", "light_spot_glass_275", "light_spot_glass_299", "light_spot_inngang", "light_parkering", "weather_text"], [api_pick(row, LIGHT_SAMPLE_COLUMNS) for row in samples]),
+                    api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "lux", "state"], [api_pick(row, LIGHT_COLUMNS) for row in events]),
+                ],
+            }
+
+        if module == "renhold":
+            robots = (await session.execute(select(RoborockRobot).order_by(RoborockRobot.name))).scalars().all()
+            jobs = (await session.execute(select(RoborockCleanJob).order_by(RoborockCleanJob.begin_at.desc()).limit(120))).scalars().all()
+            statuses = (await session.execute(select(RoborockStatusSample).order_by(RoborockStatusSample.timestamp.desc()).limit(120))).scalars().all()
+            online = sum(1 for row in robots if row.cloud_online is not False)
+            return {
+                "title": "Renhold",
+                "subtitle": "Roborock-roboter, status og siste vasker.",
+                "cards": [
+                    api_card("Roboter", len(robots), "stk", f"{online} online/ikke avvist", "status"),
+                    api_card("Siste jobber", len(jobs), "stk", "Hentet fra Roborock", "status"),
+                    api_card("Siste status", statuses[0].state_name if statuses else "-", "", statuses[0].timestamp.strftime("%H:%M") if statuses and statuses[0].timestamp else "", "status"),
+                    api_card("Feil", sum(1 for row in statuses[:20] if row.error_code and row.error_code != 0), "siste", "Siste 20 statuser", "status"),
+                ],
+                "tables": [
+                    api_table("Roboter", ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"], [api_pick(row, ROBOROCK_ROBOT_COLUMNS) for row in robots]),
+                    api_table("Siste vasker", ["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "complete", "error_code", "finish_reason"], [api_pick(row, ROBOROCK_JOB_COLUMNS) for row in jobs]),
+                    api_table("Siste statuser", ["timestamp", "robot_duid", "state_name", "battery", "error_code", "clean_area_m2", "rssi"], [api_pick(row, ROBOROCK_STATUS_COLUMNS) for row in statuses]),
+                ],
+            }
+
+        if module == "admin":
+            import_rows = await import_status_rows(session)
+            ai_logs = (
+                await session.execute(select(AiQueryLog).order_by(AiQueryLog.timestamp.desc()).limit(80))
+            ).scalars().all()
+            return {
+                "title": "Admin",
+                "subtitle": "Build, datakilder, teknisk drift og AI-logg.",
+                "cards": [
+                    api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status"),
+                    api_card("Datakilder OK", sum(1 for row in import_rows if row["status"] == "ok"), "stk", f"{len(import_rows)} totalt", "status"),
+                    api_card("Treg/feil", sum(1 for row in import_rows if row["status"] != "ok"), "stk", "Fra importstatus", "status"),
+                    api_card("AI-logg", len(ai_logs), "siste", "Siste forespørsler", "status"),
+                ],
+                "tables": [
+                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
+                    api_table("Buildlogg", ["build", "date", "title"], [{"build": row["build"], "date": row["date"], "title": row["title"]} for row in BUILD_LOG[:25]]),
+                    api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
+                ],
+            }
+
+    raise HTTPException(status_code=404, detail="Ukjent v2-modul")
 
 
 @app.get("/status/omsetning", response_class=HTMLResponse)

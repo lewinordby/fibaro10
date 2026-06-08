@@ -7,7 +7,8 @@ import {
   DashboardOutlined,
   DatabaseOutlined,
   ExperimentOutlined,
-  HomeOutlined,
+  SettingOutlined,
+  ToolOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
 import { Button, Layout, Menu, Space, Typography } from "antd";
@@ -16,6 +17,7 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-r
 import OverviewPage from "./pages/OverviewPage";
 import RevenueMonthPage from "./pages/RevenueMonthPage";
 import OperationsPage from "./pages/OperationsPage";
+import ModulePage from "./pages/ModulePage";
 
 const { Header, Sider, Content } = Layout;
 
@@ -23,18 +25,25 @@ const menuItems: MenuProps["items"] = [
   { key: "/oversikt", icon: <DashboardOutlined />, label: "Oversikt" },
   { key: "/omsetning", icon: <AreaChartOutlined />, label: "Omsetning" },
   { key: "/drift", icon: <DatabaseOutlined />, label: "Drift" },
-  { type: "divider" },
-  { key: "legacy:/status/dashboard", icon: <HomeOutlined />, label: "Dagens status" },
-  { key: "legacy:/parkering/oversikt", icon: <CarOutlined />, label: "Parkering" },
-  { key: "legacy:/soling/dagslinje", icon: <CalendarOutlined />, label: "Soling" },
-  { key: "legacy:/energi/status", icon: <ThunderboltOutlined />, label: "Energi" },
-  { key: "legacy:/lys/dagslogg-lux", icon: <BulbOutlined />, label: "Lys" },
-  { key: "legacy:/ventilasjon/dagslogg-temp", icon: <ExperimentOutlined />, label: "Ventilasjon" },
+  { key: "/parkering", icon: <CarOutlined />, label: "Parkering" },
+  { key: "/soling", icon: <CalendarOutlined />, label: "Soling" },
+  { key: "/energi", icon: <ThunderboltOutlined />, label: "Energi" },
+  { key: "/ventilasjon", icon: <ExperimentOutlined />, label: "Ventilasjon" },
+  { key: "/lys", icon: <BulbOutlined />, label: "Lys" },
+  { key: "/renhold", icon: <ToolOutlined />, label: "Renhold" },
+  { key: "/admin", icon: <SettingOutlined />, label: "Admin" },
 ];
 
 function selectedKey(pathname: string): string {
   if (pathname.startsWith("/omsetning")) return "/omsetning";
   if (pathname.startsWith("/drift")) return "/drift";
+  if (pathname.startsWith("/parkering")) return "/parkering";
+  if (pathname.startsWith("/soling")) return "/soling";
+  if (pathname.startsWith("/energi")) return "/energi";
+  if (pathname.startsWith("/ventilasjon")) return "/ventilasjon";
+  if (pathname.startsWith("/lys")) return "/lys";
+  if (pathname.startsWith("/renhold")) return "/renhold";
+  if (pathname.startsWith("/admin")) return "/admin";
   return "/oversikt";
 }
 
@@ -58,10 +67,6 @@ export default function App() {
           selectedKeys={[selectedKey(location.pathname)]}
           items={menuItems}
           onClick={({ key }) => {
-            if (key.startsWith("legacy:")) {
-              window.location.href = key.replace("legacy:", "");
-              return;
-            }
             navigate(key);
           }}
         />
@@ -75,11 +80,11 @@ export default function App() {
             </Typography.Title>
           </Space>
           <Space>
-            <Button icon={<AlertOutlined />} href="/status/datakilder">
+            <Button icon={<AlertOutlined />} onClick={() => navigate("/drift")}>
               Datakilder
             </Button>
-            <Button type="primary" href="/status/dashboard">
-              Gammel revisjon
+            <Button type="primary" onClick={() => navigate("/admin")}>
+              Build og teknisk
             </Button>
           </Space>
         </Header>
@@ -89,6 +94,13 @@ export default function App() {
             <Route path="/oversikt" element={<OverviewPage />} />
             <Route path="/omsetning" element={<RevenueMonthPage />} />
             <Route path="/drift" element={<OperationsPage />} />
+            <Route path="/parkering" element={<ModulePage module="parkering" />} />
+            <Route path="/soling" element={<ModulePage module="soling" />} />
+            <Route path="/energi" element={<ModulePage module="energi" />} />
+            <Route path="/ventilasjon" element={<ModulePage module="ventilasjon" />} />
+            <Route path="/lys" element={<ModulePage module="lys" />} />
+            <Route path="/renhold" element={<ModulePage module="renhold" />} />
+            <Route path="/admin" element={<ModulePage module="admin" />} />
             <Route
               path="*"
               element={

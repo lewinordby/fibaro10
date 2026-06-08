@@ -1,14 +1,13 @@
 # Fibaro10 desktop v2
 
-`desktop_v2` er en separat desktop-revisjon av Fibaro10-grensesnittet. Den kjører ved siden av dagens Jinja-baserte hovedapp.
+`desktop_v2` er primært desktop-grensesnitt for Fibaro10. Den gamle Jinja-baserte UI-en beholdes foreløpig som backend-/fallback-kode, men vanlig GET-navigasjon til gamle HTML-områder redirectes til v2.
 
 ## Mål
 
-- Beholde dagens løsning uendret mens ny revisjon utvikles.
 - Flytte nytt desktop-UI over til React, TypeScript, Ant Design og ECharts.
 - Bruke eksisterende FastAPI/Postgres-backend som datamotor.
 - Eksponere nye JSON-kontrakter under `/api/v2` i stedet for å kopiere template-logikk.
-- Gjøre det mulig å utvikle gammel og ny revisjon i hver sin retning.
+- Fase ut gammel HTML-UI uten å bryte ingest, API-er, POST-handlinger eller importjobber.
 
 ## URL-er
 
@@ -16,7 +15,7 @@
 - V2 oversikt: `/v2/oversikt`
 - V2 omsetning: `/v2/omsetning`
 - V2 drift: `/v2/drift`
-- Dagens grensesnitt: `/status/dashboard`
+- Gamle hovedområder som `/status`, `/parkering`, `/soling`, `/energi`, `/ventilasjon`, `/lys`, `/renhold`, `/konto` og `/ai` redirectes til v2 etter innlogging.
 
 Alle v2-ruter ligger bak samme innlogging som hovedappen.
 
@@ -66,8 +65,8 @@ Det betyr at en ny maskin eller QNAP kan bygge v2 direkte fra Git uten lokale bu
 
 Anbefalt retning:
 
-- Behold eksisterende Jinja-sider som stabil driftsoverflate til v2 har tatt over nok funksjon.
-- Lag nye v2-sider domenevis: Parkering, Soling, Energi, Ventilasjon, Lys, Renhold.
-- Flytt beregninger gradvis fra store HTML-ruter til små backend-funksjoner og `/api/v2`-endepunkter.
+- Flytt resterende POST-handlinger og redigeringsskjemaer gradvis inn i v2.
+- Når alle operative handlinger er dekket i v2, kan gamle templates og HTML-ruter slettes fysisk.
+- Flytt beregninger videre fra store HTML-ruter til små backend-funksjoner og `/api/v2`-endepunkter.
 - Ikke koble v2 mot `online_dashboard`; bruk hovedappens database/API.
-- Hold `desktop_v2` som egen frontendpakke til gammel revisjon kan fases ut eller arkiveres.
+- Hold gamle API- og ingest-ruter stabile så HC3, EasyPark, SUN2, Roborock og online-dashboard ikke påvirkes.

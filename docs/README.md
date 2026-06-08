@@ -14,7 +14,7 @@ Dette repoet dokumenterer både hovedappen `Fibaro10 / Lilletorget drift` og de 
 
 ## Dokumenter i repoet
 
-Se ogsa `docs/desktop-v2.md` for den separate React/Ant Design/ECharts-revisjonen under `/v2`.
+Se ogsa `docs/desktop-v2.md` for den primaere React/Ant Design/ECharts-revisjonen under `/v2`.
 
 | Fil | Innhold |
 | --- | --- |
