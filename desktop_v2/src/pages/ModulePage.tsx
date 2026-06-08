@@ -1,5 +1,6 @@
 import { Card, Space, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { useParams } from "react-router-dom";
 import { fetchModule, type ModuleCard, type ModuleTable } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
@@ -58,7 +59,8 @@ function moduleColumns(table: ModuleTable): ColumnsType<Record<string, unknown>>
         return <Tag color={value ? "green" : "default"}>{displayValue(value)}</Tag>;
       }
       if (column === "status" && typeof value === "string") {
-        const color = value.toLowerCase().includes("ongoing") || value.toLowerCase().includes("ok") ? "green" : "default";
+        const normalized = value.toLowerCase();
+        const color = normalized.includes("ongoing") || normalized.includes("ok") ? "green" : "default";
         return <Tag color={color}>{displayValue(value)}</Tag>;
       }
       return displayValue(value);
@@ -79,8 +81,10 @@ function ModuleMetric({ card }: { card: ModuleCard }) {
   );
 }
 
-export default function ModulePage({ module }: { module: string }) {
-  const { data, loading, error } = useAsyncData(() => fetchModule(module), [module]);
+export default function ModulePage({ module, view: explicitView }: { module: string; view?: string }) {
+  const params = useParams();
+  const view = explicitView ?? params.view;
+  const { data, loading, error } = useAsyncData(() => fetchModule(module, view), [module, view]);
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;

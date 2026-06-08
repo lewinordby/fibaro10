@@ -25,26 +25,95 @@ const menuItems: MenuProps["items"] = [
   { key: "/oversikt", icon: <DashboardOutlined />, label: "Oversikt" },
   { key: "/omsetning", icon: <AreaChartOutlined />, label: "Omsetning" },
   { key: "/drift", icon: <DatabaseOutlined />, label: "Drift" },
-  { key: "/parkering", icon: <CarOutlined />, label: "Parkering" },
-  { key: "/soling", icon: <CalendarOutlined />, label: "Soling" },
-  { key: "/energi", icon: <ThunderboltOutlined />, label: "Energi" },
-  { key: "/ventilasjon", icon: <ExperimentOutlined />, label: "Ventilasjon" },
-  { key: "/lys", icon: <BulbOutlined />, label: "Lys" },
-  { key: "/renhold", icon: <ToolOutlined />, label: "Renhold" },
-  { key: "/admin", icon: <SettingOutlined />, label: "Admin" },
+  {
+    key: "/parkering",
+    icon: <CarOutlined />,
+    label: "Parkering",
+    children: [
+      { key: "/parkering/oversikt", label: "Oversikt" },
+      { key: "/parkering/prognose", label: "Prognose" },
+      { key: "/parkering/parkeringer", label: "Parkeringer" },
+      { key: "/parkering/kjoretoy", label: "Kjøretøy" },
+      { key: "/parkering/bilstatistikk", label: "Bilstatistikk" },
+      { key: "/parkering/omrade", label: "Område" },
+    ],
+  },
+  {
+    key: "/soling",
+    icon: <CalendarOutlined />,
+    label: "Soling",
+    children: [
+      { key: "/soling/dagslinje", label: "Dagslinje" },
+      { key: "/soling/prognose", label: "Prognose" },
+      { key: "/soling/statistikk", label: "Statistikk" },
+      { key: "/soling/enkeltimer", label: "Enkeltimer" },
+      { key: "/soling/senger", label: "Senger" },
+      { key: "/soling/medlemmer", label: "Medlemmer" },
+    ],
+  },
+  {
+    key: "/energi",
+    icon: <ThunderboltOutlined />,
+    label: "Energi",
+    children: [
+      { key: "/energi/status", label: "Status" },
+      { key: "/energi/kurser", label: "Kurser" },
+      { key: "/energi/laster", label: "Laster" },
+      { key: "/energi/forbruk-per-seng", label: "Forbruk/seng" },
+      { key: "/energi/elvia", label: "Elvia" },
+    ],
+  },
+  {
+    key: "/ventilasjon",
+    icon: <ExperimentOutlined />,
+    label: "Ventilasjon",
+    children: [
+      { key: "/ventilasjon/dagslogg", label: "Dagslogg" },
+      { key: "/ventilasjon/temp-logg", label: "Temp logg" },
+      { key: "/ventilasjon/yr-logg", label: "Yr logg" },
+      { key: "/ventilasjon/hendelser", label: "Hendelser" },
+    ],
+  },
+  {
+    key: "/lys",
+    icon: <BulbOutlined />,
+    label: "Lys",
+    children: [
+      { key: "/lys/dagslogg", label: "Dagslogg" },
+      { key: "/lys/lux-logging", label: "Lux logging" },
+      { key: "/lys/hendelser", label: "Hendelser" },
+    ],
+  },
+  { key: "/renhold/oversikt", icon: <ToolOutlined />, label: "Renhold" },
+  {
+    key: "/admin",
+    icon: <SettingOutlined />,
+    label: "Admin",
+    children: [
+      { key: "/admin/build", label: "Build" },
+      { key: "/admin/datakilder", label: "Datakilder" },
+      { key: "/admin/ai", label: "AI" },
+      { key: "/admin/teknisk", label: "Teknisk" },
+    ],
+  },
 ];
 
 function selectedKey(pathname: string): string {
-  if (pathname.startsWith("/omsetning")) return "/omsetning";
-  if (pathname.startsWith("/drift")) return "/drift";
-  if (pathname.startsWith("/parkering")) return "/parkering";
-  if (pathname.startsWith("/soling")) return "/soling";
-  if (pathname.startsWith("/energi")) return "/energi";
-  if (pathname.startsWith("/ventilasjon")) return "/ventilasjon";
-  if (pathname.startsWith("/lys")) return "/lys";
-  if (pathname.startsWith("/renhold")) return "/renhold";
-  if (pathname.startsWith("/admin")) return "/admin";
-  return "/oversikt";
+  return pathname === "/" ? "/oversikt" : pathname;
+}
+
+function openKeys(pathname: string): string[] {
+  return ["/parkering", "/soling", "/energi", "/ventilasjon", "/lys", "/admin"].filter((key) =>
+    pathname.startsWith(key),
+  );
+}
+
+function moduleRoute(module: string, fallback: string) {
+  return <ModulePage module={module} view={fallback} />;
+}
+
+function moduleSubRoute(module: string) {
+  return <ModulePage module={module} />;
 }
 
 export default function App() {
@@ -65,6 +134,7 @@ export default function App() {
           className="app-menu"
           mode="inline"
           selectedKeys={[selectedKey(location.pathname)]}
+          defaultOpenKeys={openKeys(location.pathname)}
           items={menuItems}
           onClick={({ key }) => {
             navigate(key);
@@ -94,13 +164,20 @@ export default function App() {
             <Route path="/oversikt" element={<OverviewPage />} />
             <Route path="/omsetning" element={<RevenueMonthPage />} />
             <Route path="/drift" element={<OperationsPage />} />
-            <Route path="/parkering" element={<ModulePage module="parkering" />} />
-            <Route path="/soling" element={<ModulePage module="soling" />} />
-            <Route path="/energi" element={<ModulePage module="energi" />} />
-            <Route path="/ventilasjon" element={<ModulePage module="ventilasjon" />} />
-            <Route path="/lys" element={<ModulePage module="lys" />} />
-            <Route path="/renhold" element={<ModulePage module="renhold" />} />
-            <Route path="/admin" element={<ModulePage module="admin" />} />
+            <Route path="/parkering" element={moduleRoute("parkering", "oversikt")} />
+            <Route path="/parkering/:view" element={moduleSubRoute("parkering")} />
+            <Route path="/soling" element={moduleRoute("soling", "dagslinje")} />
+            <Route path="/soling/:view" element={moduleSubRoute("soling")} />
+            <Route path="/energi" element={moduleRoute("energi", "status")} />
+            <Route path="/energi/:view" element={moduleSubRoute("energi")} />
+            <Route path="/ventilasjon" element={moduleRoute("ventilasjon", "dagslogg")} />
+            <Route path="/ventilasjon/:view" element={moduleSubRoute("ventilasjon")} />
+            <Route path="/lys" element={moduleRoute("lys", "dagslogg")} />
+            <Route path="/lys/:view" element={moduleSubRoute("lys")} />
+            <Route path="/renhold" element={moduleRoute("renhold", "oversikt")} />
+            <Route path="/renhold/:view" element={moduleSubRoute("renhold")} />
+            <Route path="/admin" element={moduleRoute("admin", "build")} />
+            <Route path="/admin/:view" element={moduleSubRoute("admin")} />
             <Route
               path="*"
               element={

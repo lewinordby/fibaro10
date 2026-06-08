@@ -105,6 +105,7 @@ export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse>
   return apiGet<RevenueMonthResponse>(`/api/v2/revenue/month${query}`);
 }
 
-export function fetchModule(module: string): Promise<ModuleResponse> {
-  return apiGet<ModuleResponse>(`/api/v2/modules/${encodeURIComponent(module)}`);
+export function fetchModule(module: string, view?: string): Promise<ModuleResponse> {
+  const query = view ? `?view=${encodeURIComponent(view)}` : "";
+  return apiGet<ModuleResponse>(`/api/v2/modules/${encodeURIComponent(module)}${query}`);
 }

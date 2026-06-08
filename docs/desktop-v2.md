@@ -15,6 +15,7 @@
 - V2 oversikt: `/v2/oversikt`
 - V2 omsetning: `/v2/omsetning`
 - V2 drift: `/v2/drift`
+- V2 undersider følger gammel struktur, for eksempel `/v2/parkering/kjoretoy`, `/v2/soling/enkeltimer`, `/v2/energi/kurser`, `/v2/ventilasjon/yr-logg` og `/v2/lys/hendelser`.
 - Gamle hovedområder som `/status`, `/parkering`, `/soling`, `/energi`, `/ventilasjon`, `/lys`, `/renhold`, `/konto` og `/ai` redirectes til v2 etter innlogging.
 
 Alle v2-ruter ligger bak samme innlogging som hovedappen.

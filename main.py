@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1052")
+APP_BUILD = os.getenv("APP_BUILD", "1053")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1053",
+        "date": "08.06.2026",
+        "title": "Utvider v2 med undersider",
+        "changes": [
+            "Legger inn v2-undermenyer for parkering, soling, energi, ventilasjon, lys, renhold og admin.",
+            "Gir flere gamle undersider egne v2-datavisninger i stedet for samme generiske modulside.",
+            "Oppdaterer gamle UI-redirects slik at de peker til tilsvarende v2-underside.",
+        ],
+    },
     {
         "version": "1",
         "build": "1052",
@@ -983,18 +994,56 @@ def legacy_ui_target(path: str) -> Optional[str]:
         return None
     if path.endswith("/json") or path.endswith("/download") or path == "/download":
         return None
+    exact_redirects = {
+        "/status/dashboard": "/v2/oversikt",
+        "/status/nokkeltall": "/v2/oversikt",
+        "/status/omsetning": "/v2/omsetning",
+        "/status/datakilder": "/v2/drift",
+        "/parkering/oversikt": "/v2/parkering/oversikt",
+        "/parkering/prognose": "/v2/parkering/prognose",
+        "/parkering/parkeringer": "/v2/parkering/parkeringer",
+        "/parkering/kjoretoy": "/v2/parkering/kjoretoy",
+        "/parkering/bilstatistikk": "/v2/parkering/bilstatistikk",
+        "/parkering/omrade": "/v2/parkering/omrade",
+        "/soling/dagslinje": "/v2/soling/dagslinje",
+        "/soling/prognose": "/v2/soling/prognose",
+        "/soling/oversikt": "/v2/soling/statistikk",
+        "/soling/detaljer": "/v2/soling/statistikk",
+        "/soling/enkeltimer": "/v2/soling/enkeltimer",
+        "/soling/senger": "/v2/soling/senger",
+        "/soling/medlemmer": "/v2/soling/medlemmer",
+        "/energi/status": "/v2/energi/status",
+        "/energi/kurser": "/v2/energi/kurser",
+        "/energi/laster": "/v2/energi/laster",
+        "/energi/forbruk-per-seng": "/v2/energi/forbruk-per-seng",
+        "/energi/elvia": "/v2/energi/elvia",
+        "/ventilasjon/dagslogg-temp": "/v2/ventilasjon/dagslogg",
+        "/ventilasjon/temp-logg": "/v2/ventilasjon/temp-logg",
+        "/ventilasjon/yr-logg": "/v2/ventilasjon/yr-logg",
+        "/ventilasjon/hendelser": "/v2/ventilasjon/hendelser",
+        "/lys/dagslogg-lux": "/v2/lys/dagslogg",
+        "/lys/lux-logging": "/v2/lys/lux-logging",
+        "/lys/hendelser": "/v2/lys/hendelser",
+        "/renhold/oversikt": "/v2/renhold/oversikt",
+        "/konto/build": "/v2/admin/build",
+        "/konto/teknisk": "/v2/admin/teknisk",
+        "/konto/oversikt": "/v2/admin/build",
+        "/ai/sok": "/v2/admin/ai",
+    }
+    if path in exact_redirects:
+        return exact_redirects[path]
     redirects = [
         ("/status/omsetning", "/v2/omsetning"),
         ("/status/datakilder", "/v2/drift"),
         ("/status", "/v2/oversikt"),
-        ("/parkering", "/v2/parkering"),
-        ("/soling", "/v2/soling"),
-        ("/energi", "/v2/energi"),
-        ("/ventilasjon", "/v2/ventilasjon"),
-        ("/lys", "/v2/lys"),
-        ("/renhold", "/v2/renhold"),
-        ("/konto", "/v2/admin"),
-        ("/ai", "/v2/admin"),
+        ("/parkering", "/v2/parkering/oversikt"),
+        ("/soling", "/v2/soling/dagslinje"),
+        ("/energi", "/v2/energi/status"),
+        ("/ventilasjon", "/v2/ventilasjon/dagslogg"),
+        ("/lys", "/v2/lys/dagslogg"),
+        ("/renhold", "/v2/renhold/oversikt"),
+        ("/konto", "/v2/admin/build"),
+        ("/ai", "/v2/admin/ai"),
     ]
     for prefix, target in redirects:
         if path == prefix or path.startswith(f"{prefix}/"):
@@ -11272,8 +11321,9 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
 
 
 @app.get("/api/v2/modules/{module}")
-async def api_v2_module(module: str):
+async def api_v2_module(module: str, view: Optional[str] = None):
     module = module.strip().lower()
+    view = (view or "").strip().lower()
     now_dt = local_now_naive()
     today = now_dt.date()
     tomorrow = today + timedelta(days=1)
@@ -11304,8 +11354,76 @@ async def api_v2_module(module: str):
                 )
             ).scalar_one()
             vehicle_count = (await session.execute(select(func.count()).select_from(ParkingVehicle))).scalar_one()
+            vehicle_rows = (
+                await session.execute(
+                    select(ParkingVehicle)
+                    .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+                    .limit(250)
+                )
+            ).scalars().all()
+            area_rows = (
+                await session.execute(
+                    select(
+                        ParkingVehicle.omrade.label("omrade"),
+                        func.count(ParkingVehicle.plate).label("vehicles"),
+                        func.coalesce(func.sum(ParkingVehicle.parkering_count), 0).label("parkeringer"),
+                        func.coalesce(func.sum(ParkingVehicle.paid_total), 0).label("paid"),
+                    )
+                    .group_by(ParkingVehicle.omrade)
+                    .order_by(func.coalesce(func.sum(ParkingVehicle.paid_total), 0).desc())
+                    .limit(80)
+                )
+            ).mappings().all()
+            forecast_rows = (
+                await session.execute(
+                    select(ForecastSnapshot)
+                    .where(ForecastSnapshot.domain == "parking")
+                    .order_by(ForecastSnapshot.created_at.desc())
+                    .limit(80)
+                )
+            ).scalars().all()
+            tables = [
+                api_table(
+                    "Siste parkeringer",
+                    ["start_time", "car_license_number", "fee_inc_vat", "parking_time_min", "status", "parking_area"],
+                    [parking_row_api(row) for row in latest_rows],
+                )
+            ]
+            if view == "kjoretoy":
+                tables = [
+                    api_table(
+                        "Kjøretøy",
+                        ["plate", "navn", "omrade", "sun2_id", "parkering_count", "paid_total", "first_seen", "last_seen", "notat"],
+                        [row_to_dict(row, ["plate", "navn", "omrade", "sun2_id", "parkering_count", "paid_total", "first_seen", "last_seen", "notat"]) for row in vehicle_rows],
+                    )
+                ]
+            elif view == "omrade":
+                tables = [
+                    api_table("Områder", ["omrade", "vehicles", "parkeringer", "paid"], [dict(row) for row in area_rows]),
+                    api_table(
+                        "Kjøretøy uten område",
+                        ["plate", "navn", "parkering_count", "paid_total", "last_seen"],
+                        [row_to_dict(row, ["plate", "navn", "parkering_count", "paid_total", "last_seen"]) for row in vehicle_rows if not row.omrade][:100],
+                    ),
+                ]
+            elif view == "bilstatistikk":
+                tables = [
+                    api_table(
+                        "Mest brukte kjøretøy",
+                        ["plate", "navn", "omrade", "parkering_count", "paid_total", "first_seen", "last_seen"],
+                        [row_to_dict(row, ["plate", "navn", "omrade", "parkering_count", "paid_total", "first_seen", "last_seen"]) for row in sorted(vehicle_rows, key=lambda item: float_or_zero(item.paid_total), reverse=True)],
+                    )
+                ]
+            elif view == "prognose":
+                tables = [
+                    api_table(
+                        "Lagrede parkeringsprognoser",
+                        ["created_at", "period_type", "period_start", "period_end", "forecast_sessions", "forecast_paid", "actual_sessions_at_save", "actual_paid_at_save"],
+                        [row_to_dict(row, ["created_at", "period_type", "period_start", "period_end", "forecast_sessions", "forecast_paid", "actual_sessions_at_save", "actual_paid_at_save"]) for row in forecast_rows],
+                    )
+                ]
             return {
-                "title": "Parkering",
+                "title": "Parkering" if not view else f"Parkering · {view.replace('-', ' ')}",
                 "subtitle": "EasyPark, aktive parkeringer og kjøretøygrunnlag.",
                 "cards": [
                     api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking"),
@@ -11313,13 +11431,7 @@ async def api_v2_module(module: str):
                     api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue"),
                     api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
                 ],
-                "tables": [
-                    api_table(
-                        "Siste parkeringer",
-                        ["start_time", "car_license_number", "fee_inc_vat", "parking_time_min", "status", "parking_area"],
-                        [parking_row_api(row) for row in latest_rows],
-                    )
-                ],
+                "tables": tables,
             }
 
         if module == "soling":
@@ -11335,9 +11447,43 @@ async def api_v2_module(module: str):
                     select(Sun2Bed).order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id).limit(80)
                 )
             ).scalars().all()
+            member_rows = (
+                await session.execute(
+                    select(Sun2Member).order_by(Sun2Member.last_seen_at.desc().nullslast(), Sun2Member.name.asc()).limit(250)
+                )
+            ).scalars().all()
+            room_rows = (
+                await session.execute(
+                    select(Sun2RoomDailyStat)
+                    .order_by(Sun2RoomDailyStat.stat_date.desc(), Sun2RoomDailyStat.room.asc())
+                    .limit(250)
+                )
+            ).scalars().all()
+            forecast_rows = (
+                await session.execute(
+                    select(ForecastSnapshot)
+                    .where(ForecastSnapshot.domain == "sun2")
+                    .order_by(ForecastSnapshot.created_at.desc())
+                    .limit(80)
+                )
+            ).scalars().all()
             members = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
+            tables = [
+                api_table("Siste solinger", ["started_at", "room", "duration_minutes", "paid_amount_kr", "user_name", "status"], [api_pick(row, SUN2_SESSION_COLUMNS) for row in latest_sessions]),
+                api_table("Senger", ["physical_room_number", "name", "bed_model", "status", "current_price_per_min", "imported_at"], [api_pick(row, SUN2_BED_COLUMNS) for row in beds]),
+            ]
+            if view == "senger":
+                tables = [api_table("Senger", ["physical_room_number", "room_id", "name", "bed_model", "max_minutes", "current_price_per_min", "status", "lamp_status", "imported_at"], [api_pick(row, SUN2_BED_COLUMNS) for row in beds])]
+            elif view == "medlemmer":
+                tables = [api_table("Medlemmer", ["sun2_user_id", "name", "customer_type", "age", "gender", "last_seen_at", "visits_count", "total_spent_kr", "balance_kr"], [api_pick(row, SUN2_MEMBER_COLUMNS) for row in member_rows])]
+            elif view in {"statistikk", "oversikt"}:
+                tables = [api_table("Romstatistikk", ["stat_date", "room", "total_soletid_minutter", "totalt_antall_solinger", "totalt_inntjent_kr", "solinger_medlemmer", "solinger_ikke_medlemmer"], [api_pick(row, SUN2_ROOM_COLUMNS) for row in room_rows])]
+            elif view == "prognose":
+                tables = [api_table("Lagrede solingprognoser", ["created_at", "period_type", "period_start", "period_end", "forecast_sessions", "forecast_paid", "forecast_minutes", "actual_sessions_at_save", "actual_paid_at_save"], [row_to_dict(row, ["created_at", "period_type", "period_start", "period_end", "forecast_sessions", "forecast_paid", "forecast_minutes", "actual_sessions_at_save", "actual_paid_at_save"]) for row in forecast_rows])]
+            elif view == "enkeltimer":
+                tables = [api_table("Enkeltimer", ["started_at", "ended_at", "room", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"], [api_pick(row, SUN2_SESSION_COLUMNS) for row in latest_sessions])]
             return {
-                "title": "Soling",
+                "title": "Soling" if not view else f"Soling · {view.replace('-', ' ')}",
                 "subtitle": "SUN2 enkeltimer, rom, senger og medlemsgrunnlag.",
                 "cards": [
                     api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2"),
@@ -11345,10 +11491,7 @@ async def api_v2_module(module: str):
                     api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue"),
                     api_card("Medlemmer", members, "stk", "Importert fra SUN2", "status"),
                 ],
-                "tables": [
-                    api_table("Siste solinger", ["started_at", "room", "duration_minutes", "paid_amount_kr", "user_name", "status"], [api_pick(row, SUN2_SESSION_COLUMNS) for row in latest_sessions]),
-                    api_table("Senger", ["physical_room_number", "name", "bed_model", "status", "current_price_per_min", "imported_at"], [api_pick(row, SUN2_BED_COLUMNS) for row in beds]),
-                ],
+                "tables": tables,
             }
 
         if module == "energi":
@@ -11372,9 +11515,35 @@ async def api_v2_module(module: str):
             loads = (
                 await session.execute(select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.name.asc()).limit(120))
             ).scalars().all()
+            elvia_rows = (
+                await session.execute(select(EnergyHourlyConsumption).order_by(EnergyHourlyConsumption.measured_at.desc()).limit(120))
+            ).scalars().all()
+            elvia_imports = (
+                await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(80))
+            ).scalars().all()
             total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows)
+            tables = [
+                api_table("Siste energisamples", ["bucket_start", "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w"], [api_pick(row, ENERGY_FIBARO_COLUMNS) for row in recent]),
+                api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status"], [circuit_row_api(row) for row in circuits]),
+                api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads]),
+            ]
+            if view == "kurser":
+                tables = [api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status", "note"], [circuit_row_api(row) for row in circuits])]
+            elif view == "laster":
+                tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads])]
+            elif view == "elvia":
+                tables = [
+                    api_table("Elvia timer", ["measured_at", "stat_date", "hour", "consumption_kwh", "status", "is_estimated", "source"], [api_pick(row, ENERGY_HOURLY_COLUMNS) for row in elvia_rows]),
+                    api_table("Elvia importer", ["timestamp", "period_first", "period_last", "hours_count", "total_kwh", "ok", "message"], [api_pick(row, ENERGY_IMPORT_COLUMNS) for row in elvia_imports]),
+                ]
+            elif view == "forbruk-per-seng":
+                sunbed_circuits = {row.circuit_no for row in circuits if energy_circuit_is_sunbed(row)}
+                tables = [
+                    api_table("Solrelaterte kurser", ["circuit_no", "description", "breaker", "status", "note"], [circuit_row_api(row) for row in circuits if row.circuit_no in sunbed_circuits]),
+                    api_table("Solrelaterte laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads if row.circuit_no in sunbed_circuits or (row.load_type or "").lower().find("sol") >= 0]),
+                ]
             return {
-                "title": "Energi",
+                "title": "Energi" if not view else f"Energi · {view.replace('-', ' ')}",
                 "subtitle": "Realtime HC3-måling, kursregister og lastregister.",
                 "cards": [
                     api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy"),
@@ -11382,11 +11551,7 @@ async def api_v2_module(module: str):
                     api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy"),
                     api_card("Laster", len(loads), "stk", "Aktive og registrerte", "status"),
                 ],
-                "tables": [
-                    api_table("Siste energisamples", ["bucket_start", "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w"], [api_pick(row, ENERGY_FIBARO_COLUMNS) for row in recent]),
-                    api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status"], [circuit_row_api(row) for row in circuits]),
-                    api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads]),
-                ],
+                "tables": tables,
             }
 
         if module == "ventilasjon":
@@ -11403,8 +11568,19 @@ async def api_v2_module(module: str):
                 await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(80))
             ).scalars().all()
             fan_on = sum(1 for device in VENT_TIMELINE_DEVICES if latest and sample_state(latest, device) is True)
+            tables = [
+                api_table("Temperatur og fukt", ["bucket_start", "temp_avg_inne", "temp_ute", "temp_loft", "temp_luftinntak", "temp_kjeller", "humidity_1etg", "humidity_2etg", "humidity_vip", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], [api_pick(row, VENT_SAMPLE_COLUMNS) for row in samples]),
+                api_table("Yr", ["bucket_start", "weather_text", "air_temperature", "relative_humidity", "wind_speed", "wind_speed_of_gust", "cloud_area_fraction", "precipitation_next_1h"], [api_pick(row, YR_SAMPLE_COLUMNS) for row in yr_rows]),
+                api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], [api_pick(row, VENT_COLUMNS) for row in events]),
+            ]
+            if view in {"temp-logg", "dagslogg"}:
+                tables = [tables[0]]
+            elif view == "yr-logg":
+                tables = [tables[1]]
+            elif view == "hendelser":
+                tables = [tables[2]]
             return {
-                "title": "Ventilasjon",
+                "title": "Ventilasjon" if not view else f"Ventilasjon · {view.replace('-', ' ')}",
                 "subtitle": "Temperatur, fukt, Yr og viftestatus.",
                 "cards": [
                     api_card("Innetemp", format_short_number(latest.temp_avg_inne if latest else None, 1), "grader", "Snitt inne", "vent"),
@@ -11412,11 +11588,7 @@ async def api_v2_module(module: str):
                     api_card("Vifter", f"{fan_on}/{len(VENT_TIMELINE_DEVICES)}", "på", latest.mode if latest and latest.mode else "", "vent"),
                     api_card("Yr", yr_rows[0].weather_text if yr_rows else "-", "", f"Vind {format_short_number(yr_rows[0].wind_speed if yr_rows else None, 1)} m/s", "weather"),
                 ],
-                "tables": [
-                    api_table("Temperatur og fukt", ["bucket_start", "temp_avg_inne", "temp_ute", "temp_loft", "temp_luftinntak", "temp_kjeller", "humidity_1etg", "humidity_2etg", "humidity_vip", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], [api_pick(row, VENT_SAMPLE_COLUMNS) for row in samples]),
-                    api_table("Yr", ["bucket_start", "weather_text", "air_temperature", "relative_humidity", "wind_speed", "wind_speed_of_gust", "cloud_area_fraction", "precipitation_next_1h"], [api_pick(row, YR_SAMPLE_COLUMNS) for row in yr_rows]),
-                    api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], [api_pick(row, VENT_COLUMNS) for row in events]),
-                ],
+                "tables": tables,
             }
 
         if module == "lys":
@@ -11430,8 +11602,16 @@ async def api_v2_module(module: str):
                 await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(120))
             ).scalars().all()
             light_on = sum(1 for device in LIGHT_TIMELINE_DEVICES if latest and light_sample_state(latest, device) is True)
+            tables = [
+                api_table("Lux-samples", ["bucket_start", "mode", "lux", "light_lyslist", "light_reklame", "light_spot_glass_275", "light_spot_glass_299", "light_spot_inngang", "light_parkering", "weather_text"], [api_pick(row, LIGHT_SAMPLE_COLUMNS) for row in samples]),
+                api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "lux", "state"], [api_pick(row, LIGHT_COLUMNS) for row in events]),
+            ]
+            if view == "hendelser":
+                tables = [tables[1]]
+            elif view in {"lux-logging", "dagslogg"}:
+                tables = [tables[0]]
             return {
-                "title": "Lys",
+                "title": "Lys" if not view else f"Lys · {view.replace('-', ' ')}",
                 "subtitle": "Utelys, lux, modus og hendelser.",
                 "cards": [
                     api_card("Lux", format_short_number(latest.lux if latest else None), "", latest.mode if latest and latest.mode else "", "light"),
@@ -11439,10 +11619,7 @@ async def api_v2_module(module: str):
                     api_card("Siste sample", latest.bucket_start.strftime("%H:%M") if latest and latest.bucket_start else "-", "", "Dagslogg", "status"),
                     api_card("Hendelser", len(events), "siste", "Siste loggede lysendringer", "status"),
                 ],
-                "tables": [
-                    api_table("Lux-samples", ["bucket_start", "mode", "lux", "light_lyslist", "light_reklame", "light_spot_glass_275", "light_spot_glass_299", "light_spot_inngang", "light_parkering", "weather_text"], [api_pick(row, LIGHT_SAMPLE_COLUMNS) for row in samples]),
-                    api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "lux", "state"], [api_pick(row, LIGHT_COLUMNS) for row in events]),
-                ],
+                "tables": tables,
             }
 
         if module == "renhold":
