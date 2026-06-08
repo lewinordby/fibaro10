@@ -216,9 +216,9 @@
                         <span class="section-meta">værgrunnlag</span>
                     </div>
                     <div class="metric-grid">
-                        <div class="metric primary"><span class="metric-label">Ute brukt</span><span class="metric-values"><span class="metric-value">{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_ute is not none %}{{ "%.0f"|format(row.humidity_ute) }}%{% endif %}</span></span></div>
-                        <div class="metric"><span class="metric-label">Yr</span><span class="metric-values"><span class="metric-value">{% if row.temp_yr is not none %}{{ "%.1f"|format(row.temp_yr) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_yr is not none %}{{ "%.0f"|format(row.humidity_yr) }}%{% endif %}</span></span></div>
-                        <div class="metric wide"><span class="metric-label">Netatmo ute</span><span class="metric-values"><span class="metric-value">{% if row.temp_ute_netatmo is not none %}{{ "%.1f"|format(row.temp_ute_netatmo) }}°{% else %}-{% endif %}</span></span></div>
+                        <div class="metric primary"><span class="metric-label">Styring</span><span class="metric-values"><span class="metric-value">{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}°{% else %}-{% endif %}</span><span class="metric-muted">brukt</span></span></div>
+                        <div class="metric"><span class="metric-label">Netatmo</span><span class="metric-values"><span class="metric-value">{% if row.temp_ute_netatmo is not none %}{{ "%.1f"|format(row.temp_ute_netatmo) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_ute is not none %}{{ "%.0f"|format(row.humidity_ute) }}%{% endif %}</span></span></div>
+                        <div class="metric wide"><span class="metric-label">Yr</span><span class="metric-values"><span class="metric-value">{% if row.temp_yr is not none %}{{ "%.1f"|format(row.temp_yr) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_yr is not none %}{{ "%.0f"|format(row.humidity_yr) }}%{% endif %}</span></span></div>
                     </div>
                 </section>
                 <section class="metric-section">
