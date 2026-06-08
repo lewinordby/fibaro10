@@ -1,9 +1,11 @@
 import { CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
 import { Card, Col, List, Row, Space, Tag, Typography } from "antd";
+import { Link } from "react-router-dom";
 import { fetchOverview } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import MetricCard from "../components/MetricCard";
 import { useAsyncData } from "../hooks";
+import { appPath } from "../navigation";
 
 function stateTag(state: boolean | null) {
   if (state === true) return <Tag color="green">På</Tag>;
@@ -25,6 +27,13 @@ export default function OverviewPage() {
 
   const keyCards = data.cards.slice(0, 12);
   const secondaryCards = data.cards.slice(12);
+
+  function itemTitle(item: { href?: string; label: string }) {
+    const internalPath = appPath(item.href);
+    if (internalPath) return <Link to={internalPath}>{item.label}</Link>;
+    if (item.href) return <a href={item.href}>{item.label}</a>;
+    return item.label;
+  }
 
   return (
     <Space direction="vertical" size={18} className="page-stack">
@@ -53,10 +62,11 @@ export default function OverviewPage() {
           <Card title="Siste hendelser" className="work-card">
             <List
               dataSource={data.latestItems}
+              locale={{ emptyText: "Ingen hendelser å vise" }}
               renderItem={(item) => (
                 <List.Item>
                   <List.Item.Meta
-                    title={item.href ? <a href={item.href}>{item.label}</a> : item.label}
+                    title={itemTitle(item)}
                     description={item.detail || ""}
                   />
                   <span className="list-value">{item.value}</span>
@@ -69,6 +79,7 @@ export default function OverviewPage() {
           <Card title="Datakilder" className="work-card">
             <List
               dataSource={data.services.slice(0, 7)}
+              locale={{ emptyText: "Ingen datakilder å vise" }}
               renderItem={(item) => (
                 <List.Item>
                   <Space>

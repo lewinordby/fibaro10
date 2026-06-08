@@ -267,6 +267,7 @@ export default function ModulePage({ module }: { module: string }) {
   if (!isKnownView) return <Navigate to={modulePath(module)} replace />;
 
   async function handleAction(action: ModuleAction) {
+    if (runningAction) return;
     const runAction = async () => {
       setRunningAction(action.key);
       try {

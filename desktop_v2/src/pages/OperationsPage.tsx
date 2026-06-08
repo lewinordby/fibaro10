@@ -35,6 +35,7 @@ export default function OperationsPage() {
       <Card className="work-card" title="Datakilder">
         <List
           dataSource={data.services}
+          locale={{ emptyText: "Ingen datakilder å vise" }}
           renderItem={(item) => (
             <List.Item
               actions={[

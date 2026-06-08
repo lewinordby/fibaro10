@@ -152,6 +152,7 @@ export default function RevenueMonthPage() {
           columns={columns}
           dataSource={data.rows}
           pagination={false}
+          locale={{ emptyText: "Ingen omsetningsrader å vise" }}
           rowClassName={(row) => [row.isToday ? "row-today" : "", row.isWeekend ? "row-weekend" : ""].join(" ")}
           summary={(rows) => (
             <Table.Summary fixed>
