@@ -100,10 +100,15 @@ async function apiGet<T>(path: string): Promise<T> {
     credentials: "same-origin",
     headers: { Accept: "application/json" },
   });
+  const payload = (await response.json().catch(() => null)) as unknown;
   if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+    const errorPayload = payload as { detail?: unknown; message?: unknown } | null;
+    const message = errorPayload
+      ? String(errorPayload.message || errorPayload.detail || `${response.status} ${response.statusText}`)
+      : `${response.status} ${response.statusText}`;
+    throw new Error(message);
   }
-  return response.json() as Promise<T>;
+  return payload as T;
 }
 
 export function fetchOverview(): Promise<OverviewResponse> {

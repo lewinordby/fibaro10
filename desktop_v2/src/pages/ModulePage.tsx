@@ -1,11 +1,12 @@
-import { Button, Card, Input, Segmented, Space, Table, Tabs, Tag, Typography, message } from "antd";
+import { App as AntApp, Button, Card, Input, Segmented, Space, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import type { ReactNode } from "react";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { fetchModule, runModuleAction, type ModuleAction, type ModuleCard, type ModuleTable } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
-import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
+import { defaultModuleView, moduleLabel, modulePath, MODULE_VIEWS } from "../moduleViews";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -30,22 +31,143 @@ function labelize(column: string): string {
   const labels: Record<string, string> = {
     bucket_start: "Tid",
     timestamp: "Tid",
+    created_at: "Opprettet",
     start_time: "Start",
     started_at: "Start",
+    begin_at: "Start",
     end_time: "Slutt",
+    ended_at: "Slutt",
+    end_at: "Slutt",
     car_license_number: "Reg.nr",
+    plate: "Reg.nr",
+    navn: "Navn",
+    omrade: "Område",
+    parking_area: "Område",
     fee_inc_vat: "Beløp",
     paid_amount_kr: "Beløp",
+    paid_total: "Sum betalt",
+    paid: "Betalt",
+    first_seen: "Først sett",
+    last_seen: "Sist sett",
+    sun2_id: "SUN2-ID",
     parking_time_min: "Min",
+    parkering_count: "Parkeringer",
     duration_minutes: "Min",
+    room: "Rom",
+    user_name: "Bruker",
+    payment_method: "Betaling",
+    customer_type: "Kundetype",
+    physical_room_number: "Rom",
+    room_id: "Rom-ID",
+    bed_model: "Sengemodell",
+    current_price_per_min: "Kr/min",
+    max_minutes: "Maks min",
+    lamp_status: "Lampe",
+    imported_at: "Importert",
+    last_seen_at: "Sist sett",
+    visits_count: "Besøk",
+    total_spent_kr: "Total kjøp",
+    balance_kr: "Saldo",
+    stat_date: "Dato",
+    total_soletid_minutter: "Soltid min",
+    totalt_antall_solinger: "Solinger",
+    totalt_inntjent_kr: "Omsetning",
+    solinger_medlemmer: "Medlemmer",
+    solinger_ikke_medlemmer: "Ikke medlemmer",
+    period_type: "Periode",
+    period_start: "Fra",
+    period_end: "Til",
+    forecast_sessions: "Prognose økter",
+    forecast_paid: "Prognose kr",
+    forecast_minutes: "Prognose min",
+    actual_sessions_at_save: "Faktiske økter",
+    actual_paid_at_save: "Faktisk kr",
     circuit_no: "Kurs",
+    description: "Beskrivelse",
+    breaker: "Sikring",
+    breaker_type: "Type",
+    is_sunbed: "Solseng",
+    note: "Notat",
+    name: "Navn",
+    load_type: "Lasttype",
+    area: "Område",
     expected_power_w: "Forventet W",
+    fibaro_device_id: "HC3-enhet",
+    fibaro_meter_id: "HC3-måler",
+    active: "Aktiv",
     inntak_w: "Inntak W",
+    varmepumper_w: "Varmepumper W",
+    belysning_w: "Belysning W",
+    massasje_w: "Massasje W",
+    annet_w: "Annet W",
+    avfukter_w: "Avfukter W",
     differanse_beregnet_w: "Diff W",
+    measured_at: "Målt",
+    hour: "Time",
+    consumption_kwh: "kWh",
+    is_estimated: "Estimert",
+    source: "Kilde",
+    period_first: "Fra",
+    period_last: "Til",
+    hours_count: "Timer",
+    total_kwh: "kWh total",
+    ok: "OK",
+    message: "Melding",
     temp_avg_inne: "Inne",
     temp_ute: "Ute",
+    temp_loft: "Loft",
+    temp_luftinntak: "Innluft",
+    temp_kjeller: "Kjeller",
+    humidity_1etg: "Fukt 1. etg",
+    humidity_2etg: "Fukt 2. etg",
+    humidity_vip: "Fukt VIP",
     humidity_kjeller: "Fukt kjeller",
+    fan_vip: "VIP-vifte",
+    fan_2etg: "2. etg vifte",
+    fan_tak: "Takvifte",
+    fan_avfukter: "Avfukter",
     weather_text: "Vær",
+    air_temperature: "Lufttemp",
+    relative_humidity: "Fukt ute",
+    wind_speed: "Vind",
+    wind_speed_of_gust: "Vindkast",
+    cloud_area_fraction: "Skydekke",
+    precipitation_next_1h: "Nedbør 1t",
+    action: "Handling",
+    device_name: "Enhet",
+    mode: "Modus",
+    reason: "Årsak",
+    state: "Status",
+    lux: "Lux",
+    light_lyslist: "Lyslist",
+    light_reklame: "Reklame",
+    light_spot_glass_275: "Spot 275",
+    light_spot_glass_299: "Spot 299",
+    light_spot_inngang: "Inngang",
+    light_parkering: "Parkering",
+    cloud_online: "Online",
+    local_ip: "IP",
+    battery: "Batteri",
+    last_error: "Siste feil",
+    cleaned_area_m2: "Areal m²",
+    complete: "Ferdig",
+    error_code: "Feilkode",
+    finish_reason: "Avslutning",
+    robot_duid: "Robot",
+    state_name: "Status",
+    clean_area_m2: "Areal m²",
+    rssi: "RSSI",
+    title: "Tittel",
+    category: "Kategori",
+    status: "Status",
+    status_text: "Status",
+    age: "Alder",
+    last_success_at: "Sist OK",
+    build: "Build",
+    date: "Dato",
+    username: "Bruker",
+    question: "Spørsmål",
+    error: "Feil",
   };
   return labels[column] ?? column.replaceAll("_", " ");
 }
@@ -91,39 +213,96 @@ function ModuleMetric({ card }: { card: ModuleCard }) {
   );
 }
 
+function countText(filteredCount: number, totalCount: number, query: string): string {
+  if (query.trim() && filteredCount !== totalCount) return `Viser ${filteredCount} av ${totalCount} rader`;
+  return `${totalCount} rader`;
+}
+
+function tabLabel(table: ModuleTable, query: string): ReactNode {
+  const filteredCount = filterRows(table.rows, table.columns, query).length;
+  return (
+    <span>
+      {table.title}
+      <span className="tab-count">{query.trim() ? `${filteredCount}/${table.rows.length}` : table.rows.length}</span>
+    </span>
+  );
+}
+
+function ModuleTablePane({ table, query }: { table: ModuleTable; query: string }) {
+  const filteredRows = filterRows(table.rows, table.columns, query);
+  return (
+    <Space direction="vertical" size={8} className="table-pane">
+      <Typography.Text type="secondary">
+        {countText(filteredRows.length, table.rows.length, query)}
+      </Typography.Text>
+      <Table
+        rowKey={(_, index) => `${table.title}-${index}`}
+        size="small"
+        columns={moduleColumns(table)}
+        dataSource={filteredRows}
+        pagination={{ pageSize: 25, showSizeChanger: true }}
+        scroll={{ x: "max-content" }}
+        locale={{
+          emptyText: query.trim() ? "Ingen treff for søket" : "Ingen rader å vise",
+        }}
+      />
+    </Space>
+  );
+}
+
 export default function ModulePage({ module }: { module: string }) {
   const params = useParams();
   const navigate = useNavigate();
+  const { message, modal } = AntApp.useApp();
   const [query, setQuery] = useState("");
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const view = params.view ?? defaultModuleView(module);
   const viewItems = MODULE_VIEWS[module] ?? [];
-  const { data, loading, error } = useAsyncData(() => fetchModule(module, view), [module, view, reloadToken]);
+  const isKnownView = !viewItems.length || viewItems.some((item) => item.key === view);
+  const safeView = isKnownView ? view : defaultModuleView(module);
+  const activeView = viewItems.find((item) => item.key === safeView);
+  const { data, loading, error } = useAsyncData(() => fetchModule(module, safeView), [module, safeView, reloadToken]);
+
+  if (!isKnownView) return <Navigate to={modulePath(module)} replace />;
 
   async function handleAction(action: ModuleAction) {
-    if (action.confirm && !window.confirm(action.confirm)) return;
-    setRunningAction(action.key);
-    try {
-      const result = await runModuleAction(action);
-      message.success(String(result.message || "Handling utført"));
-      setReloadToken((value) => value + 1);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : "Handling feilet");
-    } finally {
-      setRunningAction(null);
+    const runAction = async () => {
+      setRunningAction(action.key);
+      try {
+        const result = await runModuleAction(action);
+        message.success(String(result.message || "Handling utført"));
+        setReloadToken((value) => value + 1);
+      } catch (err) {
+        message.error(err instanceof Error ? err.message : "Handling feilet");
+      } finally {
+        setRunningAction(null);
+      }
+    };
+
+    if (action.confirm) {
+      modal.confirm({
+        title: action.label,
+        content: action.confirm,
+        okText: "Kjør",
+        cancelText: "Avbryt",
+        onOk: runAction,
+      });
+      return;
     }
+    await runAction();
   }
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
+  const displayTitle = activeView && viewItems.length > 1 ? `${moduleLabel(module)} · ${activeView.label}` : data.title;
 
   return (
     <Space direction="vertical" size={18} className="page-stack">
       <section className="section-head module-head">
         <div>
           <Typography.Text className="eyebrow">Desktop v2</Typography.Text>
-          <Typography.Title level={1}>{data.title}</Typography.Title>
+          <Typography.Title level={1}>{displayTitle}</Typography.Title>
           <Typography.Paragraph>{data.subtitle}</Typography.Paragraph>
         </div>
         {viewItems.length > 1 ? (
@@ -144,6 +323,7 @@ export default function ModulePage({ module }: { module: string }) {
                 key={action.key}
                 type={action.tone === "primary" ? "primary" : "default"}
                 loading={runningAction === action.key}
+                disabled={Boolean(runningAction && runningAction !== action.key)}
                 onClick={() => handleAction(action)}
               >
                 {action.label}
@@ -171,17 +351,8 @@ export default function ModulePage({ module }: { module: string }) {
         <Tabs
           items={data.tables.map((table) => ({
             key: table.title,
-            label: table.title,
-            children: (
-              <Table
-                rowKey={(_, index) => `${table.title}-${index}`}
-                size="small"
-                columns={moduleColumns(table)}
-                dataSource={filterRows(table.rows, table.columns, query)}
-                pagination={{ pageSize: 25, showSizeChanger: true }}
-                scroll={{ x: "max-content" }}
-              />
-            ),
+            label: tabLabel(table, query),
+            children: <ModuleTablePane table={table} query={query} />,
           }))}
         />
       </Card>

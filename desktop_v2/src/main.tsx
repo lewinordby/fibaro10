@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { ConfigProvider } from "antd";
+import { App as AntApp, ConfigProvider } from "antd";
 import nbNO from "antd/locale/nb_NO";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
@@ -34,9 +34,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         },
       }}
     >
-      <BrowserRouter basename="/v2">
-        <App />
-      </BrowserRouter>
+      <AntApp>
+        <BrowserRouter basename="/v2">
+          <App />
+        </BrowserRouter>
+      </AntApp>
     </ConfigProvider>
   </React.StrictMode>,
 );

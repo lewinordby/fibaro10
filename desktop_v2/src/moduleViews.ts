@@ -3,6 +3,16 @@ export type ModuleView = {
   label: string;
 };
 
+export const MODULE_LABELS: Record<string, string> = {
+  parkering: "Parkering",
+  soling: "Soling",
+  energi: "Energi",
+  ventilasjon: "Ventilasjon",
+  lys: "Lys",
+  renhold: "Renhold",
+  admin: "Admin",
+};
+
 export const MODULE_VIEWS: Record<string, ModuleView[]> = {
   parkering: [
     { key: "oversikt", label: "Oversikt" },
@@ -49,6 +59,10 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
 
 export function defaultModuleView(module: string): string {
   return MODULE_VIEWS[module]?.[0]?.key ?? "oversikt";
+}
+
+export function moduleLabel(module: string): string {
+  return MODULE_LABELS[module] ?? module;
 }
 
 export function modulePath(module: string, view?: string): string {

@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1054")
+APP_BUILD = os.getenv("APP_BUILD", "1055")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1055",
+        "date": "08.06.2026",
+        "title": "Finpusser v2 arbeidsflate",
+        "changes": [
+            "Normaliserer ugyldige v2-faner og viser pene modulnavn i sidehodet.",
+            "Legger inn radtelling, treffstatus og bedre tomvisning i modul-tabeller.",
+            "Forbedrer handlingsdialoger og API-feilmeldinger i desktop v2.",
+        ],
+    },
     {
         "version": "1",
         "build": "1054",
