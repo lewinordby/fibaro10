@@ -90,8 +90,11 @@
             .metric-section.single .metric-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 560px) {
-            .top { grid-template-columns: 1fr auto; gap: 0.55rem; }
-            .fan-grid { grid-column: 1 / -1; padding: 0; }
+            .top { grid-template-columns: 1fr auto; gap: 0.55rem; padding: 0.62rem 0.68rem; }
+            .fan-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; }
+            .fan-card { grid-template-columns: 1fr; justify-items: center; padding: 0.28rem 0.36rem; border-radius: 7px; }
+            .fan-icon { display: none; }
+            .fan-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; text-align: center; font-size: 0.72rem; }
             .rule-body { right: -0.15rem; width: calc(100vw - 1.7rem); }
         }
         @media (prefers-reduced-motion: reduce) {

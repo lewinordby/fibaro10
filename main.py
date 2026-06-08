@@ -88,8 +88,18 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1036")
+APP_BUILD = os.getenv("APP_BUILD", "1037")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1037",
+        "date": "08.06.2026",
+        "title": "Strammer mobilvisning",
+        "changes": [
+            "Gjør viftestatus mer kompakt på mobil i temp-loggen.",
+            "Reduserer høyden på hvert målekort uten å fjerne statusinformasjon.",
+        ],
+    },
     {
         "version": "1",
         "build": "1036",
