@@ -229,8 +229,6 @@
                     <div class="metric-grid">
                         <div class="metric primary"><span class="metric-label">Loft</span><span class="metric-values"><span class="metric-value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_loft is not none %}{{ "%.0f"|format(row.humidity_loft) }}%{% endif %}</span></span></div>
                         <div class="metric primary"><span class="metric-label">Innluft</span><span class="metric-values"><span class="metric-value">{% if row.temp_luftinntak is not none %}{{ "%.1f"|format(row.temp_luftinntak) }}°{% elif row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span><span class="metric-humidity">{% if row.humidity_luftinntak is not none %}{{ "%.0f"|format(row.humidity_luftinntak) }}%{% elif row.humidity_passiv is not none %}{{ "%.0f"|format(row.humidity_passiv) }}%{% endif %}</span></span></div>
-                        <div class="metric technical"><span class="metric-label">Diff</span><span class="metric-values"><span class="metric-value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span><span class="metric-muted">W</span></span></div>
-                        <div class="metric technical compact"><span class="metric-label">Kilde</span><span class="metric-values"><span class="metric-value">{{ row.source or "-" }}</span></span></div>
                     </div>
                 </section>
                 <section class="metric-section single">
