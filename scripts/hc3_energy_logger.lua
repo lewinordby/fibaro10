@@ -1,7 +1,7 @@
 --[[
   LILLETORGET - ENERGILOGGING TIL FIBARO10
 
-  Logger realtime effekt (W) og akkumulert energi (kWh) hvert minutt.
+  Logger realtime effekt (W) og akkumulert energi (kWh) hvert 30. sekund.
   Fibaro10 beregner forbruksdelta fra realtime W. Akkumulert kWh logges som kontroll.
   Differanse fra Fibaro sendes med som kontrollverdi, men fibaro10 beregner
   egen differanse fra Inntak minus Varmepumper, Belysning, Massasje og Annet.
@@ -17,7 +17,7 @@
 -- ============================================================
 
 local API_URL = "http://192.168.20.218:8110/api/energi/fibaro"
-local SOURCE = "HC3 ENERGI | 1MIN"
+local SOURCE = "HC3 ENERGI | 30SEC"
 local INTERVAL_SECONDS = 30
 
 local REALTIME_IDS = {
