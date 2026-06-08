@@ -54,6 +54,7 @@
         <div class="nav-row nav-sub {% if is_status %}active-section{% endif %}" aria-label="Undermeny for status">
             {{ sub_button("/status/dashboard", "Dashboard", "dashboard", current_path == "/status/dashboard") }}
             {{ sub_button("/status/nokkeltall", "Nokkeltall", "dashboard", current_path == "/status/nokkeltall") }}
+            {{ sub_button("/status/omsetning", "Omsetning", "chart", current_path == "/status/omsetning") }}
             {{ sub_button("/status/dagslinje", "Dagslinje", "timeline", current_path == "/status/dagslinje") }}
             {{ sub_button("/status/statistikk", "Statistikk", "chart", current_path == "/status/statistikk") }}
             {{ sub_button("/status/datakilder", "Datakilder", "list", current_path == "/status/datakilder") }}

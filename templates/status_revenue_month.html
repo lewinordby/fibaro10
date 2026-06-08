@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omsetning</title>
+    {% include "_styles.html" %}
+    <style>
+        body.theme-status main { max-width: 1540px; }
+        .revenue-page { display: grid; gap: 0.78rem; }
+        .revenue-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 1rem;
+            padding: 0.18rem 0.08rem 0.34rem;
+            border-bottom: 1px solid #dce4ee;
+        }
+        .revenue-head h1 { margin: 0; color: #071943; font-size: 1.32rem; line-height: 1.08; }
+        .revenue-head p { margin: 0.18rem 0 0; color: #667085; font-size: 0.78rem; }
+        .month-nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.36rem; }
+        .month-nav a {
+            display: inline-flex;
+            align-items: center;
+            min-height: 2rem;
+            padding: 0 0.62rem;
+            border: 1px solid #dce4ee;
+            border-radius: 7px;
+            background: #fff;
+            color: #071943;
+            font-size: 0.72rem;
+            font-weight: 820;
+            text-decoration: none;
+        }
+        .month-nav a:hover { border-color: #b9c7d8; background: #f8fafc; }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 0.48rem;
+        }
+        .summary-card,
+        .chart-panel,
+        .day-table-panel {
+            min-width: 0;
+            border: 1px solid #dce4ee;
+            border-radius: 7px;
+            background: #fff;
+            box-shadow: 0 3px 10px rgba(7,25,67,0.026);
+        }
+        .summary-card {
+            display: grid;
+            gap: 0.08rem;
+            padding: 0.5rem 0.58rem;
+            border-top: 3px solid var(--tone, #071943);
+        }
+        .summary-card.sun { --tone: #d66d5b; }
+        .summary-card.parking { --tone: #4e8793; }
+        .summary-card span,
+        .chart-panel h2,
+        .day-table-panel h2 {
+            color: #667085;
+            font-size: 0.58rem;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+        .summary-card strong {
+            color: #071943;
+            font-size: 1.08rem;
+            line-height: 1.05;
+            overflow-wrap: anywhere;
+        }
+        .summary-card small { color: #536276; font-size: 0.68rem; line-height: 1.2; }
+        .chart-panel { padding: 0.72rem; overflow: hidden; }
+        .chart-top {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.58rem;
+        }
+        .chart-panel h2,
+        .day-table-panel h2 { margin: 0; color: #071943; font-size: 0.86rem; text-transform: none; }
+        .chart-top p { margin: 0.12rem 0 0; color: #667085; font-size: 0.72rem; }
+        .legend { display: flex; gap: 0.58rem; flex-wrap: wrap; color: #536276; font-size: 0.72rem; font-weight: 760; }
+        .legend span { display: inline-flex; align-items: center; gap: 0.28rem; }
+        .legend i { width: 0.62rem; height: 0.62rem; border-radius: 3px; display: inline-block; }
+        .legend .sun i { background: #d66d5b; }
+        .legend .parking i { background: #4e8793; }
+        .bars {
+            display: grid;
+            grid-template-columns: repeat({{ rows|length }}, minmax(1.25rem, 1fr));
+            gap: 0.22rem;
+            align-items: end;
+            min-height: 24rem;
+            padding: 0.55rem 0.2rem 0.1rem;
+            border: 1px solid #eef3f7;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #fff 0%, #fff 24%, #f8fafc 24%, #f8fafc 25%, #fff 25%, #fff 49%, #f8fafc 49%, #f8fafc 50%, #fff 50%, #fff 74%, #f8fafc 74%, #f8fafc 75%, #fff 75%);
+            overflow-x: auto;
+        }
+        .day-bar {
+            display: grid;
+            grid-template-rows: 1fr auto auto;
+            gap: 0.28rem;
+            min-width: 1.25rem;
+            color: #071943;
+            text-decoration: none;
+        }
+        .bar-stack {
+            position: relative;
+            display: flex;
+            flex-direction: column-reverse;
+            justify-content: flex-start;
+            align-items: stretch;
+            height: 20rem;
+            min-width: 0;
+            border-radius: 6px 6px 3px 3px;
+            background: rgba(220,228,238,0.42);
+            overflow: hidden;
+        }
+        .bar-segment { display: block; min-height: 0; }
+        .bar-segment.sun { background: #d66d5b; }
+        .bar-segment.parking { background: #4e8793; }
+        .day-bar.is-today .bar-stack { outline: 2px solid #071943; outline-offset: 2px; }
+        .day-bar.is-weekend .day-label { color: #9a660f; }
+        .day-value {
+            color: #071943;
+            font-size: 0.62rem;
+            font-weight: 820;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .day-label {
+            color: #667085;
+            font-size: 0.58rem;
+            font-weight: 780;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .day-bar:hover .bar-stack { filter: brightness(0.98); box-shadow: 0 0 0 2px rgba(7,25,67,0.12); }
+        .day-bar:hover .day-value { color: #000; }
+        .day-table-panel { padding: 0.72rem; }
+        .table-wrap { overflow: auto; border: 1px solid #eef3f7; border-radius: 8px; }
+        .revenue-table { width: 100%; border-collapse: collapse; min-width: 760px; }
+        .revenue-table th,
+        .revenue-table td {
+            padding: 0.44rem 0.52rem;
+            border-bottom: 1px solid #eef3f7;
+            font-size: 0.76rem;
+            text-align: right;
+            white-space: nowrap;
+        }
+        .revenue-table th:first-child,
+        .revenue-table td:first-child { text-align: left; }
+        .revenue-table th {
+            color: #667085;
+            background: #f8fafc;
+            font-size: 0.62rem;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+        .revenue-table tr:last-child td { border-bottom: 0; }
+        .money { color: #8a5a17; font-weight: 860; }
+        .muted { color: #667085; }
+        @media (max-width: 1280px) {
+            .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .bars { min-height: 20rem; }
+            .bar-stack { height: 16rem; }
+        }
+        @media (max-width: 760px) {
+            .revenue-head { display: grid; }
+            .summary-grid { grid-template-columns: 1fr; }
+            .month-nav { justify-content: stretch; }
+            .month-nav a { flex: 1 1 auto; justify-content: center; }
+        }
+    </style>
+</head>
+<body class="theme-status">
+    {% include "_header.html" %}
+    <main>
+        <div class="revenue-page">
+            <section class="revenue-head">
+                <div>
+                    <h1>Omsetning {{ summary.label }}</h1>
+                    <p>M&aring;nedsgraf med soling og parkering stablet per dag.</p>
+                </div>
+                <nav class="month-nav" aria-label="Velg m&aring;ned">
+                    <a href="/status/omsetning?month={{ summary.previous_month }}">Forrige</a>
+                    <a href="/status/omsetning?month={{ summary.current_month }}">Denne m&aring;neden</a>
+                    <a href="/status/omsetning?month={{ summary.next_month }}">Neste</a>
+                </nav>
+            </section>
+
+            <section class="summary-grid" aria-label="M&aring;nedssammendrag">
+                <article class="summary-card">
+                    <span>Total</span>
+                    <strong>{{ summary.total|short_number }} kr</strong>
+                    <small>{{ summary.label }}</small>
+                </article>
+                <article class="summary-card sun">
+                    <span>Soling</span>
+                    <strong>{{ summary.sol|short_number }} kr</strong>
+                    <small>{{ summary.sol_count|short_number }} solinger</small>
+                </article>
+                <article class="summary-card parking">
+                    <span>Parkering</span>
+                    <strong>{{ summary.parking|short_number }} kr</strong>
+                    <small>{{ summary.parking_count|short_number }} parkeringer</small>
+                </article>
+                <article class="summary-card">
+                    <span>Beste dag</span>
+                    <strong>{% if summary.top_day %}{{ summary.top_day.total|short_number }} kr{% else %}-{% endif %}</strong>
+                    <small>{% if summary.top_day %}{{ summary.top_day.weekday }} {{ summary.top_day.day_label }}{% else %}Ingen data{% endif %}</small>
+                </article>
+                <article class="summary-card">
+                    <span>I dag</span>
+                    <strong>{% if summary.today_row %}{{ summary.today_row.total|short_number }} kr{% else %}-{% endif %}</strong>
+                    <small>{% if summary.today_row %}Sol {{ summary.today_row.sol|short_number }} / park {{ summary.today_row.parking|short_number }}{% else %}Utenfor valgt m&aring;ned{% endif %}</small>
+                </article>
+                <article class="summary-card">
+                    <span>Skala</span>
+                    <strong>{{ summary.max_total|short_number }} kr</strong>
+                    <small>H&oslash;yeste dagsomsetning</small>
+                </article>
+            </section>
+
+            <section class="chart-panel" aria-label="M&aring;nedlig omsetningsdiagram">
+                <div class="chart-top">
+                    <div>
+                        <h2>Dag for dag</h2>
+                        <p>Hold pekeren over en s&oslash;yle for eksakte tall. M&oslash;rk bl&aring; er parkering, r&oslash;d er soling.</p>
+                    </div>
+                    <div class="legend">
+                        <span class="sun"><i aria-hidden="true"></i>Soling</span>
+                        <span class="parking"><i aria-hidden="true"></i>Parkering</span>
+                    </div>
+                </div>
+                <div class="bars">
+                    {% for row in rows %}
+                    <a class="day-bar {% if row.is_today %}is-today{% endif %} {% if row.is_weekend %}is-weekend{% endif %}"
+                       href="/status/omsetning?month={{ summary.month }}#day-{{ row.day.isoformat() }}"
+                       title="{{ row.weekday }} {{ row.day_label }}: {{ row.total|short_number }} kr. Sol {{ row.sol|short_number }} kr, park {{ row.parking|short_number }} kr.">
+                        <span class="bar-stack" aria-label="{{ row.weekday }} {{ row.day_label }} omsetning {{ row.total|short_number }} kr">
+                            <span class="bar-segment parking" style="height:{{ '%.2f'|format(row.parking_pct) }}%"></span>
+                            <span class="bar-segment sun" style="height:{{ '%.2f'|format(row.sol_pct) }}%"></span>
+                        </span>
+                        <span class="day-value">{% if row.total %}{{ row.total|short_number }}{% else %}-{% endif %}</span>
+                        <span class="day-label">{{ row.day.day }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="day-table-panel" aria-label="Dagsliste">
+                <h2>Dagsliste</h2>
+                <div class="table-wrap">
+                    <table class="revenue-table">
+                        <thead>
+                            <tr>
+                                <th>Dag</th>
+                                <th>Total kr</th>
+                                <th>Sol kr</th>
+                                <th>Park kr</th>
+                                <th>Solinger</th>
+                                <th>Parkeringer</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                            <tr id="day-{{ row.day.isoformat() }}">
+                                <td>{{ row.weekday }} {{ row.day_label }}</td>
+                                <td class="money">{{ row.total|short_number }}</td>
+                                <td>{{ row.sol|short_number }}</td>
+                                <td>{{ row.parking|short_number }}</td>
+                                <td class="muted">{{ row.sol_count|short_number }}</td>
+                                <td class="muted">{{ row.parking_count|short_number }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1049")
+APP_BUILD = os.getenv("APP_BUILD", "1050")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1050",
+        "date": "08.06.2026",
+        "title": "Maanedsgraf for omsetning",
+        "changes": [
+            "Legger inn egen Status/Omsetning-side med stablet soylediagram for en hel maaned.",
+            "Viser soling og parkering per dag med maanedssummer og navigasjon mellom maaneder.",
+            "Bruker hovedappens databasegrunnlag og ikke mobilappens online-dashboardkode.",
+        ],
+    },
     {
         "version": "1",
         "build": "1049",
@@ -5391,6 +5402,34 @@ def operating_window(now: datetime) -> Dict[str, Any]:
     return {"label": "Apent", "detail": "Stenger 23:00", "progress": max(0, min(100, progress))}
 
 
+def normalize_month(value: Optional[str], fallback: date) -> date:
+    if value:
+        try:
+            year_text, month_text = value.split("-", 1)
+            year = int(year_text)
+            month = int(month_text)
+            if 1 <= month <= 12:
+                return date(year, month, 1)
+        except (TypeError, ValueError):
+            pass
+    return fallback.replace(day=1)
+
+
+def add_months(day: date, months: int) -> date:
+    month_index = day.month - 1 + months
+    year = day.year + month_index // 12
+    month = month_index % 12 + 1
+    return date(year, month, 1)
+
+
+def month_label(day: date) -> str:
+    month_names = [
+        "januar", "februar", "mars", "april", "mai", "juni",
+        "juli", "august", "september", "oktober", "november", "desember",
+    ]
+    return f"{month_names[day.month - 1].capitalize()} {day.year}"
+
+
 @lru_cache(maxsize=64)
 def easter_sunday(year: int) -> date:
     a = year % 19
@@ -10458,7 +10497,7 @@ async def status_key_metrics_view(request: Request):
             "value": dashboard_compare_value(revenue_today, revenue_yesterday),
             "unit": "kr",
             "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr",
-            "href": "/status/statistikk",
+            "href": "/status/omsetning",
             "tone": "revenue",
         },
         {
@@ -10467,7 +10506,7 @@ async def status_key_metrics_view(request: Request):
             "value": format_short_number(revenue_last_week),
             "unit": "kr",
             "detail": f"Sol {format_short_number(last_week_sun.paid)} kr - park {format_short_number(last_week_parking.paid)} kr",
-            "href": "/status/statistikk",
+            "href": "/status/omsetning",
             "tone": "revenue",
         },
         {
@@ -10476,7 +10515,7 @@ async def status_key_metrics_view(request: Request):
             "value": format_short_number(revenue_two_weeks),
             "unit": "kr",
             "detail": f"Sol {format_short_number(two_weeks_sun.paid)} kr - park {format_short_number(two_weeks_parking.paid)} kr",
-            "href": "/status/statistikk",
+            "href": "/status/omsetning",
             "tone": "revenue",
         },
         {
@@ -10485,7 +10524,7 @@ async def status_key_metrics_view(request: Request):
             "value": dashboard_compare_value(revenue_week, revenue_previous_week),
             "unit": "kr",
             "detail": "Denne / forrige uke",
-            "href": "/status/statistikk",
+            "href": "/status/omsetning",
             "tone": "revenue",
         },
         {
@@ -10494,7 +10533,7 @@ async def status_key_metrics_view(request: Request):
             "value": dashboard_compare_value(revenue_month, revenue_previous_month),
             "unit": "kr",
             "detail": "Denne / forrige maned",
-            "href": "/status/statistikk",
+            "href": "/status/omsetning",
             "tone": "revenue",
         },
         {
@@ -10762,6 +10801,100 @@ async def status_key_metrics_view(request: Request):
             "light_items": light_items,
             "fan_items": fan_items,
             "now_status": now_status,
+        },
+    )
+
+
+@app.get("/status/omsetning", response_class=HTMLResponse)
+async def status_revenue_month_view(request: Request, month: Optional[str] = None):
+    today = local_now_naive().date()
+    month_start = normalize_month(month, today)
+    next_month = add_months(month_start, 1)
+    previous_month = add_months(month_start, -1)
+    days_in_month = (next_month - month_start).days
+    async with async_session() as session:
+        sol_rows = (
+            await session.execute(
+                select(
+                    Sun2TanningSession.stat_date.label("day"),
+                    func.count(Sun2TanningSession.id).label("count"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("amount"),
+                )
+                .where(Sun2TanningSession.stat_date >= month_start)
+                .where(Sun2TanningSession.stat_date < next_month)
+                .group_by(Sun2TanningSession.stat_date)
+            )
+        ).mappings().all()
+        parking_day = cast(ParkingSession.start_time, Date)
+        parking_rows = (
+            await session.execute(
+                select(
+                    parking_day.label("day"),
+                    func.count(ParkingSession.id).label("count"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("amount"),
+                )
+                .where(ParkingSession.start_time >= datetime.combine(month_start, time.min))
+                .where(ParkingSession.start_time < datetime.combine(next_month, time.min))
+                .group_by(parking_day)
+            )
+        ).mappings().all()
+
+    sol_by_day = {row["day"]: float_or_zero(row["amount"]) for row in sol_rows}
+    sol_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in sol_rows}
+    parking_by_day = {row["day"]: float_or_zero(row["amount"]) for row in parking_rows}
+    parking_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in parking_rows}
+    rows = []
+    for offset in range(days_in_month):
+        day = month_start + timedelta(days=offset)
+        sol_amount = sol_by_day.get(day, 0.0)
+        parking_amount = parking_by_day.get(day, 0.0)
+        rows.append(
+            {
+                "day": day,
+                "day_label": day.strftime("%d.%m"),
+                "weekday": ["Man", "Tir", "Ons", "Tor", "Fre", "Lor", "Son"][day.weekday()],
+                "sol": sol_amount,
+                "sol_count": sol_count_by_day.get(day, 0),
+                "parking": parking_amount,
+                "parking_count": parking_count_by_day.get(day, 0),
+                "total": sol_amount + parking_amount,
+                "is_today": day == today,
+                "is_weekend": day.weekday() >= 5,
+            }
+        )
+    max_total = max([row["total"] for row in rows] + [1.0])
+    for row in rows:
+        row["sol_pct"] = 0.0 if row["sol"] <= 0 else max(4.0, row["sol"] / max_total * 100)
+        row["parking_pct"] = 0.0 if row["parking"] <= 0 else max(4.0, row["parking"] / max_total * 100)
+        if row["sol_pct"] + row["parking_pct"] > 100:
+            scale = 100.0 / (row["sol_pct"] + row["parking_pct"])
+            row["sol_pct"] *= scale
+            row["parking_pct"] *= scale
+    total_sol = sum(row["sol"] for row in rows)
+    total_parking = sum(row["parking"] for row in rows)
+    top_day = max(rows, key=lambda row: row["total"], default=None)
+    today_row = next((row for row in rows if row["day"] == today), None)
+    summary = {
+        "label": month_label(month_start),
+        "month": month_start.strftime("%Y-%m"),
+        "previous_month": previous_month.strftime("%Y-%m"),
+        "next_month": next_month.strftime("%Y-%m"),
+        "current_month": today.replace(day=1).strftime("%Y-%m"),
+        "total": total_sol + total_parking,
+        "sol": total_sol,
+        "parking": total_parking,
+        "sol_count": sum(row["sol_count"] for row in rows),
+        "parking_count": sum(row["parking_count"] for row in rows),
+        "max_total": max_total,
+        "top_day": top_day,
+        "today_row": today_row,
+    }
+    return templates.TemplateResponse(
+        request,
+        "status_revenue_month.html",
+        {
+            "rows": rows,
+            "summary": summary,
         },
     )
 
