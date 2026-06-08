@@ -27,6 +27,7 @@ Dette repoet dokumenterer både hovedappen `Fibaro10 / Lilletorget drift` og de 
 | Fil | Bruk |
 | --- | --- |
 | `scripts/hc3_energy_logger.lua` | Logger HC3 effekt og akkumulert kWh til `/api/energi/fibaro`, inkludert avfukter 450/451. |
+| `scripts/hc3_ventilation_runner_scene_363.lua` | Aktiv ventilasjonsrunner for HC3 scene 363. Logger kjeller temp/fukt 444/445 og styrer/loggfører avfukter 449. |
 | `scripts/hc3_basement_dehumidifier.lua` | Styrer avfukter 449 fra kjellertemperatur 444 og kjellerfukt 445, med terskler fra `/api/config/ventilation`. |
 
 ## Viktige prinsipper
