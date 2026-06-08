@@ -88,8 +88,18 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1043")
+APP_BUILD = os.getenv("APP_BUILD", "1044")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1044",
+        "date": "08.06.2026",
+        "title": "Lagrer energi i 30-sekunders bucket",
+        "changes": [
+            "Endrer energilagring fra minutt-bucket til 30-sekunders bucket.",
+            "Hindrer at andre energisample i samme minutt overskriver den forrige.",
+        ],
+    },
     {
         "version": "1",
         "build": "1043",
@@ -4229,6 +4239,12 @@ def minute_bucket(value: Optional[datetime]) -> datetime:
     return stamp.replace(second=0, microsecond=0)
 
 
+def energy_sample_bucket(value: Optional[datetime]) -> datetime:
+    stamp = normalize_local_naive(value) or local_now_naive()
+    second = 30 if stamp.second >= 30 else 0
+    return stamp.replace(second=second, microsecond=0)
+
+
 def parse_day(value: Optional[str]) -> date:
     if value:
         try:
@@ -7115,7 +7131,7 @@ def row_to_dict(row, columns):
 
 def energy_fibaro_sample_payload(data: EnergyFibaroIn, previous: Optional[EnergyFibaroSample]) -> Dict[str, Any]:
     timestamp = normalize_local_naive(data.timestamp) or local_now_naive()
-    bucket_start = minute_bucket(data.bucket_start or timestamp)
+    bucket_start = energy_sample_bucket(data.bucket_start or timestamp)
     values: Dict[str, Any] = {
         "timestamp": timestamp,
         "bucket_start": bucket_start,
@@ -7184,7 +7200,7 @@ def energy_fibaro_sample_payload(data: EnergyFibaroIn, previous: Optional[Energy
 
 async def upsert_energy_fibaro_sample(session, data: EnergyFibaroIn) -> EnergyFibaroSample:
     timestamp = normalize_local_naive(data.timestamp) or local_now_naive()
-    bucket_start = minute_bucket(data.bucket_start or timestamp)
+    bucket_start = energy_sample_bucket(data.bucket_start or timestamp)
     previous = (
         await session.execute(
             select(EnergyFibaroSample)
