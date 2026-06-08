@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1029")
+APP_BUILD = os.getenv("APP_BUILD", "1030")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1030",
+        "date": "08.06.2026",
+        "title": "Logger fukt i ventilasjon",
+        "changes": [
+            "Logger fukt for 1.etg, 2.etg, VIP, ute, Yr, loft, luftinntak og kjeller.",
+            "Viser fuktverdier i ventilasjonsloggene og online-dashboardet.",
+            "Oppdaterer HC3 ventilasjonsrunner scene 363 med fuktsensorene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1029",
@@ -817,10 +828,18 @@ class VentilationEvent(Base):
     temp_vip = Column(Float, nullable=True)
     temp_ute = Column(Float, nullable=True)
     temp_loft = Column(Float, nullable=True)
+    humidity_1etg = Column(Float, nullable=True)
+    humidity_2etg = Column(Float, nullable=True)
+    humidity_vip = Column(Float, nullable=True)
+    humidity_ute = Column(Float, nullable=True)
+    humidity_yr = Column(Float, nullable=True)
+    humidity_loft = Column(Float, nullable=True)
     temp_kjeller = Column(Float, nullable=True)
     humidity_kjeller = Column(Float, nullable=True)
     temp_passiv = Column(Float, nullable=True)
     temp_luftinntak = Column(Float, nullable=True)
+    humidity_passiv = Column(Float, nullable=True)
+    humidity_luftinntak = Column(Float, nullable=True)
     diff_w = Column(Float, nullable=True)
     power_w = Column(Float, nullable=True)
     energy_kwh = Column(Float, nullable=True)
@@ -848,10 +867,18 @@ class VentilationSample(Base):
     temp_ute_netatmo = Column(Float, nullable=True)
     temp_yr = Column(Float, nullable=True)
     temp_loft = Column(Float, nullable=True)
+    humidity_1etg = Column(Float, nullable=True)
+    humidity_2etg = Column(Float, nullable=True)
+    humidity_vip = Column(Float, nullable=True)
+    humidity_ute = Column(Float, nullable=True)
+    humidity_yr = Column(Float, nullable=True)
+    humidity_loft = Column(Float, nullable=True)
     temp_kjeller = Column(Float, nullable=True)
     humidity_kjeller = Column(Float, nullable=True)
     temp_passiv = Column(Float, nullable=True)
     temp_luftinntak = Column(Float, nullable=True)
+    humidity_passiv = Column(Float, nullable=True)
+    humidity_luftinntak = Column(Float, nullable=True)
     temp_min_inne = Column(Float, nullable=True)
     temp_avg_inne = Column(Float, nullable=True)
     temp_max_inne = Column(Float, nullable=True)
@@ -1645,10 +1672,18 @@ class EventDataIn(BaseModel):
     temp_ute_netatmo: Optional[float] = None
     temp_yr: Optional[float] = None
     temp_loft: Optional[float] = None
+    humidity_1etg: Optional[float] = None
+    humidity_2etg: Optional[float] = None
+    humidity_vip: Optional[float] = None
+    humidity_ute: Optional[float] = None
+    humidity_yr: Optional[float] = None
+    humidity_loft: Optional[float] = None
     temp_kjeller: Optional[float] = None
     humidity_kjeller: Optional[float] = None
     temp_passiv: Optional[float] = None
     temp_luftinntak: Optional[float] = None
+    humidity_passiv: Optional[float] = None
+    humidity_luftinntak: Optional[float] = None
     temp_min_inne: Optional[float] = None
     temp_avg_inne: Optional[float] = None
     temp_max_inne: Optional[float] = None
@@ -1893,8 +1928,10 @@ LIGHT_SAMPLE_COLUMNS = [
 VENT_COLUMNS = [
     "id", "timestamp", "event_type", "action", "device_key", "device_id", "device_name",
     "mode", "reason", "source", "value", "state", "temp_1etg", "temp_2etg",
-    "temp_vip", "temp_ute", "temp_loft", "temp_kjeller", "humidity_kjeller",
-    "temp_passiv", "temp_luftinntak", "diff_w", "power_w", "energy_kwh",
+    "temp_vip", "temp_ute", "temp_loft", "humidity_1etg", "humidity_2etg",
+    "humidity_vip", "humidity_ute", "humidity_yr", "humidity_loft",
+    "temp_kjeller", "humidity_kjeller", "temp_passiv", "temp_luftinntak",
+    "humidity_passiv", "humidity_luftinntak", "diff_w", "power_w", "energy_kwh",
     "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter", "extra",
 ]
 
@@ -1905,9 +1942,11 @@ GENERIC_COLUMNS = [
 
 VENT_SAMPLE_COLUMNS = [
     "id", "timestamp", "bucket_start", "mode", "source", "temp_1etg", "temp_2etg",
-    "temp_vip", "temp_ute", "temp_ute_netatmo", "temp_yr", "temp_loft", "temp_passiv",
-    "temp_kjeller", "humidity_kjeller", "temp_luftinntak", "temp_min_inne",
-    "temp_avg_inne", "temp_max_inne", "diff_w", "estimated_sunbeds",
+    "temp_vip", "temp_ute", "temp_ute_netatmo", "temp_yr", "temp_loft",
+    "humidity_1etg", "humidity_2etg", "humidity_vip", "humidity_ute",
+    "humidity_yr", "humidity_loft", "temp_passiv", "temp_kjeller",
+    "humidity_kjeller", "temp_luftinntak", "humidity_passiv",
+    "humidity_luftinntak", "temp_min_inne", "temp_avg_inne", "temp_max_inne", "diff_w", "estimated_sunbeds",
     "afterrun_active", "heat_need", "cool_need", "open_time", "pre_cooling",
     "exhaust_time_allowed", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter", "extra",
 ]
@@ -2941,8 +2980,16 @@ STARTUP_COLUMNS = {
     ],
     "ventilasjon_events": [
         ("device_key", "VARCHAR"),
+        ("humidity_1etg", "DOUBLE PRECISION"),
+        ("humidity_2etg", "DOUBLE PRECISION"),
+        ("humidity_vip", "DOUBLE PRECISION"),
+        ("humidity_ute", "DOUBLE PRECISION"),
+        ("humidity_yr", "DOUBLE PRECISION"),
+        ("humidity_loft", "DOUBLE PRECISION"),
         ("temp_kjeller", "DOUBLE PRECISION"),
         ("humidity_kjeller", "DOUBLE PRECISION"),
+        ("humidity_passiv", "DOUBLE PRECISION"),
+        ("humidity_luftinntak", "DOUBLE PRECISION"),
         ("fan_avfukter", "BOOLEAN"),
     ],
     "event_data": [
@@ -2957,8 +3004,16 @@ STARTUP_COLUMNS = {
     "ventilasjon_samples": [
         ("temp_ute_netatmo", "DOUBLE PRECISION"),
         ("temp_yr", "DOUBLE PRECISION"),
+        ("humidity_1etg", "DOUBLE PRECISION"),
+        ("humidity_2etg", "DOUBLE PRECISION"),
+        ("humidity_vip", "DOUBLE PRECISION"),
+        ("humidity_ute", "DOUBLE PRECISION"),
+        ("humidity_yr", "DOUBLE PRECISION"),
+        ("humidity_loft", "DOUBLE PRECISION"),
         ("temp_kjeller", "DOUBLE PRECISION"),
         ("humidity_kjeller", "DOUBLE PRECISION"),
+        ("humidity_passiv", "DOUBLE PRECISION"),
+        ("humidity_luftinntak", "DOUBLE PRECISION"),
         ("temp_min_inne", "DOUBLE PRECISION"),
         ("temp_avg_inne", "DOUBLE PRECISION"),
         ("temp_max_inne", "DOUBLE PRECISION"),
@@ -4418,6 +4473,12 @@ async def publish_ventilation_ntfy(event: VentilationEvent) -> bool:
         temps.append(f"2.etg {event.temp_2etg:.1f}\u00b0")
     if event.temp_vip is not None:
         temps.append(f"VIP {event.temp_vip:.1f}\u00b0")
+    if event.humidity_1etg is not None:
+        temps.append(f"fukt 1.etg {event.humidity_1etg:.0f}%")
+    if event.humidity_2etg is not None:
+        temps.append(f"fukt 2.etg {event.humidity_2etg:.0f}%")
+    if event.humidity_vip is not None:
+        temps.append(f"fukt VIP {event.humidity_vip:.0f}%")
     if event.temp_kjeller is not None:
         temps.append(f"kjeller {event.temp_kjeller:.1f}\u00b0")
     if event.humidity_kjeller is not None:
@@ -4853,6 +4914,14 @@ def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr
         {"label": "VIP", "value": latest_sample.temp_vip if latest_sample else None},
         {"label": "Kjeller", "value": latest_sample.temp_kjeller if latest_sample else None},
     ]
+    humidity_values = [
+        {"label": "1.etg", "value": latest_sample.humidity_1etg if latest_sample else None},
+        {"label": "2.etg", "value": latest_sample.humidity_2etg if latest_sample else None},
+        {"label": "VIP", "value": latest_sample.humidity_vip if latest_sample else None},
+        {"label": "Loft", "value": latest_sample.humidity_loft if latest_sample else None},
+        {"label": "Kjeller", "value": latest_sample.humidity_kjeller if latest_sample else None},
+        {"label": "Yr", "value": latest_sample.humidity_yr if latest_sample else None},
+    ]
     outdoor_ute = None
     outdoor_yr = None
     if latest_sample:
@@ -4891,6 +4960,7 @@ def build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr
         "mode": latest_sample.mode if latest_sample else None,
         "indoor_avg": average_value([item["value"] for item in indoor_values]),
         "indoor_values": indoor_values,
+        "humidity_values": humidity_values,
         "outdoor_avg": average_value(outdoor_avg_values),
         "outdoor_values": outdoor_values,
         "lux": lux,
@@ -6138,6 +6208,12 @@ def event_detail(system: str, row) -> str:
             pieces.append(f"2.etg {row.temp_2etg:.1f}°")
         if row.temp_vip is not None:
             pieces.append(f"VIP {row.temp_vip:.1f}°")
+        if row.humidity_1etg is not None:
+            pieces.append(f"fukt 1.etg {row.humidity_1etg:.0f}%")
+        if row.humidity_2etg is not None:
+            pieces.append(f"fukt 2.etg {row.humidity_2etg:.0f}%")
+        if row.humidity_vip is not None:
+            pieces.append(f"fukt VIP {row.humidity_vip:.0f}%")
         if row.temp_kjeller is not None:
             pieces.append(f"kjeller {row.temp_kjeller:.1f}°")
         if row.humidity_kjeller is not None:
@@ -7337,10 +7413,18 @@ def vent_from_payload(data: EventDataIn) -> VentilationEvent:
         temp_vip=value_from_payload(data, "temp_vip"),
         temp_ute=value_from_payload(data, "temp_ute"),
         temp_loft=value_from_payload(data, "temp_loft"),
+        humidity_1etg=value_from_payload(data, "humidity_1etg"),
+        humidity_2etg=value_from_payload(data, "humidity_2etg"),
+        humidity_vip=value_from_payload(data, "humidity_vip"),
+        humidity_ute=value_from_payload(data, "humidity_ute"),
+        humidity_yr=value_from_payload(data, "humidity_yr"),
+        humidity_loft=value_from_payload(data, "humidity_loft"),
         temp_kjeller=value_from_payload(data, "temp_kjeller"),
         humidity_kjeller=value_from_payload(data, "humidity_kjeller"),
         temp_passiv=value_from_payload(data, "temp_passiv"),
         temp_luftinntak=value_from_payload(data, "temp_luftinntak"),
+        humidity_passiv=value_from_payload(data, "humidity_passiv"),
+        humidity_luftinntak=value_from_payload(data, "humidity_luftinntak"),
         diff_w=value_from_payload(data, "diff_w"),
         power_w=value_from_payload(data, "power_w"),
         energy_kwh=value_from_payload(data, "energy_kwh"),
@@ -7366,10 +7450,18 @@ def vent_sample_from_payload(data: EventDataIn) -> VentilationSample:
         temp_ute_netatmo=value_from_payload(data, "temp_ute_netatmo"),
         temp_yr=value_from_payload(data, "temp_yr"),
         temp_loft=value_from_payload(data, "temp_loft"),
+        humidity_1etg=value_from_payload(data, "humidity_1etg"),
+        humidity_2etg=value_from_payload(data, "humidity_2etg"),
+        humidity_vip=value_from_payload(data, "humidity_vip"),
+        humidity_ute=value_from_payload(data, "humidity_ute"),
+        humidity_yr=value_from_payload(data, "humidity_yr"),
+        humidity_loft=value_from_payload(data, "humidity_loft"),
         temp_kjeller=value_from_payload(data, "temp_kjeller"),
         humidity_kjeller=value_from_payload(data, "humidity_kjeller"),
         temp_passiv=value_from_payload(data, "temp_passiv"),
         temp_luftinntak=value_from_payload(data, "temp_luftinntak"),
+        humidity_passiv=value_from_payload(data, "humidity_passiv"),
+        humidity_luftinntak=value_from_payload(data, "humidity_luftinntak"),
         temp_min_inne=value_from_payload(data, "temp_min_inne"),
         temp_avg_inne=value_from_payload(data, "temp_avg_inne"),
         temp_max_inne=value_from_payload(data, "temp_max_inne"),
@@ -7391,6 +7483,14 @@ def vent_sample_from_payload(data: EventDataIn) -> VentilationSample:
 
 async def upsert_kjeller_measurement_sample(session, timestamp: datetime, fibaroid: int, value: float, source: str) -> Optional[int]:
     field_map = {
+        408: "humidity_1etg",
+        344: "humidity_2etg",
+        347: "humidity_vip",
+        350: "humidity_ute",
+        353: "humidity_loft",
+        357: "humidity_luftinntak",
+        359: "humidity_2etg",
+        362: "humidity_vip",
         444: "temp_kjeller",
         445: "humidity_kjeller",
     }

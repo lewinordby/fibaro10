@@ -43,7 +43,7 @@
             a.button, button { width: auto; }
             form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
             .wide { grid-column: auto; }
-            .temps { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+            .temps { grid-template-columns: repeat(12, minmax(0, 1fr)); }
         }
     </style>
     {% include "_styles.html" %}
@@ -99,8 +99,14 @@
                 <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">1.etg</span><span class="temp-value">{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}°{% else %}-{% endif %}</span></div>
                 <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">2.etg</span><span class="temp-value">{% if row.temp_2etg is not none %}{{ "%.1f"|format(row.temp_2etg) }}°{% else %}-{% endif %}</span></div>
                 <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">VIP</span><span class="temp-value">{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">Fukt 1.etg</span><span class="temp-value">{% if row.humidity_1etg is not none %}{{ "%.0f"|format(row.humidity_1etg) }}%{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">Fukt 2.etg</span><span class="temp-value">{% if row.humidity_2etg is not none %}{{ "%.0f"|format(row.humidity_2etg) }}%{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_inne %}trigger{% endif %}"><span class="temp-label">Fukt VIP</span><span class="temp-value">{% if row.humidity_vip is not none %}{{ "%.0f"|format(row.humidity_vip) }}%{% else %}-{% endif %}</span></div>
                 <div class="temp {% if trig_ute %}trigger{% endif %}"><span class="temp-label">Ute</span><span class="temp-value">{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_ute %}trigger{% endif %}"><span class="temp-label">Fukt ute</span><span class="temp-value">{% if row.humidity_ute is not none %}{{ "%.0f"|format(row.humidity_ute) }}%{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_ute %}trigger{% endif %}"><span class="temp-label">Fukt Yr</span><span class="temp-value">{% if row.humidity_yr is not none %}{{ "%.0f"|format(row.humidity_yr) }}%{% else %}-{% endif %}</span></div>
                 <div class="temp {% if trig_loft %}trigger{% endif %}"><span class="temp-label">Loft</span><span class="temp-value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span></div>
+                <div class="temp {% if trig_loft %}trigger{% endif %}"><span class="temp-label">Fukt loft</span><span class="temp-value">{% if row.humidity_loft is not none %}{{ "%.0f"|format(row.humidity_loft) }}%{% else %}-{% endif %}</span></div>
                 <div class="temp {% if trig_kjeller %}trigger{% endif %}"><span class="temp-label">Kjeller</span><span class="temp-value">{% if row.temp_kjeller is not none %}{{ "%.1f"|format(row.temp_kjeller) }}°{% else %}-{% endif %}</span></div>
                 <div class="temp {% if trig_kjeller %}trigger{% endif %}"><span class="temp-label">Fukt kjeller</span><span class="temp-value">{% if row.humidity_kjeller is not none %}{{ "%.0f"|format(row.humidity_kjeller) }}%{% else %}-{% endif %}</span></div>
                 <div class="temp"><span class="temp-label">Pass innluft</span><span class="temp-value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>

@@ -188,13 +188,20 @@
                 <div class="cell"><span class="label">1.etg</span><span class="value">{% if row.temp_1etg is not none %}{{ "%.1f"|format(row.temp_1etg) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">2.etg</span><span class="value">{% if row.temp_2etg is not none %}{{ "%.1f"|format(row.temp_2etg) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">VIP</span><span class="value">{% if row.temp_vip is not none %}{{ "%.1f"|format(row.temp_vip) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Fukt 1.etg</span><span class="value">{% if row.humidity_1etg is not none %}{{ "%.0f"|format(row.humidity_1etg) }}%{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Fukt 2.etg</span><span class="value">{% if row.humidity_2etg is not none %}{{ "%.0f"|format(row.humidity_2etg) }}%{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Fukt VIP</span><span class="value">{% if row.humidity_vip is not none %}{{ "%.0f"|format(row.humidity_vip) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Ute brukt</span><span class="value">{% if row.temp_ute is not none %}{{ "%.1f"|format(row.temp_ute) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Netatmo ute</span><span class="value">{% if row.temp_ute_netatmo is not none %}{{ "%.1f"|format(row.temp_ute_netatmo) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">YR</span><span class="value">{% if row.temp_yr is not none %}{{ "%.1f"|format(row.temp_yr) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Fukt ute</span><span class="value">{% if row.humidity_ute is not none %}{{ "%.0f"|format(row.humidity_ute) }}%{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Fukt Yr</span><span class="value">{% if row.humidity_yr is not none %}{{ "%.0f"|format(row.humidity_yr) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Loft</span><span class="value">{% if row.temp_loft is not none %}{{ "%.1f"|format(row.temp_loft) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Fukt loft</span><span class="value">{% if row.humidity_loft is not none %}{{ "%.0f"|format(row.humidity_loft) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Kjeller</span><span class="value">{% if row.temp_kjeller is not none %}{{ "%.1f"|format(row.temp_kjeller) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Fukt kjeller</span><span class="value">{% if row.humidity_kjeller is not none %}{{ "%.0f"|format(row.humidity_kjeller) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Pass innluft</span><span class="value">{% if row.temp_passiv is not none %}{{ "%.1f"|format(row.temp_passiv) }}°{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Fukt innluft</span><span class="value">{% if row.humidity_luftinntak is not none %}{{ "%.0f"|format(row.humidity_luftinntak) }}%{% elif row.humidity_passiv is not none %}{{ "%.0f"|format(row.humidity_passiv) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Min/avg/max</span><span class="value">{% if row.temp_min_inne is not none %}{{ "%.1f"|format(row.temp_min_inne) }}/{{ "%.1f"|format(row.temp_avg_inne) }}/{{ "%.1f"|format(row.temp_max_inne) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Diff W</span><span class="value">{% if row.diff_w is not none %}{{ "%.0f"|format(row.diff_w) }}{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Solsenger</span><span class="value">{{ row.estimated_sunbeds if row.estimated_sunbeds is not none else "-" }}</span></div>

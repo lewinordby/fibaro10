@@ -27,6 +27,12 @@ local TEMP_UTE_ID = 351
 local TEMP_YR_ID = 3
 local TEMP_PASSIV_INNLUFT_ID = 358
 local TEMP_LOFT_ID = 354
+local HUMIDITY_1ETG_ID = 408
+local HUMIDITY_2ETG_ID = 344
+local HUMIDITY_VIP_ID = 347
+local HUMIDITY_UTE_ID = 350
+local HUMIDITY_LOFT_ID = 353
+local HUMIDITY_LUFTINNTAK_ID = 357
 local TEMP_KJELLER_ID = 444
 local HUMIDITY_KJELLER_ID = 445
 
@@ -343,7 +349,7 @@ local function logToRender(label, deviceKey, deviceId, action, tempValue, reason
   local stateValue = action == "PAA" and "true" or "false"
   local source = string.format("VENTILASJON | %s | %s | key=%s | id=%s | modus=%s | %s", label, action, tostring(deviceKey or ""), tostring(deviceId), tostring(mode or ""), tostring(reason or ""))
   local payload = string.format(
-    '{"system": "ventilasjon", "event_type": "fan_change", "timestamp": "%s", "action": "%s", "device_key": "%s", "device_id": %d, "device_name": "%s", "mode": "%s", "reason": "%s", "source": "%s", "value": %s, "state": %s, "temp_1etg": %s, "temp_2etg": %s, "temp_vip": %s, "temp_ute": %s, "temp_loft": %s, "temp_kjeller": %s, "humidity_kjeller": %s, "temp_passiv": %s, "temp_luftinntak": %s, "diff_w": %s, "fan_avfukter": %s, "extra": {"device_key": "%s", "trigger": "%s", "avg_inne": %s, "min_inne": %s, "max_inne": %s, "solsenger": %s}}',
+    '{"system": "ventilasjon", "event_type": "fan_change", "timestamp": "%s", "action": "%s", "device_key": "%s", "device_id": %d, "device_name": "%s", "mode": "%s", "reason": "%s", "source": "%s", "value": %s, "state": %s, "temp_1etg": %s, "temp_2etg": %s, "temp_vip": %s, "temp_ute": %s, "temp_loft": %s, "humidity_1etg": %s, "humidity_2etg": %s, "humidity_vip": %s, "humidity_ute": %s, "humidity_yr": %s, "humidity_loft": %s, "temp_kjeller": %s, "humidity_kjeller": %s, "temp_passiv": %s, "temp_luftinntak": %s, "humidity_passiv": %s, "humidity_luftinntak": %s, "diff_w": %s, "fan_avfukter": %s, "extra": {"device_key": "%s", "trigger": "%s", "avg_inne": %s, "min_inne": %s, "max_inne": %s, "solsenger": %s}}',
     os.date("%Y-%m-%dT%H:%M:%S"),
     jsonEscape(action),
     jsonEscape(deviceKey or ""),
@@ -359,10 +365,18 @@ local function logToRender(label, deviceKey, deviceId, action, tempValue, reason
     jsonNumber(LOG_CONTEXT.tempVip),
     jsonNumber(LOG_CONTEXT.tempUte),
     jsonNumber(LOG_CONTEXT.tempLoft),
+    jsonNumber(LOG_CONTEXT.humidity1),
+    jsonNumber(LOG_CONTEXT.humidity2),
+    jsonNumber(LOG_CONTEXT.humidityVip),
+    jsonNumber(LOG_CONTEXT.humidityUte),
+    jsonNumber(LOG_CONTEXT.humidityYr),
+    jsonNumber(LOG_CONTEXT.humidityLoft),
     jsonNumber(LOG_CONTEXT.tempKjeller),
     jsonNumber(LOG_CONTEXT.humidityKjeller),
     jsonNumber(LOG_CONTEXT.tempPassiv),
     jsonNumber(LOG_CONTEXT.tempPassiv),
+    jsonNumber(LOG_CONTEXT.humidityLuftinntak),
+    jsonNumber(LOG_CONTEXT.humidityLuftinntak),
     jsonNumber(LOG_CONTEXT.diffW),
     jsonBool((deviceKey == FAN_AVFUKTER_KEY and action == "PAA") or LOG_CONTEXT.fanAvfukterOn),
     jsonEscape(deviceKey or ""),
@@ -402,7 +416,7 @@ local function logSampleToRender(mode, force)
   )
 
   local payload = string.format(
-    '{"system": "ventilasjon", "event_type": "sample_5min", "timestamp": "%s", "bucket_start": "%s", "mode": "%s", "source": "%s", "temp_1etg": %s, "temp_2etg": %s, "temp_vip": %s, "temp_ute": %s, "temp_ute_netatmo": %s, "temp_yr": %s, "temp_loft": %s, "temp_kjeller": %s, "humidity_kjeller": %s, "temp_passiv": %s, "temp_luftinntak": %s, "temp_min_inne": %s, "temp_avg_inne": %s, "temp_max_inne": %s, "diff_w": %s, "estimated_sunbeds": %s, "afterrun_active": %s, "heat_need": %s, "cool_need": %s, "open_time": %s, "pre_cooling": %s, "exhaust_time_allowed": %s, "fan_vip": %s, "fan_2etg": %s, "fan_tak": %s, "fan_avfukter": %s, "extra": {"ute_kilde": "%s", "force": %s}}',
+    '{"system": "ventilasjon", "event_type": "sample_5min", "timestamp": "%s", "bucket_start": "%s", "mode": "%s", "source": "%s", "temp_1etg": %s, "temp_2etg": %s, "temp_vip": %s, "temp_ute": %s, "temp_ute_netatmo": %s, "temp_yr": %s, "temp_loft": %s, "humidity_1etg": %s, "humidity_2etg": %s, "humidity_vip": %s, "humidity_ute": %s, "humidity_yr": %s, "humidity_loft": %s, "temp_kjeller": %s, "humidity_kjeller": %s, "temp_passiv": %s, "temp_luftinntak": %s, "humidity_passiv": %s, "humidity_luftinntak": %s, "temp_min_inne": %s, "temp_avg_inne": %s, "temp_max_inne": %s, "diff_w": %s, "estimated_sunbeds": %s, "afterrun_active": %s, "heat_need": %s, "cool_need": %s, "open_time": %s, "pre_cooling": %s, "exhaust_time_allowed": %s, "fan_vip": %s, "fan_2etg": %s, "fan_tak": %s, "fan_avfukter": %s, "extra": {"ute_kilde": "%s", "force": %s}}',
     os.date("%Y-%m-%dT%H:%M:%S"),
     bucket,
     jsonEscape(mode or LOG_CONTEXT.mode or ""),
@@ -414,10 +428,18 @@ local function logSampleToRender(mode, force)
     jsonOptionalNumber(LOG_CONTEXT.tempUteNetatmo),
     jsonOptionalNumber(LOG_CONTEXT.tempYr),
     jsonOptionalNumber(LOG_CONTEXT.tempLoft),
+    jsonOptionalNumber(LOG_CONTEXT.humidity1),
+    jsonOptionalNumber(LOG_CONTEXT.humidity2),
+    jsonOptionalNumber(LOG_CONTEXT.humidityVip),
+    jsonOptionalNumber(LOG_CONTEXT.humidityUte),
+    jsonOptionalNumber(LOG_CONTEXT.humidityYr),
+    jsonOptionalNumber(LOG_CONTEXT.humidityLoft),
     jsonOptionalNumber(LOG_CONTEXT.tempKjeller),
     jsonOptionalNumber(LOG_CONTEXT.humidityKjeller),
     jsonOptionalNumber(LOG_CONTEXT.tempPassiv),
     jsonOptionalNumber(LOG_CONTEXT.tempPassiv),
+    jsonOptionalNumber(LOG_CONTEXT.humidityLuftinntak),
+    jsonOptionalNumber(LOG_CONTEXT.humidityLuftinntak),
     jsonOptionalNumber(LOG_CONTEXT.minInne),
     jsonOptionalNumber(LOG_CONTEXT.avgInne),
     jsonOptionalNumber(LOG_CONTEXT.maxInne),
@@ -516,6 +538,13 @@ local function main()
   local tempUte, uteSource, tempUteNetatmo, tempYr = getOutdoorTemp()
   local tempPassiv = getNumber(TEMP_PASSIV_INNLUFT_ID, "value")
   local tempLoft = getNumber(TEMP_LOFT_ID, "value")
+  local humidity1 = getNumber(HUMIDITY_1ETG_ID, "value")
+  local humidity2 = getNumber(HUMIDITY_2ETG_ID, "value")
+  local humidityVip = getNumber(HUMIDITY_VIP_ID, "value")
+  local humidityUte = getNumber(HUMIDITY_UTE_ID, "value")
+  local humidityYr = getNumber(TEMP_YR_ID, "Humidity")
+  local humidityLoft = getNumber(HUMIDITY_LOFT_ID, "value")
+  local humidityLuftinntak = getNumber(HUMIDITY_LUFTINNTAK_ID, "value")
   local tempKjeller = getNumber(TEMP_KJELLER_ID, "value")
   local humidityKjeller = getNumber(HUMIDITY_KJELLER_ID, "value")
   local diffW = getNumber(POWER_DIFFERANSE_R_ID, "value")
@@ -575,9 +604,16 @@ local function main()
     tempYr = tempYr,
     uteSource = uteSource,
     tempLoft = tempLoft,
+    humidity1 = humidity1,
+    humidity2 = humidity2,
+    humidityVip = humidityVip,
+    humidityUte = humidityUte,
+    humidityYr = humidityYr,
+    humidityLoft = humidityLoft,
     tempKjeller = tempKjeller,
     humidityKjeller = humidityKjeller,
     tempPassiv = tempPassiv,
+    humidityLuftinntak = humidityLuftinntak,
     diffW = diffW,
     minInne = minInne,
     avgInne = avgInne,

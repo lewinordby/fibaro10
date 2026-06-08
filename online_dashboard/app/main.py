@@ -1015,6 +1015,8 @@ async def source_dashboard_data() -> dict[str, Any]:
         select timestamp, bucket_start, mode,
                temp_1etg, temp_2etg, temp_vip, temp_avg_inne,
                temp_ute, temp_yr, temp_loft, temp_kjeller, humidity_kjeller,
+               humidity_1etg, humidity_2etg, humidity_vip, humidity_ute,
+               humidity_yr, humidity_loft, humidity_luftinntak,
                temp_passiv, temp_luftinntak,
                fan_vip, fan_2etg, fan_tak, fan_avfukter
         from ventilasjon_samples
@@ -1511,6 +1513,11 @@ async def dashboard(request: Request):
         "{{ temp_1etg }}": fmt_temp(data["vent"].get("temp_1etg")),
         "{{ temp_2etg }}": fmt_temp(data["vent"].get("temp_2etg")),
         "{{ temp_vip }}": fmt_temp(data["vent"].get("temp_vip")),
+        "{{ humidity_1etg }}": f'{fmt_int(data["vent"].get("humidity_1etg"))}%' if data["vent"].get("humidity_1etg") is not None else "-",
+        "{{ humidity_2etg }}": f'{fmt_int(data["vent"].get("humidity_2etg"))}%' if data["vent"].get("humidity_2etg") is not None else "-",
+        "{{ humidity_vip }}": f'{fmt_int(data["vent"].get("humidity_vip"))}%' if data["vent"].get("humidity_vip") is not None else "-",
+        "{{ humidity_ute }}": f'{fmt_int(data["vent"].get("humidity_ute"))}%' if data["vent"].get("humidity_ute") is not None else "-",
+        "{{ humidity_yr }}": f'{fmt_int(data["vent"].get("humidity_yr"))}%' if data["vent"].get("humidity_yr") is not None else "-",
         "{{ temp_time }}": fmt_time(data["vent"].get("bucket_start") or data["vent"].get("timestamp")),
         "{{ lux }}": fmt_int(data["lights"].get("lux")),
         "{{ light_time }}": fmt_time(data["lights"].get("bucket_start") or data["lights"].get("timestamp")),
@@ -1838,6 +1845,8 @@ async def temperature_detail(request: Request):
             ("Inne nå", fmt_temp(data["inside_avg"]), f"{fmt_temp(ranges.get('min_inne'))} - {fmt_temp(ranges.get('max_inne'))}"),
             ("Ute nå", fmt_temp(data["outside"]), f"{fmt_temp(ranges.get('min_ute'))} - {fmt_temp(ranges.get('max_ute'))}"),
             ("Loft nå", fmt_temp(data["vent"].get("temp_loft")), f"{fmt_temp(ranges.get('min_loft'))} - {fmt_temp(ranges.get('max_loft'))}"),
+            ("Fukt inne", f"{fmt_int(data['vent'].get('humidity_1etg'))}%" if data["vent"].get("humidity_1etg") is not None else "-", f"2.etg {fmt_int(data['vent'].get('humidity_2etg'))}% / VIP {fmt_int(data['vent'].get('humidity_vip'))}%"),
+            ("Fukt ute/Yr", f"{fmt_int(data['vent'].get('humidity_ute'))}%" if data["vent"].get("humidity_ute") is not None else "-", f"Yr {fmt_int(data['vent'].get('humidity_yr'))}%"),
             ("Kjeller nå", fmt_temp(data["vent"].get("temp_kjeller")), f"Fukt {fmt_int(data['vent'].get('humidity_kjeller'))}%" if data["vent"].get("humidity_kjeller") is not None else "Fukt -"),
             ("Innluft", fmt_temp(data["innluft"]), f"Oppdatert {fmt_time(data['vent'].get('bucket_start') or data['vent'].get('timestamp'))}"),
         ]
@@ -2340,6 +2349,9 @@ DASHBOARD_HTML = """<!doctype html>
           <p><span>1.etg</span><strong>{{ temp_1etg }}</strong></p>
           <p><span>2.etg</span><strong>{{ temp_2etg }}</strong></p>
           <p><span>VIP</span><strong>{{ temp_vip }}</strong></p>
+          <p><span>Fukt 1.etg</span><strong>{{ humidity_1etg }}</strong></p>
+          <p><span>Fukt 2.etg</span><strong>{{ humidity_2etg }}</strong></p>
+          <p><span>Fukt VIP</span><strong>{{ humidity_vip }}</strong></p>
           <p><span>Kjeller</span><strong>{{ temp_kjeller }}</strong></p>
           <p><span>Fukt</span><strong>{{ humidity_kjeller }}</strong></p>
         </div>
@@ -2352,8 +2364,10 @@ DASHBOARD_HTML = """<!doctype html>
         </div>
         <div class="temperature-list compact">
           <p><span>Ute</span><strong>{{ outside_sensor }}</strong></p>
+          <p><span>Fukt ute</span><strong>{{ humidity_ute }}</strong></p>
           <p><span>Innluft</span><strong>{{ innluft }}</strong></p>
           <p><span>Yr</span><strong>{{ yr_temp }}</strong></p>
+          <p><span>Fukt Yr</span><strong>{{ humidity_yr }}</strong></p>
         </div>
         <small class="card-time">Oppdatert {{ temp_time }}</small>
       </a>
