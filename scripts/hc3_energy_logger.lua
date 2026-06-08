@@ -3,7 +3,8 @@
 
   Logger realtime effekt (W) og akkumulert energi (kWh) hvert minutt.
   Differanse fra Fibaro sendes med som kontrollverdi, men fibaro10 beregner
-  egen differanse fra Inntak minus Varmepumper, Belysning, Massasje, Avfukter og Annet.
+  egen differanse fra Inntak minus Varmepumper, Belysning, Massasje og Annet.
+  Avfukter logges fortsatt separat, men inngar ogsa i Annet-oppsamlingen i HC3.
 
   Anbefalt bruk:
     - Lua scene som starter automatisk etter reboot via eksisterende reboot-trigger.

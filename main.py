@@ -88,8 +88,18 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1040")
+APP_BUILD = os.getenv("APP_BUILD", "1041")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1041",
+        "date": "08.06.2026",
+        "title": "Oppdaterer HC3 energioppsamling",
+        "changes": [
+            "Tilpasser beregnet energidifferanse etter at avfukter inngaar i Annet-oppsamlingen.",
+            "Beholder avfukter som separat logget felt, men trekker den ikke dobbelt i differanseberegningen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1040",
@@ -6078,7 +6088,7 @@ ENERGY_CIRCUIT_SEED_ROWS = [
 ]
 
 ENERGY_ACCUMULATED_KEYS = ["inntak", "varmepumper", "belysning", "massasje", "annet", "avfukter", "differanse_fibaro"]
-ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet", "avfukter"]
+ENERGY_SUB_KEYS = ["varmepumper", "belysning", "massasje", "annet"]
 # HC3 accumulated kWh samples are end-stamped. For hourly comparison against
 # Elvia, show the delta on the hour it belongs to, not the hour it was posted.
 ENERGY_HC3_HOURLY_DISPLAY_OFFSET = timedelta(hours=1)
