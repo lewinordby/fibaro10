@@ -1,0 +1,40 @@
+import { ArrowRightOutlined } from "@ant-design/icons";
+import { Card, Tag, Typography } from "antd";
+import type { MetricCard as MetricCardData } from "../api";
+
+const toneLabels: Record<string, string> = {
+  revenue: "Omsetning",
+  sun2: "Soling",
+  parking: "Parkering",
+  energy: "Energi",
+  vent: "Klima",
+  weather: "Vær",
+  light: "Lys",
+  status: "Drift",
+};
+
+export default function MetricCard({ card }: { card: MetricCardData }) {
+  const content = (
+    <Card className={`metric-card tone-${card.tone ?? "status"}`} hoverable={Boolean(card.href)}>
+      <div className="metric-card-top">
+        <Typography.Text className="metric-title">{card.title}</Typography.Text>
+        <Tag className="metric-tag">{toneLabels[card.tone ?? ""] ?? card.group}</Tag>
+      </div>
+      <div className="metric-value-row">
+        <span className="metric-value">{card.value}</span>
+        {card.unit ? <span className="metric-unit">{card.unit}</span> : null}
+      </div>
+      <div className="metric-detail">
+        <span>{card.detail || "\u00a0"}</span>
+        {card.href ? <ArrowRightOutlined /> : null}
+      </div>
+    </Card>
+  );
+
+  if (!card.href) return content;
+  return (
+    <a className="card-link" href={card.href}>
+      {content}
+    </a>
+  );
+}

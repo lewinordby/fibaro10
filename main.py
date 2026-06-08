@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta
 from email.utils import parsedate_to_datetime
 from io import StringIO
+from pathlib import Path
 from copy import deepcopy
 from collections import defaultdict
 from functools import lru_cache
@@ -88,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1050")
+APP_BUILD = os.getenv("APP_BUILD", "1051")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1051",
+        "date": "08.06.2026",
+        "title": "Starter separat desktop v2",
+        "changes": [
+            "Legger inn en egen React/Ant Design/ECharts-revisjon under /v2.",
+            "Eksponerer nye JSON-endepunkter under /api/v2 for oversikt og maanedlig omsetning.",
+            "Beholder dagens Jinja-grensesnitt uendret slik at begge revisjoner kan utvikles videre parallelt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1050",
@@ -650,6 +662,9 @@ BUILD_LOG = [
 app = FastAPI(title="Fibaro10")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+DESKTOP_V2_DIST = Path(__file__).parent / "desktop_v2" / "dist"
+if (DESKTOP_V2_DIST / "assets").exists():
+    app.mount("/v2/assets", StaticFiles(directory=str(DESKTOP_V2_DIST / "assets")), name="desktop_v2_assets")
 templates = Jinja2Templates(directory="templates")
 templates.env.globals.update(app_version=APP_VERSION, app_build=APP_BUILD, build_log=BUILD_LOG)
 
@@ -9679,6 +9694,15 @@ async def root_redirect(request: Request):
     return redirect_keep_query(request, "/status/dashboard", status_code=303)
 
 
+@app.get("/v2", response_class=HTMLResponse)
+@app.get("/v2/{path:path}", response_class=HTMLResponse)
+async def desktop_v2_app(path: str = ""):
+    index_path = DESKTOP_V2_DIST / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="Desktop v2 er ikke bygget")
+    return FileResponse(index_path)
+
+
 @app.get("/status/dashboard", response_class=HTMLResponse)
 async def index(request: Request):
     today = local_now_naive().date()
@@ -10803,6 +10827,348 @@ async def status_key_metrics_view(request: Request):
             "now_status": now_status,
         },
     )
+
+
+def api_local_iso(value: Optional[datetime]) -> Optional[str]:
+    if not value:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=LOCAL_TZ)
+    return value.isoformat()
+
+
+def api_bool_state(value: Any) -> Optional[bool]:
+    if value is None:
+        return None
+    return bool(value)
+
+
+def api_revenue_day(row: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "day": row["day"].isoformat(),
+        "dayLabel": row["day_label"],
+        "weekday": row["weekday"],
+        "sol": row["sol"],
+        "solCount": row["sol_count"],
+        "parking": row["parking"],
+        "parkingCount": row["parking_count"],
+        "total": row["total"],
+        "isToday": row["is_today"],
+        "isWeekend": row["is_weekend"],
+    }
+
+
+async def build_revenue_month_context(month: Optional[str] = None) -> Dict[str, Any]:
+    today = local_now_naive().date()
+    month_start = normalize_month(month, today)
+    next_month = add_months(month_start, 1)
+    previous_month = add_months(month_start, -1)
+    days_in_month = (next_month - month_start).days
+    async with async_session() as session:
+        sol_rows = (
+            await session.execute(
+                select(
+                    Sun2TanningSession.stat_date.label("day"),
+                    func.count(Sun2TanningSession.id).label("count"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("amount"),
+                )
+                .where(Sun2TanningSession.stat_date >= month_start)
+                .where(Sun2TanningSession.stat_date < next_month)
+                .group_by(Sun2TanningSession.stat_date)
+            )
+        ).mappings().all()
+        parking_day = cast(ParkingSession.start_time, Date)
+        parking_rows = (
+            await session.execute(
+                select(
+                    parking_day.label("day"),
+                    func.count(ParkingSession.id).label("count"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("amount"),
+                )
+                .where(ParkingSession.start_time >= datetime.combine(month_start, time.min))
+                .where(ParkingSession.start_time < datetime.combine(next_month, time.min))
+                .group_by(parking_day)
+            )
+        ).mappings().all()
+
+    sol_by_day = {row["day"]: float_or_zero(row["amount"]) for row in sol_rows}
+    sol_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in sol_rows}
+    parking_by_day = {row["day"]: float_or_zero(row["amount"]) for row in parking_rows}
+    parking_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in parking_rows}
+    rows = []
+    for offset in range(days_in_month):
+        day = month_start + timedelta(days=offset)
+        sol_amount = sol_by_day.get(day, 0.0)
+        parking_amount = parking_by_day.get(day, 0.0)
+        rows.append(
+            {
+                "day": day,
+                "day_label": day.strftime("%d.%m"),
+                "weekday": ["Man", "Tir", "Ons", "Tor", "Fre", "Lor", "Son"][day.weekday()],
+                "sol": sol_amount,
+                "sol_count": sol_count_by_day.get(day, 0),
+                "parking": parking_amount,
+                "parking_count": parking_count_by_day.get(day, 0),
+                "total": sol_amount + parking_amount,
+                "is_today": day == today,
+                "is_weekend": day.weekday() >= 5,
+            }
+        )
+    max_total = max([row["total"] for row in rows] + [1.0])
+    for row in rows:
+        row["sol_pct"] = 0.0 if row["sol"] <= 0 else max(4.0, row["sol"] / max_total * 100)
+        row["parking_pct"] = 0.0 if row["parking"] <= 0 else max(4.0, row["parking"] / max_total * 100)
+        if row["sol_pct"] + row["parking_pct"] > 100:
+            scale = 100.0 / (row["sol_pct"] + row["parking_pct"])
+            row["sol_pct"] *= scale
+            row["parking_pct"] *= scale
+    total_sol = sum(row["sol"] for row in rows)
+    total_parking = sum(row["parking"] for row in rows)
+    top_day = max(rows, key=lambda row: row["total"], default=None)
+    today_row = next((row for row in rows if row["day"] == today), None)
+    return {
+        "rows": rows,
+        "summary": {
+            "label": month_label(month_start),
+            "month": month_start.strftime("%Y-%m"),
+            "previous_month": previous_month.strftime("%Y-%m"),
+            "next_month": next_month.strftime("%Y-%m"),
+            "current_month": today.replace(day=1).strftime("%Y-%m"),
+            "total": total_sol + total_parking,
+            "sol": total_sol,
+            "parking": total_parking,
+            "sol_count": sum(row["sol_count"] for row in rows),
+            "parking_count": sum(row["parking_count"] for row in rows),
+            "max_total": max_total,
+            "top_day": top_day,
+            "today_row": today_row,
+        },
+    }
+
+
+@app.get("/api/v2/overview")
+async def api_v2_overview():
+    now_dt = local_now_naive()
+    today = now_dt.date()
+    yesterday = today - timedelta(days=1)
+    last_week_same_day = today - timedelta(days=7)
+    week_start = today - timedelta(days=today.weekday())
+    previous_week_start = week_start - timedelta(days=7)
+    month_start = today.replace(day=1)
+    previous_month_start = (month_start - timedelta(days=1)).replace(day=1)
+    tomorrow = today + timedelta(days=1)
+    today_start = datetime.combine(today, time.min)
+    tomorrow_start = datetime.combine(tomorrow, time.min)
+    yesterday_start = datetime.combine(yesterday, time.min)
+    week_start_dt = datetime.combine(week_start, time.min)
+    previous_week_start_dt = datetime.combine(previous_week_start, time.min)
+    month_start_dt = datetime.combine(month_start, time.min)
+    previous_month_start_dt = datetime.combine(previous_month_start, time.min)
+    async with async_session() as session:
+        latest_light_sample = (
+            await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
+        ).scalars().first()
+        latest_light = (
+            await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(1))
+        ).scalars().first()
+        latest_sample = (
+            await session.execute(select(VentilationSample).order_by(VentilationSample.timestamp.desc()).limit(1))
+        ).scalars().first()
+        latest_yr_sample = (
+            await session.execute(select(YrForecastSample).order_by(YrForecastSample.timestamp.desc()).limit(1))
+        ).scalars().first()
+        import_rows = await import_status_rows(session)
+        today_sun = await sun2_period_snapshot(session, today, tomorrow)
+        yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
+        week_sun = await sun2_period_snapshot(session, week_start, tomorrow)
+        previous_week_sun = await sun2_period_snapshot(session, previous_week_start, week_start)
+        month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
+        previous_month_sun = await sun2_period_snapshot(session, previous_month_start, month_start)
+        today_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(ParkingSession.start_time >= today_start, ParkingSession.start_time < tomorrow_start)
+            )
+        ).one()
+        yesterday_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(ParkingSession.start_time >= yesterday_start, ParkingSession.start_time < today_start)
+            )
+        ).one()
+        last_week_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= datetime.combine(last_week_same_day, time.min),
+                    ParkingSession.start_time < datetime.combine(last_week_same_day + timedelta(days=1), time.min),
+                )
+            )
+        ).one()
+        week_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(ParkingSession.start_time >= week_start_dt, ParkingSession.start_time < tomorrow_start)
+            )
+        ).one()
+        previous_week_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(ParkingSession.start_time >= previous_week_start_dt, ParkingSession.start_time < week_start_dt)
+            )
+        ).one()
+        month_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(ParkingSession.start_time >= month_start_dt, ParkingSession.start_time < tomorrow_start)
+            )
+        ).one()
+        previous_month_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(ParkingSession.start_time >= previous_month_start_dt, ParkingSession.start_time < month_start_dt)
+            )
+        ).one()
+        active_parking = (
+            await session.execute(
+                select(func.count(ParkingSession.id)).where(
+                    ParkingSession.start_time <= now_dt,
+                    or_(
+                        ParkingSession.end_time.is_(None),
+                        ParkingSession.end_time >= now_dt,
+                        func.lower(func.coalesce(ParkingSession.status, "")) == "ongoing",
+                    ),
+                )
+            )
+        ).scalar_one()
+        latest_parking = (
+            await session.execute(
+                select(ParkingSession)
+                .where(ParkingSession.start_time >= today_start, ParkingSession.start_time < tomorrow_start)
+                .order_by(ParkingSession.start_time.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        latest_soling = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .where(Sun2TanningSession.stat_date == today)
+                .order_by(Sun2TanningSession.started_at.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        latest_energy_sample = (
+            await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
+        ).scalars().first()
+        today_energy_fibaro = (
+            await session.execute(
+                select(
+                    func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("kwh"),
+                    func.count(EnergyFibaroSample.id).label("samples"),
+                ).where(EnergyFibaroSample.bucket_start >= today_start, EnergyFibaroSample.bucket_start < tomorrow_start)
+            )
+        ).one()
+
+    now_status = build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
+    operating = operating_window(now_dt)
+    import_counts = {
+        "ok": sum(1 for row in import_rows if row["status"] == "ok"),
+        "warn": sum(1 for row in import_rows if row["status"] == "warn"),
+        "bad": sum(1 for row in import_rows if row["status"] == "bad"),
+        "total": len(import_rows),
+    }
+    revenue_today = float_or_zero(today_sun.paid) + float_or_zero(today_parking.paid)
+    revenue_yesterday = float_or_zero(yesterday_sun.paid) + float_or_zero(yesterday_parking.paid)
+    revenue_week = float_or_zero(week_sun.paid) + float_or_zero(week_parking.paid)
+    revenue_previous_week = float_or_zero(previous_week_sun.paid) + float_or_zero(previous_week_parking.paid)
+    revenue_month = float_or_zero(month_sun.paid) + float_or_zero(month_parking.paid)
+    revenue_previous_month = float_or_zero(previous_month_sun.paid) + float_or_zero(previous_month_parking.paid)
+    light_items = [
+        {"label": device["name"], "state": api_bool_state(light_sample_state(latest_light_sample, device) if latest_light_sample else None)}
+        for device in LIGHT_TIMELINE_DEVICES
+    ]
+    fan_items = [
+        {"label": device["name"], "state": api_bool_state(sample_state(latest_sample, device) if latest_sample else None)}
+        for device in VENT_TIMELINE_DEVICES
+    ]
+    cards = [
+        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/status/dashboard", "tone": "status"},
+        {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/v2/drift", "tone": "status"},
+        {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/v2/omsetning", "tone": "revenue"},
+        {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/v2/omsetning", "tone": "revenue"},
+        {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/v2/omsetning", "tone": "revenue"},
+        {"group": "Soling", "title": "Soling i dag", "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions), "unit": "stk", "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom", "href": "/soling/dagslinje", "tone": "sun2"},
+        {"group": "Soling", "title": "Sol uke", "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions), "unit": "stk", "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)}", "href": "/soling/prognose", "tone": "sun2"},
+        {"group": "Parkering", "title": "Parkering i dag", "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions), "unit": "stk", "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive n\u00e5", "href": "/parkering/oversikt", "tone": "parking"},
+        {"group": "Parkering", "title": "Samme dag forrige uke", "value": format_short_number(last_week_parking.sessions), "unit": "stk", "detail": f"{format_short_number(last_week_parking.paid)} kr", "href": "/parkering/statistikk", "tone": "parking"},
+        {"group": "Energi", "title": "Str\u00f8m n\u00e5", "value": format_short_number(latest_energy_sample.inntak_w if latest_energy_sample else 0), "unit": "W", "detail": f"{format_short_number(today_energy_fibaro.kwh, 1)} kWh i dag - {today_energy_fibaro.samples or 0} samples", "href": "/energi/status", "tone": "energy"},
+        {"group": "Energi", "title": "Diff", "value": format_short_number(latest_energy_sample.differanse_beregnet_w if latest_energy_sample else 0), "unit": "W", "detail": "Beregnet fra realtime m\u00e5lere", "href": "/energi/status", "tone": "energy"},
+        {"group": "Temperatur", "title": "Innetemp", "value": format_short_number(now_status.get("indoor_avg"), 1), "unit": "grader", "detail": f"Ute {format_short_number(now_status.get('outdoor_avg'), 1)} grader", "href": "/ventilasjon/temp-logg", "tone": "vent"},
+        {"group": "Temperatur", "title": "Kjeller", "value": format_short_number(latest_sample.temp_kjeller if latest_sample else None, 1), "unit": "grader", "detail": f"Fukt {format_short_number(latest_sample.humidity_kjeller if latest_sample else None)}%", "href": "/ventilasjon/temp-logg", "tone": "vent"},
+        {"group": "V\u00e6r", "title": "Yr", "value": weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light) or "-", "detail": f"Vind {format_short_number(latest_yr_sample.wind_speed if latest_yr_sample else None, 1)} m/s - sky {format_short_number(latest_yr_sample.cloud_area_fraction if latest_yr_sample else None)}%", "href": "/ventilasjon/yr-logg", "tone": "weather"},
+    ]
+    latest_items = [
+        {"label": "Siste soling", "value": latest_soling.started_at.strftime("%H:%M") if latest_soling and latest_soling.started_at else "-", "detail": f"Rom {latest_soling.room}" if latest_soling and latest_soling.room else "", "href": "/soling/dagslinje"},
+        {"label": "Siste parkering", "value": latest_parking.start_time.strftime("%H:%M") if latest_parking and latest_parking.start_time else "-", "detail": latest_parking.car_license_number if latest_parking and latest_parking.car_license_number else "", "href": "/parkering/oversikt"},
+        {"label": "Energi sist lest", "value": latest_energy_sample.bucket_start.strftime("%H:%M") if latest_energy_sample and latest_energy_sample.bucket_start else "-", "detail": f"{format_short_number(latest_energy_sample.inntak_w)} W" if latest_energy_sample else "", "href": "/energi/status"},
+        {"label": "Temp sist lest", "value": now_status["timestamp"].strftime("%H:%M") if now_status.get("timestamp") else "-", "detail": now_status.get("weather") or "", "href": "/ventilasjon/temp-logg"},
+    ]
+    services = [
+        {
+            "label": row["title"],
+            "status": row["status"] if row["status"] in {"ok", "warn", "bad"} else "unknown",
+            "detail": row["age"] or row["status_text"],
+            "ageMinutes": minutes_since(row["last_success_at"]) if row.get("last_success_at") else None,
+        }
+        for row in import_rows
+    ]
+    return {
+        "generatedAt": api_local_iso(now_dt),
+        "operatingWindow": {"label": operating["label"], "detail": operating["detail"], "open": operating["label"] == "Apent"},
+        "cards": cards,
+        "latestItems": latest_items,
+        "services": services,
+        "lightItems": light_items,
+        "fanItems": fan_items,
+    }
+
+
+@app.get("/api/v2/revenue/month")
+async def api_v2_revenue_month(month: Optional[str] = None):
+    context = await build_revenue_month_context(month)
+    summary = context["summary"]
+    return {
+        "summary": {
+            "label": summary["label"],
+            "month": summary["month"],
+            "previousMonth": summary["previous_month"],
+            "nextMonth": summary["next_month"],
+            "currentMonth": summary["current_month"],
+            "total": summary["total"],
+            "sol": summary["sol"],
+            "parking": summary["parking"],
+            "solCount": summary["sol_count"],
+            "parkingCount": summary["parking_count"],
+            "maxTotal": summary["max_total"],
+            "topDay": api_revenue_day(summary["top_day"]) if summary["top_day"] else None,
+            "todayRow": api_revenue_day(summary["today_row"]) if summary["today_row"] else None,
+        },
+        "rows": [api_revenue_day(row) for row in context["rows"]],
+    }
 
 
 @app.get("/status/omsetning", response_class=HTMLResponse)
