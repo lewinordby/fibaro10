@@ -18,7 +18,7 @@
 
 local API_URL = "http://192.168.20.218:8110/api/energi/fibaro"
 local SOURCE = "HC3 ENERGI | 1MIN"
-local INTERVAL_SECONDS = 60
+local INTERVAL_SECONDS = 30
 
 local REALTIME_IDS = {
   inntak = 221,
