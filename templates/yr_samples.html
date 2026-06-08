@@ -80,8 +80,11 @@
             <div class="grid">
                 <div class="cell"><span class="label">Fukt</span><span class="value">{% if row.relative_humidity is not none %}{{ "%.0f"|format(row.relative_humidity) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Vind</span><span class="value">{% if row.wind_speed is not none %}{{ "%.1f"|format(row.wind_speed) }} m/s{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Vindkast</span><span class="value">{% if row.wind_speed_of_gust is not none %}{{ "%.1f"|format(row.wind_speed_of_gust) }} m/s{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Skydekke</span><span class="value">{% if row.cloud_area_fraction is not none %}{{ "%.0f"|format(row.cloud_area_fraction) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Nedbør 1t</span><span class="value">{% if row.precipitation_next_1h is not none %}{{ "%.1f"|format(row.precipitation_next_1h) }} mm{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Sannsyn 1t</span><span class="value">{% if row.probability_of_precipitation_next_1h is not none %}{{ "%.0f"|format(row.probability_of_precipitation_next_1h) }}%{% else %}-{% endif %}</span></div>
+                <div class="cell"><span class="label">Sannsyn 6t</span><span class="value">{% if row.probability_of_precipitation_next_6h is not none %}{{ "%.0f"|format(row.probability_of_precipitation_next_6h) }}%{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Neste henting</span><span class="value">{{ row.next_fetch_after|localtime_short if row.next_fetch_after else "-" }}</span></div>
                 <div class="cell"><span class="label">Duggpunkt</span><span class="value">{% if row.dew_point_temperature is not none %}{{ "%.1f"|format(row.dew_point_temperature) }}°{% else %}-{% endif %}</span></div>
                 <div class="cell"><span class="label">Trykk</span><span class="value">{% if row.air_pressure_at_sea_level is not none %}{{ "%.0f"|format(row.air_pressure_at_sea_level) }} hPa{% else %}-{% endif %}</span></div>

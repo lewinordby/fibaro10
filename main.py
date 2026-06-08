@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1037")
+APP_BUILD = os.getenv("APP_BUILD", "1038")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1038",
+        "date": "08.06.2026",
+        "title": "Utvider Yr-logging",
+        "changes": [
+            "Logger vindkast fra Yr/MET når feltet leveres.",
+            "Logger nedbørsannsynlighet neste 1 og 6 timer når feltet leveres.",
+            "Oppdaterer eksisterende Yr-rad med nye felter når samme varsel allerede er lagret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1037",
@@ -990,6 +1001,7 @@ class YrForecastSample(Base):
     air_temperature = Column(Float, nullable=True)
     relative_humidity = Column(Float, nullable=True)
     wind_speed = Column(Float, nullable=True)
+    wind_speed_of_gust = Column(Float, nullable=True)
     wind_from_direction = Column(Float, nullable=True)
     cloud_area_fraction = Column(Float, nullable=True)
     fog_area_fraction = Column(Float, nullable=True)
@@ -997,6 +1009,8 @@ class YrForecastSample(Base):
     air_pressure_at_sea_level = Column(Float, nullable=True)
     precipitation_next_1h = Column(Float, nullable=True)
     precipitation_next_6h = Column(Float, nullable=True)
+    probability_of_precipitation_next_1h = Column(Float, nullable=True)
+    probability_of_precipitation_next_6h = Column(Float, nullable=True)
     temp_1h = Column(Float, nullable=True)
     temp_3h = Column(Float, nullable=True)
     temp_6h = Column(Float, nullable=True)
@@ -2028,9 +2042,10 @@ YR_SAMPLE_COLUMNS = [
     "id", "timestamp", "bucket_start", "source", "api_updated_at", "last_modified",
     "expires_at", "next_fetch_after", "age_seconds", "forecast_time", "symbol_code",
     "weather_text", "air_temperature", "relative_humidity", "wind_speed",
-    "wind_from_direction", "cloud_area_fraction", "fog_area_fraction",
+    "wind_speed_of_gust", "wind_from_direction", "cloud_area_fraction", "fog_area_fraction",
     "dew_point_temperature", "air_pressure_at_sea_level", "precipitation_next_1h",
-    "precipitation_next_6h", "temp_1h", "temp_3h", "temp_6h", "temp_12h",
+    "precipitation_next_6h", "probability_of_precipitation_next_1h",
+    "probability_of_precipitation_next_6h", "temp_1h", "temp_3h", "temp_6h", "temp_12h",
     "temp_24h", "symbol_1h", "symbol_3h", "symbol_6h", "symbol_12h",
     "symbol_24h", "temp_min_next_6h", "temp_max_next_6h", "extra",
 ]
@@ -3110,6 +3125,9 @@ STARTUP_COLUMNS = {
         ("expires_at", "TIMESTAMP"),
         ("next_fetch_after", "TIMESTAMP"),
         ("age_seconds", "INTEGER"),
+        ("wind_speed_of_gust", "DOUBLE PRECISION"),
+        ("probability_of_precipitation_next_1h", "DOUBLE PRECISION"),
+        ("probability_of_precipitation_next_6h", "DOUBLE PRECISION"),
     ],
     "roborock_robots": [
         ("serial_number", "VARCHAR"),
@@ -4921,6 +4939,7 @@ def met_forecast_from_payload(payload: Dict[str, Any]) -> Optional[Dict[str, Any
         "air_temperature": met_value(details, "air_temperature"),
         "relative_humidity": met_value(details, "relative_humidity"),
         "wind_speed": met_value(details, "wind_speed"),
+        "wind_speed_of_gust": met_value(details, "wind_speed_of_gust"),
         "wind_from_direction": met_value(details, "wind_from_direction"),
         "cloud_area_fraction": met_value(details, "cloud_area_fraction"),
         "fog_area_fraction": met_value(details, "fog_area_fraction"),
@@ -4928,6 +4947,8 @@ def met_forecast_from_payload(payload: Dict[str, Any]) -> Optional[Dict[str, Any
         "air_pressure_at_sea_level": met_value(details, "air_pressure_at_sea_level"),
         "precipitation_next_1h": met_value(next_1h, "precipitation_amount"),
         "precipitation_next_6h": met_value(next_6h, "precipitation_amount"),
+        "probability_of_precipitation_next_1h": met_value(next_1h, "probability_of_precipitation"),
+        "probability_of_precipitation_next_6h": met_value(next_6h, "probability_of_precipitation"),
     }
     for hours in (1, 3, 6, 12, 24):
         entry = met_entry_at(timeseries, forecast_time, hours)
@@ -7419,6 +7440,7 @@ def yr_sample_from_forecast(
         air_temperature=forecast.get("air_temperature"),
         relative_humidity=forecast.get("relative_humidity"),
         wind_speed=forecast.get("wind_speed"),
+        wind_speed_of_gust=forecast.get("wind_speed_of_gust"),
         wind_from_direction=forecast.get("wind_from_direction"),
         cloud_area_fraction=forecast.get("cloud_area_fraction"),
         fog_area_fraction=forecast.get("fog_area_fraction"),
@@ -7426,6 +7448,8 @@ def yr_sample_from_forecast(
         air_pressure_at_sea_level=forecast.get("air_pressure_at_sea_level"),
         precipitation_next_1h=forecast.get("precipitation_next_1h"),
         precipitation_next_6h=forecast.get("precipitation_next_6h"),
+        probability_of_precipitation_next_1h=forecast.get("probability_of_precipitation_next_1h"),
+        probability_of_precipitation_next_6h=forecast.get("probability_of_precipitation_next_6h"),
         temp_1h=forecast.get("temp_1h"),
         temp_3h=forecast.get("temp_3h"),
         temp_6h=forecast.get("temp_6h"),
@@ -7460,6 +7484,11 @@ async def save_yr_sample_for_payload(data: EventDataIn, forecast: Optional[Dict[
             stmt = stmt.where(YrForecastSample.bucket_start == bucket_start)
         existing = (await session.execute(stmt)).scalars().first()
         if existing:
+            existing.wind_speed_of_gust = forecast.get("wind_speed_of_gust")
+            existing.probability_of_precipitation_next_1h = forecast.get("probability_of_precipitation_next_1h")
+            existing.probability_of_precipitation_next_6h = forecast.get("probability_of_precipitation_next_6h")
+            existing.extra = {"raw_meta": forecast.get("raw_meta") or {}}
+            await session.commit()
             return existing.id
         record = yr_sample_from_forecast(timestamp, bucket_start, data.source, forecast)
         session.add(record)
