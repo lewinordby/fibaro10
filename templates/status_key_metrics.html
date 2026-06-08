@@ -6,11 +6,12 @@
     <title>Nokkeltall</title>
     <style>
         :root {
-            --key-bg:#eef2f6;
             --key-panel:#ffffff;
             --key-line:#dce4ee;
+            --key-line-soft:#eef3f7;
             --key-text:#071943;
             --key-muted:#667085;
+            --key-muted-2:#536276;
             --key-status:#071943;
             --key-revenue:#8a5a17;
             --key-sun2:#d66d5b;
@@ -21,120 +22,120 @@
             --key-weather:#5292d6;
         }
         body.theme-status main {
-            max-width: 1480px;
+            max-width: 1540px;
         }
         .key-page {
             display: grid;
-            gap: 0.85rem;
+            gap: 0.78rem;
         }
         .key-head {
             display: flex;
             justify-content: space-between;
             align-items: end;
             gap: 1rem;
-            padding: 0.9rem 0.98rem;
-            border: 1px solid var(--key-line);
-            border-radius: 10px;
-            background: var(--key-panel);
-            box-shadow: 0 7px 20px rgba(7,25,67,0.045);
+            padding: 0.18rem 0.08rem 0.34rem;
+            border-bottom: 1px solid var(--key-line);
         }
         .key-head h1 {
             margin: 0;
             color: var(--key-text);
-            font-size: clamp(1.45rem, 2.3vw, 2rem);
+            font-size: 1.32rem;
             line-height: 1.08;
         }
         .key-head p {
             margin: 0.18rem 0 0;
             max-width: 66rem;
             color: var(--key-muted);
-            font-size: 0.88rem;
+            font-size: 0.78rem;
         }
         .key-updated {
             flex: 0 0 auto;
             color: var(--key-muted);
-            font-size: 0.78rem;
+            font-size: 0.72rem;
             font-weight: 780;
         }
         .latest-strip {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.62rem;
+            gap: 0.48rem;
         }
         .latest-card,
         .key-card,
         .state-panel {
             min-width: 0;
             border: 1px solid var(--key-line);
-            border-radius: 8px;
+            border-radius: 7px;
             background: var(--key-panel);
-            box-shadow: 0 5px 16px rgba(7,25,67,0.04);
+            box-shadow: 0 3px 10px rgba(7,25,67,0.026);
         }
         .latest-card {
             display: grid;
-            gap: 0.08rem;
-            padding: 0.62rem 0.74rem;
+            gap: 0.06rem;
+            padding: 0.46rem 0.58rem;
             color: var(--key-text);
             text-decoration: none;
         }
         .latest-card span,
         .key-card span {
             color: var(--key-muted);
-            font-size: 0.68rem;
+            font-size: 0.58rem;
             font-weight: 900;
             text-transform: uppercase;
         }
         .latest-card strong {
             color: var(--key-text);
-            font-size: 1.05rem;
+            font-size: 0.92rem;
             line-height: 1.1;
         }
         .latest-card small,
         .key-card small {
-            color: #536276;
-            font-size: 0.76rem;
-            line-height: 1.25;
+            color: var(--key-muted-2);
+            font-size: 0.68rem;
+            line-height: 1.2;
         }
         .key-section {
             display: grid;
-            gap: 0.54rem;
+            gap: 0.42rem;
+            padding-top: 0.18rem;
         }
         .key-section-head {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
             gap: 1rem;
-            padding: 0 0.1rem;
+            padding: 0.4rem 0.08rem 0;
+            border-top: 1px solid var(--key-line-soft);
         }
         .key-section-head h2 {
             margin: 0;
             color: var(--key-text);
-            font-size: 1rem;
+            font-size: 0.86rem;
+            font-weight: 850;
         }
         .key-section-head span {
             color: var(--key-muted);
-            font-size: 0.76rem;
+            font-size: 0.66rem;
         }
         .key-grid {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-            gap: 0.62rem;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 0.48rem;
         }
         .key-card {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            align-items: center;
-            gap: 0.7rem;
-            min-height: 5.5rem;
-            padding: 0.72rem 0.8rem;
-            border-left: 4px solid var(--tone, var(--key-status));
+            grid-template-columns: 1fr;
+            align-content: start;
+            gap: 0.24rem;
+            min-height: 4.35rem;
+            padding: 0.5rem 0.58rem;
+            border-top: 3px solid var(--tone, var(--key-status));
             color: var(--key-text);
             text-decoration: none;
         }
         .key-card:hover,
         .latest-card:hover {
             border-color: #b9c7d8;
-            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(7,25,67,0.05);
         }
         .key-card.status { --tone: var(--key-status); }
         .key-card.revenue { --tone: var(--key-revenue); }
@@ -146,77 +147,86 @@
         .key-card.weather { --tone: var(--key-weather); }
         .key-card strong {
             display: flex;
+            min-width: 0;
             align-items: baseline;
-            gap: 0.22rem;
-            margin-top: 0.1rem;
+            gap: 0.18rem;
+            margin-top: 0.02rem;
             color: var(--key-text);
-            font-size: clamp(1.32rem, 2.4vw, 1.82rem);
-            line-height: 1;
-            white-space: nowrap;
+            font-size: 1.05rem;
+            line-height: 1.05;
+            overflow-wrap: anywhere;
+            white-space: normal;
         }
         .key-card em {
             color: var(--key-muted);
-            font-size: 0.42em;
+            font-size: 0.48em;
             font-style: normal;
             font-weight: 900;
+            white-space: nowrap;
         }
         .key-card small {
-            justify-self: end;
-            max-width: 10rem;
-            text-align: right;
+            display: block;
+            max-width: 100%;
+            min-height: 1.6em;
         }
         .state-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.62rem;
+            gap: 0.48rem;
         }
         .state-panel {
-            padding: 0.74rem;
+            padding: 0.58rem;
         }
         .state-panel h2 {
-            margin: 0 0 0.55rem;
+            margin: 0 0 0.45rem;
             color: var(--key-text);
-            font-size: 0.98rem;
+            font-size: 0.84rem;
         }
         .state-list {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.45rem;
+            gap: 0.36rem;
         }
         .state-pill {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 0.45rem;
+            gap: 0.38rem;
             min-width: 0;
-            padding: 0.46rem 0.54rem;
+            padding: 0.34rem 0.42rem;
             border: 1px solid #e5eaf0;
-            border-radius: 7px;
+            border-radius: 6px;
             background: #fbfdff;
         }
         .state-pill span {
             min-width: 0;
             overflow: hidden;
             color: var(--key-text);
-            font-size: 0.78rem;
+            font-size: 0.7rem;
             font-weight: 760;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
         .state-dot {
-            width: 0.68rem;
-            height: 0.68rem;
+            width: 0.56rem;
+            height: 0.56rem;
             flex: 0 0 auto;
             border-radius: 999px;
             background: #94a3b8;
-            box-shadow: 0 0 0 3px #eef2f7;
+            box-shadow: 0 0 0 2px #eef2f7;
         }
-        .state-pill.on .state-dot { background: #0f766e; box-shadow: 0 0 0 3px #dffaf2; }
-        .state-pill.off .state-dot { background: #9f1239; box-shadow: 0 0 0 3px #fff1f2; }
+        .state-pill.on .state-dot { background: #0f766e; box-shadow: 0 0 0 2px #dffaf2; }
+        .state-pill.off .state-dot { background: #9f1239; box-shadow: 0 0 0 2px #fff1f2; }
+        @media (max-width: 1480px) {
+            .key-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        }
         @media (max-width: 1280px) {
-            .key-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .key-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
             .latest-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .state-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 980px) {
+            .key-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 760px) {
             .key-head { display: grid; }
@@ -224,8 +234,6 @@
             .latest-strip,
             .state-grid,
             .state-list { grid-template-columns: 1fr; }
-            .key-card { grid-template-columns: 1fr; }
-            .key-card small { justify-self: start; max-width: none; text-align: left; }
         }
     </style>
     {% include "_styles.html" %}
@@ -237,7 +245,7 @@
             <section class="key-head">
                 <div>
                     <h1>N&oslash;kkeltall</h1>
-                    <p>Intern PC-visning av kortene og referansetallene fra mobilappen, samlet p&aring; én stor oversiktsside.</p>
+                    <p>Intern PC-visning av kortene og referansetallene fra mobilappen, samlet p&aring; en stor oversiktsside.</p>
                 </div>
                 <span class="key-updated">Oppdatert {{ now.strftime("%d.%m.%Y %H:%M") }}</span>
             </section>

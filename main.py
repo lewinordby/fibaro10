@@ -88,8 +88,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1048")
+APP_BUILD = os.getenv("APP_BUILD", "1049")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1049",
+        "date": "08.06.2026",
+        "title": "Rydder nokkeltallside",
+        "changes": [
+            "Gjor Status/Nokkeltall mer kompakt med lavere fontstorrelse og tettere kort.",
+            "Rydder seksjoner, spacing og kortdesign slik at PC-siden blir lettere a skanne.",
+            "Beholder alle mobilunderside-tallene pa samme side.",
+        ],
+    },
     {
         "version": "1",
         "build": "1048",
