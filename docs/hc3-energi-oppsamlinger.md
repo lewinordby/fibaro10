@@ -68,7 +68,7 @@ Body: {"value": 30}
 
 ## Kjente umalte laster
 
-- Kurs 35 `AVTREKKSVIFTE TAK (LOFT SYD OVER ROM 9)` er en 3-fas avtrekksvifte uten effektmåler. Den styres av HC3 device 134 og er registrert i Fibaro10 lastregister som estimert 300 W når den gar.
+- Kurs 35 `AVTREKKSVIFTE TAK (LOFT SYD OVER ROM 9)` er en 3-fas avtrekksvifte uten effektmåler. Den styres av HC3 device 134 og er registrert i Fibaro10 lastregister som estimert 320 W når den gar.
 - Kurs 5 `TERMINAL/ REGISTRERING OG KREMAUTOMAT` har måler og skal ikke regnes som en umalt hovedkandidat uten ny kontroll.
 - Kurs 29 `VVBEREDER UNDER ROM 8 + STIKK VIP BOD` har måler via HC3 `84.0 Varmtvann`: device 399 for realtime W og 398 for akkumulert kWh. Den ligger i Massasje-gruppen.
 
