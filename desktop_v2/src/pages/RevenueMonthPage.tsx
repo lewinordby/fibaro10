@@ -30,6 +30,14 @@ const columns: ColumnsType<RevenueDay> = [
   { title: "Total", dataIndex: "total", align: "right", sorter: (left, right) => left.total - right.total, render: (value) => <strong>{nok(value)} kr</strong> },
 ];
 
+function countLabel(value: number, singular: string, plural: string): string {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function tooltipMarker(color: string): string {
+  return `<span style="display:inline-block;width:9px;height:9px;margin-right:7px;border-radius:50%;background:${color};"></span>`;
+}
+
 export default function RevenueMonthPage() {
   const [month, setMonth] = useState<string | undefined>(undefined);
   const { data, loading, error } = useAsyncData(() => fetchRevenueMonth(month), [month]);
@@ -41,7 +49,31 @@ export default function RevenueMonthPage() {
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
-        valueFormatter: (value: number) => `${nok(value)} kr`,
+        formatter: (params: unknown) => {
+          const items = Array.isArray(params) ? params : [params];
+          const firstItem = items[0] as { dataIndex?: number } | undefined;
+          const row = rows[firstItem?.dataIndex ?? -1];
+          if (!row) return "";
+          return `
+            <div style="min-width:190px">
+              <div style="margin-bottom:6px;font-weight:700;color:#111827">${row.dayLabel} · ${row.weekday}</div>
+              <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.65">
+                <span>${tooltipMarker("#dc2626")}Soling</span>
+                <strong>${nok(row.sol)} kr</strong>
+              </div>
+              <div style="margin:0 0 4px 16px;color:#6b7280;font-size:12px">${countLabel(row.solCount, "soling", "solinger")}</div>
+              <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.65">
+                <span>${tooltipMarker("#2563eb")}Parkering</span>
+                <strong>${nok(row.parking)} kr</strong>
+              </div>
+              <div style="margin:0 0 7px 16px;color:#6b7280;font-size:12px">${countLabel(row.parkingCount, "parkering", "parkeringer")}</div>
+              <div style="display:flex;justify-content:space-between;gap:16px;padding-top:7px;border-top:1px solid #e5e7eb;line-height:1.6">
+                <span style="font-weight:700">Sum</span>
+                <strong>${nok(row.total)} kr</strong>
+              </div>
+            </div>
+          `;
+        },
       },
       legend: { top: 0 },
       grid: { top: 42, left: 42, right: 18, bottom: 34 },
