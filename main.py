@@ -11550,8 +11550,18 @@ def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]], edit: 
     return payload
 
 
-def api_chart(title: str, x: list[str], series: list[Dict[str, Any]], subtitle: str = "", chart_type: str = "line", height: int = 330) -> Dict[str, Any]:
-    return {
+def api_chart(
+    title: str,
+    x: list[str],
+    series: list[Dict[str, Any]],
+    subtitle: str = "",
+    chart_type: str = "line",
+    height: int = 330,
+    metrics: Optional[list[Dict[str, Any]]] = None,
+    default_metric: Optional[str] = None,
+    default_visible_series: Optional[list[str]] = None,
+) -> Dict[str, Any]:
+    payload = {
         "title": title,
         "subtitle": subtitle,
         "type": chart_type,
@@ -11559,6 +11569,44 @@ def api_chart(title: str, x: list[str], series: list[Dict[str, Any]], subtitle: 
         "height": height,
         "series": series,
     }
+    if metrics:
+        payload["metrics"] = metrics
+    if default_metric:
+        payload["defaultMetric"] = default_metric
+    if default_visible_series:
+        payload["defaultVisibleSeries"] = default_visible_series
+    return payload
+
+
+def api_parking_weekly_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
+    chart_rows = summaries.get("weekly_chart", [])
+
+    def metric_series(metric: str) -> list[Dict[str, Any]]:
+        return [
+            {
+                "name": row["year"],
+                "data": row[metric],
+                "color": row.get("color"),
+                "unit": "kr" if metric == "revenue" else "stk",
+            }
+            for row in chart_rows
+        ]
+
+    current_year = local_now_naive().year
+    return api_chart(
+        "Ukesutvikling parkering",
+        [str(week) for week in range(1, 54)],
+        metric_series("revenue"),
+        "Velg omsetning eller antall. I år og i fjor vises ved åpning; andre år slås på i forklaringen.",
+        "line",
+        360,
+        metrics=[
+            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": metric_series("revenue")},
+            {"key": "count", "label": "Antall", "unit": "stk", "series": metric_series("count")},
+        ],
+        default_metric="revenue",
+        default_visible_series=[str(current_year), str(current_year - 1)],
+    )
 
 
 def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = None) -> Dict[str, Any]:
@@ -12530,19 +12578,6 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                     .limit(80)
                 )
             ).scalars().all()
-            charts = [
-                api_chart(
-                    "Ukesutvikling parkering",
-                    [str(week) for week in range(1, 54)],
-                    [
-                        {"name": row["year"], "data": row["revenue"], "color": row.get("color")}
-                        for row in parking_summaries["weekly_chart"]
-                    ],
-                    "Beløp per uke og år. Samme grunnlag som gammel parkering/statistikk.",
-                    "line",
-                    360,
-                )
-            ]
             tables = [
                 api_table(
                     "Siste parkeringer",
@@ -12640,6 +12675,7 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                         ],
                     ),
                 ]
+            charts = [api_parking_weekly_chart(parking_summaries)] if view in ("", "oversikt") else []
             return {
                 "title": "Parkering" if not view else f"Parkering · {view.replace('-', ' ')}",
                 "subtitle": "EasyPark, aktive parkeringer og kjøretøygrunnlag.",
@@ -12649,7 +12685,7 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                     api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue"),
                     api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
                 ],
-                "charts": [] if view == "kjoretoy" else charts,
+                "charts": charts,
                 "tables": tables,
                 "actions": [
                     {

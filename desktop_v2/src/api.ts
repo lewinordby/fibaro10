@@ -106,6 +106,13 @@ export type ModuleChartSeries = {
   yAxisIndex?: number;
 };
 
+export type ModuleChartMetric = {
+  key: string;
+  label: string;
+  unit?: string;
+  series: ModuleChartSeries[];
+};
+
 export type ModuleChart = {
   title: string;
   subtitle?: string;
@@ -113,6 +120,9 @@ export type ModuleChart = {
   x: string[];
   height?: number;
   series: ModuleChartSeries[];
+  metrics?: ModuleChartMetric[];
+  defaultMetric?: string;
+  defaultVisibleSeries?: string[];
 };
 
 export type ModuleEditField = {
