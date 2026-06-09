@@ -1,4 +1,5 @@
 import {
+  LogoutOutlined,
   BulbOutlined,
   CalendarOutlined,
   CarOutlined,
@@ -7,15 +8,18 @@ import {
   SettingOutlined,
   ToolOutlined,
   ThunderboltOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
-import { Layout, Menu, Segmented, Typography } from "antd";
+import { Avatar, Button, Dropdown, Layout, Menu, Segmented, Typography } from "antd";
 import type { MenuProps } from "antd";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import OverviewPage from "./pages/OverviewPage";
 import RevenueMonthPage from "./pages/RevenueMonthPage";
 import OperationsPage from "./pages/OperationsPage";
 import ModulePage from "./pages/ModulePage";
 import ParkingVehicleDetailPage from "./pages/ParkingVehicleDetailPage";
+import { fetchCurrentUser, logoutUser, type AuthUser } from "./api";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
 
 const { Header, Sider, Content } = Layout;
@@ -48,6 +52,74 @@ function activeModule(pathname: string): string | null {
   return MODULE_VIEWS[module] ? module : null;
 }
 
+function userInitial(user?: AuthUser | null): string {
+  const name = user?.username?.trim();
+  return name ? name.slice(0, 1).toUpperCase() : "";
+}
+
+function UserProfileMenu() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchCurrentUser()
+      .then((value) => {
+        if (active) setUser(value);
+      })
+      .catch(() => {
+        if (active) setUser(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const items = useMemo<MenuProps["items"]>(
+    () => [
+      {
+        key: "identity",
+        disabled: true,
+        label: (
+          <div className="profile-menu-identity">
+            <strong>{user?.username || "Ukjent bruker"}</strong>
+            <span>{user?.roleLabel || "Innlogget"}</span>
+          </div>
+        ),
+      },
+      { type: "divider" },
+      { key: "account", icon: <UserOutlined />, label: "Konto" },
+      { key: "logout", icon: <LogoutOutlined />, label: "Logg ut", danger: true },
+    ],
+    [user],
+  );
+
+  async function handleMenuClick({ key }: { key: string }) {
+    if (key === "account") {
+      window.location.assign("/konto/oversikt");
+      return;
+    }
+    if (key !== "logout" || loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logoutUser();
+    } finally {
+      window.location.replace("/auth/login");
+    }
+  }
+
+  return (
+    <Dropdown menu={{ items, onClick: handleMenuClick }} trigger={["click"]} placement="bottomRight">
+      <Button className="profile-button" type="text" loading={loggingOut} aria-label="Brukerprofil og utlogging">
+        <Avatar className="profile-avatar" size={28} icon={user ? undefined : <UserOutlined />}>
+          {userInitial(user)}
+        </Avatar>
+        <span className="profile-name">{user?.username || "Bruker"}</span>
+      </Button>
+    </Dropdown>
+  );
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -74,15 +146,18 @@ export default function App() {
         />
       </Sider>
       <Layout>
-        <Header className={`app-header ${module && viewItems.length > 1 ? "" : "app-header-empty"}`}>
-          {module && viewItems.length > 1 ? (
-            <Segmented
-              className="module-view-switcher top-view-switcher"
-              value={activeView}
-              options={viewItems.map((item) => ({ label: item.label, value: item.key }))}
-              onChange={(next) => navigate(modulePath(module, String(next)))}
-            />
-          ) : null}
+        <Header className="app-header">
+          <div className="app-header-main">
+            {module && viewItems.length > 1 ? (
+              <Segmented
+                className="module-view-switcher top-view-switcher"
+                value={activeView}
+                options={viewItems.map((item) => ({ label: item.label, value: item.key }))}
+                onChange={(next) => navigate(modulePath(module, String(next)))}
+              />
+            ) : null}
+          </div>
+          <UserProfileMenu />
         </Header>
         <Content className="app-content">
           <Routes>

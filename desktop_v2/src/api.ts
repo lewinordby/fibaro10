@@ -82,6 +82,15 @@ export type RevenueMonthResponse = {
   rows: RevenueDay[];
 };
 
+export type AuthUser = {
+  username: string | null;
+  role: string;
+  roleLabel: string;
+  isMaster: boolean;
+  canSettings: boolean;
+  appBuild: string;
+};
+
 export type ModuleCard = {
   title: string;
   value: string;
@@ -421,6 +430,21 @@ export function fetchOverview(): Promise<OverviewResponse> {
 export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse> {
   const query = month ? `?month=${encodeURIComponent(month)}` : "";
   return apiGet<RevenueMonthResponse>(`/api/revenue/month${query}`);
+}
+
+export function fetchCurrentUser(): Promise<AuthUser> {
+  return apiGet<AuthUser>("/api/auth/me");
+}
+
+export async function logoutUser(): Promise<void> {
+  const response = await fetch("/konto/logg-ut", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "text/html" },
+  });
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`);
+  }
 }
 
 export function fetchModule(

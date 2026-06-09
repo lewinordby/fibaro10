@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1073")
+APP_BUILD = os.getenv("APP_BUILD", "1074")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1074",
+        "date": "09.06.2026",
+        "title": "Legger profilmeny i V2",
+        "changes": [
+            "Legger inn API-endepunkt for innlogget bruker og rolle.",
+            "Flytter brukerprofil og utlogging inn i en moderne toppmeny i V2.",
+            "Beholder eksisterende cookie-basert innlogging og logout-flyt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1073",
@@ -9650,6 +9661,20 @@ async def logout():
     response.delete_cookie(AUTH_USER_COOKIE_NAME)
     response.delete_cookie(AUTH_COOKIE_NAME)
     return response
+
+
+@app.get("/api/auth/me")
+async def api_auth_me(request: Request):
+    role = getattr(request.state, "auth_role", "viewer")
+    is_master = bool(getattr(request.state, "auth_is_master", False))
+    return {
+        "username": getattr(request.state, "access_key_name", None),
+        "role": role,
+        "roleLabel": access_role_label(role, is_master),
+        "isMaster": is_master,
+        "canSettings": bool(getattr(request.state, "auth_can_settings", False)),
+        "appBuild": APP_BUILD,
+    }
 
 
 @app.get("/ai")

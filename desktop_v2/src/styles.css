@@ -109,12 +109,20 @@ a {
   top: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 14px;
   height: 54px;
   padding: 0 18px;
   background: rgba(255, 255, 255, 0.94);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(10px);
+}
+
+.app-header-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
 }
 
 .app-header-empty {
@@ -123,6 +131,60 @@ a {
   padding: 0;
   overflow: hidden;
   border-bottom: 0;
+}
+
+.profile-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 36px;
+  max-width: 210px;
+  padding: 4px 8px 4px 5px;
+  color: #334155;
+  border-radius: 999px;
+}
+
+.profile-button:hover {
+  color: #111827 !important;
+  background: #f1f5f9 !important;
+}
+
+.profile-avatar {
+  flex: 0 0 auto;
+  color: #ffffff;
+  background: #2563eb;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.profile-name {
+  overflow: hidden;
+  max-width: 150px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-menu-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  gap: 2px;
+  padding: 3px 0;
+}
+
+.profile-menu-identity strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.profile-menu-identity span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .eyebrow {
