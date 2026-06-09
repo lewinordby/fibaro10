@@ -15,6 +15,7 @@ import OverviewPage from "./pages/OverviewPage";
 import RevenueMonthPage from "./pages/RevenueMonthPage";
 import OperationsPage from "./pages/OperationsPage";
 import ModulePage from "./pages/ModulePage";
+import ParkingVehicleDetailPage from "./pages/ParkingVehicleDetailPage";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
 
 const { Header, Sider, Content } = Layout;
@@ -91,6 +92,7 @@ export default function App() {
             <Route path="/status/omsetning" element={<RevenueMonthPage />} />
             <Route path="/status/drift" element={<OperationsPage />} />
             <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
+            <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
             <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
             <Route path="/soling" element={<Navigate to={modulePath("soling")} replace />} />
             <Route path="/soling/:view" element={<ModulePage module="soling" />} />

@@ -53,6 +53,8 @@ function labelize(column: string): string {
     car_license_number: "Reg.nr",
     owner_warning: "Eier-sjekk",
     plate: "Reg.nr",
+    vehicle_title: "Kjøretøy",
+    current_ownership_at: "Sist eierskifte",
     navn: "Navn",
     omrade: "Område",
     parking_area: "Område",
@@ -62,6 +64,7 @@ function labelize(column: string): string {
     paid: "Betalt",
     first_seen: "Først sett",
     last_seen: "Sist sett",
+    svv_status: "SVV",
     sun2_id: "SUN2-ID",
     parking_time_min: "Min",
     parkering_count: "Parkeringer",
@@ -143,6 +146,9 @@ function labelize(column: string): string {
     consumption_kwh: "kWh",
     is_estimated: "Estimert",
     source: "Kilde",
+    source_system: "Kilde",
+    user_interface: "Grensesnitt",
+    subtype: "Type",
     period_first: "Fra",
     period_last: "Til",
     hours_count: "Timer",
@@ -274,7 +280,14 @@ function moduleColumns(
     align: numericColumn(column) ? "right" : undefined,
     ellipsis: true,
     sorter: (left, right) => compareValues(left[column], right[column]),
-    render: (value: unknown) => {
+    render: (value: unknown, row) => {
+      if (column === "plate" && typeof value === "string" && typeof row.path === "string") {
+        const internalPath = appPath(row.path);
+        if (internalPath) return <Link to={internalPath}>{displayValue(value)}</Link>;
+      }
+      if (column === "owner_warning" && value) {
+        return <Tag color="gold">{displayValue(value)}</Tag>;
+      }
       if (typeof value === "string" && (column === "path" || /^https?:\/\//i.test(value) || value.startsWith("/"))) {
         return <LinkValue value={value} />;
       }
@@ -308,8 +321,12 @@ function moduleColumns(
 function filterRows(rows: Record<string, unknown>[], columns: string[], query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return rows;
+  const compactQuery = normalized.replace(/[^a-z0-9æøå]/gi, "");
   return rows.filter((row) =>
-    columns.some((column) => displayValue(row[column]).toLowerCase().includes(normalized)),
+    columns.some((column) => {
+      const value = displayValue(row[column]).toLowerCase();
+      return value.includes(normalized) || (compactQuery.length > 1 && value.replace(/[^a-z0-9æøå]/gi, "").includes(compactQuery));
+    }),
   );
 }
 
@@ -415,6 +432,11 @@ function tabLabel(table: ModuleTable, query: string): ReactNode {
   );
 }
 
+function tableSearchPlaceholder(module: string, view: string): string {
+  if (module === "parkering" && view === "kjoretoy") return "Søk etter reg.nr, bil, eier, område";
+  return "Søk i tabellene";
+}
+
 function ModuleTablePane({
   table,
   query,
@@ -465,7 +487,11 @@ export default function ModulePage({ module }: { module: string }) {
   const viewItems = MODULE_VIEWS[module] ?? [];
   const isKnownView = !viewItems.length || viewItems.some((item) => item.key === view);
   const safeView = isKnownView ? view : defaultModuleView(module);
-  const { data, loading, error } = useAsyncData(() => fetchModule(module, safeView), [module, safeView, reloadToken]);
+  const serverQuery = module === "parkering" && safeView === "kjoretoy" ? query : "";
+  const { data, loading, error } = useAsyncData(
+    () => fetchModule(module, safeView, serverQuery),
+    [module, safeView, serverQuery, reloadToken],
+  );
 
   if (!isKnownView) return <Navigate to={modulePath(module)} replace />;
 
@@ -554,7 +580,7 @@ export default function ModulePage({ module }: { module: string }) {
         <div className="table-toolbar">
           <Input.Search
             allowClear
-            placeholder="Søk i tabellene"
+            placeholder={tableSearchPlaceholder(module, safeView)}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />

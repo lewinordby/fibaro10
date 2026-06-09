@@ -12337,8 +12337,50 @@ def parking_row_api(row: ParkingSession, vehicle: Optional[ParkingVehicle] = Non
         "car_license_number": row.car_license_number,
         "owner_warning": owner_warning["text"] if owner_warning else "",
         "parking_area": row.parking_area,
+        "source_system": row.source_system,
+        "user_interface": row.user_interface,
+        "subtype": row.subtype,
         "status": row.status,
     }
+
+
+def parking_vehicle_row_api(vehicle: ParkingVehicle, details: Optional[ParkingVehicleDetails]) -> Dict[str, Any]:
+    ownership_at = svv_current_ownership_at(vehicle.svv_data)
+    return {
+        "plate": vehicle.plate,
+        "vehicle_title": parking_vehicle_summary(details),
+        "navn": vehicle.navn,
+        "omrade": vehicle.omrade,
+        "sun2_id": vehicle.sun2_id,
+        "current_ownership_at": api_local_iso(ownership_at),
+        "parkering_count": vehicle.parkering_count,
+        "paid_total": vehicle.paid_total,
+        "first_seen": api_local_iso(vehicle.first_seen),
+        "last_seen": api_local_iso(vehicle.last_seen),
+        "svv_status": vehicle.svv_status,
+        "notat": vehicle.notat,
+        "path": f"/v2/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
+    }
+
+
+def parking_vehicle_search_condition(query: Optional[str]):
+    text_value = (query or "").strip()
+    if not text_value:
+        return None
+    like = f"%{text_value.upper()}%"
+    plate_like = f"%{compact_plate(text_value)}%" if compact_plate(text_value) else like
+    return or_(
+        func.upper(func.coalesce(ParkingVehicle.plate, "")).like(plate_like),
+        func.upper(func.coalesce(ParkingVehicle.navn, "")).like(like),
+        func.upper(func.coalesce(ParkingVehicle.omrade, "")).like(like),
+        func.upper(func.coalesce(ParkingVehicle.sun2_id, "")).like(like),
+        func.upper(func.coalesce(ParkingVehicle.notat, "")).like(like),
+        func.upper(func.coalesce(ParkingVehicleDetails.merke, "")).like(like),
+        func.upper(func.coalesce(ParkingVehicleDetails.modell, "")).like(like),
+        func.upper(func.coalesce(ParkingVehicleDetails.typebetegnelse, "")).like(like),
+        func.upper(func.coalesce(ParkingVehicleDetails.farge, "")).like(like),
+        func.upper(func.coalesce(ParkingVehicleDetails.kjoretoyklasse_navn, "")).like(like),
+    )
 
 
 def circuit_row_api(row: EnergyCircuit) -> Dict[str, Any]:
@@ -12381,7 +12423,7 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
 
 
 @app.get("/api/v2/modules/{module}")
-async def api_v2_module(module: str, view: Optional[str] = None):
+async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str] = None):
     module = module.strip().lower()
     view = (view or "").strip().lower()
     now_dt = local_now_naive()
@@ -12468,11 +12510,32 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                 )
             ]
             if view == "kjoretoy":
+                vehicle_search = parking_vehicle_search_condition(q)
+                vehicle_stmt = (
+                    select(ParkingVehicle, ParkingVehicleDetails)
+                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                    .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+                    .limit(500)
+                )
+                if vehicle_search is not None:
+                    vehicle_stmt = vehicle_stmt.where(vehicle_search)
+                vehicle_detail_rows = (await session.execute(vehicle_stmt)).all()
                 tables = [
                     api_table(
                         "Kjøretøy",
-                        ["plate", "navn", "omrade", "sun2_id", "parkering_count", "paid_total", "first_seen", "last_seen", "notat"],
-                        [row_to_dict(row, ["plate", "navn", "omrade", "sun2_id", "parkering_count", "paid_total", "first_seen", "last_seen", "notat"]) for row in vehicle_rows],
+                        [
+                            "plate",
+                            "vehicle_title",
+                            "navn",
+                            "omrade",
+                            "current_ownership_at",
+                            "parkering_count",
+                            "paid_total",
+                            "first_seen",
+                            "last_seen",
+                            "notat",
+                        ],
+                        [parking_vehicle_row_api(vehicle, details) for vehicle, details in vehicle_detail_rows],
                     )
                 ]
             elif view == "omrade":
@@ -12545,7 +12608,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue"),
                     api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
                 ],
-                "charts": charts,
+                "charts": [] if view == "kjoretoy" else charts,
                 "tables": tables,
                 "actions": [
                     {
@@ -12987,6 +13050,86 @@ async def api_v2_module(module: str, view: Optional[str] = None):
             }
 
     raise HTTPException(status_code=404, detail="Ukjent v2-modul")
+
+
+def api_detail_field(label: str, value: Any, detail: str = "") -> Dict[str, Any]:
+    if isinstance(value, datetime):
+        value = api_local_iso(value)
+    elif isinstance(value, date):
+        value = value.isoformat()
+    return {"label": label, "value": value if value not in (None, "") else "-", "detail": detail}
+
+
+@app.get("/api/v2/parking/vehicles/{plate}")
+async def api_v2_parking_vehicle_detail(plate: str):
+    plate_value = normalize_plate(plate)
+    if not plate_value:
+        raise HTTPException(status_code=404, detail="Mangler registreringsnummer")
+
+    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
+    async with async_session() as session:
+        result = (
+            await session.execute(
+                select(ParkingVehicle, ParkingVehicleDetails)
+                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                .where(ParkingVehicle.plate == plate_value)
+            )
+        ).first()
+        if not result:
+            raise HTTPException(status_code=404, detail="Kjøretøy ikke funnet")
+        vehicle, details = result
+        stats = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
+                    func.coalesce(func.sum(ParkingSession.parking_time_min), 0),
+                    func.min(ParkingSession.start_time),
+                    func.max(ParkingSession.start_time),
+                ).where(normalized_session_plate == plate_value)
+            )
+        ).first()
+        session_rows = (
+            await session.execute(
+                select(ParkingSession)
+                .where(normalized_session_plate == plate_value)
+                .order_by(ParkingSession.start_time.desc())
+            )
+        ).scalars().all()
+
+    ownership_at = svv_current_ownership_at(vehicle.svv_data)
+    first_seen = stats[3] if stats else None
+    last_seen = stats[4] if stats else None
+    ownership_warning = parking_current_ownership_warning(vehicle, first_seen)
+    fields = [
+        api_detail_field("Eier/navn", vehicle.navn),
+        api_detail_field("Område", vehicle.omrade),
+        api_detail_field("SUN2-ID", vehicle.sun2_id),
+        api_detail_field("Sist eierskifte", ownership_at),
+        api_detail_field("Kjøretøy", parking_vehicle_label(details)),
+        api_detail_field("Årsmodell", parking_vehicle_year(details)),
+        api_detail_field("Farge", details.farge if details else None),
+        api_detail_field("Kjøretøyklasse", details.kjoretoyklasse_navn if details else None),
+        api_detail_field("Registreringsstatus", details.registreringsstatus_tekst if details else None),
+        api_detail_field("Førstegangsregistrert Norge", details.forstegangsregistrert_norge if details else None),
+        api_detail_field("PKK kontrollfrist", details.pkk_kontrollfrist if details else None),
+        api_detail_field("SVV hentet", vehicle.svv_fetched_at),
+        api_detail_field("Notat", vehicle.notat),
+    ]
+    return {
+        "plate": plate_value,
+        "title": parking_vehicle_label(details),
+        "subtitle": "Kjøretøy, eierfelt og komplett parkeringshistorikk.",
+        "cards": [
+            api_card("Parkeringer", stats[0] if stats else 0, "stk", "Alle registrerte", "parking"),
+            api_card("Beløp", format_short_number(stats[1] if stats else 0), "kr", "Totalt EasyPark-beløp", "revenue"),
+            api_card("Tid", format_short_number((stats[2] or 0) / 60 if stats else 0, 1), "t", "Registrert parkeringstid", "status"),
+            api_card("Sist eierskifte", ownership_at.strftime("%d.%m.%Y") if ownership_at else "-", "", "Fra SVV-rådata", "status"),
+        ],
+        "fields": fields,
+        "warnings": [ownership_warning["text"]] if ownership_warning else [],
+        "sessions": [parking_row_api(row, vehicle) for row in session_rows],
+    }
 
 
 @app.post("/api/v2/actions/soling/save-forecast")

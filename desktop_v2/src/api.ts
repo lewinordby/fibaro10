@@ -152,6 +152,22 @@ export type ModuleResponse = {
   actions?: ModuleAction[];
 };
 
+export type ParkingVehicleField = {
+  label: string;
+  value: unknown;
+  detail?: string;
+};
+
+export type ParkingVehicleDetailResponse = {
+  plate: string;
+  title: string;
+  subtitle: string;
+  cards: ModuleCard[];
+  fields: ParkingVehicleField[];
+  warnings: string[];
+  sessions: Record<string, unknown>[];
+};
+
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -177,9 +193,16 @@ export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse>
   return apiGet<RevenueMonthResponse>(`/api/v2/revenue/month${query}`);
 }
 
-export function fetchModule(module: string, view?: string): Promise<ModuleResponse> {
-  const query = view ? `?view=${encodeURIComponent(view)}` : "";
+export function fetchModule(module: string, view?: string, q?: string): Promise<ModuleResponse> {
+  const params = new URLSearchParams();
+  if (view) params.set("view", view);
+  if (q?.trim()) params.set("q", q.trim());
+  const query = params.toString() ? `?${params.toString()}` : "";
   return apiGet<ModuleResponse>(`/api/v2/modules/${encodeURIComponent(module)}${query}`);
+}
+
+export function fetchParkingVehicleDetail(plate: string): Promise<ParkingVehicleDetailResponse> {
+  return apiGet<ParkingVehicleDetailResponse>(`/api/v2/parking/vehicles/${encodeURIComponent(plate)}`);
 }
 
 export async function runModuleAction(action: ModuleAction): Promise<Record<string, unknown>> {
