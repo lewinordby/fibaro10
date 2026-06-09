@@ -12,24 +12,28 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       locale={nbNO}
       theme={{
         token: {
-          colorPrimary: "#2563eb",
-          colorSuccess: "#15803d",
-          colorWarning: "#b45309",
-          colorError: "#b91c1c",
-          colorInfo: "#2563eb",
-          borderRadius: 6,
+          colorPrimary: "#326fa8",
+          colorSuccess: "#4fa35a",
+          colorWarning: "#d29713",
+          colorError: "#b84f45",
+          colorInfo: "#326fa8",
+          colorText: "#182436",
+          colorTextSecondary: "#6b778c",
+          colorBorder: "#dfe6ee",
+          colorBgLayout: "#f3f6fa",
+          borderRadius: 8,
           fontFamily:
             'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         },
         components: {
           Card: {
-            borderRadiusLG: 6,
+            borderRadiusLG: 8,
             paddingLG: 18,
           },
           Layout: {
-            bodyBg: "#f6f7f9",
-            siderBg: "#111827",
-            triggerBg: "#111827",
+            bodyBg: "#f3f6fa",
+            siderBg: "#071a45",
+            triggerBg: "#071a45",
           },
         },
       }}

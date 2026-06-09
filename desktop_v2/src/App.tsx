@@ -47,6 +47,20 @@ function activeModule(pathname: string): string | null {
   return MODULE_VIEWS[module] ? module : null;
 }
 
+function themeClass(module: string | null): string {
+  const themeMap: Record<string, string> = {
+    status: "theme-status",
+    parkering: "theme-parking",
+    soling: "theme-sun2",
+    energi: "theme-energy",
+    ventilasjon: "theme-vent",
+    lys: "theme-light",
+    renhold: "theme-cleaning",
+    admin: "theme-admin",
+  };
+  return themeMap[module ?? "status"] ?? "theme-status";
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -55,14 +69,10 @@ export default function App() {
   const activeView = module ? location.pathname.split("/")[2] || defaultModuleView(module) : "";
 
   return (
-    <Layout className="app-shell">
+    <Layout className={`app-shell ${themeClass(module)}`}>
       <Sider width={218} className="app-sider">
         <div className="brand">
-          <div className="brand-mark">L</div>
-          <div>
-            <div className="brand-title">Fibaro10</div>
-            <div className="brand-subtitle">Lilletorget drift</div>
-          </div>
+          <img className="brand-logo" src="/static/lilletorget-text.png?v=v2-profile" alt="Lilletorget" />
         </div>
         <Menu
           className="app-menu"
