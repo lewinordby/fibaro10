@@ -153,6 +153,59 @@ export type ModuleAction = {
   tone?: "primary" | "default";
 };
 
+export type SunTimelineItem = {
+  left: number;
+  width: number;
+  label: string;
+  title: string;
+  kind: "standard" | "member" | "no-member";
+  href: string;
+};
+
+export type SunTimelineRoom = {
+  roomId: string;
+  label: string;
+  sessions: SunTimelineItem[];
+  count: number;
+  minutes: number;
+  paid: number;
+};
+
+export type SunTimelineEnergyHour = {
+  hour: number;
+  left: number;
+  width: number;
+  height: number;
+  consumptionKwh: number;
+  productionKwh: number;
+  title: string;
+};
+
+export type SunTimeline = {
+  selectedDay: string;
+  selectedDayLabel: string;
+  prevDay: string;
+  nextDay: string;
+  rooms: SunTimelineRoom[];
+  aggregateSessions: SunTimelineItem[];
+  totals: {
+    sessionsCount: number;
+    durationMinutes: number;
+    durationHours: number;
+    paidAmountKr: number;
+  };
+  busiestRoom: SunTimelineRoom | null;
+  ticks: Array<{ label: string; left: number }>;
+  nowMarker: number | null;
+  energyHours: SunTimelineEnergyHour[];
+  energySummary: {
+    hoursCount: number;
+    totalKwh: number;
+    maxKwh: number;
+    peakHour: SunTimelineEnergyHour | null;
+  };
+};
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;
@@ -160,6 +213,7 @@ export type ModuleResponse = {
   charts?: ModuleChart[];
   tables: ModuleTable[];
   actions?: ModuleAction[];
+  sunTimeline?: SunTimeline | null;
 };
 
 export type ParkingVehicleField = {
@@ -203,10 +257,11 @@ export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse>
   return apiGet<RevenueMonthResponse>(`/api/v2/revenue/month${query}`);
 }
 
-export function fetchModule(module: string, view?: string, q?: string): Promise<ModuleResponse> {
+export function fetchModule(module: string, view?: string, q?: string, day?: string): Promise<ModuleResponse> {
   const params = new URLSearchParams();
   if (view) params.set("view", view);
   if (q?.trim()) params.set("q", q.trim());
+  if (day) params.set("day", day);
   const query = params.toString() ? `?${params.toString()}` : "";
   return apiGet<ModuleResponse>(`/api/v2/modules/${encodeURIComponent(module)}${query}`);
 }

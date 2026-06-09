@@ -11808,6 +11808,157 @@ def api_sun2_bed_row(row: Sun2Bed, totals: Dict[str, Any]) -> Dict[str, Any]:
     return data
 
 
+async def api_sun2_day_timeline(session, selected: date) -> Dict[str, Any]:
+    day_start = datetime.combine(selected, time.min)
+    day_end = day_start + timedelta(days=1)
+    visible_room_numbers = list(range(1, 10)) + [11, 12, 13]
+    visible_room_ids = [f"rom-{number:02d}" for number in visible_room_numbers]
+    room_lookup = {
+        room_id: {
+            "roomId": room_id,
+            "label": f"Rom {int(room_id.rsplit('-', 1)[-1])}",
+            "sessions": [],
+            "count": 0,
+            "minutes": 0.0,
+            "paid": 0.0,
+        }
+        for room_id in visible_room_ids
+    }
+
+    rows = (
+        await session.execute(
+            select(Sun2TanningSession)
+            .where(Sun2TanningSession.stat_date == selected)
+            .where(Sun2TanningSession.room_id.in_(visible_room_ids))
+            .order_by(Sun2TanningSession.room_id.asc(), Sun2TanningSession.started_at.asc())
+        )
+    ).scalars().all()
+    energy_rows = (
+        await session.execute(
+            select(
+                EnergyHourlyConsumption.hour.label("hour"),
+                func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0).label("consumption_kwh"),
+                func.coalesce(func.sum(EnergyHourlyConsumption.production_kwh), 0).label("production_kwh"),
+                func.count(EnergyHourlyConsumption.id).label("rows_count"),
+            )
+            .where(EnergyHourlyConsumption.stat_date == selected)
+            .group_by(EnergyHourlyConsumption.hour)
+            .order_by(EnergyHourlyConsumption.hour.asc())
+        )
+    ).mappings().all()
+
+    totals = {"sessionsCount": 0, "durationMinutes": 0.0, "durationHours": 0.0, "paidAmountKr": 0.0}
+    aggregate_sessions = []
+    for row in rows:
+        room_id = normalize_room_id(row.room_id)
+        if room_id not in room_lookup or not row.started_at:
+            continue
+        start_at = row.started_at
+        end_at = row.ended_at
+        if getattr(start_at, "tzinfo", None):
+            start_at = start_at.astimezone(LOCAL_TZ).replace(tzinfo=None)
+        if end_at and getattr(end_at, "tzinfo", None):
+            end_at = end_at.astimezone(LOCAL_TZ).replace(tzinfo=None)
+        if not end_at:
+            end_at = start_at + timedelta(minutes=float(row.duration_minutes or 15))
+        if end_at <= start_at:
+            end_at = start_at + timedelta(minutes=max(1.0, float(row.duration_minutes or 1)))
+
+        clamped_start = max(day_start, min(day_end, start_at))
+        clamped_end = max(clamped_start, min(day_end, end_at))
+        duration_minutes = max(0.0, (clamped_end - clamped_start).total_seconds() / 60)
+        if duration_minutes <= 0:
+            continue
+
+        left = round(((clamped_start - day_start).total_seconds() / 86400) * 100, 4)
+        width = max(0.18, round(((clamped_end - clamped_start).total_seconds() / 86400) * 100, 4))
+        customer_type = (row.customer_type or "").lower()
+        kind = "standard"
+        if "ikke" in customer_type:
+            kind = "no-member"
+        elif "medlem" in customer_type:
+            kind = "member"
+        paid = float(row.paid_amount_kr or 0)
+        title_parts = [
+            f"{room_lookup[room_id]['label']} {start_at:%H:%M}-{end_at:%H:%M}",
+            f"{duration_minutes:.0f} min",
+        ]
+        if row.user_name:
+            title_parts.append(str(row.user_name))
+        if paid:
+            title_parts.append(f"{paid:.0f} kr")
+        item = {
+            "left": left,
+            "width": width,
+            "label": f"{start_at:%H:%M}",
+            "title": " | ".join(title_parts),
+            "kind": kind,
+            "href": f"/soling/enkeltimer?date_from={selected.isoformat()}&date_to={selected.isoformat()}&room_id={room_id}",
+        }
+        room_lookup[room_id]["sessions"].append(item)
+        aggregate_sessions.append({**item, "label": room_lookup[room_id]["label"]})
+        room_lookup[room_id]["count"] += 1
+        room_lookup[room_id]["minutes"] += duration_minutes
+        room_lookup[room_id]["paid"] += paid
+        totals["sessionsCount"] += 1
+        totals["durationMinutes"] += duration_minutes
+        totals["paidAmountKr"] += paid
+
+    totals["durationHours"] = round(totals["durationMinutes"] / 60, 2)
+    rooms = [room_lookup[room_id] for room_id in visible_room_ids]
+    busiest_room = max(rooms, key=lambda item: item["count"], default=None)
+    if busiest_room and not busiest_room["count"]:
+        busiest_room = None
+    today = datetime.now(LOCAL_TZ).date()
+    now_marker = None
+    if selected == today:
+        now_local = datetime.now(LOCAL_TZ).replace(tzinfo=None)
+        now_marker = round(max(0, min(100, ((now_local - day_start).total_seconds() / 86400) * 100)), 3)
+
+    ticks = [{"label": f"{hour:02d}", "left": round(hour / 24 * 100, 4)} for hour in range(0, 25, 2)]
+    energy_lookup = {int(item.get("hour") or 0): item for item in energy_rows}
+    energy_hours = []
+    max_energy_kwh = max([float((item.get("consumption_kwh") or 0)) for item in energy_rows] or [0.0])
+    total_energy_kwh = sum(float((item.get("consumption_kwh") or 0)) for item in energy_rows)
+    for hour in range(24):
+        item = energy_lookup.get(hour) or {}
+        consumption = float(item.get("consumption_kwh") or 0)
+        production = float(item.get("production_kwh") or 0)
+        energy_hours.append(
+            {
+                "hour": hour,
+                "left": round(hour / 24 * 100, 4),
+                "width": round(100 / 24, 4),
+                "height": round((consumption / max_energy_kwh) * 100, 2) if max_energy_kwh else 0,
+                "consumptionKwh": consumption,
+                "productionKwh": production,
+                "title": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00 | {consumption:.2f} kWh",
+            }
+        )
+    peak_energy_hour = max(energy_hours, key=lambda item: item["consumptionKwh"], default=None)
+    if peak_energy_hour and not peak_energy_hour["consumptionKwh"]:
+        peak_energy_hour = None
+    return {
+        "selectedDay": selected.isoformat(),
+        "selectedDayLabel": selected.strftime("%d.%m.%Y"),
+        "prevDay": (selected - timedelta(days=1)).isoformat(),
+        "nextDay": (selected + timedelta(days=1)).isoformat(),
+        "rooms": rooms,
+        "aggregateSessions": aggregate_sessions,
+        "totals": totals,
+        "busiestRoom": busiest_room,
+        "ticks": ticks,
+        "nowMarker": now_marker,
+        "energyHours": energy_hours,
+        "energySummary": {
+            "hoursCount": len([item for item in energy_hours if item["consumptionKwh"] > 0]),
+            "totalKwh": total_energy_kwh,
+            "maxKwh": max_energy_kwh,
+            "peakHour": peak_energy_hour,
+        },
+    }
+
+
 def api_sun2_member_row(row: Sun2Member, stats: Dict[str, Any]) -> Dict[str, Any]:
     data = api_pick(row, SUN2_MEMBER_COLUMNS)
     stat = stats.get(row.sun2_user_id) or {}
@@ -11909,7 +12060,7 @@ def api_parking_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str
     ]
 
 
-async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, month_start: date) -> Dict[str, Any]:
+async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, month_start: date, selected_day: Optional[date] = None) -> Dict[str, Any]:
     view = view or "oversikt"
     if view not in {"oversikt", "dagslinje", "prognose", "statistikk", "detaljer", "enkeltimer", "senger", "medlemmer"}:
         view = "oversikt"
@@ -12273,6 +12424,7 @@ async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, 
     charts = []
     tables = []
     actions = []
+    timeline = None
 
     if view == "oversikt":
         charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart]
@@ -12305,35 +12457,16 @@ async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, 
             api_table("Romimporter", ["timestamp", "ok", "stat_date", "rows_count", "inserted_count", "updated_count", "message"], [api_pick(row, SUN2_IMPORT_COLUMNS) for row in imports]),
         ]
     elif view == "dagslinje":
-        charts = [
-            api_chart(
-                "Solinger i dag per rom",
-                [row["room_label"] for row in today_room_rows],
-                [{"name": "Solinger", "data": [row["sessions_count"] for row in today_room_rows], "type": "bar"}],
-                "Dagens enkeltimer gruppert per rom.",
-                "bar",
-                300,
-            ),
-            api_chart(
-                "Strømforbruk i dag",
-                [f"{row['hour']:02d}" for row in energy_hour_rows],
-                [{"name": "kWh", "data": [row["consumption_kwh"] for row in energy_hour_rows], "type": "bar"}],
-                "Elvia-timeverdier for valgt dag.",
-                "bar",
-                280,
-            ),
-        ]
+        timeline = await api_sun2_day_timeline(session, selected_day or today)
+        charts = []
         cards = [
-            api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2"),
-            api_card("Timer i dag", format_short_number(today_sun.minutes / 60, 1), "t", f"{today_sun.rooms or 0} rom brukt", "sun2"),
-            api_card("Energirader", len(energy_hour_rows), "timer", "Elvia i dag", "status"),
-            api_card("Siste import", latest_import.timestamp if latest_import else "-", "", latest_import.message if latest_import else "Ingen import funnet", "status"),
+            api_card("Solinger", timeline["totals"]["sessionsCount"], "stk", timeline["selectedDayLabel"], "sun2"),
+            api_card("Total soletid", format_short_number(timeline["totals"]["durationHours"], 1), "t", f"{format_short_number(timeline['totals']['durationMinutes'], 0)} min", "sun2"),
+            api_card("Omsetning", format_short_number(timeline["totals"]["paidAmountKr"]), "kr", "Fra enkelttimer", "revenue"),
+            api_card("Mest brukt", timeline["busiestRoom"]["label"] if timeline.get("busiestRoom") else "-", "", f"{timeline['busiestRoom']['count']} solinger" if timeline.get("busiestRoom") else "Ingen solinger", "sun2"),
+            api_card("Strømforbruk", format_short_number(timeline["energySummary"]["totalKwh"], 1) if timeline["energySummary"]["hoursCount"] else "-", "kWh", "Elvia for valgt dag", "energy"),
         ]
-        tables = [
-            api_table("Rom i dag", ["room_label", "sessions_count", "duration_hours", "paid_amount_kr", "first_at", "last_at"], today_room_rows),
-            api_table("Dagens solinger", ["started_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "status"], [api_sun2_session_row(row) for row in today_sessions]),
-            api_table("Energiforbruk timer", ["hour", "consumption_kwh", "production_kwh", "rows_count"], energy_hour_rows),
-        ]
+        tables = []
     elif view == "enkeltimer":
         charts = [daily_count_chart, daily_revenue_chart, hourly_chart, room_chart]
         cards = [
@@ -12420,6 +12553,7 @@ async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, 
         "charts": charts,
         "tables": tables,
         "actions": actions,
+        "sunTimeline": timeline,
     }
 
 
@@ -12698,7 +12832,7 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
 
 
 @app.get("/api/v2/modules/{module}")
-async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str] = None):
+async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
     view = (view or "").strip().lower()
     now_dt = local_now_naive()
@@ -12933,7 +13067,13 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
             }
 
         if module == "soling":
-            return await api_v2_soling_module(session, view, today, tomorrow, month_start)
+            selected_day = None
+            if day:
+                try:
+                    selected_day = date.fromisoformat(day)
+                except ValueError:
+                    selected_day = None
+            return await api_v2_soling_module(session, view, today, tomorrow, month_start, selected_day)
 
         if module == "energi":
             latest = (
