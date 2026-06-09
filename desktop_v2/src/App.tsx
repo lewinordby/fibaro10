@@ -58,10 +58,10 @@ export default function App() {
     <Layout className="app-shell">
       <Sider width={218} className="app-sider">
         <div className="brand">
-          <div className="brand-mark">LT</div>
+          <div className="brand-mark">L</div>
           <div>
-            <div className="brand-title">Lilletorget</div>
-            <div className="brand-subtitle">Fibaro10 drift</div>
+            <div className="brand-title">Fibaro10</div>
+            <div className="brand-subtitle">Lilletorget drift</div>
           </div>
         </div>
         <Menu
