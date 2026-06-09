@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1058")
+APP_BUILD = os.getenv("APP_BUILD", "1059")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1059",
+        "date": "09.06.2026",
+        "title": "Gjeninnfører grafer og redigering i v2",
+        "changes": [
+            "Legger native ECharts-grafer inn i v2 for energi, ventilasjon og lys dagslogg.",
+            "Legger v2-redigering for energikurser, energilaster og brukere/tilgang.",
+            "Legger inn Klassisk-flate i v2 slik at alle gamle sider og forms kan brukes mens native migrering fullføres.",
+        ],
+    },
     {
         "version": "1",
         "build": "1058",
@@ -2303,6 +2314,48 @@ class ParkingVehicleAreaUpdate(BaseModel):
     omrade: str = Field("", max_length=240)
     source: Optional[str] = Field(None, max_length=120)
     raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class V2EnergyCircuitUpdate(BaseModel):
+    description: Optional[str] = None
+    breaker_type: Optional[str] = None
+    breaker_rating_a: Optional[float] = None
+    breaker_characteristic: Optional[str] = None
+    cable_spec: Optional[str] = None
+    cable_length_m: Optional[float] = None
+    install_method: Optional[str] = None
+    terminal_ref: Optional[str] = None
+    rcd_ma: Optional[float] = None
+    is_sunbed: Optional[bool] = None
+    status: Optional[str] = None
+    note: Optional[str] = None
+
+
+class V2EnergyLoadIn(BaseModel):
+    name: Optional[str] = None
+    load_type: Optional[str] = None
+    area: Optional[str] = None
+    circuit_no: Optional[int] = None
+    expected_power_w: Optional[float] = None
+    measured_direct: Optional[bool] = None
+    fibaro_device_id: Optional[int] = None
+    fibaro_meter_id: Optional[int] = None
+    zwave_switch_id: Optional[int] = None
+    controllable: Optional[bool] = None
+    critical: Optional[bool] = None
+    active: Optional[bool] = None
+    note: Optional[str] = None
+
+
+class V2AccessUserCreate(BaseModel):
+    username: str = Field(..., min_length=1, max_length=80)
+    password: str = Field(..., min_length=5, max_length=240)
+    role: str = "viewer"
+
+
+class V2AccessUserUpdate(BaseModel):
+    role: Optional[str] = None
+    active: Optional[bool] = None
 
 
 LIGHT_COLUMNS = [
@@ -11314,11 +11367,25 @@ async def api_v2_revenue_month(month: Optional[str] = None):
     }
 
 
-def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]]) -> Dict[str, Any]:
-    return {
+def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]], edit: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    payload = {
         "title": title,
         "columns": columns,
         "rows": rows,
+    }
+    if edit:
+        payload["edit"] = edit
+    return payload
+
+
+def api_chart(title: str, x: list[str], series: list[Dict[str, Any]], subtitle: str = "", chart_type: str = "line", height: int = 330) -> Dict[str, Any]:
+    return {
+        "title": title,
+        "subtitle": subtitle,
+        "type": chart_type,
+        "x": x,
+        "height": height,
+        "series": series,
     }
 
 
@@ -11368,6 +11435,7 @@ def api_config_history_rows(rows: list[ControlConfigHistory]) -> list[Dict[str, 
 
 def api_access_key_row(row: AccessKey) -> Dict[str, Any]:
     return {
+        "id": row.id,
         "name": row.name,
         "role": row.role,
         "active": bool(row.active),
@@ -11376,6 +11444,80 @@ def api_access_key_row(row: AccessKey) -> Dict[str, Any]:
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "last_seen_at": row.last_seen_at.isoformat() if row.last_seen_at else None,
         "uses_count": row.uses_count,
+    }
+
+
+def api_energy_circuit_edit() -> Dict[str, Any]:
+    return {
+        "kind": "energy-circuit",
+        "title": "kurs",
+        "idField": "circuit_no",
+        "endpoint": "/api/v2/energy/circuits/{circuit_no}",
+        "method": "PATCH",
+        "fields": [
+            {"key": "description", "label": "Beskrivelse", "type": "textarea", "required": True},
+            {"key": "breaker_type", "label": "Vern/type", "type": "text"},
+            {"key": "breaker_rating_a", "label": "Ampere", "type": "number"},
+            {"key": "breaker_characteristic", "label": "Karakteristikk", "type": "text"},
+            {"key": "cable_spec", "label": "Kabel", "type": "text"},
+            {"key": "cable_length_m", "label": "Kabellengde m", "type": "number"},
+            {"key": "install_method", "label": "Forlegning", "type": "text"},
+            {"key": "terminal_ref", "label": "Terminal/ref", "type": "text"},
+            {"key": "rcd_ma", "label": "Jordfeilvern mA", "type": "number"},
+            {"key": "is_sunbed", "label": "Solsengkurs", "type": "boolean"},
+            {"key": "status", "label": "Status", "type": "text"},
+            {"key": "note", "label": "Notat", "type": "textarea"},
+        ],
+    }
+
+
+def api_energy_load_edit() -> Dict[str, Any]:
+    return {
+        "kind": "energy-load",
+        "title": "last",
+        "idField": "id",
+        "endpoint": "/api/v2/energy/loads/{id}",
+        "method": "PATCH",
+        "createEndpoint": "/api/v2/energy/loads",
+        "fields": [
+            {"key": "name", "label": "Navn", "type": "text", "required": True},
+            {"key": "load_type", "label": "Type", "type": "text"},
+            {"key": "area", "label": "Område", "type": "text"},
+            {"key": "circuit_no", "label": "Kurs", "type": "number"},
+            {"key": "expected_power_w", "label": "Forventet W", "type": "number"},
+            {"key": "measured_direct", "label": "Direktemålt", "type": "boolean"},
+            {"key": "fibaro_device_id", "label": "HC3 enhet", "type": "number"},
+            {"key": "fibaro_meter_id", "label": "HC3 måler", "type": "number"},
+            {"key": "zwave_switch_id", "label": "Z-Wave bryter", "type": "number"},
+            {"key": "controllable", "label": "Styrbar", "type": "boolean"},
+            {"key": "critical", "label": "Kritisk", "type": "boolean"},
+            {"key": "active", "label": "Aktiv", "type": "boolean"},
+            {"key": "note", "label": "Notat", "type": "textarea"},
+        ],
+    }
+
+
+def api_access_key_edit() -> Dict[str, Any]:
+    role_options = [
+        {"label": "Viewer", "value": "viewer"},
+        {"label": "Settings", "value": "settings"},
+    ]
+    return {
+        "kind": "access-key",
+        "title": "bruker",
+        "idField": "id",
+        "endpoint": "/api/v2/admin/users/{id}",
+        "method": "PATCH",
+        "createEndpoint": "/api/v2/admin/users",
+        "fields": [
+            {"key": "role", "label": "Rolle", "type": "select", "options": role_options, "required": True},
+            {"key": "active", "label": "Aktiv", "type": "boolean"},
+        ],
+        "createFields": [
+            {"key": "username", "label": "Brukernavn", "type": "text", "required": True},
+            {"key": "password", "label": "Passord", "type": "password", "required": True},
+            {"key": "role", "label": "Rolle", "type": "select", "options": role_options, "required": True},
+        ],
     }
 
 
@@ -11408,10 +11550,18 @@ def parking_row_api(row: ParkingSession) -> Dict[str, Any]:
 
 def circuit_row_api(row: EnergyCircuit) -> Dict[str, Any]:
     return {
+        "id": row.id,
         "circuit_no": row.circuit_no,
         "description": row.description,
         "breaker": f"{row.breaker_rating_a:g} A" if row.breaker_rating_a is not None else None,
         "breaker_type": row.breaker_type,
+        "breaker_rating_a": row.breaker_rating_a,
+        "breaker_characteristic": row.breaker_characteristic,
+        "cable_spec": row.cable_spec,
+        "cable_length_m": row.cable_length_m,
+        "install_method": row.install_method,
+        "terminal_ref": row.terminal_ref,
+        "rcd_ma": row.rcd_ma,
         "is_sunbed": bool(row.is_sunbed),
         "status": row.status,
         "note": row.note,
@@ -11426,9 +11576,14 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
         "area": row.area,
         "circuit_no": row.circuit_no,
         "expected_power_w": row.expected_power_w,
+        "measured_direct": row.measured_direct,
         "fibaro_device_id": row.fibaro_device_id,
         "fibaro_meter_id": row.fibaro_meter_id,
+        "zwave_switch_id": row.zwave_switch_id,
+        "controllable": row.controllable,
+        "critical": row.critical,
         "active": row.active,
+        "note": row.note,
     }
 
 
@@ -11446,6 +11601,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
 
     async with async_session() as session:
         if module == "parkering":
+            parking_summaries = await get_parking_summaries(session)
             latest_rows = (
                 await session.execute(
                     select(ParkingSession).order_by(ParkingSession.start_time.desc()).limit(120)
@@ -11494,6 +11650,19 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     .limit(80)
                 )
             ).scalars().all()
+            charts = [
+                api_chart(
+                    "Ukesutvikling parkering",
+                    [str(week) for week in range(1, 54)],
+                    [
+                        {"name": row["year"], "data": row["revenue"], "color": row.get("color")}
+                        for row in parking_summaries["weekly_chart"]
+                    ],
+                    "Beløp per uke og år. Samme grunnlag som gammel parkering/statistikk.",
+                    "line",
+                    360,
+                )
+            ]
             tables = [
                 api_table(
                     "Siste parkeringer",
@@ -11579,6 +11748,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue"),
                     api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
                 ],
+                "charts": charts,
                 "tables": tables,
                 "actions": [
                     {
@@ -11601,6 +11771,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
             }
 
         if module == "soling":
+            sun2_summaries = await get_sun2_summaries(session)
             today_sun = await sun2_period_snapshot(session, today, tomorrow)
             month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
             latest_sessions = (
@@ -11634,6 +11805,19 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                 )
             ).scalars().all()
             members = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
+            charts = [
+                api_chart(
+                    "Ukesutvikling soling",
+                    [str(week) for week in range(1, 54)],
+                    [
+                        {"name": row["year"], "data": row["revenue"], "color": row.get("color")}
+                        for row in sun2_summaries["weekly_chart"]
+                    ],
+                    "Inntjent per uke og år. Samme grunnlag som gammel soling/oversikt.",
+                    "line",
+                    360,
+                )
+            ]
             tables = [
                 api_table("Siste solinger", ["started_at", "room", "duration_minutes", "paid_amount_kr", "user_name", "status"], [api_pick(row, SUN2_SESSION_COLUMNS) for row in latest_sessions]),
                 api_table("Senger", ["physical_room_number", "name", "bed_model", "status", "current_price_per_min", "imported_at"], [api_pick(row, SUN2_BED_COLUMNS) for row in beds]),
@@ -11657,6 +11841,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue"),
                     api_card("Medlemmer", members, "stk", "Importert fra SUN2", "status"),
                 ],
+                "charts": charts,
                 "tables": tables,
             }
 
@@ -11688,15 +11873,33 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                 await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(80))
             ).scalars().all()
             total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows)
+            energy_chart_rows = list(reversed(today_rows))[-720:]
+            charts = [
+                api_chart(
+                    "Realtime effekt i dag",
+                    [row.bucket_start.strftime("%H:%M") if row.bucket_start else "" for row in energy_chart_rows],
+                    [
+                        {"name": "Inntak", "data": [row.inntak_w for row in energy_chart_rows], "color": "#b45309"},
+                        {"name": "Varmepumper", "data": [row.varmepumper_w for row in energy_chart_rows], "color": "#2563eb"},
+                        {"name": "Belysning", "data": [row.belysning_w for row in energy_chart_rows], "color": "#ca8a04"},
+                        {"name": "Massasje", "data": [row.massasje_w for row in energy_chart_rows], "color": "#7c3aed"},
+                        {"name": "Annet", "data": [row.annet_w for row in energy_chart_rows], "color": "#64748b"},
+                        {"name": "Avfukter", "data": [row.avfukter_w for row in energy_chart_rows], "color": "#0891b2"},
+                    ],
+                    "Siste inntil 720 samples fra valgt dag. Verdiene er realtime W.",
+                    "line",
+                    360,
+                )
+            ]
             tables = [
                 api_table("Siste energisamples", ["bucket_start", "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w"], [api_pick(row, ENERGY_FIBARO_COLUMNS) for row in recent]),
-                api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status"], [circuit_row_api(row) for row in circuits]),
-                api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads]),
+                api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit()),
+                api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit()),
             ]
             if view == "kurser":
-                tables = [api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status", "note"], [circuit_row_api(row) for row in circuits])]
+                tables = [api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status", "note"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit())]
             elif view == "laster":
-                tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads])]
+                tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())]
             elif view == "elvia":
                 tables = [
                     api_table("Elvia timer", ["measured_at", "stat_date", "hour", "consumption_kwh", "status", "is_estimated", "source"], [api_pick(row, ENERGY_HOURLY_COLUMNS) for row in elvia_rows]),
@@ -11746,6 +11949,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy"),
                     api_card("Laster", len(loads), "stk", "Aktive og registrerte", "status"),
                 ],
+                "charts": charts,
                 "tables": tables,
             }
 
@@ -11763,6 +11967,26 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                 await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(80))
             ).scalars().all()
             fan_on = sum(1 for device in VENT_TIMELINE_DEVICES if latest and sample_state(latest, device) is True)
+            temp_day = await build_temp_day(today_start, tomorrow_start, min(now_dt, tomorrow_start))
+            temp_chart_rows = list(reversed(temp_day["samples_desc"]))
+            charts = [
+                api_chart(
+                    "Dagslogg temperatur",
+                    [row["time"] for row in temp_chart_rows],
+                    [
+                        {
+                            "name": series["label"],
+                            "data": [row.get(series["key"]) for row in temp_chart_rows],
+                            "color": series["color"],
+                        }
+                        for series in temp_day["series"]
+                        if series.get("default") and series.get("polyline")
+                    ],
+                    "Samme datagrunnlag som gammel ventilasjon/dagslogg-temp.",
+                    "line",
+                    360,
+                )
+            ]
             tables = [
                 api_table("Temperatur og fukt", ["bucket_start", "temp_avg_inne", "temp_ute", "temp_loft", "temp_luftinntak", "temp_kjeller", "humidity_1etg", "humidity_2etg", "humidity_vip", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], [api_pick(row, VENT_SAMPLE_COLUMNS) for row in samples]),
                 api_table("Yr", ["bucket_start", "weather_text", "air_temperature", "relative_humidity", "wind_speed", "wind_speed_of_gust", "cloud_area_fraction", "precipitation_next_1h"], [api_pick(row, YR_SAMPLE_COLUMNS) for row in yr_rows]),
@@ -11807,6 +12031,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     api_card("Vifter", f"{fan_on}/{len(VENT_TIMELINE_DEVICES)}", "på", latest.mode if latest and latest.mode else "", "vent"),
                     api_card("Yr", yr_rows[0].weather_text if yr_rows else "-", "", f"Vind {format_short_number(yr_rows[0].wind_speed if yr_rows else None, 1)} m/s", "weather"),
                 ],
+                "charts": charts,
                 "tables": tables,
             }
 
@@ -11821,6 +12046,17 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                 await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(120))
             ).scalars().all()
             light_on = sum(1 for device in LIGHT_TIMELINE_DEVICES if latest and light_sample_state(latest, device) is True)
+            lux_day = await build_lux_day(today_start, tomorrow_start, min(now_dt, tomorrow_start))
+            charts = [
+                api_chart(
+                    "Dagslogg lux",
+                    [row["time"] for row in lux_day["points"]],
+                    [{"name": "Lux", "data": [row["lux"] for row in lux_day["points"]], "color": "#ca8a04"}],
+                    "Samme datagrunnlag som gammel lys/dagslogg-lux.",
+                    "line",
+                    340,
+                )
+            ]
             tables = [
                 api_table("Lux-samples", ["bucket_start", "mode", "lux", "light_lyslist", "light_reklame", "light_spot_glass_275", "light_spot_glass_299", "light_spot_inngang", "light_parkering", "weather_text"], [api_pick(row, LIGHT_SAMPLE_COLUMNS) for row in samples]),
                 api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "lux", "state"], [api_pick(row, LIGHT_COLUMNS) for row in events]),
@@ -11862,6 +12098,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     api_card("Siste sample", latest.bucket_start.strftime("%H:%M") if latest and latest.bucket_start else "-", "", "Dagslogg", "status"),
                     api_card("Hendelser", len(events), "siste", "Siste loggede lysendringer", "status"),
                 ],
+                "charts": charts,
                 "tables": tables,
             }
 
@@ -11995,7 +12232,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
             elif view == "brukere":
                 tables = [
                     api_table("Tilgangsverktøy", ["tool", "path", "description", "count"], [admin_tools[3]]),
-                    api_table("Brukere", ["name", "role", "active", "is_master", "key_prefix", "created_at", "last_seen_at", "uses_count"], [api_access_key_row(row) for row in access_keys]),
+                    api_table("Brukere", ["name", "role", "active", "is_master", "key_prefix", "created_at", "last_seen_at", "uses_count"], [api_access_key_row(row) for row in access_keys], edit=api_access_key_edit()),
                     api_table("Siste tilgangslogg", ["timestamp", "key_name", "path", "method", "success", "reason"], [row_to_dict(row, ["timestamp", "key_name", "path", "method", "success", "reason"]) for row in access_logs]),
                 ]
             elif view == "manual":
@@ -12088,6 +12325,137 @@ async def api_v2_parking_svv_sync(request: Request, limit: int = Query(SVV_SYNC_
         return forbidden
     result = await run_vehicle_svv_sync(limit, "V2")
     return {"status": "ok", "message": "SVV-sync er kjørt.", "result": result}
+
+
+@app.patch("/api/v2/energy/circuits/{circuit_no}")
+async def api_v2_energy_circuit_update(request: Request, circuit_no: int, data: V2EnergyCircuitUpdate):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    values = data.dict(exclude_unset=True)
+    text_fields = {"description", "breaker_type", "breaker_characteristic", "cable_spec", "install_method", "terminal_ref", "status", "note"}
+    async with async_session() as session:
+        circuit = (
+            await session.execute(select(EnergyCircuit).where(EnergyCircuit.circuit_no == circuit_no))
+        ).scalars().first()
+        if not circuit:
+            raise HTTPException(status_code=404, detail="Kurs ikke funnet")
+        for key, value in values.items():
+            if key in text_fields and value is not None:
+                value = str(value).strip() or None
+            setattr(circuit, key, value)
+        if not circuit.status:
+            circuit.status = "ukjent"
+        circuit.updated_at = datetime.utcnow()
+        await session.commit()
+    return {"status": "ok", "message": f"Kurs {circuit_no} er lagret."}
+
+
+@app.post("/api/v2/energy/loads")
+async def api_v2_energy_load_create(request: Request, data: V2EnergyLoadIn):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    values = data.dict(exclude_unset=True)
+    name = str(values.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Navn må fylles ut.")
+    now_value = datetime.utcnow()
+    load = EnergyLoad(name=name, created_at=now_value, updated_at=now_value, source="manual")
+    for key, value in values.items():
+        if key == "name":
+            continue
+        if isinstance(value, str):
+            value = value.strip() or None
+        setattr(load, key, value)
+    if load.active is None:
+        load.active = True
+    async with async_session() as session:
+        session.add(load)
+        await session.commit()
+        await session.refresh(load)
+    return {"status": "ok", "message": f"Last {load.name} er opprettet.", "id": load.id}
+
+
+@app.patch("/api/v2/energy/loads/{load_id}")
+async def api_v2_energy_load_update(request: Request, load_id: int, data: V2EnergyLoadIn):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    values = data.dict(exclude_unset=True)
+    async with async_session() as session:
+        load = await session.get(EnergyLoad, load_id)
+        if not load:
+            raise HTTPException(status_code=404, detail="Last ikke funnet")
+        if "name" in values and not str(values.get("name") or "").strip():
+            raise HTTPException(status_code=400, detail="Navn må fylles ut.")
+        for key, value in values.items():
+            if isinstance(value, str):
+                value = value.strip() or None
+            setattr(load, key, value)
+        load.source = load.source or "manual"
+        load.updated_at = datetime.utcnow()
+        await session.commit()
+    return {"status": "ok", "message": f"Last {load.name} er lagret."}
+
+
+@app.post("/api/v2/admin/users")
+async def api_v2_admin_user_create(request: Request, data: V2AccessUserCreate):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    username = normalize_username(data.username)[:80]
+    password = data.password.strip()
+    role = (data.role or "viewer").strip().lower()
+    if role not in ["viewer", "settings"]:
+        role = "viewer"
+    if not username:
+        raise HTTPException(status_code=400, detail="Brukernavn må fylles ut.")
+    if len(password) < 5:
+        raise HTTPException(status_code=400, detail="Passordet må være minst 5 tegn.")
+    existing_hash = credential_hash(username, password)
+    async with async_session() as session:
+        existing = (
+            await session.execute(select(AccessKey).where(AccessKey.key_hash == existing_hash))
+        ).scalars().first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Denne kombinasjonen av brukernavn og passord finnes allerede.")
+        record = AccessKey(
+            name=username,
+            key_hash=existing_hash,
+            key_prefix=credential_prefix(username, password),
+            key_plaintext=password,
+            role=role,
+            is_master=False,
+            active=True,
+        )
+        session.add(record)
+        await session.commit()
+        await session.refresh(record)
+    return {"status": "ok", "message": f"Bruker {username} er opprettet.", "id": record.id}
+
+
+@app.patch("/api/v2/admin/users/{key_id}")
+async def api_v2_admin_user_update(request: Request, key_id: int, data: V2AccessUserUpdate):
+    forbidden = require_master(request)
+    if forbidden:
+        return forbidden
+    values = data.dict(exclude_unset=True)
+    async with async_session() as session:
+        row = await session.get(AccessKey, key_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Bruker ikke funnet")
+        if row.is_master:
+            raise HTTPException(status_code=400, detail="Masterbrukeren kan ikke endres her.")
+        if "role" in values:
+            role = (values.get("role") or "viewer").strip().lower()
+            if role not in ["viewer", "settings"]:
+                role = "viewer"
+            row.role = role
+        if "active" in values:
+            row.active = bool(values["active"])
+        await session.commit()
+    return {"status": "ok", "message": f"Bruker {row.name} er lagret."}
 
 
 @app.get("/status/omsetning", response_class=HTMLResponse)

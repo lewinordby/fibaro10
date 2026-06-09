@@ -1,13 +1,24 @@
-import { App as AntApp, Button, Card, Input, Segmented, Space, Table, Tabs, Tag, Typography } from "antd";
+import ReactECharts from "echarts-for-react";
+import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Segmented, Select, Space, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { fetchModule, runModuleAction, type ModuleAction, type ModuleCard, type ModuleTable } from "../api";
+import {
+  fetchModule,
+  runModuleAction,
+  submitModuleEdit,
+  type ModuleAction,
+  type ModuleCard,
+  type ModuleChart,
+  type ModuleEditConfig,
+  type ModuleEditField,
+  type ModuleTable,
+} from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { defaultModuleView, moduleLabel, modulePath, MODULE_VIEWS } from "../moduleViews";
-import { appPath } from "../navigation";
+import { appPath, legacyPath, shouldOpenInLegacyFrame } from "../navigation";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -224,12 +235,16 @@ function numericColumn(column: string): boolean {
 function LinkValue({ value }: { value: string }) {
   const internalPath = appPath(value);
   if (internalPath) return <Link to={internalPath}>{value}</Link>;
+  if (shouldOpenInLegacyFrame(value)) return <Link to={legacyPath(value)}>{value}</Link>;
   if (value.startsWith("/") || /^https?:\/\//i.test(value)) return <a href={value}>{value}</a>;
   return displayValue(value);
 }
 
-function moduleColumns(table: ModuleTable): ColumnsType<Record<string, unknown>> {
-  return table.columns.map((column) => ({
+function moduleColumns(
+  table: ModuleTable,
+  onEdit?: (edit: ModuleEditConfig, row: Record<string, unknown>, create?: boolean) => void,
+): ColumnsType<Record<string, unknown>> {
+  const columns: ColumnsType<Record<string, unknown>> = table.columns.map((column) => ({
     title: labelize(column),
     dataIndex: column,
     key: column,
@@ -251,6 +266,20 @@ function moduleColumns(table: ModuleTable): ColumnsType<Record<string, unknown>>
       return displayValue(value);
     },
   }));
+  if (table.edit && onEdit) {
+    columns.push({
+      title: "",
+      key: "__edit",
+      fixed: "right",
+      width: 92,
+      render: (_value, row) => (
+        <Button size="small" onClick={() => onEdit(table.edit as ModuleEditConfig, row)}>
+          Rediger
+        </Button>
+      ),
+    });
+  }
+  return columns;
 }
 
 function filterRows(rows: Record<string, unknown>[], columns: string[], query: string) {
@@ -272,6 +301,64 @@ function ModuleMetric({ card }: { card: ModuleCard }) {
       <div className="metric-detail">{card.detail || "\u00a0"}</div>
     </Card>
   );
+}
+
+function ModuleChartPanel({ chart }: { chart: ModuleChart }) {
+  const option = {
+    tooltip: { trigger: "axis" },
+    legend: { top: 0 },
+    grid: { top: 46, left: 46, right: 24, bottom: chart.x.length > 80 ? 58 : 34 },
+    dataZoom:
+      chart.x.length > 80
+        ? [
+            { type: "inside", start: Math.max(0, 100 - Math.round((80 / chart.x.length) * 100)), end: 100 },
+            { type: "slider", height: 18, bottom: 12 },
+          ]
+        : undefined,
+    xAxis: {
+      type: "category",
+      data: chart.x,
+      boundaryGap: chart.type === "bar",
+      axisLabel: { hideOverlap: true },
+    },
+    yAxis: { type: "value" },
+    series: chart.series.map((series) => ({
+      name: series.name,
+      type: series.type ?? chart.type ?? "line",
+      data: series.data,
+      smooth: (series.type ?? chart.type ?? "line") === "line",
+      connectNulls: false,
+      showSymbol: false,
+      itemStyle: series.color ? { color: series.color } : undefined,
+      lineStyle: series.color ? { color: series.color, width: 2 } : undefined,
+      areaStyle: chart.series.length === 1 && (series.type ?? chart.type ?? "line") === "line" ? { opacity: 0.08 } : undefined,
+    })),
+  };
+
+  return (
+    <Card className="chart-card module-chart-card" title={chart.title}>
+      {chart.subtitle ? <Typography.Text type="secondary">{chart.subtitle}</Typography.Text> : null}
+      <ReactECharts option={option} style={{ height: chart.height ?? 330 }} />
+    </Card>
+  );
+}
+
+function fieldInput(field: ModuleEditField) {
+  if (field.type === "textarea") return <Input.TextArea rows={3} />;
+  if (field.type === "number") return <InputNumber className="edit-number" />;
+  if (field.type === "boolean") return <Checkbox>{field.label}</Checkbox>;
+  if (field.type === "select") return <Select options={field.options} />;
+  if (field.type === "password") return <Input.Password autoComplete="new-password" />;
+  return <Input />;
+}
+
+function editInitialValues(edit: ModuleEditConfig, row: Record<string, unknown>, create: boolean) {
+  const fields = create ? edit.createFields ?? edit.fields : edit.fields;
+  const values: Record<string, unknown> = {};
+  for (const field of fields) {
+    values[field.key] = field.type === "boolean" ? Boolean(row[field.key]) : row[field.key] ?? undefined;
+  }
+  return values;
 }
 
 function tableRowKey(row: Record<string, unknown>, tableTitle: string, index?: number) {
@@ -305,17 +392,32 @@ function tabLabel(table: ModuleTable, query: string): ReactNode {
   );
 }
 
-function ModuleTablePane({ table, query }: { table: ModuleTable; query: string }) {
+function ModuleTablePane({
+  table,
+  query,
+  onEdit,
+}: {
+  table: ModuleTable;
+  query: string;
+  onEdit?: (edit: ModuleEditConfig, row: Record<string, unknown>, create?: boolean) => void;
+}) {
   const filteredRows = filterRows(table.rows, table.columns, query);
   return (
     <Space direction="vertical" size={8} className="table-pane">
-      <Typography.Text type="secondary">
-        {countText(filteredRows.length, table.rows.length, query)}
-      </Typography.Text>
+      <div className="table-pane-head">
+        <Typography.Text type="secondary">
+          {countText(filteredRows.length, table.rows.length, query)}
+        </Typography.Text>
+        {table.edit?.createEndpoint && onEdit ? (
+          <Button type="primary" size="small" onClick={() => onEdit(table.edit as ModuleEditConfig, {}, true)}>
+            Ny
+          </Button>
+        ) : null}
+      </div>
       <Table
         rowKey={(row, index) => tableRowKey(row, table.title, index)}
         size="small"
-        columns={moduleColumns(table)}
+        columns={moduleColumns(table, onEdit)}
         dataSource={filteredRows}
         pagination={{ pageSize: 25, showSizeChanger: true }}
         scroll={{ x: "max-content" }}
@@ -331,8 +433,11 @@ export default function ModulePage({ module }: { module: string }) {
   const params = useParams();
   const navigate = useNavigate();
   const { message, modal } = AntApp.useApp();
+  const [form] = Form.useForm();
   const [query, setQuery] = useState("");
   const [runningAction, setRunningAction] = useState<string | null>(null);
+  const [editState, setEditState] = useState<{ edit: ModuleEditConfig; row: Record<string, unknown>; create: boolean } | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const view = params.view ?? defaultModuleView(module);
   const viewItems = MODULE_VIEWS[module] ?? [];
@@ -342,6 +447,28 @@ export default function ModulePage({ module }: { module: string }) {
   const { data, loading, error } = useAsyncData(() => fetchModule(module, safeView), [module, safeView, reloadToken]);
 
   if (!isKnownView) return <Navigate to={modulePath(module)} replace />;
+
+  function openEdit(edit: ModuleEditConfig, row: Record<string, unknown>, create = false) {
+    form.resetFields();
+    form.setFieldsValue(editInitialValues(edit, row, create));
+    setEditState({ edit, row, create });
+  }
+
+  async function saveEdit() {
+    if (!editState || savingEdit) return;
+    const values = await form.validateFields();
+    setSavingEdit(true);
+    try {
+      const result = await submitModuleEdit(editState.edit, editState.row, values, editState.create);
+      message.success(String(result.message || "Lagret"));
+      setEditState(null);
+      setReloadToken((value) => value + 1);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Lagring feilet");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   async function handleAction(action: ModuleAction) {
     if (runningAction) return;
@@ -417,6 +544,8 @@ export default function ModulePage({ module }: { module: string }) {
         ))}
       </div>
 
+      {data.charts?.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} />)}
+
       <Card className="table-card module-table-card">
         <div className="table-toolbar">
           <Input.Search
@@ -430,10 +559,41 @@ export default function ModulePage({ module }: { module: string }) {
           items={data.tables.map((table) => ({
             key: table.title,
             label: tabLabel(table, query),
-            children: <ModuleTablePane table={table} query={query} />,
+            children: <ModuleTablePane table={table} query={query} onEdit={openEdit} />,
           }))}
         />
       </Card>
+
+      <Modal
+        title={
+          editState
+            ? `${editState.create ? "Ny" : "Rediger"} ${editState.edit.title.toLowerCase()}`
+            : "Rediger"
+        }
+        open={Boolean(editState)}
+        okText="Lagre"
+        cancelText="Avbryt"
+        confirmLoading={savingEdit}
+        onOk={saveEdit}
+        onCancel={() => setEditState(null)}
+        destroyOnHidden
+      >
+        {editState ? (
+          <Form form={form} layout="vertical" className="edit-form">
+            {(editState.create ? editState.edit.createFields ?? editState.edit.fields : editState.edit.fields).map((field) => (
+              <Form.Item
+                key={field.key}
+                name={field.key}
+                label={field.type === "boolean" ? undefined : field.label}
+                valuePropName={field.type === "boolean" ? "checked" : "value"}
+                rules={field.required ? [{ required: true, message: `${field.label} må fylles ut` }] : undefined}
+              >
+                {fieldInput(field)}
+              </Form.Item>
+            ))}
+          </Form>
+        ) : null}
+      </Modal>
     </Space>
   );
 }

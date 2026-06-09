@@ -440,6 +440,42 @@ a {
   width: 100%;
 }
 
+.table-pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.module-chart-card .ant-card-body {
+  padding: 12px 14px 8px;
+}
+
+.edit-form {
+  margin-top: 12px;
+}
+
+.edit-number {
+  width: 100%;
+}
+
+.legacy-select {
+  width: 320px;
+}
+
+.legacy-frame-card .ant-card-body {
+  padding: 0;
+}
+
+.legacy-frame {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 210px);
+  min-height: 620px;
+  border: 0;
+  background: #fff;
+}
+
 .tab-count {
   display: inline-flex;
   align-items: center;

@@ -76,6 +76,44 @@ export type ModuleTable = {
   title: string;
   columns: string[];
   rows: Record<string, unknown>[];
+  edit?: ModuleEditConfig;
+};
+
+export type ModuleChartSeries = {
+  name: string;
+  data: Array<number | null>;
+  type?: "line" | "bar";
+  unit?: string;
+  color?: string;
+  yAxisIndex?: number;
+};
+
+export type ModuleChart = {
+  title: string;
+  subtitle?: string;
+  type?: "line" | "bar";
+  x: string[];
+  height?: number;
+  series: ModuleChartSeries[];
+};
+
+export type ModuleEditField = {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "number" | "boolean" | "select" | "password";
+  required?: boolean;
+  options?: Array<{ label: string; value: string | number | boolean }>;
+};
+
+export type ModuleEditConfig = {
+  kind: string;
+  title: string;
+  idField?: string;
+  endpoint: string;
+  method?: "PATCH" | "POST";
+  createEndpoint?: string;
+  fields: ModuleEditField[];
+  createFields?: ModuleEditField[];
 };
 
 export type ModuleAction = {
@@ -91,6 +129,7 @@ export type ModuleResponse = {
   title: string;
   subtitle: string;
   cards: ModuleCard[];
+  charts?: ModuleChart[];
   tables: ModuleTable[];
   actions?: ModuleAction[];
 };
@@ -130,6 +169,31 @@ export async function runModuleAction(action: ModuleAction): Promise<Record<stri
     method: action.method,
     credentials: "same-origin",
     headers: { Accept: "application/json" },
+  });
+  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
+}
+
+function endpointFromTemplate(template: string, row: Record<string, unknown>) {
+  return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key: string) => encodeURIComponent(String(row[key] ?? "")));
+}
+
+export async function submitModuleEdit(
+  edit: ModuleEditConfig,
+  row: Record<string, unknown>,
+  values: Record<string, unknown>,
+  create = false,
+): Promise<Record<string, unknown>> {
+  const endpoint = create && edit.createEndpoint ? edit.createEndpoint : endpointFromTemplate(edit.endpoint, row);
+  const method = create && edit.createEndpoint ? "POST" : edit.method ?? "PATCH";
+  const response = await fetch(endpoint, {
+    method,
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(values),
   });
   const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
   if (!response.ok) {
