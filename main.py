@@ -12363,10 +12363,34 @@ def parking_vehicle_row_api(vehicle: ParkingVehicle, details: Optional[ParkingVe
     }
 
 
+def exact_search_text(query: Optional[str]) -> Optional[str]:
+    text_value = (query or "").strip()
+    if len(text_value) >= 2 and text_value[0] == text_value[-1] and text_value[0] in {'"', "'"}:
+        exact_value = text_value[1:-1].strip()
+        return exact_value or None
+    return None
+
+
 def parking_vehicle_search_condition(query: Optional[str]):
     text_value = (query or "").strip()
     if not text_value:
         return None
+    exact_value = exact_search_text(text_value)
+    if exact_value:
+        plate_value = compact_plate(exact_value)
+        exact_pattern = rf"(^|[^[:alnum:]_]){re.escape(exact_value)}([^[:alnum:]_]|$)"
+        return or_(
+            func.upper(func.coalesce(ParkingVehicle.plate, "")) == plate_value if plate_value else False,
+            func.coalesce(ParkingVehicle.navn, "").op("~*")(exact_pattern),
+            func.coalesce(ParkingVehicle.omrade, "").op("~*")(exact_pattern),
+            func.coalesce(ParkingVehicle.sun2_id, "").op("~*")(exact_pattern),
+            func.coalesce(ParkingVehicle.notat, "").op("~*")(exact_pattern),
+            func.coalesce(ParkingVehicleDetails.merke, "").op("~*")(exact_pattern),
+            func.coalesce(ParkingVehicleDetails.modell, "").op("~*")(exact_pattern),
+            func.coalesce(ParkingVehicleDetails.typebetegnelse, "").op("~*")(exact_pattern),
+            func.coalesce(ParkingVehicleDetails.farge, "").op("~*")(exact_pattern),
+            func.coalesce(ParkingVehicleDetails.kjoretoyklasse_navn, "").op("~*")(exact_pattern),
+        )
     like = f"%{text_value.upper()}%"
     plate_like = f"%{compact_plate(text_value)}%" if compact_plate(text_value) else like
     return or_(

@@ -321,10 +321,21 @@ function moduleColumns(
 function filterRows(rows: Record<string, unknown>[], columns: string[], query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return rows;
+  const exactQuery =
+    normalized.length >= 2 && normalized[0] === normalized[normalized.length - 1] && ["\"", "'"].includes(normalized[0])
+      ? normalized.slice(1, -1).trim()
+      : "";
+  const exactPattern = exactQuery
+    ? new RegExp(`(^|[^\\p{L}\\p{N}_])${exactQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\p{L}\\p{N}_])`, "iu")
+    : null;
   const compactQuery = normalized.replace(/[^a-z0-9æøå]/gi, "");
   return rows.filter((row) =>
     columns.some((column) => {
       const value = displayValue(row[column]).toLowerCase();
+      if (exactPattern) {
+        const compactExact = exactQuery.replace(/[^a-z0-9æøå]/gi, "");
+        return exactPattern.test(value) || (compactExact.length > 1 && value.replace(/[^a-z0-9æøå]/gi, "") === compactExact);
+      }
       return value.includes(normalized) || (compactQuery.length > 1 && value.replace(/[^a-z0-9æøå]/gi, "").includes(compactQuery));
     }),
   );
@@ -433,7 +444,7 @@ function tabLabel(table: ModuleTable, query: string): ReactNode {
 }
 
 function tableSearchPlaceholder(module: string, view: string): string {
-  if (module === "parkering" && view === "kjoretoy") return "Søk etter reg.nr, bil, eier, område";
+  if (module === "parkering" && view === "kjoretoy") return "Søk etter reg.nr, bil, eier, område. Bruk \"nordby\" for eksakt ord.";
   return "Søk i tabellene";
 }
 
