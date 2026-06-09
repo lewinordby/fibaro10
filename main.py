@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1061")
+APP_BUILD = os.getenv("APP_BUILD", "1062")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1062",
+        "date": "09.06.2026",
+        "title": "Bygger ut V2 soling-undersider",
+        "changes": [
+            "Legger native V2-visninger for soling oversikt, detaljer, dagslinje, enkeltimer, senger, medlemmer og prognose.",
+            "Beholder ukesutvikling/statistikk, men gir hver underside egne kort, grafer og tabeller.",
+            "Legger V2-handling for å lagre solingprognose.",
+        ],
+    },
     {
         "version": "1",
         "build": "1061",
@@ -1095,8 +1106,8 @@ def legacy_ui_target(path: str) -> Optional[str]:
         "/parkering/omrade": "/v2/parkering/omrade",
         "/soling/dagslinje": "/v2/soling/dagslinje",
         "/soling/prognose": "/v2/soling/prognose",
-        "/soling/oversikt": "/v2/soling/statistikk",
-        "/soling/detaljer": "/v2/soling/statistikk",
+        "/soling/oversikt": "/v2/soling/oversikt",
+        "/soling/detaljer": "/v2/soling/detaljer",
         "/soling/enkeltimer": "/v2/soling/enkeltimer",
         "/soling/senger": "/v2/soling/senger",
         "/soling/medlemmer": "/v2/soling/medlemmer",
@@ -1125,7 +1136,7 @@ def legacy_ui_target(path: str) -> Optional[str]:
         ("/status/datakilder", "/v2/drift"),
         ("/status", "/v2/oversikt"),
         ("/parkering", "/v2/parkering/oversikt"),
-        ("/soling", "/v2/soling/dagslinje"),
+        ("/soling", "/v2/soling/oversikt"),
         ("/energi", "/v2/energi/status"),
         ("/ventilasjon", "/v2/ventilasjon/dagslogg"),
         ("/lys", "/v2/lys/dagslogg"),
@@ -11420,6 +11431,625 @@ def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = 
     }
 
 
+def api_sun2_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "period": item.get("period"),
+        "period_label": item.get("period_label") or item.get("period"),
+        "totalt_inntjent_kr": round(float_or_zero(item.get("totalt_inntjent_kr")), 2),
+        "totalt_antall_solinger": int_or_zero(item.get("totalt_antall_solinger")),
+        "total_soletid_timer": round(float_or_zero(item.get("total_soletid_timer")), 2),
+        "rooms_count": int_or_zero(item.get("rooms_count")),
+        "days_count": int_or_zero(item.get("days_count")),
+    }
+
+
+def api_sun2_weekly_chart(summaries: Dict[str, Any], metric: str = "revenue") -> Dict[str, Any]:
+    title = "Ukesutvikling soling" if metric == "revenue" else "Ukesutvikling antall solinger"
+    return api_chart(
+        title,
+        [str(week) for week in range(1, 54)],
+        [
+            {"name": row["year"], "data": row[metric], "color": row.get("color")}
+            for row in summaries.get("weekly_chart", [])
+        ],
+        "En linje per år, uke 1-53. Samme datagrunnlag som V1 oversikt.",
+        "line",
+        360,
+    )
+
+
+def api_sun2_session_row(row: Sun2TanningSession) -> Dict[str, Any]:
+    data = api_pick(row, SUN2_SESSION_COLUMNS)
+    if row.room_id:
+        data["room_label"] = sun2_room_label(row.room_id, row.room)
+    return data
+
+
+def api_sun2_bed_row(row: Sun2Bed, totals: Dict[str, Any]) -> Dict[str, Any]:
+    data = api_pick(row, SUN2_BED_COLUMNS)
+    total = totals.get(row.room_id) or {}
+    data.update(
+        {
+            "room_label": sun2_room_label(row.room_id, row.name),
+            "sessions_count": int_or_zero(total.get("sessions_count")),
+            "duration_hours": round(float_or_zero(total.get("duration_minutes")) / 60, 2),
+            "paid_amount_kr": round(float_or_zero(total.get("paid_amount_kr")), 2),
+            "last_session_at": total.get("last_at"),
+        }
+    )
+    return data
+
+
+def api_sun2_member_row(row: Sun2Member, stats: Dict[str, Any]) -> Dict[str, Any]:
+    data = api_pick(row, SUN2_MEMBER_COLUMNS)
+    stat = stats.get(row.sun2_user_id) or {}
+    data.update(
+        {
+            "sessions_count": int_or_zero(stat.get("sessions_count")),
+            "duration_hours": round(float_or_zero(stat.get("duration_minutes")) / 60, 2),
+            "paid_amount_kr": round(float_or_zero(stat.get("paid_amount_kr")), 2),
+            "last_session_at": stat.get("last_session_at"),
+            "session_name": stat.get("session_name"),
+        }
+    )
+    return data
+
+
+def api_sun2_forecast_rows(forecast: Dict[str, Any]) -> list[Dict[str, Any]]:
+    rows = []
+    for key, label in [("day", "I dag"), ("month", "Måned"), ("year", "År")]:
+        item = forecast.get(key) or {}
+        actual = item.get("actual") or {}
+        forecast_values = item.get("forecast") or {}
+        rows.append(
+            {
+                "period": label,
+                "label": item.get("label") or label,
+                "actual_sessions": round(float_or_zero(actual.get("sessions")), 1),
+                "forecast_sessions": round(float_or_zero(forecast_values.get("sessions")), 1),
+                "actual_paid": round(float_or_zero(actual.get("paid")), 2),
+                "forecast_paid": round(float_or_zero(forecast_values.get("paid")), 2),
+                "actual_hours": round(float_or_zero(actual.get("minutes")) / 60, 2),
+                "forecast_hours": round(float_or_zero(forecast_values.get("minutes")) / 60, 2),
+                "tempo": round(float_or_zero(item.get("tempo")) * 100, 1) if item.get("tempo") is not None else None,
+                "remaining_days": item.get("remaining_days"),
+            }
+        )
+    return rows
+
+
+def api_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    return [
+        {
+            "created_at": row.get("created_at"),
+            "period_type": row.get("period_type"),
+            "period_label": row.get("period_label"),
+            "forecast_sessions": round(float_or_zero((row.get("forecast") or {}).get("sessions")), 1),
+            "actual_sessions": round(float_or_zero((row.get("actual") or {}).get("sessions")), 1),
+            "delta_sessions": round(float_or_zero((row.get("delta") or {}).get("sessions")), 1),
+            "forecast_paid": round(float_or_zero((row.get("forecast") or {}).get("paid")), 2),
+            "actual_paid": round(float_or_zero((row.get("actual") or {}).get("paid")), 2),
+            "delta_paid": round(float_or_zero((row.get("delta") or {}).get("paid")), 2),
+            "period_done": row.get("period_done"),
+        }
+        for row in rows
+    ]
+
+
+async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, month_start: date) -> Dict[str, Any]:
+    view = view or "oversikt"
+    if view not in {"oversikt", "dagslinje", "prognose", "statistikk", "detaljer", "enkeltimer", "senger", "medlemmer"}:
+        view = "oversikt"
+
+    yesterday = today - timedelta(days=1)
+    recent_start = today - timedelta(days=119)
+    sun2_summaries = await get_sun2_summaries(session)
+    today_sun = await sun2_period_snapshot(session, today, tomorrow)
+    yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
+    month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
+    database_total = await get_sun2_session_database_total(session)
+    members = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
+    known_members = (
+        await session.execute(
+            select(func.count(func.distinct(Sun2TanningSession.sun2_user_id)))
+            .where(Sun2TanningSession.sun2_user_id.is_not(None))
+            .where(Sun2TanningSession.sun2_user_id != "")
+        )
+    ).scalar_one()
+    latest_import = (
+        await session.execute(
+            select(Sun2ImportRun)
+            .order_by(Sun2ImportRun.timestamp.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    imports = (
+        await session.execute(
+            select(Sun2ImportRun)
+            .order_by(Sun2ImportRun.timestamp.desc())
+            .limit(25)
+        )
+    ).scalars().all()
+    session_imports = (
+        await session.execute(
+            select(Sun2SessionImportRun)
+            .order_by(Sun2SessionImportRun.timestamp.desc())
+            .limit(20)
+        )
+    ).scalars().all()
+    latest_sessions = (
+        await session.execute(
+            select(Sun2TanningSession)
+            .order_by(Sun2TanningSession.started_at.desc())
+            .limit(250)
+        )
+    ).scalars().all()
+    today_sessions = (
+        await session.execute(
+            select(Sun2TanningSession)
+            .where(Sun2TanningSession.stat_date == today)
+            .order_by(Sun2TanningSession.started_at.asc())
+            .limit(250)
+        )
+    ).scalars().all()
+    room_rows = (
+        await session.execute(
+            select(Sun2RoomDailyStat)
+            .order_by(Sun2RoomDailyStat.stat_date.desc(), Sun2RoomDailyStat.room.asc())
+            .limit(350)
+        )
+    ).scalars().all()
+    beds = (
+        await session.execute(
+            select(Sun2Bed)
+            .order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id, Sun2Bed.name)
+        )
+    ).scalars().all()
+    bed_totals_rows = (
+        await session.execute(
+            select(
+                Sun2TanningSession.room_id.label("room_id"),
+                func.count(Sun2TanningSession.id).label("sessions_count"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                func.max(Sun2TanningSession.started_at).label("last_at"),
+            )
+            .group_by(Sun2TanningSession.room_id)
+        )
+    ).mappings().all()
+    bed_totals = {item["room_id"]: item for item in bed_totals_rows}
+    member_rows = (
+        await session.execute(
+            select(Sun2Member)
+            .order_by(Sun2Member.last_seen_at.desc().nullslast(), Sun2Member.name.asc(), Sun2Member.sun2_user_id.asc())
+            .limit(300)
+        )
+    ).scalars().all()
+    member_ids = [member.sun2_user_id for member in member_rows if member.sun2_user_id]
+    member_stats = {}
+    if member_ids:
+        member_stats_rows = (
+            await session.execute(
+                select(
+                    Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                    func.max(Sun2TanningSession.started_at).label("last_session_at"),
+                    func.max(Sun2TanningSession.user_name).label("session_name"),
+                )
+                .where(Sun2TanningSession.sun2_user_id.in_(member_ids))
+                .group_by(Sun2TanningSession.sun2_user_id)
+            )
+        ).mappings().all()
+        member_stats = {item["sun2_user_id"]: item for item in member_stats_rows}
+
+    daily_session_rows = [
+        dict(item)
+        for item in (
+            await session.execute(
+                select(
+                    Sun2TanningSession.stat_date.label("stat_date"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                    func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms_count"),
+                )
+                .where(Sun2TanningSession.stat_date >= recent_start)
+                .group_by(Sun2TanningSession.stat_date)
+                .order_by(Sun2TanningSession.stat_date.asc())
+            )
+        ).mappings().all()
+    ]
+    hour_part = func.extract("hour", Sun2TanningSession.started_at)
+    hourly_rows = [
+        dict(item)
+        for item in (
+            await session.execute(
+                select(
+                    hour_part.label("hour"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                )
+                .where(Sun2TanningSession.stat_date >= recent_start)
+                .group_by(hour_part)
+                .order_by(hour_part.asc())
+            )
+        ).mappings().all()
+    ]
+    today_room_rows = [
+        {
+            "room_label": sun2_room_label(item.get("room_id"), item.get("source_room_name")),
+            "room_id": item.get("room_id"),
+            "sessions_count": int_or_zero(item.get("sessions_count")),
+            "duration_hours": round(float_or_zero(item.get("duration_minutes")) / 60, 2),
+            "paid_amount_kr": round(float_or_zero(item.get("paid_amount_kr")), 2),
+            "first_at": item.get("first_at"),
+            "last_at": item.get("last_at"),
+        }
+        for item in (
+            await session.execute(
+                select(
+                    Sun2TanningSession.room_id.label("room_id"),
+                    func.max(Sun2TanningSession.room).label("source_room_name"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                    func.min(Sun2TanningSession.started_at).label("first_at"),
+                    func.max(Sun2TanningSession.started_at).label("last_at"),
+                )
+                .where(Sun2TanningSession.stat_date == today)
+                .group_by(Sun2TanningSession.room_id)
+                .order_by(func.count(Sun2TanningSession.id).desc())
+            )
+        ).mappings().all()
+    ]
+    top_rooms = [
+        {
+            "room_label": sun2_room_label(item.get("room_id"), item.get("source_room_name")),
+            "room_id": item.get("room_id"),
+            "sessions_count": int_or_zero(item.get("sessions_count")),
+            "duration_hours": round(float_or_zero(item.get("duration_minutes")) / 60, 2),
+            "paid_amount_kr": round(float_or_zero(item.get("paid_amount_kr")), 2),
+        }
+        for item in (
+            await session.execute(
+                select(
+                    Sun2TanningSession.room_id.label("room_id"),
+                    func.max(Sun2TanningSession.room).label("source_room_name"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                )
+                .where(Sun2TanningSession.stat_date >= recent_start)
+                .group_by(Sun2TanningSession.room_id)
+                .order_by(func.count(Sun2TanningSession.id).desc())
+                .limit(15)
+            )
+        ).mappings().all()
+    ]
+    top_users = [
+        {
+            "sun2_user_id": item.get("sun2_user_id"),
+            "user_name": item.get("user_name"),
+            "sessions_count": int_or_zero(item.get("sessions_count")),
+            "duration_hours": round(float_or_zero(item.get("duration_minutes")) / 60, 2),
+            "paid_amount_kr": round(float_or_zero(item.get("paid_amount_kr")), 2),
+            "last_at": item.get("last_at"),
+        }
+        for item in (
+            await session.execute(
+                select(
+                    Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
+                    func.max(Sun2TanningSession.user_name).label("user_name"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                    func.max(Sun2TanningSession.started_at).label("last_at"),
+                )
+                .where(Sun2TanningSession.sun2_user_id.is_not(None))
+                .where(Sun2TanningSession.sun2_user_id != "")
+                .where(Sun2TanningSession.stat_date >= recent_start)
+                .group_by(Sun2TanningSession.sun2_user_id)
+                .order_by(func.count(Sun2TanningSession.id).desc())
+                .limit(15)
+            )
+        ).mappings().all()
+    ]
+    payment_breakdown = [
+        {
+            "payment_method": item.get("payment_method") or "Ukjent",
+            "sessions_count": int_or_zero(item.get("sessions_count")),
+            "paid_amount_kr": round(float_or_zero(item.get("paid_amount_kr")), 2),
+        }
+        for item in (
+            await session.execute(
+                select(
+                    Sun2TanningSession.payment_method.label("payment_method"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                )
+                .where(Sun2TanningSession.stat_date >= recent_start)
+                .group_by(Sun2TanningSession.payment_method)
+                .order_by(func.count(Sun2TanningSession.id).desc())
+                .limit(10)
+            )
+        ).mappings().all()
+    ]
+    status_breakdown = [
+        {
+            "status": item.get("status") or "Ukjent",
+            "sessions_count": int_or_zero(item.get("sessions_count")),
+        }
+        for item in (
+            await session.execute(
+                select(
+                    Sun2TanningSession.status.label("status"),
+                    func.count(Sun2TanningSession.id).label("sessions_count"),
+                )
+                .where(Sun2TanningSession.stat_date >= recent_start)
+                .group_by(Sun2TanningSession.status)
+                .order_by(func.count(Sun2TanningSession.id).desc())
+                .limit(10)
+            )
+        ).mappings().all()
+    ]
+    energy_hour_rows = [
+        {
+            "hour": int_or_zero(item.get("hour")),
+            "consumption_kwh": round(float_or_zero(item.get("consumption_kwh")), 3),
+            "production_kwh": round(float_or_zero(item.get("production_kwh")), 3),
+            "rows_count": int_or_zero(item.get("rows_count")),
+        }
+        for item in (
+            await session.execute(
+                select(
+                    EnergyHourlyConsumption.hour.label("hour"),
+                    func.coalesce(func.sum(EnergyHourlyConsumption.consumption_kwh), 0).label("consumption_kwh"),
+                    func.coalesce(func.sum(EnergyHourlyConsumption.production_kwh), 0).label("production_kwh"),
+                    func.count(EnergyHourlyConsumption.id).label("rows_count"),
+                )
+                .where(EnergyHourlyConsumption.stat_date == today)
+                .group_by(EnergyHourlyConsumption.hour)
+                .order_by(EnergyHourlyConsumption.hour.asc())
+            )
+        ).mappings().all()
+    ]
+
+    daily_chart_rows = [row for row in daily_session_rows if row.get("stat_date")]
+    daily_x = [row["stat_date"].isoformat() if hasattr(row["stat_date"], "isoformat") else str(row["stat_date"]) for row in daily_chart_rows]
+    daily_count_chart = api_chart(
+        "Solinger per dag",
+        daily_x,
+        [{"name": "Solinger", "data": [int_or_zero(row.get("sessions_count")) for row in daily_chart_rows], "type": "bar"}],
+        "Siste 120 dager fra enkeltimer.",
+        "bar",
+        300,
+    )
+    daily_revenue_chart = api_chart(
+        "Omsetning per dag",
+        daily_x,
+        [{"name": "Kr", "data": [round(float_or_zero(row.get("paid_amount_kr")), 2) for row in daily_chart_rows], "type": "bar"}],
+        "Siste 120 dager fra enkeltimer.",
+        "bar",
+        300,
+    )
+    hourly_lookup = {int_or_zero(row.get("hour")): row for row in hourly_rows}
+    hourly_points = [
+        {
+            "hour": hour,
+            "hour_label": f"{hour:02d}",
+            "sessions_count": int_or_zero((hourly_lookup.get(hour) or {}).get("sessions_count")),
+            "duration_hours": round(float_or_zero((hourly_lookup.get(hour) or {}).get("duration_minutes")) / 60, 2),
+            "paid_amount_kr": round(float_or_zero((hourly_lookup.get(hour) or {}).get("paid_amount_kr")), 2),
+        }
+        for hour in range(24)
+    ]
+    hourly_chart = api_chart(
+        "Fordeling per time",
+        [item["hour_label"] for item in hourly_points],
+        [{"name": "Solinger", "data": [item["sessions_count"] for item in hourly_points], "type": "bar"}],
+        "Siste 120 dager fra enkeltimer.",
+        "bar",
+        300,
+    )
+    room_chart = api_chart(
+        "Mest brukte rom",
+        [row["room_label"] for row in top_rooms],
+        [{"name": "Solinger", "data": [row["sessions_count"] for row in top_rooms], "type": "bar"}],
+        "Siste 120 dager.",
+        "bar",
+        320,
+    )
+    bed_chart_rows = [
+        {
+            "room_label": sun2_room_label(item.get("room_id"), item.get("room_id")),
+            "sessions_count": int_or_zero(item.get("sessions_count")),
+        }
+        for item in sorted(bed_totals_rows, key=lambda row: int_or_zero(row.get("sessions_count")), reverse=True)
+        if item.get("room_id")
+    ][:15]
+    bed_chart = api_chart(
+        "Sengebruk",
+        [row["room_label"] for row in bed_chart_rows],
+        [{"name": "Solinger", "data": [row["sessions_count"] for row in bed_chart_rows], "type": "bar"}],
+        "Alle registrerte enkeltimer.",
+        "bar",
+        320,
+    )
+    user_chart = api_chart(
+        "Mest aktive medlemmer",
+        [row.get("user_name") or row.get("sun2_user_id") or "-" for row in top_users],
+        [{"name": "Solinger", "data": [row["sessions_count"] for row in top_users], "type": "bar"}],
+        "Siste 120 dager.",
+        "bar",
+        320,
+    )
+
+    total_sessions = int_or_zero(database_total.get("sessions_count"))
+    total_paid = float_or_zero(database_total.get("paid_amount_kr"))
+    total_hours = float_or_zero(database_total.get("duration_minutes")) / 60
+    cards = [
+        api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2"),
+        api_card("I går", yesterday_sun.sessions, "stk", f"{format_short_number(yesterday_sun.paid)} kr", "sun2"),
+        api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue"),
+        api_card("Totalt", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue"),
+    ]
+    subtitle = "SUN2 soling samlet i egne V2-visninger: oversikt, detaljer, enkeltimer, dagslinje, senger, medlemmer og prognose."
+    charts = []
+    tables = []
+    actions = []
+
+    if view == "oversikt":
+        charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart]
+        tables = [
+            api_table("Topp dager omsetning", ["period_label", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("top_days", [])]),
+            api_table("Topp måneder omsetning", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("top_months", [])]),
+            api_table("Topp dager antall", ["period_label", "totalt_antall_solinger", "totalt_inntjent_kr", "total_soletid_timer", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("top_days_by_count", [])]),
+            api_table("Siste solinger", ["started_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "customer_type", "status"], [api_sun2_session_row(row) for row in latest_sessions[:80]]),
+            api_table("Siste import", SUN2_IMPORT_COLUMNS, [api_pick(latest_import, SUN2_IMPORT_COLUMNS)] if latest_import else []),
+        ]
+    elif view == "statistikk":
+        charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), api_sun2_weekly_chart(sun2_summaries, "count"), daily_count_chart, daily_revenue_chart]
+        cards = [
+            api_card("Totalt omsetning", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue"),
+            api_card("Totalt timer", format_short_number(total_hours, 1), "t", "Fra enkeltimer", "sun2"),
+            api_card("Dager med data", sun2_summaries.get("total", {}).get("days_count", 0), "stk", "Dags- og romgrunnlag", "status"),
+            api_card("Rom brukt", sun2_summaries.get("total", {}).get("rooms_count", 0), "stk", "Fra dagsstatistikk", "status"),
+        ]
+        tables = [
+            api_table("Dager", ["period_label", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("daily", [])[:120]]),
+            api_table("Måneder", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("monthly", [])[:60]]),
+            api_table("År", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("yearly", [])]),
+        ]
+    elif view == "detaljer":
+        charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), room_chart]
+        tables = [
+            api_table("Romstatistikk", ["stat_date", "room", "room_id", "total_soletid_minutter", "totalt_antall_solinger", "totalt_inntjent_kr", "solinger_medlemmer", "solinger_ikke_medlemmer"], [api_pick(row, SUN2_ROOM_COLUMNS) for row in room_rows]),
+            api_table("Måneder", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("monthly", [])[:80]]),
+            api_table("År", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("yearly", [])]),
+            api_table("Romimporter", ["timestamp", "ok", "stat_date", "rows_count", "inserted_count", "updated_count", "message"], [api_pick(row, SUN2_IMPORT_COLUMNS) for row in imports]),
+        ]
+    elif view == "dagslinje":
+        charts = [
+            api_chart(
+                "Solinger i dag per rom",
+                [row["room_label"] for row in today_room_rows],
+                [{"name": "Solinger", "data": [row["sessions_count"] for row in today_room_rows], "type": "bar"}],
+                "Dagens enkeltimer gruppert per rom.",
+                "bar",
+                300,
+            ),
+            api_chart(
+                "Strømforbruk i dag",
+                [f"{row['hour']:02d}" for row in energy_hour_rows],
+                [{"name": "kWh", "data": [row["consumption_kwh"] for row in energy_hour_rows], "type": "bar"}],
+                "Elvia-timeverdier for valgt dag.",
+                "bar",
+                280,
+            ),
+        ]
+        cards = [
+            api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2"),
+            api_card("Timer i dag", format_short_number(today_sun.minutes / 60, 1), "t", f"{today_sun.rooms or 0} rom brukt", "sun2"),
+            api_card("Energirader", len(energy_hour_rows), "timer", "Elvia i dag", "status"),
+            api_card("Siste import", latest_import.timestamp if latest_import else "-", "", latest_import.message if latest_import else "Ingen import funnet", "status"),
+        ]
+        tables = [
+            api_table("Rom i dag", ["room_label", "sessions_count", "duration_hours", "paid_amount_kr", "first_at", "last_at"], today_room_rows),
+            api_table("Dagens solinger", ["started_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "status"], [api_sun2_session_row(row) for row in today_sessions]),
+            api_table("Energiforbruk timer", ["hour", "consumption_kwh", "production_kwh", "rows_count"], energy_hour_rows),
+        ]
+    elif view == "enkeltimer":
+        charts = [daily_count_chart, daily_revenue_chart, hourly_chart, room_chart]
+        cards = [
+            api_card("Siste 120 dager", sum(int_or_zero(row.get("sessions_count")) for row in daily_session_rows), "stk", "Fra enkeltimer", "sun2"),
+            api_card("Omsetning 120d", format_short_number(sum(float_or_zero(row.get("paid_amount_kr")) for row in daily_session_rows)), "kr", "Fra enkeltimer", "revenue"),
+            api_card("Timer 120d", format_short_number(sum(float_or_zero(row.get("duration_minutes")) for row in daily_session_rows) / 60, 1), "t", "Fra enkeltimer", "sun2"),
+            api_card("Rader totalt", format_short_number(total_sessions), "stk", "Alle enkeltimer", "status"),
+        ]
+        tables = [
+            api_table("Enkeltimer", ["started_at", "ended_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"], [api_sun2_session_row(row) for row in latest_sessions]),
+            api_table("Dagsutvikling", ["stat_date", "sessions_count", "duration_minutes", "paid_amount_kr", "rooms_count"], daily_session_rows),
+            api_table("Fordeling per time", ["hour_label", "sessions_count", "duration_hours", "paid_amount_kr"], hourly_points),
+            api_table("Topp rom", ["room_label", "sessions_count", "duration_hours", "paid_amount_kr"], top_rooms),
+            api_table("Topp brukere", ["sun2_user_id", "user_name", "sessions_count", "duration_hours", "paid_amount_kr", "last_at"], top_users),
+            api_table("Betaling", ["payment_method", "sessions_count", "paid_amount_kr"], payment_breakdown),
+            api_table("Status", ["status", "sessions_count"], status_breakdown),
+            api_table("Enkeltimeimporter", ["timestamp", "ok", "period_first", "period_last", "rows_count", "inserted_count", "updated_count", "skipped_count", "message"], [api_pick(row, SUN2_SESSION_IMPORT_COLUMNS) for row in session_imports]),
+        ]
+    elif view == "senger":
+        charts = [bed_chart]
+        cards = [
+            api_card("Senger", len(beds), "stk", "Importert fra SUN2", "status"),
+            api_card("Rom med bruk", len([row for row in bed_totals_rows if int_or_zero(row.get("sessions_count"))]), "stk", "Har enkeltimer", "sun2"),
+            api_card("Solinger totalt", format_short_number(total_sessions), "stk", "Alle senger/rom", "sun2"),
+            api_card("Omsetning totalt", format_short_number(total_paid), "kr", "Alle enkeltimer", "revenue"),
+        ]
+        tables = [
+            api_table("Senger", ["physical_room_number", "room_label", "room_id", "name", "bed_model", "max_minutes", "current_price_per_min", "status", "lamp_status", "sessions_count", "duration_hours", "paid_amount_kr", "last_session_at", "imported_at"], [api_sun2_bed_row(row, bed_totals) for row in beds]),
+        ]
+    elif view == "medlemmer":
+        charts = [user_chart]
+        cards = [
+            api_card("Medlemmer", members, "stk", "Importert fra SUN2", "status"),
+            api_card("Kjent fra soling", known_members, "stk", "Unike bruker-ID-er i enkeltimer", "sun2"),
+            api_card("Aktive i lista", len([row for row in member_rows if (member_stats.get(row.sun2_user_id) or {}).get("sessions_count")]), "stk", "Blant viste medlemmer", "sun2"),
+            api_card("Sist importert", member_rows[0].imported_at if member_rows else "-", "", "Medlemsliste", "status"),
+        ]
+        tables = [
+            api_table("Medlemmer", ["sun2_user_id", "name", "customer_type", "age", "gender", "last_seen_at", "visits_count", "total_spent_kr", "balance_kr", "sessions_count", "duration_hours", "paid_amount_kr", "last_session_at", "session_name"], [api_sun2_member_row(row, member_stats) for row in member_rows]),
+            api_table("Topp brukere", ["sun2_user_id", "user_name", "sessions_count", "duration_hours", "paid_amount_kr", "last_at"], top_users),
+        ]
+    elif view == "prognose":
+        forecast = await build_sun2_forecast(session, today, datetime.now(LOCAL_TZ))
+        saved_forecasts = await saved_forecast_table(session, "sun2")
+        forecast_table_rows = api_sun2_forecast_rows(forecast)
+        charts = [
+            api_chart(
+                "Prognose mot faktisk",
+                [row["period"] for row in forecast_table_rows],
+                [
+                    {"name": "Faktisk solinger", "data": [row["actual_sessions"] for row in forecast_table_rows], "type": "bar"},
+                    {"name": "Prognose solinger", "data": [row["forecast_sessions"] for row in forecast_table_rows], "type": "bar"},
+                ],
+                "Nåverdi og beregnet sluttverdi.",
+                "bar",
+                300,
+            )
+        ]
+        cards = [
+            api_card("Dagsprognose", forecast_table_rows[0]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[0]['forecast_paid'])} kr", "sun2"),
+            api_card("Månedsprognose", forecast_table_rows[1]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[1]['forecast_paid'])} kr", "revenue"),
+            api_card("Årsprognose", forecast_table_rows[2]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[2]['forecast_paid'])} kr", "revenue"),
+            api_card("Lagrede", len(saved_forecasts), "stk", "Prognosesnapshots", "status"),
+        ]
+        tables = [
+            api_table("Nåværende prognose", ["period", "label", "actual_sessions", "forecast_sessions", "actual_paid", "forecast_paid", "actual_hours", "forecast_hours", "tempo", "remaining_days"], forecast_table_rows),
+            api_table("Lagrede prognoser", ["created_at", "period_type", "period_label", "actual_sessions", "forecast_sessions", "delta_sessions", "actual_paid", "forecast_paid", "delta_paid", "period_done"], api_saved_forecast_rows(saved_forecasts)),
+        ]
+        actions = [
+            {
+                "key": "sun2-save-forecast",
+                "label": "Lagre solingprognose",
+                "method": "POST",
+                "path": "/api/v2/actions/soling/save-forecast",
+                "confirm": "Lagre prognosesnapshot for soling nå?",
+                "tone": "primary",
+            }
+        ]
+
+    return {
+        "title": "Soling" if not view else f"Soling · {view.replace('-', ' ')}",
+        "subtitle": subtitle,
+        "cards": cards,
+        "charts": charts,
+        "tables": tables,
+        "actions": actions,
+    }
+
+
 def api_config_value_rows(values: Dict[str, Any]) -> list[Dict[str, Any]]:
     return [{"key": key, "value": value} for key, value in sorted(values.items())]
 
@@ -11793,79 +12423,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
             }
 
         if module == "soling":
-            sun2_summaries = await get_sun2_summaries(session)
-            today_sun = await sun2_period_snapshot(session, today, tomorrow)
-            month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
-            latest_sessions = (
-                await session.execute(
-                    select(Sun2TanningSession).order_by(Sun2TanningSession.started_at.desc()).limit(120)
-                )
-            ).scalars().all()
-            beds = (
-                await session.execute(
-                    select(Sun2Bed).order_by(Sun2Bed.physical_room_number, Sun2Bed.room_id).limit(80)
-                )
-            ).scalars().all()
-            member_rows = (
-                await session.execute(
-                    select(Sun2Member).order_by(Sun2Member.last_seen_at.desc().nullslast(), Sun2Member.name.asc()).limit(250)
-                )
-            ).scalars().all()
-            room_rows = (
-                await session.execute(
-                    select(Sun2RoomDailyStat)
-                    .order_by(Sun2RoomDailyStat.stat_date.desc(), Sun2RoomDailyStat.room.asc())
-                    .limit(250)
-                )
-            ).scalars().all()
-            forecast_rows = (
-                await session.execute(
-                    select(ForecastSnapshot)
-                    .where(ForecastSnapshot.domain == "sun2")
-                    .order_by(ForecastSnapshot.created_at.desc())
-                    .limit(80)
-                )
-            ).scalars().all()
-            members = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
-            charts = [
-                api_chart(
-                    "Ukesutvikling soling",
-                    [str(week) for week in range(1, 54)],
-                    [
-                        {"name": row["year"], "data": row["revenue"], "color": row.get("color")}
-                        for row in sun2_summaries["weekly_chart"]
-                    ],
-                    "Inntjent per uke og år. Samme grunnlag som gammel soling/oversikt.",
-                    "line",
-                    360,
-                )
-            ]
-            tables = [
-                api_table("Siste solinger", ["started_at", "room", "duration_minutes", "paid_amount_kr", "user_name", "status"], [api_pick(row, SUN2_SESSION_COLUMNS) for row in latest_sessions]),
-                api_table("Senger", ["physical_room_number", "name", "bed_model", "status", "current_price_per_min", "imported_at"], [api_pick(row, SUN2_BED_COLUMNS) for row in beds]),
-            ]
-            if view == "senger":
-                tables = [api_table("Senger", ["physical_room_number", "room_id", "name", "bed_model", "max_minutes", "current_price_per_min", "status", "lamp_status", "imported_at"], [api_pick(row, SUN2_BED_COLUMNS) for row in beds])]
-            elif view == "medlemmer":
-                tables = [api_table("Medlemmer", ["sun2_user_id", "name", "customer_type", "age", "gender", "last_seen_at", "visits_count", "total_spent_kr", "balance_kr"], [api_pick(row, SUN2_MEMBER_COLUMNS) for row in member_rows])]
-            elif view in {"statistikk", "oversikt"}:
-                tables = [api_table("Romstatistikk", ["stat_date", "room", "total_soletid_minutter", "totalt_antall_solinger", "totalt_inntjent_kr", "solinger_medlemmer", "solinger_ikke_medlemmer"], [api_pick(row, SUN2_ROOM_COLUMNS) for row in room_rows])]
-            elif view == "prognose":
-                tables = [api_table("Lagrede solingprognoser", ["created_at", "period_type", "period_start", "period_end", "forecast_sessions", "forecast_paid", "forecast_minutes", "actual_sessions_at_save", "actual_paid_at_save"], [row_to_dict(row, ["created_at", "period_type", "period_start", "period_end", "forecast_sessions", "forecast_paid", "forecast_minutes", "actual_sessions_at_save", "actual_paid_at_save"]) for row in forecast_rows])]
-            elif view == "enkeltimer":
-                tables = [api_table("Enkeltimer", ["started_at", "ended_at", "room", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"], [api_pick(row, SUN2_SESSION_COLUMNS) for row in latest_sessions])]
-            return {
-                "title": "Soling" if not view else f"Soling · {view.replace('-', ' ')}",
-                "subtitle": "SUN2 enkeltimer, rom, senger og medlemsgrunnlag.",
-                "cards": [
-                    api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2"),
-                    api_card("Timer i dag", format_short_number(today_sun.minutes / 60, 1), "t", f"{today_sun.rooms or 0} rom brukt", "sun2"),
-                    api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue"),
-                    api_card("Medlemmer", members, "stk", "Importert fra SUN2", "status"),
-                ],
-                "charts": charts,
-                "tables": tables,
-            }
+            return await api_v2_soling_module(session, view, today, tomorrow, month_start)
 
         if module == "energi":
             latest = (
@@ -12284,6 +12842,21 @@ async def api_v2_module(module: str, view: Optional[str] = None):
             }
 
     raise HTTPException(status_code=404, detail="Ukjent v2-modul")
+
+
+@app.post("/api/v2/actions/soling/save-forecast")
+async def api_v2_sun2_save_forecast(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    now_local = datetime.now(LOCAL_TZ)
+    today_value = now_local.date()
+    async with async_session() as session:
+        forecast = await build_sun2_forecast(session, today_value, now_local)
+        await save_forecast_snapshots(session, "sun2", forecast, getattr(request.state, "access_key_name", None))
+        await session.commit()
+    clear_summary_cache("sun2")
+    return {"status": "ok", "message": "Solingprognose lagret."}
 
 
 @app.post("/api/v2/actions/parkering/refresh")
