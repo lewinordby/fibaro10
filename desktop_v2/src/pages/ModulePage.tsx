@@ -18,7 +18,7 @@ import {
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { defaultModuleView, moduleLabel, modulePath, MODULE_VIEWS } from "../moduleViews";
-import { appPath, legacyPath, shouldOpenInLegacyFrame } from "../navigation";
+import { appPath } from "../navigation";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -235,7 +235,6 @@ function numericColumn(column: string): boolean {
 function LinkValue({ value }: { value: string }) {
   const internalPath = appPath(value);
   if (internalPath) return <Link to={internalPath}>{value}</Link>;
-  if (shouldOpenInLegacyFrame(value)) return <Link to={legacyPath(value)}>{value}</Link>;
   if (value.startsWith("/") || /^https?:\/\//i.test(value)) return <a href={value}>{value}</a>;
   return displayValue(value);
 }

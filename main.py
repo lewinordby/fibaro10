@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1060")
+APP_BUILD = os.getenv("APP_BUILD", "1061")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1061",
+        "date": "09.06.2026",
+        "title": "Setter historisk V1 på egen port",
+        "changes": [
+            "Fjerner V1-lenker og iframe fra desktop v2.",
+            "Lar historisk V1 kjøres som egen QNAP-container på port 8111 fra commit 487044d.",
+            "Legger read-only deploy-script for V1-historikk i repoet slik at oppsettet kan gjenskapes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1060",
@@ -9899,20 +9910,6 @@ async def update_settings(request: Request, config_key: str):
 @app.get("/")
 async def root_redirect(request: Request):
     return redirect_keep_query(request, "/v2", status_code=303)
-
-
-@app.get("/v1")
-async def v1_redirect(request: Request):
-    return redirect_keep_query(request, "/status/dashboard", status_code=303)
-
-
-@app.get("/v1/{path:path}")
-async def v1_path_redirect(request: Request, path: str):
-    clean_path = (path or "").strip("/")
-    target = f"/{clean_path}" if clean_path else "/status/dashboard"
-    if target.startswith("/v2"):
-        target = "/status/dashboard"
-    return redirect_keep_query(request, target, status_code=303)
 
 
 @app.get("/v2", response_class=HTMLResponse)

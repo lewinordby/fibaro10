@@ -12,6 +12,7 @@
 ## URL-er
 
 - Ny desktop-revisjon: `/v2`
+- Historisk V1 for manuell sammenligning: `http://192.168.20.218:8111`
 - V2 oversikt: `/v2/oversikt`
 - V2 omsetning: `/v2/omsetning`
 - V2 drift: `/v2/drift`
@@ -19,6 +20,18 @@
 - Gamle hovedområder som `/status`, `/parkering`, `/soling`, `/energi`, `/ventilasjon`, `/lys`, `/renhold`, `/konto` og `/ai` redirectes til v2 etter innlogging.
 
 Alle v2-ruter ligger bak samme innlogging som hovedappen.
+
+## Historisk V1
+
+V1-sammenligningen er ikke dagens Jinja-ruter. Den kjøres som egen QNAP-container fra commit `487044d`, som er siste commit før `desktop_v2` ble innført med commit `5fff9b9`.
+
+Oppsettet kan gjenskapes med:
+
+```powershell
+.\scripts\deploy-qnap-v1-history.ps1
+```
+
+Scriptet oppretter/oppdaterer git worktree på QNAP under `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10_v1_487044d`, kopierer `.env` fra hovedappen, bygger containeren `fibaro10_v1`, låser HTTP-metoder til `GET`/`HEAD`/`OPTIONS`, hopper over startup-skrivinger, deaktiverer SVV-bakgrunnssynk for V1 og publiserer den på `192.168.20.218:8111`.
 
 ## Frontend
 

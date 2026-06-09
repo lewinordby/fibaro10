@@ -18,7 +18,6 @@ import OverviewPage from "./pages/OverviewPage";
 import RevenueMonthPage from "./pages/RevenueMonthPage";
 import OperationsPage from "./pages/OperationsPage";
 import ModulePage from "./pages/ModulePage";
-import LegacyPage from "./pages/LegacyPage";
 import { modulePath } from "./moduleViews";
 
 const { Header, Sider, Content } = Layout;
@@ -34,7 +33,6 @@ const menuItems: MenuProps["items"] = [
   { key: modulePath("lys"), icon: <BulbOutlined />, label: "Lys" },
   { key: modulePath("renhold"), icon: <ToolOutlined />, label: "Renhold" },
   { key: modulePath("admin"), icon: <SettingOutlined />, label: "Admin" },
-  { key: "/klassisk", icon: <ToolOutlined />, label: "V1" },
 ];
 
 function selectedKey(pathname: string): string {
@@ -48,7 +46,6 @@ function selectedKey(pathname: string): string {
   if (pathname.startsWith("/lys")) return modulePath("lys");
   if (pathname.startsWith("/renhold")) return modulePath("renhold");
   if (pathname.startsWith("/admin")) return modulePath("admin");
-  if (pathname.startsWith("/klassisk")) return "/klassisk";
   return pathname;
 }
 
@@ -83,9 +80,6 @@ export default function App() {
             </Typography.Title>
           </Space>
           <Space>
-            <Button href="/v1" target="_blank" rel="noreferrer">
-              Åpne V1
-            </Button>
             <Button icon={<AlertOutlined />} onClick={() => navigate("/drift")}>
               Datakilder
             </Button>
@@ -100,7 +94,6 @@ export default function App() {
             <Route path="/oversikt" element={<OverviewPage />} />
             <Route path="/omsetning" element={<RevenueMonthPage />} />
             <Route path="/drift" element={<OperationsPage />} />
-            <Route path="/klassisk" element={<LegacyPage />} />
             <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
             <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
             <Route path="/soling" element={<Navigate to={modulePath("soling")} replace />} />
