@@ -479,6 +479,7 @@ export default function ModulePage({ module }: { module: string }) {
   const { message, modal } = AntApp.useApp();
   const [form] = Form.useForm();
   const [query, setQuery] = useState("");
+  const [draftQuery, setDraftQuery] = useState("");
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [editState, setEditState] = useState<{ edit: ModuleEditConfig; row: Record<string, unknown>; create: boolean } | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -494,6 +495,15 @@ export default function ModulePage({ module }: { module: string }) {
   );
 
   if (!isKnownView) return <Navigate to={modulePath(module)} replace />;
+
+  function runSearch(value = draftQuery) {
+    setQuery(value.trim());
+  }
+
+  function clearSearch() {
+    setDraftQuery("");
+    setQuery("");
+  }
 
   function openEdit(edit: ModuleEditConfig, row: Record<string, unknown>, create = false) {
     form.resetFields();
@@ -581,8 +591,14 @@ export default function ModulePage({ module }: { module: string }) {
           <Input.Search
             allowClear
             placeholder={tableSearchPlaceholder(module, safeView)}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={draftQuery}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setDraftQuery(nextValue);
+              if (!nextValue) clearSearch();
+            }}
+            onSearch={runSearch}
+            enterButton="Søk"
           />
         </div>
         <Tabs
