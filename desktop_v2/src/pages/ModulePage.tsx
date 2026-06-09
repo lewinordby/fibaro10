@@ -2,11 +2,12 @@ import { App as AntApp, Button, Card, Input, Segmented, Space, Table, Tabs, Tag,
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { fetchModule, runModuleAction, type ModuleAction, type ModuleCard, type ModuleTable } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { defaultModuleView, moduleLabel, modulePath, MODULE_VIEWS } from "../moduleViews";
+import { appPath } from "../navigation";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -168,6 +169,27 @@ function labelize(column: string): string {
     username: "Bruker",
     question: "Spørsmål",
     error: "Feil",
+    tool: "Verktøy",
+    path: "Lenke",
+    count: "Antall",
+    key: "Nøkkel",
+    value: "Verdi",
+    group: "Gruppe",
+    label: "Navn",
+    unit: "Enhet",
+    help: "Forklaring",
+    rule: "Regel",
+    version: "Versjon",
+    updated_at: "Oppdatert",
+    updated_by: "Endret av",
+    config_key: "Konfig",
+    changed_at: "Endret",
+    changed_by: "Endret av",
+    is_master: "Master",
+    key_prefix: "Nøkkelprefix",
+    uses_count: "Brukt",
+    method: "Metode",
+    success: "OK",
   };
   return labels[column] ?? column.replaceAll("_", " ");
 }
@@ -199,6 +221,13 @@ function numericColumn(column: string): boolean {
   );
 }
 
+function LinkValue({ value }: { value: string }) {
+  const internalPath = appPath(value);
+  if (internalPath) return <Link to={internalPath}>{value}</Link>;
+  if (value.startsWith("/") || /^https?:\/\//i.test(value)) return <a href={value}>{value}</a>;
+  return displayValue(value);
+}
+
 function moduleColumns(table: ModuleTable): ColumnsType<Record<string, unknown>> {
   return table.columns.map((column) => ({
     title: labelize(column),
@@ -208,6 +237,9 @@ function moduleColumns(table: ModuleTable): ColumnsType<Record<string, unknown>>
     ellipsis: true,
     sorter: (left, right) => compareValues(left[column], right[column]),
     render: (value: unknown) => {
+      if (typeof value === "string" && (column === "path" || /^https?:\/\//i.test(value) || value.startsWith("/"))) {
+        return <LinkValue value={value} />;
+      }
       if (typeof value === "boolean") {
         return <Tag color={value ? "green" : "default"}>{displayValue(value)}</Tag>;
       }

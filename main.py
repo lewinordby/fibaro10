@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1057")
+APP_BUILD = os.getenv("APP_BUILD", "1058")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1058",
+        "date": "09.06.2026",
+        "title": "Eksponerer manglende v2-verktøy",
+        "changes": [
+            "Legger inn v2-faner for parkeringoppslag, energiverktøy, styringsinnstillinger, renholdsroboter og adminverktøy.",
+            "Viser gjeldende lys- og ventilasjonsregler, grenseverdier og endringshistorikk direkte i desktop v2.",
+            "Samler gamle driftsflater som trygge lenker i v2 uten å eksponere hemmelige tilgangsverdier.",
+        ],
+    },
     {
         "version": "1",
         "build": "1057",
@@ -11311,6 +11322,63 @@ def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]]) -> Dic
     }
 
 
+def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = None) -> Dict[str, Any]:
+    return {
+        "tool": tool,
+        "path": path,
+        "description": description,
+        "count": count,
+    }
+
+
+def api_config_value_rows(values: Dict[str, Any]) -> list[Dict[str, Any]]:
+    return [{"key": key, "value": value} for key, value in sorted(values.items())]
+
+
+def api_config_field_rows(key: str, values: Dict[str, Any]) -> list[Dict[str, Any]]:
+    definition = config_definition(key)
+    if not definition:
+        return api_config_value_rows(values)
+    rows: list[Dict[str, Any]] = []
+    for group in definition["groups"]:
+        for field in group["fields"]:
+            rows.append(
+                {
+                    "group": group["title"],
+                    "key": field["key"],
+                    "label": field["label"],
+                    "value": values.get(field["key"]),
+                    "unit": field.get("unit") or "",
+                    "help": field.get("help") or "",
+                }
+            )
+    return rows
+
+
+def api_rule_rows(rules: list[str]) -> list[Dict[str, Any]]:
+    return [{"rule": index + 1, "description": rule} for index, rule in enumerate(rules)]
+
+
+def api_config_history_rows(rows: list[ControlConfigHistory]) -> list[Dict[str, Any]]:
+    return [
+        row_to_dict(row, ["config_key", "version", "changed_at", "changed_by", "reason"])
+        for row in rows
+    ]
+
+
+def api_access_key_row(row: AccessKey) -> Dict[str, Any]:
+    return {
+        "name": row.name,
+        "role": row.role,
+        "active": bool(row.active),
+        "is_master": bool(row.is_master),
+        "key_prefix": row.key_prefix,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "last_seen_at": row.last_seen_at.isoformat() if row.last_seen_at else None,
+        "uses_count": row.uses_count,
+    }
+
+
 def api_card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status") -> Dict[str, str]:
     return {
         "title": title,
@@ -11466,6 +11534,42 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                         [row_to_dict(row, ["created_at", "period_type", "period_start", "period_end", "forecast_sessions", "forecast_paid", "actual_sessions_at_save", "actual_paid_at_save"]) for row in forecast_rows],
                     )
                 ]
+            elif view == "oppslag":
+                vehicles_missing_name = [row for row in vehicle_rows if not (row.navn or "").strip()]
+                vehicles_missing_area = [row for row in vehicle_rows if not (row.omrade or "").strip()]
+                tables = [
+                    api_table(
+                        "Parkeringsverktøy",
+                        ["tool", "path", "description", "count"],
+                        [
+                            api_tool_row("Navnoppslag", "/parkering/navn-oppslag", "Koble kjøretøy mot navn/SUN2 der det mangler.", len(vehicles_missing_name)),
+                            api_tool_row("Områdeoppslag", "/parkering/omrade-oppslag", "Sett område på kjøretøy der dette mangler.", len(vehicles_missing_area)),
+                            api_tool_row("Kjøretøyoversikt", "/parkering/kjoretoy", "Full gammel kjøretøyflate med redigering og detaljer.", len(vehicle_rows)),
+                        ],
+                    ),
+                    api_table(
+                        "Mangler navn",
+                        ["plate", "omrade", "parkering_count", "paid_total", "last_seen", "path"],
+                        [
+                            {
+                                **row_to_dict(row, ["plate", "omrade", "parkering_count", "paid_total", "last_seen"]),
+                                "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
+                            }
+                            for row in vehicles_missing_name[:100]
+                        ],
+                    ),
+                    api_table(
+                        "Mangler område",
+                        ["plate", "navn", "parkering_count", "paid_total", "last_seen", "path"],
+                        [
+                            {
+                                **row_to_dict(row, ["plate", "navn", "parkering_count", "paid_total", "last_seen"]),
+                                "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
+                            }
+                            for row in vehicles_missing_area[:100]
+                        ],
+                    ),
+                ]
             return {
                 "title": "Parkering" if not view else f"Parkering · {view.replace('-', ' ')}",
                 "subtitle": "EasyPark, aktive parkeringer og kjøretøygrunnlag.",
@@ -11604,6 +11708,35 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     api_table("Solrelaterte kurser", ["circuit_no", "description", "breaker", "status", "note"], [circuit_row_api(row) for row in circuits if row.circuit_no in sunbed_circuits]),
                     api_table("Solrelaterte laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads if row.circuit_no in sunbed_circuits or (row.load_type or "").lower().find("sol") >= 0]),
                 ]
+            elif view == "verktoy":
+                tables = [
+                    api_table(
+                        "Energiverktøy",
+                        ["tool", "path", "description", "count"],
+                        [
+                            api_tool_row("Energi status", "/energi/status", "Klassisk realtime energiside med Elvia-sammenligning.", len(recent)),
+                            api_tool_row("Kurser", "/energi/kurser", "Kursregister med redigering og tekniske data.", len(circuits)),
+                            api_tool_row("Laster", "/energi/laster", "Lastregister med målere, kurser og forventet effekt.", len(loads)),
+                            api_tool_row("Elvia", "/energi/elvia", "Import og kontroll av Elvia-timesdata.", len(elvia_imports)),
+                            api_tool_row("Kurs-PDF", "/energi/kurser/pdf", "Eksporter kurslisten som PDF.", len(circuits)),
+                            api_tool_row("Last-PDF", "/energi/laster/pdf", "Eksporter lastlisten som PDF.", len(loads)),
+                        ],
+                    ),
+                    api_table(
+                        "Datagrunnlag",
+                        ["key", "value"],
+                        api_config_value_rows(
+                            {
+                                "samples_i_dag": len(today_rows),
+                                "siste_sample": latest.bucket_start if latest else None,
+                                "inntak_na_w": latest.inntak_w if latest else None,
+                                "differanse_na_w": latest.differanse_beregnet_w if latest else None,
+                                "aktive_laster": sum(1 for row in loads if row.active),
+                                "direktemalte_laster": sum(1 for row in loads if row.measured_direct),
+                            }
+                        ),
+                    ),
+                ]
             return {
                 "title": "Energi" if not view else f"Energi · {view.replace('-', ' ')}",
                 "subtitle": "Realtime HC3-måling, kursregister og lastregister.",
@@ -11641,6 +11774,30 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                 tables = [tables[1]]
             elif view == "hendelser":
                 tables = [tables[2]]
+            elif view == "innstillinger":
+                config = await get_or_create_config(session, "ventilation")
+                values = merge_config_values("ventilation", config.values if config else {})
+                history = (
+                    await session.execute(
+                        select(ControlConfigHistory)
+                        .where(ControlConfigHistory.config_key == "ventilation")
+                        .order_by(ControlConfigHistory.changed_at.desc())
+                        .limit(25)
+                    )
+                ).scalars().all()
+                tables = [
+                    api_table(
+                        "Ventilasjonsverktøy",
+                        ["tool", "path", "description", "count"],
+                        [
+                            api_tool_row("Rediger innstillinger", "/ventilasjon/innstillinger", "Klassisk skjema for endring av ventilasjonsgrenser.", config.version if config else None),
+                            api_tool_row("Konfig API", "/api/config/ventilation", "JSON som HC3-runneren henter.", config.version if config else None),
+                        ],
+                    ),
+                    api_table("Aktive regler", ["rule", "description"], api_rule_rows(config_rules("ventilation", values))),
+                    api_table("Grenseverdier", ["group", "label", "value", "unit", "help"], api_config_field_rows("ventilation", values)),
+                    api_table("Endringshistorikk", ["config_key", "version", "changed_at", "changed_by", "reason"], api_config_history_rows(history)),
+                ]
             return {
                 "title": "Ventilasjon" if not view else f"Ventilasjon · {view.replace('-', ' ')}",
                 "subtitle": "Temperatur, fukt, Yr og viftestatus.",
@@ -11672,6 +11829,30 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                 tables = [tables[1]]
             elif view in {"lux-logging", "dagslogg"}:
                 tables = [tables[0]]
+            elif view == "innstillinger":
+                config = await get_or_create_config(session, "lights")
+                values = merge_config_values("lights", config.values if config else {})
+                history = (
+                    await session.execute(
+                        select(ControlConfigHistory)
+                        .where(ControlConfigHistory.config_key == "lights")
+                        .order_by(ControlConfigHistory.changed_at.desc())
+                        .limit(25)
+                    )
+                ).scalars().all()
+                tables = [
+                    api_table(
+                        "Lysverktøy",
+                        ["tool", "path", "description", "count"],
+                        [
+                            api_tool_row("Rediger innstillinger", "/lys/innstillinger", "Klassisk skjema for endring av luxgrenser og driftstid.", config.version if config else None),
+                            api_tool_row("Konfig API", "/api/config/lights", "JSON som HC3-runneren henter.", config.version if config else None),
+                        ],
+                    ),
+                    api_table("Aktive regler", ["rule", "description"], api_rule_rows(config_rules("lights", values))),
+                    api_table("Grenseverdier", ["group", "label", "value", "unit", "help"], api_config_field_rows("lights", values)),
+                    api_table("Endringshistorikk", ["config_key", "version", "changed_at", "changed_by", "reason"], api_config_history_rows(history)),
+                ]
             return {
                 "title": "Lys" if not view else f"Lys · {view.replace('-', ' ')}",
                 "subtitle": "Utelys, lux, modus og hendelser.",
@@ -11689,8 +11870,49 @@ async def api_v2_module(module: str, view: Optional[str] = None):
             jobs = (await session.execute(select(RoborockCleanJob).order_by(RoborockCleanJob.begin_at.desc()).limit(120))).scalars().all()
             statuses = (await session.execute(select(RoborockStatusSample).order_by(RoborockStatusSample.timestamp.desc()).limit(120))).scalars().all()
             online = sum(1 for row in robots if row.cloud_online is not False)
+            latest_status_by_robot: Dict[str, RoborockStatusSample] = {}
+            for status in statuses:
+                if status.robot_duid not in latest_status_by_robot:
+                    latest_status_by_robot[status.robot_duid] = status
+            tables = [
+                api_table("Roboter", ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"], [api_pick(row, ROBOROCK_ROBOT_COLUMNS) for row in robots]),
+                api_table("Siste vasker", ["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "complete", "error_code", "finish_reason"], [api_pick(row, ROBOROCK_JOB_COLUMNS) for row in jobs]),
+                api_table("Siste statuser", ["timestamp", "robot_duid", "state_name", "battery", "error_code", "clean_area_m2", "rssi"], [api_pick(row, ROBOROCK_STATUS_COLUMNS) for row in statuses]),
+            ]
+            if view == "roboter":
+                robot_rows = []
+                for robot in robots:
+                    status = latest_status_by_robot.get(robot.duid)
+                    robot_rows.append(
+                        {
+                            "name": robot.name,
+                            "model": robot.model,
+                            "cloud_online": robot.cloud_online,
+                            "local_ip": robot.local_ip,
+                            "battery": status.battery if status else None,
+                            "state_name": status.state_name if status else None,
+                            "last_seen_at": robot.last_seen_at,
+                            "last_error": robot.last_error,
+                            "path": f"/renhold/robot/{quote(robot.duid or '', safe='')}",
+                        }
+                    )
+                tables = [
+                    api_table(
+                        "Robotdetaljer",
+                        ["name", "model", "cloud_online", "local_ip", "battery", "state_name", "last_seen_at", "last_error", "path"],
+                        robot_rows,
+                    ),
+                    api_table(
+                        "Renholdsverktøy",
+                        ["tool", "path", "description", "count"],
+                        [
+                            api_tool_row("Klassisk oversikt", "/renhold/oversikt", "Eksisterende renholdsflate med roboter, jobber og planer.", len(robots)),
+                            api_tool_row("Renhold JSON", "/renhold/json", "Rå JSON for roboter, jobber og statuser.", len(statuses)),
+                        ],
+                    ),
+                ]
             return {
-                "title": "Renhold",
+                "title": "Renhold" if not view else f"Renhold · {view.replace('-', ' ')}",
                 "subtitle": "Roborock-roboter, status og siste vasker.",
                 "cards": [
                     api_card("Roboter", len(robots), "stk", f"{online} online/ikke avvist", "status"),
@@ -11698,11 +11920,7 @@ async def api_v2_module(module: str, view: Optional[str] = None):
                     api_card("Siste status", statuses[0].state_name if statuses else "-", "", statuses[0].timestamp.strftime("%H:%M") if statuses and statuses[0].timestamp else "", "status"),
                     api_card("Feil", sum(1 for row in statuses[:20] if row.error_code and row.error_code != 0), "siste", "Siste 20 statuser", "status"),
                 ],
-                "tables": [
-                    api_table("Roboter", ["name", "model", "cloud_online", "local_ip", "battery", "last_seen_at", "last_error"], [api_pick(row, ROBOROCK_ROBOT_COLUMNS) for row in robots]),
-                    api_table("Siste vasker", ["begin_at", "end_at", "duration_minutes", "cleaned_area_m2", "complete", "error_code", "finish_reason"], [api_pick(row, ROBOROCK_JOB_COLUMNS) for row in jobs]),
-                    api_table("Siste statuser", ["timestamp", "robot_duid", "state_name", "battery", "error_code", "clean_area_m2", "rssi"], [api_pick(row, ROBOROCK_STATUS_COLUMNS) for row in statuses]),
-                ],
+                "tables": tables,
             }
 
         if module == "admin":
@@ -11710,20 +11928,100 @@ async def api_v2_module(module: str, view: Optional[str] = None):
             ai_logs = (
                 await session.execute(select(AiQueryLog).order_by(AiQueryLog.timestamp.desc()).limit(80))
             ).scalars().all()
+            access_keys = (
+                await session.execute(select(AccessKey).order_by(AccessKey.created_at.desc()).limit(200))
+            ).scalars().all()
+            access_logs = (
+                await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(120))
+            ).scalars().all()
+            admin_tools = [
+                api_tool_row("Buildlogg", "/konto/build", "Klassisk build- og endringslogg.", len(BUILD_LOG)),
+                api_tool_row("Teknisk", "/konto/teknisk", "Teknisk driftsside.", None),
+                api_tool_row("Manual", "/konto/manual", "Intern manual og driftsnotater.", None),
+                api_tool_row("Brukere og tilgang", "/konto/brukere-og-tilgang", "Administrer brukere, roller og tilgang.", len(access_keys)),
+                api_tool_row("AI-innstillinger", "/ai/innstillinger", "Sett modell og API-nøkkel for analyseassistent.", len(ai_logs)),
+                api_tool_row("Health", "/health", "Rask serverhelse og lagringsliste.", None),
+                api_tool_row("Events JSON", "/events/json", "Generiske hendelser som JSON.", None),
+                api_tool_row("Events CSV", "/download", "Generiske hendelser som CSV.", None),
+            ]
+            tables = [
+                api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
+                api_table("Buildlogg", ["build", "date", "title"], [{"build": row["build"], "date": row["date"], "title": row["title"]} for row in BUILD_LOG[:25]]),
+                api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
+            ]
+            if view == "build":
+                tables = [
+                    api_table("Buildlogg", ["build", "date", "title"], [{"build": row["build"], "date": row["date"], "title": row["title"]} for row in BUILD_LOG[:80]]),
+                    api_table("Buildverktøy", ["tool", "path", "description", "count"], [admin_tools[0], admin_tools[1], admin_tools[5]]),
+                ]
+            elif view == "datakilder":
+                tables = [
+                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
+                    api_table(
+                        "Dataverktøy",
+                        ["tool", "path", "description", "count"],
+                        [
+                            api_tool_row("Health", "/health", "Serverhelse og lagringstabeller.", len(import_rows)),
+                            api_tool_row("Yr CSV", "/yr/samples/download", "Last ned Yr-samples.", None),
+                            api_tool_row("Lys CSV", "/lights/samples/download", "Last ned lys-samples.", None),
+                            api_tool_row("Ventilasjon CSV", "/ventilation/samples/download", "Last ned ventilasjonssamples.", None),
+                        ],
+                    ),
+                ]
+            elif view == "ai":
+                ai_settings = await effective_openai_settings()
+                tables = [
+                    api_table(
+                        "AI-status",
+                        ["key", "value"],
+                        api_config_value_rows(
+                            {
+                                "modell": ai_settings["model"],
+                                "nokkelkilde": ai_settings["source"],
+                                "miljovariabel": ai_settings["has_env_key"],
+                                "lagret_nokkel": ai_settings["has_stored_key"],
+                            }
+                        ),
+                    ),
+                    api_table("Datasett", ["key", "table", "title", "time_column", "columns_count"], ai_dataset_overview()),
+                    api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
+                    api_table("AI-verktøy", ["tool", "path", "description", "count"], [admin_tools[4], api_tool_row("Datasett JSON", "/api/ai/datasets/json", "AI-godkjente datasett.", len(ai_dataset_overview())), api_tool_row("AI-logg JSON", "/api/ai/logs/json", "Siste AI-spørringer som JSON.", len(ai_logs))]),
+                ]
+            elif view == "teknisk":
+                tables = [
+                    api_table("Tekniske verktøy", ["tool", "path", "description", "count"], admin_tools),
+                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
+                ]
+            elif view == "brukere":
+                tables = [
+                    api_table("Tilgangsverktøy", ["tool", "path", "description", "count"], [admin_tools[3]]),
+                    api_table("Brukere", ["name", "role", "active", "is_master", "key_prefix", "created_at", "last_seen_at", "uses_count"], [api_access_key_row(row) for row in access_keys]),
+                    api_table("Siste tilgangslogg", ["timestamp", "key_name", "path", "method", "success", "reason"], [row_to_dict(row, ["timestamp", "key_name", "path", "method", "success", "reason"]) for row in access_logs]),
+                ]
+            elif view == "manual":
+                tables = [
+                    api_table(
+                        "Manual og drift",
+                        ["tool", "path", "description", "count"],
+                        [
+                            api_tool_row("Manual", "/konto/manual", "Intern manual med driftsrutiner.", None),
+                            api_tool_row("Buildlogg", "/konto/build", "Endringshistorikk for løsningen.", len(BUILD_LOG)),
+                            api_tool_row("Teknisk", "/konto/teknisk", "Teknisk driftsflate.", None),
+                        ],
+                    )
+                ]
+            elif view == "verktoy":
+                tables = [api_table("Adminverktøy", ["tool", "path", "description", "count"], admin_tools)]
             return {
-                "title": "Admin",
+                "title": "Admin" if not view else f"Admin · {view.replace('-', ' ')}",
                 "subtitle": "Build, datakilder, teknisk drift og AI-logg.",
                 "cards": [
                     api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status"),
                     api_card("Datakilder OK", sum(1 for row in import_rows if row["status"] == "ok"), "stk", f"{len(import_rows)} totalt", "status"),
                     api_card("Treg/feil", sum(1 for row in import_rows if row["status"] != "ok"), "stk", "Fra importstatus", "status"),
-                    api_card("AI-logg", len(ai_logs), "siste", "Siste forespørsler", "status"),
+                    api_card("Brukere", len(access_keys), "stk", "Tilgangsnøkler uten hemmelige verdier", "status"),
                 ],
-                "tables": [
-                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
-                    api_table("Buildlogg", ["build", "date", "title"], [{"build": row["build"], "date": row["date"], "title": row["title"]} for row in BUILD_LOG[:25]]),
-                    api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
-                ],
+                "tables": tables,
             }
 
     raise HTTPException(status_code=404, detail="Ukjent v2-modul")

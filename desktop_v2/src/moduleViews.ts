@@ -21,6 +21,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "kjoretoy", label: "Kjøretøy" },
     { key: "bilstatistikk", label: "Bilstatistikk" },
     { key: "omrade", label: "Område" },
+    { key: "oppslag", label: "Oppslag" },
   ],
   soling: [
     { key: "dagslinje", label: "Dagslinje" },
@@ -36,24 +37,33 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "laster", label: "Laster" },
     { key: "forbruk-per-seng", label: "Forbruk/seng" },
     { key: "elvia", label: "Elvia" },
+    { key: "verktoy", label: "Verktøy" },
   ],
   ventilasjon: [
     { key: "dagslogg", label: "Dagslogg" },
     { key: "temp-logg", label: "Temp logg" },
     { key: "yr-logg", label: "Yr logg" },
     { key: "hendelser", label: "Hendelser" },
+    { key: "innstillinger", label: "Innstillinger" },
   ],
   lys: [
     { key: "dagslogg", label: "Dagslogg" },
     { key: "lux-logging", label: "Lux logging" },
     { key: "hendelser", label: "Hendelser" },
+    { key: "innstillinger", label: "Innstillinger" },
   ],
-  renhold: [{ key: "oversikt", label: "Oversikt" }],
+  renhold: [
+    { key: "oversikt", label: "Oversikt" },
+    { key: "roboter", label: "Roboter" },
+  ],
   admin: [
     { key: "build", label: "Build" },
     { key: "datakilder", label: "Datakilder" },
     { key: "ai", label: "AI" },
     { key: "teknisk", label: "Teknisk" },
+    { key: "brukere", label: "Brukere" },
+    { key: "manual", label: "Manual" },
+    { key: "verktoy", label: "Verktøy" },
   ],
 };
 
