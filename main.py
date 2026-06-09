@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1070")
+APP_BUILD = os.getenv("APP_BUILD", "1071")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1071",
+        "date": "09.06.2026",
+        "title": "Rydder Elvia-importkort i audit",
+        "changes": [
+            "Forbedrer tekstbryting for lange Elvia-filnavn i importkortene.",
+            "Lar importmeldinger bryte linjer i stedet for å presse kortbredden.",
+            "Legger designjusteringen inn som del av systemgjennomgangen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1070",
