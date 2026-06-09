@@ -11348,6 +11348,41 @@ async def api_v2_overview():
     revenue_previous_week = float_or_zero(previous_week_sun.paid) + float_or_zero(previous_week_parking.paid)
     revenue_month = float_or_zero(month_sun.paid) + float_or_zero(month_parking.paid)
     revenue_previous_month = float_or_zero(previous_month_sun.paid) + float_or_zero(previous_month_parking.paid)
+    status_periods = [
+        {
+            "key": "today",
+            "title": "I dag",
+            "sol": float_or_zero(today_sun.paid),
+            "solCount": int_or_zero(today_sun.sessions),
+            "parking": float_or_zero(today_parking.paid),
+            "parkingCount": int_or_zero(today_parking.sessions),
+            "total": revenue_today,
+            "previousTotal": revenue_yesterday,
+            "previousLabel": "I g\u00e5r",
+        },
+        {
+            "key": "week",
+            "title": "Uke",
+            "sol": float_or_zero(week_sun.paid),
+            "solCount": int_or_zero(week_sun.sessions),
+            "parking": float_or_zero(week_parking.paid),
+            "parkingCount": int_or_zero(week_parking.sessions),
+            "total": revenue_week,
+            "previousTotal": revenue_previous_week,
+            "previousLabel": "Forrige uke",
+        },
+        {
+            "key": "month",
+            "title": "M\u00e5ned",
+            "sol": float_or_zero(month_sun.paid),
+            "solCount": int_or_zero(month_sun.sessions),
+            "parking": float_or_zero(month_parking.paid),
+            "parkingCount": int_or_zero(month_parking.sessions),
+            "total": revenue_month,
+            "previousTotal": revenue_previous_month,
+            "previousLabel": "Forrige m\u00e5ned",
+        },
+    ]
     light_items = [
         {"label": device["name"], "state": api_bool_state(light_sample_state(latest_light_sample, device) if latest_light_sample else None)}
         for device in LIGHT_TIMELINE_DEVICES
@@ -11357,11 +11392,11 @@ async def api_v2_overview():
         for device in VENT_TIMELINE_DEVICES
     ]
     cards = [
-        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/v2/oversikt", "tone": "status"},
-        {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/v2/drift", "tone": "status"},
-        {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/v2/omsetning", "tone": "revenue"},
-        {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/v2/omsetning", "tone": "revenue"},
-        {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/v2/omsetning", "tone": "revenue"},
+        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/v2/status/oversikt", "tone": "status"},
+        {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/v2/status/drift", "tone": "status"},
+        {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/v2/status/omsetning", "tone": "revenue"},
+        {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/v2/status/omsetning", "tone": "revenue"},
+        {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/v2/status/omsetning", "tone": "revenue"},
         {"group": "Soling", "title": "Soling i dag", "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions), "unit": "stk", "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom", "href": "/v2/soling", "tone": "sun2"},
         {"group": "Soling", "title": "Sol uke", "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions), "unit": "stk", "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)}", "href": "/v2/soling", "tone": "sun2"},
         {"group": "Parkering", "title": "Parkering i dag", "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions), "unit": "stk", "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive n\u00e5", "href": "/v2/parkering", "tone": "parking"},
@@ -11391,6 +11426,7 @@ async def api_v2_overview():
         "generatedAt": api_local_iso(now_dt),
         "operatingWindow": {"label": operating["label"], "detail": operating["detail"], "open": operating["label"] == "Apent"},
         "cards": cards,
+        "statusPeriods": status_periods,
         "latestItems": latest_items,
         "services": services,
         "lightItems": light_items,

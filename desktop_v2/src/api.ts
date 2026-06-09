@@ -22,10 +22,23 @@ export type ServiceStatus = {
   ageMinutes?: number | null;
 };
 
+export type StatusPeriod = {
+  key: string;
+  title: string;
+  sol: number;
+  solCount: number;
+  parking: number;
+  parkingCount: number;
+  total: number;
+  previousTotal: number;
+  previousLabel: string;
+};
+
 export type OverviewResponse = {
   generatedAt: string;
   operatingWindow: { label: string; detail: string; open: boolean };
   cards: MetricCard[];
+  statusPeriods: StatusPeriod[];
   latestItems: LatestItem[];
   services: ServiceStatus[];
   lightItems: { label: string; state: boolean | null }[];

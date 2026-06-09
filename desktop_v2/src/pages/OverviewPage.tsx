@@ -1,9 +1,10 @@
 import { CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
 import { Card, Col, List, Row, Space, Tag, Typography } from "antd";
 import { Link } from "react-router-dom";
-import { fetchOverview } from "../api";
+import { fetchOverview, type MetricCard as MetricCardData, type StatusPeriod } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import MetricCard from "../components/MetricCard";
+import { nok } from "../format";
 import { useAsyncData } from "../hooks";
 import { appPath } from "../navigation";
 
@@ -19,14 +20,43 @@ function statusIcon(status: string) {
   return <ClockCircleOutlined className="status-warn" />;
 }
 
+function isCombinedRevenueSource(card: MetricCardData) {
+  return card.group === "Omsetning" || card.group === "Soling" || card.group === "Parkering";
+}
+
+function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
+  return (
+    <Card className="status-period-card">
+      <div className="status-period-head">
+        <span>{period.title}</span>
+        <strong>{nok(period.total)} kr</strong>
+      </div>
+      <div className="status-period-rows">
+        <div>
+          <span>Soling</span>
+          <strong>{nok(period.sol)} kr</strong>
+          <em>{period.solCount} stk</em>
+        </div>
+        <div>
+          <span>Parkering</span>
+          <strong>{nok(period.parking)} kr</strong>
+          <em>{period.parkingCount} stk</em>
+        </div>
+      </div>
+      <div className="status-period-foot">
+        {period.previousLabel}: {nok(period.previousTotal)} kr
+      </div>
+    </Card>
+  );
+}
+
 export default function OverviewPage() {
   const { data, loading, error } = useAsyncData(fetchOverview, []);
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
-  const keyCards = data.cards.slice(0, 12);
-  const secondaryCards = data.cards.slice(12);
+  const supportCards = data.cards.filter((card) => !isCombinedRevenueSource(card));
 
   function itemTitle(item: { href?: string; label: string }) {
     const internalPath = appPath(item.href);
@@ -36,23 +66,28 @@ export default function OverviewPage() {
   }
 
   return (
-    <Space direction="vertical" size={18} className="page-stack">
-      <section className="hero-band">
+    <Space direction="vertical" size={14} className="page-stack status-page status-overview-page">
+      <div className="status-page-top">
         <div>
           <Typography.Text className="eyebrow">Status akkurat nå</Typography.Text>
-          <Typography.Title level={1}>Oversikt</Typography.Title>
-          <Typography.Paragraph>
-            {data.operatingWindow.label} · {data.operatingWindow.detail}
-          </Typography.Paragraph>
+          <div className="status-meta-line">
+            <strong>{data.operatingWindow.label}</strong>
+            <span>{data.operatingWindow.detail}</span>
+          </div>
         </div>
-        <div className="hero-meta">
-          <span>Sist oppdatert</span>
-          <strong>{new Date(data.generatedAt).toLocaleString("nb-NO")}</strong>
-        </div>
-      </section>
+        <Typography.Text type="secondary">
+          Sist oppdatert {new Date(data.generatedAt).toLocaleString("nb-NO")}
+        </Typography.Text>
+      </div>
 
-      <div className="metric-grid primary-grid">
-        {keyCards.map((card) => (
+      <div className="status-period-grid">
+        {data.statusPeriods.map((period) => (
+          <RevenuePeriodCard period={period} key={period.key} />
+        ))}
+      </div>
+
+      <div className="metric-grid status-support-grid">
+        {supportCards.map((card) => (
           <MetricCard card={card} key={`${card.group}-${card.title}`} />
         ))}
       </div>
@@ -113,12 +148,6 @@ export default function OverviewPage() {
           </Card>
         </Col>
       </Row>
-
-      <div className="metric-grid secondary-grid">
-        {secondaryCards.map((card) => (
-          <MetricCard card={card} key={`${card.group}-${card.title}`} />
-        ))}
-      </div>
     </Space>
   );
 }

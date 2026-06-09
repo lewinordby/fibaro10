@@ -141,56 +141,6 @@ a {
   width: 100%;
 }
 
-.hero-band,
-.section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  min-height: 112px;
-  padding: 24px 26px;
-  background: linear-gradient(135deg, #1f2937 0%, #334155 52%, #155e75 100%);
-  color: #ffffff;
-  border-radius: 6px;
-}
-
-.section-head {
-  min-height: 98px;
-}
-
-.hero-band h1.ant-typography,
-.section-head h1.ant-typography {
-  margin: 0;
-  color: #ffffff;
-  font-size: 30px;
-  line-height: 1.15;
-}
-
-.hero-band .ant-typography,
-.section-head .ant-typography {
-  color: #e5e7eb;
-}
-
-.hero-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 210px;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.hero-meta span {
-  color: #e5e7eb;
-  font-size: 12px;
-}
-
-.hero-meta strong {
-  color: #ffffff;
-  font-size: 14px;
-}
-
 .module-view-switcher {
   max-width: 100%;
   padding: 3px;
@@ -217,16 +167,176 @@ a {
   width: 100%;
 }
 
+.status-page-top,
+.status-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 38px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.status-meta-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.status-meta-line strong,
+.status-toolbar-title {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.status-meta-line span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.status-toolbar-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.status-period-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.status-period-card {
+  min-height: 130px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--green);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+}
+
+.status-period-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding: 12px 14px;
+}
+
+.status-period-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.status-period-head span {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.status-period-head strong {
+  color: var(--ink);
+  font-size: 21px;
+  font-weight: 780;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.status-period-rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.status-period-rows div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 8px;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.status-period-rows span,
+.status-period-foot {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.status-period-rows strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-period-rows em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.status-period-foot {
+  margin-top: auto;
+}
+
+.status-support-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.status-overview-page .metric-card {
+  height: 116px;
+}
+
+.status-overview-page .metric-card .ant-card-body {
+  padding: 12px 14px;
+}
+
+.status-overview-page .metric-title {
+  font-size: 12px;
+}
+
+.status-overview-page .metric-tag {
+  font-size: 11px;
+}
+
+.status-overview-page .metric-value-row {
+  margin-top: 9px;
+}
+
+.status-overview-page .metric-value {
+  font-size: 21px;
+}
+
+.status-overview-page .metric-detail {
+  min-height: 24px;
+  font-size: 11px;
+}
+
+.status-revenue-page .summary-card .ant-card-body {
+  min-height: 72px;
+  padding: 12px 14px;
+}
+
+.status-revenue-page .summary-card strong {
+  font-size: 19px;
+}
+
 .metric-grid {
   display: grid;
   gap: 14px;
 }
 
 .primary-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-.secondary-grid {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
@@ -526,7 +636,7 @@ a {
 
 @media (max-width: 1400px) {
   .primary-grid,
-  .secondary-grid {
+  .status-support-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

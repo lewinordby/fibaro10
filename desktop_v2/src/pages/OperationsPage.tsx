@@ -1,4 +1,4 @@
-import { CheckCircleOutlined, WarningOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
 import { Card, List, Space, Tag, Typography } from "antd";
 import { fetchOverview, type ServiceStatus } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
@@ -23,14 +23,22 @@ export default function OperationsPage() {
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
+  const warnings = data.services.filter((item) => item.status !== "ok").length;
+
   return (
-    <Space direction="vertical" size={18} className="page-stack">
-      <section className="section-head">
+    <Space direction="vertical" size={14} className="page-stack status-page status-operations-page">
+      <div className="status-page-top">
         <div>
           <Typography.Text className="eyebrow">Drift</Typography.Text>
-          <Typography.Title level={1}>Datakilder og signaler</Typography.Title>
+          <div className="status-meta-line">
+            <strong>Datakilder og signaler</strong>
+            <span>{data.services.length} datakilder</span>
+          </div>
         </div>
-      </section>
+        <Typography.Text type={warnings ? "warning" : "secondary"}>
+          {warnings ? `${warnings} trenger sjekk` : "Alt OK"}
+        </Typography.Text>
+      </div>
 
       <Card className="work-card" title="Datakilder">
         <List

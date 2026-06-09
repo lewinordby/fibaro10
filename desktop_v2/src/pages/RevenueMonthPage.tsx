@@ -81,29 +81,30 @@ export default function RevenueMonthPage() {
   const monthValue = dayjs(`${summary.month}-01`);
 
   return (
-    <Space direction="vertical" size={18} className="page-stack">
-      <section className="section-head">
+    <Space direction="vertical" size={14} className="page-stack status-page status-revenue-page">
+      <div className="status-toolbar">
         <div>
           <Typography.Text className="eyebrow">Omsetning</Typography.Text>
-          <Typography.Title level={1}>{summary.label}</Typography.Title>
+          <div className="status-toolbar-title">{summary.label}</div>
         </div>
-        <Space>
-          <Button icon={<LeftOutlined />} onClick={() => setMonth(summary.previousMonth)}>
+        <Space className="status-toolbar-actions">
+          <Button size="small" icon={<LeftOutlined />} onClick={() => setMonth(summary.previousMonth)}>
             Forrige
           </Button>
           <DatePicker
+            size="small"
             picker="month"
             value={monthValue}
             format="MMMM YYYY"
             onChange={(value) => setMonth(value ? value.format("YYYY-MM") : undefined)}
             allowClear={false}
           />
-          <Button onClick={() => setMonth(summary.currentMonth)}>Denne måneden</Button>
-          <Button icon={<RightOutlined />} onClick={() => setMonth(summary.nextMonth)}>
+          <Button size="small" onClick={() => setMonth(summary.currentMonth)}>Denne måneden</Button>
+          <Button size="small" icon={<RightOutlined />} onClick={() => setMonth(summary.nextMonth)}>
             Neste
           </Button>
         </Space>
-      </section>
+      </div>
 
       <Row gutter={[16, 16]}>
         <Col span={4}>
