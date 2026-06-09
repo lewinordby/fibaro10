@@ -27,9 +27,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             paddingLG: 18,
           },
           Layout: {
-            bodyBg: "#f6f7f9",
-            siderBg: "#111827",
-            triggerBg: "#111827",
+            bodyBg: "#f8fafc",
+            siderBg: "#1f2937",
+            triggerBg: "#1f2937",
           },
         },
       }}

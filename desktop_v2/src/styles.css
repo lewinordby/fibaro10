@@ -5,9 +5,9 @@
   -webkit-font-smoothing: antialiased;
   --ink: #111827;
   --muted: #6b7280;
-  --line: #e5e7eb;
+  --line: #e6ebf0;
   --surface: #ffffff;
-  --surface-soft: #f6f7f9;
+  --surface-soft: #f8fafc;
   --blue: #2563eb;
   --red: #dc2626;
   --green: #15803d;
@@ -45,7 +45,7 @@ a {
   top: 0;
   height: 100vh;
   overflow: auto;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .brand {
@@ -55,7 +55,7 @@ a {
   height: 74px;
   padding: 0 18px;
   color: #f9fafb;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .brand-mark {
@@ -76,7 +76,7 @@ a {
 
 .brand-subtitle {
   margin-top: 2px;
-  color: #9ca3af;
+  color: #b4bdc8;
   font-size: 12px;
 }
 
@@ -93,13 +93,13 @@ a {
 
 .app-menu .ant-menu-item:hover {
   color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .app-menu .ant-menu-item-selected {
   color: #ffffff !important;
-  background: rgba(37, 99, 235, 0.34) !important;
-  box-shadow: inset 3px 0 0 #60a5fa;
+  background: rgba(37, 99, 235, 0.26) !important;
+  box-shadow: inset 3px 0 0 #93c5fd;
   font-weight: 750;
 }
 
@@ -148,7 +148,7 @@ a {
   justify-content: space-between;
   min-height: 112px;
   padding: 24px 26px;
-  background: linear-gradient(135deg, #111827 0%, #1f2937 48%, #164e63 100%);
+  background: linear-gradient(135deg, #1f2937 0%, #334155 52%, #155e75 100%);
   color: #ffffff;
   border-radius: 6px;
 }
@@ -167,7 +167,7 @@ a {
 
 .hero-band .ant-typography,
 .section-head .ant-typography {
-  color: #d1d5db;
+  color: #e5e7eb;
 }
 
 .hero-meta {
@@ -176,13 +176,13 @@ a {
   gap: 4px;
   min-width: 210px;
   padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .hero-meta span {
-  color: #d1d5db;
+  color: #e5e7eb;
   font-size: 12px;
 }
 
@@ -238,7 +238,7 @@ a {
 .metric-card {
   height: 154px;
   border: 1px solid var(--line);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
 }
 
 .module-metric {
@@ -345,7 +345,7 @@ a {
 .summary-card {
   border: 1px solid var(--line);
   border-radius: 6px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
 }
 
 .module-actions .ant-card-body {
