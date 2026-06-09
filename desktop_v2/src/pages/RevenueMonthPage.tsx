@@ -37,23 +37,26 @@ export default function RevenueMonthPage() {
   const chartOption = useMemo(() => {
     const rows = data?.rows ?? [];
     return {
-      color: ["#dc2626", "#2563eb"],
+      color: ["#d89b26", "#2f5f9b"],
+      textStyle: { color: "#475569" },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
         valueFormatter: (value: number) => `${nok(value)} kr`,
       },
-      legend: { top: 0 },
+      legend: { top: 0, textStyle: { color: "#475569" } },
       grid: { top: 42, left: 42, right: 18, bottom: 34 },
       xAxis: {
         type: "category",
         data: rows.map((row) => row.dayLabel),
-        axisLabel: { interval: 0, rotate: rows.length > 24 ? 45 : 0 },
+        axisLabel: { interval: 0, rotate: rows.length > 24 ? 45 : 0, color: "#64748b" },
+        axisLine: { lineStyle: { color: "#dfe7ea" } },
+        axisTick: { lineStyle: { color: "#dfe7ea" } },
       },
       yAxis: {
         type: "value",
-        axisLabel: { formatter: (value: number) => `${Math.round(value / 1000)}k` },
-        splitLine: { lineStyle: { color: "#e5e7eb" } },
+        axisLabel: { formatter: (value: number) => `${Math.round(value / 1000)}k`, color: "#64748b" },
+        splitLine: { lineStyle: { color: "#dfe7ea" } },
       },
       series: [
         {

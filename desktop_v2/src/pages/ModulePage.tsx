@@ -327,8 +327,10 @@ function ModuleMetric({ card }: { card: ModuleCard }) {
 
 function ModuleChartPanel({ chart }: { chart: ModuleChart }) {
   const option = {
+    color: ["#123766", "#d89b26", "#0d8b9a", "#16834a", "#c24131", "#2f5f9b"],
+    textStyle: { color: "#475569" },
     tooltip: { trigger: "axis" },
-    legend: { top: 0 },
+    legend: { top: 0, textStyle: { color: "#475569" } },
     grid: { top: 46, left: 46, right: 24, bottom: chart.x.length > 80 ? 58 : 34 },
     dataZoom:
       chart.x.length > 80
@@ -341,9 +343,15 @@ function ModuleChartPanel({ chart }: { chart: ModuleChart }) {
       type: "category",
       data: chart.x,
       boundaryGap: chart.type === "bar",
-      axisLabel: { hideOverlap: true },
+      axisLabel: { hideOverlap: true, color: "#64748b" },
+      axisLine: { lineStyle: { color: "#dfe7ea" } },
+      axisTick: { lineStyle: { color: "#dfe7ea" } },
     },
-    yAxis: { type: "value" },
+    yAxis: {
+      type: "value",
+      axisLabel: { color: "#64748b" },
+      splitLine: { lineStyle: { color: "#dfe7ea" } },
+    },
     series: chart.series.map((series) => ({
       name: series.name,
       type: series.type ?? chart.type ?? "line",
