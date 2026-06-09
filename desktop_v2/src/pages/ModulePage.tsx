@@ -22,6 +22,7 @@ import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { appPath } from "../navigation";
+import EnergyElviaPage from "./EnergyElviaPage";
 import VentilationPage from "./VentilationPage";
 
 function displayValue(value: unknown): string {
@@ -833,6 +834,9 @@ export default function ModulePage({ module }: { module: string }) {
   if (error || !data) return <ErrorBlock error={error} />;
   if (module === "ventilasjon" && data.ventilation) {
     return <VentilationPage data={data} view={safeView} onReload={() => setReloadToken((value) => value + 1)} />;
+  }
+  if (module === "energi" && safeView === "elvia" && data.energyElvia) {
+    return <EnergyElviaPage data={data} onReload={() => setReloadToken((value) => value + 1)} />;
   }
 
   return (

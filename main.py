@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1066")
+APP_BUILD = os.getenv("APP_BUILD", "1067")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1067",
+        "date": "09.06.2026",
+        "title": "GjeninnfÃ¸rer Elvia-import i V2",
+        "changes": [
+            "Legger filopplasting og importstatus inn pÃ¥ Energi > Elvia i den nye desktopflaten.",
+            "Viser Elvia-summer, toppdager, toppmÃ¥neder og siste importer som egne arbeidsflater.",
+            "Eksponerer JSON-opplasting for Elvia med samme bakgrunnsimport som klassisk side.",
+        ],
+    },
     {
         "version": "1",
         "build": "1066",
@@ -13045,6 +13056,69 @@ def api_pick(row: Any, columns: list[str]) -> Dict[str, Any]:
     return row_to_dict(row, columns)
 
 
+def api_iso_value(value: Any) -> Any:
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return value
+
+
+def api_energy_summary_item(item: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    item = item or empty_fast_energy_summary("-")
+    return {
+        "period": item.get("period"),
+        "period_label": item.get("period_label"),
+        "consumption_kwh": float_or_zero(item.get("consumption_kwh")),
+        "production_kwh": float_or_zero(item.get("production_kwh")),
+        "hours_count": int_or_zero(item.get("hours_count")),
+        "estimated_hours_count": int_or_zero(item.get("estimated_hours_count")),
+        "days_count": int_or_zero(item.get("days_count")),
+    }
+
+
+def api_import_job_status(row: Optional[ImportJobStatus]) -> Optional[Dict[str, Any]]:
+    if not row:
+        return None
+    return {
+        "jobName": row.job_name,
+        "title": row.title,
+        "status": row.status,
+        "statusText": row.status_text,
+        "source": row.source,
+        "message": row.message,
+        "lastRunAt": api_iso_value(row.last_run_at),
+        "lastStartedAt": api_iso_value(row.last_started_at),
+        "lastSuccessAt": api_iso_value(row.last_success_at),
+        "lastFailedAt": api_iso_value(row.last_failed_at),
+        "recordsImported": row.records_imported,
+        "recordsTotal": row.records_total,
+        "durationSeconds": row.duration_seconds,
+    }
+
+
+def api_energy_elvia_payload(
+    summaries: Dict[str, Any],
+    imports: list[EnergyImportRun],
+    rows: list[EnergyHourlyConsumption],
+    status: Optional[ImportJobStatus],
+) -> Dict[str, Any]:
+    latest_import = imports[0] if imports else None
+    return {
+        "summary": {
+            "total": api_energy_summary_item(summaries.get("total")),
+            "firstAt": api_iso_value(summaries.get("first_at")),
+            "lastAt": api_iso_value(summaries.get("last_at")),
+        },
+        "yearly": [api_energy_summary_item(item) for item in summaries.get("yearly", [])],
+        "topDays": [api_energy_summary_item(item) for item in summaries.get("top_days", [])],
+        "topMonths": [api_energy_summary_item(item) for item in summaries.get("top_months", [])],
+        "imports": [api_pick(row, ENERGY_IMPORT_COLUMNS) for row in imports],
+        "rows": [api_pick(row, ENERGY_HOURLY_COLUMNS) for row in rows],
+        "latestImport": api_pick(latest_import, ENERGY_IMPORT_COLUMNS) if latest_import else None,
+        "status": api_import_job_status(status),
+        "uploadEndpoint": "/api/energy/elvia/upload",
+    }
+
+
 def parking_row_api(row: ParkingSession, vehicle: Optional[ParkingVehicle] = None) -> Dict[str, Any]:
     owner_warning = parking_current_ownership_warning(vehicle, row.start_time)
     data = {
@@ -13594,6 +13668,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             elvia_imports = (
                 await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(80))
             ).scalars().all()
+            energy_elvia_data = None
             total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows)
             energy_chart_rows = list(reversed(today_rows))[-720:]
             charts = [
@@ -13659,7 +13734,30 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ]
                 tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())]
             elif view == "elvia":
+                summaries = await get_energy_summaries(session)
+                elvia_status = (
+                    await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "elvia_monthly_import"))
+                ).scalars().first()
+                energy_elvia_data = api_energy_elvia_payload(summaries, elvia_imports, elvia_rows, elvia_status)
+                total = summaries.get("total") or {}
+                latest_import = elvia_imports[0] if elvia_imports else None
+                period_detail = "-"
+                if summaries.get("first_at") and summaries.get("last_at"):
+                    period_detail = f"{format_local_datetime(summaries['first_at'])} - {format_local_datetime(summaries['last_at'])}"
+                latest_detail = "Ingen import ennÃ¥"
+                if latest_import:
+                    latest_detail = f"Data til {format_source_datetime(latest_import.period_last) if latest_import.period_last else '-'}"
+                charts = []
+                energy_cards = [
+                    api_card("Totalt forbruk", format_short_number(total.get("consumption_kwh")), "kWh", f"{int_or_zero(total.get('hours_count'))} timer", "energy"),
+                    api_card("Periode", int_or_zero(total.get("days_count")), "dager", period_detail, "energy"),
+                    api_card("Estimerte timer", int_or_zero(total.get("estimated_hours_count")), "stk", "Elvia-status ulik OK", "status"),
+                    api_card("Siste import", format_local_datetime(latest_import.timestamp) if latest_import else "-", "", latest_detail, "status"),
+                ]
                 tables = [
+                    api_table("Ã…rssummer", ["period", "consumption_kwh", "days_count", "hours_count", "estimated_hours_count"], energy_elvia_data["yearly"]),
+                    api_table("Topp dager", ["period_label", "consumption_kwh", "hours_count", "estimated_hours_count"], energy_elvia_data["topDays"]),
+                    api_table("Topp mÃ¥neder", ["period", "consumption_kwh", "days_count", "estimated_hours_count"], energy_elvia_data["topMonths"]),
                     api_table("Elvia timer", ["measured_at", "stat_date", "hour", "consumption_kwh", "status", "is_estimated", "source"], [api_pick(row, ENERGY_HOURLY_COLUMNS) for row in elvia_rows]),
                     api_table("Elvia importer", ["timestamp", "period_first", "period_last", "hours_count", "total_kwh", "ok", "message"], [api_pick(row, ENERGY_IMPORT_COLUMNS) for row in elvia_imports]),
                 ]
@@ -13705,6 +13803,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "charts": charts,
                 "tables": tables,
                 "filters": filters,
+                "energyElvia": energy_elvia_data,
             }
 
         if module == "ventilasjon":
@@ -16585,6 +16684,35 @@ async def energy_fibaro_ingest(data: EnergyFibaroIn):
             "avfukter": record.avfukter_reset,
         },
     }
+
+
+@app.post("/api/energy/elvia/upload")
+async def api_energy_elvia_upload(request: Request, background_tasks: BackgroundTasks):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    try:
+        form = await request.form()
+        upload = form.get("file")
+        filename = Path(getattr(upload, "filename", "") or "").name
+        if not upload or not filename or not hasattr(upload, "read"):
+            return JSONResponse({"detail": "Velg en JSON-fil fra Elvia fÃ¸r du importerer."}, status_code=400)
+        content = await upload.read()
+        if not content:
+            return JSONResponse({"detail": "Filen er tom."}, status_code=400)
+        async with async_session() as session:
+            await mark_import_job_running(
+                session,
+                "elvia_monthly_import",
+                source="Manuell opplasting",
+                message=f"Importerer {filename}",
+                raw={"source_file": filename},
+            )
+            await session.commit()
+        background_tasks.add_task(run_elvia_import_background, content, filename)
+        return {"status": "ok", "message": f"Importen er startet for {filename}.", "filename": filename}
+    except Exception as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=400)
 
 
 @app.get("/energi/status", response_class=HTMLResponse)

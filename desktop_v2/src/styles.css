@@ -1258,6 +1258,204 @@ a {
   line-height: 1.35;
 }
 
+.elvia-page {
+  max-width: 1760px;
+}
+
+.elvia-status-alert {
+  border-radius: 6px;
+}
+
+.elvia-top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.elvia-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.elvia-summary-tile {
+  min-height: 126px;
+}
+
+.elvia-summary-tile .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 13px 14px;
+}
+
+.elvia-summary-tile span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.elvia-summary-tile strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 780;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+}
+
+.elvia-summary-tile em {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+}
+
+.elvia-summary-tile small {
+  margin-top: auto;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.elvia-upload-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: calc(100% - 46px);
+  padding: 12px 14px;
+}
+
+.elvia-upload-card .ant-typography {
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+.elvia-upload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.elvia-upload-row input[type="file"] {
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 7px;
+  color: #374151;
+  font-size: 12px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.elvia-import-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.elvia-import-card {
+  border-left: 3px solid var(--amber);
+}
+
+.elvia-import-card.failed {
+  border-left-color: var(--red);
+}
+
+.elvia-import-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 132px;
+  padding: 12px 14px;
+}
+
+.elvia-import-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.elvia-import-head strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.elvia-import-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.elvia-import-metrics span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 8px;
+  color: var(--muted);
+  font-size: 11px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 6px;
+}
+
+.elvia-import-metrics strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.elvia-import-card small {
+  overflow: hidden;
+  color: #92400e;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.elvia-main-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.elvia-table-card .ant-card-body {
+  padding: 0 0 8px;
+}
+
+.elvia-table-card .ant-table {
+  font-size: 12px;
+}
+
+.elvia-table-card .ant-table-thead > tr > th {
+  color: #374151;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #f9fafb;
+}
+
+.elvia-table-card .ant-table-tbody > tr > td {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.elvia-reload-button {
+  align-self: flex-start;
+}
+
 .edit-form {
   margin-top: 12px;
 }
@@ -1423,9 +1621,20 @@ a {
   .vehicle-field-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+
+  .elvia-top-row {
+    grid-template-columns: 1fr;
+  }
+
+  .elvia-main-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 980px) {
+  .elvia-summary-grid,
+  .elvia-import-grid,
+  .elvia-main-grid,
   .vehicle-detail-card-grid,
   .vehicle-field-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1437,6 +1646,9 @@ a {
     flex-direction: column;
   }
 
+  .elvia-summary-grid,
+  .elvia-import-grid,
+  .elvia-main-grid,
   .vehicle-detail-card-grid,
   .vehicle-field-grid {
     grid-template-columns: 1fr;

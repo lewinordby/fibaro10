@@ -327,6 +327,48 @@ export type VentilationData = {
   settings?: VentilationSettings;
 };
 
+export type EnergyElviaSummaryItem = {
+  period?: string | null;
+  period_label?: string | null;
+  consumption_kwh: number;
+  production_kwh: number;
+  hours_count: number;
+  estimated_hours_count: number;
+  days_count: number;
+};
+
+export type EnergyElviaStatus = {
+  jobName?: string | null;
+  title?: string | null;
+  status?: string | null;
+  statusText?: string | null;
+  source?: string | null;
+  message?: string | null;
+  lastRunAt?: string | null;
+  lastStartedAt?: string | null;
+  lastSuccessAt?: string | null;
+  lastFailedAt?: string | null;
+  recordsImported?: number | null;
+  recordsTotal?: number | null;
+  durationSeconds?: number | null;
+};
+
+export type EnergyElviaData = {
+  summary: {
+    total: EnergyElviaSummaryItem;
+    firstAt?: string | null;
+    lastAt?: string | null;
+  };
+  yearly: EnergyElviaSummaryItem[];
+  topDays: EnergyElviaSummaryItem[];
+  topMonths: EnergyElviaSummaryItem[];
+  imports: Record<string, unknown>[];
+  rows: Record<string, unknown>[];
+  latestImport?: Record<string, unknown> | null;
+  status?: EnergyElviaStatus | null;
+  uploadEndpoint: string;
+};
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;
@@ -337,6 +379,7 @@ export type ModuleResponse = {
   filters?: ModuleFilter[];
   sunTimeline?: SunTimeline | null;
   ventilation?: VentilationData;
+  energyElvia?: EnergyElviaData | null;
 };
 
 export type ParkingVehicleField = {
@@ -452,6 +495,22 @@ export async function saveConfig(
   if (!response.ok) {
     const errors = Array.isArray(payload?.errors) ? `: ${payload.errors.join(", ")}` : "";
     throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`) + errors);
+  }
+  return payload ?? {};
+}
+
+export async function uploadElviaFile(endpoint: string, file: File): Promise<Record<string, unknown>> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(endpoint, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+    body: form,
+  });
+  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
   }
   return payload ?? {};
 }
