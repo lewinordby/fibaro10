@@ -66,11 +66,10 @@ function serviceRank(service: ServiceStatus) {
   return DATASOURCE_PRIORITY.length + 1;
 }
 
-function datasourcePreview(services: ServiceStatus[]) {
+function sortedDatasources(services: ServiceStatus[]) {
   return services
     .map((service, index) => ({ service, index }))
     .sort((a, b) => serviceRank(a.service) - serviceRank(b.service) || a.index - b.index)
-    .slice(0, 8)
     .map((row) => row.service);
 }
 
@@ -167,7 +166,7 @@ export default function OverviewPage() {
   if (error || !data) return <ErrorBlock error={error} />;
 
   const supportCards = data.cards.filter(isOverviewSupportCard);
-  const overviewServices = datasourcePreview(data.services);
+  const overviewServices = sortedDatasources(data.services);
 
   function itemTitle(item: { href?: string; label: string }) {
     const internalPath = appPath(item.href);
