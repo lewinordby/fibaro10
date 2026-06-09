@@ -1,37 +1,26 @@
-# Fibaro10 desktop v2
+# Fibaro10 Desktop
 
-`desktop_v2` er primært desktop-grensesnitt for Fibaro10. Den gamle Jinja-baserte UI-en beholdes foreløpig som backend-/fallback-kode, men vanlig GET-navigasjon til gamle HTML-områder redirectes til v2.
+`desktop_v2` er primart desktop-grensesnitt for Fibaro10. React-appen ligger pa rene hovedruter uten separat URL-prefix, for eksempel `/status/oversikt`, `/parkering/kjoretoy` og `/soling/dagslinje`.
 
-## Mål
+## Mal
 
-- Flytte nytt desktop-UI over til React, TypeScript, Ant Design og ECharts.
+- Bruke React, TypeScript, Ant Design og ECharts som primar desktopflate.
 - Bruke eksisterende FastAPI/Postgres-backend som datamotor.
-- Eksponere nye JSON-kontrakter under `/api/v2` i stedet for å kopiere template-logikk.
-- Fase ut gammel HTML-UI uten å bryte ingest, API-er, POST-handlinger eller importjobber.
+- Eksponere JSON-kontrakter under `/api` i stedet for a kopiere template-logikk.
+- Fase ut gammel HTML-UI uten a bryte ingest, API-er, POST-handlinger eller importjobber.
 
 ## URL-er
 
-- Ny desktop-revisjon: `/v2`
+- Startside: `/status/oversikt`
+- Status omsetning: `/status/omsetning`
+- Status drift: `/status/drift`
+- Parkering: `/parkering/oversikt`, `/parkering/parkeringer`, `/parkering/kjoretoy`
+- Soling: `/soling/dagslinje`, `/soling/enkeltimer`, `/soling/senger`
+- Energi: `/energi/status`, `/energi/kurser`, `/energi/laster`
+- Ventilasjon og lys: `/ventilasjon/dagslogg`, `/lys/dagslogg`
 - Historisk V1 for manuell sammenligning: `http://192.168.20.218:8111`
-- V2 oversikt: `/v2/oversikt`
-- V2 omsetning: `/v2/omsetning`
-- V2 drift: `/v2/drift`
-- V2 undersider følger gammel struktur, for eksempel `/v2/parkering/kjoretoy`, `/v2/soling/enkeltimer`, `/v2/energi/kurser`, `/v2/ventilasjon/yr-logg` og `/v2/lys/hendelser`.
-- Gamle hovedområder som `/status`, `/parkering`, `/soling`, `/energi`, `/ventilasjon`, `/lys`, `/renhold`, `/konto` og `/ai` redirectes til v2 etter innlogging.
 
-Alle v2-ruter ligger bak samme innlogging som hovedappen.
-
-## Historisk V1
-
-V1-sammenligningen er ikke dagens Jinja-ruter. Den kjøres som egen QNAP-container fra commit `487044d`, som er siste commit før `desktop_v2` ble innført med commit `5fff9b9`.
-
-Oppsettet kan gjenskapes med:
-
-```powershell
-.\scripts\deploy-qnap-v1-history.ps1
-```
-
-Scriptet oppretter/oppdaterer git worktree på QNAP under `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10_v1_487044d`, kopierer `.env` fra hovedappen, bygger containeren `fibaro10_v1`, låser HTTP-metoder til `GET`/`HEAD`/`OPTIONS`, hopper over startup-skrivinger, deaktiverer SVV-bakgrunnssynk for V1 og publiserer den på `192.168.20.218:8111`.
+Alle desktop-ruter ligger bak samme innlogging som hovedappen.
 
 ## Frontend
 
@@ -58,29 +47,29 @@ Bygget havner i `desktop_v2/dist/`. Denne mappen skal ikke committes.
 
 ## Backend
 
-V2 bruker disse endepunktene:
+Desktopflaten bruker blant annet disse endepunktene:
 
-- `GET /api/v2/overview`
-- `GET /api/v2/revenue/month?month=YYYY-MM`
+- `GET /api/overview`
+- `GET /api/revenue/month?month=YYYY-MM`
+- `GET /api/modules/{module}`
+- `GET /api/parking/vehicles/{plate}`
 
-FastAPI server React-appen fra `desktop_v2/dist/index.html` på `/v2` og `/v2/{path}`.
+FastAPI server React-appen fra `desktop_v2/dist/index.html` pa hovedrutene `/status`, `/parkering`, `/soling`, `/energi`, `/ventilasjon`, `/lys`, `/renhold` og `/admin`.
 
 ## Docker/QNAP
 
 `Dockerfile` har egen Node-buildstage:
 
 1. Installerer `desktop_v2` med `npm ci`.
-2. Kjører `npm run build`.
+2. Kjorer `npm run build`.
 3. Kopierer `desktop_v2/dist` inn i Python-containeren.
 
-Det betyr at en ny maskin eller QNAP kan bygge v2 direkte fra Git uten lokale buildfiler.
+Det betyr at en ny maskin eller QNAP kan bygge desktopflaten direkte fra Git uten lokale buildfiler.
 
 ## Videre utvikling
 
-Anbefalt retning:
-
-- Flytt resterende POST-handlinger og redigeringsskjemaer gradvis inn i v2.
-- Når alle operative handlinger er dekket i v2, kan gamle templates og HTML-ruter slettes fysisk.
-- Flytt beregninger videre fra store HTML-ruter til små backend-funksjoner og `/api/v2`-endepunkter.
-- Ikke koble v2 mot `online_dashboard`; bruk hovedappens database/API.
-- Hold gamle API- og ingest-ruter stabile så HC3, EasyPark, SUN2, Roborock og online-dashboard ikke påvirkes.
+- Flytt resterende POST-handlinger og redigeringsskjemaer gradvis inn i desktopflaten.
+- Nar alle operative handlinger er dekket i desktopflaten, kan gamle templates og HTML-ruter slettes fysisk.
+- Flytt beregninger videre fra store HTML-ruter til sma backend-funksjoner og `/api`-endepunkter.
+- Ikke koble desktopflaten mot `online_dashboard`; bruk hovedappens database/API.
+- Hold gamle ingest-ruter stabile sa HC3, EasyPark, SUN2, Roborock og online-dashboard ikke pavirkes.

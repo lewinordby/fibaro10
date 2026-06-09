@@ -259,12 +259,12 @@ async function apiGet<T>(path: string): Promise<T> {
 }
 
 export function fetchOverview(): Promise<OverviewResponse> {
-  return apiGet<OverviewResponse>("/api/v2/overview");
+  return apiGet<OverviewResponse>("/api/overview");
 }
 
 export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse> {
   const query = month ? `?month=${encodeURIComponent(month)}` : "";
-  return apiGet<RevenueMonthResponse>(`/api/v2/revenue/month${query}`);
+  return apiGet<RevenueMonthResponse>(`/api/revenue/month${query}`);
 }
 
 export function fetchModule(
@@ -279,11 +279,11 @@ export function fetchModule(
   if (q?.trim()) params.set("q", q.trim());
   if (day) params.set("day", day);
   const query = params.toString() ? `?${params.toString()}` : "";
-  return apiGet<ModuleResponse>(`/api/v2/modules/${encodeURIComponent(module)}${query}`);
+  return apiGet<ModuleResponse>(`/api/modules/${encodeURIComponent(module)}${query}`);
 }
 
 export function fetchParkingVehicleDetail(plate: string): Promise<ParkingVehicleDetailResponse> {
-  return apiGet<ParkingVehicleDetailResponse>(`/api/v2/parking/vehicles/${encodeURIComponent(plate)}`);
+  return apiGet<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`);
 }
 
 export async function runModuleAction(action: ModuleAction): Promise<Record<string, unknown>> {

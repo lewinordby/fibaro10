@@ -110,7 +110,7 @@ export default function App() {
               path="*"
               element={
                 <div className="empty-state">
-                  <Typography.Title level={3}>Siden finnes ikke i v2 ennå</Typography.Title>
+                  <Typography.Title level={3}>Siden finnes ikke ennå</Typography.Title>
                   <Typography.Paragraph>
                     Bruk menyen til venstre eller gå til <Link to={modulePath("status", "oversikt")}>oversikten</Link>.
                   </Typography.Paragraph>

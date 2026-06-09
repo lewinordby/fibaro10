@@ -35,7 +35,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       }}
     >
       <AntApp>
-        <BrowserRouter basename="/v2">
+        <BrowserRouter>
           <App />
         </BrowserRouter>
       </AntApp>

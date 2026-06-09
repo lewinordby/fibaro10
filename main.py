@@ -48,7 +48,7 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 AUTH_USER_COOKIE_NAME = "fibaro10_access_username"
 AUTH_COOKIE_NAME = "fibaro10_access_password"
 ACCESS_FAILED_DISABLE_THRESHOLD = max(1, int(os.getenv("ACCESS_FAILED_DISABLE_THRESHOLD", "3")))
-PUBLIC_PREFIXES = ("/static/",)
+PUBLIC_PREFIXES = ("/static/", "/assets/")
 PUBLIC_PATHS = {"/health", "/favicon.ico", "/auth/login"}
 
 
@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1064")
+APP_BUILD = os.getenv("APP_BUILD", "1065")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1065",
+        "date": "09.06.2026",
+        "title": "Fjerner v2 fra app-URL",
+        "changes": [
+            "Flytter den nye desktopflaten til rene hovedruter som /status, /parkering og /soling.",
+            "Flytter frontend-API fra versjonert prefix til /api og oppdaterer alle interne handlinger og lenker.",
+            "Fjerner legacy-redirecten som sendte gamle UI-ruter til separat desktop-prefix.",
+        ],
+    },
     {
         "version": "1",
         "build": "1064",
@@ -230,8 +241,8 @@ BUILD_LOG = [
         "title": "Gjor desktop v2 til primaer UI",
         "changes": [
             "Legger v2-sider for parkering, soling, energi, ventilasjon, lys, renhold og admin.",
-            "Eksponerer felles moduldata under /api/v2/modules/{module}.",
-            "Flytter rotadressen til /v2 og fjerner gamle UI-lenker fra v2-menyen.",
+            "Eksponerer felles moduldata under /api/modules/{module}.",
+            "Flytter rotadressen til desktopflaten og fjerner gamle UI-lenker fra menyen.",
         ],
     },
     {
@@ -240,8 +251,8 @@ BUILD_LOG = [
         "date": "08.06.2026",
         "title": "Starter separat desktop v2",
         "changes": [
-            "Legger inn en egen React/Ant Design/ECharts-revisjon under /v2.",
-            "Eksponerer nye JSON-endepunkter under /api/v2 for oversikt og maanedlig omsetning.",
+            "Legger inn en egen React/Ant Design/ECharts-revisjon.",
+            "Eksponerer nye JSON-endepunkter under /api for oversikt og maanedlig omsetning.",
             "Beholder dagens Jinja-grensesnitt uendret slik at begge revisjoner kan utvikles videre parallelt.",
         ],
     },
@@ -807,7 +818,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 DESKTOP_V2_DIST = Path(__file__).parent / "desktop_v2" / "dist"
 if (DESKTOP_V2_DIST / "assets").exists():
-    app.mount("/v2/assets", StaticFiles(directory=str(DESKTOP_V2_DIST / "assets")), name="desktop_v2_assets")
+    app.mount("/assets", StaticFiles(directory=str(DESKTOP_V2_DIST / "assets")), name="desktop_assets")
 templates = Jinja2Templates(directory="templates")
 templates.env.globals.update(app_version=APP_VERSION, app_build=APP_BUILD, build_log=BUILD_LOG)
 
@@ -1110,68 +1121,6 @@ engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 
-def legacy_ui_target(path: str) -> Optional[str]:
-    if path.startswith(("/v2", "/api", "/static", "/auth", "/health", "/favicon.ico")):
-        return None
-    if path.endswith("/json") or path.endswith("/download") or path == "/download":
-        return None
-    exact_redirects = {
-        "/status/dashboard": "/v2/status/oversikt",
-        "/status/nokkeltall": "/v2/status/oversikt",
-        "/status/omsetning": "/v2/status/omsetning",
-        "/status/datakilder": "/v2/status/drift",
-        "/parkering/oversikt": "/v2/parkering/oversikt",
-        "/parkering/prognose": "/v2/parkering/prognose",
-        "/parkering/parkeringer": "/v2/parkering/parkeringer",
-        "/parkering/kjoretoy": "/v2/parkering/kjoretoy",
-        "/parkering/bilstatistikk": "/v2/parkering/bilstatistikk",
-        "/parkering/omrade": "/v2/parkering/omrade",
-        "/soling/dagslinje": "/v2/soling/dagslinje",
-        "/soling/prognose": "/v2/soling/prognose",
-        "/soling/oversikt": "/v2/soling/oversikt",
-        "/soling/detaljer": "/v2/soling/detaljer",
-        "/soling/enkeltimer": "/v2/soling/enkeltimer",
-        "/soling/senger": "/v2/soling/senger",
-        "/soling/medlemmer": "/v2/soling/medlemmer",
-        "/energi/status": "/v2/energi/status",
-        "/energi/kurser": "/v2/energi/kurser",
-        "/energi/laster": "/v2/energi/laster",
-        "/energi/forbruk-per-seng": "/v2/energi/forbruk-per-seng",
-        "/energi/elvia": "/v2/energi/elvia",
-        "/ventilasjon/dagslogg-temp": "/v2/ventilasjon/dagslogg",
-        "/ventilasjon/temp-logg": "/v2/ventilasjon/temp-logg",
-        "/ventilasjon/yr-logg": "/v2/ventilasjon/yr-logg",
-        "/ventilasjon/hendelser": "/v2/ventilasjon/hendelser",
-        "/lys/dagslogg-lux": "/v2/lys/dagslogg",
-        "/lys/lux-logging": "/v2/lys/lux-logging",
-        "/lys/hendelser": "/v2/lys/hendelser",
-        "/renhold/oversikt": "/v2/renhold/oversikt",
-        "/konto/build": "/v2/admin/build",
-        "/konto/teknisk": "/v2/admin/teknisk",
-        "/konto/oversikt": "/v2/admin/build",
-        "/ai/sok": "/v2/admin/ai",
-    }
-    if path in exact_redirects:
-        return exact_redirects[path]
-    redirects = [
-        ("/status/omsetning", "/v2/status/omsetning"),
-        ("/status/datakilder", "/v2/status/drift"),
-        ("/status", "/v2/status/oversikt"),
-        ("/parkering", "/v2/parkering/oversikt"),
-        ("/soling", "/v2/soling/oversikt"),
-        ("/energi", "/v2/energi/status"),
-        ("/ventilasjon", "/v2/ventilasjon/dagslogg"),
-        ("/lys", "/v2/lys/dagslogg"),
-        ("/renhold", "/v2/renhold/oversikt"),
-        ("/konto", "/v2/admin/build"),
-        ("/ai", "/v2/admin/ai"),
-    ]
-    for prefix, target in redirects:
-        if path == prefix or path.startswith(f"{prefix}/"):
-            return target
-    return None
-
-
 @app.middleware("http")
 async def access_key_middleware(request: Request, call_next):
     if is_public_request(request):
@@ -1196,10 +1145,6 @@ async def access_key_middleware(request: Request, call_next):
     request.state.auth_is_master = request.state.auth_role == "master"
     request.state.auth_can_settings = request.state.auth_role in ["master", "settings"]
     await log_access_attempt(request, True, "ok", access_key)
-    if request.method == "GET" and wants_html(request):
-        target = legacy_ui_target(request.url.path)
-        if target:
-            return redirect_keep_query(request, target, status_code=303)
     return await call_next(request)
 
 
@@ -9608,17 +9553,17 @@ async def logout():
 
 @app.get("/ai")
 async def ai_redirect(request: Request):
-    return redirect_keep_query(request, "/ai/sok", status_code=303)
+    return redirect_keep_query(request, "/admin/ai", status_code=303)
 
 
 @app.get("/lys")
 async def lights_redirect(request: Request):
-    return redirect_keep_query(request, "/lys/dagslogg-lux", status_code=307)
+    return redirect_keep_query(request, "/lys/dagslogg", status_code=307)
 
 
 @app.get("/ventilasjon")
 async def ventilation_redirect(request: Request):
-    return redirect_keep_query(request, "/ventilasjon/dagslogg-temp", status_code=307)
+    return redirect_keep_query(request, "/ventilasjon/dagslogg", status_code=307)
 
 
 @app.get("/ai/sok", response_class=HTMLResponse)
@@ -10114,16 +10059,32 @@ async def update_settings(request: Request, config_key: str):
 
 @app.get("/")
 async def root_redirect(request: Request):
-    return redirect_keep_query(request, "/v2", status_code=303)
+    return redirect_keep_query(request, "/status/oversikt", status_code=303)
 
 
-@app.get("/v2", response_class=HTMLResponse)
-@app.get("/v2/{path:path}", response_class=HTMLResponse)
-async def desktop_v2_app(path: str = ""):
+def desktop_app_response() -> FileResponse:
     index_path = DESKTOP_V2_DIST / "index.html"
     if not index_path.exists():
-        raise HTTPException(status_code=404, detail="Desktop v2 er ikke bygget")
+        raise HTTPException(status_code=404, detail="Desktop-appen er ikke bygget")
     return FileResponse(index_path)
+
+
+@app.get("/status", response_class=HTMLResponse)
+@app.get("/status/{path:path}", response_class=HTMLResponse)
+@app.get("/parkering", response_class=HTMLResponse)
+@app.get("/parkering/{path:path}", response_class=HTMLResponse)
+@app.get("/soling", response_class=HTMLResponse)
+@app.get("/soling/{path:path}", response_class=HTMLResponse)
+@app.get("/energi", response_class=HTMLResponse)
+@app.get("/energi/{path:path}", response_class=HTMLResponse)
+@app.get("/ventilasjon/{path:path}", response_class=HTMLResponse)
+@app.get("/lys/{path:path}", response_class=HTMLResponse)
+@app.get("/renhold", response_class=HTMLResponse)
+@app.get("/renhold/{path:path}", response_class=HTMLResponse)
+@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin/{path:path}", response_class=HTMLResponse)
+async def desktop_app(path: str = ""):
+    return desktop_app_response()
 
 
 @app.get("/status/dashboard", response_class=HTMLResponse)
@@ -11369,7 +11330,7 @@ async def build_revenue_month_context(month: Optional[str] = None) -> Dict[str, 
     }
 
 
-@app.get("/api/v2/overview")
+@app.get("/api/overview")
 async def api_v2_overview():
     now_dt = local_now_naive()
     today = now_dt.date()
@@ -11613,26 +11574,26 @@ async def api_v2_overview():
         for device in VENT_TIMELINE_DEVICES
     ]
     cards = [
-        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/v2/status/oversikt", "tone": "status"},
-        {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/v2/status/drift", "tone": "status"},
-        {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/v2/status/omsetning", "tone": "revenue"},
-        {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/v2/status/omsetning", "tone": "revenue"},
-        {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/v2/status/omsetning", "tone": "revenue"},
-        {"group": "Soling", "title": "Soling i dag", "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions), "unit": "stk", "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom", "href": "/v2/soling", "tone": "sun2"},
-        {"group": "Soling", "title": "Sol uke", "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions), "unit": "stk", "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)}", "href": "/v2/soling", "tone": "sun2"},
-        {"group": "Parkering", "title": "Parkering i dag", "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions), "unit": "stk", "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive n\u00e5", "href": "/v2/parkering", "tone": "parking"},
-        {"group": "Parkering", "title": "Samme dag forrige uke", "value": format_short_number(last_week_parking.sessions), "unit": "stk", "detail": f"{format_short_number(last_week_parking.paid)} kr", "href": "/v2/parkering", "tone": "parking"},
-        {"group": "Energi", "title": "Str\u00f8m n\u00e5", "value": format_short_number(latest_energy_sample.inntak_w if latest_energy_sample else 0), "unit": "W", "detail": f"{format_short_number(today_energy_fibaro.kwh, 1)} kWh i dag - {today_energy_fibaro.samples or 0} samples", "href": "/v2/energi", "tone": "energy"},
-        {"group": "Energi", "title": "Diff", "value": format_short_number(latest_energy_sample.differanse_beregnet_w if latest_energy_sample else 0), "unit": "W", "detail": "Beregnet fra realtime m\u00e5lere", "href": "/v2/energi", "tone": "energy"},
-        {"group": "Temperatur", "title": "Innetemp", "value": format_short_number(now_status.get("indoor_avg"), 1), "unit": "grader", "detail": f"Ute {format_short_number(now_status.get('outdoor_avg'), 1)} grader", "href": "/v2/ventilasjon", "tone": "vent"},
-        {"group": "Temperatur", "title": "Kjeller", "value": format_short_number(latest_sample.temp_kjeller if latest_sample else None, 1), "unit": "grader", "detail": f"Fukt {format_short_number(latest_sample.humidity_kjeller if latest_sample else None)}%", "href": "/v2/ventilasjon", "tone": "vent"},
-        {"group": "V\u00e6r", "title": "Yr", "value": weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light) or "-", "detail": f"Vind {format_short_number(latest_yr_sample.wind_speed if latest_yr_sample else None, 1)} m/s - sky {format_short_number(latest_yr_sample.cloud_area_fraction if latest_yr_sample else None)}%", "href": "/v2/ventilasjon", "tone": "weather"},
+        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/status/oversikt", "tone": "status"},
+        {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/status/drift", "tone": "status"},
+        {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/status/omsetning", "tone": "revenue"},
+        {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/status/omsetning", "tone": "revenue"},
+        {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/status/omsetning", "tone": "revenue"},
+        {"group": "Soling", "title": "Soling i dag", "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions), "unit": "stk", "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom", "href": "/soling", "tone": "sun2"},
+        {"group": "Soling", "title": "Sol uke", "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions), "unit": "stk", "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)}", "href": "/soling", "tone": "sun2"},
+        {"group": "Parkering", "title": "Parkering i dag", "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions), "unit": "stk", "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive n\u00e5", "href": "/parkering", "tone": "parking"},
+        {"group": "Parkering", "title": "Samme dag forrige uke", "value": format_short_number(last_week_parking.sessions), "unit": "stk", "detail": f"{format_short_number(last_week_parking.paid)} kr", "href": "/parkering", "tone": "parking"},
+        {"group": "Energi", "title": "Str\u00f8m n\u00e5", "value": format_short_number(latest_energy_sample.inntak_w if latest_energy_sample else 0), "unit": "W", "detail": f"{format_short_number(today_energy_fibaro.kwh, 1)} kWh i dag - {today_energy_fibaro.samples or 0} samples", "href": "/energi", "tone": "energy"},
+        {"group": "Energi", "title": "Diff", "value": format_short_number(latest_energy_sample.differanse_beregnet_w if latest_energy_sample else 0), "unit": "W", "detail": "Beregnet fra realtime m\u00e5lere", "href": "/energi", "tone": "energy"},
+        {"group": "Temperatur", "title": "Innetemp", "value": format_short_number(now_status.get("indoor_avg"), 1), "unit": "grader", "detail": f"Ute {format_short_number(now_status.get('outdoor_avg'), 1)} grader", "href": "/ventilasjon", "tone": "vent"},
+        {"group": "Temperatur", "title": "Kjeller", "value": format_short_number(latest_sample.temp_kjeller if latest_sample else None, 1), "unit": "grader", "detail": f"Fukt {format_short_number(latest_sample.humidity_kjeller if latest_sample else None)}%", "href": "/ventilasjon", "tone": "vent"},
+        {"group": "V\u00e6r", "title": "Yr", "value": weather_from_rows(latest_yr_sample, latest_light_sample, latest_sample, latest_light) or "-", "detail": f"Vind {format_short_number(latest_yr_sample.wind_speed if latest_yr_sample else None, 1)} m/s - sky {format_short_number(latest_yr_sample.cloud_area_fraction if latest_yr_sample else None)}%", "href": "/ventilasjon", "tone": "weather"},
     ]
     latest_items = [
-        {"label": "Siste soling", "value": latest_soling.started_at.strftime("%H:%M") if latest_soling and latest_soling.started_at else "-", "detail": f"Rom {latest_soling.room}" if latest_soling and latest_soling.room else "", "href": "/v2/soling"},
-        {"label": "Siste parkering", "value": latest_parking.start_time.strftime("%H:%M") if latest_parking and latest_parking.start_time else "-", "detail": latest_parking.car_license_number if latest_parking and latest_parking.car_license_number else "", "href": "/v2/parkering"},
-        {"label": "Energi sist lest", "value": latest_energy_sample.bucket_start.strftime("%H:%M") if latest_energy_sample and latest_energy_sample.bucket_start else "-", "detail": f"{format_short_number(latest_energy_sample.inntak_w)} W" if latest_energy_sample else "", "href": "/v2/energi"},
-        {"label": "Temp sist lest", "value": now_status["timestamp"].strftime("%H:%M") if now_status.get("timestamp") else "-", "detail": now_status.get("weather") or "", "href": "/v2/ventilasjon"},
+        {"label": "Siste soling", "value": latest_soling.started_at.strftime("%H:%M") if latest_soling and latest_soling.started_at else "-", "detail": f"Rom {latest_soling.room}" if latest_soling and latest_soling.room else "", "href": "/soling"},
+        {"label": "Siste parkering", "value": latest_parking.start_time.strftime("%H:%M") if latest_parking and latest_parking.start_time else "-", "detail": latest_parking.car_license_number if latest_parking and latest_parking.car_license_number else "", "href": "/parkering"},
+        {"label": "Energi sist lest", "value": latest_energy_sample.bucket_start.strftime("%H:%M") if latest_energy_sample and latest_energy_sample.bucket_start else "-", "detail": f"{format_short_number(latest_energy_sample.inntak_w)} W" if latest_energy_sample else "", "href": "/energi"},
+        {"label": "Temp sist lest", "value": now_status["timestamp"].strftime("%H:%M") if now_status.get("timestamp") else "-", "detail": now_status.get("weather") or "", "href": "/ventilasjon"},
     ]
     services = [
         {
@@ -11656,7 +11617,7 @@ async def api_v2_overview():
     }
 
 
-@app.get("/api/v2/revenue/month")
+@app.get("/api/revenue/month")
 async def api_v2_revenue_month(month: Optional[str] = None):
     context = await build_revenue_month_context(month)
     summary = context["summary"]
@@ -12739,7 +12700,7 @@ async def api_v2_soling_module(
                 "key": "sun2-save-forecast",
                 "label": "Lagre solingprognose",
                 "method": "POST",
-                "path": "/api/v2/actions/soling/save-forecast",
+                "path": "/api/actions/soling/save-forecast",
                 "confirm": "Lagre prognosesnapshot for soling nå?",
                 "tone": "primary",
             }
@@ -12811,7 +12772,7 @@ def api_energy_circuit_edit() -> Dict[str, Any]:
         "kind": "energy-circuit",
         "title": "kurs",
         "idField": "circuit_no",
-        "endpoint": "/api/v2/energy/circuits/{circuit_no}",
+        "endpoint": "/api/energy/circuits/{circuit_no}",
         "method": "PATCH",
         "fields": [
             {"key": "description", "label": "Beskrivelse", "type": "textarea", "required": True},
@@ -12835,9 +12796,9 @@ def api_energy_load_edit() -> Dict[str, Any]:
         "kind": "energy-load",
         "title": "last",
         "idField": "id",
-        "endpoint": "/api/v2/energy/loads/{id}",
+        "endpoint": "/api/energy/loads/{id}",
         "method": "PATCH",
-        "createEndpoint": "/api/v2/energy/loads",
+        "createEndpoint": "/api/energy/loads",
         "fields": [
             {"key": "name", "label": "Navn", "type": "text", "required": True},
             {"key": "load_type", "label": "Type", "type": "text"},
@@ -12865,9 +12826,9 @@ def api_access_key_edit() -> Dict[str, Any]:
         "kind": "access-key",
         "title": "bruker",
         "idField": "id",
-        "endpoint": "/api/v2/admin/users/{id}",
+        "endpoint": "/api/admin/users/{id}",
         "method": "PATCH",
-        "createEndpoint": "/api/v2/admin/users",
+        "createEndpoint": "/api/admin/users",
         "fields": [
             {"key": "role", "label": "Rolle", "type": "select", "options": role_options, "required": True},
             {"key": "active", "label": "Aktiv", "type": "boolean"},
@@ -12915,7 +12876,7 @@ def parking_row_api(row: ParkingSession, vehicle: Optional[ParkingVehicle] = Non
             {
                 "navn": vehicle.navn,
                 "omrade": vehicle.omrade,
-                "path": f"/v2/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
+                "path": f"/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
             }
         )
     return data
@@ -12936,7 +12897,7 @@ def parking_vehicle_row_api(vehicle: ParkingVehicle, details: Optional[ParkingVe
         "last_seen": api_local_iso(vehicle.last_seen),
         "svv_status": vehicle.svv_status,
         "notat": vehicle.notat,
-        "path": f"/v2/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
+        "path": f"/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
     }
 
 
@@ -13040,7 +13001,7 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
     }
 
 
-@app.get("/api/v2/modules/{module}")
+@app.get("/api/modules/{module}")
 async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
     view = (view or "").strip().lower()
@@ -13118,7 +13079,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "key": "easypark-refresh",
                     "label": "Oppdater EasyPark",
                     "method": "POST",
-                    "path": "/api/v2/actions/parkering/refresh",
+                    "path": "/api/actions/parkering/refresh",
                     "confirm": "Starte EasyPark-oppdatering for siste periode?",
                     "tone": "primary",
                 },
@@ -13126,7 +13087,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "key": "svv-sync",
                     "label": "Kjør SVV-sync",
                     "method": "POST",
-                    "path": "/api/v2/actions/parkering/svv-sync",
+                    "path": "/api/actions/parkering/svv-sync",
                     "confirm": "Starte SVV-synk for kjøretøy?",
                     "tone": "default",
                 },
@@ -13284,7 +13245,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "key": "parking-save-forecast",
                         "label": "Lagre parkeringsprognose",
                         "method": "POST",
-                        "path": "/api/v2/actions/parkering/save-forecast",
+                        "path": "/api/actions/parkering/save-forecast",
                         "confirm": "Lagre prognosesnapshot for parkering nå?",
                         "tone": "primary",
                     },
@@ -13292,7 +13253,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "key": "easypark-refresh",
                         "label": "Oppdater EasyPark",
                         "method": "POST",
-                        "path": "/api/v2/actions/parkering/refresh",
+                        "path": "/api/actions/parkering/refresh",
                         "confirm": "Starte EasyPark-oppdatering for siste periode?",
                         "tone": "default",
                     },
@@ -13889,7 +13850,7 @@ def api_detail_field(label: str, value: Any, detail: str = "") -> Dict[str, Any]
     return {"label": label, "value": value if value not in (None, "") else "-", "detail": detail}
 
 
-@app.get("/api/v2/parking/vehicles/{plate}")
+@app.get("/api/parking/vehicles/{plate}")
 async def api_v2_parking_vehicle_detail(plate: str):
     plate_value = normalize_plate(plate)
     if not plate_value:
@@ -13961,7 +13922,7 @@ async def api_v2_parking_vehicle_detail(plate: str):
     }
 
 
-@app.post("/api/v2/actions/soling/save-forecast")
+@app.post("/api/actions/soling/save-forecast")
 async def api_v2_sun2_save_forecast(request: Request):
     forbidden = require_settings_access(request)
     if forbidden:
@@ -13976,7 +13937,7 @@ async def api_v2_sun2_save_forecast(request: Request):
     return {"status": "ok", "message": "Solingprognose lagret."}
 
 
-@app.post("/api/v2/actions/parkering/save-forecast")
+@app.post("/api/actions/parkering/save-forecast")
 async def api_v2_parking_save_forecast(request: Request):
     forbidden = require_settings_access(request)
     if forbidden:
@@ -13991,7 +13952,7 @@ async def api_v2_parking_save_forecast(request: Request):
     return {"status": "ok", "message": "Parkeringsprognose lagret."}
 
 
-@app.post("/api/v2/actions/parkering/refresh")
+@app.post("/api/actions/parkering/refresh")
 async def api_v2_parking_refresh(request: Request):
     forbidden = require_settings_access(request)
     if forbidden:
@@ -14045,7 +14006,7 @@ async def api_v2_parking_refresh(request: Request):
         return JSONResponse({"status": "error", "message": str(exc)}, status_code=500)
 
 
-@app.post("/api/v2/actions/parkering/svv-sync")
+@app.post("/api/actions/parkering/svv-sync")
 async def api_v2_parking_svv_sync(request: Request, limit: int = Query(SVV_SYNC_BATCH_SIZE, ge=1, le=500)):
     forbidden = require_settings_access(request)
     if forbidden:
@@ -14054,7 +14015,7 @@ async def api_v2_parking_svv_sync(request: Request, limit: int = Query(SVV_SYNC_
     return {"status": "ok", "message": "SVV-sync er kjørt.", "result": result}
 
 
-@app.patch("/api/v2/energy/circuits/{circuit_no}")
+@app.patch("/api/energy/circuits/{circuit_no}")
 async def api_v2_energy_circuit_update(request: Request, circuit_no: int, data: V2EnergyCircuitUpdate):
     forbidden = require_settings_access(request)
     if forbidden:
@@ -14078,7 +14039,7 @@ async def api_v2_energy_circuit_update(request: Request, circuit_no: int, data: 
     return {"status": "ok", "message": f"Kurs {circuit_no} er lagret."}
 
 
-@app.post("/api/v2/energy/loads")
+@app.post("/api/energy/loads")
 async def api_v2_energy_load_create(request: Request, data: V2EnergyLoadIn):
     forbidden = require_settings_access(request)
     if forbidden:
@@ -14104,7 +14065,7 @@ async def api_v2_energy_load_create(request: Request, data: V2EnergyLoadIn):
     return {"status": "ok", "message": f"Last {load.name} er opprettet.", "id": load.id}
 
 
-@app.patch("/api/v2/energy/loads/{load_id}")
+@app.patch("/api/energy/loads/{load_id}")
 async def api_v2_energy_load_update(request: Request, load_id: int, data: V2EnergyLoadIn):
     forbidden = require_settings_access(request)
     if forbidden:
@@ -14126,7 +14087,7 @@ async def api_v2_energy_load_update(request: Request, load_id: int, data: V2Ener
     return {"status": "ok", "message": f"Last {load.name} er lagret."}
 
 
-@app.post("/api/v2/admin/users")
+@app.post("/api/admin/users")
 async def api_v2_admin_user_create(request: Request, data: V2AccessUserCreate):
     forbidden = require_master(request)
     if forbidden:
@@ -14162,7 +14123,7 @@ async def api_v2_admin_user_create(request: Request, data: V2AccessUserCreate):
     return {"status": "ok", "message": f"Bruker {username} er opprettet.", "id": record.id}
 
 
-@app.patch("/api/v2/admin/users/{key_id}")
+@app.patch("/api/admin/users/{key_id}")
 async def api_v2_admin_user_update(request: Request, key_id: int, data: V2AccessUserUpdate):
     forbidden = require_master(request)
     if forbidden:
