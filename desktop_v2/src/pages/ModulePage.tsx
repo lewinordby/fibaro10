@@ -13,6 +13,7 @@ import {
   type ModuleChart,
   type ModuleEditConfig,
   type ModuleEditField,
+  type ModuleFilter,
   type ModuleTable,
   type SunTimeline,
   type SunTimelineItem,
@@ -289,7 +290,7 @@ function moduleColumns(
     ellipsis: true,
     sorter: (left, right) => compareValues(left[column], right[column]),
     render: (value: unknown, row) => {
-      if (column === "plate" && typeof value === "string" && typeof row.path === "string") {
+      if ((column === "plate" || column === "car_license_number") && typeof value === "string" && typeof row.path === "string") {
         const internalPath = appPath(row.path);
         if (internalPath) return <Link to={internalPath}>{displayValue(value)}</Link>;
       }
@@ -562,6 +563,70 @@ function SunTimelinePanel({ timeline, onDayChange }: { timeline: SunTimeline; on
   );
 }
 
+function initialFilterValues(filters: ModuleFilter[]): Record<string, string> {
+  return Object.fromEntries(filters.map((filter) => [filter.key, filter.value === null || filter.value === undefined ? "" : String(filter.value)]));
+}
+
+function ModuleFilterBar({
+  filters,
+  onApply,
+  onClear,
+}: {
+  filters: ModuleFilter[];
+  onApply: (values: Record<string, string>) => void;
+  onClear: (keys: string[]) => void;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(() => initialFilterValues(filters));
+  if (!filters.length) return null;
+
+  function updateValue(key: string, value: string | number | null | undefined) {
+    setValues((current) => ({ ...current, [key]: value === null || value === undefined ? "" : String(value) }));
+  }
+
+  function submit() {
+    onApply(values);
+  }
+
+  return (
+    <Card className="work-card module-filter-card">
+      <div className="module-filter-grid">
+        {filters.map((filter) => (
+          <label className="module-filter-field" key={filter.key}>
+            <span>{filter.label}</span>
+            {filter.type === "select" ? (
+              <Select
+                allowClear
+                size="small"
+                value={values[filter.key] || undefined}
+                options={[{ label: "Alle", value: "" }, ...(filter.options ?? [])]}
+                placeholder={filter.placeholder}
+                onChange={(value) => updateValue(filter.key, value)}
+              />
+            ) : (
+              <Input
+                size="small"
+                type={filter.type === "datetime" ? "datetime-local" : filter.type}
+                value={values[filter.key] ?? ""}
+                placeholder={filter.placeholder}
+                onChange={(event) => updateValue(filter.key, event.target.value)}
+                onPressEnter={submit}
+              />
+            )}
+          </label>
+        ))}
+      </div>
+      <Space size={8} className="module-filter-actions">
+        <Button size="small" type="primary" onClick={submit}>
+          Bruk filtre
+        </Button>
+        <Button size="small" onClick={() => onClear(filters.map((filter) => filter.key))}>
+          Nullstill
+        </Button>
+      </Space>
+    </Card>
+  );
+}
+
 function fieldInput(field: ModuleEditField) {
   if (field.type === "textarea") return <Input.TextArea rows={3} />;
   if (field.type === "number") return <InputNumber className="edit-number" />;
@@ -669,10 +734,11 @@ export default function ModulePage({ module }: { module: string }) {
   const isKnownView = !viewItems.length || viewItems.some((item) => item.key === view);
   const safeView = isKnownView ? view : defaultModuleView(module);
   const serverQuery = module === "parkering" && safeView === "kjoretoy" ? query : "";
+  const filterKey = searchParams.toString();
   const timelineDay = module === "soling" && safeView === "dagslinje" ? searchParams.get("day") ?? "" : "";
   const { data, loading, error } = useAsyncData(
-    () => fetchModule(module, safeView, serverQuery, timelineDay || undefined),
-    [module, safeView, serverQuery, timelineDay, reloadToken],
+    () => fetchModule(module, safeView, serverQuery, timelineDay || undefined, searchParams),
+    [module, safeView, serverQuery, timelineDay, filterKey, reloadToken],
   );
 
   if (!isKnownView) return <Navigate to={modulePath(module)} replace />;
@@ -690,6 +756,22 @@ export default function ModulePage({ module }: { module: string }) {
     const nextParams = new URLSearchParams(searchParams);
     if (day) nextParams.set("day", day);
     else nextParams.delete("day");
+    setSearchParams(nextParams);
+  }
+
+  function applyModuleFilters(values: Record<string, string>) {
+    const nextParams = new URLSearchParams(searchParams);
+    Object.entries(values).forEach(([key, value]) => {
+      const trimmed = value.trim();
+      if (trimmed) nextParams.set(key, trimmed);
+      else nextParams.delete(key);
+    });
+    setSearchParams(nextParams);
+  }
+
+  function clearModuleFilters(keys: string[]) {
+    const nextParams = new URLSearchParams(searchParams);
+    keys.forEach((key) => nextParams.delete(key));
     setSearchParams(nextParams);
   }
 
@@ -764,6 +846,15 @@ export default function ModulePage({ module }: { module: string }) {
             ))}
           </Space>
         </Card>
+      ) : null}
+
+      {data.filters?.length ? (
+        <ModuleFilterBar
+          filters={data.filters}
+          key={`${module}-${safeView}-${filterKey}`}
+          onApply={applyModuleFilters}
+          onClear={clearModuleFilters}
+        />
       ) : null}
 
       <div className="metric-grid primary-grid">

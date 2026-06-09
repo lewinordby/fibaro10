@@ -642,6 +642,51 @@ a {
   font-size: 12px;
 }
 
+.module-filter-card .ant-card-body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+}
+
+.module-filter-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.module-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.module-filter-field > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.module-filter-actions {
+  flex-shrink: 0;
+  padding-bottom: 1px;
+}
+
+@media (max-width: 1280px) {
+  .module-filter-card .ant-card-body {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .module-filter-grid {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+}
+
 .sun-timeline-stack {
   width: 100%;
 }

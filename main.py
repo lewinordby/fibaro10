@@ -7,7 +7,7 @@ from collections import defaultdict
 from functools import lru_cache
 from statistics import median
 from types import SimpleNamespace
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 import asyncio
 import calendar
 import csv
@@ -11691,6 +11691,53 @@ def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]], edit: 
     return payload
 
 
+def api_filter(
+    key: str,
+    label: str,
+    filter_type: str = "text",
+    value: Any = "",
+    placeholder: str = "",
+    options: Optional[list[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    payload = {
+        "key": key,
+        "label": label,
+        "type": filter_type,
+        "value": value if value is not None else "",
+    }
+    if placeholder:
+        payload["placeholder"] = placeholder
+    if options is not None:
+        payload["options"] = options
+    return payload
+
+
+def api_filter_value(params: Any, key: str, default: str = "") -> str:
+    return str(params.get(key) or default).strip()
+
+
+def api_filter_int(params: Any, key: str, default: int, minimum: int = 1, maximum: int = 1000) -> int:
+    try:
+        value = int(params.get(key) or default)
+    except (TypeError, ValueError):
+        value = default
+    return max(minimum, min(maximum, value))
+
+
+def api_filter_options(values: Iterable[Any]) -> list[Dict[str, Any]]:
+    seen = set()
+    options = []
+    for value in values:
+        if value is None:
+            continue
+        text_value = str(value).strip()
+        if not text_value or text_value in seen:
+            continue
+        seen.add(text_value)
+        options.append({"label": text_value, "value": text_value})
+    return options
+
+
 def api_chart(
     title: str,
     x: list[str],
@@ -12060,7 +12107,16 @@ def api_parking_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str
     ]
 
 
-async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, month_start: date, selected_day: Optional[date] = None) -> Dict[str, Any]:
+async def api_v2_soling_module(
+    session,
+    view: str,
+    today: date,
+    tomorrow: date,
+    month_start: date,
+    selected_day: Optional[date] = None,
+    params: Optional[Any] = None,
+) -> Dict[str, Any]:
+    params = params or {}
     view = view or "oversikt"
     if view not in {"oversikt", "dagslinje", "prognose", "statistikk", "detaljer", "enkeltimer", "senger", "medlemmer"}:
         view = "oversikt"
@@ -12424,6 +12480,7 @@ async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, 
     charts = []
     tables = []
     actions = []
+    filters = []
     timeline = None
 
     if view == "oversikt":
@@ -12468,15 +12525,87 @@ async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, 
         ]
         tables = []
     elif view == "enkeltimer":
+        q_value = api_filter_value(params, "q")
+        date_from_value = api_filter_value(params, "date_from")
+        date_to_value = api_filter_value(params, "date_to")
+        room_id_value = api_filter_value(params, "room_id")
+        payment_method_value = api_filter_value(params, "payment_method")
+        status_value = api_filter_value(params, "status")
+        customer_type_value = api_filter_value(params, "customer_type")
+        limit_value = api_filter_int(params, "limit", 250, 25, 1000)
+        session_conditions = []
+        if q_value:
+            like = f"%{q_value.lower()}%"
+            session_conditions.append(
+                or_(
+                    func.lower(func.coalesce(Sun2TanningSession.user_name, "")).like(like),
+                    func.lower(func.coalesce(Sun2TanningSession.sun2_user_id, "")).like(like),
+                    func.lower(func.coalesce(Sun2TanningSession.user_identifier, "")).like(like),
+                    func.lower(func.coalesce(Sun2TanningSession.room, "")).like(like),
+                    func.lower(func.coalesce(Sun2TanningSession.room_id, "")).like(like),
+                    func.lower(func.coalesce(Sun2TanningSession.source_file, "")).like(like),
+                )
+            )
+        if date_from_value:
+            session_conditions.append(Sun2TanningSession.stat_date >= parse_day(date_from_value))
+        if date_to_value:
+            session_conditions.append(Sun2TanningSession.stat_date <= parse_day(date_to_value))
+        if room_id_value:
+            session_conditions.append(Sun2TanningSession.room_id == room_id_value)
+        if payment_method_value:
+            session_conditions.append(Sun2TanningSession.payment_method == payment_method_value)
+        if status_value:
+            session_conditions.append(Sun2TanningSession.status == status_value)
+        if customer_type_value:
+            session_conditions.append(Sun2TanningSession.customer_type == customer_type_value)
+        session_stmt = select(Sun2TanningSession).order_by(Sun2TanningSession.started_at.desc()).limit(limit_value)
+        session_count_stmt = select(func.count(Sun2TanningSession.id))
+        if session_conditions:
+            session_stmt = session_stmt.where(*session_conditions)
+            session_count_stmt = session_count_stmt.where(*session_conditions)
+        filtered_sessions = (await session.execute(session_stmt)).scalars().all()
+        filtered_count = (await session.execute(session_count_stmt)).scalar_one()
+        room_option_rows = (
+            await session.execute(
+                select(Sun2TanningSession.room_id, func.max(Sun2TanningSession.room))
+                .where(Sun2TanningSession.room_id.is_not(None))
+                .group_by(Sun2TanningSession.room_id)
+                .order_by(Sun2TanningSession.room_id.asc())
+            )
+        ).all()
+        payment_options = api_filter_options(
+            (await session.execute(select(Sun2TanningSession.payment_method).distinct().order_by(Sun2TanningSession.payment_method.asc()))).scalars().all()
+        )
+        status_options = api_filter_options(
+            (await session.execute(select(Sun2TanningSession.status).distinct().order_by(Sun2TanningSession.status.asc()))).scalars().all()
+        )
+        customer_options = api_filter_options(
+            (await session.execute(select(Sun2TanningSession.customer_type).distinct().order_by(Sun2TanningSession.customer_type.asc()))).scalars().all()
+        )
+        room_options = [
+            {"label": sun2_room_label(room_id, room_name), "value": room_id}
+            for room_id, room_name in room_option_rows
+            if room_id
+        ]
+        filters = [
+            api_filter("q", "Søk", "text", q_value, "Navn, SUN2-id, rom, fil"),
+            api_filter("date_from", "Fra dato", "date", date_from_value),
+            api_filter("date_to", "Til dato", "date", date_to_value),
+            api_filter("room_id", "Rom", "select", room_id_value, options=room_options),
+            api_filter("payment_method", "Betaling", "select", payment_method_value, options=payment_options),
+            api_filter("status", "Status", "select", status_value, options=status_options),
+            api_filter("customer_type", "Kundetype", "select", customer_type_value, options=customer_options),
+            api_filter("limit", "Antall", "number", limit_value),
+        ]
         charts = [daily_count_chart, daily_revenue_chart, hourly_chart, room_chart]
         cards = [
-            api_card("Siste 120 dager", sum(int_or_zero(row.get("sessions_count")) for row in daily_session_rows), "stk", "Fra enkeltimer", "sun2"),
+            api_card("Treff", filtered_count, "stk", f"Viser {len(filtered_sessions)} rader", "sun2"),
             api_card("Omsetning 120d", format_short_number(sum(float_or_zero(row.get("paid_amount_kr")) for row in daily_session_rows)), "kr", "Fra enkeltimer", "revenue"),
             api_card("Timer 120d", format_short_number(sum(float_or_zero(row.get("duration_minutes")) for row in daily_session_rows) / 60, 1), "t", "Fra enkeltimer", "sun2"),
             api_card("Rader totalt", format_short_number(total_sessions), "stk", "Alle enkeltimer", "status"),
         ]
         tables = [
-            api_table("Enkeltimer", ["started_at", "ended_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"], [api_sun2_session_row(row) for row in latest_sessions]),
+            api_table("Enkeltimer", ["started_at", "ended_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"], [api_sun2_session_row(row) for row in filtered_sessions]),
             api_table("Dagsutvikling", ["stat_date", "sessions_count", "duration_minutes", "paid_amount_kr", "rooms_count"], daily_session_rows),
             api_table("Fordeling per time", ["hour_label", "sessions_count", "duration_hours", "paid_amount_kr"], hourly_points),
             api_table("Topp rom", ["room_label", "sessions_count", "duration_hours", "paid_amount_kr"], top_rooms),
@@ -12497,9 +12626,79 @@ async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, 
             api_table("Senger", ["physical_room_number", "room_label", "room_id", "name", "bed_model", "max_minutes", "current_price_per_min", "status", "lamp_status", "sessions_count", "duration_hours", "paid_amount_kr", "last_session_at", "imported_at"], [api_sun2_bed_row(row, bed_totals) for row in beds]),
         ]
     elif view == "medlemmer":
+        q_value = api_filter_value(params, "q")
+        customer_type_value = api_filter_value(params, "customer_type")
+        status_value = api_filter_value(params, "status")
+        limit_value = api_filter_int(params, "limit", 300, 25, 1000)
+        member_conditions = []
+        if q_value:
+            like = f"%{q_value.lower()}%"
+            member_conditions.append(
+                or_(
+                    func.lower(func.coalesce(Sun2Member.sun2_user_id, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.name, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.display_name, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.initials, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.email, "")).like(like),
+                    func.lower(func.coalesce(Sun2Member.phone, "")).like(like),
+                )
+            )
+        if customer_type_value:
+            member_conditions.append(Sun2Member.customer_type == customer_type_value)
+        if status_value:
+            member_conditions.append(Sun2Member.status == status_value)
+        member_stmt = (
+            select(Sun2Member)
+            .order_by(Sun2Member.last_seen_at.desc().nullslast(), Sun2Member.name.asc(), Sun2Member.sun2_user_id.asc())
+            .limit(limit_value)
+        )
+        member_count_stmt = select(func.count()).select_from(Sun2Member)
+        if member_conditions:
+            member_stmt = member_stmt.where(*member_conditions)
+            member_count_stmt = member_count_stmt.where(*member_conditions)
+        member_rows = (await session.execute(member_stmt)).scalars().all()
+        member_count = (await session.execute(member_count_stmt)).scalar_one()
+        member_ids = [member.sun2_user_id for member in member_rows if member.sun2_user_id]
+        member_stats = {}
+        if member_ids:
+            member_stats_rows = (
+                await session.execute(
+                    select(
+                        Sun2TanningSession.sun2_user_id.label("sun2_user_id"),
+                        func.count(Sun2TanningSession.id).label("sessions_count"),
+                        func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("duration_minutes"),
+                        func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid_amount_kr"),
+                        func.max(Sun2TanningSession.started_at).label("last_session_at"),
+                        func.max(Sun2TanningSession.user_name).label("session_name"),
+                    )
+                    .where(Sun2TanningSession.sun2_user_id.in_(member_ids))
+                    .group_by(Sun2TanningSession.sun2_user_id)
+                )
+            ).mappings().all()
+            member_stats = {item["sun2_user_id"]: item for item in member_stats_rows}
+        filters = [
+            api_filter("q", "Søk", "text", q_value, "Navn, SUN2-id, telefon eller e-post"),
+            api_filter(
+                "customer_type",
+                "Kundetype",
+                "select",
+                customer_type_value,
+                options=api_filter_options(
+                    (await session.execute(select(Sun2Member.customer_type).distinct().order_by(Sun2Member.customer_type.asc()))).scalars().all()
+                ),
+            ),
+            api_filter(
+                "status",
+                "Status",
+                "select",
+                status_value,
+                options=api_filter_options((await session.execute(select(Sun2Member.status).distinct().order_by(Sun2Member.status.asc()))).scalars().all()),
+            ),
+            api_filter("limit", "Antall", "number", limit_value),
+        ]
         charts = [user_chart]
         cards = [
-            api_card("Medlemmer", members, "stk", "Importert fra SUN2", "status"),
+            api_card("Treff", member_count, "stk", f"Viser {len(member_rows)} medlemmer", "status"),
             api_card("Kjent fra soling", known_members, "stk", "Unike bruker-ID-er i enkeltimer", "sun2"),
             api_card("Aktive i lista", len([row for row in member_rows if (member_stats.get(row.sun2_user_id) or {}).get("sessions_count")]), "stk", "Blant viste medlemmer", "sun2"),
             api_card("Sist importert", member_rows[0].imported_at if member_rows else "-", "", "Medlemsliste", "status"),
@@ -12553,6 +12752,7 @@ async def api_v2_soling_module(session, view: str, today: date, tomorrow: date, 
         "charts": charts,
         "tables": tables,
         "actions": actions,
+        "filters": filters,
         "sunTimeline": timeline,
     }
 
@@ -12696,7 +12896,7 @@ def api_pick(row: Any, columns: list[str]) -> Dict[str, Any]:
 
 def parking_row_api(row: ParkingSession, vehicle: Optional[ParkingVehicle] = None) -> Dict[str, Any]:
     owner_warning = parking_current_ownership_warning(vehicle, row.start_time)
-    return {
+    data = {
         "id": row.id,
         "start_time": row.start_time.isoformat() if row.start_time else None,
         "end_time": row.end_time.isoformat() if row.end_time else None,
@@ -12710,6 +12910,15 @@ def parking_row_api(row: ParkingSession, vehicle: Optional[ParkingVehicle] = Non
         "subtype": row.subtype,
         "status": row.status,
     }
+    if vehicle:
+        data.update(
+            {
+                "navn": vehicle.navn,
+                "omrade": vehicle.omrade,
+                "path": f"/v2/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
+            }
+        )
+    return data
 
 
 def parking_vehicle_row_api(vehicle: ParkingVehicle, details: Optional[ParkingVehicleDetails]) -> Dict[str, Any]:
@@ -12832,9 +13041,10 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
 
 
 @app.get("/api/v2/modules/{module}")
-async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
+async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
     view = (view or "").strip().lower()
+    params = request.query_params
     now_dt = local_now_naive()
     today = now_dt.date()
     tomorrow = today + timedelta(days=1)
@@ -12921,18 +13131,84 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                     "tone": "default",
                 },
             ]
+            filters = []
             charts = [api_parking_weekly_chart(parking_summaries)] if view in ("", "oversikt") else []
-            if view == "kjoretoy":
-                vehicle_search = parking_vehicle_search_condition(q)
+            if view == "parkeringer":
+                plate_value = compact_plate(api_filter_value(params, "plate"))
+                date_from_value = api_filter_value(params, "date_from")
+                date_to_value = api_filter_value(params, "date_to")
+                status_value = api_filter_value(params, "status")
+                limit_value = api_filter_int(params, "limit", 250, 25, 1000)
+                session_conditions = []
+                if plate_value:
+                    session_conditions.append(func.upper(func.replace(ParkingSession.car_license_number, " ", "")).like(f"%{plate_value.upper()}%"))
+                if date_from_value:
+                    session_conditions.append(ParkingSession.start_time >= datetime.combine(parse_day(date_from_value), time.min))
+                if date_to_value:
+                    session_conditions.append(ParkingSession.start_time < datetime.combine(parse_day(date_to_value) + timedelta(days=1), time.min))
+                if status_value:
+                    session_conditions.append(ParkingSession.status == status_value)
+                session_stmt = (
+                    select(ParkingSession, ParkingVehicle)
+                    .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                    .order_by(ParkingSession.start_time.desc())
+                    .limit(limit_value)
+                )
+                count_stmt = select(func.count(ParkingSession.id))
+                if session_conditions:
+                    session_stmt = session_stmt.where(*session_conditions)
+                    count_stmt = count_stmt.where(*session_conditions)
+                parking_rows = (await session.execute(session_stmt)).all()
+                parking_count = (await session.execute(count_stmt)).scalar_one()
+                status_options = api_filter_options(
+                    (await session.execute(select(ParkingSession.status).distinct().order_by(ParkingSession.status.asc()))).scalars().all()
+                )
+                filters = [
+                    api_filter("plate", "Reg.nr", "text", plate_value, "Hele eller del av reg.nr"),
+                    api_filter("date_from", "Fra dato", "date", date_from_value),
+                    api_filter("date_to", "Til dato", "date", date_to_value),
+                    api_filter("status", "Status", "select", status_value, options=status_options),
+                    api_filter("limit", "Antall", "number", limit_value),
+                ]
+                cards = [
+                    api_card("Treff", parking_count, "stk", f"Viser {len(parking_rows)} rader", "parking"),
+                    api_card("Beløp vist", format_short_number(sum(float_or_zero(row.fee_inc_vat) for row, _ in parking_rows)), "kr", "I tabellen", "revenue"),
+                    api_card("Pågående", sum(1 for row, _ in parking_rows if (row.status or "").lower() == "ongoing"), "stk", "Blant viste rader", "parking"),
+                    api_card("Kjøretøy", len({normalize_plate(row.car_license_number) for row, _ in parking_rows if row.car_license_number}), "stk", "Unike i tabellen", "status"),
+                ]
+                tables = [
+                    api_table(
+                        "Parkeringer",
+                        ["start_time", "end_time", "car_license_number", "navn", "omrade", "fee_inc_vat", "parking_time_min", "status", "parking_area"],
+                        [parking_row_api(row, vehicle) for row, vehicle in parking_rows],
+                    )
+                ]
+            elif view == "kjoretoy":
+                q_value = q or api_filter_value(params, "q")
+                limit_value = api_filter_int(params, "limit", 500, 25, 1000)
+                vehicle_search = parking_vehicle_search_condition(q_value)
                 vehicle_stmt = (
                     select(ParkingVehicle, ParkingVehicleDetails)
                     .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
                     .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
-                    .limit(500)
+                    .limit(limit_value)
                 )
+                vehicle_count_stmt = select(func.count(ParkingVehicle.plate)).outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
                 if vehicle_search is not None:
                     vehicle_stmt = vehicle_stmt.where(vehicle_search)
+                    vehicle_count_stmt = vehicle_count_stmt.where(vehicle_search)
                 vehicle_detail_rows = (await session.execute(vehicle_stmt)).all()
+                vehicle_filtered_count = (await session.execute(vehicle_count_stmt)).scalar_one()
+                filters = [
+                    api_filter("q", "Søk", "text", q_value, "Reg.nr, bil, eier eller område"),
+                    api_filter("limit", "Antall", "number", limit_value),
+                ]
+                cards = [
+                    api_card("Treff", vehicle_filtered_count, "stk", f"Viser {len(vehicle_detail_rows)} kjøretøy", "parking"),
+                    api_card("Kjøretøy totalt", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
+                    api_card("Mangler navn", len([row for row in vehicle_rows if not (row.navn or "").strip()]), "stk", "Blant siste kjøretøy", "status"),
+                    api_card("Mangler område", len([row for row in vehicle_rows if not (row.omrade or "").strip()]), "stk", "Blant siste kjøretøy", "status"),
+                ]
                 tables = [
                     api_table(
                         "Kjøretøy",
@@ -13064,6 +13340,7 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                 "charts": charts,
                 "tables": tables,
                 "actions": actions,
+                "filters": filters,
             }
 
         if module == "soling":
@@ -13073,9 +13350,15 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                     selected_day = date.fromisoformat(day)
                 except ValueError:
                     selected_day = None
-            return await api_v2_soling_module(session, view, today, tomorrow, month_start, selected_day)
+            return await api_v2_soling_module(session, view, today, tomorrow, month_start, selected_day, params)
 
         if module == "energi":
+            energy_q_value = api_filter_value(params, "q")
+            energy_circuit_value = api_filter_value(params, "circuit")
+            energy_load_type_value = api_filter_value(params, "load_type")
+            energy_active_value = api_filter_value(params, "active")
+            energy_sunbeds_value = normalize_energy_sunbed_filter(api_filter_value(params, "sunbeds"))
+            energy_limit_value = api_filter_int(params, "limit", 500, 25, 1000)
             latest = (
                 await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
             ).scalars().first()
@@ -13090,12 +13373,70 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
             recent = (
                 await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(120))
             ).scalars().all()
-            circuits = (
-                await session.execute(select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc()).limit(120))
+            all_circuits = (
+                await session.execute(select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc()))
             ).scalars().all()
-            loads = (
-                await session.execute(select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.name.asc()).limit(120))
-            ).scalars().all()
+            circuits = filter_energy_circuits_by_sunbed(all_circuits, energy_sunbeds_value if view == "kurser" else None)
+            sunbed_circuit_numbers = [row.circuit_no for row in all_circuits if energy_circuit_is_sunbed(row)]
+            energy_circuit_no = None
+            if energy_circuit_value:
+                try:
+                    energy_circuit_no = int(energy_circuit_value)
+                except ValueError:
+                    energy_circuit_no = None
+            load_conditions = []
+            if energy_q_value:
+                pattern = f"%{energy_q_value}%"
+                load_conditions.append(
+                    or_(
+                        EnergyLoad.name.ilike(pattern),
+                        EnergyLoad.area.ilike(pattern),
+                        EnergyLoad.note.ilike(pattern),
+                        EnergyLoad.load_type.ilike(pattern),
+                    )
+                )
+            if energy_circuit_no is not None:
+                load_conditions.append(EnergyLoad.circuit_no == energy_circuit_no)
+            if energy_load_type_value:
+                load_conditions.append(EnergyLoad.load_type == energy_load_type_value)
+            if energy_active_value == "1":
+                load_conditions.append(EnergyLoad.active.is_(True))
+            elif energy_active_value == "0":
+                load_conditions.append(EnergyLoad.active.is_(False))
+            if energy_sunbeds_value == "hide":
+                load_conditions.append(or_(EnergyLoad.circuit_no.is_(None), ~EnergyLoad.circuit_no.in_(sunbed_circuit_numbers)))
+            elif energy_sunbeds_value == "only":
+                load_conditions.append(EnergyLoad.circuit_no.in_(sunbed_circuit_numbers))
+            load_stmt = select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc()).limit(energy_limit_value)
+            load_count_stmt = select(func.count(EnergyLoad.id))
+            if load_conditions:
+                load_stmt = load_stmt.where(*load_conditions)
+                load_count_stmt = load_count_stmt.where(*load_conditions)
+            loads = (await session.execute(load_stmt)).scalars().all()
+            filtered_load_count = (await session.execute(load_count_stmt)).scalar_one()
+            load_type_options = api_filter_options(
+                (
+                    await session.execute(
+                        select(EnergyLoad.load_type)
+                        .where(EnergyLoad.load_type.is_not(None))
+                        .where(func.trim(EnergyLoad.load_type) != "")
+                        .distinct()
+                        .order_by(EnergyLoad.load_type.asc())
+                    )
+                ).scalars().all()
+            )
+            circuit_options = [
+                {
+                    "label": f"{row.circuit_no} - {row.description}" if row.description else str(row.circuit_no),
+                    "value": str(row.circuit_no),
+                }
+                for row in all_circuits
+                if row.circuit_no is not None
+            ]
+            sunbed_filter_options = [
+                {"label": "Skjul solsenger", "value": "hide"},
+                {"label": "Kun solsenger", "value": "only"},
+            ]
             elvia_rows = (
                 await session.execute(select(EnergyHourlyConsumption).order_by(EnergyHourlyConsumption.measured_at.desc()).limit(120))
             ).scalars().all()
@@ -13126,9 +13467,45 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                 api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit()),
                 api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit()),
             ]
+            filters = []
+            energy_cards = [
+                api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy"),
+                api_card("Forbruk i dag", format_short_number(total_kwh, 1), "kWh", f"{len(today_rows)} samples", "energy"),
+                api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy"),
+                api_card("Laster", filtered_load_count, "stk", "Aktive og registrerte", "status"),
+            ]
             if view == "kurser":
+                filters = [
+                    api_filter("sunbeds", "Solsenger", "select", energy_sunbeds_value, options=sunbed_filter_options),
+                ]
+                energy_cards = [
+                    api_card("Kurser", len(circuits), "stk", "Valgt kursfilter", "energy"),
+                    api_card("Solsengkurser", sum(1 for row in circuits if energy_circuit_is_sunbed(row)), "stk", "Blant viste", "sun2"),
+                    api_card("Med vern", sum(1 for row in circuits if row.breaker_rating_a is not None), "stk", "Registrert", "status"),
+                    api_card("Uten vern", sum(1 for row in circuits if row.breaker_rating_a is None), "stk", "Mangler data", "status"),
+                ]
                 tables = [api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status", "note"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit())]
             elif view == "laster":
+                filters = [
+                    api_filter("q", "Søk", "text", energy_q_value, "Navn, område, type eller notat"),
+                    api_filter("circuit", "Kurs", "select", energy_circuit_value, options=circuit_options),
+                    api_filter("load_type", "Type", "select", energy_load_type_value, options=load_type_options),
+                    api_filter(
+                        "active",
+                        "Aktiv",
+                        "select",
+                        energy_active_value,
+                        options=[{"label": "Aktive", "value": "1"}, {"label": "Inaktive", "value": "0"}],
+                    ),
+                    api_filter("sunbeds", "Solsenger", "select", energy_sunbeds_value, options=sunbed_filter_options),
+                    api_filter("limit", "Antall", "number", energy_limit_value),
+                ]
+                energy_cards = [
+                    api_card("Treff", filtered_load_count, "stk", f"Viser {len(loads)} laster", "energy"),
+                    api_card("Aktive vist", sum(1 for row in loads if row.active), "stk", "I tabellen", "status"),
+                    api_card("Direktemålt", sum(1 for row in loads if row.measured_direct), "stk", "I tabellen", "energy"),
+                    api_card("Effekt vist", format_short_number(sum(float_or_zero(row.expected_power_w) for row in loads)), "W", "For viste rader", "energy"),
+                ]
                 tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())]
             elif view == "elvia":
                 tables = [
@@ -13173,29 +13550,23 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
             return {
                 "title": "Energi" if not view else f"Energi · {view.replace('-', ' ')}",
                 "subtitle": "Realtime HC3-måling, kursregister og lastregister.",
-                "cards": [
-                    api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy"),
-                    api_card("Forbruk i dag", format_short_number(total_kwh, 1), "kWh", f"{len(today_rows)} samples", "energy"),
-                    api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy"),
-                    api_card("Laster", len(loads), "stk", "Aktive og registrerte", "status"),
-                ],
+                "cards": energy_cards,
                 "charts": charts,
                 "tables": tables,
+                "filters": filters,
             }
 
         if module == "ventilasjon":
+            log_from_value = api_filter_value(params, "from")
+            log_to_value = api_filter_value(params, "to")
+            log_mode_value = api_filter_value(params, "mode")
+            log_limit_value = api_filter_int(params, "limit", 120, 25, 1000)
             latest = (
                 await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(1))
             ).scalars().first()
-            samples = (
-                await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(120))
-            ).scalars().all()
-            yr_rows = (
-                await session.execute(select(YrForecastSample).order_by(YrForecastSample.bucket_start.desc()).limit(80))
-            ).scalars().all()
-            events = (
-                await session.execute(select(VentilationEvent).order_by(VentilationEvent.timestamp.desc()).limit(80))
-            ).scalars().all()
+            samples, _ = await fetch_rows(VentilationSample, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
+            yr_rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, log_from_value, log_to_value, log_limit_value, time_basis="utc")
+            events, _ = await fetch_rows(VentilationEvent, "fan_change", None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
             fan_on = sum(1 for device in VENT_TIMELINE_DEVICES if latest and sample_state(latest, device) is True)
             temp_day = await build_temp_day(today_start, tomorrow_start, min(now_dt, tomorrow_start))
             temp_chart_rows = list(reversed(temp_day["samples_desc"]))
@@ -13263,18 +13634,26 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                 ],
                 "charts": charts,
                 "tables": tables,
+                "filters": [
+                    api_filter("from", "Fra", "datetime", log_from_value),
+                    api_filter("to", "Til", "datetime", log_to_value),
+                    api_filter("mode", "Modus", "text", log_mode_value),
+                    api_filter("limit", "Antall", "number", log_limit_value),
+                ]
+                if view in {"temp-logg", "dagslogg", "yr-logg", "hendelser"}
+                else [],
             }
 
         if module == "lys":
+            log_from_value = api_filter_value(params, "from")
+            log_to_value = api_filter_value(params, "to")
+            log_mode_value = api_filter_value(params, "mode")
+            log_limit_value = api_filter_int(params, "limit", 120, 25, 1000)
             latest = (
                 await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(1))
             ).scalars().first()
-            samples = (
-                await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(120))
-            ).scalars().all()
-            events = (
-                await session.execute(select(OutdoorLightEvent).order_by(OutdoorLightEvent.timestamp.desc()).limit(120))
-            ).scalars().all()
+            samples, _ = await fetch_rows(OutdoorLightSample, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
+            events, _ = await fetch_rows(OutdoorLightEvent, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
             light_on = sum(1 for device in LIGHT_TIMELINE_DEVICES if latest and light_sample_state(latest, device) is True)
             lux_day = await build_lux_day(today_start, tomorrow_start, min(now_dt, tomorrow_start))
             charts = [
@@ -13330,6 +13709,14 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                 ],
                 "charts": charts,
                 "tables": tables,
+                "filters": [
+                    api_filter("from", "Fra", "datetime", log_from_value),
+                    api_filter("to", "Til", "datetime", log_to_value),
+                    api_filter("mode", "Modus", "text", log_mode_value),
+                    api_filter("limit", "Antall", "number", log_limit_value),
+                ]
+                if view in {"lux-logging", "dagslogg", "hendelser"}
+                else [],
             }
 
         if module == "renhold":

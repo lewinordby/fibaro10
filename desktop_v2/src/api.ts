@@ -153,6 +153,15 @@ export type ModuleAction = {
   tone?: "primary" | "default";
 };
 
+export type ModuleFilter = {
+  key: string;
+  label: string;
+  type: "text" | "date" | "datetime" | "number" | "select";
+  value?: string | number | null;
+  placeholder?: string;
+  options?: Array<{ label: string; value: string | number }>;
+};
+
 export type SunTimelineItem = {
   left: number;
   width: number;
@@ -213,6 +222,7 @@ export type ModuleResponse = {
   charts?: ModuleChart[];
   tables: ModuleTable[];
   actions?: ModuleAction[];
+  filters?: ModuleFilter[];
   sunTimeline?: SunTimeline | null;
 };
 
@@ -257,8 +267,14 @@ export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse>
   return apiGet<RevenueMonthResponse>(`/api/v2/revenue/month${query}`);
 }
 
-export function fetchModule(module: string, view?: string, q?: string, day?: string): Promise<ModuleResponse> {
-  const params = new URLSearchParams();
+export function fetchModule(
+  module: string,
+  view?: string,
+  q?: string,
+  day?: string,
+  filters?: URLSearchParams,
+): Promise<ModuleResponse> {
+  const params = new URLSearchParams(filters);
   if (view) params.set("view", view);
   if (q?.trim()) params.set("q", q.trim());
   if (day) params.set("day", day);
