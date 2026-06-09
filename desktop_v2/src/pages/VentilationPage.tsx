@@ -1,5 +1,5 @@
 import ReactECharts from "echarts-for-react";
-import { App as AntApp, Button, Card, Form, Input, InputNumber, Space, Table, Tabs, Tag, Typography } from "antd";
+import { App as AntApp, Button, Card, Form, Input, InputNumber, Space, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -90,6 +90,62 @@ function timeText(value?: string | null): string {
   return value;
 }
 
+function minuteFromTime(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || minutes > 59) return null;
+  if (hours === 24 && minutes === 0) return 1440;
+  if (hours < 0 || hours > 23) return null;
+  return hours * 60 + minutes;
+}
+
+function minuteLabel(value: number | string | undefined): string {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return "--:--";
+  const minute = Math.max(0, Math.min(1440, Math.round(numeric)));
+  const hours = Math.floor(minute / 60);
+  const minutes = minute % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function minuteFromEventX(value: number): number {
+  return Math.max(0, Math.min(1440, Math.round((value / 1000) * 1440)));
+}
+
+type DayChartSample = {
+  sample: Record<string, unknown>;
+  minute: number;
+};
+
+type DayChartTooltipParam = {
+  axisValue?: number | string;
+  marker?: string;
+  seriesName?: string;
+  value?: unknown;
+};
+
+function chartValue(value: unknown): number | null {
+  if (Array.isArray(value) && typeof value[1] === "number") return value[1];
+  if (typeof value === "number") return value;
+  return null;
+}
+
+function formatDayChartTooltip(params: DayChartTooltipParam | DayChartTooltipParam[]): string {
+  const items = (Array.isArray(params) ? params : [params]).filter((item) => item.seriesName && item.seriesName !== "__fan_events");
+  const first = items[0];
+  const firstMinute = Array.isArray(first?.value) && typeof first.value[0] === "number" ? first.value[0] : first?.axisValue;
+  const lines = [minuteLabel(firstMinute)];
+  items.forEach((item) => {
+    const value = chartValue(item.value);
+    if (value === null) return;
+    lines.push(`${item.marker ?? ""}${item.seriesName}: ${numberText(value)}`);
+  });
+  return lines.join("<br/>");
+}
+
 function stateTag(state: boolean | null | undefined) {
   if (state === true) return <Tag color="green">PÅ</Tag>;
   if (state === false) return <Tag>AV</Tag>;
@@ -177,16 +233,19 @@ function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; 
   const day = ventilation.day;
   const defaultKeys = day.series.filter((series) => series.default).map((series) => series.key);
   const defaultVisible = Object.fromEntries(day.series.map((series) => [series.label, defaultKeys.length ? defaultKeys.includes(series.key) : true]));
-  const fanEventAxisMax = Math.max(1, day.samples.length - 1);
+  const chartSamples: DayChartSample[] = day.samples
+    .map((sample) => ({ sample, minute: minuteFromTime(sample.time) }))
+    .filter((item): item is DayChartSample => item.minute !== null)
+    .sort((left, right) => left.minute - right.minute);
   const fanMarkLines = day.fanEvents
     .map((event) => ({
       name: `${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`,
-      xAxis: Math.max(0, Math.min(fanEventAxisMax, Math.round((event.x / 1000) * fanEventAxisMax))),
+      xAxis: minuteFromEventX(event.x),
       lineStyle: {
         color: event.color,
-        opacity: event.class === "on" ? 0.68 : 0.34,
-        type: event.class === "on" ? "solid" : "dashed",
-        width: event.class === "on" ? 1.5 : 1,
+        opacity: event.class === "on" ? 0.58 : 0.42,
+        type: "dashed",
+        width: 1.2,
       },
       label: {
         show: false,
@@ -195,20 +254,27 @@ function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; 
     .sort((left, right) => Number(left.xAxis) - Number(right.xAxis));
 
   const option = {
-    tooltip: { trigger: "axis" },
+    tooltip: { trigger: "axis", formatter: formatDayChartTooltip },
     legend: {
       top: 0,
       data: day.series.map((series) => series.label),
       selected: defaultVisible,
     },
     grid: { top: 42, left: 44, right: 20, bottom: 36 },
-    xAxis: { type: "category", data: day.samples.map((sample) => String(sample.time ?? "")), axisLabel: { hideOverlap: true } },
+    xAxis: {
+      type: "value",
+      min: 0,
+      max: 1440,
+      interval: 120,
+      axisLabel: { formatter: minuteLabel },
+      axisPointer: { label: { formatter: (params: { value?: number | string }) => minuteLabel(params.value) } },
+    },
     yAxis: { type: "value", name: "C" },
     series: [
       ...day.series.map((series) => ({
         name: series.label,
         type: "line",
-        data: day.samples.map((sample) => (typeof sample[series.key] === "number" ? sample[series.key] : null)),
+        data: chartSamples.map(({ sample, minute }) => [minute, typeof sample[series.key] === "number" ? sample[series.key] : null]),
         smooth: true,
         connectNulls: false,
         showSymbol: false,
@@ -218,7 +284,7 @@ function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; 
       {
         name: "__fan_events",
         type: "line",
-        data: day.samples.map(() => null),
+        data: chartSamples.map(({ minute }) => [minute, null]),
         silent: false,
         tooltip: { show: false },
         symbol: "none",
@@ -266,12 +332,17 @@ function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; 
               <span>{fan.short || fan.name}</span>
               <div className="vent-fan-track">
                 {events.map((event, index) => (
-                  <i
-                    className={`vent-fan-event ${event.class}`}
-                    key={`${fan.key}-${event.time}-${index}`}
-                    style={{ left: `${event.x / 10}%`, backgroundColor: event.color }}
-                    title={`${event.time} ${event.fan_short} ${event.action} ${event.detail}`}
-                  />
+                  <Tooltip key={`${fan.key}-${event.time}-${index}`} title={`${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`}>
+                    <i
+                      className={`vent-fan-event ${event.class}`}
+                      style={{
+                        left: `${event.x / 10}%`,
+                        backgroundColor: event.class === "on" ? event.color : "#ffffff",
+                        borderColor: event.color,
+                      }}
+                      aria-label={`${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`}
+                    />
+                  </Tooltip>
                 ))}
               </div>
             </div>

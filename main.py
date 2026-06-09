@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1074")
+APP_BUILD = os.getenv("APP_BUILD", "1075")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1075",
+        "date": "09.06.2026",
+        "title": "Rydder viftehendelser i dagslogg",
+        "changes": [
+            "Legger Ventilasjon > Dagslogg over paa minuttskala slik at vertikale viftelinjer matcher punktene under diagrammet.",
+            "Gjor alle vertikale viftelinjer stiplet og uten etiketter i selve diagrammet.",
+            "Legger tydeligere start/stopp-markering og mouseover paa viftehendelsene under diagrammet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1074",
