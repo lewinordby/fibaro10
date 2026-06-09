@@ -5845,6 +5845,24 @@ def sun2_apply_tempo(actual: float, expected: float, minimum: float = 0.62, maxi
     return max(minimum, min(maximum, actual / expected))
 
 
+def parking_apply_period_tempo(actual: float, expected: float, progress: float) -> float:
+    if expected <= 0:
+        return 1.0
+    progress = max(0.0, min(1.0, progress))
+    observed = float_or_zero(actual) / expected
+    confidence = 0.12 + 0.78 * (progress ** 0.85)
+    blended = 1.0 + (observed - 1.0) * confidence
+    if progress < 0.18:
+        minimum, maximum = 0.82, 1.25
+    elif progress < 0.42:
+        minimum, maximum = 0.70, 1.40
+    elif progress < 0.72:
+        minimum, maximum = 0.58, 1.58
+    else:
+        minimum, maximum = 0.45, 1.78
+    return max(minimum, min(maximum, blended))
+
+
 def opening_day_fraction(minute_of_day: int, opening_minute: int = 7 * 60, closing_minute: int = 23 * 60, power: float = 0.92) -> float:
     if minute_of_day <= opening_minute:
         return 0.0
@@ -6002,7 +6020,7 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
     actual_sessions = float_or_zero(actual_today.get("sessions"))
     actual_paid = float_or_zero(actual_today.get("paid"))
     actual_minutes = float_or_zero(actual_today.get("minutes"))
-    day_sessions, session_tempo = intraday_forecast_value(
+    day_sessions, _ = intraday_forecast_value(
         actual_sessions,
         model_today["sessions"],
         day_fraction,
@@ -6211,9 +6229,30 @@ async def build_parking_forecast(session, today: date, now_local: datetime) -> D
         opening_minute,
         minimum_expected_now=4.0,
     )
-    day_paid = max(actual_paid, float_or_zero(model_today.get("paid")) * session_tempo)
-    day_minutes = max(actual_minutes, float_or_zero(model_today.get("minutes")) * session_tempo)
-    day_vehicles = max(actual_vehicles, float_or_zero(model_today.get("vehicles")) * session_tempo)
+    day_paid, _ = intraday_forecast_value(
+        actual_paid,
+        model_today["paid"],
+        day_fraction,
+        minute_of_day,
+        opening_minute,
+        minimum_expected_now=80.0,
+    )
+    day_minutes, _ = intraday_forecast_value(
+        actual_minutes,
+        model_today["minutes"],
+        day_fraction,
+        minute_of_day,
+        opening_minute,
+        minimum_expected_now=60.0,
+    )
+    day_vehicles, _ = intraday_forecast_value(
+        actual_vehicles,
+        model_today["vehicles"],
+        day_fraction,
+        minute_of_day,
+        opening_minute,
+        minimum_expected_now=3.0,
+    )
 
     def forecast_period(start: date, end: date, label: str) -> Dict[str, Any]:
         actual_end = min(today, end)
@@ -6240,10 +6279,15 @@ async def build_parking_forecast(session, today: date, now_local: datetime) -> D
                 remaining_base["minutes"] += model["minutes"]
                 remaining_base["vehicles"] += model["vehicles"]
                 future_days.append(model)
-        tempo_sessions = sun2_apply_tempo(actual["sessions"], expected_so_far["sessions"])
-        tempo_paid = sun2_apply_tempo(actual["paid"], expected_so_far["paid"])
-        tempo_minutes = sun2_apply_tempo(actual["minutes"], expected_so_far["minutes"])
-        tempo_vehicles = sun2_apply_tempo(actual["vehicles"], expected_so_far["vehicles"])
+
+        def model_progress(metric: str) -> float:
+            total = expected_so_far[metric] + remaining_base[metric]
+            return expected_so_far[metric] / total if total > 0 else 1.0
+
+        tempo_sessions = parking_apply_period_tempo(actual["sessions"], expected_so_far["sessions"], model_progress("sessions"))
+        tempo_paid = parking_apply_period_tempo(actual["paid"], expected_so_far["paid"], model_progress("paid"))
+        tempo_minutes = parking_apply_period_tempo(actual["minutes"], expected_so_far["minutes"], model_progress("minutes"))
+        tempo_vehicles = parking_apply_period_tempo(actual["vehicles"], expected_so_far["vehicles"], model_progress("vehicles"))
         if start <= today <= end:
             actual["sessions"] = max(actual["sessions"], actual_sessions)
             actual["paid"] = max(actual["paid"], actual_paid)
@@ -6434,6 +6478,31 @@ async def save_forecast_snapshots(session, domain: str, forecast: Dict[str, Any]
     )
 
 
+async def save_parking_forecast_after_import(session, created_by: str = "EasyPark import") -> Dict[str, Any]:
+    clear_summary_cache("parking")
+    now_local = datetime.now(LOCAL_TZ)
+    forecast = await build_parking_forecast(session, now_local.date(), now_local)
+    await save_forecast_snapshots(session, "parking", forecast, created_by)
+    day_forecast = (forecast.get("day") or {}).get("forecast") or {}
+    month_forecast = (forecast.get("month") or {}).get("forecast") or {}
+    year_forecast = (forecast.get("year") or {}).get("forecast") or {}
+    return {
+        "generated_at": api_local_iso(forecast.get("generated_at")),
+        "day": {
+            "sessions": round(float_or_zero(day_forecast.get("sessions")), 1),
+            "paid": round(float_or_zero(day_forecast.get("paid")), 2),
+        },
+        "month": {
+            "sessions": round(float_or_zero(month_forecast.get("sessions")), 1),
+            "paid": round(float_or_zero(month_forecast.get("paid")), 2),
+        },
+        "year": {
+            "sessions": round(float_or_zero(year_forecast.get("sessions")), 1),
+            "paid": round(float_or_zero(year_forecast.get("paid")), 2),
+        },
+    }
+
+
 async def saved_forecast_table(session, domain: str, limit: int = 18) -> list[Dict[str, Any]]:
     rows = (
         await session.execute(
@@ -6471,6 +6540,78 @@ async def saved_forecast_table(session, domain: str, limit: int = 18) -> list[Di
             }
         )
     return items
+
+
+async def forecast_snapshot_history(session, domain: str, limit: int = 180) -> list[ForecastSnapshot]:
+    return (
+        await session.execute(
+            select(ForecastSnapshot)
+            .where(ForecastSnapshot.domain == domain)
+            .order_by(ForecastSnapshot.created_at.desc(), ForecastSnapshot.id.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+
+
+def forecast_snapshot_stamp(row: ForecastSnapshot) -> Optional[datetime]:
+    return row.generated_at or row.created_at
+
+
+def forecast_chart_time_label(value: Optional[datetime]) -> str:
+    if not value:
+        return "-"
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=ZoneInfo("UTC"))
+    return value.astimezone(LOCAL_TZ).strftime("%d.%m %H:%M")
+
+
+def api_parking_forecast_evolution_chart(rows: list[ForecastSnapshot]) -> Optional[Dict[str, Any]]:
+    if not rows:
+        return None
+    ordered = sorted(rows, key=lambda row: (forecast_snapshot_stamp(row) or datetime.min, row.id or 0))
+    groups: Dict[str, Dict[str, Any]] = {}
+    for row in ordered:
+        stamp_value = forecast_snapshot_stamp(row)
+        key = stamp_value.isoformat() if stamp_value else str(row.id)
+        group = groups.setdefault(key, {"stamp": stamp_value, "rows": {}})
+        group["rows"][row.period_type] = row
+
+    period_labels = {"day": "Dag", "month": "Måned", "year": "År"}
+    period_colors = {"day": "#4e8793", "month": "#d59a18", "year": "#071943"}
+    group_items = list(groups.values())
+    x_values = [forecast_chart_time_label(item["stamp"]) for item in group_items]
+
+    def series_for(field: str, unit: str) -> list[Dict[str, Any]]:
+        series = []
+        for period_type in ("day", "month", "year"):
+            values = []
+            for item in group_items:
+                row = item["rows"].get(period_type)
+                values.append(round(float_or_zero(getattr(row, field, None)), 2) if row else None)
+            series.append(
+                {
+                    "name": period_labels[period_type],
+                    "data": values,
+                    "color": period_colors[period_type],
+                    "unit": unit,
+                }
+            )
+        return series
+
+    revenue_series = series_for("forecast_paid", "kr")
+    return api_chart(
+        "Prognoseutvikling parkering",
+        x_values,
+        revenue_series,
+        "Lagrede prognoser over tid. Nytt punkt lagres etter hver EasyPark-import.",
+        "line",
+        340,
+        metrics=[
+            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": revenue_series},
+            {"key": "count", "label": "Antall", "unit": "stk", "series": series_for("forecast_sessions", "stk")},
+        ],
+        default_metric="revenue",
+    )
 
 
 templates.env.filters["short_number"] = format_short_number
@@ -12691,20 +12832,25 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
             elif view == "prognose":
                 parking_forecast = await build_parking_forecast(session, today, datetime.now(LOCAL_TZ))
                 saved_forecasts = await saved_forecast_table(session, "parking")
+                forecast_history_rows = await forecast_snapshot_history(session, "parking", 180)
                 forecast_table_rows = api_parking_forecast_rows(parking_forecast)
-                charts = [
+                charts = []
+                evolution_chart = api_parking_forecast_evolution_chart(forecast_history_rows)
+                if evolution_chart:
+                    charts.append(evolution_chart)
+                charts.append(
                     api_chart(
-                        "Parkeringsprognose mot faktisk",
+                        "Nåværende prognose mot faktisk",
                         [row["period"] for row in forecast_table_rows],
                         [
                             {"name": "Faktisk parkeringer", "data": [row["actual_parkeringer"] for row in forecast_table_rows], "type": "bar"},
                             {"name": "Prognose parkeringer", "data": [row["forecast_parkeringer"] for row in forecast_table_rows], "type": "bar"},
                         ],
-                        "Nåverdi og beregnet sluttverdi for parkering.",
+                        "Siste beregning for dag, måned og år.",
                         "bar",
                         300,
                     )
-                ]
+                )
                 cards = [
                     api_card("Dagsprognose", forecast_table_rows[0]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[0]['forecast_paid'])} kr", "parking"),
                     api_card("Månedsprognose", forecast_table_rows[1]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[1]['forecast_paid'])} kr", "revenue"),
@@ -14696,10 +14842,17 @@ async def parking_easypark_import_csv(request: Request):
         async with async_session() as session:
             counts = await ingest_easypark_csv(session, content, filename)
             vehicle_count = await refresh_parking_vehicle_summary(session)
+            forecast_raw: Dict[str, Any] = {"saved": False}
+            try:
+                forecast_raw = {"saved": True, **await save_parking_forecast_after_import(session)}
+            except Exception as forecast_exc:
+                forecast_raw = {"saved": False, "error": str(forecast_exc)}
             message = (
                 f"{counts['inserted']} nye, {counts['updated']} oppdatert, {counts['unchanged']} uendret, "
                 f"{counts['skipped']} hoppet over fra {filename}"
             )
+            if forecast_raw.get("saved"):
+                message += ", prognose lagret"
             await record_import_job(
                 session,
                 "easypark_parking_import",
@@ -14713,13 +14866,14 @@ async def parking_easypark_import_csv(request: Request):
                     "filename": filename,
                     "counts": import_counts_for_json(counts),
                     "vehicles_refreshed": vehicle_count,
+                    "forecast": forecast_raw,
                 },
             )
             await session.commit()
         clear_summary_cache("parking")
         if SVV_IMPORT_SYNC_BATCH_SIZE and SVV_API_KEY and SVV_SYNC_ENABLED:
             asyncio.create_task(run_vehicle_svv_sync(SVV_IMPORT_SYNC_BATCH_SIZE, "EasyPark import"))
-        return {"status": "ok", **counts, "vehicles_refreshed": vehicle_count}
+        return {"status": "ok", **counts, "vehicles_refreshed": vehicle_count, "forecast": forecast_raw}
     except Exception as exc:
         async with async_session() as session:
             await record_import_job(
