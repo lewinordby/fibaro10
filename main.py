@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1059")
+APP_BUILD = os.getenv("APP_BUILD", "1060")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1060",
+        "date": "09.06.2026",
+        "title": "Legger V1 ved siden av V2",
+        "changes": [
+            "Legger inn stabil /v1-inngang til gammelt brukergrensesnitt.",
+            "Legger V1-knapp i desktop v2-headeren for manuell sammenligning i ny fane.",
+            "Merker Klassisk-fanen tydelig som V1 for gjennomgang av manglende funksjoner.",
+        ],
+    },
     {
         "version": "1",
         "build": "1059",
@@ -9888,6 +9899,20 @@ async def update_settings(request: Request, config_key: str):
 @app.get("/")
 async def root_redirect(request: Request):
     return redirect_keep_query(request, "/v2", status_code=303)
+
+
+@app.get("/v1")
+async def v1_redirect(request: Request):
+    return redirect_keep_query(request, "/status/dashboard", status_code=303)
+
+
+@app.get("/v1/{path:path}")
+async def v1_path_redirect(request: Request, path: str):
+    clean_path = (path or "").strip("/")
+    target = f"/{clean_path}" if clean_path else "/status/dashboard"
+    if target.startswith("/v2"):
+        target = "/status/dashboard"
+    return redirect_keep_query(request, target, status_code=303)
 
 
 @app.get("/v2", response_class=HTMLResponse)

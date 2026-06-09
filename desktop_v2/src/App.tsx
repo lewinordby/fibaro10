@@ -34,7 +34,7 @@ const menuItems: MenuProps["items"] = [
   { key: modulePath("lys"), icon: <BulbOutlined />, label: "Lys" },
   { key: modulePath("renhold"), icon: <ToolOutlined />, label: "Renhold" },
   { key: modulePath("admin"), icon: <SettingOutlined />, label: "Admin" },
-  { key: "/klassisk", icon: <ToolOutlined />, label: "Klassisk" },
+  { key: "/klassisk", icon: <ToolOutlined />, label: "V1" },
 ];
 
 function selectedKey(pathname: string): string {
@@ -83,6 +83,9 @@ export default function App() {
             </Typography.Title>
           </Space>
           <Space>
+            <Button href="/v1" target="_blank" rel="noreferrer">
+              Åpne V1
+            </Button>
             <Button icon={<AlertOutlined />} onClick={() => navigate("/drift")}>
               Datakilder
             </Button>

@@ -113,14 +113,17 @@ export default function LegacyPage() {
     <Space direction="vertical" size={14} className="page-stack legacy-page">
       <section className="section-head module-head">
         <div>
-          <Typography.Text className="eyebrow">Klassisk UI</Typography.Text>
-          <Typography.Title level={1}>{selectedItem?.label ?? "Klassisk side"}</Typography.Title>
-          <Typography.Paragraph>{selectedItem?.group ?? "Gammel funksjonsflate i samme innlogging."}</Typography.Paragraph>
+          <Typography.Text className="eyebrow">V1 klassisk UI</Typography.Text>
+          <Typography.Title level={1}>{selectedItem?.label ?? "V1 side"}</Typography.Title>
+          <Typography.Paragraph>{selectedItem?.group ?? "Gammelt grensesnitt i samme innlogging."}</Typography.Paragraph>
         </div>
         <Space>
           <Select className="legacy-select" value={selectedPath} options={options} onChange={setPath} />
+          <Button href="/v1" target="_blank" rel="noreferrer">
+            Åpne V1 i ny fane
+          </Button>
           <Button href={selectedPath} target="_blank" rel="noreferrer">
-            Åpne i ny fane
+            Åpne valgt side
           </Button>
         </Space>
       </section>
