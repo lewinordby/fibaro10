@@ -65,6 +65,7 @@
         .vehicle-title { display:block; color:#66758a; font-size:.75rem; font-weight:780; line-height:1.22; }
         .vehicle-meta { margin-top:.12rem; color:#6f7b91; font-size:.7rem; font-weight:720; line-height:1.25; }
         .vehicle-meta span { display:block; }
+        .owner-warning { display:inline-flex; margin-top:.18rem; border:1px solid #efd392; background:#fff8e6; color:#805b12; border-radius:7px; padding:.16rem .38rem; font-size:.68rem; font-weight:820; line-height:1.25; }
         .source-cell { color:#5f6d82; white-space:nowrap; font-size:.77rem; }
         .count-link { display:inline-flex; align-items:center; justify-content:center; min-width:1.82rem; min-height:1.48rem; border-radius:999px; border:1px solid #e1e8f1; background:#fff; color:var(--brand-dark); text-decoration:none; font-size:.68rem; font-weight:820; }
         .count-link:hover { border-color:var(--page-accent); background:#f7fcfd; }
@@ -197,6 +198,9 @@
                                     <div class="vehicle-meta">
                                         <span>{{ [item.vehicle_name, item.vehicle_area]|select|join(", ") }}</span>
                                     </div>
+                                    {% endif %}
+                                    {% if item.owner_warning %}
+                                    <div><span class="owner-warning">{{ item.owner_warning.text }}</span></div>
                                     {% endif %}
                                 </div>
                             </div>

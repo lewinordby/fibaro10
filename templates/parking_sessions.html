@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parkeringer</title>
     {% include "_styles.html" %}
+    <style>
+        .owner-warning { display:inline-flex; margin-top:.18rem; border:1px solid #efd392; background:#fff8e6; color:#805b12; border-radius:7px; padding:.16rem .38rem; font-size:.72rem; font-weight:820; line-height:1.25; }
+    </style>
 </head>
 <body class="theme-parking">
     {% include "_header.html" %}
@@ -47,6 +50,9 @@
                                 {{ details.merke if details else "Ukjent" }} {{ details.modell if details else "" }}
                                 {% if vehicle and (vehicle.navn or vehicle.omrade) %}
                                 <br><span class="vehicle-note">{{ [vehicle.navn, vehicle.omrade]|select|join(", ") }}</span>
+                                {% endif %}
+                                {% if item.owner_warning %}
+                                <br><span class="owner-warning">{{ item.owner_warning.text }}</span>
                                 {% endif %}
                                 {% if item.year or (details and details.farge) %}
                                 <br><span class="vehicle-note">

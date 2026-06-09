@@ -12326,7 +12326,8 @@ def api_pick(row: Any, columns: list[str]) -> Dict[str, Any]:
     return row_to_dict(row, columns)
 
 
-def parking_row_api(row: ParkingSession) -> Dict[str, Any]:
+def parking_row_api(row: ParkingSession, vehicle: Optional[ParkingVehicle] = None) -> Dict[str, Any]:
+    owner_warning = parking_current_ownership_warning(vehicle, row.start_time)
     return {
         "id": row.id,
         "start_time": row.start_time.isoformat() if row.start_time else None,
@@ -12334,6 +12335,7 @@ def parking_row_api(row: ParkingSession) -> Dict[str, Any]:
         "parking_time_min": row.parking_time_min,
         "fee_inc_vat": row.fee_inc_vat,
         "car_license_number": row.car_license_number,
+        "owner_warning": owner_warning["text"] if owner_warning else "",
         "parking_area": row.parking_area,
         "status": row.status,
     }
@@ -12393,11 +12395,15 @@ async def api_v2_module(module: str, view: Optional[str] = None):
     async with async_session() as session:
         if module == "parkering":
             parking_summaries = await get_parking_summaries(session)
+            normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
             latest_rows = (
                 await session.execute(
-                    select(ParkingSession).order_by(ParkingSession.start_time.desc()).limit(120)
+                    select(ParkingSession, ParkingVehicle)
+                    .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                    .order_by(ParkingSession.start_time.desc())
+                    .limit(120)
                 )
-            ).scalars().all()
+            ).all()
             today_summary = await parking_period_summary(session, "I dag", today_start, tomorrow_start)
             month_summary = await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start)
             active = (
@@ -12457,8 +12463,8 @@ async def api_v2_module(module: str, view: Optional[str] = None):
             tables = [
                 api_table(
                     "Siste parkeringer",
-                    ["start_time", "car_license_number", "fee_inc_vat", "parking_time_min", "status", "parking_area"],
-                    [parking_row_api(row) for row in latest_rows],
+                    ["start_time", "car_license_number", "owner_warning", "fee_inc_vat", "parking_time_min", "status", "parking_area"],
+                    [parking_row_api(row, vehicle) for row, vehicle in latest_rows],
                 )
             ]
             if view == "kjoretoy":
@@ -14068,11 +14074,38 @@ def parse_date_value(value: Any) -> Optional[date]:
         return None
 
 
+def parse_svv_datetime_value(value: Any) -> Optional[datetime]:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return normalize_local_naive(value)
+    if isinstance(value, date):
+        return datetime.combine(value, time.min)
+    try:
+        parsed = dtparser.parse(str(value))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return normalize_local_naive(parsed)
+
+
 def first_vehicle_data(raw: Dict[str, Any]) -> Dict[str, Any]:
     vehicles = raw.get("kjoretoydataListe")
     if isinstance(vehicles, list) and vehicles:
         return vehicles[0] if isinstance(vehicles[0], dict) else {}
     return raw if isinstance(raw, dict) else {}
+
+
+def svv_current_ownership_at(raw: Optional[Dict[str, Any]]) -> Optional[datetime]:
+    if not raw:
+        return None
+    vehicle = first_vehicle_data(raw)
+    return parse_svv_datetime_value(
+        first_value(
+            data_path(vehicle, "registrering", "registrertForstegangPaEierskap"),
+            data_path(vehicle, "registrering", "registrertForstegangPaaEierskap"),
+            data_path(vehicle, "registrering", "registrertForstegangPåEierskap"),
+        )
+    )
 
 
 def svv_detail_values(plate: str, raw: Dict[str, Any]) -> Dict[str, Any]:
@@ -14458,6 +14491,23 @@ def parking_day_time_label(value: Optional[datetime], selected_day: date) -> str
     return f"{value.strftime('%H:%M')}{suffix}"
 
 
+def parking_current_ownership_warning(
+    vehicle: Optional[ParkingVehicle],
+    observed_at: Optional[datetime],
+) -> Optional[Dict[str, Any]]:
+    ownership_at = svv_current_ownership_at(vehicle.svv_data if vehicle else None)
+    observed_at = normalize_local_naive(observed_at)
+    if not ownership_at or not observed_at or observed_at >= ownership_at:
+        return None
+    return {
+        "ownership_at": ownership_at,
+        "text": (
+            f"OBS: Parkeringen er før nåværende eierskap i SVV "
+            f"({ownership_at.strftime('%d.%m.%Y')}). Navn/område kan gjelde ny eier."
+        ),
+    }
+
+
 def parking_row_context(
     row: ParkingSession,
     vehicle: Optional[ParkingVehicle] = None,
@@ -14478,6 +14528,7 @@ def parking_row_context(
         "duration_minutes": parking_duration_minutes(row, now),
         "start_label": parking_day_time_label(row.start_time, selected_day),
         "end_label": parking_day_time_label(row.end_time, selected_day),
+        "owner_warning": parking_current_ownership_warning(vehicle, row.start_time),
     }
 
 
@@ -14871,6 +14922,7 @@ async def parking_sessions_view(
                     "year": parking_vehicle_year(details),
                     "early_minutes": parking_slot_remainder_minutes(row),
                     "plate": normalize_plate(row.car_license_number),
+                    "owner_warning": parking_current_ownership_warning(vehicle, row.start_time),
                 }
                 for row, vehicle, details in result_rows
             ],
@@ -15241,6 +15293,7 @@ async def parking_vehicle_detail_view(request: Request, plate: str, saved: Optio
             )
         ).scalars().all()
 
+    current_ownership_at = svv_current_ownership_at(vehicle.svv_data)
     detail_rows = []
     if details:
         detail_rows = [
@@ -15251,6 +15304,7 @@ async def parking_vehicle_detail_view(request: Request, plate: str, saved: Optio
             ("Farge", details.farge),
             ("Kjøretøyklasse", details.kjoretoyklasse_navn),
             ("Registreringsstatus", details.registreringsstatus_tekst),
+            ("Nåværende eierskap fra", current_ownership_at),
             ("Førstegangsregistrert Norge", details.forstegangsregistrert_norge),
             ("PKK kontrollfrist", details.pkk_kontrollfrist),
             ("Egenvekt", f"{details.egenvekt_kg} kg" if details.egenvekt_kg is not None else None),
@@ -15289,10 +15343,12 @@ async def parking_vehicle_detail_view(request: Request, plate: str, saved: Optio
                 {
                     "session": row,
                     "early_minutes": parking_slot_remainder_minutes(row),
+                    "owner_warning": parking_current_ownership_warning(vehicle, row.start_time),
                 }
                 for row in recent_sessions_result
             ],
             "detail_rows": detail_rows,
+            "ownership_warning": parking_current_ownership_warning(vehicle, stats[3]),
             "saved": saved == "1",
         },
     )
