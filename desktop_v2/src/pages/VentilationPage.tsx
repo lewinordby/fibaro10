@@ -1,5 +1,5 @@
 import ReactECharts from "echarts-for-react";
-import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Space, Table, Tabs, Tag, Typography } from "antd";
+import { App as AntApp, Button, Card, Form, Input, InputNumber, Space, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -176,29 +176,66 @@ function Snapshot({ ventilation }: { ventilation: VentilationData }) {
 function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; onDayChange: (day: string) => void }) {
   const day = ventilation.day;
   const defaultKeys = day.series.filter((series) => series.default).map((series) => series.key);
-  const [selected, setSelected] = useState<string[]>(defaultKeys);
+  const defaultVisible = Object.fromEntries(day.series.map((series) => [series.label, defaultKeys.length ? defaultKeys.includes(series.key) : true]));
+  const fanEventAxisMax = Math.max(1, day.samples.length - 1);
+  const fanMarkLines = day.fanEvents
+    .map((event) => ({
+      name: `${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`,
+      xAxis: Math.max(0, Math.min(fanEventAxisMax, Math.round((event.x / 1000) * fanEventAxisMax))),
+      lineStyle: {
+        color: event.color,
+        opacity: event.class === "on" ? 0.68 : 0.34,
+        type: event.class === "on" ? "solid" : "dashed",
+        width: event.class === "on" ? 1.5 : 1,
+      },
+      label: {
+        show: false,
+      },
+    }))
+    .sort((left, right) => Number(left.xAxis) - Number(right.xAxis));
 
-  useEffect(() => {
-    setSelected(defaultKeys);
-  }, [day.selectedDay]);
-
-  const activeSeries = day.series.filter((series) => selected.includes(series.key));
   const option = {
     tooltip: { trigger: "axis" },
-    legend: { top: 0 },
-    grid: { top: 42, left: 44, right: 20, bottom: 32 },
+    legend: {
+      top: 0,
+      data: day.series.map((series) => series.label),
+      selected: defaultVisible,
+    },
+    grid: { top: 42, left: 44, right: 20, bottom: 36 },
     xAxis: { type: "category", data: day.samples.map((sample) => String(sample.time ?? "")), axisLabel: { hideOverlap: true } },
     yAxis: { type: "value", name: "C" },
-    series: activeSeries.map((series) => ({
-      name: series.label,
-      type: "line",
-      data: day.samples.map((sample) => (typeof sample[series.key] === "number" ? sample[series.key] : null)),
-      smooth: true,
-      connectNulls: false,
-      showSymbol: false,
-      lineStyle: { width: 2, color: series.color },
-      itemStyle: { color: series.color },
-    })),
+    series: [
+      ...day.series.map((series) => ({
+        name: series.label,
+        type: "line",
+        data: day.samples.map((sample) => (typeof sample[series.key] === "number" ? sample[series.key] : null)),
+        smooth: true,
+        connectNulls: false,
+        showSymbol: false,
+        lineStyle: { width: 2, color: series.color },
+        itemStyle: { color: series.color },
+      })),
+      {
+        name: "__fan_events",
+        type: "line",
+        data: day.samples.map(() => null),
+        silent: false,
+        tooltip: { show: false },
+        symbol: "none",
+        lineStyle: { opacity: 0 },
+        markLine: {
+          animation: false,
+          silent: false,
+          symbol: ["none", "none"],
+          label: { show: false },
+          tooltip: {
+            show: true,
+            formatter: (params: { name?: string }) => params.name || "Viftehendelse",
+          },
+          data: fanMarkLines,
+        },
+      },
+    ],
   };
 
   return (
@@ -220,14 +257,7 @@ function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; 
           <Input className="vent-date-input" type="date" value={day.selectedDay} onChange={(event) => onDayChange(event.target.value)} />
         </Space>
       </div>
-      <div className="vent-series-row">
-        <Checkbox.Group
-          value={selected}
-          options={day.series.map((series) => ({ label: series.label, value: series.key }))}
-          onChange={(values) => setSelected(values.map(String))}
-        />
-      </div>
-      <ReactECharts option={option} style={{ height: 360 }} />
+      <ReactECharts key={day.selectedDay} option={option} style={{ height: 360 }} />
       <div className="vent-fan-lanes">
         {day.fans.map((fan) => {
           const events = day.fanEvents.filter((event) => event.fan_key === fan.key);

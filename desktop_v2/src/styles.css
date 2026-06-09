@@ -1117,21 +1117,6 @@ a {
   width: 150px;
 }
 
-.vent-series-row {
-  padding: 8px 10px;
-  margin-bottom: 4px;
-  background: #f8fafc;
-  border: 1px solid #eef2f7;
-  border-radius: 6px;
-}
-
-.vent-series-row .ant-checkbox-wrapper {
-  margin-inline-start: 0;
-  margin-inline-end: 12px;
-  color: #374151;
-  font-size: 12px;
-}
-
 .vent-fan-lanes {
   display: grid;
   gap: 7px;
