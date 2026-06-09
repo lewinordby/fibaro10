@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1069")
+APP_BUILD = os.getenv("APP_BUILD", "1070")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1070",
+        "date": "09.06.2026",
+        "title": "Retter solingprognose i audit",
+        "changes": [
+            "Retter en feil der solingprognosen brukte intradag-tempo fÃ¸r variabelen var definert.",
+            "Gjenoppretter V2-visningen Soling > Prognose slik at den returnerer prognosekort, graf og lagrede prognoser.",
+            "Legger feilen inn i buildloggen som del av systemgjennomgangen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1069",
@@ -6023,7 +6034,7 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
     actual_sessions = float_or_zero(actual_today.get("sessions"))
     actual_paid = float_or_zero(actual_today.get("paid"))
     actual_minutes = float_or_zero(actual_today.get("minutes"))
-    day_sessions, _ = intraday_forecast_value(
+    day_sessions, session_tempo = intraday_forecast_value(
         actual_sessions,
         model_today["sessions"],
         day_fraction,
