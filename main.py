@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1063")
+APP_BUILD = os.getenv("APP_BUILD", "1064")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1064",
+        "date": "09.06.2026",
+        "title": "Samler statusmenyen i V2",
+        "changes": [
+            "Samler Oversikt, Omsetning og Drift under hovedpunktet Status.",
+            "Gir Status samme faste undersidemeny i topplinjen som de andre hovedområdene.",
+            "Setter ny standardinngang til Status > Oversikt i V2.",
+        ],
+    },
     {
         "version": "1",
         "build": "1063",
@@ -1105,10 +1116,10 @@ def legacy_ui_target(path: str) -> Optional[str]:
     if path.endswith("/json") or path.endswith("/download") or path == "/download":
         return None
     exact_redirects = {
-        "/status/dashboard": "/v2/oversikt",
-        "/status/nokkeltall": "/v2/oversikt",
-        "/status/omsetning": "/v2/omsetning",
-        "/status/datakilder": "/v2/drift",
+        "/status/dashboard": "/v2/status/oversikt",
+        "/status/nokkeltall": "/v2/status/oversikt",
+        "/status/omsetning": "/v2/status/omsetning",
+        "/status/datakilder": "/v2/status/drift",
         "/parkering/oversikt": "/v2/parkering/oversikt",
         "/parkering/prognose": "/v2/parkering/prognose",
         "/parkering/parkeringer": "/v2/parkering/parkeringer",
@@ -1143,9 +1154,9 @@ def legacy_ui_target(path: str) -> Optional[str]:
     if path in exact_redirects:
         return exact_redirects[path]
     redirects = [
-        ("/status/omsetning", "/v2/omsetning"),
-        ("/status/datakilder", "/v2/drift"),
-        ("/status", "/v2/oversikt"),
+        ("/status/omsetning", "/v2/status/omsetning"),
+        ("/status/datakilder", "/v2/status/drift"),
+        ("/status", "/v2/status/oversikt"),
         ("/parkering", "/v2/parkering/oversikt"),
         ("/soling", "/v2/soling/oversikt"),
         ("/energi", "/v2/energi/status"),

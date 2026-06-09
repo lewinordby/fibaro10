@@ -4,6 +4,7 @@ export type ModuleView = {
 };
 
 export const MODULE_LABELS: Record<string, string> = {
+  status: "Status",
   parkering: "Parkering",
   soling: "Soling",
   energi: "Energi",
@@ -14,6 +15,11 @@ export const MODULE_LABELS: Record<string, string> = {
 };
 
 export const MODULE_VIEWS: Record<string, ModuleView[]> = {
+  status: [
+    { key: "oversikt", label: "Oversikt" },
+    { key: "omsetning", label: "Omsetning" },
+    { key: "drift", label: "Drift" },
+  ],
   parkering: [
     { key: "oversikt", label: "Oversikt" },
     { key: "prognose", label: "Prognose" },

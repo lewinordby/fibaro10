@@ -1,10 +1,8 @@
 import {
-  AreaChartOutlined,
   BulbOutlined,
   CalendarOutlined,
   CarOutlined,
   DashboardOutlined,
-  DatabaseOutlined,
   ExperimentOutlined,
   SettingOutlined,
   ToolOutlined,
@@ -22,9 +20,7 @@ import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
 const { Header, Sider, Content } = Layout;
 
 const menuItems: MenuProps["items"] = [
-  { key: "/oversikt", icon: <DashboardOutlined />, label: "Oversikt" },
-  { key: "/omsetning", icon: <AreaChartOutlined />, label: "Omsetning" },
-  { key: "/drift", icon: <DatabaseOutlined />, label: "Drift" },
+  { key: modulePath("status"), icon: <DashboardOutlined />, label: "Status" },
   { key: modulePath("parkering"), icon: <CarOutlined />, label: "Parkering" },
   { key: modulePath("soling"), icon: <CalendarOutlined />, label: "Soling" },
   { key: modulePath("energi"), icon: <ThunderboltOutlined />, label: "Energi" },
@@ -35,9 +31,7 @@ const menuItems: MenuProps["items"] = [
 ];
 
 function selectedKey(pathname: string): string {
-  if (pathname === "/" || pathname.startsWith("/oversikt")) return "/oversikt";
-  if (pathname.startsWith("/omsetning")) return "/omsetning";
-  if (pathname.startsWith("/drift")) return "/drift";
+  if (pathname === "/" || pathname.startsWith("/status")) return modulePath("status");
   if (pathname.startsWith("/parkering")) return modulePath("parkering");
   if (pathname.startsWith("/soling")) return modulePath("soling");
   if (pathname.startsWith("/energi")) return modulePath("energi");
@@ -91,10 +85,11 @@ export default function App() {
         </Header>
         <Content className="app-content">
           <Routes>
-            <Route index element={<Navigate to="/oversikt" replace />} />
-            <Route path="/oversikt" element={<OverviewPage />} />
-            <Route path="/omsetning" element={<RevenueMonthPage />} />
-            <Route path="/drift" element={<OperationsPage />} />
+            <Route index element={<Navigate to={modulePath("status")} replace />} />
+            <Route path="/status" element={<Navigate to={modulePath("status")} replace />} />
+            <Route path="/status/oversikt" element={<OverviewPage />} />
+            <Route path="/status/omsetning" element={<RevenueMonthPage />} />
+            <Route path="/status/drift" element={<OperationsPage />} />
             <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
             <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
             <Route path="/soling" element={<Navigate to={modulePath("soling")} replace />} />
@@ -115,7 +110,7 @@ export default function App() {
                 <div className="empty-state">
                   <Typography.Title level={3}>Siden finnes ikke i v2 ennå</Typography.Title>
                   <Typography.Paragraph>
-                    Bruk menyen til venstre eller gå til <Link to="/oversikt">oversikten</Link>.
+                    Bruk menyen til venstre eller gå til <Link to={modulePath("status", "oversikt")}>oversikten</Link>.
                   </Typography.Paragraph>
                 </div>
               }
