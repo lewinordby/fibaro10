@@ -12604,12 +12604,7 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                             "vehicle_title",
                             "navn",
                             "omrade",
-                            "current_ownership_at",
                             "parkering_count",
-                            "paid_total",
-                            "first_seen",
-                            "last_seen",
-                            "notat",
                         ],
                         [parking_vehicle_row_api(vehicle, details) for vehicle, details in vehicle_detail_rows],
                     )
