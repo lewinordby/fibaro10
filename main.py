@@ -12371,6 +12371,24 @@ def exact_search_text(query: Optional[str]) -> Optional[str]:
     return None
 
 
+def normalized_exact_search_text(value: str) -> str:
+    return re.sub(r"[^0-9A-Za-zÆØÅæøå_]+", " ", value).strip().lower()
+
+
+def exact_word_match(column, value: str):
+    normalized_value = normalized_exact_search_text(value)
+    if not normalized_value:
+        return False
+    normalized_column = func.lower(
+        func.concat(
+            " ",
+            func.regexp_replace(func.coalesce(column, ""), r"[^[:alnum:]_]+", " ", "g"),
+            " ",
+        )
+    )
+    return normalized_column.like(f"% {normalized_value} %")
+
+
 def parking_vehicle_search_condition(query: Optional[str]):
     text_value = (query or "").strip()
     if not text_value:
@@ -12378,18 +12396,17 @@ def parking_vehicle_search_condition(query: Optional[str]):
     exact_value = exact_search_text(text_value)
     if exact_value:
         plate_value = compact_plate(exact_value)
-        exact_pattern = rf"(^|[^[:alnum:]_]){re.escape(exact_value)}([^[:alnum:]_]|$)"
         return or_(
             func.upper(func.coalesce(ParkingVehicle.plate, "")) == plate_value if plate_value else False,
-            func.coalesce(ParkingVehicle.navn, "").op("~*")(exact_pattern),
-            func.coalesce(ParkingVehicle.omrade, "").op("~*")(exact_pattern),
-            func.coalesce(ParkingVehicle.sun2_id, "").op("~*")(exact_pattern),
-            func.coalesce(ParkingVehicle.notat, "").op("~*")(exact_pattern),
-            func.coalesce(ParkingVehicleDetails.merke, "").op("~*")(exact_pattern),
-            func.coalesce(ParkingVehicleDetails.modell, "").op("~*")(exact_pattern),
-            func.coalesce(ParkingVehicleDetails.typebetegnelse, "").op("~*")(exact_pattern),
-            func.coalesce(ParkingVehicleDetails.farge, "").op("~*")(exact_pattern),
-            func.coalesce(ParkingVehicleDetails.kjoretoyklasse_navn, "").op("~*")(exact_pattern),
+            exact_word_match(ParkingVehicle.navn, exact_value),
+            exact_word_match(ParkingVehicle.omrade, exact_value),
+            exact_word_match(ParkingVehicle.sun2_id, exact_value),
+            exact_word_match(ParkingVehicle.notat, exact_value),
+            exact_word_match(ParkingVehicleDetails.merke, exact_value),
+            exact_word_match(ParkingVehicleDetails.modell, exact_value),
+            exact_word_match(ParkingVehicleDetails.typebetegnelse, exact_value),
+            exact_word_match(ParkingVehicleDetails.farge, exact_value),
+            exact_word_match(ParkingVehicleDetails.kjoretoyklasse_navn, exact_value),
         )
     like = f"%{text_value.upper()}%"
     plate_like = f"%{compact_plate(text_value)}%" if compact_plate(text_value) else like
