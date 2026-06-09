@@ -24,15 +24,39 @@ function isCombinedRevenueSource(card: MetricCardData) {
   return card.group === "Omsetning" || card.group === "Soling" || card.group === "Parkering";
 }
 
+function isOverviewSupportCard(card: MetricCardData) {
+  if (isCombinedRevenueSource(card)) return false;
+  return card.title !== "Åpning" && card.title !== "Datakilder";
+}
+
+function StatusStrip({
+  title,
+  items,
+}: {
+  title: string;
+  items: Array<{ label: string; state: boolean | null }>;
+}) {
+  return (
+    <div className="status-strip">
+      <div className="status-strip-title">{title}</div>
+      <div className="status-strip-items">
+        {items.map((item) => (
+          <div className="status-strip-item" key={item.label}>
+            <span>{item.label}</span>
+            {stateTag(item.state)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
   return (
     <Card className="status-period-card">
       <div className="status-period-head">
         <span>{period.title}</span>
-        <div>
-          <strong>{nok(period.total)} kr</strong>
-          <em>{period.totalCount} stk</em>
-        </div>
+        <strong>{nok(period.total)} kr</strong>
       </div>
       <div className="status-period-rows">
         <div>
@@ -48,7 +72,7 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
       </div>
       <div className="status-period-previous">
         <span>{period.previousLabel}</span>
-        <strong>{period.previousTotalCount} stk · {nok(period.previousTotal)} kr</strong>
+        <strong>{nok(period.previousTotal)} kr</strong>
         <em>
           Soling {period.previousSolCount} / {nok(period.previousSol)} kr · Parkering{" "}
           {period.previousParkingCount} / {nok(period.previousParking)} kr
@@ -64,7 +88,7 @@ export default function OverviewPage() {
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
-  const supportCards = data.cards.filter((card) => !isCombinedRevenueSource(card));
+  const supportCards = data.cards.filter(isOverviewSupportCard);
 
   function itemTitle(item: { href?: string; label: string }) {
     const internalPath = appPath(item.href);
@@ -88,6 +112,11 @@ export default function OverviewPage() {
         </Typography.Text>
       </div>
 
+      <div className="status-strip-stack">
+        <StatusStrip title="Lys" items={data.lightItems} />
+        <StatusStrip title="Ventilasjon" items={data.fanItems} />
+      </div>
+
       <div className="status-period-grid">
         {data.statusPeriods.map((period) => (
           <RevenuePeriodCard period={period} key={period.key} />
@@ -101,25 +130,22 @@ export default function OverviewPage() {
       </div>
 
       <Row gutter={[16, 16]}>
-        <Col span={8}>
+        <Col span={12}>
           <Card title="Siste hendelser" className="work-card">
             <List
               dataSource={data.latestItems}
               locale={{ emptyText: "Ingen hendelser å vise" }}
               renderItem={(item) => (
                 <List.Item>
-                  <List.Item.Meta
-                    title={itemTitle(item)}
-                    description={item.detail || ""}
-                  />
+                  <List.Item.Meta title={itemTitle(item)} description={item.detail || ""} />
                   <span className="list-value">{item.value}</span>
                 </List.Item>
               )}
             />
           </Card>
         </Col>
-        <Col span={8}>
-          <Card title="Datakilder" className="work-card">
+        <Col span={12}>
+          <Card title="Status datakilder" className="work-card">
             <List
               dataSource={data.services.slice(0, 7)}
               locale={{ emptyText: "Ingen datakilder å vise" }}
@@ -133,26 +159,6 @@ export default function OverviewPage() {
                 </List.Item>
               )}
             />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card title="Lys" className="work-card compact-list">
-            {data.lightItems.map((item) => (
-              <div className="state-row" key={item.label}>
-                <span>{item.label}</span>
-                {stateTag(item.state)}
-              </div>
-            ))}
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card title="Ventilasjon" className="work-card compact-list">
-            {data.fanItems.map((item) => (
-              <div className="state-row" key={item.label}>
-                <span>{item.label}</span>
-                {stateTag(item.state)}
-              </div>
-            ))}
           </Card>
         </Col>
       </Row>

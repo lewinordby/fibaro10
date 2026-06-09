@@ -203,6 +203,53 @@ a {
   justify-content: flex-end;
 }
 
+.status-strip-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 42px;
+  padding: 9px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+}
+
+.status-strip-title {
+  flex: 0 0 110px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.status-strip-items {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-width: 0;
+}
+
+.status-strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #374151;
+  font-size: 12px;
+}
+
+.status-strip-item .ant-tag {
+  margin-inline-end: 0;
+}
+
 .status-period-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -210,7 +257,7 @@ a {
 }
 
 .status-period-card {
-  min-height: 154px;
+  min-height: 142px;
   border: 1px solid var(--line);
   border-top: 3px solid var(--green);
   border-radius: 6px;
@@ -232,14 +279,6 @@ a {
   gap: 10px;
 }
 
-.status-period-head div {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  min-width: 0;
-}
-
 .status-period-head span {
   color: #374151;
   font-size: 13px;
@@ -252,13 +291,6 @@ a {
   font-weight: 780;
   line-height: 1.05;
   white-space: nowrap;
-}
-
-.status-period-head em {
-  color: var(--muted);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 650;
 }
 
 .status-period-rows {
@@ -502,21 +534,6 @@ a {
 .list-value {
   color: var(--ink);
   font-weight: 750;
-}
-
-.compact-list .ant-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.state-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: #374151;
-  font-size: 13px;
 }
 
 .status-ok {

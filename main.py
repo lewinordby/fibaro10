@@ -11425,14 +11425,11 @@ async def api_v2_overview():
             "parking": float_or_zero(today_parking.paid),
             "parkingCount": int_or_zero(today_parking.sessions),
             "total": revenue_today,
-            "totalCount": int_or_zero(today_sun.sessions) + int_or_zero(today_parking.sessions),
             "previousSol": float_or_zero(yesterday_same_time_sun.paid),
             "previousSolCount": int_or_zero(yesterday_same_time_sun.sessions),
             "previousParking": float_or_zero(yesterday_same_time_parking.paid),
             "previousParkingCount": int_or_zero(yesterday_same_time_parking.sessions),
             "previousTotal": previous_today_same_time,
-            "previousTotalCount": int_or_zero(yesterday_same_time_sun.sessions)
-            + int_or_zero(yesterday_same_time_parking.sessions),
             "previousLabel": "Samme tidspunkt i g\u00e5r",
         },
         {
@@ -11443,14 +11440,11 @@ async def api_v2_overview():
             "parking": float_or_zero(week_parking.paid),
             "parkingCount": int_or_zero(week_parking.sessions),
             "total": revenue_week,
-            "totalCount": int_or_zero(week_sun.sessions) + int_or_zero(week_parking.sessions),
             "previousSol": float_or_zero(previous_week_same_time_sun.paid),
             "previousSolCount": int_or_zero(previous_week_same_time_sun.sessions),
             "previousParking": float_or_zero(previous_week_same_time_parking.paid),
             "previousParkingCount": int_or_zero(previous_week_same_time_parking.sessions),
             "previousTotal": previous_week_same_time,
-            "previousTotalCount": int_or_zero(previous_week_same_time_sun.sessions)
-            + int_or_zero(previous_week_same_time_parking.sessions),
             "previousLabel": "Samme tidspunkt forrige uke",
         },
         {
@@ -11461,14 +11455,11 @@ async def api_v2_overview():
             "parking": float_or_zero(month_parking.paid),
             "parkingCount": int_or_zero(month_parking.sessions),
             "total": revenue_month,
-            "totalCount": int_or_zero(month_sun.sessions) + int_or_zero(month_parking.sessions),
             "previousSol": float_or_zero(previous_month_same_time_sun.paid),
             "previousSolCount": int_or_zero(previous_month_same_time_sun.sessions),
             "previousParking": float_or_zero(previous_month_same_time_parking.paid),
             "previousParkingCount": int_or_zero(previous_month_same_time_parking.sessions),
             "previousTotal": previous_month_same_time,
-            "previousTotalCount": int_or_zero(previous_month_same_time_sun.sessions)
-            + int_or_zero(previous_month_same_time_parking.sessions),
             "previousLabel": "Samme tidspunkt forrige m\u00e5ned",
         },
     ]
