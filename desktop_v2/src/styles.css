@@ -125,12 +125,6 @@ a {
   border-bottom: 0;
 }
 
-.page-title.ant-typography {
-  margin: 0;
-  font-size: 22px;
-  line-height: 1.15;
-}
-
 .eyebrow {
   color: var(--muted);
   font-size: 11px;
@@ -161,12 +155,6 @@ a {
 
 .section-head {
   min-height: 98px;
-}
-
-.module-head {
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 18px;
 }
 
 .hero-band h1.ant-typography,
@@ -477,23 +465,6 @@ a {
 
 .edit-number {
   width: 100%;
-}
-
-.legacy-select {
-  width: 320px;
-}
-
-.legacy-frame-card .ant-card-body {
-  padding: 0;
-}
-
-.legacy-frame {
-  display: block;
-  width: 100%;
-  height: calc(100vh - 210px);
-  min-height: 620px;
-  border: 0;
-  background: #fff;
 }
 
 .tab-count {
