@@ -11705,6 +11705,31 @@ def api_sun2_forecast_rows(forecast: Dict[str, Any]) -> list[Dict[str, Any]]:
     return rows
 
 
+def api_parking_forecast_rows(forecast: Dict[str, Any]) -> list[Dict[str, Any]]:
+    rows = []
+    for key, label in [("day", "I dag"), ("month", "Måned"), ("year", "År")]:
+        item = forecast.get(key) or {}
+        actual = item.get("actual") or {}
+        forecast_values = item.get("forecast") or {}
+        rows.append(
+            {
+                "period": label,
+                "label": item.get("label") or label,
+                "actual_parkeringer": round(float_or_zero(actual.get("sessions")), 1),
+                "forecast_parkeringer": round(float_or_zero(forecast_values.get("sessions")), 1),
+                "actual_paid": round(float_or_zero(actual.get("paid")), 2),
+                "forecast_paid": round(float_or_zero(forecast_values.get("paid")), 2),
+                "actual_minutes": round(float_or_zero(actual.get("minutes")), 1),
+                "forecast_minutes": round(float_or_zero(forecast_values.get("minutes")), 1),
+                "actual_vehicles": round(float_or_zero(actual.get("vehicles")), 1),
+                "forecast_vehicles": round(float_or_zero(forecast_values.get("vehicles")), 1),
+                "tempo": round(float_or_zero(item.get("tempo")) * 100, 1) if item.get("tempo") is not None else None,
+                "remaining_days": item.get("remaining_days"),
+            }
+        )
+    return rows
+
+
 def api_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
     return [
         {
@@ -11717,6 +11742,26 @@ def api_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
             "forecast_paid": round(float_or_zero((row.get("forecast") or {}).get("paid")), 2),
             "actual_paid": round(float_or_zero((row.get("actual") or {}).get("paid")), 2),
             "delta_paid": round(float_or_zero((row.get("delta") or {}).get("paid")), 2),
+            "period_done": row.get("period_done"),
+        }
+        for row in rows
+    ]
+
+
+def api_parking_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    return [
+        {
+            "created_at": row.get("created_at"),
+            "period_type": row.get("period_type"),
+            "period_label": row.get("period_label"),
+            "forecast_parkeringer": round(float_or_zero((row.get("forecast") or {}).get("sessions")), 1),
+            "actual_parkeringer": round(float_or_zero((row.get("actual") or {}).get("sessions")), 1),
+            "delta_parkeringer": round(float_or_zero((row.get("delta") or {}).get("sessions")), 1),
+            "forecast_paid": round(float_or_zero((row.get("forecast") or {}).get("paid")), 2),
+            "actual_paid": round(float_or_zero((row.get("actual") or {}).get("paid")), 2),
+            "delta_paid": round(float_or_zero((row.get("delta") or {}).get("paid")), 2),
+            "forecast_vehicles": round(float_or_zero((row.get("forecast") or {}).get("vehicles")), 1),
+            "actual_vehicles": round(float_or_zero((row.get("actual") or {}).get("vehicles")), 1),
             "period_done": row.get("period_done"),
         }
         for row in rows
@@ -12570,14 +12615,6 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                     .limit(80)
                 )
             ).mappings().all()
-            forecast_rows = (
-                await session.execute(
-                    select(ForecastSnapshot)
-                    .where(ForecastSnapshot.domain == "parking")
-                    .order_by(ForecastSnapshot.created_at.desc())
-                    .limit(80)
-                )
-            ).scalars().all()
             tables = [
                 api_table(
                     "Siste parkeringer",
@@ -12585,6 +12622,31 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                     [parking_row_api(row, vehicle) for row, vehicle in latest_rows],
                 )
             ]
+            cards = [
+                api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking"),
+                api_card("Pågående", active, "stk", "Akkurat nå", "parking"),
+                api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue"),
+                api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
+            ]
+            actions = [
+                {
+                    "key": "easypark-refresh",
+                    "label": "Oppdater EasyPark",
+                    "method": "POST",
+                    "path": "/api/v2/actions/parkering/refresh",
+                    "confirm": "Starte EasyPark-oppdatering for siste periode?",
+                    "tone": "primary",
+                },
+                {
+                    "key": "svv-sync",
+                    "label": "Kjør SVV-sync",
+                    "method": "POST",
+                    "path": "/api/v2/actions/parkering/svv-sync",
+                    "confirm": "Starte SVV-synk for kjøretøy?",
+                    "tone": "default",
+                },
+            ]
+            charts = [api_parking_weekly_chart(parking_summaries)] if view in ("", "oversikt") else []
             if view == "kjoretoy":
                 vehicle_search = parking_vehicle_search_condition(q)
                 vehicle_stmt = (
@@ -12627,12 +12689,57 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                     )
                 ]
             elif view == "prognose":
+                parking_forecast = await build_parking_forecast(session, today, datetime.now(LOCAL_TZ))
+                saved_forecasts = await saved_forecast_table(session, "parking")
+                forecast_table_rows = api_parking_forecast_rows(parking_forecast)
+                charts = [
+                    api_chart(
+                        "Parkeringsprognose mot faktisk",
+                        [row["period"] for row in forecast_table_rows],
+                        [
+                            {"name": "Faktisk parkeringer", "data": [row["actual_parkeringer"] for row in forecast_table_rows], "type": "bar"},
+                            {"name": "Prognose parkeringer", "data": [row["forecast_parkeringer"] for row in forecast_table_rows], "type": "bar"},
+                        ],
+                        "Nåverdi og beregnet sluttverdi for parkering.",
+                        "bar",
+                        300,
+                    )
+                ]
+                cards = [
+                    api_card("Dagsprognose", forecast_table_rows[0]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[0]['forecast_paid'])} kr", "parking"),
+                    api_card("Månedsprognose", forecast_table_rows[1]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[1]['forecast_paid'])} kr", "revenue"),
+                    api_card("Årsprognose", forecast_table_rows[2]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[2]['forecast_paid'])} kr", "revenue"),
+                    api_card("Lagrede", len(saved_forecasts), "stk", "Parkeringssnapshots", "status"),
+                ]
                 tables = [
                     api_table(
+                        "Nåværende parkeringsprognose",
+                        ["period", "label", "actual_parkeringer", "forecast_parkeringer", "actual_paid", "forecast_paid", "actual_minutes", "forecast_minutes", "actual_vehicles", "forecast_vehicles", "tempo", "remaining_days"],
+                        forecast_table_rows,
+                    ),
+                    api_table(
                         "Lagrede parkeringsprognoser",
-                        ["created_at", "period_type", "period_start", "period_end", "forecast_sessions", "forecast_paid", "actual_sessions_at_save", "actual_paid_at_save"],
-                        [row_to_dict(row, ["created_at", "period_type", "period_start", "period_end", "forecast_sessions", "forecast_paid", "actual_sessions_at_save", "actual_paid_at_save"]) for row in forecast_rows],
-                    )
+                        ["created_at", "period_type", "period_label", "actual_parkeringer", "forecast_parkeringer", "delta_parkeringer", "actual_paid", "forecast_paid", "delta_paid", "actual_vehicles", "forecast_vehicles", "period_done"],
+                        api_parking_saved_forecast_rows(saved_forecasts),
+                    ),
+                ]
+                actions = [
+                    {
+                        "key": "parking-save-forecast",
+                        "label": "Lagre parkeringsprognose",
+                        "method": "POST",
+                        "path": "/api/v2/actions/parkering/save-forecast",
+                        "confirm": "Lagre prognosesnapshot for parkering nå?",
+                        "tone": "primary",
+                    },
+                    {
+                        "key": "easypark-refresh",
+                        "label": "Oppdater EasyPark",
+                        "method": "POST",
+                        "path": "/api/v2/actions/parkering/refresh",
+                        "confirm": "Starte EasyPark-oppdatering for siste periode?",
+                        "tone": "default",
+                    },
                 ]
             elif view == "oppslag":
                 vehicles_missing_name = [row for row in vehicle_rows if not (row.navn or "").strip()]
@@ -12670,36 +12777,13 @@ async def api_v2_module(module: str, view: Optional[str] = None, q: Optional[str
                         ],
                     ),
                 ]
-            charts = [api_parking_weekly_chart(parking_summaries)] if view in ("", "oversikt") else []
             return {
                 "title": "Parkering" if not view else f"Parkering · {view.replace('-', ' ')}",
                 "subtitle": "EasyPark, aktive parkeringer og kjøretøygrunnlag.",
-                "cards": [
-                    api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking"),
-                    api_card("Pågående", active, "stk", "Akkurat nå", "parking"),
-                    api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue"),
-                    api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
-                ],
+                "cards": cards,
                 "charts": charts,
                 "tables": tables,
-                "actions": [
-                    {
-                        "key": "easypark-refresh",
-                        "label": "Oppdater EasyPark",
-                        "method": "POST",
-                        "path": "/api/v2/actions/parkering/refresh",
-                        "confirm": "Starte EasyPark-oppdatering for siste periode?",
-                        "tone": "primary",
-                    },
-                    {
-                        "key": "svv-sync",
-                        "label": "Kjør SVV-sync",
-                        "method": "POST",
-                        "path": "/api/v2/actions/parkering/svv-sync",
-                        "confirm": "Starte SVV-synk for kjøretøy?",
-                        "tone": "default",
-                    },
-                ],
+                "actions": actions,
             }
 
         if module == "soling":
@@ -13217,6 +13301,21 @@ async def api_v2_sun2_save_forecast(request: Request):
         await session.commit()
     clear_summary_cache("sun2")
     return {"status": "ok", "message": "Solingprognose lagret."}
+
+
+@app.post("/api/v2/actions/parkering/save-forecast")
+async def api_v2_parking_save_forecast(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    now_local = datetime.now(LOCAL_TZ)
+    today_value = now_local.date()
+    async with async_session() as session:
+        forecast = await build_parking_forecast(session, today_value, now_local)
+        await save_forecast_snapshots(session, "parking", forecast, getattr(request.state, "access_key_name", None))
+        await session.commit()
+    clear_summary_cache("parking")
+    return {"status": "ok", "message": "Parkeringsprognose lagret."}
 
 
 @app.post("/api/v2/actions/parkering/refresh")
