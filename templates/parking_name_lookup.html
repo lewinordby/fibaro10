@@ -33,12 +33,12 @@
                 <div class="lookup-actions">
                     {% if mode == "omrade" %}
                     <a href="/api/parkering/kjoretoy/mangler-omrade?limit={{ limit }}&offset={{ offset }}&format=txt">Last ned TXT</a>
-                    {% if offset > 0 %}<a href="/parkering/omrade-oppslag?limit={{ limit }}&offset={{ prev_offset }}">Forrige 100</a>{% endif %}
-                    {% if next_offset < count %}<a href="/parkering/omrade-oppslag?limit={{ limit }}&offset={{ next_offset }}">Neste 100</a>{% endif %}
+                    {% if offset > 0 %}<a href="/classic/parkering/omrade-oppslag?limit={{ limit }}&offset={{ prev_offset }}">Forrige 100</a>{% endif %}
+                    {% if next_offset < count %}<a href="/classic/parkering/omrade-oppslag?limit={{ limit }}&offset={{ next_offset }}">Neste 100</a>{% endif %}
                     {% else %}
                     <a href="/api/parkering/kjoretoy/mangler-navn?limit={{ limit }}&offset={{ offset }}&format=txt">Last ned TXT</a>
-                    {% if offset > 0 %}<a href="/parkering/navn-oppslag?limit={{ limit }}&offset={{ prev_offset }}">Forrige 100</a>{% endif %}
-                    {% if next_offset < count %}<a href="/parkering/navn-oppslag?limit={{ limit }}&offset={{ next_offset }}">Neste 100</a>{% endif %}
+                    {% if offset > 0 %}<a href="/classic/parkering/navn-oppslag?limit={{ limit }}&offset={{ prev_offset }}">Forrige 100</a>{% endif %}
+                    {% if next_offset < count %}<a href="/classic/parkering/navn-oppslag?limit={{ limit }}&offset={{ next_offset }}">Neste 100</a>{% endif %}
                     {% endif %}
                 </div>
             </article>

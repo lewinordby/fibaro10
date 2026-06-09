@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1071")
+APP_BUILD = os.getenv("APP_BUILD", "1072")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1072",
+        "date": "09.06.2026",
+        "title": "Gjør klassiske verktøylenker tydelige",
+        "changes": [
+            "Legger klassiske oppslag, eksportfiler og renholdsdetaljer på /classic/ slik at V2-catchall ikke fanger dem.",
+            "Oppdaterer V2-verktøytabeller til å peke på de eksplisitte classic-lenkene.",
+            "Beholder V2-rutene rene uten bakoverkompatibilitetsomveier i hovedmenyen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1071",
@@ -13574,9 +13585,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Parkeringsverktøy",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Navnoppslag", "/parkering/navn-oppslag", "Koble kjøretøy mot navn/SUN2 der det mangler.", len(vehicles_missing_name)),
-                            api_tool_row("Områdeoppslag", "/parkering/omrade-oppslag", "Sett område på kjøretøy der dette mangler.", len(vehicles_missing_area)),
-                            api_tool_row("Kjøretøyoversikt", "/parkering/kjoretoy", "Full gammel kjøretøyflate med redigering og detaljer.", len(vehicle_rows)),
+                            api_tool_row("Navnoppslag", "/classic/parkering/navn-oppslag", "Koble kjøretøy mot navn/SUN2 der det mangler.", len(vehicles_missing_name)),
+                            api_tool_row("Områdeoppslag", "/classic/parkering/omrade-oppslag", "Sett område på kjøretøy der dette mangler.", len(vehicles_missing_area)),
+                            api_tool_row("Kjøretøyoversikt", "/classic/parkering/kjoretoy", "Full gammel kjøretøyflate med redigering og detaljer.", len(vehicle_rows)),
                         ],
                     ),
                     api_table(
@@ -13821,8 +13832,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             api_tool_row("Kurser", "/energi/kurser", "Kursregister med redigering og tekniske data.", len(circuits)),
                             api_tool_row("Laster", "/energi/laster", "Lastregister med målere, kurser og forventet effekt.", len(loads)),
                             api_tool_row("Elvia", "/energi/elvia", "Import og kontroll av Elvia-timesdata.", len(elvia_imports)),
-                            api_tool_row("Kurs-PDF", "/energi/kurser/pdf", "Eksporter kurslisten som PDF.", len(circuits)),
-                            api_tool_row("Last-PDF", "/energi/laster/pdf", "Eksporter lastlisten som PDF.", len(loads)),
+                            api_tool_row("Kurs-PDF", "/classic/energi/kurser/pdf", "Eksporter kurslisten som PDF.", len(circuits)),
+                            api_tool_row("Last-PDF", "/classic/energi/laster/pdf", "Eksporter lastlisten som PDF.", len(loads)),
                         ],
                     ),
                     api_table(
@@ -13925,7 +13936,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Ventilasjonsverktøy",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Rediger innstillinger", "/ventilasjon/innstillinger", "Rediger ventilasjonsgrenser i ny app.", config.version if config else None),
+                            api_tool_row("Rediger innstillinger", "/classic/ventilasjon/innstillinger", "Rediger ventilasjonsgrenser i klassisk skjema.", config.version if config else None),
                             api_tool_row("Konfig API", "/api/config/ventilation", "JSON som HC3-runneren henter.", config.version if config else None),
                         ],
                     ),
@@ -14001,7 +14012,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Lysverktøy",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Rediger innstillinger", "/lys/innstillinger", "Klassisk skjema for endring av luxgrenser og driftstid.", config.version if config else None),
+                            api_tool_row("Rediger innstillinger", "/classic/lys/innstillinger", "Klassisk skjema for endring av luxgrenser og driftstid.", config.version if config else None),
                             api_tool_row("Konfig API", "/api/config/lights", "JSON som HC3-runneren henter.", config.version if config else None),
                         ],
                     ),
@@ -14058,7 +14069,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "state_name": status.state_name if status else None,
                             "last_seen_at": robot.last_seen_at,
                             "last_error": robot.last_error,
-                            "path": f"/renhold/robot/{quote(robot.duid or '', safe='')}",
+                            "path": f"/classic/renhold/robot/{quote(robot.duid or '', safe='')}",
                         }
                     )
                 tables = [
@@ -14071,8 +14082,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Renholdsverktøy",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Klassisk oversikt", "/renhold/oversikt", "Eksisterende renholdsflate med roboter, jobber og planer.", len(robots)),
-                            api_tool_row("Renhold JSON", "/renhold/json", "Rå JSON for roboter, jobber og statuser.", len(statuses)),
+                            api_tool_row("Klassisk oversikt", "/classic/renhold/oversikt", "Eksisterende renholdsflate med roboter, jobber og planer.", len(robots)),
+                            api_tool_row("Renhold JSON", "/classic/renhold/json", "Rå JSON for roboter, jobber og statuser.", len(statuses)),
                         ],
                     ),
                 ]
@@ -19168,3 +19179,74 @@ async def events_json(limit: int = 1000):
         result = await session.execute(select(GenericEvent).order_by(GenericEvent.timestamp.desc()).limit(limit))
         rows = result.scalars().all()
     return {"count": len(rows), "rows": [row_to_dict(row, GENERIC_COLUMNS) for row in rows]}
+
+
+@app.get("/classic/parkering/kjoretoy", response_class=HTMLResponse)
+async def classic_parking_vehicles_view(
+    request: Request,
+    plate: Optional[str] = None,
+    navn: Optional[str] = None,
+    omrade: Optional[str] = None,
+    sun2_id: Optional[str] = None,
+    merke: Optional[str] = None,
+    modell: Optional[str] = None,
+    ryddet: Optional[int] = None,
+    limit: int = Query(100, ge=1, le=500),
+):
+    return await parking_vehicles_view(request, plate, navn, omrade, sun2_id, merke, modell, ryddet, limit)
+
+
+@app.get("/classic/parkering/navn-oppslag", response_class=HTMLResponse)
+async def classic_parking_name_lookup_view(request: Request, limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)):
+    return await parking_name_lookup_view(request, limit, offset)
+
+
+@app.get("/classic/parkering/omrade-oppslag", response_class=HTMLResponse)
+async def classic_parking_area_lookup_view(request: Request, limit: int = Query(1000, ge=1, le=1000), offset: int = Query(0, ge=0)):
+    return await parking_area_lookup_view(request, limit, offset)
+
+
+@app.get("/classic/parkering/kjoretoy/{plate}", response_class=HTMLResponse)
+async def classic_parking_vehicle_detail_view(request: Request, plate: str, saved: Optional[str] = None):
+    return await parking_vehicle_detail_view(request, plate, saved)
+
+
+@app.get("/classic/energi/kurser/pdf")
+async def classic_energy_circuits_pdf(sunbeds: Optional[str] = None):
+    return await energy_circuits_pdf(sunbeds)
+
+
+@app.get("/classic/energi/laster/pdf")
+async def classic_energy_loads_pdf(
+    q: Optional[str] = None,
+    circuit: Optional[int] = None,
+    load_type: Optional[str] = None,
+    active: Optional[str] = None,
+    sunbeds: Optional[str] = None,
+):
+    return await energy_loads_pdf(q, circuit, load_type, active, sunbeds)
+
+
+@app.get("/classic/lys/innstillinger", response_class=HTMLResponse)
+async def classic_light_settings_view(request: Request):
+    return await light_settings_view(request)
+
+
+@app.get("/classic/ventilasjon/innstillinger", response_class=HTMLResponse)
+async def classic_ventilation_settings_view(request: Request):
+    return await ventilation_settings_view(request)
+
+
+@app.get("/classic/renhold/oversikt", response_class=HTMLResponse)
+async def classic_cleaning_overview(request: Request):
+    return await cleaning_overview(request)
+
+
+@app.get("/classic/renhold/robot/{duid}", response_class=HTMLResponse)
+async def classic_cleaning_robot_detail(request: Request, duid: str):
+    return await cleaning_robot_detail(request, duid)
+
+
+@app.get("/classic/renhold/json")
+async def classic_cleaning_json(limit: int = 100):
+    return await cleaning_json(limit)
