@@ -210,7 +210,7 @@ a {
 }
 
 .status-period-card {
-  min-height: 130px;
+  min-height: 154px;
   border: 1px solid var(--line);
   border-top: 3px solid var(--green);
   border-radius: 6px;
@@ -232,6 +232,14 @@ a {
   gap: 10px;
 }
 
+.status-period-head div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+}
+
 .status-period-head span {
   color: #374151;
   font-size: 13px;
@@ -244,6 +252,13 @@ a {
   font-weight: 780;
   line-height: 1.05;
   white-space: nowrap;
+}
+
+.status-period-head em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 650;
 }
 
 .status-period-rows {
@@ -263,7 +278,8 @@ a {
 }
 
 .status-period-rows span,
-.status-period-foot {
+.status-period-previous span,
+.status-period-previous em {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.2;
@@ -279,14 +295,25 @@ a {
   white-space: nowrap;
 }
 
-.status-period-rows em {
+.status-period-rows em,
+.status-period-previous em {
   color: var(--muted);
   font-size: 11px;
   font-style: normal;
 }
 
-.status-period-foot {
+.status-period-previous {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin-top: auto;
+}
+
+.status-period-previous strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
 }
 
 .status-support-grid {

@@ -29,7 +29,10 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
     <Card className="status-period-card">
       <div className="status-period-head">
         <span>{period.title}</span>
-        <strong>{nok(period.total)} kr</strong>
+        <div>
+          <strong>{nok(period.total)} kr</strong>
+          <em>{period.totalCount} stk</em>
+        </div>
       </div>
       <div className="status-period-rows">
         <div>
@@ -43,8 +46,13 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
           <em>{period.parkingCount} stk</em>
         </div>
       </div>
-      <div className="status-period-foot">
-        {period.previousLabel}: {nok(period.previousTotal)} kr
+      <div className="status-period-previous">
+        <span>{period.previousLabel}</span>
+        <strong>{period.previousTotalCount} stk · {nok(period.previousTotal)} kr</strong>
+        <em>
+          Soling {period.previousSolCount} / {nok(period.previousSol)} kr · Parkering{" "}
+          {period.previousParkingCount} / {nok(period.previousParking)} kr
+        </em>
       </div>
     </Card>
   );

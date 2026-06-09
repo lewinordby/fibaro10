@@ -3222,6 +3222,37 @@ async def sun2_period_snapshot(session, start_day: date, end_day: date) -> Simpl
     return SimpleNamespace(**totals)
 
 
+async def sun2_datetime_snapshot(session, start_at: datetime, end_at: datetime) -> SimpleNamespace:
+    row = (
+        await session.execute(
+            select(
+                func.count(Sun2TanningSession.id).label("sessions"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("minutes"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("paid"),
+                func.count(func.distinct(Sun2TanningSession.room_id)).label("rooms"),
+            ).where(Sun2TanningSession.started_at >= start_at, Sun2TanningSession.started_at < end_at)
+        )
+    ).one()
+    return SimpleNamespace(
+        sessions=int_or_zero(row.sessions),
+        minutes=float_or_zero(row.minutes),
+        paid=float_or_zero(row.paid),
+        rooms=int_or_zero(row.rooms),
+    )
+
+
+async def parking_datetime_snapshot(session, start_at: datetime, end_at: datetime) -> SimpleNamespace:
+    row = (
+        await session.execute(
+            select(
+                func.count(ParkingSession.id).label("sessions"),
+                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+            ).where(ParkingSession.start_time >= start_at, ParkingSession.start_time < end_at)
+        )
+    ).one()
+    return SimpleNamespace(sessions=int_or_zero(row.sessions), paid=float_or_zero(row.paid))
+
+
 def empty_parking_summary(period: str, period_label: Optional[str] = None) -> Dict[str, Any]:
     return {
         "period": period,
@@ -11215,6 +11246,12 @@ async def api_v2_overview():
     previous_week_start_dt = datetime.combine(previous_week_start, time.min)
     month_start_dt = datetime.combine(month_start, time.min)
     previous_month_start_dt = datetime.combine(previous_month_start, time.min)
+    elapsed_today = now_dt - today_start
+    elapsed_week = now_dt - week_start_dt
+    elapsed_month = now_dt - month_start_dt
+    yesterday_same_time_end = yesterday_start + elapsed_today
+    previous_week_same_time_end = previous_week_start_dt + elapsed_week
+    previous_month_same_time_end = min(previous_month_start_dt + elapsed_month, month_start_dt)
     async with async_session() as session:
         latest_light_sample = (
             await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
@@ -11235,6 +11272,17 @@ async def api_v2_overview():
         previous_week_sun = await sun2_period_snapshot(session, previous_week_start, week_start)
         month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
         previous_month_sun = await sun2_period_snapshot(session, previous_month_start, month_start)
+        yesterday_same_time_sun = await sun2_datetime_snapshot(session, yesterday_start, yesterday_same_time_end)
+        previous_week_same_time_sun = await sun2_datetime_snapshot(
+            session,
+            previous_week_start_dt,
+            previous_week_same_time_end,
+        )
+        previous_month_same_time_sun = await sun2_datetime_snapshot(
+            session,
+            previous_month_start_dt,
+            previous_month_same_time_end,
+        )
         today_parking = (
             await session.execute(
                 select(
@@ -11294,6 +11342,17 @@ async def api_v2_overview():
                 ).where(ParkingSession.start_time >= previous_month_start_dt, ParkingSession.start_time < month_start_dt)
             )
         ).one()
+        yesterday_same_time_parking = await parking_datetime_snapshot(session, yesterday_start, yesterday_same_time_end)
+        previous_week_same_time_parking = await parking_datetime_snapshot(
+            session,
+            previous_week_start_dt,
+            previous_week_same_time_end,
+        )
+        previous_month_same_time_parking = await parking_datetime_snapshot(
+            session,
+            previous_month_start_dt,
+            previous_month_same_time_end,
+        )
         active_parking = (
             await session.execute(
                 select(func.count(ParkingSession.id)).where(
@@ -11348,6 +11407,15 @@ async def api_v2_overview():
     revenue_previous_week = float_or_zero(previous_week_sun.paid) + float_or_zero(previous_week_parking.paid)
     revenue_month = float_or_zero(month_sun.paid) + float_or_zero(month_parking.paid)
     revenue_previous_month = float_or_zero(previous_month_sun.paid) + float_or_zero(previous_month_parking.paid)
+    previous_today_same_time = (
+        float_or_zero(yesterday_same_time_sun.paid) + float_or_zero(yesterday_same_time_parking.paid)
+    )
+    previous_week_same_time = (
+        float_or_zero(previous_week_same_time_sun.paid) + float_or_zero(previous_week_same_time_parking.paid)
+    )
+    previous_month_same_time = (
+        float_or_zero(previous_month_same_time_sun.paid) + float_or_zero(previous_month_same_time_parking.paid)
+    )
     status_periods = [
         {
             "key": "today",
@@ -11357,8 +11425,15 @@ async def api_v2_overview():
             "parking": float_or_zero(today_parking.paid),
             "parkingCount": int_or_zero(today_parking.sessions),
             "total": revenue_today,
-            "previousTotal": revenue_yesterday,
-            "previousLabel": "I g\u00e5r",
+            "totalCount": int_or_zero(today_sun.sessions) + int_or_zero(today_parking.sessions),
+            "previousSol": float_or_zero(yesterday_same_time_sun.paid),
+            "previousSolCount": int_or_zero(yesterday_same_time_sun.sessions),
+            "previousParking": float_or_zero(yesterday_same_time_parking.paid),
+            "previousParkingCount": int_or_zero(yesterday_same_time_parking.sessions),
+            "previousTotal": previous_today_same_time,
+            "previousTotalCount": int_or_zero(yesterday_same_time_sun.sessions)
+            + int_or_zero(yesterday_same_time_parking.sessions),
+            "previousLabel": "Samme tidspunkt i g\u00e5r",
         },
         {
             "key": "week",
@@ -11368,8 +11443,15 @@ async def api_v2_overview():
             "parking": float_or_zero(week_parking.paid),
             "parkingCount": int_or_zero(week_parking.sessions),
             "total": revenue_week,
-            "previousTotal": revenue_previous_week,
-            "previousLabel": "Forrige uke",
+            "totalCount": int_or_zero(week_sun.sessions) + int_or_zero(week_parking.sessions),
+            "previousSol": float_or_zero(previous_week_same_time_sun.paid),
+            "previousSolCount": int_or_zero(previous_week_same_time_sun.sessions),
+            "previousParking": float_or_zero(previous_week_same_time_parking.paid),
+            "previousParkingCount": int_or_zero(previous_week_same_time_parking.sessions),
+            "previousTotal": previous_week_same_time,
+            "previousTotalCount": int_or_zero(previous_week_same_time_sun.sessions)
+            + int_or_zero(previous_week_same_time_parking.sessions),
+            "previousLabel": "Samme tidspunkt forrige uke",
         },
         {
             "key": "month",
@@ -11379,8 +11461,15 @@ async def api_v2_overview():
             "parking": float_or_zero(month_parking.paid),
             "parkingCount": int_or_zero(month_parking.sessions),
             "total": revenue_month,
-            "previousTotal": revenue_previous_month,
-            "previousLabel": "Forrige m\u00e5ned",
+            "totalCount": int_or_zero(month_sun.sessions) + int_or_zero(month_parking.sessions),
+            "previousSol": float_or_zero(previous_month_same_time_sun.paid),
+            "previousSolCount": int_or_zero(previous_month_same_time_sun.sessions),
+            "previousParking": float_or_zero(previous_month_same_time_parking.paid),
+            "previousParkingCount": int_or_zero(previous_month_same_time_parking.sessions),
+            "previousTotal": previous_month_same_time,
+            "previousTotalCount": int_or_zero(previous_month_same_time_sun.sessions)
+            + int_or_zero(previous_month_same_time_parking.sessions),
+            "previousLabel": "Samme tidspunkt forrige m\u00e5ned",
         },
     ]
     light_items = [

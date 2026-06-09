@@ -30,7 +30,13 @@ export type StatusPeriod = {
   parking: number;
   parkingCount: number;
   total: number;
+  totalCount: number;
+  previousSol: number;
+  previousSolCount: number;
+  previousParking: number;
+  previousParkingCount: number;
   previousTotal: number;
+  previousTotalCount: number;
   previousLabel: string;
 };
 
