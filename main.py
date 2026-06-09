@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1062")
+APP_BUILD = os.getenv("APP_BUILD", "1063")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1063",
+        "date": "09.06.2026",
+        "title": "Strammer inn V2-toppmeny",
+        "changes": [
+            "Flytter modulfaner til fast topplinje slik at undersidemenyen ikke skroller bort.",
+            "Fjerner stor moduloverskrift og intro fra V2-modulsidene.",
+            "Gjør valgt hovedmeny tydeligere i venstremenyen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1062",

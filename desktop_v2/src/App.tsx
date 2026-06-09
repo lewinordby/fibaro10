@@ -1,5 +1,4 @@
 import {
-  AlertOutlined,
   AreaChartOutlined,
   BulbOutlined,
   CalendarOutlined,
@@ -11,14 +10,14 @@ import {
   ToolOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
-import { Button, Layout, Menu, Space, Typography } from "antd";
+import { Layout, Menu, Segmented, Typography } from "antd";
 import type { MenuProps } from "antd";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import OverviewPage from "./pages/OverviewPage";
 import RevenueMonthPage from "./pages/RevenueMonthPage";
 import OperationsPage from "./pages/OperationsPage";
 import ModulePage from "./pages/ModulePage";
-import { modulePath } from "./moduleViews";
+import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
 
 const { Header, Sider, Content } = Layout;
 
@@ -49,9 +48,17 @@ function selectedKey(pathname: string): string {
   return pathname;
 }
 
+function activeModule(pathname: string): string | null {
+  const module = pathname.split("/")[1];
+  return MODULE_VIEWS[module] ? module : null;
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
+  const module = activeModule(location.pathname);
+  const viewItems = module ? MODULE_VIEWS[module] ?? [] : [];
+  const activeView = module ? location.pathname.split("/")[2] || defaultModuleView(module) : "";
 
   return (
     <Layout className="app-shell">
@@ -72,21 +79,15 @@ export default function App() {
         />
       </Sider>
       <Layout>
-        <Header className="app-header">
-          <Space direction="vertical" size={0}>
-            <Typography.Text className="eyebrow">Primær drift</Typography.Text>
-            <Typography.Title level={2} className="page-title">
-              Lilletorget
-            </Typography.Title>
-          </Space>
-          <Space>
-            <Button icon={<AlertOutlined />} onClick={() => navigate("/drift")}>
-              Datakilder
-            </Button>
-            <Button type="primary" onClick={() => navigate(modulePath("admin", "build"))}>
-              Build og teknisk
-            </Button>
-          </Space>
+        <Header className={`app-header ${module && viewItems.length > 1 ? "" : "app-header-empty"}`}>
+          {module && viewItems.length > 1 ? (
+            <Segmented
+              className="module-view-switcher top-view-switcher"
+              value={activeView}
+              options={viewItems.map((item) => ({ label: item.label, value: item.key }))}
+              onChange={(next) => navigate(modulePath(module, String(next)))}
+            />
+          ) : null}
         </Header>
         <Content className="app-content">
           <Routes>

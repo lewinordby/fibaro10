@@ -1,9 +1,9 @@
 import ReactECharts from "echarts-for-react";
-import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Segmented, Select, Space, Table, Tabs, Tag, Typography } from "antd";
+import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import {
   fetchModule,
   runModuleAction,
@@ -17,7 +17,7 @@ import {
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
-import { defaultModuleView, moduleLabel, modulePath, MODULE_VIEWS } from "../moduleViews";
+import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { appPath } from "../navigation";
 
 function displayValue(value: unknown): string {
@@ -453,7 +453,6 @@ function ModuleTablePane({
 
 export default function ModulePage({ module }: { module: string }) {
   const params = useParams();
-  const navigate = useNavigate();
   const { message, modal } = AntApp.useApp();
   const [form] = Form.useForm();
   const [query, setQuery] = useState("");
@@ -465,7 +464,6 @@ export default function ModulePage({ module }: { module: string }) {
   const viewItems = MODULE_VIEWS[module] ?? [];
   const isKnownView = !viewItems.length || viewItems.some((item) => item.key === view);
   const safeView = isKnownView ? view : defaultModuleView(module);
-  const activeView = viewItems.find((item) => item.key === safeView);
   const { data, loading, error } = useAsyncData(() => fetchModule(module, safeView), [module, safeView, reloadToken]);
 
   if (!isKnownView) return <Navigate to={modulePath(module)} replace />;
@@ -522,26 +520,9 @@ export default function ModulePage({ module }: { module: string }) {
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
-  const displayTitle = activeView && viewItems.length > 1 ? `${moduleLabel(module)} · ${activeView.label}` : data.title;
 
   return (
     <Space direction="vertical" size={18} className="page-stack">
-      <section className="section-head module-head">
-        <div>
-          <Typography.Text className="eyebrow">Desktop v2</Typography.Text>
-          <Typography.Title level={1}>{displayTitle}</Typography.Title>
-          <Typography.Paragraph>{data.subtitle}</Typography.Paragraph>
-        </div>
-        {viewItems.length > 1 ? (
-          <Segmented
-            className="module-view-switcher"
-            value={view}
-            options={viewItems.map((item) => ({ label: item.label, value: item.key }))}
-            onChange={(next) => navigate(modulePath(module, String(next)))}
-          />
-        ) : null}
-      </section>
-
       {data.actions?.length ? (
         <Card className="work-card module-actions">
           <Space>
