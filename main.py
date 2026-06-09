@@ -89,8 +89,18 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1072")
+APP_BUILD = os.getenv("APP_BUILD", "1073")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1073",
+        "date": "09.06.2026",
+        "title": "Justerer ventilasjonsverktøylenke",
+        "changes": [
+            "Lar Ventilasjon > Innstillinger peke tilbake til V2-redigeringen som faktisk lagrer via config API.",
+            "Beholder /classic/ kun for gamle verktøyflater som fortsatt trenger klassisk HTML eller filnedlasting.",
+        ],
+    },
     {
         "version": "1",
         "build": "1072",
@@ -13936,7 +13946,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Ventilasjonsverktøy",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Rediger innstillinger", "/classic/ventilasjon/innstillinger", "Rediger ventilasjonsgrenser i klassisk skjema.", config.version if config else None),
+                            api_tool_row("Rediger innstillinger", "/ventilasjon/innstillinger", "Rediger ventilasjonsgrenser i V2-innstillinger.", config.version if config else None),
                             api_tool_row("Konfig API", "/api/config/ventilation", "JSON som HC3-runneren henter.", config.version if config else None),
                         ],
                     ),
@@ -19230,11 +19240,6 @@ async def classic_energy_loads_pdf(
 @app.get("/classic/lys/innstillinger", response_class=HTMLResponse)
 async def classic_light_settings_view(request: Request):
     return await light_settings_view(request)
-
-
-@app.get("/classic/ventilasjon/innstillinger", response_class=HTMLResponse)
-async def classic_ventilation_settings_view(request: Request):
-    return await ventilation_settings_view(request)
 
 
 @app.get("/classic/renhold/oversikt", response_class=HTMLResponse)
