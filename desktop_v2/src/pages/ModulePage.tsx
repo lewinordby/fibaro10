@@ -22,6 +22,7 @@ import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { appPath } from "../navigation";
+import VentilationPage from "./VentilationPage";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -735,7 +736,10 @@ export default function ModulePage({ module }: { module: string }) {
   const safeView = isKnownView ? view : defaultModuleView(module);
   const serverQuery = module === "parkering" && safeView === "kjoretoy" ? query : "";
   const filterKey = searchParams.toString();
-  const timelineDay = module === "soling" && safeView === "dagslinje" ? searchParams.get("day") ?? "" : "";
+  const timelineDay =
+    (module === "soling" && safeView === "dagslinje") || (module === "ventilasjon" && safeView === "dagslogg")
+      ? searchParams.get("day") ?? ""
+      : "";
   const { data, loading, error } = useAsyncData(
     () => fetchModule(module, safeView, serverQuery, timelineDay || undefined, searchParams),
     [module, safeView, serverQuery, timelineDay, filterKey, reloadToken],
@@ -827,6 +831,9 @@ export default function ModulePage({ module }: { module: string }) {
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
+  if (module === "ventilasjon" && data.ventilation) {
+    return <VentilationPage data={data} view={safeView} onReload={() => setReloadToken((value) => value + 1)} />;
+  }
 
   return (
     <Space direction="vertical" size={18} className="page-stack">

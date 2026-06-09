@@ -215,6 +215,118 @@ export type SunTimeline = {
   };
 };
 
+export type VentilationMeasurement = {
+  key: string;
+  label: string;
+  temperature?: number | null;
+  humidity?: number | null;
+  detail?: string;
+};
+
+export type VentilationMeasurementGroup = {
+  key: string;
+  title: string;
+  fields: VentilationMeasurement[];
+};
+
+export type VentilationFan = {
+  key: string;
+  label: string;
+  state: boolean | null;
+  detail?: string;
+};
+
+export type VentilationWeather = {
+  bucketStart?: string | null;
+  text?: string | null;
+  airTemperature?: number | null;
+  relativeHumidity?: number | null;
+  windSpeed?: number | null;
+  windGust?: number | null;
+  cloudAreaFraction?: number | null;
+  precipitationNext1h?: number | null;
+};
+
+export type VentilationLatest = {
+  bucketStart?: string | null;
+  timestamp?: string | null;
+  mode?: string | null;
+  source?: string | null;
+  groups: VentilationMeasurementGroup[];
+  fans: VentilationFan[];
+  weather: VentilationWeather;
+};
+
+export type VentilationDaySeries = {
+  key: string;
+  label: string;
+  color: string;
+  default?: boolean;
+  latest?: string;
+  min?: string;
+  max?: string;
+};
+
+export type VentilationFanEvent = {
+  fan_key: string;
+  fan_name: string;
+  fan_short: string;
+  color: string;
+  x: number;
+  time: string;
+  action: string;
+  class: "on" | "off";
+  detail: string;
+};
+
+export type VentilationDay = {
+  selectedDay: string;
+  selectedDayLabel: string;
+  prevDay: string;
+  nextDay: string;
+  isToday: boolean;
+  nowMarker: number | null;
+  summary: Record<string, unknown>;
+  series: VentilationDaySeries[];
+  fans: Array<{ key: string; name: string; short?: string; color?: string; default?: boolean }>;
+  fanEvents: VentilationFanEvent[];
+  samples: Record<string, unknown>[];
+};
+
+export type VentilationSettingField = {
+  key: string;
+  label: string;
+  type: "time" | "int" | "float" | "bool" | "text";
+  unit?: string;
+  help?: string;
+  value: string | number | boolean | null;
+};
+
+export type VentilationSettingGroup = {
+  title: string;
+  description?: string;
+  fields: VentilationSettingField[];
+};
+
+export type VentilationSettings = {
+  version: number;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  groups: VentilationSettingGroup[];
+  rules: string[];
+  summaryRows: Record<string, unknown>[];
+  notes: Array<{ title: string; text: string }>;
+  history: Record<string, unknown>[];
+  updateEndpoint: string;
+};
+
+export type VentilationData = {
+  view: string;
+  latest: VentilationLatest;
+  day: VentilationDay;
+  settings?: VentilationSettings;
+};
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;
@@ -224,6 +336,7 @@ export type ModuleResponse = {
   actions?: ModuleAction[];
   filters?: ModuleFilter[];
   sunTimeline?: SunTimeline | null;
+  ventilation?: VentilationData;
 };
 
 export type ParkingVehicleField = {
@@ -320,6 +433,25 @@ export async function submitModuleEdit(
   const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
   if (!response.ok) {
     throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
+}
+
+export async function saveConfig(
+  endpoint: string,
+  values: Record<string, unknown>,
+  reason: string,
+): Promise<Record<string, unknown>> {
+  const response = await fetch(endpoint, {
+    method: "PATCH",
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ values, reason }),
+  });
+  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!response.ok) {
+    const errors = Array.isArray(payload?.errors) ? `: ${payload.errors.join(", ")}` : "";
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`) + errors);
   }
   return payload ?? {};
 }

@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1065")
+APP_BUILD = os.getenv("APP_BUILD", "1066")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1066",
+        "date": "09.06.2026",
+        "title": "Rydder ventilasjonssiden",
+        "changes": [
+            "Gir Ventilasjon en dedikert desktopvisning med egne kort, dagsgraf og viftehendelser.",
+            "Skiller dagslogg, temp-logg, Yr-logg, hendelser og innstillinger tydeligere i API og grensesnitt.",
+            "Flytter ventilasjonsinnstillinger til JSON-lagring i den nye appen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1065",
@@ -4562,10 +4573,12 @@ def parse_day(value: Optional[str]) -> date:
     return datetime.now(LOCAL_TZ).date()
 
 
-def parse_config_value(raw: Optional[str], field: Dict[str, Any]):
+def parse_config_value(raw: Any, field: Dict[str, Any]):
     field_type = field.get("type")
     if field_type == "bool":
-        return raw in {"on", "true", "1", "yes"}
+        if isinstance(raw, bool):
+            return raw
+        return str(raw).strip().lower() in {"on", "true", "1", "yes"}
     if raw in (None, ""):
         return deepcopy(field["default"])
     if field_type == "int":
@@ -4598,6 +4611,18 @@ def config_values_from_form(key: str, form: Dict[str, str]) -> Dict[str, Any]:
     for group in definition["groups"]:
         for field in group["fields"]:
             values[field["key"]] = parse_config_value(form.get(field["key"]), field)
+    return values
+
+
+def config_values_from_payload(key: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    definition = config_definition(key)
+    values = config_defaults(key)
+    if not definition:
+        return values
+    source = payload.get("values") if isinstance(payload.get("values"), dict) else payload
+    for group in definition["groups"]:
+        for field in group["fields"]:
+            values[field["key"]] = parse_config_value(source.get(field["key"]), field)
     return values
 
 
@@ -9996,6 +10021,40 @@ async def api_control_config(config_key: str):
     return config_payload(row)
 
 
+@app.patch("/api/config/{config_key}")
+async def api_control_config_update(request: Request, config_key: str):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    if config_key not in CONFIG_DEFINITIONS:
+        return JSONResponse({"detail": "Ukjent konfigurasjon"}, status_code=404)
+    payload = await request.json()
+    values = config_values_from_payload(config_key, payload if isinstance(payload, dict) else {})
+    errors = validate_config_values(config_key, values)
+    if errors:
+        return JSONResponse({"detail": "Ugyldige innstillinger", "errors": errors}, status_code=400)
+    reason = str(payload.get("reason") or "Endret i grensesnittet").strip() if isinstance(payload, dict) else "Endret i grensesnittet"
+    changed_by = getattr(request.state, "access_key_name", "") or "master"
+    async with async_session() as session:
+        row = await get_or_create_config(session, config_key)
+        row.values = values
+        row.version = (row.version or 1) + 1
+        row.updated_at = datetime.utcnow()
+        row.updated_by = changed_by
+        session.add(
+            ControlConfigHistory(
+                config_key=config_key,
+                version=row.version,
+                values=deepcopy(values),
+                changed_by=changed_by,
+                reason=reason,
+            )
+        )
+        await session.commit()
+        await session.refresh(row)
+    return {"status": "ok", "message": "Innstillinger lagret.", "config": config_payload(row)}
+
+
 @app.get("/lys/innstillinger", response_class=HTMLResponse)
 async def light_settings_view(request: Request):
     context = await config_context("lights")
@@ -10009,8 +10068,7 @@ async def light_settings_update(request: Request):
 
 @app.get("/ventilasjon/innstillinger", response_class=HTMLResponse)
 async def ventilation_settings_view(request: Request):
-    context = await config_context("ventilation")
-    return templates.TemplateResponse(request, "control_settings.html", context)
+    return desktop_app_response()
 
 
 @app.post("/ventilasjon/innstillinger", response_class=HTMLResponse)
@@ -11697,6 +11755,138 @@ def api_filter_options(values: Iterable[Any]) -> list[Dict[str, Any]]:
         seen.add(text_value)
         options.append({"label": text_value, "value": text_value})
     return options
+
+
+def ventilation_latest_payload(latest: Optional[VentilationSample], latest_yr: Optional[YrForecastSample]) -> Dict[str, Any]:
+    def measurement(key: str, label: str, temp_key: Optional[str] = None, humidity_key: Optional[str] = None, detail: str = "") -> Dict[str, Any]:
+        return {
+            "key": key,
+            "label": label,
+            "temperature": getattr(latest, temp_key, None) if latest and temp_key else None,
+            "humidity": getattr(latest, humidity_key, None) if latest and humidity_key else None,
+            "detail": detail,
+        }
+
+    fans = [
+        {
+            "key": device["key"],
+            "label": device["name"],
+            "state": sample_state(latest, device),
+            "detail": "PÅ" if sample_state(latest, device) is True else "AV" if sample_state(latest, device) is False else "-",
+        }
+        for device in VENT_TIMELINE_DEVICES
+    ]
+    return {
+        "bucketStart": api_local_iso(latest.bucket_start if latest else None),
+        "timestamp": api_local_iso(latest.timestamp if latest else None),
+        "mode": latest.mode if latest else None,
+        "source": latest.source if latest else None,
+        "groups": [
+            {
+                "key": "indoor",
+                "title": "Inne",
+                "fields": [
+                    measurement("1etg", "1.etg", "temp_1etg", "humidity_1etg"),
+                    measurement("2etg", "2.etg", "temp_2etg", "humidity_2etg"),
+                    measurement("vip", "VIP", "temp_vip", "humidity_vip"),
+                ],
+            },
+            {
+                "key": "outdoor",
+                "title": "Ute og Yr",
+                "fields": [
+                    measurement("styring", "Ute styring", "temp_ute", "humidity_ute"),
+                    measurement("netatmo", "Netatmo ute", "temp_ute_netatmo", "humidity_ute"),
+                    measurement("yr", "Yr", "temp_yr", "humidity_yr", latest_yr.weather_text if latest_yr else ""),
+                ],
+            },
+            {
+                "key": "ventilation",
+                "title": "Ventilasjon",
+                "fields": [
+                    measurement("loft", "Loft", "temp_loft", "humidity_loft"),
+                    measurement("luftinntak", "Innluft", "temp_luftinntak", "humidity_luftinntak"),
+                    measurement("passiv", "Passiv innluft", "temp_passiv", "humidity_passiv"),
+                ],
+            },
+            {
+                "key": "basement",
+                "title": "Kjeller",
+                "fields": [
+                    measurement("kjeller", "Kjeller", "temp_kjeller", "humidity_kjeller", "Avfukter styres av fukt"),
+                ],
+            },
+        ],
+        "fans": fans,
+        "weather": {
+            "bucketStart": api_local_iso(latest_yr.bucket_start if latest_yr else None),
+            "text": latest_yr.weather_text if latest_yr else None,
+            "airTemperature": latest_yr.air_temperature if latest_yr else None,
+            "relativeHumidity": latest_yr.relative_humidity if latest_yr else None,
+            "windSpeed": latest_yr.wind_speed if latest_yr else None,
+            "windGust": latest_yr.wind_speed_of_gust if latest_yr else None,
+            "cloudAreaFraction": latest_yr.cloud_area_fraction if latest_yr else None,
+            "precipitationNext1h": latest_yr.precipitation_next_1h if latest_yr else None,
+        },
+    }
+
+
+def ventilation_day_payload(temp_day: Dict[str, Any], selected_day: date, is_today: bool, now_marker: Optional[float]) -> Dict[str, Any]:
+    samples = []
+    for sample in reversed(temp_day["samples_desc"]):
+        cleaned = {key: value for key, value in sample.items() if key != "time_dt" and not key.endswith("_label")}
+        samples.append(cleaned)
+    return {
+        "selectedDay": selected_day.isoformat(),
+        "selectedDayLabel": selected_day.strftime("%d.%m.%Y"),
+        "prevDay": (selected_day - timedelta(days=1)).isoformat(),
+        "nextDay": (selected_day + timedelta(days=1)).isoformat(),
+        "isToday": is_today,
+        "nowMarker": now_marker,
+        "summary": temp_day["summary"],
+        "series": temp_day["series"],
+        "fans": temp_day["fans"],
+        "fanEvents": temp_day["fan_events"],
+        "samples": samples,
+    }
+
+
+def ventilation_settings_payload(
+    config: ControlConfig,
+    values: Dict[str, Any],
+    history: list[ControlConfigHistory],
+) -> Dict[str, Any]:
+    definition = config_definition("ventilation") or {}
+    groups = []
+    for group in definition.get("groups", []):
+        groups.append(
+            {
+                "title": group["title"],
+                "description": group.get("description", ""),
+                "fields": [
+                    {
+                        "key": field["key"],
+                        "label": field["label"],
+                        "type": field.get("type", "text"),
+                        "unit": field.get("unit", ""),
+                        "help": field.get("help", ""),
+                        "value": values.get(field["key"]),
+                    }
+                    for field in group.get("fields", [])
+                ],
+            }
+        )
+    return {
+        "version": config.version,
+        "updatedAt": api_local_iso(config.updated_at),
+        "updatedBy": config.updated_by,
+        "groups": groups,
+        "rules": config_rules("ventilation", values),
+        "summaryRows": config_summary_rows("ventilation", values),
+        "notes": config_operational_notes("ventilation", values),
+        "history": api_config_history_rows(history),
+        "updateEndpoint": "/api/config/ventilation",
+    }
 
 
 def api_chart(
@@ -13522,44 +13712,59 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             log_to_value = api_filter_value(params, "to")
             log_mode_value = api_filter_value(params, "mode")
             log_limit_value = api_filter_int(params, "limit", 120, 25, 1000)
+            selected_day = parse_day(day)
+            day_start = datetime.combine(selected_day, time.min)
+            day_end = day_start + timedelta(days=1)
+            is_today = selected_day == today
+            timeline_end = min(now_dt, day_end) if is_today else day_end
+            now_marker = percent_between(now_dt, day_start, day_end) if is_today and day_start <= now_dt <= day_end else None
             latest = (
                 await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(1))
+            ).scalars().first()
+            latest_yr = (
+                await session.execute(select(YrForecastSample).order_by(YrForecastSample.bucket_start.desc()).limit(1))
             ).scalars().first()
             samples, _ = await fetch_rows(VentilationSample, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
             yr_rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, log_from_value, log_to_value, log_limit_value, time_basis="utc")
             events, _ = await fetch_rows(VentilationEvent, "fan_change", None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
             fan_on = sum(1 for device in VENT_TIMELINE_DEVICES if latest and sample_state(latest, device) is True)
-            temp_day = await build_temp_day(today_start, tomorrow_start, min(now_dt, tomorrow_start))
-            temp_chart_rows = list(reversed(temp_day["samples_desc"]))
-            charts = [
-                api_chart(
-                    "Dagslogg temperatur",
-                    [row["time"] for row in temp_chart_rows],
-                    [
-                        {
-                            "name": series["label"],
-                            "data": [row.get(series["key"]) for row in temp_chart_rows],
-                            "color": series["color"],
-                        }
-                        for series in temp_day["series"]
-                        if series.get("default") and series.get("polyline")
-                    ],
-                    "Samme datagrunnlag som gammel ventilasjon/dagslogg-temp.",
-                    "line",
-                    360,
-                )
+            temp_day = await build_temp_day(day_start, day_end, timeline_end)
+            ventilation_data: Dict[str, Any] = {
+                "view": view or "dagslogg",
+                "latest": ventilation_latest_payload(latest, latest_yr),
+                "day": ventilation_day_payload(temp_day, selected_day, is_today, now_marker),
+            }
+            charts: list[Dict[str, Any]] = []
+            sample_columns = [
+                "bucket_start", "mode",
+                "temp_1etg", "humidity_1etg", "temp_2etg", "humidity_2etg", "temp_vip", "humidity_vip",
+                "temp_ute", "temp_ute_netatmo", "temp_yr", "humidity_ute", "humidity_yr",
+                "temp_loft", "humidity_loft", "temp_luftinntak", "humidity_luftinntak",
+                "temp_passiv", "humidity_passiv", "temp_kjeller", "humidity_kjeller",
+                "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter",
+            ]
+            day_sample_rows = [
+                {
+                    "time": row.get("time"),
+                    "mode": row.get("mode"),
+                    **{key: row.get(key) for key in sample_columns if key != "bucket_start"},
+                }
+                for row in ventilation_data["day"]["samples"]
             ]
             tables = [
-                api_table("Temperatur og fukt", ["bucket_start", "temp_avg_inne", "temp_ute", "temp_loft", "temp_luftinntak", "temp_kjeller", "humidity_1etg", "humidity_2etg", "humidity_vip", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], [api_pick(row, VENT_SAMPLE_COLUMNS) for row in samples]),
+                api_table("Dagsmålinger", ["time", "mode", "temp_1etg", "humidity_1etg", "temp_2etg", "humidity_2etg", "temp_vip", "humidity_vip", "temp_ute", "temp_loft", "temp_kjeller", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], day_sample_rows),
+                api_table("Temperatur og fukt", sample_columns, [api_pick(row, VENT_SAMPLE_COLUMNS) for row in samples]),
                 api_table("Yr", ["bucket_start", "weather_text", "air_temperature", "relative_humidity", "wind_speed", "wind_speed_of_gust", "cloud_area_fraction", "precipitation_next_1h"], [api_pick(row, YR_SAMPLE_COLUMNS) for row in yr_rows]),
                 api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], [api_pick(row, VENT_COLUMNS) for row in events]),
             ]
-            if view in {"temp-logg", "dagslogg"}:
-                tables = [tables[0]]
-            elif view == "yr-logg":
+            if view in {"", "dagslogg"}:
+                tables = [tables[0], tables[3]]
+            elif view == "temp-logg":
                 tables = [tables[1]]
-            elif view == "hendelser":
+            elif view == "yr-logg":
                 tables = [tables[2]]
+            elif view == "hendelser":
+                tables = [tables[3]]
             elif view == "innstillinger":
                 config = await get_or_create_config(session, "ventilation")
                 values = merge_config_values("ventilation", config.values if config else {})
@@ -13571,12 +13776,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         .limit(25)
                     )
                 ).scalars().all()
+                ventilation_data["settings"] = ventilation_settings_payload(config, values, history)
                 tables = [
                     api_table(
                         "Ventilasjonsverktøy",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Rediger innstillinger", "/ventilasjon/innstillinger", "Klassisk skjema for endring av ventilasjonsgrenser.", config.version if config else None),
+                            api_tool_row("Rediger innstillinger", "/ventilasjon/innstillinger", "Rediger ventilasjonsgrenser i ny app.", config.version if config else None),
                             api_tool_row("Konfig API", "/api/config/ventilation", "JSON som HC3-runneren henter.", config.version if config else None),
                         ],
                     ),
@@ -13591,7 +13797,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_card("Innetemp", format_short_number(latest.temp_avg_inne if latest else None, 1), "grader", "Snitt inne", "vent"),
                     api_card("Kjeller", format_short_number(latest.temp_kjeller if latest else None, 1), "grader", f"Fukt {format_short_number(latest.humidity_kjeller if latest else None)}%", "vent"),
                     api_card("Vifter", f"{fan_on}/{len(VENT_TIMELINE_DEVICES)}", "på", latest.mode if latest and latest.mode else "", "vent"),
-                    api_card("Yr", yr_rows[0].weather_text if yr_rows else "-", "", f"Vind {format_short_number(yr_rows[0].wind_speed if yr_rows else None, 1)} m/s", "weather"),
+                    api_card("Yr", latest_yr.weather_text if latest_yr else "-", "", f"Vind {format_short_number(latest_yr.wind_speed if latest_yr else None, 1)} m/s", "weather"),
                 ],
                 "charts": charts,
                 "tables": tables,
@@ -13601,8 +13807,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_filter("mode", "Modus", "text", log_mode_value),
                     api_filter("limit", "Antall", "number", log_limit_value),
                 ]
-                if view in {"temp-logg", "dagslogg", "yr-logg", "hendelser"}
+                if view in {"temp-logg", "yr-logg", "hendelser"}
                 else [],
+                "ventilation": ventilation_data,
             }
 
         if module == "lys":
