@@ -250,6 +250,22 @@ a {
   margin-inline-end: 0;
 }
 
+.status-strip-state-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-strip-tag-wrap {
+  display: inline-flex;
+  cursor: default;
+}
+
+.status-strip-state-group .ant-tag {
+  min-width: 42px;
+  text-align: center;
+}
+
 .status-period-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -11495,6 +11495,7 @@ async def api_v2_overview():
     ]
     services = [
         {
+            "jobName": row["job_name"],
             "label": row["title"],
             "status": row["status"] if row["status"] in {"ok", "warn", "bad"} else "unknown",
             "detail": row["age"] or row["status_text"],

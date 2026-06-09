@@ -1,17 +1,45 @@
 import { CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
-import { Card, Col, List, Row, Space, Tag, Typography } from "antd";
+import { Card, Col, List, Row, Space, Tag, Tooltip, Typography } from "antd";
 import { Link } from "react-router-dom";
-import { fetchOverview, type MetricCard as MetricCardData, type StatusPeriod } from "../api";
+import { fetchOverview, type MetricCard as MetricCardData, type ServiceStatus, type StatusPeriod } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import MetricCard from "../components/MetricCard";
 import { nok } from "../format";
 import { useAsyncData } from "../hooks";
 import { appPath } from "../navigation";
 
+type StripState = { label: string; state: boolean | null; tooltip?: string };
+type StripItem = { label: string; state?: boolean | null; states?: StripState[]; tooltip?: string };
+
+const SPOT_FRONT_LABELS = new Set(["Spot foran glassvegg", "Spot foran massasje"]);
+
+const DATASOURCE_PRIORITY = [
+  "hc3_energy_1min",
+  "hc3_light_5min",
+  "hc3_ventilation_5min",
+  "sun2_sessions_import",
+  "easypark_parking_import",
+  "yr_weather_refresh",
+  "roborock_sync",
+  "parking_vehicle_svv_sync",
+];
+
 function stateTag(state: boolean | null) {
   if (state === true) return <Tag color="green">På</Tag>;
   if (state === false) return <Tag color="default">Av</Tag>;
   return <Tag>Ukjent</Tag>;
+}
+
+function stateTagWithTooltip(state: boolean | null, tooltip?: string) {
+  const tag = stateTag(state);
+  if (!tooltip) return tag;
+  return (
+    <Tooltip title={tooltip}>
+      <span className="status-strip-tag-wrap" aria-label={tooltip}>
+        {tag}
+      </span>
+    </Tooltip>
+  );
 }
 
 function statusIcon(status: string) {
@@ -29,12 +57,54 @@ function isOverviewSupportCard(card: MetricCardData) {
   return card.title !== "Åpning" && card.title !== "Datakilder";
 }
 
+function serviceRank(service: ServiceStatus) {
+  const directRank = DATASOURCE_PRIORITY.indexOf(service.jobName || "");
+  if (directRank >= 0) return directRank;
+  if (service.label.toLowerCase().includes("easypark")) {
+    return DATASOURCE_PRIORITY.indexOf("easypark_parking_import");
+  }
+  return DATASOURCE_PRIORITY.length + 1;
+}
+
+function datasourcePreview(services: ServiceStatus[]) {
+  return services
+    .map((service, index) => ({ service, index }))
+    .sort((a, b) => serviceRank(a.service) - serviceRank(b.service) || a.index - b.index)
+    .slice(0, 8)
+    .map((row) => row.service);
+}
+
+function lightStripItems(items: Array<{ label: string; state: boolean | null }>): StripItem[] {
+  const glassSpot = items.find((item) => item.label === "Spot foran glassvegg");
+  const massageSpot = items.find((item) => item.label === "Spot foran massasje");
+  let spotFrontInserted = false;
+  const stripItems: StripItem[] = [];
+
+  for (const item of items) {
+    if (SPOT_FRONT_LABELS.has(item.label)) {
+      if (spotFrontInserted) continue;
+      spotFrontInserted = true;
+      stripItems.push({
+        label: "Spot foran",
+        states: [
+          { label: "glassvegg", state: glassSpot?.state ?? null, tooltip: "Spot foran glassvegg" },
+          { label: "massasje", state: massageSpot?.state ?? null, tooltip: "Spot foran massasje" },
+        ],
+      });
+      continue;
+    }
+    stripItems.push({ ...item, tooltip: item.label });
+  }
+
+  return stripItems;
+}
+
 function StatusStrip({
   title,
   items,
 }: {
   title: string;
-  items: Array<{ label: string; state: boolean | null }>;
+  items: StripItem[];
 }) {
   return (
     <div className="status-strip">
@@ -43,7 +113,15 @@ function StatusStrip({
         {items.map((item) => (
           <div className="status-strip-item" key={item.label}>
             <span>{item.label}</span>
-            {stateTag(item.state)}
+            {item.states ? (
+              <span className="status-strip-state-group">
+                {item.states.map((state) => (
+                  <span key={state.label}>{stateTagWithTooltip(state.state, state.tooltip)}</span>
+                ))}
+              </span>
+            ) : (
+              stateTagWithTooltip(item.state ?? null, item.tooltip)
+            )}
           </div>
         ))}
       </div>
@@ -89,6 +167,7 @@ export default function OverviewPage() {
   if (error || !data) return <ErrorBlock error={error} />;
 
   const supportCards = data.cards.filter(isOverviewSupportCard);
+  const overviewServices = datasourcePreview(data.services);
 
   function itemTitle(item: { href?: string; label: string }) {
     const internalPath = appPath(item.href);
@@ -113,7 +192,7 @@ export default function OverviewPage() {
       </div>
 
       <div className="status-strip-stack">
-        <StatusStrip title="Lys" items={data.lightItems} />
+        <StatusStrip title="Lys" items={lightStripItems(data.lightItems)} />
         <StatusStrip title="Ventilasjon" items={data.fanItems} />
       </div>
 
@@ -147,7 +226,7 @@ export default function OverviewPage() {
         <Col span={12}>
           <Card title="Status datakilder" className="work-card">
             <List
-              dataSource={data.services.slice(0, 7)}
+              dataSource={overviewServices}
               locale={{ emptyText: "Ingen datakilder å vise" }}
               renderItem={(item) => (
                 <List.Item>
