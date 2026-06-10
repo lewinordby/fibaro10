@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1111")
+APP_BUILD = os.getenv("APP_BUILD", "1112")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1112",
+        "date": "10.06.2026",
+        "headline": "Forenkler topp og terskelfarger i parkeringsdagslinje",
+        "title": "Dagslinjen starter på datovelger og beleggstolper får 25-skala",
+        "description": (
+            "Parkeringsdagslinjen viser nå bare relevant innhold fra datovelgeren og nedover. Beleggstolpene har fast "
+            "skala opp til 25 biler, der normaldelen er blå, delen over 20 biler markeres oransje og delen over 23 "
+            "biler markeres rødt. Fargene ligger dermed kun i øvre del av stolpen når tersklene passeres."
+        ),
+        "applications": [
+            "fibaro10 backend (main.py): eksponerer fast occupancyScaleMax=25 i parkingTimeline-payloaden.",
+            "Desktop V2 API-kontrakt (api.ts): legger occupancyScaleMax inn i parkeringstidslinjetypen.",
+            "Desktop V2 modulside (ModulePage.tsx): skjuler modulknapper og toppkort for parkeringsdagslinjen.",
+            "Desktop V2 parkering (ParkingTimelinePanel.tsx): tegner belegg som stablede terskelsegmenter.",
+            "Desktop V2 CSS (styles.css): erstatter helfarget beleggstolpe med blå/oransje/rød segmentstolpe.",
+            "Buildlogg (build_log.py): registrerer build 1112.",
+        ],
+        "request": (
+            "de to øverste radene på siden er unødvendig ta bort alt over dato velger. den raden som viser stolper "
+            "for belegg bør ha fast skala opptil 25 biler og bør være oransje når det går over 20 og rød når det "
+            "går over 23 / altså øverste delen på stolpen"
+        ),
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner handlinger og nøkkelkort over datovelgeren på Parkering/Dagslinje.",
+            "Setter beleggskurven til fast 0-25-skala i stedet for å skalere mot 23 plasser.",
+            "Tegner blå stolpedel for 0-20 biler, oransje toppdel for 21-23 biler og rød toppdel over 23 biler.",
+            "Oppdaterer tooltipen for belegg med at skalaen er 25 og kapasiteten er 23.",
+        ],
+    },
     {
         "version": "1",
         "build": "1111",

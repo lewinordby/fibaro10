@@ -12017,6 +12017,7 @@ PARKING_TIMELINE_ROWS = [
     {"key": "capacity", "label": "Kapasitet", "count": 23},
 ]
 PARKING_TIMELINE_CAPACITY = sum(row["count"] for row in PARKING_TIMELINE_ROWS)
+PARKING_OCCUPANCY_SCALE_MAX = 25
 
 
 def parking_timeline_end(row: ParkingSession, timeline_end: datetime) -> datetime:
@@ -12179,8 +12180,8 @@ async def api_parking_day_timeline(session, selected: date, now_dt: datetime) ->
                 "left": round(index / 96 * 100, 4),
                 "width": round(100 / 96, 4),
                 "count": count,
-                "height": round((count / PARKING_TIMELINE_CAPACITY) * 100, 2) if PARKING_TIMELINE_CAPACITY else 0,
-                "title": f"{bucket_start:%H:%M}-{bucket_end:%H:%M} | {count}/{PARKING_TIMELINE_CAPACITY} opptatt",
+                "height": round((min(count, PARKING_OCCUPANCY_SCALE_MAX) / PARKING_OCCUPANCY_SCALE_MAX) * 100, 2),
+                "title": f"{bucket_start:%H:%M}-{bucket_end:%H:%M} | {count} biler | skala 25, kapasitet 23",
             }
         )
 
@@ -12201,6 +12202,7 @@ async def api_parking_day_timeline(session, selected: date, now_dt: datetime) ->
         "prevDay": (selected - timedelta(days=1)).isoformat(),
         "nextDay": (selected + timedelta(days=1)).isoformat(),
         "capacity": PARKING_TIMELINE_CAPACITY,
+        "occupancyScaleMax": PARKING_OCCUPANCY_SCALE_MAX,
         "layout": [{"key": row["key"], "label": row["label"], "count": row["count"]} for row in PARKING_TIMELINE_ROWS],
         "spaceRows": spaces,
         "overflowSessions": overflow_sessions,

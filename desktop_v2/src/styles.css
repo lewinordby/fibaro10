@@ -1490,13 +1490,33 @@
   background-size: calc(100% / 24) 100%, 100% 100%;
 }
 
-.parking-occupancy-bar {
+.parking-occupancy-stack {
   position: absolute;
   bottom: 5px;
+  display: flex;
+  flex-direction: column-reverse;
+  height: calc(100% - 10px);
   min-height: 3px;
+  overflow: hidden;
   border-radius: 4px 4px 2px 2px;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.14);
+}
+
+.parking-occupancy-segment {
+  width: 100%;
+  min-height: 0;
+}
+
+.parking-occupancy-segment.normal {
   background: var(--domain-parking);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.18);
+}
+
+.parking-occupancy-segment.warn {
+  background: var(--domain-sun2);
+}
+
+.parking-occupancy-segment.over {
+  background: var(--domain-revenue);
 }
 
 .parking-session-block {

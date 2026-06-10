@@ -414,6 +414,7 @@ export type ParkingTimeline = {
   prevDay: string;
   nextDay: string;
   capacity: number;
+  occupancyScaleMax: number;
   layout: Array<{ key: string; label: string; count: number }>;
   spaceRows: ParkingTimelineSpaceRow[];
   overflowSessions: ParkingTimelineItem[];

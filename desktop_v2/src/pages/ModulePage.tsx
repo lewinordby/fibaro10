@@ -586,10 +586,11 @@ export default function ModulePage({ module }: { module: string }) {
   if (module === "energi" && safeView === "elvia" && data.energyElvia) {
     return <EnergyElviaPage data={data} onReload={() => setReloadToken((value) => value + 1)} />;
   }
+  const hideModuleChrome = Boolean(data.parkingTimeline);
 
   return (
     <Space direction="vertical" size={18} className="page-stack">
-      {data.actions?.length ? (
+      {data.actions?.length && !hideModuleChrome ? (
         <Card className="work-card module-actions">
           <Space>
             {data.actions.map((action) => (
@@ -616,11 +617,13 @@ export default function ModulePage({ module }: { module: string }) {
         />
       ) : null}
 
-      <div className="metric-grid primary-grid">
-        {data.cards.map((card) => (
-          <ModuleMetric card={card} key={card.title} />
-        ))}
-      </div>
+      {data.cards.length && !hideModuleChrome ? (
+        <div className="metric-grid primary-grid">
+          {data.cards.map((card) => (
+            <ModuleMetric card={card} key={card.title} />
+          ))}
+        </div>
+      ) : null}
 
       {data.sunTimeline ? (
         <SunTimelinePanel timeline={data.sunTimeline} onDayChange={setTimelineDay} />

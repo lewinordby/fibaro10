@@ -25,6 +25,15 @@ function ParkingBlock({ item }: { item: ParkingTimelineItem }) {
   );
 }
 
+function occupancySegments(count: number, scaleMax: number) {
+  const capped = Math.min(Math.max(count, 0), scaleMax);
+  return {
+    normal: Math.min(capped, 20),
+    warn: Math.max(0, Math.min(capped, 23) - 20),
+    over: Math.max(0, capped - 23),
+  };
+}
+
 export function ParkingTimelinePanel({
   timeline,
   onDayChange,
@@ -33,6 +42,7 @@ export function ParkingTimelinePanel({
   onDayChange: (day: string) => void;
 }) {
   const layoutLabel = timeline.layout.map((row) => `${row.label} ${row.count} spor`).join(" + ");
+  const occupancyScaleMax = timeline.occupancyScaleMax || 25;
   return (
     <Space direction="vertical" size={12} className="parking-timeline-stack">
       <Card className="work-card parking-timeline-toolbar">
@@ -124,19 +134,40 @@ export function ParkingTimelinePanel({
             </div>
             <div className="parking-occupancy-line">
               <ParkingNowMarker value={timeline.nowMarker} />
-              {timeline.occupancy.map((item, index) => (
-                <div
-                  className="parking-occupancy-bar"
-                  key={`${item.left}-${index}`}
-                  title={item.title}
-                  style={{
-                    left: `${item.left}%`,
-                    width: `calc(${item.width}% - 1px)`,
-                    height: `${Math.max(3, item.height)}%`,
-                    opacity: item.count ? 0.42 + Math.min(0.48, item.count / timeline.capacity) : 0.14,
-                  }}
-                />
-              ))}
+              {timeline.occupancy.map((item, index) => {
+                const segments = occupancySegments(item.count, occupancyScaleMax);
+                return (
+                  <div
+                    className="parking-occupancy-stack"
+                    key={`${item.left}-${index}`}
+                    title={item.title}
+                    style={{
+                      left: `${item.left}%`,
+                      width: `calc(${item.width}% - 1px)`,
+                      opacity: item.count ? 1 : 0.16,
+                    }}
+                  >
+                    {segments.normal ? (
+                      <div
+                        className="parking-occupancy-segment normal"
+                        style={{ height: `${(segments.normal / occupancyScaleMax) * 100}%` }}
+                      />
+                    ) : null}
+                    {segments.warn ? (
+                      <div
+                        className="parking-occupancy-segment warn"
+                        style={{ height: `${(segments.warn / occupancyScaleMax) * 100}%` }}
+                      />
+                    ) : null}
+                    {segments.over ? (
+                      <div
+                        className="parking-occupancy-segment over"
+                        style={{ height: `${(segments.over / occupancyScaleMax) * 100}%` }}
+                      />
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
             <div className="parking-space-total">{timeline.summary.peakCount}/{timeline.capacity}</div>
 
