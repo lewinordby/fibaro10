@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1079")
+APP_BUILD = os.getenv("APP_BUILD", "1080")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1080",
+        "date": "10.06.2026",
+        "title": "Utvider status med to perioder tilbake",
+        "changes": [
+            "Legger sammenligning mot to uker siden paa ukekortet.",
+            "Legger sammenligning mot to maaneder siden paa maanedskortet.",
+            "Bruker samme kilde-spesifikke datakutt for soling og parkering i de ekstra sammenligningene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1079",
@@ -11564,8 +11575,10 @@ async def api_v2_overview():
     last_week_same_day = today - timedelta(days=7)
     week_start = today - timedelta(days=today.weekday())
     previous_week_start = week_start - timedelta(days=7)
+    two_weeks_start = previous_week_start - timedelta(days=7)
     month_start = today.replace(day=1)
     previous_month_start = (month_start - timedelta(days=1)).replace(day=1)
+    two_months_start = (previous_month_start - timedelta(days=1)).replace(day=1)
     tomorrow = today + timedelta(days=1)
     today_start = datetime.combine(today, time.min)
     tomorrow_start = datetime.combine(tomorrow, time.min)
@@ -11574,8 +11587,10 @@ async def api_v2_overview():
     last_week_same_day_end = last_week_same_day_start + timedelta(days=1)
     week_start_dt = datetime.combine(week_start, time.min)
     previous_week_start_dt = datetime.combine(previous_week_start, time.min)
+    two_weeks_start_dt = datetime.combine(two_weeks_start, time.min)
     month_start_dt = datetime.combine(month_start, time.min)
     previous_month_start_dt = datetime.combine(previous_month_start, time.min)
+    two_months_start_dt = datetime.combine(two_months_start, time.min)
     async with async_session() as session:
         latest_light_sample = (
             await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
@@ -11606,7 +11621,19 @@ async def api_v2_overview():
             last_week_same_day_end,
         )
         sun_previous_week_cutoff = shifted_period_cutoff(week_start_dt, sun_week_cutoff, previous_week_start_dt, week_start_dt)
+        sun_two_weeks_cutoff = shifted_period_cutoff(
+            week_start_dt,
+            sun_week_cutoff,
+            two_weeks_start_dt,
+            previous_week_start_dt,
+        )
         sun_previous_month_cutoff = shifted_period_cutoff(month_start_dt, sun_month_cutoff, previous_month_start_dt, month_start_dt)
+        sun_two_months_cutoff = shifted_period_cutoff(
+            month_start_dt,
+            sun_month_cutoff,
+            two_months_start_dt,
+            previous_month_start_dt,
+        )
         parking_yesterday_cutoff = shifted_period_cutoff(today_start, parking_today_cutoff, yesterday_start, today_start)
         parking_last_week_same_day_cutoff = shifted_period_cutoff(
             today_start,
@@ -11620,11 +11647,23 @@ async def api_v2_overview():
             previous_week_start_dt,
             week_start_dt,
         )
+        parking_two_weeks_cutoff = shifted_period_cutoff(
+            week_start_dt,
+            parking_week_cutoff,
+            two_weeks_start_dt,
+            previous_week_start_dt,
+        )
         parking_previous_month_cutoff = shifted_period_cutoff(
             month_start_dt,
             parking_month_cutoff,
             previous_month_start_dt,
             month_start_dt,
+        )
+        parking_two_months_cutoff = shifted_period_cutoff(
+            month_start_dt,
+            parking_month_cutoff,
+            two_months_start_dt,
+            previous_month_start_dt,
         )
         today_sun = await sun2_datetime_snapshot(session, today_start, sun_today_cutoff)
         yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
@@ -11643,10 +11682,20 @@ async def api_v2_overview():
             previous_week_start_dt,
             sun_previous_week_cutoff,
         )
+        two_weeks_same_time_sun = await sun2_datetime_snapshot(
+            session,
+            two_weeks_start_dt,
+            sun_two_weeks_cutoff,
+        )
         previous_month_same_time_sun = await sun2_datetime_snapshot(
             session,
             previous_month_start_dt,
             sun_previous_month_cutoff,
+        )
+        two_months_same_time_sun = await sun2_datetime_snapshot(
+            session,
+            two_months_start_dt,
+            sun_two_months_cutoff,
         )
         today_parking = await parking_datetime_snapshot(session, today_start, parking_today_cutoff)
         yesterday_parking = (
@@ -11697,10 +11746,20 @@ async def api_v2_overview():
             previous_week_start_dt,
             parking_previous_week_cutoff,
         )
+        two_weeks_same_time_parking = await parking_datetime_snapshot(
+            session,
+            two_weeks_start_dt,
+            parking_two_weeks_cutoff,
+        )
         previous_month_same_time_parking = await parking_datetime_snapshot(
             session,
             previous_month_start_dt,
             parking_previous_month_cutoff,
+        )
+        two_months_same_time_parking = await parking_datetime_snapshot(
+            session,
+            two_months_start_dt,
+            parking_two_months_cutoff,
         )
         active_parking = (
             await session.execute(
@@ -11818,6 +11877,21 @@ async def api_v2_overview():
             "parkingAsOfLabel": cutoff_label(parking_week_cutoff, today),
             "previousSolAsOfLabel": cutoff_label(sun_previous_week_cutoff, today),
             "previousParkingAsOfLabel": cutoff_label(parking_previous_week_cutoff, today),
+            "extraComparisons": [
+                {
+                    "label": "Sammenlignet med tilsvarende datatidspunkt for to uker siden",
+                    "sol": float_or_zero(two_weeks_same_time_sun.paid),
+                    "solCount": int_or_zero(two_weeks_same_time_sun.sessions),
+                    "parking": float_or_zero(two_weeks_same_time_parking.paid),
+                    "parkingCount": int_or_zero(two_weeks_same_time_parking.sessions),
+                    "total": (
+                        float_or_zero(two_weeks_same_time_sun.paid)
+                        + float_or_zero(two_weeks_same_time_parking.paid)
+                    ),
+                    "solAsOfLabel": cutoff_label(sun_two_weeks_cutoff, today),
+                    "parkingAsOfLabel": cutoff_label(parking_two_weeks_cutoff, today),
+                }
+            ],
         },
         {
             "key": "month",
@@ -11837,6 +11911,21 @@ async def api_v2_overview():
             "parkingAsOfLabel": cutoff_label(parking_month_cutoff, today),
             "previousSolAsOfLabel": cutoff_label(sun_previous_month_cutoff, today),
             "previousParkingAsOfLabel": cutoff_label(parking_previous_month_cutoff, today),
+            "extraComparisons": [
+                {
+                    "label": "Sammenlignet med tilsvarende datatidspunkt for to m\u00e5neder siden",
+                    "sol": float_or_zero(two_months_same_time_sun.paid),
+                    "solCount": int_or_zero(two_months_same_time_sun.sessions),
+                    "parking": float_or_zero(two_months_same_time_parking.paid),
+                    "parkingCount": int_or_zero(two_months_same_time_parking.sessions),
+                    "total": (
+                        float_or_zero(two_months_same_time_sun.paid)
+                        + float_or_zero(two_months_same_time_parking.paid)
+                    ),
+                    "solAsOfLabel": cutoff_label(sun_two_months_cutoff, today),
+                    "parkingAsOfLabel": cutoff_label(parking_two_months_cutoff, today),
+                }
+            ],
         },
     ]
     light_items = [
