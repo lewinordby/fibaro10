@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1114")
+APP_BUILD = os.getenv("APP_BUILD", "1115")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1115",
+        "date": "10.06.2026",
+        "headline": "Synliggjør datakvalitet på statusforsiden",
+        "title": "Statuslinjen viser nå datakilder OK/treg/feil med klikk til detaljer",
+        "description": (
+            "Statusforsiden får en kompakt datakildeindikator i toppstatusen. Den viser hvor mange datakilder som er "
+            "OK av totalt antall, markerer varsel/feil med egen farge og lenker direkte til Admin > Datakilder. "
+            "Dermed blir kvaliteten på datagrunnlaget synlig før man tolker dagens tall."
+        ),
+        "applications": [
+            "Desktop V2 status (OverviewPage.tsx): beregner datakildestatus og viser en klikkbar indikator i statuslinjen.",
+            "Desktop V2 CSS (styles.css): legger inn kompakt OK/varsel/feil-styling for datakildeindikatoren.",
+            "Buildlogg (build_log.py): registrerer build 1115.",
+        ],
+        "request": "fortsett og gjør alt du har foreslått uten å stoppe",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger datakildeindikator ved siden av sist oppdatert på statusforsiden.",
+            "Viser antall OK-datakilder av totalt antall.",
+            "Markerer varsel og feil med gul eller rød status.",
+            "Lenker indikatoren direkte til Admin > Datakilder for detaljert feilsøk.",
+        ],
+    },
     {
         "version": "1",
         "build": "1114",

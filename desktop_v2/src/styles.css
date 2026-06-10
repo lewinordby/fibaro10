@@ -82,6 +82,60 @@
   color: var(--muted);
 }
 
+.status-summary-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.status-summary-source-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 9px;
+  color: #334155;
+  text-decoration: none;
+  border: 1px solid #dbe3ee;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.status-summary-source-pill:hover {
+  color: #111827;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.status-summary-source-pill.ok {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.status-summary-source-pill.warn {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.status-summary-source-pill.bad {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.status-summary-source-pill strong {
+  color: #111827;
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.status-summary-source-pill em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
 .status-summary-updated strong {
   color: #6b7280;
   font-size: 12px;

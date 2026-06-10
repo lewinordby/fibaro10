@@ -85,6 +85,14 @@ function sortedDatasources(services: ServiceStatus[]) {
     .map((row) => row.service);
 }
 
+function datasourceCounts(services: ServiceStatus[]) {
+  const total = services.length;
+  const ok = services.filter((service) => service.status === "ok").length;
+  const warn = services.filter((service) => service.status === "warn").length;
+  const bad = services.filter((service) => service.status === "bad").length;
+  return { total, ok, warn, bad, problem: warn + bad };
+}
+
 function signedNok(value: number) {
   if (!Number.isFinite(value) || value === 0) return "0 kr";
   return `${value > 0 ? "+" : "-"}${nok(Math.abs(value))} kr`;
@@ -254,11 +262,14 @@ function StatusSummary({
   label,
   detail,
   updatedAt,
+  sourceCounts,
 }: {
   label: string;
   detail: string;
   updatedAt: string;
+  sourceCounts: ReturnType<typeof datasourceCounts>;
 }) {
+  const sourceState = sourceCounts.bad ? "bad" : sourceCounts.warn ? "warn" : "ok";
   return (
     <div className="status-summary">
       <div className="status-summary-state">
@@ -266,9 +277,18 @@ function StatusSummary({
         <strong>{label}</strong>
         <em>{detail}</em>
       </div>
-      <div className="status-summary-updated">
-        <span>Sist oppdatert</span>
-        <strong>{updatedAt}</strong>
+      <div className="status-summary-meta">
+        <Link className={`status-summary-source-pill ${sourceState}`} to="/admin/datakilder">
+          <span>Datakilder</span>
+          <strong>
+            {sourceCounts.ok}/{sourceCounts.total} OK
+          </strong>
+          <em>{sourceCounts.problem ? `${sourceCounts.problem} må sjekkes` : "Alt ferskt"}</em>
+        </Link>
+        <div className="status-summary-updated">
+          <span>Sist oppdatert</span>
+          <strong>{updatedAt}</strong>
+        </div>
       </div>
     </div>
   );
@@ -373,6 +393,7 @@ export default function OverviewPage() {
 
   const supportCards = data.cards.filter(isOverviewSupportCard);
   const overviewServices = sortedDatasources(data.services);
+  const overviewSourceCounts = datasourceCounts(overviewServices);
 
   function itemTitle(item: { href?: string; label: string }) {
     const internalPath = appPath(item.href);
@@ -386,6 +407,7 @@ export default function OverviewPage() {
       <StatusSummary
         label={data.operatingWindow.label}
         detail={data.operatingWindow.detail}
+        sourceCounts={overviewSourceCounts}
         updatedAt={new Date(data.generatedAt).toLocaleString("nb-NO")}
       />
 
