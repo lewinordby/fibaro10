@@ -733,6 +733,23 @@ a {
   font-size: 12px;
 }
 
+.status-comparison-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.status-comparison-current-period {
+  min-width: 104px;
+  padding: 5px 10px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 760;
+  text-align: center;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
 .status-comparison-summary-card,
 .status-comparison-delta-card,
 .status-comparison-chart-card {

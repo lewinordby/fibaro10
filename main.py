@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1084")
+APP_BUILD = os.getenv("APP_BUILD", "1085")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1085",
+        "date": "10.06.2026",
+        "title": "Legger bla-knapper i statussammenligning",
+        "changes": [
+            "Legger forrige- og neste-knapper paa detaljsiden for statussammenligning.",
+            "Utvider status-sammenlignings-API med ankerdato for dag, uke og m\u00e5ned.",
+            "Bruker full historisk periode, men beholder importtidspunkt som kutt for innev\u00e6rende periode.",
+        ],
+    },
     {
         "version": "1",
         "build": "1084",
@@ -5894,38 +5905,126 @@ def cutoff_label(value: datetime, today: date) -> str:
     return value.strftime("%d.%m kl %H:%M")
 
 
-def status_comparison_windows(import_rows: list[Dict[str, Any]], now_dt: datetime) -> Dict[str, Any]:
+NB_MONTH_NAMES = [
+    "Januar", "Februar", "Mars", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Desember",
+]
+
+
+def parse_anchor_day(value: Optional[str], fallback: date) -> date:
+    if not value:
+        return fallback
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Ugyldig ankerdato")
+
+
+def add_months(value: date, months: int) -> date:
+    month_index = value.year * 12 + value.month - 1 + months
+    year = month_index // 12
+    month = month_index % 12 + 1
+    day = min(value.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def month_label(value: date) -> str:
+    return f"{NB_MONTH_NAMES[value.month - 1]} {value.year}"
+
+
+def week_label(value: date) -> str:
+    iso = value.isocalendar()
+    return f"Uke {iso.week}, {iso.year}"
+
+
+def status_navigation(
+    period_key: str,
+    anchor: date,
+    max_anchor: date,
+    label: str,
+) -> Dict[str, Any]:
+    if period_key == "today":
+        previous_anchor = anchor - timedelta(days=1)
+        next_anchor = anchor + timedelta(days=1)
+        previous_label = "Forrige dag"
+        next_label = "Neste dag"
+    elif period_key == "week":
+        previous_anchor = anchor - timedelta(days=7)
+        next_anchor = anchor + timedelta(days=7)
+        previous_label = "Forrige uke"
+        next_label = "Neste uke"
+    else:
+        previous_anchor = add_months(anchor, -1)
+        next_anchor = add_months(anchor, 1)
+        previous_label = "Forrige m\u00e5ned"
+        next_label = "Neste m\u00e5ned"
+    return {
+        "anchor": anchor.isoformat(),
+        "label": label,
+        "previousAnchor": previous_anchor.isoformat(),
+        "nextAnchor": next_anchor.isoformat(),
+        "canPrevious": True,
+        "canNext": next_anchor <= max_anchor,
+        "previousLabel": previous_label,
+        "nextLabel": next_label,
+    }
+
+
+def selected_period_cutoff(period_start: datetime, period_end: datetime, as_of: datetime, is_current_period: bool) -> datetime:
+    if is_current_period:
+        return period_cutoff(period_start, period_end, as_of)
+    return period_end
+
+
+def status_comparison_windows(
+    import_rows: list[Dict[str, Any]],
+    now_dt: datetime,
+    anchor_day: Optional[date] = None,
+) -> Dict[str, Any]:
     today = now_dt.date()
-    yesterday = today - timedelta(days=1)
-    last_week_same_day = today - timedelta(days=7)
-    week_start = today - timedelta(days=today.weekday())
+    selected_day = min(anchor_day or today, today)
+    yesterday = selected_day - timedelta(days=1)
+    last_week_same_day = selected_day - timedelta(days=7)
+    current_week_start = today - timedelta(days=today.weekday())
+    week_start = selected_day - timedelta(days=selected_day.weekday())
     previous_week_start = week_start - timedelta(days=7)
     two_weeks_start = previous_week_start - timedelta(days=7)
-    month_start = today.replace(day=1)
-    previous_month_start = (month_start - timedelta(days=1)).replace(day=1)
-    two_months_start = (previous_month_start - timedelta(days=1)).replace(day=1)
-    tomorrow = today + timedelta(days=1)
+    current_month_start = today.replace(day=1)
+    month_start = selected_day.replace(day=1)
+    previous_month_start = add_months(month_start, -1)
+    two_months_start = add_months(month_start, -2)
+    tomorrow = selected_day + timedelta(days=1)
 
-    today_start = datetime.combine(today, time.min)
+    day_start = datetime.combine(selected_day, time.min)
     tomorrow_start = datetime.combine(tomorrow, time.min)
     yesterday_start = datetime.combine(yesterday, time.min)
     last_week_same_day_start = datetime.combine(last_week_same_day, time.min)
     last_week_same_day_end = last_week_same_day_start + timedelta(days=1)
     week_start_dt = datetime.combine(week_start, time.min)
+    week_end_dt = week_start_dt + timedelta(days=7)
     previous_week_start_dt = datetime.combine(previous_week_start, time.min)
     two_weeks_start_dt = datetime.combine(two_weeks_start, time.min)
     month_start_dt = datetime.combine(month_start, time.min)
+    month_end_dt = datetime.combine(add_months(month_start, 1), time.min)
     previous_month_start_dt = datetime.combine(previous_month_start, time.min)
     two_months_start_dt = datetime.combine(two_months_start, time.min)
 
+    is_current_day = selected_day == today
+    is_current_week = week_start == current_week_start
+    is_current_month = month_start == current_month_start
+
     sun_as_of = source_as_of(import_rows, "sun2_sessions_import", now_dt)
     parking_as_of = source_as_of(import_rows, "easypark_parking_import", now_dt)
-    sun_today_cutoff = period_cutoff(today_start, tomorrow_start, sun_as_of)
-    sun_week_cutoff = period_cutoff(week_start_dt, tomorrow_start, sun_as_of)
-    sun_month_cutoff = period_cutoff(month_start_dt, tomorrow_start, sun_as_of)
-    parking_today_cutoff = period_cutoff(today_start, tomorrow_start, parking_as_of)
-    parking_week_cutoff = period_cutoff(week_start_dt, tomorrow_start, parking_as_of)
-    parking_month_cutoff = period_cutoff(month_start_dt, tomorrow_start, parking_as_of)
+    sun_day_cutoff = selected_period_cutoff(day_start, tomorrow_start, sun_as_of, is_current_day)
+    sun_week_cutoff = selected_period_cutoff(week_start_dt, week_end_dt, sun_as_of, is_current_week)
+    sun_month_cutoff = selected_period_cutoff(month_start_dt, month_end_dt, sun_as_of, is_current_month)
+    parking_day_cutoff = selected_period_cutoff(day_start, tomorrow_start, parking_as_of, is_current_day)
+    parking_week_cutoff = selected_period_cutoff(week_start_dt, week_end_dt, parking_as_of, is_current_week)
+    parking_month_cutoff = selected_period_cutoff(month_start_dt, month_end_dt, parking_as_of, is_current_month)
+
+    day_label = "I dag" if is_current_day else selected_day.strftime("%d.%m.%Y")
+    week_current_label = "Denne uken" if is_current_week else week_label(week_start)
+    month_current_label = "Denne m\u00e5neden" if is_current_month else month_label(month_start)
 
     def current(label: str, start: datetime, sun_end: datetime, parking_end: datetime) -> Dict[str, Any]:
         return {"label": label, "start": start, "sunEnd": sun_end, "parkingEnd": parking_end}
@@ -5949,36 +6048,40 @@ def status_comparison_windows(import_rows: list[Dict[str, Any]], now_dt: datetim
 
     return {
         "today": {
-            "title": "I dag",
-            "current": current("I dag", today_start, sun_today_cutoff, parking_today_cutoff),
+            "title": day_label,
+            "anchor": selected_day.isoformat(),
+            "navigation": status_navigation("today", selected_day, today, day_label),
+            "current": current(day_label, day_start, sun_day_cutoff, parking_day_cutoff),
             "comparisons": [
                 compare(
                     "previous",
-                    "Tilsvarende datatidspunkt i g\u00e5r",
+                    "Tilsvarende datatidspunkt i g\u00e5r" if is_current_day else "Dagen f\u00f8r",
                     yesterday_start,
-                    today_start,
-                    today_start,
-                    sun_today_cutoff,
-                    parking_today_cutoff,
+                    day_start,
+                    day_start,
+                    sun_day_cutoff,
+                    parking_day_cutoff,
                 ),
                 compare(
                     "same-weekday-last-week",
-                    "Samme dag forrige uke",
+                    "Samme dag forrige uke" if is_current_day else "Samme ukedag forrige uke",
                     last_week_same_day_start,
                     last_week_same_day_end,
-                    today_start,
-                    sun_today_cutoff,
-                    parking_today_cutoff,
+                    day_start,
+                    sun_day_cutoff,
+                    parking_day_cutoff,
                 ),
             ],
         },
         "week": {
             "title": "Uke",
-            "current": current("Denne uken", week_start_dt, sun_week_cutoff, parking_week_cutoff),
+            "anchor": week_start.isoformat(),
+            "navigation": status_navigation("week", week_start, current_week_start, week_current_label),
+            "current": current(week_current_label, week_start_dt, sun_week_cutoff, parking_week_cutoff),
             "comparisons": [
                 compare(
                     "previous",
-                    "Tilsvarende datatidspunkt forrige uke",
+                    "Tilsvarende datatidspunkt forrige uke" if is_current_week else "Forrige uke",
                     previous_week_start_dt,
                     week_start_dt,
                     week_start_dt,
@@ -5987,7 +6090,7 @@ def status_comparison_windows(import_rows: list[Dict[str, Any]], now_dt: datetim
                 ),
                 compare(
                     "two-weeks-ago",
-                    "Tilsvarende datatidspunkt for to uker siden",
+                    "Tilsvarende datatidspunkt for to uker siden" if is_current_week else "To uker f\u00f8r",
                     two_weeks_start_dt,
                     previous_week_start_dt,
                     week_start_dt,
@@ -5998,11 +6101,13 @@ def status_comparison_windows(import_rows: list[Dict[str, Any]], now_dt: datetim
         },
         "month": {
             "title": "M\u00e5ned",
-            "current": current("Denne m\u00e5neden", month_start_dt, sun_month_cutoff, parking_month_cutoff),
+            "anchor": month_start.isoformat(),
+            "navigation": status_navigation("month", month_start, current_month_start, month_current_label),
+            "current": current(month_current_label, month_start_dt, sun_month_cutoff, parking_month_cutoff),
             "comparisons": [
                 compare(
                     "previous",
-                    "Tilsvarende datatidspunkt forrige m\u00e5ned",
+                    "Tilsvarende datatidspunkt forrige m\u00e5ned" if is_current_month else "Forrige m\u00e5ned",
                     previous_month_start_dt,
                     month_start_dt,
                     month_start_dt,
@@ -6011,7 +6116,7 @@ def status_comparison_windows(import_rows: list[Dict[str, Any]], now_dt: datetim
                 ),
                 compare(
                     "two-months-ago",
-                    "Tilsvarende datatidspunkt for to m\u00e5neder siden",
+                    "Tilsvarende datatidspunkt for to m\u00e5neder siden" if is_current_month else "To m\u00e5neder f\u00f8r",
                     two_months_start_dt,
                     previous_month_start_dt,
                     month_start_dt,
@@ -11930,12 +12035,17 @@ async def build_revenue_month_context(month: Optional[str] = None) -> Dict[str, 
 
 
 @app.get("/api/status/comparison")
-async def api_v2_status_comparison(period: str = Query("today"), compare: str = Query("previous")):
+async def api_v2_status_comparison(
+    period: str = Query("today"),
+    compare: str = Query("previous"),
+    anchor: Optional[str] = Query(None),
+):
     now_dt = local_now_naive()
     today = now_dt.date()
+    anchor_day = parse_anchor_day(anchor, today)
     async with async_session() as session:
         import_rows = await import_status_rows(session)
-        windows = status_comparison_windows(import_rows, now_dt)
+        windows = status_comparison_windows(import_rows, now_dt, anchor_day)
         period_config = windows.get(period)
         if not period_config:
             raise HTTPException(status_code=404, detail="Ukjent statusperiode")
@@ -12030,8 +12140,10 @@ async def api_v2_status_comparison(period: str = Query("today"), compare: str = 
         "generatedAt": api_local_iso(now_dt),
         "periodKey": period,
         "comparisonKey": compare,
+        "anchor": period_config["anchor"],
         "title": period_config["title"],
         "comparisonLabel": comparison_config["label"],
+        "navigation": period_config["navigation"],
         "axis": {
             "start": api_local_iso(current_config["start"]),
             "end": api_local_iso(axis_end),

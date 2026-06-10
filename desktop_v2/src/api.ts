@@ -142,8 +142,19 @@ export type StatusComparisonResponse = {
   generatedAt: string | null;
   periodKey: string;
   comparisonKey: string;
+  anchor: string;
   title: string;
   comparisonLabel: string;
+  navigation: {
+    anchor: string;
+    label: string;
+    previousAnchor: string;
+    nextAnchor: string;
+    canPrevious: boolean;
+    canNext: boolean;
+    previousLabel: string;
+    nextLabel: string;
+  };
   axis: {
     start: string | null;
     end: string | null;
@@ -512,8 +523,10 @@ export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse>
   return apiGet<RevenueMonthResponse>(`/api/revenue/month${query}`);
 }
 
-export function fetchStatusComparison(period: string, compare: string): Promise<StatusComparisonResponse> {
-  const query = new URLSearchParams({ period, compare }).toString();
+export function fetchStatusComparison(period: string, compare: string, anchor?: string | null): Promise<StatusComparisonResponse> {
+  const queryParams = new URLSearchParams({ period, compare });
+  if (anchor) queryParams.set("anchor", anchor);
+  const query = queryParams.toString();
   return apiGet<StatusComparisonResponse>(`/api/status/comparison?${query}`);
 }
 

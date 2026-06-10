@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { Button, Card, Col, Row, Segmented, Space, Typography } from "antd";
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
@@ -207,8 +207,9 @@ export default function StatusComparisonPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const period = searchParams.get("period") || "today";
   const compare = searchParams.get("compare") || "previous";
+  const anchor = searchParams.get("anchor") || "";
   const metric: ComparisonMetric = searchParams.get("metric") === "amount" ? "amount" : "count";
-  const { data, loading, error } = useAsyncData(() => fetchStatusComparison(period, compare), [period, compare]);
+  const { data, loading, error } = useAsyncData(() => fetchStatusComparison(period, compare, anchor), [period, compare, anchor]);
   const chartOptions = useMemo(() => {
     if (!data) return [];
     const chartKinds: ComparisonChartKind[] = metric === "amount" ? ["total", "sun", "parking"] : ["sun", "parking"];
@@ -217,6 +218,12 @@ export default function StatusComparisonPage() {
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
+
+  const setAnchor = (nextAnchor: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("anchor", nextAnchor);
+    setSearchParams(nextParams);
+  };
 
   return (
     <Space direction="vertical" size={14} className="page-stack status-page status-comparison-page">
@@ -228,9 +235,27 @@ export default function StatusComparisonPage() {
             <span>{data.comparisonLabel}</span>
           </div>
         </div>
-        <Button icon={<ArrowLeftOutlined />}>
-          <Link to="/status/oversikt">Oversikt</Link>
-        </Button>
+        <Space size={8} className="status-comparison-actions">
+          <Button
+            icon={<LeftOutlined />}
+            onClick={() => setAnchor(data.navigation.previousAnchor)}
+            title={data.navigation.previousLabel}
+          >
+            Forrige
+          </Button>
+          <div className="status-comparison-current-period">{data.navigation.label}</div>
+          <Button
+            disabled={!data.navigation.canNext}
+            icon={<RightOutlined />}
+            onClick={() => setAnchor(data.navigation.nextAnchor)}
+            title={data.navigation.nextLabel}
+          >
+            Neste
+          </Button>
+          <Button icon={<ArrowLeftOutlined />}>
+            <Link to="/status/oversikt">Oversikt</Link>
+          </Button>
+        </Space>
       </div>
 
       <Row gutter={[14, 14]}>
