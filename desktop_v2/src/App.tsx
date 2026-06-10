@@ -61,7 +61,7 @@ function userInitial(user?: AuthUser | null): string {
   return name ? name.slice(0, 1).toUpperCase() : "";
 }
 
-function UserProfileMenu({ user }: { user: AuthUser | null }) {
+function UserProfileMenu({ user, onAccount }: { user: AuthUser | null; onAccount: () => void }) {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const items = useMemo<MenuProps["items"]>(
@@ -85,7 +85,7 @@ function UserProfileMenu({ user }: { user: AuthUser | null }) {
 
   async function handleMenuClick({ key }: { key: string }) {
     if (key === "account") {
-      window.location.assign("/konto/oversikt");
+      onAccount();
       return;
     }
     if (key !== "logout" || loggingOut) return;
@@ -107,6 +107,11 @@ function UserProfileMenu({ user }: { user: AuthUser | null }) {
       </Button>
     </Dropdown>
   );
+}
+
+function LegacyRedirect({ to }: { to: string }) {
+  const { search } = useLocation();
+  return <Navigate to={`${to}${search}`} replace />;
 }
 
 function BuildFooter({ build }: { build?: string }) {
@@ -173,13 +178,18 @@ export default function App() {
               />
             ) : null}
           </div>
-          <UserProfileMenu user={user} />
+          <UserProfileMenu user={user} onAccount={() => navigate(modulePath("admin", "brukere"))} />
         </Header>
         <Content className="app-content">
           <Suspense fallback={<LoadingBlock />}>
             <Routes>
               <Route index element={<Navigate to={modulePath("status")} replace />} />
               <Route path="/status" element={<Navigate to={modulePath("status")} replace />} />
+              <Route path="/status/dashboard" element={<LegacyRedirect to={modulePath("status", "oversikt")} />} />
+              <Route path="/status/nokkeltall" element={<LegacyRedirect to={modulePath("status", "oversikt")} />} />
+              <Route path="/status/statistikk" element={<LegacyRedirect to={modulePath("omsetning", "oversikt")} />} />
+              <Route path="/status/datakilder" element={<LegacyRedirect to={modulePath("admin", "datakilder")} />} />
+              <Route path="/status/dagslinje" element={<LegacyRedirect to={modulePath("ventilasjon", "dagslogg")} />} />
               <Route path="/status/oversikt" element={<OverviewPage />} />
               <Route path="/status/omsetning" element={<Navigate to={modulePath("omsetning", "manedsoversikt")} replace />} />
               <Route path="/status/drift" element={<Navigate to={modulePath("admin", "drift")} replace />} />
@@ -189,17 +199,26 @@ export default function App() {
               <Route path="/omsetning/sammenligning" element={<StatusComparisonPage />} />
               <Route path="/omsetning/:view" element={<ModulePage module="omsetning" />} />
               <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
+              <Route path="/parkering/statistikk" element={<LegacyRedirect to={modulePath("parkering", "bilstatistikk")} />} />
+              <Route path="/parkering/navn-oppslag" element={<LegacyRedirect to={modulePath("parkering", "oppslag")} />} />
+              <Route path="/parkering/omrade-oppslag" element={<LegacyRedirect to={modulePath("parkering", "oppslag")} />} />
               <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
               <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
               <Route path="/soling" element={<Navigate to={modulePath("soling")} replace />} />
               <Route path="/soling/:view" element={<ModulePage module="soling" />} />
               <Route path="/energi" element={<Navigate to={modulePath("energi")} replace />} />
+              <Route path="/energi/oversikt" element={<LegacyRedirect to={modulePath("energi", "status")} />} />
+              <Route path="/energi/soling" element={<LegacyRedirect to={modulePath("energi", "forbruk-per-seng")} />} />
+              <Route path="/energi/testside" element={<LegacyRedirect to={modulePath("energi", "verktoy")} />} />
               <Route path="/energi/:view" element={<ModulePage module="energi" />} />
               <Route path="/ventilasjon" element={<Navigate to={modulePath("ventilasjon")} replace />} />
+              <Route path="/ventilasjon/dagslogg-temp" element={<LegacyRedirect to={modulePath("ventilasjon", "dagslogg")} />} />
               <Route path="/ventilasjon/:view" element={<ModulePage module="ventilasjon" />} />
               <Route path="/lys" element={<Navigate to={modulePath("lys")} replace />} />
+              <Route path="/lys/dagslogg-lux" element={<LegacyRedirect to={modulePath("lys", "dagslogg")} />} />
               <Route path="/lys/:view" element={<ModulePage module="lys" />} />
               <Route path="/renhold" element={<Navigate to={modulePath("renhold")} replace />} />
+              <Route path="/renhold/robot/:duid" element={<LegacyRedirect to={modulePath("renhold", "roboter")} />} />
               <Route path="/renhold/:view" element={<ModulePage module="renhold" />} />
               <Route path="/admin" element={<Navigate to={modulePath("admin")} replace />} />
               <Route path="/admin/drift" element={<OperationsPage />} />

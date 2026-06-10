@@ -9175,16 +9175,7 @@ async def ventilation_redirect(request: Request):
 
 @app.get("/ai/sok", response_class=HTMLResponse)
 async def ai_search_view(request: Request):
-    openai_settings = await effective_openai_settings()
-    context = {
-        "question": "",
-        "result": None,
-        "datasets": ai_dataset_overview(),
-        "logs": await recent_ai_logs(),
-        "api_ready": bool(openai_settings["api_key"]),
-        "model": openai_settings["model"],
-    }
-    return templates.TemplateResponse(request, "ai_search.html", context)
+    return redirect_keep_query(request, "/admin/ai", status_code=303)
 
 
 @app.post("/ai/sok", response_class=HTMLResponse)
@@ -9224,17 +9215,7 @@ async def ai_search_submit(request: Request):
 
 @app.get("/ai/innstillinger", response_class=HTMLResponse)
 async def ai_settings_view(request: Request):
-    settings = await effective_openai_settings()
-    return templates.TemplateResponse(
-        request,
-        "ai_settings.html",
-        {
-            "settings": settings,
-            "saved": False,
-            "error": "",
-            "openai_key_url": "https://platform.openai.com/api-keys",
-        },
-    )
+    return redirect_keep_query(request, "/admin/ai", status_code=303)
 
 
 @app.post("/ai/innstillinger", response_class=HTMLResponse)
@@ -9321,43 +9302,27 @@ async def ai_logs_json(limit: int = Query(25, ge=1, le=200)):
 
 @app.get("/konto/oversikt", response_class=HTMLResponse)
 async def account_view(request: Request):
-    return templates.TemplateResponse(
-        request,
-        "account.html",
-        {
-            "ntfy_access_subscribe_url": ntfy_subscribe_url(NTFY_ACCESS_TOPIC, "SUN2 tilgang"),
-            "ntfy_access_web_url": ntfy_topic_url(NTFY_ACCESS_TOPIC),
-            "ntfy_access_cooldown_minutes": int(NTFY_ACCESS_COOLDOWN_MINUTES),
-        },
-    )
+    return redirect_keep_query(request, "/admin/brukere", status_code=303)
 
 
 @app.get("/konto/build", response_class=HTMLResponse)
 async def account_build_view(request: Request):
-    return templates.TemplateResponse(
-        request,
-        "build_log.html",
-        {
-            "current_version": APP_VERSION,
-            "current_build": APP_BUILD,
-            "build_rows": BUILD_LOG,
-        },
-    )
+    return redirect_keep_query(request, "/admin/build", status_code=303)
 
 
 @app.get("/konto/teknisk", response_class=HTMLResponse)
 async def account_technical_view(request: Request):
-    return templates.TemplateResponse(request, "technical.html", {})
+    return redirect_keep_query(request, "/admin/teknisk", status_code=303)
 
 
 @app.get("/konto/manual", response_class=HTMLResponse)
 async def account_manual_view(request: Request):
-    return templates.TemplateResponse(request, "manual.html", {})
+    return redirect_keep_query(request, "/admin/manual", status_code=303)
 
 
 @app.get("/energi/testside", response_class=HTMLResponse)
 async def energy_view(request: Request):
-    return RedirectResponse("/energi/status", status_code=307)
+    return redirect_keep_query(request, "/energi/verktoy", status_code=303)
 
 
 async def admin_keys_context(
@@ -9400,12 +9365,7 @@ async def admin_keys_context(
 
 @app.get("/konto/brukere-og-tilgang", response_class=HTMLResponse)
 async def keys_view(request: Request):
-    forbidden = require_master(request)
-    if forbidden:
-        return forbidden
-    async with async_session() as session:
-        context = await admin_keys_context(request, session)
-    return templates.TemplateResponse(request, "keys.html", context)
+    return redirect_keep_query(request, "/admin/brukere", status_code=303)
 
 
 @app.post("/konto/brukere-og-tilgang")
@@ -9640,8 +9600,7 @@ async def api_control_config_update(request: Request, config_key: str):
 
 @app.get("/lys/innstillinger", response_class=HTMLResponse)
 async def light_settings_view(request: Request):
-    context = await config_context("lights")
-    return templates.TemplateResponse(request, "control_settings.html", context)
+    return desktop_app_response()
 
 
 @app.post("/lys/innstillinger", response_class=HTMLResponse)

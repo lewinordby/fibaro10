@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1118")
+APP_BUILD = os.getenv("APP_BUILD", "1119")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1119",
+        "date": "10.06.2026",
+        "headline": "Flytter gamle innganger til Desktop V2",
+        "title": "Gamle konto-, AI- og modul-URLer peker naa inn i nytt rammeverk",
+        "description": (
+            "Gjennomgangen av gamle HTML-innganger er strammet opp slik at brukerflyten holder seg i Desktop V2. "
+            "Profilmenyen peker ikke lenger til /konto, gamle konto- og AI-visninger videresendes til Admin, "
+            "lysinnstillinger lastes i V2, og gamle modulaliaser i React-rutingen sender brukeren til riktig ny side."
+        ),
+        "applications": [
+            "Backend-ruter (main.py): gamle GET-visninger for konto, AI, energi testside og lysinnstillinger peker til V2.",
+            "Desktop V2 appskall (App.tsx): profilmeny og legacy-aliaser rutes internt til nye modulsider.",
+            "Buildlogg (build_log.py): registrerer build 1119.",
+        ],
+        "request": "sorg for at alt er over i nytt rammeverk",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Endrer profilmenyen fra gammel /konto/oversikt til V2 Admin > Brukere.",
+            "Videresender gamle /konto/*-sider til tilsvarende Admin-sider.",
+            "Videresender gamle /ai/*-sider til Admin > AI.",
+            "Lar /lys/innstillinger laste Desktop V2 i stedet for gammel template.",
+            "Legger React-redirects for gamle status-, parkering-, energi-, lys-, ventilasjon- og renhold-aliaser.",
+            "Beholder API- og POST-ruter som fortsatt trengs for drift og lagring.",
+        ],
+    },
     {
         "version": "1",
         "build": "1118",
