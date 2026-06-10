@@ -12170,7 +12170,8 @@ async def api_parking_day_timeline(session, selected: date, now_dt: datetime) ->
     for index in range(96):
         bucket_start = day_start + timedelta(minutes=index * 15)
         bucket_end = bucket_start + timedelta(minutes=15)
-        count = sum(1 for item in assigned_events if item["_start"] < bucket_end and item["_end"] > bucket_start)
+        bucket_mid = bucket_start + timedelta(minutes=7.5)
+        count = sum(1 for item in assigned_events if item["_start"] <= bucket_mid < item["_end"])
         if count > peak_count:
             peak_count = count
             peak_time_label = bucket_start.strftime("%H:%M")

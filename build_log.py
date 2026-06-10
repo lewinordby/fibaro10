@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1109")
+APP_BUILD = os.getenv("APP_BUILD", "1110")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1110",
+        "date": "10.06.2026",
+        "headline": "Retter toppbelegg i parkeringsdagslinje",
+        "title": "Beleggskurven teller samtidige parkeringer per 15-minutters midtpunkt",
+        "description": (
+            "Etter produksjonsverifikasjon av build 1109 ble det funnet at beleggskurven telte alle parkeringer som "
+            "berørte et 15-minutters intervall. Det kunne gi for høy toppverdi selv når plassfordelingen ikke hadde "
+            "overflow. Beregningen teller nå parkeringer som faktisk er aktive på midtpunktet i hver bøtte."
+        ),
+        "applications": [
+            "fibaro10 backend (main.py): korrigerer occupancy-beregningen for parkeringsdagslinjen.",
+            "Buildlogg (build_log.py): registrerer build 1110 som verifiseringsretting etter build 1109.",
+        ],
+        "request": "lag en visuell fremstilling kreativt for 23 dvs 11+12 parkeringsplasser tilsvarende dagslinje på soling. har du en god ide? kjør på overrask meg. skal ligge som egen side under parkering.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Teller samtidige parkeringer ved midtpunktet i hvert 15-minutters intervall.",
+            "Hindrer at toppbelegg blir kunstig høyere enn faktisk samtidighet.",
+            "Beholder 23-plassfordelingen og resten av parkeringsdagslinjen uendret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1109",
