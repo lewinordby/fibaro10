@@ -219,7 +219,7 @@ function fanRunSegments(events: VentFanEvent[], endPercent: number): VentFanRunS
         left,
         width: right - left,
         color: activeStart.color || event.color,
-        title: `${activeStart.time}-${event.time} ${event.fan_short} på`,
+        title: `${activeStart.time}-${event.time} ${event.fan_short} aktiv`,
       });
     }
     activeStart = null;
@@ -233,7 +233,7 @@ function fanRunSegments(events: VentFanEvent[], endPercent: number): VentFanRunS
         left,
         width: right - left,
         color: activeStart.color,
-        title: `${activeStart.time}-${minuteLabel(Math.round((right / 100) * 1440))} ${activeStart.fan_short} på`,
+        title: `${activeStart.time}-${minuteLabel(Math.round((right / 100) * 1440))} ${activeStart.fan_short} aktiv`,
       });
     }
   }

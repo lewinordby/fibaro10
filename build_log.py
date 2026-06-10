@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1107")
+APP_BUILD = os.getenv("APP_BUILD", "1108")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1108",
+        "date": "10.06.2026",
+        "headline": "Sender viftestatus i ventilasjon dagsamples",
+        "title": "Avfuktermarkering får faktisk fan_avfukter-data fra backend",
+        "description": (
+            "Backend sender nå viftestatusfeltene med i day.samples for ventilasjon/dagslogg. Forrige build la "
+            "frontenden klar til å tegne avfukterperioder fra fan_avfukter, men API-payloaden manglet selve "
+            "fan_avfukter-verdiene i samples-listen."
+        ),
+        "applications": [
+            "fibaro10 backend (main.py): inkluderer fan_vip, fan_2etg, fan_tak og fan_avfukter i ventilasjonens day.samples.",
+            "Desktop V2 ventilasjon (VentilationPage.tsx): harmoniserer tooltiptekst for aktive intervaller.",
+            "Buildlogg (build_log.py): registrerer build 1108 som datakorrigering for avfuktermarkering.",
+        ],
+        "request": "det funker ikke",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger viftestatusfeltene inn i sample-payloaden som frontenden bruker.",
+            "Sikrer at fan_avfukter faktisk er tilgjengelig på ventilasjon/dagslogg.",
+            "Lar samples med bare viftestatus fortsatt være gyldige for tidslinjen.",
+            "Beholder tidligere eventbasert fallback.",
+            "Endrer intervalltooltip til 'aktiv' for både event- og samplebaserte perioder.",
+        ],
+    },
     {
         "version": "1",
         "build": "1107",

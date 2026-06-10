@@ -7075,6 +7075,14 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
                 has_value = True
                 if series.get("kind") == "temperature":
                     all_values.append(value)
+        for fan in fan_config:
+            sample_attr = fan.get("sample_attr")
+            if not sample_attr:
+                continue
+            state = getattr(row, sample_attr, None)
+            sample[sample_attr] = state
+            if state is not None:
+                has_value = True
         if has_value:
             samples.append(sample)
 
