@@ -89,8 +89,34 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1088")
+APP_BUILD = os.getenv("APP_BUILD", "1089")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1089",
+        "date": "10.06.2026",
+        "title": "Utvider buildlogg med bestilling og berørte applikasjoner",
+        "description": (
+            "Buildloggen er utvidet fra en enkel endringsliste til en mer komplett leveranselogg. "
+            "Nye buildinnslag kan nå beskrive hva som ble gjort, hvilke deler av løsningen som ble endret, "
+            "og hvilken konkret bestilling som lå til grunn for endringen."
+        ),
+        "applications": [
+            "fibaro10 backend (main.py): buildloggstruktur, buildnummer og admin-tabeller.",
+            "Klassisk konto/build (templates/build_log.html): detaljert visning av beskrivelse, applikasjoner og bestilling.",
+            "Desktop V2 admin: buildloggdata sendes med de nye feltene i modul-API-et.",
+        ],
+        "request": (
+            "jeg ønsker å få en litt bedre build logg, jeg vil ha litt mer beskrivelse av hva som er gjort "
+            "og hvilke applikasjoner som måtte endres, så vil jeg ha et eget felt som du også logger hele "
+            "bestillingen eller promten om du vil"
+        ),
+        "changes": [
+            "Legger til feltene description, applications og request i buildloggen.",
+            "Oppdaterer /konto/build slik at nye buildinnslag viser full beskrivelse, berørte applikasjoner og original bestilling.",
+            "Utvider Admin > Buildlogg-tabellene med de nye feltene som søkbar oversikt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1088",
@@ -12912,6 +12938,22 @@ def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = 
     }
 
 
+def api_build_log_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    applications = row.get("applications") or []
+    if isinstance(applications, list):
+        applications_text = "; ".join(str(item) for item in applications)
+    else:
+        applications_text = str(applications)
+    return {
+        "build": row.get("build", ""),
+        "date": row.get("date", ""),
+        "title": row.get("title", ""),
+        "description": row.get("description") or " ".join(row.get("changes") or []),
+        "applications": applications_text,
+        "request": row.get("request") or "",
+    }
+
+
 def api_sun2_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "period": item.get("period"),
@@ -15009,14 +15051,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_tool_row("Events JSON", "/events/json", "Generiske hendelser som JSON.", None),
                 api_tool_row("Events CSV", "/download", "Generiske hendelser som CSV.", None),
             ]
+            build_log_columns = ["build", "date", "title", "description", "applications", "request"]
             tables = [
                 api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
-                api_table("Buildlogg", ["build", "date", "title"], [{"build": row["build"], "date": row["date"], "title": row["title"]} for row in BUILD_LOG[:25]]),
+                api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:25]]),
                 api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
             ]
             if view == "build":
                 tables = [
-                    api_table("Buildlogg", ["build", "date", "title"], [{"build": row["build"], "date": row["date"], "title": row["title"]} for row in BUILD_LOG[:80]]),
+                    api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:80]]),
                     api_table("Buildverktøy", ["tool", "path", "description", "count"], [admin_tools[0], admin_tools[1], admin_tools[5]]),
                 ]
             elif view == "datakilder":

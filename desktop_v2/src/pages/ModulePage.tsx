@@ -134,6 +134,8 @@ function labelize(column: string): string {
     actual_paid_at_save: "Faktisk kr",
     circuit_no: "Kurs",
     description: "Beskrivelse",
+    applications: "Applikasjoner",
+    request: "Bestilling",
     breaker: "Sikring",
     breaker_type: "Type",
     is_sunbed: "Solseng",
@@ -309,6 +311,10 @@ function moduleColumns(
         const normalized = value.toLowerCase();
         const color = normalized.includes("ongoing") || normalized.includes("ok") ? "green" : "default";
         return <Tag color={color}>{displayValue(value)}</Tag>;
+      }
+      if (["description", "applications", "request"].includes(column)) {
+        const text = displayValue(value);
+        return <Typography.Text title={text}>{text}</Typography.Text>;
       }
       return displayValue(value);
     },

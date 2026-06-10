@@ -22,6 +22,11 @@
             margin-bottom: .8rem;
         }
         .build-entry h2 { margin: 0; }
+        .build-description {
+            margin: -.25rem 0 .85rem;
+            color: var(--muted);
+            line-height: 1.55;
+        }
         .build-entry .build-tag {
             display: inline-flex;
             align-items: center;
@@ -39,6 +44,38 @@
             color: var(--text);
         }
         .build-change-list li { margin: .35rem 0; }
+        .build-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .75rem;
+            margin-top: 1rem;
+        }
+        .build-detail {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: .8rem .9rem;
+            background: #fbfcff;
+        }
+        .build-detail h3 {
+            margin: 0 0 .45rem;
+            font-size: .82rem;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .build-detail ul {
+            margin: 0;
+            padding-left: 1.1rem;
+        }
+        .build-detail li { margin: .3rem 0; }
+        .build-request {
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        @media (max-width: 760px) {
+            .build-current,
+            .build-detail-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body class="theme-admin">
@@ -73,11 +110,34 @@
                 </div>
                 <span class="build-tag">v{{ row.version }} · build {{ row.build }}</span>
             </header>
+            {% if row.description is defined and row.description %}
+            <p class="build-description">{{ row.description }}</p>
+            {% endif %}
             <ul class="build-change-list">
                 {% for change in row.changes %}
                 <li>{{ change }}</li>
                 {% endfor %}
             </ul>
+            {% if (row.applications is defined and row.applications) or (row.request is defined and row.request) %}
+            <div class="build-detail-grid">
+                {% if row.applications is defined and row.applications %}
+                <section class="build-detail">
+                    <h3>Berørte applikasjoner</h3>
+                    <ul>
+                        {% for application in row.applications %}
+                        <li>{{ application }}</li>
+                        {% endfor %}
+                    </ul>
+                </section>
+                {% endif %}
+                {% if row.request is defined and row.request %}
+                <section class="build-detail">
+                    <h3>Bestilling / prompt</h3>
+                    <div class="build-request">{{ row.request }}</div>
+                </section>
+                {% endif %}
+            </div>
+            {% endif %}
         </article>
         {% endfor %}
     </main>
