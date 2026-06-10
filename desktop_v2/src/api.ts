@@ -37,6 +37,10 @@ export type StatusPeriod = {
   previousParkingCount: number;
   previousTotal: number;
   previousLabel: string;
+  solAsOfLabel: string;
+  parkingAsOfLabel: string;
+  previousSolAsOfLabel: string;
+  previousParkingAsOfLabel: string;
 };
 
 export type OverviewResponse = {

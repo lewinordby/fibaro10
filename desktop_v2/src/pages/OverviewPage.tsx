@@ -135,24 +135,30 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
         <span>{period.title}</span>
         <strong>{nok(period.total)} kr</strong>
       </div>
+      <div className="status-period-asof">
+        <span>Datagrunnlag</span>
+        <strong>
+          Soling til {period.solAsOfLabel} · parkering til {period.parkingAsOfLabel}
+        </strong>
+      </div>
       <div className="status-period-rows">
         <div>
           <span>Soling</span>
           <strong>{nok(period.sol)} kr</strong>
-          <em>{period.solCount} stk</em>
+          <em>{period.solCount} stk · til {period.solAsOfLabel}</em>
         </div>
         <div>
           <span>Parkering</span>
           <strong>{nok(period.parking)} kr</strong>
-          <em>{period.parkingCount} stk</em>
+          <em>{period.parkingCount} stk · til {period.parkingAsOfLabel}</em>
         </div>
       </div>
       <div className="status-period-previous">
         <span>{period.previousLabel}</span>
         <strong>{nok(period.previousTotal)} kr</strong>
+        <em>Soling: {period.previousSolCount} stk / {nok(period.previousSol)} kr · til {period.previousSolAsOfLabel}</em>
         <em>
-          Soling {period.previousSolCount} / {nok(period.previousSol)} kr · Parkering{" "}
-          {period.previousParkingCount} / {nok(period.previousParking)} kr
+          Parkering: {period.previousParkingCount} stk / {nok(period.previousParking)} kr · til {period.previousParkingAsOfLabel}
         </em>
       </div>
     </Card>
