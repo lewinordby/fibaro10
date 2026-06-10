@@ -4,7 +4,6 @@ import {
   BulbOutlined,
   CalendarOutlined,
   CarOutlined,
-  DashboardOutlined,
   ExperimentOutlined,
   SettingOutlined,
   ToolOutlined,
@@ -27,7 +26,6 @@ import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
 const { Header, Sider, Content } = Layout;
 
 const menuItems: MenuProps["items"] = [
-  { key: modulePath("status"), icon: <DashboardOutlined />, label: "Status" },
   { key: modulePath("omsetning"), icon: <BarChartOutlined />, label: "Omsetning" },
   { key: modulePath("parkering"), icon: <CarOutlined />, label: "Parkering" },
   { key: modulePath("soling"), icon: <CalendarOutlined />, label: "Soling" },
@@ -39,7 +37,6 @@ const menuItems: MenuProps["items"] = [
 ];
 
 function selectedKey(pathname: string): string {
-  if (pathname === "/" || pathname.startsWith("/status")) return modulePath("status");
   if (pathname.startsWith("/omsetning")) return modulePath("omsetning");
   if (pathname.startsWith("/parkering")) return modulePath("parkering");
   if (pathname.startsWith("/soling")) return modulePath("soling");
@@ -131,21 +128,22 @@ export default function App() {
   const viewItems = module ? MODULE_VIEWS[module] ?? [] : [];
   const rawActiveView = module ? location.pathname.split("/")[2] || defaultModuleView(module) : "";
   const activeView = module && viewItems.some((item) => item.key === rawActiveView) ? rawActiveView : defaultModuleView(module || "");
+  const activeMenuKey = selectedKey(location.pathname);
 
   return (
     <Layout className="app-shell">
       <Sider width={218} className="app-sider">
-        <div className="brand">
+        <Link className="brand" to={modulePath("status", "oversikt")} aria-label="Gå til statusoversikt">
           <div className="brand-mark">L</div>
           <div>
             <div className="brand-title">Fibaro10</div>
             <div className="brand-subtitle">Lilletorget drift</div>
           </div>
-        </div>
+        </Link>
         <Menu
           className="app-menu"
           mode="inline"
-          selectedKeys={[selectedKey(location.pathname)]}
+          selectedKeys={activeMenuKey ? [activeMenuKey] : []}
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />
@@ -170,7 +168,7 @@ export default function App() {
             <Route path="/status" element={<Navigate to={modulePath("status")} replace />} />
             <Route path="/status/oversikt" element={<OverviewPage />} />
             <Route path="/status/omsetning" element={<Navigate to={modulePath("omsetning", "manedsoversikt")} replace />} />
-            <Route path="/status/drift" element={<OperationsPage />} />
+            <Route path="/status/drift" element={<Navigate to={modulePath("admin", "drift")} replace />} />
             <Route path="/status/sammenligning" element={<StatusComparisonPage />} />
             <Route path="/omsetning" element={<Navigate to={modulePath("omsetning")} replace />} />
             <Route path="/omsetning/manedsoversikt" element={<RevenueMonthPage />} />
@@ -189,6 +187,7 @@ export default function App() {
             <Route path="/renhold" element={<Navigate to={modulePath("renhold")} replace />} />
             <Route path="/renhold/:view" element={<ModulePage module="renhold" />} />
             <Route path="/admin" element={<Navigate to={modulePath("admin")} replace />} />
+            <Route path="/admin/drift" element={<OperationsPage />} />
             <Route path="/admin/:view" element={<ModulePage module="admin" />} />
             <Route
               path="*"

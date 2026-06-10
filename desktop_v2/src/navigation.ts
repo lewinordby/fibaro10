@@ -19,6 +19,11 @@ export function appPath(href?: string): string | null {
   const parts = pathname.split("/").filter(Boolean);
   const module = parts[0];
   const view = parts[1] || defaultModuleView(module);
+
+  if (module === "status") {
+    return ["oversikt", "sammenligning"].includes(view) ? path : null;
+  }
+
   const moduleViews = MODULE_VIEWS[module];
   if (!moduleViews) return null;
 

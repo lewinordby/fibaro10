@@ -89,8 +89,36 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1090")
+APP_BUILD = os.getenv("APP_BUILD", "1091")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1091",
+        "date": "10.06.2026",
+        "title": "Rydder status ut av hovedmenyen",
+        "description": (
+            "Status er gjort til en egen startside som nås via logoen i desktop V2, uten egen hovedmeny eller "
+            "statusfaner i topplinjen. Drift/datakilder er flyttet til Admin slik at hovedmenyen får tydeligere "
+            "fagområder."
+        ),
+        "applications": [
+            "Desktop V2 navigasjon (App.tsx): status fjernet fra hovedmenyen, logo gjort klikkbar, og drift rutes til Admin.",
+            "Desktop V2 moduldefinisjoner (moduleViews.ts og navigation.ts): status tatt ut av fanestrukturen og drift lagt under Admin.",
+            "Desktop V2 stilark (styles.css): logoen oppfører seg som en tydelig intern lenke.",
+            "fibaro10 backend (main.py): buildlogg og statuskortlenke til drift/datakilder oppdatert.",
+        ],
+        "request": (
+            "status siden synes jeg ikke skal ha et eget menyvalg, her skal vi gjøre logo knapp trykkbar og at den "
+            "går til status siden. status siden skal heller ikke ha noe topp meny osv.. drift siden bør få en annen "
+            "plass uunder admin eller noe"
+        ),
+        "changes": [
+            "Fjerner Status som eget valg i venstremenyen.",
+            "Gjør Fibaro10-logoen klikkbar og peker den til Status > Oversikt.",
+            "Flytter Drift til Admin > Drift og lar gammel /status/drift redirecte dit.",
+            "Skjuler statusfanene ved å ta status ut av den generelle modulnavigasjonen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1090",
@@ -12642,7 +12670,7 @@ async def api_v2_overview():
     ]
     cards = [
         {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/status/oversikt", "tone": "status"},
-        {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/status/drift", "tone": "status"},
+        {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/admin/drift", "tone": "status"},
         {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/omsetning/oversikt", "tone": "revenue"},
         {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/omsetning/oversikt", "tone": "revenue"},
         {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/omsetning/oversikt", "tone": "revenue"},
