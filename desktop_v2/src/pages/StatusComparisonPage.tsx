@@ -109,6 +109,11 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "line" },
+      backgroundColor: "rgba(255,255,255,0.96)",
+      borderColor: "#dbe3ee",
+      borderWidth: 1,
+      textStyle: { color: "#111827", fontSize: 12 },
+      extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
       formatter: (params: unknown) => {
         const items = Array.isArray(params) ? params : [params];
         const first = items[0] as { value?: [number, number] } | undefined;
@@ -128,20 +133,28 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         </div>`;
       },
     },
-    legend: { top: 0 },
-    grid: { top: 42, left: 42, right: 18, bottom: 32 },
+    legend: {
+      top: 0,
+      icon: "roundRect",
+      itemWidth: 18,
+      itemHeight: 8,
+      textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
+    },
+    grid: { top: 48, left: 12, right: 16, bottom: 30, containLabel: true },
     xAxis: {
       type: "value",
       min: 0,
       max: 100,
       axisLabel: { formatter: (value: number) => axisText(data, value) },
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: "#cbd5e1" } },
       splitLine: { lineStyle: { color: domainColors.gridSoft } },
     },
     yAxis: {
       type: "value",
       minInterval: metric === "amount" ? undefined : 1,
       axisLabel: { formatter: (value: number) => axisValue(value, metric) },
-      splitLine: { lineStyle: { color: domainColors.grid } },
+      splitLine: { lineStyle: { color: "#e8edf4" } },
     },
     series: [
       {
@@ -151,6 +164,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         symbol: "none",
         lineStyle: { width: 3 },
         areaStyle: { opacity: 0.06 },
+        emphasis: { focus: "series" },
         data: cumulativePoints(currentLanes, metric),
       },
       {
@@ -159,6 +173,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         step: "end",
         symbol: "none",
         lineStyle: { width: 2, type: "dashed" },
+        emphasis: { focus: "series" },
         data: cumulativePoints(comparisonLanes, metric),
       },
     ],

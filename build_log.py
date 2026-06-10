@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1115")
+APP_BUILD = os.getenv("APP_BUILD", "1116")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1116",
+        "date": "10.06.2026",
+        "headline": "Visuell hovedoppgradering av Desktop V2",
+        "title": "Appen får lettere flater, tydeligere kort, bedre tabeller og mer ryddige grafer",
+        "description": (
+            "Desktop V2 er visuelt strammet opp som en samlet revisjon. Oppgraderingen samler farger, radius, skygger "
+            "og komponentuttrykk i felles tokens, gjør venstremeny og toppfaner mer presise, gir kort og statusflater "
+            "tydeligere hierarki, og rydder tabeller og grafer slik at applikasjonen fremstår mer profesjonell og "
+            "konsekvent på tvers av status, moduler, omsetning, ventilasjon og admin."
+        ),
+        "applications": [
+            "Desktop V2 design tokens (designTokens.ts og tokens.css): oppdaterer farger, radius, skygger og Ant Design-komponenttema.",
+            "Desktop V2 appskall (layout.css): forbedrer venstremeny, logoområde, toppbar, profilknapp og modulfaner.",
+            "Desktop V2 felles CSS (styles.css): oppgraderer kort, statusperioder, støttefliser, tabeller, skjemaelementer, hover/fokus og informasjonsflater.",
+            "Desktop V2 grafer (ModuleVisuals.tsx, RevenueMonthPage.tsx, StatusComparisonPage.tsx og VentilationPage.tsx): gir tooltip, legend, akser og grid mer ryddig og felles uttrykk.",
+            "Buildlogg (build_log.py): registrerer build 1116.",
+        ],
+        "request": "da en grundig visuell oppgradering",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Løfter grunnpaletten til et lysere og mer kontrollert dashboard-uttrykk.",
+            "Gir venstremeny, aktiv modul og profilknapp mer presis visuell respons.",
+            "Standardiserer kort med felles radius, skygge, accentlinjer og roligere typografi.",
+            "Rydder statusforsiden med klarere periodekort, datakildeindikator, støttefliser og lister.",
+            "Forbedrer tabeller med tydeligere hoder, hover og avstand.",
+            "Forbedrer grafene med bedre tooltip, legend, akseavstand, grid og søyle-/linjefokus.",
+            "Kjører visuell mock-render i browser for status og modulside før deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1115",

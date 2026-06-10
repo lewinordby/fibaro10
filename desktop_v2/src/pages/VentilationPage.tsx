@@ -432,22 +432,43 @@ function DayChart({
     .sort((left, right) => Number(left.xAxis) - Number(right.xAxis));
 
   const option = {
-    tooltip: { trigger: "axis", formatter: (params: DayChartTooltipParam | DayChartTooltipParam[]) => formatDayChartTooltip(params, tooltipUnit) },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "rgba(255,255,255,0.96)",
+      borderColor: "#dbe3ee",
+      borderWidth: 1,
+      textStyle: { color: "#111827", fontSize: 12 },
+      extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
+      formatter: (params: DayChartTooltipParam | DayChartTooltipParam[]) => formatDayChartTooltip(params, tooltipUnit),
+    },
     legend: {
       top: 0,
       data: focusSeries.map((series) => series.label),
       selected: defaultVisible,
+      icon: "roundRect",
+      itemWidth: 16,
+      itemHeight: 8,
+      textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
     },
-    grid: { top: 42, left: 44, right: 20, bottom: 36 },
+    grid: { top: 48, left: 12, right: 18, bottom: 34, containLabel: true },
     xAxis: {
       type: "value",
       min: 0,
       max: 1440,
       interval: 120,
-      axisLabel: { formatter: minuteLabel },
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: "#cbd5e1" } },
+      axisLabel: { formatter: minuteLabel, color: "#64748b", fontSize: 11 },
       axisPointer: { label: { formatter: (params: { value?: number | string }) => minuteLabel(params.value) } },
+      splitLine: { lineStyle: { color: "#edf2f7" } },
     },
-    yAxis: { type: "value", name: yAxisName },
+    yAxis: {
+      type: "value",
+      name: yAxisName,
+      nameTextStyle: { color: "#64748b", fontSize: 11 },
+      axisLabel: { color: "#64748b", fontSize: 11 },
+      splitLine: { lineStyle: { color: "#e8edf4" } },
+    },
     series: [
       ...focusSeries.map((series) => ({
         name: series.label,
@@ -458,6 +479,7 @@ function DayChart({
         showSymbol: false,
         lineStyle: { width: 2, color: series.color },
         itemStyle: { color: series.color },
+        emphasis: { focus: "series" },
       })),
       {
         name: "__fan_events",
@@ -575,16 +597,39 @@ function WeatherChart({ table }: { table?: ModuleTable }) {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
   });
   const option = {
-    tooltip: { trigger: "axis" },
-    legend: { top: 0 },
-    grid: { top: 44, left: 44, right: 22, bottom: 32 },
-    xAxis: { type: "category", data: x, axisLabel: { hideOverlap: true } },
-    yAxis: { type: "value" },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "rgba(255,255,255,0.96)",
+      borderColor: "#dbe3ee",
+      borderWidth: 1,
+      textStyle: { color: "#111827", fontSize: 12 },
+      extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
+    },
+    legend: {
+      top: 0,
+      icon: "roundRect",
+      itemWidth: 16,
+      itemHeight: 8,
+      textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
+    },
+    grid: { top: 50, left: 12, right: 18, bottom: 32, containLabel: true },
+    xAxis: {
+      type: "category",
+      data: x,
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: "#cbd5e1" } },
+      axisLabel: { hideOverlap: true, color: "#64748b", fontSize: 11 },
+    },
+    yAxis: {
+      type: "value",
+      axisLabel: { color: "#64748b", fontSize: 11 },
+      splitLine: { lineStyle: { color: "#e8edf4" } },
+    },
     series: [
-      { name: "Temp", type: "line", data: rows.map((row) => row.air_temperature), showSymbol: false, smooth: true },
-      { name: "Fukt", type: "line", data: rows.map((row) => row.relative_humidity), showSymbol: false, smooth: true },
-      { name: "Vind", type: "line", data: rows.map((row) => row.wind_speed), showSymbol: false, smooth: true },
-      { name: "Skydekke", type: "line", data: rows.map((row) => row.cloud_area_fraction), showSymbol: false, smooth: true },
+      { name: "Temp", type: "line", data: rows.map((row) => row.air_temperature), showSymbol: false, smooth: true, emphasis: { focus: "series" } },
+      { name: "Fukt", type: "line", data: rows.map((row) => row.relative_humidity), showSymbol: false, smooth: true, emphasis: { focus: "series" } },
+      { name: "Vind", type: "line", data: rows.map((row) => row.wind_speed), showSymbol: false, smooth: true, emphasis: { focus: "series" } },
+      { name: "Skydekke", type: "line", data: rows.map((row) => row.cloud_area_fraction), showSymbol: false, smooth: true, emphasis: { focus: "series" } },
       { name: "Nedbør", type: "bar", data: rows.map((row) => row.precipitation_next_1h) },
     ],
   };

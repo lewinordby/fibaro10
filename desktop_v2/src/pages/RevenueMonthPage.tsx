@@ -50,6 +50,11 @@ export default function RevenueMonthPage() {
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
+        backgroundColor: "rgba(255,255,255,0.96)",
+        borderColor: "#dbe3ee",
+        borderWidth: 1,
+        textStyle: { color: "#111827", fontSize: 12 },
+        extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
         formatter: (params: unknown) => {
           const items = Array.isArray(params) ? params : [params];
           const firstItem = items[0] as { dataIndex?: number } | undefined;
@@ -76,17 +81,25 @@ export default function RevenueMonthPage() {
           `;
         },
       },
-      legend: { top: 0 },
-      grid: { top: 42, left: 42, right: 18, bottom: 34 },
+      legend: {
+        top: 0,
+        icon: "roundRect",
+        itemWidth: 16,
+        itemHeight: 8,
+        textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
+      },
+      grid: { top: 48, left: 12, right: 16, bottom: 34, containLabel: true },
       xAxis: {
         type: "category",
         data: rows.map((row) => row.dayLabel),
-        axisLabel: { interval: 0, rotate: rows.length > 24 ? 45 : 0 },
+        axisTick: { show: false },
+        axisLine: { lineStyle: { color: "#cbd5e1" } },
+        axisLabel: { interval: 0, rotate: rows.length > 24 ? 45 : 0, color: "#64748b", fontSize: 11 },
       },
       yAxis: {
         type: "value",
         axisLabel: { formatter: (value: number) => `${Math.round(value / 1000)}k` },
-        splitLine: { lineStyle: { color: "#e5e7eb" } },
+        splitLine: { lineStyle: { color: "#e8edf4" } },
       },
       series: [
         {
@@ -95,6 +108,8 @@ export default function RevenueMonthPage() {
           stack: "total",
           data: rows.map((row) => row.sol),
           barMaxWidth: 30,
+          itemStyle: { borderRadius: [4, 4, 0, 0] },
+          emphasis: { focus: "series" },
         },
         {
           name: "Parkering",
@@ -102,6 +117,8 @@ export default function RevenueMonthPage() {
           stack: "total",
           data: rows.map((row) => row.parking),
           barMaxWidth: 30,
+          itemStyle: { borderRadius: [4, 4, 0, 0] },
+          emphasis: { focus: "series" },
         },
       ],
     };

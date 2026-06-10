@@ -1,9 +1,19 @@
 :root {
   --ink: #111827;
-  --muted: #6b7280;
-  --line: #e6ebf0;
+  --muted: #64748b;
+  --muted-soft: #94a3b8;
+  --line: #e2e8f0;
+  --line-soft: #edf2f7;
+  --line-strong: #cbd5e1;
   --surface: #ffffff;
-  --surface-soft: #f8fafc;
+  --surface-soft: #f6f8fb;
+  --surface-raised: #ffffff;
+  --surface-muted: #f8fafc;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.055);
+  --shadow-md: 0 14px 32px rgba(15, 23, 42, 0.085);
+  --radius-sm: 6px;
+  --radius-md: 8px;
   --blue: #2563eb;
   --red: #dc2626;
   --green: #15803d;

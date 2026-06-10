@@ -64,9 +64,23 @@ export function ModuleChartPanel({ chart }: { chart: ModuleChart }) {
     : undefined;
 
   const option = {
-    tooltip: { trigger: "axis" },
-    legend: { top: 0, selected: selectedSeries },
-    grid: { top: 46, left: 46, right: 24, bottom: chart.x.length > 80 ? 58 : 34 },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "rgba(255,255,255,0.96)",
+      borderColor: "#dbe3ee",
+      borderWidth: 1,
+      textStyle: { color: "#111827", fontSize: 12 },
+      extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
+    },
+    legend: {
+      top: 0,
+      icon: "roundRect",
+      itemWidth: 16,
+      itemHeight: 8,
+      textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
+      selected: selectedSeries,
+    },
+    grid: { top: 50, left: 56, right: 18, bottom: chart.x.length > 80 ? 58 : 32 },
     dataZoom:
       chart.x.length > 80
         ? [
@@ -78,9 +92,17 @@ export function ModuleChartPanel({ chart }: { chart: ModuleChart }) {
       type: "category",
       data: chart.x,
       boundaryGap: chart.type === "bar",
-      axisLabel: { hideOverlap: true },
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: "#cbd5e1" } },
+      axisLabel: { hideOverlap: true, color: "#64748b", fontSize: 11 },
     },
-    yAxis: { type: "value", name: activeMetric?.unit },
+    yAxis: {
+      type: "value",
+      name: activeMetric?.unit,
+      nameTextStyle: { color: "#64748b", fontSize: 11 },
+      axisLabel: { color: "#64748b", fontSize: 11, margin: 12 },
+      splitLine: { lineStyle: { color: "#e8edf4" } },
+    },
     series: chartSeries.map((series) => ({
       name: series.name,
       type: series.type ?? chart.type ?? "line",
@@ -88,9 +110,12 @@ export function ModuleChartPanel({ chart }: { chart: ModuleChart }) {
       smooth: (series.type ?? chart.type ?? "line") === "line",
       connectNulls: false,
       showSymbol: false,
+      barMaxWidth: 44,
+      barCategoryGap: "36%",
       itemStyle: series.color ? { color: series.color } : undefined,
       lineStyle: series.color ? { color: series.color, width: 2 } : undefined,
       areaStyle: chartSeries.length === 1 && (series.type ?? chart.type ?? "line") === "line" ? { opacity: 0.08 } : undefined,
+      emphasis: { focus: "series" },
     })),
   };
 
