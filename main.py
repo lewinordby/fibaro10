@@ -89,8 +89,18 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1075")
+APP_BUILD = os.getenv("APP_BUILD", "1076")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1076",
+        "date": "10.06.2026",
+        "title": "Justerer hendelsesrader i ventilasjonsgraf",
+        "changes": [
+            "Retter horisontal justering mellom vertikale viftelinjer og punktene under Ventilasjon > Dagslogg.",
+            "Lar hendelsesradene bruke samme venstre akseplass og hoyre marg som ECharts-plottet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1075",
