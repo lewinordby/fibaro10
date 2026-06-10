@@ -229,6 +229,47 @@ function Snapshot({ ventilation }: { ventilation: VentilationData }) {
   );
 }
 
+function CompactSnapshot({ ventilation }: { ventilation: VentilationData }) {
+  const readings = ventilation.latest.groups.flatMap((group) => group.fields.map((field) => ({ ...field, group: group.title })));
+  return (
+    <Card className="work-card vent-compact-card">
+      <div className="vent-compact-main">
+        <div className="vent-compact-sample">
+          <Typography.Text className="eyebrow">Siste sample</Typography.Text>
+          <strong>{timeText(ventilation.latest.bucketStart)}</strong>
+          <span>{ventilation.latest.mode || "-"}</span>
+        </div>
+        <div className="vent-compact-readings">
+          {readings.map((field) => (
+            <Tooltip key={`${field.group}-${field.key}`} title={field.group}>
+              <span className="vent-compact-reading">
+                <small>{field.label}</small>
+                <strong>{numberText(field.temperature)} C</strong>
+                <em>{field.humidity !== null && field.humidity !== undefined ? `${numberText(field.humidity, 0)}%` : field.detail || "-"}</em>
+              </span>
+            </Tooltip>
+          ))}
+        </div>
+        <div className="vent-compact-weather">
+          <strong>{ventilation.latest.weather.text || "-"}</strong>
+          <span>
+            {numberText(ventilation.latest.weather.airTemperature)} C / {numberText(ventilation.latest.weather.relativeHumidity, 0)}% / vind{" "}
+            {numberText(ventilation.latest.weather.windSpeed)} m/s
+          </span>
+        </div>
+      </div>
+      <div className="vent-compact-fans">
+        {ventilation.latest.fans.map((fan) => (
+          <span className="vent-fan-pill" key={fan.key}>
+            {fan.label}
+            {stateTag(fan.state)}
+          </span>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; onDayChange: (day: string) => void }) {
   const day = ventilation.day;
   const defaultKeys = day.series.filter((series) => series.default).map((series) => series.key);
@@ -573,7 +614,7 @@ export default function VentilationPage({ data, view, onReload }: VentilationPag
 
   return (
     <Space direction="vertical" size={16} className="page-stack vent-page">
-      <Snapshot ventilation={ventilation} />
+      {view === "dagslogg" ? <CompactSnapshot ventilation={ventilation} /> : <Snapshot ventilation={ventilation} />}
       {view === "dagslogg" ? <DayChart ventilation={ventilation} onDayChange={setDay} /> : null}
       {view === "yr-logg" ? <WeatherChart table={data.tables[0]} /> : null}
       {view === "innstillinger" ? <SettingsView ventilation={ventilation} onReload={onReload} /> : null}

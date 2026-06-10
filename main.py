@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1076")
+APP_BUILD = os.getenv("APP_BUILD", "1077")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1077",
+        "date": "10.06.2026",
+        "title": "Komprimerer toppen paa ventilasjon dagslogg",
+        "changes": [
+            "Bytter de store ventilasjonskortene over diagrammet med en kompakt statuslinje paa Ventilasjon > Dagslogg.",
+            "Beholder full ventilasjonsoversikt paa de andre ventilasjonsundersidene.",
+            "Viser temperatur, fukt, vaer og viftestatus mer tett slik at diagrammet kommer hoyere paa siden.",
+        ],
+    },
     {
         "version": "1",
         "build": "1076",
