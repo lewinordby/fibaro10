@@ -1,6 +1,9 @@
 services:
   fibaro10:
-    build: .
+    build:
+      context: .
+      args:
+        APP_COMMIT: ${APP_COMMIT:-unknown}
     container_name: fibaro10
     restart: unless-stopped
     env_file:

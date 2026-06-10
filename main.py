@@ -38,6 +38,7 @@ from dateutil import parser as dtparser
 load_dotenv()
 from build_log import APP_BUILD, APP_VERSION, BUILD_LOG, api_build_log_row, build_log_entry_by_build, normalized_build_log_entry
 from api_contracts import admin_build_payload, admin_builds_payload
+from observability import health_payload
 from roborock_domain import (
     format_seconds_as_hours,
     roborock_bool_label,
@@ -64,6 +65,8 @@ from time_formatting import (
 DATABASE_URL = os.getenv("DATABASE_URL")
 logger = logging.getLogger("fibaro10")
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
+APP_STARTED_AT = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+APP_COMMIT = os.getenv("APP_COMMIT") or os.getenv("GIT_COMMIT") or "unknown"
 SUN2_SESSIONS_QUIET_START_HOUR = 0
 SUN2_SESSIONS_QUIET_END_HOUR = 7
 MASTER_ACCESS_KEY_HASH = os.getenv(
@@ -8984,21 +8987,46 @@ async def startup():
 
 
 @app.get("/health")
-async def health():
-    return {
-        "status": "ok",
-        "storage": [
-            "utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples",
-            "yr_forecast_samples", "control_configs", "control_config_history", "event_data",
-            "roborock_robots", "roborock_status_samples", "roborock_clean_jobs",
-            "roborock_schedules", "roborock_consumables", "roborock_maps",
-            "import_job_status", "import_job_runs",
-            "sun2_room_daily_stats", "sun2_import_runs", "sun2_tanning_sessions",
-            "sun2_beds", "sun2_session_import_runs", "energy_hourly_consumption",
-            "energy_import_runs", "energy_fibaro_samples", "energy_circuits", "energy_loads", "hc3_meter_readings",
-            "parkering", "kjoretoy", "kjoretoy_nokkeldata", "ai_query_logs",
-        ],
-    }
+async def health(details: bool = Query(False)):
+    database = {"status": "ok", "detail": "SELECT 1 OK"}
+    sources = []
+    status_code = 200
+    try:
+        async with async_session() as session:
+            await session.execute(sql_text("SELECT 1"))
+            if details:
+                rows = (
+                    await session.execute(select(ImportJobStatus).order_by(ImportJobStatus.title))
+                ).scalars().all()
+                for row in rows:
+                    stamp = row.last_success_at or row.last_run_at
+                    sources.append(
+                        {
+                            "jobName": row.job_name,
+                            "title": row.title,
+                            "status": row.status,
+                            "statusText": row.status_text,
+                            "lastRunAt": row.last_run_at.isoformat() if row.last_run_at else None,
+                            "lastSuccessAt": row.last_success_at.isoformat() if row.last_success_at else None,
+                            "ageMinutes": minutes_since(stamp),
+                            "message": row.message or "",
+                        }
+                    )
+    except Exception as exc:
+        logger.warning("Health database check failed: %s", exc, exc_info=True)
+        database = {"status": "bad", "detail": str(exc)}
+        status_code = 503
+    payload = health_payload(
+        app_version=APP_VERSION,
+        app_build=APP_BUILD,
+        app_commit=APP_COMMIT,
+        started_at=APP_STARTED_AT,
+        database=database,
+        sources=sources,
+    )
+    if status_code == 200:
+        return payload
+    return JSONResponse(payload, status_code=status_code)
 
 
 @app.get("/favicon.ico")

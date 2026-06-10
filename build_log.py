@@ -3,8 +3,37 @@ from typing import Any, Dict, Optional
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1099")
+APP_BUILD = os.getenv("APP_BUILD", "1100")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1100",
+        "date": "10.06.2026",
+        "headline": "Forbedrer health og observability",
+        "title": "Health viser build, commit, database og valgfrie datakildedetaljer",
+        "description": (
+            "/health er utvidet fra en statisk lagringsliste til et tydeligere driftsendepunkt. Det viser "
+            "appversjon, build, commit, starttidspunkt og databasekontroll. Med details=true kan det også vise "
+            "importjobbstatus uten at Docker healthcheck trenger å gjøre tunge oppslag."
+        ),
+        "applications": [
+            "Observability (observability.py): ren health-kontrakt og sentral lagringsliste.",
+            "fibaro10 backend (main.py): /health kontrollerer database og kan returnere datakildestatus med details=true.",
+            "Docker (Dockerfile, docker-compose.qnap.yml): APP_COMMIT kan sendes inn som build-arg.",
+            "Deploy (scripts/deploy-qnap.ps1): sender aktiv git-commit inn i Docker-builden.",
+            "Tester (tests/test_observability.py): dekker health-payload og storage-tabeller.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter observability.py med health_payload og STORAGE_TABLES.",
+            "Utvider /health med build, commit, starttidspunkt og SELECT 1 databasekontroll.",
+            "Legger details=true for importjobbstatus uten å gjøre standard healthcheck tyngre.",
+            "Sender APP_COMMIT inn ved Docker-build på QNAP.",
+            "Legger observability-tester og kompilering i kvalitetssjekken.",
+        ],
+    },
     {
         "version": "1",
         "build": "1099",

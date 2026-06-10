@@ -21,7 +21,7 @@ $desktopDir = Join-Path $repoRoot "desktop_v2"
 $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
 
 Write-Host "Python syntax check"
-Run "python" @("-m", "py_compile", "main.py", "build_log.py", "api_contracts.py", "migration_runner.py", "roborock_domain.py", "time_formatting.py", "scripts/run-migrations.py") $repoRoot
+Run "python" @("-m", "py_compile", "main.py", "build_log.py", "api_contracts.py", "migration_runner.py", "observability.py", "roborock_domain.py", "time_formatting.py", "scripts/run-migrations.py") $repoRoot
 
 Write-Host "Python unit tests"
 Run "python" @("-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py") $repoRoot

@@ -92,6 +92,7 @@ for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.*; do
     cp -p "`$source" "`$file"
 done
 [ -d "`$backup_dir/easypark_downloader/data" ] && [ ! -d easypark_downloader/data ] && mkdir -p easypark_downloader && cp -a "`$backup_dir/easypark_downloader/data" easypark_downloader/data
+export APP_COMMIT=`$(git rev-parse --short HEAD)
 "$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 online_dashboard
 "$Docker" compose -f docker-compose.qnap.yml ps
 echo "Backup: `$backup_dir"
