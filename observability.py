@@ -1,4 +1,6 @@
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Iterable, List, Optional
+
+from api_types import HealthCheckPayload, HealthPayload, HealthSourcePayload, HealthStatus
 
 
 STORAGE_TABLES = [
@@ -20,11 +22,11 @@ def health_payload(
     app_build: str,
     app_commit: str,
     started_at: str,
-    database: Dict[str, Any],
-    sources: Optional[Iterable[Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
-    source_rows: List[Dict[str, Any]] = list(sources or [])
-    status = "ok" if database.get("status") == "ok" else "bad"
+    database: HealthCheckPayload,
+    sources: Optional[Iterable[HealthSourcePayload]] = None,
+) -> HealthPayload:
+    source_rows: List[HealthSourcePayload] = list(sources or [])
+    status: HealthStatus = "ok" if database.get("status") == "ok" else "bad"
     if any(row.get("status") == "bad" for row in source_rows):
         status = "warn" if status == "ok" else status
     return {

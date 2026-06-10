@@ -1,10 +1,42 @@
 import os
 from typing import Any, Dict, Optional
 
+from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
+
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1103")
+APP_BUILD = os.getenv("APP_BUILD", "1104")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1104",
+        "date": "10.06.2026",
+        "headline": "Typefester API-kontrakter mellom backend og frontend",
+        "title": "Gjør buildlogg- og health-payloads eksplisitte på begge sider",
+        "description": (
+            "Backend har fått egne TypedDict-kontrakter for buildlogg og health, og funksjonene som bygger disse "
+            "payloadene returnerer nå konkrete kontrakttyper. Frontendens API-lag har tilsvarende TypeScript-typer "
+            "for health, og dokumentasjonen beskriver hvor kontraktene skal holdes synkronisert."
+        ),
+        "applications": [
+            "API-kontrakter (api_types.py): TypedDict-definisjoner for buildlogg, buildtabell og health.",
+            "Backend kontraktbyggere (api_contracts.py, observability.py, build_log.py): returnerer eksplisitte payloadtyper.",
+            "Desktop V2 API-lag (desktop_v2/src/api.ts): legger HealthResponse og fetchHealth til frontendkontrakten.",
+            "Dokumentasjon (docs/api-kontrakter.md): beskriver eierfiler og synkroniseringsregel.",
+            "Tester (tests/test_api_types.py): låser sentrale kontraktfelt.",
+            "Buildlogg (build_log.py): registrerer build 1104 som typekontrakt-trinn.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter api_types.py som backendens typekontrakt for sentrale payloads.",
+            "Typefester buildlogg og health-kontrakter i backend.",
+            "Legger HealthResponse og fetchHealth i frontendens API-lag.",
+            "Dokumenterer kontraktplassering og vedlikeholdsregel.",
+            "Legger unit-tester for kontraktfeltene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1103",
@@ -1420,7 +1452,7 @@ BUILD_LOG = [
 ]
 
 
-def normalized_build_log_entry(row: Dict[str, Any]) -> Dict[str, Any]:
+def normalized_build_log_entry(row: Dict[str, Any]) -> BuildLogEntryPayload:
     applications = row.get("applications") or []
     if not isinstance(applications, list):
         applications = [str(applications)] if applications else []
@@ -1446,7 +1478,7 @@ def normalized_build_log_entry(row: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def api_build_log_row(row: Dict[str, Any]) -> Dict[str, Any]:
+def api_build_log_row(row: Dict[str, Any]) -> BuildLogTableRowPayload:
     normalized = normalized_build_log_entry(row)
     applications_text = "; ".join(normalized["applications"])
     return {

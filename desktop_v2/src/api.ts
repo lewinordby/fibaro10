@@ -206,6 +206,37 @@ export type BuildLogResponse = {
   rows: BuildLogEntry[];
 };
 
+export type HealthStatus = "ok" | "warn" | "bad";
+
+export type HealthCheck = {
+  status?: string;
+  detail?: string;
+  [key: string]: unknown;
+};
+
+export type HealthSource = {
+  jobName?: string;
+  title?: string;
+  label?: string;
+  status?: string;
+  detail?: string;
+  ageMinutes?: number | null;
+  [key: string]: unknown;
+};
+
+export type HealthResponse = {
+  status: HealthStatus;
+  app: {
+    version: string;
+    build: string;
+    commit: string;
+    startedAt: string;
+  };
+  checks: Record<string, HealthCheck>;
+  sources: HealthSource[];
+  storage: string[];
+};
+
 export type ModuleCard = {
   title: string;
   value: string;
@@ -566,6 +597,10 @@ export function fetchBuildLog(): Promise<BuildLogResponse> {
 
 export function fetchBuildLogEntry(build: string): Promise<BuildLogEntry> {
   return apiGet<BuildLogEntry>(`/api/admin/builds/${encodeURIComponent(build)}`);
+}
+
+export function fetchHealth(details = false): Promise<HealthResponse> {
+  return apiGet<HealthResponse>(`/health${details ? "?details=true" : ""}`);
 }
 
 export async function logoutUser(): Promise<void> {
