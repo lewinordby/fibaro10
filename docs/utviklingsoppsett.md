@@ -79,3 +79,19 @@ sh /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/scripts/qnap-backup.sh
 ```
 
 Backuper lagres under `/share/CACHEDEV1_DATA/Public/containerdata/backups/fibaro10`, og de 20 nyeste beholdes.
+
+## Restore-test
+
+Bruk denne fra utviklingsmaskinen for aa verifisere at backupen faktisk kan brukes:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-qnap-backup.ps1
+```
+
+Scriptet kjorer `qnap-backup.sh`, sjekker at backupmappen og SQL-dumpen finnes, oppretter en midlertidig PostgreSQL-database, leser dumpen inn i den og sletter testdatabasen etterpaa. Produksjonsdatabasen endres ikke.
+
+Hvis du kun vil sjekke backupfilene uten SQL-restore:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-qnap-backup.ps1 -SkipSqlRestore
+```

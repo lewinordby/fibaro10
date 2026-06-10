@@ -3,8 +3,36 @@ from typing import Any, Dict, Optional
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1101")
+APP_BUILD = os.getenv("APP_BUILD", "1102")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1102",
+        "date": "10.06.2026",
+        "headline": "Legger til backup- og restore-verifisering",
+        "title": "Kan teste QNAP-backup med midlertidig PostgreSQL-restore",
+        "description": (
+            "Det er lagt til et ikke-destruktivt verifiseringsscript for QNAP-backup. Scriptet kjører backup, "
+            "sjekker backupmappen og SQL-dumpen, og kan lese dumpen inn i en midlertidig PostgreSQL-database før "
+            "testdatabasen slettes igjen. Produksjonsdata overskrives ikke."
+        ),
+        "applications": [
+            "Backup-verifisering (scripts/verify-qnap-backup.ps1): kjører backup og valgfri restore dry-run på QNAP.",
+            "QNAP backup (scripts/qnap-backup.sh): gjenbrukes som faktisk backupkilde.",
+            "Dokumentasjon (docs/utviklingsoppsett.md): beskriver restore-test og SkipSqlRestore.",
+            "Buildlogg (build_log.py): registrerer build 1102 som eget backup/restore-trinn.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter scripts/verify-qnap-backup.ps1.",
+            "Verifiserer at backupmappen og SQL-dump finnes.",
+            "Legger støtte for midlertidig PostgreSQL restore-test og automatisk cleanup.",
+            "Dokumenterer restore-testen i utviklingsoppsettet.",
+            "Beholder -SkipSqlRestore for rask filkontroll uten database-restore.",
+        ],
+    },
     {
         "version": "1",
         "build": "1101",
