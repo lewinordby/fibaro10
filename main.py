@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1080")
+APP_BUILD = os.getenv("APP_BUILD", "1081")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1081",
+        "date": "10.06.2026",
+        "title": "Rydder designet paa statusoversikt",
+        "changes": [
+            "Bygger om omsetningskortene med tydeligere total, kilde-tidspunkt og sammenligningsrader.",
+            "Legger differanse og prosentvis avvik direkte paa hver sammenligning.",
+            "Gjor driftkort og bunnpaneler mer kompakte og lettere aa skanne.",
+        ],
+    },
     {
         "version": "1",
         "build": "1080",
