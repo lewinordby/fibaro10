@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1106")
+APP_BUILD = os.getenv("APP_BUILD", "1107")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1107",
+        "date": "10.06.2026",
+        "headline": "Markerer avfukterperioder fra dagsmålinger",
+        "title": "Avfukter får samme på-markering som viftelinjene",
+        "description": (
+            "Ventilasjon/dagslogg bruker nå også sampleverdiene for fan_avfukter når aktive intervaller tegnes. "
+            "Dermed vises avfukteren som på mellom målepunktene selv om det mangler egne start/stopp-hendelser."
+        ),
+        "applications": [
+            "Desktop V2 API-kontrakt (api.ts): eksponerer sample_attr på ventilasjonsvifter.",
+            "Desktop V2 ventilasjon (VentilationPage.tsx): lager aktive intervaller fra dagsmålingenes boolske viftestatus.",
+            "Buildlogg (build_log.py): registrerer build 1107 som eget avfuktersteg.",
+        ],
+        "request": "du må gjøre det sammme med avfukeren",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bruker sample_attr fra backend for å finne riktig statusfelt per vifte.",
+            "Tegner aktive intervaller fra fan_avfukter i dagsmålingene.",
+            "Faller tilbake til hendelsesbaserte intervaller når sampledata mangler.",
+            "Beholder start/stopp-punktene som før.",
+            "Gjør dette generelt for alle ventilasjonslinjer, med avfukter som viktigste effekt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1106",

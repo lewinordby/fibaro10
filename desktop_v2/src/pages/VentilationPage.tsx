@@ -141,6 +141,65 @@ type VentFanRunSegment = {
   title: string;
 };
 
+function booleanSampleValue(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value !== 0 : null;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "on", "paa", "p\u00e5"].includes(normalized)) return true;
+    if (["0", "false", "off", "av"].includes(normalized)) return false;
+  }
+  return null;
+}
+
+function fanSampleRunSegments(
+  samples: Record<string, unknown>[],
+  sampleAttr: string | undefined,
+  color: string,
+  label: string,
+  endPercent: number,
+): VentFanRunSegment[] {
+  if (!sampleAttr) return [];
+  const sorted = samples
+    .map((sample) => ({ minute: minuteFromTime(sample.time), state: booleanSampleValue(sample[sampleAttr]) }))
+    .filter((item): item is { minute: number; state: boolean } => item.minute !== null && item.state !== null)
+    .sort((left, right) => left.minute - right.minute);
+
+  const segments: VentFanRunSegment[] = [];
+  let activeStart: number | null = null;
+  for (const sample of sorted) {
+    const percent = Math.max(0, Math.min(100, (sample.minute / 1440) * 100));
+    if (sample.state) {
+      if (activeStart === null) activeStart = percent;
+      continue;
+    }
+    if (activeStart === null) continue;
+    if (percent > activeStart) {
+      segments.push({
+        left: activeStart,
+        width: percent - activeStart,
+        color,
+        title: `${minuteLabel(Math.round((activeStart / 100) * 1440))}-${minuteLabel(sample.minute)} ${label} aktiv`,
+      });
+    }
+    activeStart = null;
+  }
+
+  if (activeStart !== null) {
+    const right = Math.max(activeStart, Math.min(100, endPercent));
+    if (right > activeStart) {
+      segments.push({
+        left: activeStart,
+        width: right - activeStart,
+        color,
+        title: `${minuteLabel(Math.round((activeStart / 100) * 1440))}-${minuteLabel(Math.round((right / 100) * 1440))} ${label} aktiv`,
+      });
+    }
+  }
+
+  return segments;
+}
+
 function fanRunSegments(events: VentFanEvent[], endPercent: number): VentFanRunSegment[] {
   const sorted = [...events].sort((left, right) => left.x - right.x);
   const segments: VentFanRunSegment[] = [];
@@ -462,10 +521,13 @@ function DayChart({
         {day.fans.map((fan) => {
           const events = day.fanEvents.filter((event) => event.fan_key === fan.key);
           const endPercent = day.isToday && typeof day.nowMarker === "number" ? day.nowMarker : 100;
-          const runSegments = fanRunSegments(events, endPercent);
+          const fanColor = fan.color || events[0]?.color || "#64748b";
+          const fanLabel = fan.short || fan.name;
+          const sampleSegments = fanSampleRunSegments(day.samples, fan.sample_attr, fanColor, fanLabel, endPercent);
+          const runSegments = sampleSegments.length ? sampleSegments : fanRunSegments(events, endPercent);
           return (
             <div className="vent-fan-lane" key={fan.key}>
-              <span>{fan.short || fan.name}</span>
+              <span>{fanLabel}</span>
               <div className="vent-fan-track">
                 {runSegments.map((segment, index) => (
                   <Tooltip key={`${fan.key}-run-${index}`} title={segment.title}>

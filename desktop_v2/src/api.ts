@@ -445,7 +445,7 @@ export type VentilationDay = {
   nowMarker: number | null;
   summary: JsonRecord;
   series: VentilationDaySeries[];
-  fans: Array<{ key: string; name: string; short?: string; color?: string; default?: boolean }>;
+  fans: Array<{ key: string; name: string; short?: string; color?: string; sample_attr?: string; default?: boolean }>;
   fanEvents: VentilationFanEvent[];
   samples: JsonRecord[];
 };
