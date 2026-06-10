@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1116")
+APP_BUILD = os.getenv("APP_BUILD", "1117")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1117",
+        "date": "10.06.2026",
+        "headline": "Rydder og effektiviserer CSS-laget",
+        "title": "Visuell overstyring flyttes ut av hoved-CSS og komprimeres med felles selektorer",
+        "description": (
+            "CSS-laget etter den visuelle oppgraderingen er ryddet. Den store 1116-overstyringen er flyttet ut av "
+            "styles.css og inn i et eget visual-refresh-lag som lastes etter base-CSS. Selektorer som gjorde samme "
+            "jobb på mange komponenter er samlet med :is(), og gamle base-duplikater som nå bare ble overstyrt er "
+            "fjernet. Resultatet er tydeligere ansvarsdeling mellom struktur-CSS og visuell chrome, samtidig som "
+            "frontend-bundlen blir noe mindre."
+        ),
+        "applications": [
+            "Desktop V2 importrekkefølge (main.tsx): laster visual-refresh.css etter styles.css.",
+            "Desktop V2 base-CSS (styles.css): fjerner den store nederste overstyringsblokken og trygge dupliserte chrome-regler.",
+            "Desktop V2 visuelt lag (styles/visual-refresh.css): samler 1116-uttrykket i et eget, komprimert CSS-lag.",
+            "Buildlogg (build_log.py): registrerer build 1117.",
+        ],
+        "request": "effektiviser og rydd opp i css",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Flytter visuelle overstyringer ut av styles.css.",
+            "Legger nytt visual-refresh.css som eget ansvarlig lag for appens moderne uttrykk.",
+            "Komprimerer repeterte selector-lister med :is().",
+            "Fjerner dupliserte kort-, tabell- og grafregler fra base-CSS der visual-laget nå er autoritativt.",
+            "Reduserer CSS-bundlen fra omtrent 51,6 kB til omtrent 50,7 kB i produksjonsbuild.",
+        ],
+    },
     {
         "version": "1",
         "build": "1116",
