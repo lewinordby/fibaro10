@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1083")
+APP_BUILD = os.getenv("APP_BUILD", "1084")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1084",
+        "date": "10.06.2026",
+        "title": "Legger belopsgrafer i statussammenligning",
+        "changes": [
+            "Legger bryter mellom antall og belop paa detaljsiden for statussammenligning.",
+            "Viser akkumulert sumgraf for soling og parkering naar belop er valgt.",
+            "Beholder separate akkumulerte grafer for soling og parkering i begge moduser.",
+        ],
+    },
     {
         "version": "1",
         "build": "1083",

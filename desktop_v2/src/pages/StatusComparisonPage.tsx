@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { Button, Card, Col, Row, Space, Typography } from "antd";
+import { Button, Card, Col, Row, Segmented, Space, Typography } from "antd";
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -12,6 +12,9 @@ import {
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { nok } from "../format";
 import { useAsyncData } from "../hooks";
+
+type ComparisonMetric = "count" | "amount";
+type ComparisonChartKind = StatusComparisonLane["kind"] | "total";
 
 function signedNok(value: number) {
   if (!Number.isFinite(value) || value === 0) return "0 kr";
@@ -42,24 +45,38 @@ function axisText(data: StatusComparisonResponse, value: number) {
   return date.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" });
 }
 
-function cumulativePoints(lane?: StatusComparisonLane): Array<[number, number]> {
-  const events = [...(lane?.events ?? [])]
+function metricValue(value: number, metric: ComparisonMetric) {
+  if (metric === "amount") return `${nok(value)} kr`;
+  return `${Math.round(value)} stk`;
+}
+
+function axisValue(value: number, metric: ComparisonMetric) {
+  if (metric === "amount") {
+    if (Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`;
+    return `${Math.round(value)}`;
+  }
+  return `${Math.round(value)}`;
+}
+
+function cumulativePoints(lanes: Array<StatusComparisonLane | undefined>, metric: ComparisonMetric): Array<[number, number]> {
+  const events = lanes
+    .flatMap((lane) => lane?.events ?? [])
     .filter((event) => Number.isFinite(event.left))
     .sort((left, right) => left.left - right.left);
   const points: Array<[number, number]> = [[0, 0]];
-  let count = 0;
+  let total = 0;
   let index = 0;
   while (index < events.length) {
     const left = Math.max(0, Math.min(100, events[index].left));
     let batch = 0;
     while (index < events.length && Math.abs(events[index].left - left) < 0.0001) {
-      batch += 1;
+      batch += metric === "amount" ? Number(events[index].amount || 0) : 1;
       index += 1;
     }
-    count += batch;
-    points.push([left, count]);
+    total += batch;
+    points.push([left, Math.round(total * 100) / 100]);
   }
-  points.push([100, count]);
+  points.push([100, Math.round(total * 100) / 100]);
   return points;
 }
 
@@ -67,11 +84,25 @@ function laneFor(data: StatusComparisonResponse, kind: StatusComparisonLane["kin
   return data.lanes.find((lane) => lane.kind === kind && lane.source === source);
 }
 
-function cumulativeChartOption(data: StatusComparisonResponse, kind: StatusComparisonLane["kind"]) {
-  const currentLane = laneFor(data, kind, "current");
-  const comparisonLane = laneFor(data, kind, "comparison");
-  const primaryColor = kind === "sun" ? "#2563eb" : "#15803d";
-  const title = kind === "sun" ? "Akkumulerte solinger" : "Akkumulerte parkeringer";
+function lanesForChart(data: StatusComparisonResponse, kind: ComparisonChartKind, source: StatusComparisonLane["source"]) {
+  if (kind === "total") return [laneFor(data, "sun", source), laneFor(data, "parking", source)];
+  return [laneFor(data, kind, source)];
+}
+
+function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonChartKind, metric: ComparisonMetric) {
+  const currentLanes = lanesForChart(data, kind, "current");
+  const comparisonLanes = lanesForChart(data, kind, "comparison");
+  const primaryColor = kind === "parking" ? "#15803d" : kind === "total" ? "#111827" : "#2563eb";
+  const title =
+    metric === "amount"
+      ? kind === "total"
+        ? "Akkumulert sum"
+        : kind === "sun"
+          ? "Akkumulert solbeløp"
+          : "Akkumulert parkeringsbeløp"
+      : kind === "sun"
+        ? "Akkumulerte solinger"
+        : "Akkumulerte parkeringer";
   return {
     color: [primaryColor, "#64748b"],
     tooltip: {
@@ -86,7 +117,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: StatusCompa
             const row = item as { marker?: string; seriesName?: string; value?: [number, number] };
             return `<div style="display:flex;justify-content:space-between;gap:20px;line-height:1.7">
               <span>${row.marker ?? ""}${row.seriesName ?? ""}</span>
-              <strong>${Math.round(Number(row.value?.[1] ?? 0))} stk</strong>
+              <strong>${metricValue(Number(row.value?.[1] ?? 0), metric)}</strong>
             </div>`;
           })
           .join("");
@@ -107,27 +138,27 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: StatusCompa
     },
     yAxis: {
       type: "value",
-      minInterval: 1,
-      axisLabel: { formatter: (value: number) => `${Math.round(value)}` },
+      minInterval: metric === "amount" ? undefined : 1,
+      axisLabel: { formatter: (value: number) => axisValue(value, metric) },
       splitLine: { lineStyle: { color: "#e5e7eb" } },
     },
     series: [
       {
-        name: currentLane?.periodLabel ?? data.current.label,
+        name: currentLanes.find(Boolean)?.periodLabel ?? data.current.label,
         type: "line",
         step: "end",
         symbol: "none",
         lineStyle: { width: 3 },
         areaStyle: { opacity: 0.06 },
-        data: cumulativePoints(currentLane),
+        data: cumulativePoints(currentLanes, metric),
       },
       {
-        name: comparisonLane?.periodLabel ?? data.comparison.label,
+        name: comparisonLanes.find(Boolean)?.periodLabel ?? data.comparison.label,
         type: "line",
         step: "end",
         symbol: "none",
         lineStyle: { width: 2, type: "dashed" },
-        data: cumulativePoints(comparisonLane),
+        data: cumulativePoints(comparisonLanes, metric),
       },
     ],
     title: {
@@ -173,12 +204,16 @@ function SummaryCard({
 }
 
 export default function StatusComparisonPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const period = searchParams.get("period") || "today";
   const compare = searchParams.get("compare") || "previous";
+  const metric: ComparisonMetric = searchParams.get("metric") === "amount" ? "amount" : "count";
   const { data, loading, error } = useAsyncData(() => fetchStatusComparison(period, compare), [period, compare]);
-  const sunChartOption = useMemo(() => (data ? cumulativeChartOption(data, "sun") : undefined), [data]);
-  const parkingChartOption = useMemo(() => (data ? cumulativeChartOption(data, "parking") : undefined), [data]);
+  const chartOptions = useMemo(() => {
+    if (!data) return [];
+    const chartKinds: ComparisonChartKind[] = metric === "amount" ? ["total", "sun", "parking"] : ["sun", "parking"];
+    return chartKinds.map((kind) => ({ kind, option: cumulativeChartOption(data, kind, metric) }));
+  }, [data, metric]);
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
@@ -221,10 +256,29 @@ export default function StatusComparisonPage() {
         className="status-comparison-chart-card"
         title="Akkumulert utvikling"
         extra={
-          <div className="status-comparison-legend">
-            <span><i className="kind-current" />Valgt periode</span>
-            <span><i className="kind-comparison" />Sammenligning</span>
-          </div>
+          <Space size={12} className="status-comparison-chart-tools">
+            <Segmented
+              size="small"
+              value={metric}
+              options={[
+                { label: "Antall", value: "count" },
+                { label: "Beløp", value: "amount" },
+              ]}
+              onChange={(value) => {
+                const nextParams = new URLSearchParams(searchParams);
+                if (value === "amount") {
+                  nextParams.set("metric", "amount");
+                } else {
+                  nextParams.delete("metric");
+                }
+                setSearchParams(nextParams, { replace: true });
+              }}
+            />
+            <div className="status-comparison-legend">
+              <span><i className="kind-current" />Valgt periode</span>
+              <span><i className="kind-comparison" />Sammenligning</span>
+            </div>
+          </Space>
         }
       >
         <div className="status-comparison-axis-meta">
@@ -232,8 +286,13 @@ export default function StatusComparisonPage() {
           <span>til {shortTimeText(data.axis.end)}</span>
         </div>
         <div className="status-comparison-chart-stack">
-          {sunChartOption ? <ReactECharts option={sunChartOption} style={{ height: 285 }} /> : null}
-          {parkingChartOption ? <ReactECharts option={parkingChartOption} style={{ height: 285 }} /> : null}
+          {chartOptions.map((item) => (
+            <ReactECharts
+              option={item.option}
+              style={{ height: metric === "amount" ? 245 : 285 }}
+              key={`${metric}-${item.kind}`}
+            />
+          ))}
         </div>
       </Card>
     </Space>

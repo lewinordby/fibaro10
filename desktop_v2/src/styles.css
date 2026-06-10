@@ -735,7 +735,7 @@ a {
 
 .status-comparison-summary-card,
 .status-comparison-delta-card,
-.status-comparison-timeline-card {
+.status-comparison-chart-card {
   border: 1px solid var(--line);
   border-radius: 6px;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
@@ -839,6 +839,15 @@ a {
 
 .status-comparison-chart-card .ant-card-body {
   padding: 12px 14px 14px;
+}
+
+.status-comparison-chart-tools {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.status-comparison-chart-tools .ant-segmented {
+  background: #f3f4f6;
 }
 
 .status-comparison-legend {
