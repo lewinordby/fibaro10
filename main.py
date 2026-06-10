@@ -89,8 +89,34 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1089")
+APP_BUILD = os.getenv("APP_BUILD", "1090")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1090",
+        "date": "10.06.2026",
+        "title": "Flytter omsetning til eget hovedpunkt",
+        "description": (
+            "Omsetning er skilt ut fra Status til en egen hovedmodul i desktop V2. "
+            "Den gamle månedsvisningen er flyttet til Månedsoversikt, og ny standardforside viser samlet "
+            "omsetning med samme type ukesutvikling som parkering og soling."
+        ),
+        "applications": [
+            "Desktop V2 navigasjon (App.tsx og moduleViews.ts): nytt hovedpunkt, nye ruter og flyttet månedsvisning.",
+            "Desktop V2 modulvisning (ModulePage.tsx): norske kolonnenavn for samlet omsetning.",
+            "fibaro10 backend (main.py): ny omsetningsmodul i modul-API-et, samlet ukesutviklingsgraf og oppdaterte statuslenker.",
+        ],
+        "request": (
+            "jeg ønsker et eget hovedpunkt omsetning, hit vil jeg flytte  status/omsetning siden og kalle den "
+            "månedsoversikt . i tillegg vil jeg ha en default side som er lik som på pakering og soling altså "
+            "sum omsetning ukesutvikling"
+        ),
+        "changes": [
+            "Legger Omsetning inn som eget hovedpunkt i desktopmenyen.",
+            "Flytter månedsdiagrammet fra Status > Omsetning til Omsetning > Månedsoversikt.",
+            "Legger Omsetning > Oversikt med sumkort, samlet ukesutvikling, topplister for dager og måneder.",
+        ],
+    },
     {
         "version": "1",
         "build": "1089",
@@ -10883,6 +10909,8 @@ def desktop_app_response() -> FileResponse:
 
 @app.get("/status", response_class=HTMLResponse)
 @app.get("/status/{path:path}", response_class=HTMLResponse)
+@app.get("/omsetning", response_class=HTMLResponse)
+@app.get("/omsetning/{path:path}", response_class=HTMLResponse)
 @app.get("/parkering", response_class=HTMLResponse)
 @app.get("/parkering/{path:path}", response_class=HTMLResponse)
 @app.get("/soling", response_class=HTMLResponse)
@@ -11689,7 +11717,7 @@ async def status_key_metrics_view(request: Request):
             "value": dashboard_compare_value(revenue_today, revenue_yesterday),
             "unit": "kr",
             "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr",
-            "href": "/status/omsetning",
+            "href": "/omsetning/oversikt",
             "tone": "revenue",
         },
         {
@@ -11698,7 +11726,7 @@ async def status_key_metrics_view(request: Request):
             "value": format_short_number(revenue_last_week),
             "unit": "kr",
             "detail": f"Sol {format_short_number(last_week_sun.paid)} kr - park {format_short_number(last_week_parking.paid)} kr",
-            "href": "/status/omsetning",
+            "href": "/omsetning/oversikt",
             "tone": "revenue",
         },
         {
@@ -11707,7 +11735,7 @@ async def status_key_metrics_view(request: Request):
             "value": format_short_number(revenue_two_weeks),
             "unit": "kr",
             "detail": f"Sol {format_short_number(two_weeks_sun.paid)} kr - park {format_short_number(two_weeks_parking.paid)} kr",
-            "href": "/status/omsetning",
+            "href": "/omsetning/oversikt",
             "tone": "revenue",
         },
         {
@@ -11716,7 +11744,7 @@ async def status_key_metrics_view(request: Request):
             "value": dashboard_compare_value(revenue_week, revenue_previous_week),
             "unit": "kr",
             "detail": "Denne / forrige uke",
-            "href": "/status/omsetning",
+            "href": "/omsetning/oversikt",
             "tone": "revenue",
         },
         {
@@ -11725,7 +11753,7 @@ async def status_key_metrics_view(request: Request):
             "value": dashboard_compare_value(revenue_month, revenue_previous_month),
             "unit": "kr",
             "detail": "Denne / forrige maned",
-            "href": "/status/omsetning",
+            "href": "/omsetning/oversikt",
             "tone": "revenue",
         },
         {
@@ -12615,9 +12643,9 @@ async def api_v2_overview():
     cards = [
         {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/status/oversikt", "tone": "status"},
         {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/status/drift", "tone": "status"},
-        {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/status/omsetning", "tone": "revenue"},
-        {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/status/omsetning", "tone": "revenue"},
-        {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/status/omsetning", "tone": "revenue"},
+        {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/omsetning/oversikt", "tone": "revenue"},
+        {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/omsetning/oversikt", "tone": "revenue"},
+        {"group": "Omsetning", "title": "M\u00e5ned", "value": dashboard_compare_value(revenue_month, revenue_previous_month), "unit": "kr", "detail": "Denne / forrige m\u00e5ned", "href": "/omsetning/oversikt", "tone": "revenue"},
         {"group": "Soling", "title": "Soling i dag", "value": dashboard_compare_value(today_sun.sessions, yesterday_sun.sessions), "unit": "stk", "detail": f"{format_short_number(today_sun.minutes / 60, 1)} t - {today_sun.rooms or 0} rom", "href": "/soling", "tone": "sun2"},
         {"group": "Soling", "title": "Sol uke", "value": dashboard_compare_value(week_sun.sessions, previous_week_sun.sessions), "unit": "stk", "detail": f"{dashboard_money_compare(week_sun.paid, previous_week_sun.paid)}", "href": "/soling", "tone": "sun2"},
         {"group": "Parkering", "title": "Parkering i dag", "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions), "unit": "stk", "detail": f"{format_short_number(today_parking.paid)} kr - {active_parking or 0} aktive n\u00e5", "href": "/parkering", "tone": "parking"},
@@ -12929,6 +12957,37 @@ def api_parking_weekly_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+def api_revenue_weekly_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
+    chart_rows = summaries.get("weekly_chart", [])
+
+    def metric_series(metric: str) -> list[Dict[str, Any]]:
+        return [
+            {
+                "name": row["year"],
+                "data": row[metric],
+                "color": row.get("color"),
+                "unit": "kr" if metric == "revenue" else "stk",
+            }
+            for row in chart_rows
+        ]
+
+    current_year = local_now_naive().year
+    return api_chart(
+        "Sum omsetning ukesutvikling",
+        [str(week) for week in range(1, 54)],
+        metric_series("revenue"),
+        "Samlet omsetning fra soling og parkering. Velg omsetning eller antall.",
+        "line",
+        360,
+        metrics=[
+            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": metric_series("revenue")},
+            {"key": "count", "label": "Antall", "unit": "stk", "series": metric_series("count")},
+        ],
+        default_metric="revenue",
+        default_visible_series=[str(current_year), str(current_year - 1)],
+    )
+
+
 def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = None) -> Dict[str, Any]:
     return {
         "tool": tool,
@@ -12963,6 +13022,19 @@ def api_sun2_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
         "total_soletid_timer": round(float_or_zero(item.get("total_soletid_timer")), 2),
         "rooms_count": int_or_zero(item.get("rooms_count")),
         "days_count": int_or_zero(item.get("days_count")),
+    }
+
+
+def api_revenue_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "period": item.get("period"),
+        "period_label": item.get("period_label") or item.get("period"),
+        "sun_paid": round(float_or_zero(item.get("sun_paid")), 2),
+        "parking_paid": round(float_or_zero(item.get("parking_paid")), 2),
+        "total_paid": round(float_or_zero(item.get("total_paid")), 2),
+        "sun_count": int_or_zero(item.get("sun_count")),
+        "parking_count": int_or_zero(item.get("parking_count")),
+        "total_count": int_or_zero(item.get("total_count")),
     }
 
 
@@ -14265,6 +14337,83 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
     month_start_dt = datetime.combine(month_start, time.min)
 
     async with async_session() as session:
+        if module == "omsetning":
+            sun2_summaries = await get_sun2_summaries(session)
+            parking_summaries = await get_parking_summaries(session)
+            combined_stats = combine_business_summaries(sun2_summaries, parking_summaries)
+            week_start = today - timedelta(days=today.weekday())
+            week_start_dt = datetime.combine(week_start, time.min)
+
+            today_sun = await sun2_period_snapshot(session, today, tomorrow)
+            week_sun = await sun2_period_snapshot(session, week_start, tomorrow)
+            month_sun = await sun2_period_snapshot(session, month_start, tomorrow)
+            today_parking = await parking_period_summary(session, "I dag", today_start, tomorrow_start)
+            week_parking = await parking_period_summary(session, "Denne uken", week_start_dt, tomorrow_start)
+            month_parking = await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start)
+
+            total_sun = sun2_summaries.get("total", {})
+            total_parking = parking_summaries.get("total", {})
+            total_sun_paid = float_or_zero(total_sun.get("totalt_inntjent_kr"))
+            total_parking_paid = float_or_zero(total_parking.get("paid"))
+            total_sun_count = int_or_zero(total_sun.get("totalt_antall_solinger"))
+            total_parking_count = int_or_zero(total_parking.get("sessions"))
+
+            cards = [
+                api_card(
+                    "Sum omsetning",
+                    format_short_number(total_sun_paid + total_parking_paid),
+                    "kr",
+                    f"Sol {format_short_number(total_sun_paid)} kr - parkering {format_short_number(total_parking_paid)} kr",
+                    "revenue",
+                ),
+                api_card(
+                    "I dag",
+                    format_short_number(float_or_zero(today_sun.paid) + float_or_zero(today_parking["paid"])),
+                    "kr",
+                    f"{int_or_zero(today_sun.sessions) + int_or_zero(today_parking['count'])} hendelser",
+                    "revenue",
+                ),
+                api_card(
+                    "Uke",
+                    format_short_number(float_or_zero(week_sun.paid) + float_or_zero(week_parking["paid"])),
+                    "kr",
+                    f"Sol {format_short_number(week_sun.paid)} kr - parkering {format_short_number(week_parking['paid'])} kr",
+                    "revenue",
+                ),
+                api_card(
+                    "Måned",
+                    format_short_number(float_or_zero(month_sun.paid) + float_or_zero(month_parking["paid"])),
+                    "kr",
+                    f"Sol {format_short_number(month_sun.paid)} kr - parkering {format_short_number(month_parking['paid'])} kr",
+                    "revenue",
+                ),
+                api_card(
+                    "Soling totalt",
+                    format_short_number(total_sun_paid),
+                    "kr",
+                    f"{format_short_number(total_sun_count)} solinger",
+                    "sun2",
+                ),
+                api_card(
+                    "Parkering totalt",
+                    format_short_number(total_parking_paid),
+                    "kr",
+                    f"{format_short_number(total_parking_count)} parkeringer",
+                    "parking",
+                ),
+            ]
+            revenue_columns = ["period_label", "sun_paid", "parking_paid", "total_paid", "sun_count", "parking_count", "total_count"]
+            return {
+                "title": "Omsetning" if not view or view == "oversikt" else f"Omsetning · {view.replace('-', ' ')}",
+                "subtitle": "Samlet omsetning fra soling og parkering.",
+                "cards": cards,
+                "charts": [api_revenue_weekly_chart(combined_stats)],
+                "tables": [
+                    api_table("Topp dager omsetning", revenue_columns, [api_revenue_summary_row(row) for row in combined_stats.get("top_days", [])]),
+                    api_table("Topp måneder omsetning", ["period", *revenue_columns[1:]], [api_revenue_summary_row(row) for row in combined_stats.get("top_months", [])]),
+                ],
+            }
+
         if module == "parkering":
             parking_summaries = await get_parking_summaries(session)
             normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))

@@ -1,5 +1,6 @@
 import {
   LogoutOutlined,
+  BarChartOutlined,
   BulbOutlined,
   CalendarOutlined,
   CarOutlined,
@@ -27,6 +28,7 @@ const { Header, Sider, Content } = Layout;
 
 const menuItems: MenuProps["items"] = [
   { key: modulePath("status"), icon: <DashboardOutlined />, label: "Status" },
+  { key: modulePath("omsetning"), icon: <BarChartOutlined />, label: "Omsetning" },
   { key: modulePath("parkering"), icon: <CarOutlined />, label: "Parkering" },
   { key: modulePath("soling"), icon: <CalendarOutlined />, label: "Soling" },
   { key: modulePath("energi"), icon: <ThunderboltOutlined />, label: "Energi" },
@@ -38,6 +40,7 @@ const menuItems: MenuProps["items"] = [
 
 function selectedKey(pathname: string): string {
   if (pathname === "/" || pathname.startsWith("/status")) return modulePath("status");
+  if (pathname.startsWith("/omsetning")) return modulePath("omsetning");
   if (pathname.startsWith("/parkering")) return modulePath("parkering");
   if (pathname.startsWith("/soling")) return modulePath("soling");
   if (pathname.startsWith("/energi")) return modulePath("energi");
@@ -166,9 +169,12 @@ export default function App() {
             <Route index element={<Navigate to={modulePath("status")} replace />} />
             <Route path="/status" element={<Navigate to={modulePath("status")} replace />} />
             <Route path="/status/oversikt" element={<OverviewPage />} />
-            <Route path="/status/omsetning" element={<RevenueMonthPage />} />
+            <Route path="/status/omsetning" element={<Navigate to={modulePath("omsetning", "manedsoversikt")} replace />} />
             <Route path="/status/drift" element={<OperationsPage />} />
             <Route path="/status/sammenligning" element={<StatusComparisonPage />} />
+            <Route path="/omsetning" element={<Navigate to={modulePath("omsetning")} replace />} />
+            <Route path="/omsetning/manedsoversikt" element={<RevenueMonthPage />} />
+            <Route path="/omsetning/:view" element={<ModulePage module="omsetning" />} />
             <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
             <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
             <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
