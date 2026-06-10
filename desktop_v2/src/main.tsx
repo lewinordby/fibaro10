@@ -14,7 +14,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         token: {
           colorPrimary: "#2563eb",
           colorSuccess: "#15803d",
-          colorWarning: "#b45309",
+          colorWarning: "#f59e0b",
           colorError: "#b91c1c",
           colorInfo: "#2563eb",
           borderRadius: 6,

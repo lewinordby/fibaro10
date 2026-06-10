@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1086")
+APP_BUILD = os.getenv("APP_BUILD", "1087")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1087",
+        "date": "10.06.2026",
+        "title": "Rydder domenefarger i desktop V2",
+        "changes": [
+            "Samler desktop-paletten rundt faste domenefarger for omsetning, parkering, soling og energi.",
+            "Retter omsetnings- og statussammenligningsgrafer slik at soling er oransje og parkering er bl\u00e5.",
+            "Gjor energikort og energigrafer gr\u00f8nne, og flytter solingsdagslinjen til oransje-varianter.",
+        ],
+    },
     {
         "version": "1",
         "build": "1086",
@@ -7921,7 +7932,7 @@ async def build_light_chart_markers(day_start: datetime, day_end: datetime, time
         "spot_glass_275": "#3f7fbd",
         "spot_glass_299": "#2f8fa3",
         "spot_inngang": "#726189",
-        "parkering": "#52a464",
+        "parkering": "#2563eb",
     }
     light_shorts = {
         "lyslist": "Lyslist",
@@ -14580,12 +14591,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "Realtime effekt i dag",
                     [row.bucket_start.strftime("%H:%M") if row.bucket_start else "" for row in energy_chart_rows],
                     [
-                        {"name": "Inntak", "data": [row.inntak_w for row in energy_chart_rows], "color": "#b45309"},
-                        {"name": "Varmepumper", "data": [row.varmepumper_w for row in energy_chart_rows], "color": "#2563eb"},
+                        {"name": "Inntak", "data": [row.inntak_w for row in energy_chart_rows], "color": "#15803d"},
+                        {"name": "Varmepumper", "data": [row.varmepumper_w for row in energy_chart_rows], "color": "#0891b2"},
                         {"name": "Belysning", "data": [row.belysning_w for row in energy_chart_rows], "color": "#ca8a04"},
-                        {"name": "Massasje", "data": [row.massasje_w for row in energy_chart_rows], "color": "#7c3aed"},
+                        {"name": "Massasje", "data": [row.massasje_w for row in energy_chart_rows], "color": "#f59e0b"},
                         {"name": "Annet", "data": [row.annet_w for row in energy_chart_rows], "color": "#64748b"},
-                        {"name": "Avfukter", "data": [row.avfukter_w for row in energy_chart_rows], "color": "#0891b2"},
+                        {"name": "Avfukter", "data": [row.avfukter_w for row in energy_chart_rows], "color": "#14b8a6"},
                     ],
                     "Siste inntil 720 samples fra valgt dag. Verdiene er realtime W.",
                     "line",

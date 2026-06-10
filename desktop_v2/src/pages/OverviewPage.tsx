@@ -223,12 +223,12 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
         <strong>{nok(period.total)} kr</strong>
       </div>
       <div className="status-period-rows">
-        <div>
+        <div className="status-period-row tone-sun2">
           <span>Soling</span>
           <strong>{nok(period.sol)} kr</strong>
           <em>{period.solCount} stk</em>
         </div>
-        <div>
+        <div className="status-period-row tone-parking">
           <span>Parkering</span>
           <strong>{nok(period.parking)} kr</strong>
           <em>{period.parkingCount} stk</em>

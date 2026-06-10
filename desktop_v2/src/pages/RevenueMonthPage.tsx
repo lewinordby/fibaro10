@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/nb";
 import { fetchRevenueMonth, type RevenueDay } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
+import { domainColors } from "../domainColors";
 import { decimal, nok } from "../format";
 import { useAsyncData } from "../hooks";
 
@@ -45,7 +46,7 @@ export default function RevenueMonthPage() {
   const chartOption = useMemo(() => {
     const rows = data?.rows ?? [];
     return {
-      color: ["#dc2626", "#2563eb"],
+      color: [domainColors.sun2, domainColors.parking],
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
@@ -58,12 +59,12 @@ export default function RevenueMonthPage() {
             <div style="min-width:190px">
               <div style="margin-bottom:6px;font-weight:700;color:#111827">${row.dayLabel} · ${row.weekday}</div>
               <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.65">
-                <span>${tooltipMarker("#dc2626")}Soling</span>
+                <span>${tooltipMarker(domainColors.sun2)}Soling</span>
                 <strong>${nok(row.sol)} kr</strong>
               </div>
               <div style="margin:0 0 4px 16px;color:#6b7280;font-size:12px">${countLabel(row.solCount, "soling", "solinger")}</div>
               <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.65">
-                <span>${tooltipMarker("#2563eb")}Parkering</span>
+                <span>${tooltipMarker(domainColors.parking)}Parkering</span>
                 <strong>${nok(row.parking)} kr</strong>
               </div>
               <div style="margin:0 0 7px 16px;color:#6b7280;font-size:12px">${countLabel(row.parkingCount, "parkering", "parkeringer")}</div>
@@ -140,18 +141,18 @@ export default function RevenueMonthPage() {
 
       <Row gutter={[16, 16]}>
         <Col span={4}>
-          <Card className="summary-card" title="Total">
+          <Card className="summary-card tone-revenue" title="Total">
             <strong>{nok(summary.total)} kr</strong>
           </Card>
         </Col>
         <Col span={4}>
-          <Card className="summary-card" title="Soling">
+          <Card className="summary-card tone-sun2" title="Soling">
             <strong>{nok(summary.sol)} kr</strong>
             <span>{summary.solCount} solinger</span>
           </Card>
         </Col>
         <Col span={4}>
-          <Card className="summary-card" title="Parkering">
+          <Card className="summary-card tone-parking" title="Parkering">
             <strong>{nok(summary.parking)} kr</strong>
             <span>{summary.parkingCount} parkeringer</span>
           </Card>
