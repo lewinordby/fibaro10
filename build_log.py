@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1108")
+APP_BUILD = os.getenv("APP_BUILD", "1109")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1109",
+        "date": "10.06.2026",
+        "headline": "Lager parkeringsdagslinje med 23 plasser",
+        "title": "Parkering får visuell dagslinje fordelt på 11 + 12 virtuelle plasser",
+        "description": (
+            "Det er lagt inn en egen side under Parkering som viser døgnet som 23 parkeringsplasser fordelt på "
+            "to rekker. Siden bruker faktiske EasyPark-økter, fordeler dem deterministisk på første ledige plass "
+            "og viser samtidig beleggskurve, toppbelegg, omsetning og beleggstid."
+        ),
+        "applications": [
+            "fibaro10 backend (main.py): bygger parkingTimeline-payload med 23 plasser, beleggskurve og dagsoppsummering.",
+            "Desktop V2 API-kontrakt (api.ts): legger til typer for parkeringsdagslinje.",
+            "Desktop V2 parkering (ParkingTimelinePanel.tsx): ny visuell side for 11 + 12 parkeringsplasser.",
+            "Desktop V2 modulside og meny (ModulePage.tsx, moduleViews.ts): kobler /parkering/dagslinje inn i navigasjon og datohåndtering.",
+            "Desktop V2 CSS (styles.css): kompakt tidslinjedesign med blå parkeringsprofil og 23 plasser.",
+            "Buildlogg (build_log.py): registrerer build 1109.",
+        ],
+        "request": "lag en visuell fremstilling kreativt for 23 dvs 11+12 parkeringsplasser tilsvarende dagslinje på soling. har du en god ide? kjør på overrask meg. skal ligge som egen side under parkering.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til Parkering/Dagslinje som eget menypunkt.",
+            "Fordeler parkeringer på 23 virtuelle plasser etter første-ledige-prinsipp.",
+            "Viser rekke A med 11 plasser og rekke B med 12 plasser.",
+            "Tegner klikkbare parkeringsblokker med reg.nr, tid, varighet og beløp i tooltip.",
+            "Viser beleggskurve per 15 minutter og nøkkeltall for toppbelegg, beleggstid og utnyttelse.",
+        ],
+    },
     {
         "version": "1",
         "build": "1108",

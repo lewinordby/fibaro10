@@ -370,6 +370,69 @@ export type SunTimeline = {
   };
 };
 
+export type ParkingTimelineItem = {
+  id: string;
+  left: number;
+  width: number;
+  label: string;
+  plate?: string | null;
+  title: string;
+  kind: "paid" | "ongoing" | "unpaid" | "overflow";
+  start?: string | null;
+  end?: string | null;
+  durationMinutes: number;
+  paid: number;
+  status?: string | null;
+  area?: string | null;
+  owner?: string | null;
+  ownerArea?: string | null;
+  href: string;
+  spaceId?: string;
+};
+
+export type ParkingTimelineSpace = {
+  spaceId: string;
+  label: string;
+  rowKey: string;
+  rowLabel: string;
+  sessions: ParkingTimelineItem[];
+  count: number;
+  minutes: number;
+  paid: number;
+};
+
+export type ParkingTimelineSpaceRow = {
+  key: string;
+  label: string;
+  count: number;
+  spaces: ParkingTimelineSpace[];
+};
+
+export type ParkingTimeline = {
+  selectedDay: string;
+  selectedDayLabel: string;
+  prevDay: string;
+  nextDay: string;
+  capacity: number;
+  layout: Array<{ key: string; label: string; count: number }>;
+  spaceRows: ParkingTimelineSpaceRow[];
+  overflowSessions: ParkingTimelineItem[];
+  occupancy: Array<{ left: number; width: number; count: number; height: number; title: string }>;
+  ticks: Array<{ label: string; left: number }>;
+  nowMarker: number | null;
+  summary: {
+    sessionsCount: number;
+    paidAmountKr: number;
+    durationMinutes: number;
+    durationHours: number;
+    avgMinutes: number;
+    peakCount: number;
+    peakTimeLabel?: string | null;
+    utilizationPercent: number;
+    overflowCount: number;
+  };
+};
+
 export type VentilationMeasurement = {
   key: string;
   label: string;
@@ -535,6 +598,7 @@ export type ModuleResponse = {
   actions?: ModuleAction[];
   filters?: ModuleFilter[];
   sunTimeline?: SunTimeline | null;
+  parkingTimeline?: ParkingTimeline | null;
   ventilation?: VentilationData;
   energyElvia?: EnergyElviaData | null;
 };

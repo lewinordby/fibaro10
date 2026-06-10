@@ -21,6 +21,7 @@ import { appPath } from "../navigation";
 import EnergyElviaPage from "./EnergyElviaPage";
 import { ModuleFilterBar } from "./module/ModuleFilterBar";
 import { ModuleChartPanel, ModuleMetric } from "./module/ModuleVisuals";
+import { ParkingTimelinePanel } from "./module/ParkingTimelinePanel";
 import { SunTimelinePanel } from "./module/SunTimelinePanel";
 import VentilationPage from "./VentilationPage";
 
@@ -483,7 +484,9 @@ export default function ModulePage({ module }: { module: string }) {
   const serverQuery = module === "parkering" && safeView === "kjoretoy" ? query : "";
   const filterKey = searchParams.toString();
   const timelineDay =
-    (module === "soling" && safeView === "dagslinje") || (module === "ventilasjon" && safeView === "dagslogg")
+    (module === "soling" && safeView === "dagslinje") ||
+    (module === "parkering" && safeView === "dagslinje") ||
+    (module === "ventilasjon" && safeView === "dagslogg")
       ? searchParams.get("day") ?? ""
       : "";
   const { data, loading, error } = useAsyncData(
@@ -502,7 +505,7 @@ export default function ModulePage({ module }: { module: string }) {
     setQuery("");
   }
 
-  function setSunTimelineDay(day: string) {
+  function setTimelineDay(day: string) {
     const nextParams = new URLSearchParams(searchParams);
     if (day) nextParams.set("day", day);
     else nextParams.delete("day");
@@ -620,7 +623,9 @@ export default function ModulePage({ module }: { module: string }) {
       </div>
 
       {data.sunTimeline ? (
-        <SunTimelinePanel timeline={data.sunTimeline} onDayChange={setSunTimelineDay} />
+        <SunTimelinePanel timeline={data.sunTimeline} onDayChange={setTimelineDay} />
+      ) : data.parkingTimeline ? (
+        <ParkingTimelinePanel timeline={data.parkingTimeline} onDayChange={setTimelineDay} />
       ) : (
         <>
           {data.charts?.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} />)}

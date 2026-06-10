@@ -12013,6 +12013,214 @@ async def api_sun2_day_timeline(session, selected: date) -> Dict[str, Any]:
     }
 
 
+PARKING_TIMELINE_ROWS = [
+    {"key": "A", "label": "Rekke A", "count": 11},
+    {"key": "B", "label": "Rekke B", "count": 12},
+]
+PARKING_TIMELINE_CAPACITY = sum(row["count"] for row in PARKING_TIMELINE_ROWS)
+
+
+def parking_timeline_end(row: ParkingSession, timeline_end: datetime) -> datetime:
+    start_at = normalize_local_naive(row.start_time) or timeline_end
+    end_at = normalize_local_naive(row.end_time)
+    status = (row.status or "").strip().lower()
+    if end_at:
+        return end_at
+    if status in {"ongoing", "active", "started"}:
+        return timeline_end
+    if row.parking_time_min and row.parking_time_min > 0:
+        return start_at + timedelta(minutes=float(row.parking_time_min))
+    return start_at + timedelta(minutes=30)
+
+
+async def api_parking_day_timeline(session, selected: date, now_dt: datetime) -> Dict[str, Any]:
+    day_start = datetime.combine(selected, time.min)
+    day_end = day_start + timedelta(days=1)
+    is_today = selected == now_dt.date()
+    timeline_end = min(now_dt, day_end) if is_today else day_end
+    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
+    query_start = day_start - timedelta(days=7)
+    rows = (
+        await session.execute(
+            select(ParkingSession, ParkingVehicle)
+            .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+            .where(ParkingSession.start_time >= query_start)
+            .where(ParkingSession.start_time < day_end)
+            .where(
+                or_(
+                    ParkingSession.start_time >= day_start,
+                    ParkingSession.end_time.is_(None),
+                    ParkingSession.end_time >= day_start,
+                )
+            )
+            .order_by(ParkingSession.start_time.asc(), ParkingSession.id.asc())
+        )
+    ).all()
+
+    spaces = []
+    slot_to_space: Dict[int, Dict[str, Any]] = {}
+    slot_index = 0
+    for row_def in PARKING_TIMELINE_ROWS:
+        row_spaces = []
+        for number in range(1, int(row_def["count"]) + 1):
+            label = f"{row_def['key']}{number:02d}"
+            space = {
+                "spaceId": label,
+                "label": label,
+                "rowKey": row_def["key"],
+                "rowLabel": row_def["label"],
+                "sessions": [],
+                "count": 0,
+                "minutes": 0.0,
+                "paid": 0.0,
+            }
+            row_spaces.append(space)
+            slot_to_space[slot_index] = space
+            slot_index += 1
+        spaces.append({**row_def, "spaces": row_spaces})
+
+    event_candidates = []
+    for row, vehicle in rows:
+        start_at = normalize_local_naive(row.start_time)
+        if not start_at:
+            continue
+        end_at = parking_timeline_end(row, timeline_end)
+        if end_at <= start_at:
+            end_at = start_at + timedelta(minutes=max(1.0, float_or_zero(row.parking_time_min) or 1.0))
+        clamped_start = max(day_start, min(day_end, start_at))
+        clamped_end = max(clamped_start, min(day_end, end_at))
+        duration_minutes = max(0.0, (clamped_end - clamped_start).total_seconds() / 60)
+        if duration_minutes <= 0:
+            continue
+        plate = normalize_plate(row.car_license_number)
+        paid = float_or_zero(row.fee_inc_vat)
+        status = (row.status or "").strip()
+        status_key = status.lower()
+        if status_key in {"ongoing", "active", "started"} and not row.end_time:
+            kind = "ongoing"
+        elif paid <= 0:
+            kind = "unpaid"
+        else:
+            kind = "paid"
+        title_parts = [
+            f"{parking_day_time_label(start_at, selected)}-{parking_day_time_label(end_at, selected)}",
+            plate or "Ukjent reg.nr",
+            f"{duration_minutes:.0f} min",
+        ]
+        if paid:
+            title_parts.append(f"{paid:.0f} kr")
+        if vehicle and vehicle.navn:
+            title_parts.append(str(vehicle.navn))
+        if vehicle and vehicle.omrade:
+            title_parts.append(str(vehicle.omrade))
+        if row.parking_area:
+            title_parts.append(str(row.parking_area))
+        if status:
+            title_parts.append(status)
+        event_candidates.append(
+            {
+                "_start": clamped_start,
+                "_end": clamped_end,
+                "id": f"parking-{row.id}",
+                "left": round(((clamped_start - day_start).total_seconds() / 86400) * 100, 4),
+                "width": max(0.12, round(((clamped_end - clamped_start).total_seconds() / 86400) * 100, 4)),
+                "label": plate or f"{start_at:%H:%M}",
+                "plate": plate,
+                "title": " | ".join(title_parts),
+                "kind": kind,
+                "start": api_local_iso(start_at),
+                "end": api_local_iso(end_at),
+                "durationMinutes": round(duration_minutes, 1),
+                "paid": round(paid, 2),
+                "status": status,
+                "area": row.parking_area,
+                "owner": vehicle.navn if vehicle else None,
+                "ownerArea": vehicle.omrade if vehicle else None,
+                "href": (
+                    f"/parkering/parkeringer?date_from={selected.isoformat()}&date_to={selected.isoformat()}&plate={quote(plate, safe='')}"
+                    if plate
+                    else f"/parkering/parkeringer?date_from={selected.isoformat()}&date_to={selected.isoformat()}"
+                ),
+            }
+        )
+
+    slot_available = [day_start for _ in range(PARKING_TIMELINE_CAPACITY)]
+    overflow_sessions = []
+    assigned_events = []
+    for item in sorted(event_candidates, key=lambda event: (event["_start"], event["_end"])):
+        slot = next((index for index, available_at in enumerate(slot_available) if available_at <= item["_start"]), None)
+        payload = {key: value for key, value in item.items() if not key.startswith("_")}
+        if slot is None:
+            payload["kind"] = "overflow"
+            overflow_sessions.append(payload)
+            assigned_events.append(item)
+            continue
+        space = slot_to_space[slot]
+        payload["spaceId"] = space["spaceId"]
+        space["sessions"].append(payload)
+        space["count"] += 1
+        space["minutes"] += item["durationMinutes"]
+        space["paid"] += item["paid"]
+        slot_available[slot] = item["_end"]
+        assigned_events.append(item)
+
+    occupancy = []
+    peak_count = 0
+    peak_time_label = None
+    for index in range(96):
+        bucket_start = day_start + timedelta(minutes=index * 15)
+        bucket_end = bucket_start + timedelta(minutes=15)
+        count = sum(1 for item in assigned_events if item["_start"] < bucket_end and item["_end"] > bucket_start)
+        if count > peak_count:
+            peak_count = count
+            peak_time_label = bucket_start.strftime("%H:%M")
+        occupancy.append(
+            {
+                "left": round(index / 96 * 100, 4),
+                "width": round(100 / 96, 4),
+                "count": count,
+                "height": round((count / PARKING_TIMELINE_CAPACITY) * 100, 2) if PARKING_TIMELINE_CAPACITY else 0,
+                "title": f"{bucket_start:%H:%M}-{bucket_end:%H:%M} | {count}/{PARKING_TIMELINE_CAPACITY} opptatt",
+            }
+        )
+
+    total_minutes = round(sum(item["durationMinutes"] for item in assigned_events), 1)
+    total_paid = round(sum(item["paid"] for item in assigned_events), 2)
+    total_sessions = len(assigned_events)
+    utilization_percent = round((total_minutes / (PARKING_TIMELINE_CAPACITY * 1440)) * 100, 1) if PARKING_TIMELINE_CAPACITY else 0
+    avg_minutes = round(total_minutes / total_sessions, 1) if total_sessions else 0
+    today = datetime.now(LOCAL_TZ).date()
+    now_marker = None
+    if selected == today:
+        now_local = datetime.now(LOCAL_TZ).replace(tzinfo=None)
+        now_marker = round(max(0, min(100, ((now_local - day_start).total_seconds() / 86400) * 100)), 3)
+    ticks = [{"label": f"{hour:02d}", "left": round(hour / 24 * 100, 4)} for hour in range(0, 25, 2)]
+    return {
+        "selectedDay": selected.isoformat(),
+        "selectedDayLabel": selected.strftime("%d.%m.%Y"),
+        "prevDay": (selected - timedelta(days=1)).isoformat(),
+        "nextDay": (selected + timedelta(days=1)).isoformat(),
+        "capacity": PARKING_TIMELINE_CAPACITY,
+        "layout": [{"key": row["key"], "label": row["label"], "count": row["count"]} for row in PARKING_TIMELINE_ROWS],
+        "spaceRows": spaces,
+        "overflowSessions": overflow_sessions,
+        "occupancy": occupancy,
+        "ticks": ticks,
+        "nowMarker": now_marker,
+        "summary": {
+            "sessionsCount": total_sessions,
+            "paidAmountKr": total_paid,
+            "durationMinutes": total_minutes,
+            "durationHours": round(total_minutes / 60, 2),
+            "avgMinutes": avg_minutes,
+            "peakCount": peak_count,
+            "peakTimeLabel": peak_time_label,
+            "utilizationPercent": utilization_percent,
+            "overflowCount": len(overflow_sessions),
+        },
+    }
+
+
 def api_sun2_member_row(row: Sun2Member, stats: Dict[str, Any]) -> Dict[str, Any]:
     data = api_pick(row, SUN2_MEMBER_COLUMNS)
     stat = stats.get(row.sun2_user_id) or {}
@@ -13280,7 +13488,66 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ]
             filters = []
             charts = [api_parking_weekly_chart(parking_summaries)] if view in ("", "oversikt") else []
-            if view == "parkeringer":
+            parking_timeline = None
+            if view == "dagslinje":
+                selected_parking_day = parse_day(day)
+                parking_timeline = await api_parking_day_timeline(session, selected_parking_day, now_dt)
+                summary = parking_timeline["summary"]
+                cards = [
+                    api_card(
+                        "Toppbelegg",
+                        f"{summary['peakCount']}/{parking_timeline['capacity']}",
+                        "plasser",
+                        f"Kl {summary['peakTimeLabel']}" if summary["peakTimeLabel"] else "Ingen registrert topp",
+                        "parking",
+                    ),
+                    api_card(
+                        "Parkeringer",
+                        summary["sessionsCount"],
+                        "stk",
+                        f"{format_short_number(summary['paidAmountKr'])} kr",
+                        "parking",
+                    ),
+                    api_card(
+                        "Beleggstid",
+                        format_short_number(summary["durationHours"], 1),
+                        "timer",
+                        f"{format_short_number(summary['utilizationPercent'], 1)}% av 23 plasser gjennom døgnet",
+                        "parking",
+                    ),
+                    api_card(
+                        "Snittvarighet",
+                        format_short_number(summary["avgMinutes"], 0),
+                        "min",
+                        f"{summary['overflowCount']} over kapasitet" if summary["overflowCount"] else "Alle fikk plass i 11+12-oppsettet",
+                        "status",
+                    ),
+                ]
+                timeline_rows = []
+                for row_group in parking_timeline["spaceRows"]:
+                    for space in row_group["spaces"]:
+                        for item in space["sessions"]:
+                            timeline_rows.append(
+                                {
+                                    "space": space["label"],
+                                    "start": item.get("start"),
+                                    "end": item.get("end"),
+                                    "plate": item.get("plate"),
+                                    "duration_minutes": item.get("durationMinutes"),
+                                    "paid": item.get("paid"),
+                                    "status": item.get("status"),
+                                    "area": item.get("area"),
+                                    "owner": item.get("owner"),
+                                }
+                            )
+                tables = [
+                    api_table(
+                        "Dagslinje parkeringer",
+                        ["space", "start", "end", "plate", "duration_minutes", "paid", "status", "area", "owner"],
+                        timeline_rows,
+                    )
+                ]
+            elif view == "parkeringer":
                 plate_value = compact_plate(api_filter_value(params, "plate"))
                 date_from_value = api_filter_value(params, "date_from")
                 date_to_value = api_filter_value(params, "date_to")
@@ -13488,6 +13755,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "tables": tables,
                 "actions": actions,
                 "filters": filters,
+                "parkingTimeline": parking_timeline,
             }
 
         if module == "soling":
