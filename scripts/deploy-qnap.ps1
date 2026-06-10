@@ -76,6 +76,7 @@ stamp=`$(date +%Y%m%d-%H%M%S)
 backup_dir="`$backup_root/`$stamp"
 mkdir -p "`$backup_dir"
 for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.*; do
+    case "`$file" in .env.example|*/.env.example) continue ;; esac
     [ -f "`$file" ] || continue
     target="`$backup_dir/`$file"
     mkdir -p "`$(dirname "`$target")"
@@ -86,6 +87,7 @@ git fetch origin "$Branch"
 git reset --hard "origin/$Branch"
 git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/
 for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.*; do
+    case "`$file" in .env.example|*/.env.example) continue ;; esac
     source="`$backup_dir/`$file"
     [ -f "`$source" ] || continue
     mkdir -p "`$(dirname "`$file")"

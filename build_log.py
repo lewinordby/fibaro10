@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1117")
+APP_BUILD = os.getenv("APP_BUILD", "1118")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1118",
+        "date": "10.06.2026",
+        "headline": "Retter QNAP-deploy for rene miljøeksempler",
+        "title": "Deploy bevarer ikke lenger .env.example som hemmelig miljøfil",
+        "description": (
+            "Kontroll av funksjonalitet og drift viste at QNAP-worktree ble stående dirty fordi deployscriptet tok "
+            "backup og restore av easypark_downloader/.env.example via det brede mønsteret .env.*. Det gjorde at "
+            "tracked eksempelkonfig kunne overskrives etter git reset. Deployscriptet hopper nå eksplisitt over "
+            ".env.example ved backup og restore, slik at QNAP kan holde ren git-status samtidig som reelle .env-filer "
+            "fortsatt bevares."
+        ),
+        "applications": [
+            "Deployscript (scripts/deploy-qnap.ps1): ekskluderer .env.example og */.env.example fra miljøfil-backup og restore.",
+            "Buildlogg (build_log.py): registrerer build 1118.",
+        ],
+        "request": "kontroller hele løsningen i forhold til funksjonalitet og hastighet",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fant at QNAP hadde modifisert easypark_downloader/.env.example etter deploy.",
+            "Årsaken var at deployscriptet behandlet .env.example som en lokal hemmelig miljøfil.",
+            "La inn eksplisitt skip av .env.example i begge backup-/restore-løkkene.",
+            "Bevarer fortsatt faktiske .env-filer og dataområder under deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1117",
