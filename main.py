@@ -54,6 +54,7 @@ from roborock_domain import (
     roborock_state_label,
     roborock_water_label,
 )
+from security import apply_security_headers
 from time_formatting import (
     format_local_datetime,
     format_local_time,
@@ -117,6 +118,8 @@ svv_sync_task: Optional[asyncio.Task] = None
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
+SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
+SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
 
 
 app = FastAPI(title="Fibaro10")
@@ -186,6 +189,17 @@ async def access_key_middleware(request: Request, call_next):
     request.state.auth_can_settings = request.state.auth_role in ["master", "settings"]
     await log_access_attempt(request, True, "ok", access_key)
     return await call_next(request)
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    apply_security_headers(
+        response.headers,
+        hsts_enabled=SECURITY_HSTS_ENABLED,
+        hsts_max_age_seconds=SECURITY_HSTS_MAX_AGE_SECONDS,
+    )
+    return response
 
 
 class OutdoorLightEvent(Base):

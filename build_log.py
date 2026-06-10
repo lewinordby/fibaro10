@@ -3,8 +3,37 @@ from typing import Any, Dict, Optional
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1102")
+APP_BUILD = os.getenv("APP_BUILD", "1103")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1103",
+        "date": "10.06.2026",
+        "headline": "Herder HTTP-svar med sikkerhetsheadere",
+        "title": "Samler browser-sikkerhet i egen modul og legger den på alle svar",
+        "description": (
+            "Applikasjonen setter nå en samlet standardpakke med sikkerhetsheadere på HTTP-svar. Dette begrenser "
+            "MIME-sniffing, framing, referrer-lekkasje og uønskede browser capabilities. HSTS er bevisst valgfritt "
+            "via miljøvariabel siden løsningen også kjøres på interne HTTP-adresser."
+        ),
+        "applications": [
+            "Sikkerhetsmodul (security.py): eier header-policy og HSTS opt-in.",
+            "fibaro10 backend (main.py): legger sikkerhetsheadere på alle HTTP-svar via middleware.",
+            "Kvalitetssjekk (scripts/check-local.ps1): kompilerer security.py sammen med resten av backend.",
+            "Tester (tests/test_security.py): verifiserer standardheadere, HSTS opt-in og at eksisterende headere ikke overskrives.",
+            "Buildlogg (build_log.py): registrerer build 1103 som eget sikkerhetstrinn.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter security.py med felles sikkerhetsheader-policy.",
+            "Legger HTTP-middleware som bruker policyen på alle svar.",
+            "Holder Strict-Transport-Security av som standard for intern HTTP-drift.",
+            "Legger SECURITY_HSTS_ENABLED og SECURITY_HSTS_MAX_AGE_SECONDS som miljøstyring.",
+            "Legger enhetstester for policyen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1102",
