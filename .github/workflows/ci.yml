@@ -38,6 +38,10 @@ jobs:
         working-directory: desktop_v2
         run: npm ci
 
+      - name: Install Playwright browser
+        working-directory: desktop_v2
+        run: npx playwright install --with-deps chromium
+
       - name: Run quality gate
         shell: pwsh
         run: ./scripts/check-local.ps1

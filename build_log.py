@@ -3,8 +3,37 @@ from typing import Any, Dict, Optional
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1098")
+APP_BUILD = os.getenv("APP_BUILD", "1099")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1099",
+        "date": "10.06.2026",
+        "headline": "Legger til Playwright UI-smoke-test",
+        "title": "Tester bygget desktopapp med mockede API-data før deploy",
+        "description": (
+            "Desktop V2 har fått en Playwright-basert smoke-test som starter en lokal mockserver mot ferdigbygget "
+            "dist, åpner buildloggen og en generisk modulside, og verifiserer at appskall, lazy-loaded ruter, "
+            "kort, grafseksjon og tabellinnhold rendrer uten browser-feil."
+        ),
+        "applications": [
+            "Desktop V2 smoke-test (desktop_v2/scripts/smoke-ui.mjs): ny Playwright-test med lokal mockserver.",
+            "Frontend pakke (desktop_v2/package.json/package-lock.json): legger til Playwright og scriptet npm run smoke:ui.",
+            "Pre-deploy (scripts/check-local.ps1): kjører UI smoke etter frontend build.",
+            "GitHub CI (.github/workflows/ci.yml): installerer Chromium før kvalitetssjekk.",
+            "Lokal setup (scripts/setup-local-dev.ps1): installerer frontend-avhengigheter og Playwright Chromium på ny maskin.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til Playwright som dev-avhengighet i desktop_v2.",
+            "Oppretter smoke-ui.mjs som tester /admin/build og /soling/oversikt mot mockede API-svar.",
+            "Kobler npm run smoke:ui inn i scripts/check-local.ps1.",
+            "Oppdaterer GitHub CI til å installere Playwright Chromium.",
+            "Oppdaterer lokal setup slik nye maskiner får nødvendig browser-runtime.",
+        ],
+    },
     {
         "version": "1",
         "build": "1098",

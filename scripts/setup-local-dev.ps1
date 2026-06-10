@@ -48,6 +48,20 @@ Run "git" @("config", "--global", "--add", "safe.directory", ($repoRoot -replace
 Run "git" @("config", "user.name", "Codex")
 Run "git" @("config", "user.email", "codex@openai.com")
 
+$desktopDir = Join-Path $repoRoot "desktop_v2"
+$npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
+$npx = if ($env:OS -eq "Windows_NT") { "npx.cmd" } else { "npx" }
+if (Test-Path -LiteralPath (Join-Path $desktopDir "package.json")) {
+    Push-Location $desktopDir
+    try {
+        Run $npm @("install")
+        Run $npx @("playwright", "install", "chromium")
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 if ($InstallQnapKey) {
     $key = (Get-Content -LiteralPath $publicKey -Raw).Trim()
     $remote = @"
