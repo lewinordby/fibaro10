@@ -1,28 +1,27 @@
-import ReactECharts from "echarts-for-react";
-import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Segmented, Select, Space, Table, Tabs, Tag, Typography } from "antd";
+import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import {
   fetchModule,
   runModuleAction,
   submitModuleEdit,
+  type JsonRecord,
   type ModuleAction,
-  type ModuleCard,
-  type ModuleChart,
   type ModuleEditConfig,
   type ModuleEditField,
-  type ModuleFilter,
+  type ModuleRow,
   type ModuleTable,
-  type SunTimeline,
-  type SunTimelineItem,
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { appPath } from "../navigation";
 import EnergyElviaPage from "./EnergyElviaPage";
+import { ModuleFilterBar } from "./module/ModuleFilterBar";
+import { ModuleChartPanel, ModuleMetric } from "./module/ModuleVisuals";
+import { SunTimelinePanel } from "./module/SunTimelinePanel";
 import VentilationPage from "./VentilationPage";
 
 function displayValue(value: unknown): string {
@@ -293,9 +292,9 @@ function LinkValue({ value }: { value: string }) {
 
 function moduleColumns(
   table: ModuleTable,
-  onEdit?: (edit: ModuleEditConfig, row: Record<string, unknown>, create?: boolean) => void,
-): ColumnsType<Record<string, unknown>> {
-  const columns: ColumnsType<Record<string, unknown>> = table.columns.map((column) => ({
+  onEdit?: (edit: ModuleEditConfig, row: ModuleRow, create?: boolean) => void,
+): ColumnsType<ModuleRow> {
+  const columns: ColumnsType<ModuleRow> = table.columns.map((column) => ({
     title: labelize(column),
     dataIndex: column,
     key: column,
@@ -348,7 +347,7 @@ function moduleColumns(
   return columns;
 }
 
-function filterRows(rows: Record<string, unknown>[], columns: string[], query: string) {
+function filterRows(rows: ModuleRow[], columns: string[], query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return rows;
   const exactQuery =
@@ -371,283 +370,6 @@ function filterRows(rows: Record<string, unknown>[], columns: string[], query: s
   );
 }
 
-function ModuleMetric({ card }: { card: ModuleCard }) {
-  return (
-    <Card className={`metric-card module-metric tone-${card.tone ?? "status"}`}>
-      <Typography.Text className="metric-title">{card.title}</Typography.Text>
-      <div className="metric-value-row">
-        <span className="metric-value">{card.value}</span>
-        {card.unit ? <span className="metric-unit">{card.unit}</span> : null}
-      </div>
-      <div className="metric-detail">{card.detail || "\u00a0"}</div>
-    </Card>
-  );
-}
-
-function ModuleChartPanel({ chart }: { chart: ModuleChart }) {
-  const defaultMetric = chart.defaultMetric ?? chart.metrics?.[0]?.key ?? "";
-  const [metricKey, setMetricKey] = useState(defaultMetric);
-  const activeMetric = chart.metrics?.find((metric) => metric.key === metricKey) ?? chart.metrics?.[0];
-  const chartSeries = activeMetric?.series ?? chart.series;
-  const requestedVisible = new Set(chart.defaultVisibleSeries ?? []);
-  const applyDefaultVisibility = requestedVisible.size > 0 && chartSeries.some((series) => requestedVisible.has(series.name));
-  const selectedSeries: Record<string, boolean> | undefined = applyDefaultVisibility
-    ? Object.fromEntries(chartSeries.map((series) => [series.name, requestedVisible.has(series.name)]))
-    : undefined;
-
-  const option = {
-    tooltip: { trigger: "axis" },
-    legend: { top: 0, selected: selectedSeries },
-    grid: { top: 46, left: 46, right: 24, bottom: chart.x.length > 80 ? 58 : 34 },
-    dataZoom:
-      chart.x.length > 80
-        ? [
-            { type: "inside", start: Math.max(0, 100 - Math.round((80 / chart.x.length) * 100)), end: 100 },
-            { type: "slider", height: 18, bottom: 12 },
-          ]
-        : undefined,
-    xAxis: {
-      type: "category",
-      data: chart.x,
-      boundaryGap: chart.type === "bar",
-      axisLabel: { hideOverlap: true },
-    },
-    yAxis: { type: "value", name: activeMetric?.unit },
-    series: chartSeries.map((series) => ({
-      name: series.name,
-      type: series.type ?? chart.type ?? "line",
-      data: series.data,
-      smooth: (series.type ?? chart.type ?? "line") === "line",
-      connectNulls: false,
-      showSymbol: false,
-      itemStyle: series.color ? { color: series.color } : undefined,
-      lineStyle: series.color ? { color: series.color, width: 2 } : undefined,
-      areaStyle: chartSeries.length === 1 && (series.type ?? chart.type ?? "line") === "line" ? { opacity: 0.08 } : undefined,
-    })),
-  };
-
-  return (
-    <Card className="chart-card module-chart-card" title={chart.title}>
-      <div className="module-chart-toolbar">
-        {chart.subtitle ? <Typography.Text type="secondary">{chart.subtitle}</Typography.Text> : <span />}
-        {chart.metrics?.length ? (
-          <Segmented
-            size="small"
-            value={activeMetric?.key ?? metricKey}
-            options={chart.metrics.map((metric) => ({ label: metric.label, value: metric.key }))}
-            onChange={(next) => setMetricKey(String(next))}
-          />
-        ) : null}
-      </div>
-      <ReactECharts option={option} style={{ height: chart.height ?? 330 }} />
-    </Card>
-  );
-}
-
-function sunNumber(value: number, maximumFractionDigits = 0): string {
-  return new Intl.NumberFormat("nb-NO", { maximumFractionDigits }).format(value || 0);
-}
-
-function TimelineBlock({ item, aggregate = false }: { item: SunTimelineItem; aggregate?: boolean }) {
-  return (
-    <Link
-      className={`${aggregate ? "sun-aggregate-block" : "sun-session-block"} kind-${item.kind}`}
-      title={item.title}
-      to={item.href}
-      style={{ left: `${item.left}%`, width: `${item.width}%` }}
-    >
-      {aggregate ? null : <span>{item.label}</span>}
-    </Link>
-  );
-}
-
-function NowMarker({ value }: { value: number | null }) {
-  if (value === null || value === undefined) return null;
-  return <div className="sun-now-marker" style={{ left: `${value}%` }} />;
-}
-
-function SunTimelinePanel({ timeline, onDayChange }: { timeline: SunTimeline; onDayChange: (day: string) => void }) {
-  const peak = timeline.energySummary.peakHour;
-  return (
-    <Space direction="vertical" size={12} className="sun-timeline-stack">
-      <Card className="work-card sun-timeline-toolbar">
-        <Space size={8}>
-          <Button size="small" onClick={() => onDayChange(timeline.prevDay)}>
-            Forrige dag
-          </Button>
-          <Button size="small" onClick={() => onDayChange("")}>
-            I dag
-          </Button>
-          <Button size="small" onClick={() => onDayChange(timeline.nextDay)}>
-            Neste dag
-          </Button>
-        </Space>
-        <Space size={8}>
-          <Typography.Text type="secondary">Dato</Typography.Text>
-          <Input
-            className="sun-timeline-date"
-            type="date"
-            value={timeline.selectedDay}
-            onChange={(event) => onDayChange(event.target.value)}
-          />
-        </Space>
-      </Card>
-
-      <Card
-        className="chart-card sun-timeline-card"
-        title="Rom gjennom døgnet"
-        extra={
-          <div className="sun-timeline-legend">
-            <span><i className="kind-standard" />Standard</span>
-            <span><i className="kind-member" />Medlem</span>
-            <span><i className="kind-no-member" />Ikke medlem</span>
-          </div>
-        }
-      >
-        <div className="sun-timeline-note">
-          <span>{timeline.selectedDayLabel}</span>
-          <span>
-            {timeline.energySummary.hoursCount
-              ? `${sunNumber(timeline.energySummary.totalKwh, 1)} kWh Elvia${peak ? `, topp ${String(peak.hour).padStart(2, "0")}:00` : ""}`
-              : "Ingen Elvia-data for dagen"}
-          </span>
-        </div>
-        <div className="sun-timeline-scroll">
-          <div className="sun-timeline-grid">
-            <div />
-            <div className="sun-time-axis" aria-hidden="true">
-              {timeline.ticks.map((tick) => (
-                <span key={`${tick.label}-${tick.left}`} style={{ left: `${tick.left}%` }}>
-                  {tick.label}
-                </span>
-              ))}
-            </div>
-            <div />
-
-            <div className="sun-room-label">
-              Strøm
-              <small>Elvia</small>
-            </div>
-            <div className="sun-energy-line">
-              <NowMarker value={timeline.nowMarker} />
-              {timeline.energyHours.map((item) => (
-                <div
-                  className={`sun-energy-bar ${item.consumptionKwh ? "" : "empty"}`}
-                  key={item.hour}
-                  title={item.title}
-                  style={{
-                    left: `${item.left}%`,
-                    width: `calc(${item.width}% - 2px)`,
-                    height: `${item.consumptionKwh ? Math.max(6, item.height) : 2}%`,
-                  }}
-                />
-              ))}
-            </div>
-            <div className="sun-energy-total">
-              {timeline.energySummary.hoursCount ? `${sunNumber(timeline.energySummary.totalKwh, 1)} kWh` : "-"}
-            </div>
-
-            <div className="sun-room-label">
-              Alle rom
-              <small>sum</small>
-            </div>
-            <div className="sun-aggregate-line">
-              <NowMarker value={timeline.nowMarker} />
-              {timeline.aggregateSessions.map((item, index) => (
-                <TimelineBlock aggregate item={item} key={`${item.href}-${item.left}-${index}`} />
-              ))}
-            </div>
-            <div className="sun-aggregate-total">{timeline.totals.sessionsCount} stk</div>
-
-            {timeline.rooms.map((room) => (
-              <Fragment key={room.roomId}>
-                <div className="sun-room-label">
-                  {room.label}
-                  <small>{room.roomId}</small>
-                </div>
-                <div className="sun-room-line">
-                  <NowMarker value={timeline.nowMarker} />
-                  {room.sessions.map((item, index) => (
-                    <TimelineBlock item={item} key={`${room.roomId}-${item.left}-${index}`} />
-                  ))}
-                </div>
-                <div className="sun-room-total">
-                  {room.count} stk / {sunNumber(room.minutes)} min
-                </div>
-              </Fragment>
-            ))}
-          </div>
-        </div>
-        {!timeline.totals.sessionsCount ? <div className="sun-timeline-empty">Ingen enkelttimer er registrert for denne dagen.</div> : null}
-      </Card>
-    </Space>
-  );
-}
-
-function initialFilterValues(filters: ModuleFilter[]): Record<string, string> {
-  return Object.fromEntries(filters.map((filter) => [filter.key, filter.value === null || filter.value === undefined ? "" : String(filter.value)]));
-}
-
-function ModuleFilterBar({
-  filters,
-  onApply,
-  onClear,
-}: {
-  filters: ModuleFilter[];
-  onApply: (values: Record<string, string>) => void;
-  onClear: (keys: string[]) => void;
-}) {
-  const [values, setValues] = useState<Record<string, string>>(() => initialFilterValues(filters));
-  if (!filters.length) return null;
-
-  function updateValue(key: string, value: string | number | null | undefined) {
-    setValues((current) => ({ ...current, [key]: value === null || value === undefined ? "" : String(value) }));
-  }
-
-  function submit() {
-    onApply(values);
-  }
-
-  return (
-    <Card className="work-card module-filter-card">
-      <div className="module-filter-grid">
-        {filters.map((filter) => (
-          <label className="module-filter-field" key={filter.key}>
-            <span>{filter.label}</span>
-            {filter.type === "select" ? (
-              <Select
-                allowClear
-                size="small"
-                value={values[filter.key] || undefined}
-                options={[{ label: "Alle", value: "" }, ...(filter.options ?? [])]}
-                placeholder={filter.placeholder}
-                onChange={(value) => updateValue(filter.key, value)}
-              />
-            ) : (
-              <Input
-                size="small"
-                type={filter.type === "datetime" ? "datetime-local" : filter.type}
-                value={values[filter.key] ?? ""}
-                placeholder={filter.placeholder}
-                onChange={(event) => updateValue(filter.key, event.target.value)}
-                onPressEnter={submit}
-              />
-            )}
-          </label>
-        ))}
-      </div>
-      <Space size={8} className="module-filter-actions">
-        <Button size="small" type="primary" onClick={submit}>
-          Bruk filtre
-        </Button>
-        <Button size="small" onClick={() => onClear(filters.map((filter) => filter.key))}>
-          Nullstill
-        </Button>
-      </Space>
-    </Card>
-  );
-}
-
 function fieldInput(field: ModuleEditField) {
   if (field.type === "textarea") return <Input.TextArea rows={3} />;
   if (field.type === "number") return <InputNumber className="edit-number" />;
@@ -657,16 +379,16 @@ function fieldInput(field: ModuleEditField) {
   return <Input />;
 }
 
-function editInitialValues(edit: ModuleEditConfig, row: Record<string, unknown>, create: boolean) {
+function editInitialValues(edit: ModuleEditConfig, row: ModuleRow, create: boolean) {
   const fields = create ? edit.createFields ?? edit.fields : edit.fields;
-  const values: Record<string, unknown> = {};
+  const values: JsonRecord = {};
   for (const field of fields) {
     values[field.key] = field.type === "boolean" ? Boolean(row[field.key]) : row[field.key] ?? undefined;
   }
   return values;
 }
 
-function tableRowKey(row: Record<string, unknown>, tableTitle: string, index?: number) {
+function tableRowKey(row: ModuleRow, tableTitle: string, index?: number) {
   const stableValue =
     row.id ??
     row.plate ??
@@ -709,9 +431,13 @@ function ModuleTablePane({
 }: {
   table: ModuleTable;
   query: string;
-  onEdit?: (edit: ModuleEditConfig, row: Record<string, unknown>, create?: boolean) => void;
+  onEdit?: (edit: ModuleEditConfig, row: ModuleRow, create?: boolean) => void;
 }) {
   const filteredRows = filterRows(table.rows, table.columns, query);
+  const tableRows = filteredRows.map((row, index) => ({
+    ...row,
+    __rowKey: tableRowKey(row, table.title, index),
+  }));
   return (
     <Space direction="vertical" size={8} className="table-pane">
       <div className="table-pane-head">
@@ -725,10 +451,10 @@ function ModuleTablePane({
         ) : null}
       </div>
       <Table
-        rowKey={(row, index) => tableRowKey(row, table.title, index)}
+        rowKey="__rowKey"
         size="small"
         columns={moduleColumns(table, onEdit)}
-        dataSource={filteredRows}
+        dataSource={tableRows}
         pagination={{ pageSize: 25, showSizeChanger: true }}
         scroll={{ x: "max-content" }}
         locale={{
@@ -747,7 +473,7 @@ export default function ModulePage({ module }: { module: string }) {
   const [query, setQuery] = useState("");
   const [draftQuery, setDraftQuery] = useState("");
   const [runningAction, setRunningAction] = useState<string | null>(null);
-  const [editState, setEditState] = useState<{ edit: ModuleEditConfig; row: Record<string, unknown>; create: boolean } | null>(null);
+  const [editState, setEditState] = useState<{ edit: ModuleEditConfig; row: ModuleRow; create: boolean } | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const view = params.view ?? defaultModuleView(module);
@@ -799,7 +525,7 @@ export default function ModulePage({ module }: { module: string }) {
     setSearchParams(nextParams);
   }
 
-  function openEdit(edit: ModuleEditConfig, row: Record<string, unknown>, create = false) {
+  function openEdit(edit: ModuleEditConfig, row: ModuleRow, create = false) {
     form.resetFields();
     form.setFieldsValue(editInitialValues(edit, row, create));
     setEditState({ edit, row, create });
@@ -807,7 +533,7 @@ export default function ModulePage({ module }: { module: string }) {
 
   async function saveEdit() {
     if (!editState || savingEdit) return;
-    const values = await form.validateFields();
+    const values = (await form.validateFields()) as JsonRecord;
     setSavingEdit(true);
     try {
       const result = await submitModuleEdit(editState.edit, editState.row, values, editState.create);

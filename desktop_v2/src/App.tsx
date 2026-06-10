@@ -12,20 +12,22 @@ import {
 } from "@ant-design/icons";
 import { Avatar, Button, Dropdown, Layout, Menu, Segmented, Typography } from "antd";
 import type { MenuProps } from "antd";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import OverviewPage from "./pages/OverviewPage";
-import RevenueMonthPage from "./pages/RevenueMonthPage";
-import OperationsPage from "./pages/OperationsPage";
-import ModulePage from "./pages/ModulePage";
-import BuildDetailPage from "./pages/BuildDetailPage";
-import BuildLogPage from "./pages/BuildLogPage";
-import ParkingVehicleDetailPage from "./pages/ParkingVehicleDetailPage";
-import StatusComparisonPage from "./pages/StatusComparisonPage";
 import { fetchCurrentUser, logoutUser, type AuthUser } from "./api";
+import { LoadingBlock } from "./components/AsyncState";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
 
 const { Header, Sider, Content } = Layout;
+
+const OverviewPage = lazy(() => import("./pages/OverviewPage"));
+const RevenueMonthPage = lazy(() => import("./pages/RevenueMonthPage"));
+const OperationsPage = lazy(() => import("./pages/OperationsPage"));
+const ModulePage = lazy(() => import("./pages/ModulePage"));
+const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
+const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
+const ParkingVehicleDetailPage = lazy(() => import("./pages/ParkingVehicleDetailPage"));
+const StatusComparisonPage = lazy(() => import("./pages/StatusComparisonPage"));
 
 const mainModules = [
   { module: "omsetning", icon: <BarChartOutlined />, label: "Omsetning" },
@@ -174,46 +176,48 @@ export default function App() {
           <UserProfileMenu user={user} />
         </Header>
         <Content className="app-content">
-          <Routes>
-            <Route index element={<Navigate to={modulePath("status")} replace />} />
-            <Route path="/status" element={<Navigate to={modulePath("status")} replace />} />
-            <Route path="/status/oversikt" element={<OverviewPage />} />
-            <Route path="/status/omsetning" element={<Navigate to={modulePath("omsetning", "manedsoversikt")} replace />} />
-            <Route path="/status/drift" element={<Navigate to={modulePath("admin", "drift")} replace />} />
-            <Route path="/status/sammenligning" element={<StatusComparisonPage />} />
-            <Route path="/omsetning" element={<Navigate to={modulePath("omsetning")} replace />} />
-            <Route path="/omsetning/manedsoversikt" element={<RevenueMonthPage />} />
-            <Route path="/omsetning/:view" element={<ModulePage module="omsetning" />} />
-            <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
-            <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
-            <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
-            <Route path="/soling" element={<Navigate to={modulePath("soling")} replace />} />
-            <Route path="/soling/:view" element={<ModulePage module="soling" />} />
-            <Route path="/energi" element={<Navigate to={modulePath("energi")} replace />} />
-            <Route path="/energi/:view" element={<ModulePage module="energi" />} />
-            <Route path="/ventilasjon" element={<Navigate to={modulePath("ventilasjon")} replace />} />
-            <Route path="/ventilasjon/:view" element={<ModulePage module="ventilasjon" />} />
-            <Route path="/lys" element={<Navigate to={modulePath("lys")} replace />} />
-            <Route path="/lys/:view" element={<ModulePage module="lys" />} />
-            <Route path="/renhold" element={<Navigate to={modulePath("renhold")} replace />} />
-            <Route path="/renhold/:view" element={<ModulePage module="renhold" />} />
-            <Route path="/admin" element={<Navigate to={modulePath("admin")} replace />} />
-            <Route path="/admin/drift" element={<OperationsPage />} />
-            <Route path="/admin/build" element={<BuildLogPage />} />
-            <Route path="/admin/build/:build" element={<BuildDetailPage />} />
-            <Route path="/admin/:view" element={<ModulePage module="admin" />} />
-            <Route
-              path="*"
-              element={
-                <div className="empty-state">
-                  <Typography.Title level={3}>Siden finnes ikke ennå</Typography.Title>
-                  <Typography.Paragraph>
-                    Bruk menyen til venstre eller gå til <Link to={modulePath("status", "oversikt")}>oversikten</Link>.
-                  </Typography.Paragraph>
-                </div>
-              }
-            />
-          </Routes>
+          <Suspense fallback={<LoadingBlock />}>
+            <Routes>
+              <Route index element={<Navigate to={modulePath("status")} replace />} />
+              <Route path="/status" element={<Navigate to={modulePath("status")} replace />} />
+              <Route path="/status/oversikt" element={<OverviewPage />} />
+              <Route path="/status/omsetning" element={<Navigate to={modulePath("omsetning", "manedsoversikt")} replace />} />
+              <Route path="/status/drift" element={<Navigate to={modulePath("admin", "drift")} replace />} />
+              <Route path="/status/sammenligning" element={<StatusComparisonPage />} />
+              <Route path="/omsetning" element={<Navigate to={modulePath("omsetning")} replace />} />
+              <Route path="/omsetning/manedsoversikt" element={<RevenueMonthPage />} />
+              <Route path="/omsetning/:view" element={<ModulePage module="omsetning" />} />
+              <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
+              <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
+              <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
+              <Route path="/soling" element={<Navigate to={modulePath("soling")} replace />} />
+              <Route path="/soling/:view" element={<ModulePage module="soling" />} />
+              <Route path="/energi" element={<Navigate to={modulePath("energi")} replace />} />
+              <Route path="/energi/:view" element={<ModulePage module="energi" />} />
+              <Route path="/ventilasjon" element={<Navigate to={modulePath("ventilasjon")} replace />} />
+              <Route path="/ventilasjon/:view" element={<ModulePage module="ventilasjon" />} />
+              <Route path="/lys" element={<Navigate to={modulePath("lys")} replace />} />
+              <Route path="/lys/:view" element={<ModulePage module="lys" />} />
+              <Route path="/renhold" element={<Navigate to={modulePath("renhold")} replace />} />
+              <Route path="/renhold/:view" element={<ModulePage module="renhold" />} />
+              <Route path="/admin" element={<Navigate to={modulePath("admin")} replace />} />
+              <Route path="/admin/drift" element={<OperationsPage />} />
+              <Route path="/admin/build" element={<BuildLogPage />} />
+              <Route path="/admin/build/:build" element={<BuildDetailPage />} />
+              <Route path="/admin/:view" element={<ModulePage module="admin" />} />
+              <Route
+                path="*"
+                element={
+                  <div className="empty-state">
+                    <Typography.Title level={3}>Siden finnes ikke ennå</Typography.Title>
+                    <Typography.Paragraph>
+                      Bruk menyen til venstre eller gå til <Link to={modulePath("status", "oversikt")}>oversikten</Link>.
+                    </Typography.Paragraph>
+                  </div>
+                }
+              />
+            </Routes>
+          </Suspense>
         </Content>
       </Layout>
     </Layout>

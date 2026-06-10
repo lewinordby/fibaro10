@@ -1,3 +1,6 @@
+export type JsonRecord = Record<string, unknown>;
+export type ModuleRow = JsonRecord;
+
 export type MetricCard = {
   group: string;
   title: string;
@@ -214,7 +217,7 @@ export type ModuleCard = {
 export type ModuleTable = {
   title: string;
   columns: string[];
-  rows: Record<string, unknown>[];
+  rows: ModuleRow[];
   edit?: ModuleEditConfig;
 };
 
@@ -409,11 +412,11 @@ export type VentilationDay = {
   nextDay: string;
   isToday: boolean;
   nowMarker: number | null;
-  summary: Record<string, unknown>;
+  summary: JsonRecord;
   series: VentilationDaySeries[];
   fans: Array<{ key: string; name: string; short?: string; color?: string; default?: boolean }>;
   fanEvents: VentilationFanEvent[];
-  samples: Record<string, unknown>[];
+  samples: JsonRecord[];
 };
 
 export type VentilationSettingField = {
@@ -437,9 +440,9 @@ export type VentilationSettings = {
   updatedBy?: string | null;
   groups: VentilationSettingGroup[];
   rules: string[];
-  summaryRows: Record<string, unknown>[];
+  summaryRows: JsonRecord[];
   notes: Array<{ title: string; text: string }>;
-  history: Record<string, unknown>[];
+  history: JsonRecord[];
   updateEndpoint: string;
 };
 
@@ -485,9 +488,9 @@ export type EnergyElviaData = {
   yearly: EnergyElviaSummaryItem[];
   topDays: EnergyElviaSummaryItem[];
   topMonths: EnergyElviaSummaryItem[];
-  imports: Record<string, unknown>[];
-  rows: Record<string, unknown>[];
-  latestImport?: Record<string, unknown> | null;
+  imports: JsonRecord[];
+  rows: JsonRecord[];
+  latestImport?: JsonRecord | null;
   status?: EnergyElviaStatus | null;
   uploadEndpoint: string;
 };
@@ -518,7 +521,7 @@ export type ParkingVehicleDetailResponse = {
   cards: ModuleCard[];
   fields: ParkingVehicleField[];
   warnings: string[];
-  sessions: Record<string, unknown>[];
+  sessions: ModuleRow[];
 };
 
 async function apiGet<T>(path: string): Promise<T> {
@@ -595,29 +598,29 @@ export function fetchParkingVehicleDetail(plate: string): Promise<ParkingVehicle
   return apiGet<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`);
 }
 
-export async function runModuleAction(action: ModuleAction): Promise<Record<string, unknown>> {
+export async function runModuleAction(action: ModuleAction): Promise<JsonRecord> {
   const response = await fetch(action.path, {
     method: action.method,
     credentials: "same-origin",
     headers: { Accept: "application/json" },
   });
-  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
   if (!response.ok) {
     throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
   }
   return payload ?? {};
 }
 
-function endpointFromTemplate(template: string, row: Record<string, unknown>) {
+function endpointFromTemplate(template: string, row: ModuleRow) {
   return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key: string) => encodeURIComponent(String(row[key] ?? "")));
 }
 
 export async function submitModuleEdit(
   edit: ModuleEditConfig,
-  row: Record<string, unknown>,
-  values: Record<string, unknown>,
+  row: ModuleRow,
+  values: JsonRecord,
   create = false,
-): Promise<Record<string, unknown>> {
+): Promise<JsonRecord> {
   const endpoint = create && edit.createEndpoint ? edit.createEndpoint : endpointFromTemplate(edit.endpoint, row);
   const method = create && edit.createEndpoint ? "POST" : edit.method ?? "PATCH";
   const response = await fetch(endpoint, {
@@ -626,7 +629,7 @@ export async function submitModuleEdit(
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(values),
   });
-  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
   if (!response.ok) {
     throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
   }
@@ -635,16 +638,16 @@ export async function submitModuleEdit(
 
 export async function saveConfig(
   endpoint: string,
-  values: Record<string, unknown>,
+  values: JsonRecord,
   reason: string,
-): Promise<Record<string, unknown>> {
+): Promise<JsonRecord> {
   const response = await fetch(endpoint, {
     method: "PATCH",
     credentials: "same-origin",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({ values, reason }),
   });
-  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
   if (!response.ok) {
     const errors = Array.isArray(payload?.errors) ? `: ${payload.errors.join(", ")}` : "";
     throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`) + errors);
@@ -652,7 +655,7 @@ export async function saveConfig(
   return payload ?? {};
 }
 
-export async function uploadElviaFile(endpoint: string, file: File): Promise<Record<string, unknown>> {
+export async function uploadElviaFile(endpoint: string, file: File): Promise<JsonRecord> {
   const form = new FormData();
   form.append("file", file);
   const response = await fetch(endpoint, {
@@ -661,7 +664,7 @@ export async function uploadElviaFile(endpoint: string, file: File): Promise<Rec
     headers: { Accept: "application/json" },
     body: form,
   });
-  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
   if (!response.ok) {
     throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
   }

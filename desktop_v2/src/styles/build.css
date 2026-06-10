@@ -1,0 +1,79 @@
+.build-log-intro .ant-card-body,
+.build-detail-hero .ant-card-body {
+  padding: 18px 20px;
+}
+
+.build-log-intro h2,
+.build-detail-hero h2 {
+  margin: 4px 0 4px;
+  color: var(--ink);
+  font-size: 24px;
+}
+
+.build-log-intro .ant-typography,
+.build-detail-hero .ant-typography {
+  margin-bottom: 0;
+}
+
+.build-log-intro-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.build-log-current {
+  min-width: 130px;
+  padding: 10px 12px;
+  text-align: right;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+}
+
+.build-log-current span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.build-log-current strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  font-size: 24px;
+}
+
+.clickable-table-row {
+  cursor: pointer;
+}
+
+.build-detail-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+}
+
+.build-detail-meta {
+  margin-top: 16px;
+}
+
+.build-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.build-request-block {
+  max-height: 320px;
+  margin: 0;
+  overflow: auto;
+  color: #334155;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}

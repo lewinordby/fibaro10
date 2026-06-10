@@ -7,7 +7,8 @@ param(
     [string]$Docker = "/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker",
     [switch]$SkipPush,
     [switch]$AllowDirty,
-    [switch]$SkipSmoke
+    [switch]$SkipSmoke,
+    [switch]$SkipLocalCheck
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,6 +33,10 @@ if (-not $Git) {
 
 if (-not (Test-Path -LiteralPath $IdentityFile)) {
     throw "Missing SSH identity file: $IdentityFile. Run scripts\setup-local-dev.ps1 first."
+}
+
+if (-not $SkipLocalCheck) {
+    Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "check-local.ps1"))
 }
 
 Run $Git @("fetch", "origin", $Branch)

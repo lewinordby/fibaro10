@@ -8,10 +8,28 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ["react", "react-dom", "react-router-dom"],
-          antd: ["antd", "@ant-design/icons"],
-          charts: ["echarts", "echarts-for-react"],
+        manualChunks(id) {
+          const normalizedId = id.replaceAll("\\", "/");
+          if (!normalizedId.includes("/node_modules/")) return undefined;
+          if (normalizedId.includes("/echarts/") || normalizedId.includes("/zrender/") || normalizedId.includes("/echarts-for-react/")) {
+            return "charts";
+          }
+          if (
+            normalizedId.includes("/antd/") ||
+            normalizedId.includes("/@ant-design/icons/") ||
+            normalizedId.includes("/rc-") ||
+            normalizedId.includes("/@rc-component/")
+          ) {
+            return "antd-core";
+          }
+          if (
+            normalizedId.includes("/react/") ||
+            normalizedId.includes("/react-dom/") ||
+            normalizedId.includes("/react-router-dom/")
+          ) {
+            return "react";
+          }
+          return undefined;
         },
       },
     },
