@@ -620,7 +620,7 @@ export default function ModulePage({ module }: { module: string }) {
       {data.cards.length && !hideModuleChrome ? (
         <div className="metric-grid primary-grid">
           {data.cards.map((card) => (
-            <ModuleMetric card={card} key={card.title} />
+            <ModuleMetric card={card} key={card.title} module={module} view={safeView} />
           ))}
         </div>
       ) : null}

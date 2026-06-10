@@ -176,7 +176,7 @@ function ComparisonRow({
     <Link
       className="status-period-comparison-row"
       title="Vis tidslinje for sammenligningen"
-      to={`/status/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`}
+      to={`/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`}
     >
       <div className="status-period-comparison-main">
         <span>{comparison.label}</span>

@@ -4,6 +4,7 @@ export type ModuleView = {
 };
 
 export const MODULE_LABELS: Record<string, string> = {
+  status: "Status",
   omsetning: "Omsetning",
   parkering: "Parkering",
   soling: "Soling",
@@ -15,29 +16,31 @@ export const MODULE_LABELS: Record<string, string> = {
 };
 
 export const MODULE_VIEWS: Record<string, ModuleView[]> = {
+  status: [{ key: "oversikt", label: "Oversikt" }],
   omsetning: [
     { key: "oversikt", label: "Oversikt" },
     { key: "manedsoversikt", label: "Månedsoversikt" },
+    { key: "sammenligning", label: "Sammenligning" },
   ],
   parkering: [
     { key: "oversikt", label: "Oversikt" },
     { key: "dagslinje", label: "Dagslinje" },
-    { key: "prognose", label: "Prognose" },
     { key: "parkeringer", label: "Parkeringer" },
     { key: "kjoretoy", label: "Kjøretøy" },
-    { key: "bilstatistikk", label: "Bilstatistikk" },
+    { key: "prognose", label: "Prognose" },
     { key: "omrade", label: "Område" },
+    { key: "bilstatistikk", label: "Bilstatistikk" },
     { key: "oppslag", label: "Oppslag" },
   ],
   soling: [
     { key: "oversikt", label: "Oversikt" },
     { key: "dagslinje", label: "Dagslinje" },
-    { key: "prognose", label: "Prognose" },
-    { key: "statistikk", label: "Statistikk" },
-    { key: "detaljer", label: "Detaljer" },
     { key: "enkeltimer", label: "Enkeltimer" },
     { key: "senger", label: "Senger" },
     { key: "medlemmer", label: "Medlemmer" },
+    { key: "prognose", label: "Prognose" },
+    { key: "statistikk", label: "Statistikk" },
+    { key: "detaljer", label: "Detaljer" },
   ],
   energi: [
     { key: "status", label: "Status" },
@@ -49,7 +52,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
   ],
   ventilasjon: [
     { key: "dagslogg", label: "Dagslogg" },
-    { key: "temp-logg", label: "Temp logg" },
+    { key: "temp-logg", label: "Temp/fukt" },
     { key: "yr-logg", label: "Yr logg" },
     { key: "hendelser", label: "Hendelser" },
     { key: "innstillinger", label: "Innstillinger" },

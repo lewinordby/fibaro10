@@ -13097,14 +13097,17 @@ def api_access_key_edit() -> Dict[str, Any]:
     }
 
 
-def api_card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status") -> Dict[str, str]:
-    return {
+def api_card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status", href: str = "") -> Dict[str, str]:
+    card = {
         "title": title,
         "value": str(value if value is not None else "-"),
         "unit": unit,
         "detail": detail,
         "tone": tone,
     }
+    if href:
+        card["href"] = href
+    return card
 
 
 def api_pick(row: Any, columns: list[str]) -> Dict[str, Any]:

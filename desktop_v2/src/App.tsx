@@ -186,6 +186,7 @@ export default function App() {
               <Route path="/status/sammenligning" element={<StatusComparisonPage />} />
               <Route path="/omsetning" element={<Navigate to={modulePath("omsetning")} replace />} />
               <Route path="/omsetning/manedsoversikt" element={<RevenueMonthPage />} />
+              <Route path="/omsetning/sammenligning" element={<StatusComparisonPage />} />
               <Route path="/omsetning/:view" element={<ModulePage module="omsetning" />} />
               <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
               <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />

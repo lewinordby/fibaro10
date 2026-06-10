@@ -2,18 +2,8 @@ import { ArrowRightOutlined } from "@ant-design/icons";
 import { Card, Tag, Typography } from "antd";
 import { Link } from "react-router-dom";
 import type { MetricCard as MetricCardData } from "../api";
+import { toneLabel } from "../domainModel";
 import { appPath } from "../navigation";
-
-const toneLabels: Record<string, string> = {
-  revenue: "Omsetning",
-  sun2: "Soling",
-  parking: "Parkering",
-  energy: "Energi",
-  vent: "Klima",
-  weather: "Vær",
-  light: "Lys",
-  status: "Drift",
-};
 
 export default function MetricCard({ card }: { card: MetricCardData }) {
   const internalPath = appPath(card.href);
@@ -21,7 +11,7 @@ export default function MetricCard({ card }: { card: MetricCardData }) {
     <Card className={`metric-card tone-${card.tone ?? "status"}`} hoverable={Boolean(card.href)}>
       <div className="metric-card-top">
         <Typography.Text className="metric-title">{card.title}</Typography.Text>
-        <Tag className="metric-tag">{toneLabels[card.tone ?? ""] ?? card.group}</Tag>
+        <Tag className="metric-tag">{toneLabel(card.tone, card.group)}</Tag>
       </div>
       <div className="metric-value-row">
         <span className="metric-value">{card.value}</span>

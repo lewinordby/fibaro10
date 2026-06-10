@@ -5,8 +5,42 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1112")
+APP_BUILD = os.getenv("APP_BUILD", "1113")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1113",
+        "date": "10.06.2026",
+        "headline": "Strammer helhet, domener og forklarende klikk",
+        "title": "Navigasjon, fargebruk og modul-kort får felles logikk",
+        "description": (
+            "Desktop V2 er ryddet videre mot en mer konsekvent helhet. Status er registrert som intern toppside uten "
+            "å komme tilbake i hovedmenyen, Omsetning har fått sammenligning som logisk underside, og modul-kortene "
+            "bruker samme domenelabel, hover og klikkmønster som statuskortene. Kort uten eksplisitt backend-lenke "
+            "peker nå til mest relevante forklaringsside ut fra modul, tone og korttittel."
+        ),
+        "applications": [
+            "Desktop V2 navigasjon (moduleViews.ts og App.tsx): rydder status som intern side, flytter sammenligning under Omsetning og sorterer underfaner mer logisk.",
+            "Desktop V2 domenemodell (domainModel.ts): samler domene-labels og standardlenker for kortforklaringer.",
+            "Desktop V2 metrikkort (MetricCard.tsx og ModuleVisuals.tsx): bruker felles domenelabel, tag, hover og klikkadferd.",
+            "Desktop V2 moduler (ModulePage.tsx): sender modul og aktiv underside inn i kortkomponenten for riktig standardlenke.",
+            "Desktop V2 status (OverviewPage.tsx og StatusComparisonPage.tsx): sender sammenligningsklikk til Omsetning/Sammenligning.",
+            "Desktop V2 CSS (styles.css): gjør metrikkortene visuelt mer konsekvente på tvers av domener.",
+            "fibaro10 backend (main.py): gjør api_card klar for eksplisitte href-lenker uten å endre eksisterende kall.",
+            "Buildlogg (build_log.py): registrerer build 1113.",
+        ],
+        "request": "gjør alt sammen slik du foreslår",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Registrerer Status som intern toppside slik logo-routing og aktiv modul-logikk blir ryddig.",
+            "Legger Omsetning/Sammenligning inn som egen logisk underside for forklarende tidslinjer.",
+            "Sorter underfanene for Parkering og Soling etter daglig bruk, analyse og register.",
+            "Samler domenelabel og standardlenker for parkering, soling, energi, ventilasjon, lys, renhold, admin og omsetning.",
+            "Gjør modul-kort klikkbare til relevant forklaringsside når backend ikke sender eksplisitt href.",
+            "Gir alle metrikkort felles domenetag, hover og pilindikator når de kan åpnes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1112",

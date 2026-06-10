@@ -230,7 +230,7 @@ export default function StatusComparisonPage() {
     <Space direction="vertical" size={14} className="page-stack status-page status-comparison-page">
       <div className="status-comparison-top">
         <div>
-          <Typography.Text className="eyebrow">Status sammenligning</Typography.Text>
+          <Typography.Text className="eyebrow">Omsetning sammenligning</Typography.Text>
           <div className="status-comparison-title">
             <strong>{data.title}</strong>
             <span>{data.comparisonLabel}</span>
@@ -254,7 +254,7 @@ export default function StatusComparisonPage() {
             Neste
           </Button>
           <Button icon={<ArrowLeftOutlined />}>
-            <Link to="/status/oversikt">Oversikt</Link>
+            <Link to="/omsetning/oversikt">Oversikt</Link>
           </Button>
         </Space>
       </div>

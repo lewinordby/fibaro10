@@ -243,6 +243,7 @@ export type ModuleCard = {
   unit?: string;
   detail?: string;
   tone?: string;
+  href?: string;
 };
 
 export type ModuleTable = {
