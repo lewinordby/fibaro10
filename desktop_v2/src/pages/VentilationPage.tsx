@@ -248,11 +248,11 @@ function CompactSnapshot({ ventilation }: { ventilation: VentilationData }) {
         <div className="vent-compact-sample">
           <Typography.Text className="eyebrow">Siste sample</Typography.Text>
           <strong>{timeText(ventilation.latest.bucketStart)}</strong>
-          <span>{ventilation.latest.mode || "-"}</span>
+          <span className="vent-mode-chip">{ventilation.latest.mode || "-"}</span>
         </div>
         <div className="vent-compact-readings">
           {readings.map((field) => (
-            <Tooltip key={`${field.group}-${field.key}`} title={field.group}>
+            <Tooltip key={`${field.group}-${field.key}`} title={`${field.group}: ${field.label}`}>
               <span className="vent-compact-reading">
                 <small>{field.label}</small>
                 <strong>{numberText(field.temperature)} C</strong>
@@ -262,6 +262,7 @@ function CompactSnapshot({ ventilation }: { ventilation: VentilationData }) {
           ))}
         </div>
         <div className="vent-compact-weather">
+          <Typography.Text className="eyebrow">Yr nå</Typography.Text>
           <strong>{ventilation.latest.weather.text || "-"}</strong>
           <span>
             {numberText(ventilation.latest.weather.airTemperature)} C / {numberText(ventilation.latest.weather.relativeHumidity, 0)}% / vind{" "}

@@ -1349,19 +1349,23 @@
 }
 
 .vent-compact-card .ant-card-body {
-  padding: 10px 13px;
+  padding: 12px 14px;
 }
 
 .vent-compact-main {
   display: grid;
-  grid-template-columns: 185px minmax(0, 1fr) 215px;
-  gap: 12px;
-  align-items: center;
+  grid-template-columns: 170px minmax(0, 1fr) 220px;
+  gap: 14px;
+  align-items: stretch;
 }
 
 .vent-compact-sample,
 .vent-compact-weather {
   min-width: 0;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border: 1px solid #e6edf5;
+  border-radius: 8px;
 }
 
 .vent-compact-sample strong,
@@ -1369,9 +1373,9 @@
   display: block;
   overflow: hidden;
   color: var(--ink);
-  font-size: 14px;
-  font-weight: 780;
-  line-height: 1.15;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1379,13 +1383,34 @@
 .vent-compact-sample span,
 .vent-compact-weather span {
   display: block;
-  margin-top: 3px;
+  margin-top: 5px;
   overflow: hidden;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.vent-compact-sample .eyebrow,
+.vent-compact-weather .eyebrow {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.vent-mode-chip {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 7px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  background: #eef4fb;
+  border: 1px solid #dce7f2;
+  border-radius: 999px;
 }
 
 .vent-compact-weather {
@@ -1393,26 +1418,29 @@
 }
 
 .vent-compact-readings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 8px;
+  align-content: start;
   min-width: 0;
 }
 
 .vent-compact-reading {
   display: grid;
-  grid-template-columns: minmax(48px, 1fr) auto auto;
-  gap: 6px;
-  align-items: baseline;
-  min-width: 112px;
-  max-width: 150px;
-  padding: 5px 7px;
-  background: #f8fafc;
-  border: 1px solid #eef2f7;
-  border-radius: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label humidity"
+    "value value";
+  gap: 3px 8px;
+  min-width: 0;
+  padding: 8px 9px 7px;
+  background: #f9fbfd;
+  border: 1px solid #e7edf5;
+  border-radius: 8px;
 }
 
 .vent-compact-reading small {
+  grid-area: label;
   overflow: hidden;
   color: var(--muted);
   font-size: 10px;
@@ -1425,18 +1453,20 @@
 }
 
 .vent-compact-reading strong {
+  grid-area: value;
   color: var(--ink);
-  font-size: 13px;
-  font-weight: 780;
+  font-size: 17px;
+  font-weight: 800;
   line-height: 1;
   white-space: nowrap;
 }
 
 .vent-compact-reading em {
+  grid-area: humidity;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-style: normal;
-  font-weight: 650;
+  font-weight: 760;
   line-height: 1;
   white-space: nowrap;
 }
@@ -1444,10 +1474,10 @@
 .vent-compact-fans {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #eef2f7;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e9eef5;
 }
 
 .vent-state-head {
@@ -1481,12 +1511,13 @@
 .vent-fan-pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 8px;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 7px;
   color: #374151;
-  font-size: 12px;
-  font-weight: 700;
-  background: #f8fafc;
+  font-size: 11px;
+  font-weight: 760;
+  background: #f9fbfd;
   border: 1px solid #e5eaf0;
   border-radius: 999px;
 }

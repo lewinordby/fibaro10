@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1104")
+APP_BUILD = os.getenv("APP_BUILD", "1105")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1105",
+        "date": "10.06.2026",
+        "headline": "Rydder kompakt ventilasjonssample visuelt",
+        "title": "Gjør toppfeltet på ventilasjon dagslogg tettere og mer lesbart",
+        "description": (
+            "Den kompakte samplevisningen på ventilasjon/dagslogg er ryddet visuelt. Sampletid, måleverdier, vær "
+            "og viftestatus har fått tydeligere soner, jevnere kolonner og mindre unødvendig luft."
+        ),
+        "applications": [
+            "Desktop V2 ventilasjon (VentilationPage.tsx): justerer kompakt snapshot-markup og tooltiptekst.",
+            "Desktop V2 CSS (styles.css): strammer inn layout, chip-design, måleverdiggrid og viftestatuslinje.",
+            "Buildlogg (build_log.py): registrerer build 1105 som eget visuelt oppryddingssteg.",
+        ],
+        "request": "kan du rydde opp i dette visuelt",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjør sampletid og modus til en egen kompakt informasjonsblokk.",
+            "Legger måleverdiene i faste grid-kolonner i stedet for ujevn flexflyt.",
+            "Gir værfeltet en tydeligere høyresone.",
+            "Strammer inn viftestatusrad og tag-størrelser.",
+            "Beholder eksisterende data og funksjonell oppførsel.",
+        ],
+    },
     {
         "version": "1",
         "build": "1104",
