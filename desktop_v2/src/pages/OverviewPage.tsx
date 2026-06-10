@@ -161,6 +161,16 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
           Parkering: {period.previousParkingCount} stk / {nok(period.previousParking)} kr · til {period.previousParkingAsOfLabel}
         </em>
       </div>
+      {period.extraComparisons?.map((comparison) => (
+        <div className="status-period-previous status-period-extra-comparison" key={comparison.label}>
+          <span>{comparison.label}</span>
+          <strong>{nok(comparison.total)} kr</strong>
+          <em>Soling: {comparison.solCount} stk / {nok(comparison.sol)} kr · til {comparison.solAsOfLabel}</em>
+          <em>
+            Parkering: {comparison.parkingCount} stk / {nok(comparison.parking)} kr · til {comparison.parkingAsOfLabel}
+          </em>
+        </div>
+      ))}
     </Card>
   );
 }

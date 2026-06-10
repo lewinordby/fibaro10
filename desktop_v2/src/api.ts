@@ -23,6 +23,17 @@ export type ServiceStatus = {
   ageMinutes?: number | null;
 };
 
+export type StatusPeriodComparison = {
+  label: string;
+  sol: number;
+  solCount: number;
+  parking: number;
+  parkingCount: number;
+  total: number;
+  solAsOfLabel: string;
+  parkingAsOfLabel: string;
+};
+
 export type StatusPeriod = {
   key: string;
   title: string;
@@ -41,6 +52,7 @@ export type StatusPeriod = {
   parkingAsOfLabel: string;
   previousSolAsOfLabel: string;
   previousParkingAsOfLabel: string;
+  extraComparisons?: StatusPeriodComparison[];
 };
 
 export type OverviewResponse = {

@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1078")
+APP_BUILD = os.getenv("APP_BUILD", "1079")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1079",
+        "date": "10.06.2026",
+        "title": "Legger ukesammenligning paa dagens status",
+        "changes": [
+            "Legger ekstra sammenligning paa I dag-kortet mot samme dag forrige uke.",
+            "Bruker fortsatt datatidspunkt per kilde for soling og parkering i den nye sammenligningen.",
+            "Skiller sammenligningene visuelt slik at i gaar og forrige uke leses hver for seg.",
+        ],
+    },
     {
         "version": "1",
         "build": "1078",
@@ -11559,6 +11570,8 @@ async def api_v2_overview():
     today_start = datetime.combine(today, time.min)
     tomorrow_start = datetime.combine(tomorrow, time.min)
     yesterday_start = datetime.combine(yesterday, time.min)
+    last_week_same_day_start = datetime.combine(last_week_same_day, time.min)
+    last_week_same_day_end = last_week_same_day_start + timedelta(days=1)
     week_start_dt = datetime.combine(week_start, time.min)
     previous_week_start_dt = datetime.combine(previous_week_start, time.min)
     month_start_dt = datetime.combine(month_start, time.min)
@@ -11586,9 +11599,21 @@ async def api_v2_overview():
         parking_week_cutoff = period_cutoff(week_start_dt, tomorrow_start, parking_as_of)
         parking_month_cutoff = period_cutoff(month_start_dt, tomorrow_start, parking_as_of)
         sun_yesterday_cutoff = shifted_period_cutoff(today_start, sun_today_cutoff, yesterday_start, today_start)
+        sun_last_week_same_day_cutoff = shifted_period_cutoff(
+            today_start,
+            sun_today_cutoff,
+            last_week_same_day_start,
+            last_week_same_day_end,
+        )
         sun_previous_week_cutoff = shifted_period_cutoff(week_start_dt, sun_week_cutoff, previous_week_start_dt, week_start_dt)
         sun_previous_month_cutoff = shifted_period_cutoff(month_start_dt, sun_month_cutoff, previous_month_start_dt, month_start_dt)
         parking_yesterday_cutoff = shifted_period_cutoff(today_start, parking_today_cutoff, yesterday_start, today_start)
+        parking_last_week_same_day_cutoff = shifted_period_cutoff(
+            today_start,
+            parking_today_cutoff,
+            last_week_same_day_start,
+            last_week_same_day_end,
+        )
         parking_previous_week_cutoff = shifted_period_cutoff(
             week_start_dt,
             parking_week_cutoff,
@@ -11608,6 +11633,11 @@ async def api_v2_overview():
         month_sun = await sun2_datetime_snapshot(session, month_start_dt, sun_month_cutoff)
         previous_month_sun = await sun2_period_snapshot(session, previous_month_start, month_start)
         yesterday_same_time_sun = await sun2_datetime_snapshot(session, yesterday_start, sun_yesterday_cutoff)
+        last_week_same_day_sun = await sun2_datetime_snapshot(
+            session,
+            last_week_same_day_start,
+            sun_last_week_same_day_cutoff,
+        )
         previous_week_same_time_sun = await sun2_datetime_snapshot(
             session,
             previous_week_start_dt,
@@ -11657,6 +11687,11 @@ async def api_v2_overview():
             )
         ).one()
         yesterday_same_time_parking = await parking_datetime_snapshot(session, yesterday_start, parking_yesterday_cutoff)
+        last_week_same_day_same_time_parking = await parking_datetime_snapshot(
+            session,
+            last_week_same_day_start,
+            parking_last_week_same_day_cutoff,
+        )
         previous_week_same_time_parking = await parking_datetime_snapshot(
             session,
             previous_week_start_dt,
@@ -11749,6 +11784,21 @@ async def api_v2_overview():
             "parkingAsOfLabel": cutoff_label(parking_today_cutoff, today),
             "previousSolAsOfLabel": cutoff_label(sun_yesterday_cutoff, today),
             "previousParkingAsOfLabel": cutoff_label(parking_yesterday_cutoff, today),
+            "extraComparisons": [
+                {
+                    "label": "Sammenlignet med samme dag forrige uke",
+                    "sol": float_or_zero(last_week_same_day_sun.paid),
+                    "solCount": int_or_zero(last_week_same_day_sun.sessions),
+                    "parking": float_or_zero(last_week_same_day_same_time_parking.paid),
+                    "parkingCount": int_or_zero(last_week_same_day_same_time_parking.sessions),
+                    "total": (
+                        float_or_zero(last_week_same_day_sun.paid)
+                        + float_or_zero(last_week_same_day_same_time_parking.paid)
+                    ),
+                    "solAsOfLabel": cutoff_label(sun_last_week_same_day_cutoff, today),
+                    "parkingAsOfLabel": cutoff_label(parking_last_week_same_day_cutoff, today),
+                }
+            ],
         },
         {
             "key": "week",
