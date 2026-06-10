@@ -115,6 +115,10 @@ function minuteFromEventX(value: number): number {
   return Math.max(0, Math.min(1440, Math.round((value / 1000) * 1440)));
 }
 
+function percentFromEventX(value: number): number {
+  return Math.max(0, Math.min(100, value / 10));
+}
+
 type DayChartSample = {
   sample: Record<string, unknown>;
   minute: number;
@@ -128,6 +132,55 @@ type DayChartTooltipParam = {
 };
 
 type VentChartFocus = "temperature" | "humidity";
+type VentFanEvent = VentilationData["day"]["fanEvents"][number];
+
+type VentFanRunSegment = {
+  left: number;
+  width: number;
+  color: string;
+  title: string;
+};
+
+function fanRunSegments(events: VentFanEvent[], endPercent: number): VentFanRunSegment[] {
+  const sorted = [...events].sort((left, right) => left.x - right.x);
+  const segments: VentFanRunSegment[] = [];
+  let activeStart: VentFanEvent | null = null;
+
+  for (const event of sorted) {
+    if (event.class === "on") {
+      if (!activeStart) activeStart = event;
+      continue;
+    }
+
+    if (!activeStart) continue;
+    const left = percentFromEventX(activeStart.x);
+    const right = percentFromEventX(event.x);
+    if (right > left) {
+      segments.push({
+        left,
+        width: right - left,
+        color: activeStart.color || event.color,
+        title: `${activeStart.time}-${event.time} ${event.fan_short} på`,
+      });
+    }
+    activeStart = null;
+  }
+
+  if (activeStart) {
+    const left = percentFromEventX(activeStart.x);
+    const right = Math.max(left, Math.min(100, endPercent));
+    if (right > left) {
+      segments.push({
+        left,
+        width: right - left,
+        color: activeStart.color,
+        title: `${activeStart.time}-${minuteLabel(Math.round((right / 100) * 1440))} ${activeStart.fan_short} på`,
+      });
+    }
+  }
+
+  return segments;
+}
 
 function chartFocusFromSearch(value: string | null): VentChartFocus {
   return value === "humidity" ? "humidity" : "temperature";
@@ -408,16 +461,32 @@ function DayChart({
       <div className="vent-fan-lanes">
         {day.fans.map((fan) => {
           const events = day.fanEvents.filter((event) => event.fan_key === fan.key);
+          const endPercent = day.isToday && typeof day.nowMarker === "number" ? day.nowMarker : 100;
+          const runSegments = fanRunSegments(events, endPercent);
           return (
             <div className="vent-fan-lane" key={fan.key}>
               <span>{fan.short || fan.name}</span>
               <div className="vent-fan-track">
+                {runSegments.map((segment, index) => (
+                  <Tooltip key={`${fan.key}-run-${index}`} title={segment.title}>
+                    <i
+                      className="vent-fan-run"
+                      style={{
+                        left: `${segment.left}%`,
+                        width: `${segment.width}%`,
+                        backgroundColor: segment.color,
+                        borderColor: segment.color,
+                      }}
+                      aria-label={segment.title}
+                    />
+                  </Tooltip>
+                ))}
                 {events.map((event, index) => (
                   <Tooltip key={`${fan.key}-${event.time}-${index}`} title={`${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`}>
                     <i
                       className={`vent-fan-event ${event.class}`}
                       style={{
-                        left: `${event.x / 10}%`,
+                        left: `${percentFromEventX(event.x)}%`,
                         backgroundColor: event.class === "on" ? event.color : "#ffffff",
                         borderColor: event.color,
                       }}

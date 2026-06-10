@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1105")
+APP_BUILD = os.getenv("APP_BUILD", "1106")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1106",
+        "date": "10.06.2026",
+        "headline": "Markerer på-perioder i ventilasjon dagslogg",
+        "title": "Viftelinjene viser nå aktive intervaller mellom start og stopp",
+        "description": (
+            "På ventilasjon/dagslogg markeres nå perioden mellom PÅ- og AV-punktene i viftelinjene. Dette gjør det "
+            "lettere å se når hver vifte faktisk har stått på, uten å måtte lese enkeltpunktene manuelt."
+        ),
+        "applications": [
+            "Desktop V2 ventilasjon (VentilationPage.tsx): beregner på-intervaller fra fanEvents og tegner dem i tidslinjen.",
+            "Desktop V2 CSS (styles.css): legger visuell stil for aktive vifteintervaller bak start/stopp-punktene.",
+            "Buildlogg (build_log.py): registrerer build 1106 som eget ventilasjonsforbedringssteg.",
+        ],
+        "request": "dagslogg ventilasjon der vil jeg ha markert mellom punktene slik at man ser den står på enkelt",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Beregner intervaller fra PÅ til neste AV per vifte.",
+            "Lar åpne PÅ-intervaller gå til nå-markøren for i dag eller døgnslutt for historiske dager.",
+            "Tegner fargede, diskrete segmenter bak hendelsespunktene.",
+            "Beholder start/stopp-punktene og tooltipene.",
+            "Bruker samme tidsakseposisjon som eksisterende viftehendelser.",
+        ],
+    },
     {
         "version": "1",
         "build": "1105",
