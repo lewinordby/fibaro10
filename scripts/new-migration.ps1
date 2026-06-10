@@ -27,11 +27,7 @@ $content = @"
 -- Notes:
 --   Add purpose, execution notes, and rollback considerations here.
 
-BEGIN;
-
 -- SQL goes here.
-
-COMMIT;
 "@
 
 Set-Content -LiteralPath $path -Value $content -Encoding UTF8

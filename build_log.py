@@ -3,8 +3,37 @@ from typing import Any, Dict, Optional
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1097")
+APP_BUILD = os.getenv("APP_BUILD", "1098")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1098",
+        "date": "10.06.2026",
+        "headline": "Legger til kontrollert migrasjonsrunner",
+        "title": "Kan liste, tørrkjøre og kjøre SQL-migrasjoner med schema_migrations-sporing",
+        "description": (
+            "Migrasjonsstrukturen er utvidet med en runner som oppdager SQL-filer, holder oversikt i "
+            "schema_migrations og kan kjøres manuelt med --list eller --dry-run før reell kjøring. "
+            "Runneren er ikke koblet automatisk inn i deploy ennå, slik at databaseendringer forblir et kontrollert steg."
+        ),
+        "applications": [
+            "Migrasjonsrunner (migration_runner.py): oppdager, filtrerer og kjører SQL-migrasjoner.",
+            "CLI (scripts/run-migrations.py): kommando for list, dry-run og kjøring mot DATABASE_URL.",
+            "Migrasjonsgenerator (scripts/new-migration.ps1): lager SQL-filer som passer runnerens transaksjonshåndtering.",
+            "Dokumentasjon (migrations/README.md): viser hvordan migrasjoner opprettes og kjøres.",
+            "Tester (tests/test_migration_runner.py): dekker filoppdagelse, sortering og pending-logikk.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter migration_runner.py med schema_migrations-sporing.",
+            "Oppretter scripts/run-migrations.py for manuell kjøring.",
+            "Dokumenterer list/dry-run/run i migrations/README.md.",
+            "Justerer ny migrasjonsmal slik at runneren eier transaksjonen.",
+            "Legger til tester for migrasjonsoppdagelse og pending-migrasjoner.",
+        ],
+    },
     {
         "version": "1",
         "build": "1097",

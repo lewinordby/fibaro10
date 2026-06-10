@@ -16,4 +16,12 @@ This folder is the source-controlled home for schema and data migrations.
 .\scripts\new-migration.ps1 "add-energy-index"
 ```
 
-The app does not auto-run these migrations yet. They are an audit trail and a controlled deploy step.
+## Run migrations
+
+```powershell
+python .\scripts\run-migrations.py --list
+python .\scripts\run-migrations.py --dry-run
+python .\scripts\run-migrations.py
+```
+
+The app does not auto-run these migrations during deploy yet. They are an audit trail and a controlled deploy step.
