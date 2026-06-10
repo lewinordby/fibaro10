@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1082")
+APP_BUILD = os.getenv("APP_BUILD", "1083")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1083",
+        "date": "10.06.2026",
+        "title": "Bytter statussammenligning til kumulative grafer",
+        "changes": [
+            "Erstatter hendelses-tidslinjen med kumulative linjegrafer for solinger og parkeringer.",
+            "Viser valgt periode og sammenligningsperiode som egne linjer paa samme relative tidsakse.",
+            "Beholder sammendrag og differanse over grafene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1082",

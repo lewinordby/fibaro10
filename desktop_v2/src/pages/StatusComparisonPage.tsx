@@ -1,16 +1,17 @@
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { Button, Card, Col, Row, Space, Typography } from "antd";
+import ReactECharts from "echarts-for-react";
+import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   fetchStatusComparison,
-  type StatusComparisonEvent,
   type StatusComparisonLane,
+  type StatusComparisonResponse,
   type StatusComparisonSummary,
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { nok } from "../format";
 import { useAsyncData } from "../hooks";
-import { appPath } from "../navigation";
 
 function signedNok(value: number) {
   if (!Number.isFinite(value) || value === 0) return "0 kr";
@@ -22,7 +23,7 @@ function signedCount(value: number) {
   return `${value > 0 ? "+" : "-"}${Math.abs(value)} stk`;
 }
 
-function timeText(value?: string | null) {
+function shortTimeText(value?: string | null) {
   if (!value) return "-";
   return new Date(value).toLocaleString("nb-NO", {
     day: "2-digit",
@@ -32,50 +33,110 @@ function timeText(value?: string | null) {
   });
 }
 
-function eventPath(event: StatusComparisonEvent) {
-  if (!event.href) return "#";
-  return appPath(event.href) ?? event.href;
+function axisText(data: StatusComparisonResponse, value: number) {
+  if (!data.axis.start) return `${Math.round(value)}%`;
+  const date = new Date(new Date(data.axis.start).getTime() + (data.axis.seconds * value * 1000) / 100);
+  if (data.axis.seconds <= 36 * 3600) {
+    return date.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  }
+  return date.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" });
 }
 
-function TimelineEventBlock({ event, kind }: { event: StatusComparisonEvent; kind: StatusComparisonLane["kind"] }) {
-  return (
-    <Link
-      className={`status-comparison-event kind-${kind} detail-${event.kind}`}
-      style={{ left: `${event.left}%`, width: `${event.width}%` }}
-      title={event.title}
-      to={eventPath(event)}
-    >
-      <span>{event.label}</span>
-    </Link>
-  );
+function cumulativePoints(lane?: StatusComparisonLane): Array<[number, number]> {
+  const events = [...(lane?.events ?? [])]
+    .filter((event) => Number.isFinite(event.left))
+    .sort((left, right) => left.left - right.left);
+  const points: Array<[number, number]> = [[0, 0]];
+  let count = 0;
+  let index = 0;
+  while (index < events.length) {
+    const left = Math.max(0, Math.min(100, events[index].left));
+    let batch = 0;
+    while (index < events.length && Math.abs(events[index].left - left) < 0.0001) {
+      batch += 1;
+      index += 1;
+    }
+    count += batch;
+    points.push([left, count]);
+  }
+  points.push([100, count]);
+  return points;
 }
 
-function TimelineLane({
-  lane,
-  ticks,
-}: {
-  lane: StatusComparisonLane;
-  ticks: Array<{ label: string; left: number }>;
-}) {
-  return (
-    <div className={`status-comparison-lane source-${lane.source} kind-${lane.kind}`}>
-      <div className="status-comparison-lane-label">
-        <strong>{lane.periodLabel}</strong>
-        <span>{lane.label}</span>
-        <em>
-          {lane.count} stk / {nok(lane.paid)} kr
-        </em>
-      </div>
-      <div className="status-comparison-track">
-        {ticks.map((tick) => (
-          <i className="status-comparison-track-tick" style={{ left: `${tick.left}%` }} key={`${lane.key}-${tick.label}-${tick.left}`} />
-        ))}
-        {lane.events.map((event) => (
-          <TimelineEventBlock event={event} kind={lane.kind} key={event.id} />
-        ))}
-      </div>
-    </div>
-  );
+function laneFor(data: StatusComparisonResponse, kind: StatusComparisonLane["kind"], source: StatusComparisonLane["source"]) {
+  return data.lanes.find((lane) => lane.kind === kind && lane.source === source);
+}
+
+function cumulativeChartOption(data: StatusComparisonResponse, kind: StatusComparisonLane["kind"]) {
+  const currentLane = laneFor(data, kind, "current");
+  const comparisonLane = laneFor(data, kind, "comparison");
+  const primaryColor = kind === "sun" ? "#2563eb" : "#15803d";
+  const title = kind === "sun" ? "Akkumulerte solinger" : "Akkumulerte parkeringer";
+  return {
+    color: [primaryColor, "#64748b"],
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "line" },
+      formatter: (params: unknown) => {
+        const items = Array.isArray(params) ? params : [params];
+        const first = items[0] as { value?: [number, number] } | undefined;
+        const x = Number(first?.value?.[0] ?? 0);
+        const rows = items
+          .map((item) => {
+            const row = item as { marker?: string; seriesName?: string; value?: [number, number] };
+            return `<div style="display:flex;justify-content:space-between;gap:20px;line-height:1.7">
+              <span>${row.marker ?? ""}${row.seriesName ?? ""}</span>
+              <strong>${Math.round(Number(row.value?.[1] ?? 0))} stk</strong>
+            </div>`;
+          })
+          .join("");
+        return `<div style="min-width:180px">
+          <div style="margin-bottom:6px;font-weight:700;color:#111827">${axisText(data, x)}</div>
+          ${rows}
+        </div>`;
+      },
+    },
+    legend: { top: 0 },
+    grid: { top: 42, left: 42, right: 18, bottom: 32 },
+    xAxis: {
+      type: "value",
+      min: 0,
+      max: 100,
+      axisLabel: { formatter: (value: number) => axisText(data, value) },
+      splitLine: { lineStyle: { color: "#eef2f7" } },
+    },
+    yAxis: {
+      type: "value",
+      minInterval: 1,
+      axisLabel: { formatter: (value: number) => `${Math.round(value)}` },
+      splitLine: { lineStyle: { color: "#e5e7eb" } },
+    },
+    series: [
+      {
+        name: currentLane?.periodLabel ?? data.current.label,
+        type: "line",
+        step: "end",
+        symbol: "none",
+        lineStyle: { width: 3 },
+        areaStyle: { opacity: 0.06 },
+        data: cumulativePoints(currentLane),
+      },
+      {
+        name: comparisonLane?.periodLabel ?? data.comparison.label,
+        type: "line",
+        step: "end",
+        symbol: "none",
+        lineStyle: { width: 2, type: "dashed" },
+        data: cumulativePoints(comparisonLane),
+      },
+    ],
+    title: {
+      text: title,
+      top: 2,
+      left: 0,
+      textStyle: { color: "#111827", fontSize: 13, fontWeight: 760 },
+    },
+  };
 }
 
 function SummaryCard({
@@ -116,6 +177,8 @@ export default function StatusComparisonPage() {
   const period = searchParams.get("period") || "today";
   const compare = searchParams.get("compare") || "previous";
   const { data, loading, error } = useAsyncData(() => fetchStatusComparison(period, compare), [period, compare]);
+  const sunChartOption = useMemo(() => (data ? cumulativeChartOption(data, "sun") : undefined), [data]);
+  const parkingChartOption = useMemo(() => (data ? cumulativeChartOption(data, "parking") : undefined), [data]);
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
@@ -155,33 +218,22 @@ export default function StatusComparisonPage() {
       </Row>
 
       <Card
-        className="status-comparison-timeline-card"
-        title="Tidslinje"
+        className="status-comparison-chart-card"
+        title="Akkumulert utvikling"
         extra={
           <div className="status-comparison-legend">
-            <span><i className="kind-sun" />Soling</span>
-            <span><i className="kind-parking" />Parkering</span>
+            <span><i className="kind-current" />Valgt periode</span>
+            <span><i className="kind-comparison" />Sammenligning</span>
           </div>
         }
       >
         <div className="status-comparison-axis-meta">
-          <span>{timeText(data.axis.start)}</span>
-          <span>{timeText(data.axis.end)}</span>
+          <span>Relativ tidsakse fra {shortTimeText(data.axis.start)}</span>
+          <span>til {shortTimeText(data.axis.end)}</span>
         </div>
-        <div className="status-comparison-scroll">
-          <div className="status-comparison-grid">
-            <div />
-            <div className="status-comparison-axis">
-              {data.axis.ticks.map((tick) => (
-                <span key={`${tick.label}-${tick.left}`} style={{ left: `${tick.left}%` }}>
-                  {tick.label}
-                </span>
-              ))}
-            </div>
-            {data.lanes.map((lane) => (
-              <TimelineLane lane={lane} ticks={data.axis.ticks} key={lane.key} />
-            ))}
-          </div>
+        <div className="status-comparison-chart-stack">
+          {sunChartOption ? <ReactECharts option={sunChartOption} style={{ height: 285 }} /> : null}
+          {parkingChartOption ? <ReactECharts option={parkingChartOption} style={{ height: 285 }} /> : null}
         </div>
       </Card>
     </Space>
