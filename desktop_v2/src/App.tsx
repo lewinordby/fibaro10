@@ -27,27 +27,26 @@ import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
 
 const { Header, Sider, Content } = Layout;
 
-const menuItems: MenuProps["items"] = [
-  { key: modulePath("omsetning"), icon: <BarChartOutlined />, label: "Omsetning" },
-  { key: modulePath("parkering"), icon: <CarOutlined />, label: "Parkering" },
-  { key: modulePath("soling"), icon: <CalendarOutlined />, label: "Soling" },
-  { key: modulePath("energi"), icon: <ThunderboltOutlined />, label: "Energi" },
-  { key: modulePath("ventilasjon"), icon: <ExperimentOutlined />, label: "Ventilasjon" },
-  { key: modulePath("lys"), icon: <BulbOutlined />, label: "Lys" },
-  { key: modulePath("renhold"), icon: <ToolOutlined />, label: "Renhold" },
-  { key: modulePath("admin"), icon: <SettingOutlined />, label: "Admin" },
+const mainModules = [
+  { module: "omsetning", icon: <BarChartOutlined />, label: "Omsetning" },
+  { module: "parkering", icon: <CarOutlined />, label: "Parkering" },
+  { module: "soling", icon: <CalendarOutlined />, label: "Soling" },
+  { module: "energi", icon: <ThunderboltOutlined />, label: "Energi" },
+  { module: "ventilasjon", icon: <ExperimentOutlined />, label: "Ventilasjon" },
+  { module: "lys", icon: <BulbOutlined />, label: "Lys" },
+  { module: "renhold", icon: <ToolOutlined />, label: "Renhold" },
+  { module: "admin", icon: <SettingOutlined />, label: "Admin" },
 ];
 
+const menuItems: MenuProps["items"] = mainModules.map((item) => ({
+  key: modulePath(item.module),
+  icon: item.icon,
+  label: item.label,
+}));
+
 function selectedKey(pathname: string): string {
-  if (pathname.startsWith("/omsetning")) return modulePath("omsetning");
-  if (pathname.startsWith("/parkering")) return modulePath("parkering");
-  if (pathname.startsWith("/soling")) return modulePath("soling");
-  if (pathname.startsWith("/energi")) return modulePath("energi");
-  if (pathname.startsWith("/ventilasjon")) return modulePath("ventilasjon");
-  if (pathname.startsWith("/lys")) return modulePath("lys");
-  if (pathname.startsWith("/renhold")) return modulePath("renhold");
-  if (pathname.startsWith("/admin")) return modulePath("admin");
-  return pathname;
+  const menuModule = mainModules.find((item) => pathname.startsWith(`/${item.module}`));
+  return menuModule ? modulePath(menuModule.module) : "";
 }
 
 function activeModule(pathname: string): string | null {
@@ -60,23 +59,8 @@ function userInitial(user?: AuthUser | null): string {
   return name ? name.slice(0, 1).toUpperCase() : "";
 }
 
-function UserProfileMenu() {
-  const [user, setUser] = useState<AuthUser | null>(null);
+function UserProfileMenu({ user }: { user: AuthUser | null }) {
   const [loggingOut, setLoggingOut] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    fetchCurrentUser()
-      .then((value) => {
-        if (active) setUser(value);
-      })
-      .catch(() => {
-        if (active) setUser(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const items = useMemo<MenuProps["items"]>(
     () => [
@@ -123,23 +107,7 @@ function UserProfileMenu() {
   );
 }
 
-function BuildFooter() {
-  const [build, setBuild] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    fetchCurrentUser()
-      .then((value) => {
-        if (active) setBuild(value.appBuild);
-      })
-      .catch(() => {
-        if (active) setBuild("");
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
+function BuildFooter({ build }: { build?: string }) {
   return (
     <Link className="sider-build-link" to={modulePath("admin", "build")} aria-label="Åpne buildlogg">
       <span>Build</span>
@@ -151,11 +119,26 @@ function BuildFooter() {
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [user, setUser] = useState<AuthUser | null>(null);
   const module = activeModule(location.pathname);
   const viewItems = module ? MODULE_VIEWS[module] ?? [] : [];
   const rawActiveView = module ? location.pathname.split("/")[2] || defaultModuleView(module) : "";
   const activeView = module && viewItems.some((item) => item.key === rawActiveView) ? rawActiveView : defaultModuleView(module || "");
   const activeMenuKey = selectedKey(location.pathname);
+
+  useEffect(() => {
+    let active = true;
+    fetchCurrentUser()
+      .then((value) => {
+        if (active) setUser(value);
+      })
+      .catch(() => {
+        if (active) setUser(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <Layout className="app-shell">
@@ -174,7 +157,7 @@ export default function App() {
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />
-        <BuildFooter />
+        <BuildFooter build={user?.appBuild} />
       </Sider>
       <Layout>
         <Header className="app-header">
@@ -188,7 +171,7 @@ export default function App() {
               />
             ) : null}
           </div>
-          <UserProfileMenu />
+          <UserProfileMenu user={user} />
         </Header>
         <Content className="app-content">
           <Routes>

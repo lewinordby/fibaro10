@@ -89,8 +89,37 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1092")
+APP_BUILD = os.getenv("APP_BUILD", "1093")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1093",
+        "date": "10.06.2026",
+        "headline": "Teknisk opprydding i appskall og buildlogg",
+        "title": "Rydder og optimaliserer kode etter siste funksjonsendringer",
+        "description": (
+            "Det er gjort en avgrenset vedlikeholdsrunde i desktop V2 og backend. "
+            "Appskallet henter nå innlogget bruker én gang og deler data videre til profil og buildfooter. "
+            "CSS er trimmet for ubrukte regler, og buildlogg-normalisering i backend er strammet inn."
+        ),
+        "applications": [
+            "Desktop V2 appskall (App.tsx): felles hovedmenydefinisjon og én delt henting av bruker/builddata.",
+            "Desktop V2 stilark (styles.css): fjerner ubrukte selektorer og feilreferanse i media-query.",
+            "fibaro10 backend (main.py): enklere buildlogg-radbygging og nytt buildinnslag.",
+        ],
+        "request": (
+            "Nå er det igjen tid for at du rydder i kode, både css og annen kode må forbedres, trimmes og "
+            "optimaliseres jevnlig"
+        ),
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler brukerhenting i App.tsx slik at profilmeny og buildnummer bruker samme AuthUser-data.",
+            "Bygger hovedmeny og valgt meny fra samme moduldefinisjon for mindre repetisjon.",
+            "Fjerner ubrukte CSS-regler for app-header-empty og status-support-grid.",
+            "Forenkler api_build_log_row slik at den gjenbruker normalized_build_log_entry konsekvent.",
+        ],
+    },
     {
         "version": "1",
         "build": "1092",
@@ -13079,20 +13108,16 @@ def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = 
 
 
 def api_build_log_row(row: Dict[str, Any]) -> Dict[str, Any]:
-    applications = row.get("applications") or []
-    if isinstance(applications, list):
-        applications_text = "; ".join(str(item) for item in applications)
-    else:
-        applications_text = str(applications)
     normalized = normalized_build_log_entry(row)
+    applications_text = "; ".join(normalized["applications"])
     return {
-        "build": row.get("build", ""),
-        "date": row.get("date", ""),
+        "build": normalized["build"],
+        "date": normalized["date"],
         "headline": normalized["headline"],
-        "title": row.get("title", ""),
-        "description": row.get("description") or " ".join(row.get("changes") or []),
+        "title": normalized["title"],
+        "description": normalized["description"],
         "applications": applications_text,
-        "request": row.get("request") or "",
+        "request": normalized["request"],
         "work_duration": normalized["workDuration"],
         "credits_used": normalized["creditsUsed"],
         "path": normalized["path"],

@@ -180,14 +180,6 @@ a {
   flex: 1;
 }
 
-.app-header-empty {
-  height: 0;
-  min-height: 0;
-  padding: 0;
-  overflow: hidden;
-  border-bottom: 0;
-}
-
 .profile-button {
   display: inline-flex;
   align-items: center;
@@ -2388,7 +2380,6 @@ a {
 
 @media (max-width: 1400px) {
   .primary-grid,
-  .status-support-grid,
   .vehicle-detail-card-grid,
   .vehicle-field-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
