@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1110")
+APP_BUILD = os.getenv("APP_BUILD", "1111")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1111",
+        "date": "10.06.2026",
+        "headline": "Rydder parkeringsdagslinje til ren kapasitetsvisning",
+        "title": "Bilnummer fjernes fra tidsblokkene og 11+12 vises som 23 spor",
+        "description": (
+            "Parkeringsdagslinjen er strammet inn visuelt. Siden viser nå én samlet kapasitetsmodell med 23 spor "
+            "i stedet for to virtuelle rekker. Synlige bilnummer i blokkene er fjernet, og blokkene fungerer som "
+            "rene tidsmarkører med detaljer ved hover/klikk."
+        ),
+        "applications": [
+            "fibaro10 backend (main.py): endrer parkeringsdagslinjen til én samlet 23-sporsmodell og rydder tooltipinnhold.",
+            "Desktop V2 parkering (ParkingTimelinePanel.tsx): fjerner synlige bilnummer og 11+12-skille fra visningen.",
+            "Desktop V2 CSS (styles.css): gjør parkeringsblokkene lavere og renere uten tekstinnhold.",
+            "Buildlogg (build_log.py): registrerer build 1111.",
+        ],
+        "request": "bil nummerne gjør det rotete og ingen nytte. jeg synes også det bør ryddes litt i hvordan det fylles , og ingen hensikt i å skille det i to rader når du setter det opp slik",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Samler parkeringsdagslinjen til én kapasitetsgruppe med 23 spor.",
+            "Fjerner synlig reg.nr-tekst fra alle parkeringsblokker.",
+            "Fjerner reg.nr fra tooltipens hovedtekst, men beholder klikk til filtrert parkeringsliste.",
+            "Endrer sporfordeling til å gjenbruke det sist frigitte ledige sporet for roligere fylling.",
+            "Fjerner den kunstige kjørefelt-/11+12-markeringen fra UI-et.",
+        ],
+    },
     {
         "version": "1",
         "build": "1110",

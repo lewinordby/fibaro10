@@ -12014,8 +12014,7 @@ async def api_sun2_day_timeline(session, selected: date) -> Dict[str, Any]:
 
 
 PARKING_TIMELINE_ROWS = [
-    {"key": "A", "label": "Rekke A", "count": 11},
-    {"key": "B", "label": "Rekke B", "count": 12},
+    {"key": "capacity", "label": "Kapasitet", "count": 23},
 ]
 PARKING_TIMELINE_CAPACITY = sum(row["count"] for row in PARKING_TIMELINE_ROWS)
 
@@ -12063,9 +12062,9 @@ async def api_parking_day_timeline(session, selected: date, now_dt: datetime) ->
     for row_def in PARKING_TIMELINE_ROWS:
         row_spaces = []
         for number in range(1, int(row_def["count"]) + 1):
-            label = f"{row_def['key']}{number:02d}"
+            label = f"{number:02d}"
             space = {
-                "spaceId": label,
+                "spaceId": f"space-{label}",
                 "label": label,
                 "rowKey": row_def["key"],
                 "rowLabel": row_def["label"],
@@ -12104,7 +12103,6 @@ async def api_parking_day_timeline(session, selected: date, now_dt: datetime) ->
             kind = "paid"
         title_parts = [
             f"{parking_day_time_label(start_at, selected)}-{parking_day_time_label(end_at, selected)}",
-            plate or "Ukjent reg.nr",
             f"{duration_minutes:.0f} min",
         ]
         if paid:
@@ -12124,7 +12122,7 @@ async def api_parking_day_timeline(session, selected: date, now_dt: datetime) ->
                 "id": f"parking-{row.id}",
                 "left": round(((clamped_start - day_start).total_seconds() / 86400) * 100, 4),
                 "width": max(0.12, round(((clamped_end - clamped_start).total_seconds() / 86400) * 100, 4)),
-                "label": plate or f"{start_at:%H:%M}",
+                "label": "",
                 "plate": plate,
                 "title": " | ".join(title_parts),
                 "kind": kind,
@@ -12148,7 +12146,8 @@ async def api_parking_day_timeline(session, selected: date, now_dt: datetime) ->
     overflow_sessions = []
     assigned_events = []
     for item in sorted(event_candidates, key=lambda event: (event["_start"], event["_end"])):
-        slot = next((index for index, available_at in enumerate(slot_available) if available_at <= item["_start"]), None)
+        free_slots = [index for index, available_at in enumerate(slot_available) if available_at <= item["_start"]]
+        slot = max(free_slots, key=lambda index: (slot_available[index], -index)) if free_slots else None
         payload = {key: value for key, value in item.items() if not key.startswith("_")}
         if slot is None:
             payload["kind"] = "overflow"
@@ -13520,7 +13519,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Snittvarighet",
                         format_short_number(summary["avgMinutes"], 0),
                         "min",
-                        f"{summary['overflowCount']} over kapasitet" if summary["overflowCount"] else "Alle fikk plass i 11+12-oppsettet",
+                        f"{summary['overflowCount']} over kapasitet" if summary["overflowCount"] else "Alle fikk plass i 23-sporsoppsettet",
                         "status",
                     ),
                 ]

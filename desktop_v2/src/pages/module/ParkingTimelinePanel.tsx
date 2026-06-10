@@ -16,13 +16,12 @@ function ParkingNowMarker({ value }: { value: number | null }) {
 function ParkingBlock({ item }: { item: ParkingTimelineItem }) {
   return (
     <Link
+      aria-label={item.title}
       className={`parking-session-block kind-${item.kind}`}
       title={item.title}
       to={item.href}
       style={{ left: `${item.left}%`, width: `${item.width}%` }}
-    >
-      <span>{item.label}</span>
-    </Link>
+    />
   );
 }
 
@@ -33,7 +32,7 @@ export function ParkingTimelinePanel({
   timeline: ParkingTimeline;
   onDayChange: (day: string) => void;
 }) {
-  const layoutLabel = timeline.layout.map((row) => `${row.label} ${row.count}`).join(" + ");
+  const layoutLabel = timeline.layout.map((row) => `${row.label} ${row.count} spor`).join(" + ");
   return (
     <Space direction="vertical" size={12} className="parking-timeline-stack">
       <Card className="work-card parking-timeline-toolbar">
@@ -62,7 +61,7 @@ export function ParkingTimelinePanel({
 
       <Card
         className="chart-card parking-timeline-card"
-        title="Parkeringsdøgn 23 plasser"
+        title="Parkeringsdøgn kapasitet"
         extra={
           <div className="parking-timeline-legend">
             <span>
@@ -141,17 +140,17 @@ export function ParkingTimelinePanel({
             </div>
             <div className="parking-space-total">{timeline.summary.peakCount}/{timeline.capacity}</div>
 
-            {timeline.spaceRows.map((row, rowIndex) => (
+            {timeline.spaceRows.map((row) => (
               <Fragment key={row.key}>
                 <div className="parking-row-heading">
                   <span>{row.label}</span>
-                  <em>{row.count} plasser</em>
+                  <em>{row.count} spor fordelt etter samtidighet</em>
                 </div>
                 {row.spaces.map((space) => (
                   <Fragment key={space.spaceId}>
                     <div className="parking-space-label">
                       {space.label}
-                      <small>{space.count ? `${space.count} stk` : "ledig"}</small>
+                      {space.count ? <small>{space.count} stk</small> : null}
                     </div>
                     <div className="parking-space-line">
                       <ParkingNowMarker value={timeline.nowMarker} />
@@ -164,7 +163,6 @@ export function ParkingTimelinePanel({
                     </div>
                   </Fragment>
                 ))}
-                {rowIndex === 0 ? <div className="parking-driveway">Kjørefelt mellom 11 + 12</div> : null}
               </Fragment>
             ))}
 
