@@ -143,7 +143,7 @@ export default function App() {
   }, []);
 
   return (
-    <Layout className="app-shell">
+    <Layout className={`app-shell domain-${module ?? "status"}`}>
       <Sider width={218} className="app-sider">
         <Link className="brand" to={modulePath("status", "oversikt")} aria-label="Gå til statusoversikt">
           <div className="brand-mark">L</div>

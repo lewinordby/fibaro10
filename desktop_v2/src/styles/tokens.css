@@ -18,6 +18,7 @@
   --domain-light: #ca8a04;
   --domain-status: #475569;
   --tone-color: var(--domain-status);
+  --active-module-color: var(--domain-status);
 }
 
 .tone-revenue {
@@ -50,4 +51,34 @@
 
 .tone-status {
   --tone-color: var(--domain-status);
+}
+
+.domain-omsetning {
+  --active-module-color: var(--domain-revenue);
+}
+
+.domain-parkering {
+  --active-module-color: var(--domain-parking);
+}
+
+.domain-soling {
+  --active-module-color: var(--domain-sun2);
+}
+
+.domain-energi {
+  --active-module-color: var(--domain-energy);
+}
+
+.domain-ventilasjon {
+  --active-module-color: var(--domain-vent);
+}
+
+.domain-lys {
+  --active-module-color: var(--domain-light);
+}
+
+.domain-renhold,
+.domain-admin,
+.domain-status {
+  --active-module-color: var(--domain-status);
 }

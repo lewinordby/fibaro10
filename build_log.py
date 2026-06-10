@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1113")
+APP_BUILD = os.getenv("APP_BUILD", "1114")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1114",
+        "date": "10.06.2026",
+        "headline": "Gjør domenefarger og forklaringslenker mer presise",
+        "title": "Aktiv modul får riktig farge og sentrale kort peker eksplisitt til grunnlaget",
+        "description": (
+            "Neste helhetssteg strammer sammenheng mellom område, farge og forklaring. Aktiv modul setter nå "
+            "aksentfarge for venstremeny og toppfaner, slik at Parkering, Soling, Energi, Omsetning, Ventilasjon "
+            "og Lys følger samme fargelogikk overalt. Backend sender også eksplisitte href-er for de viktigste "
+            "kortene, og frontend skjuler lenker som bare ville sendt brukeren tilbake til samme side."
+        ),
+        "applications": [
+            "Desktop V2 appskall (App.tsx, layout.css og tokens.css): aktiv modul styrer aksentfarge i meny og toppfaner.",
+            "Desktop V2 kortlogikk (ModuleVisuals.tsx og domainModel.ts): fjerner selvlenker og beholder bare nyttige forklaringsklikk.",
+            "fibaro10 backend (main.py): legger eksplisitte href-er på sentrale kort for soling, parkering, omsetning, energi, ventilasjon, lys, renhold og admin.",
+            "Buildlogg (build_log.py): registrerer build 1114.",
+        ],
+        "request": "fortsett og gjør alt du har foreslått uten å stoppe",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Setter modulspesifikk aksentfarge for hovedmeny og toppfaner.",
+            "Parkering bruker blå, soling gul/oransje, energi grønn, omsetning rød, ventilasjon blågrønn og lys gul.",
+            "Legger eksplisitte forklaringslenker på de mest brukte modul-kortene.",
+            "Hindrer at kort markeres klikkbare når lenken bare peker til samme side.",
+            "Beholder frontendens fallback-lenker som sikkerhet der backend ikke har eksplisitt href ennå.",
+        ],
+    },
     {
         "version": "1",
         "build": "1113",

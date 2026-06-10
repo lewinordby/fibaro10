@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { ModuleCard, ModuleChart } from "../../api";
 import { moduleMetricFallbackHref, toneLabel } from "../../domainModel";
+import { modulePath } from "../../moduleViews";
 import { appPath } from "../../navigation";
 
 export function ModuleMetric({
@@ -16,7 +17,8 @@ export function ModuleMetric({
   module: string;
   view: string;
 }) {
-  const href = card.href || moduleMetricFallbackHref(module, view, card);
+  const rawHref = card.href || moduleMetricFallbackHref(module, view, card);
+  const href = rawHref === modulePath(module, view) ? undefined : rawHref;
   const internalPath = appPath(href);
   const content = (
     <Card className={`metric-card module-metric tone-${card.tone ?? "status"}`} hoverable={Boolean(href)}>

@@ -12688,10 +12688,10 @@ async def api_v2_soling_module(
     total_paid = float_or_zero(database_total.get("paid_amount_kr"))
     total_hours = float_or_zero(database_total.get("duration_minutes")) / 60
     cards = [
-        api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2"),
-        api_card("I går", yesterday_sun.sessions, "stk", f"{format_short_number(yesterday_sun.paid)} kr", "sun2"),
-        api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue"),
-        api_card("Totalt", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue"),
+        api_card("Solinger i dag", today_sun.sessions, "stk", f"{format_short_number(today_sun.paid)} kr", "sun2", href="/soling/dagslinje"),
+        api_card("I går", yesterday_sun.sessions, "stk", f"{format_short_number(yesterday_sun.paid)} kr", "sun2", href="/soling/enkeltimer"),
+        api_card("Måned", month_sun.sessions, "stk", f"{format_short_number(month_sun.paid)} kr", "revenue", href="/omsetning/manedsoversikt"),
+        api_card("Totalt", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue", href="/soling/statistikk"),
     ]
     subtitle = "SUN2 soling samlet i egne V2-visninger: oversikt, detaljer, enkeltimer, dagslinje, senger, medlemmer og prognose."
     charts = []
@@ -12712,10 +12712,10 @@ async def api_v2_soling_module(
     elif view == "statistikk":
         charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), api_sun2_weekly_chart(sun2_summaries, "count"), daily_count_chart, daily_revenue_chart]
         cards = [
-            api_card("Totalt omsetning", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue"),
-            api_card("Totalt timer", format_short_number(total_hours, 1), "t", "Fra enkeltimer", "sun2"),
-            api_card("Dager med data", sun2_summaries.get("total", {}).get("days_count", 0), "stk", "Dags- og romgrunnlag", "status"),
-            api_card("Rom brukt", sun2_summaries.get("total", {}).get("rooms_count", 0), "stk", "Fra dagsstatistikk", "status"),
+            api_card("Totalt omsetning", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue", href="/omsetning/oversikt"),
+            api_card("Totalt timer", format_short_number(total_hours, 1), "t", "Fra enkeltimer", "sun2", href="/soling/enkeltimer"),
+            api_card("Dager med data", sun2_summaries.get("total", {}).get("days_count", 0), "stk", "Dags- og romgrunnlag", "status", href="/soling/detaljer"),
+            api_card("Rom brukt", sun2_summaries.get("total", {}).get("rooms_count", 0), "stk", "Fra dagsstatistikk", "status", href="/soling/senger"),
         ]
         tables = [
             api_table("Dager", ["period_label", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("daily", [])[:120]]),
@@ -12734,11 +12734,11 @@ async def api_v2_soling_module(
         timeline = await api_sun2_day_timeline(session, selected_day or today)
         charts = []
         cards = [
-            api_card("Solinger", timeline["totals"]["sessionsCount"], "stk", timeline["selectedDayLabel"], "sun2"),
-            api_card("Total soletid", format_short_number(timeline["totals"]["durationHours"], 1), "t", f"{format_short_number(timeline['totals']['durationMinutes'], 0)} min", "sun2"),
-            api_card("Omsetning", format_short_number(timeline["totals"]["paidAmountKr"]), "kr", "Fra enkelttimer", "revenue"),
-            api_card("Mest brukt", timeline["busiestRoom"]["label"] if timeline.get("busiestRoom") else "-", "", f"{timeline['busiestRoom']['count']} solinger" if timeline.get("busiestRoom") else "Ingen solinger", "sun2"),
-            api_card("Strømforbruk", format_short_number(timeline["energySummary"]["totalKwh"], 1) if timeline["energySummary"]["hoursCount"] else "-", "kWh", "Elvia for valgt dag", "energy"),
+            api_card("Solinger", timeline["totals"]["sessionsCount"], "stk", timeline["selectedDayLabel"], "sun2", href="/soling/enkeltimer"),
+            api_card("Total soletid", format_short_number(timeline["totals"]["durationHours"], 1), "t", f"{format_short_number(timeline['totals']['durationMinutes'], 0)} min", "sun2", href="/soling/enkeltimer"),
+            api_card("Omsetning", format_short_number(timeline["totals"]["paidAmountKr"]), "kr", "Fra enkelttimer", "revenue", href="/omsetning/oversikt"),
+            api_card("Mest brukt", timeline["busiestRoom"]["label"] if timeline.get("busiestRoom") else "-", "", f"{timeline['busiestRoom']['count']} solinger" if timeline.get("busiestRoom") else "Ingen solinger", "sun2", href="/soling/senger"),
+            api_card("Strømforbruk", format_short_number(timeline["energySummary"]["totalKwh"], 1) if timeline["energySummary"]["hoursCount"] else "-", "kWh", "Elvia for valgt dag", "energy", href="/energi/elvia"),
         ]
         tables = []
     elif view == "enkeltimer":
@@ -12816,10 +12816,10 @@ async def api_v2_soling_module(
         ]
         charts = [daily_count_chart, daily_revenue_chart, hourly_chart, room_chart]
         cards = [
-            api_card("Treff", filtered_count, "stk", f"Viser {len(filtered_sessions)} rader", "sun2"),
-            api_card("Omsetning 120d", format_short_number(sum(float_or_zero(row.get("paid_amount_kr")) for row in daily_session_rows)), "kr", "Fra enkeltimer", "revenue"),
-            api_card("Timer 120d", format_short_number(sum(float_or_zero(row.get("duration_minutes")) for row in daily_session_rows) / 60, 1), "t", "Fra enkeltimer", "sun2"),
-            api_card("Rader totalt", format_short_number(total_sessions), "stk", "Alle enkeltimer", "status"),
+            api_card("Treff", filtered_count, "stk", f"Viser {len(filtered_sessions)} rader", "sun2", href="/soling/enkeltimer"),
+            api_card("Omsetning 120d", format_short_number(sum(float_or_zero(row.get("paid_amount_kr")) for row in daily_session_rows)), "kr", "Fra enkeltimer", "revenue", href="/omsetning/oversikt"),
+            api_card("Timer 120d", format_short_number(sum(float_or_zero(row.get("duration_minutes")) for row in daily_session_rows) / 60, 1), "t", "Fra enkeltimer", "sun2", href="/soling/enkeltimer"),
+            api_card("Rader totalt", format_short_number(total_sessions), "stk", "Alle enkeltimer", "status", href="/soling/enkeltimer"),
         ]
         tables = [
             api_table("Enkeltimer", ["started_at", "ended_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"], [api_sun2_session_row(row) for row in filtered_sessions]),
@@ -12834,10 +12834,10 @@ async def api_v2_soling_module(
     elif view == "senger":
         charts = [bed_chart]
         cards = [
-            api_card("Senger", len(beds), "stk", "Importert fra SUN2", "status"),
-            api_card("Rom med bruk", len([row for row in bed_totals_rows if int_or_zero(row.get("sessions_count"))]), "stk", "Har enkeltimer", "sun2"),
-            api_card("Solinger totalt", format_short_number(total_sessions), "stk", "Alle senger/rom", "sun2"),
-            api_card("Omsetning totalt", format_short_number(total_paid), "kr", "Alle enkeltimer", "revenue"),
+            api_card("Senger", len(beds), "stk", "Importert fra SUN2", "status", href="/soling/senger"),
+            api_card("Rom med bruk", len([row for row in bed_totals_rows if int_or_zero(row.get("sessions_count"))]), "stk", "Har enkeltimer", "sun2", href="/soling/senger"),
+            api_card("Solinger totalt", format_short_number(total_sessions), "stk", "Alle senger/rom", "sun2", href="/soling/enkeltimer"),
+            api_card("Omsetning totalt", format_short_number(total_paid), "kr", "Alle enkeltimer", "revenue", href="/omsetning/oversikt"),
         ]
         tables = [
             api_table("Senger", ["physical_room_number", "room_label", "room_id", "name", "bed_model", "max_minutes", "current_price_per_min", "status", "lamp_status", "sessions_count", "duration_hours", "paid_amount_kr", "last_session_at", "imported_at"], [api_sun2_bed_row(row, bed_totals) for row in beds]),
@@ -12915,10 +12915,10 @@ async def api_v2_soling_module(
         ]
         charts = [user_chart]
         cards = [
-            api_card("Treff", member_count, "stk", f"Viser {len(member_rows)} medlemmer", "status"),
-            api_card("Kjent fra soling", known_members, "stk", "Unike bruker-ID-er i enkeltimer", "sun2"),
-            api_card("Aktive i lista", len([row for row in member_rows if (member_stats.get(row.sun2_user_id) or {}).get("sessions_count")]), "stk", "Blant viste medlemmer", "sun2"),
-            api_card("Sist importert", member_rows[0].imported_at if member_rows else "-", "", "Medlemsliste", "status"),
+            api_card("Treff", member_count, "stk", f"Viser {len(member_rows)} medlemmer", "status", href="/soling/medlemmer"),
+            api_card("Kjent fra soling", known_members, "stk", "Unike bruker-ID-er i enkeltimer", "sun2", href="/soling/enkeltimer"),
+            api_card("Aktive i lista", len([row for row in member_rows if (member_stats.get(row.sun2_user_id) or {}).get("sessions_count")]), "stk", "Blant viste medlemmer", "sun2", href="/soling/medlemmer"),
+            api_card("Sist importert", member_rows[0].imported_at if member_rows else "-", "", "Medlemsliste", "status", href="/soling/medlemmer"),
         ]
         tables = [
             api_table("Medlemmer", ["sun2_user_id", "name", "customer_type", "age", "gender", "last_seen_at", "visits_count", "total_spent_kr", "balance_kr", "sessions_count", "duration_hours", "paid_amount_kr", "last_session_at", "session_name"], [api_sun2_member_row(row, member_stats) for row in member_rows]),
@@ -12942,10 +12942,10 @@ async def api_v2_soling_module(
             )
         ]
         cards = [
-            api_card("Dagsprognose", forecast_table_rows[0]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[0]['forecast_paid'])} kr", "sun2"),
-            api_card("Månedsprognose", forecast_table_rows[1]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[1]['forecast_paid'])} kr", "revenue"),
-            api_card("Årsprognose", forecast_table_rows[2]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[2]['forecast_paid'])} kr", "revenue"),
-            api_card("Lagrede", len(saved_forecasts), "stk", "Prognosesnapshots", "status"),
+            api_card("Dagsprognose", forecast_table_rows[0]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[0]['forecast_paid'])} kr", "sun2", href="/soling/prognose"),
+            api_card("Månedsprognose", forecast_table_rows[1]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[1]['forecast_paid'])} kr", "revenue", href="/soling/prognose"),
+            api_card("Årsprognose", forecast_table_rows[2]["forecast_sessions"], "stk", f"{format_short_number(forecast_table_rows[2]['forecast_paid'])} kr", "revenue", href="/soling/prognose"),
+            api_card("Lagrede", len(saved_forecasts), "stk", "Prognosesnapshots", "status", href="/soling/prognose"),
         ]
         tables = [
             api_table("Nåværende prognose", ["period", "label", "actual_sessions", "forecast_sessions", "actual_paid", "forecast_paid", "actual_hours", "forecast_hours", "tempo", "remaining_days"], forecast_table_rows),
@@ -13365,6 +13365,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "kr",
                     f"Sol {format_short_number(total_sun_paid)} kr - parkering {format_short_number(total_parking_paid)} kr",
                     "revenue",
+                    href="/omsetning/sammenligning",
                 ),
                 api_card(
                     "I dag",
@@ -13372,6 +13373,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "kr",
                     f"{int_or_zero(today_sun.sessions) + int_or_zero(today_parking['count'])} hendelser",
                     "revenue",
+                    href="/omsetning/sammenligning?period=today",
                 ),
                 api_card(
                     "Uke",
@@ -13379,6 +13381,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "kr",
                     f"Sol {format_short_number(week_sun.paid)} kr - parkering {format_short_number(week_parking['paid'])} kr",
                     "revenue",
+                    href="/omsetning/sammenligning?period=week",
                 ),
                 api_card(
                     "Måned",
@@ -13386,6 +13389,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "kr",
                     f"Sol {format_short_number(month_sun.paid)} kr - parkering {format_short_number(month_parking['paid'])} kr",
                     "revenue",
+                    href="/omsetning/manedsoversikt",
                 ),
                 api_card(
                     "Soling totalt",
@@ -13393,6 +13397,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "kr",
                     f"{format_short_number(total_sun_count)} solinger",
                     "sun2",
+                    href="/soling/oversikt",
                 ),
                 api_card(
                     "Parkering totalt",
@@ -13400,6 +13405,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "kr",
                     f"{format_short_number(total_parking_count)} parkeringer",
                     "parking",
+                    href="/parkering/oversikt",
                 ),
             ]
             revenue_columns = ["period_label", "sun_paid", "parking_paid", "total_paid", "sun_count", "parking_count", "total_count"]
@@ -13468,10 +13474,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 )
             ]
             cards = [
-                api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking"),
-                api_card("Pågående", active, "stk", "Akkurat nå", "parking"),
-                api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue"),
-                api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
+                api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking", href="/parkering/dagslinje"),
+                api_card("Pågående", active, "stk", "Akkurat nå", "parking", href="/parkering/dagslinje"),
+                api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue", href="/omsetning/manedsoversikt"),
+                api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
             ]
             actions = [
                 {
@@ -13505,6 +13511,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "plasser",
                         f"Kl {summary['peakTimeLabel']}" if summary["peakTimeLabel"] else "Ingen registrert topp",
                         "parking",
+                        href="/parkering/dagslinje",
                     ),
                     api_card(
                         "Parkeringer",
@@ -13512,6 +13519,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "stk",
                         f"{format_short_number(summary['paidAmountKr'])} kr",
                         "parking",
+                        href="/parkering/parkeringer",
                     ),
                     api_card(
                         "Beleggstid",
@@ -13519,6 +13527,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "timer",
                         f"{format_short_number(summary['utilizationPercent'], 1)}% av 23 plasser gjennom døgnet",
                         "parking",
+                        href="/parkering/dagslinje",
                     ),
                     api_card(
                         "Snittvarighet",
@@ -13526,6 +13535,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "min",
                         f"{summary['overflowCount']} over kapasitet" if summary["overflowCount"] else "Alle fikk plass i 23-sporsoppsettet",
                         "status",
+                        href="/parkering/parkeringer",
                     ),
                 ]
                 timeline_rows = []
@@ -13590,10 +13600,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_filter("limit", "Antall", "number", limit_value),
                 ]
                 cards = [
-                    api_card("Treff", parking_count, "stk", f"Viser {len(parking_rows)} rader", "parking"),
-                    api_card("Beløp vist", format_short_number(sum(float_or_zero(row.fee_inc_vat) for row, _ in parking_rows)), "kr", "I tabellen", "revenue"),
-                    api_card("Pågående", sum(1 for row, _ in parking_rows if (row.status or "").lower() == "ongoing"), "stk", "Blant viste rader", "parking"),
-                    api_card("Kjøretøy", len({normalize_plate(row.car_license_number) for row, _ in parking_rows if row.car_license_number}), "stk", "Unike i tabellen", "status"),
+                    api_card("Treff", parking_count, "stk", f"Viser {len(parking_rows)} rader", "parking", href="/parkering/parkeringer"),
+                    api_card("Beløp vist", format_short_number(sum(float_or_zero(row.fee_inc_vat) for row, _ in parking_rows)), "kr", "I tabellen", "revenue", href="/omsetning/oversikt"),
+                    api_card("Pågående", sum(1 for row, _ in parking_rows if (row.status or "").lower() == "ongoing"), "stk", "Blant viste rader", "parking", href="/parkering/dagslinje"),
+                    api_card("Kjøretøy", len({normalize_plate(row.car_license_number) for row, _ in parking_rows if row.car_license_number}), "stk", "Unike i tabellen", "status", href="/parkering/kjoretoy"),
                 ]
                 tables = [
                     api_table(
@@ -13623,10 +13633,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_filter("limit", "Antall", "number", limit_value),
                 ]
                 cards = [
-                    api_card("Treff", vehicle_filtered_count, "stk", f"Viser {len(vehicle_detail_rows)} kjøretøy", "parking"),
-                    api_card("Kjøretøy totalt", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status"),
-                    api_card("Mangler navn", len([row for row in vehicle_rows if not (row.navn or "").strip()]), "stk", "Blant siste kjøretøy", "status"),
-                    api_card("Mangler område", len([row for row in vehicle_rows if not (row.omrade or "").strip()]), "stk", "Blant siste kjøretøy", "status"),
+                    api_card("Treff", vehicle_filtered_count, "stk", f"Viser {len(vehicle_detail_rows)} kjøretøy", "parking", href="/parkering/kjoretoy"),
+                    api_card("Kjøretøy totalt", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
+                    api_card("Mangler navn", len([row for row in vehicle_rows if not (row.navn or "").strip()]), "stk", "Blant siste kjøretøy", "status", href="/parkering/kjoretoy"),
+                    api_card("Mangler område", len([row for row in vehicle_rows if not (row.omrade or "").strip()]), "stk", "Blant siste kjøretøy", "status", href="/parkering/omrade"),
                 ]
                 tables = [
                     api_table(
@@ -13681,10 +13691,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     )
                 )
                 cards = [
-                    api_card("Dagsprognose", forecast_table_rows[0]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[0]['forecast_paid'])} kr", "parking"),
-                    api_card("Månedsprognose", forecast_table_rows[1]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[1]['forecast_paid'])} kr", "revenue"),
-                    api_card("Årsprognose", forecast_table_rows[2]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[2]['forecast_paid'])} kr", "revenue"),
-                    api_card("Lagrede", len(saved_forecasts), "stk", "Parkeringssnapshots", "status"),
+                    api_card("Dagsprognose", forecast_table_rows[0]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[0]['forecast_paid'])} kr", "parking", href="/parkering/prognose"),
+                    api_card("Månedsprognose", forecast_table_rows[1]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[1]['forecast_paid'])} kr", "revenue", href="/parkering/prognose"),
+                    api_card("Årsprognose", forecast_table_rows[2]["forecast_parkeringer"], "stk", f"{format_short_number(forecast_table_rows[2]['forecast_paid'])} kr", "revenue", href="/parkering/prognose"),
+                    api_card("Lagrede", len(saved_forecasts), "stk", "Parkeringssnapshots", "status", href="/parkering/prognose"),
                 ]
                 tables = [
                     api_table(
@@ -13890,20 +13900,20 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ]
             filters = []
             energy_cards = [
-                api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy"),
-                api_card("Forbruk i dag", format_short_number(total_kwh, 1), "kWh", f"{len(today_rows)} samples", "energy"),
-                api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy"),
-                api_card("Laster", filtered_load_count, "stk", "Aktive og registrerte", "status"),
+                api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy", href="/energi/status"),
+                api_card("Forbruk i dag", format_short_number(total_kwh, 1), "kWh", f"{len(today_rows)} samples", "energy", href="/energi/status"),
+                api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy", href="/energi/status"),
+                api_card("Laster", filtered_load_count, "stk", "Aktive og registrerte", "status", href="/energi/laster"),
             ]
             if view == "kurser":
                 filters = [
                     api_filter("sunbeds", "Solsenger", "select", energy_sunbeds_value, options=sunbed_filter_options),
                 ]
                 energy_cards = [
-                    api_card("Kurser", len(circuits), "stk", "Valgt kursfilter", "energy"),
-                    api_card("Solsengkurser", sum(1 for row in circuits if energy_circuit_is_sunbed(row)), "stk", "Blant viste", "sun2"),
-                    api_card("Med vern", sum(1 for row in circuits if row.breaker_rating_a is not None), "stk", "Registrert", "status"),
-                    api_card("Uten vern", sum(1 for row in circuits if row.breaker_rating_a is None), "stk", "Mangler data", "status"),
+                    api_card("Kurser", len(circuits), "stk", "Valgt kursfilter", "energy", href="/energi/kurser"),
+                    api_card("Solsengkurser", sum(1 for row in circuits if energy_circuit_is_sunbed(row)), "stk", "Blant viste", "sun2", href="/energi/forbruk-per-seng"),
+                    api_card("Med vern", sum(1 for row in circuits if row.breaker_rating_a is not None), "stk", "Registrert", "status", href="/energi/kurser"),
+                    api_card("Uten vern", sum(1 for row in circuits if row.breaker_rating_a is None), "stk", "Mangler data", "status", href="/energi/kurser"),
                 ]
                 tables = [api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status", "note"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit())]
             elif view == "laster":
@@ -13922,10 +13932,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_filter("limit", "Antall", "number", energy_limit_value),
                 ]
                 energy_cards = [
-                    api_card("Treff", filtered_load_count, "stk", f"Viser {len(loads)} laster", "energy"),
-                    api_card("Aktive vist", sum(1 for row in loads if row.active), "stk", "I tabellen", "status"),
-                    api_card("Direktemålt", sum(1 for row in loads if row.measured_direct), "stk", "I tabellen", "energy"),
-                    api_card("Effekt vist", format_short_number(sum(float_or_zero(row.expected_power_w) for row in loads)), "W", "For viste rader", "energy"),
+                    api_card("Treff", filtered_load_count, "stk", f"Viser {len(loads)} laster", "energy", href="/energi/laster"),
+                    api_card("Aktive vist", sum(1 for row in loads if row.active), "stk", "I tabellen", "status", href="/energi/laster"),
+                    api_card("Direktemålt", sum(1 for row in loads if row.measured_direct), "stk", "I tabellen", "energy", href="/energi/laster"),
+                    api_card("Effekt vist", format_short_number(sum(float_or_zero(row.expected_power_w) for row in loads)), "W", "For viste rader", "energy", href="/energi/laster"),
                 ]
                 tables = [api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())]
             elif view == "elvia":
@@ -13944,10 +13954,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     latest_detail = f"Data til {format_source_datetime(latest_import.period_last) if latest_import.period_last else '-'}"
                 charts = []
                 energy_cards = [
-                    api_card("Totalt forbruk", format_short_number(total.get("consumption_kwh")), "kWh", f"{int_or_zero(total.get('hours_count'))} timer", "energy"),
-                    api_card("Periode", int_or_zero(total.get("days_count")), "dager", period_detail, "energy"),
-                    api_card("Estimerte timer", int_or_zero(total.get("estimated_hours_count")), "stk", "Elvia-status ulik OK", "status"),
-                    api_card("Siste import", format_local_datetime(latest_import.timestamp) if latest_import else "-", "", latest_detail, "status"),
+                    api_card("Totalt forbruk", format_short_number(total.get("consumption_kwh")), "kWh", f"{int_or_zero(total.get('hours_count'))} timer", "energy", href="/energi/elvia"),
+                    api_card("Periode", int_or_zero(total.get("days_count")), "dager", period_detail, "energy", href="/energi/elvia"),
+                    api_card("Estimerte timer", int_or_zero(total.get("estimated_hours_count")), "stk", "Elvia-status ulik OK", "status", href="/energi/elvia"),
+                    api_card("Siste import", format_local_datetime(latest_import.timestamp) if latest_import else "-", "", latest_detail, "status", href="/energi/elvia"),
                 ]
                 tables = [
                     api_table("Ã…rssummer", ["period", "consumption_kwh", "days_count", "hours_count", "estimated_hours_count"], energy_elvia_data["yearly"]),
@@ -14088,10 +14098,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "title": "Ventilasjon" if not view else f"Ventilasjon · {view.replace('-', ' ')}",
                 "subtitle": "Temperatur, fukt, Yr og viftestatus.",
                 "cards": [
-                    api_card("Innetemp", format_short_number(latest.temp_avg_inne if latest else None, 1), "grader", "Snitt inne", "vent"),
-                    api_card("Kjeller", format_short_number(latest.temp_kjeller if latest else None, 1), "grader", f"Fukt {format_short_number(latest.humidity_kjeller if latest else None)}%", "vent"),
-                    api_card("Vifter", f"{fan_on}/{len(VENT_TIMELINE_DEVICES)}", "på", latest.mode if latest and latest.mode else "", "vent"),
-                    api_card("Yr", latest_yr.weather_text if latest_yr else "-", "", f"Vind {format_short_number(latest_yr.wind_speed if latest_yr else None, 1)} m/s", "weather"),
+                    api_card("Innetemp", format_short_number(latest.temp_avg_inne if latest else None, 1), "grader", "Snitt inne", "vent", href="/ventilasjon/temp-logg"),
+                    api_card("Kjeller", format_short_number(latest.temp_kjeller if latest else None, 1), "grader", f"Fukt {format_short_number(latest.humidity_kjeller if latest else None)}%", "vent", href="/ventilasjon/temp-logg"),
+                    api_card("Vifter", f"{fan_on}/{len(VENT_TIMELINE_DEVICES)}", "på", latest.mode if latest and latest.mode else "", "vent", href="/ventilasjon/dagslogg"),
+                    api_card("Yr", latest_yr.weather_text if latest_yr else "-", "", f"Vind {format_short_number(latest_yr.wind_speed if latest_yr else None, 1)} m/s", "weather", href="/ventilasjon/yr-logg"),
                 ],
                 "charts": charts,
                 "tables": tables,
@@ -14164,10 +14174,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "title": "Lys" if not view else f"Lys · {view.replace('-', ' ')}",
                 "subtitle": "Utelys, lux, modus og hendelser.",
                 "cards": [
-                    api_card("Lux", format_short_number(latest.lux if latest else None), "", latest.mode if latest and latest.mode else "", "light"),
-                    api_card("Lys på", f"{light_on}/{len(LIGHT_TIMELINE_DEVICES)}", "stk", "Fra siste sample", "light"),
-                    api_card("Siste sample", latest.bucket_start.strftime("%H:%M") if latest and latest.bucket_start else "-", "", "Dagslogg", "status"),
-                    api_card("Hendelser", len(events), "siste", "Siste loggede lysendringer", "status"),
+                    api_card("Lux", format_short_number(latest.lux if latest else None), "", latest.mode if latest and latest.mode else "", "light", href="/lys/lux-logging"),
+                    api_card("Lys på", f"{light_on}/{len(LIGHT_TIMELINE_DEVICES)}", "stk", "Fra siste sample", "light", href="/lys/dagslogg"),
+                    api_card("Siste sample", latest.bucket_start.strftime("%H:%M") if latest and latest.bucket_start else "-", "", "Dagslogg", "status", href="/lys/dagslogg"),
+                    api_card("Hendelser", len(events), "siste", "Siste loggede lysendringer", "status", href="/lys/hendelser"),
                 ],
                 "charts": charts,
                 "tables": tables,
@@ -14231,10 +14241,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "title": "Renhold" if not view else f"Renhold · {view.replace('-', ' ')}",
                 "subtitle": "Roborock-roboter, status og siste vasker.",
                 "cards": [
-                    api_card("Roboter", len(robots), "stk", f"{online} online/ikke avvist", "status"),
-                    api_card("Siste jobber", len(jobs), "stk", "Hentet fra Roborock", "status"),
-                    api_card("Siste status", statuses[0].state_name if statuses else "-", "", statuses[0].timestamp.strftime("%H:%M") if statuses and statuses[0].timestamp else "", "status"),
-                    api_card("Feil", sum(1 for row in statuses[:20] if row.error_code and row.error_code != 0), "siste", "Siste 20 statuser", "status"),
+                    api_card("Roboter", len(robots), "stk", f"{online} online/ikke avvist", "status", href="/renhold/roboter"),
+                    api_card("Siste jobber", len(jobs), "stk", "Hentet fra Roborock", "status", href="/renhold/oversikt"),
+                    api_card("Siste status", statuses[0].state_name if statuses else "-", "", statuses[0].timestamp.strftime("%H:%M") if statuses and statuses[0].timestamp else "", "status", href="/renhold/roboter"),
+                    api_card("Feil", sum(1 for row in statuses[:20] if row.error_code and row.error_code != 0), "siste", "Siste 20 statuser", "status", href="/renhold/roboter"),
                 ],
                 "tables": tables,
             }
@@ -14333,10 +14343,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "title": "Admin" if not view else f"Admin · {view.replace('-', ' ')}",
                 "subtitle": "Build, datakilder, teknisk drift og AI-logg.",
                 "cards": [
-                    api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status"),
-                    api_card("Datakilder OK", sum(1 for row in import_rows if row["status"] == "ok"), "stk", f"{len(import_rows)} totalt", "status"),
-                    api_card("Treg/feil", sum(1 for row in import_rows if row["status"] != "ok"), "stk", "Fra importstatus", "status"),
-                    api_card("Brukere", len(access_keys), "stk", "Tilgangsnøkler uten hemmelige verdier", "status"),
+                    api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
+                    api_card("Datakilder OK", sum(1 for row in import_rows if row["status"] == "ok"), "stk", f"{len(import_rows)} totalt", "status", href="/admin/datakilder"),
+                    api_card("Treg/feil", sum(1 for row in import_rows if row["status"] != "ok"), "stk", "Fra importstatus", "status", href="/admin/datakilder"),
+                    api_card("Brukere", len(access_keys), "stk", "Tilgangsnøkler uten hemmelige verdier", "status", href="/admin/brukere"),
                 ],
                 "tables": tables,
             }

@@ -102,8 +102,8 @@ a {
 
 .app-menu .ant-menu-item-selected {
   color: #ffffff !important;
-  background: rgba(37, 99, 235, 0.26) !important;
-  box-shadow: inset 3px 0 0 #93c5fd;
+  background: color-mix(in srgb, var(--active-module-color) 30%, transparent) !important;
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--active-module-color) 55%, #ffffff);
   font-weight: 750;
 }
 
@@ -250,7 +250,7 @@ a {
 
 .module-view-switcher .ant-segmented-item-selected {
   color: #ffffff;
-  background: var(--blue);
+  background: var(--active-module-color);
   font-weight: 650;
 }
 

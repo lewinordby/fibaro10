@@ -77,7 +77,9 @@ export function toneLabel(tone?: string, fallback?: string): string {
 export function moduleMetricFallbackHref(module: string, view: string, card: ModuleCard): string | undefined {
   const text = textForCard(card);
   const match = titleMatchers[module]?.find((item) => item.words.some((word) => text.includes(word)));
-  if (match) return match.href;
-  if (view && view !== "oversikt") return modulePath(module, view);
-  return defaultModuleHref[module];
+  const currentPath = modulePath(module, view);
+  if (match) return match.href === currentPath ? undefined : match.href;
+  const defaultHref = defaultModuleHref[module];
+  if (!defaultHref || defaultHref === currentPath) return undefined;
+  return defaultHref;
 }
