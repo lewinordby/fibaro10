@@ -89,12 +89,49 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1091")
+APP_BUILD = os.getenv("APP_BUILD", "1092")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1092",
+        "date": "10.06.2026",
+        "headline": "Buildlogg med klikkbar leveransehistorikk",
+        "title": "Gjør buildloggen til et komplett leveransearkiv",
+        "description": (
+            "Buildloggen i desktop V2 er gjort om fra en generisk tabell til en egen arbeidsflate. "
+            "Oversikten viser nå bare dato, build og en kort leveranseoverskrift, mens hver build kan åpnes "
+            "for en egen detaljside med full bestilling, endringer, berørte applikasjoner og målefelt for "
+            "tidsbruk og kreditter."
+        ),
+        "applications": [
+            "Desktop V2 navigasjon (App.tsx): buildnummer synlig nederst i venstremenyen og nye ruter for buildliste/detalj.",
+            "Desktop V2 API-klient (api.ts): egne typer og kall for buildloggoversikt og enkeltbuild.",
+            "Desktop V2 buildlogg (BuildLogPage.tsx og BuildDetailPage.tsx): ny tabellvisning og detaljskjerm.",
+            "Desktop V2 stilark (styles.css): visuell styling av buildfooter, liste, detaljkort og promptfelt.",
+            "fibaro10 backend (main.py): normalisert buildlogg-API, nytt kortfelt for tabelloverskrift og build 1092.",
+        ],
+        "request": (
+            "det er litt mer å gjøre på build logg, jeg vil ha et eget kort felt som passer i en tabell som du lager "
+            "en veldig god overskrift. jeg vil også ha et build nummer synlig nederst på venstre menyen. når du går "
+            "inn i denne lista skal du få en tabell med dato, build, overskrift. så skal du kunne trykke på det "
+            "enkelte og få en pen skjerm med all info om denne builden. jeg vil også ha tid du brukte på å lage den "
+            "og hvor mange kreditter det brukte?"
+        ),
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger til kortfeltet headline for en ryddig leveranseoverskrift i buildtabellen.",
+            "Lager Admin > Build som egen side med tabellkolonnene dato, build og leveranseoverskrift.",
+            "Lager detaljside per build med beskrivelse, endringer, applikasjoner, bestilling, tidsbruk og kreditter.",
+            "Viser aktivt buildnummer nederst i venstremenyen.",
+            "Eksponerer buildloggen via egne interne API-endepunkter for desktop V2.",
+        ],
+    },
     {
         "version": "1",
         "build": "1091",
         "date": "10.06.2026",
+        "headline": "Status via logo og drift under Admin",
         "title": "Rydder status ut av hovedmenyen",
         "description": (
             "Status er gjort til en egen startside som nås via logoen i desktop V2, uten egen hovedmeny eller "
@@ -10384,6 +10421,22 @@ async def api_auth_me(request: Request):
     }
 
 
+@app.get("/api/admin/builds")
+async def api_admin_builds():
+    return {
+        "currentBuild": APP_BUILD,
+        "rows": [normalized_build_log_entry(row) for row in BUILD_LOG],
+    }
+
+
+@app.get("/api/admin/builds/{build}")
+async def api_admin_build(build: str):
+    row = build_log_entry_by_build(build)
+    if not row:
+        raise HTTPException(status_code=404, detail="Build finnes ikke")
+    return normalized_build_log_entry(row)
+
+
 @app.get("/ai")
 async def ai_redirect(request: Request):
     return redirect_keep_query(request, "/admin/ai", status_code=303)
@@ -13031,14 +13084,53 @@ def api_build_log_row(row: Dict[str, Any]) -> Dict[str, Any]:
         applications_text = "; ".join(str(item) for item in applications)
     else:
         applications_text = str(applications)
+    normalized = normalized_build_log_entry(row)
     return {
         "build": row.get("build", ""),
         "date": row.get("date", ""),
+        "headline": normalized["headline"],
         "title": row.get("title", ""),
         "description": row.get("description") or " ".join(row.get("changes") or []),
         "applications": applications_text,
         "request": row.get("request") or "",
+        "work_duration": normalized["workDuration"],
+        "credits_used": normalized["creditsUsed"],
+        "path": normalized["path"],
     }
+
+
+def normalized_build_log_entry(row: Dict[str, Any]) -> Dict[str, Any]:
+    applications = row.get("applications") or []
+    if not isinstance(applications, list):
+        applications = [str(applications)] if applications else []
+    changes = row.get("changes") or []
+    if not isinstance(changes, list):
+        changes = [str(changes)] if changes else []
+    build = str(row.get("build", ""))
+    description = row.get("description") or " ".join(str(item) for item in changes)
+    return {
+        "version": str(row.get("version", APP_VERSION)),
+        "build": build,
+        "date": str(row.get("date", "")),
+        "headline": str(row.get("headline") or row.get("title") or f"Build {build}"),
+        "title": str(row.get("title") or row.get("headline") or f"Build {build}"),
+        "description": str(description or ""),
+        "applications": [str(item) for item in applications],
+        "changes": [str(item) for item in changes],
+        "request": str(row.get("request") or ""),
+        "workDuration": str(row.get("work_duration") or row.get("workDuration") or "Ikke registrert"),
+        "creditsUsed": str(row.get("credits_used") or row.get("creditsUsed") or "Ikke registrert"),
+        "path": f"/admin/build/{build}",
+        "isCurrent": build == str(APP_BUILD),
+    }
+
+
+def build_log_entry_by_build(build: str) -> Optional[Dict[str, Any]]:
+    build_value = str(build)
+    for row in BUILD_LOG:
+        if str(row.get("build", "")) == build_value:
+            return row
+    return None
 
 
 def api_sun2_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -15219,7 +15311,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 await session.execute(select(AccessLog).order_by(AccessLog.timestamp.desc()).limit(120))
             ).scalars().all()
             admin_tools = [
-                api_tool_row("Buildlogg", "/konto/build", "Klassisk build- og endringslogg.", len(BUILD_LOG)),
+                api_tool_row("Buildlogg", "/admin/build", "Klikkbar leveransehistorikk med detaljvisning per build.", len(BUILD_LOG)),
                 api_tool_row("Teknisk", "/konto/teknisk", "Teknisk driftsside.", None),
                 api_tool_row("Manual", "/konto/manual", "Intern manual og driftsnotater.", None),
                 api_tool_row("Brukere og tilgang", "/konto/brukere-og-tilgang", "Administrer brukere, roller og tilgang.", len(access_keys)),
@@ -15228,7 +15320,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_tool_row("Events JSON", "/events/json", "Generiske hendelser som JSON.", None),
                 api_tool_row("Events CSV", "/download", "Generiske hendelser som CSV.", None),
             ]
-            build_log_columns = ["build", "date", "title", "description", "applications", "request"]
+            build_log_columns = ["date", "build", "headline"]
             tables = [
                 api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
                 api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:25]]),

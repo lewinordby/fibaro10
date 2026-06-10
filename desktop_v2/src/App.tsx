@@ -18,6 +18,8 @@ import OverviewPage from "./pages/OverviewPage";
 import RevenueMonthPage from "./pages/RevenueMonthPage";
 import OperationsPage from "./pages/OperationsPage";
 import ModulePage from "./pages/ModulePage";
+import BuildDetailPage from "./pages/BuildDetailPage";
+import BuildLogPage from "./pages/BuildLogPage";
 import ParkingVehicleDetailPage from "./pages/ParkingVehicleDetailPage";
 import StatusComparisonPage from "./pages/StatusComparisonPage";
 import { fetchCurrentUser, logoutUser, type AuthUser } from "./api";
@@ -121,6 +123,31 @@ function UserProfileMenu() {
   );
 }
 
+function BuildFooter() {
+  const [build, setBuild] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetchCurrentUser()
+      .then((value) => {
+        if (active) setBuild(value.appBuild);
+      })
+      .catch(() => {
+        if (active) setBuild("");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <Link className="sider-build-link" to={modulePath("admin", "build")} aria-label="Åpne buildlogg">
+      <span>Build</span>
+      <strong>{build || "-"}</strong>
+    </Link>
+  );
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -147,6 +174,7 @@ export default function App() {
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />
+        <BuildFooter />
       </Sider>
       <Layout>
         <Header className="app-header">
@@ -188,6 +216,8 @@ export default function App() {
             <Route path="/renhold/:view" element={<ModulePage module="renhold" />} />
             <Route path="/admin" element={<Navigate to={modulePath("admin")} replace />} />
             <Route path="/admin/drift" element={<OperationsPage />} />
+            <Route path="/admin/build" element={<BuildLogPage />} />
+            <Route path="/admin/build/:build" element={<BuildDetailPage />} />
             <Route path="/admin/:view" element={<ModulePage module="admin" />} />
             <Route
               path="*"

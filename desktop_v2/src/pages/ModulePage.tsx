@@ -142,6 +142,9 @@ function labelize(column: string): string {
     description: "Beskrivelse",
     applications: "Applikasjoner",
     request: "Bestilling",
+    headline: "Leveranseoverskrift",
+    work_duration: "Tidsbruk",
+    credits_used: "Kreditter",
     breaker: "Sikring",
     breaker_type: "Type",
     is_sunbed: "Solseng",
@@ -301,6 +304,10 @@ function moduleColumns(
     sorter: (left, right) => compareValues(left[column], right[column]),
     render: (value: unknown, row) => {
       if ((column === "plate" || column === "car_license_number") && typeof value === "string" && typeof row.path === "string") {
+        const internalPath = appPath(row.path);
+        if (internalPath) return <Link to={internalPath}>{displayValue(value)}</Link>;
+      }
+      if (["build", "headline", "title"].includes(column) && typeof row.path === "string") {
         const internalPath = appPath(row.path);
         if (internalPath) return <Link to={internalPath}>{displayValue(value)}</Link>;
       }

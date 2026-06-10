@@ -182,6 +182,27 @@ export type AuthUser = {
   appBuild: string;
 };
 
+export type BuildLogEntry = {
+  version: string;
+  build: string;
+  date: string;
+  headline: string;
+  title: string;
+  description: string;
+  applications: string[];
+  changes: string[];
+  request: string;
+  workDuration: string;
+  creditsUsed: string;
+  path: string;
+  isCurrent: boolean;
+};
+
+export type BuildLogResponse = {
+  currentBuild: string;
+  rows: BuildLogEntry[];
+};
+
 export type ModuleCard = {
   title: string;
   value: string;
@@ -534,6 +555,14 @@ export function fetchStatusComparison(period: string, compare: string, anchor?: 
 
 export function fetchCurrentUser(): Promise<AuthUser> {
   return apiGet<AuthUser>("/api/auth/me");
+}
+
+export function fetchBuildLog(): Promise<BuildLogResponse> {
+  return apiGet<BuildLogResponse>("/api/admin/builds");
+}
+
+export function fetchBuildLogEntry(build: string): Promise<BuildLogEntry> {
+  return apiGet<BuildLogEntry>(`/api/admin/builds/${encodeURIComponent(build)}`);
 }
 
 export async function logoutUser(): Promise<void> {
