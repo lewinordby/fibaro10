@@ -89,8 +89,18 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1085")
+APP_BUILD = os.getenv("APP_BUILD", "1086")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1086",
+        "date": "10.06.2026",
+        "title": "Robustgjor ankerdato i statussammenligning",
+        "changes": [
+            "Gjor ankerdato-tolkingen robust for interne kall og vanlig HTTP-bruk.",
+            "Beholder periodeblaing og sammenligningslogikk fra build 1085.",
+        ],
+    },
     {
         "version": "1",
         "build": "1085",
@@ -5912,10 +5922,14 @@ NB_MONTH_NAMES = [
 
 
 def parse_anchor_day(value: Optional[str], fallback: date) -> date:
-    if not value:
+    if value is None:
+        return fallback
+    if not isinstance(value, str):
+        return fallback
+    if not value.strip():
         return fallback
     try:
-        return date.fromisoformat(str(value)[:10])
+        return date.fromisoformat(value.strip()[:10])
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="Ugyldig ankerdato")
 
