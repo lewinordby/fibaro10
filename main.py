@@ -37,6 +37,7 @@ from dateutil import parser as dtparser
 
 load_dotenv()
 from build_log import APP_BUILD, APP_VERSION, BUILD_LOG, api_build_log_row, build_log_entry_by_build, normalized_build_log_entry
+from api_contracts import admin_build_payload, admin_builds_payload
 from roborock_domain import (
     format_seconds_as_hours,
     roborock_bool_label,
@@ -9096,18 +9097,15 @@ async def api_auth_me(request: Request):
 
 @app.get("/api/admin/builds")
 async def api_admin_builds():
-    return {
-        "currentBuild": APP_BUILD,
-        "rows": [normalized_build_log_entry(row) for row in BUILD_LOG],
-    }
+    return admin_builds_payload()
 
 
 @app.get("/api/admin/builds/{build}")
 async def api_admin_build(build: str):
-    row = build_log_entry_by_build(build)
-    if not row:
+    payload = admin_build_payload(build)
+    if not payload:
         raise HTTPException(status_code=404, detail="Build finnes ikke")
-    return normalized_build_log_entry(row)
+    return payload
 
 
 @app.get("/ai")

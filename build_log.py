@@ -3,8 +3,36 @@ from typing import Any, Dict, Optional
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1095")
+APP_BUILD = os.getenv("APP_BUILD", "1096")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1096",
+        "date": "10.06.2026",
+        "headline": "Legger grunnlag for API- og integrasjonstester",
+        "title": "Tester buildlogg-API som kontrakt og FastAPI-rute",
+        "description": (
+            "Buildlogg-endepunktene har fått en egen ren API-kontraktsmodul som kan testes uten database og "
+            "uten FastAPI installert lokalt. Testpakken validerer responsformen alltid, og inneholder i tillegg "
+            "en FastAPI TestClient-test som aktiveres automatisk i miljøer der dev-avhengighetene finnes."
+        ),
+        "applications": [
+            "API-kontrakter (api_contracts.py): ny modul for admin/build payloads brukt av både main.py og tester.",
+            "fibaro10 backend (main.py): admin/build-endepunktene bruker kontraktsmodulen.",
+            "Tester (tests/test_api_contracts.py): kontraktstester og valgfri FastAPI-integrasjonstest.",
+            "Pre-deploy (scripts/check-local.ps1): Python-kompilering dekker nye moduler.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter api_contracts.py for testbar API-responsbygging.",
+            "Flytter buildlogg-responsene for /api/admin/builds over på kontraktsfunksjoner.",
+            "Legger kontraktstester som kjører uten ekstern database.",
+            "Legger valgfri FastAPI TestClient-integrasjonstest for miljøer med dev-avhengigheter.",
+            "Utvider lokal kvalitetssjekk til å kompilere nye Python-moduler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1095",
