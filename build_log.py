@@ -3,8 +3,35 @@ from typing import Any, Dict, Optional
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1094")
+APP_BUILD = os.getenv("APP_BUILD", "1095")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1095",
+        "date": "10.06.2026",
+        "headline": "Deler ut første domenelogikk fra main.py",
+        "title": "Flytter tidformattering og Roborock-hjelpere til egne moduler",
+        "description": (
+            "Første videre oppdeling av main.py er gjort med lav risiko. Rene formatteringsfunksjoner er flyttet "
+            "til time_formatting.py, og Roborock-labeling, tidsplanvisning og JSON-formattering er flyttet til "
+            "roborock_domain.py. Eksisterende template-filtre og kall beholdes via import i main.py."
+        ),
+        "applications": [
+            "fibaro10 backend (main.py): mindre hovedfil og import av rene hjelpefunksjoner fra domene-/utilitymoduler.",
+            "Tidformattering (time_formatting.py): eier lokal/source dato- og tidsformattering.",
+            "Roborock-domene (roborock_domain.py): eier Roborock-labels, schedule-tekst og visningshjelpere.",
+            "Tester/build (scripts/check-local.ps1): eksisterende kvalitetssjekk validerer flyttingen.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter time_formatting.py for lokal og source-basert dato-/tidsvisning.",
+            "Oppretter roborock_domain.py for Roborock-koder, signaltekst, schedule-tekst og formatfiltre.",
+            "Kobler main.py til de nye modulene uten å endre template-filterkontrakter.",
+            "Lar databaseklasser og API-ruter stå urørt i dette første domenekuttet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1094",
