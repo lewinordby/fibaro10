@@ -1,5 +1,5 @@
 import ReactECharts from "echarts-for-react";
-import { App as AntApp, Button, Card, Form, Input, InputNumber, Space, Table, Tabs, Tag, Tooltip, Typography } from "antd";
+import { App as AntApp, Button, Card, Form, Input, InputNumber, Segmented, Space, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -127,13 +127,24 @@ type DayChartTooltipParam = {
   value?: unknown;
 };
 
+type VentChartFocus = "temperature" | "humidity";
+
+function chartFocusFromSearch(value: string | null): VentChartFocus {
+  return value === "humidity" ? "humidity" : "temperature";
+}
+
+function seriesFocus(series: { key: string; kind?: string }): VentChartFocus {
+  if (series.kind === "humidity" || series.key.startsWith("humidity_")) return "humidity";
+  return "temperature";
+}
+
 function chartValue(value: unknown): number | null {
   if (Array.isArray(value) && typeof value[1] === "number") return value[1];
   if (typeof value === "number") return value;
   return null;
 }
 
-function formatDayChartTooltip(params: DayChartTooltipParam | DayChartTooltipParam[]): string {
+function formatDayChartTooltip(params: DayChartTooltipParam | DayChartTooltipParam[], unit: string): string {
   const items = (Array.isArray(params) ? params : [params]).filter((item) => item.seriesName && item.seriesName !== "__fan_events");
   const first = items[0];
   const firstMinute = Array.isArray(first?.value) && typeof first.value[0] === "number" ? first.value[0] : first?.axisValue;
@@ -141,7 +152,7 @@ function formatDayChartTooltip(params: DayChartTooltipParam | DayChartTooltipPar
   items.forEach((item) => {
     const value = chartValue(item.value);
     if (value === null) return;
-    lines.push(`${item.marker ?? ""}${item.seriesName}: ${numberText(value)}`);
+    lines.push(`${item.marker ?? ""}${item.seriesName}: ${numberText(value)}${unit}`);
   });
   return lines.join("<br/>");
 }
@@ -270,10 +281,23 @@ function CompactSnapshot({ ventilation }: { ventilation: VentilationData }) {
   );
 }
 
-function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; onDayChange: (day: string) => void }) {
+function DayChart({
+  ventilation,
+  focus,
+  onDayChange,
+  onFocusChange,
+}: {
+  ventilation: VentilationData;
+  focus: VentChartFocus;
+  onDayChange: (day: string) => void;
+  onFocusChange: (focus: VentChartFocus) => void;
+}) {
   const day = ventilation.day;
-  const defaultKeys = day.series.filter((series) => series.default).map((series) => series.key);
-  const defaultVisible = Object.fromEntries(day.series.map((series) => [series.label, defaultKeys.length ? defaultKeys.includes(series.key) : true]));
+  const focusSeries = day.series.filter((series) => seriesFocus(series) === focus);
+  const defaultKey = focus === "humidity" ? "humidity_kjeller" : "temp_loft";
+  const defaultVisible = Object.fromEntries(focusSeries.map((series) => [series.label, series.key === defaultKey]));
+  const yAxisName = focus === "humidity" ? "%" : "C";
+  const tooltipUnit = focus === "humidity" ? "%" : " C";
   const chartSamples: DayChartSample[] = day.samples
     .map((sample) => ({ sample, minute: minuteFromTime(sample.time) }))
     .filter((item): item is DayChartSample => item.minute !== null)
@@ -295,10 +319,10 @@ function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; 
     .sort((left, right) => Number(left.xAxis) - Number(right.xAxis));
 
   const option = {
-    tooltip: { trigger: "axis", formatter: formatDayChartTooltip },
+    tooltip: { trigger: "axis", formatter: (params: DayChartTooltipParam | DayChartTooltipParam[]) => formatDayChartTooltip(params, tooltipUnit) },
     legend: {
       top: 0,
-      data: day.series.map((series) => series.label),
+      data: focusSeries.map((series) => series.label),
       selected: defaultVisible,
     },
     grid: { top: 42, left: 44, right: 20, bottom: 36 },
@@ -310,9 +334,9 @@ function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; 
       axisLabel: { formatter: minuteLabel },
       axisPointer: { label: { formatter: (params: { value?: number | string }) => minuteLabel(params.value) } },
     },
-    yAxis: { type: "value", name: "C" },
+    yAxis: { type: "value", name: yAxisName },
     series: [
-      ...day.series.map((series) => ({
+      ...focusSeries.map((series) => ({
         name: series.label,
         type: "line",
         data: chartSamples.map(({ sample, minute }) => [minute, typeof sample[series.key] === "number" ? sample[series.key] : null]),
@@ -346,7 +370,22 @@ function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; 
   };
 
   return (
-    <Card className="chart-card vent-day-card" title="Dagslogg temperatur">
+    <Card
+      className="chart-card vent-day-card"
+      title={focus === "humidity" ? "Dagslogg fuktighet" : "Dagslogg temperatur"}
+      extra={
+        <Segmented
+          className="vent-day-focus"
+          size="small"
+          value={focus}
+          onChange={(value) => onFocusChange(value as VentChartFocus)}
+          options={[
+            { label: "Temperatur", value: "temperature" },
+            { label: "Fuktighet", value: "humidity" },
+          ]}
+        />
+      }
+    >
       <div className="vent-day-toolbar">
         <Space size={8}>
           <Button size="small" onClick={() => onDayChange(day.prevDay)}>
@@ -364,7 +403,7 @@ function DayChart({ ventilation, onDayChange }: { ventilation: VentilationData; 
           <Input className="vent-date-input" type="date" value={day.selectedDay} onChange={(event) => onDayChange(event.target.value)} />
         </Space>
       </div>
-      <ReactECharts key={day.selectedDay} option={option} style={{ height: 360 }} />
+      <ReactECharts key={`${day.selectedDay}-${focus}`} option={option} style={{ height: 360 }} />
       <div className="vent-fan-lanes">
         {day.fans.map((fan) => {
           const events = day.fanEvents.filter((event) => event.fan_key === fan.key);
@@ -604,6 +643,7 @@ export default function VentilationPage({ data, view, onReload }: VentilationPag
   const ventilation = data.ventilation;
   const [searchParams, setSearchParams] = useSearchParams();
   if (!ventilation) return null;
+  const chartFocus = chartFocusFromSearch(searchParams.get("focus"));
 
   function setDay(day: string) {
     const next = new URLSearchParams(searchParams);
@@ -612,10 +652,17 @@ export default function VentilationPage({ data, view, onReload }: VentilationPag
     setSearchParams(next);
   }
 
+  function setChartFocus(focus: VentChartFocus) {
+    const next = new URLSearchParams(searchParams);
+    if (focus === "humidity") next.set("focus", "humidity");
+    else next.delete("focus");
+    setSearchParams(next);
+  }
+
   return (
     <Space direction="vertical" size={16} className="page-stack vent-page">
       {view === "dagslogg" ? <CompactSnapshot ventilation={ventilation} /> : <Snapshot ventilation={ventilation} />}
-      {view === "dagslogg" ? <DayChart ventilation={ventilation} onDayChange={setDay} /> : null}
+      {view === "dagslogg" ? <DayChart ventilation={ventilation} focus={chartFocus} onDayChange={setDay} onFocusChange={setChartFocus} /> : null}
       {view === "yr-logg" ? <WeatherChart table={data.tables[0]} /> : null}
       {view === "innstillinger" ? <SettingsView ventilation={ventilation} onReload={onReload} /> : null}
       {view !== "innstillinger" ? <FilterBar filters={data.filters ?? []} /> : null}

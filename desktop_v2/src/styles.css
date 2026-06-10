@@ -1764,6 +1764,10 @@ a {
   margin-bottom: 8px;
 }
 
+.vent-day-focus .ant-segmented-item {
+  min-width: 86px;
+}
+
 .vent-date-input {
   width: 150px;
 }

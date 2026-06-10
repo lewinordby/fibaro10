@@ -360,6 +360,8 @@ export type VentilationLatest = {
 export type VentilationDaySeries = {
   key: string;
   label: string;
+  kind?: "temperature" | "humidity";
+  unit?: string;
   color: string;
   default?: boolean;
   latest?: string;

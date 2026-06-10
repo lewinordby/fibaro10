@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1087")
+APP_BUILD = os.getenv("APP_BUILD", "1088")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1088",
+        "date": "10.06.2026",
+        "title": "Legger temperatur- og fuktmodus i ventilasjon dagslogg",
+        "changes": [
+            "Legger egen fokusvelger for temperatur og fuktighet i ventilasjon dagslogg.",
+            "Starter temperaturgrafen med kun Loft aktiv og fuktgrafen med kun Fukt kjeller aktiv.",
+            "Legger alle loggede fuktighetsmaalere inn som valgbare serier i dagsloggen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1087",
@@ -8181,19 +8192,28 @@ def build_lux_sparkline(sample_rows, day_start: datetime, day_end: datetime):
 
 async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: datetime):
     series_config = [
-        {"key": "temp_1etg", "label": "1.etg", "class": "one", "color": "#df705d", "default": True},
-        {"key": "temp_2etg", "label": "2.etg", "class": "two", "color": "#f2b84b", "default": True},
-        {"key": "temp_vip", "label": "VIP", "class": "vip", "color": "#8b5cf6", "default": True},
-        {"key": "temp_ute", "label": "Ute styring", "class": "outdoor", "color": "#2f8fa3", "default": True},
-        {"key": "temp_ute_netatmo", "label": "Ute Netatmo", "class": "outdoor-netatmo", "color": "#14b8a6", "default": False},
-        {"key": "temp_yr", "label": "Yr API", "class": "yr", "color": "#4b7fbb", "default": True},
-        {"key": "temp_loft", "label": "Loft", "class": "loft", "color": "#726189", "default": True},
-        {"key": "temp_kjeller", "label": "Kjeller", "class": "basement", "color": "#2f8fa3", "default": True},
-        {"key": "temp_passiv", "label": "Pass innluft", "class": "passive", "color": "#52a464", "default": False},
-        {"key": "temp_luftinntak", "label": "Luftinntak", "class": "intake", "color": "#9a660f", "default": False},
-        {"key": "temp_min_inne", "label": "Min inne", "class": "indoor-min", "color": "#93c5fd", "default": False},
-        {"key": "temp_avg_inne", "label": "Snitt inne", "class": "indoor-avg", "color": "#3f7fbd", "default": False},
-        {"key": "temp_max_inne", "label": "Maks inne", "class": "indoor-max", "color": "#1d4ed8", "default": False},
+        {"key": "temp_1etg", "label": "1.etg", "kind": "temperature", "unit": "C", "class": "one", "color": "#df705d", "default": False},
+        {"key": "temp_2etg", "label": "2.etg", "kind": "temperature", "unit": "C", "class": "two", "color": "#f2b84b", "default": False},
+        {"key": "temp_vip", "label": "VIP", "kind": "temperature", "unit": "C", "class": "vip", "color": "#8b5cf6", "default": False},
+        {"key": "temp_ute", "label": "Ute styring", "kind": "temperature", "unit": "C", "class": "outdoor", "color": "#2f8fa3", "default": False},
+        {"key": "temp_ute_netatmo", "label": "Ute Netatmo", "kind": "temperature", "unit": "C", "class": "outdoor-netatmo", "color": "#14b8a6", "default": False},
+        {"key": "temp_yr", "label": "Yr API", "kind": "temperature", "unit": "C", "class": "yr", "color": "#4b7fbb", "default": False},
+        {"key": "temp_loft", "label": "Loft", "kind": "temperature", "unit": "C", "class": "loft", "color": "#726189", "default": True},
+        {"key": "temp_kjeller", "label": "Kjeller", "kind": "temperature", "unit": "C", "class": "basement", "color": "#2f8fa3", "default": False},
+        {"key": "temp_passiv", "label": "Pass innluft", "kind": "temperature", "unit": "C", "class": "passive", "color": "#52a464", "default": False},
+        {"key": "temp_luftinntak", "label": "Luftinntak", "kind": "temperature", "unit": "C", "class": "intake", "color": "#9a660f", "default": False},
+        {"key": "temp_min_inne", "label": "Min inne", "kind": "temperature", "unit": "C", "class": "indoor-min", "color": "#93c5fd", "default": False},
+        {"key": "temp_avg_inne", "label": "Snitt inne", "kind": "temperature", "unit": "C", "class": "indoor-avg", "color": "#3f7fbd", "default": False},
+        {"key": "temp_max_inne", "label": "Maks inne", "kind": "temperature", "unit": "C", "class": "indoor-max", "color": "#1d4ed8", "default": False},
+        {"key": "humidity_kjeller", "label": "Fukt kjeller", "kind": "humidity", "unit": "%", "class": "humidity-basement", "color": "#0f766e", "default": True},
+        {"key": "humidity_1etg", "label": "Fukt 1.etg", "kind": "humidity", "unit": "%", "class": "humidity-one", "color": "#16a34a", "default": False},
+        {"key": "humidity_2etg", "label": "Fukt 2.etg", "kind": "humidity", "unit": "%", "class": "humidity-two", "color": "#22c55e", "default": False},
+        {"key": "humidity_vip", "label": "Fukt VIP", "kind": "humidity", "unit": "%", "class": "humidity-vip", "color": "#14b8a6", "default": False},
+        {"key": "humidity_loft", "label": "Fukt loft", "kind": "humidity", "unit": "%", "class": "humidity-loft", "color": "#0d9488", "default": False},
+        {"key": "humidity_ute", "label": "Fukt ute", "kind": "humidity", "unit": "%", "class": "humidity-outdoor", "color": "#38bdf8", "default": False},
+        {"key": "humidity_yr", "label": "Fukt Yr", "kind": "humidity", "unit": "%", "class": "humidity-yr", "color": "#60a5fa", "default": False},
+        {"key": "humidity_luftinntak", "label": "Fukt innluft", "kind": "humidity", "unit": "%", "class": "humidity-intake", "color": "#06b6d4", "default": False},
+        {"key": "humidity_passiv", "label": "Fukt passiv", "kind": "humidity", "unit": "%", "class": "humidity-passive", "color": "#84cc16", "default": False},
     ]
     fan_config = [
         {**VENT_TIMELINE_DEVICES[0], "short": "VIP", "color": "#52a464", "default": True},
@@ -8219,6 +8239,13 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
         )
         fan_rows = fan_result.scalars().all()
 
+    def day_value_label(series: Dict[str, Any], value: Any) -> str:
+        if value is None:
+            return "-"
+        if series.get("kind") == "humidity":
+            return f"{float(value):.0f}%"
+        return temp_label(value)
+
     samples = []
     all_values = []
     for row in sample_rows:
@@ -8236,10 +8263,11 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
         for series in series_config:
             value = getattr(row, series["key"], None)
             sample[series["key"]] = value
-            sample[f"{series['key']}_label"] = temp_label(value)
+            sample[f"{series['key']}_label"] = day_value_label(series, value)
             if value is not None:
                 has_value = True
-                all_values.append(value)
+                if series.get("kind") == "temperature":
+                    all_values.append(value)
         if has_value:
             samples.append(sample)
 
@@ -8253,19 +8281,20 @@ async def build_temp_day(day_start: datetime, day_end: datetime, timeline_end: d
             if value is None:
                 continue
             values.append(value)
-            points.append(
-                {
-                    "x": percent_between(sample["time_dt"], day_start, day_end) * 10,
-                    "y": temp_y(float(value), axis["min"], axis["max"]),
-                }
-            )
+            if series.get("kind") == "temperature":
+                points.append(
+                    {
+                        "x": percent_between(sample["time_dt"], day_start, day_end) * 10,
+                        "y": temp_y(float(value), axis["min"], axis["max"]),
+                    }
+                )
         series_items.append(
             {
                 **series,
                 "polyline": " ".join(f"{point['x']:.2f},{point['y']:.2f}" for point in points),
-                "latest": temp_label(values[-1]) if values else "-",
-                "min": temp_label(min(values)) if values else "-",
-                "max": temp_label(max(values)) if values else "-",
+                "latest": day_value_label(series, values[-1]) if values else "-",
+                "min": day_value_label(series, min(values)) if values else "-",
+                "max": day_value_label(series, max(values)) if values else "-",
             }
         )
 
