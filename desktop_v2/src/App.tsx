@@ -19,6 +19,7 @@ import RevenueMonthPage from "./pages/RevenueMonthPage";
 import OperationsPage from "./pages/OperationsPage";
 import ModulePage from "./pages/ModulePage";
 import ParkingVehicleDetailPage from "./pages/ParkingVehicleDetailPage";
+import StatusComparisonPage from "./pages/StatusComparisonPage";
 import { fetchCurrentUser, logoutUser, type AuthUser } from "./api";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
 
@@ -125,7 +126,8 @@ export default function App() {
   const navigate = useNavigate();
   const module = activeModule(location.pathname);
   const viewItems = module ? MODULE_VIEWS[module] ?? [] : [];
-  const activeView = module ? location.pathname.split("/")[2] || defaultModuleView(module) : "";
+  const rawActiveView = module ? location.pathname.split("/")[2] || defaultModuleView(module) : "";
+  const activeView = module && viewItems.some((item) => item.key === rawActiveView) ? rawActiveView : defaultModuleView(module || "");
 
   return (
     <Layout className="app-shell">
@@ -166,6 +168,7 @@ export default function App() {
             <Route path="/status/oversikt" element={<OverviewPage />} />
             <Route path="/status/omsetning" element={<RevenueMonthPage />} />
             <Route path="/status/drift" element={<OperationsPage />} />
+            <Route path="/status/sammenligning" element={<StatusComparisonPage />} />
             <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
             <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
             <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />

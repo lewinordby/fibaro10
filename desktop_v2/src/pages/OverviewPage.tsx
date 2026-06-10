@@ -30,6 +30,12 @@ const DATASOURCE_PRIORITY = [
   "parking_vehicle_svv_sync",
 ];
 
+const EXTRA_COMPARISON_KEYS: Record<string, string[]> = {
+  today: ["same-weekday-last-week"],
+  week: ["two-weeks-ago"],
+  month: ["two-months-ago"],
+};
+
 function stateTag(state: boolean | null) {
   if (state === true) return <Tag color="green">På</Tag>;
   if (state === false) return <Tag color="default">Av</Tag>;
@@ -155,15 +161,23 @@ function StatusStrip({
 function ComparisonRow({
   comparison,
   currentTotal,
+  periodKey,
+  comparisonKey,
 }: {
   comparison: StatusPeriodComparison;
   currentTotal: number;
+  periodKey: string;
+  comparisonKey: string;
 }) {
   const delta = currentTotal - comparison.total;
   const percent = percentDelta(currentTotal, comparison.total);
 
   return (
-    <div className="status-period-comparison-row">
+    <Link
+      className="status-period-comparison-row"
+      title="Vis tidslinje for sammenligningen"
+      to={`/status/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`}
+    >
       <div className="status-period-comparison-main">
         <span>{comparison.label}</span>
         <strong>{nok(comparison.total)} kr</strong>
@@ -180,7 +194,7 @@ function ComparisonRow({
           Parkering {comparison.parkingCount} stk / {nok(comparison.parking)} kr · {comparison.parkingAsOfLabel}
         </span>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -222,8 +236,14 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
       </div>
       <div className="status-period-comparisons">
         <div className="status-period-comparisons-title">Sammenligning</div>
-        {comparisons.map((comparison) => (
-          <ComparisonRow comparison={comparison} currentTotal={period.total} key={comparison.label} />
+        {comparisons.map((comparison, index) => (
+          <ComparisonRow
+            comparison={comparison}
+            comparisonKey={index === 0 ? "previous" : EXTRA_COMPARISON_KEYS[period.key]?.[index - 1] || `extra-${index - 1}`}
+            currentTotal={period.total}
+            key={comparison.label}
+            periodKey={period.key}
+          />
         ))}
       </div>
     </Card>

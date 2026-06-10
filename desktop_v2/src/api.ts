@@ -98,6 +98,70 @@ export type RevenueMonthResponse = {
   rows: RevenueDay[];
 };
 
+export type StatusComparisonEvent = {
+  id: string;
+  kind: string;
+  left: number;
+  width: number;
+  label: string;
+  title: string;
+  start: string | null;
+  end: string | null;
+  amount: number;
+  href?: string;
+};
+
+export type StatusComparisonLane = {
+  key: string;
+  source: "current" | "comparison";
+  label: string;
+  periodLabel: string;
+  kind: "sun" | "parking";
+  start: string | null;
+  end: string | null;
+  count: number;
+  paid: number;
+  events: StatusComparisonEvent[];
+};
+
+export type StatusComparisonSummary = {
+  label: string;
+  start: string | null;
+  sunEnd: string | null;
+  parkingEnd: string | null;
+  solAsOfLabel: string;
+  parkingAsOfLabel: string;
+  sol: number;
+  solCount: number;
+  parking: number;
+  parkingCount: number;
+  total: number;
+};
+
+export type StatusComparisonResponse = {
+  generatedAt: string | null;
+  periodKey: string;
+  comparisonKey: string;
+  title: string;
+  comparisonLabel: string;
+  axis: {
+    start: string | null;
+    end: string | null;
+    seconds: number;
+    ticks: Array<{ label: string; left: number }>;
+  };
+  current: StatusComparisonSummary;
+  comparison: StatusComparisonSummary;
+  delta: {
+    sol: number;
+    solCount: number;
+    parking: number;
+    parkingCount: number;
+    total: number;
+  };
+  lanes: StatusComparisonLane[];
+};
+
 export type AuthUser = {
   username: string | null;
   role: string;
@@ -446,6 +510,11 @@ export function fetchOverview(): Promise<OverviewResponse> {
 export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse> {
   const query = month ? `?month=${encodeURIComponent(month)}` : "";
   return apiGet<RevenueMonthResponse>(`/api/revenue/month${query}`);
+}
+
+export function fetchStatusComparison(period: string, compare: string): Promise<StatusComparisonResponse> {
+  const query = new URLSearchParams({ period, compare }).toString();
+  return apiGet<StatusComparisonResponse>(`/api/status/comparison?${query}`);
 }
 
 export function fetchCurrentUser(): Promise<AuthUser> {

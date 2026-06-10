@@ -498,7 +498,15 @@ a {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px 10px;
   padding: 8px 0 0;
+  color: inherit;
   border-top: 1px solid #eef2f7;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.status-period-comparison-row:hover .status-period-comparison-main span,
+.status-period-comparison-row:hover .status-period-comparison-main strong {
+  color: var(--blue);
 }
 
 .status-period-comparison-main {
@@ -695,6 +703,305 @@ a {
 
 .status-source-list .ant-typography {
   font-size: 12px;
+}
+
+.status-comparison-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 42px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.status-comparison-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.status-comparison-title strong {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 780;
+}
+
+.status-comparison-title span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.status-comparison-summary-card,
+.status-comparison-delta-card,
+.status-comparison-timeline-card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
+}
+
+.status-comparison-summary-card .ant-card-body,
+.status-comparison-delta-card .ant-card-body {
+  padding: 14px;
+}
+
+.status-comparison-summary-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.status-comparison-summary-head span,
+.status-comparison-delta-card > .ant-card-body > span {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.status-comparison-summary-head strong,
+.status-comparison-delta-card strong {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 780;
+  line-height: 1.05;
+}
+
+.status-comparison-summary-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.status-comparison-summary-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.status-comparison-summary-split div {
+  padding: 8px 9px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 6px;
+}
+
+.status-comparison-summary-split span,
+.status-comparison-summary-split em {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.2;
+}
+
+.status-comparison-summary-split strong {
+  display: block;
+  margin: 2px 0;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.status-comparison-delta-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
+
+.status-comparison-delta-card div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.status-comparison-delta-card em {
+  font-style: normal;
+}
+
+.status-comparison-timeline-card .ant-card-head {
+  min-height: 44px;
+  border-bottom-color: #eef2f7;
+}
+
+.status-comparison-timeline-card .ant-card-head-title {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.status-comparison-timeline-card .ant-card-body {
+  padding: 12px 14px 16px;
+}
+
+.status-comparison-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.status-comparison-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-comparison-legend i {
+  display: inline-block;
+  width: 18px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.status-comparison-legend i.kind-sun,
+.status-comparison-event.kind-sun {
+  background: #2563eb;
+}
+
+.status-comparison-legend i.kind-parking,
+.status-comparison-event.kind-parking {
+  background: #15803d;
+}
+
+.status-comparison-axis-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.status-comparison-scroll {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.status-comparison-grid {
+  display: grid;
+  grid-template-columns: 9rem minmax(860px, 1fr);
+  gap: 7px 10px;
+  align-items: center;
+  min-width: 1050px;
+}
+
+.status-comparison-axis {
+  position: relative;
+  grid-column: 2;
+  height: 20px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.status-comparison-axis span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.status-comparison-axis span:first-child {
+  transform: translateX(0);
+}
+
+.status-comparison-axis span:last-child {
+  transform: translateX(-100%);
+}
+
+.status-comparison-lane {
+  display: contents;
+}
+
+.status-comparison-lane-label {
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.15;
+  text-align: right;
+}
+
+.status-comparison-lane-label span,
+.status-comparison-lane-label em {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-comparison-track {
+  position: relative;
+  height: 42px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid #dbe3ee;
+  border-radius: 6px;
+}
+
+.status-comparison-lane.kind-sun .status-comparison-track {
+  border-color: #cbdcf0;
+}
+
+.status-comparison-track-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(148, 163, 184, 0.32);
+}
+
+.status-comparison-event {
+  position: absolute;
+  top: 10px;
+  min-width: 3px;
+  height: 22px;
+  overflow: hidden;
+  color: #ffffff;
+  border-radius: 4px;
+  text-decoration: none;
+  box-shadow: 0 3px 7px rgba(15, 23, 42, 0.13);
+}
+
+.status-comparison-event span {
+  display: block;
+  padding: 4px 5px;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 780;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-comparison-event:hover {
+  z-index: 8;
+  color: #ffffff;
+  filter: brightness(0.95);
+  outline: 2px solid rgba(37, 99, 235, 0.18);
+}
+
+.status-comparison-event.detail-member {
+  background: #15803d;
+}
+
+.status-comparison-event.detail-no-member {
+  background: #b45309;
 }
 
 .status-revenue-page .summary-card .ant-card-body {

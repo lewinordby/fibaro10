@@ -89,8 +89,19 @@ NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1081")
+APP_BUILD = os.getenv("APP_BUILD", "1082")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1082",
+        "date": "10.06.2026",
+        "title": "Legger detaljvisning for statussammenligninger",
+        "changes": [
+            "Gjor sammenligningsradene paa Status > Oversikt klikkbare.",
+            "Legger API og V2-side for tidslinje med solinger og parkeringer per sammenligning.",
+            "Normaliserer naa- og historisk periode til samme relative tidsakse.",
+        ],
+    },
     {
         "version": "1",
         "build": "1081",
@@ -5861,6 +5872,324 @@ def cutoff_label(value: datetime, today: date) -> str:
     return value.strftime("%d.%m kl %H:%M")
 
 
+def status_comparison_windows(import_rows: list[Dict[str, Any]], now_dt: datetime) -> Dict[str, Any]:
+    today = now_dt.date()
+    yesterday = today - timedelta(days=1)
+    last_week_same_day = today - timedelta(days=7)
+    week_start = today - timedelta(days=today.weekday())
+    previous_week_start = week_start - timedelta(days=7)
+    two_weeks_start = previous_week_start - timedelta(days=7)
+    month_start = today.replace(day=1)
+    previous_month_start = (month_start - timedelta(days=1)).replace(day=1)
+    two_months_start = (previous_month_start - timedelta(days=1)).replace(day=1)
+    tomorrow = today + timedelta(days=1)
+
+    today_start = datetime.combine(today, time.min)
+    tomorrow_start = datetime.combine(tomorrow, time.min)
+    yesterday_start = datetime.combine(yesterday, time.min)
+    last_week_same_day_start = datetime.combine(last_week_same_day, time.min)
+    last_week_same_day_end = last_week_same_day_start + timedelta(days=1)
+    week_start_dt = datetime.combine(week_start, time.min)
+    previous_week_start_dt = datetime.combine(previous_week_start, time.min)
+    two_weeks_start_dt = datetime.combine(two_weeks_start, time.min)
+    month_start_dt = datetime.combine(month_start, time.min)
+    previous_month_start_dt = datetime.combine(previous_month_start, time.min)
+    two_months_start_dt = datetime.combine(two_months_start, time.min)
+
+    sun_as_of = source_as_of(import_rows, "sun2_sessions_import", now_dt)
+    parking_as_of = source_as_of(import_rows, "easypark_parking_import", now_dt)
+    sun_today_cutoff = period_cutoff(today_start, tomorrow_start, sun_as_of)
+    sun_week_cutoff = period_cutoff(week_start_dt, tomorrow_start, sun_as_of)
+    sun_month_cutoff = period_cutoff(month_start_dt, tomorrow_start, sun_as_of)
+    parking_today_cutoff = period_cutoff(today_start, tomorrow_start, parking_as_of)
+    parking_week_cutoff = period_cutoff(week_start_dt, tomorrow_start, parking_as_of)
+    parking_month_cutoff = period_cutoff(month_start_dt, tomorrow_start, parking_as_of)
+
+    def current(label: str, start: datetime, sun_end: datetime, parking_end: datetime) -> Dict[str, Any]:
+        return {"label": label, "start": start, "sunEnd": sun_end, "parkingEnd": parking_end}
+
+    def compare(
+        key: str,
+        label: str,
+        start: datetime,
+        end: datetime,
+        current_start: datetime,
+        current_sun_end: datetime,
+        current_parking_end: datetime,
+    ) -> Dict[str, Any]:
+        return {
+            "key": key,
+            "label": label,
+            "start": start,
+            "sunEnd": shifted_period_cutoff(current_start, current_sun_end, start, end),
+            "parkingEnd": shifted_period_cutoff(current_start, current_parking_end, start, end),
+        }
+
+    return {
+        "today": {
+            "title": "I dag",
+            "current": current("I dag", today_start, sun_today_cutoff, parking_today_cutoff),
+            "comparisons": [
+                compare(
+                    "previous",
+                    "Tilsvarende datatidspunkt i g\u00e5r",
+                    yesterday_start,
+                    today_start,
+                    today_start,
+                    sun_today_cutoff,
+                    parking_today_cutoff,
+                ),
+                compare(
+                    "same-weekday-last-week",
+                    "Samme dag forrige uke",
+                    last_week_same_day_start,
+                    last_week_same_day_end,
+                    today_start,
+                    sun_today_cutoff,
+                    parking_today_cutoff,
+                ),
+            ],
+        },
+        "week": {
+            "title": "Uke",
+            "current": current("Denne uken", week_start_dt, sun_week_cutoff, parking_week_cutoff),
+            "comparisons": [
+                compare(
+                    "previous",
+                    "Tilsvarende datatidspunkt forrige uke",
+                    previous_week_start_dt,
+                    week_start_dt,
+                    week_start_dt,
+                    sun_week_cutoff,
+                    parking_week_cutoff,
+                ),
+                compare(
+                    "two-weeks-ago",
+                    "Tilsvarende datatidspunkt for to uker siden",
+                    two_weeks_start_dt,
+                    previous_week_start_dt,
+                    week_start_dt,
+                    sun_week_cutoff,
+                    parking_week_cutoff,
+                ),
+            ],
+        },
+        "month": {
+            "title": "M\u00e5ned",
+            "current": current("Denne m\u00e5neden", month_start_dt, sun_month_cutoff, parking_month_cutoff),
+            "comparisons": [
+                compare(
+                    "previous",
+                    "Tilsvarende datatidspunkt forrige m\u00e5ned",
+                    previous_month_start_dt,
+                    month_start_dt,
+                    month_start_dt,
+                    sun_month_cutoff,
+                    parking_month_cutoff,
+                ),
+                compare(
+                    "two-months-ago",
+                    "Tilsvarende datatidspunkt for to m\u00e5neder siden",
+                    two_months_start_dt,
+                    previous_month_start_dt,
+                    month_start_dt,
+                    sun_month_cutoff,
+                    parking_month_cutoff,
+                ),
+            ],
+        },
+    }
+
+
+def status_period_summary(label: str, start: datetime, sun_end: datetime, parking_end: datetime, sun_row: Any, parking_row: Any, today: date) -> Dict[str, Any]:
+    sol = float_or_zero(sun_row.paid)
+    parking = float_or_zero(parking_row.paid)
+    return {
+        "label": label,
+        "start": api_local_iso(start),
+        "sunEnd": api_local_iso(sun_end),
+        "parkingEnd": api_local_iso(parking_end),
+        "solAsOfLabel": cutoff_label(sun_end, today),
+        "parkingAsOfLabel": cutoff_label(parking_end, today),
+        "sol": sol,
+        "solCount": int_or_zero(sun_row.sessions),
+        "parking": parking,
+        "parkingCount": int_or_zero(parking_row.sessions),
+        "total": sol + parking,
+    }
+
+
+def status_timeline_ticks(start: datetime, axis_seconds: float) -> list[Dict[str, Any]]:
+    if axis_seconds <= 0:
+        return [{"label": start.strftime("%H:%M"), "left": 0}]
+    axis_end = start + timedelta(seconds=axis_seconds)
+    ticks: list[Dict[str, Any]] = []
+    if axis_seconds <= 36 * 3600:
+        cursor = start.replace(minute=0, second=0, microsecond=0)
+        while cursor < start:
+            cursor += timedelta(hours=1)
+        if cursor.hour % 2:
+            cursor += timedelta(hours=1)
+        while cursor <= axis_end:
+            left = ((cursor - start).total_seconds() / axis_seconds) * 100
+            ticks.append({"label": cursor.strftime("%H"), "left": round(max(0, min(100, left)), 4)})
+            cursor += timedelta(hours=2)
+    else:
+        span_days = max(1, math.ceil(axis_seconds / 86400))
+        step_days = 1 if span_days <= 10 else max(1, math.ceil(span_days / 8))
+        cursor = datetime.combine(start.date(), time.min)
+        while cursor < start:
+            cursor += timedelta(days=step_days)
+        while cursor <= axis_end:
+            left = ((cursor - start).total_seconds() / axis_seconds) * 100
+            ticks.append({"label": cursor.strftime("%d.%m"), "left": round(max(0, min(100, left)), 4)})
+            cursor += timedelta(days=step_days)
+    if not ticks or ticks[0]["left"] > 0:
+        ticks.insert(0, {"label": start.strftime("%H:%M" if axis_seconds <= 36 * 3600 else "%d.%m"), "left": 0})
+    if ticks[-1]["left"] < 99:
+        ticks.append({"label": axis_end.strftime("%H:%M" if axis_seconds <= 36 * 3600 else "%d.%m"), "left": 100})
+    return ticks
+
+
+def status_timeline_position(start_at: datetime, end_at: datetime, period_start: datetime, lane_end: datetime, axis_seconds: float) -> Optional[Dict[str, float]]:
+    if axis_seconds <= 0:
+        return None
+    clamped_start = max(period_start, min(lane_end, start_at))
+    clamped_end = max(clamped_start, min(lane_end, end_at))
+    if clamped_end <= period_start:
+        return None
+    left = ((clamped_start - period_start).total_seconds() / axis_seconds) * 100
+    width = ((clamped_end - clamped_start).total_seconds() / axis_seconds) * 100
+    return {
+        "left": round(max(0, min(100, left)), 4),
+        "width": round(max(0.16, min(100, width)), 4),
+    }
+
+
+def status_sun_timeline_event(row: Sun2TanningSession, period_start: datetime, lane_end: datetime, axis_seconds: float) -> Optional[Dict[str, Any]]:
+    bounds = sunbed_session_bounds(row)
+    if not bounds:
+        return None
+    start_at, end_at = bounds
+    position = status_timeline_position(start_at, end_at, period_start, lane_end, axis_seconds)
+    if not position:
+        return None
+    customer_type = (row.customer_type or "").lower()
+    kind = "standard"
+    if "ikke" in customer_type:
+        kind = "no-member"
+    elif "medlem" in customer_type:
+        kind = "member"
+    paid = float_or_zero(row.paid_amount_kr)
+    room_label = sun2_room_label(row.room_id, row.room or row.source_room_name)
+    title_parts = [f"{room_label} {start_at:%d.%m %H:%M}-{end_at:%H:%M}", f"{float_or_zero(row.duration_minutes):.0f} min"]
+    if paid:
+        title_parts.append(f"{paid:.0f} kr")
+    if row.user_name:
+        title_parts.append(str(row.user_name))
+    href = f"/soling/enkeltimer?date_from={start_at.date().isoformat()}&date_to={start_at.date().isoformat()}"
+    if row.room_id:
+        href += f"&room_id={quote_plus(str(row.room_id))}"
+    return {
+        "id": f"sun-{row.id}",
+        "kind": kind,
+        "left": position["left"],
+        "width": position["width"],
+        "label": room_label,
+        "title": " | ".join(title_parts),
+        "start": api_local_iso(start_at),
+        "end": api_local_iso(end_at),
+        "amount": paid,
+        "href": href,
+    }
+
+
+def status_parking_timeline_event(row: ParkingSession, period_start: datetime, lane_end: datetime, axis_seconds: float) -> Optional[Dict[str, Any]]:
+    start_at = normalize_local_naive(row.start_time)
+    if not start_at:
+        return None
+    end_at = normalize_local_naive(row.end_time)
+    if not end_at:
+        end_at = start_at + timedelta(minutes=float_or_zero(row.parking_time_min) or 15)
+    if end_at <= start_at:
+        end_at = start_at + timedelta(minutes=max(1.0, float_or_zero(row.parking_time_min) or 1.0))
+    position = status_timeline_position(start_at, end_at, period_start, lane_end, axis_seconds)
+    if not position:
+        return None
+    paid = float_or_zero(row.fee_inc_vat)
+    plate = str(row.car_license_number or "").strip()
+    title_parts = [f"{start_at:%d.%m %H:%M}-{end_at:%H:%M}", f"{float_or_zero(row.parking_time_min):.0f} min"]
+    if plate:
+        title_parts.append(plate)
+    if row.parking_area:
+        title_parts.append(str(row.parking_area))
+    if paid:
+        title_parts.append(f"{paid:.0f} kr")
+    href = f"/parkering/parkeringer?date_from={start_at.date().isoformat()}&date_to={start_at.date().isoformat()}"
+    if plate:
+        href += f"&q={quote_plus(plate)}"
+    return {
+        "id": f"parking-{row.id}",
+        "kind": "parking",
+        "left": position["left"],
+        "width": position["width"],
+        "label": plate or str(row.area_number),
+        "title": " | ".join(title_parts),
+        "start": api_local_iso(start_at),
+        "end": api_local_iso(end_at),
+        "amount": paid,
+        "href": href,
+    }
+
+
+async def status_timeline_lane(
+    session,
+    source: str,
+    label: str,
+    period_label: str,
+    kind: str,
+    start: datetime,
+    end: datetime,
+    axis_seconds: float,
+) -> Dict[str, Any]:
+    if kind == "sun":
+        rows = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .where(Sun2TanningSession.started_at >= start)
+                .where(Sun2TanningSession.started_at < end)
+                .order_by(Sun2TanningSession.started_at.asc())
+            )
+        ).scalars().all()
+        events = [item for row in rows if (item := status_sun_timeline_event(row, start, end, axis_seconds))]
+        paid = sum(float_or_zero(row.paid_amount_kr) for row in rows)
+        count = len(rows)
+    else:
+        rows = (
+            await session.execute(
+                select(ParkingSession)
+                .where(ParkingSession.start_time >= start)
+                .where(ParkingSession.start_time < end)
+                .order_by(ParkingSession.start_time.asc())
+            )
+        ).scalars().all()
+        events = [item for row in rows if (item := status_parking_timeline_event(row, start, end, axis_seconds))]
+        paid = sum(float_or_zero(row.fee_inc_vat) for row in rows)
+        count = len(rows)
+    return {
+        "key": f"{source}-{kind}",
+        "source": source,
+        "label": label,
+        "periodLabel": period_label,
+        "kind": kind,
+        "start": api_local_iso(start),
+        "end": api_local_iso(end),
+        "count": count,
+        "paid": paid,
+        "events": events,
+    }
+
+
 def operating_window(now: datetime) -> Dict[str, Any]:
     open_at = datetime.combine(now.date(), time.min).replace(hour=7)
     close_at = datetime.combine(now.date(), time.min).replace(hour=23)
@@ -11575,6 +11904,128 @@ async def build_revenue_month_context(month: Optional[str] = None) -> Dict[str, 
             "top_day": top_day,
             "today_row": today_row,
         },
+    }
+
+
+@app.get("/api/status/comparison")
+async def api_v2_status_comparison(period: str = Query("today"), compare: str = Query("previous")):
+    now_dt = local_now_naive()
+    today = now_dt.date()
+    async with async_session() as session:
+        import_rows = await import_status_rows(session)
+        windows = status_comparison_windows(import_rows, now_dt)
+        period_config = windows.get(period)
+        if not period_config:
+            raise HTTPException(status_code=404, detail="Ukjent statusperiode")
+        comparison_config = next(
+            (item for item in period_config["comparisons"] if item["key"] == compare),
+            None,
+        )
+        if not comparison_config:
+            raise HTTPException(status_code=404, detail="Ukjent sammenligning")
+
+        current_config = period_config["current"]
+        axis_seconds = max(
+            3600.0,
+            (current_config["sunEnd"] - current_config["start"]).total_seconds(),
+            (current_config["parkingEnd"] - current_config["start"]).total_seconds(),
+            (comparison_config["sunEnd"] - comparison_config["start"]).total_seconds(),
+            (comparison_config["parkingEnd"] - comparison_config["start"]).total_seconds(),
+        )
+
+        current_sun = await sun2_datetime_snapshot(session, current_config["start"], current_config["sunEnd"])
+        current_parking = await parking_datetime_snapshot(session, current_config["start"], current_config["parkingEnd"])
+        comparison_sun = await sun2_datetime_snapshot(session, comparison_config["start"], comparison_config["sunEnd"])
+        comparison_parking = await parking_datetime_snapshot(
+            session,
+            comparison_config["start"],
+            comparison_config["parkingEnd"],
+        )
+
+        lanes = [
+            await status_timeline_lane(
+                session,
+                "current",
+                "Soling",
+                current_config["label"],
+                "sun",
+                current_config["start"],
+                current_config["sunEnd"],
+                axis_seconds,
+            ),
+            await status_timeline_lane(
+                session,
+                "current",
+                "Parkering",
+                current_config["label"],
+                "parking",
+                current_config["start"],
+                current_config["parkingEnd"],
+                axis_seconds,
+            ),
+            await status_timeline_lane(
+                session,
+                "comparison",
+                "Soling",
+                comparison_config["label"],
+                "sun",
+                comparison_config["start"],
+                comparison_config["sunEnd"],
+                axis_seconds,
+            ),
+            await status_timeline_lane(
+                session,
+                "comparison",
+                "Parkering",
+                comparison_config["label"],
+                "parking",
+                comparison_config["start"],
+                comparison_config["parkingEnd"],
+                axis_seconds,
+            ),
+        ]
+
+    current_summary = status_period_summary(
+        current_config["label"],
+        current_config["start"],
+        current_config["sunEnd"],
+        current_config["parkingEnd"],
+        current_sun,
+        current_parking,
+        today,
+    )
+    comparison_summary = status_period_summary(
+        comparison_config["label"],
+        comparison_config["start"],
+        comparison_config["sunEnd"],
+        comparison_config["parkingEnd"],
+        comparison_sun,
+        comparison_parking,
+        today,
+    )
+    axis_end = current_config["start"] + timedelta(seconds=axis_seconds)
+    return {
+        "generatedAt": api_local_iso(now_dt),
+        "periodKey": period,
+        "comparisonKey": compare,
+        "title": period_config["title"],
+        "comparisonLabel": comparison_config["label"],
+        "axis": {
+            "start": api_local_iso(current_config["start"]),
+            "end": api_local_iso(axis_end),
+            "seconds": axis_seconds,
+            "ticks": status_timeline_ticks(current_config["start"], axis_seconds),
+        },
+        "current": current_summary,
+        "comparison": comparison_summary,
+        "delta": {
+            "sol": current_summary["sol"] - comparison_summary["sol"],
+            "solCount": current_summary["solCount"] - comparison_summary["solCount"],
+            "parking": current_summary["parking"] - comparison_summary["parking"],
+            "parkingCount": current_summary["parkingCount"] - comparison_summary["parkingCount"],
+            "total": current_summary["total"] - comparison_summary["total"],
+        },
+        "lanes": lanes,
     }
 
 
