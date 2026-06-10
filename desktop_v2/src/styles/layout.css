@@ -3,24 +3,6 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --ink: #111827;
-  --muted: #6b7280;
-  --line: #e6ebf0;
-  --surface: #ffffff;
-  --surface-soft: #f8fafc;
-  --blue: #2563eb;
-  --red: #dc2626;
-  --green: #15803d;
-  --amber: #f59e0b;
-  --cyan: #0891b2;
-  --domain-revenue: #dc2626;
-  --domain-parking: #2563eb;
-  --domain-sun2: #f59e0b;
-  --domain-energy: #15803d;
-  --domain-vent: #0891b2;
-  --domain-weather: #64748b;
-  --domain-light: #ca8a04;
-  --domain-status: #475569;
 }
 
 * {

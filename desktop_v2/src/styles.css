@@ -1,3 +1,4 @@
+@import "./styles/tokens.css";
 @import "./styles/layout.css";
 @import "./styles/build.css";
 
@@ -805,36 +806,15 @@
   line-height: 1.25;
 }
 
-.tone-revenue {
-  border-top: 3px solid var(--domain-revenue);
-}
-
-.tone-sun2 {
-  border-top: 3px solid var(--domain-sun2);
-}
-
-.tone-parking {
-  border-top: 3px solid var(--domain-parking);
-}
-
-.tone-energy {
-  border-top: 3px solid var(--domain-energy);
-}
-
-.tone-vent {
-  border-top: 3px solid var(--domain-vent);
-}
-
-.tone-weather {
-  border-top: 3px solid var(--domain-weather);
-}
-
-.tone-light {
-  border-top: 3px solid var(--domain-light);
-}
-
+.tone-revenue,
+.tone-sun2,
+.tone-parking,
+.tone-energy,
+.tone-vent,
+.tone-weather,
+.tone-light,
 .tone-status {
-  border-top: 3px solid var(--domain-status);
+  border-top: 3px solid var(--tone-color);
 }
 
 .work-card,

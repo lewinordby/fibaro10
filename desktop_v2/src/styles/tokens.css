@@ -1,0 +1,53 @@
+:root {
+  --ink: #111827;
+  --muted: #6b7280;
+  --line: #e6ebf0;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --blue: #2563eb;
+  --red: #dc2626;
+  --green: #15803d;
+  --amber: #f59e0b;
+  --cyan: #0891b2;
+  --domain-revenue: #dc2626;
+  --domain-parking: #2563eb;
+  --domain-sun2: #f59e0b;
+  --domain-energy: #15803d;
+  --domain-vent: #0891b2;
+  --domain-weather: #64748b;
+  --domain-light: #ca8a04;
+  --domain-status: #475569;
+  --tone-color: var(--domain-status);
+}
+
+.tone-revenue {
+  --tone-color: var(--domain-revenue);
+}
+
+.tone-sun2 {
+  --tone-color: var(--domain-sun2);
+}
+
+.tone-parking {
+  --tone-color: var(--domain-parking);
+}
+
+.tone-energy {
+  --tone-color: var(--domain-energy);
+}
+
+.tone-vent {
+  --tone-color: var(--domain-vent);
+}
+
+.tone-weather {
+  --tone-color: var(--domain-weather);
+}
+
+.tone-light {
+  --tone-color: var(--domain-light);
+}
+
+.tone-status {
+  --tone-color: var(--domain-status);
+}

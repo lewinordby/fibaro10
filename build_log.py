@@ -3,8 +3,37 @@ from typing import Any, Dict, Optional
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1100")
+APP_BUILD = os.getenv("APP_BUILD", "1101")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1101",
+        "date": "10.06.2026",
+        "headline": "Etablerer frontend design-tokens",
+        "title": "Samler domene-, semantikk- og Ant Design-farger i ett grunnlag",
+        "description": (
+            "Desktop V2 har fått et tydeligere designgrunnlag. Farger og Ant Design-theme er samlet i "
+            "designTokens.ts, CSS root-variabler er flyttet til tokens.css, og tone-klasser bruker nå et felles "
+            "--tone-color-token. Dette gir mer konsekvent fargebruk uten å redesigne skjermbildene."
+        ),
+        "applications": [
+            "Desktop V2 tokens (designTokens.ts): semantiske farger, domenefarger, labels og Ant Design-theme.",
+            "Desktop V2 CSS (styles/tokens.css): eier root-variabler og tone-token.",
+            "Desktop V2 appstart (main.tsx): bruker felles antdTheme.",
+            "Kompatibilitet (domainColors.ts): re-eksporterer domainColors slik eksisterende grafer fortsetter å fungere.",
+            "CSS (styles.css/layout.css): fjerner dupliserte root-farger og bruker --tone-color på tone-klasser.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter designTokens.ts for frontendens farge- og theme-grunnlag.",
+            "Oppretter styles/tokens.css for CSS-variabler.",
+            "Flytter Ant Design-theme ut av main.tsx.",
+            "Beholder domainColors API for eksisterende grafkode.",
+            "Samler tone-klasser rundt --tone-color.",
+        ],
+    },
     {
         "version": "1",
         "build": "1100",
