@@ -3,8 +3,36 @@ from typing import Any, Dict, Optional
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1096")
+APP_BUILD = os.getenv("APP_BUILD", "1097")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1097",
+        "date": "10.06.2026",
+        "headline": "Innfører GitHub CI for kvalitetssjekk",
+        "title": "Kjører Python-, test- og frontendkontroller automatisk på GitHub",
+        "description": (
+            "Repositoryet har fått en GitHub Actions workflow som installerer Python- og Node-avhengigheter og "
+            "kjører samme lokale kvalitetssjekk som brukes før QNAP-deploy. Dette gir tidligere varsling ved "
+            "feil på push og pull requests."
+        ),
+        "applications": [
+            "GitHub Actions (.github/workflows/ci.yml): ny CI-workflow for main og pull requests.",
+            "Python dev-avhengigheter (requirements-dev.txt): legger til httpx for FastAPI TestClient i CI.",
+            "Pre-deploy (scripts/check-local.ps1): gjenbrukes som felles kvalitetssjekk lokalt og i GitHub CI.",
+            "Buildlogg (build_log.py): registrerer build 1097 som eget CI-trinn.",
+        ],
+        "request": "altså jeg vil at du skal gjøre alle trinnene etterhverandre ett nytt build for hver. jeg vil at du skal gjøre det uten å stoppe",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppretter .github/workflows/ci.yml.",
+            "Setter opp Python 3.12 og Node 24 i CI.",
+            "Installerer runtime- og dev-avhengigheter før test.",
+            "Kjører scripts/check-local.ps1 som felles kvalitetssjekk.",
+            "Legger requirements-dev.txt med httpx for FastAPI-integrasjonstest.",
+        ],
+    },
     {
         "version": "1",
         "build": "1096",
