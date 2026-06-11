@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1121")
+APP_BUILD = os.getenv("APP_BUILD", "1122")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1122",
+        "date": "11.06.2026",
+        "headline": "Fullfører brukeradministrasjon i V2",
+        "title": "Admin/brukere kan nå opprette og vedlikeholde vanlige brukere i nytt grensesnitt",
+        "description": (
+            "Brukeradministrasjonen er flyttet frem i V2 slik at brukerlisten er første tabell, Ny-knappen er synlig, "
+            "og vanlige brukere kan få endret rolle, aktiv-status og passord. Masterbrukeren vises som låst for å unngå "
+            "at driftstilgangen endres fra tabellen."
+        ),
+        "applications": [
+            "Backend admin API (main.py): legger passordreset til brukeroppdatering og sperrer duplikate brukernavn.",
+            "Admin V2-modul (main.py): viser brukertabellen først og bruker egne kort for brukeradministrasjon.",
+            "Desktop V2 tabeller (ModulePage.tsx): skjuler redigering av masterbrukeren og viser den som låst.",
+            "Buildlogg (build_log.py): registrerer build 1122.",
+        ],
+        "request": "brukeradministrasjon er ikk emulig i det nye grensesnittet",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gjør Brukere til første tabell på Admin > Brukere.",
+            "Lar Ny-knappen opprette brukere direkte i V2.",
+            "Legger inn passordfelt for å sette nytt passord på eksisterende vanlig bruker.",
+            "Sperrer opprettelse av duplikate brukernavn og reserverer brukernavnet master.",
+            "Viser masterbrukeren som låst i brukerlisten i stedet for å tilby redigering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1121",

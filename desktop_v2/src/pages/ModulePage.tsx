@@ -338,11 +338,17 @@ function moduleColumns(
       key: "__edit",
       fixed: "right",
       width: 92,
-      render: (_value, row) => (
-        <Button size="small" onClick={() => onEdit(table.edit as ModuleEditConfig, row)}>
-          Rediger
-        </Button>
-      ),
+      render: (_value, row) => {
+        const edit = table.edit as ModuleEditConfig;
+        if (edit.kind === "access-key" && row.is_master === true) {
+          return <Typography.Text type="secondary">Låst</Typography.Text>;
+        }
+        return (
+          <Button size="small" onClick={() => onEdit(edit, row)}>
+            Rediger
+          </Button>
+        );
+      },
     });
   }
   return columns;

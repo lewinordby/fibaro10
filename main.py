@@ -1410,6 +1410,7 @@ class V2AccessUserCreate(BaseModel):
 class V2AccessUserUpdate(BaseModel):
     role: Optional[str] = None
     active: Optional[bool] = None
+    password: Optional[str] = Field(None, max_length=240)
 
 
 LIGHT_COLUMNS = [
@@ -13047,6 +13048,7 @@ def api_access_key_edit() -> Dict[str, Any]:
         "fields": [
             {"key": "role", "label": "Rolle", "type": "select", "options": role_options, "required": True},
             {"key": "active", "label": "Aktiv", "type": "boolean"},
+            {"key": "password", "label": "Nytt passord", "type": "password"},
         ],
         "createFields": [
             {"key": "username", "label": "Brukernavn", "type": "text", "required": True},
@@ -14279,6 +14281,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_tool_row("Events CSV", "/download", "Generiske hendelser som CSV.", None),
             ]
             build_log_columns = ["date", "build", "headline"]
+            admin_cards = [
+                api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
+                api_card("Datakilder OK", sum(1 for row in import_rows if row["status"] == "ok"), "stk", f"{len(import_rows)} totalt", "status", href="/admin/datakilder"),
+                api_card("Treg/feil", sum(1 for row in import_rows if row["status"] != "ok"), "stk", "Fra importstatus", "status", href="/admin/datakilder"),
+                api_card("Brukere", len(access_keys), "stk", "Tilgangsnøkler uten hemmelige verdier", "status", href="/admin/brukere"),
+            ]
             tables = [
                 api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
                 api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:25]]),
@@ -14328,10 +14336,25 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
                 ]
             elif view == "brukere":
+                active_user_count = sum(1 for row in access_keys if row.active)
+                master_user_count = sum(1 for row in access_keys if row.is_master)
+                admin_cards = [
+                    api_card("Brukere", len(access_keys), "stk", f"{active_user_count} aktive", "status", href="/admin/brukere"),
+                    api_card("Vanlige brukere", max(0, len(access_keys) - master_user_count), "stk", "Kan administreres her", "status", href="/admin/brukere"),
+                    api_card("Master", master_user_count, "stk", "Låst og ikke redigerbar i V2", "status", href="/admin/brukere"),
+                    api_card("Tilgangslogg", len(access_logs), "rader", "Siste innlogginger og API-kall", "status", href="/admin/brukere"),
+                ]
                 tables = [
-                    api_table("Tilgangsverktøy", ["tool", "path", "description", "count"], [admin_tools[3]]),
                     api_table("Brukere", ["name", "role", "active", "is_master", "key_prefix", "created_at", "last_seen_at", "uses_count"], [api_access_key_row(row) for row in access_keys], edit=api_access_key_edit()),
                     api_table("Siste tilgangslogg", ["timestamp", "key_name", "path", "method", "success", "reason"], [row_to_dict(row, ["timestamp", "key_name", "path", "method", "success", "reason"]) for row in access_logs]),
+                    api_table(
+                        "Brukerverktøy",
+                        ["tool", "path", "description", "count"],
+                        [
+                            api_tool_row("Ny bruker", "/admin/brukere", "Bruk Ny-knappen over brukertabellen.", len(access_keys)),
+                            api_tool_row("Tilgangslogg", "/admin/brukere", "Se siste autentiseringer og avviste kall i tabellen.", len(access_logs)),
+                        ],
+                    ),
                 ]
             elif view == "manual":
                 tables = [
@@ -14350,12 +14373,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             return {
                 "title": "Admin" if not view else f"Admin · {view.replace('-', ' ')}",
                 "subtitle": "Build, datakilder, teknisk drift og AI-logg.",
-                "cards": [
-                    api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
-                    api_card("Datakilder OK", sum(1 for row in import_rows if row["status"] == "ok"), "stk", f"{len(import_rows)} totalt", "status", href="/admin/datakilder"),
-                    api_card("Treg/feil", sum(1 for row in import_rows if row["status"] != "ok"), "stk", "Fra importstatus", "status", href="/admin/datakilder"),
-                    api_card("Brukere", len(access_keys), "stk", "Tilgangsnøkler uten hemmelige verdier", "status", href="/admin/brukere"),
-                ],
+                "cards": admin_cards,
                 "tables": tables,
             }
 
@@ -14620,15 +14638,17 @@ async def api_v2_admin_user_create(request: Request, data: V2AccessUserCreate):
         role = "viewer"
     if not username:
         raise HTTPException(status_code=400, detail="Brukernavn må fylles ut.")
+    if username == "master":
+        raise HTTPException(status_code=400, detail="Brukernavnet master er reservert.")
     if len(password) < 5:
         raise HTTPException(status_code=400, detail="Passordet må være minst 5 tegn.")
     existing_hash = credential_hash(username, password)
     async with async_session() as session:
         existing = (
-            await session.execute(select(AccessKey).where(AccessKey.key_hash == existing_hash))
+            await session.execute(select(AccessKey).where(AccessKey.name == username))
         ).scalars().first()
         if existing:
-            raise HTTPException(status_code=409, detail="Denne kombinasjonen av brukernavn og passord finnes allerede.")
+            raise HTTPException(status_code=409, detail="Brukernavnet finnes allerede.")
         record = AccessKey(
             name=username,
             key_hash=existing_hash,
@@ -14663,6 +14683,14 @@ async def api_v2_admin_user_update(request: Request, key_id: int, data: V2Access
             row.role = role
         if "active" in values:
             row.active = bool(values["active"])
+        if "password" in values:
+            password = str(values.get("password") or "").strip()
+            if password:
+                if len(password) < 5:
+                    raise HTTPException(status_code=400, detail="Passordet må være minst 5 tegn.")
+                row.key_hash = credential_hash(row.name, password)
+                row.key_prefix = credential_prefix(row.name, password)
+                row.key_plaintext = password
         await session.commit()
     return {"status": "ok", "message": f"Bruker {row.name} er lagret."}
 
