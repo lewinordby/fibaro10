@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1129")
+APP_BUILD = os.getenv("APP_BUILD", "1130")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1130",
+        "date": "11.06.2026",
+        "headline": "Retter EasyPark-tid i importstatus",
+        "title": "EasyPark-oppdatering overskriver ikke lenger ekte importtid",
+        "description": (
+            "Manuell EasyPark-oppdatering i V2 registrerte en ekstra suksessrad etter den faktiske CSV-importen. "
+            "Denne wrapper-raden kunne bli vist som nyeste import og gi misvisende tidspunkt/melding i loggen. "
+            "Nå er det bare den faktiske importen som oppdaterer suksessstatus, mens feil fra downloaderen fortsatt logges."
+        ),
+        "applications": [
+            "Backend importstatus (main.py): fjerner ekstra suksesslogging fra /api/actions/parkering/refresh.",
+            "Backend tidshåndtering (main.py): normaliserer tidspunkt før age-beregning og sender importstatus som lokal ISO-tid.",
+            "Backend health/import-API (main.py): bruker eksplisitt Oslo-tid i status- og health-payloads.",
+            "Buildlogg (build_log.py): registrerer build 1130.",
+        ],
+        "request": "det ser ut til at det er et feil i fibaro10 på klokkeslett, når jeg oppdaterer easypark så får jeg et tidspunkt som er ca 10 min frem i tid i loggen",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Lar den faktiske EasyPark CSV-importen eie sist kjørt, antall og meldingen i importstatus.",
+            "Logger fortsatt feil hvis EasyPark-downloaderen feiler.",
+            "Gjør last_success_at, last_run_at, last_failed_at og next_expected_at eksplisitte med Europe/Oslo-offset i importstatus-API.",
+            "Normaliserer tidsverdier før minutter-siden-beregning.",
+        ],
+    },
     {
         "version": "1",
         "build": "1129",

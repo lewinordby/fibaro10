@@ -4226,7 +4226,10 @@ def temp_label(value) -> str:
 def minutes_since(value: Optional[datetime], now_value: Optional[datetime] = None) -> Optional[int]:
     if not value:
         return None
-    now_value = now_value or local_now_naive()
+    value = normalize_local_naive(value)
+    now_value = normalize_local_naive(now_value) or local_now_naive()
+    if not value:
+        return None
     delta = now_value - value
     return max(0, int(delta.total_seconds() // 60))
 
@@ -9054,8 +9057,8 @@ async def health(details: bool = Query(False)):
                             "title": row.title,
                             "status": row.status,
                             "statusText": row.status_text,
-                            "lastRunAt": row.last_run_at.isoformat() if row.last_run_at else None,
-                            "lastSuccessAt": row.last_success_at.isoformat() if row.last_success_at else None,
+                            "lastRunAt": api_local_iso(row.last_run_at),
+                            "lastSuccessAt": api_local_iso(row.last_success_at),
                             "ageMinutes": minutes_since(stamp),
                             "message": row.message or "",
                         }
@@ -10817,8 +10820,19 @@ def api_local_iso(value: Optional[datetime]) -> Optional[str]:
     if not value:
         return None
     if value.tzinfo is None:
-        value = value.replace(tzinfo=LOCAL_TZ)
-    return value.isoformat()
+        return value.replace(tzinfo=LOCAL_TZ).isoformat()
+    return value.astimezone(LOCAL_TZ).isoformat()
+
+
+def api_import_status_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    payload = dict(row)
+    for key in ("last_success_at", "last_run_at", "last_failed_at", "next_expected_at"):
+        payload[key] = api_local_iso(payload.get(key))
+    return payload
+
+
+def api_import_status_rows(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    return [api_import_status_row(row) for row in rows]
 
 
 def api_bool_state(value: Any) -> Optional[bool]:
@@ -13192,10 +13206,10 @@ def api_import_job_status(row: Optional[ImportJobStatus]) -> Optional[Dict[str, 
         "statusText": row.status_text,
         "source": row.source,
         "message": row.message,
-        "lastRunAt": api_iso_value(row.last_run_at),
-        "lastStartedAt": api_iso_value(row.last_started_at),
-        "lastSuccessAt": api_iso_value(row.last_success_at),
-        "lastFailedAt": api_iso_value(row.last_failed_at),
+        "lastRunAt": api_local_iso(row.last_run_at),
+        "lastStartedAt": api_local_iso(row.last_started_at),
+        "lastSuccessAt": api_local_iso(row.last_success_at),
+        "lastFailedAt": api_local_iso(row.last_failed_at),
         "recordsImported": row.records_imported,
         "recordsTotal": row.records_total,
         "durationSeconds": row.duration_seconds,
@@ -14448,6 +14462,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
 
         if module == "admin":
             import_rows = await import_status_rows(session)
+            import_api_rows = api_import_status_rows(import_rows)
             ai_logs = (
                 await session.execute(select(AiQueryLog).order_by(AiQueryLog.timestamp.desc()).limit(80))
             ).scalars().all()
@@ -14475,7 +14490,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_card("Brukere", len(access_keys), "stk", "Tilgangsnøkler uten hemmelige verdier", "status", href="/admin/brukere"),
             ]
             tables = [
-                api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
+                api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
                 api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:25]]),
                 api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
             ]
@@ -14486,7 +14501,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ]
             elif view == "datakilder":
                 tables = [
-                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
+                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
                     api_table(
                         "Dataverktøy",
                         ["tool", "path", "description", "count"],
@@ -14520,7 +14535,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             elif view == "teknisk":
                 tables = [
                     api_table("Tekniske verktøy", ["tool", "path", "description", "count"], admin_tools),
-                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_rows),
+                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
                 ]
             elif view == "brukere":
                 active_user_count = sum(1 for row in access_keys if row.active)
@@ -14693,25 +14708,10 @@ async def api_v2_parking_refresh(request: Request):
         status = result.get("status")
         if status == "busy":
             message = "EasyPark-downloader kjører allerede."
-            ok = True
         elif status == "error":
             raise RuntimeError(str(result.get("detail") or result.get("last_error") or "EasyPark-import feilet"))
         else:
             message = "EasyPark-oppdatering er kjørt."
-            ok = True
-        async with async_session() as session:
-            await record_import_job(
-                session,
-                "easypark_parking_import",
-                ok=ok,
-                source="EasyPark downloader",
-                started_at=started_at,
-                records_imported=result.get("inserted") or result.get("updated") or None,
-                records_total=result.get("total"),
-                message=message,
-                raw={"period": {"from": from_day.isoformat(), "to": to_day.isoformat()}, "result": result},
-            )
-            await session.commit()
         clear_summary_cache("parking")
         return {"status": "ok", "message": message, "result": result}
     except Exception as exc:
@@ -15286,14 +15286,14 @@ async def import_status_report(data: ImportStatusReportIn):
         )
         await session.commit()
         await session.refresh(row)
-    return {"status": "ok", "job_name": row.job_name, "job_status": row.status, "last_success_at": row.last_success_at}
+    return {"status": "ok", "job_name": row.job_name, "job_status": row.status, "last_success_at": api_local_iso(row.last_success_at)}
 
 
 @app.get("/api/import-status/json")
 async def import_status_json():
     async with async_session() as session:
         rows = await import_status_rows(session)
-    return {"rows": rows}
+    return {"rows": api_import_status_rows(rows)}
 
 
 @app.post("/api/renhold/ingest")
