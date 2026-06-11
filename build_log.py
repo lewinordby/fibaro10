@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1120")
+APP_BUILD = os.getenv("APP_BUILD", "1121")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1121",
+        "date": "11.06.2026",
+        "headline": "Viser ikke funnet som eget kjøretøytall",
+        "title": "Parkering/kjøretøy beholder hovedtall for mangler og viser ikke funnet separat",
+        "description": (
+            "Kjøretøysiden beholder hovedtallet for manglende navn og område som summen av blanke felt og verdien "
+            "'ikke funnet'. Samtidig vises 'ikke funnet' som egne tall i tillegg, slik at man kan skille mellom "
+            "reelt tomme felt og oppslag som allerede har gitt negativt resultat."
+        ),
+        "applications": [
+            "Backend V2-modul (main.py): legger separate blank/ikke funnet-tellinger til kjøretøykortene.",
+            "Parkeringsoppslag (main.py): verktøybeskrivelser viser hvor mange som er ikke funnet.",
+            "Buildlogg (build_log.py): registrerer build 1121.",
+        ],
+        "request": "det er greit at hovedtallet er slik som nå både mangler og ikke funnet, men jeg vil gjerne at ikke funnet tas med som et eget tall i tillegg",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Deler mangler-logikken i blanke felt og 'ikke funnet' for navn.",
+            "Deler mangler-logikken i blanke felt og 'ikke funnet' for område.",
+            "Lar hovedkortene fortsatt vise samlet mangler-count.",
+            "Legger egne kort for 'Ikke funnet navn' og 'Ikke funnet område'.",
+            "Legger fordelingstekst på hovedkortene: blanke / ikke funnet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1120",
