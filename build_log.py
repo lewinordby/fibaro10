@@ -20,6 +20,7 @@ BUILD_LOG = [
         ),
         "applications": [
             "Backend importstatus (main.py): fjerner ekstra suksesslogging fra /api/actions/parkering/refresh.",
+            "Klassisk datakildeside (main.py): skjuler gamle vellykkede EasyPark-downloader-wrapper-rader i kjøringshistorikken.",
             "Backend tidshåndtering (main.py): normaliserer tidspunkt før age-beregning og sender importstatus som lokal ISO-tid.",
             "Backend health/import-API (main.py): bruker eksplisitt Oslo-tid i status- og health-payloads.",
             "Buildlogg (build_log.py): registrerer build 1130.",
@@ -29,6 +30,7 @@ BUILD_LOG = [
         "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
         "changes": [
             "Lar den faktiske EasyPark CSV-importen eie sist kjørt, antall og meldingen i importstatus.",
+            "Skjuler historiske vellykkede EasyPark-downloader-wrapper-rader fra datakildeloggen, men beholder eventuelle feil.",
             "Logger fortsatt feil hvis EasyPark-downloaderen feiler.",
             "Gjør last_success_at, last_run_at, last_failed_at og next_expected_at eksplisitte med Europe/Oslo-offset i importstatus-API.",
             "Normaliserer tidsverdier før minutter-siden-beregning.",

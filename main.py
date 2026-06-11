@@ -14997,6 +14997,13 @@ async def import_status_view(request: Request):
             await session.execute(
                 select(ImportJobRun)
                 .where(ImportJobRun.job_name.in_(list(IMPORT_JOB_DEFINITIONS)))
+                .where(
+                    or_(
+                        ImportJobRun.job_name != "easypark_parking_import",
+                        ImportJobRun.source != "EasyPark downloader",
+                        ImportJobRun.ok.is_(False),
+                    )
+                )
                 .order_by(ImportJobRun.finished_at.desc())
                 .limit(80)
             )
