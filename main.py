@@ -13405,6 +13405,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 )
             ).scalar_one()
             vehicle_count = (await session.execute(select(func.count()).select_from(ParkingVehicle))).scalar_one()
+            vehicle_missing_name_count = (
+                await session.execute(
+                    select(func.count(ParkingVehicle.plate)).where(vehicle_missing_name_condition())
+                )
+            ).scalar_one()
+            vehicle_missing_area_count = (
+                await session.execute(
+                    select(func.count(ParkingVehicle.plate)).where(vehicle_missing_area_condition())
+                )
+            ).scalar_one()
             vehicle_rows = (
                 await session.execute(
                     select(ParkingVehicle)
@@ -13594,8 +13604,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 cards = [
                     api_card("Treff", vehicle_filtered_count, "stk", f"Viser {len(vehicle_detail_rows)} kjøretøy", "parking", href="/parkering/kjoretoy"),
                     api_card("Kjøretøy totalt", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
-                    api_card("Mangler navn", len([row for row in vehicle_rows if not (row.navn or "").strip()]), "stk", "Blant siste kjøretøy", "status", href="/parkering/kjoretoy"),
-                    api_card("Mangler område", len([row for row in vehicle_rows if not (row.omrade or "").strip()]), "stk", "Blant siste kjøretøy", "status", href="/parkering/omrade"),
+                    api_card("Mangler navn", vehicle_missing_name_count, "stk", "Blanke felt eller ikke funnet", "status", href="/parkering/oppslag"),
+                    api_card("Mangler område", vehicle_missing_area_count, "stk", "Blanke felt eller ikke funnet", "status", href="/parkering/oppslag"),
                 ]
                 tables = [
                     api_table(
@@ -13611,12 +13621,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     )
                 ]
             elif view == "omrade":
+                missing_area_rows = await parking_missing_area_rows(session, 100)
                 tables = [
                     api_table("Områder", ["omrade", "vehicles", "parkeringer", "paid"], [dict(row) for row in area_rows]),
                     api_table(
                         "Kjøretøy uten område",
                         ["plate", "navn", "parkering_count", "paid_total", "last_seen"],
-                        [row_to_dict(row, ["plate", "navn", "parkering_count", "paid_total", "last_seen"]) for row in vehicle_rows if not row.omrade][:100],
+                        [row_to_dict(row, ["plate", "navn", "parkering_count", "paid_total", "last_seen"]) for row, _ in missing_area_rows],
                     ),
                 ]
             elif view == "bilstatistikk":
@@ -13686,16 +13697,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     },
                 ]
             elif view == "oppslag":
-                vehicles_missing_name = [row for row in vehicle_rows if not (row.navn or "").strip()]
-                vehicles_missing_area = [row for row in vehicle_rows if not (row.omrade or "").strip()]
+                vehicles_missing_name = await parking_missing_name_rows(session, 100)
+                vehicles_missing_area = await parking_missing_area_rows(session, 100)
                 tables = [
                     api_table(
                         "Parkeringsverktøy",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Navnoppslag", "/classic/parkering/navn-oppslag", "Koble kjøretøy mot navn/SUN2 der det mangler.", len(vehicles_missing_name)),
-                            api_tool_row("Områdeoppslag", "/classic/parkering/omrade-oppslag", "Sett område på kjøretøy der dette mangler.", len(vehicles_missing_area)),
-                            api_tool_row("Kjøretøyoversikt", "/classic/parkering/kjoretoy", "Full gammel kjøretøyflate med redigering og detaljer.", len(vehicle_rows)),
+                            api_tool_row("Navnoppslag", "/classic/parkering/navn-oppslag", "Koble kjøretøy mot navn/SUN2 der det mangler.", vehicle_missing_name_count),
+                            api_tool_row("Områdeoppslag", "/classic/parkering/omrade-oppslag", "Sett område på kjøretøy der dette mangler.", vehicle_missing_area_count),
+                            api_tool_row("Kjøretøyoversikt", "/classic/parkering/kjoretoy", "Full gammel kjøretøyflate med redigering og detaljer.", vehicle_count),
                         ],
                     ),
                     api_table(
@@ -13706,7 +13717,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                                 **row_to_dict(row, ["plate", "omrade", "parkering_count", "paid_total", "last_seen"]),
                                 "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
                             }
-                            for row in vehicles_missing_name[:100]
+                            for row, _ in vehicles_missing_name
                         ],
                     ),
                     api_table(
@@ -13717,7 +13728,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                                 **row_to_dict(row, ["plate", "navn", "parkering_count", "paid_total", "last_seen"]),
                                 "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
                             }
-                            for row in vehicles_missing_area[:100]
+                            for row, _ in vehicles_missing_area
                         ],
                     ),
                 ]
@@ -16476,11 +16487,13 @@ async def parking_vehicle_clear_not_found_area(request: Request):
 
 
 def vehicle_missing_name_condition():
-    return or_(ParkingVehicle.navn.is_(None), func.trim(ParkingVehicle.navn) == "")
+    normalized = func.lower(func.trim(func.coalesce(ParkingVehicle.navn, "")))
+    return normalized.in_(["", "ikke funnet"])
 
 
 def vehicle_missing_area_condition():
-    return or_(ParkingVehicle.omrade.is_(None), func.trim(ParkingVehicle.omrade) == "")
+    normalized = func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, "")))
+    return normalized.in_(["", "ikke funnet"])
 
 
 async def parking_missing_name_rows(session, limit: int, offset: int = 0):

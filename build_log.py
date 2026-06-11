@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1119")
+APP_BUILD = os.getenv("APP_BUILD", "1120")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1120",
+        "date": "11.06.2026",
+        "headline": "Retter manglende navn på kjøretøy",
+        "title": "Parkering/kjøretøy teller nå manglende navn og område fra hele tabellen",
+        "description": (
+            "Kjøretøysiden viste for lavt antall manglende navn fordi V2-kortet telte bare de 250 sist observerte "
+            "kjøretøyene. Live kontroll viste 36 740 kjøretøy totalt, 9 675 blanke navn og 1 878 med verdien "
+            "'ikke funnet'. Backend teller nå blanke felt og 'ikke funnet' som manglende, og V2 bruker fulltabell-counts "
+            "for både navn og område."
+        ),
+        "applications": [
+            "Backend V2-modul (main.py): bruker fulltabell-counts for manglende navn og område på parkering/kjøretøy.",
+            "Parkeringsoppslag (main.py): oppslagstabeller og verktøytellinger bruker samme mangler-definisjon som API-et.",
+            "Buildlogg (build_log.py): registrerer build 1120.",
+        ],
+        "request": "parkering/kjøretøy, at bare 58 mangler navn må være helt feil",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fant at tallet 58 var manglende navn blant siste 250 kjøretøy, ikke hele datagrunnlaget.",
+            "Endrer mangler-definisjon slik at blankt felt og 'ikke funnet' teller som manglende.",
+            "Endrer V2-kortene til å vise total mangler-count fra hele kjøretøytabellen.",
+            "Endrer Parkering > Oppslag slik at verktøytelling og listene bruker samme fulltabell-logikk.",
+            "Forventet live-tall etter deploy er om lag 11 553 manglende navn og 11 047 manglende områder med dagens data.",
+        ],
+    },
     {
         "version": "1",
         "build": "1119",
