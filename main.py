@@ -26,7 +26,7 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -9962,6 +9962,23 @@ def desktop_app_response() -> FileResponse:
     return FileResponse(index_path)
 
 
+@app.get("/soling/enkeltimer/{session_id:int}/bilde.jpg")
+async def sun2_session_image(session_id: int):
+    async with async_session() as session:
+        image = (
+            await session.execute(
+                select(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id == session_id)
+            )
+        ).scalars().first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Ingen bilde koblet til denne soltimen.")
+    return Response(
+        content=image.image_bytes,
+        media_type=image.content_type or "image/jpeg",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
 @app.get("/status", response_class=HTMLResponse)
 @app.get("/status/{path:path}", response_class=HTMLResponse)
 @app.get("/omsetning", response_class=HTMLResponse)
@@ -18991,23 +19008,6 @@ async def sun2_sessions_view(
             "message": message,
             "error": error,
         },
-    )
-
-
-@app.get("/soling/enkeltimer/{session_id:int}/bilde.jpg")
-async def sun2_session_image(session_id: int):
-    async with async_session() as session:
-        image = (
-            await session.execute(
-                select(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id == session_id)
-            )
-        ).scalars().first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Ingen bilde koblet til denne soltimen.")
-    return Response(
-        content=image.image_bytes,
-        media_type=image.content_type or "image/jpeg",
-        headers={"Cache-Control": "private, max-age=3600"},
     )
 
 
