@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1124")
+APP_BUILD = os.getenv("APP_BUILD", "1125")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1125",
+        "date": "11.06.2026",
+        "headline": "Gjenoppretter brukt masterinnlogging",
+        "title": "Masteropprydding beholder nå masteren som faktisk er i bruk",
+        "description": (
+            "Databasebackupen viste at den brukte masterraden hadde en eldre hash enn verdien i MASTER_ACCESS_KEY_HASH. "
+            "Masterhashen er gjenopprettet i databasen, og oppstartslogikken er endret slik at aktiv master med høyest "
+            "faktisk bruk beholdes og ikke overskrives av miljøvariabelen ved restart."
+        ),
+        "applications": [
+            "Produksjonsdatabase: gjenoppretter hash for masterraden som hadde reell brukshistorikk.",
+            "Backend oppstart (main.py): bevarer eksisterende aktiv master-hash og fjerner bare duplikatrader.",
+            "Buildlogg (build_log.py): registrerer build 1125.",
+        ],
+        "request": "master brukeren funker ikke",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Hentet slettet masterhash fra databasebackup 20260611-031500.",
+            "Gjenopprettet masterraden i live database.",
+            "Endret deduplisering til å velge aktiv master med høyest uses_count.",
+            "Sluttet å overskrive eksisterende masterhash med MASTER_ACCESS_KEY_HASH når en aktiv master allerede finnes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1124",
