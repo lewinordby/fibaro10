@@ -20,6 +20,8 @@ load_dotenv()
 
 logger = logging.getLogger("axis_camera_snapshots")
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(), format="%(asctime)s %(levelname)s %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 DATA_DIR = Path(os.getenv("AXIS_DATA_DIR", "/data"))

@@ -22,7 +22,7 @@ AXIS_USERNAME=root
 AXIS_PASSWORD=sett-passord-her
 AXIS_INTERVAL_SECONDS=10
 AXIS_RETENTION_DAYS=7
-AXIS_AUTH_MODE=auto
+AXIS_AUTH_MODE=digest
 ```
 
 Hvis `AXIS_SNAPSHOT_URL` ikke settes, bygges den fra `AXIS_CAMERA_IP`:
@@ -30,6 +30,8 @@ Hvis `AXIS_SNAPSHOT_URL` ikke settes, bygges den fra `AXIS_CAMERA_IP`:
 ```text
 http://<ip>/axis-cgi/jpg/image.cgi
 ```
+
+`AXIS_AUTH_MODE` kan være `auto`, `basic` eller `digest`. Testkameraet svarer med Digest-auth, så `digest` gir renest logg.
 
 ## Drift
 
