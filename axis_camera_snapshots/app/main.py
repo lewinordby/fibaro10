@@ -13,8 +13,8 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi import FastAPI, Form, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 
 load_dotenv()
 
@@ -118,6 +118,29 @@ def snapshot_path(ts: datetime) -> Path:
     return day_dir / f"axis_{ts.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
 
 
+def latest_snapshot_file() -> Path | None:
+    state_file = load_state().get("last_file")
+    candidates: list[Path] = []
+    if state_file:
+        candidates.append(Path(str(state_file)))
+    if SNAPSHOT_ROOT.exists():
+        candidates.extend(SNAPSHOT_ROOT.rglob("*.jpg"))
+
+    root = SNAPSHOT_ROOT.resolve()
+    existing: list[Path] = []
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+            resolved.relative_to(root)
+            if resolved.is_file():
+                existing.append(resolved)
+        except (OSError, ValueError):
+            continue
+    if not existing:
+        return None
+    return max(existing, key=lambda path: path.stat().st_mtime)
+
+
 async def fetch_snapshot(config: AxisConfig) -> bytes:
     if not config.snapshot_url:
         raise RuntimeError("Snapshot URL mangler.")
@@ -213,6 +236,8 @@ main{{width:min(100% - 1.4rem,920px);margin:0 auto;padding:1rem 0 2rem}}
 .metric{{background:#f9fbfe;border:1px solid #edf1f6;border-radius:8px;padding:.7rem}}.metric span{{display:block;color:#64748b;font-size:.82rem}}
 label{{display:grid;gap:.25rem;font-weight:700}}input,select{{padding:.55rem;border:1px solid #dbe3ec;border-radius:7px}}
 button,.button{{display:inline-flex;border:1px solid #acd8e1;background:#e7f5f8;color:#176579;border-radius:7px;padding:.55rem .8rem;text-decoration:none;font-weight:700;cursor:pointer}}
+.preview{{display:grid;gap:.65rem}}.preview img{{width:100%;max-height:70vh;object-fit:contain;background:#111827;border-radius:8px}}
+.muted{{color:#64748b}}
 code{{overflow-wrap:anywhere}}
 </style></head><body><main><h1>Axis snapshots</h1>{content}</main></body></html>"""
     )
@@ -244,13 +269,43 @@ async def health() -> dict[str, Any]:
 async def status() -> dict[str, Any]:
     config = asdict(load_config())
     config["password"] = "********" if config.get("password") else ""
-    return {"config": config, "state": load_state(), "snapshot_root": str(SNAPSHOT_ROOT)}
+    latest = latest_snapshot_file()
+    return {
+        "config": config,
+        "state": load_state(),
+        "snapshot_root": str(SNAPSHOT_ROOT),
+        "latest_snapshot": str(latest) if latest else None,
+    }
+
+
+@app.get("/latest.jpg")
+async def latest_jpg() -> FileResponse:
+    latest = latest_snapshot_file()
+    if latest is None:
+        raise HTTPException(status_code=404, detail="Ingen snapshots funnet.")
+    return FileResponse(
+        latest,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-store, max-age=0"},
+        filename=latest.name,
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> HTMLResponse:
     config = load_config()
     state = load_state()
+    latest = latest_snapshot_file()
+    latest_image = ""
+    if latest:
+        latest_mtime = int(latest.stat().st_mtime)
+        latest_image = (
+            f"""<section class="panel preview"><h2>Siste bilde</h2>
+<img src="/latest.jpg?v={latest_mtime}" alt="Siste Axis snapshot">
+<p class="muted">{html.escape(latest.name)}</p></section>"""
+        )
+    else:
+        latest_image = """<section class="panel"><h2>Siste bilde</h2><p class="muted">Ingen bilder lagret ennå.</p></section>"""
     return page(
         f"""
 <section class="panel"><div class="grid">
@@ -259,6 +314,7 @@ async def index() -> HTMLResponse:
 <div class="metric"><span>Antall bilder</span><strong>{state.get("captures_total", 0)}</strong></div>
 </div><p>Siste feil: <code>{html.escape(str(state.get("last_error") or "-"))}</code></p>
 <p>Siste fil: <code>{html.escape(str(state.get("last_file") or "-"))}</code></p></section>
+{latest_image}
 <section class="panel"><h2>Innstillinger</h2>
 <form action="/settings" method="post" class="grid">
 <label>Aktiv<select name="enabled"><option value="true" {"selected" if config.enabled else ""}>Ja</option><option value="false" {"" if config.enabled else "selected"}>Nei</option></select></label>

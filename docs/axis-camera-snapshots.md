@@ -45,6 +45,12 @@ Health:
 http://192.168.20.218:8125/health
 ```
 
+Siste lagrede bilde vises på forsiden og kan hentes direkte her:
+
+```text
+http://192.168.20.218:8125/latest.jpg
+```
+
 Manuell test:
 
 ```text
