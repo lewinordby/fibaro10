@@ -11820,18 +11820,33 @@ def api_revenue_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def api_sun2_weekly_chart(summaries: Dict[str, Any], metric: str = "revenue") -> Dict[str, Any]:
-    title = "Ukesutvikling soling" if metric == "revenue" else "Ukesutvikling antall solinger"
+    chart_rows = summaries.get("weekly_chart", [])
+
+    def metric_series(metric_key: str) -> list[Dict[str, Any]]:
+        return [
+            {
+                "name": row["year"],
+                "data": row[metric_key],
+                "color": row.get("color"),
+                "unit": "kr" if metric_key == "revenue" else "stk",
+            }
+            for row in chart_rows
+        ]
+
     current_year = local_now_naive().year
+    default_metric = "count" if metric == "count" else "revenue"
     return api_chart(
-        title,
+        "Ukesutvikling soling",
         [str(week) for week in range(1, 54)],
-        [
-            {"name": row["year"], "data": row[metric], "color": row.get("color")}
-            for row in summaries.get("weekly_chart", [])
-        ],
+        metric_series(default_metric),
         "En linje per år, uke 1-53. Samme datagrunnlag som V1 oversikt.",
         "line",
         360,
+        metrics=[
+            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": metric_series("revenue")},
+            {"key": "count", "label": "Antall", "unit": "stk", "series": metric_series("count")},
+        ],
+        default_metric=default_metric,
         default_visible_series=[str(current_year), str(current_year - 1)],
     )
 
@@ -12706,7 +12721,7 @@ async def api_v2_soling_module(
             api_table("Siste import", SUN2_IMPORT_COLUMNS, [api_pick(latest_import, SUN2_IMPORT_COLUMNS)] if latest_import else []),
         ]
     elif view == "statistikk":
-        charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), api_sun2_weekly_chart(sun2_summaries, "count"), daily_count_chart, daily_revenue_chart]
+        charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart, daily_revenue_chart]
         cards = [
             api_card("Totalt omsetning", format_short_number(total_paid), "kr", f"{format_short_number(total_sessions)} solinger", "revenue", href="/omsetning/oversikt"),
             api_card("Totalt timer", format_short_number(total_hours, 1), "t", "Fra enkeltimer", "sun2", href="/soling/enkeltimer"),

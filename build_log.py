@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1127")
+APP_BUILD = os.getenv("APP_BUILD", "1128")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1128",
+        "date": "11.06.2026",
+        "headline": "Legger metrikkvalg på soling oversikt",
+        "title": "Soling/oversikt kan nå bytte mellom omsetning og antall i ukesgrafen",
+        "description": (
+            "Ukesutviklingsgrafen på Soling/oversikt bruker nå samme metrikkløsning som parkering og omsetning. "
+            "Omsetning er standardvisning, antall kan velges i grafkortet, og inneværende år samt året før er fortsatt "
+            "standard synlige sammenligningsår."
+        ),
+        "applications": [
+            "Backend V2-modul (main.py): utvider solingens ukesgraf med metrics for omsetning og antall.",
+            "Soling/statistikk (main.py): fjerner duplisert separat antall-ukesgraf fordi samme graf nå kan bytte metrikk.",
+            "Buildlogg (build_log.py): registrerer build 1128.",
+        ],
+        "request": "soling/oversikt så ønsker jeg at u kan velge mellom omsetning og antall",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Legger metrics revenue/count på solingens ukesutviklingsgraf.",
+            "Setter Omsetning som standardmetrikk.",
+            "Beholder standard synlige år som inneværende år og året før.",
+            "Rydder bort separat antallgraf på statistikk der den ble overflødig.",
+        ],
+    },
     {
         "version": "1",
         "build": "1127",
