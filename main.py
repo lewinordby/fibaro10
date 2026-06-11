@@ -130,6 +130,7 @@ SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUN2_AXIS_
 SUN2_AXIS_SNAPSHOT_LINK_DAYS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_DAYS", "7")))
 SUN2_AXIS_SNAPSHOT_LINK_LIMIT = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_LIMIT", "5000")))
 sun2_axis_snapshot_link_task: Optional[asyncio.Task] = None
+sun2_axis_snapshot_link_lock: Optional[asyncio.Lock] = None
 SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
 SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
 
@@ -3799,27 +3800,58 @@ async def link_axis_snapshots_to_sun2_sessions(
     return result
 
 
+def get_sun2_axis_snapshot_link_lock() -> asyncio.Lock:
+    global sun2_axis_snapshot_link_lock
+    if sun2_axis_snapshot_link_lock is None:
+        sun2_axis_snapshot_link_lock = asyncio.Lock()
+    return sun2_axis_snapshot_link_lock
+
+
+async def run_sun2_axis_snapshot_link_once(
+    reason: str,
+    days: int = SUN2_AXIS_SNAPSHOT_LINK_DAYS,
+    limit: int = SUN2_AXIS_SNAPSHOT_LINK_LIMIT,
+    tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+    replace: bool = False,
+) -> Dict[str, Any]:
+    lock = get_sun2_axis_snapshot_link_lock()
+    if lock.locked():
+        logger.info("Axis SUN2 image link skipped, already running: reason=%s", reason)
+        return {"skipped": True, "reason": "already_running"}
+    async with lock:
+        async with async_session() as session:
+            result = await link_axis_snapshots_to_sun2_sessions(
+                session,
+                days=days,
+                limit=limit,
+                tolerance_seconds=tolerance_seconds,
+                replace=replace,
+            )
+            await session.commit()
+        if result.get("linked") or result.get("errors"):
+            logger.info(
+                "Axis SUN2 image link: reason=%s linked=%s already_linked=%s no_match=%s errors=%s snapshots=%s",
+                reason,
+                result.get("linked"),
+                result.get("already_linked"),
+                result.get("no_match"),
+                result.get("errors"),
+                result.get("snapshots_found"),
+            )
+        return result
+
+
+def schedule_sun2_axis_snapshot_link(reason: str, days: int = SUN2_AXIS_SNAPSHOT_LINK_DAYS) -> None:
+    if not SUN2_AXIS_SNAPSHOT_LINK_ENABLED:
+        return
+    asyncio.create_task(run_sun2_axis_snapshot_link_once(reason, days=days, limit=SUN2_AXIS_SNAPSHOT_LINK_LIMIT))
+
+
 async def sun2_axis_snapshot_link_worker() -> None:
     await asyncio.sleep(SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS)
     while True:
         try:
-            async with async_session() as session:
-                result = await link_axis_snapshots_to_sun2_sessions(
-                    session,
-                    days=SUN2_AXIS_SNAPSHOT_LINK_DAYS,
-                    limit=SUN2_AXIS_SNAPSHOT_LINK_LIMIT,
-                    tolerance_seconds=SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
-                )
-                await session.commit()
-            if result.get("linked") or result.get("errors"):
-                logger.info(
-                    "Axis SUN2 image auto-link: linked=%s already_linked=%s no_match=%s errors=%s snapshots=%s",
-                    result.get("linked"),
-                    result.get("already_linked"),
-                    result.get("no_match"),
-                    result.get("errors"),
-                    result.get("snapshots_found"),
-                )
+            await run_sun2_axis_snapshot_link_once("periodic")
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -15661,6 +15693,8 @@ async def sun2_sessions_ingest(data: Sun2TanningSessionsIngestIn):
         )
         await session.commit()
     clear_summary_cache("sun2", "sun2_sessions", "sun2_session_options", "sun2_session_database_total")
+    if counts["inserted"] or counts["updated"] or counts.get("replaced"):
+        schedule_sun2_axis_snapshot_link("sun2_sessions_ingest")
     return {"status": "ok", **counts, "rows": len(data.rows)}
 
 
@@ -18996,18 +19030,15 @@ async def sun2_sessions_link_images(request: Request):
     except (TypeError, ValueError):
         tolerance_seconds = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS
     try:
-        async with async_session() as session:
-            result = await link_axis_snapshots_to_sun2_sessions(
-                session,
-                days=days,
-                limit=limit,
-                tolerance_seconds=tolerance_seconds,
-                replace=False,
-            )
-            await session.commit()
+        result = await run_sun2_axis_snapshot_link_once(
+            "manual_jinja",
+            days=days,
+            limit=limit,
+            tolerance_seconds=tolerance_seconds,
+        )
         message = (
-            f"Koblet {result['linked']} bilder. "
-            f"{result['already_linked']} hadde bilde fra før, {result['no_match']} manglet treff."
+            f"Koblet {result.get('linked', 0)} bilder. "
+            f"{result.get('already_linked', 0)} hadde bilde fra før, {result.get('no_match', 0)} manglet treff."
         )
         return redirect_with_query_params(request, "/soling/enkeltimer", message=message)
     except Exception as exc:
@@ -19025,15 +19056,12 @@ async def api_v2_sun2_link_snapshot_images(
     forbidden = require_settings_access(request)
     if forbidden:
         return forbidden
-    async with async_session() as session:
-        result = await link_axis_snapshots_to_sun2_sessions(
-            session,
-            days=days,
-            limit=limit,
-            tolerance_seconds=tolerance_seconds,
-            replace=False,
-        )
-        await session.commit()
+    result = await run_sun2_axis_snapshot_link_once(
+        "manual_api",
+        days=days,
+        limit=limit,
+        tolerance_seconds=tolerance_seconds,
+    )
     return {"status": "ok", "result": result}
 
 
