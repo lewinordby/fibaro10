@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1125")
+APP_BUILD = os.getenv("APP_BUILD", "1126")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1126",
+        "date": "11.06.2026",
+        "headline": "Setter standardår for soling oversikt",
+        "title": "Soling/oversikt åpner nå med inneværende år og året før som synlige sammenligningsår",
+        "description": (
+            "Ukesutviklingsgrafen for soling bruker nå samme standard som parkering og omsetning. Ved åpning vises "
+            "bare inneværende år og året før, mens eldre år fortsatt kan slås på manuelt i forklaringen."
+        ),
+        "applications": [
+            "Backend V2-modul (main.py): legger defaultVisibleSeries på solingens ukesutviklingsgraf.",
+            "Buildlogg (build_log.py): registrerer build 1126.",
+        ],
+        "request": "soling/oversikt ønsker jeg også skal starte med kun året i år og året før som sammenligningsgrunnlag",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Henter inneværende år fra lokal Oslo-tid.",
+            "Setter standard synlige serier til inneværende år og året før.",
+            "Lar eldre år fortsatt ligge i grafen og kunne aktiveres manuelt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1125",

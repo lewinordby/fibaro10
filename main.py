@@ -11811,6 +11811,7 @@ def api_revenue_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
 
 def api_sun2_weekly_chart(summaries: Dict[str, Any], metric: str = "revenue") -> Dict[str, Any]:
     title = "Ukesutvikling soling" if metric == "revenue" else "Ukesutvikling antall solinger"
+    current_year = local_now_naive().year
     return api_chart(
         title,
         [str(week) for week in range(1, 54)],
@@ -11821,6 +11822,7 @@ def api_sun2_weekly_chart(summaries: Dict[str, Any], metric: str = "revenue") ->
         "En linje per år, uke 1-53. Samme datagrunnlag som V1 oversikt.",
         "line",
         360,
+        default_visible_series=[str(current_year), str(current_year - 1)],
     )
 
 
