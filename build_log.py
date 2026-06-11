@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1122")
+APP_BUILD = os.getenv("APP_BUILD", "1123")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1123",
+        "date": "11.06.2026",
+        "headline": "Rydder duplikat masterbruker",
+        "title": "Oppstarten beholder bare én masterbruker i tilgangslisten",
+        "description": (
+            "Databasen hadde to aktive masterrader med samme navn og samme nøkkelprefix. Oppstartslogikken er strammet "
+            "inn slik at den beholder den masterraden som faktisk er brukt, normaliserer den, og fjerner øvrige "
+            "masterduplikater."
+        ),
+        "applications": [
+            "Backend oppstart (main.py): dedupliserer masterbruker ved oppstart.",
+            "Buildlogg (build_log.py): registrerer build 1123.",
+        ],
+        "request": "hvorfor er master brukeren to ganger i lista?",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fant to aktive masterrader i access_keys.",
+            "Beholder raden med faktisk brukshistorikk.",
+            "Fjerner ubrukte masterduplikater ved oppstart.",
+            "Sikrer at masterraden alltid normaliseres til navn master, rolle master og prefix sun2_master.",
+        ],
+    },
     {
         "version": "1",
         "build": "1122",

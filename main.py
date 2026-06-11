@@ -8964,14 +8964,33 @@ async def startup():
         await conn.execute(delete(OutdoorLightEvent).where(OutdoorLightEvent.source == "CODEX TEST"))
         await conn.execute(delete(VentilationEvent).where(VentilationEvent.source == "CODEX TEST"))
     async with async_session() as session:
-        result = await session.execute(select(AccessKey).where(AccessKey.key_hash == MASTER_ACCESS_KEY_HASH))
-        master = result.scalars().first()
-        if master:
+        master_rows = (
+            await session.execute(
+                select(AccessKey).where(
+                    or_(
+                        AccessKey.key_hash == MASTER_ACCESS_KEY_HASH,
+                        AccessKey.name == "master",
+                        AccessKey.is_master == True,
+                    )
+                )
+            )
+        ).scalars().all()
+        master = None
+        if master_rows:
+            master = sorted(
+                master_rows,
+                key=lambda row: (int(row.uses_count or 0), -(row.id or 0)),
+                reverse=True,
+            )[0]
             master.name = "master"
+            master.key_hash = MASTER_ACCESS_KEY_HASH
             master.key_prefix = "sun2_master"
             master.is_master = True
             master.role = "master"
             master.active = True
+            duplicate_ids = [row.id for row in master_rows if row.id and row.id != master.id]
+            if duplicate_ids:
+                await session.execute(delete(AccessKey).where(AccessKey.id.in_(duplicate_ids)))
         else:
             session.add(
                 AccessKey(
