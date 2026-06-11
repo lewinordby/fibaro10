@@ -11696,6 +11696,11 @@ def api_chart(
     metrics: Optional[list[Dict[str, Any]]] = None,
     default_metric: Optional[str] = None,
     default_visible_series: Optional[list[str]] = None,
+    x_axis_type: str = "category",
+    x_axis_min: Optional[str] = None,
+    x_axis_max: Optional[str] = None,
+    disable_zoom: bool = False,
+    day_navigation: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     payload = {
         "title": title,
@@ -11711,7 +11716,27 @@ def api_chart(
         payload["defaultMetric"] = default_metric
     if default_visible_series:
         payload["defaultVisibleSeries"] = default_visible_series
+    if x_axis_type != "category":
+        payload["xAxisType"] = x_axis_type
+    if x_axis_min:
+        payload["xAxisMin"] = x_axis_min
+    if x_axis_max:
+        payload["xAxisMax"] = x_axis_max
+    if disable_zoom:
+        payload["disableZoom"] = True
+    if day_navigation:
+        payload["dayNavigation"] = day_navigation
     return payload
+
+
+def api_day_navigation(selected_day: date, today: date) -> Dict[str, Any]:
+    return {
+        "selectedDay": selected_day.isoformat(),
+        "selectedDayLabel": selected_day.strftime("%d.%m.%Y"),
+        "prevDay": (selected_day - timedelta(days=1)).isoformat(),
+        "nextDay": (selected_day + timedelta(days=1)).isoformat(),
+        "isToday": selected_day == today,
+    }
 
 
 def api_parking_weekly_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
@@ -11783,6 +11808,18 @@ def cumulative_energy_series(rows: list[EnergyFibaroSample], attr: str) -> list[
         total += float_or_zero(getattr(row, attr, None))
         values.append(round(total, 3))
     return values
+
+
+def cumulative_energy_points(rows: list[EnergyFibaroSample], attr: str) -> list[list[Any]]:
+    total = 0.0
+    points = []
+    for row in rows:
+        stamp = api_local_iso(row.bucket_start)
+        if not stamp:
+            continue
+        total += float_or_zero(getattr(row, attr, None))
+        points.append([stamp, round(total, 3)])
+    return points
 
 
 def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = None) -> Dict[str, Any]:
@@ -13844,6 +13881,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             return await api_v2_soling_module(session, view, today, tomorrow, month_start, selected_day, params)
 
         if module == "energi":
+            selected_day = parse_day(day)
+            selected_day_start = datetime.combine(selected_day, time.min)
+            selected_day_end = selected_day_start + timedelta(days=1)
             energy_q_value = api_filter_value(params, "q")
             energy_circuit_value = api_filter_value(params, "circuit")
             energy_load_type_value = api_filter_value(params, "load_type")
@@ -13853,14 +13893,24 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             latest = (
                 await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
             ).scalars().first()
-            today_rows = (
+            selected_energy_rows = (
                 await session.execute(
                     select(EnergyFibaroSample)
-                    .where(EnergyFibaroSample.bucket_start >= today_start)
-                    .where(EnergyFibaroSample.bucket_start < tomorrow_start)
+                    .where(EnergyFibaroSample.bucket_start >= selected_day_start)
+                    .where(EnergyFibaroSample.bucket_start < selected_day_end)
                     .order_by(EnergyFibaroSample.bucket_start.desc())
                 )
             ).scalars().all()
+            today_rows = selected_energy_rows
+            if selected_day != today:
+                today_rows = (
+                    await session.execute(
+                        select(EnergyFibaroSample)
+                        .where(EnergyFibaroSample.bucket_start >= today_start)
+                        .where(EnergyFibaroSample.bucket_start < tomorrow_start)
+                        .order_by(EnergyFibaroSample.bucket_start.desc())
+                    )
+                ).scalars().all()
             recent = (
                 await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(120))
             ).scalars().all()
@@ -13935,8 +13985,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(80))
             ).scalars().all()
             energy_elvia_data = None
-            total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows)
-            energy_chart_rows = list(reversed(today_rows))[-720:]
+            total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in selected_energy_rows)
+            energy_chart_rows = list(reversed(selected_energy_rows))
             energy_chart_items = [
                 ("inntak", "Inntak", "#15803d"),
                 ("varmepumper", "Varmepumper", "#0891b2"),
@@ -13948,7 +13998,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             power_series = [
                 {
                     "name": label,
-                    "data": [getattr(row, f"{key}_w", None) for row in energy_chart_rows],
+                    "data": [
+                        [api_local_iso(row.bucket_start), getattr(row, f"{key}_w", None)]
+                        for row in energy_chart_rows
+                        if row.bucket_start
+                    ],
                     "color": color,
                 }
                 for key, label, color in energy_chart_items
@@ -13956,7 +14010,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             consumption_series = [
                 {
                     "name": label,
-                    "data": cumulative_energy_series(energy_chart_rows, f"{key}_delta_kwh"),
+                    "data": cumulative_energy_points(energy_chart_rows, f"{key}_delta_kwh"),
                     "color": color,
                     "smooth": False,
                 }
@@ -13965,9 +14019,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             charts = [
                 api_chart(
                     "Energi status",
-                    [row.bucket_start.strftime("%H:%M") if row.bucket_start else "" for row in energy_chart_rows],
+                    [],
                     power_series,
-                    "Velg realtime effekt eller akkumulert forbruk beregnet fra 30-sekunders samples.",
+                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Velg realtime effekt eller akkumulert forbruk.",
                     "line",
                     360,
                     metrics=[
@@ -13975,17 +14029,22 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         {"key": "consumption", "label": "Forbruk", "unit": "kWh", "series": consumption_series},
                     ],
                     default_metric="power",
+                    x_axis_type="time",
+                    x_axis_min=api_local_iso(selected_day_start),
+                    x_axis_max=api_local_iso(selected_day_end),
+                    disable_zoom=True,
+                    day_navigation=api_day_navigation(selected_day, today),
                 )
             ]
             tables = [
-                api_table("Siste energisamples", ["bucket_start", "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w"], [api_pick(row, ENERGY_FIBARO_COLUMNS) for row in recent]),
+                api_table("Energisamples valgt dag", ["bucket_start", "inntak_w", "varmepumper_w", "belysning_w", "massasje_w", "annet_w", "avfukter_w", "differanse_beregnet_w"], [api_pick(row, ENERGY_FIBARO_COLUMNS) for row in selected_energy_rows[:500]]),
                 api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit()),
                 api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit()),
             ]
             filters = []
             energy_cards = [
                 api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy", href="/energi/status"),
-                api_card("Forbruk i dag", format_short_number(total_kwh, 1), "kWh", f"{len(today_rows)} samples", "energy", href="/energi/status"),
+                api_card("Forbruk i dag" if selected_day == today else "Forbruk valgt dag", format_short_number(total_kwh, 1), "kWh", f"{len(selected_energy_rows)} samples", "energy", href="/energi/status"),
                 api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy", href="/energi/status"),
                 api_card("Laster", filtered_load_count, "stk", "Aktive og registrerte", "status", href="/energi/laster"),
             ]
@@ -14205,13 +14264,24 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             log_to_value = api_filter_value(params, "to")
             log_mode_value = api_filter_value(params, "mode")
             log_limit_value = api_filter_int(params, "limit", 120, 25, 1000)
+            selected_day = parse_day(day)
+            selected_day_start = datetime.combine(selected_day, time.min)
+            selected_day_end = selected_day_start + timedelta(days=1)
+            selected_day_limit = 10000
+            selected_day_from = selected_day_start.isoformat(timespec="minutes")
+            selected_day_to = selected_day_end.isoformat(timespec="minutes")
+            use_selected_day_rows = view in {"", "dagslogg"}
+            sample_from_value = selected_day_from if use_selected_day_rows else log_from_value
+            sample_to_value = selected_day_to if use_selected_day_rows else log_to_value
+            sample_limit_value = selected_day_limit if use_selected_day_rows else log_limit_value
             latest = (
                 await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(1))
             ).scalars().first()
-            samples, _ = await fetch_rows(OutdoorLightSample, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
-            events, _ = await fetch_rows(OutdoorLightEvent, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
+            samples, _ = await fetch_rows(OutdoorLightSample, None, None, None, None, log_mode_value or None, None, sample_from_value, sample_to_value, sample_limit_value)
+            events, _ = await fetch_rows(OutdoorLightEvent, None, None, None, None, log_mode_value or None, None, sample_from_value, sample_to_value, sample_limit_value)
             light_on = sum(1 for device in LIGHT_TIMELINE_DEVICES if latest and light_sample_state(latest, device) is True)
-            lux_day = await build_lux_day(today_start, tomorrow_start, min(now_dt, tomorrow_start))
+            selected_timeline_end = min(now_dt, selected_day_end) if selected_day == today else selected_day_end
+            lux_day = await build_lux_day(selected_day_start, selected_day_end, selected_timeline_end)
             light_chart_items = [
                 ("lyslist", "Lyslist", "#df705d"),
                 ("reklame", "Reklame", "#f2b84b"),
@@ -14220,13 +14290,23 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ("spot_inngang", "Inngang", "#726189"),
                 ("parkering", "Parkering", "#2563eb"),
             ]
-            lux_series = [{"name": "Lux", "data": [row["lux"] for row in lux_day["points"]], "color": "#ca8a04"}]
+            lux_series = [
+                {
+                    "name": "Lux",
+                    "data": [[api_local_iso(row["time_dt"]), row["lux"]] for row in lux_day["points"] if row.get("time_dt")],
+                    "color": "#ca8a04",
+                }
+            ]
             light_status_series = [
                 {
                     "name": label,
                     "data": [
-                        1 if (row.get("light_states") or {}).get(key) is True else 0 if (row.get("light_states") or {}).get(key) is False else None
+                        [
+                            api_local_iso(row["time_dt"]),
+                            1 if (row.get("light_states") or {}).get(key) is True else 0 if (row.get("light_states") or {}).get(key) is False else None,
+                        ]
                         for row in lux_day["points"]
+                        if row.get("time_dt")
                     ],
                     "color": color,
                     "step": "end",
@@ -14237,9 +14317,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             charts = [
                 api_chart(
                     "Dagslogg lys",
-                    [row["time"] for row in lux_day["points"]],
+                    [],
                     lux_series,
-                    "Velg lux eller lysstatus. Samme datagrunnlag som dagsloggen.",
+                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Velg lux eller lysstatus.",
                     "line",
                     340,
                     metrics=[
@@ -14248,6 +14328,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     ],
                     default_metric="lux",
                     default_visible_series=["Lux"],
+                    x_axis_type="time",
+                    x_axis_min=api_local_iso(selected_day_start),
+                    x_axis_max=api_local_iso(selected_day_end),
+                    disable_zoom=True,
+                    day_navigation=api_day_navigation(selected_day, today),
                 )
             ]
             tables = [
@@ -14299,7 +14384,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_filter("mode", "Modus", "text", log_mode_value),
                     api_filter("limit", "Antall", "number", log_limit_value),
                 ]
-                if view in {"lux-logging", "dagslogg", "hendelser"}
+                if view in {"lux-logging", "hendelser"}
                 else [],
             }
 

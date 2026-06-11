@@ -973,6 +973,18 @@
   font-size: 12px;
 }
 
+.module-chart-controls {
+  flex-shrink: 0;
+}
+
+.module-chart-day-nav .ant-btn {
+  font-weight: 650;
+}
+
+.module-chart-date {
+  width: 150px;
+}
+
 .module-filter-card .ant-card-body {
   display: flex;
   align-items: flex-end;

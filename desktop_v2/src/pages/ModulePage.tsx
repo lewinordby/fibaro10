@@ -637,7 +637,7 @@ export default function ModulePage({ module }: { module: string }) {
         <ParkingTimelinePanel timeline={data.parkingTimeline} onDayChange={setTimelineDay} />
       ) : (
         <>
-          {data.charts?.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} />)}
+          {data.charts?.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} onDayChange={setTimelineDay} />)}
 
       <Card className="table-card module-table-card">
         <div className="table-toolbar">

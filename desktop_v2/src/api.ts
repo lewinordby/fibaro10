@@ -255,7 +255,7 @@ export type ModuleTable = {
 
 export type ModuleChartSeries = {
   name: string;
-  data: Array<number | null>;
+  data: Array<number | null | [string, number | null]>;
   type?: "line" | "bar";
   unit?: string;
   color?: string;
@@ -276,11 +276,22 @@ export type ModuleChart = {
   subtitle?: string;
   type?: "line" | "bar";
   x: string[];
+  xAxisType?: "category" | "time";
+  xAxisMin?: string | null;
+  xAxisMax?: string | null;
+  disableZoom?: boolean;
   height?: number;
   series: ModuleChartSeries[];
   metrics?: ModuleChartMetric[];
   defaultMetric?: string;
   defaultVisibleSeries?: string[];
+  dayNavigation?: {
+    selectedDay: string;
+    selectedDayLabel: string;
+    prevDay: string;
+    nextDay: string;
+    isToday?: boolean;
+  };
 };
 
 export type ModuleEditField = {

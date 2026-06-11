@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1128")
+APP_BUILD = os.getenv("APP_BUILD", "1129")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1129",
+        "date": "11.06.2026",
+        "headline": "Dagvelger og heldøgnsgrafer for lys og energi",
+        "title": "Lys/dagslogg og Energi/status viser valgt helt døgn uten zoom-slider",
+        "description": (
+            "Lys/dagslogg og Energi/status bruker nå dagvelger direkte i grafkortet. Grafene bruker fast tidsakse fra "
+            "00:00 til 24:00 for valgt dato, slik at hele døgnet vises uten den automatiske skyvebaren under grafen."
+        ),
+        "applications": [
+            "Backend V2-modul (main.py): lar lys og energi bruke day-parameter, heldøgns tidsakse og dagsnavigasjon.",
+            "Desktop V2 API-typer (api.ts): utvider chart-kontrakten med tidsakse, zoomstyring og dagvelgerdata.",
+            "Desktop V2 grafkomponent (ModuleVisuals.tsx): viser Forrige dag, I dag, Neste dag og datofelt i grafkortet.",
+            "Desktop V2 modulside (ModulePage.tsx): kobler grafens dagvelger til URL-parameteren day.",
+            "Desktop V2 CSS (styles.css og visual-refresh.css): strammer opp den nye kontrollraden.",
+            "Buildlogg (build_log.py): registrerer build 1129.",
+        ],
+        "request": "på lys/dagslogg og energi/status så vil jeg ikke ha denne skyvebaren under jeg vil ha det likt som på soling omsetning osv med dagvelger men at det er en hel dag som vises",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner automatisk zoom-slider for lys- og energidagsgrafene.",
+            "Legger dagvelger med forrige dag, i dag, neste dag og datofelt direkte i grafkortet.",
+            "Setter tidsaksen til hele valgt døgn fra 00:00 til 24:00.",
+            "Lar Energi/status vise valgt dags realtime effekt og akkumulert forbruk.",
+            "Lar Lys/dagslogg vise valgt dags lux og lysstatus uten fra/til-filterkort.",
+        ],
+    },
     {
         "version": "1",
         "build": "1128",

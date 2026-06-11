@@ -424,6 +424,17 @@
   border-radius: var(--radius-md);
 }
 
+.module-chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.module-chart-day-nav .ant-btn,
+.module-chart-day-nav .ant-input-affix-wrapper {
+  border-color: #dbe3ee;
+}
+
 :is(.status-comparison-top, .status-toolbar, .status-page-top) {
   min-height: 48px;
   padding-bottom: 12px;
