@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1126")
+APP_BUILD = os.getenv("APP_BUILD", "1127")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1127",
+        "date": "11.06.2026",
+        "headline": "Samordner lys- og energigrafer",
+        "title": "Lys/dagslogg og Energi/status bruker nå samme grafmønster som øvrige V2-sider",
+        "description": (
+            "Grafene for lys og energi er lagt nærmere mønsteret som brukes på soling, parkering og omsetning. Energi "
+            "har nå ett grafkort med valg mellom realtime effekt og akkumulert forbruk. Lys har ett grafkort med valg "
+            "mellom lux og lysstatus. Samme generiske V2-grafkomponent brukes, inkludert legend og segmentert metrikkskifte."
+        ),
+        "applications": [
+            "Backend V2-modul (main.py): lager metrics for Energi/status og Lys/dagslogg.",
+            "Backend lux-dagslogg (main.py): inkluderer lysstatus per sample i chartdata.",
+            "Desktop V2 API-typer (api.ts): støtter trappelinjer i generiske chart-serier.",
+            "Desktop V2 grafkomponent (ModuleVisuals.tsx): bruker step/smooth fra seriepayload.",
+            "Buildlogg (build_log.py): registrerer build 1127.",
+        ],
+        "request": "på lys/dagslogg og energi/status grafene har du brukt en litt annen løsning. kan vi gjøre dette likt som de andre",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Energi/status viser ett grafkort med metrikker: Effekt og Forbruk.",
+            "Forbruksgrafen beregnes fra delta-kWh i realtime-samples.",
+            "Lys/dagslogg viser ett grafkort med metrikker: Lux og Lysstatus.",
+            "Lysstatus tegnes som trappelinjer slik at av/på blir lesbart.",
+            "Utvider felles chart-komponent i V2 i stedet for å lage spesialløsning.",
+        ],
+    },
     {
         "version": "1",
         "build": "1126",

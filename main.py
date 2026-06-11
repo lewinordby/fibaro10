@@ -6919,6 +6919,7 @@ async def fetch_lux_samples(day_start: datetime, timeline_end: datetime):
                 "mode": row.mode or "",
                 "source": row.source or "",
                 "lights": light_status_text(row),
+                "light_states": {device["key"]: light_sample_state(row, device) for device in LIGHT_TIMELINE_DEVICES},
             }
         )
     return samples, lux_values
@@ -11775,6 +11776,15 @@ def api_revenue_weekly_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+def cumulative_energy_series(rows: list[EnergyFibaroSample], attr: str) -> list[float]:
+    total = 0.0
+    values = []
+    for row in rows:
+        total += float_or_zero(getattr(row, attr, None))
+        values.append(round(total, 3))
+    return values
+
+
 def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = None) -> Dict[str, Any]:
     return {
         "tool": tool,
@@ -13912,21 +13922,44 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             energy_elvia_data = None
             total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in today_rows)
             energy_chart_rows = list(reversed(today_rows))[-720:]
+            energy_chart_items = [
+                ("inntak", "Inntak", "#15803d"),
+                ("varmepumper", "Varmepumper", "#0891b2"),
+                ("belysning", "Belysning", "#ca8a04"),
+                ("massasje", "Massasje", "#f59e0b"),
+                ("annet", "Annet", "#64748b"),
+                ("avfukter", "Avfukter", "#14b8a6"),
+            ]
+            power_series = [
+                {
+                    "name": label,
+                    "data": [getattr(row, f"{key}_w", None) for row in energy_chart_rows],
+                    "color": color,
+                }
+                for key, label, color in energy_chart_items
+            ]
+            consumption_series = [
+                {
+                    "name": label,
+                    "data": cumulative_energy_series(energy_chart_rows, f"{key}_delta_kwh"),
+                    "color": color,
+                    "smooth": False,
+                }
+                for key, label, color in energy_chart_items
+            ]
             charts = [
                 api_chart(
-                    "Realtime effekt i dag",
+                    "Energi status",
                     [row.bucket_start.strftime("%H:%M") if row.bucket_start else "" for row in energy_chart_rows],
-                    [
-                        {"name": "Inntak", "data": [row.inntak_w for row in energy_chart_rows], "color": "#15803d"},
-                        {"name": "Varmepumper", "data": [row.varmepumper_w for row in energy_chart_rows], "color": "#0891b2"},
-                        {"name": "Belysning", "data": [row.belysning_w for row in energy_chart_rows], "color": "#ca8a04"},
-                        {"name": "Massasje", "data": [row.massasje_w for row in energy_chart_rows], "color": "#f59e0b"},
-                        {"name": "Annet", "data": [row.annet_w for row in energy_chart_rows], "color": "#64748b"},
-                        {"name": "Avfukter", "data": [row.avfukter_w for row in energy_chart_rows], "color": "#14b8a6"},
-                    ],
-                    "Siste inntil 720 samples fra valgt dag. Verdiene er realtime W.",
+                    power_series,
+                    "Velg realtime effekt eller akkumulert forbruk beregnet fra 30-sekunders samples.",
                     "line",
                     360,
+                    metrics=[
+                        {"key": "power", "label": "Effekt", "unit": "W", "series": power_series},
+                        {"key": "consumption", "label": "Forbruk", "unit": "kWh", "series": consumption_series},
+                    ],
+                    default_metric="power",
                 )
             ]
             tables = [
@@ -14164,14 +14197,42 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             events, _ = await fetch_rows(OutdoorLightEvent, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
             light_on = sum(1 for device in LIGHT_TIMELINE_DEVICES if latest and light_sample_state(latest, device) is True)
             lux_day = await build_lux_day(today_start, tomorrow_start, min(now_dt, tomorrow_start))
+            light_chart_items = [
+                ("lyslist", "Lyslist", "#df705d"),
+                ("reklame", "Reklame", "#f2b84b"),
+                ("spot_glass_275", "Spot glass", "#3f7fbd"),
+                ("spot_glass_299", "Spot massasje", "#2f8fa3"),
+                ("spot_inngang", "Inngang", "#726189"),
+                ("parkering", "Parkering", "#2563eb"),
+            ]
+            lux_series = [{"name": "Lux", "data": [row["lux"] for row in lux_day["points"]], "color": "#ca8a04"}]
+            light_status_series = [
+                {
+                    "name": label,
+                    "data": [
+                        1 if (row.get("light_states") or {}).get(key) is True else 0 if (row.get("light_states") or {}).get(key) is False else None
+                        for row in lux_day["points"]
+                    ],
+                    "color": color,
+                    "step": "end",
+                    "smooth": False,
+                }
+                for key, label, color in light_chart_items
+            ]
             charts = [
                 api_chart(
-                    "Dagslogg lux",
+                    "Dagslogg lys",
                     [row["time"] for row in lux_day["points"]],
-                    [{"name": "Lux", "data": [row["lux"] for row in lux_day["points"]], "color": "#ca8a04"}],
-                    "Samme datagrunnlag som gammel lys/dagslogg-lux.",
+                    lux_series,
+                    "Velg lux eller lysstatus. Samme datagrunnlag som dagsloggen.",
                     "line",
                     340,
+                    metrics=[
+                        {"key": "lux", "label": "Lux", "unit": "lux", "series": lux_series},
+                        {"key": "status", "label": "Lysstatus", "unit": "på/av", "series": light_status_series},
+                    ],
+                    default_metric="lux",
+                    default_visible_series=["Lux"],
                 )
             ]
             tables = [

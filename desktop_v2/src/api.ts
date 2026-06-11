@@ -260,6 +260,8 @@ export type ModuleChartSeries = {
   unit?: string;
   color?: string;
   yAxisIndex?: number;
+  step?: "start" | "middle" | "end";
+  smooth?: boolean;
 };
 
 export type ModuleChartMetric = {
