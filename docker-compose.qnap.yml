@@ -32,6 +32,31 @@ services:
       retries: 3
       start_period: 30s
 
+  axis_camera_snapshots:
+    build:
+      context: ./axis_camera_snapshots
+    container_name: axis_camera_snapshots
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "192.168.20.218:8125:8125"
+    volumes:
+      - ./axis_camera_snapshots/data:/data
+      - ./axis_camera_snapshots/snapshots:/snapshots
+    environment:
+      AXIS_DATA_DIR: /data
+      AXIS_SNAPSHOT_DIR: /snapshots
+      AXIS_INTERVAL_SECONDS: ${AXIS_INTERVAL_SECONDS:-10}
+      AXIS_RETENTION_DAYS: ${AXIS_RETENTION_DAYS:-7}
+      AXIS_AUTH_MODE: ${AXIS_AUTH_MODE:-auto}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8125/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+ 
   fibaro10_proxy:
     image: caddy:2-alpine
     container_name: fibaro10_proxy

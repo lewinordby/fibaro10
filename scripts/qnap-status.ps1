@@ -28,6 +28,9 @@ echo
 echo "== Recent online_dashboard logs =="
 "$Docker" logs --tail $LogLines online_dashboard 2>&1 | sed -E 's/(username=)[^&[:space:]]+/\1REDACTED/g; s/(password=)[^&[:space:]]+/\1REDACTED/g' || true
 echo
+echo "== Recent axis_camera_snapshots logs =="
+"$Docker" logs --tail $LogLines axis_camera_snapshots 2>&1 | sed -E 's/(password=)[^&[:space:]]+/\1REDACTED/g' || true
+echo
 echo "== Health watch =="
 tail -n $LogLines /share/CACHEDEV1_DATA/Public/containerdata/logs/fibaro10-health.log 2>/dev/null || true
 "@

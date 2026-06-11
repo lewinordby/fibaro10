@@ -21,6 +21,8 @@ for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.*; do
     cp -p "$file" "$target"
 done
 [ -d easypark_downloader/data ] && mkdir -p "$backup_dir/easypark_downloader" && cp -a easypark_downloader/data "$backup_dir/easypark_downloader/data"
+[ -d axis_camera_snapshots/data ] && mkdir -p "$backup_dir/axis_camera_snapshots" && cp -a axis_camera_snapshots/data "$backup_dir/axis_camera_snapshots/data"
+[ -d axis_camera_snapshots/snapshots ] && mkdir -p "$backup_dir/axis_camera_snapshots" && tar -czf "$backup_dir/axis_camera_snapshots/snapshots.tgz" axis_camera_snapshots/snapshots
 
 if "$DOCKER" inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1; then
     "$DOCKER" exec "$POSTGRES_CONTAINER" pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > "$backup_dir/${POSTGRES_DB}.sql"
