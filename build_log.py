@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1123")
+APP_BUILD = os.getenv("APP_BUILD", "1124")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1124",
+        "date": "11.06.2026",
+        "headline": "Retter masteropprydding",
+        "title": "Masteropprydding prioriterer gyldig master-hash og slår sammen bruksteller",
+        "description": (
+            "Første oppryddingsforsøk valgte raden med høyest bruksteller, men den gyldige master-hashen lå på den "
+            "andre duplikatraden. Oppstartslogikken prioriterer nå raden med gyldig master-hash, sletter øvrige "
+            "masterduplikater først, og flytter historisk bruksteller over på den beholdte raden."
+        ),
+        "applications": [
+            "Backend oppstart (main.py): velger masterrad etter gyldig hash før duplikater slettes.",
+            "Buildlogg (build_log.py): registrerer build 1124.",
+        ],
+        "request": "hvorfor er master brukeren to ganger i lista?",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Prioriterer masterraden med gjeldende MASTER_ACCESS_KEY_HASH.",
+            "Sletter duplikatrader før eventuell normalisering som kan treffe unik key_hash-indeks.",
+            "Slår sammen uses_count fra masterduplikater.",
+            "Retter oppstart etter feilet 1123-deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1123",

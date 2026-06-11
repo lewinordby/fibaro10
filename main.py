@@ -8977,20 +8977,25 @@ async def startup():
         ).scalars().all()
         master = None
         if master_rows:
-            master = sorted(
-                master_rows,
-                key=lambda row: (int(row.uses_count or 0), -(row.id or 0)),
-                reverse=True,
-            )[0]
+            master = next((row for row in master_rows if row.key_hash == MASTER_ACCESS_KEY_HASH), None)
+            if not master:
+                master = sorted(
+                    master_rows,
+                    key=lambda row: (int(row.uses_count or 0), -(row.id or 0)),
+                    reverse=True,
+                )[0]
+            merged_uses_count = sum(int(row.uses_count or 0) for row in master_rows)
+            duplicate_ids = [row.id for row in master_rows if row.id and row.id != master.id]
+            if duplicate_ids:
+                await session.execute(delete(AccessKey).where(AccessKey.id.in_(duplicate_ids)))
+                await session.flush()
             master.name = "master"
             master.key_hash = MASTER_ACCESS_KEY_HASH
             master.key_prefix = "sun2_master"
             master.is_master = True
             master.role = "master"
             master.active = True
-            duplicate_ids = [row.id for row in master_rows if row.id and row.id != master.id]
-            if duplicate_ids:
-                await session.execute(delete(AccessKey).where(AccessKey.id.in_(duplicate_ids)))
+            master.uses_count = max(int(master.uses_count or 0), merged_uses_count)
         else:
             session.add(
                 AccessKey(
