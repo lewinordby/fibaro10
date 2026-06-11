@@ -124,6 +124,12 @@ SUN2_AXIS_SNAPSHOT_ROOT = Path(
 )
 SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS = max(0, int(os.getenv("SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS", "10")))
 SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS", "15")))
+SUN2_AXIS_SNAPSHOT_LINK_ENABLED = os.getenv("SUN2_AXIS_SNAPSHOT_LINK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS = max(30, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS", "60")))
+SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS", "45")))
+SUN2_AXIS_SNAPSHOT_LINK_DAYS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_DAYS", "7")))
+SUN2_AXIS_SNAPSHOT_LINK_LIMIT = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_LIMIT", "5000")))
+sun2_axis_snapshot_link_task: Optional[asyncio.Task] = None
 SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
 SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
 
@@ -3791,6 +3797,34 @@ async def link_axis_snapshots_to_sun2_sessions(
             logger.exception("Could not link Axis snapshot to SUN2 session %s", row.id)
             result["errors"] += 1
     return result
+
+
+async def sun2_axis_snapshot_link_worker() -> None:
+    await asyncio.sleep(SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS)
+    while True:
+        try:
+            async with async_session() as session:
+                result = await link_axis_snapshots_to_sun2_sessions(
+                    session,
+                    days=SUN2_AXIS_SNAPSHOT_LINK_DAYS,
+                    limit=SUN2_AXIS_SNAPSHOT_LINK_LIMIT,
+                    tolerance_seconds=SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+                )
+                await session.commit()
+            if result.get("linked") or result.get("errors"):
+                logger.info(
+                    "Axis SUN2 image auto-link: linked=%s already_linked=%s no_match=%s errors=%s snapshots=%s",
+                    result.get("linked"),
+                    result.get("already_linked"),
+                    result.get("no_match"),
+                    result.get("errors"),
+                    result.get("snapshots_found"),
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Axis SUN2 image auto-link failed")
+        await asyncio.sleep(SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS)
 
 
 def minute_bucket(value: Optional[datetime]) -> datetime:
@@ -9153,7 +9187,7 @@ async def recent_ai_logs(limit: int = 10) -> list[AiQueryLog]:
 
 @app.on_event("startup")
 async def startup():
-    global svv_sync_task
+    global svv_sync_task, sun2_axis_snapshot_link_task
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         for table_name, columns in STARTUP_COLUMNS.items():
@@ -9231,6 +9265,8 @@ async def startup():
         await session.commit()
     if SVV_SYNC_ENABLED and SVV_API_KEY and svv_sync_task is None:
         svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
+    if SUN2_AXIS_SNAPSHOT_LINK_ENABLED and sun2_axis_snapshot_link_task is None:
+        sun2_axis_snapshot_link_task = asyncio.create_task(sun2_axis_snapshot_link_worker())
 
 
 @app.get("/health")
@@ -13111,16 +13147,6 @@ async def api_v2_soling_module(
                 ["started_at", "ended_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"],
                 [api_sun2_session_row(row, filtered_image_lookup.get(row.id)) for row in filtered_sessions],
             ),
-        ]
-        actions = [
-            {
-                "key": "sun2-link-snapshot-images",
-                "label": "Koble bilder",
-                "method": "POST",
-                "path": "/api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=15",
-                "confirm": "Koble Axis-bilder til soltimer for siste 7 dager?",
-                "tone": "primary",
-            }
         ]
     elif view == "senger":
         charts = [bed_chart]
