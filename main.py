@@ -12098,10 +12098,32 @@ def api_sun2_weekly_chart(summaries: Dict[str, Any], metric: str = "revenue") ->
     )
 
 
-def api_sun2_session_row(row: Sun2TanningSession) -> Dict[str, Any]:
+def api_sun2_session_row(row: Sun2TanningSession, image: Optional[Sun2TanningSessionImage] = None) -> Dict[str, Any]:
     data = api_pick(row, SUN2_SESSION_COLUMNS)
     if row.room_id:
         data["room_label"] = sun2_room_label(row.room_id, row.room)
+    if image:
+        data.update(
+            {
+                "has_image": True,
+                "image_url": f"/soling/enkeltimer/{row.id}/bilde.jpg",
+                "image_captured_at": image.captured_at.isoformat() if image.captured_at else None,
+                "image_target_at": image.target_at.isoformat() if image.target_at else None,
+                "image_delta_seconds": round(float_or_zero(image.delta_seconds), 1),
+                "image_byte_size": image.byte_size,
+            }
+        )
+    else:
+        data.update(
+            {
+                "has_image": False,
+                "image_url": "",
+                "image_captured_at": None,
+                "image_target_at": None,
+                "image_delta_seconds": None,
+                "image_byte_size": None,
+            }
+        )
     return data
 
 
@@ -13040,6 +13062,15 @@ async def api_v2_soling_module(
             session_count_stmt = session_count_stmt.where(*session_conditions)
         filtered_sessions = (await session.execute(session_stmt)).scalars().all()
         filtered_count = (await session.execute(session_count_stmt)).scalar_one()
+        filtered_session_ids = [row.id for row in filtered_sessions if row.id]
+        filtered_image_lookup: Dict[int, Sun2TanningSessionImage] = {}
+        if filtered_session_ids:
+            filtered_image_rows = (
+                await session.execute(
+                    select(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id.in_(filtered_session_ids))
+                )
+            ).scalars().all()
+            filtered_image_lookup = {image.session_id: image for image in filtered_image_rows}
         room_option_rows = (
             await session.execute(
                 select(Sun2TanningSession.room_id, func.max(Sun2TanningSession.room))
@@ -13072,22 +13103,24 @@ async def api_v2_soling_module(
             api_filter("customer_type", "Kundetype", "select", customer_type_value, options=customer_options),
             api_filter("limit", "Antall", "number", limit_value),
         ]
-        charts = [daily_count_chart, daily_revenue_chart, hourly_chart, room_chart]
-        cards = [
-            api_card("Treff", filtered_count, "stk", f"Viser {len(filtered_sessions)} rader", "sun2", href="/soling/enkeltimer"),
-            api_card("Omsetning 120d", format_short_number(sum(float_or_zero(row.get("paid_amount_kr")) for row in daily_session_rows)), "kr", "Fra enkeltimer", "revenue", href="/omsetning/oversikt"),
-            api_card("Timer 120d", format_short_number(sum(float_or_zero(row.get("duration_minutes")) for row in daily_session_rows) / 60, 1), "t", "Fra enkeltimer", "sun2", href="/soling/enkeltimer"),
-            api_card("Rader totalt", format_short_number(total_sessions), "stk", "Alle enkeltimer", "status", href="/soling/enkeltimer"),
-        ]
+        charts = []
+        cards = []
         tables = [
-            api_table("Enkeltimer", ["started_at", "ended_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"], [api_sun2_session_row(row) for row in filtered_sessions]),
-            api_table("Dagsutvikling", ["stat_date", "sessions_count", "duration_minutes", "paid_amount_kr", "rooms_count"], daily_session_rows),
-            api_table("Fordeling per time", ["hour_label", "sessions_count", "duration_hours", "paid_amount_kr"], hourly_points),
-            api_table("Topp rom", ["room_label", "sessions_count", "duration_hours", "paid_amount_kr"], top_rooms),
-            api_table("Topp brukere", ["sun2_user_id", "user_name", "sessions_count", "duration_hours", "paid_amount_kr", "last_at"], top_users),
-            api_table("Betaling", ["payment_method", "sessions_count", "paid_amount_kr"], payment_breakdown),
-            api_table("Status", ["status", "sessions_count"], status_breakdown),
-            api_table("Enkeltimeimporter", ["timestamp", "ok", "period_first", "period_last", "rows_count", "inserted_count", "updated_count", "skipped_count", "message"], [api_pick(row, SUN2_SESSION_IMPORT_COLUMNS) for row in session_imports]),
+            api_table(
+                "Enkeltimer",
+                ["started_at", "ended_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"],
+                [api_sun2_session_row(row, filtered_image_lookup.get(row.id)) for row in filtered_sessions],
+            ),
+        ]
+        actions = [
+            {
+                "key": "sun2-link-snapshot-images",
+                "label": "Koble bilder",
+                "method": "POST",
+                "path": "/api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=15",
+                "confirm": "Koble Axis-bilder til soltimer for siste 7 dager?",
+                "tone": "primary",
+            }
         ]
     elif view == "senger":
         charts = [bed_chart]

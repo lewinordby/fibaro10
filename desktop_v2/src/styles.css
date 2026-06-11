@@ -960,6 +960,151 @@
   gap: 12px;
 }
 
+.sun-session-list-head {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+
+.sun-session-list {
+  display: grid;
+  gap: 8px;
+}
+
+.sun-session-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.sun-session-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.sun-session-summary::-webkit-details-marker {
+  display: none;
+}
+
+.sun-session-main {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(80px, 0.5fr) minmax(140px, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sun-session-main span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.sun-session-tags {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sun-session-detail {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(320px, 1.4fr);
+  gap: 14px;
+  padding: 0 12px 12px;
+}
+
+.sun-session-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+
+.sun-session-field {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--surface-soft);
+}
+
+.sun-session-field span,
+.sun-session-field strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sun-session-field span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sun-session-image-panel,
+.sun-session-empty-image {
+  min-height: 260px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.sun-session-image-panel img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #111827;
+}
+
+.sun-session-empty-image {
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.sun-session-empty {
+  min-height: 140px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+@media (max-width: 760px) {
+  .sun-session-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sun-session-main {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .sun-session-tags {
+    justify-content: flex-start;
+  }
+
+  .sun-session-detail,
+  .sun-session-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .module-chart-toolbar {
   display: flex;
   align-items: center;

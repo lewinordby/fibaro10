@@ -472,6 +472,127 @@ function ModuleTablePane({
   );
 }
 
+function rowString(row: ModuleRow, key: string): string {
+  const value = row[key];
+  if (value === null || value === undefined || value === "") return "";
+  return String(value);
+}
+
+function sessionImageUrl(row: ModuleRow): string {
+  const url = rowString(row, "image_url");
+  if (!url) return "";
+  const version = rowString(row, "image_captured_at") || rowString(row, "id");
+  return version ? `${url}?v=${encodeURIComponent(version)}` : url;
+}
+
+function SunSessionDetails({ row }: { row: ModuleRow }) {
+  const imageUrl = sessionImageUrl(row);
+  const hasImage = row.has_image === true && Boolean(imageUrl);
+  const fields: Array<[string, unknown]> = [
+    ["Start", row.started_at],
+    ["Slutt", row.ended_at],
+    ["Rom", row.room_label || row.room || row.room_id],
+    ["Varighet", row.duration_minutes ? `${displayValue(row.duration_minutes)} min` : ""],
+    ["Betalt", row.paid_amount_kr ? `${displayValue(row.paid_amount_kr)} kr` : ""],
+    ["Bruker", row.user_name || row.sun2_user_id],
+    ["Betaling", row.payment_method],
+    ["Kundetype", row.customer_type],
+    ["Status", row.status],
+    ["Bildetid", row.image_captured_at],
+    ["Avvik", row.image_delta_seconds !== null && row.image_delta_seconds !== undefined ? `${displayValue(row.image_delta_seconds)} sek` : ""],
+  ];
+
+  return (
+    <div className="sun-session-detail">
+      <div className="sun-session-fields">
+        {fields.map(([label, value]) => (
+          <div className="sun-session-field" key={label}>
+            <span>{label}</span>
+            <strong>{displayValue(value)}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="sun-session-image-panel">
+        {hasImage ? (
+          <img src={imageUrl} alt={`Axis-bilde for soltime ${displayValue(row.started_at)}`} loading="lazy" />
+        ) : (
+          <div className="sun-session-empty-image">
+            <Typography.Text type="secondary">Ingen koblet bilde for denne soltimen.</Typography.Text>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SunSessionsPanel({
+  table,
+  query,
+  draftQuery,
+  onSearch,
+  onClear,
+  onDraftChange,
+}: {
+  table?: ModuleTable;
+  query: string;
+  draftQuery: string;
+  onSearch: (value?: string) => void;
+  onClear: () => void;
+  onDraftChange: (value: string) => void;
+}) {
+  const rows = table ? filterRows(table.rows, table.columns, query) : [];
+  return (
+    <Card className="table-card sun-sessions-card">
+      <div className="table-toolbar">
+        <Input.Search
+          allowClear
+          placeholder="Søk i viste soltimer"
+          value={draftQuery}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            onDraftChange(nextValue);
+            if (!nextValue) onClear();
+          }}
+          onSearch={onSearch}
+          enterButton="Søk"
+        />
+      </div>
+      <div className="sun-session-list-head">
+        <Typography.Text type="secondary">{countText(rows.length, table?.rows.length ?? 0, query)}</Typography.Text>
+      </div>
+      <div className="sun-session-list">
+        {rows.length ? (
+          rows.map((row, index) => {
+            const key = tableRowKey(row, table?.title ?? "Enkeltimer", index);
+            const hasImage = row.has_image === true;
+            return (
+              <details className="sun-session-item" key={key}>
+                <summary className="sun-session-summary">
+                  <div className="sun-session-main">
+                    <Typography.Text strong>{displayValue(row.started_at)}</Typography.Text>
+                    <span>{displayValue(row.room_label || row.room || row.room_id)}</span>
+                    <span>{displayValue(row.user_name || row.sun2_user_id)}</span>
+                  </div>
+                  <div className="sun-session-tags">
+                    <Tag>{row.duration_minutes ? `${displayValue(row.duration_minutes)} min` : "Tid -"}</Tag>
+                    <Tag>{row.paid_amount_kr ? `${displayValue(row.paid_amount_kr)} kr` : "Kr -"}</Tag>
+                    <Tag color={hasImage ? "green" : "default"}>{hasImage ? "Bilde" : "Ingen bilde"}</Tag>
+                  </div>
+                </summary>
+                <SunSessionDetails row={row} />
+              </details>
+            );
+          })
+        ) : (
+          <div className="sun-session-empty">
+            <Typography.Text type="secondary">{query.trim() ? "Ingen treff for søket" : "Ingen soltimer å vise"}</Typography.Text>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default function ModulePage({ module }: { module: string }) {
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -593,6 +714,7 @@ export default function ModulePage({ module }: { module: string }) {
     return <EnergyElviaPage data={data} onReload={() => setReloadToken((value) => value + 1)} />;
   }
   const hideModuleChrome = Boolean(data.parkingTimeline);
+  const isSunSessionsView = module === "soling" && safeView === "enkeltimer";
 
   return (
     <Space direction="vertical" size={18} className="page-stack">
@@ -623,6 +745,17 @@ export default function ModulePage({ module }: { module: string }) {
         />
       ) : null}
 
+      {isSunSessionsView ? (
+        <SunSessionsPanel
+          table={data.tables[0]}
+          query={query}
+          draftQuery={draftQuery}
+          onSearch={runSearch}
+          onClear={clearSearch}
+          onDraftChange={setDraftQuery}
+        />
+      ) : (
+        <>
       {data.cards.length && !hideModuleChrome ? (
         <div className="metric-grid primary-grid">
           {data.cards.map((card) => (
@@ -662,6 +795,8 @@ export default function ModulePage({ module }: { module: string }) {
           }))}
         />
       </Card>
+        </>
+      )}
         </>
       )}
 
