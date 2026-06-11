@@ -33,6 +33,18 @@ http://<ip>/axis-cgi/jpg/image.cgi
 
 `AXIS_AUTH_MODE` kan være `auto`, `basic` eller `digest`. Testkameraet svarer med Digest-auth, så `digest` gir renest logg.
 
+## Soltimebilder
+
+Snapshot-mappen brukes som korttidsbuffer. Bilder som skal høre til en SUN2-soltime kopieres inn i Fibaro10-databasen som varige vedlegg i `sun2_tanning_session_images`.
+
+Kobling kjøres fra `Soling -> Enkeltimer` med knappen `Koble bilder`, eller via API:
+
+```text
+POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=15
+```
+
+For hver soltime matches bildet nærmest `started_at - 10 sekunder`. Når et bilde er koblet til en soltime, er det uavhengig av 7-dagers retention i snapshot-bufferen.
+
 ## Drift
 
 ```powershell

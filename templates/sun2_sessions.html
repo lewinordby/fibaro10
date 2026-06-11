@@ -67,6 +67,13 @@
         .id-link { display:inline-flex; align-items:center; min-height:1.55rem; padding:0.08rem 0.45rem; border-radius:999px; color:var(--sun2-color); background:var(--sun2-soft); font-weight:800; text-decoration:none; }
         .id-link:hover, .id-link.active { background:var(--sun2-color); color:#fff; }
         .cell-muted { color:var(--muted); }
+        .session-thumb { display:inline-flex; align-items:center; justify-content:center; width:4.6rem; height:2.7rem; border:1px solid var(--line); border-radius:7px; overflow:hidden; background:#111827; }
+        .session-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        .session-image-empty { color:var(--muted); font-size:0.78rem; }
+        .notice { padding:0.72rem 0.82rem; border:1px solid var(--line); border-radius:10px; background:#fff; box-shadow:var(--shadow-1); color:var(--brand-dark); }
+        .notice.error { border-color:#fecaca; background:#fff5f5; color:#991b1b; }
+        .inline-job { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:0.35rem; }
+        .inline-job input { width:4.4rem; min-height:1.75rem; border:1px solid var(--line); border-radius:999px; padding:0.18rem 0.48rem; font:inherit; font-size:0.76rem; }
         .pagination { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0.65rem; padding:0.72rem 0.8rem; border-top:1px solid var(--line-soft); background:#fff; }
         .pager-buttons { display:flex; flex-wrap:wrap; gap:0.32rem; }
         .pager-buttons a, .pager-buttons span { display:inline-flex; align-items:center; justify-content:center; min-width:2rem; min-height:2rem; padding:0.25rem 0.52rem; border:1px solid var(--line); border-radius:8px; text-decoration:none; color:var(--muted); font-size:0.8rem; font-weight:780; background:var(--panel-soft); }
@@ -116,8 +123,21 @@
                 {% else %}
                 <span class="sun-chip">Alle data</span>
                 {% endif %}
+                {% if request.state.auth_can_settings %}
+                <form class="inline-job" method="post" action="/soling/enkeltimer/koble-bilder">
+                    <input type="number" name="days" min="1" max="3650" value="7" title="Dager tilbake">
+                    <input type="number" name="tolerance_seconds" min="1" max="300" value="15" title="Toleranse sekunder">
+                    <button class="sun-chip" type="submit">Koble bilder</button>
+                </form>
+                {% endif %}
             </div>
         </section>
+        {% if message %}
+        <section class="notice">{{ message }}</section>
+        {% endif %}
+        {% if error %}
+        <section class="notice error">{{ error }}</section>
+        {% endif %}
 
         <form class="filter-panel" method="get" action="/soling/enkeltimer">
             <div class="filter-grid">
@@ -359,6 +379,7 @@
                 <thead>
                     <tr>
                         <th>Start</th>
+                        <th>Bilde</th>
                         <th>SUN2-id</th>
                         <th>Rom</th>
                         <th>Bruker</th>
@@ -373,8 +394,18 @@
                 </thead>
                 <tbody>
                     {% for row in rows %}
+                    {% set session_image = image_lookup.get(row.id) %}
                     <tr>
                         <td class="period">{{ row.started_at|source_time }}</td>
+                        <td>
+                            {% if session_image %}
+                            <a class="session-thumb" href="/soling/enkeltimer/{{ row.id }}/bilde.jpg" target="_blank" title="Snapshot {{ session_image.captured_at|source_time }}">
+                                <img src="/soling/enkeltimer/{{ row.id }}/bilde.jpg" alt="Bilde før soltime {{ row.id }}">
+                            </a>
+                            {% else %}
+                            <span class="session-image-empty">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if row.sun2_user_id %}
                             <a class="id-link{% if active_sun2_user_id == row.sun2_user_id %} active{% endif %}" href="{{ query_url(sun2_user_id=row.sun2_user_id, page=1) }}">{{ row.sun2_user_id }}</a>
@@ -401,7 +432,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="11">Ingen enkeltimer matcher filtrene.</td>
+                        <td colspan="12">Ingen enkeltimer matcher filtrene.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

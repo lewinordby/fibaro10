@@ -9,6 +9,7 @@ from statistics import median
 from types import SimpleNamespace
 from typing import Any, Dict, Iterable, Optional
 import asyncio
+from bisect import bisect_left
 import calendar
 import csv
 import hashlib
@@ -29,7 +30,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, Integer, JSON, String, Text, UniqueConstraint, and_, case, cast, delete, func, or_, select, text as sql_text, tuple_, update
+from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint, and_, case, cast, delete, func, or_, select, text as sql_text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
@@ -118,6 +119,11 @@ svv_sync_task: Optional[asyncio.Task] = None
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
+SUN2_AXIS_SNAPSHOT_ROOT = Path(
+    os.getenv("SUN2_AXIS_SNAPSHOT_ROOT", os.getenv("AXIS_SNAPSHOT_DIR", "/axis_snapshots"))
+)
+SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS = max(0, int(os.getenv("SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS", "10")))
+SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS", "15")))
 SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
 SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
 
@@ -682,6 +688,27 @@ class Sun2TanningSession(Base):
     source_file = Column(String, index=True, nullable=True)
     imported_at = Column(DateTime, default=datetime.utcnow, index=True)
     raw = Column(JSON, nullable=True)
+
+
+class Sun2TanningSessionImage(Base):
+    __tablename__ = "sun2_tanning_session_images"
+    __table_args__ = (
+        UniqueConstraint("session_id", name="uq_sun2_session_image_session_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("sun2_tanning_sessions.id", ondelete="CASCADE"), index=True, nullable=False)
+    captured_at = Column(DateTime, index=True, nullable=False)
+    target_at = Column(DateTime, index=True, nullable=False)
+    delta_seconds = Column(Float, nullable=True)
+    source_path = Column(Text, nullable=True)
+    source_mtime = Column(DateTime, nullable=True)
+    content_type = Column(String, default="image/jpeg", nullable=False)
+    image_bytes = Column(LargeBinary, nullable=False)
+    byte_size = Column(Integer, nullable=True)
+    sha256 = Column(String, index=True, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    source = Column(String, index=True, default="axis_snapshot_backfill")
 
 
 class Sun2Bed(Base):
@@ -1517,6 +1544,11 @@ SUN2_SESSION_COLUMNS = [
     "room", "source_room_name", "sun2_user_id", "sun2_center_id", "sun2_bed_id", "user_name",
     "user_identifier", "customer_type", "gender", "payment_method", "duration_minutes",
     "paid_amount_kr", "status", "source", "source_file", "imported_at", "raw",
+]
+
+SUN2_SESSION_IMAGE_COLUMNS = [
+    "id", "session_id", "captured_at", "target_at", "delta_seconds", "source_path",
+    "source_mtime", "content_type", "byte_size", "sha256", "created_at", "source",
 ]
 
 SUN2_BED_COLUMNS = [
@@ -2698,6 +2730,16 @@ PERFORMANCE_INDEXES = [
         "ON sun2_tanning_sessions (customer_type, stat_date)",
     ),
     (
+        "ix_sun2_session_images_session_created",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_session_images_session_created "
+        "ON sun2_tanning_session_images (session_id, created_at DESC)",
+    ),
+    (
+        "ix_sun2_session_images_captured",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_session_images_captured "
+        "ON sun2_tanning_session_images (captured_at DESC)",
+    ),
+    (
         "ix_sun2_members_name",
         "CREATE INDEX IF NOT EXISTS ix_sun2_members_name "
         "ON sun2_members (name)",
@@ -3595,6 +3637,160 @@ def local_naive_to_utc_naive(value: Optional[datetime]) -> Optional[datetime]:
     if value.tzinfo is None:
         value = value.replace(tzinfo=LOCAL_TZ)
     return value.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+
+AXIS_SNAPSHOT_FILENAME_RE = re.compile(r"^axis_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jpg$")
+
+
+def parse_axis_snapshot_time(path: Path) -> Optional[datetime]:
+    match = AXIS_SNAPSHOT_FILENAME_RE.match(path.name)
+    if not match:
+        return None
+    try:
+        return datetime.strptime(f"{match.group(1)} {match.group(2)}", "%Y-%m-%d %H-%M-%S")
+    except ValueError:
+        return None
+
+
+def axis_snapshot_candidates(root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> list[tuple[datetime, Path]]:
+    if not root.exists():
+        return []
+    candidates: list[tuple[datetime, Path]] = []
+    root_resolved = root.resolve()
+    for path in root_resolved.rglob("*.jpg"):
+        captured_at = parse_axis_snapshot_time(path)
+        if captured_at is None:
+            continue
+        try:
+            path.resolve().relative_to(root_resolved)
+        except (OSError, ValueError):
+            continue
+        candidates.append((captured_at, path))
+    return sorted(candidates, key=lambda item: item[0])
+
+
+def nearest_axis_snapshot(
+    candidates: list[tuple[datetime, Path]],
+    target_at: datetime,
+    tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+    times: Optional[list[datetime]] = None,
+) -> Optional[tuple[datetime, Path, float]]:
+    if not candidates:
+        return None
+    times = times or [item[0] for item in candidates]
+    index = bisect_left(times, target_at)
+    options = []
+    if index < len(candidates):
+        options.append(candidates[index])
+    if index > 0:
+        options.append(candidates[index - 1])
+    if not options:
+        return None
+    captured_at, path = min(options, key=lambda item: abs((item[0] - target_at).total_seconds()))
+    delta_seconds = abs((captured_at - target_at).total_seconds())
+    if delta_seconds > tolerance_seconds:
+        return None
+    return captured_at, path, delta_seconds
+
+
+async def link_axis_snapshots_to_sun2_sessions(
+    session,
+    days: int = 7,
+    limit: int = 5000,
+    tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+    replace: bool = False,
+) -> Dict[str, Any]:
+    days = max(1, min(int(days or 7), 3650))
+    limit = max(1, min(int(limit or 5000), 50000))
+    tolerance_seconds = max(1, min(int(tolerance_seconds or SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS), 300))
+    candidates = axis_snapshot_candidates()
+    result: Dict[str, Any] = {
+        "snapshot_root": str(SUN2_AXIS_SNAPSHOT_ROOT),
+        "snapshots_found": len(candidates),
+        "sessions_checked": 0,
+        "linked": 0,
+        "already_linked": 0,
+        "no_match": 0,
+        "missing_file": 0,
+        "invalid_jpeg": 0,
+        "errors": 0,
+        "days": days,
+        "limit": limit,
+        "target_offset_seconds": SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS,
+        "tolerance_seconds": tolerance_seconds,
+    }
+    if not candidates:
+        return result
+    candidate_times = [item[0] for item in candidates]
+
+    start_cutoff = local_now_naive() - timedelta(days=days)
+    rows = (
+        await session.execute(
+            select(Sun2TanningSession)
+            .where(Sun2TanningSession.started_at >= start_cutoff)
+            .order_by(Sun2TanningSession.started_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    result["sessions_checked"] = len(rows)
+    if not rows:
+        return result
+
+    session_ids = [row.id for row in rows if row.id]
+    existing_image_ids = set(
+        (
+            await session.execute(
+                select(Sun2TanningSessionImage.session_id).where(Sun2TanningSessionImage.session_id.in_(session_ids))
+            )
+        ).scalars().all()
+    )
+
+    for row in rows:
+        if not row.id:
+            continue
+        if row.id in existing_image_ids and not replace:
+            result["already_linked"] += 1
+            continue
+        started_at = normalize_local_naive(row.started_at)
+        if not started_at:
+            result["no_match"] += 1
+            continue
+        target_at = started_at - timedelta(seconds=SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS)
+        match = nearest_axis_snapshot(candidates, target_at, tolerance_seconds, candidate_times)
+        if match is None:
+            result["no_match"] += 1
+            continue
+        captured_at, path, delta_seconds = match
+        try:
+            content = path.read_bytes()
+            if not content.startswith(b"\xff\xd8"):
+                result["invalid_jpeg"] += 1
+                continue
+            stat = path.stat()
+            if replace and row.id in existing_image_ids:
+                await session.execute(delete(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id == row.id))
+            image = Sun2TanningSessionImage(
+                session_id=row.id,
+                captured_at=captured_at,
+                target_at=target_at,
+                delta_seconds=delta_seconds,
+                source_path=str(path),
+                source_mtime=datetime.fromtimestamp(stat.st_mtime, LOCAL_TZ).replace(tzinfo=None),
+                content_type="image/jpeg",
+                image_bytes=content,
+                byte_size=len(content),
+                sha256=hashlib.sha256(content).hexdigest(),
+                source="axis_snapshot_backfill",
+            )
+            session.add(image)
+            existing_image_ids.add(row.id)
+            result["linked"] += 1
+        except FileNotFoundError:
+            result["missing_file"] += 1
+        except Exception:
+            logger.exception("Could not link Axis snapshot to SUN2 session %s", row.id)
+            result["errors"] += 1
+    return result
 
 
 def minute_bucket(value: Optional[datetime]) -> datetime:
@@ -18279,6 +18475,8 @@ async def sun2_sessions_view(
     customer_type: Optional[str] = None,
     q: Optional[str] = None,
 ):
+    message = request.query_params.get("message", "")
+    error = request.query_params.get("error", "")
     limit = max(25, min(limit, 1000))
     page = max(1, page)
     active_sun2_user_id = (sun2_user_id or "").strip()
@@ -18378,6 +18576,15 @@ async def sun2_sessions_view(
                 .limit(limit)
             )
         ).scalars().all()
+        image_lookup: Dict[int, Sun2TanningSessionImage] = {}
+        row_ids = [row.id for row in rows if row.id]
+        if row_ids:
+            image_rows = (
+                await session.execute(
+                    select(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id.in_(row_ids))
+                )
+            ).scalars().all()
+            image_lookup = {image.session_id: image for image in image_rows}
         imports = (
             await session.execute(
                 select(Sun2SessionImportRun)
@@ -18577,6 +18784,16 @@ async def sun2_sessions_view(
                     .limit(limit)
                 )
             ).scalars().all()
+            row_ids = [row.id for row in rows if row.id]
+            if row_ids:
+                image_rows = (
+                    await session.execute(
+                        select(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id.in_(row_ids))
+                    )
+                ).scalars().all()
+                image_lookup = {image.session_id: image for image in image_rows}
+            else:
+                image_lookup = {}
 
     filter_values = {
         "limit": limit,
@@ -18677,8 +18894,88 @@ async def sun2_sessions_view(
             "pagination": pagination,
             "query_url": query_url,
             "active_sun2_user_id": active_sun2_user_id,
+            "image_lookup": image_lookup,
+            "message": message,
+            "error": error,
         },
     )
+
+
+@app.get("/soling/enkeltimer/{session_id:int}/bilde.jpg")
+async def sun2_session_image(session_id: int):
+    async with async_session() as session:
+        image = (
+            await session.execute(
+                select(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id == session_id)
+            )
+        ).scalars().first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Ingen bilde koblet til denne soltimen.")
+    return Response(
+        content=image.image_bytes,
+        media_type=image.content_type or "image/jpeg",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
+@app.post("/soling/enkeltimer/koble-bilder")
+async def sun2_sessions_link_images(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    form = await request.form()
+    try:
+        days = int(form.get("days") or 7)
+    except (TypeError, ValueError):
+        days = 7
+    try:
+        limit = int(form.get("limit") or 5000)
+    except (TypeError, ValueError):
+        limit = 5000
+    try:
+        tolerance_seconds = int(form.get("tolerance_seconds") or SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS)
+    except (TypeError, ValueError):
+        tolerance_seconds = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS
+    try:
+        async with async_session() as session:
+            result = await link_axis_snapshots_to_sun2_sessions(
+                session,
+                days=days,
+                limit=limit,
+                tolerance_seconds=tolerance_seconds,
+                replace=False,
+            )
+            await session.commit()
+        message = (
+            f"Koblet {result['linked']} bilder. "
+            f"{result['already_linked']} hadde bilde fra før, {result['no_match']} manglet treff."
+        )
+        return redirect_with_query_params(request, "/soling/enkeltimer", message=message)
+    except Exception as exc:
+        logger.exception("Axis-bildekobling for soltimer feilet")
+        return redirect_with_query_params(request, "/soling/enkeltimer", error=str(exc))
+
+
+@app.post("/api/actions/soling/link-snapshot-images")
+async def api_v2_sun2_link_snapshot_images(
+    request: Request,
+    days: int = 7,
+    limit: int = 5000,
+    tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        result = await link_axis_snapshots_to_sun2_sessions(
+            session,
+            days=days,
+            limit=limit,
+            tolerance_seconds=tolerance_seconds,
+            replace=False,
+        )
+        await session.commit()
+    return {"status": "ok", "result": result}
 
 
 @app.get("/soling/dagslinje", response_class=HTMLResponse)
