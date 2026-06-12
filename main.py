@@ -17080,12 +17080,13 @@ def vehicle_missing_area_condition():
     return or_(vehicle_blank_area_condition(), vehicle_area_not_found_condition())
 
 
-async def parking_missing_name_rows(session, limit: int, offset: int = 0):
+async def parking_missing_name_rows(session, limit: int, offset: int = 0, include_not_found: bool = True):
+    condition = vehicle_missing_name_condition() if include_not_found else vehicle_blank_name_condition()
     return (
         await session.execute(
             select(ParkingVehicle, ParkingVehicleDetails)
             .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-            .where(vehicle_missing_name_condition())
+            .where(condition)
             .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
             .offset(offset)
             .limit(limit)
@@ -17093,12 +17094,13 @@ async def parking_missing_name_rows(session, limit: int, offset: int = 0):
     ).all()
 
 
-async def parking_missing_area_rows(session, limit: int, offset: int = 0):
+async def parking_missing_area_rows(session, limit: int, offset: int = 0, include_not_found: bool = True):
+    condition = vehicle_missing_area_condition() if include_not_found else vehicle_blank_area_condition()
     return (
         await session.execute(
             select(ParkingVehicle, ParkingVehicleDetails)
             .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-            .where(vehicle_missing_area_condition())
+            .where(condition)
             .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
             .offset(offset)
             .limit(limit)
@@ -17125,10 +17127,10 @@ def parking_vehicle_lookup_payload(vehicle: ParkingVehicle, details: Optional[Pa
 @app.get("/parkering/navn-oppslag", response_class=HTMLResponse)
 async def parking_name_lookup_view(request: Request, limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)):
     async with async_session() as session:
-        rows = await parking_missing_name_rows(session, limit, offset)
+        rows = await parking_missing_name_rows(session, limit, offset, include_not_found=False)
         count = (
             await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(vehicle_missing_name_condition())
+                select(func.count(ParkingVehicle.plate)).where(vehicle_blank_name_condition())
             )
         ).scalar_one()
     plates = "\n".join(vehicle.plate for vehicle, _ in rows)
@@ -17150,10 +17152,10 @@ async def parking_name_lookup_view(request: Request, limit: int = Query(100, ge=
 @app.get("/parkering/omrade-oppslag", response_class=HTMLResponse)
 async def parking_area_lookup_view(request: Request, limit: int = Query(1000, ge=1, le=1000), offset: int = Query(0, ge=0)):
     async with async_session() as session:
-        rows = await parking_missing_area_rows(session, limit, offset)
+        rows = await parking_missing_area_rows(session, limit, offset, include_not_found=False)
         count = (
             await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(vehicle_missing_area_condition())
+                select(func.count(ParkingVehicle.plate)).where(vehicle_blank_area_condition())
             )
         ).scalar_one()
     plates = "\n".join(vehicle.plate for vehicle, _ in rows)
@@ -17186,10 +17188,10 @@ async def parking_missing_names_api(
     if forbidden:
         return forbidden
     async with async_session() as session:
-        rows = await parking_missing_name_rows(session, limit, offset)
+        rows = await parking_missing_name_rows(session, limit, offset, include_not_found=False)
         count = (
             await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(vehicle_missing_name_condition())
+                select(func.count(ParkingVehicle.plate)).where(vehicle_blank_name_condition())
             )
         ).scalar_one()
     payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
@@ -17210,10 +17212,10 @@ async def parking_missing_areas_api(
     if forbidden:
         return forbidden
     async with async_session() as session:
-        rows = await parking_missing_area_rows(session, limit, offset)
+        rows = await parking_missing_area_rows(session, limit, offset, include_not_found=False)
         count = (
             await session.execute(
-                select(func.count(ParkingVehicle.plate)).where(vehicle_missing_area_condition())
+                select(func.count(ParkingVehicle.plate)).where(vehicle_blank_area_condition())
             )
         ).scalar_one()
     payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
