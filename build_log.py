@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1133")
+APP_BUILD = os.getenv("APP_BUILD", "1134")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1134",
+        "date": "13.06.2026",
+        "headline": "Datovalg for parkeringsområder",
+        "title": "Parkering/område kan vises for hele historikken, én dato eller et tidsrom",
+        "description": (
+            "Områdevisningen for parkering har fått datofilter. Uten datoer vises hele historikken som før. Hvis bare "
+            "første dato fylles ut, vises én valgt dato. Hvis både fra- og til-dato fylles ut, beregnes områdefordelingen "
+            "fra faktiske parkeringsøkter i perioden."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger til periodeberegning for parkeringsområder basert på parking_sessions.",
+            "Fibaro10 V2-modul (main.py): legger datofiltre, periodekort og periodebevisste område-/mangler-tabeller på Parkering/område.",
+            "Klassisk parkering/område (main.py og templates/parking_areas.html): bruker samme periodegrunnlag og får datofilter.",
+            "Desktop V2 (ModulePage.tsx): legger tydelige kolonneetiketter for andeler i områdevisningen.",
+            "Buildlogg (build_log.py): registrerer build 1134.",
+        ],
+        "request": "på parkering/område ønsker jeg å ha inn en dato velger slik at jeg kan velge en dato eller et tidsrom i tillegg til å velge hele",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Blanke datofelt betyr hele historikken.",
+            "Bare fra-dato betyr én valgt dato.",
+            "Fra- og til-dato betyr tidsrom, inklusive til-dato.",
+            "Mangler område-tabellen følger valgt periode.",
+            "Områdetabellen viser andel av biler og andel av parkeringer i valgt grunnlag.",
+        ],
+    },
     {
         "version": "1",
         "build": "1133",

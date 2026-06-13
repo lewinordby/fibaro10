@@ -13666,6 +13666,244 @@ def parking_vehicle_search_condition(query: Optional[str]):
     )
 
 
+def parking_valid_vehicle_area_condition():
+    normalized = func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, "")))
+    return and_(normalized != "", normalized != "ikke funnet")
+
+
+def parking_area_period(date_from_value: str = "", date_to_value: str = "") -> Dict[str, Any]:
+    from_value = (date_from_value or "").strip()
+    to_value = (date_to_value or "").strip()
+    if not from_value and not to_value:
+        return {
+            "date_from": "",
+            "date_to": "",
+            "start_at": None,
+            "end_at": None,
+            "label": "Hele historikken",
+            "detail": "Alle importerte parkeringer",
+            "is_all": True,
+        }
+
+    from_day = parse_day(from_value) if from_value else None
+    to_day = parse_day(to_value) if to_value else None
+    if from_day and not to_day:
+        to_day = from_day
+    if from_day and to_day and to_day < from_day:
+        from_day, to_day = to_day, from_day
+
+    start_at = datetime.combine(from_day, time.min) if from_day else None
+    end_at = datetime.combine(to_day + timedelta(days=1), time.min) if to_day else None
+    if from_day and to_day and from_day == to_day:
+        label = from_day.strftime("%d.%m.%Y")
+        detail = "Valgt dato"
+    elif from_day and to_day:
+        label = f"{from_day:%d.%m.%Y} - {to_day:%d.%m.%Y}"
+        detail = "Valgt tidsrom"
+    elif to_day:
+        label = f"Til og med {to_day:%d.%m.%Y}"
+        detail = "Fra første import til valgt dato"
+    else:
+        label = "Hele historikken"
+        detail = "Alle importerte parkeringer"
+
+    return {
+        "date_from": from_day.isoformat() if from_day else "",
+        "date_to": "" if from_day and to_day and from_day == to_day else (to_day.isoformat() if to_day else ""),
+        "start_at": start_at,
+        "end_at": end_at,
+        "label": label,
+        "detail": detail,
+        "is_all": False,
+    }
+
+
+def parking_area_period_conditions(period: Dict[str, Any]) -> list[Any]:
+    conditions = []
+    if period.get("start_at"):
+        conditions.append(ParkingSession.start_time >= period["start_at"])
+    if period.get("end_at"):
+        conditions.append(ParkingSession.start_time < period["end_at"])
+    return conditions
+
+
+def parking_area_row_api(row: Any, vehicle_with_area: int, parking_with_area: int) -> Dict[str, Any]:
+    vehicle_count = int_or_zero(getattr(row, "vehicle_count", 0))
+    parking_count = int_or_zero(getattr(row, "parking_count", 0))
+    paid_total = float_or_zero(getattr(row, "paid_total", 0))
+    vehicle_share = round((vehicle_count / vehicle_with_area) * 100, 1) if vehicle_with_area else 0
+    parking_share = round((parking_count / parking_with_area) * 100, 1) if parking_with_area else 0
+    return {
+        "omrade": getattr(row, "omrade", None),
+        "vehicle_count": vehicle_count,
+        "vehicles": vehicle_count,
+        "vehicle_share": vehicle_share,
+        "parking_count": parking_count,
+        "parkeringer": parking_count,
+        "parking_share": parking_share,
+        "paid_total": paid_total,
+        "paid": paid_total,
+        "last_seen": getattr(row, "last_seen", None),
+    }
+
+
+async def parking_area_overview_data(session, date_from_value: str = "", date_to_value: str = "") -> Dict[str, Any]:
+    period = parking_area_period(date_from_value, date_to_value)
+    valid_area_condition = parking_valid_vehicle_area_condition()
+    area_expr = func.trim(ParkingVehicle.omrade)
+    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
+    period_conditions = parking_area_period_conditions(period)
+
+    if period["is_all"]:
+        raw_rows = (
+            await session.execute(
+                select(
+                    area_expr.label("omrade"),
+                    func.count(func.distinct(ParkingVehicle.plate)).label("vehicle_count"),
+                    func.coalesce(func.sum(ParkingVehicle.parkering_count), 0).label("parking_count"),
+                    func.coalesce(func.sum(ParkingVehicle.paid_total), 0).label("paid_total"),
+                    func.max(ParkingVehicle.last_seen).label("last_seen"),
+                )
+                .where(valid_area_condition)
+                .group_by(area_expr)
+                .order_by(func.count(func.distinct(ParkingVehicle.plate)).desc(), area_expr.asc())
+            )
+        ).all()
+        vehicle_total = (
+            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))))
+        ).scalar_one()
+        vehicle_with_area = (
+            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))).where(valid_area_condition))
+        ).scalar_one()
+        totals = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("parking_total"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid_total"),
+                )
+            )
+        ).one()
+    else:
+        raw_rows = (
+            await session.execute(
+                select(
+                    area_expr.label("omrade"),
+                    func.count(func.distinct(ParkingVehicle.plate)).label("vehicle_count"),
+                    func.count(ParkingSession.id).label("parking_count"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid_total"),
+                    func.max(ParkingSession.start_time).label("last_seen"),
+                )
+                .select_from(ParkingSession)
+                .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                .where(*period_conditions, valid_area_condition)
+                .group_by(area_expr)
+                .order_by(func.count(ParkingSession.id).desc(), area_expr.asc())
+            )
+        ).all()
+        vehicle_total = (
+            await session.execute(
+                select(func.count(func.distinct(normalized_session_plate)))
+                .select_from(ParkingSession)
+                .where(*period_conditions, normalized_session_plate != "")
+            )
+        ).scalar_one()
+        vehicle_with_area = (
+            await session.execute(
+                select(func.count(func.distinct(ParkingVehicle.plate)))
+                .select_from(ParkingSession)
+                .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                .where(*period_conditions, valid_area_condition)
+            )
+        ).scalar_one()
+        totals = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("parking_total"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid_total"),
+                ).where(*period_conditions)
+            )
+        ).one()
+
+    parking_with_area = sum(int_or_zero(getattr(row, "parking_count", 0)) for row in raw_rows)
+    vehicle_total = int_or_zero(vehicle_total)
+    vehicle_with_area = int_or_zero(vehicle_with_area)
+    return {
+        "period": period,
+        "rows": [parking_area_row_api(row, vehicle_with_area, parking_with_area) for row in raw_rows],
+        "vehicle_total": vehicle_total,
+        "vehicle_with_area": vehicle_with_area,
+        "missing_area": max(vehicle_total - vehicle_with_area, 0),
+        "parking_total": int_or_zero(getattr(totals, "parking_total", 0)),
+        "parking_with_area": parking_with_area,
+        "paid_total": float_or_zero(getattr(totals, "paid_total", 0)),
+        "coverage_percent": round((vehicle_with_area / vehicle_total) * 100, 1) if vehicle_total else 0,
+    }
+
+
+async def parking_area_missing_rows_for_period(session, period: Dict[str, Any], limit: int = 100) -> list[Dict[str, Any]]:
+    normalized_area = func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, "")))
+    missing_vehicle_area = or_(normalized_area == "", normalized_area == "ikke funnet")
+    if period.get("is_all"):
+        rows = (
+            await session.execute(
+                select(
+                    ParkingVehicle.plate.label("plate"),
+                    ParkingVehicle.navn.label("navn"),
+                    ParkingVehicle.parkering_count.label("parkering_count"),
+                    ParkingVehicle.paid_total.label("paid_total"),
+                    ParkingVehicle.last_seen.label("last_seen"),
+                )
+                .where(missing_vehicle_area)
+                .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+                .limit(limit)
+            )
+        ).all()
+        return [
+            {
+                "plate": row.plate,
+                "navn": row.navn,
+                "parkering_count": int_or_zero(row.parkering_count),
+                "paid_total": float_or_zero(row.paid_total),
+                "last_seen": row.last_seen,
+            }
+            for row in rows
+        ]
+
+    normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
+    period_conditions = parking_area_period_conditions(period)
+    rows = (
+        await session.execute(
+            select(
+                normalized_session_plate.label("plate"),
+                func.max(ParkingVehicle.navn).label("navn"),
+                func.count(ParkingSession.id).label("parkering_count"),
+                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid_total"),
+                func.max(ParkingSession.start_time).label("last_seen"),
+            )
+            .select_from(ParkingSession)
+            .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+            .where(
+                *period_conditions,
+                normalized_session_plate != "",
+                or_(ParkingVehicle.plate.is_(None), missing_vehicle_area),
+            )
+            .group_by(normalized_session_plate)
+            .order_by(func.count(ParkingSession.id).desc(), normalized_session_plate.asc())
+            .limit(limit)
+        )
+    ).all()
+    return [
+        {
+            "plate": row.plate,
+            "navn": row.navn,
+            "parkering_count": int_or_zero(row.parkering_count),
+            "paid_total": float_or_zero(row.paid_total),
+            "last_seen": row.last_seen,
+        }
+        for row in rows
+    ]
+
+
 def circuit_row_api(row: EnergyCircuit) -> Dict[str, Any]:
     return {
         "id": row.id,
@@ -13857,19 +14095,6 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .limit(250)
                 )
             ).scalars().all()
-            area_rows = (
-                await session.execute(
-                    select(
-                        ParkingVehicle.omrade.label("omrade"),
-                        func.count(ParkingVehicle.plate).label("vehicles"),
-                        func.coalesce(func.sum(ParkingVehicle.parkering_count), 0).label("parkeringer"),
-                        func.coalesce(func.sum(ParkingVehicle.paid_total), 0).label("paid"),
-                    )
-                    .group_by(ParkingVehicle.omrade)
-                    .order_by(func.coalesce(func.sum(ParkingVehicle.paid_total), 0).desc())
-                    .limit(80)
-                )
-            ).mappings().all()
             tables = [
                 api_table(
                     "Siste parkeringer",
@@ -14072,13 +14297,60 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     )
                 ]
             elif view == "omrade":
-                missing_area_rows = await parking_missing_area_rows(session, 100)
+                date_from_value = api_filter_value(params, "date_from")
+                date_to_value = api_filter_value(params, "date_to")
+                area_context = await parking_area_overview_data(session, date_from_value, date_to_value)
+                area_period = area_context["period"]
+                missing_area_rows = await parking_area_missing_rows_for_period(session, area_period, 100)
+                filters = [
+                    api_filter("date_from", "Dato / fra", "date", area_period["date_from"], "Tom = hele historikken"),
+                    api_filter("date_to", "Til dato", "date", area_period["date_to"], "Valgfritt tidsrom"),
+                ]
+                cards = [
+                    api_card("Periode", area_period["label"], "", area_period["detail"], "parking", href="/parkering/omrade"),
+                    api_card(
+                        "Unike biler",
+                        area_context["vehicle_total"],
+                        "stk",
+                        f"{format_short_number(area_context['parking_total'])} parkeringer i grunnlaget",
+                        "parking",
+                        href="/parkering/omrade",
+                    ),
+                    api_card(
+                        "Har område",
+                        area_context["vehicle_with_area"],
+                        "stk",
+                        f"{area_context['coverage_percent']} % dekning",
+                        "status",
+                        href="/parkering/omrade",
+                    ),
+                    api_card(
+                        "Mangler område",
+                        area_context["missing_area"],
+                        "stk",
+                        "Blankt, ikke funnet eller mangler kjøretøyrad",
+                        "status",
+                        href="/parkering/oppslag",
+                    ),
+                    api_card(
+                        "Beløp",
+                        format_short_number(area_context["paid_total"]),
+                        "kr",
+                        "Parkering i valgt grunnlag",
+                        "revenue",
+                        href="/omsetning/oversikt",
+                    ),
+                ]
                 tables = [
-                    api_table("Områder", ["omrade", "vehicles", "parkeringer", "paid"], [dict(row) for row in area_rows]),
+                    api_table(
+                        "Områder",
+                        ["omrade", "vehicles", "vehicle_share", "parkeringer", "parking_share", "paid", "last_seen"],
+                        area_context["rows"],
+                    ),
                     api_table(
                         "Kjøretøy uten område",
                         ["plate", "navn", "parkering_count", "paid_total", "last_seen"],
-                        [row_to_dict(row, ["plate", "navn", "parkering_count", "paid_total", "last_seen"]) for row, _ in missing_area_rows],
+                        missing_area_rows,
                     ),
                 ]
             elif view == "bilstatistikk":
@@ -16841,47 +17113,24 @@ async def parking_vehicle_statistics_view(request: Request):
 
 
 @app.get("/parkering/omrade", response_class=HTMLResponse)
-async def parking_area_overview_view(request: Request):
-    valid_area_condition = and_(
-        func.trim(func.coalesce(ParkingVehicle.omrade, "")) != "",
-        func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, ""))) != "ikke funnet",
-    )
-    area_expr = func.trim(ParkingVehicle.omrade)
+async def parking_area_overview_view(request: Request, date_from: Optional[str] = None, date_to: Optional[str] = None):
     async with async_session() as session:
-        rows = (
-            await session.execute(
-                select(
-                    area_expr.label("omrade"),
-                    func.count(func.distinct(ParkingVehicle.plate)).label("vehicle_count"),
-                    func.coalesce(func.sum(ParkingVehicle.parkering_count), 0).label("parking_count"),
-                    func.coalesce(func.sum(ParkingVehicle.paid_total), 0).label("paid_total"),
-                    func.max(ParkingVehicle.last_seen).label("last_seen"),
-                )
-                .where(valid_area_condition)
-                .group_by(area_expr)
-                .order_by(func.count(func.distinct(ParkingVehicle.plate)).desc(), area_expr.asc())
-            )
-        ).all()
-        vehicle_total = (
-            await session.execute(select(func.count(func.distinct(ParkingVehicle.plate))))
-        ).scalar_one()
-        vehicle_with_area = (
-            await session.execute(
-                select(func.count(func.distinct(ParkingVehicle.plate))).where(valid_area_condition)
-            )
-        ).scalar_one()
-        parking_with_area = sum(int(getattr(row, "parking_count", 0) or 0) for row in rows)
-    missing_area = max((vehicle_total or 0) - (vehicle_with_area or 0), 0)
+        area_context = await parking_area_overview_data(session, date_from or "", date_to or "")
+    period = area_context["period"]
     return templates.TemplateResponse(
         request,
         "parking_areas.html",
         {
-            "rows": rows,
-            "vehicle_total": vehicle_total,
-            "vehicle_with_area": vehicle_with_area,
-            "missing_area": missing_area,
-            "parking_with_area": parking_with_area,
-            "coverage_percent": round((vehicle_with_area / vehicle_total) * 100, 1) if vehicle_total else 0,
+            "rows": area_context["rows"],
+            "vehicle_total": area_context["vehicle_total"],
+            "vehicle_with_area": area_context["vehicle_with_area"],
+            "missing_area": area_context["missing_area"],
+            "parking_with_area": area_context["parking_with_area"],
+            "parking_total": area_context["parking_total"],
+            "paid_total": area_context["paid_total"],
+            "coverage_percent": area_context["coverage_percent"],
+            "period": period,
+            "filters": {"date_from": period["date_from"], "date_to": period["date_to"]},
         },
     )
 

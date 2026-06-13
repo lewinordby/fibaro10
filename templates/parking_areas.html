@@ -10,6 +10,10 @@
         .area-summary-card { border-left:3px solid var(--parking-color); }
         .area-table .share-cell { white-space:nowrap; font-weight:800; color:var(--brand-dark); }
         .area-actions { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; justify-content:flex-end; }
+        .area-filter { display:flex; flex-wrap:wrap; align-items:end; gap:.65rem; margin-bottom:.85rem; padding:.75rem; border:1px solid var(--line); border-radius:10px; background:var(--panel-bg); }
+        .area-filter label { display:grid; gap:.25rem; color:var(--muted); font-size:.78rem; font-weight:800; }
+        .area-filter input { min-width:10rem; border:1px solid var(--line); border-radius:8px; padding:.48rem .6rem; font:inherit; color:var(--brand-dark); background:#fff; }
+        .area-filter .period-label { margin-left:auto; color:var(--muted); font-size:.86rem; }
         @media (max-width: 900px) {
             .area-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
         }
@@ -32,11 +36,23 @@
             </div>
         </section>
 
+        <form class="area-filter" method="get">
+            <label>Dato / fra
+                <input type="date" name="date_from" value="{{ filters.date_from }}">
+            </label>
+            <label>Til dato
+                <input type="date" name="date_to" value="{{ filters.date_to }}">
+            </label>
+            <button class="button" type="submit">Bruk</button>
+            <a class="button" href="/parkering/omrade">Hele</a>
+            <span class="period-label">{{ period.label }} · {{ period.detail }}</span>
+        </form>
+
         <section class="area-summary-grid">
             <article class="parking-card area-summary-card">
                 <span>Unike bilnummer</span>
                 <strong>{{ vehicle_total|short_number }}</strong>
-                <small>Alle biler i parkeringshistorikken.</small>
+                <small>{{ parking_total|short_number }} parkeringer i grunnlaget.</small>
             </article>
             <article class="parking-card area-summary-card">
                 <span>Har område</span>
@@ -51,7 +67,7 @@
             <article class="parking-card area-summary-card">
                 <span>Områder</span>
                 <strong>{{ rows|length|short_number }}</strong>
-                <small>Unike steder i datasettet.</small>
+                <small>{{ paid_total|short_number }} kr i valgt grunnlag.</small>
             </article>
         </section>
 

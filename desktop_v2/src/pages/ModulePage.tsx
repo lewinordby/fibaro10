@@ -67,6 +67,8 @@ function labelize(column: string): string {
     paid_amount_kr: "Beløp",
     paid_total: "Sum betalt",
     paid: "Betalt",
+    vehicle_share: "Andel biler %",
+    parking_share: "Andel parkeringer %",
     sun_paid: "Soling kr",
     parking_paid: "Parkering kr",
     total_paid: "Sum kr",
@@ -279,7 +281,7 @@ function compareValues(left: unknown, right: unknown): number {
 }
 
 function numericColumn(column: string): boolean {
-  return /(_w|_kr|_kwh|_min|_m2|_count|count|paid|fee|duration|minutes|hour|age|battery|rssi|lux|temp|humidity|wind|cloud|precipitation|breaker|power|energy)$/i.test(
+  return /(_w|_kr|_kwh|_min|_m2|_count|_share|count|paid|fee|duration|minutes|hour|age|battery|rssi|lux|temp|humidity|wind|cloud|precipitation|breaker|power|energy)$/i.test(
     column,
   );
 }
