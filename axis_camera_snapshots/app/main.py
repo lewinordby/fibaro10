@@ -45,10 +45,45 @@ class AxisConfig:
     retention_days: int
     auth_mode: str
     timeout_seconds: float
+    capture_start_time: str
+    capture_end_time: str
 
 
 def env_bool(name: str, default: str = "false") -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "ja", "on"}
+
+
+def normalize_time_string(value: str | None, default: str = "07:00") -> str:
+    raw = (value or default).strip()
+    try:
+        parts = raw.split(":")
+        if len(parts) != 2:
+            raise ValueError(raw)
+        hour = int(parts[0])
+        minute = int(parts[1])
+        if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+            raise ValueError(raw)
+        return f"{hour:02d}:{minute:02d}"
+    except Exception:
+        return default
+
+
+def minutes_from_time_string(value: str) -> int:
+    normalized = normalize_time_string(value)
+    hour, minute = normalized.split(":")
+    return int(hour) * 60 + int(minute)
+
+
+def is_within_capture_window(config: AxisConfig, at: datetime | None = None) -> bool:
+    now = at or now_local()
+    current = now.hour * 60 + now.minute
+    start = minutes_from_time_string(config.capture_start_time)
+    end = minutes_from_time_string(config.capture_end_time)
+    if start == end:
+        return True
+    if start < end:
+        return start <= current < end
+    return current >= start or current < end
 
 
 def default_config() -> AxisConfig:
@@ -66,6 +101,8 @@ def default_config() -> AxisConfig:
         retention_days=max(1, int(os.getenv("AXIS_RETENTION_DAYS", "7"))),
         auth_mode=os.getenv("AXIS_AUTH_MODE", "auto").strip().lower(),
         timeout_seconds=max(1.0, float(os.getenv("AXIS_TIMEOUT_SECONDS", "8"))),
+        capture_start_time=normalize_time_string(os.getenv("AXIS_CAPTURE_START_TIME", "07:00")),
+        capture_end_time=normalize_time_string(os.getenv("AXIS_CAPTURE_END_TIME", "23:00")),
     )
 
 
@@ -77,6 +114,8 @@ def load_config() -> AxisConfig:
         config = AxisConfig(**merged)
     if config.camera_ip and not config.snapshot_url:
         config.snapshot_url = f"http://{config.camera_ip}/axis-cgi/jpg/image.cgi"
+    config.capture_start_time = normalize_time_string(config.capture_start_time, "07:00")
+    config.capture_end_time = normalize_time_string(config.capture_end_time, "23:00")
     return config
 
 
@@ -209,7 +248,7 @@ def delete_old_snapshots(retention_days: int) -> int:
 async def capture_loop() -> None:
     while True:
         config = load_config()
-        if config.enabled:
+        if config.enabled and is_within_capture_window(config):
             try:
                 await capture_once()
             except Exception as exc:
@@ -260,6 +299,8 @@ async def health() -> dict[str, Any]:
     return {
         "ok": True,
         "enabled": config.enabled,
+        "within_capture_window": is_within_capture_window(config),
+        "capture_window": f"{config.capture_start_time}-{config.capture_end_time}",
         "last_success_at": state.get("last_success_at"),
         "last_error": state.get("last_error"),
     }
@@ -310,6 +351,8 @@ async def index() -> HTMLResponse:
         f"""
 <section class="panel"><div class="grid">
 <div class="metric"><span>Aktiv</span><strong>{"Ja" if config.enabled else "Nei"}</strong></div>
+<div class="metric"><span>Lagrer nå</span><strong>{"Ja" if config.enabled and is_within_capture_window(config) else "Nei"}</strong></div>
+<div class="metric"><span>Lagringsvindu</span><strong>{html.escape(config.capture_start_time)}-{html.escape(config.capture_end_time)}</strong></div>
 <div class="metric"><span>Sist lagret</span><strong>{html.escape(str(state.get("last_success_at") or "-"))}</strong></div>
 <div class="metric"><span>Antall bilder</span><strong>{state.get("captures_total", 0)}</strong></div>
 </div><p>Siste feil: <code>{html.escape(str(state.get("last_error") or "-"))}</code></p>
@@ -323,6 +366,8 @@ async def index() -> HTMLResponse:
 <label>Brukernavn<input name="username" value="{html.escape(config.username)}"></label>
 <label>Passord<input name="password" type="password" placeholder="Uendret hvis tomt"></label>
 <label>Intervall sekunder<input name="interval_seconds" type="number" min="1" value="{config.interval_seconds}"></label>
+<label>Lagre fra<input name="capture_start_time" type="time" value="{html.escape(config.capture_start_time)}"></label>
+<label>Lagre til<input name="capture_end_time" type="time" value="{html.escape(config.capture_end_time)}"></label>
 <label>Retention dager<input name="retention_days" type="number" min="1" value="{config.retention_days}"></label>
 <label>Auth<select name="auth_mode">
 <option value="auto" {"selected" if config.auth_mode == "auto" else ""}>Auto</option>
@@ -345,6 +390,8 @@ async def save_settings(
     username: str = Form(""),
     password: str = Form(""),
     interval_seconds: int = Form(5),
+    capture_start_time: str = Form("07:00"),
+    capture_end_time: str = Form("23:00"),
     retention_days: int = Form(7),
     auth_mode: str = Form("auto"),
     timeout_seconds: float = Form(8.0),
@@ -363,6 +410,8 @@ async def save_settings(
             retention_days=max(1, retention_days),
             auth_mode=auth_mode if auth_mode in {"auto", "basic", "digest"} else "auto",
             timeout_seconds=max(1.0, timeout_seconds),
+            capture_start_time=normalize_time_string(capture_start_time, "07:00"),
+            capture_end_time=normalize_time_string(capture_end_time, "23:00"),
         )
     )
     return RedirectResponse("/", status_code=303)

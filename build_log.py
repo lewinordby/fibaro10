@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1131")
+APP_BUILD = os.getenv("APP_BUILD", "1132")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1132",
+        "date": "13.06.2026",
+        "headline": "Axis lagrer bare i åpningstid",
+        "title": "Axis snapshot får lagringsvindu 07:00-23:00 for å begrense diskbruk",
+        "description": (
+            "Axis snapshot-appen kan nå styres med et eget lagringsvindu. Automatisk capture kjører bare mellom "
+            "start- og sluttid, med 07:00-23:00 som standard for å følge åpningstiden. Manuell testknapp kan fortsatt "
+            "hente et bilde utenfor vinduet."
+        ),
+        "applications": [
+            "Axis snapshot-app (axis_camera_snapshots/app/main.py): legger til capture_start_time/capture_end_time, tidsvalidering, status og webskjema.",
+            "Docker/QNAP (docker-compose.qnap.yml): legger inn AXIS_CAPTURE_START_TIME og AXIS_CAPTURE_END_TIME med 07:00-23:00 som standard.",
+            "Dokumentasjon (docs/axis-camera-snapshots.md): beskriver nytt lagringsvindu og manuell test utenfor vinduet.",
+            "Buildlogg (build_log.py): registrerer build 1132.",
+        ],
+        "request": "for å begrense plassen en del så kan vi jo sette tidspunkter i axis appen slik at den sparer bilder bare i åpningstiden",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Setter standard automatisk lagringsvindu til 07:00-23:00.",
+            "Stopper automatisk snapshot utenfor lagringsvinduet uten å logge dette som feil.",
+            "Viser om appen lagrer akkurat nå og hvilket vindu som gjelder på Axis-siden.",
+            "Eksponerer lagringsvinduet i /health og /api/status.",
+        ],
+    },
     {
         "version": "1",
         "build": "1131",

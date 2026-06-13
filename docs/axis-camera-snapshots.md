@@ -21,6 +21,8 @@ AXIS_CAMERA_IP=192.168.101.65
 AXIS_USERNAME=root
 AXIS_PASSWORD=sett-passord-her
 AXIS_INTERVAL_SECONDS=5
+AXIS_CAPTURE_START_TIME=07:00
+AXIS_CAPTURE_END_TIME=23:00
 AXIS_RETENTION_DAYS=7
 AXIS_AUTH_MODE=digest
 ```
@@ -32,6 +34,9 @@ http://<ip>/axis-cgi/jpg/image.cgi
 ```
 
 `AXIS_AUTH_MODE` kan være `auto`, `basic` eller `digest`. Testkameraet svarer med Digest-auth, så `digest` gir renest logg.
+
+Automatisk lagring kjører bare i lagringsvinduet `AXIS_CAPTURE_START_TIME` til `AXIS_CAPTURE_END_TIME`.
+Manuell `Hent bilde nå` i webflaten kan fortsatt brukes til test utenfor vinduet.
 
 ## Soltimebilder
 
