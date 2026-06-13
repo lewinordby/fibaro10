@@ -20,7 +20,7 @@ AXIS_SNAPSHOT_ENABLED=true
 AXIS_CAMERA_IP=192.168.101.65
 AXIS_USERNAME=root
 AXIS_PASSWORD=sett-passord-her
-AXIS_INTERVAL_SECONDS=10
+AXIS_INTERVAL_SECONDS=5
 AXIS_RETENTION_DAYS=7
 AXIS_AUTH_MODE=digest
 ```
@@ -40,10 +40,10 @@ Snapshot-mappen brukes som korttidsbuffer. Bilder som skal høre til en SUN2-sol
 Kobling kjøres fra `Soling -> Enkeltimer` med knappen `Koble bilder`, eller via API:
 
 ```text
-POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=15
+POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=8
 ```
 
-For hver soltime matches bildet nærmest `started_at - 10 sekunder`. Når et bilde er koblet til en soltime, er det uavhengig av 7-dagers retention i snapshot-bufferen.
+For hver soltime matches bildet nærmest `started_at - 5 sekunder`. Når et bilde er koblet til en soltime, er det uavhengig av 7-dagers retention i snapshot-bufferen.
 
 ## Drift
 

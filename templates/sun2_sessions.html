@@ -222,7 +222,7 @@
                     </div>
                     <div class="image-panel">
                         {% if session_image %}
-                        <span class="muted">Axis-bilde valgt nærmest 10 sekunder før start: {{ session_image.captured_at|source_time }}.</span>
+                        <span class="muted">Axis-bilde valgt nærmest 5 sekunder før start: {{ session_image.captured_at|source_time }}.</span>
                         <a href="/soling/enkeltimer/{{ row.id }}/bilde.jpg" target="_blank">
                             <img class="session-image" src="/soling/enkeltimer/{{ row.id }}/bilde.jpg" alt="Bilde før soltime {{ row.id }}">
                         </a>

@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1130")
+APP_BUILD = os.getenv("APP_BUILD", "1131")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1131",
+        "date": "13.06.2026",
+        "headline": "Axis-bilder hvert femte sekund",
+        "title": "Axis snapshot tar bilder oftere og Fibaro10 kobler bildet fem sekunder før solstart",
+        "description": (
+            "Axis snapshot-appen har fått fem sekunder som standard intervall. Fibaro10 sin automatiske kobling av "
+            "bilder til SUN2-soltimer sikter nå på bildet nærmest fem sekunder før start, med strammere toleranse "
+            "for å unngå at et for gammelt bilde velges hvis et snapshot mangler."
+        ),
+        "applications": [
+            "Axis snapshot-app (axis_camera_snapshots/app/main.py): standard intervall og webskjema er endret fra 10 til 5 sekunder.",
+            "Docker/QNAP (docker-compose.qnap.yml): AXIS_INTERVAL_SECONDS har 5 sekunder som ny standard.",
+            "Fibaro10 backend (main.py): SUN2-bildekobling bruker 5 sekunders offset og 8 sekunders standardtoleranse.",
+            "Klassisk soltimevisning (templates/sun2_sessions.html): tekst for valgt Axis-bilde er oppdatert.",
+            "Dokumentasjon (docs/axis-camera-snapshots.md): driftseksempel og koblingsregel er oppdatert.",
+            "Buildlogg (build_log.py): registrerer build 1131.",
+        ],
+        "request": "vi tar nå bilder med axis snapshot hvert 10 sekund, jeg tror vi må øke dette til hvert 5 og ta det bilde som er 5 sekunder før soling inn i fibaro10",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Endrer standard snapshot-intervall fra 10 til 5 sekunder.",
+            "Endrer SUN2-bildekobling fra start minus 10 sekunder til start minus 5 sekunder.",
+            "Strammer standardtoleransen fra 15 til 8 sekunder.",
+            "Oppdaterer visning og dokumentasjon slik at de beskriver ny regel.",
+        ],
+    },
     {
         "version": "1",
         "build": "1130",
