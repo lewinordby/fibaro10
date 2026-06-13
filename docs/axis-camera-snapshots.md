@@ -63,6 +63,16 @@ Eksisterende koblinger kan rekobles med:
 POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=8&replace=true
 ```
 
+Manuelt bildebytte gjøres fra `Soling -> Enkeltimer`. Åpne en soltime, klikk på bildet eller `Velg fra arkiv`, bla eldre/nyere i Axis-arkivet og trykk `Bruk dette bildet`. Frontend bruker tidsbaserte snapshot-ID-er, ikke filstier:
+
+```text
+GET  /api/soling/enkeltimer/{session_id}/image-browser
+GET  /api/soling/axis-snapshots/{snapshot_id}/image
+POST /api/soling/enkeltimer/{session_id}/image?snapshot_id=YYYYMMDDHHMMSS
+```
+
+`POST` krever master- eller innstillingstilgang, fordi bildet som ligger lagret på soltimeposten erstattes.
+
 Når et bilde er koblet til en soltime, er det uavhengig av 7-dagers retention i snapshot-bufferen.
 
 ## Drift

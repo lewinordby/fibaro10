@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1134")
+APP_BUILD = os.getenv("APP_BUILD", "1135")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1135",
+        "date": "13.06.2026",
+        "headline": "Bildevelger for soltimer",
+        "title": "Soltimer kan bla i Axis-arkivet og bytte lagret bilde manuelt",
+        "description": (
+            "Enkeltimevisningen for soling har fatt en bildebrowser. Nar et soltimebilde apnes kan man bla eldre og "
+            "nyere i Axis-arkivet, kontrollere bildet mot beregnet bildetid og lagre valgt arkivbilde pa posten."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger til trygt snapshot-ID-oppslag, arkivbildevisning, bildebrowser-API og POST for a bytte soltimebilde.",
+            "Desktop V2 (ModulePage.tsx): legger bildebrowser-modal med eldre/nyere navigasjon og Bruk dette bildet-knapp.",
+            "Desktop V2 CSS (styles.css): gir bildebrowseren stort bilde, kompakte metadata og tydelige tom-/lastetilstander.",
+            "Tester (tests/test_sun2_axis_snapshots.py): dekker snapshot-ID og filoppslag i Axis dagmapper.",
+            "Dokumentasjon (docs/axis-camera-snapshots.md): beskriver manuell bildebytteflyt.",
+            "Buildlogg (build_log.py): registrerer build 1135.",
+        ],
+        "request": "kan vi legge inn mulighet for a bla frem og tilbake i bildene nar man er inne pa en soltime og har apnet et bilde, da vil jeg kanpper som kan bla i bildearkivet opp og ned og en ok knapp for a skifte ut det bildet som er lagret pa posten",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Klikk pa soltimebildet apner bildearkivet.",
+            "Bildearkivet kan bla eldre og nyere rundt valgt eller beregnet bildetid.",
+            "Bruk dette bildet erstatter bildet lagret pa soltimeposten.",
+            "Endring krever innstillings-/mastertilgang fordi den skriver til databasen.",
+            "Filstier eksponeres ikke til frontend; bare tidsbaserte snapshot-ID-er brukes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1134",

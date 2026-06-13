@@ -3651,6 +3651,7 @@ def local_naive_to_utc_naive(value: Optional[datetime]) -> Optional[datetime]:
 
 
 AXIS_SNAPSHOT_FILENAME_RE = re.compile(r"^axis_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jpg$")
+AXIS_SNAPSHOT_ID_RE = re.compile(r"^\d{14}$")
 
 
 def parse_axis_snapshot_time(path: Path) -> Optional[datetime]:
@@ -3661,6 +3662,41 @@ def parse_axis_snapshot_time(path: Path) -> Optional[datetime]:
         return datetime.strptime(f"{match.group(1)} {match.group(2)}", "%Y-%m-%d %H-%M-%S")
     except ValueError:
         return None
+
+
+def axis_snapshot_id(captured_at: datetime) -> str:
+    return normalize_local_naive(captured_at).strftime("%Y%m%d%H%M%S")
+
+
+def parse_axis_snapshot_id(snapshot_id: str) -> Optional[datetime]:
+    if not AXIS_SNAPSHOT_ID_RE.fullmatch((snapshot_id or "").strip()):
+        return None
+    try:
+        return datetime.strptime(snapshot_id, "%Y%m%d%H%M%S")
+    except ValueError:
+        return None
+
+
+def axis_snapshot_path_for_id(snapshot_id: str, root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> Optional[tuple[datetime, Path]]:
+    captured_at = parse_axis_snapshot_id(snapshot_id)
+    if captured_at is None:
+        return None
+    root_resolved = root.resolve()
+    direct = (
+        root_resolved
+        / captured_at.strftime("%Y-%m-%d")
+        / f"axis_{captured_at.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
+    )
+    try:
+        direct.resolve().relative_to(root_resolved)
+    except (OSError, ValueError):
+        return None
+    if direct.is_file():
+        return captured_at, direct
+    for candidate_at, path in axis_snapshot_candidates(root):
+        if candidate_at == captured_at:
+            return candidate_at, path
+    return None
 
 
 def axis_snapshot_candidates(root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> list[tuple[datetime, Path]]:
@@ -3678,6 +3714,20 @@ def axis_snapshot_candidates(root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> list[tuple
             continue
         candidates.append((captured_at, path))
     return sorted(candidates, key=lambda item: item[0])
+
+
+def closest_axis_snapshot_index(candidates: list[tuple[datetime, Path]], target_at: datetime) -> int:
+    if not candidates:
+        return -1
+    times = [item[0] for item in candidates]
+    index = bisect_left(times, target_at)
+    if index <= 0:
+        return 0
+    if index >= len(candidates):
+        return len(candidates) - 1
+    before_delta = abs((times[index - 1] - target_at).total_seconds())
+    after_delta = abs((times[index] - target_at).total_seconds())
+    return index - 1 if before_delta <= after_delta else index
 
 
 def nearest_axis_snapshot(
@@ -3713,6 +3763,106 @@ def sun2_session_axis_target_at(row: Sun2TanningSession) -> Optional[datetime]:
         if raw_time and not re.search(r"\d{1,2}:\d{2}:\d{2}", raw_time):
             started_at = started_at + timedelta(seconds=SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND)
     return started_at - timedelta(seconds=SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS)
+
+
+def axis_snapshot_browser_payload(
+    row: Sun2TanningSession,
+    image: Optional[Sun2TanningSessionImage] = None,
+    snapshot_id_value: Optional[str] = None,
+) -> Dict[str, Any]:
+    candidates = axis_snapshot_candidates()
+    target_at = sun2_session_axis_target_at(row)
+    linked_id = axis_snapshot_id(image.captured_at) if image and image.captured_at else None
+    requested_at = parse_axis_snapshot_id(snapshot_id_value or "") if snapshot_id_value else None
+    preferred_at = requested_at or (normalize_local_naive(image.captured_at) if image and image.captured_at else None) or target_at
+    selected_index = closest_axis_snapshot_index(candidates, preferred_at) if preferred_at else -1
+
+    current = None
+    previous_id = None
+    next_id = None
+    if selected_index >= 0:
+        captured_at, path = candidates[selected_index]
+        current_id = axis_snapshot_id(captured_at)
+        previous_id = axis_snapshot_id(candidates[selected_index - 1][0]) if selected_index > 0 else None
+        next_id = axis_snapshot_id(candidates[selected_index + 1][0]) if selected_index < len(candidates) - 1 else None
+        delta_seconds = abs((captured_at - target_at).total_seconds()) if target_at else None
+        current = {
+            "id": current_id,
+            "capturedAt": captured_at.isoformat(),
+            "label": captured_at.strftime("%d.%m.%Y %H:%M:%S"),
+            "filename": path.name,
+            "imageUrl": f"/api/soling/axis-snapshots/{current_id}/image",
+            "deltaSeconds": round(delta_seconds, 1) if delta_seconds is not None else None,
+            "isLinked": linked_id == current_id,
+        }
+
+    linked = None
+    if image and image.captured_at:
+        linked = {
+            "id": linked_id,
+            "capturedAt": image.captured_at.isoformat(),
+            "label": image.captured_at.strftime("%d.%m.%Y %H:%M:%S"),
+            "imageUrl": f"/soling/enkeltimer/{row.id}/bilde.jpg",
+            "deltaSeconds": round(float_or_zero(image.delta_seconds), 1),
+            "source": image.source,
+        }
+
+    return {
+        "sessionId": row.id,
+        "startedAt": row.started_at.isoformat() if row.started_at else None,
+        "targetAt": target_at.isoformat() if target_at else None,
+        "targetLabel": target_at.strftime("%d.%m.%Y %H:%M:%S") if target_at else "",
+        "snapshotRoot": str(SUN2_AXIS_SNAPSHOT_ROOT),
+        "snapshotsFound": len(candidates),
+        "linked": linked,
+        "current": current,
+        "previousSnapshotId": previous_id,
+        "nextSnapshotId": next_id,
+        "canPrevious": previous_id is not None,
+        "canNext": next_id is not None,
+    }
+
+
+async def replace_sun2_session_image_with_axis_snapshot(
+    session,
+    session_id: int,
+    snapshot_id_value: str,
+) -> Dict[str, Any]:
+    snapshot = axis_snapshot_path_for_id(snapshot_id_value)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Fant ikke valgt Axis-bilde i arkivet.")
+    captured_at, path = snapshot
+    row = (
+        await session.execute(
+            select(Sun2TanningSession).where(Sun2TanningSession.id == session_id)
+        )
+    ).scalars().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Fant ikke soltimen.")
+
+    content = path.read_bytes()
+    if not content.startswith(b"\xff\xd8"):
+        raise HTTPException(status_code=400, detail="Valgt fil er ikke et gyldig JPEG-bilde.")
+    target_at = sun2_session_axis_target_at(row)
+    delta_seconds = abs((captured_at - target_at).total_seconds()) if target_at else None
+    stat = path.stat()
+    await session.execute(delete(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id == row.id))
+    image = Sun2TanningSessionImage(
+        session_id=row.id,
+        captured_at=captured_at,
+        target_at=target_at,
+        delta_seconds=delta_seconds,
+        source_path=str(path),
+        source_mtime=datetime.fromtimestamp(stat.st_mtime, LOCAL_TZ).replace(tzinfo=None),
+        content_type="image/jpeg",
+        image_bytes=content,
+        byte_size=len(content),
+        sha256=hashlib.sha256(content).hexdigest(),
+        source="axis_snapshot_manual",
+    )
+    session.add(image)
+    await session.flush()
+    return axis_snapshot_browser_payload(row, image, snapshot_id_value)
 
 
 async def link_axis_snapshots_to_sun2_sessions(
@@ -9992,6 +10142,60 @@ async def sun2_session_image(session_id: int):
         media_type=image.content_type or "image/jpeg",
         headers={"Cache-Control": "private, max-age=3600"},
     )
+
+
+@app.get("/api/soling/axis-snapshots/{snapshot_id}/image")
+async def api_sun2_axis_snapshot_image(snapshot_id: str):
+    snapshot = axis_snapshot_path_for_id(snapshot_id)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Fant ikke Axis-bildet.")
+    _captured_at, path = snapshot
+    return FileResponse(
+        path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "private, max-age=300"},
+    )
+
+
+@app.get("/api/soling/enkeltimer/{session_id:int}/image-browser")
+async def api_sun2_session_image_browser(session_id: int, snapshot_id: Optional[str] = None):
+    if snapshot_id and parse_axis_snapshot_id(snapshot_id) is None:
+        raise HTTPException(status_code=400, detail="Ugyldig bilde-ID.")
+    async with async_session() as session:
+        row = (
+            await session.execute(
+                select(Sun2TanningSession).where(Sun2TanningSession.id == session_id)
+            )
+        ).scalars().first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Fant ikke soltimen.")
+        image = (
+            await session.execute(
+                select(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id == session_id)
+            )
+        ).scalars().first()
+    return axis_snapshot_browser_payload(row, image, snapshot_id)
+
+
+@app.post("/api/soling/enkeltimer/{session_id:int}/image")
+async def api_sun2_session_select_image(
+    request: Request,
+    session_id: int,
+    snapshot_id: str = Query(...),
+):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    if parse_axis_snapshot_id(snapshot_id) is None:
+        raise HTTPException(status_code=400, detail="Ugyldig bilde-ID.")
+    async with async_session() as session:
+        payload = await replace_sun2_session_image_with_axis_snapshot(session, session_id, snapshot_id)
+        await session.commit()
+    return {
+        "status": "ok",
+        "message": "Bildet er byttet.",
+        "browser": payload,
+    }
 
 
 @app.get("/status", response_class=HTMLResponse)

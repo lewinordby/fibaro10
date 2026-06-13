@@ -1,11 +1,13 @@
-import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag, Typography } from "antd";
+import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import {
   fetchModule,
+  fetchSunSessionImageBrowser,
   runModuleAction,
+  selectSunSessionImage,
   submitModuleEdit,
   type JsonRecord,
   type ModuleAction,
@@ -13,6 +15,7 @@ import {
   type ModuleEditField,
   type ModuleRow,
   type ModuleTable,
+  type SunSessionImageBrowser,
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
@@ -487,9 +490,16 @@ function sessionImageUrl(row: ModuleRow): string {
   return version ? `${url}?v=${encodeURIComponent(version)}` : url;
 }
 
-function SunSessionDetails({ row }: { row: ModuleRow }) {
+function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageChanged: () => void }) {
+  const { message } = AntApp.useApp();
   const imageUrl = sessionImageUrl(row);
   const hasImage = row.has_image === true && Boolean(imageUrl);
+  const sessionId = Number(row.id);
+  const canBrowseImages = Number.isFinite(sessionId) && sessionId > 0;
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const [browserLoading, setBrowserLoading] = useState(false);
+  const [savingImage, setSavingImage] = useState(false);
+  const [browser, setBrowser] = useState<SunSessionImageBrowser | null>(null);
   const fields: Array<[string, unknown]> = [
     ["Start", row.started_at],
     ["Slutt", row.ended_at],
@@ -504,6 +514,37 @@ function SunSessionDetails({ row }: { row: ModuleRow }) {
     ["Avvik", row.image_delta_seconds !== null && row.image_delta_seconds !== undefined ? `${displayValue(row.image_delta_seconds)} sek` : ""],
   ];
 
+  async function openBrowser(snapshotId?: string | null) {
+    if (!canBrowseImages) {
+      message.error("Mangler intern soltime-ID.");
+      return;
+    }
+    setBrowserOpen(true);
+    setBrowserLoading(true);
+    try {
+      setBrowser(await fetchSunSessionImageBrowser(sessionId, snapshotId));
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Kunne ikke hente bildearkivet");
+    } finally {
+      setBrowserLoading(false);
+    }
+  }
+
+  async function useCurrentImage() {
+    if (!canBrowseImages || !browser?.current) return;
+    setSavingImage(true);
+    try {
+      await selectSunSessionImage(sessionId, browser.current.id);
+      message.success("Bildet er byttet");
+      setBrowserOpen(false);
+      onImageChanged();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Kunne ikke bytte bilde");
+    } finally {
+      setSavingImage(false);
+    }
+  }
+
   return (
     <div className="sun-session-detail">
       <div className="sun-session-fields">
@@ -516,13 +557,81 @@ function SunSessionDetails({ row }: { row: ModuleRow }) {
       </div>
       <div className="sun-session-image-panel">
         {hasImage ? (
-          <img src={imageUrl} alt={`Axis-bilde for soltime ${displayValue(row.started_at)}`} loading="lazy" />
+          <button className="sun-session-image-button" type="button" onClick={() => openBrowser()}>
+            <img src={imageUrl} alt={`Axis-bilde for soltime ${displayValue(row.started_at)}`} loading="lazy" />
+            <span>Åpne bildearkiv</span>
+          </button>
         ) : (
           <div className="sun-session-empty-image">
             <Typography.Text type="secondary">Ingen koblet bilde for denne soltimen.</Typography.Text>
+            <Button size="small" onClick={() => openBrowser()} disabled={!canBrowseImages}>
+              Velg fra arkiv
+            </Button>
           </div>
         )}
       </div>
+      <Modal
+        title="Bildearkiv for soltime"
+        open={browserOpen}
+        width={980}
+        className="sun-image-browser-modal"
+        onCancel={() => setBrowserOpen(false)}
+        footer={[
+          <Button key="older" disabled={browserLoading || !browser?.canPrevious} onClick={() => openBrowser(browser?.previousSnapshotId)}>
+            Eldre
+          </Button>,
+          <Button key="newer" disabled={browserLoading || !browser?.canNext} onClick={() => openBrowser(browser?.nextSnapshotId)}>
+            Nyere
+          </Button>,
+          <Button
+            key="ok"
+            type="primary"
+            loading={savingImage}
+            disabled={browserLoading || !browser?.current || browser.current.isLinked}
+            onClick={useCurrentImage}
+          >
+            {browser?.current?.isLinked ? "Allerede valgt" : "Bruk dette bildet"}
+          </Button>,
+        ]}
+      >
+        <div className="sun-image-browser">
+          {browserLoading ? (
+            <div className="sun-image-browser-loading">
+              <Spin />
+            </div>
+          ) : browser?.current ? (
+            <>
+              <div className="sun-image-browser-meta">
+                <div>
+                  <span>Arkivbilde</span>
+                  <strong>{browser.current.label}</strong>
+                </div>
+                <div>
+                  <span>Beregnet bildetid</span>
+                  <strong>{browser.targetLabel || "-"}</strong>
+                </div>
+                <div>
+                  <span>Avvik</span>
+                  <strong>{browser.current.deltaSeconds !== null && browser.current.deltaSeconds !== undefined ? `${displayValue(browser.current.deltaSeconds)} sek` : "-"}</strong>
+                </div>
+                <div>
+                  <span>Status</span>
+                  <strong>{browser.current.isLinked ? "Lagret på posten" : "Kan velges"}</strong>
+                </div>
+              </div>
+              <img
+                className="sun-image-browser-image"
+                src={`${browser.current.imageUrl}?v=${encodeURIComponent(browser.current.id)}`}
+                alt={`Axis-bilde ${browser.current.label}`}
+              />
+            </>
+          ) : (
+            <div className="sun-image-browser-empty">
+              <Typography.Text type="secondary">Ingen Axis-bilder finnes i arkivet.</Typography.Text>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -534,6 +643,7 @@ function SunSessionsPanel({
   onSearch,
   onClear,
   onDraftChange,
+  onImageChanged,
 }: {
   table?: ModuleTable;
   query: string;
@@ -541,6 +651,7 @@ function SunSessionsPanel({
   onSearch: (value?: string) => void;
   onClear: () => void;
   onDraftChange: (value: string) => void;
+  onImageChanged: () => void;
 }) {
   const rows = table ? filterRows(table.rows, table.columns, query) : [];
   return (
@@ -581,7 +692,7 @@ function SunSessionsPanel({
                     <Tag color={hasImage ? "green" : "default"}>{hasImage ? "Bilde" : "Ingen bilde"}</Tag>
                   </div>
                 </summary>
-                <SunSessionDetails row={row} />
+                <SunSessionDetails row={row} onImageChanged={onImageChanged} />
               </details>
             );
           })
@@ -755,6 +866,7 @@ export default function ModulePage({ module }: { module: string }) {
           onSearch={runSearch}
           onClear={clearSearch}
           onDraftChange={setDraftQuery}
+          onImageChanged={() => setReloadToken((value) => value + 1)}
         />
       ) : (
         <>

@@ -1,7 +1,9 @@
 import importlib.util
 import os
+import tempfile
 import unittest
 from datetime import datetime
+from pathlib import Path
 
 
 @unittest.skipUnless(
@@ -37,3 +39,28 @@ class Sun2AxisSnapshotTests(unittest.TestCase):
             self.main.sun2_session_axis_target_at(row),
             datetime(2026, 6, 13, 17, 46, 36),
         )
+
+    def test_axis_snapshot_id_roundtrip(self) -> None:
+        captured_at = datetime(2026, 6, 13, 17, 46, 27)
+
+        snapshot_id = self.main.axis_snapshot_id(captured_at)
+
+        self.assertEqual(snapshot_id, "20260613174627")
+        self.assertEqual(self.main.parse_axis_snapshot_id(snapshot_id), captured_at)
+        self.assertIsNone(self.main.parse_axis_snapshot_id("../axis_2026"))
+
+    def test_axis_snapshot_path_for_id_uses_day_folder(self) -> None:
+        captured_at = datetime(2026, 6, 13, 17, 46, 27)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            day = root / "2026-06-13"
+            day.mkdir()
+            path = day / "axis_2026-06-13_17-46-27.jpg"
+            path.write_bytes(b"\xff\xd8test")
+
+            found = self.main.axis_snapshot_path_for_id("20260613174627", root)
+
+        self.assertIsNotNone(found)
+        found_at, found_path = found
+        self.assertEqual(found_at, captured_at)
+        self.assertEqual(found_path.name, "axis_2026-06-13_17-46-27.jpg")

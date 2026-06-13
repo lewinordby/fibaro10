@@ -331,6 +331,32 @@ export type ModuleFilter = {
   options?: Array<{ label: string; value: string | number }>;
 };
 
+export type SunSessionSnapshot = {
+  id: string;
+  capturedAt: string;
+  label: string;
+  filename?: string;
+  imageUrl: string;
+  deltaSeconds?: number | null;
+  isLinked?: boolean;
+  source?: string;
+};
+
+export type SunSessionImageBrowser = {
+  sessionId: number;
+  startedAt: string | null;
+  targetAt: string | null;
+  targetLabel: string;
+  snapshotRoot: string;
+  snapshotsFound: number;
+  linked: SunSessionSnapshot | null;
+  current: SunSessionSnapshot | null;
+  previousSnapshotId: string | null;
+  nextSnapshotId: string | null;
+  canPrevious: boolean;
+  canNext: boolean;
+};
+
 export type SunTimelineItem = {
   left: number;
   width: number;
@@ -710,6 +736,27 @@ export function fetchModule(
 
 export function fetchParkingVehicleDetail(plate: string): Promise<ParkingVehicleDetailResponse> {
   return apiGet<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`);
+}
+
+export function fetchSunSessionImageBrowser(sessionId: number, snapshotId?: string | null): Promise<SunSessionImageBrowser> {
+  const params = new URLSearchParams();
+  if (snapshotId) params.set("snapshot_id", snapshotId);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return apiGet<SunSessionImageBrowser>(`/api/soling/enkeltimer/${encodeURIComponent(sessionId)}/image-browser${query}`);
+}
+
+export async function selectSunSessionImage(sessionId: number, snapshotId: string): Promise<JsonRecord> {
+  const params = new URLSearchParams({ snapshot_id: snapshotId });
+  const response = await fetch(`/api/soling/enkeltimer/${encodeURIComponent(sessionId)}/image?${params.toString()}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
 }
 
 export async function runModuleAction(action: ModuleAction): Promise<JsonRecord> {
