@@ -48,7 +48,22 @@ Kobling kjøres fra `Soling -> Enkeltimer` med knappen `Koble bilder`, eller via
 POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=8
 ```
 
-For hver soltime matches bildet nærmest `started_at - 5 sekunder`. Når et bilde er koblet til en soltime, er det uavhengig av 7-dagers retention i snapshot-bufferen.
+For hver soltime matches bildet nærmest beregnet SUN2-bildetid. SUN2 Owner leverer vanligvis `Tidspunkt` med minuttpresisjon, for eksempel `17:46`, ikke `17:46:32`. Fibaro10 tolker derfor minuttpresise rader som sekund `30` og trekker deretter fra 5 sekunder:
+
+```text
+SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND=30
+SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS=5
+```
+
+Eksempel: `17:46` gir target `17:46:25`. Hvis SUN2 en gang leverer sekunder, brukes faktisk sekundverdi og kun offset trekkes fra.
+
+Eksisterende koblinger kan rekobles med:
+
+```text
+POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=8&replace=true
+```
+
+Når et bilde er koblet til en soltime, er det uavhengig av 7-dagers retention i snapshot-bufferen.
 
 ## Drift
 

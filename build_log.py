@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1132")
+APP_BUILD = os.getenv("APP_BUILD", "1133")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1133",
+        "date": "13.06.2026",
+        "headline": "Retter SUN2-bildevalg",
+        "title": "Axis-bilder for SUN2 bruker minuttpresisjon riktig",
+        "description": (
+            "SUN2 Owner leverer enkelttimer med minuttpresisjon, uten sekunder. Fibaro10 valgte tidligere bilde fem "
+            "sekunder før starten av minuttet, noe som kunne gi tomt bilde før kunden kom inn. Bildekoblingen tolker "
+            "nå minuttpresise SUN2-rader som midt i minuttet og velger bildet fem sekunder før dette."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger inn SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND og beregner egen Axis-target for SUN2-rader.",
+            "Fibaro10 bildekoblings-API (main.py): støtter replace=true slik at eksisterende feilvalgte bilder kan rekobles.",
+            "Klassisk soltimevisning (templates/sun2_sessions.html): oppdaterer tekst for valgt Axis-bilde.",
+            "Dokumentasjon (docs/axis-camera-snapshots.md og .env.qnap.example): beskriver minuttpresisjon, offset og rekobling.",
+            "Tester (tests/test_sun2_axis_snapshots.py): dekker minuttpresise og sekundpresise SUN2-tider.",
+            "Buildlogg (build_log.py): registrerer build 1133.",
+        ],
+        "request": "jeg ser at timen 17:46 har et bilde fra 17:45:54 men der er det ingen personer,, det skal jo ikke forekomme",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Beholder SUN2-starttidene uendret for statistikk og dagslinjer.",
+            "Tolker minuttpresise SUN2-rader som sekund 30 ved bildevalg.",
+            "Velger fortsatt bilde fem sekunder før beregnet bildetid.",
+            "Gjør det mulig å rekoble eksisterende bilder med replace=true.",
+        ],
+    },
     {
         "version": "1",
         "build": "1132",

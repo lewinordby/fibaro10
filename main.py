@@ -123,6 +123,10 @@ SUN2_AXIS_SNAPSHOT_ROOT = Path(
     os.getenv("SUN2_AXIS_SNAPSHOT_ROOT", os.getenv("AXIS_SNAPSHOT_DIR", "/axis_snapshots"))
 )
 SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS = max(0, int(os.getenv("SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS", "5")))
+SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND = max(
+    0,
+    min(59, int(os.getenv("SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND", "30"))),
+)
 SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS", "8")))
 SUN2_AXIS_SNAPSHOT_LINK_ENABLED = os.getenv("SUN2_AXIS_SNAPSHOT_LINK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS = max(30, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS", "60")))
@@ -3700,6 +3704,17 @@ def nearest_axis_snapshot(
     return captured_at, path, delta_seconds
 
 
+def sun2_session_axis_target_at(row: Sun2TanningSession) -> Optional[datetime]:
+    started_at = normalize_local_naive(row.started_at)
+    if not started_at:
+        return None
+    if started_at.second == 0 and started_at.microsecond == 0:
+        raw_time = str((row.raw or {}).get("Tidspunkt") or (row.raw or {}).get("tidspunkt") or "")
+        if raw_time and not re.search(r"\d{1,2}:\d{2}:\d{2}", raw_time):
+            started_at = started_at + timedelta(seconds=SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND)
+    return started_at - timedelta(seconds=SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS)
+
+
 async def link_axis_snapshots_to_sun2_sessions(
     session,
     days: int = 7,
@@ -3724,6 +3739,7 @@ async def link_axis_snapshots_to_sun2_sessions(
         "days": days,
         "limit": limit,
         "target_offset_seconds": SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS,
+        "minute_assumed_second": SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND,
         "tolerance_seconds": tolerance_seconds,
     }
     if not candidates:
@@ -3758,11 +3774,10 @@ async def link_axis_snapshots_to_sun2_sessions(
         if row.id in existing_image_ids and not replace:
             result["already_linked"] += 1
             continue
-        started_at = normalize_local_naive(row.started_at)
-        if not started_at:
+        target_at = sun2_session_axis_target_at(row)
+        if not target_at:
             result["no_match"] += 1
             continue
-        target_at = started_at - timedelta(seconds=SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS)
         match = nearest_axis_snapshot(candidates, target_at, tolerance_seconds, candidate_times)
         if match is None:
             result["no_match"] += 1
@@ -19031,12 +19046,14 @@ async def sun2_sessions_link_images(request: Request):
         tolerance_seconds = int(form.get("tolerance_seconds") or SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS)
     except (TypeError, ValueError):
         tolerance_seconds = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS
+    replace = str(form.get("replace") or "").strip().lower() in {"1", "true", "yes", "ja", "on"}
     try:
         result = await run_sun2_axis_snapshot_link_once(
             "manual_jinja",
             days=days,
             limit=limit,
             tolerance_seconds=tolerance_seconds,
+            replace=replace,
         )
         message = (
             f"Koblet {result.get('linked', 0)} bilder. "
@@ -19054,6 +19071,7 @@ async def api_v2_sun2_link_snapshot_images(
     days: int = 7,
     limit: int = 5000,
     tolerance_seconds: int = SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS,
+    replace: bool = False,
 ):
     forbidden = require_settings_access(request)
     if forbidden:
@@ -19063,6 +19081,7 @@ async def api_v2_sun2_link_snapshot_images(
         days=days,
         limit=limit,
         tolerance_seconds=tolerance_seconds,
+        replace=replace,
     )
     return {"status": "ok", "result": result}
 
