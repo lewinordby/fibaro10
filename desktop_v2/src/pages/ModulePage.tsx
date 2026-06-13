@@ -16,6 +16,7 @@ import {
   type ModuleRow,
   type ModuleTable,
   type SunSessionImageBrowser,
+  type SunSessionSavedImage,
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
@@ -490,6 +491,10 @@ function sessionImageUrl(row: ModuleRow): string {
   return version ? `${url}?v=${encodeURIComponent(version)}` : url;
 }
 
+function rowSavedImages(row: ModuleRow): SunSessionSavedImage[] {
+  return Array.isArray(row.session_images) ? (row.session_images as SunSessionSavedImage[]) : [];
+}
+
 function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageChanged: () => void }) {
   const { message } = AntApp.useApp();
   const imageUrl = sessionImageUrl(row);
@@ -500,8 +505,12 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
   const [browserLoading, setBrowserLoading] = useState(false);
   const [savingImage, setSavingImage] = useState(false);
   const [browser, setBrowser] = useState<SunSessionImageBrowser | null>(null);
-  const [browserMode, setBrowserMode] = useState<"saved" | "archive">("saved");
-  const [selectedSavedImageId, setSelectedSavedImageId] = useState<number | null>(null);
+  const [selectedInlineImageId, setSelectedInlineImageId] = useState<number | null>(null);
+  const inlineImages = rowSavedImages(row);
+  const defaultInlineIndex = Math.max(0, inlineImages.findIndex((image) => image.isPrimary));
+  const selectedInlineIndex = inlineImages.findIndex((image) => image.id === selectedInlineImageId);
+  const activeInlineIndex = selectedInlineIndex >= 0 ? selectedInlineIndex : defaultInlineIndex;
+  const activeInlineImage = inlineImages[activeInlineIndex] ?? null;
   const fields: Array<[string, unknown]> = [
     ["Start", row.started_at],
     ["Slutt", row.ended_at],
@@ -527,8 +536,6 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     try {
       const nextBrowser = await fetchSunSessionImageBrowser(sessionId, snapshotId);
       setBrowser(nextBrowser);
-      setBrowserMode(snapshotId || !nextBrowser.savedImages.length ? "archive" : "saved");
-      setSelectedSavedImageId(nextBrowser.linked?.id ?? nextBrowser.savedImages[0]?.id ?? null);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Kunne ikke hente bildearkivet");
     } finally {
@@ -544,8 +551,6 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
       message.success("Bildet er byttet");
       const nextBrowser = await fetchSunSessionImageBrowser(sessionId, browser.current.id);
       setBrowser(nextBrowser);
-      setBrowserMode("saved");
-      setSelectedSavedImageId(nextBrowser.linked?.id ?? nextBrowser.savedImages[0]?.id ?? null);
       onImageChanged();
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Kunne ikke bytte bilde");
@@ -554,52 +559,29 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     }
   }
 
-  const savedImages = browser?.savedImages ?? [];
-  const selectedSavedIndex = savedImages.findIndex((image) => image.id === selectedSavedImageId);
-  const activeSavedIndex = selectedSavedIndex >= 0 ? selectedSavedIndex : 0;
-  const selectedSavedImage = savedImages[activeSavedIndex] ?? null;
-
-  function moveSavedImage(delta: number) {
-    if (!savedImages.length) return;
-    const nextIndex = (activeSavedIndex + delta + savedImages.length) % savedImages.length;
-    setSelectedSavedImageId(savedImages[nextIndex].id);
+  function moveInlineImage(delta: number) {
+    if (!inlineImages.length) return;
+    const nextIndex = (activeInlineIndex + delta + inlineImages.length) % inlineImages.length;
+    setSelectedInlineImageId(inlineImages[nextIndex].id);
   }
 
-  const modalFooter =
-    browserMode === "archive"
-      ? [
-          <Button key="older" disabled={browserLoading || !browser?.canPrevious} onClick={() => openBrowser(browser?.previousSnapshotId)}>
-            Arkiv eldre
-          </Button>,
-          <Button key="newer" disabled={browserLoading || !browser?.canNext} onClick={() => openBrowser(browser?.nextSnapshotId)}>
-            Arkiv nyere
-          </Button>,
-          savedImages.length ? (
-            <Button key="saved" disabled={browserLoading} onClick={() => setBrowserMode("saved")}>
-              Vis lagrede bilder
-            </Button>
-          ) : null,
-          <Button
-            key="ok"
-            type="primary"
-            loading={savingImage}
-            disabled={browserLoading || !browser?.current || browser.current.isLinked}
-            onClick={useCurrentImage}
-          >
-            {browser?.current?.isLinked ? "Allerede valgt" : "Bruk dette bildet"}
-          </Button>,
-        ]
-      : [
-          <Button key="prev-saved" disabled={browserLoading || savedImages.length < 2} onClick={() => moveSavedImage(-1)}>
-            Forrige bilde
-          </Button>,
-          <Button key="next-saved" disabled={browserLoading || savedImages.length < 2} onClick={() => moveSavedImage(1)}>
-            Neste bilde
-          </Button>,
-          <Button key="archive" disabled={browserLoading} onClick={() => setBrowserMode("archive")}>
-            Velg fra arkiv
-          </Button>,
-        ];
+  const modalFooter = [
+    <Button key="older" disabled={browserLoading || !browser?.canPrevious} onClick={() => openBrowser(browser?.previousSnapshotId)}>
+      Arkiv eldre
+    </Button>,
+    <Button key="newer" disabled={browserLoading || !browser?.canNext} onClick={() => openBrowser(browser?.nextSnapshotId)}>
+      Arkiv nyere
+    </Button>,
+    <Button
+      key="ok"
+      type="primary"
+      loading={savingImage}
+      disabled={browserLoading || !browser?.current || browser.current.isLinked}
+      onClick={useCurrentImage}
+    >
+      {browser?.current?.isLinked ? "Allerede valgt" : "Bruk dette bildet"}
+    </Button>,
+  ];
 
   return (
     <div className="sun-session-detail">
@@ -612,16 +594,44 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
         ))}
       </div>
       <div className="sun-session-image-panel">
-        {hasImage ? (
-          <button className="sun-session-image-button" type="button" onClick={() => openBrowser()}>
+        {activeInlineImage ? (
+          <div className="sun-session-inline-browser">
+            <img
+              src={`${activeInlineImage.imageUrl}?v=${encodeURIComponent(activeInlineImage.id)}`}
+              alt={`Lagret Axis-bilde ${activeInlineImage.label}`}
+              loading="lazy"
+            />
+            <div className="sun-session-inline-meta">
+              <strong>{activeInlineIndex + 1} av {inlineImages.length}</strong>
+              <span>{activeInlineImage.offsetLabel} - {activeInlineImage.label}</span>
+              {activeInlineImage.isPrimary ? <Tag color="gold">Hovedbilde</Tag> : null}
+            </div>
+            <div className="sun-session-inline-controls">
+              <Button size="small" disabled={inlineImages.length < 2} onClick={() => moveInlineImage(-1)}>
+                Forrige
+              </Button>
+              <Button size="small" disabled={inlineImages.length < 2} onClick={() => moveInlineImage(1)}>
+                Neste
+              </Button>
+              <Button size="small" onClick={() => openBrowser(activeInlineImage.snapshotId || null)} disabled={!canBrowseImages}>
+                Bildearkiv
+              </Button>
+            </div>
+          </div>
+        ) : hasImage ? (
+          <div className="sun-session-inline-browser">
             <img src={imageUrl} alt={`Axis-bilde for soltime ${displayValue(row.started_at)}`} loading="lazy" />
-            <span>Åpne bildearkiv</span>
-          </button>
+            <div className="sun-session-inline-controls">
+              <Button size="small" onClick={() => openBrowser()} disabled={!canBrowseImages}>
+                Bildearkiv
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="sun-session-empty-image">
             <Typography.Text type="secondary">Ingen koblet bilde for denne soltimen.</Typography.Text>
             <Button size="small" onClick={() => openBrowser()} disabled={!canBrowseImages}>
-              Velg fra arkiv
+              Bildearkiv
             </Button>
           </div>
         )}
@@ -639,33 +649,7 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
             <div className="sun-image-browser-loading">
               <Spin />
             </div>
-          ) : browserMode === "saved" && selectedSavedImage ? (
-            <>
-              <div className="sun-image-browser-meta">
-                <div>
-                  <span>Lagret bilde</span>
-                  <strong>{activeSavedIndex + 1} av {savedImages.length}</strong>
-                </div>
-                <div>
-                  <span>Offset</span>
-                  <strong>{selectedSavedImage.offsetLabel}</strong>
-                </div>
-                <div>
-                  <span>Bildetid</span>
-                  <strong>{selectedSavedImage.label || "-"}</strong>
-                </div>
-                <div>
-                  <span>Status</span>
-                  <strong>{selectedSavedImage.isPrimary ? "Hovedbilde" : "Ekstra bilde"}</strong>
-                </div>
-              </div>
-              <img
-                className="sun-image-browser-image"
-                src={`${selectedSavedImage.imageUrl}?v=${encodeURIComponent(selectedSavedImage.id)}`}
-                alt={`Lagret Axis-bilde ${selectedSavedImage.label}`}
-              />
-            </>
-          ) : browserMode === "archive" && browser?.current ? (
+          ) : browser?.current ? (
             <>
               <div className="sun-image-browser-meta">
                 <div>

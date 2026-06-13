@@ -1060,42 +1060,52 @@
   background: var(--surface-soft);
 }
 
-.sun-session-image-button {
-  position: relative;
-  display: block;
-  width: 100%;
-  padding: 0;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  background: transparent;
-  border: 0;
+.sun-session-inline-browser {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
 }
 
-.sun-session-image-button span {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  padding: 5px 8px;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 760;
-  background: rgba(15, 23, 42, 0.78);
-  border-radius: 999px;
-}
-
-.sun-session-image-button:focus-visible {
-  outline: 2px solid var(--domain-sun2);
-  outline-offset: 3px;
-}
-
-.sun-session-image-panel img {
+.sun-session-image-panel img,
+.sun-session-inline-browser img {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: contain;
   border-radius: 8px;
   background: #111827;
+}
+
+.sun-session-inline-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sun-session-inline-meta strong {
+  flex: 0 0 auto;
+  color: var(--ink);
+}
+
+.sun-session-inline-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sun-session-inline-meta .ant-tag {
+  margin-inline-end: 0;
+}
+
+.sun-session-inline-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 .sun-session-empty-image {

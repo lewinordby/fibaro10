@@ -63,7 +63,7 @@ Eksisterende koblinger kan rekobles med:
 POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=8&replace=true
 ```
 
-Manuelt bildebytte gjøres fra `Soling -> Enkeltimer`. Åpne en soltime og klikk på bildet. Modalvinduet viser alle lagrede bilder for soltimen med forrige/neste-knapper. `Velg fra arkiv` åpner Axis-arkivet; bla eldre/nyere og trykk `Bruk dette bildet` for å bytte hovedbildet. Frontend bruker tidsbaserte snapshot-ID-er, ikke filstier:
+Manuelt bildebytte gjøres fra `Soling -> Enkeltimer`. Åpne en soltime for å se de fem lagrede bildene direkte på posten. `Forrige` og `Neste` blar bare i denne fem-bildersserien. `Bildearkiv` åpner hele Axis-arkivet rundt valgt bilde; bla eldre/nyere og trykk `Bruk dette bildet` for å bytte hovedbildet. Frontend bruker tidsbaserte snapshot-ID-er, ikke filstier:
 
 ```text
 GET  /api/soling/enkeltimer/{session_id}/image-browser

@@ -12541,10 +12541,25 @@ def api_sun2_session_row(
     row: Sun2TanningSession,
     image: Optional[Sun2TanningSessionImage] = None,
     image_count: int = 0,
+    images: Optional[list[Sun2TanningSessionImage]] = None,
 ) -> Dict[str, Any]:
     data = api_pick(row, SUN2_SESSION_COLUMNS)
     if row.room_id:
         data["room_label"] = sun2_room_label(row.room_id, row.room)
+    if images is not None:
+        ordered_images = sorted(
+            images,
+            key=lambda item: (
+                int_or_zero(getattr(item, "offset_seconds", 0)),
+                item.captured_at or datetime.min,
+                item.id or 0,
+            ),
+        )
+        image = primary_sun2_session_image(ordered_images)
+        image_count = len(ordered_images)
+        data["session_images"] = [sun2_session_image_payload(row, item) for item in ordered_images]
+    else:
+        data["session_images"] = [sun2_session_image_payload(row, image)] if image else []
     if image:
         data.update(
             {
@@ -13512,6 +13527,7 @@ async def api_v2_soling_module(
         filtered_session_ids = [row.id for row in filtered_sessions if row.id]
         filtered_image_lookup: Dict[int, Sun2TanningSessionImage] = {}
         filtered_image_counts: Dict[int, int] = {}
+        images_by_session: Dict[int, list[Sun2TanningSessionImage]] = {}
         if filtered_session_ids:
             filtered_image_rows = (
                 await session.execute(
@@ -13525,7 +13541,7 @@ async def api_v2_soling_module(
                     )
                 )
             ).scalars().all()
-            images_by_session: Dict[int, list[Sun2TanningSessionImage]] = defaultdict(list)
+            images_by_session = defaultdict(list)
             for image in filtered_image_rows:
                 images_by_session[image.session_id].append(image)
             filtered_image_lookup = {
@@ -13575,6 +13591,7 @@ async def api_v2_soling_module(
                         row,
                         filtered_image_lookup.get(row.id),
                         filtered_image_counts.get(row.id, 0),
+                        images_by_session.get(row.id, []),
                     )
                     for row in filtered_sessions
                 ],

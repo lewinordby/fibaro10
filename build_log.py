@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1136")
+APP_BUILD = os.getenv("APP_BUILD", "1137")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1137",
+        "date": "13.06.2026",
+        "headline": "Inline-blaing i soltimebilder",
+        "title": "De fem lagrede soltimebildene kan blas direkte i soltimekortet",
+        "description": (
+            "Soltimekortet viser nå den lagrede fem-bildersserien direkte. Forrige/neste bytter mellom de fem bildene "
+            "uten å åpne bildearkivet. Bildearkivet brukes bare når man vil bla i alle Axis-bilder og eventuelt bytte hovedbilde."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger session_images inn i soltime-radene slik at frontend får hele fem-bildersserien direkte.",
+            "Desktop V2 (ModulePage.tsx): gjør soltimebildet til en inline-blaer med Forrige/Neste og egen Bildearkiv-knapp.",
+            "Desktop V2 CSS (styles.css): rydder bort gammel bildeknapp og legger kompakt stil for inline-bilde, metadata og kontroller.",
+            "Dokumentasjon (docs/axis-camera-snapshots.md): beskriver at standardserien blas direkte og at arkivet er for alle Axis-bilder.",
+            "Buildlogg (build_log.py): registrerer build 1137.",
+        ],
+        "request": "jeg synes de 5 skal ligge inne slik at man ikke må åpne bildearkivet for de, men bare bla i bildet slik det er - om man åpner bildearkivet skal man kunne bla i alle",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Soltimekortet får alle fem lagrede bilder direkte fra API-et.",
+            "Forrige/Neste blar bare i de fem bildene som hører til soltimen.",
+            "Bildearkiv åpner hele Axis-arkivet rundt valgt bilde.",
+            "Bruk dette bildet i arkivet kan fortsatt bytte hovedbildet på posten.",
+            "Ingen databaseendring er nødvendig i denne builden.",
+        ],
+    },
     {
         "version": "1",
         "build": "1136",
