@@ -48,14 +48,14 @@ Kobling kjøres fra `Soling -> Enkeltimer` med knappen `Koble bilder`, eller via
 POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=8
 ```
 
-For hver soltime matches bildet nærmest beregnet SUN2-bildetid. SUN2 Owner leverer vanligvis `Tidspunkt` med minuttpresisjon, for eksempel `17:46`, ikke `17:46:32`. Fibaro10 tolker derfor minuttpresise rader som sekund `30` og trekker deretter fra 5 sekunder:
+For hver soltime matches fem bilder nær beregnet SUN2-bildetid. SUN2 Owner leverer vanligvis `Tidspunkt` med minuttpresisjon, for eksempel `17:46`, ikke `17:46:32`. Fibaro10 tolker derfor minuttpresise rader som sekund `30`.
 
 ```text
 SUN2_AXIS_SNAPSHOT_MINUTE_ASSUMED_SECOND=30
-SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS=5
+SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS=15
 ```
 
-Eksempel: `17:46` gir target `17:46:25`. Hvis SUN2 en gang leverer sekunder, brukes faktisk sekundverdi og kun offset trekkes fra.
+Bildeserien bruker offset `-25`, `-20`, `-15`, `-10` og `-5` sekunder fra beregnet start. `-15` er hovedbildet som vises i listen. Eksempel: `17:46` tolkes som `17:46:30` og gir lagrede bilder rundt `17:46:05`, `17:46:10`, `17:46:15`, `17:46:20` og `17:46:25`. Hvis SUN2 en gang leverer sekunder, brukes faktisk sekundverdi.
 
 Eksisterende koblinger kan rekobles med:
 
@@ -63,7 +63,7 @@ Eksisterende koblinger kan rekobles med:
 POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=8&replace=true
 ```
 
-Manuelt bildebytte gjøres fra `Soling -> Enkeltimer`. Åpne en soltime, klikk på bildet eller `Velg fra arkiv`, bla eldre/nyere i Axis-arkivet og trykk `Bruk dette bildet`. Frontend bruker tidsbaserte snapshot-ID-er, ikke filstier:
+Manuelt bildebytte gjøres fra `Soling -> Enkeltimer`. Åpne en soltime og klikk på bildet. Modalvinduet viser alle lagrede bilder for soltimen med forrige/neste-knapper. `Velg fra arkiv` åpner Axis-arkivet; bla eldre/nyere og trykk `Bruk dette bildet` for å bytte hovedbildet. Frontend bruker tidsbaserte snapshot-ID-er, ikke filstier:
 
 ```text
 GET  /api/soling/enkeltimer/{session_id}/image-browser

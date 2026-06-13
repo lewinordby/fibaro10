@@ -26,7 +26,7 @@ class Sun2AxisSnapshotTests(unittest.TestCase):
 
         self.assertEqual(
             self.main.sun2_session_axis_target_at(row),
-            datetime(2026, 6, 13, 17, 46, 25),
+            datetime(2026, 6, 13, 17, 46, 15),
         )
 
     def test_second_precision_sun2_time_uses_actual_second_before_lead(self) -> None:
@@ -37,8 +37,20 @@ class Sun2AxisSnapshotTests(unittest.TestCase):
 
         self.assertEqual(
             self.main.sun2_session_axis_target_at(row),
-            datetime(2026, 6, 13, 17, 46, 36),
+            datetime(2026, 6, 13, 17, 46, 26),
         )
+
+    def test_session_axis_target_series_uses_five_images_around_primary(self) -> None:
+        row = self.main.Sun2TanningSession(
+            started_at=datetime(2026, 6, 13, 17, 46),
+            raw={"Tidspunkt": "2026-06-13 17:46"},
+        )
+
+        series = self.main.sun2_session_axis_target_series(row)
+
+        self.assertEqual([item[0] for item in series], [-25, -20, -15, -10, -5])
+        self.assertEqual([item[1].strftime("%H:%M:%S") for item in series], ["17:46:05", "17:46:10", "17:46:15", "17:46:20", "17:46:25"])
+        self.assertEqual([item[2] for item in series], [False, False, True, False, False])
 
     def test_axis_snapshot_id_roundtrip(self) -> None:
         captured_at = datetime(2026, 6, 13, 17, 46, 27)

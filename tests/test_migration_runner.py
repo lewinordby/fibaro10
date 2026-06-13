@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from migration_runner import discover_migrations, format_migration_list, migration_id_from_path, pending_migrations
+from migration_runner import discover_migrations, format_migration_list, migration_id_from_path, pending_migrations, split_sql_statements
 
 
 class MigrationRunnerTests(unittest.TestCase):
@@ -33,3 +33,11 @@ class MigrationRunnerTests(unittest.TestCase):
 
     def test_format_migration_list_handles_empty_list(self) -> None:
         self.assertEqual(format_migration_list([]), "Ingen migrasjoner funnet.")
+
+    def test_split_sql_statements_preserves_semicolon_inside_string(self) -> None:
+        sql = "CREATE TABLE test (value TEXT); INSERT INTO test VALUES ('a;b'); -- comment;\nUPDATE test SET value='c';"
+
+        statements = split_sql_statements(sql)
+
+        self.assertEqual(len(statements), 3)
+        self.assertIn("'a;b'", statements[1])

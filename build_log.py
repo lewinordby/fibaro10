@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1135")
+APP_BUILD = os.getenv("APP_BUILD", "1136")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1136",
+        "date": "13.06.2026",
+        "headline": "Fem bilder per soltime",
+        "title": "Soltimebilder lagres som serie fra 25 til 5 sekunder før start",
+        "description": (
+            "Axis-koblingen lagrer nå fem bilder per SUN2-soltime. Hovedbildet er fortsatt 15 sekunder før beregnet start, "
+            "men posten får i tillegg to bilder før og to bilder etter dette punktet."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): endrer soltimebildekoblingen til å lagre offset-serien -25, -20, -15, -10 og -5 sekunder.",
+            "Database (migrations/versions/20260613_2315_sun2_session_image_series.sql): fjerner unik ett-bildebegrensning og legger offset_seconds/is_primary.",
+            "Desktop V2 (ModulePage.tsx og api.ts): viser lagret bildeserie med forrige/neste-knapper og beholder arkivvalg for manuelt hovedbilde.",
+            "Dokumentasjon (.env.qnap.example og docs/axis-camera-snapshots.md): beskriver 15 sekunder som hovedoffset og fem lagrede bilder.",
+            "Tester (tests/test_sun2_axis_snapshots.py): dekker ny fem-bilders target-serie.",
+            "Buildlogg (build_log.py): registrerer build 1136.",
+        ],
+        "request": "og ta med totalt 5 bilder altså to før 15 og to etter 15, dvs -25, -20, -15, -10, -5. alle legges inn i soltimen med knapper for å bla frem og tilbake",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny automatisk kobling fyller fem bilder per soltime når de finnes i Axis-arkivet.",
+            "Eksisterende soltimebilder migreres til offset -5, siden de ble koblet med gammel 5-sekundersregel.",
+            "Backfill legger inn nytt hovedbilde på offset -15 og fyller de andre manglende offsetene.",
+            "Listen viser antall lagrede bilder på soltimekortet.",
+            "Bilde-modal åpner lagrede bilder først og lar deg bla gjennom serien.",
+            "Arkivmodus kan fortsatt brukes for å velge et nytt hovedbilde manuelt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1135",

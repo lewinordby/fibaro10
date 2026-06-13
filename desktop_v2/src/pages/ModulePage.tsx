@@ -500,6 +500,8 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
   const [browserLoading, setBrowserLoading] = useState(false);
   const [savingImage, setSavingImage] = useState(false);
   const [browser, setBrowser] = useState<SunSessionImageBrowser | null>(null);
+  const [browserMode, setBrowserMode] = useState<"saved" | "archive">("saved");
+  const [selectedSavedImageId, setSelectedSavedImageId] = useState<number | null>(null);
   const fields: Array<[string, unknown]> = [
     ["Start", row.started_at],
     ["Slutt", row.ended_at],
@@ -511,6 +513,7 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     ["Kundetype", row.customer_type],
     ["Status", row.status],
     ["Bildetid", row.image_captured_at],
+    ["Bilder", row.image_count ? `${displayValue(row.image_count)} lagret` : ""],
     ["Avvik", row.image_delta_seconds !== null && row.image_delta_seconds !== undefined ? `${displayValue(row.image_delta_seconds)} sek` : ""],
   ];
 
@@ -522,7 +525,10 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     setBrowserOpen(true);
     setBrowserLoading(true);
     try {
-      setBrowser(await fetchSunSessionImageBrowser(sessionId, snapshotId));
+      const nextBrowser = await fetchSunSessionImageBrowser(sessionId, snapshotId);
+      setBrowser(nextBrowser);
+      setBrowserMode(snapshotId || !nextBrowser.savedImages.length ? "archive" : "saved");
+      setSelectedSavedImageId(nextBrowser.linked?.id ?? nextBrowser.savedImages[0]?.id ?? null);
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Kunne ikke hente bildearkivet");
     } finally {
@@ -536,7 +542,10 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     try {
       await selectSunSessionImage(sessionId, browser.current.id);
       message.success("Bildet er byttet");
-      setBrowserOpen(false);
+      const nextBrowser = await fetchSunSessionImageBrowser(sessionId, browser.current.id);
+      setBrowser(nextBrowser);
+      setBrowserMode("saved");
+      setSelectedSavedImageId(nextBrowser.linked?.id ?? nextBrowser.savedImages[0]?.id ?? null);
       onImageChanged();
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Kunne ikke bytte bilde");
@@ -544,6 +553,53 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
       setSavingImage(false);
     }
   }
+
+  const savedImages = browser?.savedImages ?? [];
+  const selectedSavedIndex = savedImages.findIndex((image) => image.id === selectedSavedImageId);
+  const activeSavedIndex = selectedSavedIndex >= 0 ? selectedSavedIndex : 0;
+  const selectedSavedImage = savedImages[activeSavedIndex] ?? null;
+
+  function moveSavedImage(delta: number) {
+    if (!savedImages.length) return;
+    const nextIndex = (activeSavedIndex + delta + savedImages.length) % savedImages.length;
+    setSelectedSavedImageId(savedImages[nextIndex].id);
+  }
+
+  const modalFooter =
+    browserMode === "archive"
+      ? [
+          <Button key="older" disabled={browserLoading || !browser?.canPrevious} onClick={() => openBrowser(browser?.previousSnapshotId)}>
+            Arkiv eldre
+          </Button>,
+          <Button key="newer" disabled={browserLoading || !browser?.canNext} onClick={() => openBrowser(browser?.nextSnapshotId)}>
+            Arkiv nyere
+          </Button>,
+          savedImages.length ? (
+            <Button key="saved" disabled={browserLoading} onClick={() => setBrowserMode("saved")}>
+              Vis lagrede bilder
+            </Button>
+          ) : null,
+          <Button
+            key="ok"
+            type="primary"
+            loading={savingImage}
+            disabled={browserLoading || !browser?.current || browser.current.isLinked}
+            onClick={useCurrentImage}
+          >
+            {browser?.current?.isLinked ? "Allerede valgt" : "Bruk dette bildet"}
+          </Button>,
+        ]
+      : [
+          <Button key="prev-saved" disabled={browserLoading || savedImages.length < 2} onClick={() => moveSavedImage(-1)}>
+            Forrige bilde
+          </Button>,
+          <Button key="next-saved" disabled={browserLoading || savedImages.length < 2} onClick={() => moveSavedImage(1)}>
+            Neste bilde
+          </Button>,
+          <Button key="archive" disabled={browserLoading} onClick={() => setBrowserMode("archive")}>
+            Velg fra arkiv
+          </Button>,
+        ];
 
   return (
     <div className="sun-session-detail">
@@ -576,30 +632,40 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
         width={980}
         className="sun-image-browser-modal"
         onCancel={() => setBrowserOpen(false)}
-        footer={[
-          <Button key="older" disabled={browserLoading || !browser?.canPrevious} onClick={() => openBrowser(browser?.previousSnapshotId)}>
-            Eldre
-          </Button>,
-          <Button key="newer" disabled={browserLoading || !browser?.canNext} onClick={() => openBrowser(browser?.nextSnapshotId)}>
-            Nyere
-          </Button>,
-          <Button
-            key="ok"
-            type="primary"
-            loading={savingImage}
-            disabled={browserLoading || !browser?.current || browser.current.isLinked}
-            onClick={useCurrentImage}
-          >
-            {browser?.current?.isLinked ? "Allerede valgt" : "Bruk dette bildet"}
-          </Button>,
-        ]}
+        footer={modalFooter}
       >
         <div className="sun-image-browser">
           {browserLoading ? (
             <div className="sun-image-browser-loading">
               <Spin />
             </div>
-          ) : browser?.current ? (
+          ) : browserMode === "saved" && selectedSavedImage ? (
+            <>
+              <div className="sun-image-browser-meta">
+                <div>
+                  <span>Lagret bilde</span>
+                  <strong>{activeSavedIndex + 1} av {savedImages.length}</strong>
+                </div>
+                <div>
+                  <span>Offset</span>
+                  <strong>{selectedSavedImage.offsetLabel}</strong>
+                </div>
+                <div>
+                  <span>Bildetid</span>
+                  <strong>{selectedSavedImage.label || "-"}</strong>
+                </div>
+                <div>
+                  <span>Status</span>
+                  <strong>{selectedSavedImage.isPrimary ? "Hovedbilde" : "Ekstra bilde"}</strong>
+                </div>
+              </div>
+              <img
+                className="sun-image-browser-image"
+                src={`${selectedSavedImage.imageUrl}?v=${encodeURIComponent(selectedSavedImage.id)}`}
+                alt={`Lagret Axis-bilde ${selectedSavedImage.label}`}
+              />
+            </>
+          ) : browserMode === "archive" && browser?.current ? (
             <>
               <div className="sun-image-browser-meta">
                 <div>
@@ -678,6 +744,7 @@ function SunSessionsPanel({
           rows.map((row, index) => {
             const key = tableRowKey(row, table?.title ?? "Enkeltimer", index);
             const hasImage = row.has_image === true;
+            const imageCount = Number(row.image_count || 0);
             return (
               <details className="sun-session-item" key={key}>
                 <summary className="sun-session-summary">
@@ -689,7 +756,7 @@ function SunSessionsPanel({
                   <div className="sun-session-tags">
                     <Tag>{row.duration_minutes ? `${displayValue(row.duration_minutes)} min` : "Tid -"}</Tag>
                     <Tag>{row.paid_amount_kr ? `${displayValue(row.paid_amount_kr)} kr` : "Kr -"}</Tag>
-                    <Tag color={hasImage ? "green" : "default"}>{hasImage ? "Bilde" : "Ingen bilde"}</Tag>
+                    <Tag color={hasImage ? "green" : "default"}>{hasImage ? `${imageCount || 1} bilder` : "Ingen bilde"}</Tag>
                   </div>
                 </summary>
                 <SunSessionDetails row={row} onImageChanged={onImageChanged} />

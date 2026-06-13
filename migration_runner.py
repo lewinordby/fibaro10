@@ -41,6 +41,82 @@ def pending_migrations(all_migrations: Iterable[MigrationFile], applied_ids: Ite
     return [migration for migration in all_migrations if migration.migration_id not in applied]
 
 
+def split_sql_statements(sql: str) -> List[str]:
+    statements: List[str] = []
+    current: List[str] = []
+    in_single_quote = False
+    in_double_quote = False
+    in_line_comment = False
+    in_block_comment = False
+    index = 0
+    while index < len(sql):
+        char = sql[index]
+        next_char = sql[index + 1] if index + 1 < len(sql) else ""
+
+        if in_line_comment:
+            current.append(char)
+            if char == "\n":
+                in_line_comment = False
+            index += 1
+            continue
+
+        if in_block_comment:
+            current.append(char)
+            if char == "*" and next_char == "/":
+                current.append(next_char)
+                in_block_comment = False
+                index += 2
+            else:
+                index += 1
+            continue
+
+        if not in_single_quote and not in_double_quote and char == "-" and next_char == "-":
+            current.append(char)
+            current.append(next_char)
+            in_line_comment = True
+            index += 2
+            continue
+
+        if not in_single_quote and not in_double_quote and char == "/" and next_char == "*":
+            current.append(char)
+            current.append(next_char)
+            in_block_comment = True
+            index += 2
+            continue
+
+        if char == "'" and not in_double_quote:
+            current.append(char)
+            if in_single_quote and next_char == "'":
+                current.append(next_char)
+                index += 2
+                continue
+            in_single_quote = not in_single_quote
+            index += 1
+            continue
+
+        if char == '"' and not in_single_quote:
+            in_double_quote = not in_double_quote
+            current.append(char)
+            index += 1
+            continue
+
+        if char == ";" and not in_single_quote and not in_double_quote:
+            statement = "".join(current).strip()
+            if statement:
+                statements.append(statement)
+            current = []
+            index += 1
+            continue
+
+        current.append(char)
+        index += 1
+
+    statement = "".join(current).strip()
+    if statement:
+        statements.append(statement)
+    return statements
+
+
 async def applied_migration_ids(database_url: str) -> set[str]:
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import create_async_engine
@@ -90,7 +166,8 @@ async def apply_migrations(database_url: str, versions_dir: Path = DEFAULT_MIGRA
                 if dry_run:
                     continue
                 sql = migration.path.read_text(encoding="utf-8")
-                await conn.execute(text(sql))
+                for statement in split_sql_statements(sql):
+                    await conn.execute(text(statement))
                 await conn.execute(
                     text("INSERT INTO schema_migrations (migration_id) VALUES (:migration_id)"),
                     {"migration_id": migration.migration_id},
