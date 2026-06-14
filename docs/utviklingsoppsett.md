@@ -84,6 +84,19 @@ SETTLEMENT_GMAIL_MAILBOXES=
 Hvis `SETTLEMENT_GMAIL_EMAIL` og `SETTLEMENT_GMAIL_APP_PASSWORD` mangler, brukes `EASYPARK_GMAIL_EMAIL` og `EASYPARK_GMAIL_APP_PASSWORD`.
 Selve hemmelige verdier skal bare ligge i runtime `.env`, ikke i Git.
 
+### Historiske parkeringsoppgjor
+
+For perioder foer 2026 finnes normalt ikke Flowbird/Park Nordic som `source_system=flowbird-parknordic` i EasyPark-importen.
+Da var Flowbird/Park Nordic ikke integrert mot EasyPark-importen, og tallene kom i stedet som et eget vedlegg.
+
+Dagens oppgjorskontroll er derfor riktig for perioder der databasen har begge disse kildene:
+
+- `source_system=EasyPark`
+- `source_system=flowbird-parknordic`
+
+For eldre oppgjor maa kontrollen senere utvides til aa lese og summere det historiske Flowbird/Park Nordic-vedlegget.
+Uten dette vedlegget vil brutto mynt/kortautomat ikke kunne kontrolleres automatisk mot intern kilde for perioder foer 2026.
+
 ## Backup
 
 Deploy-scriptet tar backup av `.env`, `.env.*`, EasyPark `.env` og EasyPark runtime-data for hver deploy.
