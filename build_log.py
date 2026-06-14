@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1166")
+APP_BUILD = os.getenv("APP_BUILD", "1167")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1167",
+        "date": "14.06.2026",
+        "headline": "Solingsoppgjor snur fortegn fra kreditnota",
+        "title": "Altera-kreditnotaer vises som normale forretningstall",
+        "description": (
+            "Altera sender solingsoppgjoret som kreditnota. Build 1167 normaliserer derfor fortegnene i soling/oppgjor: "
+            "solomsetning, produktsalg, sum, mva og utbetaling vises positivt, mens transaksjonskostnad og serviceavtale vises som fratrekk."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bumper settlement-parser til versjon 5 og snur fortegn for Altera-kreditnotaer.",
+            "Tester (test_settlement_parser.py): oppdaterer soling-oppgjor-testen til aa forvente positive inntekter og negative fratrekk.",
+            "Buildlogg (build_log.py): registrerer build 1167.",
+        ],
+        "request": "du maa snu fortegnene paa soling/oppgjoer da det er kredittnota",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Solomsetning og produktsalg vises positivt.",
+            "Transaksjonskostnad og serviceavtale vises negativt som fratrekk.",
+            "Sum eks. mva, mva og belop NOK vises positivt.",
+            "Eksisterende importerte oppgjor blir tolket paa nytt fordi parser-versjonen er oppdatert.",
+        ],
+    },
     {
         "version": "1",
         "build": "1166",

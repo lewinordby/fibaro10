@@ -15522,7 +15522,7 @@ PARKING_SETTLEMENT_PROVIDER = "parking_parknordic"
 SUN_SETTLEMENT_PROVIDER = "sun_altera"
 PARKING_SETTLEMENT_SENDER = os.getenv("PARKING_SETTLEMENT_SENDER", "fredrik@parknordic.no")
 SETTLEMENT_ATTACHMENT_EXTENSIONS = {".pdf", ".csv", ".xlsx", ".xls", ".xml", ".txt", ".jpg", ".jpeg", ".png"}
-SETTLEMENT_PARSER_VERSION = 4
+SETTLEMENT_PARSER_VERSION = 5
 NORWEGIAN_MONTHS = {
     "januar": 1,
     "jan": 1,
@@ -16000,6 +16000,34 @@ def sun_settlement_number_from_line(line: str) -> Optional[float]:
     return settlement_number_value(values[-1]) if values else None
 
 
+SUN_SETTLEMENT_AMOUNT_FIELDS = {
+    "sun_revenue_ex_vat",
+    "product_sales_ex_vat",
+    "transaction_fee_ex_vat",
+    "service_fee_ex_vat",
+    "marketing_sms_fee_ex_vat",
+    "marketing_email_fee_ex_vat",
+    "sum_ex_vat",
+    "vat_25_percent",
+    "payout_inc_vat",
+}
+
+
+def normalize_sun_creditnote_signs(parsed: Dict[str, Any], field_sources: Dict[str, str]) -> bool:
+    changed = False
+    for field in SUN_SETTLEMENT_AMOUNT_FIELDS:
+        value = parse_settlement_number(parsed.get(field))
+        if value is None:
+            continue
+        normalized = settlement_number_value(-value)
+        if normalized == parsed.get(field):
+            continue
+        parsed[field] = normalized
+        field_sources[field] = f"{field_sources.get(field, 'Maskinlest fra oppgjorsskjema')}; fortegn snudd fordi dokumentet er kreditnota"
+        changed = True
+    return changed
+
+
 def parse_sun_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
     lines = list(extraction.get("lines") or [])
     parsed: Dict[str, Any] = {}
@@ -16081,6 +16109,10 @@ def parse_sun_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
             elif field == "marketing_fee_ex_vat":
                 field = "marketing_sms_fee_ex_vat"
             set_field(field, value, source, confidence)
+
+    is_creditnote = any("kreditnota" in line.lower() for line in lines)
+    if is_creditnote and normalize_sun_creditnote_signs(parsed, field_sources):
+        parser_notes.append("Fortegn er snudd fordi Altera sender oppgjoret som kreditnota. Inntekter vises positivt og fratrekk/gebyrer negativt.")
 
     sum_ex_vat = settlement_parsed_float(parsed, "sum_ex_vat")
     vat = settlement_parsed_float(parsed, "vat_25_percent")
