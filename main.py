@@ -121,6 +121,11 @@ SVV_TRANSIENT_RETRY_AFTER_MINUTES = max(5, int(os.getenv("SVV_TRANSIENT_RETRY_AF
 SVV_PERMANENT_NO_DATA_STATUSES = {204, 400, 404}
 SVV_TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
 svv_sync_task: Optional[asyncio.Task] = None
+CAR_INFO_LOOKUP_URL = os.getenv("CAR_INFO_LOOKUP_URL", "http://127.0.0.1:8126").rstrip("/")
+CAR_INFO_APP_TOKEN = os.getenv("CAR_INFO_APP_TOKEN", "").strip()
+CAR_INFO_LOOKUP_TIMEOUT_SECONDS = max(5, int(os.getenv("CAR_INFO_LOOKUP_TIMEOUT_SECONDS", "30")))
+CAR_INFO_CANDIDATE_RETRY_HOURS = max(24, int(os.getenv("CAR_INFO_CANDIDATE_RETRY_HOURS", "720")))
+CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES = max(30, int(os.getenv("CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES", "240")))
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
@@ -1050,6 +1055,11 @@ class ParkingVehicle(Base):
     svv_status = Column(Integer, nullable=True)
     svv_error = Column(Text, nullable=True)
     svv_data = Column(JSON, nullable=True)
+    car_info_fetched_at = Column(DateTime, nullable=True, index=True)
+    car_info_status = Column(Integer, nullable=True)
+    car_info_error = Column(Text, nullable=True)
+    car_info_url = Column(Text, nullable=True)
+    car_info_data = Column(JSON, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -1440,6 +1450,13 @@ class ParkingVehicleAreaUpdate(BaseModel):
     omrade: str = Field("", max_length=240)
     source: Optional[str] = Field(None, max_length=120)
     raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ParkingVehicleCarInfoUpdate(BaseModel):
+    status: int = Field(0, ge=0, le=999)
+    url: Optional[str] = Field(None, max_length=1000)
+    error: Optional[str] = Field(None, max_length=1000)
+    data: Dict[str, Any] = Field(default_factory=dict)
 
 
 class V2EnergyCircuitUpdate(BaseModel):
@@ -2685,6 +2702,11 @@ STARTUP_COLUMNS = {
         ("omrade_oppdatert", "TIMESTAMP"),
         ("sun2_id", "TEXT"),
         ("notat", "TEXT"),
+        ("car_info_fetched_at", "TIMESTAMP"),
+        ("car_info_status", "INTEGER"),
+        ("car_info_error", "TEXT"),
+        ("car_info_url", "TEXT"),
+        ("car_info_data", "JSON"),
     ],
     "sun2_room_daily_stats": [
         ("room_id", "VARCHAR"),
@@ -2988,6 +3010,14 @@ IMPORT_JOB_DEFINITIONS = {
         "expected_interval_minutes": 30,
         "warning_after_minutes": 90,
         "description": "Løpende berikelse av registreringsnummer som mangler tekniske kjøretøydata.",
+    },
+    "parking_vehicle_car_info_sync": {
+        "title": "Car.info svenske kjoretoy",
+        "category": "Parkering",
+        "source": "car.info",
+        "expected_interval_minutes": 4 * 60,
+        "warning_after_minutes": 12 * 60,
+        "description": "Forsiktig oppslag av svenske registreringsnummer der SVV ikke fant kjoretoydata.",
     },
 }
 
@@ -14401,6 +14431,8 @@ def parking_vehicle_row_api(vehicle: ParkingVehicle, details: Optional[ParkingVe
         "first_seen": api_local_iso(vehicle.first_seen),
         "last_seen": api_local_iso(vehicle.last_seen),
         "svv_status": vehicle.svv_status,
+        "car_info_status": vehicle.car_info_status,
+        "car_info_confirmed_swedish": car_info_confirmed_swedish(vehicle.car_info_data),
         "notat": vehicle.notat,
         "path": f"/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
     }
@@ -18820,6 +18852,24 @@ async def api_v2_parking_vehicle_detail(plate: str):
         api_detail_field("SVV hentet", vehicle.svv_fetched_at),
         api_detail_field("Notat", vehicle.notat),
     ]
+    if vehicle.car_info_fetched_at or vehicle.car_info_data or vehicle.car_info_status:
+        fields.extend(
+            [
+                api_detail_field("Car.info status", car_info_status_label(vehicle.car_info_status, vehicle.car_info_data)),
+                api_detail_field("Car.info hentet", vehicle.car_info_fetched_at),
+                api_detail_field("Bekreftet Sverige", "Ja" if car_info_confirmed_swedish(vehicle.car_info_data) else "Nei"),
+                api_detail_field("Car.info bil", car_info_vehicle_title(vehicle.car_info_data)),
+                api_detail_field("Forst registrert", car_info_field_value(vehicle.car_info_data, "first_registered", "first_registration")),
+                api_detail_field("Biltype", car_info_field_value(vehicle.car_info_data, "vehicle_type", "body_type", "class")),
+                api_detail_field("Farge car.info", car_info_field_value(vehicle.car_info_data, "color")),
+                api_detail_field("Drivstoff/motor", car_info_field_value(vehicle.car_info_data, "fuel", "engine")),
+                api_detail_field("Girkasse", car_info_field_value(vehicle.car_info_data, "transmission")),
+                api_detail_field("Effekt", car_info_field_value(vehicle.car_info_data, "power")),
+                api_detail_field("Kilometerstand", car_info_field_value(vehicle.car_info_data, "mileage")),
+                api_detail_field("Kontrollfrist", car_info_field_value(vehicle.car_info_data, "inspection_valid_to", "next_inspection")),
+                api_detail_field("Car.info URL", vehicle.car_info_url),
+            ]
+        )
     not_found_fields = parking_vehicle_not_found_field_labels(vehicle)
     actions = []
     if not_found_fields:
@@ -19026,6 +19076,31 @@ async def api_v2_parking_svv_sync(request: Request, limit: int = Query(SVV_SYNC_
         return forbidden
     result = await run_vehicle_svv_sync(limit, "V2")
     return {"status": "ok", "message": "SVV-sync er kjørt.", "result": result}
+
+
+@app.post("/api/actions/parkering/car-info-sync")
+async def api_v2_parking_car_info_sync(request: Request, limit: int = Query(1, ge=1, le=5)):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    started_at = local_now_naive()
+    try:
+        result = await asyncio.to_thread(car_info_lookup_request, "/api/run-once", {"limit": limit})
+    except Exception as exc:
+        async with async_session() as session:
+            await record_import_job(
+                session,
+                "parking_vehicle_car_info_sync",
+                ok=False,
+                source="car.info lookup",
+                started_at=started_at,
+                records_imported=0,
+                records_total=0,
+                message=str(exc),
+            )
+            await session.commit()
+        return JSONResponse({"status": "error", "message": str(exc)}, status_code=502)
+    return {"status": "ok", "message": "Car.info-oppslag er startet/kjort.", "result": result}
 
 
 @app.post("/api/actions/parkering/clear-area-not-found")
@@ -20037,6 +20112,57 @@ def compact_plate(value: Optional[str]) -> str:
     return re.sub(r"[^A-Za-z0-9]", "", value or "").upper()
 
 
+SWEDISH_LICENSE_PLATE_REGEX = re.compile(r"^[A-HJ-PR-UW-Z]{3}[0-9]{2}([0-9]|[A-HJ-NPR-UW-Z])$")
+SWEDISH_LICENSE_PLATE_SQL_REGEX = r"^[A-HJ-PR-UW-Z]{3}[0-9]{2}([0-9]|[A-HJ-NPR-UW-Z])$"
+
+
+def is_swedish_license_plate(value: Optional[str]) -> bool:
+    return bool(SWEDISH_LICENSE_PLATE_REGEX.fullmatch(compact_plate(value)))
+
+
+def car_info_fields(data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not isinstance(data, dict):
+        return {}
+    fields = data.get("fields")
+    return fields if isinstance(fields, dict) else {}
+
+
+def car_info_confirmed_swedish(data: Optional[Dict[str, Any]]) -> bool:
+    if not isinstance(data, dict):
+        return False
+    return bool(data.get("confirmed_swedish") or str(data.get("country_code") or "").upper() == "S")
+
+
+def car_info_vehicle_title(data: Optional[Dict[str, Any]]) -> Optional[str]:
+    if not isinstance(data, dict):
+        return None
+    fields = car_info_fields(data)
+    return first_value(fields.get("vehicle_title"), data.get("vehicle_title"), data.get("title"))
+
+
+def car_info_field_value(data: Optional[Dict[str, Any]], *keys: str) -> Any:
+    fields = car_info_fields(data)
+    for key in keys:
+        value = fields.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def car_info_status_label(status: Optional[int], data: Optional[Dict[str, Any]] = None) -> str:
+    if status == 200:
+        return "Bekreftet svensk" if car_info_confirmed_swedish(data) else "Hentet"
+    if status == 204:
+        return "Ingen treff"
+    if status == 404:
+        return "Ikke funnet"
+    if status == 429:
+        return "Rate-limit"
+    if status:
+        return f"HTTP {status}"
+    return "-"
+
+
 def first_value(*values: Any) -> Any:
     for value in values:
         if value not in (None, ""):
@@ -20636,6 +20762,22 @@ def easypark_downloader_request(path: str, params: Dict[str, Any]) -> Dict[str, 
         raise RuntimeError(f"Ugyldig svar fra EasyPark-downloader: {payload[:240]}") from exc
 
 
+def car_info_lookup_request(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    query = urlencode({key: value for key, value in params.items() if value is not None})
+    url = f"{CAR_INFO_LOOKUP_URL}{path}"
+    if query:
+        url = f"{url}?{query}"
+    request = urllib.request.Request(url, method="POST", headers={"Accept": "application/json"})
+    if CAR_INFO_APP_TOKEN:
+        request.add_header("x-car-info-token", CAR_INFO_APP_TOKEN)
+    with urllib.request.urlopen(request, timeout=CAR_INFO_LOOKUP_TIMEOUT_SECONDS) as response:
+        payload = response.read().decode("utf-8", errors="replace")
+    try:
+        return json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Ugyldig svar fra car.info-appen: {payload[:240]}") from exc
+
+
 @app.post("/parkering/refresh")
 async def parking_refresh(request: Request):
     forbidden = require_settings_access(request)
@@ -21145,6 +21287,49 @@ def vehicle_missing_area_condition():
     return or_(vehicle_blank_area_condition(), vehicle_area_not_found_condition())
 
 
+def vehicle_car_info_due_condition():
+    retry_before = datetime.utcnow() - timedelta(hours=CAR_INFO_CANDIDATE_RETRY_HOURS)
+    transient_retry_before = datetime.utcnow() - timedelta(minutes=CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES)
+    return or_(
+        ParkingVehicle.car_info_fetched_at.is_(None),
+        ParkingVehicle.car_info_status.is_(None),
+        and_(
+            ParkingVehicle.car_info_status.in_([0, 429, 500, 502, 503, 504]),
+            ParkingVehicle.car_info_fetched_at < transient_retry_before,
+        ),
+        and_(
+            ParkingVehicle.car_info_status.notin_([200]),
+            ParkingVehicle.car_info_fetched_at < retry_before,
+        ),
+    )
+
+
+def vehicle_car_info_candidate_condition():
+    return and_(
+        ParkingVehicle.svv_fetched_at.isnot(None),
+        ParkingVehicleDetails.plate.is_(None),
+        func.upper(ParkingVehicle.plate).op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX),
+        vehicle_car_info_due_condition(),
+    )
+
+
+async def parking_car_info_candidate_rows(session, limit: int, offset: int = 0):
+    return (
+        await session.execute(
+            select(ParkingVehicle, ParkingVehicleDetails)
+            .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+            .where(vehicle_car_info_candidate_condition())
+            .order_by(
+                ParkingVehicle.car_info_fetched_at.asc().nullsfirst(),
+                ParkingVehicle.last_seen.desc().nullslast(),
+                ParkingVehicle.plate.asc(),
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+    ).all()
+
+
 async def parking_missing_name_rows(session, limit: int, offset: int = 0, include_not_found: bool = True):
     condition = vehicle_missing_name_condition() if include_not_found else vehicle_blank_name_condition()
     return (
@@ -21186,6 +21371,12 @@ def parking_vehicle_lookup_payload(vehicle: ParkingVehicle, details: Optional[Pa
         "make": details.merke if details else None,
         "model": details.modell if details else None,
         "year": parking_vehicle_year(details),
+        "svv_status": vehicle.svv_status,
+        "svv_fetched_at": vehicle.svv_fetched_at.isoformat() if vehicle.svv_fetched_at else None,
+        "car_info_status": vehicle.car_info_status,
+        "car_info_fetched_at": vehicle.car_info_fetched_at.isoformat() if vehicle.car_info_fetched_at else None,
+        "car_info_url": vehicle.car_info_url,
+        "car_info_confirmed_swedish": car_info_confirmed_swedish(vehicle.car_info_data),
     }
 
 
@@ -21240,6 +21431,33 @@ async def parking_area_lookup_view(request: Request, limit: int = Query(1000, ge
             "description": "biler mangler område. Denne siden gir extensionen neste pakke på",
         },
     )
+
+
+@app.get("/api/parkering/kjoretoy/car-info-kandidater")
+async def parking_car_info_candidates_api(
+    request: Request,
+    limit: int = Query(1, ge=1, le=10),
+    offset: int = Query(0, ge=0),
+    format: str = "json",
+):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        rows = await parking_car_info_candidate_rows(session, limit, offset)
+        count = (
+            await session.execute(
+                select(func.count(ParkingVehicle.plate))
+                .select_from(ParkingVehicle)
+                .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                .where(vehicle_car_info_candidate_condition())
+            )
+        ).scalar_one()
+    payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
+    if format == "txt":
+        text_body = "\n".join(item["plate"] for item in payload) + ("\n" if payload else "")
+        return StreamingResponse(iter([text_body]), media_type="text/plain; charset=utf-8")
+    return {"count": count, "limit": limit, "offset": offset, "rows": payload}
 
 
 @app.get("/api/parkering/kjoretoy/mangler-navn")
@@ -21345,6 +21563,63 @@ async def parking_vehicle_area_api(request: Request, plate: str, data: ParkingVe
         vehicle.updated_at = datetime.utcnow()
         await session.commit()
     return {"status": "ok", "plate": plate_value, "omrade": area}
+
+
+@app.post("/api/parkering/kjoretoy/{plate}/car-info")
+async def parking_vehicle_car_info_api(request: Request, plate: str, data: ParkingVehicleCarInfoUpdate):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    plate_value = normalize_plate(plate)
+    if not plate_value:
+        return JSONResponse({"detail": "Mangler registreringsnummer"}, status_code=400)
+    if not is_swedish_license_plate(plate_value):
+        return JSONResponse({"detail": "Registreringsnummer matcher ikke svensk standardformat"}, status_code=400)
+
+    now = datetime.utcnow()
+    async with async_session() as session:
+        vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
+        if not vehicle:
+            return JSONResponse({"detail": "Kjoretoy ikke funnet"}, status_code=404)
+        vehicle.car_info_fetched_at = now
+        vehicle.car_info_status = int(data.status or 0)
+        vehicle.car_info_error = (data.error or "").strip()[:1000] or None
+        vehicle.car_info_url = (data.url or "").strip()[:1000] or None
+        vehicle.car_info_data = data.data or None
+        area_updated = False
+        if data.status == 200 and car_info_confirmed_swedish(data.data):
+            current_area = (vehicle.omrade or "").strip()
+            if not current_area or is_not_found_marker(current_area):
+                vehicle.omrade = "Sverige"
+                vehicle.omrade_kilde = "car.info"
+                vehicle.omrade_oppdatert = now
+                area_updated = True
+        vehicle.updated_at = now
+        await record_import_job(
+            session,
+            "parking_vehicle_car_info_sync",
+            ok=data.status == 200,
+            source="car.info lookup",
+            records_imported=1 if data.status == 200 else 0,
+            records_total=1,
+            message=f"{plate_value}: {car_info_status_label(data.status, data.data)}",
+            raw={
+                "plate": plate_value,
+                "status": data.status,
+                "confirmed_swedish": car_info_confirmed_swedish(data.data),
+                "area_updated": area_updated,
+                "error": vehicle.car_info_error,
+            },
+        )
+        await session.commit()
+    clear_summary_cache("parking")
+    return {
+        "status": "ok",
+        "plate": plate_value,
+        "car_info_status": data.status,
+        "confirmed_swedish": car_info_confirmed_swedish(data.data),
+        "omrade": "Sverige" if area_updated else None,
+    }
 
 
 @app.get("/parkering/kjoretoy/{plate}", response_class=HTMLResponse)

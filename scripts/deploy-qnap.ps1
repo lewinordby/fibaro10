@@ -75,7 +75,7 @@ backup_root="$RemoteDir/../fibaro10_deploy_backups"
 stamp=`$(date +%Y%m%d-%H%M%S)
 backup_dir="`$backup_root/`$stamp"
 mkdir -p "`$backup_dir"
-for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
     case "`$file" in .env.example|*/.env.example) continue ;; esac
     [ -f "`$file" ] || continue
     target="`$backup_dir/`$file"
@@ -83,11 +83,12 @@ for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* axis
     cp -p "`$file" "`$target"
 done
 [ -d easypark_downloader/data ] && mkdir -p "`$backup_dir/easypark_downloader" && cp -a easypark_downloader/data "`$backup_dir/easypark_downloader/data"
+[ -d car_info_lookup/data ] && mkdir -p "`$backup_dir/car_info_lookup" && cp -a car_info_lookup/data "`$backup_dir/car_info_lookup/data"
 [ -d axis_camera_snapshots/data ] && mkdir -p "`$backup_dir/axis_camera_snapshots" && cp -a axis_camera_snapshots/data "`$backup_dir/axis_camera_snapshots/data"
 git fetch origin "$Branch"
 git reset --hard "origin/$Branch"
-git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/ -e axis_camera_snapshots/data/ -e axis_camera_snapshots/snapshots/
-for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
+git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/ -e car_info_lookup/.env -e 'car_info_lookup/.env.*' -e car_info_lookup/data/ -e axis_camera_snapshots/data/ -e axis_camera_snapshots/snapshots/
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
     case "`$file" in .env.example|*/.env.example) continue ;; esac
     source="`$backup_dir/`$file"
     [ -f "`$source" ] || continue
@@ -95,10 +96,11 @@ for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* axis
     cp -p "`$source" "`$file"
 done
 [ -d "`$backup_dir/easypark_downloader/data" ] && [ ! -d easypark_downloader/data ] && mkdir -p easypark_downloader && cp -a "`$backup_dir/easypark_downloader/data" easypark_downloader/data
+[ -d "`$backup_dir/car_info_lookup/data" ] && [ ! -d car_info_lookup/data ] && mkdir -p car_info_lookup && cp -a "`$backup_dir/car_info_lookup/data" car_info_lookup/data
 [ -d "`$backup_dir/axis_camera_snapshots/data" ] && [ ! -d axis_camera_snapshots/data ] && mkdir -p axis_camera_snapshots && cp -a "`$backup_dir/axis_camera_snapshots/data" axis_camera_snapshots/data
-mkdir -p axis_camera_snapshots/data axis_camera_snapshots/snapshots
+mkdir -p axis_camera_snapshots/data axis_camera_snapshots/snapshots car_info_lookup/data
 export APP_COMMIT=`$(git rev-parse --short HEAD)
-"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 online_dashboard axis_camera_snapshots
+"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 online_dashboard axis_camera_snapshots car_info_lookup
 "$Docker" compose -f docker-compose.qnap.yml ps
 echo "Backup: `$backup_dir"
 "@

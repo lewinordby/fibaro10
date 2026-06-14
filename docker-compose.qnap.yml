@@ -62,6 +62,32 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  car_info_lookup:
+    build:
+      context: ./car_info_lookup
+    container_name: car_info_lookup
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - fibaro10
+    ports:
+      - "192.168.20.218:8126:8126"
+    volumes:
+      - ./car_info_lookup/data:/data
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      CAR_INFO_DATA_DIR: /data
+      CAR_INFO_RUN_INTERVAL_MINUTES: ${CAR_INFO_RUN_INTERVAL_MINUTES:-45}
+      CAR_INFO_BATCH_SIZE: ${CAR_INFO_BATCH_SIZE:-1}
+      CAR_INFO_RATE_LIMIT_BACKOFF_MINUTES: ${CAR_INFO_RATE_LIMIT_BACKOFF_MINUTES:-240}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8126/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
  
   fibaro10_proxy:
     image: caddy:2-alpine

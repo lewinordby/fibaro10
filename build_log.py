@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1167")
+APP_BUILD = os.getenv("APP_BUILD", "1168")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1168",
+        "date": "14.06.2026",
+        "headline": "Trygg car.info-app for svenske biler",
+        "title": "Svenske biler som SVV ikke finner kan bekreftes sakte via car.info",
+        "description": (
+            "Build 1168 legger car.info-oppslag i en egen QNAP-app. Appen henter bare kandidater der SVV er forsokt "
+            "uten at Fibaro10 har faatt kjoretoy-nokkeldata, filtrerer hardt paa svensk skiltformat og kjører som en "
+            "sakte nattjobb med global pause ved car.info rate-limit. Bekreftede svenske biler settes til omrade Sverige."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger car.info-felter paa kjoretoy, kandidat-API, resultat-API og manuell trigger.",
+            "Car.info-oppslag (car_info_lookup): ny separat FastAPI-app med svensk skiltfilter, HTML-parser, rate-limit-backoff og scheduler.",
+            "Docker/QNAP (docker-compose.qnap.yml, scripts/deploy-qnap.ps1): bygger, starter og bevarer data for car_info_lookup.",
+            "Dokumentasjon (docs/car-info-oppslag.md): beskriver sikkerhetsregler, flyt og lagrede felt.",
+            "Tester (test_car_info_lookup.py): laaser svensk skiltformat og grunnleggende car.info-parser.",
+            "Buildlogg (build_log.py): registrerer build 1168.",
+        ],
+        "request": (
+            "Lag en automatisk, trygg loesning som henter car.info-data for svenske biler som SVV ikke finner, "
+            "bekrefter at det faktisk er svenske biler og setter omraade Sverige. Ta med forstegangsregistrering, biltype, farge og andre relevante felt."
+        ),
+        "work_duration": "ca. 60 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny separat car_info_lookup-app skraper ikke bredt, men henter en svensk kandidat per intervall.",
+            "Svensk skiltfilter stopper norske og ukjente formater for car.info-kall.",
+            "Fibaro10 lagrer car.info-status, URL, feil og strukturert JSON paa kjoretoy.",
+            "Bekreftet svensk bil setter omrade til Sverige naar omrade er blankt eller ikke funnet.",
+            "Kjoretoydetalj viser car.info-status og relevante bilfelt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1167",
