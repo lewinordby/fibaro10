@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1162")
+APP_BUILD = os.getenv("APP_BUILD", "1163")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1163",
+        "date": "14.06.2026",
+        "headline": "Oppgjorsdetalj prioriterer originalskjema",
+        "title": "Vedleggvisningen viser innleste verdier til venstre og PDF stort til hoyre",
+        "description": (
+            "Detaljsiden for parkeringsoppgjor hadde for mye rapport- og kontrollflate over originalen. "
+            "Denne builden gjor siden til en dokumentvisning der innleste verdier ligger kompakt til venstre, mens PDF/originalskjemaet faar hovedplassen."
+        ),
+        "applications": [
+            "Desktop V2 oppgjor (SettlementDetailPage.tsx): erstatter rapportkort, verdict, feltlister og rawmetadata med venstre verdipanel og stor originalvisning.",
+            "Desktop V2 CSS (styles.css): legger dokumentlayout, kompakte verdi-kort, kildekontrollkort og stor PDF-frame.",
+            "Buildlogg (build_log.py): registrerer build 1163.",
+        ],
+        "request": "naar du klikker deg inn paa vedlegget saa holder det med at de feltene som du leser inn er til venstre og at pdf en faar resten av plassen",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Detaljsiden viser naa kun en kompakt header, venstre panel med innleste verdier og originalskjemaet.",
+            "Aktuelle belop, kildekontroll og summer ligger i en smal venstre kolonne.",
+            "PDF/originalvedlegg bruker resten av bredden og stor viewport-hoyde.",
+            "Tekniske feltlister og raadata er fjernet fra primaervisningen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1162",
