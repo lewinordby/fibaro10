@@ -5,8 +5,30 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1152")
+APP_BUILD = os.getenv("APP_BUILD", "1153")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1153",
+        "date": "14.06.2026",
+        "headline": "Gmail-mappevalg for oppgjør",
+        "title": "Park Nordic-import tåler Gmail-mapper med mellomrom",
+        "description": (
+            "Gmail IMAP kan feile på mapper som `[Gmail]/All Mail` hvis mappenavnet ikke siteres riktig. "
+            "Importen prøver nå sitert variant først for mappenavn med mellomrom eller skråstrek og hopper kontrollert videre hvis en mappe ikke kan åpnes."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): gjør Gmail mailbox-select robust for `[Gmail]/All Mail` og tilsvarende IMAP-mappenavn.",
+            "Buildlogg (build_log.py): registrerer build 1153.",
+        ],
+        "request": "du kan hente parkering i gmail. kommer fra fredrik@parknordic.no",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppgjørsimporten stopper ikke lenger hvis en Gmail-mappe krever sitert navn.",
+            "Mapper som fortsatt ikke kan åpnes legges i `mailbox_errors` i importresultatet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1152",

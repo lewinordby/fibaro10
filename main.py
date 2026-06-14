@@ -15532,11 +15532,17 @@ def settlement_gmail_configured() -> bool:
 
 
 def select_gmail_mailbox(mailbox: imaplib.IMAP4_SSL, mailbox_name: str) -> str:
-    status, _ = mailbox.select(mailbox_name, readonly=True)
-    if status == "OK":
-        return status
-    status, _ = mailbox.select(f'"{mailbox_name}"', readonly=True)
-    return status
+    candidates = [mailbox_name, f'"{mailbox_name}"']
+    if " " in mailbox_name or "/" in mailbox_name:
+        candidates = [f'"{mailbox_name}"', mailbox_name]
+    for candidate in candidates:
+        try:
+            status, _ = mailbox.select(candidate, readonly=True)
+        except imaplib.IMAP4.error:
+            continue
+        if status == "OK":
+            return status
+    return "NO"
 
 
 def is_settlement_attachment(filename: str, content_type: str) -> bool:
