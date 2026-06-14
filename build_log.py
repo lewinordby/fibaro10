@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1169")
+APP_BUILD = os.getenv("APP_BUILD", "1170")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1170",
+        "date": "14.06.2026",
+        "headline": "Car.info-token slipper gjennom global auth",
+        "title": "Global innlogging slipper intern car.info-app gjennom til de isolerte oppslagsrutene",
+        "description": (
+            "Build 1170 retter opp at global innloggingsmiddleware stoppet car_info_lookup med 401 foer "
+            "endepunktenes token-sjekk ble naadd. Tokenen godtas naa kun for kandidatlisten og resultatpostingen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger smal middleware-passering for CAR_INFO_APP_TOKEN paa car.info-rutene.",
+            "Buildlogg (build_log.py): registrerer build 1170.",
+        ],
+        "request": (
+            "Start car.info-skrapingen paa QNAP og soerg for at den faktisk kan hente kandidater uten masterpassord."
+        ),
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Intern car.info-token blir validert foer vanlig bruker/passord-krav.",
+            "Unntaket er avgrenset til car.info-kandidatlisten og car.info-resultatpostingen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1169",

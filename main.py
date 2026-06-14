@@ -197,6 +197,14 @@ async def access_key_middleware(request: Request, call_next):
     if is_public_request(request):
         return await call_next(request)
 
+    if is_car_info_app_request_path(request.url.path) and has_car_info_app_access(request):
+        request.state.access_key_id = None
+        request.state.access_key_name = "car_info_lookup"
+        request.state.auth_role = "settings"
+        request.state.auth_is_master = False
+        request.state.auth_can_settings = True
+        return await call_next(request)
+
     username, password = presented_credentials(request)
     access_key = await find_access_key(username, password)
     if not access_key:
@@ -3692,6 +3700,12 @@ def require_settings_access(request: Request):
 def has_car_info_app_access(request: Request) -> bool:
     token = (request.headers.get("x-car-info-token") or request.query_params.get("car_info_token") or "").strip()
     return bool(CAR_INFO_APP_TOKEN and token and token == CAR_INFO_APP_TOKEN)
+
+
+def is_car_info_app_request_path(path: str) -> bool:
+    return path == "/api/parkering/kjoretoy/car-info-kandidater" or bool(
+        re.fullmatch(r"/api/parkering/kjoretoy/[A-Za-z0-9]+/car-info", path or "")
+    )
 
 
 def require_settings_or_car_info_access(request: Request):
