@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1154")
+APP_BUILD = os.getenv("APP_BUILD", "1155")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1155",
+        "date": "14.06.2026",
+        "headline": "Per-bil rydding av ikke funnet",
+        "title": "Kjøretøydetalj kan nullstille `ikke funnet` for én bil",
+        "description": (
+            "Parkering/kjøretøy får en målrettet handling på detaljsiden som bare vises når den aktuelle bilen "
+            "har navn eller område satt til `ikke funnet`. Handlingen nullstiller disse feltene slik at bilen kan behandles på nytt."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger per-kjøretøy API for å fjerne `ikke funnet` fra navn og område.",
+            "Fibaro10 backend (main.py): eksponerer handlingen på kjøretøydetalj bare når bilen faktisk har `ikke funnet`.",
+            "Desktop V2 API-kontrakt (api.ts): legger actions på kjøretøydetaljresponsen.",
+            "Desktop V2 kjøretøydetalj (ParkingVehicleDetailPage.tsx): viser handlingsknapp med bekreftelse og reload.",
+            "Buildlogg (build_log.py): registrerer build 1155.",
+        ],
+        "request": "lag mulighet for å fjerne \"ikke funnet\" på en og en bil",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny knapp `Fjern 'ikke funnet'` på kjøretøydetalj når navn eller område er satt til `ikke funnet`.",
+            "Handlingen fjerner bare eksakt `ikke funnet`, ikke andre manuelt satte verdier.",
+            "Områdekilde og områdeoppdatert nullstilles sammen med område når område ryddes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1154",

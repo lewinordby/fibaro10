@@ -17345,6 +17345,19 @@ def api_detail_field(label: str, value: Any, detail: str = "") -> Dict[str, Any]
     return {"label": label, "value": value if value not in (None, "") else "-", "detail": detail}
 
 
+def is_not_found_marker(value: Optional[str]) -> bool:
+    return (value or "").strip().lower() == "ikke funnet"
+
+
+def parking_vehicle_not_found_field_labels(vehicle: ParkingVehicle) -> list[str]:
+    labels = []
+    if is_not_found_marker(vehicle.navn):
+        labels.append("navn")
+    if is_not_found_marker(vehicle.omrade):
+        labels.append("område")
+    return labels
+
+
 @app.get("/api/parking/vehicles/{plate}")
 async def api_v2_parking_vehicle_detail(plate: str):
     plate_value = normalize_plate(plate)
@@ -17401,6 +17414,19 @@ async def api_v2_parking_vehicle_detail(plate: str):
         api_detail_field("SVV hentet", vehicle.svv_fetched_at),
         api_detail_field("Notat", vehicle.notat),
     ]
+    not_found_fields = parking_vehicle_not_found_field_labels(vehicle)
+    actions = []
+    if not_found_fields:
+        actions.append(
+            {
+                "key": "clear-not-found",
+                "label": "Fjern 'ikke funnet'",
+                "method": "POST",
+                "path": f"/api/parking/vehicles/{quote(plate_value, safe='')}/clear-not-found",
+                "confirm": f"Nullstille {', '.join(not_found_fields)} for {plate_value}? Feltet blir blankt og kan behandles på nytt.",
+                "tone": "primary",
+            }
+        )
     return {
         "plate": plate_value,
         "title": parking_vehicle_label(details),
@@ -17414,6 +17440,7 @@ async def api_v2_parking_vehicle_detail(plate: str):
         "fields": fields,
         "warnings": [ownership_warning["text"]] if ownership_warning else [],
         "sessions": [parking_row_api(row, vehicle) for row in session_rows],
+        "actions": actions,
     }
 
 
@@ -17533,6 +17560,29 @@ async def api_v2_parking_clear_area_not_found(request: Request):
         "status": "ok",
         "message": f"{cleared} kjoretoy fikk fjernet omrade 'ikke funnet'.",
         "cleared": cleared,
+    }
+
+
+@app.post("/api/parking/vehicles/{plate}/clear-not-found")
+async def api_v2_parking_vehicle_clear_not_found(request: Request, plate: str):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    plate_value = normalize_plate(plate)
+    if not plate_value:
+        raise HTTPException(status_code=400, detail="Mangler registreringsnummer")
+    async with async_session() as session:
+        cleared_fields = await clear_parking_vehicle_not_found_fields(session, plate_value)
+        if cleared_fields is None:
+            raise HTTPException(status_code=404, detail="Kjøretøy ikke funnet")
+        await session.commit()
+    clear_summary_cache("parking")
+    if not cleared_fields:
+        return {"status": "ok", "message": f"{plate_value} hadde ingen felt satt til 'ikke funnet'.", "cleared": []}
+    return {
+        "status": "ok",
+        "message": f"{plate_value}: fjernet 'ikke funnet' fra {', '.join(cleared_fields)}.",
+        "cleared": cleared_fields,
     }
 
 
@@ -19523,6 +19573,24 @@ async def clear_parking_vehicle_not_found_area(session) -> int:
         )
     )
     return int_or_zero(result.rowcount)
+
+
+async def clear_parking_vehicle_not_found_fields(session, plate_value: str) -> Optional[list[str]]:
+    vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
+    if not vehicle:
+        return None
+    cleared_fields = []
+    if is_not_found_marker(vehicle.navn):
+        vehicle.navn = None
+        cleared_fields.append("navn")
+    if is_not_found_marker(vehicle.omrade):
+        vehicle.omrade = None
+        vehicle.omrade_kilde = None
+        vehicle.omrade_oppdatert = None
+        cleared_fields.append("område")
+    if cleared_fields:
+        vehicle.updated_at = datetime.utcnow()
+    return cleared_fields
 
 
 def vehicle_blank_name_condition():

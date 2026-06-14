@@ -1,8 +1,9 @@
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Space, Table, Tag, Typography } from "antd";
+import { Alert, App as AntApp, Button, Card, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchParkingVehicleDetail } from "../api";
+import { fetchParkingVehicleDetail, runModuleAction, type ModuleAction } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { modulePath } from "../moduleViews";
@@ -49,7 +50,38 @@ const parkingColumns: ColumnsType<Record<string, unknown>> = [
 
 export default function ParkingVehicleDetailPage() {
   const { plate = "" } = useParams();
-  const { data, loading, error } = useAsyncData(() => fetchParkingVehicleDetail(plate), [plate]);
+  const { message, modal } = AntApp.useApp();
+  const [reloadToken, setReloadToken] = useState(0);
+  const [runningAction, setRunningAction] = useState<string | null>(null);
+  const { data, loading, error } = useAsyncData(() => fetchParkingVehicleDetail(plate), [plate, reloadToken]);
+
+  async function handleAction(action: ModuleAction) {
+    if (runningAction) return;
+    const runAction = async () => {
+      setRunningAction(action.key);
+      try {
+        const result = await runModuleAction(action);
+        message.success(String(result.message || "Handling utført"));
+        setReloadToken((value) => value + 1);
+      } catch (err) {
+        message.error(err instanceof Error ? err.message : "Handling feilet");
+      } finally {
+        setRunningAction(null);
+      }
+    };
+
+    if (action.confirm) {
+      modal.confirm({
+        title: action.label,
+        content: action.confirm,
+        okText: "Kjør",
+        cancelText: "Avbryt",
+        onOk: runAction,
+      });
+      return;
+    }
+    await runAction();
+  }
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
@@ -64,6 +96,17 @@ export default function ParkingVehicleDetailPage() {
           </Typography.Title>
           <Typography.Text type="secondary">{data.subtitle}</Typography.Text>
         </div>
+        {data.actions?.map((action) => (
+          <Button
+            key={action.key}
+            type={action.tone === "primary" ? "primary" : "default"}
+            loading={runningAction === action.key}
+            disabled={Boolean(runningAction && runningAction !== action.key)}
+            onClick={() => handleAction(action)}
+          >
+            {action.label}
+          </Button>
+        ))}
         <Link to={modulePath("parkering", "kjoretoy")}>
           <Button icon={<ArrowLeftOutlined />}>Til kjøretøy</Button>
         </Link>

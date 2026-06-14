@@ -769,6 +769,7 @@ export type ParkingVehicleDetailResponse = {
   fields: ParkingVehicleField[];
   warnings: string[];
   sessions: ModuleRow[];
+  actions?: ModuleAction[];
 };
 
 async function apiGet<T>(path: string): Promise<T> {
