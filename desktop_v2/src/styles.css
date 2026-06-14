@@ -736,6 +736,10 @@
   background: #64748b;
 }
 
+.status-comparison-legend i.kind-reference {
+  background: #0f766e;
+}
+
 .status-comparison-axis-meta {
   display: flex;
   justify-content: space-between;

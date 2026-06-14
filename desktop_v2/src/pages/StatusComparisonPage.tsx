@@ -6,6 +6,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   fetchStatusComparison,
   type StatusComparisonLane,
+  type StatusComparisonReference,
   type StatusComparisonResponse,
   type StatusComparisonSummary,
 } from "../api";
@@ -16,6 +17,9 @@ import { useAsyncData } from "../hooks";
 
 type ComparisonMetric = "count" | "amount";
 type ComparisonChartKind = StatusComparisonLane["kind"] | "total";
+type ComparisonSource = StatusComparisonLane["source"];
+
+const referenceColors = ["#0f766e", "#7c3aed", "#be123c"];
 
 function signedNok(value: number) {
   if (!Number.isFinite(value) || value === 0) return "0 kr";
@@ -81,18 +85,19 @@ function cumulativePoints(lanes: Array<StatusComparisonLane | undefined>, metric
   return points;
 }
 
-function laneFor(data: StatusComparisonResponse, kind: StatusComparisonLane["kind"], source: StatusComparisonLane["source"]) {
-  return data.lanes.find((lane) => lane.kind === kind && lane.source === source);
+function laneFor(lanes: StatusComparisonLane[], kind: StatusComparisonLane["kind"], source: ComparisonSource) {
+  return lanes.find((lane) => lane.kind === kind && lane.source === source);
 }
 
-function lanesForChart(data: StatusComparisonResponse, kind: ComparisonChartKind, source: StatusComparisonLane["source"]) {
-  if (kind === "total") return [laneFor(data, "sun", source), laneFor(data, "parking", source)];
-  return [laneFor(data, kind, source)];
+function lanesForChart(lanes: StatusComparisonLane[], kind: ComparisonChartKind, source: ComparisonSource) {
+  if (kind === "total") return [laneFor(lanes, "sun", source), laneFor(lanes, "parking", source)];
+  return [laneFor(lanes, kind, source)];
 }
 
 function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonChartKind, metric: ComparisonMetric) {
-  const currentLanes = lanesForChart(data, kind, "current");
-  const comparisonLanes = lanesForChart(data, kind, "comparison");
+  const references: StatusComparisonReference[] = data.referenceComparisons ?? [];
+  const currentLanes = lanesForChart(data.lanes, kind, "current");
+  const comparisonLanes = lanesForChart(data.lanes, kind, "comparison");
   const primaryColor = kind === "parking" ? domainColors.parking : kind === "total" ? domainColors.revenue : domainColors.sun2;
   const title =
     metric === "amount"
@@ -105,7 +110,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         ? "Akkumulerte solinger"
         : "Akkumulerte parkeringer";
   return {
-    color: [primaryColor, domainColors.comparison],
+    color: [primaryColor, domainColors.comparison, ...references.map((_, index) => referenceColors[index % referenceColors.length])],
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "line" },
@@ -176,6 +181,16 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         emphasis: { focus: "series" },
         data: cumulativePoints(comparisonLanes, metric),
       },
+      ...references.map((reference, index) => ({
+        name: reference.label,
+        type: "line",
+        step: "end",
+        symbol: "none",
+        lineStyle: { width: 2, type: "dotted" },
+        emphasis: { focus: "series" },
+        data: cumulativePoints(lanesForChart(reference.lanes, kind, "reference"), metric),
+        itemStyle: { color: referenceColors[index % referenceColors.length] },
+      })),
     ],
     title: {
       text: title,
@@ -318,6 +333,15 @@ export default function StatusComparisonPage() {
             <div className="status-comparison-legend">
               <span><i className="kind-current" />Valgt periode</span>
               <span><i className="kind-comparison" />Sammenligning</span>
+              {(data.referenceComparisons ?? []).map((reference, index) => (
+                <span key={reference.key}>
+                  <i
+                    className="kind-reference"
+                    style={{ backgroundColor: referenceColors[index % referenceColors.length] }}
+                  />
+                  {reference.label}
+                </span>
+              ))}
             </div>
           </Space>
         }

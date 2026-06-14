@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1145")
+APP_BUILD = os.getenv("APP_BUILD", "1146")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1146",
+        "date": "14.06.2026",
+        "headline": "Forrige uke-kurve i omsetningssammenligning",
+        "title": "Omsetning sammenligning viser også tilsvarende tidspunkt samme dag forrige uke",
+        "description": (
+            "Detaljdiagrammet for omsetningssammenligning får en ekstra referansekurve for samme dag forrige uke. "
+            "Kurven bruker samme kildebaserte datakutt som resten av statussammenligningen, slik at soling og "
+            "parkering sammenlignes mot tilsvarende tidspunkt."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): utvider /api/status/comparison med referenceComparisons for samme dag forrige uke.",
+            "Desktop V2 API-typer (api.ts): legger til referansesammenligning i kontrakten.",
+            "Desktop V2 omsetning (StatusComparisonPage.tsx): tegner ekstra stiplet referansekurve i akkumulert utvikling.",
+            "Desktop V2 stilark (styles.css): legger til legend-markør for referansekurven.",
+            "Buildlogg (build_log.py): registrerer build 1146.",
+        ],
+        "request": "på omsetning sammenligning så vil jeg gjerne også ha en kurve som sammenligner med tilsvarende tidspunkt samme dag forrige uke",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Når dagsvisning sammenlignes med i går, vises nå også kurven for samme dag forrige uke.",
+            "Hvis samme dag forrige uke allerede er valgt som hovedsammenligning, dupliseres ikke kurven.",
+            "Referansekurven bruker egne sol- og parkeringslaner med samme relative tidsakse.",
+            "Beløpsvisning får referansekurve på sum, soling og parkering; antallsvisning får referansekurve på soling og parkering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1145",

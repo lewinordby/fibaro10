@@ -11664,15 +11664,28 @@ async def api_v2_status_comparison(
         )
         if not comparison_config:
             raise HTTPException(status_code=404, detail="Ukjent sammenligning")
+        reference_configs = [
+            item
+            for item in period_config["comparisons"]
+            if item["key"] == "same-weekday-last-week" and item["key"] != comparison_config["key"]
+        ]
 
         current_config = period_config["current"]
-        axis_seconds = max(
+        axis_candidates = [
             3600.0,
             (current_config["sunEnd"] - current_config["start"]).total_seconds(),
             (current_config["parkingEnd"] - current_config["start"]).total_seconds(),
             (comparison_config["sunEnd"] - comparison_config["start"]).total_seconds(),
             (comparison_config["parkingEnd"] - comparison_config["start"]).total_seconds(),
-        )
+        ]
+        for reference_config in reference_configs:
+            axis_candidates.extend(
+                [
+                    (reference_config["sunEnd"] - reference_config["start"]).total_seconds(),
+                    (reference_config["parkingEnd"] - reference_config["start"]).total_seconds(),
+                ]
+            )
+        axis_seconds = max(axis_candidates)
 
         current_sun = await sun2_datetime_snapshot(session, current_config["start"], current_config["sunEnd"])
         current_parking = await parking_datetime_snapshot(session, current_config["start"], current_config["parkingEnd"])
@@ -11725,6 +11738,44 @@ async def api_v2_status_comparison(
                 axis_seconds,
             ),
         ]
+        reference_results = []
+        for reference_config in reference_configs:
+            reference_sun = await sun2_datetime_snapshot(session, reference_config["start"], reference_config["sunEnd"])
+            reference_parking = await parking_datetime_snapshot(
+                session,
+                reference_config["start"],
+                reference_config["parkingEnd"],
+            )
+            reference_lanes = [
+                await status_timeline_lane(
+                    session,
+                    "reference",
+                    "Soling",
+                    reference_config["label"],
+                    "sun",
+                    reference_config["start"],
+                    reference_config["sunEnd"],
+                    axis_seconds,
+                ),
+                await status_timeline_lane(
+                    session,
+                    "reference",
+                    "Parkering",
+                    reference_config["label"],
+                    "parking",
+                    reference_config["start"],
+                    reference_config["parkingEnd"],
+                    axis_seconds,
+                ),
+            ]
+            reference_results.append(
+                {
+                    "config": reference_config,
+                    "sun": reference_sun,
+                    "parking": reference_parking,
+                    "lanes": reference_lanes,
+                }
+            )
 
     current_summary = status_period_summary(
         current_config["label"],
@@ -11744,6 +11795,33 @@ async def api_v2_status_comparison(
         comparison_parking,
         today,
     )
+    reference_payloads = []
+    for reference_result in reference_results:
+        reference_config = reference_result["config"]
+        reference_summary = status_period_summary(
+            reference_config["label"],
+            reference_config["start"],
+            reference_config["sunEnd"],
+            reference_config["parkingEnd"],
+            reference_result["sun"],
+            reference_result["parking"],
+            today,
+        )
+        reference_payloads.append(
+            {
+                "key": reference_config["key"],
+                "label": reference_config["label"],
+                "summary": reference_summary,
+                "delta": {
+                    "sol": current_summary["sol"] - reference_summary["sol"],
+                    "solCount": current_summary["solCount"] - reference_summary["solCount"],
+                    "parking": current_summary["parking"] - reference_summary["parking"],
+                    "parkingCount": current_summary["parkingCount"] - reference_summary["parkingCount"],
+                    "total": current_summary["total"] - reference_summary["total"],
+                },
+                "lanes": reference_result["lanes"],
+            }
+        )
     axis_end = current_config["start"] + timedelta(seconds=axis_seconds)
     return {
         "generatedAt": api_local_iso(now_dt),
@@ -11769,6 +11847,7 @@ async def api_v2_status_comparison(
             "total": current_summary["total"] - comparison_summary["total"],
         },
         "lanes": lanes,
+        "referenceComparisons": reference_payloads,
     }
 
 

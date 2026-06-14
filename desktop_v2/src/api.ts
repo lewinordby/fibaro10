@@ -116,7 +116,7 @@ export type StatusComparisonEvent = {
 
 export type StatusComparisonLane = {
   key: string;
-  source: "current" | "comparison";
+  source: "current" | "comparison" | "reference";
   label: string;
   periodLabel: string;
   kind: "sun" | "parking";
@@ -139,6 +139,20 @@ export type StatusComparisonSummary = {
   parking: number;
   parkingCount: number;
   total: number;
+};
+
+export type StatusComparisonReference = {
+  key: string;
+  label: string;
+  summary: StatusComparisonSummary;
+  delta: {
+    sol: number;
+    solCount: number;
+    parking: number;
+    parkingCount: number;
+    total: number;
+  };
+  lanes: StatusComparisonLane[];
 };
 
 export type StatusComparisonResponse = {
@@ -174,6 +188,7 @@ export type StatusComparisonResponse = {
     total: number;
   };
   lanes: StatusComparisonLane[];
+  referenceComparisons?: StatusComparisonReference[];
 };
 
 export type AuthUser = {
