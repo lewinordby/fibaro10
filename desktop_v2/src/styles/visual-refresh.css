@@ -112,17 +112,18 @@
 }
 
 .metric-card .ant-card-body {
-  padding: 15px 15px 13px;
+  padding: 11px 12px 10px;
 }
 
 .metric-title {
   color: #475569;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 760;
 }
 
 .metric-tag {
-  padding-inline: 7px;
+  padding-inline: 6px;
+  font-size: 10px;
   color: color-mix(in srgb, var(--tone-color) 82%, #111827);
   background: color-mix(in srgb, var(--tone-color) 11%, #ffffff);
   border: 1px solid color-mix(in srgb, var(--tone-color) 18%, #e2e8f0);
@@ -130,7 +131,7 @@
 }
 
 .metric-value {
-  font-size: 27px;
+  font-size: 22px;
   letter-spacing: 0;
 }
 
@@ -196,13 +197,13 @@
 }
 
 .status-period-grid {
-  gap: 12px;
+  gap: 10px;
 }
 
 .status-period-card {
   position: relative;
   overflow: hidden;
-  min-height: 318px;
+  min-height: 268px;
   border-top: 0;
   background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
 }
@@ -216,7 +217,7 @@
 }
 
 .status-period-card .ant-card-body {
-  padding: 15px;
+  padding: 11px 12px;
 }
 
 .status-period-head {
@@ -225,12 +226,12 @@
 
 .status-period-head span {
   color: #273244;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 850;
 }
 
 .status-period-head strong {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .status-period-head em {
@@ -252,7 +253,7 @@
 }
 
 .status-period-rows div {
-  padding: 10px 11px;
+  padding: 7px 8px;
 }
 
 .status-period-row.tone-sun2 {
@@ -264,11 +265,11 @@
 }
 
 .status-period-comparisons {
-  gap: 9px;
+  gap: 6px;
 }
 
 .status-period-comparison-row {
-  padding: 9px 0 0;
+  padding: 6px 0 0;
   border-top-color: var(--line-soft);
 }
 
@@ -293,13 +294,13 @@
 }
 
 .status-support-strip {
-  gap: 10px;
+  gap: 8px;
 }
 
 .status-support-item {
   position: relative;
   overflow: hidden;
-  padding: 13px 14px;
+  padding: 9px 11px;
   border-color: var(--line);
   border-top: 0;
   border-radius: var(--radius-md);
@@ -317,23 +318,23 @@
 
 .status-support-head span {
   color: #273244;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 820;
 }
 
 .status-support-head em {
-  padding: 2px 7px;
+  padding: 1px 6px;
   color: var(--muted);
   background: #f1f5f9;
   border-radius: 999px;
 }
 
 .status-support-item strong {
-  font-size: 23px;
+  font-size: 18px;
 }
 
 .status-support-item small {
-  margin-top: 12px;
+  margin-top: 7px;
 }
 
 .status-info-card .ant-card-body {

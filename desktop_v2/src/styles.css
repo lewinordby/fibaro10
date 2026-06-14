@@ -212,7 +212,7 @@
 }
 
 .status-period-card {
-  min-height: 300px;
+  min-height: 260px;
   border: 1px solid var(--line);
   border-top: 3px solid var(--domain-revenue);
   border-radius: 6px;
@@ -222,9 +222,9 @@
 .status-period-card .ant-card-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   height: 100%;
-  padding: 14px;
+  padding: 11px 12px;
 }
 
 .status-period-head {
@@ -243,7 +243,7 @@
 
 .status-period-head span {
   color: #374151;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 750;
 }
 
@@ -259,7 +259,7 @@
 
 .status-period-head strong {
   color: var(--ink);
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 780;
   line-height: 1.05;
   white-space: nowrap;
@@ -268,7 +268,7 @@
 .status-period-rows {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .status-period-rows div {
@@ -276,7 +276,7 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  padding: 9px 10px;
+  padding: 7px 8px;
   background: #f8fafc;
   border: 1px solid #eef2f7;
   border-radius: 6px;
@@ -299,7 +299,7 @@
 .status-period-rows strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 750;
   line-height: 1.15;
   text-overflow: ellipsis;
@@ -315,7 +315,7 @@
 .status-period-comparisons {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   margin-top: 2px;
   padding-top: 2px;
 }
@@ -332,7 +332,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px 10px;
-  padding: 8px 0 0;
+  padding: 6px 0 0;
   color: inherit;
   border-top: 1px solid #eef2f7;
   text-decoration: none;
@@ -410,7 +410,7 @@
 .status-support-strip {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: 9px;
 }
 
 .status-support-link {
@@ -457,7 +457,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .status-support-head span {
@@ -493,7 +493,7 @@
 
 .status-support-item small {
   display: block;
-  margin-top: 14px;
+  margin-top: 10px;
   overflow: hidden;
   color: var(--muted);
   font-size: 11px;
@@ -599,7 +599,7 @@
 
 .status-comparison-summary-card .ant-card-body,
 .status-comparison-delta-card .ant-card-body {
-  padding: 14px;
+  padding: 11px 12px;
 }
 
 .status-comparison-summary-head {
@@ -612,14 +612,14 @@
 .status-comparison-summary-head span,
 .status-comparison-delta-card > .ant-card-body > span {
   color: #374151;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 760;
 }
 
 .status-comparison-summary-head strong,
 .status-comparison-delta-card strong {
   color: var(--ink);
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 780;
   line-height: 1.05;
 }
@@ -635,12 +635,12 @@
 .status-comparison-summary-split {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 9px;
 }
 
 .status-comparison-summary-split div {
-  padding: 8px 9px;
+  padding: 6px 8px;
   background: #f8fafc;
   border: 1px solid #eef2f7;
   border-radius: 6px;
@@ -659,7 +659,7 @@
   display: block;
   margin: 2px 0;
   color: var(--ink);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 760;
 }
 
@@ -766,17 +766,17 @@
 }
 
 .status-revenue-page .summary-card .ant-card-body {
-  min-height: 72px;
-  padding: 12px 14px;
+  min-height: 62px;
+  padding: 9px 11px;
 }
 
 .status-revenue-page .summary-card strong {
-  font-size: 19px;
+  font-size: 17px;
 }
 
 .metric-grid {
   display: grid;
-  gap: 14px;
+  gap: 8px;
 }
 
 .primary-grid {
@@ -792,14 +792,14 @@
 }
 
 .metric-card {
-  height: 154px;
+  height: 122px;
   border: 1px solid var(--line);
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .module-metric {
-  height: 116px;
+  height: 104px;
 }
 
 .card-link:hover .metric-card {
@@ -825,7 +825,7 @@
   min-width: 0;
   overflow: hidden;
   color: #374151;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -845,13 +845,13 @@
   align-items: baseline;
   gap: 6px;
   min-width: 0;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .metric-value {
   overflow: hidden;
   color: var(--ink);
-  font-size: 28px;
+  font-size: 23px;
   font-weight: 780;
   line-height: 1.05;
   text-overflow: ellipsis;
@@ -860,7 +860,7 @@
 
 .metric-unit {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 650;
 }
 
@@ -869,17 +869,20 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 8px;
-  min-height: 34px;
+  min-height: 28px;
   margin-top: auto;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.25;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .metric-detail span {
+  display: -webkit-box;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .metric-detail svg {
@@ -909,7 +912,7 @@
 }
 
 .summary-card .ant-card-head {
-  min-height: 38px;
+  min-height: 34px;
 }
 
 .summary-card .ant-card-head-title {
@@ -921,18 +924,19 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-height: 82px;
+  min-height: 66px;
+  padding: 10px 12px;
 }
 
 .summary-card strong {
   color: var(--ink);
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1.1;
 }
 
 .summary-card span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .table-note {
@@ -1049,34 +1053,34 @@
 }
 
 .metric-card.module-metric .ant-card-body {
-  padding: 11px 12px 10px;
+  padding: 8px 10px;
 }
 
 .module-metric .metric-title {
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .module-metric .metric-tag {
   padding-inline: 6px;
-  font-size: 10px;
+  font-size: 9.5px;
 }
 
 .module-metric .metric-value-row {
-  margin-top: 9px;
+  margin-top: 6px;
 }
 
 .module-metric .metric-value {
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1.05;
 }
 
 .module-metric .metric-unit,
 .module-metric .metric-detail {
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .module-metric .metric-detail {
-  min-height: 30px;
+  min-height: 24px;
   gap: 6px;
   line-height: 1.2;
 }

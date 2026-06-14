@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1143")
+APP_BUILD = os.getenv("APP_BUILD", "1144")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1144",
+        "date": "14.06.2026",
+        "headline": "Kompaktere kort i hele V2",
+        "title": "Nøkkel-, status- og oppsummeringskort får mindre høyde og roligere typografi",
+        "description": (
+            "Kortene i V2 er strammet inn globalt med lavere høyder, mindre tall, mindre padding og tettere avstand. "
+            "Målet er bedre oversikt og mindre visuelt volum på alle sider."
+        ),
+        "applications": [
+            "Desktop V2 grunnstil (styles.css): reduserer metric-card, module-metric, summary-card, status-period-card og status-support-item.",
+            "Desktop V2 visuell profil (visual-refresh.css): justerer siste lastede kortoverstyringer slik at kompakt stil faktisk slår gjennom.",
+            "Buildlogg (build_log.py): registrerer build 1144.",
+        ],
+        "request": "jeg synes kortene alltid er for store på alle sidene, kan du justere ned både fonten og størrelsen på sånne kort ganske grundig",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Generelle metric-kort er redusert i høyde fra 154px til 122px.",
+            "Modul-kort er redusert til 104px og bruker mindre hovedtall.",
+            "Summary- og statusperiodekort har lavere padding, mindre beløp og tettere rader.",
+            "Statusforsidens støtte-/nøkkelkort er gjort mer kompakte.",
+            "Detaljtekst på metric-kort linjekuttes til maks to kompakte linjer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1143",
