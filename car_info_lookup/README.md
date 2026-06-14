@@ -44,9 +44,13 @@ Parseren lagrer blant annet:
 - `CAR_INFO_RUN_INTERVAL_MINUTES`, standard `45`
 - `CAR_INFO_BATCH_SIZE`, standard `1`
 - `CAR_INFO_RATE_LIMIT_BACKOFF_MINUTES`, standard `240`
+- `CAR_INFO_BACKLOG_ENABLED`, standard `true`
+- `CAR_INFO_BACKLOG_MAX_PER_CYCLE`, standard `25`
+- `CAR_INFO_BACKLOG_DELAY_SECONDS`, standard minst `60`
 
 ## Endepunkter
 
 - `GET /health`
 - `POST /api/run-once?limit=1`
+- `POST /api/run-backlog?max_items=25`
 - `GET /api/svensk-skilt/{plate}`

@@ -37,6 +37,9 @@ REQUEST_TIMEOUT_SECONDS = max(5, int(os.getenv("CAR_INFO_REQUEST_TIMEOUT_SECONDS
 REQUEST_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_REQUEST_DELAY_SECONDS", "30")))
 RATE_LIMIT_BACKOFF_MINUTES = max(30, int(os.getenv("CAR_INFO_RATE_LIMIT_BACKOFF_MINUTES", "240")))
 TEXT_LIMIT = max(1000, int(os.getenv("CAR_INFO_TEXT_LIMIT", "12000")))
+BACKLOG_ENABLED = os.getenv("CAR_INFO_BACKLOG_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+BACKLOG_MAX_PER_CYCLE = max(1, min(100, int(os.getenv("CAR_INFO_BACKLOG_MAX_PER_CYCLE", "25"))))
+BACKLOG_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_BACKLOG_DELAY_SECONDS", str(max(REQUEST_DELAY_SECONDS, 60)))))
 
 app = FastAPI(title="Fibaro10 car.info lookup")
 lock = asyncio.Lock()
@@ -51,6 +54,10 @@ state: dict[str, Any] = {
     "last_url": None,
     "last_result": None,
     "backoff_until": None,
+    "last_candidate_count": None,
+    "backlog_enabled": BACKLOG_ENABLED,
+    "backlog_last_cycle_at": None,
+    "backlog_last_status": None,
     "processed": 0,
     "confirmed_swedish": 0,
     "skipped": 0,
@@ -197,6 +204,7 @@ async def run_once(limit: int = BATCH_SIZE, force: bool = False) -> dict[str, An
                 {"limit": max(1, min(10, limit))},
             )
             rows = candidates.get("rows") or []
+            set_state(last_candidate_count=candidates.get("count"))
             for index, row in enumerate(rows):
                 plate = compact_plate(row.get("plate"))
                 if not is_swedish_license_plate(plate):
@@ -244,6 +252,7 @@ async def run_once(limit: int = BATCH_SIZE, force: bool = False) -> dict[str, An
                 "confirmed_swedish": confirmed,
                 "skipped": skipped,
                 "failed": failed,
+                "rate_limited": any(item.get("status") == 429 for item in results),
                 "duration_seconds": round(time.monotonic() - started, 2),
                 "results": results,
             }
@@ -252,14 +261,87 @@ async def run_once(limit: int = BATCH_SIZE, force: bool = False) -> dict[str, An
             return {"status": "error", "message": str(exc), "results": results}
 
 
+async def run_backlog_cycle(max_items: int = BACKLOG_MAX_PER_CYCLE, force: bool = False) -> dict[str, Any]:
+    started = time.monotonic()
+    max_items = max(1, min(100, max_items))
+    total_processed = 0
+    total_confirmed = 0
+    total_skipped = 0
+    total_failed = 0
+    results: list[dict[str, Any]] = []
+    status = "ok"
+    message = None
+    candidate_count = None
+
+    set_state(backlog_last_cycle_at=utcnow_iso(), backlog_last_status="running")
+    while total_processed < max_items:
+        if not force:
+            until = backoff_active()
+            if until:
+                status = "backoff"
+                message = f"Venter paa car.info-rate-limit til {until}"
+                break
+
+        result = await run_once(1, force=force)
+        status = result.get("status") or status
+        candidate_count = result.get("candidate_count", candidate_count)
+        results.extend(result.get("results") or [])
+        total_processed += int(result.get("processed") or 0)
+        total_confirmed += int(result.get("confirmed_swedish") or 0)
+        total_skipped += int(result.get("skipped") or 0)
+        total_failed += int(result.get("failed") or 0)
+
+        if result.get("status") in {"busy", "error", "backoff"}:
+            message = result.get("message")
+            break
+        if result.get("rate_limited"):
+            status = "backoff"
+            message = result.get("message") or "car.info rate-limit/coffee break"
+            break
+        if int(result.get("processed") or 0) == 0:
+            status = "complete" if not candidate_count else "idle"
+            message = "Ingen flere kandidater akkurat naa." if candidate_count else "Koeen er tom."
+            break
+        if BACKLOG_DELAY_SECONDS and total_processed < max_items:
+            await asyncio.sleep(BACKLOG_DELAY_SECONDS)
+
+    payload = {
+        "status": status,
+        "message": message,
+        "candidate_count": candidate_count,
+        "processed": total_processed,
+        "confirmed_swedish": total_confirmed,
+        "skipped": total_skipped,
+        "failed": total_failed,
+        "duration_seconds": round(time.monotonic() - started, 2),
+        "backoff_until": backoff_active(),
+        "results": results,
+    }
+    set_state(
+        backlog_last_cycle_at=utcnow_iso(),
+        backlog_last_status=status,
+        last_candidate_count=candidate_count,
+        last_error=message if status in {"backoff", "error"} else None,
+    )
+    return payload
+
+
 async def scheduler_loop() -> None:
     await asyncio.sleep(5 if RUN_ON_START else RUN_INTERVAL_MINUTES * 60)
     while True:
         try:
-            await run_once(BATCH_SIZE)
+            if BACKLOG_ENABLED:
+                await run_backlog_cycle(BACKLOG_MAX_PER_CYCLE)
+            else:
+                await run_once(BATCH_SIZE)
         except Exception as exc:
             set_state(running=False, last_action="scheduler_error", last_error=str(exc))
-        await asyncio.sleep(RUN_INTERVAL_MINUTES * 60)
+        until = parse_iso(backoff_active())
+        if until:
+            sleep_seconds = max(60, min(RUN_INTERVAL_MINUTES * 60, int((until - utcnow()).total_seconds())))
+        else:
+            sleep_seconds = RUN_INTERVAL_MINUTES * 60
+        await asyncio.sleep(sleep_seconds)
 
 
 @app.on_event("startup")
@@ -288,6 +370,9 @@ async def health() -> dict[str, Any]:
             "run_interval_minutes": RUN_INTERVAL_MINUTES,
             "batch_size": BATCH_SIZE,
             "rate_limit_backoff_minutes": RATE_LIMIT_BACKOFF_MINUTES,
+            "backlog_enabled": BACKLOG_ENABLED,
+            "backlog_max_per_cycle": BACKLOG_MAX_PER_CYCLE,
+            "backlog_delay_seconds": BACKLOG_DELAY_SECONDS,
         },
     }
 
@@ -301,6 +386,17 @@ async def api_run_once(
 ) -> dict[str, Any]:
     require_token(x_car_info_token)
     return await run_once(limit, force)
+
+
+@app.post("/api/run-backlog")
+async def api_run_backlog(
+    request: Request,
+    max_items: int = Query(BACKLOG_MAX_PER_CYCLE, ge=1, le=100),
+    force: bool = Query(False),
+    x_car_info_token: str | None = Header(None),
+) -> dict[str, Any]:
+    require_token(x_car_info_token)
+    return await run_backlog_cycle(max_items, force)
 
 
 @app.get("/api/svensk-skilt/{plate}")

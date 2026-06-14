@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1171")
+APP_BUILD = os.getenv("APP_BUILD", "1172")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1172",
+        "date": "14.06.2026",
+        "headline": "Car.info-backlog gaar gjennom hele koeen",
+        "title": "Svenske bilkandidater behandles som en vedvarende backlog-jobb med rate-limit-respekt",
+        "description": (
+            "Build 1172 gjoer car_info_lookup fra enkel intervalljobb til en backlog-prosess. Den tar kandidat etter kandidat "
+            "til koeen er tom eller car.info svarer med rate-limit, og fortsetter automatisk etter global pause."
+        ),
+        "applications": [
+            "Car.info-oppslag (car_info_lookup/app/main.py): legger backlog-syklus, kandidatstatus og /api/run-backlog.",
+            "Konfigurasjon (.env.qnap.example): setter QNAP-default til backlog-modus, 15 minutters intervall, en bil av gangen og pause mellom kall.",
+            "Dokumentasjon (docs/car-info-oppslag.md, car_info_lookup/README.md): beskriver full backlog-kjoering og rate-limit.",
+            "Buildlogg (build_log.py): registrerer build 1172.",
+        ],
+        "request": "Gjoer det helt ferdig og kjoer gjennom alle bilene som ligger uten opplysninger naa.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Backlog-modus fortsetter automatisk gjennom alle kandidater over tid.",
+            "Jobben stopper trygt ved car.info coffee break og fortsetter etter backoff.",
+            "Health viser kandidatantall, backlog-status og siste resultat.",
+            "Manuell backlog-syklus kan trigges via /api/run-backlog.",
+        ],
+    },
     {
         "version": "1",
         "build": "1171",
