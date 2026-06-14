@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timedelta
 from email.header import decode_header, make_header
 from email.message import Message
 from email.utils import parsedate_to_datetime
-from io import StringIO
+from io import BytesIO, StringIO
 from pathlib import Path
 from copy import deepcopy
 from collections import defaultdict
@@ -15490,6 +15490,7 @@ async def build_admin_relation_analysis(session, now_dt: datetime) -> Dict[str, 
 PARKING_SETTLEMENT_PROVIDER = "parking_parknordic"
 PARKING_SETTLEMENT_SENDER = os.getenv("PARKING_SETTLEMENT_SENDER", "fredrik@parknordic.no")
 SETTLEMENT_ATTACHMENT_EXTENSIONS = {".pdf", ".csv", ".xlsx", ".xls", ".xml", ".txt"}
+SETTLEMENT_PARSER_VERSION = 2
 NORWEGIAN_MONTHS = {
     "januar": 1,
     "jan": 1,
@@ -15664,7 +15665,345 @@ def parse_settlement_period(text_value: str, email_date: Optional[datetime]) -> 
     return None, None, "Ikke tolket"
 
 
+def settlement_decode_text(content: bytes) -> str:
+    for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            return content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return content.decode("latin-1", errors="replace")
+
+
+def settlement_text_lines(text_value: str) -> list[str]:
+    lines: list[str] = []
+    for line in (text_value or "").replace("\u00a0", " ").splitlines():
+        clean = re.sub(r"\s+", " ", line).strip()
+        if clean:
+            lines.append(clean)
+    return lines
+
+
+def extract_settlement_text(filename: str, content_type: str, content: bytes) -> Dict[str, Any]:
+    extension = Path(filename or "").suffix.lower()
+    method = "unknown"
+    warnings: list[str] = []
+    text_value = ""
+    pages_count: Optional[int] = None
+    try:
+        if content_type == "application/pdf" or extension == ".pdf":
+            method = "pypdf"
+            try:
+                from pypdf import PdfReader
+
+                reader = PdfReader(BytesIO(content))
+                pages_count = len(reader.pages)
+                text_value = "\n".join(page.extract_text() or "" for page in reader.pages)
+            except Exception as exc:
+                warnings.append(f"PDF-tekst kunne ikke leses: {exc}")
+        elif extension in {".xlsx", ".xls"} or content_type in {
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }:
+            method = "openpyxl"
+            try:
+                from openpyxl import load_workbook
+
+                workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+                rows: list[str] = []
+                for sheet in workbook.worksheets:
+                    rows.append(f"[Ark: {sheet.title}]")
+                    for row in sheet.iter_rows(values_only=True):
+                        values = [str(value).strip() for value in row if value not in (None, "")]
+                        if values:
+                            rows.append("\t".join(values))
+                text_value = "\n".join(rows)
+            except Exception as exc:
+                warnings.append(f"Regneark kunne ikke leses: {exc}")
+        else:
+            method = "text"
+            text_value = settlement_decode_text(content)
+    except Exception as exc:
+        warnings.append(f"Vedlegg kunne ikke tekstleses: {exc}")
+    lines = settlement_text_lines(text_value)
+    if not lines:
+        warnings.append("Ingen tekst ble hentet fra vedlegget.")
+    return {
+        "method": method,
+        "text": text_value,
+        "lines": lines,
+        "line_count": len(lines),
+        "pages_count": pages_count,
+        "warnings": warnings,
+    }
+
+
+SETTLEMENT_NUMBER_RE = re.compile(r"-?(?:\d{1,3}(?:[ \u00a0]\d{3})+|\d+)(?:,\d+)?")
+
+
+def parse_settlement_number(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    text_value = str(value).strip().replace("\u00a0", " ")
+    if not text_value:
+        return None
+    text_value = text_value.replace(" ", "").replace(",", ".").replace("%", "")
+    try:
+        return float(text_value)
+    except ValueError:
+        return None
+
+
+def settlement_numbers_from_line(line: str) -> list[float]:
+    clean = (line or "").replace("\u00a0", " ").strip()
+    if "," not in clean and "%" not in clean and re.fullmatch(r"-?[\d ]+", clean):
+        tokens = clean.split()
+        if len(tokens) >= 4 and len(tokens) % 2 == 0 and all(len(tokens[index + 1]) == 3 for index in range(0, len(tokens), 2)):
+            values = []
+            for index in range(0, len(tokens), 2):
+                parsed = parse_settlement_number(f"{tokens[index]} {tokens[index + 1]}")
+                if parsed is not None:
+                    values.append(parsed)
+            return values
+    values: list[float] = []
+    for match in SETTLEMENT_NUMBER_RE.findall(line or ""):
+        parsed = parse_settlement_number(match)
+        if parsed is not None:
+            values.append(parsed)
+    return values
+
+
+def settlement_number_value(value: Optional[float]) -> Optional[float | int]:
+    if value is None:
+        return None
+    if abs(value - round(value)) < 0.000001:
+        return int(round(value))
+    return round(value, 2)
+
+
+def settlement_line_source(index: int, line: str) -> str:
+    return f"PDF tekstlinje {index + 1}: {line}"
+
+
+def settlement_parse_date_from_line(line: str) -> Optional[str]:
+    match = re.search(r"\b(\d{1,2})\.(\d{1,2})\.(20\d{2})\b", line or "")
+    if not match:
+        return None
+    try:
+        return date(int(match.group(3)), int(match.group(2)), int(match.group(1))).isoformat()
+    except ValueError:
+        return None
+
+
+def parse_parking_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
+    lines = list(extraction.get("lines") or [])
+    parsed: Dict[str, Any] = {}
+    field_sources: Dict[str, str] = {}
+    field_confidence: Dict[str, float] = {}
+    parser_notes: list[str] = []
+
+    def set_field(field: str, value: Any, source: str, confidence: float = 0.9) -> None:
+        if value is None or value == "":
+            return
+        parsed[field] = value
+        field_sources[field] = source
+        field_confidence[field] = round(max(0.0, min(1.0, confidence)), 2)
+
+    for index, line in enumerate(lines):
+        lower = line.lower()
+        source = settlement_line_source(index, line)
+        if lower.startswith("oslo "):
+            set_field("report_date", settlement_parse_date_from_line(line), source, 0.95)
+        period_match = re.search(r"oppgjørsrapport\s+for\s+(.+?20\d{2})\b", lower, flags=re.IGNORECASE)
+        if period_match:
+            label = period_match.group(1).strip()
+            set_field("reported_period_label", label[:1].upper() + label[1:], source, 0.95)
+        match = re.search(r"driftssted\s+(\d+)\s+(.+)", line, flags=re.IGNORECASE)
+        if match:
+            set_field("site_number", match.group(1), source, 0.95)
+            set_field("site_name", match.group(2).strip(), source, 0.95)
+        match = re.search(r"oppdragsgiver\s+(\d+)\s+(.+)", line, flags=re.IGNORECASE)
+        if match:
+            set_field("customer_number", match.group(1), source, 0.95)
+            set_field("customer_name", match.group(2).strip(), source, 0.95)
+        if lower.startswith("antall automater"):
+            values = settlement_numbers_from_line(line)
+            if values:
+                set_field("machine_count", settlement_number_value(values[-1]), source, 0.95)
+        if "mynt/kortautomat" in lower and "brutto" in lower:
+            values = settlement_numbers_from_line(line)
+            if values:
+                set_field("gross_coin_card_ex_vat", settlement_number_value(values[-1]), source, 0.9)
+        if lower.startswith("easypark"):
+            values = settlement_numbers_from_line(line)
+            if values:
+                set_field("easypark_ex_vat", settlement_number_value(values[-1]), source, 0.95)
+                set_field("easypark_inc_vat_estimate", settlement_number_value(values[-1] * 1.25), f"{source}; beregnet * 1,25", 0.75)
+        if lower.startswith("fratrekk"):
+            values = settlement_numbers_from_line(line)
+            if values:
+                set_field("settlement_fee_ex_vat", settlement_number_value(values[-1]), source, 0.9)
+        email_matches = re.findall(r"[\w.\-+]+@[\w.\-]+\.\w+", line)
+        if email_matches and "contact_email" not in parsed:
+            set_field("contact_email", email_matches[0], source, 0.8)
+
+    deduction_index = next((index for index, line in enumerate(lines) if line.lower().startswith("fratrekk")), None)
+    numeric_rows: list[tuple[int, str, list[float]]] = []
+    if deduction_index is not None:
+        for index, line in enumerate(lines[deduction_index + 1 :], start=deduction_index + 1):
+            lower = line.lower()
+            if lower.startswith("betaling ") or lower.startswith("event.") or lower.startswith("nb!"):
+                break
+            values = settlement_numbers_from_line(line)
+            if values and re.fullmatch(r"[-\d\s,%.]+", line):
+                numeric_rows.append((index, line, values))
+
+    assignments = [
+        (
+            ("revenue_basis_ex_vat", "revenue_share_percent", "revenue_share_ex_vat"),
+            3,
+            0.72,
+            "Hovedgrunnlag/andel/sum lest fra første uetiketterte tallrad etter fratrekk.",
+        ),
+        (
+            ("control_fee_net_ex_vat", "control_fee_share_percent", "control_fee_share_ex_vat"),
+            3,
+            0.68,
+            "Kontrollavgift lest fra andre uetiketterte tallrad etter fratrekk.",
+        ),
+        (
+            ("long_term_parking_ex_vat", "long_term_share_percent", "long_term_share_ex_vat"),
+            3,
+            0.68,
+            "Langtidsparkering lest fra tredje uetiketterte tallrad etter fratrekk.",
+        ),
+        (
+            ("total_basis_ex_vat", "total_share_ex_vat"),
+            2,
+            0.72,
+            "Totalsum eks. mva lest fra fjerde uetiketterte tallrad etter fratrekk.",
+        ),
+        (
+            ("vat_25_percent",),
+            1,
+            0.78,
+            "25% mva lest fra tallraden etter totalsum.",
+        ),
+        (
+            ("payout_inc_vat",),
+            1,
+            0.78,
+            "Til utbetaling lest fra siste tallrad før betalingsinfo.",
+        ),
+    ]
+    for row_index, assignment in enumerate(assignments):
+        if row_index >= len(numeric_rows):
+            parser_notes.append(f"Mangler tallrad for {', '.join(assignment[0])}.")
+            continue
+        fields, expected_count, confidence, note = assignment
+        source_index, source_line, values = numeric_rows[row_index]
+        if len(values) < expected_count:
+            parser_notes.append(f"For få tall i tekstlinje {source_index + 1}: {source_line}")
+            continue
+        source = f"{settlement_line_source(source_index, source_line)}; {note}"
+        for field, value in zip(fields, values):
+            set_field(field, settlement_number_value(value), source, confidence)
+
+    required_fields = ["reported_period_label", "site_number", "customer_number", "easypark_ex_vat", "payout_inc_vat"]
+    found_required = sum(1 for field in required_fields if field in parsed)
+    confidence = round(found_required / len(required_fields), 2)
+    parsed["_meta"] = {
+        "parser": "parking_parknordic_pdf",
+        "parser_version": SETTLEMENT_PARSER_VERSION,
+        "confidence": confidence,
+        "field_sources": field_sources,
+        "field_confidence": field_confidence,
+        "line_count": extraction.get("line_count") or len(lines),
+        "pages_count": extraction.get("pages_count"),
+        "method": extraction.get("method"),
+        "warnings": list(extraction.get("warnings") or []),
+        "notes": parser_notes,
+        "source_lines": lines,
+    }
+    return parsed
+
+
+def parse_parking_settlement_attachment(filename: str, content_type: str, content: bytes) -> Dict[str, Any]:
+    extraction = extract_settlement_text(filename, content_type, content)
+    parsed = parse_parking_settlement_text(extraction)
+    return parsed
+
+
+def settlement_public_parsed(parsed: Any) -> Dict[str, Any]:
+    if not isinstance(parsed, dict):
+        return {}
+    return {key: value for key, value in parsed.items() if not str(key).startswith("_")}
+
+
+def settlement_parsed_meta(parsed: Any) -> Dict[str, Any]:
+    if not isinstance(parsed, dict):
+        return {}
+    meta = parsed.get("_meta")
+    return meta if isinstance(meta, dict) else {}
+
+
+def settlement_parsed_value(parsed: Any, field: str) -> Any:
+    return settlement_public_parsed(parsed).get(field)
+
+
+def settlement_parsed_float(parsed: Any, field: str) -> Optional[float]:
+    value = settlement_parsed_value(parsed, field)
+    if isinstance(value, (int, float)):
+        return float(value)
+    return parse_settlement_number(value)
+
+
+def settlement_needs_parse(row: SettlementImport) -> bool:
+    meta = settlement_parsed_meta(row.parsed)
+    return meta.get("parser_version") != SETTLEMENT_PARSER_VERSION
+
+
+def ensure_settlement_parsed(row: SettlementImport) -> bool:
+    if not settlement_needs_parse(row):
+        return False
+    parsed = parse_parking_settlement_attachment(
+        row.attachment_filename or "",
+        row.attachment_content_type or "",
+        row.attachment_bytes or b"",
+    )
+    row.parsed = parsed
+    raw = dict(row.raw or {}) if isinstance(row.raw, dict) else {}
+    raw["settlement_parser"] = settlement_parsed_meta(parsed)
+    row.raw = raw
+    if not row.period_start and parsed.get("reported_period_label"):
+        period_start, period_end, period_label = parse_settlement_period(str(parsed.get("reported_period_label")), row.email_date)
+        row.period_start = period_start
+        row.period_end = period_end
+        row.period_label = period_label
+    meta = settlement_parsed_meta(parsed)
+    row.status = "tolket" if float_or_zero(meta.get("confidence")) >= 0.6 else "krever kontroll"
+    return True
+
+
+def settlement_field_source(parsed: Any, field: str, fallback: str = "Maskinlest fra oppgjørsskjema") -> str:
+    sources = settlement_parsed_meta(parsed).get("field_sources")
+    if isinstance(sources, dict):
+        return str(sources.get(field) or fallback)
+    return fallback
+
+
+def settlement_field_confidence(parsed: Any, field: str) -> Optional[float]:
+    values = settlement_parsed_meta(parsed).get("field_confidence")
+    if not isinstance(values, dict):
+        return None
+    raw_value = values.get(field)
+    if isinstance(raw_value, (int, float)):
+        return float(raw_value)
+    return parse_settlement_number(raw_value)
+
+
 def settlement_row_api(row: SettlementImport) -> Dict[str, Any]:
+    parsed = row.parsed if isinstance(row.parsed, dict) else {}
+    meta = settlement_parsed_meta(parsed)
     return {
         "id": row.id,
         "provider": row.provider,
@@ -15680,6 +16019,10 @@ def settlement_row_api(row: SettlementImport) -> Dict[str, Any]:
         "attachment_content_type": row.attachment_content_type,
         "attachment_size": row.attachment_size,
         "attachment_sha256": row.attachment_sha256[:12] if row.attachment_sha256 else None,
+        "easypark_ex_vat": settlement_parsed_value(parsed, "easypark_ex_vat"),
+        "easypark_inc_vat_estimate": settlement_parsed_value(parsed, "easypark_inc_vat_estimate"),
+        "payout_inc_vat": settlement_parsed_value(parsed, "payout_inc_vat"),
+        "parser_confidence": meta.get("confidence"),
         "imported_at": api_local_iso(row.imported_at),
         "path": f"/parkering/oppgjor/{row.id}",
     }
@@ -15701,14 +16044,18 @@ def settlement_field(
     value: Any,
     source: str,
     note: str = "",
+    confidence: Optional[float] = None,
 ) -> Dict[str, Any]:
-    return {
+    payload = {
         "label": label,
         "field": field,
         "value": api_iso_value(value),
         "source": source,
         "note": note,
     }
+    if confidence is not None:
+        payload["confidence"] = round(max(0.0, min(1.0, confidence)), 2)
+    return payload
 
 
 def settlement_original_payload(row: SettlementImport) -> Dict[str, Any]:
@@ -15734,7 +16081,73 @@ def settlement_original_payload(row: SettlementImport) -> Dict[str, Any]:
     }
 
 
+SETTLEMENT_PARSED_FIELD_LABELS: list[tuple[str, str, str]] = [
+    ("Rapportdato", "report_date", "Dato i selve oppgjørsrapporten."),
+    ("Rapportperiode", "reported_period_label", "Periode slik den står i skjemaet."),
+    ("Driftssted nr.", "site_number", "Park Nordic sitt driftsstednummer."),
+    ("Driftssted", "site_name", "Navn på driftssted i skjemaet."),
+    ("Oppdragsgiver nr.", "customer_number", "Park Nordic sitt kundenummer."),
+    ("Oppdragsgiver", "customer_name", "Kundenavn i skjemaet."),
+    ("Antall automater", "machine_count", "Antall automater oppgitt i skjemaet."),
+    ("Brutto mynt/kort eks. mva", "gross_coin_card_ex_vat", "Beløp i kolonnen Oms. eks. mva."),
+    ("EasyPark eks. mva", "easypark_ex_vat", "Beløp i kolonnen Oms. eks. mva."),
+    ("EasyPark estimert inkl. mva", "easypark_inc_vat_estimate", "Beregnet som EasyPark eks. mva * 1,25."),
+    ("Fratrekk eks. mva", "settlement_fee_ex_vat", "Fratrekk for tømming, telling og kortavregning."),
+    ("Grunnlag omsetning eks. mva", "revenue_basis_ex_vat", "Første uetiketterte summeringsrad etter fratrekk."),
+    ("Andel omsetning", "revenue_share_percent", "Andel i prosent fra samme summeringsrad."),
+    ("Sum omsetning eks. mva", "revenue_share_ex_vat", "Sum-kolonnen for hovedomsetning."),
+    ("Netto kontrollavgifter eks. mva", "control_fee_net_ex_vat", "Andre uetiketterte tallrad etter fratrekk."),
+    ("Andel kontrollavgifter", "control_fee_share_percent", "Andel i prosent for kontrollavgifter."),
+    ("Sum kontrollavgifter eks. mva", "control_fee_share_ex_vat", "Sum-kolonnen for kontrollavgifter."),
+    ("Langtidsparkering eks. mva", "long_term_parking_ex_vat", "Tredje uetiketterte tallrad etter fratrekk."),
+    ("Andel langtidsparkering", "long_term_share_percent", "Andel i prosent for langtidsparkering."),
+    ("Sum langtidsparkering eks. mva", "long_term_share_ex_vat", "Sum-kolonnen for langtidsparkering."),
+    ("Totalt grunnlag eks. mva", "total_basis_ex_vat", "Totalsum før mva."),
+    ("Totalt oppgjør eks. mva", "total_share_ex_vat", "Sum til grunnlag for mva."),
+    ("25% mva", "vat_25_percent", "Mva-linje i skjemaet."),
+    ("Til utbetaling inkl. mva", "payout_inc_vat", "Sluttsum oppgitt i skjemaet."),
+    ("Kontakt e-post", "contact_email", "E-postadresse funnet i skjemaet."),
+]
+
+
+def settlement_parsed_field_rows(parsed: Dict[str, Any]) -> list[Dict[str, Any]]:
+    rows: list[Dict[str, Any]] = []
+    known_fields = {field for _, field, _ in SETTLEMENT_PARSED_FIELD_LABELS}
+    for label, field, note in SETTLEMENT_PARSED_FIELD_LABELS:
+        if field not in parsed:
+            continue
+        rows.append(
+            settlement_field(
+                label,
+                field,
+                parsed.get(field),
+                settlement_field_source(parsed, field),
+                note,
+                settlement_field_confidence(parsed, field),
+            )
+        )
+    for field in sorted(key for key in parsed.keys() if not key.startswith("_") and key not in known_fields):
+        rows.append(
+            settlement_field(
+                field.replace("_", " ").title(),
+                field,
+                parsed.get(field),
+                settlement_field_source(parsed, field),
+                "Ekstra felt fra parseren.",
+                settlement_field_confidence(parsed, field),
+            )
+        )
+    return rows
+
+
 async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str, Any]:
+    changed = ensure_settlement_parsed(row)
+    if changed:
+        await session.commit()
+
+    parsed = row.parsed if isinstance(row.parsed, dict) else {}
+    public_parsed = settlement_public_parsed(parsed)
+    meta = settlement_parsed_meta(parsed)
     control_rows = []
     control_cards = []
     if row.period_start and row.period_end:
@@ -15744,27 +16157,33 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
         count_value = int_or_zero(summary.get("count"))
         paid_value = float_or_zero(summary.get("paid"))
         average_value = round(paid_value / count_value, 2) if count_value else None
+        easypark_ex_vat = settlement_parsed_float(parsed, "easypark_ex_vat")
+        easypark_inc_vat_estimate = settlement_parsed_float(parsed, "easypark_inc_vat_estimate")
+        payout_inc_vat = settlement_parsed_float(parsed, "payout_inc_vat")
+        diff_easypark = round(paid_value - easypark_inc_vat_estimate, 2) if easypark_inc_vat_estimate is not None else None
         control_rows = [
             settlement_field("Kontrollperiode fra", "period_start", row.period_start, "Tolket fra emne/filnavn"),
             settlement_field("Kontrollperiode til", "period_end", row.period_end, "Beregnet siste dag i tolket måned"),
             settlement_field("Parkeringer i Fibaro10", "parking_count", count_value, "Summeres fra EasyPark-parkeringer i perioden"),
-            settlement_field("Omsetning i Fibaro10", "parking_paid", round(paid_value, 2), "Summeres fra EasyPark fee_inc_vat i perioden", "Beløp i kroner inkl. mva"),
+            settlement_field("Omsetning i Fibaro10 inkl. mva", "parking_paid", round(paid_value, 2), "Summeres fra EasyPark fee_inc_vat i perioden", "Beløp i kroner inkl. mva"),
             settlement_field("Snitt per parkering", "average_paid", average_value, "Beregnet fra intern parkeringstelling"),
+            settlement_field("EasyPark i skjema eks. mva", "easypark_ex_vat", easypark_ex_vat, settlement_field_source(parsed, "easypark_ex_vat"), "Beløp hentet fra oppgjørsskjemaet.", settlement_field_confidence(parsed, "easypark_ex_vat")),
+            settlement_field("EasyPark i skjema estimert inkl. mva", "easypark_inc_vat_estimate", easypark_inc_vat_estimate, settlement_field_source(parsed, "easypark_inc_vat_estimate"), "Beregnet kontrollverdi for sammenligning mot Fibaro10.", settlement_field_confidence(parsed, "easypark_inc_vat_estimate")),
+            settlement_field("Avvik Fibaro10 - skjema EasyPark inkl. mva", "easypark_diff_inc_vat", diff_easypark, "Beregnet kontroll", "Positivt tall betyr at Fibaro10 har høyere EasyPark-beløp enn skjemaets EasyPark-linje estimert inkl. mva."),
+            settlement_field("Til utbetaling i skjema", "payout_inc_vat", payout_inc_vat, settlement_field_source(parsed, "payout_inc_vat"), "Oppgjørets sluttsum. Dette er ikke direkte det samme som kundebetaling i Fibaro10.", settlement_field_confidence(parsed, "payout_inc_vat")),
         ]
         control_cards = [
             api_card("Intern parkering", count_value, "stk", f"{format_short_number(paid_value)} kr", "parking"),
             api_card("Snitt", format_short_number(average_value or 0, 2), "kr", "Internt beregnet", "revenue"),
         ]
+        if diff_easypark is not None:
+            control_cards.append(api_card("Avvik EasyPark", format_short_number(diff_easypark, 2), "kr", "Fibaro10 minus skjema inkl. mva", "revenue"))
     else:
         control_rows = [
             settlement_field("Kontrollstatus", "status", "Mangler periode", "Perioden kunne ikke tolkes fra emne, filnavn eller e-postdato"),
         ]
 
-    parsed = row.parsed if isinstance(row.parsed, dict) else {}
-    parsed_rows = [
-        settlement_field(key, key, value, "Maskinlest fra oppgjørsskjema")
-        for key, value in parsed.items()
-    ]
+    parsed_rows = settlement_parsed_field_rows(parsed)
     if not parsed_rows:
         parsed_rows = [
             settlement_field(
@@ -15774,11 +16193,24 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
                 "Originalskjemaet er lagret, men tall/felter fra selve skjemaet er ikke trukket ut til strukturerte felter ennå.",
             )
         ]
+    parser_rows = [
+        settlement_field("Parser", "parser", meta.get("parser"), "Teknisk parsermetadata"),
+        settlement_field("Parser-versjon", "parser_version", meta.get("parser_version"), "Teknisk parsermetadata"),
+        settlement_field("Sikkerhet", "confidence", meta.get("confidence"), "Andel nøkkelfelter som ble funnet"),
+        settlement_field("Tekstmetode", "method", meta.get("method"), "Hvordan vedlegget ble lest"),
+        settlement_field("Tekstlinjer", "line_count", meta.get("line_count"), "Antall tekstlinjer hentet fra originalfil"),
+        settlement_field("Sider", "pages_count", meta.get("pages_count"), "Antall PDF-sider hvis kjent"),
+    ]
+    warnings = meta.get("warnings") if isinstance(meta.get("warnings"), list) else []
+    notes = meta.get("notes") if isinstance(meta.get("notes"), list) else []
+    for index, warning in enumerate([*warnings, *notes], start=1):
+        parser_rows.append(settlement_field(f"Merknad {index}", f"parser_note_{index}", warning, "Parser"))
 
     cards = [
         api_card("Periode", row.period_label or "Ikke tolket", "", "Fra emne/filnavn eller e-postdato", "revenue"),
         api_card("Original", settlement_original_payload(row)["sizeLabel"], "", row.attachment_filename or "-", "status"),
-        api_card("Skjemafelter", len(parsed) if parsed else 0, "stk", "Maskinleste felter", "status"),
+        api_card("Skjemafelter", len(public_parsed), "stk", f"Sikkerhet {format_short_number(float_or_zero(meta.get('confidence')) * 100, 0)} %", "status"),
+        api_card("Til utbetaling", format_short_number(settlement_parsed_float(parsed, "payout_inc_vat") or 0, 2), "kr", "Fra skjema", "revenue"),
         *control_cards,
     ]
     return {
@@ -15788,6 +16220,8 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
         "cards": cards,
         "original": settlement_original_payload(row),
         "sections": [
+            {"title": "Nøkkeltall fra skjema", "rows": parsed_rows},
+            {"title": "Kontroll mot Fibaro10", "rows": control_rows},
             {
                 "title": "Tolket periode",
                 "rows": [
@@ -15812,8 +16246,7 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
                     settlement_field("Importert", "imported_at", row.imported_at, "Tidspunkt Fibaro10 lagret oppgjøret"),
                 ],
             },
-            {"title": "Felter lest fra skjema", "rows": parsed_rows},
-            {"title": "Kontroll mot Fibaro10", "rows": control_rows},
+            {"title": "Parserkontroll", "rows": parser_rows},
         ],
         "raw": row.raw or {},
     }
@@ -15828,6 +16261,12 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
             .limit(200)
         )
     ).scalars().all()
+    changed_any = False
+    for row in settlement_rows:
+        changed_any = ensure_settlement_parsed(row) or changed_any
+    if changed_any:
+        await session.commit()
+
     total_settlements = (
         await session.execute(
             select(func.count(SettlementImport.id)).where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
@@ -15851,6 +16290,8 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
         summary = await parking_period_summary(session, row.period_label or month_label(row.period_start), start_dt, end_dt)
         count_value = int_or_zero(summary.get("count"))
         paid_value = float_or_zero(summary.get("paid"))
+        easypark_inc_vat = settlement_parsed_float(row.parsed, "easypark_inc_vat_estimate")
+        easypark_diff = round(paid_value - easypark_inc_vat, 2) if easypark_inc_vat is not None else None
         control_rows.append(
             {
                 "period_label": row.period_label,
@@ -15858,9 +16299,13 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
                 "period_end": row.period_end.isoformat(),
                 "parking_count": count_value,
                 "parking_paid": round(paid_value, 2),
+                "easypark_ex_vat": settlement_parsed_value(row.parsed, "easypark_ex_vat"),
+                "easypark_inc_vat_estimate": easypark_inc_vat,
+                "easypark_diff_inc_vat": easypark_diff,
+                "payout_inc_vat": settlement_parsed_value(row.parsed, "payout_inc_vat"),
                 "average_paid": round(paid_value / count_value, 2) if count_value else None,
                 "attachment_filename": row.attachment_filename,
-                "status": "Klar for kontroll",
+                "status": row.status,
             }
         )
     actions = [
@@ -15917,12 +16362,12 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
                 [
                     "period_label",
                     "status",
-                    "email_date",
-                    "sender",
-                    "email_subject",
+                    "easypark_ex_vat",
+                    "easypark_inc_vat_estimate",
+                    "payout_inc_vat",
+                    "parser_confidence",
                     "attachment_filename",
-                    "attachment_size",
-                    "attachment_sha256",
+                    "email_date",
                     "imported_at",
                 ],
                 [settlement_row_api(row) for row in settlement_rows],
@@ -15935,6 +16380,10 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
                     "period_end",
                     "parking_count",
                     "parking_paid",
+                    "easypark_ex_vat",
+                    "easypark_inc_vat_estimate",
+                    "easypark_diff_inc_vat",
+                    "payout_inc_vat",
                     "average_paid",
                     "attachment_filename",
                     "status",
@@ -16011,10 +16460,21 @@ async def fetch_parking_settlements_from_gmail(session, since_days: int = 370, l
                     if existing:
                         skipped += 1
                         continue
+                    parsed_settlement = parse_parking_settlement_attachment(
+                        attachment["filename"],
+                        attachment["content_type"],
+                        attachment["bytes"],
+                    )
                     period_start, period_end, period_label = parse_settlement_period(
                         f"{subject} {attachment['filename']}",
                         email_date,
                     )
+                    if not period_start and parsed_settlement.get("reported_period_label"):
+                        period_start, period_end, period_label = parse_settlement_period(
+                            str(parsed_settlement.get("reported_period_label")),
+                            email_date,
+                        )
+                    parser_meta = settlement_parsed_meta(parsed_settlement)
                     session.add(
                         SettlementImport(
                             provider=PARKING_SETTLEMENT_PROVIDER,
@@ -16033,11 +16493,13 @@ async def fetch_parking_settlements_from_gmail(session, since_days: int = 370, l
                             attachment_sha256=sha,
                             attachment_size=len(attachment["bytes"]),
                             attachment_bytes=attachment["bytes"],
-                            status="imported",
+                            status="tolket" if float_or_zero(parser_meta.get("confidence")) >= 0.6 else "krever kontroll",
+                            parsed=parsed_settlement,
                             raw={
                                 "mailbox": mailbox_name,
                                 "sender_filter": sender,
                                 "gmail_account": gmail_email,
+                                "settlement_parser": parser_meta,
                             },
                         )
                     )
@@ -16138,132 +16600,6 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     href="/parkering/oversikt",
                 ),
             ]
-
-            if view == "oppgjor":
-                settlement_rows = (
-                    await session.execute(
-                        select(SettlementImport)
-                        .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-                        .order_by(SettlementImport.imported_at.desc())
-                        .limit(200)
-                    )
-                ).scalars().all()
-                total_settlements = (
-                    await session.execute(
-                        select(func.count(SettlementImport.id)).where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-                    )
-                ).scalar_one()
-                unknown_period_count = (
-                    await session.execute(
-                        select(func.count(SettlementImport.id))
-                        .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-                        .where(SettlementImport.period_start.is_(None))
-                    )
-                ).scalar_one()
-                latest_settlement = settlement_rows[0] if settlement_rows else None
-                parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
-                control_rows = []
-                for row in settlement_rows[:36]:
-                    if not row.period_start or not row.period_end:
-                        continue
-                    start_dt = datetime.combine(row.period_start, time.min)
-                    end_dt = datetime.combine(row.period_end + timedelta(days=1), time.min)
-                    summary = await parking_period_summary(session, row.period_label or month_label(row.period_start), start_dt, end_dt)
-                    count_value = int_or_zero(summary.get("count"))
-                    paid_value = float_or_zero(summary.get("paid"))
-                    control_rows.append(
-                        {
-                            "period_label": row.period_label,
-                            "period_start": row.period_start.isoformat(),
-                            "period_end": row.period_end.isoformat(),
-                            "parking_count": count_value,
-                            "parking_paid": round(paid_value, 2),
-                            "average_paid": round(paid_value / count_value, 2) if count_value else None,
-                            "attachment_filename": row.attachment_filename,
-                            "status": "Klar for kontroll",
-                        }
-                    )
-                actions = [
-                    {
-                        "key": "fetch-parking-settlements",
-                        "label": "Hent Park Nordic fra Gmail",
-                        "method": "POST",
-                        "path": "/api/actions/parkering/fetch-settlements",
-                        "confirm": f"Hente nye parkeringsoppgjor fra Gmail fra {PARKING_SETTLEMENT_SENDER}?",
-                        "tone": "primary",
-                    }
-                ]
-                return {
-                    "title": "Omsetning · Oppgjør",
-                    "subtitle": "Importer månedlige parkeringsoppgjør fra Gmail og kontroller dem mot interne EasyPark-tall.",
-                    "cards": [
-                        api_card(
-                            "Oppgjør importert",
-                            total_settlements,
-                            "stk",
-                            f"{parsed_period_count} perioder tolket",
-                            "revenue",
-                            href="/parkering/oppgjor",
-                        ),
-                        api_card(
-                            "Siste import",
-                            format_local_datetime(latest_settlement.imported_at) if latest_settlement else "-",
-                            "",
-                            latest_settlement.period_label if latest_settlement else "Ingen importerte oppgjør",
-                            "status",
-                            href="/parkering/oppgjor",
-                        ),
-                        api_card(
-                            "Ikke periodetolket",
-                            unknown_period_count,
-                            "stk",
-                            "Krever manuell kontroll av filnavn/emne",
-                            "status",
-                            href="/parkering/oppgjor",
-                        ),
-                        api_card(
-                            "Gmail",
-                            "Klar" if settlement_gmail_configured() else "Mangler",
-                            "",
-                            "Bruker egne SETTLEMENT-vars eller EasyPark-vars som fallback",
-                            "status",
-                            href="/admin/teknisk",
-                        ),
-                    ],
-                    "charts": [],
-                    "tables": [
-                        api_table(
-                            "Parkeringsoppgjør",
-                            [
-                                "period_label",
-                                "status",
-                                "email_date",
-                                "sender",
-                                "email_subject",
-                                "attachment_filename",
-                                "attachment_size",
-                                "attachment_sha256",
-                                "imported_at",
-                            ],
-                            [settlement_row_api(row) for row in settlement_rows],
-                        ),
-                        api_table(
-                            "Kontroll mot interne parkeringstall",
-                            [
-                                "period_label",
-                                "period_start",
-                                "period_end",
-                                "parking_count",
-                                "parking_paid",
-                                "average_paid",
-                                "attachment_filename",
-                                "status",
-                            ],
-                            control_rows,
-                        ),
-                    ],
-                    "actions": actions,
-                }
 
             revenue_columns = ["period_label", "sun_paid", "parking_paid", "total_paid", "sun_count", "parking_count", "total_count"]
             return {

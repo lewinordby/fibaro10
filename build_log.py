@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1157")
+APP_BUILD = os.getenv("APP_BUILD", "1158")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1158",
+        "date": "14.06.2026",
+        "headline": "Parkeringsoppgjør tolker Park Nordic-skjema",
+        "title": "Oppgjør viser skjematall, parserregler og avvik mot Fibaro10",
+        "description": (
+            "Parkeringsoppgjør var for mye en originalfil-visning. Nå leses Park Nordic-PDF-er maskinelt, "
+            "nøkkelfelter trekkes ut, og detaljsiden viser både kilde/regler, tolkesikkerhet og kontroll mot interne EasyPark-tall."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger parser for Park Nordic PDF/tekst/regneark og reparsing av eksisterende oppgjør ved visning.",
+            "Fibaro10 backend (main.py): import fra Gmail lagrer skjemafelter og parsermetadata direkte på nye oppgjør.",
+            "Fibaro10 backend (main.py): oppgjørslisten viser EasyPark-beløp, estimert inkl. mva, til utbetaling og kontrollavvik.",
+            "Desktop V2 oppgjørsdetalj (SettlementDetailPage.tsx): bygger om siden til kontrollfelter ved siden av originalskjema.",
+            "Desktop V2 tabeller/CSS (ModulePage.tsx/styles.css): legger tydelige kolonneetiketter, statusfarger og tolkesikkerhet.",
+            "Tester (test_settlement_parser.py): dekker representativ Park Nordic-tekst og uetiketterte summeringsrader.",
+            "Backend-avhengigheter (requirements.txt): legger til pypdf og openpyxl for PDF/regneark-lesing.",
+            "Buildlogg (build_log.py): registrerer build 1158.",
+        ],
+        "request": "det mangler en god del rundt tolking av skjema og jeg synes heller ikke dette er sælig oversiktlig",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Park Nordic-PDF-er tolkes til strukturerte felter som EasyPark, fratrekk, grunnlag, andel, mva og til utbetaling.",
+            "Eksisterende oppgjør uten parsed-data reparses automatisk når oppgjørslisten eller detaljsiden åpnes.",
+            "Detaljsiden viser nøkkeltall, kilde/regler og tolkesikkerhet før tekniske e-postmetadata.",
+            "Kontroll mot Fibaro10 viser avvik mellom interne EasyPark-tall og EasyPark-linjen i skjemaet estimert inkl. mva.",
+        ],
+    },
     {
         "version": "1",
         "build": "1157",

@@ -2,7 +2,7 @@ import { ArrowLeftOutlined, DownloadOutlined, FileTextOutlined } from "@ant-desi
 import { Alert, Button, Card, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Link, useParams } from "react-router-dom";
-import { fetchSettlementDetail, type SettlementField } from "../api";
+import { fetchSettlementDetail, type SettlementField, type SettlementSection } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { modulePath } from "../moduleViews";
@@ -25,11 +25,18 @@ function displayValue(value: unknown): string {
   return text;
 }
 
+function confidenceTag(value?: number | null) {
+  if (value === null || value === undefined) return <Typography.Text type="secondary">-</Typography.Text>;
+  const percent = Math.round(value * 100);
+  const color = percent >= 90 ? "green" : percent >= 70 ? "gold" : "volcano";
+  return <Tag color={color}>{percent} %</Tag>;
+}
+
 const fieldColumns: ColumnsType<SettlementField> = [
   {
     title: "Felt",
     dataIndex: "label",
-    width: 210,
+    width: 220,
     render: (value, row) => (
       <Space direction="vertical" size={0}>
         <Typography.Text strong>{displayValue(value)}</Typography.Text>
@@ -42,7 +49,14 @@ const fieldColumns: ColumnsType<SettlementField> = [
   {
     title: "Verdi",
     dataIndex: "value",
-    render: (value) => <Typography.Text>{displayValue(value)}</Typography.Text>,
+    width: 180,
+    render: (value) => <Typography.Text className="settlement-field-value">{displayValue(value)}</Typography.Text>,
+  },
+  {
+    title: "Sikkerhet",
+    dataIndex: "confidence",
+    width: 100,
+    render: (value) => confidenceTag(value),
   },
   {
     title: "Kilde / regel",
@@ -81,6 +95,21 @@ function OriginalPreview({
   );
 }
 
+function FieldSection({ section }: { section: SettlementSection }) {
+  return (
+    <Card className="table-card settlement-field-card" title={section.title}>
+      <Table
+        rowKey={(row, index) => `${section.title}-${row.field}-${index}`}
+        size="small"
+        columns={fieldColumns}
+        dataSource={section.rows}
+        pagination={false}
+        scroll={{ x: "max-content" }}
+      />
+    </Card>
+  );
+}
+
 export default function SettlementDetailPage() {
   const { settlementId = "" } = useParams();
   const { data, loading, error } = useAsyncData(() => fetchSettlementDetail(settlementId), [settlementId]);
@@ -88,11 +117,14 @@ export default function SettlementDetailPage() {
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
+  const primarySections = data.sections.filter((section) => ["Nøkkeltall fra skjema", "Kontroll mot Fibaro10"].includes(section.title));
+  const secondarySections = data.sections.filter((section) => !["Nøkkeltall fra skjema", "Kontroll mot Fibaro10"].includes(section.title));
+
   return (
     <Space direction="vertical" size={14} className="page-stack settlement-detail-page">
       <div className="settlement-detail-top">
         <div>
-          <Typography.Text className="eyebrow">Oppgjør</Typography.Text>
+          <Typography.Text className="eyebrow">Parkeringsoppgjør</Typography.Text>
           <Typography.Title level={2}>{data.title}</Typography.Title>
           <Typography.Text type="secondary">{data.subtitle}</Typography.Text>
         </div>
@@ -122,30 +154,29 @@ export default function SettlementDetailPage() {
         ))}
       </div>
 
-      <Card
-        className="work-card settlement-original-card"
-        title="Originalskjema"
-        extra={
-          <Space size={8} wrap>
-            <Tag>{data.original.contentType}</Tag>
-            <Tag>{data.original.sizeLabel}</Tag>
-          </Space>
-        }
-      >
-        <OriginalPreview previewKind={data.original.previewKind} previewUrl={data.original.previewUrl} filename={data.original.filename} />
-      </Card>
+      <div className="settlement-detail-grid">
+        <Space direction="vertical" size={12} className="settlement-detail-main">
+          {primarySections.map((section) => (
+            <FieldSection section={section} key={section.title} />
+          ))}
+        </Space>
 
-      {data.sections.map((section) => (
-        <Card className="table-card settlement-field-card" title={section.title} key={section.title}>
-          <Table
-            rowKey={(row, index) => `${section.title}-${row.field}-${index}`}
-            size="small"
-            columns={fieldColumns}
-            dataSource={section.rows}
-            pagination={false}
-            scroll={{ x: "max-content" }}
-          />
+        <Card
+          className="work-card settlement-original-card"
+          title="Originalskjema"
+          extra={
+            <Space size={8} wrap>
+              <Tag>{data.original.contentType}</Tag>
+              <Tag>{data.original.sizeLabel}</Tag>
+            </Space>
+          }
+        >
+          <OriginalPreview previewKind={data.original.previewKind} previewUrl={data.original.previewUrl} filename={data.original.filename} />
         </Card>
+      </div>
+
+      {secondarySections.map((section) => (
+        <FieldSection section={section} key={section.title} />
       ))}
 
       <Card className="work-card settlement-raw-card" title="Rå importmetadata">

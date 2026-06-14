@@ -778,6 +778,7 @@ export type SettlementField = {
   value: unknown;
   source: string;
   note?: string;
+  confidence?: number | null;
 };
 
 export type SettlementSection = {

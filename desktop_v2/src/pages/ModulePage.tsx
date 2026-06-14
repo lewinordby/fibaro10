@@ -152,6 +152,11 @@ function labelize(column: string): string {
     attachment_size: "Bytes",
     attachment_sha256: "SHA-256",
     average_paid: "Snitt kr",
+    easypark_ex_vat: "EasyPark eks. mva",
+    easypark_inc_vat_estimate: "EasyPark inkl. mva",
+    easypark_diff_inc_vat: "Avvik EasyPark",
+    payout_inc_vat: "Til utbetaling",
+    parser_confidence: "Tolkesikkerhet",
     forecast_minutes: "Prognose min",
     actual_sessions_at_save: "Faktiske økter",
     actual_paid_at_save: "Faktisk kr",
@@ -318,7 +323,7 @@ function compareValues(left: unknown, right: unknown): number {
 }
 
 function numericColumn(column: string): boolean {
-  return /(_w|_kr|_kwh|_min|_m2|_count|_share|count|paid|fee|duration|minutes|hour|age|battery|rssi|lux|temp|humidity|wind|cloud|precipitation|breaker|power|energy)$/i.test(
+  return /(_w|_kr|_kwh|_min|_m2|_count|_share|count|paid|fee|vat|payout|diff|confidence|duration|minutes|hour|age|battery|rssi|lux|temp|humidity|wind|cloud|precipitation|breaker|power|energy)$/i.test(
     column,
   );
 }
@@ -357,6 +362,11 @@ function moduleColumns(
       if (column === "owner_warning" && value) {
         return <Tag color="gold">{displayValue(value)}</Tag>;
       }
+      if (column === "parser_confidence" && typeof value === "number") {
+        const percent = Math.round(value * 100);
+        const color = percent >= 90 ? "green" : percent >= 70 ? "gold" : "volcano";
+        return <Tag color={color}>{percent} %</Tag>;
+      }
       if (column === "severity" && typeof value === "string") {
         const normalized = value.toLowerCase();
         const color =
@@ -371,7 +381,12 @@ function moduleColumns(
       }
       if (column === "status" && typeof value === "string") {
         const normalized = value.toLowerCase();
-        const color = normalized.includes("ongoing") || normalized.includes("ok") ? "green" : "default";
+        const color =
+          normalized.includes("ongoing") || normalized.includes("ok") || normalized.includes("tolket")
+            ? "green"
+            : normalized.includes("kontroll")
+              ? "gold"
+              : "default";
         return <Tag color={color}>{displayValue(value)}</Tag>;
       }
       if (["description", "applications", "request"].includes(column)) {

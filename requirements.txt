@@ -7,3 +7,5 @@ python-dotenv
 python-multipart
 python-dateutil
 tzdata
+pypdf
+openpyxl

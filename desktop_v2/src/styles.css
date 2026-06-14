@@ -2697,6 +2697,10 @@
   gap: 12px;
 }
 
+.settlement-card-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
 .vehicle-detail-card {
   min-height: 98px;
   border: 1px solid var(--line);
@@ -2770,10 +2774,21 @@
   padding: 10px;
 }
 
+.settlement-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(390px, 0.85fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.settlement-detail-main {
+  width: 100%;
+}
+
 .settlement-original-frame {
   display: block;
   width: 100%;
-  min-height: 680px;
+  min-height: 620px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #ffffff;
@@ -2792,6 +2807,10 @@
 .settlement-field-key {
   font-size: 11px;
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+.settlement-field-value {
+  font-weight: 680;
 }
 
 .settlement-raw-card pre {
@@ -2898,6 +2917,14 @@
   .elvia-main-grid,
   .vehicle-detail-card-grid,
   .vehicle-field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settlement-detail-grid {
     grid-template-columns: 1fr;
   }
 }
