@@ -22,6 +22,10 @@ Car.info har lav rate-limit for gratis/personlig bruk. Derfor skal dette kjore s
 
 QNAP-compose setter standard til en kandidat hvert 45. minutt og global pause i 240 minutter ved rate-limit.
 
+## Intern tilgang
+
+Sett `CAR_INFO_APP_TOKEN` i QNAP `.env`. Fibaro10 godtar denne tokenen kun paa car.info-kandidatlisten og car.info-resultatpostingen. Da trenger ikke bakgrunnsappen masterbruker eller plaintext-passord.
+
 ## Kontroll
 
 - Appstatus: `http://192.168.20.218:8126/health`
@@ -38,4 +42,4 @@ Fibaro10 lagrer:
 - `car_info_url`
 - `car_info_data`
 
-`car_info_data` inneholder bekreftelse paa svensk bil, tittel, beskrivelse, relevante normaliserte felter, alle leste faktalinjer og et kort raatekstutdrag.
+`car_info_data` inneholder bekreftelse paa svensk bil, tittel, beskrivelse, relevante normaliserte felter, alle leste faktalinjer og et kort raatekstutdrag. Normaliserte felter inkluderer blant annet `first_registered`, `vehicle_type`, `color`, `fuel`, `transmission`, `power`, `mileage` og `inspection_valid_to` naar siden viser dem.

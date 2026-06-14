@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1168")
+APP_BUILD = os.getenv("APP_BUILD", "1169")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1169",
+        "date": "14.06.2026",
+        "headline": "Intern token for car.info-oppslag",
+        "title": "Car.info-appen kan bruke egen intern token mot Fibaro10 uten masterpassord",
+        "description": (
+            "Build 1169 strammer inn auth mellom car_info_lookup og Fibaro10. QNAP har bare hashbasert mastertilgang, "
+            "saa bakgrunnsappen bruker naa CAR_INFO_APP_TOKEN mot de to isolerte car.info-endepunktene i stedet for "
+            "plaintext brukernavn og passord."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): godtar x-car-info-token kun for kandidatlisten og resultatpostingen til car.info.",
+            "Car.info-oppslag (car_info_lookup): sender CAR_INFO_APP_TOKEN mot Fibaro10 naar bruker/passord ikke finnes.",
+            "Konfigurasjon (.env.qnap.example): dokumenterer CAR_INFO_APP_TOKEN.",
+            "Dokumentasjon (docs/car-info-oppslag.md, car_info_lookup/README.md): beskriver intern token og lagrede bilfelt.",
+            "Buildlogg (build_log.py): registrerer build 1169.",
+        ],
+        "request": (
+            "Gjoer car.info-skrapingen ferdig og start den paa QNAP, men uten aa bruke eller rekonstruere masterpassord. "
+            "Ta med foerstegangsregistrering, biltype, farge og andre relevante opplysninger fra car.info."
+        ),
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Bakgrunnsappen kan hente kandidater og poste resultat med intern token.",
+            "Token-unntaket er avgrenset til car.info-dataflyten.",
+            "Dokumentasjonen viser hvilke normaliserte felt som lagres fra car.info.",
+        ],
+    },
     {
         "version": "1",
         "build": "1168",

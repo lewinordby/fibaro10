@@ -3689,6 +3689,17 @@ def require_settings_access(request: Request):
     return None
 
 
+def has_car_info_app_access(request: Request) -> bool:
+    token = (request.headers.get("x-car-info-token") or request.query_params.get("car_info_token") or "").strip()
+    return bool(CAR_INFO_APP_TOKEN and token and token == CAR_INFO_APP_TOKEN)
+
+
+def require_settings_or_car_info_access(request: Request):
+    if has_car_info_app_access(request):
+        return None
+    return require_settings_access(request)
+
+
 def parse_datetime(value: Optional[str]) -> Optional[datetime]:
     if not value:
         return None
@@ -21440,7 +21451,7 @@ async def parking_car_info_candidates_api(
     offset: int = Query(0, ge=0),
     format: str = "json",
 ):
-    forbidden = require_settings_access(request)
+    forbidden = require_settings_or_car_info_access(request)
     if forbidden:
         return forbidden
     async with async_session() as session:
@@ -21567,7 +21578,7 @@ async def parking_vehicle_area_api(request: Request, plate: str, data: ParkingVe
 
 @app.post("/api/parkering/kjoretoy/{plate}/car-info")
 async def parking_vehicle_car_info_api(request: Request, plate: str, data: ParkingVehicleCarInfoUpdate):
-    forbidden = require_settings_access(request)
+    forbidden = require_settings_or_car_info_access(request)
     if forbidden:
         return forbidden
     plate_value = normalize_plate(plate)

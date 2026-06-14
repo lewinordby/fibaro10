@@ -38,9 +38,8 @@ Parseren lagrer blant annet:
 ## Miljovariabler
 
 - `FIBARO10_BASE_URL`
-- `FIBARO10_USERNAME`
-- `FIBARO10_PASSWORD`
-- `CAR_INFO_APP_TOKEN` valgfri token for manuell trigger
+- `CAR_INFO_APP_TOKEN` for intern tilgang mot Fibaro10 og valgfri beskyttelse av manuell trigger
+- `FIBARO10_USERNAME` og `FIBARO10_PASSWORD` kan brukes i stedet for token
 - `CAR_INFO_URL_TEMPLATE`, standard `https://www.car.info/sv-se/license-plate/S/{plate}`
 - `CAR_INFO_RUN_INTERVAL_MINUTES`, standard `45`
 - `CAR_INFO_BATCH_SIZE`, standard `1`

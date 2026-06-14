@@ -102,14 +102,18 @@ def require_token(token: str | None) -> None:
 
 
 def fibaro_headers() -> dict[str, str]:
-    if not FIBARO10_USERNAME or not FIBARO10_PASSWORD:
-        raise RuntimeError("FIBARO10_USERNAME/FIBARO10_PASSWORD mangler")
-    return {
+    headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "x-access-username": FIBARO10_USERNAME,
-        "x-access-password": FIBARO10_PASSWORD,
     }
+    if FIBARO10_USERNAME and FIBARO10_PASSWORD:
+        headers["x-access-username"] = FIBARO10_USERNAME
+        headers["x-access-password"] = FIBARO10_PASSWORD
+    elif APP_TOKEN:
+        headers["x-car-info-token"] = APP_TOKEN
+    else:
+        raise RuntimeError("Mangler FIBARO10_USERNAME/FIBARO10_PASSWORD eller CAR_INFO_APP_TOKEN")
+    return headers
 
 
 def fibaro_get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
