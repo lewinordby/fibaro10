@@ -14659,6 +14659,7 @@ ADMIN_TASK_SEVERITY_SORT = {
 
 
 def api_admin_task_row(
+    task_key: str,
     severity: str,
     domain: str,
     item: str,
@@ -14669,6 +14670,7 @@ def api_admin_task_row(
     recommended_action: str,
 ) -> Dict[str, Any]:
     return {
+        "task_key": task_key,
         "severity": severity,
         "domain": domain,
         "item": item,
@@ -14698,6 +14700,7 @@ async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_
             continue
         task_rows.append(
             api_admin_task_row(
+                f"import:{row.get('job_name') or row.get('title') or 'unknown'}",
                 admin_task_import_severity(status),
                 "Datakilde",
                 str(row.get("title") or row.get("job_name") or "-"),
@@ -14724,6 +14727,7 @@ async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_
     if vehicle_blank_name_count:
         task_rows.append(
             api_admin_task_row(
+                "parking:vehicle-name-blank",
                 "Medium",
                 "Parkering",
                 "Kjøretøy uten navn",
@@ -14737,6 +14741,7 @@ async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_
     if vehicle_name_not_found_count:
         task_rows.append(
             api_admin_task_row(
+                "parking:vehicle-name-not-found",
                 "Lav",
                 "Parkering",
                 "Kjøretøy med navn ikke funnet",
@@ -14750,6 +14755,7 @@ async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_
     if vehicle_blank_area_count:
         task_rows.append(
             api_admin_task_row(
+                "parking:vehicle-area-blank",
                 "Medium",
                 "Parkering",
                 "Kjøretøy uten område",
@@ -14763,6 +14769,7 @@ async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_
     if vehicle_area_not_found_count:
         task_rows.append(
             api_admin_task_row(
+                "parking:vehicle-area-not-found",
                 "Medium",
                 "Parkering",
                 "Kjøretøy med område ikke funnet",
@@ -14788,6 +14795,7 @@ async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_
     if sun_sessions_without_images:
         task_rows.append(
             api_admin_task_row(
+                "sun2:sessions-without-image",
                 "Høy",
                 "Soling",
                 "Solinger uten bilde",
@@ -14806,6 +14814,7 @@ async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_
     if energy_age_minutes is None or energy_age_minutes > 3:
         task_rows.append(
             api_admin_task_row(
+                "energy:realtime-stale",
                 "Kritisk" if energy_age_minutes is None or energy_age_minutes > 10 else "Høy",
                 "Energi",
                 "Realtime energilogging",
@@ -14819,6 +14828,7 @@ async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_
     if latest_energy and abs(float_or_zero(latest_energy.differanse_beregnet_w)) >= 1000:
         task_rows.append(
             api_admin_task_row(
+                "energy:diff-over-1000w",
                 "Medium",
                 "Energi",
                 "Uforklart effektdifferanse",
@@ -16006,6 +16016,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ]
             build_log_columns = ["date", "build", "headline"]
             urgent_task_count = sum(1 for row in admin_task_rows if row["severity"] in {"Kritisk", "Høy"})
+            actions = []
             admin_cards = [
                 api_card("Oppgaver", len(admin_task_rows), "stk", f"{urgent_task_count} kritisk/høy", "status", href="/admin/oppgaver"),
                 api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
@@ -16019,6 +16030,40 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
             ]
             if view == "oppgaver":
+                actions = [
+                    {
+                        "key": "easypark-refresh",
+                        "label": "Oppdater EasyPark",
+                        "method": "POST",
+                        "path": "/api/actions/parkering/refresh",
+                        "confirm": "Starte EasyPark-import for siste periode og oppdatere parkeringsgrunnlaget?",
+                        "tone": "primary",
+                    },
+                    {
+                        "key": "svv-sync",
+                        "label": "Kjør SVV-sync",
+                        "method": "POST",
+                        "path": "/api/actions/parkering/svv-sync",
+                        "confirm": "Starte nytt oppslag mot Statens vegvesen for kjøretøy som mangler data?",
+                        "tone": "default",
+                    },
+                    {
+                        "key": "link-sun-images",
+                        "label": "Koble solbilder",
+                        "method": "POST",
+                        "path": "/api/actions/soling/link-snapshot-images?days=14",
+                        "confirm": "Koble Axis-bilder mot soltimer siste 14 dager?",
+                        "tone": "default",
+                    },
+                    {
+                        "key": "clear-area-not-found",
+                        "label": "Fjern område ikke funnet",
+                        "method": "POST",
+                        "path": "/api/actions/parkering/clear-area-not-found",
+                        "confirm": "Nullstille område 'ikke funnet' slik at disse kan behandles på nytt?",
+                        "tone": "default",
+                    },
+                ]
                 admin_cards = [
                     api_card("Åpne oppgaver", len(admin_task_rows), "stk", f"{urgent_task_count} kritisk/høy", "status", href="/admin/oppgaver"),
                     api_card("Datakilder", sum(1 for row in admin_task_rows if row["domain"] == "Datakilde"), "stk", "Treg eller feil", "status", href="/admin/datakilder"),
@@ -16127,6 +16172,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "subtitle": "Build, datakilder, teknisk drift og AI-logg.",
                 "cards": admin_cards,
                 "tables": tables,
+                "actions": actions,
             }
 
     raise HTTPException(status_code=404, detail="Ukjent v2-modul")

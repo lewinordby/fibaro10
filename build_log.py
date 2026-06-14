@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1148")
+APP_BUILD = os.getenv("APP_BUILD", "1149")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1149",
+        "date": "14.06.2026",
+        "headline": "Oppgaver blir handlingsbare",
+        "title": "Admin-oppgaver får stabile nøkler og operative handlinger",
+        "description": (
+            "Oppgavesiden utvides fra ren avviksliste til en mer operativ arbeidsflate. "
+            "Hver oppgavetype får en stabil teknisk nøkkel, og siden får handlingsknapper for de vanligste tiltakene."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger stabil task_key på alle beregnede adminoppgaver.",
+            "Fibaro10 backend (main.py): legger actions på `/admin/oppgaver` for EasyPark, SVV, solbilder og områdeopprydding.",
+            "Buildlogg (build_log.py): registrerer build 1149.",
+        ],
+        "request": "du må gjennomføre alle punktene du foreslo",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppgaver kan nå kobles til faste nøkler som `parking:vehicle-area-not-found` og `energy:realtime-stale`.",
+            "Admin/Oppgaver har knapper for å oppdatere EasyPark, kjøre SVV-sync, koble solbilder og fjerne område ikke funnet.",
+            "Handlingene bruker eksisterende tilgangskontroll og eksisterende V2 action-system.",
+        ],
+    },
     {
         "version": "1",
         "build": "1148",
