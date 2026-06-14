@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1158")
+APP_BUILD = os.getenv("APP_BUILD", "1159")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1159",
+        "date": "14.06.2026",
+        "headline": "Parkeringsoppgjør ble en kontrollflate",
+        "title": "Oppgjør viser siste skjema, avvik og feltkontroll tydelig",
+        "description": (
+            "Oppgjørssiden var fortsatt for generisk og teknisk. Denne revisjonen gjør Parkering/Oppgjør til en egen kontrollflate "
+            "med tydelig siste oppgjør, klikkbare rapportlinjer, avviksstatus og en detaljrapport som viser Fibaro10, skjema, tolkede felter og originalfil samlet."
+        ),
+        "applications": [
+            "Desktop V2 parkering (ParkingSettlementsPage.tsx): ny egen oppgjørsside i stedet for generisk modulvisning.",
+            "Desktop V2 routing (App.tsx): /parkering/oppgjor går nå til den nye oppgjørskontrollen.",
+            "Desktop V2 oppgjørsdetalj (SettlementDetailPage.tsx): bygger om detaljen til rapportlayout med kontrollkort og feltlister.",
+            "Desktop V2 CSS (styles.css): legger spesifikke oppgjørsstiler for rapport, kontroll, avvik og responsiv layout.",
+            "Buildlogg (build_log.py): registrerer build 1159.",
+        ],
+        "request": "du må da kunne klare å designe dette mye mye bedre?",
+        "work_duration": "ca. 60 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppgjørslisten er byttet fra generisk tabell til klikkbare kontrollrader med periode, fil, status, tolkesikkerhet, beløp og avvik.",
+            "Toppen viser siste oppgjør som et rapportkort med til utbetaling, skjema EasyPark, Fibaro10 og avvik i samme visuelle gruppe.",
+            "Detaljsiden har fått et eget kontrollresultat som tydelig sier om oppgjøret ser konsistent ut eller krever manuell sjekk.",
+            "Detaljrapporten viser originalskjema og feltmapping side ved side på desktop, med bedre beløpshierarki og riktig prosentvis tolkesikkerhet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1158",

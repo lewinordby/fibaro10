@@ -1,6 +1,5 @@
 import { ArrowLeftOutlined, DownloadOutlined, FileTextOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Space, Table, Tag, Typography } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import { Alert, Button, Card, Space, Tag, Typography } from "antd";
 import { Link, useParams } from "react-router-dom";
 import { fetchSettlementDetail, type SettlementField, type SettlementSection } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
@@ -25,50 +24,67 @@ function displayValue(value: unknown): string {
   return text;
 }
 
+function numberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const parsed = Number(value.replace(/\s/g, "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function moneyValue(value: unknown): string {
+  const numeric = numberValue(value);
+  if (numeric === null) return displayValue(value);
+  return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(numeric)} kr`;
+}
+
+function signedMoneyValue(value: unknown): string {
+  const numeric = numberValue(value);
+  if (numeric === null) return "-";
+  return `${numeric > 0 ? "+" : ""}${moneyValue(numeric)}`;
+}
+
+function percentValue(value: unknown): string {
+  const numeric = numberValue(value);
+  if (numeric === null) return "-";
+  return `${Math.round(numeric * 100)} %`;
+}
+
+function verdictFor(diffNumber: number | null) {
+  if (diffNumber === null) {
+    return {
+      tone: "empty",
+      label: "Kontroll mangler",
+      detail: "Perioden eller skjematallene mangler, så Fibaro10 kan ikke kontrollere oppgjøret automatisk.",
+    };
+  }
+  if (Math.abs(diffNumber) <= 1000) {
+    return {
+      tone: "ok",
+      label: "Ser konsistent ut",
+      detail: "Avviket mellom Fibaro10 og EasyPark-linjen i skjemaet er innenfor kontrollgrensen.",
+    };
+  }
+  return {
+    tone: "warn",
+    label: "Krever manuell sjekk",
+    detail: "Avviket er større enn kontrollgrensen. Kontroller perioden, EasyPark-linjen og importerte parkeringer.",
+  };
+}
+
 function confidenceTag(value?: number | null) {
-  if (value === null || value === undefined) return <Typography.Text type="secondary">-</Typography.Text>;
+  if (value === null || value === undefined) return null;
   const percent = Math.round(value * 100);
   const color = percent >= 90 ? "green" : percent >= 70 ? "gold" : "volcano";
   return <Tag color={color}>{percent} %</Tag>;
 }
 
-const fieldColumns: ColumnsType<SettlementField> = [
-  {
-    title: "Felt",
-    dataIndex: "label",
-    width: 220,
-    render: (value, row) => (
-      <Space direction="vertical" size={0}>
-        <Typography.Text strong>{displayValue(value)}</Typography.Text>
-        <Typography.Text type="secondary" className="settlement-field-key">
-          {row.field}
-        </Typography.Text>
-      </Space>
-    ),
-  },
-  {
-    title: "Verdi",
-    dataIndex: "value",
-    width: 180,
-    render: (value) => <Typography.Text className="settlement-field-value">{displayValue(value)}</Typography.Text>,
-  },
-  {
-    title: "Sikkerhet",
-    dataIndex: "confidence",
-    width: 100,
-    render: (value) => confidenceTag(value),
-  },
-  {
-    title: "Kilde / regel",
-    dataIndex: "source",
-    render: (value, row) => (
-      <Space direction="vertical" size={0}>
-        <Typography.Text>{displayValue(value)}</Typography.Text>
-        {row.note ? <Typography.Text type="secondary">{row.note}</Typography.Text> : null}
-      </Space>
-    ),
-  },
-];
+function sectionByTitle(sections: SettlementSection[], title: string) {
+  return sections.find((section) => section.title === title);
+}
+
+function fieldByKey(section: SettlementSection | undefined, key: string) {
+  return section?.rows.find((row) => row.field === key);
+}
 
 function OriginalPreview({
   previewKind,
@@ -95,17 +111,78 @@ function OriginalPreview({
   );
 }
 
-function FieldSection({ section }: { section: SettlementSection }) {
+function ReportMetric({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: string }) {
   return (
-    <Card className="table-card settlement-field-card" title={section.title}>
-      <Table
-        rowKey={(row, index) => `${section.title}-${row.field}-${index}`}
-        size="small"
-        columns={fieldColumns}
-        dataSource={section.rows}
-        pagination={false}
-        scroll={{ x: "max-content" }}
-      />
+    <div className={`settlement-report-metric tone-${tone ?? "status"}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
+function VerdictPanel({
+  label,
+  detail,
+  tone,
+  diff,
+  fibaro,
+  schema,
+}: {
+  label: string;
+  detail: string;
+  tone: string;
+  diff: unknown;
+  fibaro: unknown;
+  schema: unknown;
+}) {
+  return (
+    <div className={`settlement-verdict settlement-verdict-${tone}`}>
+      <div>
+        <span>Kontrollresultat</span>
+        <strong>{label}</strong>
+        <p>{detail}</p>
+      </div>
+      <div className="settlement-verdict-values">
+        <FocusPair label="Fibaro10" value={moneyValue(fibaro)} />
+        <FocusPair label="Skjema" value={moneyValue(schema)} />
+        <FocusPair label="Avvik" value={signedMoneyValue(diff)} />
+      </div>
+    </div>
+  );
+}
+
+function FocusPair({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function FieldList({ section, compact = false }: { section?: SettlementSection; compact?: boolean }) {
+  if (!section) return null;
+  return (
+    <Card className={`settlement-field-card ${compact ? "compact" : ""}`} title={section.title}>
+      <div className="settlement-field-list">
+        {section.rows.map((row) => (
+          <div className="settlement-field-row" key={`${section.title}-${row.field}`}>
+            <div className="settlement-field-label">
+              <strong>{row.label}</strong>
+              <span>{row.field}</span>
+            </div>
+            <div className="settlement-field-data">
+              <div className="settlement-field-value-line">
+                <strong>{displayValue(row.value)}</strong>
+                {confidenceTag(row.confidence)}
+              </div>
+              {row.note ? <p>{row.note}</p> : null}
+              <small>{row.source}</small>
+            </div>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
@@ -117,12 +194,23 @@ export default function SettlementDetailPage() {
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
-  const primarySections = data.sections.filter((section) => ["Nøkkeltall fra skjema", "Kontroll mot Fibaro10"].includes(section.title));
-  const secondarySections = data.sections.filter((section) => !["Nøkkeltall fra skjema", "Kontroll mot Fibaro10"].includes(section.title));
+  const schemaSection = sectionByTitle(data.sections, "Nøkkeltall fra skjema");
+  const controlSection = sectionByTitle(data.sections, "Kontroll mot Fibaro10");
+  const periodSection = sectionByTitle(data.sections, "Tolket periode");
+  const emailSection = sectionByTitle(data.sections, "E-post og vedlegg");
+  const parserSection = sectionByTitle(data.sections, "Parserkontroll");
+  const fibaroPaid = fieldByKey(controlSection, "parking_paid");
+  const parkingCount = fieldByKey(controlSection, "parking_count");
+  const schemaEasypark = fieldByKey(controlSection, "easypark_inc_vat_estimate");
+  const diff = fieldByKey(controlSection, "easypark_diff_inc_vat");
+  const payout = fieldByKey(schemaSection, "payout_inc_vat");
+  const confidence = fieldByKey(parserSection, "confidence");
+  const diffNumber = numberValue(diff?.value);
+  const verdict = verdictFor(diffNumber);
 
   return (
     <Space direction="vertical" size={14} className="page-stack settlement-detail-page">
-      <div className="settlement-detail-top">
+      <div className="settlement-report-head">
         <div>
           <Typography.Text className="eyebrow">Parkeringsoppgjør</Typography.Text>
           <Typography.Title level={2}>{data.title}</Typography.Title>
@@ -141,28 +229,35 @@ export default function SettlementDetailPage() {
         </Space>
       </div>
 
-      <div className="vehicle-detail-card-grid settlement-card-grid">
-        {data.cards.map((card) => (
-          <Card className={`vehicle-detail-card tone-${card.tone ?? "status"}`} key={card.title}>
-            <span>{card.title}</span>
-            <strong>
-              {card.value}
-              {card.unit ? <em>{card.unit}</em> : null}
-            </strong>
-            <small>{card.detail}</small>
-          </Card>
-        ))}
+      <div className="settlement-report-strip">
+        <ReportMetric label="Til utbetaling" value={moneyValue(payout?.value)} detail="Sluttsum fra Park Nordic" tone="revenue" />
+        <ReportMetric label="Fibaro10" value={moneyValue(fibaroPaid?.value)} detail={`${displayValue(parkingCount?.value)} parkeringer`} tone="parking" />
+        <ReportMetric label="Skjema EasyPark" value={moneyValue(schemaEasypark?.value)} detail="Estimert inkl. mva" tone="status" />
+        <ReportMetric
+          label="Avvik"
+          value={signedMoneyValue(diff?.value)}
+          detail="Fibaro10 minus skjema"
+          tone={diffNumber !== null && Math.abs(diffNumber) > 1000 ? "revenue" : "energy"}
+        />
+        <ReportMetric label="Tolkesikkerhet" value={percentValue(confidence?.value)} detail="Parserkontroll" tone="status" />
       </div>
 
-      <div className="settlement-detail-grid">
-        <Space direction="vertical" size={12} className="settlement-detail-main">
-          {primarySections.map((section) => (
-            <FieldSection section={section} key={section.title} />
-          ))}
-        </Space>
+      <VerdictPanel
+        label={verdict.label}
+        detail={verdict.detail}
+        tone={verdict.tone}
+        diff={diff?.value}
+        fibaro={fibaroPaid?.value}
+        schema={schemaEasypark?.value}
+      />
 
+      <div className="settlement-report-layout">
+        <div className="settlement-report-main">
+          <FieldList section={controlSection} compact />
+          <FieldList section={schemaSection} />
+        </div>
         <Card
-          className="work-card settlement-original-card"
+          className="settlement-document-card"
           title="Originalskjema"
           extra={
             <Space size={8} wrap>
@@ -175,9 +270,11 @@ export default function SettlementDetailPage() {
         </Card>
       </div>
 
-      {secondarySections.map((section) => (
-        <FieldSection section={section} key={section.title} />
-      ))}
+      <div className="settlement-secondary-grid">
+        <FieldList section={periodSection} compact />
+        <FieldList section={emailSection} compact />
+        <FieldList section={parserSection} compact />
+      </div>
 
       <Card className="work-card settlement-raw-card" title="Rå importmetadata">
         <pre>{JSON.stringify(data.raw, null, 2)}</pre>

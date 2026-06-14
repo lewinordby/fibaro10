@@ -2825,6 +2825,589 @@
   border-radius: 6px;
 }
 
+.settlement-page-head,
+.settlement-report-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settlement-page-head .ant-typography,
+.settlement-report-head .ant-typography,
+.settlement-card-head .ant-typography {
+  margin-bottom: 0;
+}
+
+.settlement-page-head h2.ant-typography,
+.settlement-report-head h2.ant-typography {
+  margin: 3px 0 2px;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.settlement-summary-grid,
+.settlement-report-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settlement-summary-tile,
+.settlement-report-metric {
+  min-height: 86px;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--domain-status);
+  border-radius: 7px;
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
+}
+
+.settlement-summary-tile.tone-parking,
+.settlement-report-metric.tone-parking {
+  border-top-color: var(--domain-parking);
+}
+
+.settlement-summary-tile.tone-revenue,
+.settlement-report-metric.tone-revenue {
+  border-top-color: var(--domain-revenue);
+}
+
+.settlement-summary-tile.tone-energy,
+.settlement-report-metric.tone-energy {
+  border-top-color: var(--domain-energy);
+}
+
+.settlement-summary-tile span,
+.settlement-report-metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.settlement-summary-tile strong,
+.settlement-report-metric strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 780;
+  line-height: 1.08;
+}
+
+.settlement-summary-tile small,
+.settlement-report-metric small {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.settlement-card-head h4.ant-typography {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+
+.settlement-search {
+  width: min(380px, 100%);
+}
+
+.settlement-register-card .ant-card-body,
+.settlement-control-card .ant-card-body {
+  padding: 14px;
+}
+
+.settlement-period-link {
+  color: var(--ink);
+  font-weight: 760;
+}
+
+.settlement-money-cell strong {
+  color: var(--ink);
+}
+
+.settlement-money-cell span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.settlement-diff {
+  font-weight: 780;
+}
+
+.settlement-diff.warn {
+  color: var(--domain-revenue);
+}
+
+.settlement-diff.ok {
+  color: var(--domain-energy);
+}
+
+.settlement-report-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(460px, 0.95fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.settlement-report-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.settlement-document-card {
+  position: sticky;
+  top: 82px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+}
+
+.settlement-document-card .ant-card-body {
+  padding: 10px;
+}
+
+.settlement-field-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.035);
+}
+
+.settlement-field-card .ant-card-head {
+  min-height: 40px;
+  border-bottom-color: #edf2f7;
+}
+
+.settlement-field-card .ant-card-head-title {
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.settlement-field-card .ant-card-body {
+  padding: 8px 12px;
+}
+
+.settlement-field-list {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.settlement-field-row {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.settlement-field-row:last-child {
+  border-bottom: 0;
+}
+
+.settlement-field-label strong {
+  display: block;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.22;
+}
+
+.settlement-field-label span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 10.5px;
+}
+
+.settlement-field-data {
+  min-width: 0;
+}
+
+.settlement-field-value-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settlement-field-value-line strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 770;
+  overflow-wrap: anywhere;
+}
+
+.settlement-field-data p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.settlement-field-data small {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.settlement-field-card.compact .settlement-field-row {
+  grid-template-columns: 190px minmax(0, 1fr);
+  padding: 8px 0;
+}
+
+.settlement-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settlement-command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(330px, 0.55fr);
+  gap: 12px;
+}
+
+.settlement-focus-card,
+.settlement-import-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.settlement-focus-card .ant-card-body,
+.settlement-import-card .ant-card-body {
+  padding: 16px 18px;
+}
+
+.settlement-focus-head,
+.settlement-import-status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.settlement-focus-head h3.ant-typography,
+.settlement-import-status h3.ant-typography {
+  margin: 2px 0 2px;
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 780;
+  line-height: 1.12;
+}
+
+.settlement-focus-head h3.ant-typography a {
+  color: inherit;
+}
+
+.settlement-focus-values {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.settlement-focus-value {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #e7edf5;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.settlement-focus-value span,
+.settlement-ledger-money span,
+.settlement-ledger-diff span,
+.settlement-import-meta span,
+.settlement-verdict span,
+.settlement-verdict-values span {
+  display: block;
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 780;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.settlement-focus-value strong,
+.settlement-ledger-money strong,
+.settlement-ledger-diff strong,
+.settlement-import-meta strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 790;
+  line-height: 1.1;
+}
+
+.settlement-focus-value small,
+.settlement-ledger-money small,
+.settlement-ledger-diff small,
+.settlement-import-meta small {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #8592a3;
+  font-size: 11px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-import-icon {
+  font-size: 28px;
+}
+
+.settlement-import-icon.ok {
+  color: var(--domain-energy);
+}
+
+.settlement-import-icon.warn {
+  color: var(--domain-revenue);
+}
+
+.settlement-import-meta {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #edf2f7;
+}
+
+.settlement-ledger-list,
+.settlement-control-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settlement-ledger-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.25fr) minmax(150px, 0.75fr) repeat(3, minmax(145px, 0.72fr)) 20px;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 12px;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid #e5ebf4;
+  border-radius: 8px;
+  background: #ffffff;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.settlement-ledger-row:hover {
+  color: inherit;
+  border-color: rgba(37, 99, 235, 0.32);
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.08);
+  transform: translateY(-1px);
+}
+
+.settlement-ledger-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.settlement-ledger-title strong {
+  font-size: 15px;
+  font-weight: 790;
+}
+
+.settlement-ledger-identity > span {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-ledger-identity > small {
+  display: block;
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.settlement-ledger-state {
+  min-width: 0;
+}
+
+.settlement-ledger-state .ant-tag {
+  margin-bottom: 5px;
+}
+
+.settlement-ledger-diff {
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.settlement-ledger-diff.ok {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+}
+
+.settlement-ledger-diff.ok strong {
+  color: #15803d;
+}
+
+.settlement-ledger-diff.warn {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+}
+
+.settlement-ledger-diff.warn strong {
+  color: #dc2626;
+}
+
+.settlement-ledger-diff.empty {
+  border: 1px dashed #cbd5e1;
+}
+
+.settlement-ledger-arrow {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.settlement-control-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.55fr) minmax(0, 1.45fr);
+  gap: 14px;
+  align-items: center;
+  padding: 10px 12px;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid #e5ebf4;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.settlement-control-row:hover {
+  color: inherit;
+  border-color: rgba(37, 99, 235, 0.28);
+  background: #f8fbff;
+}
+
+.settlement-control-period strong {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.settlement-control-period span {
+  display: block;
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.settlement-control-numbers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settlement-verdict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 92px;
+  padding: 15px 18px;
+  border: 1px solid #dbeafe;
+  border-left: 4px solid var(--domain-parking);
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f8fbff 0%, #ffffff 62%);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.settlement-verdict-ok {
+  border-color: #bbf7d0;
+  border-left-color: var(--domain-energy);
+  background: linear-gradient(90deg, #f0fdf4 0%, #ffffff 62%);
+}
+
+.settlement-verdict-warn {
+  border-color: #fecaca;
+  border-left-color: var(--domain-revenue);
+  background: linear-gradient(90deg, #fff1f2 0%, #ffffff 62%);
+}
+
+.settlement-verdict-empty {
+  border-color: #cbd5e1;
+  border-left-color: #94a3b8;
+  background: linear-gradient(90deg, #f8fafc 0%, #ffffff 62%);
+}
+
+.settlement-verdict > div:first-child {
+  min-width: 0;
+}
+
+.settlement-verdict > div:first-child strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 790;
+  line-height: 1.1;
+}
+
+.settlement-verdict p {
+  max-width: 760px;
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.settlement-verdict-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 8px;
+  min-width: 430px;
+}
+
+.settlement-verdict-values > div {
+  padding: 9px 10px;
+  border: 1px solid #e5ebf4;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.settlement-verdict-values strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 780;
+}
+
 .module-table-card .ant-table {
   font-size: 12px;
 }
@@ -2871,6 +3454,16 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .settlement-verdict {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .settlement-verdict-values {
+    width: 100%;
+    min-width: 0;
+  }
+
   .elvia-top-row {
     grid-template-columns: 1fr;
   }
@@ -2895,6 +3488,41 @@
   .vehicle-detail-card-grid,
   .vehicle-field-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settlement-summary-grid,
+  .settlement-report-strip,
+  .settlement-secondary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settlement-field-row,
+  .settlement-field-card.compact .settlement-field-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .settlement-command-grid,
+  .settlement-ledger-row {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-report-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-document-card {
+    position: static;
+  }
+
+  .settlement-focus-values,
+  .settlement-control-numbers,
+  .settlement-verdict-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settlement-control-row {
+    grid-template-columns: 1fr;
   }
 
   .vent-compact-main {
@@ -2925,6 +3553,28 @@
   }
 
   .settlement-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-page-head,
+  .settlement-report-head,
+  .settlement-card-head {
+    flex-direction: column;
+  }
+
+  .settlement-summary-grid,
+  .settlement-report-strip,
+  .settlement-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-search {
+    width: 100%;
+  }
+
+  .settlement-focus-values,
+  .settlement-control-numbers,
+  .settlement-verdict-values {
     grid-template-columns: 1fr;
   }
 }
