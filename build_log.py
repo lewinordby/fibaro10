@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1164")
+APP_BUILD = os.getenv("APP_BUILD", "1165")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1165",
+        "date": "14.06.2026",
+        "headline": "Oppgjorsdetalj kontrollerer bare skjemaets egne summer",
+        "title": "Kildekontroll fjernet fra vedleggvisningen",
+        "description": (
+            "Detaljsiden for parkeringsoppgjor blandet intern kildekontroll inn i selve vedleggkontrollen. "
+            "Denne builden lar detaljsiden kun vise avleste felt og kontrollere at beregnede summer fra disse stemmer med avleste sumfelt."
+        ),
+        "applications": [
+            "Desktop V2 oppgjor (SettlementDetailPage.tsx): fjerner kildekontroll mot Fibaro10 fra detaljsiden.",
+            "Desktop V2 oppgjor (SettlementDetailPage.tsx): viser avleste belop rent, og viser beregnet/verdiavvik bare paa sumkontrollradene.",
+            "Desktop V2 CSS (styles.css): fjerner ubrukt styling for kildekontrollkort i detaljvisningen.",
+            "Buildlogg (build_log.py): registrerer build 1165.",
+        ],
+        "request": "vi trenger ikke kildekontroll paa detalj siden. vi trenger bare aa sjekke at om vi regner ut de avleste feltetene saa stemmer det med de avleste sum feltene",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kildekontrollseksjonen er fjernet fra detaljsiden for oppgjor.",
+            "Belopskortene viser naa kun verdien som er lest fra skjemaet.",
+            "Sumkontrollen viser avlest sum, beregnet sum fra de avleste feltene og avvik.",
+            "Belopskort farges ikke lenger av kildeavvik som ikke vises paa detaljsiden.",
+        ],
+    },
     {
         "version": "1",
         "build": "1164",

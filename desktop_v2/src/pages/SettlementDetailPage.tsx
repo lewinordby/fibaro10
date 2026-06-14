@@ -91,16 +91,17 @@ function OriginalPreview({
   );
 }
 
-function valueStatus(row: SettlementField): "ok" | "warn" | "missing" | "plain" {
+function valueStatus(row: SettlementField, showControl: boolean): "ok" | "warn" | "missing" | "plain" {
+  if (!showControl) return row.value === null || row.value === undefined || row.value === "" ? "missing" : "plain";
   if (row.status === "ok") return "ok";
   if (row.status === "warn") return "warn";
   if (row.status === "missing") return "missing";
   return "plain";
 }
 
-function SettlementValueTile({ row }: { row: SettlementField }) {
-  const status = valueStatus(row);
-  const hasControl = row.expected !== undefined;
+function SettlementValueTile({ row, showControl = false }: { row: SettlementField; showControl?: boolean }) {
+  const status = valueStatus(row, showControl);
+  const hasControl = showControl && row.expected !== undefined;
   return (
     <div className={`settlement-value-tile ${status}`}>
       <div className="settlement-value-title">
@@ -110,50 +111,10 @@ function SettlementValueTile({ row }: { row: SettlementField }) {
       <strong>{moneyValue(row.value)}</strong>
       {hasControl ? (
         <div className="settlement-value-control">
-          <span>Fibaro10 {moneyValue(row.expected)}</span>
-          <b>{signedMoneyValue(row.difference)}</b>
+          <span>{row.expectedLabel || "Beregnet"} {moneyValue(row.expected)}</span>
+          <b>Avvik {signedMoneyValue(row.difference)}</b>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function SourceControlTile({
-  title,
-  schema,
-  fibaro,
-  diff,
-  count,
-}: {
-  title: string;
-  schema?: SettlementField;
-  fibaro?: SettlementField;
-  diff?: SettlementField;
-  count?: SettlementField;
-}) {
-  const numericDiff = numberValue(diff?.value);
-  const status = numericDiff === null ? "missing" : Math.abs(numericDiff) > 1000 ? "warn" : "ok";
-  return (
-    <div className={`settlement-source-mini ${status}`}>
-      <div className="settlement-source-mini-head">
-        <strong>{title}</strong>
-        <span>{status === "warn" ? "Avvik" : status === "ok" ? "OK" : "Mangler"}</span>
-      </div>
-      <div className="settlement-source-mini-grid">
-        <div>
-          <span>Skjema</span>
-          <strong>{moneyValue(schema?.value)}</strong>
-        </div>
-        <div>
-          <span>Fibaro10</span>
-          <strong>{moneyValue(fibaro?.value)}</strong>
-          {count ? <small>{displayValue(count.value)} stk</small> : null}
-        </div>
-        <div>
-          <span>Avvik</span>
-          <strong>{signedMoneyValue(diff?.value)}</strong>
-        </div>
-      </div>
     </div>
   );
 }
@@ -166,7 +127,6 @@ export default function SettlementDetailPage() {
   if (error || !data) return <ErrorBlock error={error} />;
 
   const formSection = sectionByTitle(data.sections, "Oppgjørsformular");
-  const controlSection = sectionByTitle(data.sections, "Kontroll mot Fibaro10");
   const parserSection = sectionByTitle(data.sections, "Parserkontroll");
   const amountRows = formSection?.rows.filter((row) => row.group === "amount") ?? [];
   const controlRows = formSection?.rows.filter((row) => row.group === "control") ?? [];
@@ -215,30 +175,10 @@ export default function SettlementDetailPage() {
             </div>
 
             <div className="settlement-read-section">
-              <Typography.Text className="eyebrow">Kildekontroll</Typography.Text>
-              <div className="settlement-source-mini-list">
-                <SourceControlTile
-                  title="Flowbird / mynt-kort"
-                  schema={fieldByKey(controlSection, "gross_coin_card_ex_vat")}
-                  fibaro={fieldByKey(controlSection, "flowbird_source_paid_ex_vat")}
-                  diff={fieldByKey(controlSection, "flowbird_source_diff_ex_vat")}
-                  count={fieldByKey(controlSection, "flowbird_source_count")}
-                />
-                <SourceControlTile
-                  title="EasyPark"
-                  schema={fieldByKey(controlSection, "easypark_ex_vat")}
-                  fibaro={fieldByKey(controlSection, "easypark_source_paid_ex_vat")}
-                  diff={fieldByKey(controlSection, "easypark_source_diff_ex_vat")}
-                  count={fieldByKey(controlSection, "easypark_source_count")}
-                />
-              </div>
-            </div>
-
-            <div className="settlement-read-section">
-              <Typography.Text className="eyebrow">Summer</Typography.Text>
+              <Typography.Text className="eyebrow">Sumkontroll</Typography.Text>
               <div className="settlement-value-list">
                 {controlRows.map((row) => (
-                  <SettlementValueTile key={row.field} row={row} />
+                  <SettlementValueTile key={row.field} row={row} showControl />
                 ))}
               </div>
             </div>

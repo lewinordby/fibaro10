@@ -3050,8 +3050,7 @@
   gap: 7px;
 }
 
-.settlement-value-list,
-.settlement-source-mini-list {
+.settlement-value-list {
   display: grid;
   gap: 7px;
 }
@@ -3136,94 +3135,6 @@
 .settlement-value-control b {
   color: #111827;
   font-weight: 800;
-}
-
-.settlement-source-mini {
-  padding: 8px;
-  border: 1px solid #e5ebf4;
-  border-radius: 7px;
-  background: #f8fafc;
-}
-
-.settlement-source-mini.ok {
-  border-color: #bbf7d0;
-  background: #f6fef8;
-}
-
-.settlement-source-mini.warn {
-  border-color: #fecaca;
-  background: #fff7f7;
-}
-
-.settlement-source-mini.missing {
-  border-style: dashed;
-}
-
-.settlement-source-mini-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.settlement-source-mini-head strong {
-  overflow: hidden;
-  color: #111827;
-  font-size: 12px;
-  font-weight: 820;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settlement-source-mini-head span {
-  color: #64748b;
-  font-size: 10px;
-  font-weight: 780;
-  text-transform: uppercase;
-}
-
-.settlement-source-mini-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-}
-
-.settlement-source-mini-grid > div {
-  min-width: 0;
-  padding: 5px 6px;
-  border: 1px solid #eaf0f7;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.settlement-source-mini-grid span,
-.settlement-source-mini-grid small {
-  display: block;
-  overflow: hidden;
-  color: #64748b;
-  font-size: 9px;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.settlement-source-mini-grid strong {
-  display: block;
-  margin-top: 3px;
-  overflow: hidden;
-  color: #111827;
-  font-size: 12px;
-  font-weight: 820;
-  line-height: 1.08;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settlement-source-mini-grid small {
-  margin-top: 2px;
-  text-transform: none;
 }
 
 .settlement-document-card {
