@@ -15490,7 +15490,7 @@ async def build_admin_relation_analysis(session, now_dt: datetime) -> Dict[str, 
 PARKING_SETTLEMENT_PROVIDER = "parking_parknordic"
 PARKING_SETTLEMENT_SENDER = os.getenv("PARKING_SETTLEMENT_SENDER", "fredrik@parknordic.no")
 SETTLEMENT_ATTACHMENT_EXTENSIONS = {".pdf", ".csv", ".xlsx", ".xls", ".xml", ".txt"}
-SETTLEMENT_PARSER_VERSION = 2
+SETTLEMENT_PARSER_VERSION = 3
 NORWEGIAN_MONTHS = {
     "januar": 1,
     "jan": 1,
@@ -15865,16 +15865,16 @@ def parse_parking_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
             "Hovedgrunnlag/andel/sum lest fra første uetiketterte tallrad etter fratrekk.",
         ),
         (
-            ("control_fee_net_ex_vat", "control_fee_share_percent", "control_fee_share_ex_vat"),
-            3,
-            0.68,
-            "Kontrollavgift lest fra andre uetiketterte tallrad etter fratrekk.",
-        ),
-        (
             ("long_term_parking_ex_vat", "long_term_share_percent", "long_term_share_ex_vat"),
             3,
             0.68,
-            "Langtidsparkering lest fra tredje uetiketterte tallrad etter fratrekk.",
+            "Langtidsparkering lest fra andre uetiketterte tallrad etter fratrekk.",
+        ),
+        (
+            ("control_fee_net_ex_vat", "control_fee_share_percent", "control_fee_share_ex_vat"),
+            3,
+            0.68,
+            "Kontrollavgift lest fra tredje uetiketterte tallrad etter fratrekk.",
         ),
         (
             ("total_basis_ex_vat", "total_share_ex_vat"),
@@ -15908,7 +15908,17 @@ def parse_parking_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
         for field, value in zip(fields, values):
             set_field(field, settlement_number_value(value), source, confidence)
 
-    required_fields = ["reported_period_label", "site_number", "customer_number", "easypark_ex_vat", "payout_inc_vat"]
+    required_fields = [
+        "reported_period_label",
+        "site_number",
+        "customer_number",
+        "gross_coin_card_ex_vat",
+        "easypark_ex_vat",
+        "settlement_fee_ex_vat",
+        "control_fee_net_ex_vat",
+        "total_basis_ex_vat",
+        "payout_inc_vat",
+    ]
     found_required = sum(1 for field in required_fields if field in parsed)
     confidence = round(found_required / len(required_fields), 2)
     parsed["_meta"] = {
@@ -16058,6 +16068,125 @@ def settlement_field(
     return payload
 
 
+def settlement_sum_or_none(*values: Optional[float]) -> Optional[float]:
+    if any(value is None for value in values):
+        return None
+    return round(sum(float(value or 0) for value in values), 2)
+
+
+def settlement_form_field(
+    label: str,
+    field: str,
+    value: Any,
+    parsed: Any,
+    group: str,
+    note: str,
+    expected: Optional[float] = None,
+) -> Dict[str, Any]:
+    payload = settlement_field(
+        label,
+        field,
+        value,
+        settlement_field_source(parsed, field),
+        note,
+        settlement_field_confidence(parsed, field),
+    )
+    payload["group"] = group
+    if expected is not None:
+        numeric_value = parse_settlement_number(value)
+        payload["expected"] = settlement_number_value(expected)
+        if numeric_value is not None:
+            difference = round(float(numeric_value) - expected, 2)
+            payload["difference"] = settlement_number_value(difference)
+            payload["status"] = "ok" if abs(difference) <= 1 else "warn"
+        else:
+            payload["status"] = "missing"
+    elif value is None or value == "":
+        payload["status"] = "missing"
+    else:
+        payload["status"] = "ok"
+    return payload
+
+
+def settlement_form_rows(parsed: Any) -> list[Dict[str, Any]]:
+    gross_coin_card = settlement_parsed_float(parsed, "gross_coin_card_ex_vat")
+    easypark = settlement_parsed_float(parsed, "easypark_ex_vat")
+    fee = settlement_parsed_float(parsed, "settlement_fee_ex_vat")
+    net_coin_card = settlement_parsed_float(parsed, "revenue_basis_ex_vat")
+    long_term = settlement_parsed_float(parsed, "long_term_parking_ex_vat")
+    control_fee = settlement_parsed_float(parsed, "control_fee_net_ex_vat")
+    total_basis = settlement_parsed_float(parsed, "total_basis_ex_vat")
+    total_share = settlement_parsed_float(parsed, "total_share_ex_vat")
+    vat = settlement_parsed_float(parsed, "vat_25_percent")
+    payout = settlement_parsed_float(parsed, "payout_inc_vat")
+
+    expected_net_coin_card = settlement_sum_or_none(gross_coin_card, easypark, fee)
+    expected_total_basis = settlement_sum_or_none(net_coin_card, long_term, control_fee)
+    expected_payout = settlement_sum_or_none(total_share, vat)
+
+    return [
+        settlement_form_field(
+            "Brutto mynt/kortautomat",
+            "gross_coin_card_ex_vat",
+            settlement_parsed_value(parsed, "gross_coin_card_ex_vat"),
+            parsed,
+            "amount",
+            "Operativt beløp fra linjen Bruttoinntekter over mynt/kortautomat.",
+        ),
+        settlement_form_field(
+            "EasyPark",
+            "easypark_ex_vat",
+            settlement_parsed_value(parsed, "easypark_ex_vat"),
+            parsed,
+            "amount",
+            "Operativt beløp fra EasyPark-linjen. Dette er beløpet vi bruker mot interne EasyPark-tall.",
+        ),
+        settlement_form_field(
+            "Fratrekk tømming/telling/kort",
+            "settlement_fee_ex_vat",
+            settlement_parsed_value(parsed, "settlement_fee_ex_vat"),
+            parsed,
+            "amount",
+            "Operativt fratrekk for tømming, telling og kortavregning.",
+        ),
+        settlement_form_field(
+            "Netto innbetalte kontrollavgifter",
+            "control_fee_net_ex_vat",
+            settlement_parsed_value(parsed, "control_fee_net_ex_vat"),
+            parsed,
+            "amount",
+            "Operativt beløp fra linjen Netto innbetalte kontrollavgifter.",
+        ),
+        settlement_form_field(
+            "Nettoinntekter mynt/kortautomat",
+            "revenue_basis_ex_vat",
+            settlement_parsed_value(parsed, "revenue_basis_ex_vat"),
+            parsed,
+            "control",
+            "Kontrollsum: brutto mynt/kort + EasyPark + fratrekk.",
+            expected_net_coin_card,
+        ),
+        settlement_form_field(
+            "Grunnlag omsetning eks. mva",
+            "total_basis_ex_vat",
+            settlement_parsed_value(parsed, "total_basis_ex_vat"),
+            parsed,
+            "control",
+            "Kontrollsum: netto mynt/kort + langtidsparkering + netto kontrollavgifter.",
+            expected_total_basis,
+        ),
+        settlement_form_field(
+            "Til utbetaling",
+            "payout_inc_vat",
+            settlement_parsed_value(parsed, "payout_inc_vat"),
+            parsed,
+            "control",
+            "Kontrollsum: sum eks. mva + 25% mva.",
+            expected_payout,
+        ),
+    ]
+
+
 def settlement_original_payload(row: SettlementImport) -> Dict[str, Any]:
     filename = row.attachment_filename or f"oppgjor-{row.id}"
     content_type = row.attachment_content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
@@ -16093,16 +16222,16 @@ SETTLEMENT_PARSED_FIELD_LABELS: list[tuple[str, str, str]] = [
     ("EasyPark eks. mva", "easypark_ex_vat", "Beløp i kolonnen Oms. eks. mva."),
     ("EasyPark estimert inkl. mva", "easypark_inc_vat_estimate", "Beregnet som EasyPark eks. mva * 1,25."),
     ("Fratrekk eks. mva", "settlement_fee_ex_vat", "Fratrekk for tømming, telling og kortavregning."),
-    ("Grunnlag omsetning eks. mva", "revenue_basis_ex_vat", "Første uetiketterte summeringsrad etter fratrekk."),
-    ("Andel omsetning", "revenue_share_percent", "Andel i prosent fra samme summeringsrad."),
-    ("Sum omsetning eks. mva", "revenue_share_ex_vat", "Sum-kolonnen for hovedomsetning."),
-    ("Netto kontrollavgifter eks. mva", "control_fee_net_ex_vat", "Andre uetiketterte tallrad etter fratrekk."),
-    ("Andel kontrollavgifter", "control_fee_share_percent", "Andel i prosent for kontrollavgifter."),
-    ("Sum kontrollavgifter eks. mva", "control_fee_share_ex_vat", "Sum-kolonnen for kontrollavgifter."),
-    ("Langtidsparkering eks. mva", "long_term_parking_ex_vat", "Tredje uetiketterte tallrad etter fratrekk."),
+    ("Nettoinntekter mynt/kort eks. mva", "revenue_basis_ex_vat", "Første summeringsrad etter fratrekk."),
+    ("Andel mynt/kort", "revenue_share_percent", "Andel i prosent fra samme summeringsrad."),
+    ("Sum mynt/kort eks. mva", "revenue_share_ex_vat", "Sum-kolonnen for hovedomsetning."),
+    ("Langtidsparkering eks. mva", "long_term_parking_ex_vat", "Andre uetiketterte tallrad etter fratrekk."),
     ("Andel langtidsparkering", "long_term_share_percent", "Andel i prosent for langtidsparkering."),
     ("Sum langtidsparkering eks. mva", "long_term_share_ex_vat", "Sum-kolonnen for langtidsparkering."),
-    ("Totalt grunnlag eks. mva", "total_basis_ex_vat", "Totalsum før mva."),
+    ("Netto kontrollavgifter eks. mva", "control_fee_net_ex_vat", "Tredje uetiketterte tallrad etter fratrekk."),
+    ("Andel kontrollavgifter", "control_fee_share_percent", "Andel i prosent for kontrollavgifter."),
+    ("Sum kontrollavgifter eks. mva", "control_fee_share_ex_vat", "Sum-kolonnen for kontrollavgifter."),
+    ("Grunnlag omsetning eks. mva", "total_basis_ex_vat", "Totalsum før mva."),
     ("Totalt oppgjør eks. mva", "total_share_ex_vat", "Sum til grunnlag for mva."),
     ("25% mva", "vat_25_percent", "Mva-linje i skjemaet."),
     ("Til utbetaling inkl. mva", "payout_inc_vat", "Sluttsum oppgitt i skjemaet."),
@@ -16220,6 +16349,7 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
         "cards": cards,
         "original": settlement_original_payload(row),
         "sections": [
+            {"title": "Oppgjørsformular", "rows": settlement_form_rows(parsed)},
             {"title": "Nøkkeltall fra skjema", "rows": parsed_rows},
             {"title": "Kontroll mot Fibaro10", "rows": control_rows},
             {

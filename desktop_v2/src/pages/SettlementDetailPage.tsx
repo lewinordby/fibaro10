@@ -161,6 +161,77 @@ function FocusPair({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formStatusTag(row: SettlementField) {
+  if (row.group === "amount") {
+    return row.confidence === null || row.confidence === undefined ? null : confidenceTag(row.confidence);
+  }
+  if (row.status === "ok") return <Tag color="green">Stemmer</Tag>;
+  if (row.status === "warn") return <Tag color="volcano">Avvik</Tag>;
+  return <Tag>Ikke kontrollert</Tag>;
+}
+
+function SettlementFormRow({ row }: { row: SettlementField }) {
+  return (
+    <div className={`settlement-form-row settlement-form-row-${row.status ?? "plain"}`}>
+      <div className="settlement-form-label">
+        <strong>{row.label}</strong>
+        <span>{row.field}</span>
+      </div>
+      <div className="settlement-form-value">
+        <span>Lest verdi</span>
+        <strong>{moneyValue(row.value)}</strong>
+      </div>
+      {row.group === "control" ? (
+        <>
+          <div className="settlement-form-value">
+            <span>Beregnet</span>
+            <strong>{moneyValue(row.expected)}</strong>
+          </div>
+          <div className="settlement-form-value">
+            <span>Avvik</span>
+            <strong>{signedMoneyValue(row.difference)}</strong>
+          </div>
+        </>
+      ) : null}
+      <div className="settlement-form-state">{formStatusTag(row)}</div>
+    </div>
+  );
+}
+
+function SettlementSimpleForm({ section }: { section?: SettlementSection }) {
+  if (!section) return null;
+  const amountRows = section.rows.filter((row) => row.group === "amount");
+  const controlRows = section.rows.filter((row) => row.group === "control");
+  return (
+    <Card className="settlement-simple-form" title="Enkelt oppgjørsformular" extra={<Tag color="blue">4 aktuelle beløp</Tag>}>
+      <div className="settlement-simple-form-grid">
+        <div>
+          <div className="settlement-simple-form-head">
+            <Typography.Text className="eyebrow">Aktuelle beløp</Typography.Text>
+            <Typography.Paragraph>Feltene under er de operative verdiene fra skjemaet.</Typography.Paragraph>
+          </div>
+          <div className="settlement-form-list amount">
+            {amountRows.map((row) => (
+              <SettlementFormRow key={row.field} row={row} />
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="settlement-simple-form-head">
+            <Typography.Text className="eyebrow">Kontrollsummer</Typography.Text>
+            <Typography.Paragraph>Summer brukes kun for å sjekke at PDF-innlesingen traff riktig.</Typography.Paragraph>
+          </div>
+          <div className="settlement-form-list control">
+            {controlRows.map((row) => (
+              <SettlementFormRow key={row.field} row={row} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function FieldList({ section, compact = false }: { section?: SettlementSection; compact?: boolean }) {
   if (!section) return null;
   return (
@@ -195,6 +266,7 @@ export default function SettlementDetailPage() {
   if (error || !data) return <ErrorBlock error={error} />;
 
   const schemaSection = sectionByTitle(data.sections, "Nøkkeltall fra skjema");
+  const formSection = sectionByTitle(data.sections, "Oppgjørsformular");
   const controlSection = sectionByTitle(data.sections, "Kontroll mot Fibaro10");
   const periodSection = sectionByTitle(data.sections, "Tolket periode");
   const emailSection = sectionByTitle(data.sections, "E-post og vedlegg");
@@ -250,6 +322,8 @@ export default function SettlementDetailPage() {
         fibaro={fibaroPaid?.value}
         schema={schemaEasypark?.value}
       />
+
+      <SettlementSimpleForm section={formSection} />
 
       <div className="settlement-report-layout">
         <div className="settlement-report-main">

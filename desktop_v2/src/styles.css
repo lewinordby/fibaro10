@@ -3408,6 +3408,150 @@
   font-weight: 780;
 }
 
+.settlement-simple-form {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.settlement-simple-form .ant-card-head {
+  min-height: 44px;
+  border-bottom-color: #edf2f7;
+}
+
+.settlement-simple-form .ant-card-head-title {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 780;
+}
+
+.settlement-simple-form .ant-card-body {
+  padding: 14px 16px 16px;
+}
+
+.settlement-simple-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 18px;
+}
+
+.settlement-simple-form-grid > div {
+  min-width: 0;
+}
+
+.settlement-simple-form-head {
+  min-height: 54px;
+}
+
+.settlement-simple-form-head .ant-typography {
+  margin-bottom: 0;
+}
+
+.settlement-simple-form-head .ant-typography + .ant-typography {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.settlement-form-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settlement-form-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.15fr) minmax(130px, 0.55fr) 82px;
+  gap: 10px;
+  align-items: center;
+  min-height: 64px;
+  padding: 9px 10px;
+  border: 1px solid #e5ebf4;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.settlement-form-list.control .settlement-form-row {
+  grid-template-columns: minmax(0, 1fr) repeat(3, minmax(84px, 0.38fr));
+}
+
+.settlement-form-row-ok {
+  border-color: #bbf7d0;
+  background: #fbfefc;
+}
+
+.settlement-form-row-warn {
+  border-color: #fecaca;
+  background: #fff8f8;
+}
+
+.settlement-form-label {
+  min-width: 0;
+}
+
+.settlement-form-label strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.settlement-form-label span {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+}
+
+.settlement-form-value {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #edf2f7;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.settlement-form-value span {
+  display: block;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 780;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.settlement-form-value strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 790;
+  line-height: 1.12;
+}
+
+.settlement-form-list.control .settlement-form-value strong {
+  overflow-wrap: normal;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.settlement-form-state {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settlement-form-list.control .settlement-form-state {
+  grid-column: 1 / -1;
+}
+
+.settlement-form-state .ant-tag {
+  margin-inline-end: 0;
+}
+
 .module-table-card .ant-table {
   font-size: 12px;
 }
@@ -3500,6 +3644,20 @@
   .settlement-field-card.compact .settlement-field-row {
     grid-template-columns: 1fr;
     gap: 5px;
+  }
+
+  .settlement-simple-form-grid,
+  .settlement-form-row,
+  .settlement-form-list.control .settlement-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-simple-form-head {
+    min-height: auto;
+  }
+
+  .settlement-form-state {
+    justify-content: flex-start;
   }
 
   .settlement-command-grid,

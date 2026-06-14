@@ -779,6 +779,10 @@ export type SettlementField = {
   source: string;
   note?: string;
   confidence?: number | null;
+  group?: "amount" | "control";
+  expected?: unknown;
+  difference?: unknown;
+  status?: "ok" | "warn" | "missing" | string;
 };
 
 export type SettlementSection = {

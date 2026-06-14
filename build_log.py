@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1159")
+APP_BUILD = os.getenv("APP_BUILD", "1160")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1160",
+        "date": "14.06.2026",
+        "headline": "Oppgjør fikk enkelt verdiformular",
+        "title": "Parkeringsoppgjør viser fire aktuelle beløp og kontrollsummer",
+        "description": (
+            "Park Nordic-skjemaet inneholder mange tall, men bare fire beløp er operative for videre kontroll. "
+            "Denne builden lager et eget enkelt formular for disse verdiene og bruker summeringslinjene som teknisk kontroll på innlesingen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger Oppgjørsformular-seksjon med fire operative beløp og kontrollsummer.",
+            "Fibaro10 backend (main.py): retter parserrekkefølge for Langtidsparkering og Netto innbetalte kontrollavgifter.",
+            "Fibaro10 backend (main.py): bumper Park Nordic-parseren til versjon 3 slik eksisterende oppgjør reparses.",
+            "Desktop V2 API (api.ts): utvider oppgjørsfelt med gruppe, forventet verdi, avvik og status.",
+            "Desktop V2 oppgjørsdetalj (SettlementDetailPage.tsx): viser nytt enkelt formular over detaljfeltene.",
+            "Desktop V2 CSS (styles.css): styler formularen som kompakt regnskapskontroll.",
+            "Tester (test_settlement_parser.py): oppdaterer forventet mapping for kontrollavgifter/langtidsparkering.",
+            "Buildlogg (build_log.py): registrerer build 1160.",
+        ],
+        "request": "det er egentlig kun de 4 beløpene som jeg har markert med en pil som er aktuelle, i tillegg til evt summene som det er rød strek uner",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Formularet viser Brutto mynt/kortautomat, EasyPark, Fratrekk tømming/telling/kort og Netto innbetalte kontrollavgifter.",
+            "Kontrollsummer viser Nettoinntekter mynt/kortautomat, Grunnlag omsetning eks. mva og Til utbetaling med lest verdi, beregnet verdi og avvik.",
+            "Parseren mapper nå 0-linjen som Langtidsparkering og 25 740-linjen som Netto innbetalte kontrollavgifter.",
+            "Detaljsiden beholder originalskjema og full teknisk feltliste, men løfter det enkle formularet opp som primær arbeidsflate.",
+        ],
+    },
     {
         "version": "1",
         "build": "1159",
