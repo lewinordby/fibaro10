@@ -417,6 +417,7 @@ export type SunTimeline = {
     paidAmountKr: number;
   };
   busiestRoom: SunTimelineRoom | null;
+  topRevenueRoom: SunTimelineRoom | null;
   ticks: Array<{ label: string; left: number }>;
   nowMarker: number | null;
   energyHours: SunTimelineEnergyHour[];

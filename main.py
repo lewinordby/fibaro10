@@ -12783,6 +12783,9 @@ async def api_sun2_day_timeline(session, selected: date) -> Dict[str, Any]:
     busiest_room = max(rooms, key=lambda item: item["count"], default=None)
     if busiest_room and not busiest_room["count"]:
         busiest_room = None
+    top_revenue_room = max(rooms, key=lambda item: item["paid"], default=None)
+    if top_revenue_room and not top_revenue_room["paid"]:
+        top_revenue_room = None
     today = datetime.now(LOCAL_TZ).date()
     now_marker = None
     if selected == today:
@@ -12835,6 +12838,7 @@ async def api_sun2_day_timeline(session, selected: date) -> Dict[str, Any]:
         "aggregateSessions": aggregate_sessions,
         "totals": totals,
         "busiestRoom": busiest_room,
+        "topRevenueRoom": top_revenue_room,
         "ticks": ticks,
         "nowMarker": now_marker,
         "energyHours": energy_hours,
@@ -13571,6 +13575,13 @@ async def api_v2_soling_module(
         ]
     elif view == "dagslinje":
         timeline = await api_sun2_day_timeline(session, selected_day or today)
+        timeline_totals = timeline["totals"]
+        session_count = int_or_zero(timeline_totals.get("sessionsCount"))
+        duration_minutes = float_or_zero(timeline_totals.get("durationMinutes"))
+        paid_amount = float_or_zero(timeline_totals.get("paidAmountKr"))
+        average_minutes_per_session = (duration_minutes / session_count) if session_count else 0
+        average_paid_per_session = (paid_amount / session_count) if session_count else 0
+        top_revenue_room = timeline.get("topRevenueRoom")
         energy_summary = timeline["energySummary"]
         elvia_kwh = float_or_zero(energy_summary.get("totalKwh"))
         internal_kwh = float_or_zero(energy_summary.get("internalTotalKwh"))
@@ -13586,10 +13597,40 @@ async def api_v2_soling_module(
             )
         charts = []
         cards = [
-            api_card("Solinger", timeline["totals"]["sessionsCount"], "stk", timeline["selectedDayLabel"], "sun2", href="/soling/enkeltimer"),
-            api_card("Total soletid", format_short_number(timeline["totals"]["durationHours"], 1), "t", f"{format_short_number(timeline['totals']['durationMinutes'], 0)} min", "sun2", href="/soling/enkeltimer"),
-            api_card("Omsetning", format_short_number(timeline["totals"]["paidAmountKr"]), "kr", "Fra enkelttimer", "revenue", href="/omsetning/oversikt"),
-            api_card("Mest brukt", timeline["busiestRoom"]["label"] if timeline.get("busiestRoom") else "-", "", f"{timeline['busiestRoom']['count']} solinger" if timeline.get("busiestRoom") else "Ingen solinger", "sun2", href="/soling/senger"),
+            api_card("Solinger", session_count, "stk", timeline["selectedDayLabel"], "sun2", href="/soling/enkeltimer"),
+            api_card(
+                "Soltid",
+                format_short_number(timeline_totals.get("durationHours"), 1),
+                "t",
+                f"{format_short_number(duration_minutes, 0)} min · snitt {format_short_number(average_minutes_per_session, 0)} min/time",
+                "sun2",
+                href="/soling/enkeltimer",
+            ),
+            api_card(
+                "Omsetning",
+                format_short_number(paid_amount),
+                "kr",
+                f"Snitt {format_short_number(average_paid_per_session)} kr pr soling",
+                "revenue",
+                href="/omsetning/oversikt",
+            ),
+            api_card(
+                "Mest brukt",
+                timeline["busiestRoom"]["label"] if timeline.get("busiestRoom") else "-",
+                "",
+                (
+                    f"{timeline['busiestRoom']['count']} solinger"
+                    + (
+                        f" · Mest inntekt {top_revenue_room['label']} {format_short_number(top_revenue_room['paid'])} kr"
+                        if top_revenue_room
+                        else ""
+                    )
+                    if timeline.get("busiestRoom")
+                    else "Ingen solinger"
+                ),
+                "sun2",
+                href="/soling/senger",
+            ),
             api_card(
                 "Strømforbruk",
                 format_short_number(energy_card_value, 1) if energy_card_value is not None else "-",

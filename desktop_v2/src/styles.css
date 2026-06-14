@@ -781,6 +781,7 @@
 
 .primary-grid {
   grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .card-link {
@@ -798,7 +799,7 @@
 }
 
 .module-metric {
-  height: 136px;
+  height: 116px;
 }
 
 .card-link:hover .metric-card {
@@ -1045,6 +1046,39 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.metric-card.module-metric .ant-card-body {
+  padding: 11px 12px 10px;
+}
+
+.module-metric .metric-title {
+  font-size: 11px;
+}
+
+.module-metric .metric-tag {
+  padding-inline: 6px;
+  font-size: 10px;
+}
+
+.module-metric .metric-value-row {
+  margin-top: 9px;
+}
+
+.module-metric .metric-value {
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.module-metric .metric-unit,
+.module-metric .metric-detail {
+  font-size: 11px;
+}
+
+.module-metric .metric-detail {
+  min-height: 30px;
+  gap: 6px;
+  line-height: 1.2;
 }
 
 .sun-session-field span {

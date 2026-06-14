@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1142")
+APP_BUILD = os.getenv("APP_BUILD", "1143")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1143",
+        "date": "14.06.2026",
+        "headline": "Kompakte nøkkelkort på soling dagslinje",
+        "title": "Soling dagslinje får mer presise kort for soltid, omsetning og rombruk",
+        "description": (
+            "Kortene på soling dagslinje er strammet inn visuelt og viser flere operative nøkkeltall uten å bruke like "
+            "mye plass."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): beregner snitt soltid pr time, snitt omsetning pr soling og rom med høyest inntjening.",
+            "Desktop V2 API-typer (api.ts): utvider soling dagslinje med topRevenueRoom.",
+            "Desktop V2 stilark (styles.css): gjør modul-kortene lavere og demper fontstørrelsen.",
+            "Buildlogg (build_log.py): registrerer build 1143.",
+        ],
+        "request": (
+            "På samme sted så har vi et kort for Total soltid, døp om dette til soltid og legg også inn snitt pr time. "
+            "på kortet omsetning så vil jeg også ha inn snitt pr soling. på mest brukt vil jeg også ha inn hvem som har "
+            "størst inntjening. alle kortene er for store, gjør de mindre ikke så kjempe store fonter."
+        ),
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "`Total soletid` heter nå `Soltid`.",
+            "Soltid-kortet viser total minutter og snitt minutter pr time.",
+            "Omsetning-kortet viser snitt kroner pr soling.",
+            "Mest brukt-kortet viser også rommet med høyest inntjening.",
+            "Modul-kortene har lavere høyde og mindre talltypografi.",
+        ],
+    },
     {
         "version": "1",
         "build": "1142",
