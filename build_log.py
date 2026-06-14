@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1140")
+APP_BUILD = os.getenv("APP_BUILD", "1141")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1141",
+        "date": "14.06.2026",
+        "headline": "Ryddeknapp for parkeringsområde",
+        "title": "Parkering får knapp for å nullstille område satt til ikke funnet",
+        "description": (
+            "V2-parkering viser nå en handling når kjøretøy har område satt til `ikke funnet`. Handlingen setter "
+            "disse områdene tilbake til blankt, slik at de kan behandles på nytt i vanlig områdeoppslag."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): gjenbruker ryddehelper for `omrade = ikke funnet` og legger til JSON action-endpoint.",
+            "Desktop V2 parkering (main.py module payload): viser `Fjern område 'ikke funnet'` som handling på relevante parkeringsvisninger.",
+            "Buildlogg (build_log.py): registrerer build 1141.",
+        ],
+        "request": "en knapp for å fjerne område ikke funnet",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Knappen vises når det finnes kjøretøy med område `ikke funnet`.",
+            "Handling krever innstillings-/mastertilgang.",
+            "Berørte kjøretøy får område, områdekilde og områdeoppdatert satt til blankt.",
+            "V2 får JSON-svar og automatisk reload etter handling.",
+            "Klassisk rydde-endpoint bruker samme backend-helper.",
+        ],
+    },
     {
         "version": "1",
         "build": "1140",

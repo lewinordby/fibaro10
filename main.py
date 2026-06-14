@@ -14914,6 +14914,20 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         ],
                     ),
                 ]
+            if int_or_zero(vehicle_area_not_found_count) > 0 and view in ("", "oversikt", "kjoretoy", "omrade", "oppslag"):
+                actions.append(
+                    {
+                        "key": "clear-area-not-found",
+                        "label": "Fjern område 'ikke funnet'",
+                        "method": "POST",
+                        "path": "/api/actions/parkering/clear-area-not-found",
+                        "confirm": (
+                            f"Nullstille område på {format_short_number(vehicle_area_not_found_count)} kjøretøy "
+                            "der område er satt til 'ikke funnet'? De blir liggende som blanke og kan slås opp på nytt."
+                        ),
+                        "tone": "default",
+                    }
+                )
             return {
                 "title": "Parkering" if not view else f"Parkering · {view.replace('-', ' ')}",
                 "subtitle": "EasyPark, aktive parkeringer og kjøretøygrunnlag.",
@@ -15779,6 +15793,22 @@ async def api_v2_parking_svv_sync(request: Request, limit: int = Query(SVV_SYNC_
         return forbidden
     result = await run_vehicle_svv_sync(limit, "V2")
     return {"status": "ok", "message": "SVV-sync er kjørt.", "result": result}
+
+
+@app.post("/api/actions/parkering/clear-area-not-found")
+async def api_v2_parking_clear_area_not_found(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        cleared = await clear_parking_vehicle_not_found_area(session)
+        await session.commit()
+    clear_summary_cache("parking")
+    return {
+        "status": "ok",
+        "message": f"{cleared} kjoretoy fikk fjernet omrade 'ikke funnet'.",
+        "cleared": cleared,
+    }
 
 
 @app.patch("/api/energy/circuits/{circuit_no}")
@@ -17752,17 +17782,22 @@ async def parking_vehicle_clear_not_found_area(request: Request):
     if forbidden:
         return forbidden
     async with async_session() as session:
-        result = await session.execute(
-            update(ParkingVehicle)
-            .where(func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, ""))) == "ikke funnet")
-            .values(
-                omrade=None,
-                omrade_kilde=None,
-                omrade_oppdatert=None,
-            )
-        )
+        cleared = await clear_parking_vehicle_not_found_area(session)
         await session.commit()
-    return redirect_with_query_params(request, "/parkering/kjoretoy", ryddet=result.rowcount or 0)
+    return redirect_with_query_params(request, "/parkering/kjoretoy", ryddet=cleared)
+
+
+async def clear_parking_vehicle_not_found_area(session) -> int:
+    result = await session.execute(
+        update(ParkingVehicle)
+        .where(func.lower(func.trim(func.coalesce(ParkingVehicle.omrade, ""))) == "ikke funnet")
+        .values(
+            omrade=None,
+            omrade_kilde=None,
+            omrade_oppdatert=None,
+        )
+    )
+    return int_or_zero(result.rowcount)
 
 
 def vehicle_blank_name_condition():
