@@ -1,12 +1,13 @@
 import {
   ArrowRightOutlined,
   CheckCircleOutlined,
+  CloseCircleOutlined,
   FileTextOutlined,
   SearchOutlined,
   SyncOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import { App as AntApp, Button, Card, Input, Progress, Space, Tag, Typography } from "antd";
+import { App as AntApp, Button, Card, Input, Space, Tooltip, Typography } from "antd";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchModule, runModuleAction, type ModuleAction, type ModuleResponse, type ModuleRow } from "../api";
@@ -46,11 +47,18 @@ function money(value: unknown): string {
   return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(numeric)} kr`;
 }
 
-function signedMoney(value: unknown): string {
-  const numeric = asNumber(value);
-  if (numeric === null) return "-";
-  const sign = numeric > 0 ? "+" : "";
-  return `${sign}${money(numeric)}`;
+function percentDiff(diff: unknown, reference: unknown): number | null {
+  const diffNumber = asNumber(diff);
+  const referenceNumber = asNumber(reference);
+  if (diffNumber === null || referenceNumber === null || referenceNumber === 0) return null;
+  return (diffNumber / Math.abs(referenceNumber)) * 100;
+}
+
+function signedPercentDiff(diff: unknown, reference: unknown): string {
+  const percent = percentDiff(diff, reference);
+  if (percent === null) return "-";
+  const sign = percent > 0 ? "+" : "";
+  return `${sign}${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 1 }).format(percent)} %`;
 }
 
 function confidencePercent(value: unknown): number | null {
@@ -59,40 +67,77 @@ function confidencePercent(value: unknown): number | null {
   return Math.round(numeric * 100);
 }
 
-function statusTag(value: unknown) {
-  const text = asText(value);
+function parseState(row: ModuleRow): { tone: "ok" | "warn" | "error"; label: string; detail: string } {
+  const text = asText(row.status);
   const normalized = text.toLowerCase();
-  const ok = normalized.includes("tolket") || normalized.includes("ok");
-  const review = normalized.includes("kontroll") || normalized.includes("mangler");
+  const percent = confidencePercent(row.parser_confidence);
+  const parsed = normalized.includes("tolket") || normalized.includes("ok");
+  if (!parsed || (percent !== null && percent < 70)) {
+    return {
+      tone: "error",
+      label: "Må kontrolleres",
+      detail: percent === null ? text : `${text} - ${percent} % tolkningssikkerhet`,
+    };
+  }
+  if (percent === null || percent < 90) {
+    return {
+      tone: "warn",
+      label: "Usikker tolking",
+      detail: percent === null ? text : `${text} - ${percent} % tolkningssikkerhet`,
+    };
+  }
+  return {
+    tone: "ok",
+    label: "Tolket",
+    detail: `${text} - ${percent} % tolkningssikkerhet`,
+  };
+}
+
+function ParseStatus({ row }: { row: ModuleRow }) {
+  const state = parseState(row);
+  const icon =
+    state.tone === "ok" ? <CheckCircleOutlined /> : state.tone === "warn" ? <WarningOutlined /> : <CloseCircleOutlined />;
   return (
-    <Tag icon={ok ? <CheckCircleOutlined /> : review ? <WarningOutlined /> : undefined} color={ok ? "green" : review ? "gold" : "default"}>
-      {text}
-    </Tag>
+    <Tooltip title={state.detail}>
+      <span className={`settlement-parse-status ${state.tone}`} aria-label={state.label}>
+        {icon}
+      </span>
+    </Tooltip>
   );
 }
 
-function diffTone(value: unknown): "ok" | "warn" | "empty" {
+function diffTone(value: unknown, reference?: unknown): "ok" | "warn" | "empty" {
   const numeric = asNumber(value);
   if (numeric === null) return "empty";
+  const percent = percentDiff(value, reference);
+  if (percent !== null) return Math.abs(percent) > 1 ? "warn" : "ok";
   return Math.abs(numeric) > 1000 ? "warn" : "ok";
 }
 
-function diffText(value: unknown): string {
+function diffText(value: unknown, reference?: unknown): string {
   const numeric = asNumber(value);
   if (numeric === null) return "Mangler kontroll";
+  const percent = percentDiff(value, reference);
+  if (percent !== null) return Math.abs(percent) > 1 ? "Krever sjekk" : "Ser ok ut";
   return Math.abs(numeric) > 1000 ? "Krever sjekk" : "Ser ok ut";
 }
 
-function largestSourceDiff(row?: ModuleRow): unknown {
-  if (!row) return undefined;
-  const candidates = [row.flowbird_source_diff_ex_vat, row.easypark_source_diff_ex_vat];
-  return candidates.reduce<unknown>((selected, candidate) => {
-    const selectedNumber = asNumber(selected);
-    const candidateNumber = asNumber(candidate);
+function largestSourceDiff(row?: ModuleRow): { diff: unknown; reference: unknown } | null {
+  if (!row) return null;
+  const candidates = [
+    { diff: row.flowbird_source_diff_ex_vat, reference: row.gross_coin_card_ex_vat },
+    { diff: row.easypark_source_diff_ex_vat, reference: row.easypark_ex_vat },
+  ];
+  return candidates.reduce<{ diff: unknown; reference: unknown } | null>((selected, candidate) => {
+    const candidateNumber = asNumber(candidate.diff);
     if (candidateNumber === null) return selected;
-    if (selectedNumber === null || Math.abs(candidateNumber) > Math.abs(selectedNumber)) return candidate;
-    return selected;
-  }, undefined);
+    if (!selected) return candidate;
+    const selectedPercent = percentDiff(selected.diff, selected.reference);
+    const candidatePercent = percentDiff(candidate.diff, candidate.reference);
+    const selectedScore = selectedPercent === null ? Math.abs(asNumber(selected.diff) ?? 0) : Math.abs(selectedPercent);
+    const candidateScore = candidatePercent === null ? Math.abs(candidateNumber) : Math.abs(candidatePercent);
+    return candidateScore > selectedScore ? candidate : selected;
+  }, null);
 }
 
 function pathFor(row?: ModuleRow): string {
@@ -141,17 +186,17 @@ function SourceCheck({
   fibaroDetail: string;
   diff: unknown;
 }) {
-  const tone = diffTone(diff);
+  const tone = diffTone(diff, schemaValue);
   return (
     <div className={`settlement-source-check ${tone}`}>
       <div className="settlement-source-check-head">
         <strong>{title}</strong>
-        <span>{diffText(diff)}</span>
+        <span>{diffText(diff, schemaValue)}</span>
       </div>
       <div className="settlement-source-check-grid">
         <ControlMetric label="Skjema" value={money(schemaValue)} />
         <ControlMetric label={fibaroDetail} value={money(fibaroValue)} />
-        <ControlMetric label="Avvik" value={signedMoney(diff)} tone={tone} />
+        <ControlMetric label="Avvik" value={signedPercentDiff(diff, schemaValue)} tone={tone} />
       </div>
     </div>
   );
@@ -173,12 +218,8 @@ function SettlementLedgerRow({ row, control }: { row: SettlementRow; control?: S
         <small>{asText(row.email_date)}</small>
       </div>
       <div className="settlement-ledger-state">
-        {statusTag(row.status)}
-        {percent === null ? (
-          <Typography.Text type="secondary">Ingen parserverdi</Typography.Text>
-        ) : (
-          <Progress percent={percent} size="small" strokeColor={percent >= 90 ? "#15803d" : percent >= 70 ? "#f59e0b" : "#dc2626"} />
-        )}
+        <ParseStatus row={row} />
+        <small>{percent === null ? "Ingen score" : `${percent} %`}</small>
       </div>
       <SourceCheck
         title="Flowbird / mynt-kort"
@@ -197,7 +238,7 @@ function SettlementLedgerRow({ row, control }: { row: SettlementRow; control?: S
       <div className="settlement-ledger-payout">
         <span>Til utbetaling</span>
         <strong>{money(row.payout_inc_vat)}</strong>
-        <small className={diffTone(diff)}>Største avvik {signedMoney(diff)}</small>
+        <small className={diffTone(diff?.diff, diff?.reference)}>Største avvik {signedPercentDiff(diff?.diff, diff?.reference)}</small>
       </div>
       <ArrowRightOutlined className="settlement-ledger-arrow" />
     </Link>
@@ -290,7 +331,7 @@ export default function ParkingSettlementsPage() {
         </div>
         <div className="settlement-ledger-table-head">
           <span>Oppgjør</span>
-          <span>Status</span>
+          <span>Tolket</span>
           <span>Flowbird / mynt-kort</span>
           <span>EasyPark</span>
           <span>Utbetaling</span>

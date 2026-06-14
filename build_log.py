@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1163")
+APP_BUILD = os.getenv("APP_BUILD", "1164")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1164",
+        "date": "14.06.2026",
+        "headline": "Oppgjorslisten viser prosentavvik og kompakt tolking",
+        "title": "Avvik i oppgjorskontrollen vises i prosent og tolking som statusikon",
+        "description": (
+            "Oppgjorslisten brukte unodvendig mye plass paa kronedifferanser og tekst/progress for tolking. "
+            "Denne builden gjor forstesiden strammere ved aa vise kildeavvik i prosent og tolkningsstatus som ett tydelig ikon."
+        ),
+        "applications": [
+            "Desktop V2 parkering (ParkingSettlementsPage.tsx): beregner prosentavvik mot skjemabelopet for Flowbird/mynt-kort og EasyPark.",
+            "Desktop V2 parkering (ParkingSettlementsPage.tsx): erstatter tekststatus og progressbar med gronn/oransje/rod tolkningsindikator med tooltip.",
+            "Desktop V2 CSS (styles.css): smalner tolkningskolonnen og styler statusikonene.",
+            "Buildlogg (build_log.py): registrerer build 1164.",
+        ],
+        "request": "avviket paa forste siden/tabellen kan vaere i % ikke i kr saa sparer vi plass. Tolket kan vaere bare en gronn hake, evt orange om det er mindre sannsynlig tolket rett, og rod om det er noe helt galt",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Flowbird/mynt-kort og EasyPark viser naa prosentavvik i tabellen.",
+            "Storste avvik i raden vises ogsaa som prosent.",
+            "Tolket-kolonnen viser ett ikon: gronn ved trygg tolking, oransje ved usikker tolking og rod ved feil/manglende tolking.",
+            "Tooltip paa ikonet viser status og tolkningssikkerhet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1163",

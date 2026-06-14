@@ -3477,7 +3477,7 @@
 
 .settlement-ledger-table-head {
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) 128px minmax(250px, 1.12fr) minmax(250px, 1.12fr) 118px 18px;
+  grid-template-columns: minmax(210px, 1fr) 70px minmax(230px, 1.12fr) minmax(230px, 1.12fr) 118px 18px;
   gap: 10px;
   margin-bottom: 7px;
   padding: 0 10px;
@@ -3490,7 +3490,7 @@
 
 .settlement-ledger-row {
   display: grid;
-  grid-template-columns: minmax(210px, 1fr) 128px minmax(250px, 1.12fr) minmax(250px, 1.12fr) 118px 18px;
+  grid-template-columns: minmax(210px, 1fr) 70px minmax(230px, 1.12fr) minmax(230px, 1.12fr) 118px 18px;
   gap: 10px;
   align-items: center;
   min-height: 82px;
@@ -3541,11 +3541,42 @@
 }
 
 .settlement-ledger-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   min-width: 0;
 }
 
-.settlement-ledger-state .ant-tag {
-  margin-bottom: 5px;
+.settlement-ledger-state small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.settlement-parse-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  font-size: 16px;
+}
+
+.settlement-parse-status.ok {
+  color: #15803d;
+  background: #ecfdf3;
+}
+
+.settlement-parse-status.warn {
+  color: #b45309;
+  background: #fffbeb;
+}
+
+.settlement-parse-status.error {
+  color: #dc2626;
+  background: #fef2f2;
 }
 
 .settlement-source-check {
