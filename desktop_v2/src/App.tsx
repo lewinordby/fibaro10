@@ -27,6 +27,7 @@ const ModulePage = lazy(() => import("./pages/ModulePage"));
 const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
 const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const ParkingVehicleDetailPage = lazy(() => import("./pages/ParkingVehicleDetailPage"));
+const SettlementDetailPage = lazy(() => import("./pages/SettlementDetailPage"));
 const StatusComparisonPage = lazy(() => import("./pages/StatusComparisonPage"));
 
 const mainModules = [
@@ -197,6 +198,7 @@ export default function App() {
               <Route path="/omsetning" element={<Navigate to={modulePath("omsetning")} replace />} />
               <Route path="/omsetning/manedsoversikt" element={<RevenueMonthPage />} />
               <Route path="/omsetning/sammenligning" element={<StatusComparisonPage />} />
+              <Route path="/omsetning/oppgjor/:settlementId" element={<SettlementDetailPage />} />
               <Route path="/omsetning/:view" element={<ModulePage module="omsetning" />} />
               <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
               <Route path="/parkering/statistikk" element={<LegacyRedirect to={modulePath("parkering", "bilstatistikk")} />} />

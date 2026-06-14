@@ -27,6 +27,7 @@ export function appPath(href?: string): string | null {
   const moduleViews = MODULE_VIEWS[module];
   if (!moduleViews) return null;
 
+  if (module === "omsetning" && view === "oppgjor" && parts[2]) return path;
   if (module === "parkering" && view === "kjoretoy" && parts[2]) return path;
   if (moduleViews.some((item) => item.key === view)) return path;
   return null;

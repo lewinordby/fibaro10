@@ -2670,7 +2670,8 @@
   margin-bottom: 12px;
 }
 
-.vehicle-detail-top {
+.vehicle-detail-top,
+.settlement-detail-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -2678,11 +2679,13 @@
   padding-bottom: 2px;
 }
 
-.vehicle-detail-top .ant-typography {
+.vehicle-detail-top .ant-typography,
+.settlement-detail-top .ant-typography {
   margin-bottom: 0;
 }
 
-.vehicle-detail-top h2.ant-typography {
+.vehicle-detail-top h2.ant-typography,
+.settlement-detail-top h2.ant-typography {
   margin: 3px 0 2px;
   font-size: 24px;
   line-height: 1.15;
@@ -2761,6 +2764,46 @@
   font-size: 13px;
   font-weight: 740;
   line-height: 1.25;
+}
+
+.settlement-original-card .ant-card-body {
+  padding: 10px;
+}
+
+.settlement-original-frame {
+  display: block;
+  width: 100%;
+  min-height: 680px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.settlement-original-image {
+  display: block;
+  width: 100%;
+  max-height: 760px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #111827;
+}
+
+.settlement-field-key {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+.settlement-raw-card pre {
+  max-height: 260px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  color: #334155;
+  font-size: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }
 
 .module-table-card .ant-table {
@@ -2845,7 +2888,8 @@
 }
 
 @media (max-width: 720px) {
-  .vehicle-detail-top {
+  .vehicle-detail-top,
+  .settlement-detail-top {
     flex-direction: column;
   }
 

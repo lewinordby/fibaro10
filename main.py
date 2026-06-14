@@ -12407,6 +12407,35 @@ async def api_v2_revenue_month(month: Optional[str] = None):
     }
 
 
+@app.get("/api/settlements/{settlement_id}")
+async def api_v2_settlement_detail(settlement_id: int):
+    async with async_session() as session:
+        row = await session.get(SettlementImport, settlement_id)
+        if not row or row.provider != PARKING_SETTLEMENT_PROVIDER:
+            raise HTTPException(status_code=404, detail="Oppgjør ikke funnet")
+        return await settlement_detail_payload(session, row)
+
+
+@app.get("/api/settlements/{settlement_id}/attachment")
+async def api_v2_settlement_attachment(settlement_id: int, download: bool = False):
+    async with async_session() as session:
+        row = await session.get(SettlementImport, settlement_id)
+        if not row or row.provider != PARKING_SETTLEMENT_PROVIDER:
+            raise HTTPException(status_code=404, detail="Oppgjør ikke funnet")
+        filename = row.attachment_filename or f"oppgjor-{row.id}"
+        content_type = row.attachment_content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        disposition_type = "attachment" if download else "inline"
+        quoted_filename = quote(filename)
+        return Response(
+            content=row.attachment_bytes,
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f"{disposition_type}; filename*=UTF-8''{quoted_filename}",
+                "Cache-Control": "private, max-age=300",
+            },
+        )
+
+
 def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]], edit: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     payload = {
         "title": title,
@@ -15652,6 +15681,141 @@ def settlement_row_api(row: SettlementImport) -> Dict[str, Any]:
         "attachment_size": row.attachment_size,
         "attachment_sha256": row.attachment_sha256[:12] if row.attachment_sha256 else None,
         "imported_at": api_local_iso(row.imported_at),
+        "path": f"/omsetning/oppgjor/{row.id}",
+    }
+
+
+def format_file_size(value: Optional[int]) -> str:
+    if not value:
+        return "-"
+    if value < 1024:
+        return f"{value} B"
+    if value < 1024 * 1024:
+        return f"{value / 1024:.1f} KB"
+    return f"{value / (1024 * 1024):.1f} MB"
+
+
+def settlement_field(
+    label: str,
+    field: str,
+    value: Any,
+    source: str,
+    note: str = "",
+) -> Dict[str, Any]:
+    return {
+        "label": label,
+        "field": field,
+        "value": api_iso_value(value),
+        "source": source,
+        "note": note,
+    }
+
+
+def settlement_original_payload(row: SettlementImport) -> Dict[str, Any]:
+    filename = row.attachment_filename or f"oppgjor-{row.id}"
+    content_type = row.attachment_content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    extension = Path(filename).suffix.lower()
+    preview_kind = "unsupported"
+    if content_type == "application/pdf" or extension == ".pdf":
+        preview_kind = "pdf"
+    elif content_type.startswith("image/"):
+        preview_kind = "image"
+    elif content_type.startswith("text/") or extension in {".csv", ".txt", ".xml"}:
+        preview_kind = "text"
+    return {
+        "filename": filename,
+        "contentType": content_type,
+        "size": row.attachment_size,
+        "sizeLabel": format_file_size(row.attachment_size),
+        "sha256": row.attachment_sha256,
+        "previewKind": preview_kind,
+        "previewUrl": f"/api/settlements/{row.id}/attachment",
+        "downloadUrl": f"/api/settlements/{row.id}/attachment?download=1",
+    }
+
+
+async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str, Any]:
+    control_rows = []
+    control_cards = []
+    if row.period_start and row.period_end:
+        start_dt = datetime.combine(row.period_start, time.min)
+        end_dt = datetime.combine(row.period_end + timedelta(days=1), time.min)
+        summary = await parking_period_summary(session, row.period_label or month_label(row.period_start), start_dt, end_dt)
+        count_value = int_or_zero(summary.get("count"))
+        paid_value = float_or_zero(summary.get("paid"))
+        average_value = round(paid_value / count_value, 2) if count_value else None
+        control_rows = [
+            settlement_field("Kontrollperiode fra", "period_start", row.period_start, "Tolket fra emne/filnavn"),
+            settlement_field("Kontrollperiode til", "period_end", row.period_end, "Beregnet siste dag i tolket måned"),
+            settlement_field("Parkeringer i Fibaro10", "parking_count", count_value, "Summeres fra EasyPark-parkeringer i perioden"),
+            settlement_field("Omsetning i Fibaro10", "parking_paid", round(paid_value, 2), "Summeres fra EasyPark fee_inc_vat i perioden", "Beløp i kroner inkl. mva"),
+            settlement_field("Snitt per parkering", "average_paid", average_value, "Beregnet fra intern parkeringstelling"),
+        ]
+        control_cards = [
+            api_card("Intern parkering", count_value, "stk", f"{format_short_number(paid_value)} kr", "parking"),
+            api_card("Snitt", format_short_number(average_value or 0, 2), "kr", "Internt beregnet", "revenue"),
+        ]
+    else:
+        control_rows = [
+            settlement_field("Kontrollstatus", "status", "Mangler periode", "Perioden kunne ikke tolkes fra emne, filnavn eller e-postdato"),
+        ]
+
+    parsed = row.parsed if isinstance(row.parsed, dict) else {}
+    parsed_rows = [
+        settlement_field(key, key, value, "Maskinlest fra oppgjørsskjema")
+        for key, value in parsed.items()
+    ]
+    if not parsed_rows:
+        parsed_rows = [
+            settlement_field(
+                "Skjemafelter",
+                "parsed",
+                "Ikke maskinlest ennå",
+                "Originalskjemaet er lagret, men tall/felter fra selve skjemaet er ikke trukket ut til strukturerte felter ennå.",
+            )
+        ]
+
+    cards = [
+        api_card("Periode", row.period_label or "Ikke tolket", "", "Fra emne/filnavn eller e-postdato", "revenue"),
+        api_card("Original", settlement_original_payload(row)["sizeLabel"], "", row.attachment_filename or "-", "status"),
+        api_card("Skjemafelter", len(parsed) if parsed else 0, "stk", "Maskinleste felter", "status"),
+        *control_cards,
+    ]
+    return {
+        "id": row.id,
+        "title": row.period_label or f"Oppgjør {row.id}",
+        "subtitle": row.attachment_filename or row.email_subject or "",
+        "cards": cards,
+        "original": settlement_original_payload(row),
+        "sections": [
+            {
+                "title": "Tolket periode",
+                "rows": [
+                    settlement_field("Periodeetikett", "period_label", row.period_label, "Tolket fra emne/filnavn, eventuelt antatt fra e-postdato"),
+                    settlement_field("Periodestart", "period_start", row.period_start, "Første dag i tolket måned"),
+                    settlement_field("Periodeslutt", "period_end", row.period_end, "Siste dag i tolket måned"),
+                    settlement_field("Status", "status", row.status, "Importstatus i Fibaro10"),
+                ],
+            },
+            {
+                "title": "E-post og vedlegg",
+                "rows": [
+                    settlement_field("Avsender", "sender", row.sender, "E-postheader From"),
+                    settlement_field("E-postdato", "email_date", row.email_date, "E-postheader Date"),
+                    settlement_field("Emne", "email_subject", row.email_subject, "E-postheader Subject"),
+                    settlement_field("Gmail UID", "gmail_uid", row.gmail_uid, "Gmail IMAP UID"),
+                    settlement_field("Postboks", "mailbox", row.mailbox, "Gmail IMAP mappe"),
+                    settlement_field("Filnavn", "attachment_filename", row.attachment_filename, "Vedlegg"),
+                    settlement_field("Filtype", "attachment_content_type", row.attachment_content_type, "Vedlegg MIME-type"),
+                    settlement_field("Filstørrelse", "attachment_size", format_file_size(row.attachment_size), "Vedlegg byte-størrelse"),
+                    settlement_field("SHA-256", "attachment_sha256", row.attachment_sha256, "Hash av originalvedlegg"),
+                    settlement_field("Importert", "imported_at", row.imported_at, "Tidspunkt Fibaro10 lagret oppgjøret"),
+                ],
+            },
+            {"title": "Felter lest fra skjema", "rows": parsed_rows},
+            {"title": "Kontroll mot Fibaro10", "rows": control_rows},
+        ],
+        "raw": row.raw or {},
     }
 
 

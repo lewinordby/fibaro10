@@ -350,6 +350,10 @@ function moduleColumns(
         const internalPath = appPath(row.path);
         if (internalPath) return <Link to={internalPath}>{displayValue(value)}</Link>;
       }
+      if (["period_label", "attachment_filename", "email_subject"].includes(column) && typeof row.path === "string") {
+        const internalPath = appPath(row.path);
+        if (internalPath) return <Link to={internalPath}>{displayValue(value)}</Link>;
+      }
       if (column === "owner_warning" && value) {
         return <Tag color="gold">{displayValue(value)}</Tag>;
       }

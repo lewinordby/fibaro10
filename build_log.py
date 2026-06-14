@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1155")
+APP_BUILD = os.getenv("APP_BUILD", "1156")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1156",
+        "date": "14.06.2026",
+        "headline": "Oppgjør med originalskjema og feltkontroll",
+        "title": "Oppgjørsdetalj viser originalfil, tolkede felter og intern kontroll",
+        "description": (
+            "Omsetning/Oppgjør får klikkbare oppgjørsrader. Hvert oppgjør åpner en detaljside med originalvedlegget "
+            "fra Gmail, tolkede databasefelter, kilde/regler for hvert felt og intern kontroll mot Fibaro10 sine EasyPark-tall."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger JSON-detalj for oppgjør og sikkert endepunkt for originalvedlegg.",
+            "Fibaro10 backend (main.py): gjør oppgjørsrader klikkbare med path til detaljside.",
+            "Desktop V2 API-kontrakt (api.ts): legger typer og fetch for oppgjørsdetalj.",
+            "Desktop V2 routing (App.tsx/navigation.ts): legger rute for /omsetning/oppgjor/<id>.",
+            "Desktop V2 oppgjør (SettlementDetailPage.tsx): viser originalskjema, feltkartlegging og rå importmetadata.",
+            "Desktop V2 tabeller/CSS (ModulePage.tsx/styles.css): gjør oppgjørsfelter klikkbare og styler detaljsiden.",
+            "Buildlogg (build_log.py): registrerer build 1156.",
+        ],
+        "request": "jeg vil ha mulighet til å klikke på et oppgjør å se orginal skjema. samtidig vil jeg vise hvilke felter du har puttet informasonnen i slik at jeg kan ha kontroll",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppgjørslisten lenker nå til detaljside via periode, filnavn eller emne.",
+            "Detaljsiden viser originalvedlegg inline når filtypen støtter det, ellers åpne/last ned-knapper.",
+            "Alle tolkede felter vises med databasefelt, verdi og kilde/regel.",
+            "Kontroll mot interne EasyPark-tall viser antall, omsetning og snitt for tolket periode.",
+            "Hvis skjemaet ikke er maskinlest ennå, vises dette eksplisitt i stedet for å skjule manglende parsing.",
+        ],
+    },
     {
         "version": "1",
         "build": "1155",

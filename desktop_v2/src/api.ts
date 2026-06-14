@@ -772,6 +772,40 @@ export type ParkingVehicleDetailResponse = {
   actions?: ModuleAction[];
 };
 
+export type SettlementField = {
+  label: string;
+  field: string;
+  value: unknown;
+  source: string;
+  note?: string;
+};
+
+export type SettlementSection = {
+  title: string;
+  rows: SettlementField[];
+};
+
+export type SettlementOriginal = {
+  filename: string;
+  contentType: string;
+  size?: number | null;
+  sizeLabel: string;
+  sha256?: string | null;
+  previewKind: "pdf" | "image" | "text" | "unsupported";
+  previewUrl: string;
+  downloadUrl: string;
+};
+
+export type SettlementDetailResponse = {
+  id: number;
+  title: string;
+  subtitle: string;
+  cards: ModuleCard[];
+  original: SettlementOriginal;
+  sections: SettlementSection[];
+  raw: JsonRecord;
+};
+
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -848,6 +882,10 @@ export function fetchModule(
 
 export function fetchParkingVehicleDetail(plate: string): Promise<ParkingVehicleDetailResponse> {
   return apiGet<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`);
+}
+
+export function fetchSettlementDetail(settlementId: string): Promise<SettlementDetailResponse> {
+  return apiGet<SettlementDetailResponse>(`/api/settlements/${encodeURIComponent(settlementId)}`);
 }
 
 export function fetchSunSessionImageBrowser(sessionId: number, snapshotId?: string | null): Promise<SunSessionImageBrowser> {
