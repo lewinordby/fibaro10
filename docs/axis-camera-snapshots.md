@@ -64,15 +64,16 @@ Eksisterende koblinger kan rekobles med:
 POST /api/actions/soling/link-snapshot-images?days=7&tolerance_seconds=8&replace=true
 ```
 
-Manuelt bildebytte gjøres fra `Soling -> Enkeltimer`. Åpne en soltime for å se de fem lagrede bildene direkte på posten. `Forrige` og `Neste` blar bare i denne fem-bildersserien. `Bildearkiv` åpner hele Axis-arkivet rundt valgt bilde; bla eldre/nyere og trykk `Bruk dette bildet` for å bytte hovedbildet. Frontend bruker tidsbaserte snapshot-ID-er, ikke filstier:
+Manuelt bildebytte gjøres fra `Soling -> Enkeltimer`. Åpne en soltime for å se de fem lagrede bildene direkte på posten. `Forrige` og `Neste` blar bare i denne fem-bildersserien. `Sett som hovedbilde` markerer valgt lagret bilde som hovedbildet uten å endre bildeserien. `Bildearkiv` åpner hele Axis-arkivet rundt valgt bilde; bla eldre/nyere og trykk `Bruk dette bildet` for å hente inn et annet arkivbilde som hovedbilde. Frontend bruker tidsbaserte snapshot-ID-er, ikke filstier:
 
 ```text
 GET  /api/soling/enkeltimer/{session_id}/image-browser
 GET  /api/soling/axis-snapshots/{snapshot_id}/image
 POST /api/soling/enkeltimer/{session_id}/image?snapshot_id=YYYYMMDDHHMMSS
+POST /api/soling/enkeltimer/{session_id}/bilder/{image_id}/primary
 ```
 
-`POST` krever master- eller innstillingstilgang, fordi bildet som ligger lagret på soltimeposten erstattes.
+`POST` krever master- eller innstillingstilgang, fordi soltimepostens bildevalg endres i databasen.
 
 Når et bilde er koblet til en soltime, er det uavhengig av 7-dagers retention i snapshot-bufferen.
 

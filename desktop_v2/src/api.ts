@@ -774,6 +774,22 @@ export async function selectSunSessionImage(sessionId: number, snapshotId: strin
   return payload ?? {};
 }
 
+export async function setSunSessionPrimaryImage(sessionId: number, imageId: number): Promise<JsonRecord> {
+  const response = await fetch(
+    `/api/soling/enkeltimer/${encodeURIComponent(sessionId)}/bilder/${encodeURIComponent(imageId)}/primary`,
+    {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    },
+  );
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
+}
+
 export async function runModuleAction(action: ModuleAction): Promise<JsonRecord> {
   const response = await fetch(action.path, {
     method: action.method,

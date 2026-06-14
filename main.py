@@ -3948,6 +3948,51 @@ async def replace_sun2_session_image_with_axis_snapshot(
     return axis_snapshot_browser_payload(row, images, snapshot_id_value)
 
 
+async def set_sun2_session_primary_image(
+    session,
+    session_id: int,
+    image_id: int,
+) -> Dict[str, Any]:
+    row = (
+        await session.execute(
+            select(Sun2TanningSession).where(Sun2TanningSession.id == session_id)
+        )
+    ).scalars().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Fant ikke soltimen.")
+
+    image = (
+        await session.execute(
+            select(Sun2TanningSessionImage)
+            .where(Sun2TanningSessionImage.session_id == session_id)
+            .where(Sun2TanningSessionImage.id == image_id)
+        )
+    ).scalars().first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Fant ikke bildet på denne soltimen.")
+
+    await session.execute(
+        update(Sun2TanningSessionImage)
+        .where(Sun2TanningSessionImage.session_id == row.id)
+        .values(is_primary=False)
+    )
+    await session.execute(
+        update(Sun2TanningSessionImage)
+        .where(Sun2TanningSessionImage.id == image.id)
+        .values(is_primary=True)
+    )
+    await session.flush()
+
+    images = (
+        await session.execute(
+            select(Sun2TanningSessionImage)
+            .where(Sun2TanningSessionImage.session_id == row.id)
+            .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
+        )
+    ).scalars().all()
+    return axis_snapshot_browser_payload(row, images, axis_snapshot_id(image.captured_at) if image.captured_at else None)
+
+
 async def link_axis_snapshots_to_sun2_sessions(
     session,
     days: int = 7,
@@ -10329,6 +10374,25 @@ async def api_sun2_session_select_image(
     return {
         "status": "ok",
         "message": "Bildet er byttet.",
+        "browser": payload,
+    }
+
+
+@app.post("/api/soling/enkeltimer/{session_id:int}/bilder/{image_id:int}/primary")
+async def api_sun2_session_set_primary_image(
+    request: Request,
+    session_id: int,
+    image_id: int,
+):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        payload = await set_sun2_session_primary_image(session, session_id, image_id)
+        await session.commit()
+    return {
+        "status": "ok",
+        "message": "Hovedbildet er oppdatert.",
         "browser": payload,
     }
 

@@ -52,6 +52,22 @@ class Sun2AxisSnapshotTests(unittest.TestCase):
         self.assertEqual([item[1].strftime("%H:%M:%S") for item in series], ["17:46:05", "17:46:10", "17:46:15", "17:46:20", "17:46:25"])
         self.assertEqual([item[2] for item in series], [False, False, True, False, False])
 
+    def test_primary_session_image_prefers_explicit_primary_flag(self) -> None:
+        standard = self.main.Sun2TanningSessionImage(
+            id=1,
+            offset_seconds=-15,
+            captured_at=datetime(2026, 6, 13, 17, 46, 15),
+            is_primary=False,
+        )
+        selected = self.main.Sun2TanningSessionImage(
+            id=2,
+            offset_seconds=-20,
+            captured_at=datetime(2026, 6, 13, 17, 46, 10),
+            is_primary=True,
+        )
+
+        self.assertIs(self.main.primary_sun2_session_image([standard, selected]), selected)
+
     def test_axis_snapshot_id_roundtrip(self) -> None:
         captured_at = datetime(2026, 6, 13, 17, 46, 27)
 

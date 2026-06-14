@@ -8,6 +8,7 @@ import {
   fetchSunSessionImageBrowser,
   runModuleAction,
   selectSunSessionImage,
+  setSunSessionPrimaryImage,
   submitModuleEdit,
   type JsonRecord,
   type ModuleAction,
@@ -504,6 +505,7 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
   const [browserOpen, setBrowserOpen] = useState(false);
   const [browserLoading, setBrowserLoading] = useState(false);
   const [savingImage, setSavingImage] = useState(false);
+  const [settingPrimaryImageId, setSettingPrimaryImageId] = useState<number | null>(null);
   const [browser, setBrowser] = useState<SunSessionImageBrowser | null>(null);
   const [selectedInlineImageId, setSelectedInlineImageId] = useState<number | null>(null);
   const inlineImages = rowSavedImages(row);
@@ -556,6 +558,21 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
       message.error(err instanceof Error ? err.message : "Kunne ikke bytte bilde");
     } finally {
       setSavingImage(false);
+    }
+  }
+
+  async function setInlineImageAsPrimary(image: SunSessionSavedImage) {
+    if (!canBrowseImages || image.isPrimary || settingPrimaryImageId) return;
+    setSettingPrimaryImageId(image.id);
+    try {
+      await setSunSessionPrimaryImage(sessionId, image.id);
+      message.success("Hovedbildet er oppdatert");
+      setSelectedInlineImageId(image.id);
+      onImageChanged();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Kunne ikke sette hovedbilde");
+    } finally {
+      setSettingPrimaryImageId(null);
     }
   }
 
@@ -612,6 +629,15 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
               </Button>
               <Button size="small" disabled={inlineImages.length < 2} onClick={() => moveInlineImage(1)}>
                 Neste
+              </Button>
+              <Button
+                size="small"
+                type={activeInlineImage.isPrimary ? "default" : "primary"}
+                loading={settingPrimaryImageId === activeInlineImage.id}
+                disabled={activeInlineImage.isPrimary || Boolean(settingPrimaryImageId)}
+                onClick={() => setInlineImageAsPrimary(activeInlineImage)}
+              >
+                {activeInlineImage.isPrimary ? "Hovedbilde" : "Sett som hovedbilde"}
               </Button>
               <Button size="small" onClick={() => openBrowser(activeInlineImage.snapshotId || null)} disabled={!canBrowseImages}>
                 Bildearkiv

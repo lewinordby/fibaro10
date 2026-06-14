@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1138")
+APP_BUILD = os.getenv("APP_BUILD", "1139")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1139",
+        "date": "14.06.2026",
+        "headline": "Hovedbilde fra soltimekort",
+        "title": "Lagrede soltimebilder kan settes som hovedbilde direkte i grensesnittet",
+        "description": (
+            "De fem lagrede bildene på en soltime kan nå brukes direkte til å velge hovedbilde. Dette endrer bare "
+            "hvilket eksisterende bilde som er primært, uten å kopiere bildet på nytt eller endre fem-bildersserien."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger til API for å markere et lagret soltimebilde som primærbilde.",
+            "Desktop V2 (api.ts og ModulePage.tsx): legger `Sett som hovedbilde` direkte i inline-bildevisningen.",
+            "Dokumentasjon (docs/axis-camera-snapshots.md): beskriver forskjellen mellom å sette lagret bilde som hovedbilde og å hente nytt arkivbilde.",
+            "Buildlogg (build_log.py): registrerer build 1139.",
+        ],
+        "request": "hva med knapp for å sette hovedbilde, en ting er når du er inne i arkivet, men også når du er i grensesnittet.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny knapp vises sammen med Forrige/Neste på de fem lagrede soltimebildene.",
+            "Knappen er deaktivert når bildet allerede er hovedbilde.",
+            "Valget krever samme innstillings-/mastertilgang som manuelt bildebytte.",
+            "Eksisterende bildeserie beholdes uendret; bare is_primary flyttes til valgt bilde.",
+        ],
+    },
     {
         "version": "1",
         "build": "1138",
