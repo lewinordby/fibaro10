@@ -14846,6 +14846,310 @@ async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_
     return task_rows
 
 
+def quality_percent(ok_count: int, total_count: int) -> Optional[float]:
+    if total_count <= 0:
+        return None
+    return round(max(0.0, min(100.0, (ok_count / total_count) * 100.0)), 1)
+
+
+def quality_status_from_percent(value: Optional[float], warn_below: float = 98.0, bad_below: float = 90.0) -> str:
+    if value is None:
+        return "bad"
+    if value < bad_below:
+        return "bad"
+    if value < warn_below:
+        return "warn"
+    return "ok"
+
+
+def quality_status_from_age(minutes: Optional[int], warn_after: int, bad_after: int) -> str:
+    if minutes is None:
+        return "bad"
+    if minutes > bad_after:
+        return "bad"
+    if minutes > warn_after:
+        return "warn"
+    return "ok"
+
+
+def api_data_quality_row(
+    domain: str,
+    metric: str,
+    status: str,
+    value: Any,
+    target: str,
+    coverage_percent: Optional[float],
+    missing_count: Optional[int],
+    sample_count: Optional[int],
+    detail: str,
+    path: str,
+    recommended_action: str,
+) -> Dict[str, Any]:
+    return {
+        "domain": domain,
+        "metric": metric,
+        "status": status,
+        "value": value,
+        "target": target,
+        "coverage_percent": coverage_percent,
+        "missing_count": missing_count,
+        "sample_count": sample_count,
+        "detail": detail,
+        "path": path,
+        "recommended_action": recommended_action,
+    }
+
+
+async def build_admin_data_quality(session, import_rows: list[Dict[str, Any]], now_dt: datetime) -> Dict[str, Any]:
+    today_start = datetime.combine(now_dt.date(), time.min)
+    import_total = len(import_rows)
+    import_ok = sum(1 for row in import_rows if row.get("status") == "ok")
+    import_coverage = quality_percent(import_ok, import_total)
+
+    vehicle_count = int_or_zero((await session.execute(select(func.count(ParkingVehicle.plate)))).scalar_one())
+    vehicle_missing_name = int_or_zero(
+        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_missing_name_condition()))).scalar_one()
+    )
+    vehicle_missing_area = int_or_zero(
+        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_missing_area_condition()))).scalar_one()
+    )
+    vehicle_name_coverage = quality_percent(max(0, vehicle_count - vehicle_missing_name), vehicle_count)
+    vehicle_area_coverage = quality_percent(max(0, vehicle_count - vehicle_missing_area), vehicle_count)
+
+    parking_count = int_or_zero((await session.execute(select(func.count(ParkingSession.id)))).scalar_one())
+    parking_missing_plate = int_or_zero(
+        (
+            await session.execute(
+                select(func.count(ParkingSession.id)).where(
+                    func.trim(func.coalesce(ParkingSession.car_license_number, "")) == ""
+                )
+            )
+        ).scalar_one()
+    )
+    parking_plate_coverage = quality_percent(max(0, parking_count - parking_missing_plate), parking_count)
+
+    sun_cutoff = now_dt - timedelta(days=14)
+    sun_recent_count = int_or_zero(
+        (
+            await session.execute(
+                select(func.count(Sun2TanningSession.id)).where(Sun2TanningSession.started_at >= sun_cutoff)
+            )
+        ).scalar_one()
+    )
+    sun_without_image = int_or_zero(
+        (
+            await session.execute(
+                select(func.count(Sun2TanningSession.id))
+                .outerjoin(Sun2TanningSessionImage, Sun2TanningSessionImage.session_id == Sun2TanningSession.id)
+                .where(Sun2TanningSession.started_at >= sun_cutoff)
+                .where(Sun2TanningSessionImage.id.is_(None))
+            )
+        ).scalar_one()
+    )
+    sun_image_coverage = quality_percent(max(0, sun_recent_count - sun_without_image), sun_recent_count)
+
+    sun_missing_room = int_or_zero(
+        (
+            await session.execute(
+                select(func.count(Sun2TanningSession.id)).where(
+                    and_(
+                        func.trim(func.coalesce(Sun2TanningSession.room_id, "")) == "",
+                        func.trim(func.coalesce(Sun2TanningSession.room, "")) == "",
+                    )
+                )
+            )
+        ).scalar_one()
+    )
+    sun_total_count = int_or_zero((await session.execute(select(func.count(Sun2TanningSession.id)))).scalar_one())
+    sun_room_coverage = quality_percent(max(0, sun_total_count - sun_missing_room), sun_total_count)
+
+    latest_energy = (
+        await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
+    ).scalars().first()
+    energy_age = minutes_since(latest_energy.bucket_start if latest_energy else None, now_dt)
+    energy_today_count = int_or_zero(
+        (
+            await session.execute(
+                select(func.count(EnergyFibaroSample.id)).where(EnergyFibaroSample.bucket_start >= today_start)
+            )
+        ).scalar_one()
+    )
+    expected_energy_samples = max(1, int(max(60, (now_dt - today_start).total_seconds()) // 30))
+    energy_sample_coverage = round(min(100.0, (energy_today_count / expected_energy_samples) * 100.0), 1)
+
+    latest_ventilation = (
+        await session.execute(select(VentilationSample).order_by(VentilationSample.bucket_start.desc()).limit(1))
+    ).scalars().first()
+    latest_yr = (
+        await session.execute(select(YrForecastSample).order_by(YrForecastSample.bucket_start.desc()).limit(1))
+    ).scalars().first()
+    latest_light = (
+        await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.bucket_start.desc()).limit(1))
+    ).scalars().first()
+    ventilation_age = minutes_since(latest_ventilation.bucket_start if latest_ventilation else None, now_dt)
+    yr_age = minutes_since(latest_yr.bucket_start if latest_yr else None, now_dt)
+    light_age = minutes_since(latest_light.bucket_start if latest_light else None, now_dt)
+
+    rows = [
+        api_data_quality_row(
+            "Datakilder",
+            "Importstatus",
+            quality_status_from_percent(import_coverage, warn_below=100.0, bad_below=90.0),
+            f"{import_ok}/{import_total}",
+            "Alle kilder OK",
+            import_coverage,
+            import_total - import_ok,
+            import_total,
+            "Basert på import_job_status og fallback-kilder.",
+            "/admin/datakilder",
+            "Sjekk kilder med advarsel eller feil.",
+        ),
+        api_data_quality_row(
+            "Parkering",
+            "Kjøretøy med eiernavn",
+            quality_status_from_percent(vehicle_name_coverage, warn_below=98.0, bad_below=90.0),
+            f"{max(0, vehicle_count - vehicle_missing_name)}/{vehicle_count}",
+            "Minst 98 % dekning",
+            vehicle_name_coverage,
+            vehicle_missing_name,
+            vehicle_count,
+            "Blankt navn og 'ikke funnet' regnes som mangler.",
+            "/parkering/oppslag",
+            "Kjør SVV-sync og behandle kjøretøy som fortsatt mangler navn.",
+        ),
+        api_data_quality_row(
+            "Parkering",
+            "Kjøretøy med område",
+            quality_status_from_percent(vehicle_area_coverage, warn_below=98.0, bad_below=90.0),
+            f"{max(0, vehicle_count - vehicle_missing_area)}/{vehicle_count}",
+            "Minst 98 % dekning",
+            vehicle_area_coverage,
+            vehicle_missing_area,
+            vehicle_count,
+            "Blankt område og 'ikke funnet' regnes som mangler.",
+            "/parkering/omrade",
+            "Sett område eller nullstill 'ikke funnet' for ny behandling.",
+        ),
+        api_data_quality_row(
+            "Parkering",
+            "Parkeringer med reg.nr",
+            quality_status_from_percent(parking_plate_coverage, warn_below=99.5, bad_below=98.0),
+            f"{max(0, parking_count - parking_missing_plate)}/{parking_count}",
+            "Minst 99,5 % dekning",
+            parking_plate_coverage,
+            parking_missing_plate,
+            parking_count,
+            "Kontrollerer at EasyPark-rader har registreringsnummer.",
+            "/parkering/parkeringer",
+            "Sjekk importgrunnlaget hvis det finnes parkeringer uten reg.nr.",
+        ),
+        api_data_quality_row(
+            "Soling",
+            "Soltimer med bilde siste 14 dager",
+            quality_status_from_percent(sun_image_coverage, warn_below=98.0, bad_below=90.0),
+            f"{max(0, sun_recent_count - sun_without_image)}/{sun_recent_count}",
+            "Minst 98 % dekning",
+            sun_image_coverage,
+            sun_without_image,
+            sun_recent_count,
+            "Måler Axis-bilder koblet til soltimer siste 14 dager.",
+            "/soling/enkeltimer",
+            "Kjør bildekobling og kontroller Axis-arkivet ved manglende treff.",
+        ),
+        api_data_quality_row(
+            "Soling",
+            "Soltimer med rom",
+            quality_status_from_percent(sun_room_coverage, warn_below=99.5, bad_below=98.0),
+            f"{max(0, sun_total_count - sun_missing_room)}/{sun_total_count}",
+            "Minst 99,5 % dekning",
+            sun_room_coverage,
+            sun_missing_room,
+            sun_total_count,
+            "Rom-ID eller romnavn må finnes for analyse per seng.",
+            "/soling/enkeltimer",
+            "Sjekk SUN2-import hvis rom mangler.",
+        ),
+        api_data_quality_row(
+            "Energi",
+            "Realtime samples i dag",
+            quality_status_from_percent(energy_sample_coverage, warn_below=95.0, bad_below=85.0),
+            f"{energy_today_count}/{expected_energy_samples}",
+            "Minst 95 % av forventet 30-sek logging",
+            energy_sample_coverage,
+            max(0, expected_energy_samples - energy_today_count),
+            energy_today_count,
+            f"Siste sample: {age_label(energy_age)}.",
+            "/energi/status",
+            "Kontroller HC3-logger og scheduler hvis dekningen faller.",
+        ),
+        api_data_quality_row(
+            "Energi",
+            "Realtime ferskhet",
+            quality_status_from_age(energy_age, warn_after=3, bad_after=10),
+            age_label(energy_age),
+            "Maks 3 min gammel",
+            None,
+            None,
+            energy_today_count,
+            f"Siste bucket: {latest_energy.bucket_start.strftime('%d.%m %H:%M') if latest_energy else '-'}",
+            "/energi/status",
+            "Sjekk energilogging hvis siste sample er for gammel.",
+        ),
+        api_data_quality_row(
+            "Ventilasjon",
+            "Ventilasjon ferskhet",
+            quality_status_from_age(ventilation_age, warn_after=3, bad_after=10),
+            age_label(ventilation_age),
+            "Maks 3 min gammel",
+            None,
+            None,
+            None,
+            f"Siste sample: {latest_ventilation.bucket_start.strftime('%d.%m %H:%M') if latest_ventilation else '-'}",
+            "/ventilasjon/dagslogg",
+            "Kontroller HC3 ventilasjonslogger hvis sample stopper.",
+        ),
+        api_data_quality_row(
+            "Vær",
+            "Yr ferskhet",
+            quality_status_from_age(yr_age, warn_after=90, bad_after=180),
+            age_label(yr_age),
+            "Maks 90 min gammel",
+            None,
+            None,
+            None,
+            f"Siste vær: {latest_yr.weather_text if latest_yr else '-'}",
+            "/ventilasjon/yr-logg",
+            "Sjekk Yr API og importstatus ved gammel værdata.",
+        ),
+        api_data_quality_row(
+            "Lys",
+            "Lys/lux ferskhet",
+            quality_status_from_age(light_age, warn_after=3, bad_after=10),
+            age_label(light_age),
+            "Maks 3 min gammel",
+            None,
+            None,
+            None,
+            f"Siste lux: {format_short_number(latest_light.lux) if latest_light and latest_light.lux is not None else '-'}",
+            "/lys/dagslogg",
+            "Kontroller lyslogger hvis sample stopper.",
+        ),
+    ]
+    bad_count = sum(1 for row in rows if row["status"] == "bad")
+    warn_count = sum(1 for row in rows if row["status"] == "warn")
+    ok_count = sum(1 for row in rows if row["status"] == "ok")
+    score = round(((ok_count + warn_count * 0.6) / len(rows)) * 100.0, 0) if rows else 0
+    issue_rows = [row for row in rows if row["status"] != "ok"]
+    return {
+        "score": score,
+        "ok_count": ok_count,
+        "warn_count": warn_count,
+        "bad_count": bad_count,
+        "rows": rows,
+        "issue_rows": issue_rows,
+    }
+
+
 @app.get("/api/modules/{module}")
 async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
@@ -16087,6 +16391,52 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                                 "oppgaver_totalt": len(admin_task_rows),
                             }
                         ),
+                    ),
+                ]
+            elif view == "datakvalitet":
+                data_quality = await build_admin_data_quality(session, import_rows, now_dt)
+                actions = [
+                    {
+                        "key": "easypark-refresh",
+                        "label": "Oppdater EasyPark",
+                        "method": "POST",
+                        "path": "/api/actions/parkering/refresh",
+                        "confirm": "Starte EasyPark-import for siste periode?",
+                        "tone": "primary",
+                    },
+                    {
+                        "key": "svv-sync",
+                        "label": "Kjør SVV-sync",
+                        "method": "POST",
+                        "path": "/api/actions/parkering/svv-sync",
+                        "confirm": "Starte nytt oppslag mot Statens vegvesen?",
+                        "tone": "default",
+                    },
+                    {
+                        "key": "link-sun-images",
+                        "label": "Koble solbilder",
+                        "method": "POST",
+                        "path": "/api/actions/soling/link-snapshot-images?days=14",
+                        "confirm": "Koble Axis-bilder mot soltimer siste 14 dager?",
+                        "tone": "default",
+                    },
+                ]
+                admin_cards = [
+                    api_card("Datakvalitet", format_short_number(data_quality["score"]), "%", "Vektet score for sentrale datakilder", "status", href="/admin/datakvalitet"),
+                    api_card("OK", data_quality["ok_count"], "stk", "Målepunkter innenfor mål", "status", href="/admin/datakvalitet"),
+                    api_card("Varsel", data_quality["warn_count"], "stk", "Bør følges opp", "status", href="/admin/datakvalitet"),
+                    api_card("Feil", data_quality["bad_count"], "stk", "Krever tiltak", "status", href="/admin/oppgaver"),
+                ]
+                tables = [
+                    api_table(
+                        "Datakvalitet",
+                        ["domain", "metric", "status", "value", "target", "coverage_percent", "missing_count", "sample_count", "detail", "recommended_action", "path"],
+                        data_quality["rows"],
+                    ),
+                    api_table(
+                        "Avvik fra mål",
+                        ["domain", "metric", "status", "value", "target", "missing_count", "detail", "recommended_action", "path"],
+                        data_quality["issue_rows"],
                     ),
                 ]
             elif view == "build":

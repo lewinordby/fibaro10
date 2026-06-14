@@ -266,6 +266,11 @@ function labelize(column: string): string {
     item: "Gjelder",
     problem: "Problem",
     detail: "Detalj",
+    metric: "Målepunkt",
+    target: "Mål",
+    coverage_percent: "Dekning %",
+    missing_count: "Mangler",
+    sample_count: "Samples",
     recommended_action: "Anbefalt handling",
   };
   return labels[column] ?? column.replaceAll("_", " ");

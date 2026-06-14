@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1149")
+APP_BUILD = os.getenv("APP_BUILD", "1150")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1150",
+        "date": "14.06.2026",
+        "headline": "Datakvalitet i Admin",
+        "title": "V2 får egen datakvalitetsside med dekning, ferskhet og avvik fra mål",
+        "description": (
+            "Admin får en egen datakvalitetsside som beregner status direkte fra produksjonsdata. "
+            "Siden viser om sentrale datasett er komplette nok for drift og analyse, og peker videre til riktig ryddeside."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger beregninger for datakvalitet på importstatus, parkering, soling, energi, ventilasjon, Yr og lys.",
+            "Fibaro10 backend (main.py): eksponerer `/admin/datakvalitet` via V2 modul-API med kort, avvikstabell og handlinger.",
+            "Desktop V2 navigasjon (moduleViews.ts): legger Datakvalitet inn under Admin.",
+            "Desktop V2 tabeller (ModulePage.tsx): legger etiketter for målepunkt, mål, dekning og mangler.",
+            "Buildlogg (build_log.py): registrerer build 1150.",
+        ],
+        "request": "du må gjennomføre alle punktene du foreslo",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "`/admin/datakvalitet` viser vektet datakvalitetsscore.",
+            "Parkering måles på eiernavn, område og reg.nr-dekning.",
+            "Soling måles på bilde-dekning siste 14 dager og romgrunnlag.",
+            "Energi måles på realtime ferskhet og forventet 30-sekunders sampledekning.",
+            "Ventilasjon, Yr og lys måles på ferskhet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1149",

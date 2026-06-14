@@ -69,6 +69,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
   ],
   admin: [
     { key: "oppgaver", label: "Oppgaver" },
+    { key: "datakvalitet", label: "Datakvalitet" },
     { key: "drift", label: "Drift" },
     { key: "build", label: "Build" },
     { key: "datakilder", label: "Datakilder" },
