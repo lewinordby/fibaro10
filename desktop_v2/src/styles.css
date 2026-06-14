@@ -1417,6 +1417,13 @@
   color: var(--domain-energy);
 }
 
+.sun-energy-total small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
 .sun-aggregate-total {
   color: var(--domain-sun2);
 }
@@ -1514,8 +1521,15 @@
   bottom: 5px;
   min-height: 3px;
   border-radius: 4px 4px 2px 2px;
-  background: var(--domain-energy);
   box-shadow: 0 2px 6px rgba(21, 128, 61, 0.18);
+}
+
+.sun-energy-bar.source-elvia {
+  background: var(--domain-energy);
+}
+
+.sun-energy-bar.source-internal {
+  background: #84cc16;
 }
 
 .sun-energy-bar.empty {

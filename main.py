@@ -12706,6 +12706,20 @@ async def api_sun2_day_timeline(session, selected: date) -> Dict[str, Any]:
             .order_by(EnergyHourlyConsumption.hour.asc())
         )
     ).mappings().all()
+    internal_energy_hour = func.extract("hour", EnergyFibaroSample.bucket_start)
+    internal_energy_rows = (
+        await session.execute(
+            select(
+                internal_energy_hour.label("hour"),
+                func.coalesce(func.sum(EnergyFibaroSample.inntak_delta_kwh), 0).label("internal_kwh"),
+                func.count(EnergyFibaroSample.id).label("samples_count"),
+            )
+            .where(EnergyFibaroSample.bucket_start >= day_start)
+            .where(EnergyFibaroSample.bucket_start < day_end)
+            .group_by(internal_energy_hour)
+            .order_by(internal_energy_hour.asc())
+        )
+    ).mappings().all()
 
     totals = {"sessionsCount": 0, "durationMinutes": 0.0, "durationHours": 0.0, "paidAmountKr": 0.0}
     aggregate_sessions = []
@@ -12777,27 +12791,41 @@ async def api_sun2_day_timeline(session, selected: date) -> Dict[str, Any]:
 
     ticks = [{"label": f"{hour:02d}", "left": round(hour / 24 * 100, 4)} for hour in range(0, 25, 2)]
     energy_lookup = {int(item.get("hour") or 0): item for item in energy_rows}
+    internal_energy_lookup = {int(item.get("hour") or 0): item for item in internal_energy_rows}
     energy_hours = []
     max_energy_kwh = max([float((item.get("consumption_kwh") or 0)) for item in energy_rows] or [0.0])
+    max_internal_energy_kwh = max([float((item.get("internal_kwh") or 0)) for item in internal_energy_rows] or [0.0])
+    max_visible_energy_kwh = max(max_energy_kwh, max_internal_energy_kwh)
     total_energy_kwh = sum(float((item.get("consumption_kwh") or 0)) for item in energy_rows)
+    total_internal_energy_kwh = sum(float((item.get("internal_kwh") or 0)) for item in internal_energy_rows)
+    total_internal_energy_samples = sum(int_or_zero(item.get("samples_count")) for item in internal_energy_rows)
     for hour in range(24):
         item = energy_lookup.get(hour) or {}
+        internal_item = internal_energy_lookup.get(hour) or {}
         consumption = float(item.get("consumption_kwh") or 0)
         production = float(item.get("production_kwh") or 0)
+        internal_kwh = float(internal_item.get("internal_kwh") or 0)
+        internal_samples = int_or_zero(internal_item.get("samples_count"))
         energy_hours.append(
             {
                 "hour": hour,
                 "left": round(hour / 24 * 100, 4),
                 "width": round(100 / 24, 4),
-                "height": round((consumption / max_energy_kwh) * 100, 2) if max_energy_kwh else 0,
+                "height": round((consumption / max_visible_energy_kwh) * 100, 2) if max_visible_energy_kwh else 0,
+                "internalHeight": round((internal_kwh / max_visible_energy_kwh) * 100, 2) if max_visible_energy_kwh else 0,
                 "consumptionKwh": consumption,
                 "productionKwh": production,
-                "title": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00 | {consumption:.2f} kWh",
+                "internalKwh": internal_kwh,
+                "internalSamples": internal_samples,
+                "title": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00 | Elvia {consumption:.2f} kWh | Egen {internal_kwh:.2f} kWh",
             }
         )
     peak_energy_hour = max(energy_hours, key=lambda item: item["consumptionKwh"], default=None)
     if peak_energy_hour and not peak_energy_hour["consumptionKwh"]:
         peak_energy_hour = None
+    peak_internal_energy_hour = max(energy_hours, key=lambda item: item["internalKwh"], default=None)
+    if peak_internal_energy_hour and not peak_internal_energy_hour["internalKwh"]:
+        peak_internal_energy_hour = None
     return {
         "selectedDay": selected.isoformat(),
         "selectedDayLabel": selected.strftime("%d.%m.%Y"),
@@ -12815,6 +12843,11 @@ async def api_sun2_day_timeline(session, selected: date) -> Dict[str, Any]:
             "totalKwh": total_energy_kwh,
             "maxKwh": max_energy_kwh,
             "peakHour": peak_energy_hour,
+            "internalHoursCount": len([item for item in energy_hours if item["internalKwh"] > 0]),
+            "internalTotalKwh": total_internal_energy_kwh,
+            "internalMaxKwh": max_internal_energy_kwh,
+            "internalSamples": total_internal_energy_samples,
+            "internalPeakHour": peak_internal_energy_hour,
         },
     }
 
@@ -13538,13 +13571,33 @@ async def api_v2_soling_module(
         ]
     elif view == "dagslinje":
         timeline = await api_sun2_day_timeline(session, selected_day or today)
+        energy_summary = timeline["energySummary"]
+        elvia_kwh = float_or_zero(energy_summary.get("totalKwh"))
+        internal_kwh = float_or_zero(energy_summary.get("internalTotalKwh"))
+        has_elvia_energy = int_or_zero(energy_summary.get("hoursCount")) > 0
+        has_internal_energy = int_or_zero(energy_summary.get("internalHoursCount")) > 0
+        energy_card_value = elvia_kwh if has_elvia_energy else internal_kwh if has_internal_energy else None
+        energy_detail_parts = []
+        if has_elvia_energy:
+            energy_detail_parts.append(f"Elvia {format_short_number(elvia_kwh, 1)} kWh")
+        if has_internal_energy:
+            energy_detail_parts.append(
+                f"Egen {format_short_number(internal_kwh, 1)} kWh / {format_short_number(energy_summary.get('internalSamples'))} samples"
+            )
         charts = []
         cards = [
             api_card("Solinger", timeline["totals"]["sessionsCount"], "stk", timeline["selectedDayLabel"], "sun2", href="/soling/enkeltimer"),
             api_card("Total soletid", format_short_number(timeline["totals"]["durationHours"], 1), "t", f"{format_short_number(timeline['totals']['durationMinutes'], 0)} min", "sun2", href="/soling/enkeltimer"),
             api_card("Omsetning", format_short_number(timeline["totals"]["paidAmountKr"]), "kr", "Fra enkelttimer", "revenue", href="/omsetning/oversikt"),
             api_card("Mest brukt", timeline["busiestRoom"]["label"] if timeline.get("busiestRoom") else "-", "", f"{timeline['busiestRoom']['count']} solinger" if timeline.get("busiestRoom") else "Ingen solinger", "sun2", href="/soling/senger"),
-            api_card("Strømforbruk", format_short_number(timeline["energySummary"]["totalKwh"], 1) if timeline["energySummary"]["hoursCount"] else "-", "kWh", "Elvia for valgt dag", "energy", href="/energi/elvia"),
+            api_card(
+                "Strømforbruk",
+                format_short_number(energy_card_value, 1) if energy_card_value is not None else "-",
+                "kWh",
+                " · ".join(energy_detail_parts) if energy_detail_parts else "Ingen energidata for valgt dag",
+                "energy",
+                href="/energi/elvia",
+            ),
         ]
         tables = []
     elif view == "enkeltimer":

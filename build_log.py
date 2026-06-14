@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1141")
+APP_BUILD = os.getenv("APP_BUILD", "1142")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1142",
+        "date": "14.06.2026",
+        "headline": "Egen energimåling på soling dagslinje",
+        "title": "Soling dagslinje viser både Elvia og intern energimåling",
+        "description": (
+            "Energikortet og energilinjen på soling dagslinje tar nå med Fibaro10 sin interne kWh-beregning i tillegg "
+            "til Elvia-timesforbruket for valgt dag."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): summerer EnergyFibaroSample.inntak_delta_kwh per time for valgt soling-dag.",
+            "Desktop V2 soling (SunTimelinePanel.tsx): viser Elvia og egen måling i energinotat, totalfelt og timegraf.",
+            "Desktop V2 API-typer (api.ts): utvider SunTimeline med interne energifelt.",
+            "Desktop V2 stilark (styles.css): skiller Elvia og egen måling visuelt i energilinjen.",
+            "Buildlogg (build_log.py): registrerer build 1142.",
+        ],
+        "request": "på dagslinje soling så har vi et kort som viser energi, i tillegg til elvia tallet burde vi også ha vårt eget",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Strømforbruk-kortet beholder Elvia som hovedtall når Elvia-data finnes.",
+            "Detaljlinjen viser nå også egen kWh og antall interne samples.",
+            "Energilinjen viser Elvia og egen måling side om side per time.",
+            "Tooltip per time viser begge kildene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1141",

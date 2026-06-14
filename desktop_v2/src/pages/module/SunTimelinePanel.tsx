@@ -27,6 +27,15 @@ function NowMarker({ value }: { value: number | null }) {
 
 export function SunTimelinePanel({ timeline, onDayChange }: { timeline: SunTimeline; onDayChange: (day: string) => void }) {
   const peak = timeline.energySummary.peakHour;
+  const internalPeak = timeline.energySummary.internalPeakHour;
+  const hasElvia = timeline.energySummary.hoursCount > 0;
+  const hasInternal = timeline.energySummary.internalHoursCount > 0;
+  const energySummaryParts = [
+    hasElvia ? `${sunNumber(timeline.energySummary.totalKwh, 1)} kWh Elvia${peak ? `, topp ${String(peak.hour).padStart(2, "0")}:00` : ""}` : "",
+    hasInternal
+      ? `${sunNumber(timeline.energySummary.internalTotalKwh, 1)} kWh egen${internalPeak ? `, topp ${String(internalPeak.hour).padStart(2, "0")}:00` : ""}`
+      : "",
+  ].filter(Boolean);
   return (
     <Space direction="vertical" size={12} className="sun-timeline-stack">
       <Card className="work-card sun-timeline-toolbar">
@@ -74,11 +83,7 @@ export function SunTimelinePanel({ timeline, onDayChange }: { timeline: SunTimel
       >
         <div className="sun-timeline-note">
           <span>{timeline.selectedDayLabel}</span>
-          <span>
-            {timeline.energySummary.hoursCount
-              ? `${sunNumber(timeline.energySummary.totalKwh, 1)} kWh Elvia${peak ? `, topp ${String(peak.hour).padStart(2, "0")}:00` : ""}`
-              : "Ingen Elvia-data for dagen"}
-          </span>
+          <span>{energySummaryParts.length ? energySummaryParts.join(" · ") : "Ingen energidata for dagen"}</span>
         </div>
         <div className="sun-timeline-scroll">
           <div className="sun-timeline-grid">
@@ -94,25 +99,44 @@ export function SunTimelinePanel({ timeline, onDayChange }: { timeline: SunTimel
 
             <div className="sun-room-label">
               Strøm
-              <small>Elvia</small>
+              <small>Elvia / egen</small>
             </div>
             <div className="sun-energy-line">
               <NowMarker value={timeline.nowMarker} />
               {timeline.energyHours.map((item) => (
                 <div
-                  className={`sun-energy-bar ${item.consumptionKwh ? "" : "empty"}`}
-                  key={item.hour}
+                  className={`sun-energy-bar source-elvia ${item.consumptionKwh ? "" : "empty"}`}
+                  key={`elvia-${item.hour}`}
                   title={item.title}
                   style={{
-                    left: `${item.left}%`,
-                    width: `calc(${item.width}% - 2px)`,
+                    left: `calc(${item.left}% + 1px)`,
+                    width: `calc(${item.width / 2}% - 2px)`,
                     height: `${item.consumptionKwh ? Math.max(6, item.height) : 2}%`,
+                  }}
+                />
+              ))}
+              {timeline.energyHours.map((item) => (
+                <div
+                  className={`sun-energy-bar source-internal ${item.internalKwh ? "" : "empty"}`}
+                  key={`internal-${item.hour}`}
+                  title={item.title}
+                  style={{
+                    left: `calc(${item.left + item.width / 2}% + 1px)`,
+                    width: `calc(${item.width / 2}% - 2px)`,
+                    height: `${item.internalKwh ? Math.max(6, item.internalHeight) : 2}%`,
                   }}
                 />
               ))}
             </div>
             <div className="sun-energy-total">
-              {timeline.energySummary.hoursCount ? `${sunNumber(timeline.energySummary.totalKwh, 1)} kWh` : "-"}
+              {hasElvia || hasInternal ? (
+                <>
+                  {hasElvia ? `${sunNumber(timeline.energySummary.totalKwh, 1)} kWh` : "-"}
+                  <small>{hasInternal ? `Egen ${sunNumber(timeline.energySummary.internalTotalKwh, 1)} kWh` : "Egen -"}</small>
+                </>
+              ) : (
+                "-"
+              )}
             </div>
 
             <div className="sun-room-label">

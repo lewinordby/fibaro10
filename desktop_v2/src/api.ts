@@ -395,8 +395,11 @@ export type SunTimelineEnergyHour = {
   left: number;
   width: number;
   height: number;
+  internalHeight: number;
   consumptionKwh: number;
   productionKwh: number;
+  internalKwh: number;
+  internalSamples: number;
   title: string;
 };
 
@@ -422,6 +425,11 @@ export type SunTimeline = {
     totalKwh: number;
     maxKwh: number;
     peakHour: SunTimelineEnergyHour | null;
+    internalHoursCount: number;
+    internalTotalKwh: number;
+    internalMaxKwh: number;
+    internalSamples: number;
+    internalPeakHour: SunTimelineEnergyHour | null;
   };
 };
 
