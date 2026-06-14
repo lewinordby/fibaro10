@@ -15520,7 +15520,9 @@ def settlement_gmail_credentials() -> tuple[str, str]:
 
 
 def settlement_mailboxes() -> list[str]:
-    configured = os.getenv("SETTLEMENT_GMAIL_MAILBOXES", "INBOX,[Gmail]/All Mail")
+    configured = os.getenv("SETTLEMENT_GMAIL_MAILBOXES")
+    if not configured:
+        return ["INBOX", "__GMAIL_ALL__"]
     return [item.strip() for item in configured.split(",") if item.strip()]
 
 
@@ -15543,6 +15545,30 @@ def select_gmail_mailbox(mailbox: imaplib.IMAP4_SSL, mailbox_name: str) -> str:
         if status == "OK":
             return status
     return "NO"
+
+
+def parse_imap_mailbox_name(line: str) -> str:
+    if ' "/" ' in line:
+        name = line.rsplit(' "/" ', 1)[-1]
+    elif ' "." ' in line:
+        name = line.rsplit(' "." ', 1)[-1]
+    else:
+        name = line.split(" ", 1)[-1]
+    return name.strip().strip('"')
+
+
+def discover_gmail_all_mailbox(mailbox: imaplib.IMAP4_SSL) -> Optional[str]:
+    try:
+        status, data = mailbox.list()
+    except imaplib.IMAP4.error:
+        return None
+    if status != "OK":
+        return None
+    for item in data or []:
+        text_value = item.decode(errors="replace") if isinstance(item, bytes) else str(item)
+        if "\\All" in text_value:
+            return parse_imap_mailbox_name(text_value)
+    return None
 
 
 def is_settlement_attachment(filename: str, content_type: str) -> bool:
@@ -15644,7 +15670,12 @@ async def fetch_parking_settlements_from_gmail(session, since_days: int = 370, l
 
     with imaplib.IMAP4_SSL(imap_host) as mailbox:
         mailbox.login(gmail_email, app_password)
-        for mailbox_name in settlement_mailboxes():
+        mailbox_names = []
+        for configured_mailbox in settlement_mailboxes():
+            mailbox_name = discover_gmail_all_mailbox(mailbox) if configured_mailbox == "__GMAIL_ALL__" else configured_mailbox
+            if mailbox_name and mailbox_name not in mailbox_names:
+                mailbox_names.append(mailbox_name)
+        for mailbox_name in mailbox_names:
             status = select_gmail_mailbox(mailbox, mailbox_name)
             if status != "OK":
                 mailbox_errors.append(f"Kunne ikke åpne {mailbox_name}")

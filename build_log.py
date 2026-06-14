@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1153")
+APP_BUILD = os.getenv("APP_BUILD", "1154")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1154",
+        "date": "14.06.2026",
+        "headline": "Autodetekterer Gmail-arkivmappe",
+        "title": "Park Nordic-import finner Gmail All Mail uavhengig av språk",
+        "description": (
+            "Gmail-kontoen kan ha lokalisert navn på arkivmappen, for eksempel `[Gmail]/All e-post`. "
+            "Oppgjørsimporten finner nå mappen via IMAP-flagget `\\All` og bruker `INBOX` pluss denne mappen som standard."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): autodetekterer Gmail sin `\\All`-mappe når `SETTLEMENT_GMAIL_MAILBOXES` ikke er satt.",
+            "Fibaro10 backend (main.py): dedupliserer fortsatt vedlegg på SHA-256 når samme e-post finnes i flere mapper.",
+            "Dokumentasjon (docs/utviklingsoppsett.md): oppdaterer mappeoppsettet for Park Nordic Gmail-import.",
+            "Buildlogg (build_log.py): registrerer build 1154.",
+        ],
+        "request": "du kan hente parkering i gmail. kommer fra fredrik@parknordic.no",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Standard mappevalg er nå `INBOX` og autodetektert Gmail-arkivmappe.",
+            "Hardkodet engelsk `[Gmail]/All Mail` er fjernet fra standardoppsettet.",
+            "`SETTLEMENT_GMAIL_MAILBOXES` kan fortsatt settes manuelt ved behov.",
+        ],
+    },
     {
         "version": "1",
         "build": "1153",

@@ -77,7 +77,8 @@ Park Nordic-oppgjor kan bruke egne variabler, men faller tilbake til EasyPark-va
 SETTLEMENT_GMAIL_EMAIL=
 SETTLEMENT_GMAIL_APP_PASSWORD=
 PARKING_SETTLEMENT_SENDER=fredrik@parknordic.no
-SETTLEMENT_GMAIL_MAILBOXES=INBOX,[Gmail]/All Mail
+# Valgfri. Hvis tom brukes INBOX + automatisk funnet Gmail All Mail/All e-post.
+SETTLEMENT_GMAIL_MAILBOXES=
 ```
 
 Hvis `SETTLEMENT_GMAIL_EMAIL` og `SETTLEMENT_GMAIL_APP_PASSWORD` mangler, brukes `EASYPARK_GMAIL_EMAIL` og `EASYPARK_GMAIL_APP_PASSWORD`.
