@@ -18889,9 +18889,15 @@ async def api_v2_parking_vehicle_detail(plate: str):
                 api_detail_field("Farge car.info", car_info_field_value(vehicle.car_info_data, "color")),
                 api_detail_field("Drivstoff/motor", car_info_field_value(vehicle.car_info_data, "fuel", "engine")),
                 api_detail_field("Girkasse", car_info_field_value(vehicle.car_info_data, "transmission")),
+                api_detail_field("Drivlinje", car_info_field_value(vehicle.car_info_data, "drivetrain")),
                 api_detail_field("Effekt", car_info_field_value(vehicle.car_info_data, "power")),
+                api_detail_field("Klassifisering", car_info_field_value(vehicle.car_info_data, "classification")),
+                api_detail_field("Generasjon", car_info_field_value(vehicle.car_info_data, "generation")),
                 api_detail_field("Kilometerstand", car_info_field_value(vehicle.car_info_data, "mileage")),
                 api_detail_field("Kontrollfrist", car_info_field_value(vehicle.car_info_data, "inspection_valid_to", "next_inspection")),
+                api_detail_field("Forbruk blandet", car_info_field_value(vehicle.car_info_data, "fuel_consumption_combined")),
+                api_detail_field("CO2 blandet", car_info_field_value(vehicle.car_info_data, "co2_combined")),
+                api_detail_field("Seter", car_info_field_value(vehicle.car_info_data, "seats")),
                 api_detail_field("Car.info URL", vehicle.car_info_url),
             ]
         )

@@ -96,7 +96,12 @@ def extract_specs(html_text: str) -> dict[str, str]:
         tail = html_text[match.end():next_start]
         stop = re.split(r"</div>\s*</div>", tail, maxsplit=1, flags=re.IGNORECASE | re.DOTALL)[0]
         value = strip_tags(stop)
-        value = re.sub(r"\b(Value from|Click for|Information is missing|Explanation:).*$", "", value, flags=re.IGNORECASE).strip(" :-")
+        value = re.sub(
+            r"\b(Value from|Click for|Information is missing|Explanation:|Läs mer|Beställ|Logga in).*$",
+            "",
+            value,
+            flags=re.IGNORECASE,
+        ).strip(" :-")
         if value and value.lower() != label.lower() and len(value) <= 240:
             facts[label] = value
     return facts
@@ -165,12 +170,21 @@ def parse_car_info_html(plate: str, url: str, html_text: str, text_limit: int = 
         "first_registered": ("First registered", "Registered", "Registrerad", "Första registrering", "Registreringsdatum"),
         "vehicle_type": ("Vehicle type", "Body type", "Kaross", "Fordonstyp", "Biltyp"),
         "color": ("Color", "Colour", "Färg"),
+        "registration_status": ("I trafik", "In traffic", "Trafikstatus"),
         "mileage": ("Mileage", "Odometer", "Mätarställning", "Mil"),
         "inspection_valid_to": ("Inspection valid to", "Besiktning giltig till", "Besiktigas senast", "Kontrollfrist"),
         "engine": ("Engine", "Motor"),
         "fuel": ("Fuel", "Drivstoff", "Bränsle"),
         "transmission": ("Transmission", "Växellåda", "Girkasse"),
         "power": ("Power", "Effekt"),
+        "classification": ("Classification", "Klassificering"),
+        "generation": ("Generation",),
+        "drivetrain": ("Drivetrain", "Drivlina"),
+        "fuel_consumption_combined": ("Combined consumption", "Blandad förbrukning"),
+        "co2_combined": ("CO2 combined", "CO₂, Blandad", "CO2, Blandad"),
+        "tank_volume": ("Tank volume", "Tankvolym"),
+        "seats": ("Seats", "Antal sittplatser"),
+        "swedish_sold": ("Swedish sold", "Svensksåld"),
     }
     for key, labels in field_map.items():
         fields.setdefault(key, field_from_facts(facts, *labels))

@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1170")
+APP_BUILD = os.getenv("APP_BUILD", "1171")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1171",
+        "date": "14.06.2026",
+        "headline": "Flere car.info-bilfelt lagres",
+        "title": "Car.info-parseren tar med flere relevante svenske kjøretøyopplysninger",
+        "description": (
+            "Build 1171 utvider car.info-normaliseringen med flere relevante bilfelt. I tillegg fjernes aapenbare "
+            "placeholderverdier som Logga in og Les mer, slik at detaljvisningen viser nyttige data fremfor skjemastoy."
+        ),
+        "applications": [
+            "Car.info-oppslag (car_info_lookup/app/parsing.py): normaliserer klassifisering, generasjon, drivlinje, forbruk, CO2, tankvolum og seter.",
+            "Fibaro10 backend (main.py): viser de ekstra car.info-feltene paa kjoeretoeydetaljen.",
+            "Dokumentasjon (docs/car-info-oppslag.md): oppdaterer listen over lagrede felt.",
+            "Tester (test_car_info_lookup.py): dekker de nye feltene og stoyfiltrering.",
+            "Buildlogg (build_log.py): registrerer build 1171.",
+        ],
+        "request": (
+            "Ta med foerstegangsregistrering, biltype, farge og andre relevante opplysninger som car.info viser."
+        ),
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Flere tekniske bilfelt lagres i car_info_data.fields.",
+            "Kjoeretoeydetaljen viser de nye feltene naar de finnes.",
+            "Placeholderverdier fra car.info filtreres bort fra normaliserte fakta.",
+        ],
+    },
     {
         "version": "1",
         "build": "1170",

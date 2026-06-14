@@ -42,4 +42,4 @@ Fibaro10 lagrer:
 - `car_info_url`
 - `car_info_data`
 
-`car_info_data` inneholder bekreftelse paa svensk bil, tittel, beskrivelse, relevante normaliserte felter, alle leste faktalinjer og et kort raatekstutdrag. Normaliserte felter inkluderer blant annet `first_registered`, `vehicle_type`, `color`, `fuel`, `transmission`, `power`, `mileage` og `inspection_valid_to` naar siden viser dem.
+`car_info_data` inneholder bekreftelse paa svensk bil, tittel, beskrivelse, relevante normaliserte felter, alle leste faktalinjer og et kort raatekstutdrag. Normaliserte felter inkluderer blant annet `first_registered`, `vehicle_type`, `color`, `fuel`, `transmission`, `power`, `engine`, `mileage`, `inspection_valid_to`, `classification`, `generation`, `drivetrain`, `fuel_consumption_combined`, `co2_combined`, `tank_volume` og `seats` naar siden viser dem.

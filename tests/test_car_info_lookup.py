@@ -26,6 +26,13 @@ class CarInfoLookupTests(unittest.TestCase):
             <span class="sptitle">Body type</span><span>Van</span>
             <span class="sptitle">Mileage</span><span>12 345 km</span>
             <span class="sptitle">Inspection valid to</span><span>2029-01-31</span>
+            <span class="sptitle">Drivlina</span><span>Framhjulsdrift</span>
+            <span class="sptitle">Klassificering</span><span>Minibuss (Lätt)</span>
+            <span class="sptitle">Generation</span><span>T7</span>
+            <span class="sptitle">Blandad förbrukning</span><span>4,2 l/100km</span>
+            <span class="sptitle">CO₂, Blandad</span><span>96 g/km</span>
+            <span class="sptitle">Antal sittplatser</span><span>9</span>
+            <span class="sptitle">Svensksåld</span><span>Läs mer och beställ</span>
           </body>
         </html>
         """
@@ -42,6 +49,13 @@ class CarInfoLookupTests(unittest.TestCase):
         self.assertEqual(parsed["fields"]["vehicle_type"], "Van")
         self.assertEqual(parsed["fields"]["mileage"], "12 345 km")
         self.assertEqual(parsed["fields"]["inspection_valid_to"], "2029-01-31")
+        self.assertEqual(parsed["fields"]["drivetrain"], "Framhjulsdrift")
+        self.assertEqual(parsed["fields"]["classification"], "Minibuss (Lätt)")
+        self.assertEqual(parsed["fields"]["generation"], "T7")
+        self.assertEqual(parsed["fields"]["fuel_consumption_combined"], "4,2 l/100km")
+        self.assertEqual(parsed["fields"]["co2_combined"], "96 g/km")
+        self.assertEqual(parsed["fields"]["seats"], "9")
+        self.assertNotIn("swedish_sold", parsed["fields"])
 
 
 if __name__ == "__main__":
