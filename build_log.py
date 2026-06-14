@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1156")
+APP_BUILD = os.getenv("APP_BUILD", "1157")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1157",
+        "date": "14.06.2026",
+        "headline": "Parkeringsoppgjør flyttet til Parkering",
+        "title": "Park Nordic-oppgjør ligger under Parkering",
+        "description": (
+            "Parkeringsoppgjør hører funksjonelt til Parkering, siden Soling senere skal få sin egen oppgjørsside. "
+            "Meny, ruter, lenker og importaction er derfor flyttet fra Omsetning til Parkering."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): eksponerer parkeringsoppgjør gjennom parkeringmodulen og bruker parkering-action for Gmail-import.",
+            "Desktop V2 meny (moduleViews.ts): fjerner Oppgjør fra Omsetning og legger Oppgjør under Parkering.",
+            "Desktop V2 routing (App.tsx/navigation.ts): flytter detaljruten til /parkering/oppgjor/<id>.",
+            "Desktop V2 oppgjørsdetalj (SettlementDetailPage.tsx): tilbakeknappen peker til Parkering/Oppgjør.",
+            "Buildlogg (build_log.py): registrerer build 1157.",
+        ],
+        "request": "jeg synes oppgjør skal flyttes til parkering. det kommer også en oppgjør sak under soling.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppgjør er fjernet fra Omsetning-menyen.",
+            "Parkering-menyen har fått eget Oppgjør-valg.",
+            "Oppgjørslisten og detaljsiden bruker nå /parkering/oppgjor.",
+            "Gmail-importhandlingen bruker nå /api/actions/parkering/fetch-settlements.",
+        ],
+    },
     {
         "version": "1",
         "build": "1156",

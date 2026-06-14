@@ -15681,7 +15681,7 @@ def settlement_row_api(row: SettlementImport) -> Dict[str, Any]:
         "attachment_size": row.attachment_size,
         "attachment_sha256": row.attachment_sha256[:12] if row.attachment_sha256 else None,
         "imported_at": api_local_iso(row.imported_at),
-        "path": f"/omsetning/oppgjor/{row.id}",
+        "path": f"/parkering/oppgjor/{row.id}",
     }
 
 
@@ -15816,6 +15816,133 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
             {"title": "Kontroll mot Fibaro10", "rows": control_rows},
         ],
         "raw": row.raw or {},
+    }
+
+
+async def parking_settlement_module_payload(session) -> Dict[str, Any]:
+    settlement_rows = (
+        await session.execute(
+            select(SettlementImport)
+            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+            .order_by(SettlementImport.imported_at.desc())
+            .limit(200)
+        )
+    ).scalars().all()
+    total_settlements = (
+        await session.execute(
+            select(func.count(SettlementImport.id)).where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+        )
+    ).scalar_one()
+    unknown_period_count = (
+        await session.execute(
+            select(func.count(SettlementImport.id))
+            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+            .where(SettlementImport.period_start.is_(None))
+        )
+    ).scalar_one()
+    latest_settlement = settlement_rows[0] if settlement_rows else None
+    parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
+    control_rows = []
+    for row in settlement_rows[:36]:
+        if not row.period_start or not row.period_end:
+            continue
+        start_dt = datetime.combine(row.period_start, time.min)
+        end_dt = datetime.combine(row.period_end + timedelta(days=1), time.min)
+        summary = await parking_period_summary(session, row.period_label or month_label(row.period_start), start_dt, end_dt)
+        count_value = int_or_zero(summary.get("count"))
+        paid_value = float_or_zero(summary.get("paid"))
+        control_rows.append(
+            {
+                "period_label": row.period_label,
+                "period_start": row.period_start.isoformat(),
+                "period_end": row.period_end.isoformat(),
+                "parking_count": count_value,
+                "parking_paid": round(paid_value, 2),
+                "average_paid": round(paid_value / count_value, 2) if count_value else None,
+                "attachment_filename": row.attachment_filename,
+                "status": "Klar for kontroll",
+            }
+        )
+    actions = [
+        {
+            "key": "fetch-parking-settlements",
+            "label": "Hent Park Nordic fra Gmail",
+            "method": "POST",
+            "path": "/api/actions/parkering/fetch-settlements",
+            "confirm": f"Hente nye parkeringsoppgjør fra Gmail fra {PARKING_SETTLEMENT_SENDER}?",
+            "tone": "primary",
+        }
+    ]
+    return {
+        "title": "Parkering · Oppgjør",
+        "subtitle": "Importer månedlige parkeringsoppgjør fra Gmail og kontroller dem mot interne EasyPark-tall.",
+        "cards": [
+            api_card(
+                "Oppgjør importert",
+                total_settlements,
+                "stk",
+                f"{parsed_period_count} perioder tolket",
+                "parking",
+                href="/parkering/oppgjor",
+            ),
+            api_card(
+                "Siste import",
+                format_local_datetime(latest_settlement.imported_at) if latest_settlement else "-",
+                "",
+                latest_settlement.period_label if latest_settlement else "Ingen importerte oppgjør",
+                "status",
+                href="/parkering/oppgjor",
+            ),
+            api_card(
+                "Ikke periodetolket",
+                unknown_period_count,
+                "stk",
+                "Krever manuell kontroll av filnavn/emne",
+                "status",
+                href="/parkering/oppgjor",
+            ),
+            api_card(
+                "Gmail",
+                "Klar" if settlement_gmail_configured() else "Mangler",
+                "",
+                "Bruker egne SETTLEMENT-vars eller EasyPark-vars som fallback",
+                "status",
+                href="/admin/teknisk",
+            ),
+        ],
+        "charts": [],
+        "tables": [
+            api_table(
+                "Parkeringsoppgjør",
+                [
+                    "period_label",
+                    "status",
+                    "email_date",
+                    "sender",
+                    "email_subject",
+                    "attachment_filename",
+                    "attachment_size",
+                    "attachment_sha256",
+                    "imported_at",
+                ],
+                [settlement_row_api(row) for row in settlement_rows],
+            ),
+            api_table(
+                "Kontroll mot interne parkeringstall",
+                [
+                    "period_label",
+                    "period_start",
+                    "period_end",
+                    "parking_count",
+                    "parking_paid",
+                    "average_paid",
+                    "attachment_filename",
+                    "status",
+                ],
+                control_rows,
+            ),
+        ],
+        "actions": actions,
     }
 
 
@@ -16061,7 +16188,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "key": "fetch-parking-settlements",
                         "label": "Hent Park Nordic fra Gmail",
                         "method": "POST",
-                        "path": "/api/actions/omsetning/fetch-parking-settlements",
+                        "path": "/api/actions/parkering/fetch-settlements",
                         "confirm": f"Hente nye parkeringsoppgjor fra Gmail fra {PARKING_SETTLEMENT_SENDER}?",
                         "tone": "primary",
                     }
@@ -16076,7 +16203,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "stk",
                             f"{parsed_period_count} perioder tolket",
                             "revenue",
-                            href="/omsetning/oppgjor",
+                            href="/parkering/oppgjor",
                         ),
                         api_card(
                             "Siste import",
@@ -16084,7 +16211,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "",
                             latest_settlement.period_label if latest_settlement else "Ingen importerte oppgjør",
                             "status",
-                            href="/omsetning/oppgjor",
+                            href="/parkering/oppgjor",
                         ),
                         api_card(
                             "Ikke periodetolket",
@@ -16092,7 +16219,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "stk",
                             "Krever manuell kontroll av filnavn/emne",
                             "status",
-                            href="/omsetning/oppgjor",
+                            href="/parkering/oppgjor",
                         ),
                         api_card(
                             "Gmail",
@@ -16151,6 +16278,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             }
 
         if module == "parkering":
+            if view == "oppgjor":
+                return await parking_settlement_module_payload(session)
             parking_summaries = await get_parking_summaries(session)
             normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
             latest_rows = (
@@ -17623,7 +17752,7 @@ async def api_v2_sun2_save_forecast(request: Request):
     return {"status": "ok", "message": "Solingprognose lagret."}
 
 
-@app.post("/api/actions/omsetning/fetch-parking-settlements")
+@app.post("/api/actions/parkering/fetch-settlements")
 async def api_v2_fetch_parking_settlements(
     request: Request,
     since_days: int = Query(370, ge=1, le=2000),

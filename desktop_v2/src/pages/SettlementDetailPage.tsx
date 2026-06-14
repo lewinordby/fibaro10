@@ -103,7 +103,7 @@ export default function SettlementDetailPage() {
           <Button href={data.original.downloadUrl} icon={<DownloadOutlined />}>
             Last ned
           </Button>
-          <Link to={modulePath("omsetning", "oppgjor")}>
+          <Link to={modulePath("parkering", "oppgjor")}>
             <Button icon={<ArrowLeftOutlined />}>Til oppgjør</Button>
           </Link>
         </Space>

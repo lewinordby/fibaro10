@@ -198,13 +198,13 @@ export default function App() {
               <Route path="/omsetning" element={<Navigate to={modulePath("omsetning")} replace />} />
               <Route path="/omsetning/manedsoversikt" element={<RevenueMonthPage />} />
               <Route path="/omsetning/sammenligning" element={<StatusComparisonPage />} />
-              <Route path="/omsetning/oppgjor/:settlementId" element={<SettlementDetailPage />} />
               <Route path="/omsetning/:view" element={<ModulePage module="omsetning" />} />
               <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
               <Route path="/parkering/statistikk" element={<LegacyRedirect to={modulePath("parkering", "bilstatistikk")} />} />
               <Route path="/parkering/navn-oppslag" element={<LegacyRedirect to={modulePath("parkering", "oppslag")} />} />
               <Route path="/parkering/omrade-oppslag" element={<LegacyRedirect to={modulePath("parkering", "oppslag")} />} />
               <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
+              <Route path="/parkering/oppgjor/:settlementId" element={<SettlementDetailPage />} />
               <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
               <Route path="/soling" element={<Navigate to={modulePath("soling")} replace />} />
               <Route path="/soling/:view" element={<ModulePage module="soling" />} />
