@@ -669,6 +669,77 @@ export type EnergyElviaData = {
   uploadEndpoint: string;
 };
 
+export type EnergySunbedSummary = {
+  sessions_total: number;
+  energy_samples_total: number;
+  roof_exhaust_adjusted_samples: number;
+  roof_exhaust_adjustment_w: number;
+  baseline_samples: number;
+  single_samples: number;
+  overlap_samples: number;
+  missing_baseline_samples: number;
+  rejected_low_samples: number;
+  rejected_warmup_cooldown_samples: number;
+  rejected_short_sessions: number;
+  rejected_short_samples: number;
+  global_baseline_w?: number | null;
+  rooms_count: number;
+  warmup_minutes: number;
+  cooldown_minutes: number;
+  stop_before_end_minutes: number;
+  min_samples_per_session: number;
+  sample_interval_seconds: number;
+};
+
+export type EnergySunbedRoom = {
+  room_id?: string | null;
+  label: string;
+  sun2_bed_id?: string | null;
+  bed_model?: string | null;
+  samples_count: number;
+  sessions_count: number;
+  duration_minutes?: number | null;
+  avg_w?: number | null;
+  median_w?: number | null;
+  estimate_w?: number | null;
+  p25_w?: number | null;
+  p75_w?: number | null;
+  min_w?: number | null;
+  max_w?: number | null;
+  avg_observed_w?: number | null;
+  avg_baseline_w?: number | null;
+  kwh_10_min?: number | null;
+  kwh_15_min?: number | null;
+  kwh_20_min?: number | null;
+  estimated_kwh?: number | null;
+  confidence: string;
+};
+
+export type EnergySunbedObservation = {
+  session_id: number;
+  room_id?: string | null;
+  label: string;
+  start: string | null;
+  end: string | null;
+  duration_minutes?: number | null;
+  samples_count: number;
+  avg_w?: number | null;
+  median_w?: number | null;
+  avg_observed_w?: number | null;
+  avg_baseline_w?: number | null;
+  estimated_kwh?: number | null;
+};
+
+export type EnergySunbedsData = {
+  dateFrom: string;
+  dateTo: string;
+  maxDays: number;
+  maxPower: number;
+  rooms: EnergySunbedRoom[];
+  observations: EnergySunbedObservation[];
+  summary: EnergySunbedSummary;
+};
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;
@@ -681,6 +752,7 @@ export type ModuleResponse = {
   parkingTimeline?: ParkingTimeline | null;
   ventilation?: VentilationData;
   energyElvia?: EnergyElviaData | null;
+  energySunbeds?: EnergySunbedsData | null;
 };
 
 export type ParkingVehicleField = {

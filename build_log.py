@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1146")
+APP_BUILD = os.getenv("APP_BUILD", "1147")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1147",
+        "date": "14.06.2026",
+        "headline": "Solsengforbruk løftet til V2",
+        "title": "Energi får V2-side for kalkulert forbruk per solseng",
+        "description": (
+            "Den gamle funksjonen for å beregne solsengenes strømforbruk er løftet inn i det nye grensesnittet. "
+            "Beregningen bruker fortsatt SUN2-timer, HC3 differanseforbruk og ventilasjonslogg, men presenteres nå "
+            "som en egen V2-side med datoperiode, nøkkelkort, metodeforklaring, effektgraf og tabeller."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): samler solsengforbruksberegningen i en gjenbrukbar analyse-loader for klassisk visning og V2 API.",
+            "Fibaro10 backend (main.py): korrigerer kWh-beregningen til faktisk sampleintervall slik at 30-sekunderslogging ikke dobles.",
+            "Desktop V2 API-typer (api.ts): legger til energySunbeds-kontrakt med rom, observasjoner og sammendrag.",
+            "Desktop V2 energi (EnergySunbedsPage.tsx og ModulePage.tsx): legger inn dedikert side for forbruk per solseng.",
+            "Desktop V2 stilark (styles.css): legger kompakt design for metodekort, effektgraf og solsengtabeller.",
+            "Buildlogg (build_log.py): registrerer build 1147.",
+        ],
+        "request": "i den gamle fibaro10 så hadde jeg et system for å kalkulere solsengenes fobruk. den funksjonaliteten må løftes over",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "`/energi/forbruk-per-seng` viser nå V2-side med samme kalkulasjon som gammel løsning.",
+            "Datofiltre for fra/til styrer beregningsperioden, med samme 120-dagers maksgrense.",
+            "Kalkulasjonen korrigerer for takvifte og bruker baseline uten aktive solsenger.",
+            "Målt kWh beregnes nå med faktisk sampleintervall i stedet for fast 60 sekunder.",
+            "Klassisk visning er også tilgjengelig på `/classic/energi/forbruk-per-seng`.",
+        ],
+    },
     {
         "version": "1",
         "build": "1146",

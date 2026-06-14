@@ -24,6 +24,7 @@ import { useAsyncData } from "../hooks";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { appPath } from "../navigation";
 import EnergyElviaPage from "./EnergyElviaPage";
+import EnergySunbedsPage from "./EnergySunbedsPage";
 import { ModuleFilterBar } from "./module/ModuleFilterBar";
 import { ModuleChartPanel, ModuleMetric } from "./module/ModuleVisuals";
 import { ParkingTimelinePanel } from "./module/ParkingTimelinePanel";
@@ -902,6 +903,21 @@ export default function ModulePage({ module }: { module: string }) {
   }
   if (module === "energi" && safeView === "elvia" && data.energyElvia) {
     return <EnergyElviaPage data={data} onReload={() => setReloadToken((value) => value + 1)} />;
+  }
+  if (module === "energi" && safeView === "forbruk-per-seng" && data.energySunbeds) {
+    return (
+      <Space direction="vertical" size={14} className="page-stack">
+        {data.filters?.length ? (
+          <ModuleFilterBar
+            filters={data.filters}
+            key={`${module}-${safeView}-${filterKey}`}
+            onApply={applyModuleFilters}
+            onClear={clearModuleFilters}
+          />
+        ) : null}
+        <EnergySunbedsPage data={data} />
+      </Space>
+    );
   }
   const hideModuleChrome = Boolean(data.parkingTimeline);
   const isSunSessionsView = module === "soling" && safeView === "enkeltimer";

@@ -7974,6 +7974,12 @@ def build_sunbed_power_analysis(
                 "roof_exhaust_adjustment_w": adjustment_w,
             })
     sample_items.sort(key=lambda item: item["time"])
+    sample_interval_candidates = [
+        (right["time"] - left["time"]).total_seconds()
+        for left, right in zip(sample_items, sample_items[1:])
+        if 5 <= (right["time"] - left["time"]).total_seconds() <= 300
+    ]
+    sample_interval_seconds = float(median(sample_interval_candidates) or 30.0)
 
     active: set[int] = set()
     event_index = 0
@@ -8075,7 +8081,7 @@ def build_sunbed_power_analysis(
         target["net_values"].extend(net_values)
         target["observed_values"].extend(session_item["observed_values"])
         target["baseline_values"].extend(session_item["baseline_values"])
-        target["estimated_kwh"] += sum(net_values) / 1000 / 60
+        target["estimated_kwh"] += sum(net_values) * sample_interval_seconds / 3600 / 1000
         used_samples += len(net_values)
         per_session[session_id] = {
             **session_item,
@@ -8133,6 +8139,7 @@ def build_sunbed_power_analysis(
                 "median_w": median(net_values),
                 "avg_observed_w": sum(item["observed_values"]) / len(item["observed_values"]),
                 "avg_baseline_w": sum(item["baseline_values"]) / len(item["baseline_values"]),
+                "estimated_kwh": sum(net_values) * sample_interval_seconds / 3600 / 1000,
             }
         )
     observations.sort(key=lambda item: item["start"], reverse=True)
@@ -8159,7 +8166,85 @@ def build_sunbed_power_analysis(
             "cooldown_minutes": cooldown_minutes,
             "stop_before_end_minutes": stop_before_end_minutes,
             "min_samples_per_session": min_samples_per_session,
+            "sample_interval_seconds": sample_interval_seconds,
         },
+    }
+
+
+def sunbed_analysis_date_range(
+    date_from: Optional[str],
+    date_to: Optional[str],
+    today: date,
+    max_days: int = 120,
+) -> tuple[date, date, int]:
+    end_day = parse_day(date_to) if date_to else today
+    start_day = parse_day(date_from) if date_from else end_day - timedelta(days=30)
+    if start_day > end_day:
+        start_day, end_day = end_day, start_day
+    if (end_day - start_day).days > max_days:
+        start_day = end_day - timedelta(days=max_days)
+    return start_day, end_day, max_days
+
+
+async def load_sunbed_power_analysis(
+    session,
+    date_from: Optional[str],
+    date_to: Optional[str],
+    today: date,
+) -> Dict[str, Any]:
+    start_day, end_day, max_days = sunbed_analysis_date_range(date_from, date_to, today)
+    start_at = datetime.combine(start_day, time.min)
+    end_at = datetime.combine(end_day + timedelta(days=1), time.min)
+    session_rows = (
+        await session.execute(
+            select(Sun2TanningSession)
+            .where(Sun2TanningSession.started_at >= start_at)
+            .where(Sun2TanningSession.started_at < end_at)
+            .where(Sun2TanningSession.room_id.is_not(None))
+            .order_by(Sun2TanningSession.started_at.asc())
+        )
+    ).scalars().all()
+    energy_rows = (
+        await session.execute(
+            select(
+                EnergyFibaroSample.bucket_start.label("bucket_start"),
+                EnergyFibaroSample.differanse_beregnet_w.label("differanse_beregnet_w"),
+            )
+            .where(EnergyFibaroSample.bucket_start >= start_at)
+            .where(EnergyFibaroSample.bucket_start < end_at)
+            .order_by(EnergyFibaroSample.bucket_start.asc())
+        )
+    ).mappings().all()
+    ventilation_rows = (
+        await session.execute(
+            select(
+                VentilationSample.bucket_start.label("bucket_start"),
+                VentilationSample.fan_tak.label("fan_tak"),
+            )
+            .where(VentilationSample.bucket_start >= start_at)
+            .where(VentilationSample.bucket_start < end_at)
+            .order_by(VentilationSample.bucket_start.asc())
+        )
+    ).mappings().all()
+    bed_rows = (
+        await session.execute(
+            select(Sun2Bed).where(Sun2Bed.room_id.is_not(None))
+        )
+    ).scalars().all()
+    bed_lookup = {bed.room_id: bed for bed in bed_rows if bed.room_id}
+    analysis = build_sunbed_power_analysis(
+        session_rows,
+        [dict(row) for row in energy_rows],
+        bed_lookup,
+        [dict(row) for row in ventilation_rows],
+    )
+    max_power = max([float_or_zero(room.get("estimate_w")) for room in analysis["rooms"]] or [0.0])
+    return {
+        "dateFrom": start_day.isoformat(),
+        "dateTo": end_day.isoformat(),
+        "maxDays": max_days,
+        "maxPower": max_power,
+        **analysis,
     }
 
 
@@ -15130,6 +15215,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             energy_load_type_value = api_filter_value(params, "load_type")
             energy_active_value = api_filter_value(params, "active")
             energy_sunbeds_value = normalize_energy_sunbed_filter(api_filter_value(params, "sunbeds"))
+            energy_sunbed_date_from = api_filter_value(params, "date_from")
+            energy_sunbed_date_to = api_filter_value(params, "date_to")
             energy_limit_value = api_filter_int(params, "limit", 500, 25, 1000)
             latest = (
                 await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
@@ -15226,6 +15313,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(80))
             ).scalars().all()
             energy_elvia_data = None
+            energy_sunbeds_data = None
             total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in selected_energy_rows)
             energy_chart_rows = list(reversed(selected_energy_rows))
             energy_chart_items = [
@@ -15351,8 +15439,27 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_table("Elvia importer", ["timestamp", "period_first", "period_last", "hours_count", "total_kwh", "ok", "message"], [api_pick(row, ENERGY_IMPORT_COLUMNS) for row in elvia_imports]),
                 ]
             elif view == "forbruk-per-seng":
+                energy_sunbeds_data = await load_sunbed_power_analysis(
+                    session,
+                    energy_sunbed_date_from or None,
+                    energy_sunbed_date_to or None,
+                    today,
+                )
+                sunbed_summary = energy_sunbeds_data["summary"]
                 sunbed_circuits = {row.circuit_no for row in circuits if energy_circuit_is_sunbed(row)}
+                filters = [
+                    api_filter("date_from", "Fra", "date", energy_sunbeds_data["dateFrom"]),
+                    api_filter("date_to", "Til", "date", energy_sunbeds_data["dateTo"]),
+                ]
+                energy_cards = [
+                    api_card("Senger med estimat", sunbed_summary.get("rooms_count"), "stk", "Rom med rene målepunkter", "sun2", href="/energi/forbruk-per-seng"),
+                    api_card("Rene målepunkter", sunbed_summary.get("single_samples"), "stk", f"Intervall {format_short_number(sunbed_summary.get('sample_interval_seconds'))} sek", "energy", href="/energi/forbruk-per-seng"),
+                    api_card("Baseline", format_short_number(sunbed_summary.get("global_baseline_w")), "W", "Median uten aktiv solseng", "energy", href="/energi/forbruk-per-seng"),
+                    api_card("Takvifte korrigert", sunbed_summary.get("roof_exhaust_adjusted_samples"), "stk", f"-{format_short_number(sunbed_summary.get('roof_exhaust_adjustment_w'))} W ved på", "vent", href="/energi/forbruk-per-seng"),
+                ]
                 tables = [
+                    api_table("Estimert effekt per seng", ["label", "estimate_w", "avg_w", "p25_w", "p75_w", "samples_count", "sessions_count", "kwh_15_min", "estimated_kwh", "confidence"], energy_sunbeds_data["rooms"]),
+                    api_table("Siste rene solinger", ["start", "label", "duration_minutes", "samples_count", "avg_w", "avg_observed_w", "avg_baseline_w", "estimated_kwh"], energy_sunbeds_data["observations"]),
                     api_table("Solrelaterte kurser", ["circuit_no", "description", "breaker", "status", "note"], [circuit_row_api(row) for row in circuits if row.circuit_no in sunbed_circuits]),
                     api_table("Solrelaterte laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads if row.circuit_no in sunbed_circuits or (row.load_type or "").lower().find("sol") >= 0]),
                 ]
@@ -15393,6 +15500,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "tables": tables,
                 "filters": filters,
                 "energyElvia": energy_elvia_data,
+                "energySunbeds": energy_sunbeds_data,
             }
 
         if module == "ventilasjon":
@@ -19236,6 +19344,7 @@ async def energy_fibaro_json(limit: int = 300):
     return {"rows": [row_to_dict(row, ENERGY_FIBARO_COLUMNS) for row in rows]}
 
 
+@app.get("/classic/energi/forbruk-per-seng", response_class=HTMLResponse)
 @app.get("/energi/forbruk-per-seng", response_class=HTMLResponse)
 async def energy_sunbed_consumption_view(
     request: Request,
@@ -19243,74 +19352,20 @@ async def energy_sunbed_consumption_view(
     date_to: Optional[str] = None,
 ):
     today = local_now_naive().date()
-    end_day = parse_day(date_to) if date_to else today
-    start_day = parse_day(date_from) if date_from else end_day - timedelta(days=30)
-    if start_day > end_day:
-        start_day, end_day = end_day, start_day
-    max_days = 120
-    if (end_day - start_day).days > max_days:
-        start_day = end_day - timedelta(days=max_days)
-    start_at = datetime.combine(start_day, time.min)
-    end_at = datetime.combine(end_day + timedelta(days=1), time.min)
-
     async with async_session() as session:
-        session_rows = (
-            await session.execute(
-                select(Sun2TanningSession)
-                .where(Sun2TanningSession.started_at >= start_at)
-                .where(Sun2TanningSession.started_at < end_at)
-                .where(Sun2TanningSession.room_id.is_not(None))
-                .order_by(Sun2TanningSession.started_at.asc())
-            )
-        ).scalars().all()
-        energy_rows = (
-            await session.execute(
-                select(
-                    EnergyFibaroSample.bucket_start.label("bucket_start"),
-                    EnergyFibaroSample.differanse_beregnet_w.label("differanse_beregnet_w"),
-                )
-                .where(EnergyFibaroSample.bucket_start >= start_at)
-                .where(EnergyFibaroSample.bucket_start < end_at)
-                .order_by(EnergyFibaroSample.bucket_start.asc())
-            )
-        ).mappings().all()
-        ventilation_rows = (
-            await session.execute(
-                select(
-                    VentilationSample.bucket_start.label("bucket_start"),
-                    VentilationSample.fan_tak.label("fan_tak"),
-                )
-                .where(VentilationSample.bucket_start >= start_at)
-                .where(VentilationSample.bucket_start < end_at)
-                .order_by(VentilationSample.bucket_start.asc())
-            )
-        ).mappings().all()
-        bed_rows = (
-            await session.execute(
-                select(Sun2Bed).where(Sun2Bed.room_id.is_not(None))
-            )
-        ).scalars().all()
-
-    bed_lookup = {bed.room_id: bed for bed in bed_rows if bed.room_id}
-    analysis = build_sunbed_power_analysis(
-        session_rows,
-        [dict(row) for row in energy_rows],
-        bed_lookup,
-        [dict(row) for row in ventilation_rows],
-    )
-    max_power = max([float_or_zero(room.get("estimate_w")) for room in analysis["rooms"]] or [0.0])
+        analysis = await load_sunbed_power_analysis(session, date_from, date_to, today)
     response = templates.TemplateResponse(
         request,
         "energy_sunbeds.html",
         {
-            "date_from": start_day.isoformat(),
-            "date_to": end_day.isoformat(),
-            "max_days": max_days,
+            "date_from": analysis["dateFrom"],
+            "date_to": analysis["dateTo"],
+            "max_days": analysis["maxDays"],
             "analysis": analysis,
             "rooms": analysis["rooms"],
             "observations": analysis["observations"],
             "summary": analysis["summary"],
-            "max_power": max_power,
+            "max_power": analysis["maxPower"],
         },
     )
     response.headers["Cache-Control"] = "no-store"
