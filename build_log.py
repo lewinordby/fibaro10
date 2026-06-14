@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1137")
+APP_BUILD = os.getenv("APP_BUILD", "1138")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1138",
+        "date": "14.06.2026",
+        "headline": "Tidligere Axis-lagring",
+        "title": "Axis starter snapshot-lagring før åpning slik at første soltime får bilde",
+        "description": (
+            "Siste soltime manglet bilde fordi timen startet 06:59, mens Axis-lagring startet 07:00. SUN2-bildeserien "
+            "henter bilder før starttidspunktet, så første kunde ved åpning trenger snapshot-buffer før åpning."
+        ),
+        "applications": [
+            "Axis snapshot-app (axis_camera_snapshots/app/main.py): endrer standard lagringsstart fra 07:00 til 06:45.",
+            "Docker/QNAP (docker-compose.qnap.yml og .env.qnap.example): bruker 06:45-23:00 som anbefalt lagringsvindu.",
+            "Dokumentasjon (docs/axis-camera-snapshots.md): forklarer hvorfor lagring må starte før åpningstid.",
+            "QNAP drift: live config for axis_camera_snapshots oppdateres til capture_start_time 06:45.",
+            "Buildlogg (build_log.py): registrerer build 1138.",
+        ],
+        "request": "er det noe feil med bild løsningen nå, siste soling fikk ingen bilde",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bekreftet at selve bildeløsningen og containerne er friske.",
+            "Fant at siste soltime startet 06:59 og derfor trengte bilder fra ca. 06:59:05-06:59:25.",
+            "Fant at første Axis-bilde ble lagret 07:00:04, altså for sent for automatisk match.",
+            "Flytter fremtidig lagringsstart til 06:45 for å dekke første kunde og mindre tidsavvik.",
+            "Dagens manglende soltime blir ikke automatisk fylt, fordi de første tilgjengelige bildene etter 07:00 var tomme.",
+        ],
+    },
     {
         "version": "1",
         "build": "1137",

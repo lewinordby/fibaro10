@@ -101,7 +101,7 @@ def default_config() -> AxisConfig:
         retention_days=max(1, int(os.getenv("AXIS_RETENTION_DAYS", "7"))),
         auth_mode=os.getenv("AXIS_AUTH_MODE", "auto").strip().lower(),
         timeout_seconds=max(1.0, float(os.getenv("AXIS_TIMEOUT_SECONDS", "8"))),
-        capture_start_time=normalize_time_string(os.getenv("AXIS_CAPTURE_START_TIME", "07:00")),
+        capture_start_time=normalize_time_string(os.getenv("AXIS_CAPTURE_START_TIME", "06:45")),
         capture_end_time=normalize_time_string(os.getenv("AXIS_CAPTURE_END_TIME", "23:00")),
     )
 
@@ -114,7 +114,7 @@ def load_config() -> AxisConfig:
         config = AxisConfig(**merged)
     if config.camera_ip and not config.snapshot_url:
         config.snapshot_url = f"http://{config.camera_ip}/axis-cgi/jpg/image.cgi"
-    config.capture_start_time = normalize_time_string(config.capture_start_time, "07:00")
+    config.capture_start_time = normalize_time_string(config.capture_start_time, "06:45")
     config.capture_end_time = normalize_time_string(config.capture_end_time, "23:00")
     return config
 
@@ -390,7 +390,7 @@ async def save_settings(
     username: str = Form(""),
     password: str = Form(""),
     interval_seconds: int = Form(5),
-    capture_start_time: str = Form("07:00"),
+    capture_start_time: str = Form("06:45"),
     capture_end_time: str = Form("23:00"),
     retention_days: int = Form(7),
     auth_mode: str = Form("auto"),
@@ -410,7 +410,7 @@ async def save_settings(
             retention_days=max(1, retention_days),
             auth_mode=auth_mode if auth_mode in {"auto", "basic", "digest"} else "auto",
             timeout_seconds=max(1.0, timeout_seconds),
-            capture_start_time=normalize_time_string(capture_start_time, "07:00"),
+            capture_start_time=normalize_time_string(capture_start_time, "06:45"),
             capture_end_time=normalize_time_string(capture_end_time, "23:00"),
         )
     )
