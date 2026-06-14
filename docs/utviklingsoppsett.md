@@ -68,6 +68,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 - Docker: `/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker`
 - Git paa QNAP leveres via Entware i `/opt/bin/git`.
 
+## Gmail-importer
+
+EasyPark-import og Park Nordic-oppgjor bruker Gmail IMAP med app-passord i QNAP `.env`.
+Park Nordic-oppgjor kan bruke egne variabler, men faller tilbake til EasyPark-variablene hvis de ikke er satt:
+
+```env
+SETTLEMENT_GMAIL_EMAIL=
+SETTLEMENT_GMAIL_APP_PASSWORD=
+PARKING_SETTLEMENT_SENDER=fredrik@parknordic.no
+SETTLEMENT_GMAIL_MAILBOXES=INBOX,[Gmail]/All Mail
+```
+
+Hvis `SETTLEMENT_GMAIL_EMAIL` og `SETTLEMENT_GMAIL_APP_PASSWORD` mangler, brukes `EASYPARK_GMAIL_EMAIL` og `EASYPARK_GMAIL_APP_PASSWORD`.
+Selve hemmelige verdier skal bare ligge i runtime `.env`, ikke i Git.
+
 ## Backup
 
 Deploy-scriptet tar backup av `.env`, `.env.*`, EasyPark `.env` og EasyPark runtime-data for hver deploy.

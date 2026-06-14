@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1151")
+APP_BUILD = os.getenv("APP_BUILD", "1152")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1152",
+        "date": "14.06.2026",
+        "headline": "Park Nordic oppgjør fra Gmail",
+        "title": "Omsetning får import og kontrollside for parkeringsoppgjør",
+        "description": (
+            "Omsetning utvides med en egen oppgjørsside som kan hente månedlige Park Nordic-vedlegg fra Gmail. "
+            "Importen lagrer originalvedlegg, periodetolkning og e-postmetadata, og viser interne EasyPark-tall for samme periode."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger tabellen `settlement_imports` for uendrede oppgjørsvedlegg og metadata.",
+            "Fibaro10 backend (main.py): legger Gmail IMAP-import fra `fredrik@parknordic.no` med deduplisering på SHA-256.",
+            "Fibaro10 backend (main.py): legger `/api/actions/omsetning/fetch-parking-settlements` med settings-tilgang.",
+            "Fibaro10 backend (main.py): eksponerer `/omsetning/oppgjor` med importstatus og kontroll mot interne parkeringstall.",
+            "Desktop V2 navigasjon (moduleViews.ts): legger Oppgjør under Omsetning.",
+            "Desktop V2 tabeller (ModulePage.tsx): legger kolonneetiketter for oppgjør og kontrolltabell.",
+            "Dokumentasjon (docs/utviklingsoppsett.md): dokumenterer Gmail-variablene for oppgjørsimport.",
+            "Buildlogg (build_log.py): registrerer build 1152.",
+        ],
+        "request": "du kan hente parkering i gmail. kommer fra fredrik@parknordic.no",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "`/omsetning/oppgjor` viser importerte Park Nordic-oppgjør.",
+            "Knappen `Hent Park Nordic fra Gmail` henter nye vedlegg fra Gmail og hopper over duplikater.",
+            "Vedlegg lagres uendret sammen med avsender, e-postdato, emne, filnavn, størrelse og SHA-256.",
+            "Perioder tolkes fra emne/filnavn, med antatt forrige måned hvis e-posten kommer tidlig i måneden.",
+            "Kontrolltabellen viser interne parkeringsantall og beløp for samme periode som oppgjøret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1151",

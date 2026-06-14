@@ -1,4 +1,6 @@
 from datetime import date, datetime, time, timedelta
+from email.header import decode_header, make_header
+from email.message import Message
 from email.utils import parsedate_to_datetime
 from io import StringIO
 from pathlib import Path
@@ -12,10 +14,13 @@ import asyncio
 from bisect import bisect_left, bisect_right
 import calendar
 import csv
+import email as email_lib
 import hashlib
+import imaplib
 import json
 import logging
 import math
+import mimetypes
 import os
 import re
 from urllib.parse import parse_qs, quote, quote_plus, urlencode, urlparse
@@ -968,6 +973,35 @@ class ParkingSession(Base):
     status = Column(Text, nullable=False, index=True)
     imported_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     raw_filename = Column(Text, nullable=True)
+
+
+class SettlementImport(Base):
+    __tablename__ = "settlement_imports"
+    __table_args__ = (
+        UniqueConstraint("provider", "gmail_message_id", "attachment_sha256", name="uq_settlement_provider_message_attachment"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider = Column(String, index=True, nullable=False)
+    source = Column(String, index=True, nullable=False, default="gmail")
+    sender = Column(String, index=True, nullable=True)
+    gmail_message_id = Column(Text, nullable=True)
+    gmail_uid = Column(String, nullable=True)
+    email_subject = Column(Text, nullable=True)
+    email_date = Column(DateTime, index=True, nullable=True)
+    mailbox = Column(String, nullable=True)
+    period_start = Column(Date, index=True, nullable=True)
+    period_end = Column(Date, index=True, nullable=True)
+    period_label = Column(String, index=True, nullable=True)
+    attachment_filename = Column(Text, nullable=True)
+    attachment_content_type = Column(String, nullable=True)
+    attachment_sha256 = Column(String, index=True, nullable=False)
+    attachment_size = Column(Integer, nullable=True)
+    attachment_bytes = Column(LargeBinary, nullable=False)
+    status = Column(String, index=True, nullable=False, default="imported")
+    parsed = Column(JSON, nullable=True)
+    raw = Column(JSON, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
 
 class ForecastSnapshot(Base):
@@ -15424,6 +15458,273 @@ async def build_admin_relation_analysis(session, now_dt: datetime) -> Dict[str, 
     }
 
 
+PARKING_SETTLEMENT_PROVIDER = "parking_parknordic"
+PARKING_SETTLEMENT_SENDER = os.getenv("PARKING_SETTLEMENT_SENDER", "fredrik@parknordic.no")
+SETTLEMENT_ATTACHMENT_EXTENSIONS = {".pdf", ".csv", ".xlsx", ".xls", ".xml", ".txt"}
+NORWEGIAN_MONTHS = {
+    "januar": 1,
+    "jan": 1,
+    "februar": 2,
+    "feb": 2,
+    "mars": 3,
+    "mar": 3,
+    "april": 4,
+    "apr": 4,
+    "mai": 5,
+    "juni": 6,
+    "jun": 6,
+    "juli": 7,
+    "jul": 7,
+    "august": 8,
+    "aug": 8,
+    "september": 9,
+    "sep": 9,
+    "oktober": 10,
+    "okt": 10,
+    "november": 11,
+    "nov": 11,
+    "desember": 12,
+    "des": 12,
+}
+
+
+def decoded_mime_header(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    try:
+        return str(make_header(decode_header(value)))
+    except Exception:
+        return value
+
+
+def message_email_date(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        parsed = parsedate_to_datetime(value)
+    except Exception:
+        return None
+    if parsed.tzinfo:
+        return parsed.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return parsed
+
+
+def settlement_gmail_credentials() -> tuple[str, str]:
+    gmail_email = os.getenv("SETTLEMENT_GMAIL_EMAIL") or os.getenv("EASYPARK_GMAIL_EMAIL")
+    app_password = os.getenv("SETTLEMENT_GMAIL_APP_PASSWORD") or os.getenv("EASYPARK_GMAIL_APP_PASSWORD")
+    if not gmail_email:
+        raise RuntimeError("Mangler SETTLEMENT_GMAIL_EMAIL eller EASYPARK_GMAIL_EMAIL.")
+    if not app_password:
+        raise RuntimeError("Mangler SETTLEMENT_GMAIL_APP_PASSWORD eller EASYPARK_GMAIL_APP_PASSWORD.")
+    return gmail_email, app_password.replace(" ", "")
+
+
+def settlement_mailboxes() -> list[str]:
+    configured = os.getenv("SETTLEMENT_GMAIL_MAILBOXES", "INBOX,[Gmail]/All Mail")
+    return [item.strip() for item in configured.split(",") if item.strip()]
+
+
+def settlement_gmail_configured() -> bool:
+    return bool(
+        (os.getenv("SETTLEMENT_GMAIL_EMAIL") or os.getenv("EASYPARK_GMAIL_EMAIL"))
+        and (os.getenv("SETTLEMENT_GMAIL_APP_PASSWORD") or os.getenv("EASYPARK_GMAIL_APP_PASSWORD"))
+    )
+
+
+def select_gmail_mailbox(mailbox: imaplib.IMAP4_SSL, mailbox_name: str) -> str:
+    status, _ = mailbox.select(mailbox_name, readonly=True)
+    if status == "OK":
+        return status
+    status, _ = mailbox.select(f'"{mailbox_name}"', readonly=True)
+    return status
+
+
+def is_settlement_attachment(filename: str, content_type: str) -> bool:
+    extension = Path(filename or "").suffix.lower()
+    if extension in SETTLEMENT_ATTACHMENT_EXTENSIONS:
+        return True
+    return content_type in {
+        "application/pdf",
+        "text/csv",
+        "application/csv",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/plain",
+        "application/xml",
+        "text/xml",
+    }
+
+
+def iter_message_attachments(message: Message) -> Iterable[Dict[str, Any]]:
+    for part in message.walk():
+        disposition = (part.get_content_disposition() or "").lower()
+        filename = decoded_mime_header(part.get_filename())
+        if disposition != "attachment" and not filename:
+            continue
+        payload = part.get_payload(decode=True)
+        if not payload:
+            continue
+        content_type = part.get_content_type() or "application/octet-stream"
+        if not filename:
+            extension = mimetypes.guess_extension(content_type) or ".bin"
+            filename = f"attachment{extension}"
+        if not is_settlement_attachment(filename, content_type):
+            continue
+        yield {
+            "filename": filename,
+            "content_type": content_type,
+            "bytes": payload,
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+
+
+def parse_settlement_period(text_value: str, email_date: Optional[datetime]) -> tuple[Optional[date], Optional[date], str]:
+    text_value = text_value or ""
+    match = re.search(r"\b(20\d{2})[-_./ ](0?[1-9]|1[0-2])\b", text_value)
+    if match:
+        start = date(int(match.group(1)), int(match.group(2)), 1)
+        end = add_months(start, 1) - timedelta(days=1)
+        return start, end, month_label(start)
+    match = re.search(r"\b(0?[1-9]|1[0-2])[-_./ ](20\d{2})\b", text_value)
+    if match:
+        start = date(int(match.group(2)), int(match.group(1)), 1)
+        end = add_months(start, 1) - timedelta(days=1)
+        return start, end, month_label(start)
+    lowered = text_value.lower()
+    for month_name, month_number in NORWEGIAN_MONTHS.items():
+        match = re.search(rf"\b{re.escape(month_name)}\s+(20\d{{2}})\b", lowered)
+        if match:
+            start = date(int(match.group(1)), month_number, 1)
+            end = add_months(start, 1) - timedelta(days=1)
+            return start, end, month_label(start)
+    if email_date and email_date.day <= 12:
+        previous_month = add_months(email_date.date().replace(day=1), -1)
+        return previous_month, add_months(previous_month, 1) - timedelta(days=1), f"{month_label(previous_month)} (antatt)"
+    return None, None, "Ikke tolket"
+
+
+def settlement_row_api(row: SettlementImport) -> Dict[str, Any]:
+    return {
+        "id": row.id,
+        "provider": row.provider,
+        "source": row.source,
+        "period_label": row.period_label,
+        "period_start": row.period_start.isoformat() if row.period_start else None,
+        "period_end": row.period_end.isoformat() if row.period_end else None,
+        "status": row.status,
+        "sender": row.sender,
+        "email_date": api_local_iso(row.email_date),
+        "email_subject": row.email_subject,
+        "attachment_filename": row.attachment_filename,
+        "attachment_content_type": row.attachment_content_type,
+        "attachment_size": row.attachment_size,
+        "attachment_sha256": row.attachment_sha256[:12] if row.attachment_sha256 else None,
+        "imported_at": api_local_iso(row.imported_at),
+    }
+
+
+async def fetch_parking_settlements_from_gmail(session, since_days: int = 370, limit: int = 80) -> Dict[str, Any]:
+    gmail_email, app_password = settlement_gmail_credentials()
+    sender = os.getenv("PARKING_SETTLEMENT_SENDER", PARKING_SETTLEMENT_SENDER)
+    imap_host = os.getenv("SETTLEMENT_GMAIL_IMAP_HOST", "imap.gmail.com")
+    since = (datetime.now() - timedelta(days=max(1, since_days))).strftime("%d-%b-%Y")
+    imported = 0
+    skipped = 0
+    scanned_messages = 0
+    scanned_attachments = 0
+    mailbox_errors: list[str] = []
+    seen_message_keys: set[str] = set()
+    seen_hashes: set[str] = set()
+
+    with imaplib.IMAP4_SSL(imap_host) as mailbox:
+        mailbox.login(gmail_email, app_password)
+        for mailbox_name in settlement_mailboxes():
+            status = select_gmail_mailbox(mailbox, mailbox_name)
+            if status != "OK":
+                mailbox_errors.append(f"Kunne ikke åpne {mailbox_name}")
+                continue
+            status, data = mailbox.uid("search", None, f'(FROM "{sender}" SINCE "{since}")')
+            if status != "OK" or not data or not data[0]:
+                continue
+            message_uids = data[0].split()[-limit:]
+            for uid in message_uids:
+                status, raw_data = mailbox.uid("fetch", uid, "(RFC822)")
+                if status != "OK" or not raw_data:
+                    continue
+                raw_part = raw_data[0]
+                if not isinstance(raw_part, tuple) or len(raw_part) < 2:
+                    continue
+                raw_message = raw_part[1]
+                message = email_lib.message_from_bytes(raw_message)
+                message_id = (message.get("Message-ID") or f"{mailbox_name}:{uid.decode(errors='ignore')}").strip()
+                message_key = f"{mailbox_name}:{message_id}"
+                if message_key in seen_message_keys:
+                    continue
+                seen_message_keys.add(message_key)
+                scanned_messages += 1
+                subject = decoded_mime_header(message.get("Subject"))
+                sender_value = decoded_mime_header(message.get("From"))
+                email_date = message_email_date(message.get("Date"))
+                for attachment in iter_message_attachments(message):
+                    scanned_attachments += 1
+                    sha = attachment["sha256"]
+                    if sha in seen_hashes:
+                        skipped += 1
+                        continue
+                    seen_hashes.add(sha)
+                    existing = (
+                        await session.execute(
+                            select(SettlementImport.id)
+                            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+                            .where(SettlementImport.attachment_sha256 == sha)
+                            .limit(1)
+                        )
+                    ).scalars().first()
+                    if existing:
+                        skipped += 1
+                        continue
+                    period_start, period_end, period_label = parse_settlement_period(
+                        f"{subject} {attachment['filename']}",
+                        email_date,
+                    )
+                    session.add(
+                        SettlementImport(
+                            provider=PARKING_SETTLEMENT_PROVIDER,
+                            source="gmail",
+                            sender=sender_value,
+                            gmail_message_id=message_id,
+                            gmail_uid=uid.decode(errors="ignore"),
+                            email_subject=subject,
+                            email_date=email_date,
+                            mailbox=mailbox_name,
+                            period_start=period_start,
+                            period_end=period_end,
+                            period_label=period_label,
+                            attachment_filename=attachment["filename"],
+                            attachment_content_type=attachment["content_type"],
+                            attachment_sha256=sha,
+                            attachment_size=len(attachment["bytes"]),
+                            attachment_bytes=attachment["bytes"],
+                            status="imported",
+                            raw={
+                                "mailbox": mailbox_name,
+                                "sender_filter": sender,
+                                "gmail_account": gmail_email,
+                            },
+                        )
+                    )
+                    imported += 1
+    return {
+        "imported": imported,
+        "skipped": skipped,
+        "scanned_messages": scanned_messages,
+        "scanned_attachments": scanned_attachments,
+        "sender": sender,
+        "since_days": since_days,
+        "mailbox_errors": mailbox_errors,
+    }
+
+
 @app.get("/api/modules/{module}")
 async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
@@ -15509,6 +15810,133 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     href="/parkering/oversikt",
                 ),
             ]
+
+            if view == "oppgjor":
+                settlement_rows = (
+                    await session.execute(
+                        select(SettlementImport)
+                        .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+                        .order_by(SettlementImport.imported_at.desc())
+                        .limit(200)
+                    )
+                ).scalars().all()
+                total_settlements = (
+                    await session.execute(
+                        select(func.count(SettlementImport.id)).where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+                    )
+                ).scalar_one()
+                unknown_period_count = (
+                    await session.execute(
+                        select(func.count(SettlementImport.id))
+                        .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+                        .where(SettlementImport.period_start.is_(None))
+                    )
+                ).scalar_one()
+                latest_settlement = settlement_rows[0] if settlement_rows else None
+                parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
+                control_rows = []
+                for row in settlement_rows[:36]:
+                    if not row.period_start or not row.period_end:
+                        continue
+                    start_dt = datetime.combine(row.period_start, time.min)
+                    end_dt = datetime.combine(row.period_end + timedelta(days=1), time.min)
+                    summary = await parking_period_summary(session, row.period_label or month_label(row.period_start), start_dt, end_dt)
+                    count_value = int_or_zero(summary.get("count"))
+                    paid_value = float_or_zero(summary.get("paid"))
+                    control_rows.append(
+                        {
+                            "period_label": row.period_label,
+                            "period_start": row.period_start.isoformat(),
+                            "period_end": row.period_end.isoformat(),
+                            "parking_count": count_value,
+                            "parking_paid": round(paid_value, 2),
+                            "average_paid": round(paid_value / count_value, 2) if count_value else None,
+                            "attachment_filename": row.attachment_filename,
+                            "status": "Klar for kontroll",
+                        }
+                    )
+                actions = [
+                    {
+                        "key": "fetch-parking-settlements",
+                        "label": "Hent Park Nordic fra Gmail",
+                        "method": "POST",
+                        "path": "/api/actions/omsetning/fetch-parking-settlements",
+                        "confirm": f"Hente nye parkeringsoppgjor fra Gmail fra {PARKING_SETTLEMENT_SENDER}?",
+                        "tone": "primary",
+                    }
+                ]
+                return {
+                    "title": "Omsetning · Oppgjør",
+                    "subtitle": "Importer månedlige parkeringsoppgjør fra Gmail og kontroller dem mot interne EasyPark-tall.",
+                    "cards": [
+                        api_card(
+                            "Oppgjør importert",
+                            total_settlements,
+                            "stk",
+                            f"{parsed_period_count} perioder tolket",
+                            "revenue",
+                            href="/omsetning/oppgjor",
+                        ),
+                        api_card(
+                            "Siste import",
+                            format_local_datetime(latest_settlement.imported_at) if latest_settlement else "-",
+                            "",
+                            latest_settlement.period_label if latest_settlement else "Ingen importerte oppgjør",
+                            "status",
+                            href="/omsetning/oppgjor",
+                        ),
+                        api_card(
+                            "Ikke periodetolket",
+                            unknown_period_count,
+                            "stk",
+                            "Krever manuell kontroll av filnavn/emne",
+                            "status",
+                            href="/omsetning/oppgjor",
+                        ),
+                        api_card(
+                            "Gmail",
+                            "Klar" if settlement_gmail_configured() else "Mangler",
+                            "",
+                            "Bruker egne SETTLEMENT-vars eller EasyPark-vars som fallback",
+                            "status",
+                            href="/admin/teknisk",
+                        ),
+                    ],
+                    "charts": [],
+                    "tables": [
+                        api_table(
+                            "Parkeringsoppgjør",
+                            [
+                                "period_label",
+                                "status",
+                                "email_date",
+                                "sender",
+                                "email_subject",
+                                "attachment_filename",
+                                "attachment_size",
+                                "attachment_sha256",
+                                "imported_at",
+                            ],
+                            [settlement_row_api(row) for row in settlement_rows],
+                        ),
+                        api_table(
+                            "Kontroll mot interne parkeringstall",
+                            [
+                                "period_label",
+                                "period_start",
+                                "period_end",
+                                "parking_count",
+                                "parking_paid",
+                                "average_paid",
+                                "attachment_filename",
+                                "status",
+                            ],
+                            control_rows,
+                        ),
+                    ],
+                    "actions": actions,
+                }
+
             revenue_columns = ["period_label", "sun_paid", "parking_paid", "total_paid", "sun_count", "parking_count", "total_count"]
             return {
                 "title": "Omsetning" if not view or view == "oversikt" else f"Omsetning · {view.replace('-', ' ')}",
@@ -16965,6 +17393,30 @@ async def api_v2_sun2_save_forecast(request: Request):
         await session.commit()
     clear_summary_cache("sun2")
     return {"status": "ok", "message": "Solingprognose lagret."}
+
+
+@app.post("/api/actions/omsetning/fetch-parking-settlements")
+async def api_v2_fetch_parking_settlements(
+    request: Request,
+    since_days: int = Query(370, ge=1, le=2000),
+    limit: int = Query(80, ge=1, le=500),
+):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        try:
+            result = await fetch_parking_settlements_from_gmail(session, since_days=since_days, limit=limit)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except imaplib.IMAP4.error as exc:
+            raise HTTPException(status_code=502, detail=f"Gmail IMAP feilet: {exc}") from exc
+        await session.commit()
+    return {
+        "status": "ok",
+        "message": f"Importerte {result['imported']} nye parkeringsoppgjør. {result['skipped']} ble hoppet over.",
+        "result": result,
+    }
 
 
 @app.post("/api/actions/parkering/save-forecast")
