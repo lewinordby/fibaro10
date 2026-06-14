@@ -3475,6 +3475,10 @@
   grid-template-columns: minmax(0, 1fr) repeat(3, minmax(84px, 0.38fr));
 }
 
+.settlement-form-list.amount .settlement-form-row.with-source-control {
+  grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(116px, 0.55fr)) 82px;
+}
+
 .settlement-form-row-ok {
   border-color: #bbf7d0;
   background: #fbfefc;
@@ -3531,6 +3535,15 @@
   font-size: 14px;
   font-weight: 790;
   line-height: 1.12;
+}
+
+.settlement-form-value small {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .settlement-form-list.control .settlement-form-value strong {
@@ -3648,6 +3661,7 @@
 
   .settlement-simple-form-grid,
   .settlement-form-row,
+  .settlement-form-list.amount .settlement-form-row.with-source-control,
   .settlement-form-list.control .settlement-form-row {
     grid-template-columns: 1fr;
   }

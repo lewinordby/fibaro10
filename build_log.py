@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1160")
+APP_BUILD = os.getenv("APP_BUILD", "1161")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1161",
+        "date": "14.06.2026",
+        "headline": "Parkeringsoppgjor kontrollerer riktige kilder",
+        "title": "EasyPark og Flowbird/Park Nordic kontrolleres hver for seg",
+        "description": (
+            "Oppgjorskontrollen blandet tidligere interne parkeringstall i en total sammenligning. "
+            "Denne builden skiller kildeverdiene slik at EasyPark-linjen kontrolleres mot source_system=EasyPark, "
+            "og brutto mynt/kort kontrolleres mot source_system=flowbird-parknordic."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): summerer parkeringer per source_system for oppgjorsperioden.",
+            "Fibaro10 backend (main.py): legger kildebaserte avvik for Flowbird og EasyPark i oppgjorsdetalj og oversikt.",
+            "Desktop V2 API (api.ts): utvider oppgjorsfelt med kildeetikett og kildedetalj.",
+            "Desktop V2 oppgjor (SettlementDetailPage.tsx): viser Fibaro10-kildeverdi og avvik direkte paa relevante skjemalinjer.",
+            "Desktop V2 parkering (ParkingSettlementsPage.tsx): viser Flowbird og EasyPark som separate kontrollverdier.",
+            "Desktop V2 CSS (styles.css): gir kildekontroll-linjer bedre kolonneplass og responsiv oppforsel.",
+            "Tester (test_settlement_parser.py): laaser at Flowbird og EasyPark kontrolleres mot riktige source_system-verdier.",
+            "Buildlogg (build_log.py): registrerer build 1161.",
+        ],
+        "request": "kilde: EasyPark og kilde: flowbird-parknordic",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Brutto mynt/kortautomat sammenlignes naa med intern sum eks. mva fra source_system=flowbird-parknordic.",
+            "EasyPark-linjen sammenlignes naa med intern sum eks. mva fra source_system=EasyPark.",
+            "Oppgjorsoversikten viser storste kildeavvik og detaljraden viser begge kildene separat.",
+            "Den gamle total-parkering-mot-EasyPark-logikken er fjernet fra primarvisningen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1160",

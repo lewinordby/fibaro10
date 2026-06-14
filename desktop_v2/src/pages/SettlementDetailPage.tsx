@@ -61,13 +61,13 @@ function verdictFor(diffNumber: number | null) {
     return {
       tone: "ok",
       label: "Ser konsistent ut",
-      detail: "Avviket mellom Fibaro10 og EasyPark-linjen i skjemaet er innenfor kontrollgrensen.",
+      detail: "Største kildeavvik mellom Fibaro10 og skjemaet er innenfor kontrollgrensen.",
     };
   }
   return {
     tone: "warn",
     label: "Krever manuell sjekk",
-    detail: "Avviket er større enn kontrollgrensen. Kontroller perioden, EasyPark-linjen og importerte parkeringer.",
+    detail: "Avviket er større enn kontrollgrensen. Kontroller perioden, kildefeltet og importerte parkeringer.",
   };
 }
 
@@ -162,7 +162,7 @@ function FocusPair({ label, value }: { label: string; value: string }) {
 }
 
 function formStatusTag(row: SettlementField) {
-  if (row.group === "amount") {
+  if (row.group === "amount" && row.expected === undefined) {
     return row.confidence === null || row.confidence === undefined ? null : confidenceTag(row.confidence);
   }
   if (row.status === "ok") return <Tag color="green">Stemmer</Tag>;
@@ -171,8 +171,9 @@ function formStatusTag(row: SettlementField) {
 }
 
 function SettlementFormRow({ row }: { row: SettlementField }) {
+  const hasExpected = row.expected !== undefined;
   return (
-    <div className={`settlement-form-row settlement-form-row-${row.status ?? "plain"}`}>
+    <div className={`settlement-form-row ${hasExpected ? "with-source-control" : ""} settlement-form-row-${row.status ?? "plain"}`}>
       <div className="settlement-form-label">
         <strong>{row.label}</strong>
         <span>{row.field}</span>
@@ -181,15 +182,17 @@ function SettlementFormRow({ row }: { row: SettlementField }) {
         <span>Lest verdi</span>
         <strong>{moneyValue(row.value)}</strong>
       </div>
-      {row.group === "control" ? (
+      {hasExpected ? (
         <>
           <div className="settlement-form-value">
-            <span>Beregnet</span>
+            <span>{row.expectedLabel || "Beregnet"}</span>
             <strong>{moneyValue(row.expected)}</strong>
+            {row.expectedDetail ? <small>{row.expectedDetail}</small> : null}
           </div>
           <div className="settlement-form-value">
             <span>Avvik</span>
             <strong>{signedMoneyValue(row.difference)}</strong>
+            {row.expectedSource ? <small>{row.expectedSource}</small> : null}
           </div>
         </>
       ) : null}
@@ -271,13 +274,23 @@ export default function SettlementDetailPage() {
   const periodSection = sectionByTitle(data.sections, "Tolket periode");
   const emailSection = sectionByTitle(data.sections, "E-post og vedlegg");
   const parserSection = sectionByTitle(data.sections, "Parserkontroll");
-  const fibaroPaid = fieldByKey(controlSection, "parking_paid");
-  const parkingCount = fieldByKey(controlSection, "parking_count");
-  const schemaEasypark = fieldByKey(controlSection, "easypark_inc_vat_estimate");
-  const diff = fieldByKey(controlSection, "easypark_diff_inc_vat");
+  const flowbirdPaid = fieldByKey(controlSection, "flowbird_source_paid_ex_vat");
+  const flowbirdCount = fieldByKey(controlSection, "flowbird_source_count");
+  const grossCoinCard = fieldByKey(controlSection, "gross_coin_card_ex_vat");
+  const flowbirdDiff = fieldByKey(controlSection, "flowbird_source_diff_ex_vat");
+  const easyparkPaid = fieldByKey(controlSection, "easypark_source_paid_ex_vat");
+  const easyparkCount = fieldByKey(controlSection, "easypark_source_count");
+  const schemaEasypark = fieldByKey(controlSection, "easypark_ex_vat");
+  const easyparkDiff = fieldByKey(controlSection, "easypark_source_diff_ex_vat");
   const payout = fieldByKey(schemaSection, "payout_inc_vat");
   const confidence = fieldByKey(parserSection, "confidence");
-  const diffNumber = numberValue(diff?.value);
+  const flowbirdDiffNumber = numberValue(flowbirdDiff?.value);
+  const easyparkDiffNumber = numberValue(easyparkDiff?.value);
+  const diffNumber =
+    [flowbirdDiffNumber, easyparkDiffNumber]
+      .filter((value): value is number => value !== null)
+      .sort((a, b) => Math.abs(b) - Math.abs(a))[0] ?? null;
+  const primaryDiff = Math.abs(flowbirdDiffNumber ?? 0) >= Math.abs(easyparkDiffNumber ?? 0) ? flowbirdDiff : easyparkDiff;
   const verdict = verdictFor(diffNumber);
 
   return (
@@ -303,12 +316,14 @@ export default function SettlementDetailPage() {
 
       <div className="settlement-report-strip">
         <ReportMetric label="Til utbetaling" value={moneyValue(payout?.value)} detail="Sluttsum fra Park Nordic" tone="revenue" />
-        <ReportMetric label="Fibaro10" value={moneyValue(fibaroPaid?.value)} detail={`${displayValue(parkingCount?.value)} parkeringer`} tone="parking" />
-        <ReportMetric label="Skjema EasyPark" value={moneyValue(schemaEasypark?.value)} detail="Estimert inkl. mva" tone="status" />
+        <ReportMetric label="Flowbird Fibaro10" value={moneyValue(flowbirdPaid?.value)} detail={`${displayValue(flowbirdCount?.value)} parkeringer`} tone="parking" />
+        <ReportMetric label="Skjema mynt/kort" value={moneyValue(grossCoinCard?.value)} detail="Brutto eks. mva" tone="status" />
+        <ReportMetric label="EasyPark Fibaro10" value={moneyValue(easyparkPaid?.value)} detail={`${displayValue(easyparkCount?.value)} parkeringer`} tone="parking" />
+        <ReportMetric label="Skjema EasyPark" value={moneyValue(schemaEasypark?.value)} detail="Eks. mva" tone="status" />
         <ReportMetric
-          label="Avvik"
-          value={signedMoneyValue(diff?.value)}
-          detail="Fibaro10 minus skjema"
+          label="Største avvik"
+          value={signedMoneyValue(primaryDiff?.value)}
+          detail="Skjema minus Fibaro10"
           tone={diffNumber !== null && Math.abs(diffNumber) > 1000 ? "revenue" : "energy"}
         />
         <ReportMetric label="Tolkesikkerhet" value={percentValue(confidence?.value)} detail="Parserkontroll" tone="status" />
@@ -318,8 +333,8 @@ export default function SettlementDetailPage() {
         label={verdict.label}
         detail={verdict.detail}
         tone={verdict.tone}
-        diff={diff?.value}
-        fibaro={fibaroPaid?.value}
+        diff={primaryDiff?.value}
+        fibaro={easyparkPaid?.value}
         schema={schemaEasypark?.value}
       />
 

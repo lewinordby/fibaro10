@@ -63,6 +63,35 @@ class ParkingSettlementParserTests(unittest.TestCase):
         self.assertGreaterEqual(parsed["_meta"]["confidence"], 0.9)
         self.assertIn("easypark_ex_vat", parsed["_meta"]["field_sources"])
 
+        form_rows = {
+            row["field"]: row
+            for row in main.settlement_form_rows(
+                parsed,
+                {
+                    "flowbird": {
+                        "label": "flowbird-parknordic",
+                        "sources": ["flowbird-parknordic"],
+                        "count": 213,
+                        "paid_ex_vat": 10825.60,
+                        "paid_inc_vat": 13532.00,
+                    },
+                    "easypark": {
+                        "label": "EasyPark",
+                        "sources": ["EasyPark"],
+                        "count": 3157,
+                        "paid_ex_vat": 160262.40,
+                        "paid_inc_vat": 200328.00,
+                    },
+                },
+            )
+        }
+        self.assertEqual(form_rows["gross_coin_card_ex_vat"]["expected"], 10825.6)
+        self.assertAlmostEqual(form_rows["gross_coin_card_ex_vat"]["difference"], -244.6)
+        self.assertEqual(form_rows["gross_coin_card_ex_vat"]["expectedSource"], "source_system = flowbird-parknordic")
+        self.assertEqual(form_rows["easypark_ex_vat"]["expected"], 160262.4)
+        self.assertAlmostEqual(form_rows["easypark_ex_vat"]["difference"], -2484.4)
+        self.assertEqual(form_rows["easypark_ex_vat"]["expectedSource"], "source_system = EasyPark")
+
 
 if __name__ == "__main__":
     unittest.main()

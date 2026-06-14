@@ -16082,6 +16082,9 @@ def settlement_form_field(
     group: str,
     note: str,
     expected: Optional[float] = None,
+    expected_label: str = "Beregnet",
+    expected_source: str = "",
+    expected_detail: str = "",
 ) -> Dict[str, Any]:
     payload = settlement_field(
         label,
@@ -16095,6 +16098,11 @@ def settlement_form_field(
     if expected is not None:
         numeric_value = parse_settlement_number(value)
         payload["expected"] = settlement_number_value(expected)
+        payload["expectedLabel"] = expected_label
+        if expected_source:
+            payload["expectedSource"] = expected_source
+        if expected_detail:
+            payload["expectedDetail"] = expected_detail
         if numeric_value is not None:
             difference = round(float(numeric_value) - expected, 2)
             payload["difference"] = settlement_number_value(difference)
@@ -16108,7 +16116,26 @@ def settlement_form_field(
     return payload
 
 
-def settlement_form_rows(parsed: Any) -> list[Dict[str, Any]]:
+def settlement_source_expected(
+    source_summaries: Optional[Dict[str, Dict[str, Any]]],
+    key: str,
+) -> tuple[Optional[float], str]:
+    if not source_summaries:
+        return None, ""
+    summary = source_summaries.get(key) or {}
+    value = summary.get("paid_ex_vat")
+    if value is None:
+        return None, ""
+    sources = summary.get("sources")
+    if isinstance(sources, list) and sources:
+        source_text = ", ".join(str(item) for item in sources)
+    else:
+        source_text = str(summary.get("label") or key)
+    count_value = int_or_zero(summary.get("count"))
+    return round(float_or_zero(value), 2), f"{count_value} parkeringer fra {source_text}"
+
+
+def settlement_form_rows(parsed: Any, source_summaries: Optional[Dict[str, Dict[str, Any]]] = None) -> list[Dict[str, Any]]:
     gross_coin_card = settlement_parsed_float(parsed, "gross_coin_card_ex_vat")
     easypark = settlement_parsed_float(parsed, "easypark_ex_vat")
     fee = settlement_parsed_float(parsed, "settlement_fee_ex_vat")
@@ -16123,8 +16150,10 @@ def settlement_form_rows(parsed: Any) -> list[Dict[str, Any]]:
     expected_net_coin_card = settlement_sum_or_none(gross_coin_card, easypark, fee)
     expected_total_basis = settlement_sum_or_none(net_coin_card, long_term, control_fee)
     expected_payout = settlement_sum_or_none(total_share, vat)
+    expected_flowbird, expected_flowbird_detail = settlement_source_expected(source_summaries, "flowbird")
+    expected_easypark, expected_easypark_detail = settlement_source_expected(source_summaries, "easypark")
 
-    return [
+    rows = [
         settlement_form_field(
             "Brutto mynt/kortautomat",
             "gross_coin_card_ex_vat",
@@ -16139,7 +16168,7 @@ def settlement_form_rows(parsed: Any) -> list[Dict[str, Any]]:
             settlement_parsed_value(parsed, "easypark_ex_vat"),
             parsed,
             "amount",
-            "Operativt beløp fra EasyPark-linjen. Dette er beløpet vi bruker mot interne EasyPark-tall.",
+            "Operativt beløp fra EasyPark-linjen. Dette kontrolleres mot source_system = EasyPark.",
         ),
         settlement_form_field(
             "Fratrekk tømming/telling/kort",
@@ -16185,6 +16214,36 @@ def settlement_form_rows(parsed: Any) -> list[Dict[str, Any]]:
             expected_payout,
         ),
     ]
+    source_controls = {
+        "gross_coin_card_ex_vat": (
+            expected_flowbird,
+            "Fibaro10 flowbird eks. mva",
+            "source_system = flowbird-parknordic",
+            expected_flowbird_detail,
+        ),
+        "easypark_ex_vat": (
+            expected_easypark,
+            "Fibaro10 EasyPark eks. mva",
+            "source_system = EasyPark",
+            expected_easypark_detail,
+        ),
+    }
+    for item in rows:
+        expected, expected_label, expected_source, expected_detail = source_controls.get(item.get("field"), (None, "", "", ""))
+        if expected is None:
+            continue
+        numeric_value = parse_settlement_number(item.get("value"))
+        item["expected"] = settlement_number_value(expected)
+        item["expectedLabel"] = expected_label
+        item["expectedSource"] = expected_source
+        item["expectedDetail"] = expected_detail
+        if numeric_value is not None:
+            difference = round(float(numeric_value) - expected, 2)
+            item["difference"] = settlement_number_value(difference)
+            item["status"] = "ok" if abs(difference) <= 1 else "warn"
+        else:
+            item["status"] = "missing"
+    return rows
 
 
 def settlement_original_payload(row: SettlementImport) -> Dict[str, Any]:
@@ -16279,34 +16338,52 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
     meta = settlement_parsed_meta(parsed)
     control_rows = []
     control_cards = []
+    source_summaries: Optional[Dict[str, Dict[str, Any]]] = None
     if row.period_start and row.period_end:
         start_dt = datetime.combine(row.period_start, time.min)
         end_dt = datetime.combine(row.period_end + timedelta(days=1), time.min)
-        summary = await parking_period_summary(session, row.period_label or month_label(row.period_start), start_dt, end_dt)
-        count_value = int_or_zero(summary.get("count"))
-        paid_value = float_or_zero(summary.get("paid"))
+        source_summaries = await parking_period_source_summaries(session, start_dt, end_dt)
+        easypark_summary = source_summaries["easypark"]
+        flowbird_summary = source_summaries["flowbird"]
+        other_summary = source_summaries["other"]
+        count_value = int_or_zero(easypark_summary.get("count")) + int_or_zero(flowbird_summary.get("count")) + int_or_zero(other_summary.get("count"))
+        paid_value = (
+            float_or_zero(easypark_summary.get("paid_inc_vat"))
+            + float_or_zero(flowbird_summary.get("paid_inc_vat"))
+            + float_or_zero(other_summary.get("paid_inc_vat"))
+        )
         average_value = round(paid_value / count_value, 2) if count_value else None
+        flowbird_ex_vat = round(float_or_zero(flowbird_summary.get("paid_ex_vat")), 2)
+        easypark_source_ex_vat = round(float_or_zero(easypark_summary.get("paid_ex_vat")), 2)
+        gross_coin_card = settlement_parsed_float(parsed, "gross_coin_card_ex_vat")
         easypark_ex_vat = settlement_parsed_float(parsed, "easypark_ex_vat")
-        easypark_inc_vat_estimate = settlement_parsed_float(parsed, "easypark_inc_vat_estimate")
         payout_inc_vat = settlement_parsed_float(parsed, "payout_inc_vat")
-        diff_easypark = round(paid_value - easypark_inc_vat_estimate, 2) if easypark_inc_vat_estimate is not None else None
+        diff_flowbird = round(gross_coin_card - flowbird_ex_vat, 2) if gross_coin_card is not None else None
+        diff_easypark = round(easypark_ex_vat - easypark_source_ex_vat, 2) if easypark_ex_vat is not None else None
         control_rows = [
             settlement_field("Kontrollperiode fra", "period_start", row.period_start, "Tolket fra emne/filnavn"),
-            settlement_field("Kontrollperiode til", "period_end", row.period_end, "Beregnet siste dag i tolket måned"),
-            settlement_field("Parkeringer i Fibaro10", "parking_count", count_value, "Summeres fra EasyPark-parkeringer i perioden"),
-            settlement_field("Omsetning i Fibaro10 inkl. mva", "parking_paid", round(paid_value, 2), "Summeres fra EasyPark fee_inc_vat i perioden", "Beløp i kroner inkl. mva"),
+            settlement_field("Kontrollperiode til", "period_end", row.period_end, "Beregnet siste dag i tolket maaned"),
+            settlement_field("Flowbird parkeringer", "flowbird_source_count", int_or_zero(flowbird_summary.get("count")), "source_system = flowbird-parknordic"),
+            settlement_field("Flowbird i Fibaro10 eks. mva", "flowbird_source_paid_ex_vat", flowbird_ex_vat, "source_system = flowbird-parknordic", "Summeres fra fee_ex_vat for hele oppgjorsmaaneden."),
+            settlement_field("Brutto mynt/kort i skjema eks. mva", "gross_coin_card_ex_vat", gross_coin_card, settlement_field_source(parsed, "gross_coin_card_ex_vat"), "Belop hentet fra oppgjorsskjemaet.", settlement_field_confidence(parsed, "gross_coin_card_ex_vat")),
+            settlement_field("Avvik skjema - Flowbird eks. mva", "flowbird_source_diff_ex_vat", diff_flowbird, "Beregnet kontroll", "Positivt tall betyr at skjemaet har hoyere brutto mynt/kort enn Fibaro10-kilden."),
+            settlement_field("EasyPark parkeringer", "easypark_source_count", int_or_zero(easypark_summary.get("count")), "source_system = EasyPark"),
+            settlement_field("EasyPark i Fibaro10 eks. mva", "easypark_source_paid_ex_vat", easypark_source_ex_vat, "source_system = EasyPark", "Summeres fra fee_ex_vat for hele oppgjorsmaaneden."),
+            settlement_field("EasyPark i skjema eks. mva", "easypark_ex_vat", easypark_ex_vat, settlement_field_source(parsed, "easypark_ex_vat"), "Belop hentet fra oppgjorsskjemaet.", settlement_field_confidence(parsed, "easypark_ex_vat")),
+            settlement_field("Avvik skjema - EasyPark eks. mva", "easypark_source_diff_ex_vat", diff_easypark, "Beregnet kontroll", "Positivt tall betyr at skjemaet har hoyere EasyPark-belop enn Fibaro10-kilden."),
+            settlement_field("Andre kildeparkeringer", "other_source_count", int_or_zero(other_summary.get("count")), "Alle andre source_system-verdier"),
+            settlement_field("Total parkering i Fibaro10 inkl. mva", "parking_paid", round(paid_value, 2), "Alle parkeringskilder", "Totalverdi for orientering, ikke brukt som EasyPark-kontroll."),
             settlement_field("Snitt per parkering", "average_paid", average_value, "Beregnet fra intern parkeringstelling"),
-            settlement_field("EasyPark i skjema eks. mva", "easypark_ex_vat", easypark_ex_vat, settlement_field_source(parsed, "easypark_ex_vat"), "Beløp hentet fra oppgjørsskjemaet.", settlement_field_confidence(parsed, "easypark_ex_vat")),
-            settlement_field("EasyPark i skjema estimert inkl. mva", "easypark_inc_vat_estimate", easypark_inc_vat_estimate, settlement_field_source(parsed, "easypark_inc_vat_estimate"), "Beregnet kontrollverdi for sammenligning mot Fibaro10.", settlement_field_confidence(parsed, "easypark_inc_vat_estimate")),
-            settlement_field("Avvik Fibaro10 - skjema EasyPark inkl. mva", "easypark_diff_inc_vat", diff_easypark, "Beregnet kontroll", "Positivt tall betyr at Fibaro10 har høyere EasyPark-beløp enn skjemaets EasyPark-linje estimert inkl. mva."),
-            settlement_field("Til utbetaling i skjema", "payout_inc_vat", payout_inc_vat, settlement_field_source(parsed, "payout_inc_vat"), "Oppgjørets sluttsum. Dette er ikke direkte det samme som kundebetaling i Fibaro10.", settlement_field_confidence(parsed, "payout_inc_vat")),
+            settlement_field("Til utbetaling i skjema", "payout_inc_vat", payout_inc_vat, settlement_field_source(parsed, "payout_inc_vat"), "Oppgjorets sluttsum. Dette er ikke direkte det samme som kundebetaling i Fibaro10.", settlement_field_confidence(parsed, "payout_inc_vat")),
         ]
         control_cards = [
-            api_card("Intern parkering", count_value, "stk", f"{format_short_number(paid_value)} kr", "parking"),
-            api_card("Snitt", format_short_number(average_value or 0, 2), "kr", "Internt beregnet", "revenue"),
+            api_card("Flowbird Fibaro10", format_short_number(flowbird_ex_vat, 2), "kr", f"{int_or_zero(flowbird_summary.get('count'))} parkeringer", "parking"),
+            api_card("EasyPark Fibaro10", format_short_number(easypark_source_ex_vat, 2), "kr", f"{int_or_zero(easypark_summary.get('count'))} parkeringer", "parking"),
         ]
+        if diff_flowbird is not None:
+            control_cards.append(api_card("Avvik Flowbird", format_short_number(diff_flowbird, 2), "kr", "Skjema minus Fibaro10 eks. mva", "revenue"))
         if diff_easypark is not None:
-            control_cards.append(api_card("Avvik EasyPark", format_short_number(diff_easypark, 2), "kr", "Fibaro10 minus skjema inkl. mva", "revenue"))
+            control_cards.append(api_card("Avvik EasyPark", format_short_number(diff_easypark, 2), "kr", "Skjema minus Fibaro10 eks. mva", "revenue"))
     else:
         control_rows = [
             settlement_field("Kontrollstatus", "status", "Mangler periode", "Perioden kunne ikke tolkes fra emne, filnavn eller e-postdato"),
@@ -16349,7 +16426,7 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
         "cards": cards,
         "original": settlement_original_payload(row),
         "sections": [
-            {"title": "Oppgjørsformular", "rows": settlement_form_rows(parsed)},
+            {"title": "Oppgjørsformular", "rows": settlement_form_rows(parsed, source_summaries)},
             {"title": "Nøkkeltall fra skjema", "rows": parsed_rows},
             {"title": "Kontroll mot Fibaro10", "rows": control_rows},
             {
@@ -16417,11 +16494,22 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
             continue
         start_dt = datetime.combine(row.period_start, time.min)
         end_dt = datetime.combine(row.period_end + timedelta(days=1), time.min)
-        summary = await parking_period_summary(session, row.period_label or month_label(row.period_start), start_dt, end_dt)
-        count_value = int_or_zero(summary.get("count"))
-        paid_value = float_or_zero(summary.get("paid"))
-        easypark_inc_vat = settlement_parsed_float(row.parsed, "easypark_inc_vat_estimate")
-        easypark_diff = round(paid_value - easypark_inc_vat, 2) if easypark_inc_vat is not None else None
+        source_summaries = await parking_period_source_summaries(session, start_dt, end_dt)
+        easypark_summary = source_summaries["easypark"]
+        flowbird_summary = source_summaries["flowbird"]
+        other_summary = source_summaries["other"]
+        count_value = int_or_zero(easypark_summary.get("count")) + int_or_zero(flowbird_summary.get("count")) + int_or_zero(other_summary.get("count"))
+        paid_value = (
+            float_or_zero(easypark_summary.get("paid_inc_vat"))
+            + float_or_zero(flowbird_summary.get("paid_inc_vat"))
+            + float_or_zero(other_summary.get("paid_inc_vat"))
+        )
+        flowbird_ex_vat = round(float_or_zero(flowbird_summary.get("paid_ex_vat")), 2)
+        easypark_source_ex_vat = round(float_or_zero(easypark_summary.get("paid_ex_vat")), 2)
+        gross_coin_card = settlement_parsed_float(row.parsed, "gross_coin_card_ex_vat")
+        easypark_ex_vat = settlement_parsed_float(row.parsed, "easypark_ex_vat")
+        flowbird_source_diff = round(gross_coin_card - flowbird_ex_vat, 2) if gross_coin_card is not None else None
+        easypark_source_diff = round(easypark_ex_vat - easypark_source_ex_vat, 2) if easypark_ex_vat is not None else None
         control_rows.append(
             {
                 "period_label": row.period_label,
@@ -16429,9 +16517,15 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
                 "period_end": row.period_end.isoformat(),
                 "parking_count": count_value,
                 "parking_paid": round(paid_value, 2),
+                "flowbird_source_count": int_or_zero(flowbird_summary.get("count")),
+                "flowbird_source_paid_ex_vat": flowbird_ex_vat,
+                "gross_coin_card_ex_vat": settlement_parsed_value(row.parsed, "gross_coin_card_ex_vat"),
+                "flowbird_source_diff_ex_vat": flowbird_source_diff,
+                "easypark_source_count": int_or_zero(easypark_summary.get("count")),
+                "easypark_source_paid_ex_vat": easypark_source_ex_vat,
+                "easypark_source_diff_ex_vat": easypark_source_diff,
+                "other_source_count": int_or_zero(other_summary.get("count")),
                 "easypark_ex_vat": settlement_parsed_value(row.parsed, "easypark_ex_vat"),
-                "easypark_inc_vat_estimate": easypark_inc_vat,
-                "easypark_diff_inc_vat": easypark_diff,
                 "payout_inc_vat": settlement_parsed_value(row.parsed, "payout_inc_vat"),
                 "average_paid": round(paid_value / count_value, 2) if count_value else None,
                 "attachment_filename": row.attachment_filename,
@@ -16450,7 +16544,7 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
     ]
     return {
         "title": "Parkering · Oppgjør",
-        "subtitle": "Importer månedlige parkeringsoppgjør fra Gmail og kontroller dem mot interne EasyPark-tall.",
+        "subtitle": "Importer månedlige parkeringsoppgjør fra Gmail og kontroller EasyPark og Flowbird/Park Nordic mot interne kildetall.",
         "cards": [
             api_card(
                 "Oppgjør importert",
@@ -16510,9 +16604,15 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
                     "period_end",
                     "parking_count",
                     "parking_paid",
+                    "flowbird_source_count",
+                    "flowbird_source_paid_ex_vat",
+                    "gross_coin_card_ex_vat",
+                    "flowbird_source_diff_ex_vat",
+                    "easypark_source_count",
+                    "easypark_source_paid_ex_vat",
+                    "easypark_source_diff_ex_vat",
+                    "other_source_count",
                     "easypark_ex_vat",
-                    "easypark_inc_vat_estimate",
-                    "easypark_diff_inc_vat",
                     "payout_inc_vat",
                     "average_paid",
                     "attachment_filename",
@@ -19850,6 +19950,49 @@ async def parking_period_summary(session, label: str, start_at: datetime, end_at
         )
     ).first()
     return {"label": label, "count": row[0] or 0, "paid": row[1] or 0}
+
+
+def parking_source_control_key(source_system: Optional[str]) -> str:
+    source = (source_system or "").strip().lower()
+    if source == "easypark":
+        return "easypark"
+    if source == "flowbird-parknordic" or "flowbird" in source:
+        return "flowbird"
+    return "other"
+
+
+async def parking_period_source_summaries(session, start_at: datetime, end_at: datetime) -> Dict[str, Dict[str, Any]]:
+    rows = (
+        await session.execute(
+            select(
+                ParkingSession.source_system,
+                func.count(ParkingSession.id),
+                func.coalesce(func.sum(ParkingSession.fee_ex_vat), 0),
+                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0),
+            )
+            .where(ParkingSession.start_time >= start_at)
+            .where(ParkingSession.start_time < end_at)
+            .group_by(ParkingSession.source_system)
+        )
+    ).all()
+    summaries: Dict[str, Dict[str, Any]] = {
+        "easypark": {"label": "EasyPark", "sources": [], "count": 0, "paid_ex_vat": 0.0, "paid_inc_vat": 0.0},
+        "flowbird": {"label": "flowbird-parknordic", "sources": [], "count": 0, "paid_ex_vat": 0.0, "paid_inc_vat": 0.0},
+        "other": {"label": "Andre kilder", "sources": [], "count": 0, "paid_ex_vat": 0.0, "paid_inc_vat": 0.0},
+    }
+    for source_system, count_value, paid_ex_vat, paid_inc_vat in rows:
+        key = parking_source_control_key(source_system)
+        item = summaries[key]
+        source_label = (source_system or "").strip() or "-"
+        if source_label not in item["sources"]:
+            item["sources"].append(source_label)
+        item["count"] += int_or_zero(count_value)
+        item["paid_ex_vat"] += float_or_zero(paid_ex_vat)
+        item["paid_inc_vat"] += float_or_zero(paid_inc_vat)
+    for item in summaries.values():
+        item["paid_ex_vat"] = round(float_or_zero(item.get("paid_ex_vat")), 2)
+        item["paid_inc_vat"] = round(float_or_zero(item.get("paid_inc_vat")), 2)
+    return summaries
 
 
 def easypark_recent_period() -> tuple[date, date]:
