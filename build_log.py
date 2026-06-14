@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1139")
+APP_BUILD = os.getenv("APP_BUILD", "1140")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1140",
+        "date": "14.06.2026",
+        "headline": "Rydder primærflagg på soltimebilder",
+        "title": "Eldre soltimer med bilder får valgt ett hovedbilde automatisk",
+        "description": (
+            "Noen eldre soltimer hadde lagrede Axis-bilder uten at ett av dem var merket som hovedbilde. "
+            "Migreringen velger -15-bildet der det finnes, ellers bildet som ligger nærmest -15 sekunder."
+        ),
+        "applications": [
+            "Database (migrations/versions/20260614_0745_sun2_image_primary_backfill.sql): setter primærbilde på soltimer som mangler primærflagg.",
+            "Buildlogg (build_log.py): registrerer build 1140.",
+        ],
+        "request": "hva med knapp for å sette hovedbilde, en ting er når du er inne i arkivet, men også når du er i grensesnittet.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fant 39 eldre soltimer med bilder, men uten primærbilde.",
+            "Legger inn migrering som velger ett hovedbilde per berørt soltime.",
+            "Prioriterer offset -15, ellers nærmeste tilgjengelige offset til -15.",
+            "Endrer ikke soltimer som allerede har et primærbilde.",
+        ],
+    },
     {
         "version": "1",
         "build": "1139",
