@@ -14650,6 +14650,192 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
     }
 
 
+ADMIN_TASK_SEVERITY_SORT = {
+    "Kritisk": 0,
+    "Høy": 1,
+    "Medium": 2,
+    "Lav": 3,
+}
+
+
+def api_admin_task_row(
+    severity: str,
+    domain: str,
+    item: str,
+    problem: str,
+    detail: str,
+    count: Optional[int],
+    path: str,
+    recommended_action: str,
+) -> Dict[str, Any]:
+    return {
+        "severity": severity,
+        "domain": domain,
+        "item": item,
+        "problem": problem,
+        "detail": detail,
+        "count": count,
+        "path": path,
+        "recommended_action": recommended_action,
+        "_sort": ADMIN_TASK_SEVERITY_SORT.get(severity, 9),
+    }
+
+
+def admin_task_import_severity(status: str) -> str:
+    if status == "bad":
+        return "Kritisk"
+    if status == "warn":
+        return "Høy"
+    return "Medium"
+
+
+async def build_admin_task_rows(session, import_rows: list[Dict[str, Any]], now_dt: datetime) -> list[Dict[str, Any]]:
+    task_rows: list[Dict[str, Any]] = []
+
+    for row in import_rows:
+        status = str(row.get("status") or "")
+        if status not in {"bad", "warn"}:
+            continue
+        task_rows.append(
+            api_admin_task_row(
+                admin_task_import_severity(status),
+                "Datakilde",
+                str(row.get("title") or row.get("job_name") or "-"),
+                str(row.get("status_text") or status),
+                f"{row.get('age') or 'Ingen alder'} - {row.get('message') or row.get('description') or 'Ingen melding'}",
+                int_or_zero(row.get("records_total")) if row.get("records_total") is not None else None,
+                "/admin/datakilder",
+                "Sjekk siste kjøring, feilmelding og planlagt oppdatering.",
+            )
+        )
+
+    vehicle_blank_name_count = int_or_zero(
+        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_blank_name_condition()))).scalar_one()
+    )
+    vehicle_name_not_found_count = int_or_zero(
+        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_name_not_found_condition()))).scalar_one()
+    )
+    vehicle_blank_area_count = int_or_zero(
+        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_blank_area_condition()))).scalar_one()
+    )
+    vehicle_area_not_found_count = int_or_zero(
+        (await session.execute(select(func.count(ParkingVehicle.plate)).where(vehicle_area_not_found_condition()))).scalar_one()
+    )
+    if vehicle_blank_name_count:
+        task_rows.append(
+            api_admin_task_row(
+                "Medium",
+                "Parkering",
+                "Kjøretøy uten navn",
+                "Mangler eiernavn",
+                "Blankt navn i kjøretøytabellen.",
+                vehicle_blank_name_count,
+                "/parkering/oppslag",
+                "Kjør SVV-sync eller oppdater kjøretøy manuelt.",
+            )
+        )
+    if vehicle_name_not_found_count:
+        task_rows.append(
+            api_admin_task_row(
+                "Lav",
+                "Parkering",
+                "Kjøretøy med navn ikke funnet",
+                "SVV fant ikke navn",
+                "Disse inngår i hovedtallet mangler navn, men vises separat.",
+                vehicle_name_not_found_count,
+                "/parkering/oppslag",
+                "Kontroller om registreringsnummeret er korrekt eller la posten stå som ikke funnet.",
+            )
+        )
+    if vehicle_blank_area_count:
+        task_rows.append(
+            api_admin_task_row(
+                "Medium",
+                "Parkering",
+                "Kjøretøy uten område",
+                "Mangler område",
+                "Blankt område i kjøretøytabellen.",
+                vehicle_blank_area_count,
+                "/parkering/omrade",
+                "Bruk områdeoversikten for å sette område eller rydde grunnlaget.",
+            )
+        )
+    if vehicle_area_not_found_count:
+        task_rows.append(
+            api_admin_task_row(
+                "Medium",
+                "Parkering",
+                "Kjøretøy med område ikke funnet",
+                "Områdeoppslag ga ikke treff",
+                "Kan gi svakere områdestatistikk og rapportering.",
+                vehicle_area_not_found_count,
+                "/parkering/oppslag",
+                "Rydd ikke funnet-verdier eller legg inn område manuelt.",
+            )
+        )
+
+    sun_image_cutoff = now_dt - timedelta(days=14)
+    sun_sessions_without_images = int_or_zero(
+        (
+            await session.execute(
+                select(func.count(Sun2TanningSession.id))
+                .outerjoin(Sun2TanningSessionImage, Sun2TanningSessionImage.session_id == Sun2TanningSession.id)
+                .where(Sun2TanningSession.started_at >= sun_image_cutoff)
+                .where(Sun2TanningSessionImage.id.is_(None))
+            )
+        ).scalar_one()
+    )
+    if sun_sessions_without_images:
+        task_rows.append(
+            api_admin_task_row(
+                "Høy",
+                "Soling",
+                "Solinger uten bilde",
+                "Mangler Axis-bilde",
+                "Gjelder soltimer siste 14 dager.",
+                sun_sessions_without_images,
+                "/soling/enkeltimer",
+                "Kontroller bildeinnlesing og koble riktig bilde til timen.",
+            )
+        )
+
+    latest_energy = (
+        await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
+    ).scalars().first()
+    energy_age_minutes = minutes_since(latest_energy.bucket_start if latest_energy else None, now_dt)
+    if energy_age_minutes is None or energy_age_minutes > 3:
+        task_rows.append(
+            api_admin_task_row(
+                "Kritisk" if energy_age_minutes is None or energy_age_minutes > 10 else "Høy",
+                "Energi",
+                "Realtime energilogging",
+                "Siste sample er for gammel",
+                age_label(energy_age_minutes),
+                None,
+                "/energi/status",
+                "Kontroller HC3-logging, scheduler og Fibaro API.",
+            )
+        )
+    if latest_energy and abs(float_or_zero(latest_energy.differanse_beregnet_w)) >= 1000:
+        task_rows.append(
+            api_admin_task_row(
+                "Medium",
+                "Energi",
+                "Uforklart effektdifferanse",
+                "Diff over 1000 W",
+                f"{format_short_number(latest_energy.differanse_beregnet_w)} W ved {latest_energy.bucket_start.strftime('%H:%M')}",
+                None,
+                "/energi/status",
+                "Sjekk umålte laster, takvifte, kursgrunnlag og aktive solsenger.",
+            )
+        )
+
+    task_rows.sort(key=lambda item: (item.get("_sort", 9), item.get("domain") or "", item.get("item") or ""))
+    for row in task_rows:
+        row.pop("_sort", None)
+    return task_rows
+
+
 @app.get("/api/modules/{module}")
 async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
@@ -15798,6 +15984,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
         if module == "admin":
             import_rows = await import_status_rows(session)
             import_api_rows = api_import_status_rows(import_rows)
+            admin_task_rows = await build_admin_task_rows(session, import_rows, now_dt)
             ai_logs = (
                 await session.execute(select(AiQueryLog).order_by(AiQueryLog.timestamp.desc()).limit(80))
             ).scalars().all()
@@ -15818,7 +16005,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_tool_row("Events CSV", "/download", "Generiske hendelser som CSV.", None),
             ]
             build_log_columns = ["date", "build", "headline"]
+            urgent_task_count = sum(1 for row in admin_task_rows if row["severity"] in {"Kritisk", "Høy"})
             admin_cards = [
+                api_card("Oppgaver", len(admin_task_rows), "stk", f"{urgent_task_count} kritisk/høy", "status", href="/admin/oppgaver"),
                 api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
                 api_card("Datakilder OK", sum(1 for row in import_rows if row["status"] == "ok"), "stk", f"{len(import_rows)} totalt", "status", href="/admin/datakilder"),
                 api_card("Treg/feil", sum(1 for row in import_rows if row["status"] != "ok"), "stk", "Fra importstatus", "status", href="/admin/datakilder"),
@@ -15829,7 +16018,33 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:25]]),
                 api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
             ]
-            if view == "build":
+            if view == "oppgaver":
+                admin_cards = [
+                    api_card("Åpne oppgaver", len(admin_task_rows), "stk", f"{urgent_task_count} kritisk/høy", "status", href="/admin/oppgaver"),
+                    api_card("Datakilder", sum(1 for row in admin_task_rows if row["domain"] == "Datakilde"), "stk", "Treg eller feil", "status", href="/admin/datakilder"),
+                    api_card("Parkering", sum(1 for row in admin_task_rows if row["domain"] == "Parkering"), "stk", "Navn, område og oppslag", "parking", href="/parkering/oppslag"),
+                    api_card("Sist kontrollert", now_dt.strftime("%H:%M"), "", now_dt.strftime("%d.%m.%Y"), "status", href="/admin/oppgaver"),
+                ]
+                tables = [
+                    api_table(
+                        "Oppgaver og avvik",
+                        ["severity", "domain", "item", "problem", "detail", "count", "recommended_action", "path"],
+                        admin_task_rows,
+                    ),
+                    api_table(
+                        "Kontrollgrunnlag",
+                        ["key", "value"],
+                        api_config_value_rows(
+                            {
+                                "datakilder_totalt": len(import_rows),
+                                "datakilder_ikke_ok": sum(1 for row in import_rows if row["status"] != "ok"),
+                                "oppgaver_kritisk_hoy": urgent_task_count,
+                                "oppgaver_totalt": len(admin_task_rows),
+                            }
+                        ),
+                    ),
+                ]
+            elif view == "build":
                 tables = [
                     api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:80]]),
                     api_table("Buildverktøy", ["tool", "path", "description", "count"], [admin_tools[0], admin_tools[1], admin_tools[5]]),

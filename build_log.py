@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1147")
+APP_BUILD = os.getenv("APP_BUILD", "1148")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1148",
+        "date": "14.06.2026",
+        "headline": "Felles oppgaveliste i V2",
+        "title": "Admin får samlet oppfølging av avvik og vedlikeholdsoppgaver",
+        "description": (
+            "V2 får en egen admin-side for oppgaver som samler konkrete avvik fra flere deler av systemet. "
+            "Målet er å gjøre drift mer handlingsorientert: datakilder som er trege eller feiler, kjøretøydata "
+            "som mangler navn eller område, solinger uten bilde og energilogging som stopper opp vises ett sted."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger inn beregning av adminoppgaver basert på importstatus, parkering, soling og energi.",
+            "Fibaro10 backend (main.py): eksponerer `/admin/oppgaver` via eksisterende V2 modul-API med kort og tabeller.",
+            "Desktop V2 navigasjon (moduleViews.ts): legger Oppgaver inn som første admin-underside.",
+            "Desktop V2 tabeller (ModulePage.tsx): legger norske etiketter og alvorlighetsmerking for oppgavetabellen.",
+            "Buildlogg (build_log.py): registrerer build 1148.",
+        ],
+        "request": "prøv å implemtere på en best mulig måte",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "`/admin/oppgaver` viser nå en prioritert liste over oppgaver på tvers av systemet.",
+            "Datakilder med advarsel eller feil løftes frem med alvorlighetsgrad og direkte lenke til datakildesiden.",
+            "Parkering viser egne oppgaver for blanke navn, navn ikke funnet, blanke områder og område ikke funnet.",
+            "Soling varsler om soltimer siste 14 dager som mangler Axis-bilde.",
+            "Energi varsler hvis realtime loggingen stopper opp eller siste effektdifferanse er over 1000 W.",
+        ],
+    },
     {
         "version": "1",
         "build": "1147",

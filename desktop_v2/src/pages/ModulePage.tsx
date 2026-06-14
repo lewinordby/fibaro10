@@ -261,6 +261,12 @@ function labelize(column: string): string {
     uses_count: "Brukt",
     method: "Metode",
     success: "OK",
+    severity: "Alvor",
+    domain: "Fagområde",
+    item: "Gjelder",
+    problem: "Problem",
+    detail: "Detalj",
+    recommended_action: "Anbefalt handling",
   };
   return labels[column] ?? column.replaceAll("_", " ");
 }
@@ -321,6 +327,12 @@ function moduleColumns(
       }
       if (column === "owner_warning" && value) {
         return <Tag color="gold">{displayValue(value)}</Tag>;
+      }
+      if (column === "severity" && typeof value === "string") {
+        const normalized = value.toLowerCase();
+        const color =
+          normalized.includes("kritisk") ? "red" : normalized.includes("høy") ? "volcano" : normalized.includes("medium") ? "gold" : "blue";
+        return <Tag color={color}>{displayValue(value)}</Tag>;
       }
       if (typeof value === "string" && (column === "path" || /^https?:\/\//i.test(value) || value.startsWith("/"))) {
         return <LinkValue value={value} />;
