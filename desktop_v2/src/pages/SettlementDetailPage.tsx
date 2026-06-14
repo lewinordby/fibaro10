@@ -1,7 +1,7 @@
 import { ArrowLeftOutlined, DownloadOutlined, FileTextOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Space, Tag, Typography } from "antd";
 import { Link, useParams } from "react-router-dom";
-import { fetchSettlementDetail, type SettlementField, type SettlementSection } from "../api";
+import { fetchSettlementDetail, fetchSunSettlementDetail, type SettlementField, type SettlementSection } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { modulePath } from "../moduleViews";
@@ -119,9 +119,12 @@ function SettlementValueTile({ row, showControl = false }: { row: SettlementFiel
   );
 }
 
-export default function SettlementDetailPage() {
+type SettlementDomain = "parkering" | "soling";
+
+export default function SettlementDetailPage({ domain = "parkering" }: { domain?: SettlementDomain }) {
   const { settlementId = "" } = useParams();
-  const { data, loading, error } = useAsyncData(() => fetchSettlementDetail(settlementId), [settlementId]);
+  const fetcher = domain === "soling" ? fetchSunSettlementDetail : fetchSettlementDetail;
+  const { data, loading, error } = useAsyncData(() => fetcher(settlementId), [fetcher, settlementId]);
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
@@ -136,7 +139,7 @@ export default function SettlementDetailPage() {
     <Space direction="vertical" size={12} className="page-stack settlement-detail-page">
       <div className="settlement-report-head compact">
         <div>
-          <Typography.Text className="eyebrow">Parkeringsoppgjør</Typography.Text>
+          <Typography.Text className="eyebrow">{domain === "soling" ? "Solingsoppgjør" : "Parkeringsoppgjør"}</Typography.Text>
           <Typography.Title level={2}>{data.title}</Typography.Title>
           <Typography.Text type="secondary">{data.subtitle}</Typography.Text>
         </div>
@@ -147,7 +150,7 @@ export default function SettlementDetailPage() {
           <Button href={data.original.downloadUrl} icon={<DownloadOutlined />}>
             Last ned
           </Button>
-          <Link to={modulePath("parkering", "oppgjor")}>
+          <Link to={modulePath(domain, "oppgjor")}>
             <Button icon={<ArrowLeftOutlined />}>Til oppgjør</Button>
           </Link>
         </Space>

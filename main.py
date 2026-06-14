@@ -12436,6 +12436,35 @@ async def api_v2_settlement_attachment(settlement_id: int, download: bool = Fals
         )
 
 
+@app.get("/api/soling/settlements/{settlement_id}")
+async def api_v2_sun_settlement_detail(settlement_id: int):
+    async with async_session() as session:
+        row = await session.get(SettlementImport, settlement_id)
+        if not row or row.provider != SUN_SETTLEMENT_PROVIDER:
+            raise HTTPException(status_code=404, detail="Oppgjor ikke funnet")
+        return await sun_settlement_detail_payload(session, row)
+
+
+@app.get("/api/soling/settlements/{settlement_id}/attachment")
+async def api_v2_sun_settlement_attachment(settlement_id: int, download: bool = False):
+    async with async_session() as session:
+        row = await session.get(SettlementImport, settlement_id)
+        if not row or row.provider != SUN_SETTLEMENT_PROVIDER:
+            raise HTTPException(status_code=404, detail="Oppgjor ikke funnet")
+        filename = row.attachment_filename or f"soling-oppgjor-{row.id}"
+        content_type = row.attachment_content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        disposition_type = "attachment" if download else "inline"
+        quoted_filename = quote(filename)
+        return Response(
+            content=row.attachment_bytes,
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f"{disposition_type}; filename*=UTF-8''{quoted_filename}",
+                "Cache-Control": "private, max-age=300",
+            },
+        )
+
+
 def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]], edit: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     payload = {
         "title": title,
@@ -13405,8 +13434,10 @@ async def api_v2_soling_module(
 ) -> Dict[str, Any]:
     params = params or {}
     view = view or "oversikt"
-    if view not in {"oversikt", "dagslinje", "prognose", "statistikk", "detaljer", "enkeltimer", "senger", "medlemmer"}:
+    if view not in {"oversikt", "dagslinje", "prognose", "statistikk", "detaljer", "enkeltimer", "senger", "medlemmer", "oppgjor"}:
         view = "oversikt"
+    if view == "oppgjor":
+        return await sun_settlement_module_payload(session)
 
     yesterday = today - timedelta(days=1)
     recent_start = today - timedelta(days=119)
@@ -15488,9 +15519,10 @@ async def build_admin_relation_analysis(session, now_dt: datetime) -> Dict[str, 
 
 
 PARKING_SETTLEMENT_PROVIDER = "parking_parknordic"
+SUN_SETTLEMENT_PROVIDER = "sun_altera"
 PARKING_SETTLEMENT_SENDER = os.getenv("PARKING_SETTLEMENT_SENDER", "fredrik@parknordic.no")
-SETTLEMENT_ATTACHMENT_EXTENSIONS = {".pdf", ".csv", ".xlsx", ".xls", ".xml", ".txt"}
-SETTLEMENT_PARSER_VERSION = 3
+SETTLEMENT_ATTACHMENT_EXTENSIONS = {".pdf", ".csv", ".xlsx", ".xls", ".xml", ".txt", ".jpg", ".jpeg", ".png"}
+SETTLEMENT_PARSER_VERSION = 4
 NORWEGIAN_MONTHS = {
     "januar": 1,
     "jan": 1,
@@ -15607,6 +15639,8 @@ def is_settlement_attachment(filename: str, content_type: str) -> bool:
         return True
     return content_type in {
         "application/pdf",
+        "image/jpeg",
+        "image/png",
         "text/csv",
         "application/csv",
         "application/vnd.ms-excel",
@@ -15737,7 +15771,9 @@ def extract_settlement_text(filename: str, content_type: str, content: bytes) ->
     }
 
 
-SETTLEMENT_NUMBER_RE = re.compile(r"-?(?:\d{1,3}(?:[ \u00a0]\d{3})+|\d+)(?:,\d+)?")
+SETTLEMENT_NUMBER_RE = re.compile(
+    r"-?(?:\d{1,3}(?:[ \u00a0]\d{3})+(?:[,.]\d+)?|\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+\.\d+|\d+,\d+|\d+)"
+)
 
 
 def parse_settlement_number(value: Any) -> Optional[float]:
@@ -15746,7 +15782,14 @@ def parse_settlement_number(value: Any) -> Optional[float]:
     text_value = str(value).strip().replace("\u00a0", " ")
     if not text_value:
         return None
-    text_value = text_value.replace(" ", "").replace(",", ".").replace("%", "")
+    text_value = text_value.replace(" ", "").replace("%", "")
+    if "," in text_value and "." in text_value:
+        if text_value.rfind(",") < text_value.rfind("."):
+            text_value = text_value.replace(",", "")
+        else:
+            text_value = text_value.replace(".", "").replace(",", ".")
+    elif "," in text_value:
+        text_value = text_value.replace(",", ".")
     try:
         return float(text_value)
     except ValueError:
@@ -15786,12 +15829,21 @@ def settlement_line_source(index: int, line: str) -> str:
 
 def settlement_parse_date_from_line(line: str) -> Optional[str]:
     match = re.search(r"\b(\d{1,2})\.(\d{1,2})\.(20\d{2})\b", line or "")
-    if not match:
-        return None
-    try:
-        return date(int(match.group(3)), int(match.group(2)), int(match.group(1))).isoformat()
-    except ValueError:
-        return None
+    if match:
+        try:
+            return date(int(match.group(3)), int(match.group(2)), int(match.group(1))).isoformat()
+        except ValueError:
+            return None
+    match = re.search(r"\b(\d{1,2})/(\d{1,2})/(\d{2}|\d{4})\b", line or "")
+    if match:
+        year_value = int(match.group(3))
+        if year_value < 100:
+            year_value += 2000
+        try:
+            return date(year_value, int(match.group(2)), int(match.group(1))).isoformat()
+        except ValueError:
+            return None
+    return None
 
 
 def parse_parking_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
@@ -15943,6 +15995,158 @@ def parse_parking_settlement_attachment(filename: str, content_type: str, conten
     return parsed
 
 
+def sun_settlement_number_from_line(line: str) -> Optional[float]:
+    values = settlement_numbers_from_line(line)
+    return settlement_number_value(values[-1]) if values else None
+
+
+def parse_sun_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
+    lines = list(extraction.get("lines") or [])
+    parsed: Dict[str, Any] = {}
+    field_sources: Dict[str, str] = {}
+    field_confidence: Dict[str, float] = {}
+    parser_notes: list[str] = []
+
+    def set_field(field: str, value: Any, source: str, confidence: float = 0.9) -> None:
+        if value is None or value == "":
+            return
+        parsed[field] = value
+        field_sources[field] = source
+        field_confidence[field] = round(max(0.0, min(1.0, confidence)), 2)
+
+    line_fields = [
+        ("solomsetning for perioden", "sun_revenue_ex_vat", 0.95),
+        ("produktsalg for perioden", "product_sales_ex_vat", 0.95),
+        ("transaksjonskostnad", "transaction_fee_ex_vat", 0.92),
+        ("serviceavtale", "service_fee_ex_vat", 0.9),
+        ("markedsf", "marketing_fee_ex_vat", 0.82),
+        ("sum eks. mva", "sum_ex_vat", 0.95),
+        ("mva grunnlag", "sum_ex_vat", 0.95),
+        ("sum ordrelinjer", "sum_ex_vat", 0.9),
+        ("25% mva", "vat_25_percent", 0.95),
+        ("fakturabel", "payout_inc_vat", 0.95),
+        ("belop nok", "payout_inc_vat", 0.95),
+        ("beløp nok", "payout_inc_vat", 0.95),
+    ]
+    marketing_email_seen = False
+    pending_field: Optional[tuple[str, float, str]] = None
+    for index, line in enumerate(lines):
+        lower = line.lower()
+        source = settlement_line_source(index, line)
+        if pending_field:
+            values = settlement_numbers_from_line(line)
+            if values:
+                field, confidence, pending_source = pending_field
+                set_field(field, settlement_number_value(values[-1]), f"{pending_source}; {source}", confidence)
+                pending_field = None
+            elif lower and not lower.endswith(":"):
+                pending_field = None
+
+        parsed_date = settlement_parse_date_from_line(line)
+        if parsed_date and "credit_note_date" not in parsed:
+            set_field("credit_note_date", parsed_date, source, 0.82)
+            set_field("delivery_date", parsed_date, source, 0.72)
+        if "kreditnotanr" in lower or "faktnr" in lower:
+            values = settlement_numbers_from_line(line)
+            if values:
+                set_field("credit_note_number", settlement_number_value(values[-1]), source, 0.95)
+        if "kreditnotadato" in lower:
+            set_field("credit_note_date", parsed_date, source, 0.95)
+        if "leveransedato" in lower:
+            set_field("delivery_date", parsed_date, source, 0.95)
+        if "organisasjonsnr" in lower or "foretaksregisteret" in lower:
+            match = re.search(r"(NO\d+MVA|\d{9})", line, flags=re.IGNORECASE)
+            if match:
+                set_field("supplier_org_no", match.group(1), source, 0.9)
+        if "altera as" in lower and "supplier_name" not in parsed:
+            set_field("supplier_name", "Altera AS", source, 0.9)
+        if "sun2 lillehammer" in lower and "customer_name" not in parsed:
+            set_field("customer_name", line.strip(), source, 0.9)
+        if lower.startswith("sum mva"):
+            values = settlement_numbers_from_line(line)
+            if values:
+                set_field("vat_25_percent", settlement_number_value(values[-1]), source, 0.95)
+            else:
+                pending_field = ("vat_25_percent", 0.95, source)
+
+        for marker, field, confidence in line_fields:
+            if marker not in lower:
+                continue
+            value = sun_settlement_number_from_line(line)
+            if field == "marketing_fee_ex_vat" and "e-post" in lower:
+                field = "marketing_email_fee_ex_vat"
+                marketing_email_seen = True
+            elif field == "marketing_fee_ex_vat" and marketing_email_seen:
+                field = "marketing_sms_fee_ex_vat"
+            elif field == "marketing_fee_ex_vat":
+                field = "marketing_sms_fee_ex_vat"
+            set_field(field, value, source, confidence)
+
+    sum_ex_vat = settlement_parsed_float(parsed, "sum_ex_vat")
+    vat = settlement_parsed_float(parsed, "vat_25_percent")
+    payout = settlement_parsed_float(parsed, "payout_inc_vat")
+    if sum_ex_vat is not None and "vat_25_percent" not in parsed:
+        set_field("vat_25_percent", settlement_number_value(sum_ex_vat * 0.25), "Beregnet fra Sum eks. MVA", 0.7)
+    if sum_ex_vat is not None and vat is not None and payout is not None:
+        diff = round(sum_ex_vat + vat - payout, 2)
+        if abs(diff) > 1:
+            parser_notes.append(f"Sum eks. mva + mva avviker fra Belop NOK med {diff} kr.")
+
+    if not lines:
+        parser_notes.append("Vedlegget har ikke tekstlag. Originalen er lagret, men tall maa kontrolleres manuelt eller OCR-leses senere.")
+
+    required_fields = [
+        "sun_revenue_ex_vat",
+        "product_sales_ex_vat",
+        "transaction_fee_ex_vat",
+        "service_fee_ex_vat",
+        "sum_ex_vat",
+        "vat_25_percent",
+        "payout_inc_vat",
+    ]
+    found_required = sum(1 for field in required_fields if field in parsed)
+    confidence = round(found_required / len(required_fields), 2)
+    parsed["_meta"] = {
+        "parser": "sun_altera_creditnote_pdf",
+        "parser_version": SETTLEMENT_PARSER_VERSION,
+        "confidence": confidence,
+        "field_sources": field_sources,
+        "field_confidence": field_confidence,
+        "line_count": extraction.get("line_count") or len(lines),
+        "pages_count": extraction.get("pages_count"),
+        "method": extraction.get("method"),
+        "warnings": list(extraction.get("warnings") or []),
+        "notes": parser_notes,
+        "source_lines": lines,
+    }
+    return parsed
+
+
+def parse_sun_settlement_attachment(filename: str, content_type: str, content: bytes) -> Dict[str, Any]:
+    extraction = extract_settlement_text(filename, content_type, content)
+    return parse_sun_settlement_text(extraction)
+
+
+def parse_settlement_attachment_for_provider(provider: str, filename: str, content_type: str, content: bytes) -> Dict[str, Any]:
+    if provider == SUN_SETTLEMENT_PROVIDER:
+        return parse_sun_settlement_attachment(filename, content_type, content)
+    return parse_parking_settlement_attachment(filename, content_type, content)
+
+
+def settlement_period_from_parsed_dates(parsed: Any, *fields: str) -> tuple[Optional[date], Optional[date], str]:
+    for field in fields:
+        raw_value = settlement_parsed_value(parsed, field)
+        if not raw_value:
+            continue
+        try:
+            parsed_date = date.fromisoformat(str(raw_value))
+        except ValueError:
+            continue
+        start = parsed_date.replace(day=1)
+        return start, add_months(start, 1) - timedelta(days=1), month_label(start)
+    return None, None, "Ikke tolket"
+
+
 def settlement_public_parsed(parsed: Any) -> Dict[str, Any]:
     if not isinstance(parsed, dict):
         return {}
@@ -15975,7 +16179,8 @@ def settlement_needs_parse(row: SettlementImport) -> bool:
 def ensure_settlement_parsed(row: SettlementImport) -> bool:
     if not settlement_needs_parse(row):
         return False
-    parsed = parse_parking_settlement_attachment(
+    parsed = parse_settlement_attachment_for_provider(
+        row.provider,
         row.attachment_filename or "",
         row.attachment_content_type or "",
         row.attachment_bytes or b"",
@@ -15986,6 +16191,11 @@ def ensure_settlement_parsed(row: SettlementImport) -> bool:
     row.raw = raw
     if not row.period_start and parsed.get("reported_period_label"):
         period_start, period_end, period_label = parse_settlement_period(str(parsed.get("reported_period_label")), row.email_date)
+        row.period_start = period_start
+        row.period_end = period_end
+        row.period_label = period_label
+    if not row.period_start and row.provider == SUN_SETTLEMENT_PROVIDER:
+        period_start, period_end, period_label = settlement_period_from_parsed_dates(parsed, "delivery_date", "credit_note_date")
         row.period_start = period_start
         row.period_end = period_end
         row.period_label = period_label
@@ -16014,6 +16224,7 @@ def settlement_field_confidence(parsed: Any, field: str) -> Optional[float]:
 def settlement_row_api(row: SettlementImport) -> Dict[str, Any]:
     parsed = row.parsed if isinstance(row.parsed, dict) else {}
     meta = settlement_parsed_meta(parsed)
+    path_prefix = "/soling/oppgjor" if row.provider == SUN_SETTLEMENT_PROVIDER else "/parkering/oppgjor"
     return {
         "id": row.id,
         "provider": row.provider,
@@ -16031,10 +16242,16 @@ def settlement_row_api(row: SettlementImport) -> Dict[str, Any]:
         "attachment_sha256": row.attachment_sha256[:12] if row.attachment_sha256 else None,
         "easypark_ex_vat": settlement_parsed_value(parsed, "easypark_ex_vat"),
         "easypark_inc_vat_estimate": settlement_parsed_value(parsed, "easypark_inc_vat_estimate"),
+        "sun_revenue_ex_vat": settlement_parsed_value(parsed, "sun_revenue_ex_vat"),
+        "product_sales_ex_vat": settlement_parsed_value(parsed, "product_sales_ex_vat"),
+        "transaction_fee_ex_vat": settlement_parsed_value(parsed, "transaction_fee_ex_vat"),
+        "service_fee_ex_vat": settlement_parsed_value(parsed, "service_fee_ex_vat"),
+        "sum_ex_vat": settlement_parsed_value(parsed, "sum_ex_vat"),
+        "vat_25_percent": settlement_parsed_value(parsed, "vat_25_percent"),
         "payout_inc_vat": settlement_parsed_value(parsed, "payout_inc_vat"),
         "parser_confidence": meta.get("confidence"),
         "imported_at": api_local_iso(row.imported_at),
-        "path": f"/parkering/oppgjor/{row.id}",
+        "path": f"{path_prefix}/{row.id}",
     }
 
 
@@ -16246,7 +16463,112 @@ def settlement_form_rows(parsed: Any, source_summaries: Optional[Dict[str, Dict[
     return rows
 
 
-def settlement_original_payload(row: SettlementImport) -> Dict[str, Any]:
+def sun_settlement_form_rows(parsed: Any) -> list[Dict[str, Any]]:
+    sun_revenue = settlement_parsed_float(parsed, "sun_revenue_ex_vat")
+    product_sales = settlement_parsed_float(parsed, "product_sales_ex_vat")
+    transaction_fee = settlement_parsed_float(parsed, "transaction_fee_ex_vat")
+    service_fee = settlement_parsed_float(parsed, "service_fee_ex_vat")
+    marketing_sms = settlement_parsed_float(parsed, "marketing_sms_fee_ex_vat")
+    marketing_email = settlement_parsed_float(parsed, "marketing_email_fee_ex_vat")
+    sum_ex_vat = settlement_parsed_float(parsed, "sum_ex_vat")
+    vat = settlement_parsed_float(parsed, "vat_25_percent")
+    payout = settlement_parsed_float(parsed, "payout_inc_vat")
+
+    line_sum = settlement_sum_or_none(
+        sun_revenue,
+        product_sales,
+        transaction_fee,
+        service_fee,
+        marketing_sms,
+        marketing_email,
+    )
+    expected_vat = round(sum_ex_vat * 0.25, 2) if sum_ex_vat is not None else None
+    expected_payout = settlement_sum_or_none(sum_ex_vat, vat)
+    transaction_base = settlement_sum_or_none(sun_revenue, product_sales)
+    expected_transaction_fee = round(-transaction_base * 0.06, 2) if transaction_base is not None else None
+
+    return [
+        settlement_form_field(
+            "Solomsetning for perioden",
+            "sun_revenue_ex_vat",
+            settlement_parsed_value(parsed, "sun_revenue_ex_vat"),
+            parsed,
+            "amount",
+            "Operativt belop fra linjen Solomsetning for perioden.",
+        ),
+        settlement_form_field(
+            "Produktsalg for perioden",
+            "product_sales_ex_vat",
+            settlement_parsed_value(parsed, "product_sales_ex_vat"),
+            parsed,
+            "amount",
+            "Operativt belop fra linjen Produktsalg for perioden.",
+        ),
+        settlement_form_field(
+            "Transaksjonskostnad",
+            "transaction_fee_ex_vat",
+            settlement_parsed_value(parsed, "transaction_fee_ex_vat"),
+            parsed,
+            "amount",
+            "Fratrekk fra linjen Transaksjonskostnad.",
+            expected_transaction_fee,
+            expected_label="6% av solomsetning + produktsalg",
+        ),
+        settlement_form_field(
+            "Serviceavtale",
+            "service_fee_ex_vat",
+            settlement_parsed_value(parsed, "service_fee_ex_vat"),
+            parsed,
+            "amount",
+            "Fratrekk fra linjen Serviceavtale.",
+        ),
+        settlement_form_field(
+            "Markedsforing SMS",
+            "marketing_sms_fee_ex_vat",
+            settlement_parsed_value(parsed, "marketing_sms_fee_ex_vat"),
+            parsed,
+            "amount",
+            "Eventuelt fratrekk for markedsforing paa SMS.",
+        ),
+        settlement_form_field(
+            "Markedsforing e-post",
+            "marketing_email_fee_ex_vat",
+            settlement_parsed_value(parsed, "marketing_email_fee_ex_vat"),
+            parsed,
+            "amount",
+            "Eventuelt fratrekk for markedsforing paa e-post.",
+        ),
+        settlement_form_field(
+            "Sum eks. MVA",
+            "sum_ex_vat",
+            settlement_parsed_value(parsed, "sum_ex_vat"),
+            parsed,
+            "control",
+            "Kontrollsum: solomsetning + produktsalg + fratrekk.",
+            line_sum,
+        ),
+        settlement_form_field(
+            "25% mva",
+            "vat_25_percent",
+            settlement_parsed_value(parsed, "vat_25_percent"),
+            parsed,
+            "control",
+            "Kontrollsum: Sum eks. MVA * 25%.",
+            expected_vat,
+        ),
+        settlement_form_field(
+            "Belop NOK",
+            "payout_inc_vat",
+            settlement_parsed_value(parsed, "payout_inc_vat"),
+            parsed,
+            "control",
+            "Kontrollsum: Sum eks. MVA + 25% mva.",
+            expected_payout,
+        ),
+    ]
+
+
+def settlement_original_payload(row: SettlementImport, api_prefix: Optional[str] = None) -> Dict[str, Any]:
     filename = row.attachment_filename or f"oppgjor-{row.id}"
     content_type = row.attachment_content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
     extension = Path(filename).suffix.lower()
@@ -16257,6 +16579,8 @@ def settlement_original_payload(row: SettlementImport) -> Dict[str, Any]:
         preview_kind = "image"
     elif content_type.startswith("text/") or extension in {".csv", ".txt", ".xml"}:
         preview_kind = "text"
+    if not api_prefix:
+        api_prefix = "/api/soling/settlements" if row.provider == SUN_SETTLEMENT_PROVIDER else "/api/settlements"
     return {
         "filename": filename,
         "contentType": content_type,
@@ -16264,8 +16588,8 @@ def settlement_original_payload(row: SettlementImport) -> Dict[str, Any]:
         "sizeLabel": format_file_size(row.attachment_size),
         "sha256": row.attachment_sha256,
         "previewKind": preview_kind,
-        "previewUrl": f"/api/settlements/{row.id}/attachment",
-        "downloadUrl": f"/api/settlements/{row.id}/attachment?download=1",
+        "previewUrl": f"{api_prefix}/{row.id}/attachment",
+        "downloadUrl": f"{api_prefix}/{row.id}/attachment?download=1",
     }
 
 
@@ -16298,10 +16622,29 @@ SETTLEMENT_PARSED_FIELD_LABELS: list[tuple[str, str, str]] = [
 ]
 
 
-def settlement_parsed_field_rows(parsed: Dict[str, Any]) -> list[Dict[str, Any]]:
+SUN_SETTLEMENT_PARSED_FIELD_LABELS: list[tuple[str, str, str]] = [
+    ("Kreditnotanr.", "credit_note_number", "Kreditnotanummer fra Altera."),
+    ("Kreditnotadato", "credit_note_date", "Dato paa kreditnotaen."),
+    ("Leveransedato", "delivery_date", "Dato/periodegrunnlag fra skjemaet."),
+    ("Leverandor", "supplier_name", "Leverandor funnet i skjemaet."),
+    ("Leverandor org.nr.", "supplier_org_no", "Organisasjonsnummer funnet i skjemaet."),
+    ("Kunde", "customer_name", "Kundenavn funnet i skjemaet."),
+    ("Solomsetning eks. mva", "sun_revenue_ex_vat", "Belop fra linjen Solomsetning for perioden."),
+    ("Produktsalg eks. mva", "product_sales_ex_vat", "Belop fra linjen Produktsalg for perioden."),
+    ("Transaksjonskostnad eks. mva", "transaction_fee_ex_vat", "Fratrekk fra linjen Transaksjonskostnad."),
+    ("Serviceavtale eks. mva", "service_fee_ex_vat", "Fratrekk fra linjen Serviceavtale."),
+    ("Markedsforing SMS eks. mva", "marketing_sms_fee_ex_vat", "Eventuelt fratrekk for markedsforing paa SMS."),
+    ("Markedsforing e-post eks. mva", "marketing_email_fee_ex_vat", "Eventuelt fratrekk for markedsforing paa e-post."),
+    ("Sum eks. mva", "sum_ex_vat", "Sum eks. mva fra skjemaet."),
+    ("25% mva", "vat_25_percent", "Mva-linje fra skjemaet."),
+    ("Belop NOK", "payout_inc_vat", "Sluttsum fra skjemaet."),
+]
+
+
+def parsed_field_rows_for_labels(parsed: Dict[str, Any], labels: list[tuple[str, str, str]]) -> list[Dict[str, Any]]:
     rows: list[Dict[str, Any]] = []
-    known_fields = {field for _, field, _ in SETTLEMENT_PARSED_FIELD_LABELS}
-    for label, field, note in SETTLEMENT_PARSED_FIELD_LABELS:
+    known_fields = {field for _, field, _ in labels}
+    for label, field, note in labels:
         if field not in parsed:
             continue
         rows.append(
@@ -16326,6 +16669,14 @@ def settlement_parsed_field_rows(parsed: Dict[str, Any]) -> list[Dict[str, Any]]
             )
         )
     return rows
+
+
+def settlement_parsed_field_rows(parsed: Dict[str, Any]) -> list[Dict[str, Any]]:
+    return parsed_field_rows_for_labels(parsed, SETTLEMENT_PARSED_FIELD_LABELS)
+
+
+def sun_settlement_parsed_field_rows(parsed: Dict[str, Any]) -> list[Dict[str, Any]]:
+    return parsed_field_rows_for_labels(parsed, SUN_SETTLEMENT_PARSED_FIELD_LABELS)
 
 
 async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str, Any]:
@@ -16456,6 +16807,170 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
             {"title": "Parserkontroll", "rows": parser_rows},
         ],
         "raw": row.raw or {},
+    }
+
+
+async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[str, Any]:
+    changed = ensure_settlement_parsed(row)
+    if changed:
+        await session.commit()
+
+    parsed = row.parsed if isinstance(row.parsed, dict) else {}
+    public_parsed = settlement_public_parsed(parsed)
+    meta = settlement_parsed_meta(parsed)
+    parsed_rows = sun_settlement_parsed_field_rows(parsed)
+    if not parsed_rows:
+        parsed_rows = [
+            settlement_field(
+                "Skjemafelter",
+                "parsed",
+                "Ikke maskinlest ennaa",
+                "Originalskjemaet er lagret, men dokumentet har ikke tekstlag eller lesbare felter i parseren.",
+            )
+        ]
+    parser_rows = [
+        settlement_field("Parser", "parser", meta.get("parser"), "Teknisk parsermetadata"),
+        settlement_field("Parser-versjon", "parser_version", meta.get("parser_version"), "Teknisk parsermetadata"),
+        settlement_field("Sikkerhet", "confidence", meta.get("confidence"), "Andel nokkelfelter som ble funnet"),
+        settlement_field("Tekstmetode", "method", meta.get("method"), "Hvordan vedlegget ble lest"),
+        settlement_field("Tekstlinjer", "line_count", meta.get("line_count"), "Antall tekstlinjer hentet fra originalfil"),
+        settlement_field("Sider", "pages_count", meta.get("pages_count"), "Antall PDF-sider hvis kjent"),
+    ]
+    warnings = meta.get("warnings") if isinstance(meta.get("warnings"), list) else []
+    notes = meta.get("notes") if isinstance(meta.get("notes"), list) else []
+    for index, warning in enumerate([*warnings, *notes], start=1):
+        parser_rows.append(settlement_field(f"Merknad {index}", f"parser_note_{index}", warning, "Parser"))
+
+    original = settlement_original_payload(row, "/api/soling/settlements")
+    cards = [
+        api_card("Periode", row.period_label or "Ikke tolket", "", "Fra skjema, filnavn eller dato", "sun2"),
+        api_card("Original", original["sizeLabel"], "", row.attachment_filename or "-", "status"),
+        api_card("Skjemafelter", len(public_parsed), "stk", f"Sikkerhet {format_short_number(float_or_zero(meta.get('confidence')) * 100, 0)} %", "status"),
+        api_card("Belop NOK", format_short_number(settlement_parsed_float(parsed, "payout_inc_vat") or 0, 2), "kr", "Fra skjema", "revenue"),
+    ]
+    return {
+        "id": row.id,
+        "title": row.period_label or f"Solingsoppgjor {row.id}",
+        "subtitle": row.attachment_filename or row.email_subject or "",
+        "cards": cards,
+        "original": original,
+        "sections": [
+            {"title": "Oppgjorsformular", "rows": sun_settlement_form_rows(parsed)},
+            {"title": "Nokkeltall fra skjema", "rows": parsed_rows},
+            {
+                "title": "Tolket periode",
+                "rows": [
+                    settlement_field("Periodeetikett", "period_label", row.period_label, "Tolket fra skjema, filnavn eller dato"),
+                    settlement_field("Periodestart", "period_start", row.period_start, "Forste dag i tolket maaned"),
+                    settlement_field("Periodeslutt", "period_end", row.period_end, "Siste dag i tolket maaned"),
+                    settlement_field("Status", "status", row.status, "Importstatus i Fibaro10"),
+                ],
+            },
+            {
+                "title": "E-post og vedlegg",
+                "rows": [
+                    settlement_field("Avsender", "sender", row.sender, "E-postheader From eller manuell import"),
+                    settlement_field("E-postdato", "email_date", row.email_date, "E-postheader Date"),
+                    settlement_field("Emne", "email_subject", row.email_subject, "E-postheader Subject"),
+                    settlement_field("Gmail UID", "gmail_uid", row.gmail_uid, "Gmail IMAP UID"),
+                    settlement_field("Postboks", "mailbox", row.mailbox, "Gmail IMAP mappe"),
+                    settlement_field("Filnavn", "attachment_filename", row.attachment_filename, "Vedlegg"),
+                    settlement_field("Filtype", "attachment_content_type", row.attachment_content_type, "Vedlegg MIME-type"),
+                    settlement_field("Filstorrelse", "attachment_size", format_file_size(row.attachment_size), "Vedlegg byte-storrelse"),
+                    settlement_field("SHA-256", "attachment_sha256", row.attachment_sha256, "Hash av originalvedlegg"),
+                    settlement_field("Importert", "imported_at", row.imported_at, "Tidspunkt Fibaro10 lagret oppgjoret"),
+                ],
+            },
+            {"title": "Parserkontroll", "rows": parser_rows},
+        ],
+        "raw": row.raw or {},
+    }
+
+
+def sun_settlement_summary_row(row: SettlementImport) -> Dict[str, Any]:
+    parsed = row.parsed if isinstance(row.parsed, dict) else {}
+    form_rows = sun_settlement_form_rows(parsed)
+    control_rows = [item for item in form_rows if item.get("group") == "control"]
+    warn_count = len([item for item in control_rows if item.get("status") == "warn"])
+    missing_count = len([item for item in form_rows if item.get("status") == "missing"])
+    status_label = "OK" if not warn_count and not missing_count else "Krever kontroll"
+    return {
+        **settlement_row_api(row),
+        "sum_check_status": status_label,
+        "sum_check_warnings": warn_count,
+        "missing_fields": missing_count,
+    }
+
+
+async def sun_settlement_module_payload(session) -> Dict[str, Any]:
+    settlement_rows = (
+        await session.execute(
+            select(SettlementImport)
+            .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
+            .order_by(SettlementImport.imported_at.desc())
+            .limit(200)
+        )
+    ).scalars().all()
+    changed_any = False
+    for row in settlement_rows:
+        changed_any = ensure_settlement_parsed(row) or changed_any
+    if changed_any:
+        await session.commit()
+
+    total_settlements = (
+        await session.execute(
+            select(func.count(SettlementImport.id)).where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
+        )
+    ).scalar_one()
+    unknown_period_count = (
+        await session.execute(
+            select(func.count(SettlementImport.id))
+            .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
+            .where(SettlementImport.period_start.is_(None))
+        )
+    ).scalar_one()
+    latest_settlement = settlement_rows[0] if settlement_rows else None
+    parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
+    return {
+        "title": "Soling - Oppgjor",
+        "subtitle": "Manuell innlasting av Altera-kreditnotaer og kontroll av skjemaets egne summer.",
+        "cards": [
+            api_card("Oppgjor importert", total_settlements, "stk", f"{parsed_period_count} perioder tolket", "sun2", href="/soling/oppgjor"),
+            api_card(
+                "Siste import",
+                format_local_datetime(latest_settlement.imported_at) if latest_settlement else "-",
+                "",
+                latest_settlement.period_label if latest_settlement else "Ingen importerte oppgjor",
+                "status",
+                href="/soling/oppgjor",
+            ),
+            api_card("Ikke periodetolket", unknown_period_count, "stk", "Krever manuell kontroll eller OCR", "status", href="/soling/oppgjor"),
+            api_card("Kontroll", "Skjema", "", "Sun2-kildekontroll legges til senere", "status", href="/soling/oppgjor"),
+        ],
+        "charts": [],
+        "tables": [
+            api_table(
+                "Solingsoppgjor",
+                [
+                    "period_label",
+                    "status",
+                    "sum_check_status",
+                    "sun_revenue_ex_vat",
+                    "product_sales_ex_vat",
+                    "transaction_fee_ex_vat",
+                    "service_fee_ex_vat",
+                    "sum_ex_vat",
+                    "vat_25_percent",
+                    "payout_inc_vat",
+                    "parser_confidence",
+                    "attachment_filename",
+                    "imported_at",
+                ],
+                [sun_settlement_summary_row(row) for row in settlement_rows],
+            ),
+        ],
+        "actions": [],
+        "uploadEndpoint": "/api/actions/soling/upload-settlement",
     }
 
 
@@ -18316,6 +18831,81 @@ async def api_v2_sun2_save_forecast(request: Request):
         await session.commit()
     clear_summary_cache("sun2")
     return {"status": "ok", "message": "Solingprognose lagret."}
+
+
+@app.post("/api/actions/soling/upload-settlement")
+async def api_v2_upload_sun_settlement(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    form = await request.form()
+    upload = form.get("file")
+    if upload is None or not hasattr(upload, "read"):
+        raise HTTPException(status_code=400, detail="Mangler fil")
+    filename = Path(getattr(upload, "filename", "") or "").name
+    if not filename:
+        raise HTTPException(status_code=400, detail="Mangler filnavn")
+    content = await upload.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Tom fil")
+    content_type = getattr(upload, "content_type", None) or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    if not is_settlement_attachment(filename, content_type):
+        raise HTTPException(status_code=400, detail="Filtypen stottes ikke for oppgjor")
+
+    sha = hashlib.sha256(content).hexdigest()
+    parsed = parse_sun_settlement_attachment(filename, content_type, content)
+    period_start, period_end, period_label = settlement_period_from_parsed_dates(parsed, "delivery_date", "credit_note_date")
+    if not period_start:
+        period_start, period_end, period_label = parse_settlement_period(filename, None)
+    meta = settlement_parsed_meta(parsed)
+    status = "tolket" if float_or_zero(meta.get("confidence")) >= 0.6 else "krever kontroll"
+
+    async with async_session() as session:
+        existing = (
+            await session.execute(
+                select(SettlementImport)
+                .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
+                .where(SettlementImport.attachment_sha256 == sha)
+                .limit(1)
+            )
+        ).scalars().first()
+        if existing:
+            return {
+                "status": "ok",
+                "message": "Solingsoppgjoret finnes allerede.",
+                "id": existing.id,
+                "path": f"/soling/oppgjor/{existing.id}",
+            }
+        row = SettlementImport(
+            provider=SUN_SETTLEMENT_PROVIDER,
+            source="manual_upload",
+            sender="manual",
+            gmail_message_id=None,
+            gmail_uid=None,
+            email_subject=filename,
+            email_date=None,
+            mailbox=None,
+            period_start=period_start,
+            period_end=period_end,
+            period_label=period_label,
+            attachment_filename=filename,
+            attachment_content_type=content_type,
+            attachment_sha256=sha,
+            attachment_size=len(content),
+            attachment_bytes=content,
+            status=status,
+            parsed=parsed,
+            raw={"settlement_parser": meta, "source": "manual_upload"},
+        )
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+    return {
+        "status": "ok",
+        "message": f"Solingsoppgjor importert: {period_label}.",
+        "id": row.id,
+        "path": f"/soling/oppgjor/{row.id}",
+    }
 
 
 @app.post("/api/actions/parkering/fetch-settlements")

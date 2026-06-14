@@ -40,6 +40,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "senger", label: "Senger" },
     { key: "medlemmer", label: "Medlemmer" },
     { key: "prognose", label: "Prognose" },
+    { key: "oppgjor", label: "Oppgjør" },
     { key: "statistikk", label: "Statistikk" },
     { key: "detaljer", label: "Detaljer" },
   ],

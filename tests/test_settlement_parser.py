@@ -92,6 +92,59 @@ class ParkingSettlementParserTests(unittest.TestCase):
         self.assertAlmostEqual(form_rows["easypark_ex_vat"]["difference"], -2484.4)
         self.assertEqual(form_rows["easypark_ex_vat"]["expectedSource"], "source_system = EasyPark")
 
+    def test_sun_settlement_text_parser_reads_altera_creditnote(self) -> None:
+        extraction = {
+            "method": "test",
+            "line_count": 18,
+            "pages_count": 1,
+            "warnings": [],
+            "lines": [
+                "603",
+                "31/01/26",
+                "Lillehammer VelvÃ¦re AS, SUN2 Lillehammer",
+                "Altera AS",
+                "1584Faktnr.:",
+                "Kreditnota",
+                "101 Solomsetning for perioden -1.00128,868.29 -128,868.29",
+                "102 Produktsalg for perioden -1.001,742.40 -1,742.40",
+                "103 Transaksjonskostnad (6%) 1.007,836.64 7,836.64",
+                "104 Serviceavtale 1.001,110.00 1,110.00",
+                "105 MarkedsfÃ¸ring - SMS 1.000.00 0.00",
+                "106 MarkedsfÃ¸ring - E-post 1.000.00 0.00",
+                "Kontantrabatt: Mva grunnlag: -121664.05",
+                "Sum mva:",
+                "-30416.01",
+                "FakturabelÃ¸p: -152,080.06",
+                "Sum ordrelinjer: -121664.05",
+            ],
+        }
+
+        parsed = main.parse_sun_settlement_text(extraction)
+
+        self.assertEqual(parsed["credit_note_number"], 1584)
+        self.assertEqual(parsed["credit_note_date"], "2026-01-31")
+        self.assertEqual(parsed["delivery_date"], "2026-01-31")
+        self.assertEqual(parsed["supplier_name"], "Altera AS")
+        self.assertEqual(parsed["sun_revenue_ex_vat"], -128868.29)
+        self.assertEqual(parsed["product_sales_ex_vat"], -1742.4)
+        self.assertEqual(parsed["transaction_fee_ex_vat"], 7836.64)
+        self.assertEqual(parsed["service_fee_ex_vat"], 1110)
+        self.assertEqual(parsed["marketing_sms_fee_ex_vat"], 0)
+        self.assertEqual(parsed["marketing_email_fee_ex_vat"], 0)
+        self.assertEqual(parsed["sum_ex_vat"], -121664.05)
+        self.assertEqual(parsed["vat_25_percent"], -30416.01)
+        self.assertEqual(parsed["payout_inc_vat"], -152080.06)
+        self.assertEqual(main.settlement_period_from_parsed_dates(parsed, "delivery_date", "credit_note_date")[2], "Januar 2026")
+        self.assertEqual(parsed["_meta"]["confidence"], 1.0)
+
+        form_rows = {row["field"]: row for row in main.sun_settlement_form_rows(parsed)}
+        self.assertEqual(form_rows["sum_ex_vat"]["status"], "ok")
+        self.assertEqual(form_rows["vat_25_percent"]["status"], "ok")
+        self.assertEqual(form_rows["payout_inc_vat"]["status"], "ok")
+        self.assertEqual(form_rows["sum_ex_vat"]["difference"], 0)
+        self.assertEqual(form_rows["vat_25_percent"]["difference"], 0)
+        self.assertEqual(form_rows["payout_inc_vat"]["difference"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

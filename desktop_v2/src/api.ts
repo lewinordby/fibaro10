@@ -753,6 +753,7 @@ export type ModuleResponse = {
   ventilation?: VentilationData;
   energyElvia?: EnergyElviaData | null;
   energySunbeds?: EnergySunbedsData | null;
+  uploadEndpoint?: string;
 };
 
 export type ParkingVehicleField = {
@@ -896,6 +897,10 @@ export function fetchSettlementDetail(settlementId: string): Promise<SettlementD
   return apiGet<SettlementDetailResponse>(`/api/settlements/${encodeURIComponent(settlementId)}`);
 }
 
+export function fetchSunSettlementDetail(settlementId: string): Promise<SettlementDetailResponse> {
+  return apiGet<SettlementDetailResponse>(`/api/soling/settlements/${encodeURIComponent(settlementId)}`);
+}
+
 export function fetchSunSessionImageBrowser(sessionId: number, snapshotId?: string | null): Promise<SunSessionImageBrowser> {
   const params = new URLSearchParams();
   if (snapshotId) params.set("snapshot_id", snapshotId);
@@ -991,6 +996,14 @@ export async function saveConfig(
 }
 
 export async function uploadElviaFile(endpoint: string, file: File): Promise<JsonRecord> {
+  return uploadFile(endpoint, file);
+}
+
+export async function uploadSettlementFile(endpoint: string, file: File): Promise<JsonRecord> {
+  return uploadFile(endpoint, file);
+}
+
+async function uploadFile(endpoint: string, file: File): Promise<JsonRecord> {
   const form = new FormData();
   form.append("file", file);
   const response = await fetch(endpoint, {

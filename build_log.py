@@ -5,8 +5,44 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1165")
+APP_BUILD = os.getenv("APP_BUILD", "1166")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1166",
+        "date": "14.06.2026",
+        "headline": "Solingsoppgjor kan lastes inn og kontrolleres",
+        "title": "Altera-kreditnotaer for soling er lagt inn etter samme mal som parkering",
+        "description": (
+            "Soling har faatt egen oppgjorsside med manuell opplasting av Altera-kreditnotaer. "
+            "Den nye parseren er rettet mot tekstbaserte Visma/Altera-PDF-er og leser kreditnotanummer, dokumentdato, periode, "
+            "solomsetning, produktsalg, transaksjonskostnad, serviceavtale, markedsforing, sum eks. mva, mva og belop NOK. "
+            "Detaljsiden viser avleste felt til venstre og originalen stort til hoyre, med kontroll av skjemaets egne summer."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger provider for soling/Altera og egen parser for tekstbaserte kreditnota-PDF-er.",
+            "Fibaro10 backend (main.py): legger API for soling/oppgjor, detaljvisning, originalvedlegg og manuell filopplasting.",
+            "Desktop V2 soling (SunSettlementsPage.tsx): ny side for flerfil-opplasting, liste, tolkningsstatus og belopssammendrag.",
+            "Desktop V2 oppgjor (SettlementDetailPage.tsx): samme dokumentvisning kan brukes av parkering og soling.",
+            "Desktop V2 navigasjon (App.tsx, moduleViews.ts, navigation.ts): legger Soling > Oppgjor og detaljruter.",
+            "Desktop V2 API/CSS (api.ts, styles.css): legger upload-hjelper, soling-detaljfetch og kompakt oppgjorslayout.",
+            "Tester (test_settlement_parser.py): laaser tolkingen av Visma/Altera-kreditnota med sumkontroll.",
+            "Buildlogg (build_log.py): registrerer build 1166.",
+        ],
+        "request": (
+            "vi skal lage tilsvarende for soling, men der mangler vi aa hente ut litt tall fra sun2 ogsaa men forst kan du lage istand etter samme mal. "
+            "Bruk den bedre Altera/Visma PDF-en som grunnlag, ikke bruk tid paa aa stotte begge PDF-varianter naa."
+        ),
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Soling har faatt menyvalg Oppgjor i nytt grensesnitt.",
+            "Altera-kreditnotaer kan lastes opp manuelt fra Soling > Oppgjor, og flere PDF-er kan velges samtidig.",
+            "Tekstbaserte kreditnota-PDF-er tolkes til strukturerte felt og periodiseres etter dokumentdato.",
+            "Detaljsiden viser original-PDF sammen med avleste felt og intern sumkontroll.",
+            "Bildebaserte PDF-er lagres fortsatt som original, men krever OCR/manuell kontroll senere.",
+        ],
+    },
     {
         "version": "1",
         "build": "1165",

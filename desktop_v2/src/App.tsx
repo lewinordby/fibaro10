@@ -29,6 +29,7 @@ const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const ParkingSettlementsPage = lazy(() => import("./pages/ParkingSettlementsPage"));
 const ParkingVehicleDetailPage = lazy(() => import("./pages/ParkingVehicleDetailPage"));
 const SettlementDetailPage = lazy(() => import("./pages/SettlementDetailPage"));
+const SunSettlementsPage = lazy(() => import("./pages/SunSettlementsPage"));
 const StatusComparisonPage = lazy(() => import("./pages/StatusComparisonPage"));
 
 const mainModules = [
@@ -209,6 +210,8 @@ export default function App() {
               <Route path="/parkering/oppgjor/:settlementId" element={<SettlementDetailPage />} />
               <Route path="/parkering/:view" element={<ModulePage module="parkering" />} />
               <Route path="/soling" element={<Navigate to={modulePath("soling")} replace />} />
+              <Route path="/soling/oppgjor" element={<SunSettlementsPage />} />
+              <Route path="/soling/oppgjor/:settlementId" element={<SettlementDetailPage domain="soling" />} />
               <Route path="/soling/:view" element={<ModulePage module="soling" />} />
               <Route path="/energi" element={<Navigate to={modulePath("energi")} replace />} />
               <Route path="/energi/oversikt" element={<LegacyRedirect to={modulePath("energi", "status")} />} />
