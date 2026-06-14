@@ -2848,6 +2848,15 @@
   line-height: 1.15;
 }
 
+.settlement-page-head.compact {
+  align-items: center;
+  padding-bottom: 8px;
+}
+
+.settlement-page-head.compact h2.ant-typography {
+  font-size: 20px;
+}
+
 .settlement-summary-grid,
 .settlement-report-strip {
   display: grid;
@@ -3199,19 +3208,33 @@
 .settlement-ledger-list,
 .settlement-control-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
+}
+
+.settlement-ledger-table-head {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) 128px minmax(250px, 1.12fr) minmax(250px, 1.12fr) 118px 18px;
+  gap: 10px;
+  margin-bottom: 7px;
+  padding: 0 10px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .settlement-ledger-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1.25fr) minmax(150px, 0.75fr) repeat(3, minmax(145px, 0.72fr)) 20px;
-  gap: 12px;
+  grid-template-columns: minmax(210px, 1fr) 128px minmax(250px, 1.12fr) minmax(250px, 1.12fr) 118px 18px;
+  gap: 10px;
   align-items: center;
-  padding: 11px 12px;
+  min-height: 82px;
+  padding: 9px 10px;
   color: inherit;
   text-decoration: none;
   border: 1px solid #e5ebf4;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #ffffff;
   transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
@@ -3259,6 +3282,137 @@
 
 .settlement-ledger-state .ant-tag {
   margin-bottom: 5px;
+}
+
+.settlement-source-check {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid #e5ebf4;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.settlement-source-check.ok {
+  border-color: #bbf7d0;
+  background: #f6fef8;
+}
+
+.settlement-source-check.warn {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.settlement-source-check.empty {
+  border-style: dashed;
+}
+
+.settlement-source-check-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.settlement-source-check-head strong {
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-source-check-head span {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.settlement-source-check-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.settlement-control-metric {
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid #eaf0f7;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.settlement-control-metric span {
+  display: block;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.settlement-control-metric strong {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-control-metric.tone-ok strong {
+  color: #15803d;
+}
+
+.settlement-control-metric.tone-warn strong {
+  color: #dc2626;
+}
+
+.settlement-ledger-payout {
+  min-width: 0;
+}
+
+.settlement-ledger-payout span {
+  display: block;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 780;
+  text-transform: uppercase;
+}
+
+.settlement-ledger-payout strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 820;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.settlement-ledger-payout small {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-ledger-payout small.ok {
+  color: #15803d;
+}
+
+.settlement-ledger-payout small.warn {
+  color: #dc2626;
 }
 
 .settlement-ledger-diff {
@@ -3677,6 +3831,10 @@
   .settlement-command-grid,
   .settlement-ledger-row {
     grid-template-columns: 1fr;
+  }
+
+  .settlement-ledger-table-head {
+    display: none;
   }
 
   .settlement-report-layout {

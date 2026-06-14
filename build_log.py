@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1161")
+APP_BUILD = os.getenv("APP_BUILD", "1162")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1162",
+        "date": "14.06.2026",
+        "headline": "Oppgjorslisten viser kontrollene direkte",
+        "title": "Parkeringsoppgjor gaar rett til liste med to kildekontroller",
+        "description": (
+            "Oppgjorssiden hadde for mye plass brukt paa toppkort og sammendrag. "
+            "Denne builden fjerner de store toppfeltene og lar selve oppgjorslisten vise Flowbird/mynt-kort og EasyPark som ryddige kontrollkolonner."
+        ),
+        "applications": [
+            "Desktop V2 parkering (ParkingSettlementsPage.tsx): fjerner stort siste-oppgjor-kort, importkort, sammendragsfliser og separat kontrollkort.",
+            "Desktop V2 parkering (ParkingSettlementsPage.tsx): bygger oppgjorslisten som en kontrolltabell med skjema, Fibaro10 og avvik for Flowbird og EasyPark.",
+            "Desktop V2 CSS (styles.css): legger tabellhode, kompakte kontrollceller og bedre responsiv oppforsel for oppgjorslisten.",
+            "Buildlogg (build_log.py): registrerer build 1162.",
+        ],
+        "request": "du klarer aa lage dette skjemaet mye bedre, i tabellen paa foerste siden saa kan vi vise alle kontrollene ryddig",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppgjorssiden starter naa direkte med listen over oppgjor.",
+            "Hver rad viser Flowbird/mynt-kort med skjema, Fibaro10 og avvik.",
+            "Hver rad viser EasyPark med skjema, Fibaro10 og avvik.",
+            "Til utbetaling beholdes som orienterende belop, mens kildeavvikene er hovedkontrollen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1161",

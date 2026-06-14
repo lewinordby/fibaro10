@@ -9,7 +9,7 @@ import {
 import { App as AntApp, Button, Card, Input, Progress, Space, Tag, Typography } from "antd";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchModule, runModuleAction, type ModuleAction, type ModuleCard, type ModuleResponse, type ModuleRow } from "../api";
+import { fetchModule, runModuleAction, type ModuleAction, type ModuleResponse, type ModuleRow } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 
@@ -95,16 +95,12 @@ function largestSourceDiff(row?: ModuleRow): unknown {
   }, undefined);
 }
 
-function cardByTitle(data: ModuleResponse | null | undefined, title: string): ModuleCard | undefined {
-  return data?.cards.find((card) => card.title === title);
-}
-
 function pathFor(row?: ModuleRow): string {
   return typeof row?.path === "string" ? row.path : "";
 }
 
 function settlementRows(data: ModuleResponse): SettlementRow[] {
-  const table = data.tables.find((item) => item.title === "Parkeringsoppgjør");
+  const table = data.tables.find((item) => item.title.toLowerCase().includes("parkeringsoppgj"));
   return (table?.rows ?? []).map((row, index) => ({
     ...row,
     __rowKey: String(row.id ?? row.attachment_sha256 ?? row.period_label ?? index),
@@ -112,7 +108,7 @@ function settlementRows(data: ModuleResponse): SettlementRow[] {
 }
 
 function controlRows(data: ModuleResponse): SettlementRow[] {
-  const table = data.tables.find((item) => item.title === "Kontroll mot interne parkeringstall");
+  const table = data.tables.find((item) => item.title.toLowerCase().includes("kontroll mot interne parkeringstall"));
   return (table?.rows ?? []).map((row, index) => ({
     ...row,
     __rowKey: String(row.period_label ?? row.attachment_filename ?? index),
@@ -123,22 +119,40 @@ function actionLabel(action: ModuleAction) {
   return action.label || "Kjør";
 }
 
-function SummaryTile({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: string }) {
+function ControlMetric({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" | "empty" }) {
   return (
-    <div className={`settlement-summary-tile tone-${tone ?? "status"}`}>
+    <div className={`settlement-control-metric ${tone ? `tone-${tone}` : ""}`}>
       <span>{label}</span>
       <strong>{value}</strong>
-      <small>{detail}</small>
     </div>
   );
 }
 
-function FocusValue({ label, value, detail }: { label: string; value: string; detail?: string }) {
+function SourceCheck({
+  title,
+  schemaValue,
+  fibaroValue,
+  fibaroDetail,
+  diff,
+}: {
+  title: string;
+  schemaValue: unknown;
+  fibaroValue: unknown;
+  fibaroDetail: string;
+  diff: unknown;
+}) {
+  const tone = diffTone(diff);
   return (
-    <div className="settlement-focus-value">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {detail ? <small>{detail}</small> : null}
+    <div className={`settlement-source-check ${tone}`}>
+      <div className="settlement-source-check-head">
+        <strong>{title}</strong>
+        <span>{diffText(diff)}</span>
+      </div>
+      <div className="settlement-source-check-grid">
+        <ControlMetric label="Skjema" value={money(schemaValue)} />
+        <ControlMetric label={fibaroDetail} value={money(fibaroValue)} />
+        <ControlMetric label="Avvik" value={signedMoney(diff)} tone={tone} />
+      </div>
     </div>
   );
 }
@@ -166,50 +180,26 @@ function SettlementLedgerRow({ row, control }: { row: SettlementRow; control?: S
           <Progress percent={percent} size="small" strokeColor={percent >= 90 ? "#15803d" : percent >= 70 ? "#f59e0b" : "#dc2626"} />
         )}
       </div>
-      <div className="settlement-ledger-money">
-        <span>Skjema EasyPark</span>
-        <strong>{money(row.easypark_ex_vat)}</strong>
-        <small>Eks. mva</small>
-      </div>
-      <div className="settlement-ledger-money">
+      <SourceCheck
+        title="Flowbird / mynt-kort"
+        schemaValue={control?.gross_coin_card_ex_vat}
+        fibaroValue={control?.flowbird_source_paid_ex_vat}
+        fibaroDetail={`${asText(control?.flowbird_source_count)} stk Fibaro10`}
+        diff={control?.flowbird_source_diff_ex_vat}
+      />
+      <SourceCheck
+        title="EasyPark"
+        schemaValue={control?.easypark_ex_vat ?? row.easypark_ex_vat}
+        fibaroValue={control?.easypark_source_paid_ex_vat}
+        fibaroDetail={`${asText(control?.easypark_source_count)} stk Fibaro10`}
+        diff={control?.easypark_source_diff_ex_vat}
+      />
+      <div className="settlement-ledger-payout">
         <span>Til utbetaling</span>
         <strong>{money(row.payout_inc_vat)}</strong>
-        <small>Sluttsum fra Park Nordic</small>
-      </div>
-      <div className={`settlement-ledger-diff ${diffTone(diff)}`}>
-        <span>{diffText(diff)}</span>
-        <strong>{signedMoney(diff)}</strong>
-        <small>Største kildeavvik</small>
+        <small className={diffTone(diff)}>Største avvik {signedMoney(diff)}</small>
       </div>
       <ArrowRightOutlined className="settlement-ledger-arrow" />
-    </Link>
-  );
-}
-
-function ControlRow({ row, settlement }: { row: SettlementRow; settlement?: SettlementRow }) {
-  const content = (
-    <>
-      <div className="settlement-control-period">
-        <strong>{asText(row.period_label)}</strong>
-        <span>
-          {asText(row.period_start)} - {asText(row.period_end)}
-        </span>
-      </div>
-      <div className="settlement-control-numbers">
-        <FocusValue label="Flowbird Fibaro10" value={money(row.flowbird_source_paid_ex_vat)} detail={`${asText(row.flowbird_source_count)} parkeringer`} />
-        <FocusValue label="Skjema mynt/kort" value={money(row.gross_coin_card_ex_vat)} detail="Eks. mva" />
-        <FocusValue label="Avvik Flowbird" value={signedMoney(row.flowbird_source_diff_ex_vat)} detail={diffText(row.flowbird_source_diff_ex_vat)} />
-        <FocusValue label="EasyPark Fibaro10" value={money(row.easypark_source_paid_ex_vat)} detail={`${asText(row.easypark_source_count)} parkeringer`} />
-        <FocusValue label="Skjema EasyPark" value={money(row.easypark_ex_vat)} detail="Eks. mva" />
-        <FocusValue label="Avvik EasyPark" value={signedMoney(row.easypark_source_diff_ex_vat)} detail={diffText(row.easypark_source_diff_ex_vat)} />
-      </div>
-    </>
-  );
-  const href = pathFor(settlement);
-  if (!href) return <div className="settlement-control-row">{content}</div>;
-  return (
-    <Link className="settlement-control-row" to={href}>
-      {content}
     </Link>
   );
 }
@@ -233,17 +223,9 @@ export default function ParkingSettlementsPage() {
   const controls = useMemo(() => (data ? controlRows(data) : []), [data]);
   const filteredRows = useMemo(() => filterSettlementRows(rows, query), [rows, query]);
   const controlsByPeriod = useMemo(() => new Map(controls.map((row) => [asText(row.period_label), row])), [controls]);
-  const settlementsByPeriod = useMemo(() => new Map(rows.map((row) => [asText(row.period_label), row])), [rows]);
-  const latest = rows[0];
   const parsedRows = rows.filter((row) => asText(row.status).toLowerCase().includes("tolket"));
   const reviewRows = rows.filter((row) => !asText(row.status).toLowerCase().includes("tolket"));
-  const confidenceValues = rows.map((row) => confidencePercent(row.parser_confidence)).filter((value): value is number => value !== null);
-  const averageConfidence = confidenceValues.length > 0 ? Math.round(confidenceValues.reduce((sum, value) => sum + value, 0) / confidenceValues.length) : null;
-  const lastControl = latest ? controlsByPeriod.get(asText(latest.period_label)) : undefined;
-  const lastSourceDiff = largestSourceDiff(lastControl);
   const importAction = data?.actions?.[0] ?? null;
-  const gmailCard = cardByTitle(data, "Gmail");
-  const latestImportCard = cardByTitle(data, "Siste import");
 
   async function runAction(action: ModuleAction) {
     const execute = async () => {
@@ -275,12 +257,12 @@ export default function ParkingSettlementsPage() {
   if (error || !data) return <ErrorBlock error={error} />;
 
   return (
-    <Space direction="vertical" size={14} className="page-stack settlement-overview-page">
-      <div className="settlement-page-head">
+    <Space direction="vertical" size={12} className="page-stack settlement-overview-page">
+      <div className="settlement-page-head compact">
         <div>
           <Typography.Text className="eyebrow">Parkering</Typography.Text>
           <Typography.Title level={2}>Oppgjørskontroll</Typography.Title>
-          <Typography.Text type="secondary">Park Nordic-oppgjør tolket fra Gmail og kontrollert mot interne Flowbird- og EasyPark-tall.</Typography.Text>
+          <Typography.Text type="secondary">Kontroll av Flowbird/mynt-kort og EasyPark mot interne kildetall.</Typography.Text>
         </div>
         {importAction ? (
           <Button type="primary" icon={<SyncOutlined />} loading={runningAction === importAction.key} onClick={() => runAction(importAction)}>
@@ -289,56 +271,13 @@ export default function ParkingSettlementsPage() {
         ) : null}
       </div>
 
-      <div className="settlement-command-grid">
-        <Card className="work-card settlement-focus-card">
-          <div className="settlement-focus-head">
-            <div>
-              <Typography.Text className="eyebrow">Siste oppgjør</Typography.Text>
-              <Typography.Title level={3}>
-                {latest ? <Link to={pathFor(latest)}>{asText(latest.period_label)}</Link> : "Ingen oppgjør importert"}
-              </Typography.Title>
-              <Typography.Text type="secondary">{latest ? asText(latest.attachment_filename) : "Importer fra Gmail for å starte kontroll."}</Typography.Text>
-            </div>
-            {latest ? statusTag(latest.status) : null}
-          </div>
-          <div className="settlement-focus-values">
-            <FocusValue label="Til utbetaling" value={money(latest?.payout_inc_vat)} detail="Sluttsum fra skjema" />
-            <FocusValue label="Flowbird Fibaro10" value={money(lastControl?.flowbird_source_paid_ex_vat)} detail={`${asText(lastControl?.flowbird_source_count)} parkeringer`} />
-            <FocusValue label="EasyPark Fibaro10" value={money(lastControl?.easypark_source_paid_ex_vat)} detail={`${asText(lastControl?.easypark_source_count)} parkeringer`} />
-            <FocusValue label="Største avvik" value={signedMoney(lastSourceDiff)} detail={diffText(lastSourceDiff)} />
-          </div>
-        </Card>
-
-        <Card className="work-card settlement-import-card">
-          <div className="settlement-import-status">
-            <div>
-              <Typography.Text className="eyebrow">Import</Typography.Text>
-              <Typography.Title level={3}>{asText(gmailCard?.value ?? "Ukjent")}</Typography.Title>
-              <Typography.Text type="secondary">{asText(gmailCard?.detail ?? "Gmail-status er ikke rapportert.")}</Typography.Text>
-            </div>
-            {gmailCard?.value === "Klar" ? <CheckCircleOutlined className="settlement-import-icon ok" /> : <WarningOutlined className="settlement-import-icon warn" />}
-          </div>
-          <div className="settlement-import-meta">
-            <span>Siste import</span>
-            <strong>{asText(latestImportCard?.value)}</strong>
-            <small>{asText(latestImportCard?.detail)}</small>
-          </div>
-        </Card>
-      </div>
-
-      <div className="settlement-summary-grid">
-        <SummaryTile label="Importert" value={asText(data.cards[0]?.value ?? rows.length)} detail={`${parsedRows.length} tolket`} tone="parking" />
-        <SummaryTile label="Krever kontroll" value={asText(reviewRows.length)} detail="Oppgjør uten full tolking" tone={reviewRows.length ? "revenue" : "energy"} />
-        <SummaryTile label="Tolkesikkerhet" value={averageConfidence === null ? "-" : `${averageConfidence} %`} detail="Snitt av oppgjør med parserverdi" tone="status" />
-        <SummaryTile label="Siste utbetaling" value={money(latest?.payout_inc_vat)} detail={asText(latest?.period_label)} tone="revenue" />
-        <SummaryTile label="Siste avvik" value={money(lastSourceDiff)} detail="Største kildeavvik" tone="parking" />
-      </div>
-
       <Card className="work-card settlement-register-card">
         <div className="settlement-card-head">
           <div>
             <Typography.Title level={4}>Oppgjør</Typography.Title>
-            <Typography.Text type="secondary">{filteredRows.length} av {rows.length} oppgjør vises</Typography.Text>
+            <Typography.Text type="secondary">
+              {filteredRows.length} av {rows.length} vises. {parsedRows.length} tolket, {reviewRows.length} krever kontroll.
+            </Typography.Text>
           </div>
           <Input
             allowClear
@@ -349,23 +288,17 @@ export default function ParkingSettlementsPage() {
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
+        <div className="settlement-ledger-table-head">
+          <span>Oppgjør</span>
+          <span>Status</span>
+          <span>Flowbird / mynt-kort</span>
+          <span>EasyPark</span>
+          <span>Utbetaling</span>
+          <span />
+        </div>
         <div className="settlement-ledger-list">
           {filteredRows.map((row) => (
             <SettlementLedgerRow key={row.__rowKey} row={row} control={controlsByPeriod.get(asText(row.period_label))} />
-          ))}
-        </div>
-      </Card>
-
-      <Card className="work-card settlement-control-card">
-        <div className="settlement-card-head">
-          <div>
-            <Typography.Title level={4}>Kontroll mot Fibaro10</Typography.Title>
-            <Typography.Text type="secondary">Sammenligner skjemaets Flowbird/mynt-kort og EasyPark mot interne kildeverdier for samme periode.</Typography.Text>
-          </div>
-        </div>
-        <div className="settlement-control-list">
-          {controls.map((row) => (
-            <ControlRow key={row.__rowKey} row={row} settlement={settlementsByPeriod.get(asText(row.period_label))} />
           ))}
         </div>
       </Card>
