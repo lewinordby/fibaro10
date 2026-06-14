@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1150")
+APP_BUILD = os.getenv("APP_BUILD", "1151")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1151",
+        "date": "14.06.2026",
+        "headline": "Sammenhengsanalyse i Admin",
+        "title": "V2 får analyseflate for sammenheng mellom aktivitet, vær og energi",
+        "description": (
+            "Admin får en analyseflate som samler daglige data fra soling, parkering, Yr og energilogging. "
+            "Siden beregner enkle korrelasjoner som kan peke på faktorer som ser ut til å påvirke aktivitet og omsetning."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): aggregerer siste 90 dager fra SUN2, EasyPark, Yr og energilogging.",
+            "Fibaro10 backend (main.py): beregner Pearson-korrelasjoner mellom aktivitet/omsetning og faktorer som vær, ukedag og strøm.",
+            "Fibaro10 backend (main.py): eksponerer `/admin/analyse` med kort, graf, korrelasjonstabell og dagsgrunnlag.",
+            "Desktop V2 navigasjon (moduleViews.ts): legger Analyse inn under Admin.",
+            "Desktop V2 tabeller (ModulePage.tsx): legger etiketter for analysekolonner.",
+            "Buildlogg (build_log.py): registrerer build 1151.",
+        ],
+        "request": "du må gjennomføre alle punktene du foreslo",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "`/admin/analyse` viser sterkeste observerte faktor for soling, parkering og total omsetning.",
+            "Korrelasjonstabellen viser retning, styrke og antall dager i grunnlaget.",
+            "Dagsgrunnlaget viser soling, parkering, omsetning, værdata og energidata per dag.",
+            "Grafen kan skifte mellom antall, omsetning og vær for siste 45 dager.",
+            "Resultatene beskrives eksplisitt som indikasjoner, ikke årsaksbevis.",
+        ],
+    },
     {
         "version": "1",
         "build": "1150",

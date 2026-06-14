@@ -15150,6 +15150,280 @@ async def build_admin_data_quality(session, import_rows: list[Dict[str, Any]], n
     }
 
 
+def pearson_correlation(pairs: list[tuple[float, float]]) -> Optional[float]:
+    if len(pairs) < 7:
+        return None
+    xs = [pair[0] for pair in pairs]
+    ys = [pair[1] for pair in pairs]
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    numerator = sum((x - mean_x) * (y - mean_y) for x, y in pairs)
+    denom_x = math.sqrt(sum((x - mean_x) ** 2 for x in xs))
+    denom_y = math.sqrt(sum((y - mean_y) ** 2 for y in ys))
+    denominator = denom_x * denom_y
+    if denominator == 0:
+        return None
+    return numerator / denominator
+
+
+def correlation_strength(value: Optional[float]) -> str:
+    if value is None:
+        return "For lite data"
+    absolute = abs(value)
+    if absolute >= 0.7:
+        return "Sterk"
+    if absolute >= 0.4:
+        return "Moderat"
+    if absolute >= 0.2:
+        return "Svak"
+    return "Lav"
+
+
+def correlation_direction(value: Optional[float]) -> str:
+    if value is None:
+        return "-"
+    if value > 0.05:
+        return "Positiv"
+    if value < -0.05:
+        return "Negativ"
+    return "Nøytral"
+
+
+async def build_admin_relation_analysis(session, now_dt: datetime) -> Dict[str, Any]:
+    end_day = now_dt.date()
+    start_day = end_day - timedelta(days=89)
+    start_dt = datetime.combine(start_day, time.min)
+    end_dt = datetime.combine(end_day + timedelta(days=1), time.min)
+
+    sun_rows = (
+        await session.execute(
+            select(
+                Sun2TanningSession.stat_date.label("day"),
+                func.count(Sun2TanningSession.id).label("sun_count"),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("sun_paid"),
+                func.coalesce(func.sum(Sun2TanningSession.duration_minutes), 0).label("sun_minutes"),
+            )
+            .where(Sun2TanningSession.stat_date >= start_day)
+            .where(Sun2TanningSession.stat_date <= end_day)
+            .group_by(Sun2TanningSession.stat_date)
+        )
+    ).mappings().all()
+    parking_day = cast(ParkingSession.start_time, Date)
+    parking_rows = (
+        await session.execute(
+            select(
+                parking_day.label("day"),
+                func.count(ParkingSession.id).label("parking_count"),
+                func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("parking_paid"),
+                func.coalesce(func.sum(ParkingSession.parking_time_min), 0).label("parking_minutes"),
+            )
+            .where(ParkingSession.start_time >= start_dt)
+            .where(ParkingSession.start_time < end_dt)
+            .group_by(parking_day)
+        )
+    ).mappings().all()
+    yr_day = cast(YrForecastSample.bucket_start, Date)
+    yr_rows = (
+        await session.execute(
+            select(
+                yr_day.label("day"),
+                func.avg(YrForecastSample.air_temperature).label("air_temperature"),
+                func.avg(YrForecastSample.relative_humidity).label("relative_humidity"),
+                func.avg(YrForecastSample.wind_speed).label("wind_speed"),
+                func.avg(YrForecastSample.cloud_area_fraction).label("cloud_area_fraction"),
+                func.count(YrForecastSample.id).label("weather_samples"),
+            )
+            .where(YrForecastSample.bucket_start >= start_dt)
+            .where(YrForecastSample.bucket_start < end_dt)
+            .group_by(yr_day)
+        )
+    ).mappings().all()
+    energy_day = cast(EnergyFibaroSample.bucket_start, Date)
+    energy_rows = (
+        await session.execute(
+            select(
+                energy_day.label("day"),
+                func.avg(EnergyFibaroSample.inntak_w).label("avg_inntak_w"),
+                func.avg(EnergyFibaroSample.differanse_beregnet_w).label("avg_diff_w"),
+                func.count(EnergyFibaroSample.id).label("energy_samples"),
+            )
+            .where(EnergyFibaroSample.bucket_start >= start_dt)
+            .where(EnergyFibaroSample.bucket_start < end_dt)
+            .group_by(energy_day)
+        )
+    ).mappings().all()
+
+    days: Dict[date, Dict[str, Any]] = {}
+    weekday_labels = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"]
+    for offset in range((end_day - start_day).days + 1):
+        current_day = start_day + timedelta(days=offset)
+        days[current_day] = {
+            "day": current_day.isoformat(),
+            "weekday": weekday_labels[current_day.weekday()],
+            "weekday_index": current_day.weekday() + 1,
+            "is_weekend": 1 if current_day.weekday() >= 5 else 0,
+            "sun_count": 0,
+            "sun_paid": 0.0,
+            "sun_minutes": 0.0,
+            "parking_count": 0,
+            "parking_paid": 0.0,
+            "parking_minutes": 0.0,
+            "air_temperature": None,
+            "relative_humidity": None,
+            "wind_speed": None,
+            "cloud_area_fraction": None,
+            "avg_inntak_w": None,
+            "avg_diff_w": None,
+            "weather_samples": 0,
+            "energy_samples": 0,
+        }
+    for row in sun_rows:
+        item = days.get(row["day"])
+        if item is not None:
+            item["sun_count"] = int_or_zero(row["sun_count"])
+            item["sun_paid"] = round(float_or_zero(row["sun_paid"]), 2)
+            item["sun_minutes"] = round(float_or_zero(row["sun_minutes"]), 1)
+    for row in parking_rows:
+        item = days.get(row["day"])
+        if item is not None:
+            item["parking_count"] = int_or_zero(row["parking_count"])
+            item["parking_paid"] = round(float_or_zero(row["parking_paid"]), 2)
+            item["parking_minutes"] = round(float_or_zero(row["parking_minutes"]), 1)
+    for row in yr_rows:
+        item = days.get(row["day"])
+        if item is not None:
+            item["air_temperature"] = round(float_or_zero(row["air_temperature"]), 2) if row["air_temperature"] is not None else None
+            item["relative_humidity"] = round(float_or_zero(row["relative_humidity"]), 2) if row["relative_humidity"] is not None else None
+            item["wind_speed"] = round(float_or_zero(row["wind_speed"]), 2) if row["wind_speed"] is not None else None
+            item["cloud_area_fraction"] = round(float_or_zero(row["cloud_area_fraction"]), 2) if row["cloud_area_fraction"] is not None else None
+            item["weather_samples"] = int_or_zero(row["weather_samples"])
+    for row in energy_rows:
+        item = days.get(row["day"])
+        if item is not None:
+            item["avg_inntak_w"] = round(float_or_zero(row["avg_inntak_w"]), 2) if row["avg_inntak_w"] is not None else None
+            item["avg_diff_w"] = round(float_or_zero(row["avg_diff_w"]), 2) if row["avg_diff_w"] is not None else None
+            item["energy_samples"] = int_or_zero(row["energy_samples"])
+
+    day_rows = []
+    for item in days.values():
+        total_paid = float_or_zero(item["sun_paid"]) + float_or_zero(item["parking_paid"])
+        day_rows.append({**item, "total_paid": round(total_paid, 2)})
+
+    target_defs = [
+        ("sun_count", "Solinger"),
+        ("sun_paid", "Soling omsetning"),
+        ("parking_count", "Parkeringer"),
+        ("parking_paid", "Parkering omsetning"),
+        ("total_paid", "Total omsetning"),
+    ]
+    factor_defs = [
+        ("weekday_index", "Ukedag"),
+        ("is_weekend", "Helg"),
+        ("air_temperature", "Ute temperatur"),
+        ("relative_humidity", "Relativ fuktighet"),
+        ("wind_speed", "Vind"),
+        ("cloud_area_fraction", "Skydekke"),
+        ("avg_inntak_w", "Snitt strømforbruk"),
+        ("avg_diff_w", "Snitt uforklart diff"),
+    ]
+    correlation_rows = []
+    for target_key, target_label in target_defs:
+        for factor_key, factor_label in factor_defs:
+            pairs = []
+            for row in day_rows:
+                target_value = row.get(target_key)
+                factor_value = row.get(factor_key)
+                if target_value is None or factor_value is None:
+                    continue
+                pairs.append((float(target_value), float(factor_value)))
+            corr = pearson_correlation(pairs)
+            if corr is None:
+                continue
+            correlation_rows.append(
+                {
+                    "target": target_label,
+                    "factor": factor_label,
+                    "correlation": round(corr, 3),
+                    "strength": correlation_strength(corr),
+                    "direction": correlation_direction(corr),
+                    "sample_days": len(pairs),
+                    "detail": "Korrelasjon er indikasjon, ikke årsaksbevis.",
+                }
+            )
+    correlation_rows.sort(key=lambda row: abs(float_or_zero(row.get("correlation"))), reverse=True)
+
+    def strongest_for(target: str) -> Optional[Dict[str, Any]]:
+        for row in correlation_rows:
+            if row["target"] == target:
+                return row
+        return None
+
+    strongest_sun = strongest_for("Solinger")
+    strongest_parking = strongest_for("Parkeringer")
+    strongest_revenue = strongest_for("Total omsetning")
+    chart_days = day_rows[-45:]
+    chart = api_chart(
+        "Daglig utvikling og analysegrunnlag",
+        [row["day"] for row in chart_days],
+        [
+            {"name": "Solinger", "type": "bar", "data": [row["sun_count"] for row in chart_days], "color": "#f59e0b"},
+            {"name": "Parkeringer", "type": "bar", "data": [row["parking_count"] for row in chart_days], "color": "#2563eb"},
+        ],
+        subtitle="Siste 45 dager. Bruk tabellene under for korrelasjoner.",
+        chart_type="bar",
+        height=320,
+        metrics=[
+            {
+                "key": "count",
+                "label": "Antall",
+                "unit": "stk",
+                "series": [
+                    {"name": "Solinger", "type": "bar", "data": [row["sun_count"] for row in chart_days], "color": "#f59e0b"},
+                    {"name": "Parkeringer", "type": "bar", "data": [row["parking_count"] for row in chart_days], "color": "#2563eb"},
+                ],
+            },
+            {
+                "key": "revenue",
+                "label": "Omsetning",
+                "unit": "kr",
+                "series": [
+                    {"name": "Soling", "type": "line", "data": [row["sun_paid"] for row in chart_days], "color": "#f59e0b"},
+                    {"name": "Parkering", "type": "line", "data": [row["parking_paid"] for row in chart_days], "color": "#2563eb"},
+                    {"name": "Sum", "type": "line", "data": [row["total_paid"] for row in chart_days], "color": "#dc2626"},
+                ],
+            },
+            {
+                "key": "weather",
+                "label": "Vær",
+                "unit": "",
+                "series": [
+                    {"name": "Temp", "type": "line", "data": [row["air_temperature"] for row in chart_days], "color": "#0ea5e9"},
+                    {"name": "Skydekke", "type": "line", "data": [row["cloud_area_fraction"] for row in chart_days], "color": "#64748b"},
+                    {"name": "Vind", "type": "line", "data": [row["wind_speed"] for row in chart_days], "color": "#14b8a6"},
+                ],
+            },
+        ],
+        default_metric="count",
+        disable_zoom=True,
+    )
+    analysed_days = len([row for row in day_rows if row["sun_count"] or row["parking_count"]])
+    weather_days = len([row for row in day_rows if row["weather_samples"]])
+    energy_days = len([row for row in day_rows if row["energy_samples"]])
+    return {
+        "start_day": start_day,
+        "end_day": end_day,
+        "analysed_days": analysed_days,
+        "weather_days": weather_days,
+        "energy_days": energy_days,
+        "strongest_sun": strongest_sun,
+        "strongest_parking": strongest_parking,
+        "strongest_revenue": strongest_revenue,
+        "correlation_rows": correlation_rows,
+        "day_rows": list(reversed(day_rows)),
+        "chart": chart,
+    }
+
+
 @app.get("/api/modules/{module}")
 async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
@@ -16321,6 +16595,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             build_log_columns = ["date", "build", "headline"]
             urgent_task_count = sum(1 for row in admin_task_rows if row["severity"] in {"Kritisk", "Høy"})
             actions = []
+            charts = []
             admin_cards = [
                 api_card("Oppgaver", len(admin_task_rows), "stk", f"{urgent_task_count} kritisk/høy", "status", href="/admin/oppgaver"),
                 api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
@@ -16439,6 +16714,74 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         data_quality["issue_rows"],
                     ),
                 ]
+            elif view == "analyse":
+                relation_analysis = await build_admin_relation_analysis(session, now_dt)
+                strongest_sun = relation_analysis["strongest_sun"]
+                strongest_parking = relation_analysis["strongest_parking"]
+                strongest_revenue = relation_analysis["strongest_revenue"]
+                admin_cards = [
+                    api_card(
+                        "Analyserte dager",
+                        relation_analysis["analysed_days"],
+                        "stk",
+                        f"{relation_analysis['start_day'].strftime('%d.%m')} - {relation_analysis['end_day'].strftime('%d.%m')}",
+                        "status",
+                        href="/admin/analyse",
+                    ),
+                    api_card(
+                        "Soling",
+                        strongest_sun["factor"] if strongest_sun else "-",
+                        "",
+                        f"r={strongest_sun['correlation']} · {strongest_sun['direction']}" if strongest_sun else "For lite data",
+                        "sun2",
+                        href="/soling/oversikt",
+                    ),
+                    api_card(
+                        "Parkering",
+                        strongest_parking["factor"] if strongest_parking else "-",
+                        "",
+                        f"r={strongest_parking['correlation']} · {strongest_parking['direction']}" if strongest_parking else "For lite data",
+                        "parking",
+                        href="/parkering/oversikt",
+                    ),
+                    api_card(
+                        "Omsetning",
+                        strongest_revenue["factor"] if strongest_revenue else "-",
+                        "",
+                        f"r={strongest_revenue['correlation']} · {strongest_revenue['direction']}" if strongest_revenue else "For lite data",
+                        "revenue",
+                        href="/omsetning/oversikt",
+                    ),
+                ]
+                tables = [
+                    api_table(
+                        "Sammenhenger",
+                        ["target", "factor", "correlation", "strength", "direction", "sample_days", "detail"],
+                        relation_analysis["correlation_rows"],
+                    ),
+                    api_table(
+                        "Dagsgrunnlag",
+                        [
+                            "day",
+                            "weekday",
+                            "sun_count",
+                            "sun_paid",
+                            "parking_count",
+                            "parking_paid",
+                            "total_paid",
+                            "air_temperature",
+                            "relative_humidity",
+                            "wind_speed",
+                            "cloud_area_fraction",
+                            "avg_inntak_w",
+                            "avg_diff_w",
+                            "weather_samples",
+                            "energy_samples",
+                        ],
+                        relation_analysis["day_rows"],
+                    ),
+                ]
+                charts = [relation_analysis["chart"]]
             elif view == "build":
                 tables = [
                     api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:80]]),
@@ -16521,6 +16864,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "title": "Admin" if not view else f"Admin · {view.replace('-', ' ')}",
                 "subtitle": "Build, datakilder, teknisk drift og AI-logg.",
                 "cards": admin_cards,
+                "charts": charts,
                 "tables": tables,
                 "actions": actions,
             }

@@ -271,6 +271,17 @@ function labelize(column: string): string {
     coverage_percent: "Dekning %",
     missing_count: "Mangler",
     sample_count: "Samples",
+    factor: "Faktor",
+    correlation: "Korrelasjon",
+    strength: "Styrke",
+    direction: "Retning",
+    sample_days: "Dager",
+    is_weekend: "Helg",
+    weekday: "Ukedag",
+    avg_inntak_w: "Snitt inntak W",
+    avg_diff_w: "Snitt diff W",
+    weather_samples: "Værsamples",
+    energy_samples: "Energisamples",
     recommended_action: "Anbefalt handling",
   };
   return labels[column] ?? column.replaceAll("_", " ");
