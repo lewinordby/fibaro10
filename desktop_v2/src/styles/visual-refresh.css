@@ -517,3 +517,221 @@
   background: linear-gradient(180deg, #ffffff, #f8fafc);
   box-shadow: var(--shadow-xs);
 }
+
+/* Final compact card density pass. Keep this at the end so it wins over earlier theme layers. */
+.metric-grid,
+.primary-grid {
+  gap: 8px;
+}
+
+.metric-card {
+  height: 96px;
+}
+
+.module-metric {
+  height: 82px;
+}
+
+.metric-card::before,
+.status-period-card::before,
+.status-support-item::before {
+  height: 2px;
+}
+
+.metric-card .ant-card-body,
+.metric-card.module-metric .ant-card-body {
+  padding: 6px 8px;
+}
+
+.metric-card-top {
+  gap: 6px;
+}
+
+.metric-title,
+.module-metric .metric-title {
+  font-size: 10px;
+}
+
+.metric-tag,
+.module-metric .metric-tag {
+  padding-inline: 5px;
+  font-size: 9px;
+  line-height: 17px;
+}
+
+.metric-value-row,
+.module-metric .metric-value-row {
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.metric-value,
+.module-metric .metric-value {
+  font-size: 16px;
+  line-height: 1.05;
+}
+
+.metric-unit,
+.module-metric .metric-unit {
+  font-size: 9.5px;
+}
+
+.metric-detail,
+.module-metric .metric-detail {
+  gap: 5px;
+  min-height: 19px;
+  font-size: 9.5px;
+  line-height: 1.12;
+}
+
+.metric-detail svg {
+  width: 10px;
+  height: 10px;
+}
+
+.summary-card .ant-card-head {
+  min-height: 28px;
+}
+
+.summary-card .ant-card-head-title {
+  font-size: 10.5px;
+}
+
+.summary-card .ant-card-body,
+.status-revenue-page .summary-card .ant-card-body {
+  min-height: 52px;
+  padding: 7px 9px;
+}
+
+.summary-card strong,
+.status-revenue-page .summary-card strong {
+  font-size: 15px;
+}
+
+.summary-card span {
+  font-size: 10px;
+}
+
+.status-period-grid {
+  gap: 8px;
+}
+
+.status-period-card {
+  min-height: 228px;
+}
+
+.status-period-card .ant-card-body {
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.status-period-head {
+  padding-bottom: 0;
+}
+
+.status-period-head div {
+  gap: 2px;
+}
+
+.status-period-head span {
+  font-size: 10.5px;
+}
+
+.status-period-head em,
+.status-period-rows span,
+.status-period-rows em,
+.status-period-comparison-main span,
+.status-period-comparison-detail {
+  font-size: 10px;
+}
+
+.status-period-head strong {
+  font-size: 17px;
+}
+
+.status-period-rows {
+  gap: 5px;
+}
+
+.status-period-rows div {
+  padding: 5px 7px;
+}
+
+.status-period-rows strong,
+.status-period-comparison-main strong {
+  font-size: 12px;
+}
+
+.status-period-comparisons {
+  gap: 5px;
+}
+
+.status-period-comparison-row {
+  padding: 5px 0 0;
+}
+
+.status-period-delta {
+  padding: 3px 6px;
+  font-size: 10px;
+}
+
+.status-support-strip {
+  gap: 7px;
+}
+
+.status-support-item {
+  padding: 7px 9px;
+}
+
+.status-support-head {
+  margin-bottom: 5px;
+}
+
+.status-support-head span {
+  font-size: 10px;
+}
+
+.status-support-head em {
+  padding: 1px 5px;
+  font-size: 9.5px;
+}
+
+.status-support-item strong {
+  font-size: 16px;
+}
+
+.status-support-item strong span,
+.status-support-item small {
+  font-size: 10px;
+}
+
+.status-support-item small {
+  margin-top: 5px;
+}
+
+.status-comparison-summary-card .ant-card-body,
+.status-comparison-delta-card .ant-card-body {
+  padding: 8px 10px;
+}
+
+.status-comparison-summary-head span,
+.status-comparison-delta-card > .ant-card-body > span {
+  font-size: 10.5px;
+}
+
+:is(.status-comparison-summary-head strong, .status-comparison-delta-card strong) {
+  font-size: 18px;
+}
+
+.status-comparison-summary-split {
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.status-comparison-summary-split div {
+  padding: 5px 6px;
+}
+
+.status-comparison-summary-split strong {
+  font-size: 12px;
+}

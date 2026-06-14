@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1144")
+APP_BUILD = os.getenv("APP_BUILD", "1145")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1145",
+        "date": "14.06.2026",
+        "headline": "Lavere kort i hele grensesnittet",
+        "title": "Kortene i V2 komprimeres ytterligere etter visuell gjennomgang",
+        "description": (
+            "Kortene var fortsatt for høye. Det siste visuelle CSS-laget setter derfor en tydelig lavere skala for "
+            "modul-kort, generelle metric-kort, statusperiodekort, supportkort og summary-kort."
+        ),
+        "applications": [
+            "Desktop V2 visuell profil (visual-refresh.css): legger inn siste kompakte kortlag som overstyrer tidligere tema.",
+            "Buildlogg (build_log.py): registrerer build 1145.",
+        ],
+        "request": "jeg synes fortsatt kortene er for høye",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Modul-kort er redusert fra 104px til 82px.",
+            "Generelle metric-kort er redusert fra 122px til 96px.",
+            "Hovedtall på modul-kort er redusert til 16px.",
+            "Summary-, statusperiode- og supportkort får lavere padding og mindre typografi.",
+            "Kompaktlaget ligger sist i CSS slik at det faktisk slår gjennom over hele V2.",
+        ],
+    },
     {
         "version": "1",
         "build": "1144",
