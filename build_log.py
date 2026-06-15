@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1184")
+APP_BUILD = os.getenv("APP_BUILD", "1185")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1185",
+        "date": "15.06.2026",
+        "headline": "Sun2 produktsalg importeres for oppgjorskontroll",
+        "title": "Daglig og maanedlig produktsalg fra Sun2",
+        "description": (
+            "Build 1185 legger produktsalg fra Sun2 inn som egen idempotent datakilde. Daglig jobb henter "
+            "gaarsdagen for dagsfordeling, mens maanedlig jobb henter hele forrige maaned som avstemming mot "
+            "solingsoppgjor. Oppgjorlisten viser naa Sun2-grunnlag og avvik for produktsalg."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger modellen sun2_product_sales, ingest-endepunkt og oppgjorskontroll mot produktsalg.",
+            "Sun2 scraper (sun2_session_scraper/app/main.py): legger daglig og maanedlig produktsalgjobb med manuelle endepunkter.",
+            "Desktop V2 (SunSettlementsPage.tsx): viser produktkontroll med Sun2-belop og avvik i oppgjorlisten.",
+            "Database (migrations): legger idempotent sun2_product_sales-tabell og indekser.",
+            "Dokumentasjon/tester: oppdaterer Sun2 scraper-oppsett og parserkontrolltest.",
+        ],
+        "request": "Lag jobber for aa hente produktsalg en gang pr mnd for hele forrige maaned, og ogsaa pr dag for dagsfordeling. Maanedskjoring brukes til kontroll av oppgjor soling.",
+        "work_duration": "ca. 1 t",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Daglig produktsalgimport henter gaarsdagen og lagrer salg med stat_date.",
+            "Maanedlig produktsalgimport henter hele forrige maaned uten aa dobbelttelle eksisterende daglige salg.",
+            "Solingsoppgjor kontrollerer Produktsalg for perioden mot Sun2-belop eks. mva.",
+            "Datakilder faar egne statusrader for daglig produktsalg og maanedskontroll.",
+        ],
+    },
     {
         "version": "1",
         "build": "1184",

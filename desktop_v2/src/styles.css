@@ -3590,6 +3590,10 @@
   color: #dc2626;
 }
 
+.settlement-control-metric.tone-empty strong {
+  color: #94a3b8;
+}
+
 .settlement-ledger-payout {
   min-width: 0;
 }

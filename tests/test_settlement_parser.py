@@ -145,6 +145,24 @@ class ParkingSettlementParserTests(unittest.TestCase):
         self.assertEqual(form_rows["vat_25_percent"]["difference"], 0)
         self.assertEqual(form_rows["payout_inc_vat"]["difference"], 0)
 
+        product_control_rows = {
+            row["field"]: row
+            for row in main.sun_settlement_form_rows(
+                parsed,
+                {
+                    "count": 8,
+                    "quantity": 8,
+                    "amount_ex_vat": 1742.4,
+                    "amount_inc_vat": 2178,
+                    "last_imported_at": None,
+                },
+            )
+        }
+        self.assertEqual(product_control_rows["product_sales_ex_vat"]["expected"], 1742.4)
+        self.assertEqual(product_control_rows["product_sales_ex_vat"]["expectedSource"], "sun2_product_sales")
+        self.assertEqual(product_control_rows["product_sales_ex_vat"]["status"], "ok")
+        self.assertEqual(product_control_rows["product_sales_ex_vat"]["difference"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

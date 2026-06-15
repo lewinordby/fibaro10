@@ -62,6 +62,12 @@ LIST_URL = (env_value("LIST_URL", "") or "").strip()
 NAVIGATION_LABELS = [part.strip() for part in (env_value("NAVIGATION_LABELS", "Statistikk|Bruker|Liste") or "").split("|") if part.strip()]
 MEMBERS_URL = (env_value("MEMBERS_URL", "") or "").strip()
 MEMBER_NAVIGATION_LABELS = [part.strip() for part in (env_value("MEMBER_NAVIGATION_LABELS", "Medlemmer|Brukere|Kunder") or "").split("|") if part.strip()]
+PRODUCT_SALES_URL = (env_value("PRODUCT_SALES_URL", "") or "").strip()
+PRODUCT_SALES_NAVIGATION_LABELS = [
+    part.strip()
+    for part in (env_value("PRODUCT_SALES_NAVIGATION_LABELS", "Rapporter|Produktsalg") or "").split("|")
+    if part.strip()
+]
 OUT_DIR = Path(env_value("OUT_DIR", "/data/session_exports") or "/data/session_exports")
 ERROR_DIR = Path(env_value("ERROR_DIR", "/data/session_errors") or "/data/session_errors")
 STATUS_FILE = Path(env_value("STATUS_FILE", "/data/session_scraper_status.json") or "/data/session_scraper_status.json")
@@ -73,6 +79,9 @@ SCHEDULE_POLL_SECONDS = int(env_value("SCHEDULE_POLL_SECONDS", "60") or "60")
 SCHEDULE_SESSIONS_TIME = env_value("SCHEDULE_SESSIONS_TIME", "02:10") or "02:10"
 SCHEDULE_BEDS_TIME = env_value("SCHEDULE_BEDS_TIME", "02:40") or "02:40"
 SCHEDULE_MEMBERS_TIME = env_value("SCHEDULE_MEMBERS_TIME", "03:10") or "03:10"
+SCHEDULE_PRODUCT_SALES_DAILY_TIME = env_value("SCHEDULE_PRODUCT_SALES_DAILY_TIME", "03:30") or "03:30"
+SCHEDULE_PRODUCT_SALES_MONTHLY_TIME = env_value("SCHEDULE_PRODUCT_SALES_MONTHLY_TIME", "03:55") or "03:55"
+SCHEDULE_PRODUCT_SALES_MONTHLY_DAY = max(1, min(28, int(env_value("SCHEDULE_PRODUCT_SALES_MONTHLY_DAY", "2") or "2")))
 LIVE_SYNC_ENABLED = (env_value("LIVE_SYNC_ENABLED", "1") or "1") == "1"
 LIVE_SYNC_INTERVAL_SECONDS = int(env_value("LIVE_SYNC_INTERVAL_SECONDS", "300") or "300")
 LIVE_SYNC_QUIET_START_HOUR = int(env_value("LIVE_SYNC_QUIET_START_HOUR", "0") or "0")
@@ -117,6 +126,9 @@ state: dict[str, Any] = {
     "members_last_sync": None,
     "members_last_count": 0,
     "members_last_named_count": 0,
+    "product_sales_last_sync": None,
+    "product_sales_last_period": None,
+    "product_sales_last_count": 0,
     "scheduler_enabled": SCHEDULE_ENABLED,
     "scheduler_last_check": None,
     "scheduler_last_action": None,
@@ -147,10 +159,22 @@ def schedule_due(job_key: str, time_text: str, now: datetime) -> bool:
     return now.strftime("%H:%M") >= scheduled and last_runs.get(job_key) != now.date().isoformat()
 
 
+def schedule_monthly_due(job_key: str, time_text: str, day_of_month: int, now: datetime, period_key: str) -> bool:
+    scheduled = normalize_schedule_time(time_text, "03:00")
+    last_runs = state.setdefault("scheduled_last_runs", {})
+    return now.day >= day_of_month and now.strftime("%H:%M") >= scheduled and last_runs.get(job_key) != period_key
+
+
 def mark_scheduled_attempt(job_key: str, now: datetime) -> None:
     last_runs = state.setdefault("scheduled_last_runs", {})
     last_runs[job_key] = now.date().isoformat()
     state["scheduler_last_action"] = f"{job_key} {now:%Y-%m-%d %H:%M:%S}"
+
+
+def mark_scheduled_period_attempt(job_key: str, period_key: str, now: datetime) -> None:
+    last_runs = state.setdefault("scheduled_last_runs", {})
+    last_runs[job_key] = period_key
+    state["scheduler_last_action"] = f"{job_key} {period_key} {now:%Y-%m-%d %H:%M:%S}"
 
 
 def live_sync_is_quiet(now: datetime) -> bool:
@@ -181,6 +205,12 @@ def month_end(day: date) -> date:
     return next_month(day) - timedelta(days=1)
 
 
+def previous_month_range(anchor: date) -> tuple[date, date]:
+    previous_day = anchor.replace(day=1) - timedelta(days=1)
+    start = previous_day.replace(day=1)
+    return start, month_end(start)
+
+
 def iter_month_ranges(start: date, end: date):
     current = month_start(start)
     while current <= end:
@@ -194,6 +224,14 @@ def filename_for(start: date) -> str:
 
 def daily_filename_for(day: date) -> str:
     return f"Sun2_sessions_{day:%Y-%m-%d}.json"
+
+
+def product_sales_daily_filename_for(day: date) -> str:
+    return f"Sun2_product_sales_{day:%Y-%m-%d}.json"
+
+
+def product_sales_monthly_filename_for(day: date) -> str:
+    return f"Sun2_product_sales_{day:%Y-%m}.json"
 
 
 def load_progress() -> dict[str, Any]:
@@ -241,6 +279,26 @@ def parse_number(value: Any) -> float | None:
         return None
     try:
         return float(match.group(0).replace(",", "."))
+    except ValueError:
+        return None
+
+
+def parse_money(value: Any) -> float | None:
+    text = normalize_text(value)
+    if not text:
+        return None
+    text = re.sub(r"[^\d,.\-]", "", text)
+    if not re.search(r"\d", text):
+        return None
+    if "," in text and "." in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif "," in text:
+        text = text.replace(",", ".")
+    elif text.count(".") > 1:
+        parts = text.split(".")
+        text = "".join(parts[:-1]) + "." + parts[-1]
+    try:
+        return float(text)
     except ValueError:
         return None
 
@@ -533,6 +591,96 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
     }
 
 
+def pick_amount_by_key(row: dict[str, str], include_any: list[str], exclude_any: list[str] | None = None) -> float | None:
+    includes = [normalize_key(item) for item in include_any]
+    excludes = [normalize_key(item) for item in (exclude_any or [])]
+    for key, value in row.items():
+        nkey = normalize_key(key)
+        if any(item in nkey for item in includes) and not any(item in nkey for item in excludes):
+            parsed = parse_money(value)
+            if parsed is not None:
+                return parsed
+    return None
+
+
+def normalize_product_sale_row(raw: dict[str, str], fallback_day: date, period_start: date, period_end: date) -> dict[str, Any] | None:
+    sold_text = pick(raw, "salgstidspunkt", "tidspunkt", "dato", "opprettet", "created", "time")
+    sold_at = parse_datetime_guess(sold_text, fallback_day)
+    stat_date = sold_at.date() if sold_at else parse_date_guess(sold_text) or fallback_day
+    if not (period_start <= stat_date <= period_end):
+        return None
+
+    product_name = pick(raw, "produkt", "vare", "artikkel", "beskrivelse", "navn", "product")
+    product_category = pick(raw, "kategori", "gruppe", "type", "category")
+    quantity = parse_number(pick(raw, "antall", "quantity", "qty", "stk"))
+    unit_price = pick_amount_by_key(raw, ["enhetspris", "pris pr", "unit"])
+    amount_ex_vat = pick_amount_by_key(raw, ["eks", "ex"], ["inkl", "inc"])
+    amount_inc_vat = pick_amount_by_key(raw, ["inkl", "inc"])
+    if amount_ex_vat is None:
+        amount_ex_vat = pick_amount_by_key(raw, ["eks mva", "ex vat", "netto"])
+    if amount_inc_vat is None:
+        amount_inc_vat = pick_amount_by_key(raw, ["inkl mva", "inc vat", "brutto"])
+    total_amount = pick_amount_by_key(raw, ["sum", "total", "belop", "belop", "amount", "kr"], ["mva", "vat"])
+    if amount_ex_vat is None and amount_inc_vat is None and total_amount is not None:
+        amount_inc_vat = total_amount
+        amount_ex_vat = round(total_amount / 1.25, 2)
+    elif amount_ex_vat is None and amount_inc_vat is not None:
+        amount_ex_vat = round(amount_inc_vat / 1.25, 2)
+    elif amount_inc_vat is None and amount_ex_vat is not None:
+        amount_inc_vat = round(amount_ex_vat * 1.25, 2)
+    vat = round(amount_inc_vat - amount_ex_vat, 2) if amount_inc_vat is not None and amount_ex_vat is not None else None
+
+    if not product_name and amount_inc_vat is None and amount_ex_vat is None:
+        return None
+
+    raw_for_storage = {
+        key: value
+        for key, value in raw.items()
+        if key not in {"__sun2_user_token", "__user_href"}
+    }
+    source_id = pick_identifier(raw) or hidden_session_identifier(raw)
+    source_id_basis = "sun2_hidden" if source_id else "stable_product_sale_v1"
+    if source_id:
+        source_id = "sun2:" + normalize_text(source_id)
+    else:
+        source_id = "stable:" + row_hash(
+            {
+                "stat_date": stat_date.isoformat(),
+                "sold_at": sold_at.isoformat(timespec="seconds") if sold_at else None,
+                "product_name": normalize_key(product_name),
+                "product_category": normalize_key(product_category),
+                "quantity": quantity,
+                "unit_price": unit_price,
+                "amount_inc_vat": amount_inc_vat,
+                "amount_ex_vat": amount_ex_vat,
+                "payment_method": pick(raw, "betaling", "betalingsmiddel", "payment"),
+                "user": pick(raw, "bruker", "kunde", "navn", "medlem") or raw.get("__user_title"),
+                "raw": {key: value for key, value in raw_for_storage.items() if key != "__source_row_number"},
+            }
+        )
+    raw_for_storage["source_sale_id_basis"] = source_id_basis
+    raw_for_storage["amount_ex_vat_kr_basis"] = "source" if pick_amount_by_key(raw, ["eks", "ex"], ["inkl", "inc"]) is not None else "calculated_from_inc_vat"
+
+    return {
+        "source_sale_id": normalize_text(source_id),
+        "sold_at": sold_at.isoformat() if sold_at else None,
+        "stat_date": stat_date.isoformat(),
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "product_name": normalize_text(product_name) or None,
+        "product_category": normalize_text(product_category) or None,
+        "quantity": quantity,
+        "unit_price_kr": unit_price,
+        "amount_inc_vat_kr": amount_inc_vat,
+        "amount_ex_vat_kr": amount_ex_vat,
+        "vat_kr": vat,
+        "payment_method": normalize_text(pick(raw, "betaling", "betalingsmiddel", "payment")) or None,
+        "sun2_user_id": normalize_text(raw.get("__sun2_user_id")) or None,
+        "user_name": normalize_text(pick(raw, "bruker", "kunde", "navn", "medlem") or raw.get("__user_title")) or None,
+        "raw": raw_for_storage,
+    }
+
+
 def login_if_needed(page, username: str, password: str) -> None:
     if page.locator("#password").count() == 0 and page.locator("input[type='password']").count() == 0:
         return
@@ -627,6 +775,35 @@ def open_members_page(page, username: str, password: str) -> None:
         page.wait_for_timeout(750)
         return
     for label in MEMBER_NAVIGATION_LABELS:
+        click_text_if_present(page, label)
+    page.wait_for_timeout(750)
+
+
+def open_product_sales_page(page, username: str, password: str) -> None:
+    page.goto(PRODUCT_SALES_URL or BASE_URL, wait_until="domcontentloaded")
+    login_if_needed(page, username, password)
+    if PRODUCT_SALES_URL:
+        return
+    try:
+        product_href = page.evaluate(
+            """
+            () => Array.from(document.querySelectorAll('a'))
+              .map(a => ({href: a.href || '', text: (a.innerText || a.textContent || '').trim().toLowerCase()}))
+              .find(item => item.text.includes('produktsalg') || item.text.includes('produkt') || item.text.includes('products'))?.href || ''
+            """
+        )
+    except Exception:
+        product_href = ""
+    if product_href:
+        page.goto(product_href, wait_until="domcontentloaded")
+        login_if_needed(page, username, password)
+        try:
+            page.wait_for_load_state("networkidle", timeout=10000)
+        except PwTimeoutError:
+            pass
+        page.wait_for_timeout(750)
+        return
+    for label in PRODUCT_SALES_NAVIGATION_LABELS:
         click_text_if_present(page, label)
     page.wait_for_timeout(750)
 
@@ -1080,6 +1257,8 @@ def post_import_status(
         "sun2_sessions_import": "Sun2 enkelttimer",
         "sun2_beds_import": "Sun2 senger",
         "sun2_members_import": "Sun2 medlemmer",
+        "sun2_product_sales_daily_import": "Sun2 produktsalg daglig",
+        "sun2_product_sales_monthly_import": "Sun2 produktsalg maanedskontroll",
     }
     payload = {
         "job_name": job_name,
@@ -1266,6 +1445,77 @@ def scrape_members_sync() -> dict[str, Any]:
     return {"ok": True, "members": len(members), "named": named_count, "posted": bool(response), "fibaro10_response": response}
 
 
+def scrape_product_sales_sync(start: date, end: date, source_filename: str | None = None, scope: str = "daily") -> dict[str, Any]:
+    username = env_required("SUN2_USERNAME")
+    password = env_required("SUN2_PASSWORD")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    ERROR_DIR.mkdir(parents=True, exist_ok=True)
+    filename = source_filename or (product_sales_daily_filename_for(start) if start == end else product_sales_monthly_filename_for(start))
+    out_path = OUT_DIR / filename
+    job_name = "sun2_product_sales_monthly_import" if scope == "monthly" else "sun2_product_sales_daily_import"
+    state.update(
+        {
+            "product_sales_last_period": f"{start.isoformat()} - {end.isoformat()}",
+            "current_file": filename,
+        }
+    )
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(locale="nb-NO", accept_downloads=True)
+        page = context.new_page()
+        open_product_sales_page(page, username, password)
+        set_date_range(page, start, end)
+        headers, table_rows = extract_paginated_table(page, max_pages=1000)
+        product_sales = [
+            item
+            for item in (normalize_product_sale_row(row, start, start, end) for row in table_rows)
+            if item
+        ]
+        if not product_sales:
+            save_debug(page, f"PRODUCT_SALES_NO_ROWS_{start:%Y_%m_%d}_{end:%Y_%m_%d}")
+        payload = {
+            "source": "sun2_session_scraper",
+            "collector_id": COLLECTOR_ID,
+            "timestamp": datetime.utcnow().isoformat(),
+            "ok": True,
+            "source_file": filename,
+            "period_start": start.isoformat(),
+            "period_end": end.isoformat(),
+            "message": f"Skrapet produktsalg {start.isoformat()} til {end.isoformat()}",
+            "rows": product_sales,
+            "extra": {
+                "scope": scope,
+                "job_name": job_name,
+                "headers": headers,
+                "raw_rows": len(table_rows),
+                "product_sales_url": page.url,
+            },
+        }
+        tmp_path = out_path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        tmp_path.replace(out_path)
+        response = None
+        if POST_TO_FIBARO10:
+            response = post_to_fibaro10(payload, "/api/sun2/product-sales/ingest")
+        context.close()
+        browser.close()
+
+    state["product_sales_last_sync"] = datetime.utcnow().isoformat()
+    state["product_sales_last_count"] = len(product_sales)
+    state["last_error"] = None
+    save_progress({"last_action": f"product_sales_{scope}_synced", "fibaro10_product_sales_response": response})
+    post_import_status(
+        job_name,
+        ok=True,
+        message=f"Synket {len(product_sales)} produktsalgslinjer for {start.isoformat()} - {end.isoformat()}",
+        records_imported=len(product_sales),
+        records_total=len(product_sales),
+        raw={"source_file": filename, "scope": scope, "posted": bool(response), "response": response},
+    )
+    return {"ok": True, "file": filename, "rows": len(product_sales), "posted": bool(response), "fibaro10_response": response}
+
+
 def scrape_month_sync(start: date, end: date, source_filename: str | None = None) -> dict[str, Any]:
     username = env_required("SUN2_USERNAME")
     password = env_required("SUN2_PASSWORD")
@@ -1361,6 +1611,21 @@ def scrape_today_sync() -> dict[str, Any]:
     return scrape_month_sync(today, today, daily_filename_for(today))
 
 
+def scrape_product_sales_yesterday_sync() -> dict[str, Any]:
+    day = local_today() - timedelta(days=1)
+    return scrape_product_sales_sync(day, day, product_sales_daily_filename_for(day), "daily")
+
+
+def scrape_product_sales_today_sync() -> dict[str, Any]:
+    day = local_today()
+    return scrape_product_sales_sync(day, day, product_sales_daily_filename_for(day), "daily")
+
+
+def scrape_product_sales_previous_month_sync() -> dict[str, Any]:
+    start, end = previous_month_range(local_today())
+    return scrape_product_sales_sync(start, end, product_sales_monthly_filename_for(start), "monthly")
+
+
 def start_date_from_progress(config_start: date) -> date:
     progress = load_progress()
     last_period = progress.get("last_success_period") or ""
@@ -1450,6 +1715,23 @@ async def run_scheduled_job(job_key: str, job_name: str, runner) -> None:
             post_import_status(job_name, ok=False, message=state["last_error"], raw={"job_key": job_key})
 
 
+async def run_scheduled_period_job(job_key: str, period_key: str, job_name: str, runner) -> None:
+    if schedule_lock.locked():
+        return
+    async with schedule_lock:
+        now = local_now()
+        mark_scheduled_period_attempt(job_key, period_key, now)
+        save_progress({"last_action": f"scheduled_{job_key}_started"})
+        try:
+            result = await asyncio.to_thread(runner)
+            state["last_error"] = None
+            save_progress({"last_action": f"scheduled_{job_key}_finished", "scheduled_result": result})
+        except Exception as exc:
+            state["last_error"] = f"Nattlig {job_key} feilet: {exc}"
+            save_progress({"last_action": f"scheduled_{job_key}_failed"})
+            post_import_status(job_name, ok=False, message=state["last_error"], raw={"job_key": job_key, "period_key": period_key})
+
+
 def current_month_runner():
     today = local_today()
     return scrape_month_sync(today.replace(day=1), today)
@@ -1472,6 +1754,23 @@ async def nightly_scheduler_loop() -> None:
                     await run_scheduled_job("beds", "sun2_beds_import", scrape_beds_sync)
                 if schedule_due("members", SCHEDULE_MEMBERS_TIME, now):
                     await run_scheduled_job("members", "sun2_members_import", scrape_members_sync)
+                if schedule_due("product_sales_daily", SCHEDULE_PRODUCT_SALES_DAILY_TIME, now):
+                    await run_scheduled_job("product_sales_daily", "sun2_product_sales_daily_import", scrape_product_sales_yesterday_sync)
+                product_month_start, _ = previous_month_range(now.date())
+                product_month_key = product_month_start.strftime("%Y-%m")
+                if schedule_monthly_due(
+                    "product_sales_monthly",
+                    SCHEDULE_PRODUCT_SALES_MONTHLY_TIME,
+                    SCHEDULE_PRODUCT_SALES_MONTHLY_DAY,
+                    now,
+                    product_month_key,
+                ):
+                    await run_scheduled_period_job(
+                        "product_sales_monthly",
+                        product_month_key,
+                        "sun2_product_sales_monthly_import",
+                        scrape_product_sales_previous_month_sync,
+                    )
             save_progress({"last_action": "scheduler_check"})
         except Exception as exc:
             state["last_error"] = f"Scheduler feilet: {exc}"
@@ -1554,8 +1853,10 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <div class="metric"><span>Siste rader</span><strong>{state.get('rows_last_file', 0)}</strong></div>
 <div class="metric"><span>Medlemmer</span><strong>{state.get('members_last_count', 0)}</strong></div>
 <div class="metric"><span>Navn funnet</span><strong>{state.get('members_last_named_count', 0)}</strong></div>
+<div class="metric"><span>Produktsalg</span><strong>{state.get('product_sales_last_count', 0)}</strong></div>
 <div class="metric"><span>Nattjobb</span><strong>{'På' if SCHEDULE_ENABLED else 'Av'}</strong></div>
-<div class="metric"><span>Tider</span><strong>{SCHEDULE_SESSIONS_TIME} / {SCHEDULE_BEDS_TIME} / {SCHEDULE_MEMBERS_TIME}</strong></div>
+<div class="metric"><span>Tider</span><strong>{SCHEDULE_SESSIONS_TIME} / {SCHEDULE_BEDS_TIME} / {SCHEDULE_MEMBERS_TIME} / {SCHEDULE_PRODUCT_SALES_DAILY_TIME}</strong></div>
+<div class="metric"><span>Produktsalg mnd</span><strong>Dag {SCHEDULE_PRODUCT_SALES_MONTHLY_DAY} kl {SCHEDULE_PRODUCT_SALES_MONTHLY_TIME}</strong></div>
 <div class="metric"><span>Siste sjekk</span><strong>{state.get('scheduler_last_check') or '-'}</strong></div>
 <div class="metric"><span>Siste nattjobb</span><strong>{state.get('scheduler_last_action') or '-'}</strong></div>
 <div class="metric"><span>Live-sync</span><strong>{'På' if LIVE_SYNC_ENABLED else 'Av'} / {LIVE_SYNC_INTERVAL_SECONDS}s</strong></div>
@@ -1568,12 +1869,23 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <form method="post" action="/sync-today" style="display:inline"><button type="submit">I dag</button></form>
 <form method="post" action="/sync-beds" style="display:inline"><button type="submit">Synk senger</button></form>
 <form method="post" action="/sync-members" style="display:inline"><button type="submit">Synk medlemmer</button></form>
+<form method="post" action="/sync-product-sales-yesterday" style="display:inline"><button type="submit">Produktsalg i går</button></form>
+<form method="post" action="/sync-product-sales-previous-month" style="display:inline"><button type="submit">Produktsalg forrige mnd</button></form>
 </section>
 <section class="card">
 <form method="post" action="/sync-month">
 <input name="year" type="number" min="2017" max="2100" value="{local_today().year}">
 <input name="month" type="number" min="1" max="12" value="{local_today().month}">
 <button type="submit">Kjør valgt måned</button>
+</form>
+<form method="post" action="/sync-product-sales-day" style="margin-top:.75rem">
+<input name="date" type="date" value="{local_today().isoformat()}">
+<button type="submit">Kjør produktsalg valgt dag</button>
+</form>
+<form method="post" action="/sync-product-sales-month" style="margin-top:.75rem">
+<input name="year" type="number" min="2017" max="2100" value="{local_today().year}">
+<input name="month" type="number" min="1" max="12" value="{local_today().month}">
+<button type="submit">Kjør produktsalg valgt måned</button>
 </form>
 </section>
 <section class="card"><pre>{json.dumps(state, ensure_ascii=False, indent=2)}</pre></section>
@@ -1644,6 +1956,72 @@ async def sync_members():
         state["last_error"] = f"Manuell medlems-sync feilet: {exc}"
         save_progress({"last_action": "members_failed"})
         post_import_status("sun2_members_import", ok=False, message=state["last_error"])
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
+
+
+@app.post("/sync-product-sales-yesterday")
+async def sync_product_sales_yesterday():
+    try:
+        result = await asyncio.to_thread(scrape_product_sales_yesterday_sync)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell produktsalg i gaar feilet: {exc}"
+        save_progress({"last_action": "product_sales_yesterday_failed"})
+        post_import_status("sun2_product_sales_daily_import", ok=False, message=state["last_error"])
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
+
+
+@app.post("/sync-product-sales-previous-month")
+async def sync_product_sales_previous_month():
+    try:
+        result = await asyncio.to_thread(scrape_product_sales_previous_month_sync)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell produktsalg forrige maaned feilet: {exc}"
+        save_progress({"last_action": "product_sales_previous_month_failed"})
+        post_import_status("sun2_product_sales_monthly_import", ok=False, message=state["last_error"])
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
+
+
+@app.post("/sync-product-sales-day")
+async def sync_product_sales_day(request: Request, day: str | None = Query(None)):
+    if day is None:
+        body = (await request.body()).decode("utf-8")
+        from urllib.parse import parse_qs
+
+        form = parse_qs(body)
+        day = (form.get("date") or form.get("day") or [local_today().isoformat()])[0]
+    target_day = date.fromisoformat(day)
+    try:
+        result = await asyncio.to_thread(scrape_product_sales_sync, target_day, target_day, product_sales_daily_filename_for(target_day), "daily")
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell produktsalg dag {target_day.isoformat()} feilet: {exc}"
+        save_progress({"last_action": "product_sales_day_failed"})
+        post_import_status("sun2_product_sales_daily_import", ok=False, message=state["last_error"], raw={"day": target_day.isoformat()})
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
+
+
+@app.post("/sync-product-sales-month")
+async def sync_product_sales_month(request: Request, year: int | None = Query(None), month: int | None = Query(None)):
+    if year is None or month is None:
+        body = (await request.body()).decode("utf-8")
+        from urllib.parse import parse_qs
+
+        form = parse_qs(body)
+        year = int((form.get("year") or [local_today().year])[0])
+        month = int((form.get("month") or [local_today().month])[0])
+    start = date(year, month, 1)
+    end = min(month_end(start), local_today())
+    scope = "monthly" if end < local_today() else "daily"
+    job_name = "sun2_product_sales_monthly_import" if scope == "monthly" else "sun2_product_sales_daily_import"
+    try:
+        result = await asyncio.to_thread(scrape_product_sales_sync, start, end, product_sales_monthly_filename_for(start), scope)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell produktsalg maaned {year}-{month:02d} feilet: {exc}"
+        save_progress({"last_action": "product_sales_month_failed"})
+        post_import_status(job_name, ok=False, message=state["last_error"], raw={"year": year, "month": month})
         return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 

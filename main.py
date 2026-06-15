@@ -795,6 +795,34 @@ class Sun2Member(Base):
     raw = Column(JSON, nullable=True)
 
 
+class Sun2ProductSale(Base):
+    __tablename__ = "sun2_product_sales"
+    __table_args__ = (
+        UniqueConstraint("source", "source_sale_id", name="uq_sun2_product_sale_source_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_sale_id = Column(String, index=True, nullable=False)
+    sold_at = Column(DateTime, index=True, nullable=True)
+    stat_date = Column(Date, index=True, nullable=False)
+    period_start = Column(Date, index=True, nullable=True)
+    period_end = Column(Date, index=True, nullable=True)
+    product_name = Column(String, index=True, nullable=True)
+    product_category = Column(String, index=True, nullable=True)
+    quantity = Column(Float, nullable=True)
+    unit_price_kr = Column(Float, nullable=True)
+    amount_inc_vat_kr = Column(Float, nullable=True)
+    amount_ex_vat_kr = Column(Float, nullable=True)
+    vat_kr = Column(Float, nullable=True)
+    payment_method = Column(String, index=True, nullable=True)
+    sun2_user_id = Column(String, index=True, nullable=True)
+    user_name = Column(String, index=True, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    source_file = Column(String, index=True, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, index=True)
+    raw = Column(JSON, nullable=True)
+
+
 class Sun2SessionImportRun(Base):
     __tablename__ = "sun2_session_import_runs"
 
@@ -1429,6 +1457,38 @@ class Sun2MembersIngestIn(BaseModel):
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
+class Sun2ProductSaleIn(BaseModel):
+    source_sale_id: str
+    sold_at: Optional[datetime] = None
+    stat_date: Optional[date] = None
+    period_start: Optional[date] = None
+    period_end: Optional[date] = None
+    product_name: Optional[str] = None
+    product_category: Optional[str] = None
+    quantity: Optional[float] = None
+    unit_price_kr: Optional[float] = None
+    amount_inc_vat_kr: Optional[float] = None
+    amount_ex_vat_kr: Optional[float] = None
+    vat_kr: Optional[float] = None
+    payment_method: Optional[str] = None
+    sun2_user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Sun2ProductSalesIngestIn(BaseModel):
+    source: str = "sun2_session_scraper"
+    collector_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    ok: bool = True
+    period_start: Optional[date] = None
+    period_end: Optional[date] = None
+    source_file: Optional[str] = None
+    message: Optional[str] = None
+    rows: list[Sun2ProductSaleIn] = Field(default_factory=list)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
 class ImportStatusReportIn(BaseModel):
     job_name: str
     title: Optional[str] = None
@@ -1637,6 +1697,13 @@ SUN2_MEMBER_COLUMNS = [
     "visits_count", "source", "source_file", "imported_at", "raw",
 ]
 
+SUN2_PRODUCT_SALE_COLUMNS = [
+    "id", "source_sale_id", "sold_at", "stat_date", "period_start", "period_end",
+    "product_name", "product_category", "quantity", "unit_price_kr",
+    "amount_inc_vat_kr", "amount_ex_vat_kr", "vat_kr", "payment_method",
+    "sun2_user_id", "user_name", "source", "source_file", "imported_at", "raw",
+]
+
 SUN2_SESSION_IMPORT_COLUMNS = [
     "id", "timestamp", "collector_id", "source", "ok", "source_file",
     "period_first", "period_last", "rows_count", "inserted_count", "updated_count",
@@ -1700,6 +1767,13 @@ AI_DATASETS = {
         "description": "SUN2-brukere/medlemmer med fast SUN2-id og eventuell profilinfo fra medlemssider.",
         "columns": SUN2_MEMBER_COLUMNS,
         "time_column": "imported_at",
+    },
+    "soling_product_sales": {
+        "table": "sun2_product_sales",
+        "title": "SUN2 produktsalg",
+        "description": "Produktsalg fra SUN2 med salgsdato, produkt, antall og belop inkl./eks. mva. Brukes til dagsfordeling og oppgjorskontroll.",
+        "columns": SUN2_PRODUCT_SALE_COLUMNS,
+        "time_column": "sold_at",
     },
     "energy_hourly": {
         "table": "energy_hourly_consumption",
@@ -2846,6 +2920,21 @@ PERFORMANCE_INDEXES = [
         "ON sun2_members (status, customer_type)",
     ),
     (
+        "ix_sun2_product_sales_stat",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_product_sales_stat "
+        "ON sun2_product_sales (stat_date, sold_at DESC)",
+    ),
+    (
+        "ix_sun2_product_sales_period",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_product_sales_period "
+        "ON sun2_product_sales (period_start, period_end)",
+    ),
+    (
+        "ix_sun2_product_sales_product",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_product_sales_product "
+        "ON sun2_product_sales (product_name, stat_date)",
+    ),
+    (
         "ix_sun2_room_daily_date_room",
         "CREATE INDEX IF NOT EXISTS ix_sun2_room_daily_date_room "
         "ON sun2_room_daily_stats (stat_date, room_id)",
@@ -2988,6 +3077,22 @@ IMPORT_JOB_DEFINITIONS = {
         "expected_interval_minutes": 7 * 24 * 60,
         "warning_after_minutes": 14 * 24 * 60,
         "description": "Medlemsregister og profilfelter fra Sun2.",
+    },
+    "sun2_product_sales_daily_import": {
+        "title": "Sun2 produktsalg daglig",
+        "category": "Soling",
+        "source": "QNAP",
+        "expected_interval_minutes": 36 * 60,
+        "warning_after_minutes": 72 * 60,
+        "description": "Daglig import av produktsalg fra Sun2 for dagsfordeling.",
+    },
+    "sun2_product_sales_monthly_import": {
+        "title": "Sun2 produktsalg maanedskontroll",
+        "category": "Soling",
+        "source": "QNAP",
+        "expected_interval_minutes": 40 * 24 * 60,
+        "warning_after_minutes": 55 * 24 * 60,
+        "description": "Maanedlig import av hele forrige maaned fra Sun2 for kontroll mot solingsoppgjor.",
     },
     "elvia_monthly_import": {
         "title": "Elvia månedsfil",
@@ -9143,6 +9248,54 @@ async def ingest_sun2_members(session, data: Sun2MembersIngestIn, batch_time: da
         existing.visits_count = row.visits_count
         existing.source = source
         existing.source_file = (repair_mojibake(row.source_file or "") or "").strip() or None
+        existing.imported_at = batch_time
+        existing.raw = row.raw or {}
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
+
+
+async def ingest_sun2_product_sales(session, data: Sun2ProductSalesIngestIn, batch_time: datetime) -> Dict[str, int]:
+    inserted = 0
+    updated = 0
+    skipped = 0
+    source = data.source or "sun2_session_scraper"
+    source_file = (repair_mojibake(data.source_file) or "").strip()
+    for row in data.rows:
+        source_sale_id = (repair_mojibake(row.source_sale_id) or "").strip()
+        stat_date = row.stat_date or (row.sold_at.date() if row.sold_at else None) or data.period_start
+        if not source_sale_id or not stat_date:
+            skipped += 1
+            continue
+        existing = (
+            await session.execute(
+                select(Sun2ProductSale)
+                .where(Sun2ProductSale.source == source)
+                .where(Sun2ProductSale.source_sale_id == source_sale_id)
+            )
+        ).scalars().first()
+        if not existing:
+            existing = Sun2ProductSale(source=source, source_sale_id=source_sale_id, stat_date=stat_date)
+            session.add(existing)
+            inserted += 1
+        else:
+            updated += 1
+
+        existing.source = source
+        existing.source_sale_id = source_sale_id
+        existing.sold_at = row.sold_at
+        existing.stat_date = stat_date
+        existing.period_start = row.period_start or data.period_start
+        existing.period_end = row.period_end or data.period_end
+        existing.product_name = (repair_mojibake(row.product_name) or "").strip() or None
+        existing.product_category = (repair_mojibake(row.product_category) or "").strip() or None
+        existing.quantity = row.quantity
+        existing.unit_price_kr = row.unit_price_kr
+        existing.amount_inc_vat_kr = row.amount_inc_vat_kr
+        existing.amount_ex_vat_kr = row.amount_ex_vat_kr
+        existing.vat_kr = row.vat_kr
+        existing.payment_method = (repair_mojibake(row.payment_method) or "").strip() or None
+        existing.sun2_user_id = (repair_mojibake(row.sun2_user_id) or "").strip() or None
+        existing.user_name = (repair_mojibake(row.user_name) or "").strip() or None
+        existing.source_file = source_file or data.source_file
         existing.imported_at = batch_time
         existing.raw = row.raw or {}
     return {"inserted": inserted, "updated": updated, "skipped": skipped}
@@ -16485,6 +16638,51 @@ def settlement_source_expected(
     return round(float_or_zero(value), 2), f"{count_value} parkeringer fra {source_text}"
 
 
+async def sun2_product_sales_period_summary(session, start: date, end: date) -> Dict[str, Any]:
+    amount_ex_expr = func.coalesce(Sun2ProductSale.amount_ex_vat_kr, Sun2ProductSale.amount_inc_vat_kr / 1.25)
+    result = (
+        await session.execute(
+            select(
+                func.count(Sun2ProductSale.id),
+                func.coalesce(func.sum(amount_ex_expr), 0),
+                func.coalesce(func.sum(Sun2ProductSale.amount_inc_vat_kr), 0),
+                func.coalesce(func.sum(Sun2ProductSale.quantity), 0),
+                func.min(Sun2ProductSale.stat_date),
+                func.max(Sun2ProductSale.stat_date),
+                func.max(Sun2ProductSale.imported_at),
+            )
+            .where(Sun2ProductSale.stat_date >= start)
+            .where(Sun2ProductSale.stat_date <= end)
+        )
+    ).one()
+    count_value, amount_ex, amount_inc, quantity, first_date, last_date, last_imported = result
+    return {
+        "count": int_or_zero(count_value),
+        "quantity": float_or_zero(quantity),
+        "amount_ex_vat": round(float_or_zero(amount_ex), 2),
+        "amount_inc_vat": round(float_or_zero(amount_inc), 2),
+        "first_date": first_date,
+        "last_date": last_date,
+        "last_imported_at": last_imported,
+        "period_start": start,
+        "period_end": end,
+    }
+
+
+def sun2_product_sales_expected(summary: Optional[Dict[str, Any]]) -> tuple[Optional[float], str]:
+    if not summary or int_or_zero(summary.get("count")) <= 0:
+        return None, ""
+    count_value = int_or_zero(summary.get("count"))
+    quantity = float_or_zero(summary.get("quantity"))
+    detail = f"{count_value} salgslinjer"
+    if quantity:
+        detail += f", {format_short_number(quantity, 2)} stk"
+    last_imported = summary.get("last_imported_at")
+    if last_imported:
+        detail += f", sist importert {format_local_datetime(last_imported)}"
+    return round(float_or_zero(summary.get("amount_ex_vat")), 2), detail
+
+
 def settlement_form_rows(parsed: Any, source_summaries: Optional[Dict[str, Dict[str, Any]]] = None) -> list[Dict[str, Any]]:
     gross_coin_card = settlement_parsed_float(parsed, "gross_coin_card_ex_vat")
     easypark = settlement_parsed_float(parsed, "easypark_ex_vat")
@@ -16596,7 +16794,7 @@ def settlement_form_rows(parsed: Any, source_summaries: Optional[Dict[str, Dict[
     return rows
 
 
-def sun_settlement_form_rows(parsed: Any) -> list[Dict[str, Any]]:
+def sun_settlement_form_rows(parsed: Any, product_sales_summary: Optional[Dict[str, Any]] = None) -> list[Dict[str, Any]]:
     sun_revenue = settlement_parsed_float(parsed, "sun_revenue_ex_vat")
     product_sales = settlement_parsed_float(parsed, "product_sales_ex_vat")
     transaction_fee = settlement_parsed_float(parsed, "transaction_fee_ex_vat")
@@ -16619,6 +16817,7 @@ def sun_settlement_form_rows(parsed: Any) -> list[Dict[str, Any]]:
     expected_payout = settlement_sum_or_none(sum_ex_vat, vat)
     transaction_base = settlement_sum_or_none(sun_revenue, product_sales)
     expected_transaction_fee = round(-transaction_base * 0.06, 2) if transaction_base is not None else None
+    expected_product_sales, expected_product_sales_detail = sun2_product_sales_expected(product_sales_summary)
 
     return [
         settlement_form_field(
@@ -16636,6 +16835,10 @@ def sun_settlement_form_rows(parsed: Any) -> list[Dict[str, Any]]:
             parsed,
             "amount",
             "Operativt belop fra linjen Produktsalg for perioden.",
+            expected_product_sales,
+            expected_label="Sun2 produktsalg eks. mva",
+            expected_source="sun2_product_sales",
+            expected_detail=expected_product_sales_detail,
         ),
         settlement_form_field(
             "Transaksjonskostnad",
@@ -16951,6 +17154,18 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
     parsed = row.parsed if isinstance(row.parsed, dict) else {}
     public_parsed = settlement_public_parsed(parsed)
     meta = settlement_parsed_meta(parsed)
+    product_sales_summary = (
+        await sun2_product_sales_period_summary(session, row.period_start, row.period_end)
+        if row.period_start and row.period_end
+        else None
+    )
+    expected_product_sales, product_sales_detail = sun2_product_sales_expected(product_sales_summary)
+    product_sales_value = settlement_parsed_float(parsed, "product_sales_ex_vat")
+    product_sales_diff = (
+        round(product_sales_value - expected_product_sales, 2)
+        if product_sales_value is not None and expected_product_sales is not None
+        else None
+    )
     parsed_rows = sun_settlement_parsed_field_rows(parsed)
     if not parsed_rows:
         parsed_rows = [
@@ -16981,6 +17196,11 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
         api_card("Skjemafelter", len(public_parsed), "stk", f"Sikkerhet {format_short_number(float_or_zero(meta.get('confidence')) * 100, 0)} %", "status"),
         api_card("Belop NOK", format_short_number(settlement_parsed_float(parsed, "payout_inc_vat") or 0, 2), "kr", "Fra skjema", "revenue"),
     ]
+    if expected_product_sales is not None:
+        cards.append(api_card("Sun2 produktsalg", format_short_number(expected_product_sales, 2), "kr", product_sales_detail, "sun2"))
+    if product_sales_diff is not None:
+        tone = "status" if abs(product_sales_diff) <= 1 else "revenue"
+        cards.append(api_card("Avvik produktsalg", format_short_number(product_sales_diff, 2), "kr", "Skjema minus Sun2 eks. mva", tone))
     return {
         "id": row.id,
         "title": row.period_label or f"Solingsoppgjor {row.id}",
@@ -16988,7 +17208,7 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
         "cards": cards,
         "original": original,
         "sections": [
-            {"title": "Oppgjorsformular", "rows": sun_settlement_form_rows(parsed)},
+            {"title": "Oppgjorsformular", "rows": sun_settlement_form_rows(parsed, product_sales_summary)},
             {"title": "Nokkeltall fra skjema", "rows": parsed_rows},
             {
                 "title": "Tolket periode",
@@ -17020,18 +17240,35 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
     }
 
 
-def sun_settlement_summary_row(row: SettlementImport) -> Dict[str, Any]:
+def sun_settlement_summary_row(row: SettlementImport, product_sales_summary: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     parsed = row.parsed if isinstance(row.parsed, dict) else {}
-    form_rows = sun_settlement_form_rows(parsed)
+    form_rows = sun_settlement_form_rows(parsed, product_sales_summary)
     control_rows = [item for item in form_rows if item.get("group") == "control"]
-    warn_count = len([item for item in control_rows if item.get("status") == "warn"])
+    warn_count = len([item for item in form_rows if item.get("status") == "warn"])
     missing_count = len([item for item in form_rows if item.get("status") == "missing"])
     status_label = "OK" if not warn_count and not missing_count else "Krever kontroll"
+    expected_product_sales, product_sales_detail = sun2_product_sales_expected(product_sales_summary)
+    product_sales_value = settlement_parsed_float(parsed, "product_sales_ex_vat")
+    product_sales_diff = (
+        round(product_sales_value - expected_product_sales, 2)
+        if product_sales_value is not None and expected_product_sales is not None
+        else None
+    )
+    if expected_product_sales is None:
+        product_control_status = "Mangler Sun2-grunnlag"
+    elif product_sales_diff is not None and abs(product_sales_diff) <= 1:
+        product_control_status = "OK"
+    else:
+        product_control_status = "Avvik"
     return {
         **settlement_row_api(row),
         "sum_check_status": status_label,
         "sum_check_warnings": warn_count,
         "missing_fields": missing_count,
+        "product_sales_source_ex_vat": expected_product_sales,
+        "product_sales_source_detail": product_sales_detail,
+        "product_sales_diff_ex_vat": product_sales_diff,
+        "product_sales_control_status": product_control_status,
     }
 
 
@@ -17064,6 +17301,16 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
     ).scalar_one()
     latest_settlement = settlement_rows[0] if settlement_rows else None
     parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
+    product_sales_summaries: Dict[int, Dict[str, Any]] = {}
+    for row in settlement_rows:
+        if row.id and row.period_start and row.period_end:
+            product_sales_summaries[row.id] = await sun2_product_sales_period_summary(session, row.period_start, row.period_end)
+    product_control_rows = [
+        sun_settlement_summary_row(row, product_sales_summaries.get(row.id or 0))
+        for row in settlement_rows
+    ]
+    product_control_ok = len([row for row in product_control_rows if row.get("product_sales_control_status") == "OK"])
+    product_control_missing = len([row for row in product_control_rows if row.get("product_sales_control_status") == "Mangler Sun2-grunnlag"])
     return {
         "title": "Soling - Oppgjor",
         "subtitle": "Manuell innlasting av Altera-kreditnotaer og kontroll av skjemaets egne summer.",
@@ -17078,7 +17325,7 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
                 href="/soling/oppgjor",
             ),
             api_card("Ikke periodetolket", unknown_period_count, "stk", "Krever manuell kontroll eller OCR", "status", href="/soling/oppgjor"),
-            api_card("Kontroll", "Skjema", "", "Sun2-kildekontroll legges til senere", "status", href="/soling/oppgjor"),
+            api_card("Produktsalg kontroll", product_control_ok, "OK", f"{product_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
         ],
         "charts": [],
         "tables": [
@@ -17090,6 +17337,9 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
                     "sum_check_status",
                     "sun_revenue_ex_vat",
                     "product_sales_ex_vat",
+                    "product_sales_source_ex_vat",
+                    "product_sales_diff_ex_vat",
+                    "product_sales_control_status",
                     "transaction_fee_ex_vat",
                     "service_fee_ex_vat",
                     "sum_ex_vat",
@@ -17099,7 +17349,7 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
                     "attachment_filename",
                     "imported_at",
                 ],
-                [sun_settlement_summary_row(row) for row in settlement_rows],
+                product_control_rows,
             ),
         ],
         "actions": [],
@@ -19925,6 +20175,39 @@ async def sun2_members_ingest(data: Sun2MembersIngestIn):
         await session.commit()
     clear_summary_cache("sun2_members")
     return {"status": "ok", **counts, "members": len(data.members)}
+
+
+@app.post("/api/sun2/product-sales/ingest")
+async def sun2_product_sales_ingest(data: Sun2ProductSalesIngestIn):
+    batch_time = data.timestamp or datetime.utcnow()
+    row_dates = [row.stat_date or (row.sold_at.date() if row.sold_at else None) for row in data.rows]
+    row_dates = [item for item in row_dates if item is not None]
+    period_first = min(row_dates, default=None)
+    period_last = max(row_dates, default=None)
+    scope = str((data.extra or {}).get("scope") or "").strip().lower()
+    job_name = "sun2_product_sales_monthly_import" if scope == "monthly" else "sun2_product_sales_daily_import"
+    async with async_session() as session:
+        counts = await ingest_sun2_product_sales(session, data, batch_time)
+        await record_import_job(
+            session,
+            job_name,
+            ok=data.ok,
+            source=data.source,
+            records_imported=counts["inserted"] + counts["updated"],
+            records_total=len(data.rows),
+            message=data.message or f"{len(data.rows)} produktsalg mottatt",
+            raw={
+                "collector_id": data.collector_id,
+                "source_file": data.source_file,
+                "scope": scope or "daily",
+                "period_first": period_first.isoformat() if period_first else None,
+                "period_last": period_last.isoformat() if period_last else None,
+                "counts": counts,
+            },
+        )
+        await session.commit()
+    clear_summary_cache("sun2", "sun2_product_sales")
+    return {"status": "ok", **counts, "rows": len(data.rows)}
 
 
 @app.post("/api/sun2/backfill-room-identity")

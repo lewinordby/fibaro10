@@ -98,6 +98,26 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  sun2_session_scraper:
+    build:
+      context: ./sun2_session_scraper
+    container_name: sun2_session_scraper
+    restart: unless-stopped
+    env_file:
+      - ./sun2_session_scraper/.env
+    depends_on:
+      - fibaro10
+    ports:
+      - "192.168.20.218:8099:8098"
+    volumes:
+      - ./sun2_session_scraper/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8098/json', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
  
   fibaro10_proxy:
     image: caddy:2-alpine

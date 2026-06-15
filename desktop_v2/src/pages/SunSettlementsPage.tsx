@@ -114,9 +114,9 @@ function filterSettlementRows(rows: SettlementRow[], query: string) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" | "empty" }) {
   return (
-    <div className="settlement-control-metric">
+    <div className={`settlement-control-metric ${tone ? `tone-${tone}` : ""}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
@@ -126,6 +126,10 @@ function Metric({ label, value }: { label: string; value: string }) {
 function SunSettlementRow({ row }: { row: SettlementRow }) {
   const percent = confidencePercent(row.parser_confidence);
   const href = pathFor(row);
+  const productStatus = asText(row.product_sales_control_status);
+  const productStatusNormalized = productStatus.toLowerCase();
+  const productTone: "ok" | "warn" | "empty" =
+    productStatusNormalized === "ok" ? "ok" : productStatusNormalized.includes("mangler") ? "empty" : "warn";
   return (
     <Link className="settlement-ledger-row sun" to={href || "#"}>
       <div className="settlement-ledger-identity">
@@ -152,12 +156,12 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
       </div>
       <div className="settlement-source-check">
         <div className="settlement-source-check-head">
-          <strong>Fratrekk og sum</strong>
-          <span>{asText(row.status)}</span>
+          <strong>Produktkontroll</strong>
+          <span>{productStatus}</span>
         </div>
         <div className="settlement-source-check-grid two">
-          <Metric label="Gebyr" value={money(row.transaction_fee_ex_vat)} />
-          <Metric label="Sum eks." value={money(row.sum_ex_vat)} />
+          <Metric label="Sun2" value={money(row.product_sales_source_ex_vat)} tone={productTone} />
+          <Metric label="Avvik" value={money(row.product_sales_diff_ex_vat)} tone={productTone} />
         </div>
       </div>
       <div className="settlement-ledger-payout">
@@ -254,7 +258,7 @@ export default function SunSettlementsPage() {
           <span>Oppgjør</span>
           <span>Tolket</span>
           <span>Inntekter</span>
-          <span>Fratrekk/sum</span>
+          <span>Produktkontroll</span>
           <span>Beløp</span>
           <span />
         </div>
