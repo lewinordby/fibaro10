@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1199")
+APP_BUILD = os.getenv("APP_BUILD", "1200")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1200",
+        "date": "15.06.2026",
+        "headline": "Soloppgjør får lavere og renere bilagsrad",
+        "title": "Filnavn og tolkningsscore flyttes ned i bilaget",
+        "description": (
+            "Build 1200 strammer soloppgjørslisten visuelt. Kontrollkolonnen viser bare perioden over "
+            "kontrollboksene, filnavn og tolkningsscore ligger nederst i bilagsflaten, oppgjørsskjemaet er "
+            "smalere og beløpene i kontroll- og utbetalingsboksene er høyrejustert."
+        ),
+        "applications": [
+            "Desktop V2 (SunSettlementsPage.tsx): flytter filnavn og tolkningsscore fra kontrollkolonnen til bunnen av bilagsflaten.",
+            "Desktop V2 (styles.css): reduserer radhøyde, smalner bilaget og høyrejusterer beløp i kontroll- og utbetalingsbokser.",
+            "Buildlogg (build_log.py): registrerer build 1200.",
+        ],
+        "request": "Flytt filnavn og 100 % tolket nederst under oppgjørsskjemaet, la bare januar 2026 stå over kontrollboksene, gjør bilaget smalere og høyrejuster tallene.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Venstrekolonnen viser nå bare periode over Sol, Produkt og Utbetalt.",
+            "Filnavn og tolkningsscore ligger i en diskret footer på bilaget.",
+            "Oppgjørsskjemaet er smalere og raden lavere.",
+            "Beløp i kontrollboksene og utbetaltboksen er høyrejustert.",
+        ],
+    },
     {
         "version": "1",
         "build": "1199",

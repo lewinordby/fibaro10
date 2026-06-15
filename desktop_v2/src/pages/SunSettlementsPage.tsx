@@ -2,7 +2,6 @@ import {
   ArrowRightOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  FileTextOutlined,
   UploadOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
@@ -191,16 +190,7 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
     <Link className="settlement-ledger-row sun" to={href || "#"}>
       <div className="sun-settlement-ledger-controls">
         <div className="sun-settlement-ledger-context">
-          <div className="settlement-ledger-title">
-            <FileTextOutlined />
-            <strong>{asText(row.period_label)}</strong>
-          </div>
-          <div className="sun-settlement-context-meta">
-            <ParseStatus row={row} />
-            <span>{percent === null ? "Ingen score" : `${percent} % tolket`}</span>
-          </div>
-          <span>{asText(row.attachment_filename)}</span>
-          <small>Importert {asText(row.imported_at)}</small>
+          <strong>{asText(row.period_label)}</strong>
         </div>
         <div className={`settlement-source-check ${sunTone}`}>
           <div className="settlement-source-check-head">
@@ -248,6 +238,13 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
             <VoucherLine label="Sum eks. mva" value={row.sum_ex_vat} kind="sum" />
             <VoucherLine label="25 % mva" value={row.vat_25_percent} />
             <VoucherLine label="Til utbetaling" value={row.payout_inc_vat} kind="payout" />
+          </div>
+          <div className="settlement-voucher-footer">
+            <span>{asText(row.attachment_filename)}</span>
+            <div>
+              <ParseStatus row={row} />
+              <strong>{percent === null ? "Ingen score" : `${percent} % tolket`}</strong>
+            </div>
           </div>
         </div>
       </div>

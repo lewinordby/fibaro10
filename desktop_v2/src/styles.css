@@ -3422,12 +3422,12 @@
 
 .settlement-ledger-table-head.sun,
 .settlement-ledger-row.sun {
-  grid-template-columns: minmax(250px, 0.36fr) minmax(0, 1fr) 14px;
+  grid-template-columns: minmax(232px, 0.32fr) minmax(0, 1fr) 14px;
 }
 
 .settlement-ledger-row.sun {
   align-items: stretch;
-  min-height: 188px;
+  min-height: 158px;
 }
 
 .sun-settlement-ledger-main {
@@ -3437,9 +3437,9 @@
 }
 
 .settlement-voucher {
-  width: min(620px, 100%);
+  width: min(540px, 100%);
   margin-left: auto;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border: 1px solid #e5ebf4;
   border-radius: 6px;
   background: #fbfdff;
@@ -3531,52 +3531,62 @@
 .sun-settlement-ledger-controls {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 6px;
+  gap: 5px;
   align-content: start;
   min-width: 0;
 }
 
 .sun-settlement-ledger-context {
   min-width: 0;
-  padding: 2px 1px 3px;
+  padding: 1px 1px 2px;
 }
 
-.sun-settlement-ledger-context > span {
+.sun-settlement-ledger-context strong {
   display: block;
-  margin-top: 3px;
   overflow: hidden;
-  color: #475569;
-  font-size: 10.5px;
-  font-weight: 620;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 780;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sun-settlement-ledger-context > small {
-  display: block;
-  margin-top: 1px;
-  overflow: hidden;
-  color: #94a3b8;
-  font-size: 9.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sun-settlement-context-meta {
+.settlement-voucher-footer {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 5px;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid #edf2f7;
 }
 
-.sun-settlement-context-meta span {
+.settlement-voucher-footer > span {
+  min-width: 0;
+  overflow: hidden;
   color: #64748b;
-  font-size: 10px;
-  font-weight: 650;
+  font-size: 9.5px;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-voucher-footer > div {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  color: #64748b;
+  font-size: 9.5px;
+}
+
+.settlement-voucher-footer strong {
+  font-weight: 680;
+  white-space: nowrap;
 }
 
 .sun-settlement-payout {
-  padding: 7px 8px;
+  padding: 6px 8px;
   border: 1px solid #e5ebf4;
   border-radius: 6px;
   background: #ffffff;
@@ -3741,6 +3751,7 @@
   font-size: 10.5px;
   font-weight: 820;
   line-height: 1.08;
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3776,6 +3787,7 @@
   font-size: 13px;
   font-weight: 820;
   line-height: 1.1;
+  text-align: right;
   white-space: nowrap;
 }
 
@@ -3785,6 +3797,7 @@
   overflow: hidden;
   color: #64748b;
   font-size: 9px;
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
