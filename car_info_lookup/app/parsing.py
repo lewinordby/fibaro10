@@ -8,6 +8,7 @@ from typing import Any
 
 
 SWEDISH_LICENSE_PLATE_RE = re.compile(r"^[A-HJ-PR-UW-Z]{3}[0-9]{2}([0-9]|[A-HJ-NPR-UW-Z])$")
+DANISH_LICENSE_PLATE_RE = re.compile(r"^[A-Z]{2}[0-9]{5}$")
 
 
 def compact_plate(value: str | None) -> str:
@@ -16,6 +17,23 @@ def compact_plate(value: str | None) -> str:
 
 def is_swedish_license_plate(value: str | None) -> bool:
     return bool(SWEDISH_LICENSE_PLATE_RE.fullmatch(compact_plate(value)))
+
+
+def is_danish_license_plate(value: str | None) -> bool:
+    return bool(DANISH_LICENSE_PLATE_RE.fullmatch(compact_plate(value)))
+
+
+def lookup_country_for_plate(value: str | None) -> str | None:
+    compact = compact_plate(value)
+    if is_swedish_license_plate(compact):
+        return "S"
+    if is_danish_license_plate(compact):
+        return "DK"
+    return None
+
+
+def is_supported_foreign_license_plate(value: str | None) -> bool:
+    return lookup_country_for_plate(value) is not None
 
 
 class VehicleHtmlParser(HTMLParser):
@@ -124,6 +142,28 @@ def split_model_year(value: Any) -> str | None:
     return years[-1] if years else None
 
 
+def iso_date(value: Any) -> str | None:
+    text = normalize_text(value)
+    match = re.search(r"\b((?:19|20)\d{2}-\d{2}-\d{2})", text)
+    return match.group(1) if match else None
+
+
+def get_nested(data: dict[str, Any], *path: str) -> Any:
+    current: Any = data
+    for key in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def first_present(*values: Any) -> Any:
+    for value in values:
+        if value not in (None, "", "-"):
+            return value
+    return None
+
+
 def parse_biluppgifter_description(description: str) -> dict[str, Any]:
     fields: dict[str, Any] = {}
     text = normalize_text(description)
@@ -217,6 +257,95 @@ def parse_biluppgifter_html(plate: str, url: str, html_text: str, text_limit: in
         "facts": facts,
         "json_ld": parser.json_ld[:3],
         "raw_text_excerpt": "\n".join(parser.text_parts)[:text_limit],
+    }
+
+
+def parse_tjekbil_json(plate: str, url: str, payload: Any, text_limit: int = 12000) -> dict[str, Any]:
+    compact = compact_plate(plate)
+    data = payload[0] if isinstance(payload, list) and payload else payload
+    data = data if isinstance(data, dict) else {}
+    basic = data.get("basic") if isinstance(data.get("basic"), dict) else data
+    extended = data.get("extended") if isinstance(data.get("extended"), dict) else {}
+    general = extended.get("general") if isinstance(extended.get("general"), dict) else {}
+    technical = extended.get("techical") if isinstance(extended.get("techical"), dict) else {}
+    inspection = extended.get("inspection") if isinstance(extended.get("inspection"), dict) else {}
+    insurance = extended.get("insurance") if isinstance(extended.get("insurance"), dict) else {}
+    leasing = extended.get("leasing") if isinstance(extended.get("leasing"), dict) else {}
+
+    regnr = first_present(general.get("regNr"), basic.get("regNr"))
+    make = first_present(general.get("maerke"), basic.get("maerkeTypeNavnPure"), basic.get("maerkeTypeNavn"))
+    model = first_present(general.get("model"), basic.get("modelTypeNavnPure"), basic.get("modelTypeNavn"))
+    variant = first_present(general.get("variant"), basic.get("variantTypeNavn"))
+    vehicle_title = " ".join(str(item).strip() for item in (make, model) if str(item or "").strip())
+    if variant and variant not in vehicle_title:
+        vehicle_title = f"{vehicle_title} {variant}".strip()
+
+    power_hp = first_present(basic.get("motorHestekraefter"))
+    power_kw = first_present(technical.get("motorStoersteEffekt"), basic.get("motorStoersteEffekt"))
+    power = None
+    if power_hp and power_kw:
+        power = f"{power_hp} HK / {power_kw} kW"
+    elif power_hp:
+        power = f"{power_hp} HK"
+    elif power_kw:
+        power = f"{power_kw} kW"
+
+    fields = {
+        "vehicle_title": vehicle_title or None,
+        "model_year": first_present(general.get("modelAar"), basic.get("modelAar")),
+        "first_registered": iso_date(first_present(general.get("firstRegDate"), basic.get("foersteRegistreringDato"))),
+        "latest_owner_change": iso_date(first_present(general.get("statusDato"), basic.get("statusDato"))),
+        "registration_status": first_present(general.get("status"), basic.get("status")),
+        "vehicle_type": first_present(general.get("koeretoejArt"), basic.get("koeretoejArtNavn")),
+        "body_type": first_present(technical.get("karrosseriTypeNavn"), basic.get("karrosseriTypeNavn")),
+        "color": first_present(general.get("farve"), basic.get("farveTypeNavn")),
+        "fuel": first_present(technical.get("drivkraftTypeNavn"), basic.get("drivkraftTypeNavn")),
+        "engine": first_present(basic.get("motorMaerkning")),
+        "power": power,
+        "vin": first_present(general.get("stelNummer"), basic.get("stelNr")),
+        "mileage": first_present(general.get("kmDisplay"), basic.get("motorKilometerstand")),
+        "inspection_valid_to": iso_date(inspection.get("naesteSyn")),
+        "last_inspected": iso_date(inspection.get("sidsteSyn")),
+        "inspection_result": first_present(inspection.get("sidsteSynResultat")),
+        "classification": first_present(basic.get("typegodkendtKategori"), general.get("type")),
+        "seats": first_present(basic.get("siddepladserMinimum"), technical.get("siddepladserMinimum")),
+        "weight_total": first_present(basic.get("totalVaegt"), technical.get("totalVaegt")),
+        "fuel_consumption_combined": first_present(basic.get("motorKmPerLiter"), technical.get("motorKmPerLiter")),
+        "electric_consumption": first_present(basic.get("motorElektriskForbrug"), technical.get("motorElektriskForbrug")),
+        "range_wltp": first_present(technical.get("elektriskRaekkevidde")),
+        "insurance_company": first_present(insurance.get("selskab")),
+        "insurance_status": first_present(insurance.get("status")),
+        "leased": first_present(leasing.get("bilenErLeaset"), basic.get("bilLeaset")),
+    }
+    facts: dict[str, Any] = {}
+    for section_name, section in (
+        ("basic", basic),
+        ("general", general),
+        ("technical", technical),
+        ("inspection", inspection),
+        ("insurance", insurance),
+        ("leasing", leasing),
+    ):
+        if not isinstance(section, dict):
+            continue
+        for key, value in section.items():
+            if value not in (None, "", [], {}):
+                facts[f"{section_name}.{key}"] = value
+
+    confirmed_danish = is_danish_license_plate(compact) and str(regnr or "").upper() == compact and bool(vehicle_title)
+    return {
+        "provider": "tjekbil",
+        "plate": compact,
+        "country_code": "DK",
+        "confirmed_danish": confirmed_danish,
+        "confirmed_vehicle": confirmed_danish,
+        "url": url,
+        "title": vehicle_title,
+        "vehicle_title": vehicle_title,
+        "description": f"{compact} - {vehicle_title}".strip(" -"),
+        "fields": {key: value for key, value in fields.items() if value not in (None, "")},
+        "facts": facts,
+        "raw_text_excerpt": json.dumps(data, ensure_ascii=False, default=str)[:text_limit],
     }
 
 

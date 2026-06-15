@@ -80,6 +80,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       CAR_INFO_DATA_DIR: /data
       CAR_INFO_URL_TEMPLATE: ${CAR_INFO_URL_TEMPLATE:-https://biluppgifter.se/fordon/{plate_lower}/}
+      TJEKBIL_URL_TEMPLATE: ${TJEKBIL_URL_TEMPLATE:-https://www.tjekbil.dk/api/v3/dmr/regnr/{plate}}
       CAR_INFO_RUN_INTERVAL_MINUTES: ${CAR_INFO_RUN_INTERVAL_MINUTES:-30}
       CAR_INFO_BATCH_SIZE: ${CAR_INFO_BATCH_SIZE:-1}
       CAR_INFO_REQUEST_DELAY_SECONDS: ${CAR_INFO_REQUEST_DELAY_SECONDS:-300}

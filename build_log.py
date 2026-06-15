@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1177")
+APP_BUILD = os.getenv("APP_BUILD", "1178")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1178",
+        "date": "15.06.2026",
+        "headline": "Danske kjoretoy via Tjekbil",
+        "title": "Nordisk fallback slar opp svenske og danske skilt etter SVV",
+        "description": (
+            "Build 1178 utvider fallback for kjoretoy som SVV ikke finner. Svenske skilt bruker fortsatt "
+            "Biluppgifter.se, mens danske skilt bruker Tjekbil sitt DMR-API. Fibaro10 kjoerer SVV forst, "
+            "trigger deretter nordisk fallback ved permanent uten-treff, og setter omrade til Sverige eller "
+            "Danmark bare naar ekstern kilde bekrefter samme registreringsnummer med kjoretoydata."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): utvider kandidatfilter, SVV-uten-treff-trigger, lagring og kjoretoyvisning til svensk/dansk fallback.",
+            "Nordisk biloppslag (car_info_lookup/app/main.py): velger Biluppgifter for svenske skilt og Tjekbil for danske skilt.",
+            "Nordisk biloppslag (car_info_lookup/app/parsing.py): legger Tjekbil JSON-parser med biltype, forstegangsregistrering, VIN, drivstoff, effekt og kontrollfrist.",
+            "Konfigurasjon (.env.qnap.example, docker-compose.qnap.yml): dokumenterer og sender videre TJEKBIL_URL_TEMPLATE.",
+            "Tester (tests/test_car_info_lookup.py): dekker svensk format, dansk format og Tjekbil-parseren.",
+            "Dokumentasjon (docs/car-info-oppslag.md, car_info_lookup/README.md): beskriver nordisk fallback og norsk/dansk format-overlapp.",
+            "Buildlogg (build_log.py): registrerer build 1178.",
+        ],
+        "request": (
+            "Sjekk danske biler paa samme maate via https://www.tjekbil.dk/. Kjor forst norske VVG/SVV, "
+            "saa svenske og saa danske. Testnummer DY71543."
+        ),
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Tjekbil API brukes bare for skilt som matcher dansk format etter SVV-uten-treff.",
+            "Danske treff lagres i samme kjoretoyfelt som andre fallback-data og kan sette omrade Danmark.",
+            "Health for oppslagsappen viser nordisk service og Tjekbil URL-template.",
+        ],
+    },
     {
         "version": "1",
         "build": "1177",

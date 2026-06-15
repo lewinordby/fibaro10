@@ -3022,12 +3022,12 @@ IMPORT_JOB_DEFINITIONS = {
         "description": "Løpende berikelse av registreringsnummer som mangler tekniske kjøretøydata.",
     },
     "parking_vehicle_car_info_sync": {
-        "title": "Biluppgifter svenske kjoretoy",
+        "title": "Nordisk kjoretoyoppslag",
         "category": "Parkering",
-        "source": "Biluppgifter.se",
+        "source": "Biluppgifter/Tjekbil",
         "expected_interval_minutes": 4 * 60,
         "warning_after_minutes": 12 * 60,
-        "description": "Forsiktig oppslag av svenske registreringsnummer der SVV ikke fant kjoretoydata.",
+        "description": "Forsiktig oppslag av svenske og danske registreringsnummer der SVV ikke fant kjoretoydata.",
     },
 }
 
@@ -14460,6 +14460,8 @@ def parking_vehicle_row_api(vehicle: ParkingVehicle, details: Optional[ParkingVe
         "svv_status": vehicle.svv_status,
         "car_info_status": vehicle.car_info_status,
         "car_info_confirmed_swedish": car_info_confirmed_swedish(vehicle.car_info_data),
+        "car_info_confirmed_foreign": car_info_confirmed_foreign(vehicle.car_info_data),
+        "car_info_country_code": car_info_country_code(vehicle.car_info_data) or None,
         "notat": vehicle.notat,
         "path": f"/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
     }
@@ -18881,13 +18883,14 @@ async def api_v2_parking_vehicle_detail(plate: str):
     ]
     if vehicle.car_info_fetched_at or vehicle.car_info_data or vehicle.car_info_status:
         provider_label = car_info_provider_label(vehicle.car_info_data)
+        area_label = car_info_area_label(vehicle.car_info_data)
         fields.extend(
             [
-                api_detail_field("Svensk kilde status", car_info_status_label(vehicle.car_info_status, vehicle.car_info_data), provider_label),
-                api_detail_field("Svensk kilde hentet", vehicle.car_info_fetched_at),
-                api_detail_field("Bekreftet Sverige", "Ja" if car_info_confirmed_swedish(vehicle.car_info_data) else "Nei"),
+                api_detail_field("Utenlandsk kilde status", car_info_status_label(vehicle.car_info_status, vehicle.car_info_data), provider_label),
+                api_detail_field("Utenlandsk kilde hentet", vehicle.car_info_fetched_at),
+                api_detail_field("Bekreftet land", area_label if car_info_confirmed_foreign(vehicle.car_info_data) else "Nei"),
                 api_detail_field("Først registrert", car_info_field_value(vehicle.car_info_data, "first_registered", "first_registration")),
-                api_detail_field("Siste eierbytte Sverige", car_info_field_value(vehicle.car_info_data, "latest_owner_change")),
+                api_detail_field("Siste eierbytte", car_info_field_value(vehicle.car_info_data, "latest_owner_change")),
                 api_detail_field("Biltype", car_info_field_value(vehicle.car_info_data, "vehicle_type", "body_type", "class")),
                 api_detail_field("Drivstoff/motor", car_info_field_value(vehicle.car_info_data, "fuel", "engine")),
                 api_detail_field("Girkasse", car_info_field_value(vehicle.car_info_data, "transmission")),
@@ -19125,7 +19128,7 @@ async def api_v2_parking_car_info_sync(request: Request, limit: int = Query(1, g
                 session,
                 "parking_vehicle_car_info_sync",
                 ok=False,
-                source="Biluppgifter lookup",
+                source="Nordisk lookup",
                 started_at=started_at,
                 records_imported=0,
                 records_total=0,
@@ -19133,7 +19136,7 @@ async def api_v2_parking_car_info_sync(request: Request, limit: int = Query(1, g
             )
             await session.commit()
         return JSONResponse({"status": "error", "message": str(exc)}, status_code=502)
-    return {"status": "ok", "message": "Svensk biloppslag er startet/kjort.", "result": result}
+    return {"status": "ok", "message": "Nordisk biloppslag er startet/kjort.", "result": result}
 
 
 @app.post("/api/actions/parkering/clear-area-not-found")
@@ -20147,10 +20150,29 @@ def compact_plate(value: Optional[str]) -> str:
 
 SWEDISH_LICENSE_PLATE_REGEX = re.compile(r"^[A-HJ-PR-UW-Z]{3}[0-9]{2}([0-9]|[A-HJ-NPR-UW-Z])$")
 SWEDISH_LICENSE_PLATE_SQL_REGEX = r"^[A-HJ-PR-UW-Z]{3}[0-9]{2}([0-9]|[A-HJ-NPR-UW-Z])$"
+DANISH_LICENSE_PLATE_REGEX = re.compile(r"^[A-Z]{2}[0-9]{5}$")
+DANISH_LICENSE_PLATE_SQL_REGEX = r"^[A-Z]{2}[0-9]{5}$"
 
 
 def is_swedish_license_plate(value: Optional[str]) -> bool:
     return bool(SWEDISH_LICENSE_PLATE_REGEX.fullmatch(compact_plate(value)))
+
+
+def is_danish_license_plate(value: Optional[str]) -> bool:
+    return bool(DANISH_LICENSE_PLATE_REGEX.fullmatch(compact_plate(value)))
+
+
+def foreign_plate_country_code(value: Optional[str]) -> Optional[str]:
+    compact = compact_plate(value)
+    if is_swedish_license_plate(compact):
+        return "S"
+    if is_danish_license_plate(compact):
+        return "DK"
+    return None
+
+
+def is_supported_foreign_license_plate(value: Optional[str]) -> bool:
+    return foreign_plate_country_code(value) is not None
 
 
 def car_info_fields(data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -20163,7 +20185,27 @@ def car_info_fields(data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 def car_info_confirmed_swedish(data: Optional[Dict[str, Any]]) -> bool:
     if not isinstance(data, dict):
         return False
-    return bool(data.get("confirmed_swedish") or str(data.get("country_code") or "").upper() == "S")
+    country_code = str(data.get("country_code") or "").upper()
+    return bool(data.get("confirmed_swedish") or (country_code == "S" and data.get("confirmed_vehicle")))
+
+
+def car_info_country_code(data: Optional[Dict[str, Any]]) -> str:
+    return str((data or {}).get("country_code") or "").strip().upper() if isinstance(data, dict) else ""
+
+
+def car_info_confirmed_foreign(data: Optional[Dict[str, Any]]) -> bool:
+    if not isinstance(data, dict):
+        return False
+    return bool(data.get("confirmed_vehicle") or data.get("confirmed_swedish") or data.get("confirmed_danish"))
+
+
+def car_info_area_label(data: Optional[Dict[str, Any]]) -> Optional[str]:
+    country_code = car_info_country_code(data)
+    if country_code == "S":
+        return "Sverige"
+    if country_code == "DK":
+        return "Danmark"
+    return None
 
 
 def car_info_vehicle_title(data: Optional[Dict[str, Any]]) -> Optional[str]:
@@ -20186,12 +20228,15 @@ def car_info_provider_label(data: Optional[Dict[str, Any]]) -> str:
     provider = str((data or {}).get("provider") or "").strip().lower() if isinstance(data, dict) else ""
     if provider == "biluppgifter":
         return "biluppgifter.se"
-    return "svensk kilde"
+    if provider == "tjekbil":
+        return "tjekbil.dk"
+    return "utenlandsk kilde"
 
 
 def car_info_status_label(status: Optional[int], data: Optional[Dict[str, Any]] = None) -> str:
     if status == 200:
-        return "Bekreftet svensk" if car_info_confirmed_swedish(data) else "Hentet"
+        area = car_info_area_label(data)
+        return f"Bekreftet {area.lower()}" if area and car_info_confirmed_foreign(data) else "Hentet"
     if status == 204:
         return "Ingen treff"
     if status == 404:
@@ -20461,6 +20506,7 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
         return {"ok": False, "processed": 0, "updated": 0, "failed": 0, "message": "SVV_API_KEY mangler."}
     processed = updated = no_data = failed = 0
     errors: list[str] = []
+    foreign_no_data_plates: list[str] = []
     async with async_session() as session:
         plates = await svv_candidate_plates(session, limit)
         if not plates:
@@ -20498,8 +20544,8 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
                     updated += 1
             except LookupError as exc:
                 no_data += 1
-                if is_swedish_license_plate(plate):
-                    swedish_no_data_plates.append(compact_plate(plate))
+                if is_supported_foreign_license_plate(plate):
+                    foreign_no_data_plates.append(compact_plate(plate))
                 message = str(exc)[:240] or "Ingen kjøretøydata fra SVV"
                 await upsert_vehicle_svv_data(session, plate, {}, 204, message)
             except urllib.error.HTTPError as exc:
@@ -20510,8 +20556,8 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
                         message = f"{message}: {body}"
                 if exc.code in SVV_PERMANENT_NO_DATA_STATUSES:
                     no_data += 1
-                    if is_swedish_license_plate(plate):
-                        swedish_no_data_plates.append(compact_plate(plate))
+                    if is_supported_foreign_license_plate(plate):
+                        foreign_no_data_plates.append(compact_plate(plate))
                 else:
                     failed += 1
                     errors.append(f"{plate}: {message}")
@@ -20521,8 +20567,8 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
                     break
             except json.JSONDecodeError:
                 no_data += 1
-                if is_swedish_license_plate(plate):
-                    swedish_no_data_plates.append(compact_plate(plate))
+                if is_supported_foreign_license_plate(plate):
+                    foreign_no_data_plates.append(compact_plate(plate))
                 message = "Tomt eller uleselig svar fra SVV"
                 await upsert_vehicle_svv_data(session, plate, {}, 204, message)
             except Exception as exc:
@@ -20551,9 +20597,11 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
         "no_data": no_data,
         "failed": failed,
         "errors": errors[:20],
-        "swedish_no_data": swedish_no_data_plates[:20],
+        "foreign_no_data": foreign_no_data_plates[:20],
+        "swedish_no_data": [plate for plate in foreign_no_data_plates if is_swedish_license_plate(plate)][:20],
+        "danish_no_data": [plate for plate in foreign_no_data_plates if is_danish_license_plate(plate)][:20],
     }
-    car_info_auto = await trigger_car_info_after_svv_no_data(swedish_no_data_plates, source)
+    car_info_auto = await trigger_car_info_after_svv_no_data(foreign_no_data_plates, source)
     if car_info_auto:
         result_payload["car_info_auto_trigger"] = car_info_auto
     return result_payload
@@ -20899,7 +20947,7 @@ def car_info_lookup_request(path: str, params: Dict[str, Any]) -> Dict[str, Any]
     try:
         return json.loads(payload)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Ugyldig svar fra svensk biloppslag: {payload[:240]}") from exc
+        raise RuntimeError(f"Ugyldig svar fra nordisk biloppslag: {payload[:240]}") from exc
 
 
 async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> Optional[Dict[str, Any]]:
@@ -20909,7 +20957,7 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
     seen: set[str] = set()
     for plate in plates:
         compact = compact_plate(plate)
-        if compact and compact not in seen and is_swedish_license_plate(compact):
+        if compact and compact not in seen and is_supported_foreign_license_plate(compact):
             candidates.append(compact)
             seen.add(compact)
     if not candidates:
@@ -20924,7 +20972,7 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
             result = await asyncio.to_thread(car_info_lookup_request, f"/api/run-plate/{plate}", {})
             results.append(result)
             if result.get("status") == "error":
-                errors.append(f"{plate}: {str(result.get('message') or 'svensk biloppslag-feil')[:240]}")
+                errors.append(f"{plate}: {str(result.get('message') or 'nordisk biloppslag-feil')[:240]}")
                 break
             if result.get("status") in {"backoff", "busy"} or result.get("rate_limited"):
                 break
@@ -20934,18 +20982,18 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
 
     ok = not errors
     message = (
-        f"Direkte svensk biloppslag for {len(selected)} av {len(candidates)} svenske SVV-uten-treff."
+        f"Direkte nordisk biloppslag for {len(selected)} av {len(candidates)} SVV-uten-treff."
         if ok
-        else f"Direkte svensk biloppslag feilet: {errors[0]}"
+        else f"Direkte nordisk biloppslag feilet: {errors[0]}"
     )
     async with async_session() as session:
         await record_import_job(
             session,
             "parking_vehicle_car_info_sync",
             ok=ok,
-            source=f"{source} -> Biluppgifter auto",
+            source=f"{source} -> nordisk auto",
             started_at=started_at,
-            records_imported=sum(int(item.get("confirmed_swedish") or 0) for item in results),
+            records_imported=sum(int(item.get("confirmed_foreign") or item.get("confirmed_swedish") or 0) for item in results),
             records_total=len(candidates),
             message=message,
             raw={"triggered": selected, "candidates": candidates[:20], "results": results, "errors": errors},
@@ -21484,7 +21532,10 @@ def vehicle_car_info_candidate_condition():
     return and_(
         ParkingVehicle.svv_fetched_at.isnot(None),
         ParkingVehicleDetails.plate.is_(None),
-        func.upper(ParkingVehicle.plate).op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX),
+        or_(
+            func.upper(ParkingVehicle.plate).op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX),
+            func.upper(ParkingVehicle.plate).op("~")(DANISH_LICENSE_PLATE_SQL_REGEX),
+        ),
         vehicle_car_info_due_condition(),
     )
 
@@ -21553,6 +21604,8 @@ def parking_vehicle_lookup_payload(vehicle: ParkingVehicle, details: Optional[Pa
         "car_info_fetched_at": vehicle.car_info_fetched_at.isoformat() if vehicle.car_info_fetched_at else None,
         "car_info_url": vehicle.car_info_url,
         "car_info_confirmed_swedish": car_info_confirmed_swedish(vehicle.car_info_data),
+        "car_info_confirmed_foreign": car_info_confirmed_foreign(vehicle.car_info_data),
+        "car_info_country_code": car_info_country_code(vehicle.car_info_data) or None,
     }
 
 
@@ -21749,8 +21802,8 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
     plate_value = normalize_plate(plate)
     if not plate_value:
         return JSONResponse({"detail": "Mangler registreringsnummer"}, status_code=400)
-    if not is_swedish_license_plate(plate_value):
-        return JSONResponse({"detail": "Registreringsnummer matcher ikke svensk standardformat"}, status_code=400)
+    if not is_supported_foreign_license_plate(plate_value):
+        return JSONResponse({"detail": "Registreringsnummer matcher ikke svensk eller dansk standardformat"}, status_code=400)
 
     now = datetime.utcnow()
     async with async_session() as session:
@@ -21763,10 +21816,11 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
         vehicle.car_info_url = (data.url or "").strip()[:1000] or None
         vehicle.car_info_data = data.data or None
         area_updated = False
-        if data.status == 200 and car_info_confirmed_swedish(data.data):
+        area_label = car_info_area_label(data.data)
+        if data.status == 200 and area_label and car_info_confirmed_foreign(data.data):
             current_area = (vehicle.omrade or "").strip()
             if not current_area or is_not_found_marker(current_area):
-                vehicle.omrade = "Sverige"
+                vehicle.omrade = area_label
                 vehicle.omrade_kilde = car_info_provider_label(data.data)
                 vehicle.omrade_oppdatert = now
                 area_updated = True
@@ -21783,6 +21837,8 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
                 "plate": plate_value,
                 "status": data.status,
                 "confirmed_swedish": car_info_confirmed_swedish(data.data),
+                "confirmed_foreign": car_info_confirmed_foreign(data.data),
+                "country_code": car_info_country_code(data.data) or None,
                 "area_updated": area_updated,
                 "error": vehicle.car_info_error,
             },
@@ -21794,7 +21850,9 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
         "plate": plate_value,
         "car_info_status": data.status,
         "confirmed_swedish": car_info_confirmed_swedish(data.data),
-        "omrade": "Sverige" if area_updated else None,
+        "confirmed_foreign": car_info_confirmed_foreign(data.data),
+        "country_code": car_info_country_code(data.data) or None,
+        "omrade": area_label if area_updated else None,
     }
 
 

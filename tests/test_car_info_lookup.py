@@ -1,15 +1,28 @@
 import unittest
 
-from car_info_lookup.app.parsing import is_swedish_license_plate, parse_biluppgifter_html
+from car_info_lookup.app.parsing import (
+    is_danish_license_plate,
+    is_supported_foreign_license_plate,
+    is_swedish_license_plate,
+    parse_biluppgifter_html,
+    parse_tjekbil_json,
+)
 
 
-class SwedishVehicleLookupTests(unittest.TestCase):
+class NordicVehicleLookupTests(unittest.TestCase):
     def test_swedish_license_plate_filter(self) -> None:
         self.assertTrue(is_swedish_license_plate("HWN31L"))
         self.assertTrue(is_swedish_license_plate("ABC123"))
         self.assertFalse(is_swedish_license_plate("EL12345"))
         self.assertFalse(is_swedish_license_plate("DP12345"))
         self.assertFalse(is_swedish_license_plate("ABC12O"))
+        self.assertTrue(is_supported_foreign_license_plate("HWN31L"))
+
+    def test_danish_license_plate_filter(self) -> None:
+        self.assertTrue(is_danish_license_plate("DY71543"))
+        self.assertTrue(is_danish_license_plate("DP12345"))
+        self.assertFalse(is_danish_license_plate("HWN31L"))
+        self.assertTrue(is_supported_foreign_license_plate("DY71543"))
 
     def test_biluppgifter_parser_extracts_vehicle_fields(self) -> None:
         html = """
@@ -53,6 +66,59 @@ class SwedishVehicleLookupTests(unittest.TestCase):
         self.assertEqual(parsed["fields"]["power"], "292 HK / 215 kW")
         self.assertEqual(parsed["fields"]["drivetrain"], "Fyrhjulsdrift")
         self.assertEqual(parsed["fields"]["body_type"], "Stationsvagn Kombivagn")
+
+    def test_tjekbil_parser_extracts_vehicle_fields(self) -> None:
+        payload = {
+            "basic": {
+                "regNr": "DY71543",
+                "stelNr": "VG5DM116000008340",
+                "status": "Registreret",
+                "foersteRegistreringDato": "2024-06-17T00:00:00+02:00",
+                "koeretoejArtNavn": "Motorcykel",
+                "maerkeTypeNavn": "YAMAHA",
+                "modelTypeNavn": "Tenere 700 World Raid (XTZ700)",
+                "modelAar": "2022",
+                "motorHestekraefter": 73,
+                "motorStoersteEffekt": 54.0,
+                "drivkraftTypeNavn": "Benzin",
+            },
+            "extended": {
+                "general": {
+                    "regNr": "DY71543",
+                    "maerke": "YAMAHA",
+                    "model": "Tenere 700 World Raid (XTZ700)",
+                    "modelAar": "2022",
+                    "firstRegDate": "2024-06-17T00:00:00+02:00",
+                    "status": "Registreret",
+                    "koeretoejArt": "Motorcykel",
+                    "stelNummer": "VG5DM116000008340",
+                },
+                "techical": {
+                    "motorStoersteEffekt": 54.0,
+                    "totalVaegt": 394,
+                    "drivkraftTypeNavn": "Benzin",
+                },
+                "inspection": {
+                    "naesteSyn": "2028-06-17T00:00:00+02:00",
+                    "sidsteSynResultat": "Godkendt",
+                },
+            },
+        }
+
+        parsed = parse_tjekbil_json("DY71543", "https://www.tjekbil.dk/api/v3/dmr/regnr/DY71543", payload)
+
+        self.assertTrue(parsed["confirmed_danish"])
+        self.assertTrue(parsed["confirmed_vehicle"])
+        self.assertEqual(parsed["provider"], "tjekbil")
+        self.assertEqual(parsed["country_code"], "DK")
+        self.assertEqual(parsed["fields"]["vehicle_title"], "YAMAHA Tenere 700 World Raid (XTZ700)")
+        self.assertEqual(parsed["fields"]["model_year"], "2022")
+        self.assertEqual(parsed["fields"]["first_registered"], "2024-06-17")
+        self.assertEqual(parsed["fields"]["vehicle_type"], "Motorcykel")
+        self.assertEqual(parsed["fields"]["fuel"], "Benzin")
+        self.assertEqual(parsed["fields"]["power"], "73 HK / 54.0 kW")
+        self.assertEqual(parsed["fields"]["vin"], "VG5DM116000008340")
+        self.assertEqual(parsed["fields"]["inspection_valid_to"], "2028-06-17")
 
 
 if __name__ == "__main__":
