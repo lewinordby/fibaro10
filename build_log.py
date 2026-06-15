@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1181")
+APP_BUILD = os.getenv("APP_BUILD", "1182")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1182",
+        "date": "15.06.2026",
+        "headline": "Separate nordiske kjoretoykilder",
+        "title": "Biluppgifter og Tjekbil vises som egne datakilder",
+        "description": (
+            "Build 1182 splitter den tidligere samlede statusen for nordiske kjoretoyoppslag. Svenske "
+            "oppslag logges naa som Biluppgifter Sverige, mens danske oppslag logges som Tjekbil Danmark. "
+            "404 fra en kilde behandles som et gyldig kilde-svar, mens rate-limit og serverfeil fortsatt gir "
+            "datakildevarsel."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger egne importstatus-nokler for Biluppgifter.se og Tjekbil.dk.",
+            "Fibaro10 backend (main.py): mapper postback fra car_info_lookup til riktig datakilde basert paa landkode eller skilttype.",
+            "Fibaro10 backend (main.py): legger fallback fra eksisterende kjoretoydata slik at nye statusrader faar historisk grunnlag.",
+            "Buildlogg (build_log.py): registrerer build 1182.",
+        ],
+        "request": "Hvorfor ligger datakildene for Sverige og Danmark under Nordiske kjoretoyoppslag, det er to forskjellige datakilder.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Admin > Datakilder viser Biluppgifter Sverige og Tjekbil Danmark separat.",
+            "Nye svenske og danske oppslag oppdaterer hver sin statusrad.",
+            "Ikke-funnet-svar fra kilden regnes ikke som teknisk datakildefeil.",
+        ],
+    },
     {
         "version": "1",
         "build": "1181",

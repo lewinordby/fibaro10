@@ -3021,13 +3021,21 @@ IMPORT_JOB_DEFINITIONS = {
         "warning_after_minutes": 90,
         "description": "Løpende berikelse av registreringsnummer som mangler tekniske kjøretøydata.",
     },
-    "parking_vehicle_car_info_sync": {
-        "title": "Nordisk kjoretoyoppslag",
+    "parking_vehicle_biluppgifter_sync": {
+        "title": "Biluppgifter Sverige",
         "category": "Parkering",
-        "source": "Biluppgifter/Tjekbil",
+        "source": "Biluppgifter.se",
         "expected_interval_minutes": 4 * 60,
         "warning_after_minutes": 12 * 60,
-        "description": "Forsiktig oppslag av svenske og danske registreringsnummer der SVV ikke fant kjoretoydata.",
+        "description": "Oppslag av svenske registreringsnummer der SVV ikke fant kjoretoydata.",
+    },
+    "parking_vehicle_tjekbil_sync": {
+        "title": "Tjekbil Danmark",
+        "category": "Parkering",
+        "source": "Tjekbil.dk",
+        "expected_interval_minutes": 4 * 60,
+        "warning_after_minutes": 12 * 60,
+        "description": "Oppslag av danske registreringsnummer der SVV ikke fant kjoretoydata.",
     },
 }
 
@@ -7024,7 +7032,39 @@ async def mark_import_job_running(
     return existing
 
 
+async def fallback_car_info_import_status(session, job_name: str) -> Dict[str, Any]:
+    country_code = next(
+        (country for country, current_job_name in CAR_INFO_IMPORT_JOB_BY_COUNTRY.items() if current_job_name == job_name),
+        "",
+    )
+    if not country_code:
+        return {}
+    rows = (
+        await session.execute(
+            select(ParkingVehicle)
+            .where(ParkingVehicle.car_info_fetched_at.isnot(None))
+            .order_by(ParkingVehicle.car_info_fetched_at.desc())
+            .limit(500)
+        )
+    ).scalars().all()
+    row = next((vehicle for vehicle in rows if car_info_lookup_country_code(vehicle.car_info_data, vehicle.plate) == country_code), None)
+    if not row:
+        return {"message": "Ingen oppslag registrert ennaa"}
+    payload = {
+        "message": f"{row.plate}: {car_info_status_label(row.car_info_status, row.car_info_data)}",
+        "records_total": 1,
+        "records_imported": 1 if row.car_info_status == 200 and car_info_confirmed_foreign(row.car_info_data) else 0,
+    }
+    if car_info_import_ok(row.car_info_status):
+        payload["last_success_at"] = row.car_info_fetched_at
+    else:
+        payload["last_failed_at"] = row.car_info_fetched_at
+    return payload
+
+
 async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
+    if job_name in CAR_INFO_IMPORT_JOB_BY_COUNTRY.values():
+        return await fallback_car_info_import_status(session, job_name)
     if job_name == "hc3_light_5min":
         row = (await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))).scalars().first()
         return {"last_success_at": row.timestamp if row else None, "message": "Sist funnet i luxloggen" if row else ""}
@@ -19136,16 +19176,17 @@ async def api_v2_parking_car_info_sync(request: Request, limit: int = Query(1, g
         result = await asyncio.to_thread(car_info_lookup_request, "/api/run-once", {"limit": limit})
     except Exception as exc:
         async with async_session() as session:
-            await record_import_job(
-                session,
-                "parking_vehicle_car_info_sync",
-                ok=False,
-                source="Nordisk lookup",
-                started_at=started_at,
-                records_imported=0,
-                records_total=0,
-                message=str(exc),
-            )
+            for job_name in CAR_INFO_IMPORT_JOB_BY_COUNTRY.values():
+                await record_import_job(
+                    session,
+                    job_name,
+                    ok=False,
+                    source="car_info_lookup",
+                    started_at=started_at,
+                    records_imported=0,
+                    records_total=0,
+                    message=str(exc),
+                )
             await session.commit()
         return JSONResponse({"status": "error", "message": str(exc)}, status_code=502)
     return {"status": "ok", "message": "Nordisk biloppslag er startet/kjort.", "result": result}
@@ -20187,6 +20228,40 @@ def is_supported_foreign_license_plate(value: Optional[str]) -> bool:
     return foreign_plate_country_code(value) is not None
 
 
+CAR_INFO_IMPORT_JOB_BY_COUNTRY = {
+    "S": "parking_vehicle_biluppgifter_sync",
+    "DK": "parking_vehicle_tjekbil_sync",
+}
+
+
+def car_info_lookup_country_code(data: Optional[Dict[str, Any]], plate: Optional[str] = None) -> str:
+    country_code = car_info_country_code(data)
+    if country_code:
+        return country_code
+    return foreign_plate_country_code(plate) or ""
+
+
+def car_info_import_job_name(data: Optional[Dict[str, Any]], plate: Optional[str] = None) -> str:
+    country_code = car_info_lookup_country_code(data, plate)
+    return CAR_INFO_IMPORT_JOB_BY_COUNTRY.get(country_code, "parking_vehicle_biluppgifter_sync")
+
+
+def car_info_import_ok(status: Optional[int]) -> bool:
+    return status in {200, 204, 404}
+
+
+def car_info_source_label(data: Optional[Dict[str, Any]], plate: Optional[str] = None) -> str:
+    provider = car_info_provider_label(data)
+    if provider != "utenlandsk kilde":
+        return provider
+    country_code = car_info_lookup_country_code(data, plate)
+    if country_code == "S":
+        return "Biluppgifter.se"
+    if country_code == "DK":
+        return "Tjekbil.dk"
+    return provider
+
+
 def car_info_fields(data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not isinstance(data, dict):
         return {}
@@ -20239,9 +20314,9 @@ def car_info_field_value(data: Optional[Dict[str, Any]], *keys: str) -> Any:
 def car_info_provider_label(data: Optional[Dict[str, Any]]) -> str:
     provider = str((data or {}).get("provider") or "").strip().lower() if isinstance(data, dict) else ""
     if provider == "biluppgifter":
-        return "biluppgifter.se"
+        return "Biluppgifter.se"
     if provider == "tjekbil":
-        return "tjekbil.dk"
+        return "Tjekbil.dk"
     return "utenlandsk kilde"
 
 
@@ -20993,24 +21068,20 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
             break
 
     ok = not errors
-    message = (
-        f"Direkte nordisk biloppslag for {len(selected)} av {len(candidates)} SVV-uten-treff."
-        if ok
-        else f"Direkte nordisk biloppslag feilet: {errors[0]}"
-    )
-    async with async_session() as session:
-        await record_import_job(
-            session,
-            "parking_vehicle_car_info_sync",
-            ok=ok,
-            source=f"{source} -> nordisk auto",
-            started_at=started_at,
-            records_imported=sum(int(item.get("confirmed_foreign") or item.get("confirmed_swedish") or 0) for item in results),
-            records_total=len(candidates),
-            message=message,
-            raw={"triggered": selected, "candidates": candidates[:20], "results": results, "errors": errors},
-        )
-        await session.commit()
+    if errors and selected:
+        async with async_session() as session:
+            await record_import_job(
+                session,
+                car_info_import_job_name(None, selected[0]),
+                ok=False,
+                source=f"{source} -> nordisk auto",
+                started_at=started_at,
+                records_imported=0,
+                records_total=len(candidates),
+                message=f"Direkte biloppslag feilet: {errors[0]}",
+                raw={"triggered": selected, "candidates": candidates[:20], "results": results, "errors": errors},
+            )
+            await session.commit()
     return {"ok": ok, "candidates": candidates, "triggered": selected, "results": results, "errors": errors}
 
 
@@ -21851,16 +21922,16 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
             current_area = (vehicle.omrade or "").strip()
             if not current_area or is_not_found_marker(current_area):
                 vehicle.omrade = area_label
-                vehicle.omrade_kilde = car_info_provider_label(data.data)
+                vehicle.omrade_kilde = car_info_source_label(data.data, plate_value)
                 vehicle.omrade_oppdatert = now
                 area_updated = True
         vehicle.updated_at = now
         await record_import_job(
             session,
-            "parking_vehicle_car_info_sync",
-            ok=data.status == 200,
-            source=car_info_provider_label(data.data),
-            records_imported=1 if data.status == 200 else 0,
+            car_info_import_job_name(data.data, plate_value),
+            ok=car_info_import_ok(data.status),
+            source=car_info_source_label(data.data, plate_value),
+            records_imported=1 if data.status == 200 and car_info_confirmed_foreign(data.data) else 0,
             records_total=1,
             message=f"{plate_value}: {car_info_status_label(data.status, data.data)}",
             raw={
@@ -21868,7 +21939,7 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
                 "status": data.status,
                 "confirmed_swedish": car_info_confirmed_swedish(data.data),
                 "confirmed_foreign": car_info_confirmed_foreign(data.data),
-                "country_code": car_info_country_code(data.data) or None,
+                "country_code": car_info_lookup_country_code(data.data, plate_value) or None,
                 "area_updated": area_updated,
                 "error": vehicle.car_info_error,
             },
@@ -21881,7 +21952,7 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
         "car_info_status": data.status,
         "confirmed_swedish": car_info_confirmed_swedish(data.data),
         "confirmed_foreign": car_info_confirmed_foreign(data.data),
-        "country_code": car_info_country_code(data.data) or None,
+        "country_code": car_info_lookup_country_code(data.data, plate_value) or None,
         "omrade": area_label if area_updated else None,
     }
 
