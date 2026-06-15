@@ -3416,7 +3416,7 @@
 
 .settlement-ledger-table-head.sun,
 .settlement-ledger-row.sun {
-  grid-template-columns: minmax(210px, 1fr) 70px minmax(180px, 0.85fr) minmax(180px, 0.85fr) 118px 18px;
+  grid-template-columns: minmax(190px, 0.95fr) 64px minmax(160px, 0.8fr) minmax(160px, 0.8fr) minmax(160px, 0.8fr) 110px 18px;
 }
 
 .settlement-ledger-row:hover {

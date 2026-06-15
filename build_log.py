@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1188")
+APP_BUILD = os.getenv("APP_BUILD", "1189")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1189",
+        "date": "15.06.2026",
+        "headline": "Soling oppgjor kontrolleres mot Sun2 finanshistorikk",
+        "title": "Solomsetning avstemmes med bonusbruk og uregistrerte solinger",
+        "description": (
+            "Build 1189 kompletterer solingsoppgjor med kontroll av selve solomsetningen, ikke bare produktsalg. "
+            "Sun2 scraperen henter finanshistorikk per maaned, parser medlemssolinger, uregistrerte solinger og "
+            "bonusbruk, og Fibaro10 bruker dette som kontrollgrunnlag mot Altera-kreditnotaen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger sun2_finance_settlements, ingest-endepunkt, period-summary og solomsetningskontroll.",
+            "Sun2 scraper (sun2_session_scraper/app/main.py): legger finansoppgjor-scraper, maanedlig jobb og manuelle endepunkter.",
+            "Desktop V2 (SunSettlementsPage.tsx): viser Solkontroll ved siden av Produktkontroll i oppgjorlisten.",
+            "Desktop V2 (SettlementDetailPage.tsx): viser kildekontroll og avvik ogsaa paa belopsradene.",
+            "Database/health/tester: legger migrasjon, observability-tabell og parsertest for solomsetningskontroll.",
+        ],
+        "request": "Du mangler jo kontroll av soling ogsaa, ikke bare produkt.",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Solomsetning kontrolleres naa som medlemmer + uregistrerte solinger - bonusbruk, eks. mva.",
+            "Oppgjorlisten har egne kontrollfelt for soling og produktsalg.",
+            "Detaljsiden viser forventet Sun2-belop og avvik paa belopsfeltene.",
+            "Ny manuell endpoint: /sync-finance-settlement-month.",
+        ],
+    },
     {
         "version": "1",
         "build": "1188",

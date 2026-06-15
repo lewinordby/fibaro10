@@ -123,13 +123,20 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
   );
 }
 
+function controlTone(status: string): "ok" | "warn" | "empty" {
+  const normalized = status.toLowerCase();
+  if (normalized === "ok") return "ok";
+  if (normalized.includes("mangler")) return "empty";
+  return "warn";
+}
+
 function SunSettlementRow({ row }: { row: SettlementRow }) {
   const percent = confidencePercent(row.parser_confidence);
   const href = pathFor(row);
+  const sunStatus = asText(row.sun_revenue_control_status);
   const productStatus = asText(row.product_sales_control_status);
-  const productStatusNormalized = productStatus.toLowerCase();
-  const productTone: "ok" | "warn" | "empty" =
-    productStatusNormalized === "ok" ? "ok" : productStatusNormalized.includes("mangler") ? "empty" : "warn";
+  const sunTone = controlTone(sunStatus);
+  const productTone = controlTone(productStatus);
   return (
     <Link className="settlement-ledger-row sun" to={href || "#"}>
       <div className="settlement-ledger-identity">
@@ -154,7 +161,17 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
           <Metric label="Produkt" value={money(row.product_sales_ex_vat)} />
         </div>
       </div>
-      <div className="settlement-source-check">
+      <div className={`settlement-source-check ${sunTone}`}>
+        <div className="settlement-source-check-head">
+          <strong>Solkontroll</strong>
+          <span>{sunStatus}</span>
+        </div>
+        <div className="settlement-source-check-grid two">
+          <Metric label="Sun2" value={money(row.sun_revenue_source_ex_vat)} tone={sunTone} />
+          <Metric label="Avvik" value={money(row.sun_revenue_diff_ex_vat)} tone={sunTone} />
+        </div>
+      </div>
+      <div className={`settlement-source-check ${productTone}`}>
         <div className="settlement-source-check-head">
           <strong>Produktkontroll</strong>
           <span>{productStatus}</span>
@@ -258,6 +275,7 @@ export default function SunSettlementsPage() {
           <span>Oppgjør</span>
           <span>Tolket</span>
           <span>Inntekter</span>
+          <span>Solkontroll</span>
           <span>Produktkontroll</span>
           <span>Beløp</span>
           <span />

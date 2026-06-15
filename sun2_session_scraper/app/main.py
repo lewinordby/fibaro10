@@ -68,6 +68,7 @@ PRODUCT_SALES_NAVIGATION_LABELS = [
     for part in (env_value("PRODUCT_SALES_NAVIGATION_LABELS", "Rapporter|Produktsalg") or "").split("|")
     if part.strip()
 ]
+FINANCE_URL = (env_value("FINANCE_URL", "") or "").strip()
 OUT_DIR = Path(env_value("OUT_DIR", "/data/session_exports") or "/data/session_exports")
 ERROR_DIR = Path(env_value("ERROR_DIR", "/data/session_errors") or "/data/session_errors")
 STATUS_FILE = Path(env_value("STATUS_FILE", "/data/session_scraper_status.json") or "/data/session_scraper_status.json")
@@ -82,6 +83,8 @@ SCHEDULE_MEMBERS_TIME = env_value("SCHEDULE_MEMBERS_TIME", "03:10") or "03:10"
 SCHEDULE_PRODUCT_SALES_DAILY_TIME = env_value("SCHEDULE_PRODUCT_SALES_DAILY_TIME", "03:30") or "03:30"
 SCHEDULE_PRODUCT_SALES_MONTHLY_TIME = env_value("SCHEDULE_PRODUCT_SALES_MONTHLY_TIME", "03:55") or "03:55"
 SCHEDULE_PRODUCT_SALES_MONTHLY_DAY = max(1, min(28, int(env_value("SCHEDULE_PRODUCT_SALES_MONTHLY_DAY", "2") or "2")))
+SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_TIME = env_value("SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_TIME", "04:10") or "04:10"
+SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_DAY = max(1, min(28, int(env_value("SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_DAY", "2") or "2")))
 LIVE_SYNC_ENABLED = (env_value("LIVE_SYNC_ENABLED", "1") or "1") == "1"
 LIVE_SYNC_INTERVAL_SECONDS = int(env_value("LIVE_SYNC_INTERVAL_SECONDS", "300") or "300")
 LIVE_SYNC_QUIET_START_HOUR = int(env_value("LIVE_SYNC_QUIET_START_HOUR", "0") or "0")
@@ -129,6 +132,9 @@ state: dict[str, Any] = {
     "product_sales_last_sync": None,
     "product_sales_last_period": None,
     "product_sales_last_count": 0,
+    "finance_settlement_last_sync": None,
+    "finance_settlement_last_period": None,
+    "finance_settlement_last_count": 0,
     "scheduler_enabled": SCHEDULE_ENABLED,
     "scheduler_last_check": None,
     "scheduler_last_action": None,
@@ -232,6 +238,10 @@ def product_sales_daily_filename_for(day: date) -> str:
 
 def product_sales_monthly_filename_for(day: date) -> str:
     return f"Sun2_product_sales_{day:%Y-%m}.json"
+
+
+def finance_settlement_monthly_filename_for(day: date) -> str:
+    return f"Sun2_finance_settlement_{day:%Y-%m}.json"
 
 
 def load_progress() -> dict[str, Any]:
@@ -704,6 +714,124 @@ def extract_product_sales_period_summary(page) -> dict[str, Any]:
     return {key: value for key, value in summary.items() if value not in (None, "")}
 
 
+def finance_money(pattern: str, text: str) -> float | None:
+    match = re.search(pattern, text, re.I)
+    return parse_money(match.group(1)) if match else None
+
+
+def finance_count_money(pattern: str, text: str) -> tuple[int | None, float | None]:
+    match = re.search(pattern, text, re.I)
+    if not match:
+        return None, None
+    count = parse_number(match.group(1))
+    amount = parse_money(match.group(2))
+    return (int(count) if count is not None else None), amount
+
+
+def positive_money(value: float | None) -> float | None:
+    return abs(value) if value is not None else None
+
+
+def parse_finance_settlement_text(text: str, fallback_month_start: date) -> dict[str, Any] | None:
+    normalized = normalize_text(text)
+    if not normalized:
+        return None
+    period_match = re.search(
+        r"Periode\s+fra\s+(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}\s+til\s+(\d{4}-\d{2}-\d{2})\s+\d{2}:\d{2}:\d{2}",
+        normalized,
+        re.I,
+    )
+    if not period_match:
+        return None
+    period_start = date.fromisoformat(period_match.group(1))
+    period_end = month_end(period_start)
+    label_match = re.search(r"Utbetaling:\s*(.+?)\s+Periode\s+fra", normalized, re.I)
+    payout_label = normalize_text(label_match.group(1)) if label_match else f"{period_start:%Y-%m}"
+    payout_id_match = re.search(r"#(\d+)", payout_label)
+    source_payout_id = payout_id_match.group(1) if payout_id_match else row_hash({"label": payout_label, "period_start": period_start.isoformat()})
+
+    member_tanning_count, member_tanning_inc = finance_count_money(
+        r"Solinger\s+\(fra medlemmer\)\s+([\d\s]+)\s+st\s+(-?[\d\s.,]+)\s+kr",
+        normalized,
+    )
+    unregistered_tanning_count, unregistered_tanning_inc = finance_count_money(
+        r"Info:\s*betaling\s+for\s+uregistrerte\s+solinger\s+i\s+perioden\s+([\d\s]+)\s+st\s+(-?[\d\s.,]+)\s+kr",
+        normalized,
+    )
+    tanning_bonus = positive_money(
+        finance_money(r"Bonusbruk\s+ved\s+soling\s+-?\s*([\d\s.,]+)\s+kr", normalized)
+    )
+    tanning_control_inc = (
+        (member_tanning_inc or 0)
+        + (unregistered_tanning_inc or 0)
+        - (tanning_bonus or 0)
+        if any(value is not None for value in (member_tanning_inc, unregistered_tanning_inc, tanning_bonus))
+        else None
+    )
+
+    member_product_count, member_product_inc = finance_count_money(
+        r"Produktkj(?:o|ø)p\s+\(fra medlemmer\)\s+([\d\s]+)\s+st\s+(-?[\d\s.,]+)\s+kr",
+        normalized,
+    )
+    unregistered_product_count, unregistered_product_inc = finance_count_money(
+        r"Info:\s*betaling\s+for\s+produkter\s+kj(?:o|ø)pt\s+av\s+uregistrerte\s+personer\s+i\s+perioden\s+([\d\s]+)\s+st\s+(-?[\d\s.,]+)\s+kr",
+        normalized,
+    )
+    product_bonus = positive_money(
+        finance_money(r"Bonusbruk\s+ved\s+produkt(?:kj(?:o|ø)p)?\s+-?\s*([\d\s.,]+)\s+kr", normalized)
+    )
+    product_control_inc = (
+        (member_product_inc or 0)
+        + (unregistered_product_inc or 0)
+        - (product_bonus or 0)
+        if any(value is not None for value in (member_product_inc, unregistered_product_inc, product_bonus))
+        else None
+    )
+
+    transaction_cost = positive_money(finance_money(r"Transaksjonskostnad.*?-\s*([\d\s.,]+)\s+kr", normalized))
+    service_fee = positive_money(finance_money(r"Serviceavtale.*?-\s*([\d\s.,]+)\s+kr", normalized))
+    vat = positive_money(finance_money(r"\bMVA\b.*?(-?[\d\s.,]+)\s+kr", normalized))
+    payout = positive_money(finance_money(r"Utbetaling(?!:).*?(-?[\d\s.,]+)\s+kr", normalized))
+
+    raw_text = normalized[:12000]
+    return {
+        "source_payout_id": source_payout_id,
+        "payout_label": payout_label,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "payout_date": None,
+        "member_tanning_count": member_tanning_count,
+        "member_tanning_inc_vat_kr": member_tanning_inc,
+        "unregistered_tanning_count": unregistered_tanning_count,
+        "unregistered_tanning_inc_vat_kr": unregistered_tanning_inc,
+        "tanning_bonus_inc_vat_kr": tanning_bonus,
+        "tanning_control_inc_vat_kr": round(tanning_control_inc, 2) if tanning_control_inc is not None else None,
+        "tanning_control_ex_vat_kr": round(tanning_control_inc / 1.25, 2) if tanning_control_inc is not None else None,
+        "member_product_count": member_product_count,
+        "member_product_inc_vat_kr": member_product_inc,
+        "unregistered_product_count": unregistered_product_count,
+        "unregistered_product_inc_vat_kr": unregistered_product_inc,
+        "product_bonus_inc_vat_kr": product_bonus,
+        "product_control_inc_vat_kr": round(product_control_inc, 2) if product_control_inc is not None else None,
+        "product_control_ex_vat_kr": round(product_control_inc / 1.25, 2) if product_control_inc is not None else None,
+        "transaction_cost_kr": transaction_cost,
+        "service_fee_kr": service_fee,
+        "payout_inc_vat_kr": payout,
+        "vat_kr": vat,
+        "raw": {
+            "source_text": raw_text,
+            "fallback_month_start": fallback_month_start.isoformat(),
+            "period_end_from_sun2": period_match.group(2),
+        },
+    }
+
+
+def finance_settlement_matches_period(row: dict[str, Any] | None, start: date, end: date) -> bool:
+    if not row:
+        return False
+    return row.get("period_start") == start.isoformat() and row.get("period_end") == end.isoformat()
+
+
 def login_if_needed(page, username: str, password: str) -> None:
     if page.locator("#password").count() == 0 and page.locator("input[type='password']").count() == 0:
         return
@@ -829,6 +957,67 @@ def open_product_sales_page(page, username: str, password: str) -> None:
     for label in PRODUCT_SALES_NAVIGATION_LABELS:
         click_text_if_present(page, label)
     page.wait_for_timeout(750)
+
+
+def open_finance_page(page, username: str, password: str) -> None:
+    page.goto(FINANCE_URL or BASE_URL, wait_until="domcontentloaded")
+    login_if_needed(page, username, password)
+    if FINANCE_URL:
+        page.wait_for_timeout(750)
+        return
+    try:
+        finance_href = page.evaluate(
+            """
+            () => Array.from(document.querySelectorAll('a'))
+              .map(a => ({href: a.href || '', text: (a.innerText || a.textContent || '').trim().toLowerCase()}))
+              .find(item => item.href.includes('finance.php') || item.text.includes('finans') || item.text.includes('utbetaling') || item.text.includes('oppgj'))?.href || ''
+            """
+        )
+    except Exception:
+        finance_href = ""
+    page.goto(finance_href or f"{BASE_URL.rstrip('/')}/finance.php", wait_until="domcontentloaded")
+    login_if_needed(page, username, password)
+    try:
+        page.wait_for_load_state("networkidle", timeout=10000)
+    except PwTimeoutError:
+        pass
+    page.wait_for_timeout(750)
+
+
+def finance_history_options(page) -> list[dict[str, str]]:
+    try:
+        return page.evaluate(
+            """
+            () => Array.from(document.querySelectorAll('#finance-history option'))
+              .map(option => ({
+                value: option.value || '',
+                text: (option.innerText || option.textContent || '').trim()
+              }))
+              .filter(option => option.value)
+            """
+        )
+    except Exception:
+        return []
+
+
+def select_finance_history_option(page, value: str) -> None:
+    page.evaluate(
+        """
+        value => {
+          const el = document.querySelector('#finance-history');
+          if (!el) return;
+          el.value = value;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          if (window.jQuery) window.jQuery(el).trigger('change');
+        }
+        """,
+        value,
+    )
+    try:
+        page.wait_for_load_state("networkidle", timeout=10000)
+    except PwTimeoutError:
+        pass
+    page.wait_for_timeout(1500)
 
 
 def absolute_url(value: Any) -> str:
@@ -1284,6 +1473,7 @@ def post_import_status(
         "sun2_members_import": "Sun2 medlemmer",
         "sun2_product_sales_daily_import": "Sun2 produktsalg daglig",
         "sun2_product_sales_monthly_import": "Sun2 produktsalg maanedskontroll",
+        "sun2_finance_settlement_monthly_import": "Sun2 finansoppgjor",
     }
     payload = {
         "job_name": job_name,
@@ -1547,6 +1737,82 @@ def scrape_product_sales_sync(start: date, end: date, source_filename: str | Non
     return {"ok": True, "file": filename, "rows": len(product_sales), "posted": bool(response), "fibaro10_response": response}
 
 
+def scrape_finance_settlement_sync(start: date, end: date, source_filename: str | None = None) -> dict[str, Any]:
+    username = env_required("SUN2_USERNAME")
+    password = env_required("SUN2_PASSWORD")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    ERROR_DIR.mkdir(parents=True, exist_ok=True)
+    filename = source_filename or finance_settlement_monthly_filename_for(start)
+    out_path = OUT_DIR / filename
+    state.update(
+        {
+            "finance_settlement_last_period": f"{start.isoformat()} - {end.isoformat()}",
+            "current_file": filename,
+        }
+    )
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(locale="nb-NO", accept_downloads=True)
+        page = context.new_page()
+        open_finance_page(page, username, password)
+        selected_row = parse_finance_settlement_text(page.locator("body").inner_text(timeout=5000), start)
+        selected_option: dict[str, str] | None = None
+        if not finance_settlement_matches_period(selected_row, start, end):
+            for option in finance_history_options(page):
+                select_finance_history_option(page, option.get("value") or "")
+                candidate = parse_finance_settlement_text(page.locator("body").inner_text(timeout=5000), start)
+                if candidate:
+                    raw = candidate.setdefault("raw", {})
+                    raw["finance_history_option"] = option
+                if finance_settlement_matches_period(candidate, start, end):
+                    selected_row = candidate
+                    selected_option = option
+                    break
+        if not finance_settlement_matches_period(selected_row, start, end):
+            save_debug(page, f"FINANCE_SETTLEMENT_NOT_FOUND_{start:%Y_%m}")
+            raise RuntimeError(f"Fant ikke Sun2 finansoppgjor for {start.isoformat()} - {end.isoformat()}")
+        if selected_option:
+            raw = selected_row.setdefault("raw", {})
+            raw["selected_option"] = selected_option
+        payload = {
+            "source": "sun2_session_scraper",
+            "collector_id": COLLECTOR_ID,
+            "timestamp": datetime.utcnow().isoformat(),
+            "ok": True,
+            "source_file": filename,
+            "message": f"Skrapet Sun2 finansoppgjor {start.isoformat()} til {end.isoformat()}",
+            "rows": [selected_row],
+            "extra": {
+                "scope": "monthly",
+                "job_name": "sun2_finance_settlement_monthly_import",
+                "finance_url": page.url,
+            },
+        }
+        tmp_path = out_path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        tmp_path.replace(out_path)
+        response = None
+        if POST_TO_FIBARO10:
+            response = post_to_fibaro10(payload, "/api/sun2/finance-settlements/ingest")
+        context.close()
+        browser.close()
+
+    state["finance_settlement_last_sync"] = datetime.utcnow().isoformat()
+    state["finance_settlement_last_count"] = 1
+    state["last_error"] = None
+    save_progress({"last_action": "finance_settlement_monthly_synced", "fibaro10_finance_settlement_response": response})
+    post_import_status(
+        "sun2_finance_settlement_monthly_import",
+        ok=True,
+        message=f"Synket Sun2 finansoppgjor for {start.isoformat()} - {end.isoformat()}",
+        records_imported=1,
+        records_total=1,
+        raw={"source_file": filename, "posted": bool(response), "response": response},
+    )
+    return {"ok": True, "file": filename, "rows": 1, "posted": bool(response), "fibaro10_response": response}
+
+
 def scrape_month_sync(start: date, end: date, source_filename: str | None = None) -> dict[str, Any]:
     username = env_required("SUN2_USERNAME")
     password = env_required("SUN2_PASSWORD")
@@ -1655,6 +1921,11 @@ def scrape_product_sales_today_sync() -> dict[str, Any]:
 def scrape_product_sales_previous_month_sync() -> dict[str, Any]:
     start, end = previous_month_range(local_today())
     return scrape_product_sales_sync(start, end, product_sales_monthly_filename_for(start), "monthly")
+
+
+def scrape_finance_settlement_previous_month_sync() -> dict[str, Any]:
+    start, end = previous_month_range(local_today())
+    return scrape_finance_settlement_sync(start, end, finance_settlement_monthly_filename_for(start))
 
 
 def start_date_from_progress(config_start: date) -> date:
@@ -1802,6 +2073,21 @@ async def nightly_scheduler_loop() -> None:
                         "sun2_product_sales_monthly_import",
                         scrape_product_sales_previous_month_sync,
                     )
+                finance_month_start, _ = previous_month_range(now.date())
+                finance_month_key = finance_month_start.strftime("%Y-%m")
+                if schedule_monthly_due(
+                    "finance_settlement_monthly",
+                    SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_TIME,
+                    SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_DAY,
+                    now,
+                    finance_month_key,
+                ):
+                    await run_scheduled_period_job(
+                        "finance_settlement_monthly",
+                        finance_month_key,
+                        "sun2_finance_settlement_monthly_import",
+                        scrape_finance_settlement_previous_month_sync,
+                    )
             save_progress({"last_action": "scheduler_check"})
         except Exception as exc:
             state["last_error"] = f"Scheduler feilet: {exc}"
@@ -1885,9 +2171,11 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <div class="metric"><span>Medlemmer</span><strong>{state.get('members_last_count', 0)}</strong></div>
 <div class="metric"><span>Navn funnet</span><strong>{state.get('members_last_named_count', 0)}</strong></div>
 <div class="metric"><span>Produktsalg</span><strong>{state.get('product_sales_last_count', 0)}</strong></div>
+<div class="metric"><span>Finansoppgjor</span><strong>{state.get('finance_settlement_last_count', 0)}</strong></div>
 <div class="metric"><span>Nattjobb</span><strong>{'På' if SCHEDULE_ENABLED else 'Av'}</strong></div>
 <div class="metric"><span>Tider</span><strong>{SCHEDULE_SESSIONS_TIME} / {SCHEDULE_BEDS_TIME} / {SCHEDULE_MEMBERS_TIME} / {SCHEDULE_PRODUCT_SALES_DAILY_TIME}</strong></div>
 <div class="metric"><span>Produktsalg mnd</span><strong>Dag {SCHEDULE_PRODUCT_SALES_MONTHLY_DAY} kl {SCHEDULE_PRODUCT_SALES_MONTHLY_TIME}</strong></div>
+<div class="metric"><span>Finans mnd</span><strong>Dag {SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_DAY} kl {SCHEDULE_FINANCE_SETTLEMENT_MONTHLY_TIME}</strong></div>
 <div class="metric"><span>Siste sjekk</span><strong>{state.get('scheduler_last_check') or '-'}</strong></div>
 <div class="metric"><span>Siste nattjobb</span><strong>{state.get('scheduler_last_action') or '-'}</strong></div>
 <div class="metric"><span>Live-sync</span><strong>{'På' if LIVE_SYNC_ENABLED else 'Av'} / {LIVE_SYNC_INTERVAL_SECONDS}s</strong></div>
@@ -1902,6 +2190,7 @@ input{{border:1px solid #ccd6e0;border-radius:8px;padding:.55rem .65rem;margin-r
 <form method="post" action="/sync-members" style="display:inline"><button type="submit">Synk medlemmer</button></form>
 <form method="post" action="/sync-product-sales-yesterday" style="display:inline"><button type="submit">Produktsalg i går</button></form>
 <form method="post" action="/sync-product-sales-previous-month" style="display:inline"><button type="submit">Produktsalg forrige mnd</button></form>
+<form method="post" action="/sync-finance-settlement-previous-month" style="display:inline"><button type="submit">Finansoppgjor forrige mnd</button></form>
 </section>
 <section class="card">
 <form method="post" action="/sync-month">
@@ -2014,6 +2303,18 @@ async def sync_product_sales_previous_month():
         return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 
+@app.post("/sync-finance-settlement-previous-month")
+async def sync_finance_settlement_previous_month():
+    try:
+        result = await asyncio.to_thread(scrape_finance_settlement_previous_month_sync)
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell Sun2 finansoppgjor forrige maaned feilet: {exc}"
+        save_progress({"last_action": "finance_settlement_previous_month_failed"})
+        post_import_status("sun2_finance_settlement_monthly_import", ok=False, message=state["last_error"])
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
+
+
 @app.post("/sync-product-sales-day")
 async def sync_product_sales_day(request: Request, day: str | None = Query(None)):
     if day is None:
@@ -2053,6 +2354,27 @@ async def sync_product_sales_month(request: Request, year: int | None = Query(No
         state["last_error"] = f"Manuell produktsalg maaned {year}-{month:02d} feilet: {exc}"
         save_progress({"last_action": "product_sales_month_failed"})
         post_import_status(job_name, ok=False, message=state["last_error"], raw={"year": year, "month": month})
+        return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
+
+
+@app.post("/sync-finance-settlement-month")
+async def sync_finance_settlement_month(request: Request, year: int | None = Query(None), month: int | None = Query(None)):
+    if year is None or month is None:
+        body = (await request.body()).decode("utf-8")
+        from urllib.parse import parse_qs
+
+        form = parse_qs(body)
+        year = int((form.get("year") or [local_today().year])[0])
+        month = int((form.get("month") or [local_today().month])[0])
+    start = date(year, month, 1)
+    end = month_end(start)
+    try:
+        result = await asyncio.to_thread(scrape_finance_settlement_sync, start, end, finance_settlement_monthly_filename_for(start))
+        return JSONResponse({"status": "ok", "result": result, "state": state})
+    except Exception as exc:
+        state["last_error"] = f"Manuell Sun2 finansoppgjor {year}-{month:02d} feilet: {exc}"
+        save_progress({"last_action": "finance_settlement_month_failed"})
+        post_import_status("sun2_finance_settlement_monthly_import", ok=False, message=state["last_error"], raw={"year": year, "month": month})
         return JSONResponse({"status": "error", "error": str(exc), "state": state}, status_code=500)
 
 

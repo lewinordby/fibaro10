@@ -172,7 +172,7 @@ export default function SettlementDetailPage({ domain = "parkering" }: { domain?
               <Typography.Text className="eyebrow">Aktuelle beløp</Typography.Text>
               <div className="settlement-value-list">
                 {amountRows.map((row) => (
-                  <SettlementValueTile key={row.field} row={row} />
+                  <SettlementValueTile key={row.field} row={row} showControl={row.expected !== undefined} />
                 ))}
               </div>
             </div>

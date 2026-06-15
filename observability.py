@@ -10,7 +10,7 @@ STORAGE_TABLES = [
     "roborock_schedules", "roborock_consumables", "roborock_maps",
     "import_job_status", "import_job_runs",
     "sun2_room_daily_stats", "sun2_import_runs", "sun2_tanning_sessions",
-    "sun2_beds", "sun2_session_import_runs", "sun2_product_sales", "energy_hourly_consumption",
+    "sun2_beds", "sun2_session_import_runs", "sun2_product_sales", "sun2_finance_settlements", "energy_hourly_consumption",
     "energy_import_runs", "energy_fibaro_samples", "energy_circuits", "energy_loads", "hc3_meter_readings",
     "parkering", "kjoretoy", "kjoretoy_nokkeldata", "ai_query_logs", "schema_migrations",
 ]

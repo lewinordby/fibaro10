@@ -823,6 +823,42 @@ class Sun2ProductSale(Base):
     raw = Column(JSON, nullable=True)
 
 
+class Sun2FinanceSettlement(Base):
+    __tablename__ = "sun2_finance_settlements"
+    __table_args__ = (
+        UniqueConstraint("source", "source_payout_id", name="uq_sun2_finance_settlement_source_id"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    source_payout_id = Column(String, index=True, nullable=False)
+    payout_label = Column(String, index=True, nullable=True)
+    period_start = Column(Date, index=True, nullable=False)
+    period_end = Column(Date, index=True, nullable=False)
+    payout_date = Column(Date, index=True, nullable=True)
+    member_tanning_count = Column(Integer, nullable=True)
+    member_tanning_inc_vat_kr = Column(Float, nullable=True)
+    unregistered_tanning_count = Column(Integer, nullable=True)
+    unregistered_tanning_inc_vat_kr = Column(Float, nullable=True)
+    tanning_bonus_inc_vat_kr = Column(Float, nullable=True)
+    tanning_control_inc_vat_kr = Column(Float, nullable=True)
+    tanning_control_ex_vat_kr = Column(Float, nullable=True)
+    member_product_count = Column(Integer, nullable=True)
+    member_product_inc_vat_kr = Column(Float, nullable=True)
+    unregistered_product_count = Column(Integer, nullable=True)
+    unregistered_product_inc_vat_kr = Column(Float, nullable=True)
+    product_bonus_inc_vat_kr = Column(Float, nullable=True)
+    product_control_inc_vat_kr = Column(Float, nullable=True)
+    product_control_ex_vat_kr = Column(Float, nullable=True)
+    transaction_cost_kr = Column(Float, nullable=True)
+    service_fee_kr = Column(Float, nullable=True)
+    payout_inc_vat_kr = Column(Float, nullable=True)
+    vat_kr = Column(Float, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    source_file = Column(String, index=True, nullable=True)
+    imported_at = Column(DateTime, default=datetime.utcnow, index=True)
+    raw = Column(JSON, nullable=True)
+
+
 class Sun2SessionImportRun(Base):
     __tablename__ = "sun2_session_import_runs"
 
@@ -1489,6 +1525,44 @@ class Sun2ProductSalesIngestIn(BaseModel):
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
+class Sun2FinanceSettlementIn(BaseModel):
+    source_payout_id: str
+    payout_label: Optional[str] = None
+    period_start: date
+    period_end: date
+    payout_date: Optional[date] = None
+    member_tanning_count: Optional[int] = None
+    member_tanning_inc_vat_kr: Optional[float] = None
+    unregistered_tanning_count: Optional[int] = None
+    unregistered_tanning_inc_vat_kr: Optional[float] = None
+    tanning_bonus_inc_vat_kr: Optional[float] = None
+    tanning_control_inc_vat_kr: Optional[float] = None
+    tanning_control_ex_vat_kr: Optional[float] = None
+    member_product_count: Optional[int] = None
+    member_product_inc_vat_kr: Optional[float] = None
+    unregistered_product_count: Optional[int] = None
+    unregistered_product_inc_vat_kr: Optional[float] = None
+    product_bonus_inc_vat_kr: Optional[float] = None
+    product_control_inc_vat_kr: Optional[float] = None
+    product_control_ex_vat_kr: Optional[float] = None
+    transaction_cost_kr: Optional[float] = None
+    service_fee_kr: Optional[float] = None
+    payout_inc_vat_kr: Optional[float] = None
+    vat_kr: Optional[float] = None
+    raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Sun2FinanceSettlementsIngestIn(BaseModel):
+    source: str = "sun2_session_scraper"
+    collector_id: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    ok: bool = True
+    source_file: Optional[str] = None
+    message: Optional[str] = None
+    rows: list[Sun2FinanceSettlementIn] = Field(default_factory=list)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
 class ImportStatusReportIn(BaseModel):
     job_name: str
     title: Optional[str] = None
@@ -1704,6 +1778,18 @@ SUN2_PRODUCT_SALE_COLUMNS = [
     "sun2_user_id", "user_name", "source", "source_file", "imported_at", "raw",
 ]
 
+SUN2_FINANCE_SETTLEMENT_COLUMNS = [
+    "id", "source_payout_id", "payout_label", "period_start", "period_end", "payout_date",
+    "member_tanning_count", "member_tanning_inc_vat_kr",
+    "unregistered_tanning_count", "unregistered_tanning_inc_vat_kr",
+    "tanning_bonus_inc_vat_kr", "tanning_control_inc_vat_kr", "tanning_control_ex_vat_kr",
+    "member_product_count", "member_product_inc_vat_kr",
+    "unregistered_product_count", "unregistered_product_inc_vat_kr",
+    "product_bonus_inc_vat_kr", "product_control_inc_vat_kr", "product_control_ex_vat_kr",
+    "transaction_cost_kr", "service_fee_kr", "payout_inc_vat_kr", "vat_kr",
+    "source", "source_file", "imported_at", "raw",
+]
+
 SUN2_SESSION_IMPORT_COLUMNS = [
     "id", "timestamp", "collector_id", "source", "ok", "source_file",
     "period_first", "period_last", "rows_count", "inserted_count", "updated_count",
@@ -1774,6 +1860,13 @@ AI_DATASETS = {
         "description": "Produktsalg fra SUN2 med salgsdato, produkt, antall og belop inkl./eks. mva. Brukes til dagsfordeling og oppgjorskontroll.",
         "columns": SUN2_PRODUCT_SALE_COLUMNS,
         "time_column": "sold_at",
+    },
+    "soling_finance_settlements": {
+        "table": "sun2_finance_settlements",
+        "title": "SUN2 finansoppgjor",
+        "description": "Maanedlige finanslinjer fra SUN2 med soling, uregistrerte solinger, bonusbruk og kontrollbelop mot Altera-kreditnota.",
+        "columns": SUN2_FINANCE_SETTLEMENT_COLUMNS,
+        "time_column": "period_start",
     },
     "energy_hourly": {
         "table": "energy_hourly_consumption",
@@ -2935,6 +3028,16 @@ PERFORMANCE_INDEXES = [
         "ON sun2_product_sales (product_name, stat_date)",
     ),
     (
+        "ix_sun2_finance_period",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_finance_period "
+        "ON sun2_finance_settlements (period_start, period_end)",
+    ),
+    (
+        "ix_sun2_finance_imported",
+        "CREATE INDEX IF NOT EXISTS ix_sun2_finance_imported "
+        "ON sun2_finance_settlements (imported_at DESC)",
+    ),
+    (
         "ix_sun2_room_daily_date_room",
         "CREATE INDEX IF NOT EXISTS ix_sun2_room_daily_date_room "
         "ON sun2_room_daily_stats (stat_date, room_id)",
@@ -3093,6 +3196,14 @@ IMPORT_JOB_DEFINITIONS = {
         "expected_interval_minutes": 40 * 24 * 60,
         "warning_after_minutes": 55 * 24 * 60,
         "description": "Maanedlig import av hele forrige maaned fra Sun2 for kontroll mot solingsoppgjor.",
+    },
+    "sun2_finance_settlement_monthly_import": {
+        "title": "Sun2 finansoppgjor",
+        "category": "Soling",
+        "source": "QNAP",
+        "expected_interval_minutes": 40 * 24 * 60,
+        "warning_after_minutes": 55 * 24 * 60,
+        "description": "Maanedlig import av Sun2 finanshistorikk for solomsetning, uregistrerte solinger og bonusbruk.",
     },
     "elvia_monthly_import": {
         "title": "Elvia månedsfil",
@@ -7224,6 +7335,19 @@ async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
             "message": f"Sist funnet i {row.source_file}",
             "records_total": count,
         }
+    if job_name == "sun2_finance_settlement_monthly_import":
+        row = (
+            await session.execute(
+                select(Sun2FinanceSettlement).order_by(Sun2FinanceSettlement.imported_at.desc()).limit(1)
+            )
+        ).scalars().first()
+        if not row:
+            return {"message": "Ingen Sun2 finansoppgjor importert ennaa"}
+        return {
+            "last_success_at": row.imported_at,
+            "message": f"Sist funnet i {row.payout_label or row.source_file or row.source_payout_id}",
+            "records_total": 1,
+        }
     if job_name == "elvia_monthly_import":
         row = (await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(1))).scalars().first()
         return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.hours_count if row else None}
@@ -9333,6 +9457,99 @@ async def ingest_sun2_product_sales(session, data: Sun2ProductSalesIngestIn, bat
             raw["period_summary"] = period_summary
         existing.raw = raw
     return {"inserted": inserted, "updated": updated, "skipped": skipped, "replaced": replaced}
+
+
+async def ingest_sun2_finance_settlements(session, data: Sun2FinanceSettlementsIngestIn, batch_time: datetime) -> Dict[str, int]:
+    inserted = 0
+    updated = 0
+    skipped = 0
+    source = data.source or "sun2_session_scraper"
+    source_file = (repair_mojibake(data.source_file) or "").strip()
+    for row in data.rows:
+        source_payout_id = (repair_mojibake(row.source_payout_id) or "").strip()
+        if not source_payout_id or not row.period_start or not row.period_end:
+            skipped += 1
+            continue
+        existing = (
+            await session.execute(
+                select(Sun2FinanceSettlement)
+                .where(Sun2FinanceSettlement.source == source)
+                .where(Sun2FinanceSettlement.source_payout_id == source_payout_id)
+            )
+        ).scalars().first()
+        if not existing:
+            existing = Sun2FinanceSettlement(source=source, source_payout_id=source_payout_id)
+            session.add(existing)
+            inserted += 1
+        else:
+            updated += 1
+
+        tanning_control_inc = row.tanning_control_inc_vat_kr
+        tanning_values_present = any(
+            value is not None
+            for value in (
+                row.member_tanning_inc_vat_kr,
+                row.unregistered_tanning_inc_vat_kr,
+                row.tanning_bonus_inc_vat_kr,
+            )
+        )
+        if tanning_control_inc is None and tanning_values_present:
+            tanning_control_inc = (
+                float_or_zero(row.member_tanning_inc_vat_kr)
+                + float_or_zero(row.unregistered_tanning_inc_vat_kr)
+                - float_or_zero(row.tanning_bonus_inc_vat_kr)
+            )
+        tanning_control_ex = row.tanning_control_ex_vat_kr
+        if tanning_control_ex is None and tanning_control_inc is not None:
+            tanning_control_ex = round(tanning_control_inc / 1.25, 2)
+
+        product_control_inc = row.product_control_inc_vat_kr
+        product_values_present = any(
+            value is not None
+            for value in (
+                row.member_product_inc_vat_kr,
+                row.unregistered_product_inc_vat_kr,
+                row.product_bonus_inc_vat_kr,
+            )
+        )
+        if product_control_inc is None and product_values_present:
+            product_control_inc = (
+                float_or_zero(row.member_product_inc_vat_kr)
+                + float_or_zero(row.unregistered_product_inc_vat_kr)
+                - float_or_zero(row.product_bonus_inc_vat_kr)
+            )
+        product_control_ex = row.product_control_ex_vat_kr
+        if product_control_ex is None and product_control_inc is not None:
+            product_control_ex = round(product_control_inc / 1.25, 2)
+
+        existing.source = source
+        existing.source_payout_id = source_payout_id
+        existing.payout_label = (repair_mojibake(row.payout_label) or "").strip() or None
+        existing.period_start = row.period_start
+        existing.period_end = row.period_end
+        existing.payout_date = row.payout_date
+        existing.member_tanning_count = row.member_tanning_count
+        existing.member_tanning_inc_vat_kr = row.member_tanning_inc_vat_kr
+        existing.unregistered_tanning_count = row.unregistered_tanning_count
+        existing.unregistered_tanning_inc_vat_kr = row.unregistered_tanning_inc_vat_kr
+        existing.tanning_bonus_inc_vat_kr = row.tanning_bonus_inc_vat_kr
+        existing.tanning_control_inc_vat_kr = round(tanning_control_inc, 2) if tanning_control_inc is not None else None
+        existing.tanning_control_ex_vat_kr = round(tanning_control_ex, 2) if tanning_control_ex is not None else None
+        existing.member_product_count = row.member_product_count
+        existing.member_product_inc_vat_kr = row.member_product_inc_vat_kr
+        existing.unregistered_product_count = row.unregistered_product_count
+        existing.unregistered_product_inc_vat_kr = row.unregistered_product_inc_vat_kr
+        existing.product_bonus_inc_vat_kr = row.product_bonus_inc_vat_kr
+        existing.product_control_inc_vat_kr = round(product_control_inc, 2) if product_control_inc is not None else None
+        existing.product_control_ex_vat_kr = round(product_control_ex, 2) if product_control_ex is not None else None
+        existing.transaction_cost_kr = row.transaction_cost_kr
+        existing.service_fee_kr = row.service_fee_kr
+        existing.payout_inc_vat_kr = row.payout_inc_vat_kr
+        existing.vat_kr = row.vat_kr
+        existing.source_file = source_file or data.source_file
+        existing.imported_at = batch_time
+        existing.raw = row.raw or {}
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
 async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestIn, batch_time: datetime) -> Dict[str, int]:
@@ -16763,6 +16980,78 @@ def sun2_product_sales_expected(summary: Optional[Dict[str, Any]]) -> tuple[Opti
     return round(float_or_zero(summary.get("amount_ex_vat")), 2), detail
 
 
+async def sun2_finance_settlement_period_summary(session, start: date, end: date) -> Dict[str, Any]:
+    row = (
+        await session.execute(
+            select(Sun2FinanceSettlement)
+            .where(Sun2FinanceSettlement.period_start == start)
+            .where(Sun2FinanceSettlement.period_end == end)
+            .order_by(Sun2FinanceSettlement.imported_at.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    if not row:
+        row = (
+            await session.execute(
+                select(Sun2FinanceSettlement)
+                .where(Sun2FinanceSettlement.period_start <= start)
+                .where(Sun2FinanceSettlement.period_end >= end)
+                .order_by(Sun2FinanceSettlement.imported_at.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+    if not row:
+        return {"period_start": start, "period_end": end, "count": 0}
+    return {
+        "id": row.id,
+        "source_payout_id": row.source_payout_id,
+        "payout_label": row.payout_label,
+        "period_start": row.period_start,
+        "period_end": row.period_end,
+        "payout_date": row.payout_date,
+        "member_tanning_count": row.member_tanning_count,
+        "member_tanning_inc_vat": row.member_tanning_inc_vat_kr,
+        "unregistered_tanning_count": row.unregistered_tanning_count,
+        "unregistered_tanning_inc_vat": row.unregistered_tanning_inc_vat_kr,
+        "tanning_bonus_inc_vat": row.tanning_bonus_inc_vat_kr,
+        "tanning_control_inc_vat": row.tanning_control_inc_vat_kr,
+        "tanning_control_ex_vat": row.tanning_control_ex_vat_kr,
+        "last_imported_at": row.imported_at,
+        "source_file": row.source_file,
+        "count": 1,
+    }
+
+
+def sun2_tanning_revenue_expected(summary: Optional[Dict[str, Any]]) -> tuple[Optional[float], str]:
+    if not summary or int_or_zero(summary.get("count")) <= 0:
+        return None, ""
+    value = parse_settlement_number(summary.get("tanning_control_ex_vat"))
+    if value is None:
+        return None, ""
+    member_count = int_or_zero(summary.get("member_tanning_count"))
+    unregistered_count = int_or_zero(summary.get("unregistered_tanning_count"))
+    member_inc = parse_settlement_number(summary.get("member_tanning_inc_vat"))
+    unregistered_inc = parse_settlement_number(summary.get("unregistered_tanning_inc_vat"))
+    bonus_inc = parse_settlement_number(summary.get("tanning_bonus_inc_vat"))
+    detail_parts = [
+        f"{member_count} medlemssolinger",
+        f"{unregistered_count} uregistrerte solinger",
+    ]
+    if member_inc is not None or unregistered_inc is not None:
+        detail_parts.append(
+            f"{format_short_number(float_or_zero(member_inc) + float_or_zero(unregistered_inc), 2)} kr inkl. mva brutto"
+        )
+    if bonus_inc:
+        detail_parts.append(f"minus bonus {format_short_number(bonus_inc, 2)} kr")
+    payout_label = summary.get("payout_label") or summary.get("source_payout_id")
+    if payout_label:
+        detail_parts.append(str(payout_label))
+    last_imported = summary.get("last_imported_at")
+    if last_imported:
+        detail_parts.append(f"sist importert {format_local_datetime(last_imported)}")
+    return round(float_or_zero(value), 2), ", ".join(detail_parts)
+
+
 def settlement_form_rows(parsed: Any, source_summaries: Optional[Dict[str, Dict[str, Any]]] = None) -> list[Dict[str, Any]]:
     gross_coin_card = settlement_parsed_float(parsed, "gross_coin_card_ex_vat")
     easypark = settlement_parsed_float(parsed, "easypark_ex_vat")
@@ -16874,7 +17163,11 @@ def settlement_form_rows(parsed: Any, source_summaries: Optional[Dict[str, Dict[
     return rows
 
 
-def sun_settlement_form_rows(parsed: Any, product_sales_summary: Optional[Dict[str, Any]] = None) -> list[Dict[str, Any]]:
+def sun_settlement_form_rows(
+    parsed: Any,
+    product_sales_summary: Optional[Dict[str, Any]] = None,
+    finance_summary: Optional[Dict[str, Any]] = None,
+) -> list[Dict[str, Any]]:
     sun_revenue = settlement_parsed_float(parsed, "sun_revenue_ex_vat")
     product_sales = settlement_parsed_float(parsed, "product_sales_ex_vat")
     transaction_fee = settlement_parsed_float(parsed, "transaction_fee_ex_vat")
@@ -16898,6 +17191,7 @@ def sun_settlement_form_rows(parsed: Any, product_sales_summary: Optional[Dict[s
     transaction_base = settlement_sum_or_none(sun_revenue, product_sales)
     expected_transaction_fee = round(-transaction_base * 0.06, 2) if transaction_base is not None else None
     expected_product_sales, expected_product_sales_detail = sun2_product_sales_expected(product_sales_summary)
+    expected_sun_revenue, expected_sun_revenue_detail = sun2_tanning_revenue_expected(finance_summary)
 
     return [
         settlement_form_field(
@@ -16907,6 +17201,10 @@ def sun_settlement_form_rows(parsed: Any, product_sales_summary: Optional[Dict[s
             parsed,
             "amount",
             "Operativt belop fra linjen Solomsetning for perioden.",
+            expected_sun_revenue,
+            expected_label="Sun2 soling eks. mva",
+            expected_source="sun2_finance_settlements",
+            expected_detail=expected_sun_revenue_detail,
         ),
         settlement_form_field(
             "Produktsalg for perioden",
@@ -17239,7 +17537,19 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
         if row.period_start and row.period_end
         else None
     )
+    finance_summary = (
+        await sun2_finance_settlement_period_summary(session, row.period_start, row.period_end)
+        if row.period_start and row.period_end
+        else None
+    )
+    expected_sun_revenue, sun_revenue_detail = sun2_tanning_revenue_expected(finance_summary)
     expected_product_sales, product_sales_detail = sun2_product_sales_expected(product_sales_summary)
+    sun_revenue_value = settlement_parsed_float(parsed, "sun_revenue_ex_vat")
+    sun_revenue_diff = (
+        round(sun_revenue_value - expected_sun_revenue, 2)
+        if sun_revenue_value is not None and expected_sun_revenue is not None
+        else None
+    )
     product_sales_value = settlement_parsed_float(parsed, "product_sales_ex_vat")
     product_sales_diff = (
         round(product_sales_value - expected_product_sales, 2)
@@ -17276,6 +17586,11 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
         api_card("Skjemafelter", len(public_parsed), "stk", f"Sikkerhet {format_short_number(float_or_zero(meta.get('confidence')) * 100, 0)} %", "status"),
         api_card("Belop NOK", format_short_number(settlement_parsed_float(parsed, "payout_inc_vat") or 0, 2), "kr", "Fra skjema", "revenue"),
     ]
+    if expected_sun_revenue is not None:
+        cards.append(api_card("Sun2 soling", format_short_number(expected_sun_revenue, 2), "kr", sun_revenue_detail, "sun2"))
+    if sun_revenue_diff is not None:
+        tone = "status" if abs(sun_revenue_diff) <= 1 else "revenue"
+        cards.append(api_card("Avvik soling", format_short_number(sun_revenue_diff, 2), "kr", "Skjema minus Sun2 eks. mva", tone))
     if expected_product_sales is not None:
         cards.append(api_card("Sun2 produktsalg", format_short_number(expected_product_sales, 2), "kr", product_sales_detail, "sun2"))
     if product_sales_diff is not None:
@@ -17288,7 +17603,7 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
         "cards": cards,
         "original": original,
         "sections": [
-            {"title": "Oppgjorsformular", "rows": sun_settlement_form_rows(parsed, product_sales_summary)},
+            {"title": "Oppgjorsformular", "rows": sun_settlement_form_rows(parsed, product_sales_summary, finance_summary)},
             {"title": "Nokkeltall fra skjema", "rows": parsed_rows},
             {
                 "title": "Tolket periode",
@@ -17320,13 +17635,30 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
     }
 
 
-def sun_settlement_summary_row(row: SettlementImport, product_sales_summary: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def sun_settlement_summary_row(
+    row: SettlementImport,
+    product_sales_summary: Optional[Dict[str, Any]] = None,
+    finance_summary: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     parsed = row.parsed if isinstance(row.parsed, dict) else {}
-    form_rows = sun_settlement_form_rows(parsed, product_sales_summary)
+    form_rows = sun_settlement_form_rows(parsed, product_sales_summary, finance_summary)
     control_rows = [item for item in form_rows if item.get("group") == "control"]
     warn_count = len([item for item in form_rows if item.get("status") == "warn"])
     missing_count = len([item for item in form_rows if item.get("status") == "missing"])
     status_label = "OK" if not warn_count and not missing_count else "Krever kontroll"
+    expected_sun_revenue, sun_revenue_detail = sun2_tanning_revenue_expected(finance_summary)
+    sun_revenue_value = settlement_parsed_float(parsed, "sun_revenue_ex_vat")
+    sun_revenue_diff = (
+        round(sun_revenue_value - expected_sun_revenue, 2)
+        if sun_revenue_value is not None and expected_sun_revenue is not None
+        else None
+    )
+    if expected_sun_revenue is None:
+        sun_revenue_control_status = "Mangler Sun2-grunnlag"
+    elif sun_revenue_diff is not None and abs(sun_revenue_diff) <= 1:
+        sun_revenue_control_status = "OK"
+    else:
+        sun_revenue_control_status = "Avvik"
     expected_product_sales, product_sales_detail = sun2_product_sales_expected(product_sales_summary)
     product_sales_value = settlement_parsed_float(parsed, "product_sales_ex_vat")
     product_sales_diff = (
@@ -17345,6 +17677,10 @@ def sun_settlement_summary_row(row: SettlementImport, product_sales_summary: Opt
         "sum_check_status": status_label,
         "sum_check_warnings": warn_count,
         "missing_fields": missing_count,
+        "sun_revenue_source_ex_vat": expected_sun_revenue,
+        "sun_revenue_source_detail": sun_revenue_detail,
+        "sun_revenue_diff_ex_vat": sun_revenue_diff,
+        "sun_revenue_control_status": sun_revenue_control_status,
         "product_sales_source_ex_vat": expected_product_sales,
         "product_sales_source_detail": product_sales_detail,
         "product_sales_diff_ex_vat": product_sales_diff,
@@ -17382,13 +17718,17 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
     latest_settlement = settlement_rows[0] if settlement_rows else None
     parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
     product_sales_summaries: Dict[int, Dict[str, Any]] = {}
+    finance_summaries: Dict[int, Dict[str, Any]] = {}
     for row in settlement_rows:
         if row.id and row.period_start and row.period_end:
             product_sales_summaries[row.id] = await sun2_product_sales_period_summary(session, row.period_start, row.period_end)
+            finance_summaries[row.id] = await sun2_finance_settlement_period_summary(session, row.period_start, row.period_end)
     product_control_rows = [
-        sun_settlement_summary_row(row, product_sales_summaries.get(row.id or 0))
+        sun_settlement_summary_row(row, product_sales_summaries.get(row.id or 0), finance_summaries.get(row.id or 0))
         for row in settlement_rows
     ]
+    sun_revenue_control_ok = len([row for row in product_control_rows if row.get("sun_revenue_control_status") == "OK"])
+    sun_revenue_control_missing = len([row for row in product_control_rows if row.get("sun_revenue_control_status") == "Mangler Sun2-grunnlag"])
     product_control_ok = len([row for row in product_control_rows if row.get("product_sales_control_status") == "OK"])
     product_control_missing = len([row for row in product_control_rows if row.get("product_sales_control_status") == "Mangler Sun2-grunnlag"])
     return {
@@ -17405,6 +17745,7 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
                 href="/soling/oppgjor",
             ),
             api_card("Ikke periodetolket", unknown_period_count, "stk", "Krever manuell kontroll eller OCR", "status", href="/soling/oppgjor"),
+            api_card("Soling kontroll", sun_revenue_control_ok, "OK", f"{sun_revenue_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
             api_card("Produktsalg kontroll", product_control_ok, "OK", f"{product_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
         ],
         "charts": [],
@@ -17416,6 +17757,9 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
                     "status",
                     "sum_check_status",
                     "sun_revenue_ex_vat",
+                    "sun_revenue_source_ex_vat",
+                    "sun_revenue_diff_ex_vat",
+                    "sun_revenue_control_status",
                     "product_sales_ex_vat",
                     "product_sales_source_ex_vat",
                     "product_sales_diff_ex_vat",
@@ -20287,6 +20631,31 @@ async def sun2_product_sales_ingest(data: Sun2ProductSalesIngestIn):
         )
         await session.commit()
     clear_summary_cache("sun2", "sun2_product_sales")
+    return {"status": "ok", **counts, "rows": len(data.rows)}
+
+
+@app.post("/api/sun2/finance-settlements/ingest")
+async def sun2_finance_settlements_ingest(data: Sun2FinanceSettlementsIngestIn):
+    batch_time = data.timestamp or datetime.utcnow()
+    async with async_session() as session:
+        counts = await ingest_sun2_finance_settlements(session, data, batch_time)
+        await record_import_job(
+            session,
+            "sun2_finance_settlement_monthly_import",
+            ok=data.ok,
+            source=data.source,
+            records_imported=counts["inserted"] + counts["updated"],
+            records_total=len(data.rows),
+            message=data.message or f"{len(data.rows)} Sun2 finansoppgjor mottatt",
+            raw={
+                "collector_id": data.collector_id,
+                "source_file": data.source_file,
+                "counts": counts,
+                "extra": data.extra,
+            },
+        )
+        await session.commit()
+    clear_summary_cache("sun2", "sun2_finance_settlements")
     return {"status": "ok", **counts, "rows": len(data.rows)}
 
 
