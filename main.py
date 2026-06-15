@@ -126,6 +126,8 @@ CAR_INFO_APP_TOKEN = os.getenv("CAR_INFO_APP_TOKEN", "").strip()
 CAR_INFO_LOOKUP_TIMEOUT_SECONDS = max(5, int(os.getenv("CAR_INFO_LOOKUP_TIMEOUT_SECONDS", "30")))
 CAR_INFO_CANDIDATE_RETRY_HOURS = max(24, int(os.getenv("CAR_INFO_CANDIDATE_RETRY_HOURS", "720")))
 CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES = max(30, int(os.getenv("CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES", "240")))
+CAR_INFO_AUTO_TRIGGER_ENABLED = os.getenv("CAR_INFO_AUTO_TRIGGER_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN = max(0, min(5, int(os.getenv("CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN", "1"))))
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
@@ -20487,6 +20489,8 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
                     updated += 1
             except LookupError as exc:
                 no_data += 1
+                if is_swedish_license_plate(plate):
+                    swedish_no_data_plates.append(compact_plate(plate))
                 message = str(exc)[:240] or "Ingen kjøretøydata fra SVV"
                 await upsert_vehicle_svv_data(session, plate, {}, 204, message)
             except urllib.error.HTTPError as exc:
@@ -20497,6 +20501,8 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
                         message = f"{message}: {body}"
                 if exc.code in SVV_PERMANENT_NO_DATA_STATUSES:
                     no_data += 1
+                    if is_swedish_license_plate(plate):
+                        swedish_no_data_plates.append(compact_plate(plate))
                 else:
                     failed += 1
                     errors.append(f"{plate}: {message}")
@@ -20506,6 +20512,8 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
                     break
             except json.JSONDecodeError:
                 no_data += 1
+                if is_swedish_license_plate(plate):
+                    swedish_no_data_plates.append(compact_plate(plate))
                 message = "Tomt eller uleselig svar fra SVV"
                 await upsert_vehicle_svv_data(session, plate, {}, 204, message)
             except Exception as exc:
@@ -20527,7 +20535,19 @@ async def run_vehicle_svv_sync(limit: int = SVV_SYNC_BATCH_SIZE, source: str = "
             raw={"errors": errors[:20], "no_data": no_data},
         )
         await session.commit()
-    return {"ok": failed == 0, "processed": processed, "updated": updated, "no_data": no_data, "failed": failed, "errors": errors[:20]}
+    result_payload = {
+        "ok": failed == 0,
+        "processed": processed,
+        "updated": updated,
+        "no_data": no_data,
+        "failed": failed,
+        "errors": errors[:20],
+        "swedish_no_data": swedish_no_data_plates[:20],
+    }
+    car_info_auto = await trigger_car_info_after_svv_no_data(swedish_no_data_plates, source)
+    if car_info_auto:
+        result_payload["car_info_auto_trigger"] = car_info_auto
+    return result_payload
 
 
 async def parking_vehicle_svv_worker() -> None:
@@ -20871,6 +20891,58 @@ def car_info_lookup_request(path: str, params: Dict[str, Any]) -> Dict[str, Any]
         return json.loads(payload)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"Ugyldig svar fra car.info-appen: {payload[:240]}") from exc
+
+
+async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> Optional[Dict[str, Any]]:
+    if not CAR_INFO_AUTO_TRIGGER_ENABLED or CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN <= 0:
+        return None
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for plate in plates:
+        compact = compact_plate(plate)
+        if compact and compact not in seen and is_swedish_license_plate(compact):
+            candidates.append(compact)
+            seen.add(compact)
+    if not candidates:
+        return None
+
+    selected = candidates[:CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN]
+    started_at = local_now_naive()
+    results: list[Dict[str, Any]] = []
+    errors: list[str] = []
+    for plate in selected:
+        try:
+            result = await asyncio.to_thread(car_info_lookup_request, f"/api/run-plate/{plate}", {})
+            results.append(result)
+            if result.get("status") == "error":
+                errors.append(f"{plate}: {str(result.get('message') or 'car.info-feil')[:240]}")
+                break
+            if result.get("status") in {"backoff", "busy"} or result.get("rate_limited"):
+                break
+        except Exception as exc:
+            errors.append(f"{plate}: {str(exc)[:240]}")
+            break
+
+    ok = not errors
+    message = (
+        f"Direkte car.info-trigger for {len(selected)} av {len(candidates)} svenske SVV-uten-treff."
+        if ok
+        else f"Direkte car.info-trigger feilet: {errors[0]}"
+    )
+    async with async_session() as session:
+        await record_import_job(
+            session,
+            "parking_vehicle_car_info_sync",
+            ok=ok,
+            source=f"{source} -> car.info auto",
+            started_at=started_at,
+            records_imported=sum(int(item.get("confirmed_swedish") or 0) for item in results),
+            records_total=len(candidates),
+            message=message,
+            raw={"triggered": selected, "candidates": candidates[:20], "results": results, "errors": errors},
+        )
+        await session.commit()
+    return {"ok": ok, "candidates": candidates, "triggered": selected, "results": results, "errors": errors}
 
 
 @app.post("/parkering/refresh")

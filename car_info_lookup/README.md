@@ -12,7 +12,8 @@ Appen brukes bare for biler der Fibaro10 allerede har forsokt SVV, men ikke har 
   - `ABC123`
   - `ABC12D`, der siste tegn ikke er `O`
 - Kandidater hentes fra Fibaro10 via `/api/parkering/kjoretoy/car-info-kandidater`.
-- Standard er en bil per oppslag og 300 sekunder mellom faktiske car.info-kall i backlog-modus.
+- Naar SVV akkurat har gitt permanent uten-treff paa et svensk-formatert skilt, kan Fibaro10 trigge direkteoppslag paa akkurat det skiltet.
+- Standard backlog er en bil per oppslag og 300 sekunder mellom faktiske car.info-kall.
 - Hvis car.info svarer med rate-limit/coffee break, settes global pause for appen.
 - Ved bekreftet svensk bil poster appen resultatet tilbake til Fibaro10, som setter `omrade = Sverige` hvis omraadet er blankt eller `ikke funnet`.
 
@@ -53,5 +54,6 @@ Parseren lagrer blant annet:
 
 - `GET /health`
 - `POST /api/run-once?limit=1`
+- `POST /api/run-plate/{plate}`
 - `POST /api/run-backlog?max_items=12`
 - `GET /api/svensk-skilt/{plate}`

@@ -261,6 +261,64 @@ async def run_once(limit: int = BATCH_SIZE, force: bool = False) -> dict[str, An
             return {"status": "error", "message": str(exc), "results": results}
 
 
+async def run_plate(plate: str, force: bool = False) -> dict[str, Any]:
+    compact = compact_plate(plate)
+    if not is_swedish_license_plate(compact):
+        return {"status": "skipped", "message": "Ikke svensk format", "plate": compact, "processed": 0, "results": []}
+    if lock.locked():
+        return {"status": "busy", "message": "Car.info-oppslag kjoerer allerede", "plate": compact, "processed": 0, "results": []}
+    async with lock:
+        if not force:
+            until = backoff_active()
+            if until:
+                return {
+                    "status": "backoff",
+                    "message": f"Venter paa car.info-rate-limit til {until}",
+                    "backoff_until": until,
+                    "plate": compact,
+                    "processed": 0,
+                    "results": [],
+                }
+        started = time.monotonic()
+        set_state(running=True, last_action="fetch_car_info_direct", last_plate=compact, last_url=car_info_url(compact), last_error=None)
+        try:
+            status_code, url, data, error = await asyncio.to_thread(fetch_car_info, compact)
+            payload = {"status": status_code, "url": url, "error": error, "data": data}
+            post_result = await asyncio.to_thread(fibaro_post, f"/api/parkering/kjoretoy/{compact}/car-info", payload)
+            result = {
+                "plate": compact,
+                "status": status_code,
+                "url": url,
+                "confirmed_swedish": bool(data.get("confirmed_swedish")),
+                "error": error,
+                "fibaro10": post_result,
+            }
+            if status_code == 429:
+                until = utcnow() + timedelta(minutes=RATE_LIMIT_BACKOFF_MINUTES)
+                set_state(backoff_until=until.isoformat(), last_error=error)
+            set_state(
+                running=False,
+                last_action="idle",
+                last_result=result,
+                last_success_at=utcnow_iso() if status_code < 400 else state.get("last_success_at"),
+                processed=int(state.get("processed") or 0) + 1,
+                confirmed_swedish=int(state.get("confirmed_swedish") or 0) + (1 if status_code == 200 and data.get("confirmed_swedish") else 0),
+            )
+            return {
+                "status": "ok",
+                "plate": compact,
+                "processed": 1,
+                "confirmed_swedish": 1 if status_code == 200 and data.get("confirmed_swedish") else 0,
+                "failed": 1 if status_code >= 400 else 0,
+                "rate_limited": status_code == 429,
+                "duration_seconds": round(time.monotonic() - started, 2),
+                "results": [result],
+            }
+        except Exception as exc:
+            set_state(running=False, last_action="error", last_error=str(exc))
+            return {"status": "error", "message": str(exc), "plate": compact, "processed": 0, "results": []}
+
+
 async def run_backlog_cycle(max_items: int = BACKLOG_MAX_PER_CYCLE, force: bool = False) -> dict[str, Any]:
     started = time.monotonic()
     max_items = max(1, min(100, max_items))
@@ -369,6 +427,7 @@ async def health() -> dict[str, Any]:
             "url_template": URL_TEMPLATE,
             "run_interval_minutes": RUN_INTERVAL_MINUTES,
             "batch_size": BATCH_SIZE,
+            "request_delay_seconds": REQUEST_DELAY_SECONDS,
             "rate_limit_backoff_minutes": RATE_LIMIT_BACKOFF_MINUTES,
             "backlog_enabled": BACKLOG_ENABLED,
             "backlog_max_per_cycle": BACKLOG_MAX_PER_CYCLE,
@@ -386,6 +445,17 @@ async def api_run_once(
 ) -> dict[str, Any]:
     require_token(x_car_info_token)
     return await run_once(limit, force)
+
+
+@app.post("/api/run-plate/{plate}")
+async def api_run_plate(
+    plate: str,
+    request: Request,
+    force: bool = Query(False),
+    x_car_info_token: str | None = Header(None),
+) -> dict[str, Any]:
+    require_token(x_car_info_token)
+    return await run_plate(plate, force)
 
 
 @app.post("/api/run-backlog")

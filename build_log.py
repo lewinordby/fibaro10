@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1174")
+APP_BUILD = os.getenv("APP_BUILD", "1175")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1175",
+        "date": "15.06.2026",
+        "headline": "Car.info trigges rett etter SVV-uten-treff",
+        "title": "Svenske skilt som SVV ikke finner slas opp direkte hos car.info",
+        "description": (
+            "Build 1175 gjoer car.info-oppslag mer responsivt for sjeldne svenske biler. Naar SVV/Vegvesen "
+            "gir permanent uten-treff paa et skilt som matcher svensk format, trigger Fibaro10 et direkte "
+            "oppslag paa akkurat dette skiltet. Backlog-jobben blir liggende som rolig fallback og respekterer "
+            "fortsatt car.info backoff."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): samler svenske SVV-uten-treff og trigger car.info direkte etter commit.",
+            "Car.info-oppslag (car_info_lookup/app/main.py): legger tokenbeskyttet /api/run-plate/{plate}.",
+            "Konfigurasjon (.env.qnap.example): dokumenterer auto-trigger for SVV-uten-treff.",
+            "Dokumentasjon (docs/car-info-oppslag.md, car_info_lookup/README.md): beskriver direkteoppslag og backlog-fallback.",
+            "Buildlogg (build_log.py): registrerer build 1175.",
+        ],
+        "request": "Det er veldig sjelden med svenske biler, men jeg onsker aa hente dem saa raskt som mulig etter at VVG/SVV har kjoert og ikke funnet.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "SVV-uten-treff paa svensk-formatert plate gir umiddelbar car.info-trigger.",
+            "Direkteoppslaget bruker eksakt skilt, ikke bare neste kandidat i backlog.",
+            "Hvis car.info er i backoff eller opptatt, logges dette og vanlig backlog tar over senere.",
+        ],
+    },
     {
         "version": "1",
         "build": "1174",

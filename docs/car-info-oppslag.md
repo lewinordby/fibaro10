@@ -10,9 +10,10 @@
 4. Kandidaten maa matche svensk standardformat:
    - `ABC123`
    - `ABC12D`, der siste tegn ikke er `O`
-5. `car_info_lookup` henter en bil per intervall fra Fibaro10.
-6. Ved bekreftet svensk side hos car.info poster appen strukturert resultat tilbake.
-7. Fibaro10 setter `omrade = Sverige` hvis feltet er blankt eller `ikke funnet`.
+5. Naar SVV-jobben faar permanent uten-treff paa et svensk-formatert skilt, trigger Fibaro10 et direkte car.info-oppslag paa akkurat det skiltet.
+6. Backlog-jobben tar fortsatt eldre kandidater rolig hvis direkteoppslaget ikke kjoerer, for eksempel ved backoff.
+7. Ved bekreftet svensk side hos car.info poster appen strukturert resultat tilbake.
+8. Fibaro10 setter `omrade = Sverige` hvis feltet er blankt eller `ikke funnet`.
 
 ## Hvorfor egen app
 
@@ -20,7 +21,7 @@ Car.info har lav rate-limit for gratis/personlig bruk. Derfor skal dette kjore s
 
 ## Standardintervall
 
-QNAP-oppsettet kjoerer backlog-modus: appen tar en kandidat av gangen, venter normalt 300 sekunder mellom faktiske car.info-oppslag, og fortsetter til koeen er tom eller car.info svarer med `coffee break`/429. Ved rate-limit lagres statusen i Fibaro10 og appen tar global pause i 240 minutter foer den fortsetter automatisk.
+QNAP-oppsettet kjoerer direkteoppslag etter SVV-uten-treff og backlog-modus for eldre kandidater. Direkteoppslag skjer straks hvis appen ikke er i backoff. Backlog tar en kandidat av gangen, venter normalt 300 sekunder mellom faktiske car.info-oppslag, og fortsetter til koeen er tom eller car.info svarer med `coffee break`/429. Ved rate-limit lagres statusen i Fibaro10 og appen tar global pause i 240 minutter foer den fortsetter automatisk.
 
 ## Intern tilgang
 
@@ -30,6 +31,7 @@ Sett `CAR_INFO_APP_TOKEN` i QNAP `.env`. Fibaro10 godtar denne tokenen kun paa c
 
 - Appstatus: `http://192.168.20.218:8126/health`
 - Manuell Fibaro10-trigger: `POST /api/actions/parkering/car-info-sync?limit=1`
+- Direkte intern trigger: `POST http://192.168.20.218:8126/api/run-plate/{plate}`
 - Manuell backlog-syklus: `POST http://192.168.20.218:8126/api/run-backlog?max_items=12`
 - Svensk skiltfilter: `GET /api/svensk-skilt/{plate}`
 
