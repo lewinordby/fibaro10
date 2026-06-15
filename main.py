@@ -21528,15 +21528,6 @@ def vehicle_car_info_due_condition():
     )
 
 
-def vehicle_car_info_country_priority_expr():
-    plate_upper = func.upper(ParkingVehicle.plate)
-    return case(
-        (plate_upper.op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX), 0),
-        (plate_upper.op("~")(DANISH_LICENSE_PLATE_SQL_REGEX), 1),
-        else_=2,
-    )
-
-
 def vehicle_car_info_candidate_condition():
     return and_(
         ParkingVehicle.svv_fetched_at.isnot(None),
@@ -21549,14 +21540,26 @@ def vehicle_car_info_candidate_condition():
     )
 
 
-async def parking_car_info_candidate_rows(session, limit: int, offset: int = 0):
+def vehicle_car_info_country_condition(country: Optional[str]):
+    key = (country or "").strip().upper()
+    if key in {"S", "SE", "SWE", "SVERIGE", "SWEDEN"}:
+        return func.upper(ParkingVehicle.plate).op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX)
+    if key in {"DK", "DANMARK", "DENMARK"}:
+        return func.upper(ParkingVehicle.plate).op("~")(DANISH_LICENSE_PLATE_SQL_REGEX)
+    return None
+
+
+async def parking_car_info_candidate_rows(session, limit: int, offset: int = 0, country: Optional[str] = None):
+    condition = vehicle_car_info_candidate_condition()
+    country_condition = vehicle_car_info_country_condition(country)
+    if country_condition is not None:
+        condition = and_(condition, country_condition)
     return (
         await session.execute(
             select(ParkingVehicle, ParkingVehicleDetails)
             .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-            .where(vehicle_car_info_candidate_condition())
+            .where(condition)
             .order_by(
-                vehicle_car_info_country_priority_expr(),
                 ParkingVehicle.car_info_fetched_at.asc().nullsfirst(),
                 ParkingVehicle.last_seen.desc().nullslast(),
                 ParkingVehicle.plate.asc(),
@@ -21677,26 +21680,31 @@ async def parking_car_info_candidates_api(
     request: Request,
     limit: int = Query(1, ge=1, le=10),
     offset: int = Query(0, ge=0),
+    country: Optional[str] = Query(None),
     format: str = "json",
 ):
     forbidden = require_settings_or_car_info_access(request)
     if forbidden:
         return forbidden
+    condition = vehicle_car_info_candidate_condition()
+    country_condition = vehicle_car_info_country_condition(country)
+    if country_condition is not None:
+        condition = and_(condition, country_condition)
     async with async_session() as session:
-        rows = await parking_car_info_candidate_rows(session, limit, offset)
+        rows = await parking_car_info_candidate_rows(session, limit, offset, country)
         count = (
             await session.execute(
                 select(func.count(ParkingVehicle.plate))
                 .select_from(ParkingVehicle)
                 .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
-                .where(vehicle_car_info_candidate_condition())
+                .where(condition)
             )
         ).scalar_one()
     payload = [parking_vehicle_lookup_payload(vehicle, details) for vehicle, details in rows]
     if format == "txt":
         text_body = "\n".join(item["plate"] for item in payload) + ("\n" if payload else "")
         return StreamingResponse(iter([text_body]), media_type="text/plain; charset=utf-8")
-    return {"count": count, "limit": limit, "offset": offset, "rows": payload}
+    return {"count": count, "country": country, "limit": limit, "offset": offset, "rows": payload}
 
 
 @app.get("/api/parkering/kjoretoy/mangler-navn")

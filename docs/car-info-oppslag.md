@@ -24,7 +24,7 @@ Eksterne oppslagssider kan ha rate-limit eller Cloudflare. Derfor skal dette kjo
 
 ## Standardintervall
 
-QNAP-oppsettet kjoerer direkteoppslag etter SVV-uten-treff og backlog-modus for eldre kandidater. Direkteoppslag skjer straks hvis appen ikke er i backoff. Backlog prioriterer svensk-format kandidater foran dansk-format kandidater, venter normalt 20 sekunder mellom svenske Biluppgifter-kall og 60 sekunder mellom danske Tjekbil-kall, og fortsetter til koeen er tom eller en kilde svarer med Cloudflare/rate-limit/429. Ved rate-limit lagres statusen i Fibaro10 og appen tar global pause i 240 minutter foer den fortsetter automatisk.
+QNAP-oppsettet kjoerer direkteoppslag etter SVV-uten-treff og backlog-modus for eldre kandidater. Direkteoppslag skjer straks hvis appen ikke er i backoff. Backlog veksler normalt `DK,S`, venter 2 sekunder mellom svenske Biluppgifter-kall og har ingen ekstra pause mellom danske Tjekbil-kall. Jobben fortsetter til koeen er tom eller en kilde svarer med Cloudflare/rate-limit/429. Ved rate-limit lagres statusen i Fibaro10 og appen tar global pause i 240 minutter foer den fortsetter automatisk.
 
 ## Intern tilgang
 

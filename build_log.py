@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1179")
+APP_BUILD = os.getenv("APP_BUILD", "1180")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1180",
+        "date": "15.06.2026",
+        "headline": "Aggressiv nordisk backlog",
+        "title": "Danske og svenske kjoretoyoppslag kjoeres raskt i blandet ko",
+        "description": (
+            "Build 1180 endrer nordisk backlog fra svensk-forst til en eksplisitt landsekvens `DK,S`. "
+            "Dette gjoer at danske Tjekbil-oppslag starter umiddelbart i stedet for aa vente til svensk backlog "
+            "er ferdig. Svenske Biluppgifter-oppslag kjoeres med 2 sekunders pause, danske Tjekbil-oppslag uten "
+            "ekstra pause. 429/Cloudflare stopper fortsatt jobben og setter global backoff."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): kandidatlisten kan filtreres med country=DK/S og bruker ikke lenger svensk-forst-sortering.",
+            "Nordisk biloppslag (car_info_lookup/app/main.py): veksler backlog etter landsekvens og senker svenske/danske pauser.",
+            "Konfigurasjon (.env.qnap.example, docker-compose.qnap.yml): setter DK,S, svensk 2 sekunder og dansk 0 sekunder.",
+            "Dokumentasjon (docs/car-info-oppslag.md, car_info_lookup/README.md): beskriver aggressiv blandet backlog.",
+            "Buildlogg (build_log.py): registrerer build 1180.",
+        ],
+        "request": "Kan vi ikke bare kjorer de danske umiddelbart? API bor vel funke raskt, og svensk kan kanskje kjoeres med 2 sekunder mellom hver.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Backlog starter med dansk kandidat og veksler deretter dansk/svensk.",
+            "Svensk Biluppgifter-delay er satt til 2 sekunder.",
+            "Dansk Tjekbil-delay er satt til 0 sekunder.",
+            "Kandidat-API-et kan filtrere paa country=DK eller country=S.",
+        ],
+    },
     {
         "version": "1",
         "build": "1179",
