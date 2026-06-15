@@ -21528,6 +21528,15 @@ def vehicle_car_info_due_condition():
     )
 
 
+def vehicle_car_info_country_priority_expr():
+    plate_upper = func.upper(ParkingVehicle.plate)
+    return case(
+        (plate_upper.op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX), 0),
+        (plate_upper.op("~")(DANISH_LICENSE_PLATE_SQL_REGEX), 1),
+        else_=2,
+    )
+
+
 def vehicle_car_info_candidate_condition():
     return and_(
         ParkingVehicle.svv_fetched_at.isnot(None),
@@ -21547,6 +21556,7 @@ async def parking_car_info_candidate_rows(session, limit: int, offset: int = 0):
             .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
             .where(vehicle_car_info_candidate_condition())
             .order_by(
+                vehicle_car_info_country_priority_expr(),
                 ParkingVehicle.car_info_fetched_at.asc().nullsfirst(),
                 ParkingVehicle.last_seen.desc().nullslast(),
                 ParkingVehicle.plate.asc(),

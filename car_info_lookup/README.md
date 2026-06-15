@@ -19,7 +19,8 @@ Appen brukes bare for biler der Fibaro10 allerede har forsokt SVV, men ikke har 
 - Dansk format overlapper norske skilt. Derfor settes `omrade = Danmark` bare naar Tjekbil returnerer samme registreringsnummer og faktisk kjoretoydata.
 - Kandidater hentes fra Fibaro10 via internt legacy-endepunkt `/api/parkering/kjoretoy/car-info-kandidater`.
 - Naar SVV akkurat har gitt permanent uten-treff paa svensk eller dansk format, kan Fibaro10 trigge direkteoppslag paa akkurat det skiltet.
-- Standard backlog er en bil per oppslag og 300 sekunder mellom faktiske eksterne kall.
+- Svensk backlog prioriteres foran dansk backlog.
+- Standard backlog bruker 20 sekunder mellom svenske Biluppgifter-kall og 60 sekunder mellom danske Tjekbil-kall.
 - Hvis en kilde svarer med rate-limit eller Cloudflare, settes global pause for appen.
 
 ## Relevante felt
@@ -54,8 +55,10 @@ Parserne lagrer blant annet:
 - `CAR_INFO_REQUEST_DELAY_SECONDS`, standard `300`
 - `CAR_INFO_RATE_LIMIT_BACKOFF_MINUTES`, standard `240`
 - `CAR_INFO_BACKLOG_ENABLED`, standard `true`
-- `CAR_INFO_BACKLOG_MAX_PER_CYCLE`, standard `12`
-- `CAR_INFO_BACKLOG_DELAY_SECONDS`, standard minst `300`
+- `CAR_INFO_BACKLOG_MAX_PER_CYCLE`, standard `1000`
+- `CAR_INFO_BACKLOG_DELAY_SECONDS`, generisk fallback-delay
+- `CAR_INFO_SWEDISH_BACKLOG_DELAY_SECONDS`, standard `20`
+- `CAR_INFO_DANISH_BACKLOG_DELAY_SECONDS`, standard `60`
 
 ## Endepunkter
 

@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1178")
+APP_BUILD = os.getenv("APP_BUILD", "1179")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1179",
+        "date": "15.06.2026",
+        "headline": "Raskere svensk backlog",
+        "title": "Biluppgifter-kandidater prioriteres og kjoeres raskere",
+        "description": (
+            "Build 1179 gjoer nordisk biloppslag raskere for svensk backlog. Fibaro10 sorterer naa svensk-format "
+            "kandidater foran dansk-format kandidater, og oppslagsappen bruker provider-spesifikke pauser: 20 "
+            "sekunder for svenske Biluppgifter-oppslag og 60 sekunder for danske Tjekbil-oppslag. Rate-limit og "
+            "Cloudflare stopper fortsatt koeringen og setter global backoff."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): prioriterer svensk-format kandidater i car-info-kandidatlisten.",
+            "Nordisk biloppslag (car_info_lookup/app/main.py): legger provider-spesifikke backlog-pauser og oeker maks kandidater per syklus.",
+            "Konfigurasjon (.env.qnap.example, docker-compose.qnap.yml): setter nye standarder for svensk/dansk backlog-tempo.",
+            "Dokumentasjon (docs/car-info-oppslag.md, car_info_lookup/README.md): dokumenterer raskere svensk backlog og dansk moderasjon.",
+            "Buildlogg (build_log.py): registrerer build 1179.",
+        ],
+        "request": "Jeg onsker at vi blir ferdige med svenske backlogg snart, tror ikke vi trenger aa vaere saa forsiktige som naar vi hadde car.info.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Svenske kandidater behandles foer danske kandidater.",
+            "Svenske Biluppgifter-kall venter 20 sekunder mellom hvert kall.",
+            "Danske Tjekbil-kall venter 60 sekunder mellom hvert kall.",
+            "Backlog-syklus kan ta opptil 1000 kandidater og trenger derfor ikke stoppe etter 12.",
+        ],
+    },
     {
         "version": "1",
         "build": "1178",

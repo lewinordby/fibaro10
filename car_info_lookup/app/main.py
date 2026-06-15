@@ -48,8 +48,10 @@ REQUEST_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_REQUEST_DELAY_SECONDS", "
 RATE_LIMIT_BACKOFF_MINUTES = max(30, int(os.getenv("CAR_INFO_RATE_LIMIT_BACKOFF_MINUTES", "240")))
 TEXT_LIMIT = max(1000, int(os.getenv("CAR_INFO_TEXT_LIMIT", "12000")))
 BACKLOG_ENABLED = os.getenv("CAR_INFO_BACKLOG_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-BACKLOG_MAX_PER_CYCLE = max(1, min(100, int(os.getenv("CAR_INFO_BACKLOG_MAX_PER_CYCLE", "12"))))
+BACKLOG_MAX_PER_CYCLE = max(1, min(1000, int(os.getenv("CAR_INFO_BACKLOG_MAX_PER_CYCLE", "1000"))))
 BACKLOG_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_BACKLOG_DELAY_SECONDS", str(max(REQUEST_DELAY_SECONDS, 300)))))
+SWEDISH_BACKLOG_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_SWEDISH_BACKLOG_DELAY_SECONDS", "20")))
+DANISH_BACKLOG_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_DANISH_BACKLOG_DELAY_SECONDS", "60")))
 
 PROVIDER = "nordic-vehicle-lookup"
 app = FastAPI(title="Fibaro10 nordisk biloppslag")
@@ -178,6 +180,15 @@ def lookup_url(plate: str) -> str:
 
 def is_confirmed_foreign(data: dict[str, Any]) -> bool:
     return bool(data.get("confirmed_vehicle") or data.get("confirmed_swedish") or data.get("confirmed_danish"))
+
+
+def delay_for_country(country_code: str | None, fallback_seconds: int) -> int:
+    country = (country_code or "").upper()
+    if country == "S":
+        return SWEDISH_BACKLOG_DELAY_SECONDS
+    if country == "DK":
+        return DANISH_BACKLOG_DELAY_SECONDS
+    return fallback_seconds
 
 
 def fetch_swedish_vehicle(plate: str) -> tuple[int, str, dict[str, Any], str | None]:
@@ -326,8 +337,9 @@ async def run_once(limit: int = BATCH_SIZE, force: bool = False) -> dict[str, An
                     until = utcnow() + timedelta(minutes=RATE_LIMIT_BACKOFF_MINUTES)
                     set_state(backoff_until=until.isoformat(), last_error=error)
                     break
-                if REQUEST_DELAY_SECONDS and index < len(rows) - 1:
-                    await asyncio.sleep(REQUEST_DELAY_SECONDS)
+                delay_seconds = delay_for_country(data.get("country_code") or lookup_country_for_plate(plate), REQUEST_DELAY_SECONDS)
+                if delay_seconds and index < len(rows) - 1:
+                    await asyncio.sleep(delay_seconds)
 
             set_state(
                 running=False,
@@ -459,8 +471,11 @@ async def run_backlog_cycle(max_items: int = BACKLOG_MAX_PER_CYCLE, force: bool 
             status = "complete" if not candidate_count else "idle"
             message = "Ingen flere kandidater akkurat naa." if candidate_count else "Koeen er tom."
             break
-        if BACKLOG_DELAY_SECONDS and total_processed < max_items:
-            await asyncio.sleep(BACKLOG_DELAY_SECONDS)
+        last_result = (result.get("results") or [{}])[-1]
+        country_code = last_result.get("country_code") or lookup_country_for_plate(last_result.get("plate"))
+        delay_seconds = delay_for_country(country_code, BACKLOG_DELAY_SECONDS)
+        if delay_seconds and total_processed < max_items:
+            await asyncio.sleep(delay_seconds)
 
     payload = {
         "status": status,
@@ -545,6 +560,8 @@ async def health() -> dict[str, Any]:
             "backlog_enabled": BACKLOG_ENABLED,
             "backlog_max_per_cycle": BACKLOG_MAX_PER_CYCLE,
             "backlog_delay_seconds": BACKLOG_DELAY_SECONDS,
+            "swedish_backlog_delay_seconds": SWEDISH_BACKLOG_DELAY_SECONDS,
+            "danish_backlog_delay_seconds": DANISH_BACKLOG_DELAY_SECONDS,
         },
     }
 
@@ -574,7 +591,7 @@ async def api_run_plate(
 @app.post("/api/run-backlog")
 async def api_run_backlog(
     request: Request,
-    max_items: int = Query(BACKLOG_MAX_PER_CYCLE, ge=1, le=100),
+    max_items: int = Query(BACKLOG_MAX_PER_CYCLE, ge=1, le=1000),
     force: bool = Query(False),
     x_car_info_token: str | None = Header(None),
 ) -> dict[str, Any]:
