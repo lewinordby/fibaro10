@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1203")
+APP_BUILD = os.getenv("APP_BUILD", "1204")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1204",
+        "date": "15.06.2026",
+        "headline": "Oppgjørsdetalj fjerner støy rundt originalskjema",
+        "title": "Renere PDF-side uten dobbelt filnavn",
+        "description": (
+            "Build 1204 fullfører oppryddingen av detaljsiden ved originalskjemaet. Filnavn og filtype vises "
+            "ikke flere steder samtidig, og PDF-panelet har bare en kort tittel før dokumentet."
+        ),
+        "applications": [
+            "Desktop V2 (SettlementDetailPage.tsx): fjerner duplisert filnavn fra topp og PDF-toolbar.",
+            "Desktop V2 (styles.css): forenkler PDF-toolbar etter at ekstra metadata er fjernet.",
+            "Buildlogg (build_log.py): registrerer build 1204.",
+        ],
+        "request": "Gjør undersiden ved original-PDF-en ryddigere; den bruker fortsatt for mye plass og virker rotete.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Toppen viser bare oppgjørstype, periode og handlinger.",
+            "PDF-panelet viser bare tittelen Originalskjema.",
+            "Filnavn, parser, metode og sidetall ligger samlet i den kompakte venstrekolonnen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1203",

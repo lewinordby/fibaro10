@@ -147,7 +147,6 @@ export default function SettlementDetailPage({ domain = "parkering" }: { domain?
         <div>
           <Typography.Text className="eyebrow">{domain === "soling" ? "Solingsoppgjør" : "Parkeringsoppgjør"}</Typography.Text>
           <Typography.Title level={2}>{data.title}</Typography.Title>
-          <Typography.Text type="secondary">{data.subtitle}</Typography.Text>
         </div>
         <Space wrap>
           <Button href={data.original.previewUrl} target="_blank" rel="noreferrer" icon={<FileTextOutlined />}>
@@ -214,8 +213,6 @@ export default function SettlementDetailPage({ domain = "parkering" }: { domain?
         <section className="settlement-document-card focus" aria-label="Originalskjema">
           <div className="settlement-document-toolbar">
             <strong>Originalskjema</strong>
-            <span>{data.original.filename}</span>
-            <Tag>{data.original.contentType}</Tag>
           </div>
           <OriginalPreview previewKind={data.original.previewKind} previewUrl={data.original.previewUrl} filename={data.original.filename} />
         </section>
