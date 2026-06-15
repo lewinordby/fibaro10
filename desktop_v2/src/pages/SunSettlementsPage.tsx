@@ -45,17 +45,44 @@ function money(value: unknown): string {
   return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(numeric)} kr`;
 }
 
+const PERIOD_MONTHS: Record<string, number> = {
+  januar: 0,
+  februar: 1,
+  mars: 2,
+  april: 3,
+  mai: 4,
+  juni: 5,
+  juli: 6,
+  august: 7,
+  september: 8,
+  oktober: 9,
+  november: 10,
+  desember: 11,
+};
+
+function parsePeriodDate(row: ModuleRow): Date | null {
+  const isoText = typeof row.period_start === "string" ? row.period_start : "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoText)) {
+    const parsed = new Date(`${isoText}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const label = asText(row.period_label).toLowerCase();
+  const yearMatch = label.match(/\b(19\d{2}|20\d{2})\b/);
+  if (!yearMatch) return null;
+  const monthEntry = Object.entries(PERIOD_MONTHS).find(([name]) => label.includes(name));
+  if (!monthEntry) return null;
+  return new Date(Number(yearMatch[1]), monthEntry[1], 1);
+}
+
 function periodSortValue(row: ModuleRow): number {
-  const raw = asText(row.period_start || row.period_label);
-  const parsed = new Date(`${raw}T00:00:00`).getTime();
-  return Number.isFinite(parsed) ? parsed : 0;
+  return parsePeriodDate(row)?.getTime() ?? 0;
 }
 
 function yearKey(row: ModuleRow): string {
-  const raw = asText(row.period_start || row.period_label);
-  const parsed = new Date(`${raw}T00:00:00`);
-  if (!Number.isNaN(parsed.getTime())) return String(parsed.getFullYear());
-  const match = raw.match(/\b(19\d{2}|20\d{2})\b/);
+  const parsed = parsePeriodDate(row);
+  if (parsed) return String(parsed.getFullYear());
+  const match = asText(row.period_label).match(/\b(19\d{2}|20\d{2})\b/);
   return match?.[1] ?? "-";
 }
 

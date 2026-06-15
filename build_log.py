@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1205")
+APP_BUILD = os.getenv("APP_BUILD", "1206")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1206",
+        "date": "15.06.2026",
+        "headline": "Oppgjør sorteres med siste måned øverst",
+        "title": "Årsvalg viser nyeste bilag først",
+        "description": (
+            "Build 1206 retter sorteringen av oppgjørslistene. API-et sorterer nå på oppgjørsperiode, "
+            "og soloppgjørssiden tolker også norske månedsnavn robust hvis periodefeltene mangler."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): sorterer sol- og parkeringsoppgjør etter periodestart synkende og sender periodestart/periodeslutt i tabellkontrakten.",
+            "Desktop V2 (SunSettlementsPage.tsx): gjør årvalg og månedsrekkefølge robust mot norske månedsnavn.",
+            "Buildlogg (build_log.py): registrerer build 1206.",
+        ],
+        "request": "Sorter oppgjør slik at siste måned ligger øverst når siden åpnes og når man velger år.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Soloppgjør innen valgt år vises nyeste måned først.",
+            "Backend-listene for soling og parkering sorteres etter periode, ikke importtidspunkt.",
+            "Kortet Siste import bruker fortsatt faktisk siste importtidspunkt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1205",

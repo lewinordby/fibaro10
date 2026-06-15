@@ -17902,10 +17902,18 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
         await session.execute(
             select(SettlementImport)
             .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
-            .order_by(SettlementImport.imported_at.desc())
+            .order_by(SettlementImport.period_start.desc().nullslast(), SettlementImport.imported_at.desc())
             .limit(200)
         )
     ).scalars().all()
+    latest_import_settlement = (
+        await session.execute(
+            select(SettlementImport)
+            .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
+            .order_by(SettlementImport.imported_at.desc())
+            .limit(1)
+        )
+    ).scalars().first()
     changed_any = False
     for row in settlement_rows:
         changed_any = ensure_settlement_parsed(row) or changed_any
@@ -17924,7 +17932,6 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
             .where(SettlementImport.period_start.is_(None))
         )
     ).scalar_one()
-    latest_settlement = settlement_rows[0] if settlement_rows else None
     parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
     product_sales_summaries: Dict[int, Dict[str, Any]] = {}
     finance_summaries: Dict[int, Dict[str, Any]] = {}
@@ -17955,9 +17962,9 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
             api_card("Oppgjor importert", total_settlements, "stk", f"{parsed_period_count} perioder tolket", "sun2", href="/soling/oppgjor"),
             api_card(
                 "Siste import",
-                format_local_datetime(latest_settlement.imported_at) if latest_settlement else "-",
+                format_local_datetime(latest_import_settlement.imported_at) if latest_import_settlement else "-",
                 "",
-                latest_settlement.period_label if latest_settlement else "Ingen importerte oppgjor",
+                latest_import_settlement.period_label if latest_import_settlement else "Ingen importerte oppgjor",
                 "status",
                 href="/soling/oppgjor",
             ),
@@ -17972,6 +17979,8 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
                 "Solingsoppgjor",
                 [
                     "period_label",
+                    "period_start",
+                    "period_end",
                     "status",
                     "sum_check_status",
                     "sun_revenue_ex_vat",
@@ -18012,10 +18021,18 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
         await session.execute(
             select(SettlementImport)
             .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
-            .order_by(SettlementImport.imported_at.desc())
+            .order_by(SettlementImport.period_start.desc().nullslast(), SettlementImport.imported_at.desc())
             .limit(200)
         )
     ).scalars().all()
+    latest_import_settlement = (
+        await session.execute(
+            select(SettlementImport)
+            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+            .order_by(SettlementImport.imported_at.desc())
+            .limit(1)
+        )
+    ).scalars().first()
     changed_any = False
     for row in settlement_rows:
         changed_any = ensure_settlement_parsed(row) or changed_any
@@ -18034,7 +18051,6 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
             .where(SettlementImport.period_start.is_(None))
         )
     ).scalar_one()
-    latest_settlement = settlement_rows[0] if settlement_rows else None
     parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
     control_rows = []
     for row in settlement_rows[:36]:
@@ -18104,9 +18120,9 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
             ),
             api_card(
                 "Siste import",
-                format_local_datetime(latest_settlement.imported_at) if latest_settlement else "-",
+                format_local_datetime(latest_import_settlement.imported_at) if latest_import_settlement else "-",
                 "",
-                latest_settlement.period_label if latest_settlement else "Ingen importerte oppgjør",
+                latest_import_settlement.period_label if latest_import_settlement else "Ingen importerte oppgjør",
                 "status",
                 href="/parkering/oppgjor",
             ),
@@ -18133,6 +18149,8 @@ async def parking_settlement_module_payload(session) -> Dict[str, Any]:
                 "Parkeringsoppgjør",
                 [
                     "period_label",
+                    "period_start",
+                    "period_end",
                     "status",
                     "easypark_ex_vat",
                     "easypark_inc_vat_estimate",
