@@ -19171,23 +19171,9 @@ async def api_v2_parking_car_info_sync(request: Request, limit: int = Query(1, g
     forbidden = require_settings_access(request)
     if forbidden:
         return forbidden
-    started_at = local_now_naive()
     try:
         result = await asyncio.to_thread(car_info_lookup_request, "/api/run-once", {"limit": limit})
     except Exception as exc:
-        async with async_session() as session:
-            for job_name in CAR_INFO_IMPORT_JOB_BY_COUNTRY.values():
-                await record_import_job(
-                    session,
-                    job_name,
-                    ok=False,
-                    source="car_info_lookup",
-                    started_at=started_at,
-                    records_imported=0,
-                    records_total=0,
-                    message=str(exc),
-                )
-            await session.commit()
         return JSONResponse({"status": "error", "message": str(exc)}, status_code=502)
     return {"status": "ok", "message": "Nordisk biloppslag er startet/kjort.", "result": result}
 
@@ -21051,7 +21037,6 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
         return None
 
     selected = candidates[:CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN]
-    started_at = local_now_naive()
     results: list[Dict[str, Any]] = []
     errors: list[str] = []
     for plate in selected:
@@ -21068,20 +21053,6 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
             break
 
     ok = not errors
-    if errors and selected:
-        async with async_session() as session:
-            await record_import_job(
-                session,
-                car_info_import_job_name(None, selected[0]),
-                ok=False,
-                source=f"{source} -> nordisk auto",
-                started_at=started_at,
-                records_imported=0,
-                records_total=len(candidates),
-                message=f"Direkte biloppslag feilet: {errors[0]}",
-                raw={"triggered": selected, "candidates": candidates[:20], "results": results, "errors": errors},
-            )
-            await session.commit()
     return {"ok": ok, "candidates": candidates, "triggered": selected, "results": results, "errors": errors}
 
 

@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1183")
+APP_BUILD = os.getenv("APP_BUILD", "1184")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1184",
+        "date": "15.06.2026",
+        "headline": "Datakildestatus for Biluppgifter strammet inn",
+        "title": "Interne oppslagsfeil markerer ikke ekstern bilkilde som nede",
+        "description": (
+            "Build 1184 hindrer at interne feil mellom Fibaro10 og car_info_lookup blir logget som feil paa "
+            "Biluppgifter eller Tjekbil. De eksterne datakildene oppdateres naa av postback med faktisk "
+            "leverandorsvar. Hvis en lokal bilrad mangler, eller oppslagsappen midlertidig ikke svarer, skal "
+            "ikke det maskeres som at Biluppgifter.se eller Tjekbil.dk er nede."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): direkteutloeser etter SVV returnerer interne feil uten aa skrive ekstern datakildestatus.",
+            "Fibaro10 backend (main.py): manuell car-info-sync skriver ikke lenger feil paa begge eksterne leverandorer ved intern oppslagsapp-feil.",
+            "Buildlogg (build_log.py): registrerer build 1184.",
+        ],
+        "request": "Biluppgifter Sverige feiler naa.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ekstern kilde-status oppdateres bare naar leverandorsvaret postes tilbake til kjoretoyet.",
+            "Interne 404/connection-feil i oppslagsflyten gjor ikke Biluppgifter-raden rod.",
+        ],
+    },
     {
         "version": "1",
         "build": "1183",
