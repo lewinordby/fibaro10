@@ -130,6 +130,15 @@ function controlTone(status: string): "ok" | "warn" | "empty" {
   return "warn";
 }
 
+function FormulaItem({ label, value, kind = "neutral" }: { label: string; value: unknown; kind?: "income" | "cost" | "total" | "neutral" }) {
+  return (
+    <div className={`settlement-formula-item ${kind}`}>
+      <span>{label}</span>
+      <strong>{money(value)}</strong>
+    </div>
+  );
+}
+
 function SunSettlementRow({ row }: { row: SettlementRow }) {
   const percent = confidencePercent(row.parser_confidence);
   const href = pathFor(row);
@@ -139,44 +148,61 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
   const productTone = controlTone(productStatus);
   return (
     <Link className="settlement-ledger-row sun" to={href || "#"}>
-      <div className="settlement-ledger-identity">
-        <div className="settlement-ledger-title">
-          <FileTextOutlined />
-          <strong>{asText(row.period_label)}</strong>
+      <div className="sun-settlement-ledger-main">
+        <div className="sun-settlement-ledger-top">
+          <div className="settlement-ledger-identity">
+            <div className="settlement-ledger-title">
+              <FileTextOutlined />
+              <strong>{asText(row.period_label)}</strong>
+            </div>
+            <span>{asText(row.attachment_filename)}</span>
+            <small>{asText(row.imported_at)}</small>
+          </div>
+          <div className="settlement-ledger-state">
+            <ParseStatus row={row} />
+            <small>{percent === null ? "Ingen score" : `${percent} %`}</small>
+          </div>
+          <div className="settlement-ledger-payout">
+            <span>Utbetalt</span>
+            <strong>{money(row.payout_inc_vat)}</strong>
+            <small>{money(row.vat_25_percent)} mva</small>
+          </div>
         </div>
-        <span>{asText(row.attachment_filename)}</span>
-        <small>{asText(row.imported_at)}</small>
-      </div>
-      <div className="settlement-ledger-state">
-        <ParseStatus row={row} />
-        <small>{percent === null ? "Ingen score" : `${percent} %`}</small>
-      </div>
-      <div className={`settlement-source-check ${sunTone}`}>
-        <div className="settlement-source-check-head">
-          <strong>Sol</strong>
-          <span>{sunStatus}</span>
-        </div>
-        <div className="settlement-source-check-grid">
-          <Metric label="Skjema" value={money(row.sun_revenue_ex_vat)} />
-          <Metric label="System" value={money(row.sun_revenue_source_ex_vat)} tone={sunTone} />
-          <Metric label="Avvik" value={money(row.sun_revenue_diff_ex_vat)} tone={sunTone} />
-        </div>
-      </div>
-      <div className={`settlement-source-check ${productTone}`}>
-        <div className="settlement-source-check-head">
-          <strong>Produkt</strong>
-          <span>{productStatus}</span>
-        </div>
-        <div className="settlement-source-check-grid">
-          <Metric label="Skjema" value={money(row.product_sales_ex_vat)} />
-          <Metric label="System" value={money(row.product_sales_source_ex_vat)} tone={productTone} />
-          <Metric label="Avvik" value={money(row.product_sales_diff_ex_vat)} tone={productTone} />
+        <div className="settlement-formula-strip" aria-label="Regnestykke fra oppgjørsskjema">
+          <FormulaItem label="Sol" value={row.sun_revenue_ex_vat} kind="income" />
+          <FormulaItem label="Produkt" value={row.product_sales_ex_vat} kind="income" />
+          <FormulaItem label="Trans." value={row.transaction_fee_ex_vat} kind="cost" />
+          <FormulaItem label="Service" value={row.service_fee_ex_vat} kind="cost" />
+          <FormulaItem label="SMS" value={row.marketing_sms_fee_ex_vat} kind="cost" />
+          <FormulaItem label="E-post" value={row.marketing_email_fee_ex_vat} kind="cost" />
+          <FormulaItem label="Sum eks." value={row.sum_ex_vat} kind="total" />
+          <FormulaItem label="Mva" value={row.vat_25_percent} kind="neutral" />
+          <FormulaItem label="Utbet." value={row.payout_inc_vat} kind="total" />
         </div>
       </div>
-      <div className="settlement-ledger-payout">
-        <span>Utbet.</span>
-        <strong>{money(row.payout_inc_vat)}</strong>
-        <small>{asText(row.vat_25_percent)} mva</small>
+      <div className="sun-settlement-ledger-controls">
+        <div className={`settlement-source-check ${sunTone}`}>
+          <div className="settlement-source-check-head">
+            <strong>Sol</strong>
+            <span>{sunStatus}</span>
+          </div>
+          <div className="settlement-source-check-grid">
+            <Metric label="Skjema" value={money(row.sun_revenue_ex_vat)} />
+            <Metric label="System" value={money(row.sun_revenue_source_ex_vat)} tone={sunTone} />
+            <Metric label="Avvik" value={money(row.sun_revenue_diff_ex_vat)} tone={sunTone} />
+          </div>
+        </div>
+        <div className={`settlement-source-check ${productTone}`}>
+          <div className="settlement-source-check-head">
+            <strong>Produkt</strong>
+            <span>{productStatus}</span>
+          </div>
+          <div className="settlement-source-check-grid">
+            <Metric label="Skjema" value={money(row.product_sales_ex_vat)} />
+            <Metric label="System" value={money(row.product_sales_source_ex_vat)} tone={productTone} />
+            <Metric label="Avvik" value={money(row.product_sales_diff_ex_vat)} tone={productTone} />
+          </div>
+        </div>
       </div>
       <ArrowRightOutlined className="settlement-ledger-arrow" />
     </Link>
@@ -264,11 +290,8 @@ export default function SunSettlementsPage() {
           />
         </div>
         <div className="settlement-ledger-table-head sun">
-          <span>Oppgjør</span>
-          <span>Tolket</span>
-          <span>Sol</span>
-          <span>Produkt</span>
-          <span>Beløp</span>
+          <span>Oppgjør og skjema</span>
+          <span>Kontroll</span>
           <span />
         </div>
         <div className="settlement-ledger-list">

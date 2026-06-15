@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1194")
+APP_BUILD = os.getenv("APP_BUILD", "1195")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1195",
+        "date": "15.06.2026",
+        "headline": "Soloppgjor viser hele skjema-regnestykket i listen",
+        "title": "Oppgjorlisten har venstre sammendrag og hoyre kontrollfelt",
+        "description": (
+            "Build 1195 flytter Sol- og Produktkontroll helt til hoyre i soloppgjorlisten. Venstre side "
+            "viser periode, tolking, utbetalt belop og hele regnestykket fra oppgjor skjemaet med inntekter, "
+            "kostnader, sum eks. mva, mva og utbetaling."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): sender med markedsforing SMS og e-post i soloppgjorlisten slik at skjema-regnestykket er komplett.",
+            "Desktop V2 (SunSettlementsPage.tsx): bygger ny radstruktur med oppgjorssammendrag til venstre og Sol/Produkt-kontroll til hoyre.",
+            "Desktop V2 (styles.css): legger kompakt formelstripe og hoyrestilt kontrollsone for soloppgjor.",
+            "Buildlogg (build_log.py): registrerer build 1195.",
+        ],
+        "request": "Flytt Sol og Produkt til hoyre. Vis sum utbetalt sammen med dato og tolket, og ta med kostnader og inntekter fra hele oppgjor regnestykket.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Soloppgjorraden viser Sol, Produkt, Transaksjon, Service, SMS, E-post, Sum eks. mva, Mva og Utbetalt.",
+            "Tolking og utbetalt belop ligger sammen med periode og importinformasjon.",
+            "Sol- og Produktkontroll ligger samlet helt til hoyre.",
+        ],
+    },
     {
         "version": "1",
         "build": "1194",

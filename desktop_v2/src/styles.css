@@ -3416,7 +3416,88 @@
 
 .settlement-ledger-table-head.sun,
 .settlement-ledger-row.sun {
-  grid-template-columns: minmax(170px, 0.88fr) 54px minmax(190px, 1fr) minmax(190px, 1fr) 92px 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(390px, 0.58fr) 14px;
+}
+
+.settlement-ledger-row.sun {
+  min-height: 86px;
+}
+
+.sun-settlement-ledger-main {
+  min-width: 0;
+}
+
+.sun-settlement-ledger-top {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(110px, auto);
+  gap: 10px;
+  align-items: center;
+}
+
+.sun-settlement-ledger-top .settlement-ledger-payout {
+  text-align: right;
+}
+
+.settlement-formula-strip {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.settlement-formula-item {
+  min-width: 0;
+  padding: 3px 5px;
+  border: 1px solid #eaf0f7;
+  border-radius: 5px;
+  background: #f8fafc;
+}
+
+.settlement-formula-item span {
+  display: block;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 8px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.settlement-formula-item strong {
+  display: block;
+  margin-top: 1px;
+  overflow: hidden;
+  color: #111827;
+  font-size: 10.5px;
+  font-weight: 820;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-formula-item.income strong {
+  color: #b45309;
+}
+
+.settlement-formula-item.cost strong {
+  color: #dc2626;
+}
+
+.settlement-formula-item.total {
+  border-color: #dbeafe;
+  background: #eff6ff;
+}
+
+.settlement-formula-item.total strong {
+  color: #1d4ed8;
+}
+
+.sun-settlement-ledger-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
 }
 
 .settlement-ledger-row:hover {
@@ -4050,6 +4131,23 @@
   .settlement-command-grid,
   .settlement-ledger-row {
     grid-template-columns: 1fr;
+  }
+
+  .settlement-ledger-row.sun {
+    grid-template-columns: 1fr;
+  }
+
+  .sun-settlement-ledger-top {
+    grid-template-columns: 1fr;
+  }
+
+  .sun-settlement-ledger-top .settlement-ledger-payout {
+    text-align: left;
+  }
+
+  .settlement-formula-strip,
+  .sun-settlement-ledger-controls {
+    grid-template-columns: 1fr 1fr;
   }
 
   .settlement-ledger-table-head {
