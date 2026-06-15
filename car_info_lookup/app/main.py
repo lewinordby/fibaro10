@@ -190,6 +190,19 @@ def backoff_active() -> str | None:
     return None
 
 
+def state_has_legacy_lookup_data() -> bool:
+    payload = json.dumps(
+        {
+            "last_error": state.get("last_error"),
+            "last_url": state.get("last_url"),
+            "last_result": state.get("last_result"),
+        },
+        ensure_ascii=False,
+        default=str,
+    ).casefold()
+    return "car.info" in payload
+
+
 async def run_once(limit: int = BATCH_SIZE, force: bool = False) -> dict[str, Any]:
     if lock.locked():
         return {"status": "busy", "message": "Svensk biloppslag kjoerer allerede"}
@@ -413,8 +426,15 @@ async def startup() -> None:
     global worker_task
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     load_state()
-    if state.get("provider") != PROVIDER:
-        set_state(provider=PROVIDER, backoff_until=None, last_error=None, last_action="provider_changed")
+    if state.get("provider") != PROVIDER or state_has_legacy_lookup_data():
+        set_state(
+            provider=PROVIDER,
+            backoff_until=None,
+            last_error=None,
+            last_url=None,
+            last_result=None,
+            last_action="provider_changed",
+        )
     else:
         set_state(provider=PROVIDER)
     if worker_task is None:

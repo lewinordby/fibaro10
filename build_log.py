@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1176")
+APP_BUILD = os.getenv("APP_BUILD", "1177")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1177",
+        "date": "15.06.2026",
+        "headline": "Gammel svensk lookup-state ryddes",
+        "title": "Biluppgifter-oppslag starter uten gammel provider-backoff",
+        "description": (
+            "Build 1177 rydder gammel oppslagsstate automatisk ved oppstart hvis state-filen fortsatt inneholder "
+            "referanser til tidligere svensk kilde. Dette hindrer at en gammel rate-limit/backoff blokkerer nye "
+            "Biluppgifter-oppslag etter deploy."
+        ),
+        "applications": [
+            "Svensk biloppslag (car_info_lookup/app/main.py): nullstiller gammel last_error, last_url, last_result og backoff ved provider-opprydding.",
+            "Buildlogg (build_log.py): registrerer build 1177.",
+        ],
+        "request": "Glem car info.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Health/state viser ikke lenger gammel ekstern kilde etter container-restart.",
+            "Gammel backoff kan ikke stoppe Biluppgifter-kjoering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1176",
