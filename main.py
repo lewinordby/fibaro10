@@ -21197,6 +21197,10 @@ def compact_plate(value: Optional[str]) -> str:
     return re.sub(r"[^A-Za-z0-9]", "", value or "").upper()
 
 
+def compact_plate_sql(column):
+    return func.upper(func.regexp_replace(column, r"[^A-Za-z0-9]", "", "g"))
+
+
 SWEDISH_LICENSE_PLATE_REGEX = re.compile(r"^[A-HJ-PR-UW-Z]{3}[0-9]{2}([0-9]|[A-HJ-NPR-UW-Z])$")
 SWEDISH_LICENSE_PLATE_SQL_REGEX = r"^[A-HJ-PR-UW-Z]{3}[0-9]{2}([0-9]|[A-HJ-NPR-UW-Z])$"
 DANISH_LICENSE_PLATE_REGEX = re.compile(r"^[A-Z]{2}[0-9]{5}$")
@@ -21548,9 +21552,30 @@ async def svv_candidate_plates(session, limit: int) -> list[str]:
     return [plate for plate in rows if compact_plate(plate)]
 
 
+async def parking_vehicle_by_plate_or_compact(session, plate: str) -> Optional[ParkingVehicle]:
+    plate_value = compact_plate(plate)
+    if not plate_value:
+        return None
+    vehicle = (
+        await session.execute(
+            select(ParkingVehicle).where(ParkingVehicle.plate == plate_value)
+        )
+    ).scalars().first()
+    if vehicle:
+        return vehicle
+    return (
+        await session.execute(
+            select(ParkingVehicle)
+            .where(compact_plate_sql(ParkingVehicle.plate) == plate_value)
+            .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+            .limit(1)
+        )
+    ).scalars().first()
+
+
 async def upsert_vehicle_svv_data(session, plate: str, raw: Dict[str, Any], status_code: int = 200, error: Optional[str] = None) -> bool:
     plate_value = compact_plate(plate)
-    vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
+    vehicle = await parking_vehicle_by_plate_or_compact(session, plate_value)
     if not vehicle:
         return False
     now = datetime.utcnow()
@@ -21562,9 +21587,10 @@ async def upsert_vehicle_svv_data(session, plate: str, raw: Dict[str, Any], stat
     if status_code != 200 or not raw:
         return False
     values = svv_detail_values(plate_value, raw)
-    detail = (await session.execute(select(ParkingVehicleDetails).where(ParkingVehicleDetails.plate == plate_value))).scalars().first()
+    values["plate"] = vehicle.plate
+    detail = (await session.execute(select(ParkingVehicleDetails).where(ParkingVehicleDetails.plate == vehicle.plate))).scalars().first()
     if not detail:
-        detail = ParkingVehicleDetails(plate=plate_value)
+        detail = ParkingVehicleDetails(plate=vehicle.plate)
         session.add(detail)
     for key, value in values.items():
         setattr(detail, key, value)
@@ -22593,12 +22619,13 @@ def vehicle_car_info_due_condition():
 
 
 def vehicle_car_info_candidate_condition():
+    compact = compact_plate_sql(ParkingVehicle.plate)
     return and_(
         ParkingVehicle.svv_fetched_at.isnot(None),
         ParkingVehicleDetails.plate.is_(None),
         or_(
-            func.upper(ParkingVehicle.plate).op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX),
-            func.upper(ParkingVehicle.plate).op("~")(DANISH_LICENSE_PLATE_SQL_REGEX),
+            compact.op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX),
+            compact.op("~")(DANISH_LICENSE_PLATE_SQL_REGEX),
         ),
         vehicle_car_info_due_condition(),
     )
@@ -22606,10 +22633,11 @@ def vehicle_car_info_candidate_condition():
 
 def vehicle_car_info_country_condition(country: Optional[str]):
     key = (country or "").strip().upper()
+    compact = compact_plate_sql(ParkingVehicle.plate)
     if key in {"S", "SE", "SWE", "SVERIGE", "SWEDEN"}:
-        return func.upper(ParkingVehicle.plate).op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX)
+        return compact.op("~")(SWEDISH_LICENSE_PLATE_SQL_REGEX)
     if key in {"DK", "DANMARK", "DENMARK"}:
-        return func.upper(ParkingVehicle.plate).op("~")(DANISH_LICENSE_PLATE_SQL_REGEX)
+        return compact.op("~")(DANISH_LICENSE_PLATE_SQL_REGEX)
     return None
 
 
@@ -22889,7 +22917,7 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
 
     now = datetime.utcnow()
     async with async_session() as session:
-        vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
+        vehicle = await parking_vehicle_by_plate_or_compact(session, plate_value)
         if not vehicle:
             return JSONResponse({"detail": "Kjoretoy ikke funnet"}, status_code=404)
         vehicle.car_info_fetched_at = now
@@ -22916,7 +22944,8 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
             records_total=1,
             message=f"{plate_value}: {car_info_status_label(data.status, data.data)}",
             raw={
-                "plate": plate_value,
+                "plate": vehicle.plate,
+                "lookup_plate": plate_value if vehicle.plate != plate_value else None,
                 "status": data.status,
                 "confirmed_swedish": car_info_confirmed_swedish(data.data),
                 "confirmed_foreign": car_info_confirmed_foreign(data.data),
@@ -22929,7 +22958,8 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
     clear_summary_cache("parking")
     return {
         "status": "ok",
-        "plate": plate_value,
+        "plate": vehicle.plate,
+        "lookup_plate": plate_value if vehicle.plate != plate_value else None,
         "car_info_status": data.status,
         "confirmed_swedish": car_info_confirmed_swedish(data.data),
         "confirmed_foreign": car_info_confirmed_foreign(data.data),

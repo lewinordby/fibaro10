@@ -1,6 +1,7 @@
 import unittest
 
 from car_info_lookup.app.parsing import (
+    compact_plate,
     is_danish_license_plate,
     is_supported_foreign_license_plate,
     is_swedish_license_plate,
@@ -17,6 +18,8 @@ class NordicVehicleLookupTests(unittest.TestCase):
         self.assertFalse(is_swedish_license_plate("DP12345"))
         self.assertFalse(is_swedish_license_plate("ABC12O"))
         self.assertTrue(is_supported_foreign_license_plate("HWN31L"))
+        self.assertEqual(compact_plate("LÖBK957"), "LBK957")
+        self.assertTrue(is_swedish_license_plate("LÖBK957"))
 
     def test_danish_license_plate_filter(self) -> None:
         self.assertTrue(is_danish_license_plate("DY71543"))

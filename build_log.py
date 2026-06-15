@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1206")
+APP_BUILD = os.getenv("APP_BUILD", "1207")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1207",
+        "date": "15.06.2026",
+        "headline": "Nordiske biloppslag finner skilt med spesialtegn",
+        "title": "Svenske og danske fallback-oppslag bruker samme kompakte nokkel",
+        "description": (
+            "Build 1207 retter en feil der EasyPark-skilt med ikke-ASCII-bokstaver eller andre "
+            "ikke-ASCII-tegn kunne ligge i kjoretoy-tabellen med original tekst, mens SVV og nordisk oppslag brukte "
+            "kompakt registreringsnummer. Resultatet var at car_info_lookup fant eller forsokte aa hente data, men "
+            "Fibaro10 svarte 404 ved lagring."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): finner kjoretoy paa eksakt plate eller kompakt plate ved SVV-lagring og nordisk postback.",
+            "Fibaro10 backend (main.py): bruker kompakt plateuttrykk i svenske/danske kandidatfilter, slik at backloggen ser samme skilt som Python-oppslaget.",
+            "Tester (test_car_info_lookup.py): dekker konkret svensk skilt med spesialtegn fra EasyPark-data.",
+            "Buildlogg (build_log.py): registrerer build 1207.",
+        ],
+        "request": "Hvorfor fungerer ikke innlesingen av svenske og danske biler?",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Direkte nordisk oppslag feiler ikke lenger med 404 naar EasyPark-raden har spesialtegn i registreringsnummeret.",
+            "SVV-status lagres paa riktig kjoretoyrad selv om oppslagsnokkelen er kompakt.",
+            "Backloggen for Biluppgifter og Tjekbil bruker samme normalisering som runtime-oppslaget.",
+        ],
+    },
     {
         "version": "1",
         "build": "1206",
