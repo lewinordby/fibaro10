@@ -103,18 +103,20 @@ function SettlementValueTile({ row, showControl = false }: { row: SettlementFiel
   const status = valueStatus(row, showControl);
   const hasControl = showControl && row.expected !== undefined;
   return (
-    <div className={`settlement-value-tile ${status}`}>
-      <div className="settlement-value-title">
-        <span>{row.label}</span>
-        {confidenceTag(row.confidence)}
+    <div className={`settlement-value-row ${status}`}>
+      <div className="settlement-value-main">
+        <div className="settlement-value-title">
+          <span>{row.label}</span>
+          {confidenceTag(row.confidence)}
+        </div>
+        {hasControl ? (
+          <div className="settlement-value-control">
+            <span>{row.expectedLabel || "Beregnet"} {moneyValue(row.expected)}</span>
+            <b>Avvik {signedMoneyValue(row.difference)}</b>
+          </div>
+        ) : null}
       </div>
       <strong>{moneyValue(row.value)}</strong>
-      {hasControl ? (
-        <div className="settlement-value-control">
-          <span>{row.expectedLabel || "Beregnet"} {moneyValue(row.expected)}</span>
-          <b>Avvik {signedMoneyValue(row.difference)}</b>
-        </div>
-      ) : null}
     </div>
   );
 }

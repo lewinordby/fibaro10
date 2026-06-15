@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1201")
+APP_BUILD = os.getenv("APP_BUILD", "1202")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1202",
+        "date": "15.06.2026",
+        "headline": "Oppgjørsdetalj viser leste verdier som kompakt liste",
+        "title": "Originalskjema får mindre verdipanel",
+        "description": (
+            "Build 1202 gjør detaljsiden for oppgjør mer plassgjerrig. De maskinleste beløpene vises som "
+            "kompakte linjer i stedet for store bokser, slik at originalskjemaet får mer effektiv plass. "
+            "Historiske Sun2 produktsalg for mai-desember 2025 er også hentet inn via scraperen."
+        ),
+        "applications": [
+            "Desktop V2 (SettlementDetailPage.tsx): endrer leste skjemafelter fra store bokser til kompakte linjer.",
+            "Desktop V2 (styles.css): smalner verdipanelet og reduserer padding, fontstørrelse og radavstand.",
+            "Drift/data: importerte Sun2 produktsalg for mai, juni, juli, august, september, oktober, november og desember 2025.",
+            "Buildlogg (build_log.py): registrerer build 1202.",
+        ],
+        "request": "Forklar hvorfor produkt 2025 manglet, les inn tallene hvis de finnes, og gjør tallene på originalskjema-siden mye mindre eller som liste.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Maskinleste beløp på oppgjørsdetaljen vises nå som kompakte listeverdier.",
+            "Verdipanelet er smalere, og originalskjemaet får mer plass.",
+            "Produktsalg for alle importerte 2025-oppgjør er hentet fra Sun2 og postet til Fibaro10.",
+            "Produktkontrollen for mai-desember 2025 er verifisert OK med 0 i avvik.",
+        ],
+    },
     {
         "version": "1",
         "build": "1201",

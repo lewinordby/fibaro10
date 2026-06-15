@@ -3013,7 +3013,7 @@
 
 .settlement-document-layout {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 14px;
   align-items: stretch;
   min-height: calc(100vh - 170px);
@@ -3045,41 +3045,50 @@
 
 .settlement-read-card .ant-card-body {
   display: grid;
-  gap: 13px;
+  gap: 10px;
   max-height: calc(100vh - 228px);
-  padding: 12px;
+  padding: 10px 11px;
   overflow: auto;
 }
 
 .settlement-read-section {
   display: grid;
-  gap: 7px;
+  gap: 5px;
 }
 
 .settlement-value-list {
   display: grid;
-  gap: 7px;
+  gap: 0;
+  border-top: 1px solid #edf2f7;
 }
 
-.settlement-value-tile {
-  padding: 8px 9px;
-  border: 1px solid #e5ebf4;
-  border-radius: 7px;
-  background: #ffffff;
+.settlement-value-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  padding: 6px 0;
+  border-bottom: 1px solid #edf2f7;
 }
 
-.settlement-value-tile.ok {
-  border-color: #bbf7d0;
-  background: #fbfefc;
+.settlement-value-row:last-child {
+  border-bottom: 0;
 }
 
-.settlement-value-tile.warn {
-  border-color: #fecaca;
-  background: #fff8f8;
+.settlement-value-row.ok > strong {
+  color: #15803d;
 }
 
-.settlement-value-tile.missing {
-  border-style: dashed;
+.settlement-value-row.warn > strong {
+  color: #dc2626;
+}
+
+.settlement-value-row.missing > strong {
+  color: #94a3b8;
+}
+
+.settlement-value-main {
+  min-width: 0;
 }
 
 .settlement-value-title {
@@ -3093,8 +3102,8 @@
 .settlement-value-title span {
   overflow: hidden;
   color: #64748b;
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 9.5px;
+  font-weight: 760;
   letter-spacing: 0;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -3106,29 +3115,28 @@
   margin-inline-end: 0;
 }
 
-.settlement-value-tile > strong {
+.settlement-value-row > strong {
   display: block;
-  margin-top: 5px;
   color: var(--ink);
-  font-size: 18px;
-  font-weight: 820;
-  line-height: 1.05;
+  font-size: 12.5px;
+  font-weight: 780;
+  line-height: 1.15;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .settlement-value-control {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 7px;
-  padding-top: 6px;
-  border-top: 1px solid #eef2f7;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-top: 3px;
 }
 
 .settlement-value-control span,
 .settlement-value-control b {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
