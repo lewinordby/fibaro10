@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined, DownloadOutlined, FileTextOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Space, Tag, Typography } from "antd";
+import { Alert, Button, Space, Tag, Typography } from "antd";
 import { Link, useParams } from "react-router-dom";
 import { fetchSettlementDetail, fetchSunSettlementDetail, type SettlementField, type SettlementSection } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
@@ -99,13 +99,14 @@ function valueStatus(row: SettlementField, showControl: boolean): "ok" | "warn" 
   return "plain";
 }
 
-function SettlementValueTile({ row, showControl = false }: { row: SettlementField; showControl?: boolean }) {
+function SettlementValueRow({ row, showControl = false }: { row: SettlementField; showControl?: boolean }) {
   const status = valueStatus(row, showControl);
-  const hasControl = showControl && row.expected !== undefined;
+  const hasControl = showControl && row.expected !== undefined && row.expected !== null;
   return (
-    <div className={`settlement-value-row ${status}`}>
+    <div className={`settlement-value-row ${status}${hasControl ? " has-control" : ""}`}>
       <div className="settlement-value-main">
         <div className="settlement-value-title">
+          {showControl ? <span className="settlement-value-status" aria-hidden="true" /> : null}
           <span>{row.label}</span>
           {confidenceTag(row.confidence)}
         </div>
@@ -136,6 +137,9 @@ export default function SettlementDetailPage({ domain = "parkering" }: { domain?
   const amountRows = formSection?.rows.filter((row) => row.group === "amount") ?? [];
   const controlRows = formSection?.rows.filter((row) => row.group === "control") ?? [];
   const confidence = fieldByKey(parserSection, "confidence");
+  const parser = fieldByKey(parserSection, "parser");
+  const parserMethod = fieldByKey(parserSection, "method");
+  const pages = fieldByKey(parserSection, "pages_count");
 
   return (
     <Space direction="vertical" size={12} className="page-stack settlement-detail-page">
@@ -160,48 +164,61 @@ export default function SettlementDetailPage({ domain = "parkering" }: { domain?
 
       <div className="settlement-document-layout">
         <aside className="settlement-read-panel">
-          <Card
-            className="settlement-read-card"
-            title="Lest fra skjema"
-            extra={
-              <Space size={6}>
-                <Tag>{data.original.sizeLabel}</Tag>
-                {confidenceTag(numberValue(confidence?.value))}
-              </Space>
-            }
-          >
+          <section className="settlement-read-card" aria-label="Leste verdier fra oppgjørsskjema">
+            <div className="settlement-read-head">
+              <div>
+                <span>Lest fra skjema</span>
+                <strong>{data.original.sizeLabel}</strong>
+              </div>
+              {confidenceTag(numberValue(confidence?.value))}
+            </div>
             <div className="settlement-read-section">
-              <Typography.Text className="eyebrow">Aktuelle beløp</Typography.Text>
+              <div className="settlement-read-section-title">Beløp</div>
               <div className="settlement-value-list">
                 {amountRows.map((row) => (
-                  <SettlementValueTile key={row.field} row={row} showControl={row.expected !== undefined} />
+                  <SettlementValueRow key={row.field} row={row} showControl={row.expected !== undefined} />
                 ))}
               </div>
             </div>
 
             <div className="settlement-read-section">
-              <Typography.Text className="eyebrow">Sumkontroll</Typography.Text>
+              <div className="settlement-read-section-title">Sumkontroll</div>
               <div className="settlement-value-list">
                 {controlRows.map((row) => (
-                  <SettlementValueTile key={row.field} row={row} showControl />
+                  <SettlementValueRow key={row.field} row={row} showControl />
                 ))}
               </div>
             </div>
-          </Card>
+
+            <dl className="settlement-file-facts">
+              <div>
+                <dt>Fil</dt>
+                <dd title={data.original.filename}>{data.original.filename}</dd>
+              </div>
+              <div>
+                <dt>Parser</dt>
+                <dd>{displayValue(parser?.value)}</dd>
+              </div>
+              <div>
+                <dt>Metode</dt>
+                <dd>{displayValue(parserMethod?.value)}</dd>
+              </div>
+              <div>
+                <dt>Sider</dt>
+                <dd>{displayValue(pages?.value)}</dd>
+              </div>
+            </dl>
+          </section>
         </aside>
 
-        <Card
-          className="settlement-document-card focus"
-          title="Originalskjema"
-          extra={
-            <Space size={8} wrap>
-              <Tag>{data.original.contentType}</Tag>
-              <Tag>{data.original.filename}</Tag>
-            </Space>
-          }
-        >
+        <section className="settlement-document-card focus" aria-label="Originalskjema">
+          <div className="settlement-document-toolbar">
+            <strong>Originalskjema</strong>
+            <span>{data.original.filename}</span>
+            <Tag>{data.original.contentType}</Tag>
+          </div>
           <OriginalPreview previewKind={data.original.previewKind} previewUrl={data.original.previewUrl} filename={data.original.filename} />
-        </Card>
+        </section>
       </div>
     </Space>
   );

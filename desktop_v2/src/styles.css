@@ -2805,14 +2805,15 @@
 }
 
 .settlement-document-card.focus .settlement-original-frame {
-  min-height: calc(100vh - 228px);
+  height: 100%;
+  min-height: calc(100vh - 195px);
   border: 0;
   border-radius: 0 0 8px 8px;
 }
 
 .settlement-document-card.focus .settlement-original-image {
-  min-height: calc(100vh - 228px);
-  max-height: calc(100vh - 228px);
+  min-height: calc(100vh - 195px);
+  max-height: calc(100vh - 195px);
   border: 0;
   border-radius: 0 0 8px 8px;
   background: #f8fafc;
@@ -3013,10 +3014,10 @@
 
 .settlement-document-layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 292px minmax(0, 1fr);
+  gap: 12px;
   align-items: stretch;
-  min-height: calc(100vh - 170px);
+  min-height: calc(100vh - 158px);
 }
 
 .settlement-read-panel {
@@ -3026,34 +3027,54 @@
 .settlement-read-card {
   position: sticky;
   top: 82px;
+  display: grid;
+  gap: 12px;
+  align-self: start;
+  max-height: calc(100vh - 178px);
+  padding: 11px 12px;
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: #ffffff;
   box-shadow: 0 7px 18px rgba(15, 23, 42, 0.035);
 }
 
-.settlement-read-card .ant-card-head {
-  min-height: 42px;
-  padding: 0 12px;
-  border-bottom-color: #edf2f7;
+.settlement-read-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #edf2f7;
 }
 
-.settlement-read-card .ant-card-head-title {
-  color: #111827;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.settlement-read-card .ant-card-body {
+.settlement-read-head > div {
   display: grid;
-  gap: 10px;
-  max-height: calc(100vh - 228px);
-  padding: 10px 11px;
-  overflow: auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settlement-read-head span,
+.settlement-read-section-title {
+  color: #111827;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.settlement-read-head strong {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settlement-read-section {
   display: grid;
-  gap: 5px;
+  gap: 6px;
 }
 
 .settlement-value-list {
@@ -3065,7 +3086,7 @@
 .settlement-value-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 10px;
   align-items: start;
   padding: 6px 0;
   border-bottom: 1px solid #edf2f7;
@@ -3094,12 +3115,12 @@
 .settlement-value-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
-.settlement-value-title span {
+.settlement-value-title span:not(.settlement-value-status) {
+  flex: 1 1 auto;
   overflow: hidden;
   color: #64748b;
   font-size: 9.5px;
@@ -3110,6 +3131,26 @@
   white-space: nowrap;
 }
 
+.settlement-value-status {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.settlement-value-row.ok .settlement-value-status {
+  background: #16a34a;
+}
+
+.settlement-value-row.warn .settlement-value-status {
+  background: #dc2626;
+}
+
+.settlement-value-row.missing .settlement-value-status {
+  background: #94a3b8;
+}
+
 .settlement-value-title .ant-tag {
   flex: 0 0 auto;
   margin-inline-end: 0;
@@ -3118,7 +3159,7 @@
 .settlement-value-row > strong {
   display: block;
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 780;
   line-height: 1.15;
   text-align: right;
@@ -3129,7 +3170,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 4px 8px;
+  gap: 3px 7px;
   margin-top: 3px;
 }
 
@@ -3151,6 +3192,42 @@
   font-weight: 800;
 }
 
+.settlement-file-facts {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid #edf2f7;
+}
+
+.settlement-file-facts div {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+
+.settlement-file-facts dt,
+.settlement-file-facts dd {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+
+.settlement-file-facts dt {
+  color: #94a3b8;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.settlement-file-facts dd {
+  overflow: hidden;
+  color: #475569;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .settlement-document-card {
   position: sticky;
   top: 82px;
@@ -3161,26 +3238,35 @@
 
 .settlement-document-card.focus {
   position: static;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
+  overflow: hidden;
+  background: #ffffff;
 }
 
-.settlement-document-card .ant-card-body {
-  padding: 10px;
+.settlement-document-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #edf2f7;
 }
 
-.settlement-document-card.focus .ant-card-head {
-  min-height: 42px;
-  padding: 0 12px;
-}
-
-.settlement-document-card.focus .ant-card-head-title {
-  font-size: 14px;
+.settlement-document-toolbar strong {
+  color: #111827;
+  font-size: 13px;
   font-weight: 800;
 }
 
-.settlement-document-card.focus .ant-card-body {
-  min-height: calc(100vh - 226px);
-  padding: 0;
+.settlement-document-toolbar span {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settlement-field-card {
@@ -4262,11 +4348,8 @@
   }
 
   .settlement-read-card {
-    position: static;
-  }
-
-  .settlement-read-card .ant-card-body {
     max-height: none;
+    position: static;
   }
 
   .settlement-document-card {

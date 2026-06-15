@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1202")
+APP_BUILD = os.getenv("APP_BUILD", "1203")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1203",
+        "date": "15.06.2026",
+        "headline": "Oppgjørsdetalj får renere dokumentvisning",
+        "title": "Original-PDF får hovedplassen",
+        "description": (
+            "Build 1203 rydder detaljsiden for oppgjør videre. De leste verdiene er flyttet til en smal "
+            "inspektørkolonne uten store kort, tomme kontrollinjer fjernes, og originalskjemaet vises som "
+            "en roligere dokumentflate med diskret filinformasjon."
+        ),
+        "applications": [
+            "Desktop V2 (SettlementDetailPage.tsx): erstatter Ant Design-kortene med en egen dokumentlayout for originalskjema og leste verdier.",
+            "Desktop V2 (styles.css): fjerner gamle kortregler, strammer inspektørkolonnen og lar PDF-flaten bruke mer høyde og bredde.",
+            "Buildlogg (build_log.py): registrerer build 1203.",
+        ],
+        "request": "Rydd opp i undersiden ved original-PDF-en; verdiene som er lest ut bruker fortsatt for mye plass og siden oppleves uryddig.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Leste beløp og sumkontroll vises som kompakte linjer i en smal inspektørkolonne.",
+            "Kontrollinfo vises bare når det faktisk finnes et beregnet sammenligningsgrunnlag.",
+            "Filnavn, parser, metode og sidetall er flyttet til små tekstlinjer nederst i kolonnen.",
+            "Originalskjemaet har bare en diskret toolbar og mer sammenhengende PDF-flate.",
+        ],
+    },
     {
         "version": "1",
         "build": "1202",
