@@ -86,7 +86,7 @@ done
 [ -d car_info_lookup/data ] && mkdir -p "`$backup_dir/car_info_lookup" && cp -a car_info_lookup/data "`$backup_dir/car_info_lookup/data"
 [ -d sun2_session_scraper/data ] && mkdir -p "`$backup_dir/sun2_session_scraper" && cp -a sun2_session_scraper/data "`$backup_dir/sun2_session_scraper/data"
 [ -d axis_camera_snapshots/data ] && mkdir -p "`$backup_dir/axis_camera_snapshots" && cp -a axis_camera_snapshots/data "`$backup_dir/axis_camera_snapshots/data"
-legacy_sun2_dir="`$RemoteDir/../sun2_session_scraper"
+legacy_sun2_dir="$RemoteDir/../sun2_session_scraper"
 [ -f "`$legacy_sun2_dir/.env" ] && mkdir -p "`$backup_dir/sun2_session_scraper" && cp -p "`$legacy_sun2_dir/.env" "`$backup_dir/sun2_session_scraper/.env"
 [ -d "`$legacy_sun2_dir/data" ] && mkdir -p "`$backup_dir/sun2_session_scraper" && cp -a "`$legacy_sun2_dir/data" "`$backup_dir/sun2_session_scraper/data"
 git fetch origin "$Branch"
