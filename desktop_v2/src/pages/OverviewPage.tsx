@@ -334,6 +334,7 @@ function DatasourceList({ services }: { services: ServiceStatus[] }) {
         <List.Item>
           <Space>
             {statusIcon(item.status)}
+            {item.sourceNo ? <span className="status-source-number">#{item.sourceNo}</span> : null}
             <span>{item.label}</span>
           </Space>
           <Typography.Text type="secondary">{item.detail}</Typography.Text>

@@ -33,6 +33,7 @@
         .badge.ok { background:#dffaf2; color:var(--ok); border-color:#99f6e4; }
         .badge.warn { background:#ffedd5; color:var(--warn); border-color:#fed7aa; }
         .badge.bad { background:#fff1f2; color:var(--bad); border-color:#fecdd3; }
+        .job-number { display:inline-flex; align-items:center; justify-content:center; min-width:2.1rem; margin-right:.45rem; padding:.12rem .45rem; border:1px solid #dbe3ee; border-radius:999px; background:#f8fafc; color:#64748b; font-size:.72rem; font-weight:850; }
         .job-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; margin-top:.8rem; }
         .mini { background:#f8fafc; border:1px solid #edf1f6; border-radius:7px; padding:.55rem .62rem; min-width:0; }
         .mini span { display:block; color:var(--muted); font-size:.72rem; font-weight:750; }
@@ -72,7 +73,7 @@
             <article class="job-card {{ row.status }}">
                 <div class="job-top">
                     <div>
-                        <div class="job-title">{{ row.title }}</div>
+                        <div class="job-title"><span class="job-number">#{{ row.source_no }}</span>{{ row.title }}</div>
                         <div class="job-meta">{{ row.category }} · {{ row.source or "-" }}</div>
                     </div>
                     <span class="badge {{ row.status }}">{{ row.status_text }}</span>
@@ -100,6 +101,7 @@
                     <thead>
                         <tr>
                             <th>Tid</th>
+                            <th>Nr</th>
                             <th>Jobb</th>
                             <th>Status</th>
                             <th>Poster</th>
@@ -110,6 +112,7 @@
                         {% for run in runs %}
                         <tr>
                             <td>{% if run.finished_at %}{{ run.finished_at.strftime("%d.%m.%Y %H:%M") }}{% else %}-{% endif %}</td>
+                            <td class="muted">#{{ source_numbers.get(run.job_name, "-") }}</td>
                             <td>{{ run.title or run.job_name }}</td>
                             <td><span class="badge {% if run.ok %}ok{% else %}bad{% endif %}">{% if run.ok %}OK{% else %}Feil{% endif %}</span></td>
                             <td class="muted">{{ run.records_imported if run.records_imported is not none else "-" }}{% if run.records_total is not none %} / {{ run.records_total }}{% endif %}</td>
@@ -117,7 +120,7 @@
                         </tr>
                         {% endfor %}
                         {% if not runs %}
-                        <tr><td colspan="5" class="muted">Ingen nye kjøringer logget ennå. Eksisterende data vises likevel i kortene over.</td></tr>
+                        <tr><td colspan="6" class="muted">Ingen nye kjøringer logget ennå. Eksisterende data vises likevel i kortene over.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>

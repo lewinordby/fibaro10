@@ -252,6 +252,7 @@ function labelize(column: string): string {
     clean_area_m2: "Areal m²",
     rssi: "RSSI",
     title: "Tittel",
+    source_no: "Nr",
     category: "Kategori",
     status: "Status",
     status_text: "Status",

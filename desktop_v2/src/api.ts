@@ -19,6 +19,7 @@ export type LatestItem = {
 };
 
 export type ServiceStatus = {
+  sourceNo?: number | null;
   jobName?: string;
   label: string;
   status: "ok" | "warn" | "bad" | "unknown";

@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1207")
+APP_BUILD = os.getenv("APP_BUILD", "1208")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1208",
+        "date": "15.06.2026",
+        "headline": "Datakilder får faste referansenummer",
+        "title": "Datakildelister viser Nr for enklere feilsøking",
+        "description": (
+            "Build 1208 gir alle definerte datakilder et fast nummer basert paa definisjonsrekkefolgen. "
+            "Nummeret vises i V2 statusoversikt, admin/datakilder-tabeller og klassisk datakildeside, slik at "
+            "det er enklere aa henvise presist til for eksempel Tjekbil Danmark."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger source_no paa importstatus-rader og API-responsen for statusoversikten.",
+            "Desktop V2 (OverviewPage.tsx, api.ts, ModulePage.tsx): viser nummerbrikke og tabellkolonnen Nr.",
+            "Desktop V2 CSS (styles.css): styler datakildenummer kompakt.",
+            "Klassisk datakildeside (templates/import_status.html): viser nummer paa kort og i historikktabellen.",
+            "Buildlogg (build_log.py): registrerer build 1208.",
+        ],
+        "request": "Hva med Tjekbil Danmark, og kan alle datakilder faa nummer saa de er lettere aa henvise til?",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Tjekbil Danmark kan identifiseres med fast datakildenummer i listene.",
+            "Admin > Datakilder viser Nr som forste kolonne.",
+            "Statusforsiden viser samme nummer som en liten brikke foran datakildenavnet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1207",

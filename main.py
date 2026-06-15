@@ -3255,6 +3255,11 @@ IMPORT_JOB_DEFINITIONS = {
     },
 }
 
+IMPORT_JOB_NUMBER_BY_NAME = {
+    job_name: index + 1
+    for index, job_name in enumerate(IMPORT_JOB_DEFINITIONS)
+}
+
 
 CONFIG_DEFINITIONS = {
     "lights": {
@@ -7400,6 +7405,7 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
             status, status_text = "bad", "Feil"
         rows.append(
             {
+                "source_no": IMPORT_JOB_NUMBER_BY_NAME.get(job_name),
                 "job_name": job_name,
                 "title": row.title if row else definition["title"],
                 "category": row.category if row else definition["category"],
@@ -12864,6 +12870,7 @@ async def api_v2_overview():
     ]
     services = [
         {
+            "sourceNo": row["source_no"],
             "jobName": row["job_name"],
             "label": row["title"],
             "status": row["status"] if row["status"] in {"ok", "warn", "bad"} else "unknown",
@@ -19540,7 +19547,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_card("Brukere", len(access_keys), "stk", "Tilgangsnøkler uten hemmelige verdier", "status", href="/admin/brukere"),
             ]
             tables = [
-                api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
+                api_table("Datakilder", ["source_no", "title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
                 api_table("Buildlogg", build_log_columns, [api_build_log_row(row) for row in BUILD_LOG[:25]]),
                 api_table("AI-logg", ["timestamp", "username", "question", "ok", "error"], [api_pick(row, AI_QUERY_COLUMNS) for row in ai_logs]),
             ]
@@ -19725,7 +19732,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ]
             elif view == "datakilder":
                 tables = [
-                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
+                    api_table("Datakilder", ["source_no", "title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
                     api_table(
                         "Dataverktøy",
                         ["tool", "path", "description", "count"],
@@ -19759,7 +19766,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             elif view == "teknisk":
                 tables = [
                     api_table("Tekniske verktøy", ["tool", "path", "description", "count"], admin_tools),
-                    api_table("Datakilder", ["title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
+                    api_table("Datakilder", ["source_no", "title", "category", "status", "status_text", "age", "last_success_at", "message"], import_api_rows),
                 ]
             elif view == "brukere":
                 active_user_count = sum(1 for row in access_keys if row.active)
@@ -20445,7 +20452,7 @@ async def import_status_view(request: Request):
     return templates.TemplateResponse(
         request,
         "import_status.html",
-        {"rows": rows, "runs": runs, "counts": counts},
+        {"rows": rows, "runs": runs, "counts": counts, "source_numbers": IMPORT_JOB_NUMBER_BY_NAME},
     )
 
 
