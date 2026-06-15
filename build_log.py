@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1210")
+APP_BUILD = os.getenv("APP_BUILD", "1211")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1211",
+        "date": "15.06.2026",
+        "headline": "Docker-deploy sender ikke runtime-bilder",
+        "title": "Build-context kuttes ved aa ignorere snapshots og runtime-data",
+        "description": (
+            "Build 1211 rydder Docker build-context. Deploy av Fibaro10 sendte tidligere store runtime-mapper, "
+            "blant annet Axis-snapshots, inn i Docker-builden. Dette gjorde bygg og idriftsetting unodvendig tregt. "
+            ".dockerignore er utvidet slik at snapshots, data-mapper, outputs, lokale Vite-artefakter og .env-varianter "
+            "ikke blir med i image-context."
+        ),
+        "applications": [
+            "Docker-oppsett (.dockerignore): ignorerer axis_camera_snapshots/snapshots, axis data, car_info data, outputs og .env-varianter.",
+            "Buildlogg (build_log.py): registrerer build 1211.",
+        ],
+        "request": "Ta en skikkelig kontroll og opprydding i hele appen med hensyn paa hastighet, CSS osv.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Docker build-context slipper aa pakke Axis snapshot-arkivet paa rundt 8,9 GB.",
+            "Deploy blir raskere og mindre sårbar for store runtime-data.",
+            "Miljofiler og lokale runtime-data holdes tydeligere utenfor image-build.",
+        ],
+    },
     {
         "version": "1",
         "build": "1210",
