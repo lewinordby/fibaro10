@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1200")
+APP_BUILD = os.getenv("APP_BUILD", "1201")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1201",
+        "date": "15.06.2026",
+        "headline": "Soloppgjør bruker Sun2-dagsstatistikk når finansgrunnlag mangler",
+        "title": "2025-oppgjør får riktig intern solkontroll",
+        "description": (
+            "Build 1201 strammer soloppgjørsraden videre og retter kontrollgrunnlaget for eldre perioder. "
+            "Når Sun2 finansoppgjør ikke finnes, brukes eksisterende Sun2 dagsstatistikk eller rå enkelttimer "
+            "som intern solomsetning i stedet for å vise manglende grunnlag."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger fallback fra Sun2 finansoppgjør til Sun2 dagsstatistikk og rå enkelttimer for solomsetning.",
+            "Desktop V2 (SunSettlementsPage.tsx): deler soloppgjørsraden i periode, kontroll og bilag.",
+            "Desktop V2 (styles.css): flytter kontrollboksene tett inntil bilaget og reduserer radhøyden.",
+            "Tester (test_settlement_parser.py): dekker fallback til Sun2 dagsstatistikk når finansoppgjør mangler.",
+            "Buildlogg (build_log.py): registrerer build 1201.",
+        ],
+        "request": "Flytt Sol/Produkt/Utbetalt-boksene tett inntil oppgjørsskjemaet, la måned og år stå alene, og rett at 2025-bilag feilaktig viser mangler Sun2-grunnlag.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Perioden står alene i venstre kolonne.",
+            "Kontrollboksene ligger rett ved oppgjørsskjemaet.",
+            "Oppgjørsraden er lavere.",
+            "Eldre soloppgjør bruker Sun2 dagsstatistikk som kontrollgrunnlag når finansoppgjør mangler.",
+            "Kilden som brukes for solkontroll sendes med i API-et.",
+        ],
+    },
     {
         "version": "1",
         "build": "1200",

@@ -3422,23 +3422,22 @@
 
 .settlement-ledger-table-head.sun,
 .settlement-ledger-row.sun {
-  grid-template-columns: minmax(232px, 0.32fr) minmax(0, 1fr) 14px;
+  grid-template-columns: minmax(86px, 0.14fr) 232px minmax(360px, 540px) 14px;
 }
 
 .settlement-ledger-row.sun {
   align-items: stretch;
-  min-height: 158px;
+  min-height: 142px;
 }
 
 .sun-settlement-ledger-main {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   min-width: 0;
 }
 
 .settlement-voucher {
-  width: min(540px, 100%);
-  margin-left: auto;
+  width: min(500px, 100%);
   padding: 8px 10px;
   border: 1px solid #e5ebf4;
   border-radius: 6px;
@@ -3536,12 +3535,12 @@
   min-width: 0;
 }
 
-.sun-settlement-ledger-context {
+.sun-settlement-period {
   min-width: 0;
   padding: 1px 1px 2px;
 }
 
-.sun-settlement-ledger-context strong {
+.sun-settlement-period strong {
   display: block;
   overflow: hidden;
   color: var(--ink);

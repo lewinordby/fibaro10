@@ -188,10 +188,10 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
   const productTone = controlTone(productStatus);
   return (
     <Link className="settlement-ledger-row sun" to={href || "#"}>
+      <div className="sun-settlement-period">
+        <strong>{asText(row.period_label)}</strong>
+      </div>
       <div className="sun-settlement-ledger-controls">
-        <div className="sun-settlement-ledger-context">
-          <strong>{asText(row.period_label)}</strong>
-        </div>
         <div className={`settlement-source-check ${sunTone}`}>
           <div className="settlement-source-check-head">
             <strong>Sol</strong>
@@ -353,6 +353,7 @@ export default function SunSettlementsPage() {
           </div>
         </div>
         <div className="settlement-ledger-table-head sun">
+          <span>Periode</span>
           <span>Kontroll</span>
           <span>Bilag</span>
           <span />

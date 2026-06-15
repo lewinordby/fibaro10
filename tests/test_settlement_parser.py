@@ -193,6 +193,23 @@ class ParkingSettlementParserTests(unittest.TestCase):
         self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["status"], "warn")
         self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["difference"], 369.9)
 
+        daily_fallback_rows = {
+            row["field"]: row
+            for row in main.sun_settlement_form_rows(
+                parsed,
+                None,
+                None,
+                {
+                    "daily_count": 929,
+                    "daily_amount_ex_vat": 128868.29,
+                    "daily_amount_inc_vat": 161085.36,
+                },
+            )
+        }
+        self.assertEqual(daily_fallback_rows["sun_revenue_ex_vat"]["expected"], 128868.29)
+        self.assertEqual(daily_fallback_rows["sun_revenue_ex_vat"]["expectedSource"], "sun2_room_daily_stats")
+        self.assertEqual(daily_fallback_rows["sun_revenue_ex_vat"]["status"], "ok")
+
         summary = main.sun_settlement_summary_row(
             main.SettlementImport(
                 provider=main.SUN_SETTLEMENT_PROVIDER,
@@ -231,6 +248,27 @@ class ParkingSettlementParserTests(unittest.TestCase):
         self.assertEqual(summary["sun_sessions_diff_vs_finance_gross_ex_vat"], 0)
         self.assertEqual(summary["sun_sessions_control_status"], "OK")
         self.assertEqual(summary["sun_finance_gross_ex_vat"], 129238.19)
+
+        fallback_summary = main.sun_settlement_summary_row(
+            main.SettlementImport(
+                provider=main.SUN_SETTLEMENT_PROVIDER,
+                period_label="Januar 2026",
+                period_start=date(2026, 1, 1),
+                period_end=date(2026, 1, 31),
+                status="tolket",
+                parsed=parsed,
+            ),
+            None,
+            None,
+            {
+                "daily_count": 929,
+                "daily_amount_ex_vat": 128868.29,
+                "daily_amount_inc_vat": 161085.36,
+            },
+        )
+        self.assertEqual(fallback_summary["sun_revenue_source_ex_vat"], 128868.29)
+        self.assertEqual(fallback_summary["sun_revenue_source"], "sun2_room_daily_stats")
+        self.assertEqual(fallback_summary["sun_revenue_control_status"], "OK")
 
 
 if __name__ == "__main__":
