@@ -3241,16 +3241,16 @@ IMPORT_JOB_DEFINITIONS = {
         "title": "Biluppgifter Sverige",
         "category": "Parkering",
         "source": "Biluppgifter.se",
-        "expected_interval_minutes": 4 * 60,
-        "warning_after_minutes": 12 * 60,
+        "expected_interval_minutes": None,
+        "warning_after_minutes": None,
         "description": "Oppslag av svenske registreringsnummer der SVV ikke fant kjoretoydata.",
     },
     "parking_vehicle_tjekbil_sync": {
         "title": "Tjekbil Danmark",
         "category": "Parkering",
         "source": "Tjekbil.dk",
-        "expected_interval_minutes": 4 * 60,
-        "warning_after_minutes": 12 * 60,
+        "expected_interval_minutes": None,
+        "warning_after_minutes": None,
         "description": "Oppslag av danske registreringsnummer der SVV ikke fant kjoretoydata.",
     },
 }
@@ -7375,6 +7375,8 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
         expected_minutes = definition.get("expected_interval_minutes")
         warning_minutes = definition.get("warning_after_minutes")
         next_expected_at = row.next_expected_at if row else None
+        if expected_minutes is None:
+            next_expected_at = None
         if stamp and expected_minutes:
             calculated_next = stamp + timedelta(minutes=expected_minutes)
             if not next_expected_at or abs((next_expected_at - calculated_next).total_seconds()) > 60:

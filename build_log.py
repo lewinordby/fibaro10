@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1208")
+APP_BUILD = os.getenv("APP_BUILD", "1209")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1209",
+        "date": "15.06.2026",
+        "headline": "Nordiske fallback-kilder er hendelsesstyrte",
+        "title": "Tjekbil og Biluppgifter blir ikke gamle naar koen er tom",
+        "description": (
+            "Build 1209 retter statuslogikken for Biluppgifter Sverige og Tjekbil Danmark. Disse kildene kjoerer "
+            "bare naar SVV ikke finner et svensk eller dansk kandidatnummer, og skal derfor ikke markeres som "
+            "gammel bare fordi det ikke finnes nye kandidater."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): setter Biluppgifter og Tjekbil som hendelsesstyrte datakilder uten fast forventet intervall.",
+            "Fibaro10 backend (main.py): nuller neste forventet i importstatus naar en datakilde ikke har fast intervall.",
+            "Buildlogg (build_log.py): registrerer build 1209.",
+        ],
+        "request": "Hva med Tjekbil Danmark?",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Tjekbil Danmark viser OK naar siste kjente oppslag er behandlet uten systemfeil, selv om det er lenge siden.",
+            "Biluppgifter Sverige bruker samme hendelsesstyrte statusmodell.",
+            "Neste forventet tidspunkt vises ikke for disse fallback-kildene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1208",
