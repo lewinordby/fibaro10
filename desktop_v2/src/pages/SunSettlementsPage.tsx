@@ -151,38 +151,30 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
         <ParseStatus row={row} />
         <small>{percent === null ? "Ingen score" : `${percent} %`}</small>
       </div>
-      <div className="settlement-source-check">
-        <div className="settlement-source-check-head">
-          <strong>Inntekter</strong>
-          <span>{asText(row.sum_check_status)}</span>
-        </div>
-        <div className="settlement-source-check-grid two">
-          <Metric label="Sol" value={money(row.sun_revenue_ex_vat)} />
-          <Metric label="Produkt" value={money(row.product_sales_ex_vat)} />
-        </div>
-      </div>
       <div className={`settlement-source-check ${sunTone}`}>
         <div className="settlement-source-check-head">
-          <strong>Solkontroll</strong>
+          <strong>Sol</strong>
           <span>{sunStatus}</span>
         </div>
-        <div className="settlement-source-check-grid two">
+        <div className="settlement-source-check-grid">
+          <Metric label="Skjema" value={money(row.sun_revenue_ex_vat)} />
           <Metric label="System" value={money(row.sun_revenue_source_ex_vat)} tone={sunTone} />
           <Metric label="Avvik" value={money(row.sun_revenue_diff_ex_vat)} tone={sunTone} />
         </div>
       </div>
       <div className={`settlement-source-check ${productTone}`}>
         <div className="settlement-source-check-head">
-          <strong>Produktkontroll</strong>
+          <strong>Produkt</strong>
           <span>{productStatus}</span>
         </div>
-        <div className="settlement-source-check-grid two">
-          <Metric label="Sun2" value={money(row.product_sales_source_ex_vat)} tone={productTone} />
+        <div className="settlement-source-check-grid">
+          <Metric label="Skjema" value={money(row.product_sales_ex_vat)} />
+          <Metric label="System" value={money(row.product_sales_source_ex_vat)} tone={productTone} />
           <Metric label="Avvik" value={money(row.product_sales_diff_ex_vat)} tone={productTone} />
         </div>
       </div>
       <div className="settlement-ledger-payout">
-        <span>Beløp NOK</span>
+        <span>Utbet.</span>
         <strong>{money(row.payout_inc_vat)}</strong>
         <small>{asText(row.vat_25_percent)} mva</small>
       </div>
@@ -274,9 +266,8 @@ export default function SunSettlementsPage() {
         <div className="settlement-ledger-table-head sun">
           <span>Oppgjør</span>
           <span>Tolket</span>
-          <span>Inntekter</span>
-          <span>Solkontroll</span>
-          <span>Produktkontroll</span>
+          <span>Sol</span>
+          <span>Produkt</span>
           <span>Beløp</span>
           <span />
         </div>

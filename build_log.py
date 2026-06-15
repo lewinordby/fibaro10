@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1193")
+APP_BUILD = os.getenv("APP_BUILD", "1194")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1194",
+        "date": "15.06.2026",
+        "headline": "Oppgjorstabeller bruker mindre plass",
+        "title": "Soloppgjorlisten er gjort mer kompakt",
+        "description": (
+            "Build 1194 strammer opp listevisningen for oppgjor slik at radene bruker vesentlig mindre "
+            "plass. Soloppgjor viser fortsatt skjema, system og avvik, men samler tallene i kompakte "
+            "kontrollfelt for Sol og Produkt."
+        ),
+        "applications": [
+            "Desktop V2 (SunSettlementsPage.tsx): samler skjema, system og avvik i to kontrollfelt i stedet for flere brede tabellfelt.",
+            "Desktop V2 (styles.css): reduserer kolonnebredder, padding, ikonstorrelser, radhoyde og typografi for oppgjorstabellene.",
+            "Buildlogg (build_log.py): registrerer build 1194.",
+        ],
+        "request": "Feltene i tabellen er altfor store. Bruk vesentlig mindre plass.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppgjorradene er lavere og tettere.",
+            "Sol og Produkt har hver sine kompakte kontrollbokser med Skjema, System og Avvik.",
+            "Kolonneetiketter og belopsfelt er kortet ned for bedre oversikt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1193",
