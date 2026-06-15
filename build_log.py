@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1180")
+APP_BUILD = os.getenv("APP_BUILD", "1181")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1181",
+        "date": "15.06.2026",
+        "headline": "Mangler omraade-visning",
+        "title": "Flisen for manglende omraade viser egen kjoretoy-liste",
+        "description": (
+            "Build 1181 kobler flisene for manglende omraade til en filtrert V2-visning. Naar brukeren "
+            "klikker paa Mangler omraade eller Ikke funnet omraade, aapnes Parkering > Oppslag med bare "
+            "kjoretoy uten omraade, egne kontrollkort og direkte lenker til kjoretoydetaljene."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger filter=mangler-omrade paa relevante fliser og returnerer en filtrert oppslagstabell.",
+            "Buildlogg (build_log.py): registrerer build 1181.",
+        ],
+        "request": "Jeg vil ogsaa ha en visning som viser de uten omraade naar jeg klikker paa den flisa.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Mangler omraade-flisen peker til /parkering/oppslag?filter=mangler-omrade.",
+            "Oppslagssiden viser bare kjoretoy uten omraade naar filteret er satt.",
+            "Listen viser opptil 1000 rader og har lenke til hvert kjoretoy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1180",

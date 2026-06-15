@@ -17692,9 +17692,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "stk",
                         f"{format_short_number(vehicle_blank_area_count)} blanke / {format_short_number(vehicle_area_not_found_count)} ikke funnet",
                         "status",
-                        href="/parkering/oppslag",
+                        href="/parkering/oppslag?filter=mangler-omrade",
                     ),
-                    api_card("Ikke funnet område", vehicle_area_not_found_count, "stk", "Inngår i mangler område", "status", href="/parkering/oppslag"),
+                    api_card("Ikke funnet område", vehicle_area_not_found_count, "stk", "Inngår i mangler område", "status", href="/parkering/oppslag?filter=mangler-omrade"),
                 ]
                 tables = [
                     api_table(
@@ -17743,7 +17743,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "stk",
                         "Blankt, ikke funnet eller mangler kjøretøyrad",
                         "status",
-                        href="/parkering/oppslag",
+                        href="/parkering/oppslag?filter=mangler-omrade",
                     ),
                     api_card(
                         "Beløp",
@@ -17833,51 +17833,63 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     },
                 ]
             elif view == "oppslag":
-                vehicles_missing_name = await parking_missing_name_rows(session, 100)
-                vehicles_missing_area = await parking_missing_area_rows(session, 100)
-                tables = [
-                    api_table(
-                        "Parkeringsverktøy",
-                        ["tool", "path", "description", "count"],
-                        [
-                            api_tool_row(
-                                "Navnoppslag",
-                                "/classic/parkering/navn-oppslag",
-                                f"Koble kjøretøy mot navn/SUN2. {format_short_number(vehicle_name_not_found_count)} er ikke funnet.",
-                                vehicle_missing_name_count,
-                            ),
-                            api_tool_row(
-                                "Områdeoppslag",
-                                "/classic/parkering/omrade-oppslag",
-                                f"Sett område på kjøretøy. {format_short_number(vehicle_area_not_found_count)} er ikke funnet.",
-                                vehicle_missing_area_count,
-                            ),
-                            api_tool_row("Kjøretøyoversikt", "/classic/parkering/kjoretoy", "Full gammel kjøretøyflate med redigering og detaljer.", vehicle_count),
-                        ],
-                    ),
-                    api_table(
-                        "Mangler navn",
-                        ["plate", "omrade", "parkering_count", "paid_total", "last_seen", "path"],
-                        [
-                            {
-                                **row_to_dict(row, ["plate", "omrade", "parkering_count", "paid_total", "last_seen"]),
-                                "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
-                            }
-                            for row, _ in vehicles_missing_name
-                        ],
-                    ),
-                    api_table(
-                        "Mangler område",
-                        ["plate", "navn", "parkering_count", "paid_total", "last_seen", "path"],
-                        [
-                            {
-                                **row_to_dict(row, ["plate", "navn", "parkering_count", "paid_total", "last_seen"]),
-                                "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
-                            }
-                            for row, _ in vehicles_missing_area
-                        ],
-                    ),
-                ]
+                oppslag_filter = api_filter_value(params, "filter").lower()
+                area_only = oppslag_filter in {"mangler-omrade", "mangler-område", "missing-area"}
+                vehicles_missing_name = [] if area_only else await parking_missing_name_rows(session, 100)
+                vehicles_missing_area = await parking_missing_area_rows(session, 1000 if area_only else 100)
+                missing_area_table = api_table(
+                    "Kjøretøy uten område" if area_only else "Mangler område",
+                    ["plate", "navn", "omrade", "parkering_count", "paid_total", "last_seen", "path"],
+                    [
+                        {
+                            **row_to_dict(row, ["plate", "navn", "omrade", "parkering_count", "paid_total", "last_seen"]),
+                            "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
+                        }
+                        for row, _ in vehicles_missing_area
+                    ],
+                )
+                if area_only:
+                    cards = [
+                        api_card("Mangler område", vehicle_missing_area_count, "stk", "Blanke og ikke funnet", "status", href="/parkering/oppslag?filter=mangler-omrade"),
+                        api_card("Blanke", vehicle_blank_area_count, "stk", "Kan fylles via områdeoppslag", "status", href="/parkering/oppslag?filter=mangler-omrade"),
+                        api_card("Ikke funnet", vehicle_area_not_found_count, "stk", "Kan nullstilles og slås opp på nytt", "status", href="/parkering/oppslag?filter=mangler-omrade"),
+                        api_card("Viser", len(vehicles_missing_area), "stk", "Maks 1000 i listen", "parking", href="/parkering/oppslag?filter=mangler-omrade"),
+                    ]
+                    tables = [missing_area_table]
+                else:
+                    tables = [
+                        api_table(
+                            "Parkeringsverktøy",
+                            ["tool", "path", "description", "count"],
+                            [
+                                api_tool_row(
+                                    "Navnoppslag",
+                                    "/classic/parkering/navn-oppslag",
+                                    f"Koble kjøretøy mot navn/SUN2. {format_short_number(vehicle_name_not_found_count)} er ikke funnet.",
+                                    vehicle_missing_name_count,
+                                ),
+                                api_tool_row(
+                                    "Områdeoppslag",
+                                    "/classic/parkering/omrade-oppslag",
+                                    f"Sett område på kjøretøy. {format_short_number(vehicle_area_not_found_count)} er ikke funnet.",
+                                    vehicle_missing_area_count,
+                                ),
+                                api_tool_row("Kjøretøyoversikt", "/classic/parkering/kjoretoy", "Full gammel kjøretøyflate med redigering og detaljer.", vehicle_count),
+                            ],
+                        ),
+                        api_table(
+                            "Mangler navn",
+                            ["plate", "omrade", "parkering_count", "paid_total", "last_seen", "path"],
+                            [
+                                {
+                                    **row_to_dict(row, ["plate", "omrade", "parkering_count", "paid_total", "last_seen"]),
+                                    "path": f"/parkering/kjoretoy/{quote(row.plate or '', safe='')}",
+                                }
+                                for row, _ in vehicles_missing_name
+                            ],
+                        ),
+                        missing_area_table,
+                    ]
             if int_or_zero(vehicle_area_not_found_count) > 0 and view in ("", "oversikt", "kjoretoy", "omrade", "oppslag"):
                 actions.append(
                     {
