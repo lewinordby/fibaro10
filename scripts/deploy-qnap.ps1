@@ -76,7 +76,7 @@ stamp=`$(date +%Y%m%d-%H%M%S)
 backup_dir="`$backup_root/`$stamp"
 mkdir -p "`$backup_dir"
 for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
-    case "`$file" in .env.example|*/.env.example) continue ;; esac
+    case "`$file" in .env.example|.env.qnap.example|*/.env.example) continue ;; esac
     [ -f "`$file" ] || continue
     target="`$backup_dir/`$file"
     mkdir -p "`$(dirname "`$target")"
@@ -93,7 +93,7 @@ git fetch origin "$Branch"
 git reset --hard "origin/$Branch"
 git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/ -e car_info_lookup/.env -e 'car_info_lookup/.env.*' -e car_info_lookup/data/ -e sun2_session_scraper/.env -e 'sun2_session_scraper/.env.*' -e sun2_session_scraper/data/ -e axis_camera_snapshots/data/ -e axis_camera_snapshots/snapshots/
 for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
-    case "`$file" in .env.example|*/.env.example) continue ;; esac
+    case "`$file" in .env.example|.env.qnap.example|*/.env.example) continue ;; esac
     source="`$backup_dir/`$file"
     [ -f "`$source" ] || continue
     mkdir -p "`$(dirname "`$file")"

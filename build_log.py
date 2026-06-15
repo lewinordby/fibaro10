@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1211")
+APP_BUILD = os.getenv("APP_BUILD", "1212")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1212",
+        "date": "15.06.2026",
+        "headline": "Deploy lar QNAP-eksempelfil vaere urort",
+        "title": "Miljoeksempel paa QNAP blir ikke restaurert som runtime-hemmelighet",
+        "description": (
+            "Build 1212 retter en deploy-hygiene-feil der .env.qnap.example ble fanget av .env.*-backupen "
+            "og lagt tilbake etter git reset paa QNAP. Eksempelfilen er en tracked dokumentasjonsfil og skal "
+            "ikke behandles som lokal runtime-konfigurasjon."
+        ),
+        "applications": [
+            "Deploy-script (scripts/deploy-qnap.ps1): hopper over .env.qnap.example ved backup og restore av lokale miljoefiler.",
+            "Buildlogg (build_log.py): registrerer build 1212.",
+        ],
+        "request": "Kjor tester og finn feil og rett dem.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "QNAP-worktree blir ikke skitten av deploy fordi tracked .env.qnap.example ikke lenger restaureres fra lokal backup.",
+            "Deploy beholder fortsatt faktiske runtime-miljoefiler som .env og app-spesifikke .env-varianter.",
+        ],
+    },
     {
         "version": "1",
         "build": "1211",
