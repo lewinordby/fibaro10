@@ -620,7 +620,7 @@ def normalize_product_sale_row(raw: dict[str, str], fallback_day: date, period_s
         amount_ex_vat = pick_amount_by_key(raw, ["eks mva", "ex vat", "netto"])
     if amount_inc_vat is None:
         amount_inc_vat = pick_amount_by_key(raw, ["inkl mva", "inc vat", "brutto"])
-    total_amount = pick_amount_by_key(raw, ["sum", "total", "belop", "belop", "amount", "kr"], ["mva", "vat"])
+    total_amount = pick_amount_by_key(raw, ["inntjening", "inntjent", "sum", "total", "belop", "belop", "amount", "revenue", "sales", "kr"], ["mva", "vat"])
     if amount_ex_vat is None and amount_inc_vat is None and total_amount is not None:
         amount_inc_vat = total_amount
         amount_ex_vat = round(total_amount / 1.25, 2)
@@ -630,6 +630,8 @@ def normalize_product_sale_row(raw: dict[str, str], fallback_day: date, period_s
         amount_inc_vat = round(amount_ex_vat * 1.25, 2)
     vat = round(amount_inc_vat - amount_ex_vat, 2) if amount_inc_vat is not None and amount_ex_vat is not None else None
 
+    if normalize_key(product_name) in {"navn", "produkt", "product"}:
+        return None
     if not product_name and amount_inc_vat is None and amount_ex_vat is None:
         return None
 
@@ -646,13 +648,12 @@ def normalize_product_sale_row(raw: dict[str, str], fallback_day: date, period_s
         source_id = "stable:" + row_hash(
             {
                 "stat_date": stat_date.isoformat(),
+                "period_start": period_start.isoformat(),
+                "period_end": period_end.isoformat(),
                 "sold_at": sold_at.isoformat(timespec="seconds") if sold_at else None,
                 "product_name": normalize_key(product_name),
                 "product_category": normalize_key(product_category),
-                "quantity": quantity,
-                "unit_price": unit_price,
-                "amount_inc_vat": amount_inc_vat,
-                "amount_ex_vat": amount_ex_vat,
+                "size": normalize_text(pick(raw, "storrelse", "størrelse", "size")),
                 "payment_method": pick(raw, "betaling", "betalingsmiddel", "payment"),
                 "user": pick(raw, "bruker", "kunde", "navn", "medlem") or raw.get("__user_title"),
                 "raw": {key: value for key, value in raw_for_storage.items() if key != "__source_row_number"},

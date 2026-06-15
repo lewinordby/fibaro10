@@ -9259,6 +9259,14 @@ async def ingest_sun2_product_sales(session, data: Sun2ProductSalesIngestIn, bat
     skipped = 0
     source = data.source or "sun2_session_scraper"
     source_file = (repair_mojibake(data.source_file) or "").strip()
+    replaced = 0
+    if source_file and data.rows:
+        result = await session.execute(
+            delete(Sun2ProductSale)
+            .where(Sun2ProductSale.source == source)
+            .where(Sun2ProductSale.source_file == source_file)
+        )
+        replaced = int(result.rowcount or 0)
     for row in data.rows:
         source_sale_id = (repair_mojibake(row.source_sale_id) or "").strip()
         stat_date = row.stat_date or (row.sold_at.date() if row.sold_at else None) or data.period_start
@@ -9298,7 +9306,7 @@ async def ingest_sun2_product_sales(session, data: Sun2ProductSalesIngestIn, bat
         existing.source_file = source_file or data.source_file
         existing.imported_at = batch_time
         existing.raw = row.raw or {}
-    return {"inserted": inserted, "updated": updated, "skipped": skipped}
+    return {"inserted": inserted, "updated": updated, "skipped": skipped, "replaced": replaced}
 
 
 async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestIn, batch_time: datetime) -> Dict[str, int]:
@@ -16640,21 +16648,32 @@ def settlement_source_expected(
 
 async def sun2_product_sales_period_summary(session, start: date, end: date) -> Dict[str, Any]:
     amount_ex_expr = func.coalesce(Sun2ProductSale.amount_ex_vat_kr, Sun2ProductSale.amount_inc_vat_kr / 1.25)
+    base_query = select(
+        func.count(Sun2ProductSale.id),
+        func.coalesce(func.sum(amount_ex_expr), 0),
+        func.coalesce(func.sum(Sun2ProductSale.amount_inc_vat_kr), 0),
+        func.coalesce(func.sum(Sun2ProductSale.quantity), 0),
+        func.min(Sun2ProductSale.stat_date),
+        func.max(Sun2ProductSale.stat_date),
+        func.max(Sun2ProductSale.imported_at),
+    )
     result = (
         await session.execute(
-            select(
-                func.count(Sun2ProductSale.id),
-                func.coalesce(func.sum(amount_ex_expr), 0),
-                func.coalesce(func.sum(Sun2ProductSale.amount_inc_vat_kr), 0),
-                func.coalesce(func.sum(Sun2ProductSale.quantity), 0),
-                func.min(Sun2ProductSale.stat_date),
-                func.max(Sun2ProductSale.stat_date),
-                func.max(Sun2ProductSale.imported_at),
-            )
-            .where(Sun2ProductSale.stat_date >= start)
-            .where(Sun2ProductSale.stat_date <= end)
+            base_query
+            .where(Sun2ProductSale.period_start == start)
+            .where(Sun2ProductSale.period_end == end)
         )
     ).one()
+    source_scope = "monthly" if int_or_zero(result[0]) else "daily"
+    if not int_or_zero(result[0]):
+        result = (
+            await session.execute(
+                base_query
+                .where(Sun2ProductSale.stat_date >= start)
+                .where(Sun2ProductSale.stat_date <= end)
+                .where(Sun2ProductSale.period_start == Sun2ProductSale.period_end)
+            )
+        ).one()
     count_value, amount_ex, amount_inc, quantity, first_date, last_date, last_imported = result
     return {
         "count": int_or_zero(count_value),
@@ -16666,6 +16685,7 @@ async def sun2_product_sales_period_summary(session, start: date, end: date) -> 
         "last_imported_at": last_imported,
         "period_start": start,
         "period_end": end,
+        "source_scope": source_scope,
     }
 
 
