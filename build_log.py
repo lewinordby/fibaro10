@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1186")
+APP_BUILD = os.getenv("APP_BUILD", "1187")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1187",
+        "date": "15.06.2026",
+        "headline": "Sun2 produktsalg vises komplett i driftssjekk",
+        "title": "Health og datakilder kjenner produktsalgstabellen",
+        "description": (
+            "Build 1187 kompletterer driftssynligheten for Sun2 produktsalg. Health-listen inkluderer "
+            "sun2_product_sales-tabellen, og Datakilder kan bygge fallback-status fra siste importerte "
+            "produktfil dersom statusraden mangler."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger fallback-status for daglig og maanedlig Sun2 produktsalg.",
+            "Observability (observability.py): legger sun2_product_sales i health storage-listen.",
+            "Buildlogg (build_log.py): registrerer build 1187.",
+        ],
+        "request": "Fullfoer daglig og maanedlig produktsalg slik at dagsfordeling brukes og maanedskjoringen brukes til kontroll.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Health viser naa sun2_product_sales som del av lagringsoversikten.",
+            "Datakilder kan vise siste produktfil og antall linjer fra tabellen ved behov.",
+        ],
+    },
     {
         "version": "1",
         "build": "1186",

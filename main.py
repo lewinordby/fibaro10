@@ -7202,6 +7202,28 @@ async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
         row = (await session.execute(select(Sun2Member).order_by(Sun2Member.imported_at.desc()).limit(1))).scalars().first()
         count = (await session.execute(select(func.count()).select_from(Sun2Member))).scalar_one()
         return {"last_success_at": row.imported_at if row else None, "message": "Sist funnet i medlemstabellen" if row else "", "records_total": count}
+    if job_name in {"sun2_product_sales_daily_import", "sun2_product_sales_monthly_import"}:
+        monthly = job_name == "sun2_product_sales_monthly_import"
+        query = select(Sun2ProductSale)
+        if monthly:
+            query = query.where(Sun2ProductSale.period_start != Sun2ProductSale.period_end)
+        else:
+            query = query.where(Sun2ProductSale.period_start == Sun2ProductSale.period_end)
+        row = (await session.execute(query.order_by(Sun2ProductSale.imported_at.desc()).limit(1))).scalars().first()
+        if not row:
+            return {"message": "Ingen produktsalg importert ennaa"}
+        count = (
+            await session.execute(
+                select(func.count())
+                .select_from(Sun2ProductSale)
+                .where(Sun2ProductSale.source_file == row.source_file)
+            )
+        ).scalar_one()
+        return {
+            "last_success_at": row.imported_at,
+            "message": f"Sist funnet i {row.source_file}",
+            "records_total": count,
+        }
     if job_name == "elvia_monthly_import":
         row = (await session.execute(select(EnergyImportRun).order_by(EnergyImportRun.timestamp.desc()).limit(1))).scalars().first()
         return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.hours_count if row else None}
