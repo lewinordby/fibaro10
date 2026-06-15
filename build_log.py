@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1204")
+APP_BUILD = os.getenv("APP_BUILD", "1205")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1205",
+        "date": "15.06.2026",
+        "headline": "Oppgjørsdetalj viser bare navn og beløp",
+        "title": "Verdilinjene forenkles helt",
+        "description": (
+            "Build 1205 forenkler verdilisten ved originalskjemaet ytterligere. Hver linje viser bare "
+            "feltteksten og beløpet, uten statusprikker, beregnet-linjer eller avvikstekst."
+        ),
+        "applications": [
+            "Desktop V2 (SettlementDetailPage.tsx): fjerner ekstra kontrolltekst fra verdiradene på oppgjørsdetaljen.",
+            "Desktop V2 (styles.css): rydder bort styling for statusprikker og kontroll-underlinjer.",
+            "Buildlogg (build_log.py): registrerer build 1205.",
+        ],
+        "request": "Forenkle undersiden ved original-PDF-en ytterligere; det holder med teksten, for eksempel Solomsetning for perioden, og tallet.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Hver avlest verdi vises som én rad med etikett og beløp.",
+            "Beregnet/system/avvik-linjer er fjernet fra detaljvisningen.",
+            "Statusprikker og radbaserte confidence-tags er fjernet fra verdilisten.",
+        ],
+    },
     {
         "version": "1",
         "build": "1204",

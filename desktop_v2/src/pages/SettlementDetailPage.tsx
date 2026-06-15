@@ -37,12 +37,6 @@ function moneyValue(value: unknown): string {
   return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(numeric)} kr`;
 }
 
-function signedMoneyValue(value: unknown): string {
-  const numeric = numberValue(value);
-  if (numeric === null) return "-";
-  return `${numeric > 0 ? "+" : ""}${moneyValue(numeric)}`;
-}
-
 function confidenceTag(value?: number | null) {
   if (value === null || value === undefined) return null;
   const percent = Math.round(value * 100);
@@ -91,31 +85,22 @@ function OriginalPreview({
   );
 }
 
-function valueStatus(row: SettlementField, showControl: boolean): "ok" | "warn" | "missing" | "plain" {
-  if (!showControl) return row.value === null || row.value === undefined || row.value === "" ? "missing" : "plain";
+function rowStatus(row: SettlementField): "ok" | "warn" | "missing" | "plain" {
+  if (row.value === null || row.value === undefined || row.value === "") return "missing";
   if (row.status === "ok") return "ok";
   if (row.status === "warn") return "warn";
   if (row.status === "missing") return "missing";
   return "plain";
 }
 
-function SettlementValueRow({ row, showControl = false }: { row: SettlementField; showControl?: boolean }) {
-  const status = valueStatus(row, showControl);
-  const hasControl = showControl && row.expected !== undefined && row.expected !== null;
+function SettlementValueRow({ row }: { row: SettlementField }) {
+  const status = rowStatus(row);
   return (
-    <div className={`settlement-value-row ${status}${hasControl ? " has-control" : ""}`}>
+    <div className={`settlement-value-row ${status}`}>
       <div className="settlement-value-main">
         <div className="settlement-value-title">
-          {showControl ? <span className="settlement-value-status" aria-hidden="true" /> : null}
           <span>{row.label}</span>
-          {confidenceTag(row.confidence)}
         </div>
-        {hasControl ? (
-          <div className="settlement-value-control">
-            <span>{row.expectedLabel || "Beregnet"} {moneyValue(row.expected)}</span>
-            <b>Avvik {signedMoneyValue(row.difference)}</b>
-          </div>
-        ) : null}
       </div>
       <strong>{moneyValue(row.value)}</strong>
     </div>
@@ -175,7 +160,7 @@ export default function SettlementDetailPage({ domain = "parkering" }: { domain?
               <div className="settlement-read-section-title">Beløp</div>
               <div className="settlement-value-list">
                 {amountRows.map((row) => (
-                  <SettlementValueRow key={row.field} row={row} showControl={row.expected !== undefined} />
+                  <SettlementValueRow key={row.field} row={row} />
                 ))}
               </div>
             </div>
@@ -184,7 +169,7 @@ export default function SettlementDetailPage({ domain = "parkering" }: { domain?
               <div className="settlement-read-section-title">Sumkontroll</div>
               <div className="settlement-value-list">
                 {controlRows.map((row) => (
-                  <SettlementValueRow key={row.field} row={row} showControl />
+                  <SettlementValueRow key={row.field} row={row} />
                 ))}
               </div>
             </div>
