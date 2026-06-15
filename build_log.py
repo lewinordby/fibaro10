@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1191")
+APP_BUILD = os.getenv("APP_BUILD", "1192")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1192",
+        "date": "15.06.2026",
+        "headline": "Soloppgjor kontrolleres mot intern maanedsomsetning",
+        "title": "Oppgjor skjema sammenlignes med brutto soling og produktsalg",
+        "description": (
+            "Build 1192 retter kontrollmodellen for solingsoppgjor. Oppgjorstallene sammenlignes naa mot "
+            "intern maanedsomsetning i systemet for baade soling og produktsalg, i stedet for mot nettofelt "
+            "som allerede var justert og derfor kunne gi null avvik."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bruker Sun2 brutto maanedsomsetning som kontrollgrunnlag for soling og produktsalg.",
+            "Desktop V2 (SunSettlementsPage.tsx): viser System og Avvik i solkontroll, uten eget bonusfelt.",
+            "Tester (test_settlement_parser.py): oppdaterer parserkontroll slik at avvik beregnes som system minus skjema.",
+            "Buildlogg (build_log.py): registrerer build 1192.",
+        ],
+        "request": "Kontroller oppgjoret mot maanedsomsetningen i systemet, ikke mot et regnestykke som gir null avvik.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Soling: Sun2 medlemssolinger + uregistrerte solinger brukes som intern maanedsomsetning.",
+            "Produktsalg: Sun2 brutto produktsalg brukes som intern maanedsomsetning.",
+            "Avvik vises som system minus oppgjor skjema.",
+            "Bonus vises ikke lenger som eget kontrollfelt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1191",

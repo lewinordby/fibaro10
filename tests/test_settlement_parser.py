@@ -182,16 +182,17 @@ class ParkingSettlementParserTests(unittest.TestCase):
                     "unregistered_tanning_count": 721,
                     "unregistered_tanning_inc_vat": 125583.89,
                     "tanning_bonus_inc_vat": 462.38,
+                    "tanning_gross_ex_vat": 129238.19,
                     "tanning_control_ex_vat": 128868.29,
                     "payout_label": "31 JAN 2026 (#14873)",
                     "last_imported_at": None,
                 },
             )
         }
-        self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["expected"], 128868.29)
+        self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["expected"], 129238.19)
         self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["expectedSource"], "sun2_finance_settlements")
-        self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["status"], "ok")
-        self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["difference"], 0)
+        self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["status"], "warn")
+        self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["difference"], 369.9)
 
         summary = main.sun_settlement_summary_row(
             main.SettlementImport(
@@ -226,12 +227,13 @@ class ParkingSettlementParserTests(unittest.TestCase):
             },
         )
         self.assertEqual(summary["sun_sessions_source_ex_vat"], 129238.19)
-        self.assertEqual(summary["sun_sessions_diff_vs_finance_ex_vat"], 369.9)
+        self.assertEqual(summary["sun_revenue_source_ex_vat"], 129238.19)
+        self.assertEqual(summary["sun_revenue_diff_ex_vat"], 369.9)
+        self.assertEqual(summary["sun_revenue_control_status"], "Avvik")
+        self.assertEqual(summary["sun_sessions_diff_vs_finance_ex_vat"], 0)
         self.assertEqual(summary["sun_sessions_diff_vs_finance_gross_ex_vat"], 0)
         self.assertEqual(summary["sun_sessions_control_status"], "OK")
-        self.assertEqual(summary["sun_finance_bonus_ex_vat"], 369.9)
         self.assertEqual(summary["sun_finance_gross_ex_vat"], 129238.19)
-        self.assertEqual(summary["sun_revenue_diff_vs_finance_gross_ex_vat"], 369.9)
 
 
 if __name__ == "__main__":
