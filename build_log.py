@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1187")
+APP_BUILD = os.getenv("APP_BUILD", "1188")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1188",
+        "date": "15.06.2026",
+        "headline": "Soling oppgjor bruker ekte penger i produktkontroll",
+        "title": "Sun2 bonuspenger trekkes ut ved avstemming mot Altera",
+        "description": (
+            "Build 1188 retter avstemmingen av produktsalg i solingsoppgjor. Sun2 sin produkttabell viser "
+            "total inntjening inkludert bonuspenger, mens Altera-kreditnotaen bruker ekte penger. Scraperen "
+            "lagrer naa periodesammendraget fra Sun2 med ekte penger og bonuspenger, og oppgjorskontrollen "
+            "bruker ekte penger eks. mva naar dette finnes."
+        ),
+        "applications": [
+            "Sun2 scraper (sun2_session_scraper/app/main.py): leser #finance-now og lagrer total, ekte penger og bonuspenger for produktsalg.",
+            "Fibaro10 backend (main.py): legger period_summary inn i produktdata og bruker ekte penger som kontrollgrunnlag.",
+            "Buildlogg (build_log.py): registrerer build 1188.",
+        ],
+        "request": "Jeg kan ikke se at soling oppgjoret funker som det skal.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Februar-avviket forklares av 65,30 kr bonuspenger i Sun2.",
+            "Produktkontroll bruker naa ekte penger / 1,25 mot kreditnotaens eks. mva-felt.",
+            "Detaljteksten viser ekte penger og bonusbelop naar Sun2 oppgir dette.",
+        ],
+    },
     {
         "version": "1",
         "build": "1187",

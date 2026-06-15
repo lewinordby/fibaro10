@@ -682,6 +682,28 @@ def normalize_product_sale_row(raw: dict[str, str], fallback_day: date, period_s
     }
 
 
+def extract_product_sales_period_summary(page) -> dict[str, Any]:
+    try:
+        text = page.locator("#finance-now").inner_text(timeout=5000)
+    except Exception:
+        text = ""
+    normalized = normalize_text(text)
+    summary: dict[str, Any] = {"source_text": normalized}
+    total_match = re.search(r"handlet\s+totalt\s+(\d+)\s+produkter\s+for\s+(.+?)\s+hvorav\s+(.+?)\s+er\s+ekte\s+penger\s+og\s+(.+?)\s+er\s+bonuspenger", normalized, re.I)
+    if total_match:
+        summary["total_quantity"] = parse_number(total_match.group(1))
+        summary["total_inc_vat_kr"] = parse_money(total_match.group(2))
+        summary["real_money_inc_vat_kr"] = parse_money(total_match.group(3))
+        summary["bonus_money_inc_vat_kr"] = parse_money(total_match.group(4))
+    member_match = re.search(r"medlemmer\s+har\s+kjopt\s+(\d+)\s+produkter\s+og\s+brukt\s+(.+?)\s+\((.+?)\s+ekte\s+penger,\s+(.+?)\s+bonuspenger\)", normalized, re.I)
+    if member_match:
+        summary["member_quantity"] = parse_number(member_match.group(1))
+        summary["member_total_inc_vat_kr"] = parse_money(member_match.group(2))
+        summary["member_real_money_inc_vat_kr"] = parse_money(member_match.group(3))
+        summary["member_bonus_money_inc_vat_kr"] = parse_money(member_match.group(4))
+    return {key: value for key, value in summary.items() if value not in (None, "")}
+
+
 def login_if_needed(page, username: str, password: str) -> None:
     if page.locator("#password").count() == 0 and page.locator("input[type='password']").count() == 0:
         return
@@ -1469,12 +1491,17 @@ def scrape_product_sales_sync(start: date, end: date, source_filename: str | Non
         page = context.new_page()
         open_product_sales_page(page, username, password)
         set_date_range(page, start, end)
+        period_summary = extract_product_sales_period_summary(page)
         headers, table_rows = extract_paginated_table(page, max_pages=1000)
         product_sales = [
             item
             for item in (normalize_product_sale_row(row, start, start, end) for row in table_rows)
             if item
         ]
+        if period_summary:
+            for item in product_sales:
+                raw = item.setdefault("raw", {})
+                raw["period_summary"] = period_summary
         if not product_sales:
             save_debug(page, f"PRODUCT_SALES_NO_ROWS_{start:%Y_%m_%d}_{end:%Y_%m_%d}")
         payload = {
@@ -1493,6 +1520,7 @@ def scrape_product_sales_sync(start: date, end: date, source_filename: str | Non
                 "headers": headers,
                 "raw_rows": len(table_rows),
                 "product_sales_url": page.url,
+                "period_summary": period_summary,
             },
         }
         tmp_path = out_path.with_suffix(".json.tmp")

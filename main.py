@@ -9281,6 +9281,7 @@ async def ingest_sun2_product_sales(session, data: Sun2ProductSalesIngestIn, bat
     skipped = 0
     source = data.source or "sun2_session_scraper"
     source_file = (repair_mojibake(data.source_file) or "").strip()
+    period_summary = data.extra.get("period_summary") if isinstance(data.extra.get("period_summary"), dict) else None
     replaced = 0
     if source_file and data.rows:
         result = await session.execute(
@@ -9327,7 +9328,10 @@ async def ingest_sun2_product_sales(session, data: Sun2ProductSalesIngestIn, bat
         existing.user_name = (repair_mojibake(row.user_name) or "").strip() or None
         existing.source_file = source_file or data.source_file
         existing.imported_at = batch_time
-        existing.raw = row.raw or {}
+        raw = dict(row.raw or {})
+        if period_summary and not isinstance(raw.get("period_summary"), dict):
+            raw["period_summary"] = period_summary
+        existing.raw = raw
     return {"inserted": inserted, "updated": updated, "skipped": skipped, "replaced": replaced}
 
 
@@ -16679,29 +16683,56 @@ async def sun2_product_sales_period_summary(session, start: date, end: date) -> 
         func.max(Sun2ProductSale.stat_date),
         func.max(Sun2ProductSale.imported_at),
     )
+    active_filters = [
+        Sun2ProductSale.period_start == start,
+        Sun2ProductSale.period_end == end,
+    ]
     result = (
         await session.execute(
-            base_query
-            .where(Sun2ProductSale.period_start == start)
-            .where(Sun2ProductSale.period_end == end)
+            base_query.where(*active_filters)
         )
     ).one()
     source_scope = "monthly" if int_or_zero(result[0]) else "daily"
     if not int_or_zero(result[0]):
+        active_filters = [
+            Sun2ProductSale.stat_date >= start,
+            Sun2ProductSale.stat_date <= end,
+            Sun2ProductSale.period_start == Sun2ProductSale.period_end,
+        ]
         result = (
             await session.execute(
-                base_query
-                .where(Sun2ProductSale.stat_date >= start)
-                .where(Sun2ProductSale.stat_date <= end)
-                .where(Sun2ProductSale.period_start == Sun2ProductSale.period_end)
+                base_query.where(*active_filters)
             )
         ).one()
     count_value, amount_ex, amount_inc, quantity, first_date, last_date, last_imported = result
+    period_summary_raw = (
+        await session.execute(
+            select(Sun2ProductSale.raw)
+            .where(*active_filters)
+            .where(Sun2ProductSale.raw.isnot(None))
+            .order_by(Sun2ProductSale.imported_at.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    period_summary = {}
+    if isinstance(period_summary_raw, dict) and isinstance(period_summary_raw.get("period_summary"), dict):
+        period_summary = period_summary_raw["period_summary"]
+    real_money_inc = parse_settlement_number(period_summary.get("real_money_inc_vat_kr")) if period_summary else None
+    bonus_money_inc = parse_settlement_number(period_summary.get("bonus_money_inc_vat_kr")) if period_summary else None
+    total_summary_inc = parse_settlement_number(period_summary.get("total_inc_vat_kr")) if period_summary else None
+    control_amount_inc = real_money_inc if real_money_inc is not None else float_or_zero(amount_inc)
+    control_amount_ex = round(control_amount_inc / 1.25, 2) if real_money_inc is not None else float_or_zero(amount_ex)
     return {
         "count": int_or_zero(count_value),
         "quantity": float_or_zero(quantity),
-        "amount_ex_vat": round(float_or_zero(amount_ex), 2),
-        "amount_inc_vat": round(float_or_zero(amount_inc), 2),
+        "amount_ex_vat": round(float_or_zero(control_amount_ex), 2),
+        "amount_inc_vat": round(float_or_zero(control_amount_inc), 2),
+        "gross_amount_ex_vat": round(float_or_zero(amount_ex), 2),
+        "gross_amount_inc_vat": round(float_or_zero(amount_inc), 2),
+        "real_money_inc_vat": real_money_inc,
+        "bonus_money_inc_vat": bonus_money_inc,
+        "summary_total_inc_vat": total_summary_inc,
+        "control_basis": "ekte_penger" if real_money_inc is not None else "produktlinjer_total",
         "first_date": first_date,
         "last_date": last_date,
         "last_imported_at": last_imported,
@@ -16719,6 +16750,13 @@ def sun2_product_sales_expected(summary: Optional[Dict[str, Any]]) -> tuple[Opti
     detail = f"{count_value} salgslinjer"
     if quantity:
         detail += f", {format_short_number(quantity, 2)} stk"
+    if summary.get("control_basis") == "ekte_penger":
+        real_money = parse_settlement_number(summary.get("real_money_inc_vat"))
+        bonus_money = parse_settlement_number(summary.get("bonus_money_inc_vat"))
+        if real_money is not None:
+            detail += f", ekte penger {format_short_number(real_money, 2)} kr inkl. mva"
+        if bonus_money:
+            detail += f", bonus {format_short_number(bonus_money, 2)} kr"
     last_imported = summary.get("last_imported_at")
     if last_imported:
         detail += f", sist importert {format_local_datetime(last_imported)}"
