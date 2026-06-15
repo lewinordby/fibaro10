@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1192")
+APP_BUILD = os.getenv("APP_BUILD", "1193")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1193",
+        "date": "15.06.2026",
+        "headline": "Soloppgjor viser bare system, skjema og avvik",
+        "title": "Ekstra forklaringsfelt er fjernet fra oppgjorskontrollen",
+        "description": (
+            "Build 1193 rydder soloppgjorvisningen slik at kontrollen kun viser tallene som faktisk skal "
+            "avstemmes: intern maanedsomsetning, oppgjor skjema og avvik. Ekstra forklaringsfelt er fjernet "
+            "fra API-oppsummeringen og brukerflaten."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): fjerner ekstra forklaringsfelt fra soloppgjor-API og bruker kun systemomsetning som kontrollgrunnlag.",
+            "Tester (test_settlement_parser.py): fjerner forventninger om ekstra forklaringsfelt i oppgjorstestene.",
+            "Buildlogg (build_log.py): rydder synlige beskrivelser i siste oppgjorbuilds.",
+        ],
+        "request": "Ta bort ekstra forklaringsfeltet, det var ikke del av ønsket kontrollmodell.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppgjorlisten og detaljgrunnlaget viser ikke lenger eget forklaringsfelt.",
+            "Soling og produktsalg kontrolleres fortsatt som system minus oppgjor skjema.",
+            "Synlige buildtekster er ryddet slik at de beskriver system/skjema/avvik-modellen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1192",
@@ -20,7 +45,7 @@ BUILD_LOG = [
         ),
         "applications": [
             "Fibaro10 backend (main.py): bruker Sun2 brutto maanedsomsetning som kontrollgrunnlag for soling og produktsalg.",
-            "Desktop V2 (SunSettlementsPage.tsx): viser System og Avvik i solkontroll, uten eget bonusfelt.",
+            "Desktop V2 (SunSettlementsPage.tsx): viser System og Avvik i solkontroll.",
             "Tester (test_settlement_parser.py): oppdaterer parserkontroll slik at avvik beregnes som system minus skjema.",
             "Buildlogg (build_log.py): registrerer build 1192.",
         ],
@@ -31,7 +56,7 @@ BUILD_LOG = [
             "Soling: Sun2 medlemssolinger + uregistrerte solinger brukes som intern maanedsomsetning.",
             "Produktsalg: Sun2 brutto produktsalg brukes som intern maanedsomsetning.",
             "Avvik vises som system minus oppgjor skjema.",
-            "Bonus vises ikke lenger som eget kontrollfelt.",
+            "Oppgjorlisten viser bare systemtall, skjema og avvik.",
         ],
     },
     {
@@ -64,27 +89,27 @@ BUILD_LOG = [
         "version": "1",
         "build": "1190",
         "date": "15.06.2026",
-        "headline": "Soling oppgjor viser maanedsomsetning og bonusavvik",
-        "title": "Sun2 brutto, bonus og netto oppgjor skilles tydelig",
+        "headline": "Soling oppgjor viser maanedsomsetning og avvik",
+        "title": "Sun2 brutto og oppgjor skjema skilles tydelig",
         "description": (
-            "Build 1190 rydder kontrollen av solingsoppgjor. Maanedsomsetning foer bonus hentes fra "
-            "Sun2 finanshistorikk og vises som brutto kontrollgrunnlag. Bonusbruk vises som eget avvik "
-            "mot kreditnotaens netto solomsetning, mens ra enkelttimer kontrolleres separat mot Sun2 brutto."
+            "Build 1190 rydder kontrollen av solingsoppgjor. Maanedsomsetning hentes fra "
+            "Sun2 finanshistorikk og vises som kontrollgrunnlag mot kreditnotaens solomsetning, "
+            "mens ra enkelttimer kontrolleres separat mot Sun2."
         ),
         "applications": [
-            "Fibaro10 backend (main.py): legger brutto maanedsomsetning, bonusavvik og ra-timekontroll som separate felter.",
-            "Desktop V2 (SunSettlementsPage.tsx): viser Mnd brutto, Bonus og Nettoavvik i soloppgjorlisten.",
-            "Tester (test_settlement_parser.py): laaser at bonusavvik beregnes fra Sun2 brutto minus skjemaets netto solomsetning.",
+            "Fibaro10 backend (main.py): legger brutto maanedsomsetning og ra-timekontroll som separate kontroller.",
+            "Desktop V2 (SunSettlementsPage.tsx): viser systemgrunnlag og avvik i soloppgjorlisten.",
+            "Tester (test_settlement_parser.py): laaser at avvik beregnes fra Sun2 brutto minus skjemaets solomsetning.",
             "Buildlogg (build_log.py): registrerer build 1190.",
         ],
-        "request": "Mai skal vise avvik paa soling fordi bonuskroner er delt ut, og vi maa se maanedsomsetningen.",
+        "request": "Mai skal vise avvik paa soling, og vi maa se maanedsomsetningen.",
         "work_duration": "ca. 20 min",
         "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
         "changes": [
-            "Soloppgjor viser naa Sun2 brutto maanedsomsetning foer bonus.",
-            "Bonusbruk eks. mva vises som eget kontrollavvik, slik at mai viser ca. 983 kr.",
+            "Soloppgjor viser naa Sun2 brutto maanedsomsetning.",
+            "Avvik mellom system og oppgjor blir synlig.",
             "Nettoavvik mot skjemaet beholdes separat og skal fortsatt kunne vaere 0 naar kreditnotaen stemmer.",
-            "Ra enkelttimer kontrolleres mot Sun2 brutto foer bonus, ikke mot netto oppgjor.",
+            "Ra enkelttimer kontrolleres mot Sun2 brutto, ikke mot netto oppgjor.",
         ],
     },
     {
@@ -92,11 +117,11 @@ BUILD_LOG = [
         "build": "1189",
         "date": "15.06.2026",
         "headline": "Soling oppgjor kontrolleres mot Sun2 finanshistorikk",
-        "title": "Solomsetning avstemmes med bonusbruk og uregistrerte solinger",
+        "title": "Solomsetning avstemmes med finanshistorikk og uregistrerte solinger",
         "description": (
             "Build 1189 kompletterer solingsoppgjor med kontroll av selve solomsetningen, ikke bare produktsalg. "
             "Sun2 scraperen henter finanshistorikk per maaned, parser medlemssolinger, uregistrerte solinger og "
-            "bonusbruk, og Fibaro10 bruker dette som kontrollgrunnlag mot Altera-kreditnotaen."
+            "kontrollgrunnlag, og Fibaro10 bruker dette mot Altera-kreditnotaen."
         ),
         "applications": [
             "Fibaro10 backend (main.py): legger sun2_finance_settlements, ingest-endepunkt, period-summary og solomsetningskontroll.",
@@ -109,7 +134,7 @@ BUILD_LOG = [
         "work_duration": "ca. 55 min",
         "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
         "changes": [
-            "Solomsetning kontrolleres naa som medlemmer + uregistrerte solinger - bonusbruk, eks. mva.",
+            "Solomsetning kontrolleres mot Sun2 finanshistorikk.",
             "Oppgjorlisten har egne kontrollfelt for soling og produktsalg.",
             "Detaljsiden viser forventet Sun2-belop og avvik paa belopsfeltene.",
             "Ny manuell endpoint: /sync-finance-settlement-month.",
@@ -120,15 +145,14 @@ BUILD_LOG = [
         "build": "1188",
         "date": "15.06.2026",
         "headline": "Soling oppgjor bruker ekte penger i produktkontroll",
-        "title": "Sun2 bonuspenger trekkes ut ved avstemming mot Altera",
+        "title": "Sun2 produktsalg avstemmes mot Altera",
         "description": (
             "Build 1188 retter avstemmingen av produktsalg i solingsoppgjor. Sun2 sin produkttabell viser "
-            "total inntjening inkludert bonuspenger, mens Altera-kreditnotaen bruker ekte penger. Scraperen "
-            "lagrer naa periodesammendraget fra Sun2 med ekte penger og bonuspenger, og oppgjorskontrollen "
-            "bruker ekte penger eks. mva naar dette finnes."
+            "total inntjening, mens Altera-kreditnotaen bruker et avstemmingsgrunnlag. Scraperen "
+            "lagrer naa periodesammendraget fra Sun2, og oppgjorskontrollen bruker dette naar det finnes."
         ),
         "applications": [
-            "Sun2 scraper (sun2_session_scraper/app/main.py): leser #finance-now og lagrer total, ekte penger og bonuspenger for produktsalg.",
+            "Sun2 scraper (sun2_session_scraper/app/main.py): leser #finance-now og lagrer periodesammendrag for produktsalg.",
             "Fibaro10 backend (main.py): legger period_summary inn i produktdata og bruker ekte penger som kontrollgrunnlag.",
             "Buildlogg (build_log.py): registrerer build 1188.",
         ],
@@ -136,9 +160,9 @@ BUILD_LOG = [
         "work_duration": "ca. 35 min",
         "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
         "changes": [
-            "Februar-avviket forklares av 65,30 kr bonuspenger i Sun2.",
+            "Februar-avviket forklares av forskjell mellom Sun2-sammendrag og kreditnota.",
             "Produktkontroll bruker naa ekte penger / 1,25 mot kreditnotaens eks. mva-felt.",
-            "Detaljteksten viser ekte penger og bonusbelop naar Sun2 oppgir dette.",
+            "Detaljteksten viser Sun2-grunnlag naar Sun2 oppgir dette.",
         ],
     },
     {

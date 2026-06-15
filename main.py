@@ -1864,7 +1864,7 @@ AI_DATASETS = {
     "soling_finance_settlements": {
         "table": "sun2_finance_settlements",
         "title": "SUN2 finansoppgjor",
-        "description": "Maanedlige finanslinjer fra SUN2 med soling, uregistrerte solinger, bonusbruk og kontrollbelop mot Altera-kreditnota.",
+        "description": "Maanedlige finanslinjer fra SUN2 med soling, uregistrerte solinger og kontrollbelop mot Altera-kreditnota.",
         "columns": SUN2_FINANCE_SETTLEMENT_COLUMNS,
         "time_column": "period_start",
     },
@@ -3203,7 +3203,7 @@ IMPORT_JOB_DEFINITIONS = {
         "source": "QNAP",
         "expected_interval_minutes": 40 * 24 * 60,
         "warning_after_minutes": 55 * 24 * 60,
-        "description": "Maanedlig import av Sun2 finanshistorikk for solomsetning, uregistrerte solinger og bonusbruk.",
+        "description": "Maanedlig import av Sun2 finanshistorikk for solomsetning og uregistrerte solinger.",
     },
     "elvia_monthly_import": {
         "title": "Elvia månedsfil",
@@ -16986,7 +16986,6 @@ async def sun2_product_sales_period_summary(session, start: date, end: date) -> 
     if isinstance(period_summary_raw, dict) and isinstance(period_summary_raw.get("period_summary"), dict):
         period_summary = period_summary_raw["period_summary"]
     real_money_inc = parse_settlement_number(period_summary.get("real_money_inc_vat_kr")) if period_summary else None
-    bonus_money_inc = parse_settlement_number(period_summary.get("bonus_money_inc_vat_kr")) if period_summary else None
     total_summary_inc = parse_settlement_number(period_summary.get("total_inc_vat_kr")) if period_summary else None
     control_amount_inc = real_money_inc if real_money_inc is not None else float_or_zero(amount_inc)
     control_amount_ex = round(control_amount_inc / 1.25, 2) if real_money_inc is not None else float_or_zero(amount_ex)
@@ -16998,7 +16997,6 @@ async def sun2_product_sales_period_summary(session, start: date, end: date) -> 
         "gross_amount_ex_vat": round(float_or_zero(amount_ex), 2),
         "gross_amount_inc_vat": round(float_or_zero(amount_inc), 2),
         "real_money_inc_vat": real_money_inc,
-        "bonus_money_inc_vat": bonus_money_inc,
         "summary_total_inc_vat": total_summary_inc,
         "control_basis": "ekte_penger" if real_money_inc is not None else "produktlinjer_total",
         "first_date": first_date,
@@ -17060,8 +17058,6 @@ async def sun2_finance_settlement_period_summary(session, start: date, end: date
         "member_tanning_inc_vat": row.member_tanning_inc_vat_kr,
         "unregistered_tanning_count": row.unregistered_tanning_count,
         "unregistered_tanning_inc_vat": row.unregistered_tanning_inc_vat_kr,
-        "tanning_bonus_inc_vat": row.tanning_bonus_inc_vat_kr,
-        "tanning_bonus_ex_vat": round(float_or_zero(row.tanning_bonus_inc_vat_kr) / 1.25, 2) if row.tanning_bonus_inc_vat_kr is not None else None,
         "tanning_gross_inc_vat": round(float_or_zero(row.member_tanning_inc_vat_kr) + float_or_zero(row.unregistered_tanning_inc_vat_kr), 2),
         "tanning_gross_ex_vat": round((float_or_zero(row.member_tanning_inc_vat_kr) + float_or_zero(row.unregistered_tanning_inc_vat_kr)) / 1.25, 2),
         "tanning_control_inc_vat": row.tanning_control_inc_vat_kr,
