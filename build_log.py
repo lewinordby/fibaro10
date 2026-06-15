@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1172")
+APP_BUILD = os.getenv("APP_BUILD", "1173")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1173",
+        "date": "15.06.2026",
+        "headline": "Car.info vises i vanlige kjoretoyfelt",
+        "title": "Svenske car.info-data brukes som fallback i Kjoretoy, farge og klasse",
+        "description": (
+            "Build 1173 rydder visningen av svenske kjoretoydata. Car.info-bilnavn ligger ikke lenger som eget felt, "
+            "men brukes som fallback i standardfeltet Kjoretoy naar SVV ikke har data. Aarsmodell, farge, klasse, "
+            "registreringsstatus og kontrollfrist bruker samme fallback-prinsipp."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger felles visningshjelpere for SVV/car.info-fallback.",
+            "Fibaro10 backend (main.py): fjerner separat Car.info bil-felt fra kjoretoydetaljen.",
+            "Buildlogg (build_log.py): registrerer build 1173.",
+        ],
+        "request": "Hvorfor ligger info om kjoretoy i eget felt car.info bil? Jeg vil ha det i Kjoretoy sammen med de andre.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kjoretoyfeltet viser SVV-data foerst og car.info som fallback.",
+            "Tabell- og detaljtitler bruker samme fallback.",
+            "Farge, kjoretoyklasse, registreringsstatus og kontrollfrist kan ogsaa fylles fra car.info naar SVV mangler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1172",

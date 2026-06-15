@@ -14446,7 +14446,7 @@ def parking_vehicle_row_api(vehicle: ParkingVehicle, details: Optional[ParkingVe
     ownership_at = svv_current_ownership_at(vehicle.svv_data)
     return {
         "plate": vehicle.plate,
-        "vehicle_title": parking_vehicle_summary(details),
+        "vehicle_title": parking_vehicle_summary(details, vehicle.car_info_data),
         "navn": vehicle.navn,
         "omrade": vehicle.omrade,
         "sun2_id": vehicle.sun2_id,
@@ -18867,13 +18867,13 @@ async def api_v2_parking_vehicle_detail(plate: str):
         api_detail_field("Område", vehicle.omrade),
         api_detail_field("SUN2-ID", vehicle.sun2_id),
         api_detail_field("Sist eierskifte", ownership_at),
-        api_detail_field("Kjøretøy", parking_vehicle_label(details)),
-        api_detail_field("Årsmodell", parking_vehicle_year(details)),
-        api_detail_field("Farge", details.farge if details else None),
-        api_detail_field("Kjøretøyklasse", details.kjoretoyklasse_navn if details else None),
-        api_detail_field("Registreringsstatus", details.registreringsstatus_tekst if details else None),
+        api_detail_field("Kjøretøy", parking_vehicle_display_label(details, vehicle.car_info_data), parking_vehicle_display_source(details, vehicle.car_info_data)),
+        api_detail_field("Årsmodell", parking_vehicle_display_year(details, vehicle.car_info_data)),
+        api_detail_field("Farge", parking_vehicle_display_color(details, vehicle.car_info_data)),
+        api_detail_field("Kjøretøyklasse", parking_vehicle_display_class(details, vehicle.car_info_data)),
+        api_detail_field("Registreringsstatus", parking_vehicle_display_registration_status(details, vehicle.car_info_data)),
         api_detail_field("Førstegangsregistrert Norge", details.forstegangsregistrert_norge if details else None),
-        api_detail_field("PKK kontrollfrist", details.pkk_kontrollfrist if details else None),
+        api_detail_field("PKK/kontrollfrist", parking_vehicle_display_inspection_deadline(details, vehicle.car_info_data)),
         api_detail_field("SVV hentet", vehicle.svv_fetched_at),
         api_detail_field("Notat", vehicle.notat),
     ]
@@ -18883,10 +18883,8 @@ async def api_v2_parking_vehicle_detail(plate: str):
                 api_detail_field("Car.info status", car_info_status_label(vehicle.car_info_status, vehicle.car_info_data)),
                 api_detail_field("Car.info hentet", vehicle.car_info_fetched_at),
                 api_detail_field("Bekreftet Sverige", "Ja" if car_info_confirmed_swedish(vehicle.car_info_data) else "Nei"),
-                api_detail_field("Car.info bil", car_info_vehicle_title(vehicle.car_info_data)),
-                api_detail_field("Forst registrert", car_info_field_value(vehicle.car_info_data, "first_registered", "first_registration")),
+                api_detail_field("Først registrert", car_info_field_value(vehicle.car_info_data, "first_registered", "first_registration")),
                 api_detail_field("Biltype", car_info_field_value(vehicle.car_info_data, "vehicle_type", "body_type", "class")),
-                api_detail_field("Farge car.info", car_info_field_value(vehicle.car_info_data, "color")),
                 api_detail_field("Drivstoff/motor", car_info_field_value(vehicle.car_info_data, "fuel", "engine")),
                 api_detail_field("Girkasse", car_info_field_value(vehicle.car_info_data, "transmission")),
                 api_detail_field("Drivlinje", car_info_field_value(vehicle.car_info_data, "drivetrain")),
@@ -18916,7 +18914,7 @@ async def api_v2_parking_vehicle_detail(plate: str):
         )
     return {
         "plate": plate_value,
-        "title": parking_vehicle_label(details),
+        "title": parking_vehicle_display_label(details, vehicle.car_info_data),
         "subtitle": "Kjøretøy, eierfelt og komplett parkeringshistorikk.",
         "cards": [
             api_card("Parkeringer", stats[0] if stats else 0, "stk", "Alle registrerte", "parking"),
@@ -20642,13 +20640,79 @@ def parking_vehicle_label(details: Optional[ParkingVehicleDetails]) -> str:
     return text or "Ukjent kjøretøy"
 
 
-def parking_vehicle_summary(details: Optional[ParkingVehicleDetails]) -> Optional[str]:
-    if not details:
-        return None
+def parking_vehicle_label_is_unknown(value: Optional[str]) -> bool:
+    text_value = (value or "").strip().lower()
+    return not text_value or text_value.startswith("ukjent")
+
+
+def car_info_model_year(data: Optional[Dict[str, Any]]) -> Optional[int]:
+    for value in [
+        car_info_field_value(data, "model_year"),
+        car_info_field_value(data, "first_registered", "first_registration"),
+    ]:
+        match = re.search(r"(19|20)\d{2}", str(value or ""))
+        if match:
+            return int(match.group(0))
+    return None
+
+
+def parking_vehicle_display_label(details: Optional[ParkingVehicleDetails], car_info_data: Optional[Dict[str, Any]] = None) -> str:
     label = parking_vehicle_label(details)
-    year = parking_vehicle_year(details)
+    if not parking_vehicle_label_is_unknown(label):
+        return label
+    return car_info_vehicle_title(car_info_data) or label
+
+
+def parking_vehicle_display_source(details: Optional[ParkingVehicleDetails], car_info_data: Optional[Dict[str, Any]] = None) -> str:
+    if not parking_vehicle_label_is_unknown(parking_vehicle_label(details)):
+        return "Fra SVV"
+    if car_info_vehicle_title(car_info_data):
+        return "Fra car.info"
+    return ""
+
+
+def parking_vehicle_display_year(details: Optional[ParkingVehicleDetails], car_info_data: Optional[Dict[str, Any]] = None) -> Optional[int]:
+    return parking_vehicle_year(details) or car_info_model_year(car_info_data)
+
+
+def parking_vehicle_display_color(details: Optional[ParkingVehicleDetails], car_info_data: Optional[Dict[str, Any]] = None) -> Any:
+    return first_value(details.farge if details else None, car_info_field_value(car_info_data, "color"))
+
+
+def parking_vehicle_display_class(details: Optional[ParkingVehicleDetails], car_info_data: Optional[Dict[str, Any]] = None) -> Any:
+    return first_value(
+        details.kjoretoyklasse_navn if details else None,
+        car_info_field_value(car_info_data, "vehicle_type", "classification"),
+    )
+
+
+def parking_vehicle_display_registration_status(
+    details: Optional[ParkingVehicleDetails],
+    car_info_data: Optional[Dict[str, Any]] = None,
+) -> Any:
+    return first_value(
+        details.registreringsstatus_tekst if details else None,
+        car_info_field_value(car_info_data, "registration_status"),
+    )
+
+
+def parking_vehicle_display_inspection_deadline(
+    details: Optional[ParkingVehicleDetails],
+    car_info_data: Optional[Dict[str, Any]] = None,
+) -> Any:
+    return first_value(
+        details.pkk_kontrollfrist if details else None,
+        car_info_field_value(car_info_data, "inspection_valid_to", "next_inspection"),
+    )
+
+
+def parking_vehicle_summary(details: Optional[ParkingVehicleDetails], car_info_data: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    label = parking_vehicle_display_label(details, car_info_data)
+    if parking_vehicle_label_is_unknown(label):
+        return None
+    year = parking_vehicle_display_year(details, car_info_data)
     summary = f"{year} {label}" if year else label
-    color = (details.farge or "").strip()
+    color = str(parking_vehicle_display_color(details, car_info_data) or "").strip()
     return f"{summary} - {color}" if color else summary
 
 
@@ -20706,7 +20770,7 @@ def parking_row_context(
         "plate": plate,
         "vehicle_name": vehicle.navn if vehicle else None,
         "vehicle_area": vehicle.omrade if vehicle else None,
-        "vehicle_title": parking_vehicle_summary(details),
+        "vehicle_title": parking_vehicle_summary(details, vehicle.car_info_data if vehicle else None),
         "source_label": parking_source_label(row.source_system),
         "parking_count": vehicle.parkering_count if vehicle else None,
         "duration_minutes": parking_duration_minutes(row, now),
@@ -21139,7 +21203,7 @@ async def parking_sessions_view(
                     "session": row,
                     "vehicle": vehicle,
                     "details": details,
-                    "year": parking_vehicle_year(details),
+                    "year": parking_vehicle_display_year(details, vehicle.car_info_data if vehicle else None),
                     "early_minutes": parking_slot_remainder_minutes(row),
                     "plate": normalize_plate(row.car_license_number),
                     "owner_warning": parking_current_ownership_warning(vehicle, row.start_time),
@@ -21398,10 +21462,10 @@ def parking_vehicle_lookup_payload(vehicle: ParkingVehicle, details: Optional[Pa
         "notat": vehicle.notat,
         "last_seen": vehicle.last_seen.isoformat() if vehicle.last_seen else None,
         "parkering_count": vehicle.parkering_count,
-        "vehicle": parking_vehicle_summary(details),
+        "vehicle": parking_vehicle_summary(details, vehicle.car_info_data),
         "make": details.merke if details else None,
         "model": details.modell if details else None,
-        "year": parking_vehicle_year(details),
+        "year": parking_vehicle_display_year(details, vehicle.car_info_data),
         "svv_status": vehicle.svv_status,
         "svv_fetched_at": vehicle.svv_fetched_at.isoformat() if vehicle.svv_fetched_at else None,
         "car_info_status": vehicle.car_info_status,
@@ -21728,8 +21792,8 @@ async def parking_vehicle_detail_view(request: Request, plate: str, saved: Optio
             "plate": plate_value,
             "vehicle": vehicle,
             "details": details,
-            "title": parking_vehicle_label(details),
-            "year": parking_vehicle_year(details),
+            "title": parking_vehicle_display_label(details, vehicle.car_info_data),
+            "year": parking_vehicle_display_year(details, vehicle.car_info_data),
             "stats": {
                 "sessions": stats[0] or 0,
                 "paid": stats[1] or 0,
