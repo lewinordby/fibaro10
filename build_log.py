@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1196")
+APP_BUILD = os.getenv("APP_BUILD", "1197")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1197",
+        "date": "15.06.2026",
+        "headline": "Soloppgjorlisten faar forenklet bilagsvisning",
+        "title": "Oppgjorsregnestykket ligner mer paa originalskjemaet",
+        "description": (
+            "Build 1197 formaterer soloppgjorlisten som et lite bilag. Inntekter, fratrekk og summer vises "
+            "som tekstlinjer med hoyrestilte belop og skillelinjer, i stedet for en lopende formeltekst."
+        ),
+        "applications": [
+            "Desktop V2 (SunSettlementsPage.tsx): bytter formeltekst til en forenklet bilagsstruktur med linjer for inntekter, kostnader og summer.",
+            "Desktop V2 (styles.css): legger bilagspreg med topptekst, hoyrestilte belop, summeringslinje og tydelig sluttsum.",
+            "Buildlogg (build_log.py): registrerer build 1197.",
+        ],
+        "request": "Formatter oppgjorregnestykket bedre, slik at det ligner et bilag eller en forenklet utgave av originalen.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppgjorstallene vises som en mini-tabell med tekst og belop.",
+            "Inntekter, fratrekk og totalsummer skilles visuelt.",
+            "Sluttsummen Til utbetaling har egen markeringslinje.",
+        ],
+    },
     {
         "version": "1",
         "build": "1196",

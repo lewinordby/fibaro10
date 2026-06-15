@@ -47,12 +47,6 @@ function money(value: unknown): string {
   return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(numeric)} kr`;
 }
 
-function moneyAbs(value: unknown): string {
-  const numeric = asNumber(value);
-  if (numeric === null) return "-";
-  return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(Math.abs(numeric))} kr`;
-}
-
 function confidencePercent(value: unknown): number | null {
   const numeric = asNumber(value);
   if (numeric === null) return null;
@@ -136,25 +130,20 @@ function controlTone(status: string): "ok" | "warn" | "empty" {
   return "warn";
 }
 
-function FormulaTerm({
+function VoucherLine({
   label,
   value,
-  operator,
   kind = "neutral",
-  absolute = false,
 }: {
   label: string;
   value: unknown;
-  operator?: "+" | "-" | "=";
-  kind?: "income" | "cost" | "total" | "neutral";
-  absolute?: boolean;
+  kind?: "income" | "cost" | "sum" | "payout" | "neutral";
 }) {
   return (
-    <span className={`settlement-formula-term ${kind}`}>
-      {operator ? <span className="settlement-formula-operator">{operator}</span> : null}
-      <span className="settlement-formula-label">{label}</span>
-      <strong>{absolute ? moneyAbs(value) : money(value)}</strong>
-    </span>
+    <div className={`settlement-voucher-line ${kind}`}>
+      <span>{label}</span>
+      <strong>{money(value)}</strong>
+    </div>
   );
 }
 
@@ -187,16 +176,24 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
             <small>{money(row.vat_25_percent)} mva</small>
           </div>
         </div>
-        <div className="settlement-formula-strip" aria-label="Regnestykke fra oppgjÃ¸rsskjema">
-          <FormulaTerm label="Sol" value={row.sun_revenue_ex_vat} kind="income" />
-          <FormulaTerm operator="+" label="Produkt" value={row.product_sales_ex_vat} kind="income" />
-          <FormulaTerm operator="-" label="Trans." value={row.transaction_fee_ex_vat} kind="cost" absolute />
-          <FormulaTerm operator="-" label="Service" value={row.service_fee_ex_vat} kind="cost" absolute />
-          <FormulaTerm operator="-" label="SMS" value={row.marketing_sms_fee_ex_vat} kind="cost" absolute />
-          <FormulaTerm operator="-" label="E-post" value={row.marketing_email_fee_ex_vat} kind="cost" absolute />
-          <FormulaTerm operator="=" label="Sum eks." value={row.sum_ex_vat} kind="total" />
-          <FormulaTerm operator="+" label="Mva" value={row.vat_25_percent} />
-          <FormulaTerm operator="=" label="Utbet." value={row.payout_inc_vat} kind="total" />
+        <div className="settlement-voucher" aria-label="Forenklet oppgjørsskjema">
+          <div className="settlement-voucher-head">
+            <span>Oppgjørsskjema</span>
+            <span>Beløp</span>
+          </div>
+          <div className="settlement-voucher-grid">
+            <VoucherLine label="Solomsetning" value={row.sun_revenue_ex_vat} kind="income" />
+            <VoucherLine label="Produktsalg" value={row.product_sales_ex_vat} kind="income" />
+            <VoucherLine label="Transaksjonskostnad" value={row.transaction_fee_ex_vat} kind="cost" />
+            <VoucherLine label="Serviceavtale" value={row.service_fee_ex_vat} kind="cost" />
+            <VoucherLine label="Markedsføring SMS" value={row.marketing_sms_fee_ex_vat} kind="cost" />
+            <VoucherLine label="Markedsføring e-post" value={row.marketing_email_fee_ex_vat} kind="cost" />
+          </div>
+          <div className="settlement-voucher-totals">
+            <VoucherLine label="Sum eks. mva" value={row.sum_ex_vat} kind="sum" />
+            <VoucherLine label="25 % mva" value={row.vat_25_percent} />
+            <VoucherLine label="Til utbetaling" value={row.payout_inc_vat} kind="payout" />
+          </div>
         </div>
       </div>
       <div className="sun-settlement-ledger-controls">

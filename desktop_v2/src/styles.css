@@ -3438,52 +3438,92 @@
   text-align: right;
 }
 
-.settlement-formula-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px 8px;
-  align-items: baseline;
+.settlement-voucher {
   margin-top: 7px;
-  color: #64748b;
-  font-size: 10px;
-  line-height: 1.35;
+  padding-top: 5px;
+  border-top: 1px solid #e5ebf4;
+  color: #475569;
 }
 
-.settlement-formula-term {
-  display: inline-flex;
-  gap: 3px;
+.settlement-voucher-head,
+.settlement-voucher-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, auto);
+  gap: 10px;
   align-items: baseline;
+}
+
+.settlement-voucher-head {
+  margin-bottom: 2px;
+  color: #94a3b8;
+  font-size: 8px;
+  font-weight: 820;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.settlement-voucher-head span:last-child,
+.settlement-voucher-line strong {
+  text-align: right;
+}
+
+.settlement-voucher-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px 16px;
+}
+
+.settlement-voucher-line {
   min-width: 0;
+  font-size: 10px;
+  line-height: 1.28;
+}
+
+.settlement-voucher-line span {
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.settlement-formula-operator {
-  color: #94a3b8;
-  font-weight: 760;
-}
-
-.settlement-formula-label {
-  color: #64748b;
-  font-weight: 720;
-}
-
-.settlement-formula-term strong {
+.settlement-voucher-line strong {
   color: #111827;
   font-size: 10.5px;
-  font-weight: 820;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.settlement-formula-term.income strong {
+.settlement-voucher-line.income strong {
   color: #b45309;
 }
 
-.settlement-formula-term.cost strong {
+.settlement-voucher-line.cost strong {
   color: #dc2626;
 }
 
-.settlement-formula-term.total strong {
+.settlement-voucher-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #cbd5e1;
+}
+
+.settlement-voucher-line.sum strong {
   color: #1d4ed8;
+}
+
+.settlement-voucher-line.payout {
+  padding-top: 1px;
+  border-top: 2px solid #111827;
+}
+
+.settlement-voucher-line.payout span,
+.settlement-voucher-line.payout strong {
+  color: #111827;
   font-size: 11px;
+  font-weight: 860;
 }
 
 .sun-settlement-ledger-controls {
@@ -4140,6 +4180,11 @@
 
   .sun-settlement-ledger-controls {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .settlement-voucher-grid,
+  .settlement-voucher-totals {
+    grid-template-columns: 1fr;
   }
 
   .settlement-ledger-table-head {
