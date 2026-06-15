@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1182")
+APP_BUILD = os.getenv("APP_BUILD", "1183")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1183",
+        "date": "15.06.2026",
+        "headline": "Biluppgifter direkteoppslag fikset",
+        "title": "Fibaro10 bruker riktig intern URL til car_info_lookup",
+        "description": (
+            "Build 1183 retter direkteutloeste svenske/danske kjoretoyoppslag etter SVV. Fibaro10 brukte "
+            "fallback-URL til 127.0.0.1:8126 hvis miljovariabelen manglet, men car_info_lookup kjoerer i egen "
+            "container. Docker Compose setter naa eksplisitt CAR_INFO_LOOKUP_URL=http://car_info_lookup:8126 "
+            "paa Fibaro10-containeren."
+        ),
+        "applications": [
+            "Docker/QNAP (docker-compose.qnap.yml): setter CAR_INFO_LOOKUP_URL direkte for Fibaro10.",
+            "Buildlogg (build_log.py): registrerer build 1183.",
+        ],
+        "request": "Biluppgifter Sverige feiler naa.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Direkte biloppslag etter SVV bruker car_info_lookup-containeren i stedet for localhost.",
+            "Feilen Connection refused fra 127.0.0.1:8126 elimineres.",
+        ],
+    },
     {
         "version": "1",
         "build": "1182",
