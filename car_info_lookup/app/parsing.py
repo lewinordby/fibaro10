@@ -18,7 +18,7 @@ def is_swedish_license_plate(value: str | None) -> bool:
     return bool(SWEDISH_LICENSE_PLATE_RE.fullmatch(compact_plate(value)))
 
 
-class CarInfoParser(HTMLParser):
+class VehicleHtmlParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.title = ""
@@ -84,40 +84,32 @@ def strip_tags(value: str) -> str:
     return normalize_text(re.sub(r"<[^>]+>", " ", value))
 
 
-def extract_specs(html_text: str) -> dict[str, str]:
+def extract_label_value_specs(html_text: str) -> dict[str, str]:
     facts: dict[str, str] = {}
-    pattern = re.compile(r'<span[^>]*class="[^"]*\bsptitle\b[^"]*"[^>]*>(?P<label>.*?)</span>', re.IGNORECASE | re.DOTALL)
-    matches = list(pattern.finditer(html_text))
-    for index, match in enumerate(matches):
-        label = strip_tags(match.group("label"))
-        if not label or len(label) > 80:
+    pattern = re.compile(
+        r'<span[^>]*class="[^"]*\blabel\b[^"]*"[^>]*>(?P<label>.*?)</span>\s*'
+        r'<span[^>]*class="[^"]*\bvalue\b[^"]*"[^>]*>(?P<value>.*?)</span>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    for match in pattern.finditer(html_text):
+        label = strip_tags(match.group("label")).strip(" :")
+        value = strip_tags(match.group("value")).strip(" :")
+        if not label or not value or len(label) > 100 or len(value) > 240:
             continue
-        next_start = matches[index + 1].start() if index + 1 < len(matches) else min(len(html_text), match.end() + 1200)
-        tail = html_text[match.end():next_start]
-        stop = re.split(r"</div>\s*</div>", tail, maxsplit=1, flags=re.IGNORECASE | re.DOTALL)[0]
-        value = strip_tags(stop)
-        value = re.sub(
-            r"\b(Value from|Click for|Information is missing|Explanation:|Läs mer|Beställ|Logga in).*$",
-            "",
-            value,
-            flags=re.IGNORECASE,
-        ).strip(" :-")
-        if value and value.lower() != label.lower() and len(value) <= 240:
-            facts[label] = value
+        if value.casefold() in {"logga in", "ok\u00e4nd", "unknown"}:
+            continue
+        facts[label] = value
     return facts
-
-
-def first_value(*values: Any) -> Any:
-    for value in values:
-        if value not in (None, ""):
-            return value
-    return None
 
 
 def field_from_facts(facts: dict[str, str], *labels: str) -> str | None:
     normalized = {normalize_text(key).casefold(): value for key, value in facts.items()}
+    asciiish = {re.sub(r"[^a-z0-9]+", "", key.casefold()): value for key, value in normalized.items()}
     for label in labels:
-        value = normalized.get(normalize_text(label).casefold())
+        normalized_label = normalize_text(label).casefold()
+        value = normalized.get(normalized_label)
+        if not value:
+            value = asciiish.get(re.sub(r"[^a-z0-9]+", "", normalized_label))
         if value:
             return value
     for key, value in normalized.items():
@@ -126,77 +118,94 @@ def field_from_facts(facts: dict[str, str], *labels: str) -> str | None:
     return None
 
 
-def parse_description(description: str) -> dict[str, Any]:
+def split_model_year(value: Any) -> str | None:
+    text = normalize_text(value)
+    years = re.findall(r"(?:19|20)\d{2}", text)
+    return years[-1] if years else None
+
+
+def parse_biluppgifter_description(description: str) -> dict[str, Any]:
     fields: dict[str, Any] = {}
     text = normalize_text(description)
-    match = re.search(r"^[A-Z0-9]+\s+(?:is|är)\s+(?:a|en|ett)\s+(?P<color>\w+)\s+(?P<rest>.+?)\s+(?:from|från)\s+(?P<year>20\d{2}|19\d{2})", text, re.IGNORECASE)
+    match = re.search(
+        r"^[A-Z0-9]+\s+(?:\u00e4r|er)\s+en\s+(?P<color>.+?)\s+(?P<vehicle_type>.+?)\s+av\s+"
+        r"\u00e5rsmodell\s+(?P<year>20\d{2}|19\d{2})",
+        text,
+        re.IGNORECASE,
+    )
     if match:
-        fields["color"] = match.group("color")
-        fields["vehicle_title"] = normalize_text(match.group("rest"))
+        fields["color"] = normalize_text(match.group("color"))
+        fields["vehicle_type"] = normalize_text(match.group("vehicle_type"))
         fields["model_year"] = match.group("year")
-    power = re.search(r"(\d{2,4})\s*(?:hp|hk)", text, re.IGNORECASE)
-    if power:
-        fields["power"] = f"{power.group(1)} hp"
-    if re.search(r"electric|elbil|el\s", text, re.IGNORECASE):
-        fields["fuel"] = "Elektrisk"
-    elif re.search(r"hybrid|laddhybrid", text, re.IGNORECASE):
-        fields["fuel"] = "Hybrid"
-    elif re.search(r"diesel", text, re.IGNORECASE):
-        fields["fuel"] = "Diesel"
-    elif re.search(r"petrol|bensin", text, re.IGNORECASE):
-        fields["fuel"] = "Bensin"
-    if re.search(r"automatic|automat", text, re.IGNORECASE):
-        fields["transmission"] = "Automat"
-    status = re.search(r"(?:I trafik|In traffic):\s*([^\.]+)", text, re.IGNORECASE)
-    if status:
-        fields["registration_status"] = normalize_text(status.group(1))
     return fields
 
 
-def parse_car_info_html(plate: str, url: str, html_text: str, text_limit: int = 12000) -> dict[str, Any]:
-    parser = CarInfoParser()
+def parse_biluppgifter_html(plate: str, url: str, html_text: str, text_limit: int = 12000) -> dict[str, Any]:
+    parser = VehicleHtmlParser()
     parser.feed(html_text)
     title = parser.meta.get("og:title") or parser.title
     description = parser.meta.get("og:description") or parser.meta.get("description") or ""
-    facts = extract_specs(html_text)
-    fields = parse_description(description)
-    vehicle_title = fields.get("vehicle_title")
-    title_match = re.search(r"^[A-Z0-9]+\s*-\s*(?P<title>.+?)(?:,\s*(?P<year>20\d{2}|19\d{2}))?$", title)
-    if title_match:
-        vehicle_title = vehicle_title or normalize_text(title_match.group("title"))
-        fields.setdefault("model_year", title_match.group("year"))
-    fields["vehicle_title"] = first_value(vehicle_title, parser.h1[0] if parser.h1 else None, title)
+    facts = extract_label_value_specs(html_text)
+    fields = parse_biluppgifter_description(description)
+
+    make = field_from_facts(facts, "Fabrikat")
+    model = field_from_facts(facts, "Variant") or field_from_facts(facts, "Modell")
+    h1_candidates = [item for item in parser.h1 if re.search(r"\b(?:19|20)\d{2}\b", item) or re.search(r"\d+\s*hk", item, re.IGNORECASE)]
+    h1 = h1_candidates[0] if h1_candidates else (parser.h1[-1] if parser.h1 else None)
+    h1_title = re.sub(r",\s*\d+\s*hk.*$", "", h1 or "", flags=re.IGNORECASE).strip()
+    if make and model:
+        fields["vehicle_title"] = f"{make} {model}"
+    elif h1_title:
+        fields["vehicle_title"] = h1_title
+    else:
+        fields["vehicle_title"] = title
+
+    fact_power = field_from_facts(facts, "Motoreffekt")
+    h1_power = re.search(r"(\d{2,4})\s*hk", h1 or "", re.IGNORECASE)
+    if fact_power:
+        fields["power"] = fact_power
+    elif h1_power:
+        fields["power"] = f"{h1_power.group(1)} HK"
+    fields.setdefault("model_year", split_model_year(field_from_facts(facts, "Fordons\u00e5r / Modell\u00e5r")) or split_model_year(h1))
+
     field_map = {
-        "first_registered": ("First registered", "Registered", "Registrerad", "Första registrering", "Registreringsdatum"),
-        "vehicle_type": ("Vehicle type", "Body type", "Kaross", "Fordonstyp", "Biltyp"),
-        "color": ("Color", "Colour", "Färg"),
-        "registration_status": ("I trafik", "In traffic", "Trafikstatus"),
-        "mileage": ("Mileage", "Odometer", "Mätarställning", "Mil"),
-        "inspection_valid_to": ("Inspection valid to", "Besiktning giltig till", "Besiktigas senast", "Kontrollfrist"),
-        "engine": ("Engine", "Motor"),
-        "fuel": ("Fuel", "Drivstoff", "Bränsle"),
-        "transmission": ("Transmission", "Växellåda", "Girkasse"),
-        "power": ("Power", "Effekt"),
-        "classification": ("Classification", "Klassificering"),
-        "generation": ("Generation",),
-        "drivetrain": ("Drivetrain", "Drivlina"),
-        "fuel_consumption_combined": ("Combined consumption", "Blandad förbrukning"),
-        "co2_combined": ("CO2 combined", "CO₂, Blandad", "CO2, Blandad"),
-        "tank_volume": ("Tank volume", "Tankvolym"),
-        "seats": ("Seats", "Antal sittplatser"),
-        "swedish_sold": ("Swedish sold", "Svensksåld"),
+        "first_registered": ("F\u00f6rst registrerad",),
+        "first_registration_sweden": ("Trafik i Sverige",),
+        "latest_owner_change": ("Senaste \u00e4garbyte",),
+        "vehicle_type": ("Typ",),
+        "body_type": ("Kaross",),
+        "color": ("F\u00e4rg",),
+        "registration_status": ("Status",),
+        "mileage": ("M\u00e4tarst\u00e4llning (besiktning)", "M\u00e4tarst\u00e4llning"),
+        "inspection_valid_to": ("N\u00e4sta besiktning senast",),
+        "last_inspected": ("Senast besiktigad",),
+        "fuel": ("Drivmedel", "Br\u00e4nsle"),
+        "transmission": ("V\u00e4xell\u00e5da",),
+        "power": ("Motoreffekt",),
+        "engine": ("Motorvolym",),
+        "drivetrain": ("Fyrhjulsdrift",),
+        "classification": ("Fordonskategori EU",),
+        "seats": ("Passagerare",),
+        "vin": ("Chassinr / VIN",),
+        "tax": ("\u00c5rlig skatt",),
+        "leased": ("Leasad",),
+        "imported": ("Import / Inf\u00f6rsel",),
+        "fuel_consumption_combined": ("Elf\u00f6rbrukning Blandad", "F\u00f6rbrukning"),
+        "range_wltp": ("R\u00e4ckvidd",),
     }
     for key, labels in field_map.items():
         fields.setdefault(key, field_from_facts(facts, *labels))
+    if fields.get("drivetrain") == "Ja":
+        fields["drivetrain"] = "Fyrhjulsdrift"
+
     compact = compact_plate(plate)
     confirmed_swedish = is_swedish_license_plate(compact) and (
-        "/license-plate/s/" in url.lower()
-        or "license_code_S" in html_text
-        or "marketCode = \"se\"" in html_text
-        or "car.info/en-se" in html_text.lower()
-        or "car.info/sv-se" in html_text.lower()
+        "biluppgifter.se/fordon/" in url.lower()
+        and (facts.get("Registreringsnummer") == compact or compact in normalize_text(title).upper())
+        and bool(facts)
     )
     return {
+        "provider": "biluppgifter",
         "plate": compact,
         "country_code": "S",
         "confirmed_swedish": confirmed_swedish,
@@ -213,4 +222,9 @@ def parse_car_info_html(plate: str, url: str, html_text: str, text_limit: int = 
 
 def looks_rate_limited(status_code: int, html_text: str) -> bool:
     text = html_text.casefold()
-    return status_code == 429 or "coffee break" in text or "maximum number of searches" in text
+    return (
+        status_code == 429
+        or ("just a moment" in text and "enable javascript and cookies" in text)
+        or "f\u00f6r m\u00e5nga f\u00f6rfr\u00e5gningar" in text
+        or "too many requests" in text
+    )

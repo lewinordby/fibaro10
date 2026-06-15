@@ -1,9 +1,9 @@
 import unittest
 
-from car_info_lookup.app.parsing import is_swedish_license_plate, parse_car_info_html
+from car_info_lookup.app.parsing import is_swedish_license_plate, parse_biluppgifter_html
 
 
-class CarInfoLookupTests(unittest.TestCase):
+class SwedishVehicleLookupTests(unittest.TestCase):
     def test_swedish_license_plate_filter(self) -> None:
         self.assertTrue(is_swedish_license_plate("HWN31L"))
         self.assertTrue(is_swedish_license_plate("ABC123"))
@@ -11,51 +11,48 @@ class CarInfoLookupTests(unittest.TestCase):
         self.assertFalse(is_swedish_license_plate("DP12345"))
         self.assertFalse(is_swedish_license_plate("ABC12O"))
 
-    def test_car_info_parser_extracts_relevant_fields(self) -> None:
+    def test_biluppgifter_parser_extracts_vehicle_fields(self) -> None:
         html = """
         <html>
           <head>
-            <title>HWN31L - Volkswagen Caravelle T32 eHybrid E-CVT, 233hk, 2026</title>
-            <meta property="og:title" content="HWN31L - Volkswagen Caravelle T32 eHybrid E-CVT, 233hk, 2026"/>
-            <meta property="og:description" content="HWN31L is a grey Volkswagen Caravelle T32 from 2026 with a 233 hp hybrid engine and automatic transmission. In traffic: No."/>
+            <title>WDB22E Mercedes-Benz EQE 350 4-matic Silver 2024 - Biluppgifter.se</title>
+            <meta name="description" content="WDB22E \u00e4r en Silver Personbil av \u00e5rsmodell 2024 som \u00e4r Itrafik." />
           </head>
           <body>
-            <span class="licplate license_code_S"><span class="plate-text">HWN31L</span></span>
-            <script>window.marketCode = "se";</script>
-            <span class="sptitle">First registered</span><span>2026-01-15</span>
-            <span class="sptitle">Body type</span><span>Van</span>
-            <span class="sptitle">Mileage</span><span>12 345 km</span>
-            <span class="sptitle">Inspection valid to</span><span>2029-01-31</span>
-            <span class="sptitle">Drivlina</span><span>Framhjulsdrift</span>
-            <span class="sptitle">Klassificering</span><span>Minibuss (Lätt)</span>
-            <span class="sptitle">Generation</span><span>T7</span>
-            <span class="sptitle">Blandad förbrukning</span><span>4,2 l/100km</span>
-            <span class="sptitle">CO₂, Blandad</span><span>96 g/km</span>
-            <span class="sptitle">Antal sittplatser</span><span>9</span>
-            <span class="sptitle">Svensksåld</span><span>Läs mer och beställ</span>
+            <h1>S\u00f6k fordonsuppgifter</h1>
+            <h1>Mercedes-Benz EQE 350 4-matic, 292hk, 2024</h1>
+            <span class="label">Fabrikat</span><span class="value">Mercedes-Benz</span>
+            <span class="label">Variant</span><span class="value">EQE 350 4-matic</span>
+            <span class="label">Registreringsnummer</span><span class="value">WDB22E</span>
+            <span class="label">Fordons\u00e5r / Modell\u00e5r</span><span class="value">2024 / 2024</span>
+            <span class="label">Status</span><span class="value">I Trafik</span>
+            <span class="label">F\u00f6rst registrerad</span><span class="value">2025-01-31</span>
+            <span class="label">Senaste \u00e4garbyte</span><span class="value">2025-02-28</span>
+            <span class="label">N\u00e4sta besiktning senast</span><span class="value">2028-02-29</span>
+            <span class="label">Drivmedel</span><span class="value">El</span>
+            <span class="label">Motoreffekt</span><span class="value">292 HK / 215 kW</span>
+            <span class="label">Fyrhjulsdrift</span><span class="value">Ja</span>
+            <span class="label">F\u00e4rg</span><span class="value">Silver</span>
+            <span class="label">Kaross</span><span class="value">Stationsvagn Kombivagn</span>
           </body>
         </html>
         """
 
-        parsed = parse_car_info_html("HWN31L", "https://www.car.info/sv-se/license-plate/S/HWN31L", html)
+        parsed = parse_biluppgifter_html("WDB22E", "https://biluppgifter.se/fordon/wdb22e/", html)
 
         self.assertTrue(parsed["confirmed_swedish"])
-        self.assertEqual(parsed["fields"]["model_year"], "2026")
-        self.assertIn("Volkswagen Caravelle", parsed["fields"]["vehicle_title"])
-        self.assertEqual(parsed["fields"]["color"], "grey")
-        self.assertEqual(parsed["fields"]["fuel"], "Hybrid")
-        self.assertEqual(parsed["fields"]["transmission"], "Automat")
-        self.assertEqual(parsed["fields"]["first_registered"], "2026-01-15")
-        self.assertEqual(parsed["fields"]["vehicle_type"], "Van")
-        self.assertEqual(parsed["fields"]["mileage"], "12 345 km")
-        self.assertEqual(parsed["fields"]["inspection_valid_to"], "2029-01-31")
-        self.assertEqual(parsed["fields"]["drivetrain"], "Framhjulsdrift")
-        self.assertEqual(parsed["fields"]["classification"], "Minibuss (Lätt)")
-        self.assertEqual(parsed["fields"]["generation"], "T7")
-        self.assertEqual(parsed["fields"]["fuel_consumption_combined"], "4,2 l/100km")
-        self.assertEqual(parsed["fields"]["co2_combined"], "96 g/km")
-        self.assertEqual(parsed["fields"]["seats"], "9")
-        self.assertNotIn("swedish_sold", parsed["fields"])
+        self.assertEqual(parsed["provider"], "biluppgifter")
+        self.assertEqual(parsed["fields"]["vehicle_title"], "Mercedes-Benz EQE 350 4-matic")
+        self.assertEqual(parsed["fields"]["model_year"], "2024")
+        self.assertEqual(parsed["fields"]["color"], "Silver")
+        self.assertEqual(parsed["fields"]["vehicle_type"], "Personbil")
+        self.assertEqual(parsed["fields"]["first_registered"], "2025-01-31")
+        self.assertEqual(parsed["fields"]["latest_owner_change"], "2025-02-28")
+        self.assertEqual(parsed["fields"]["inspection_valid_to"], "2028-02-29")
+        self.assertEqual(parsed["fields"]["fuel"], "El")
+        self.assertEqual(parsed["fields"]["power"], "292 HK / 215 kW")
+        self.assertEqual(parsed["fields"]["drivetrain"], "Fyrhjulsdrift")
+        self.assertEqual(parsed["fields"]["body_type"], "Stationsvagn Kombivagn")
 
 
 if __name__ == "__main__":

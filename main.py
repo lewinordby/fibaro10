@@ -3022,9 +3022,9 @@ IMPORT_JOB_DEFINITIONS = {
         "description": "Løpende berikelse av registreringsnummer som mangler tekniske kjøretøydata.",
     },
     "parking_vehicle_car_info_sync": {
-        "title": "Car.info svenske kjoretoy",
+        "title": "Biluppgifter svenske kjoretoy",
         "category": "Parkering",
-        "source": "car.info",
+        "source": "Biluppgifter.se",
         "expected_interval_minutes": 4 * 60,
         "warning_after_minutes": 12 * 60,
         "description": "Forsiktig oppslag av svenske registreringsnummer der SVV ikke fant kjoretoydata.",
@@ -18880,12 +18880,14 @@ async def api_v2_parking_vehicle_detail(plate: str):
         api_detail_field("Notat", vehicle.notat),
     ]
     if vehicle.car_info_fetched_at or vehicle.car_info_data or vehicle.car_info_status:
+        provider_label = car_info_provider_label(vehicle.car_info_data)
         fields.extend(
             [
-                api_detail_field("Car.info status", car_info_status_label(vehicle.car_info_status, vehicle.car_info_data)),
-                api_detail_field("Car.info hentet", vehicle.car_info_fetched_at),
+                api_detail_field("Svensk kilde status", car_info_status_label(vehicle.car_info_status, vehicle.car_info_data), provider_label),
+                api_detail_field("Svensk kilde hentet", vehicle.car_info_fetched_at),
                 api_detail_field("Bekreftet Sverige", "Ja" if car_info_confirmed_swedish(vehicle.car_info_data) else "Nei"),
                 api_detail_field("Først registrert", car_info_field_value(vehicle.car_info_data, "first_registered", "first_registration")),
+                api_detail_field("Siste eierbytte Sverige", car_info_field_value(vehicle.car_info_data, "latest_owner_change")),
                 api_detail_field("Biltype", car_info_field_value(vehicle.car_info_data, "vehicle_type", "body_type", "class")),
                 api_detail_field("Drivstoff/motor", car_info_field_value(vehicle.car_info_data, "fuel", "engine")),
                 api_detail_field("Girkasse", car_info_field_value(vehicle.car_info_data, "transmission")),
@@ -18898,7 +18900,7 @@ async def api_v2_parking_vehicle_detail(plate: str):
                 api_detail_field("Forbruk blandet", car_info_field_value(vehicle.car_info_data, "fuel_consumption_combined")),
                 api_detail_field("CO2 blandet", car_info_field_value(vehicle.car_info_data, "co2_combined")),
                 api_detail_field("Seter", car_info_field_value(vehicle.car_info_data, "seats")),
-                api_detail_field("Car.info URL", vehicle.car_info_url),
+                api_detail_field("Kilde URL", vehicle.car_info_url),
             ]
         )
     not_found_fields = parking_vehicle_not_found_field_labels(vehicle)
@@ -19123,7 +19125,7 @@ async def api_v2_parking_car_info_sync(request: Request, limit: int = Query(1, g
                 session,
                 "parking_vehicle_car_info_sync",
                 ok=False,
-                source="car.info lookup",
+                source="Biluppgifter lookup",
                 started_at=started_at,
                 records_imported=0,
                 records_total=0,
@@ -19131,7 +19133,7 @@ async def api_v2_parking_car_info_sync(request: Request, limit: int = Query(1, g
             )
             await session.commit()
         return JSONResponse({"status": "error", "message": str(exc)}, status_code=502)
-    return {"status": "ok", "message": "Car.info-oppslag er startet/kjort.", "result": result}
+    return {"status": "ok", "message": "Svensk biloppslag er startet/kjort.", "result": result}
 
 
 @app.post("/api/actions/parkering/clear-area-not-found")
@@ -20180,6 +20182,13 @@ def car_info_field_value(data: Optional[Dict[str, Any]], *keys: str) -> Any:
     return None
 
 
+def car_info_provider_label(data: Optional[Dict[str, Any]]) -> str:
+    provider = str((data or {}).get("provider") or "").strip().lower() if isinstance(data, dict) else ""
+    if provider == "biluppgifter":
+        return "biluppgifter.se"
+    return "svensk kilde"
+
+
 def car_info_status_label(status: Optional[int], data: Optional[Dict[str, Any]] = None) -> str:
     if status == 200:
         return "Bekreftet svensk" if car_info_confirmed_swedish(data) else "Hentet"
@@ -20687,7 +20696,7 @@ def parking_vehicle_display_source(details: Optional[ParkingVehicleDetails], car
     if not parking_vehicle_label_is_unknown(parking_vehicle_label(details)):
         return "Fra SVV"
     if car_info_vehicle_title(car_info_data):
-        return "Fra car.info"
+        return f"Fra {car_info_provider_label(car_info_data)}"
     return ""
 
 
@@ -20890,7 +20899,7 @@ def car_info_lookup_request(path: str, params: Dict[str, Any]) -> Dict[str, Any]
     try:
         return json.loads(payload)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Ugyldig svar fra car.info-appen: {payload[:240]}") from exc
+        raise RuntimeError(f"Ugyldig svar fra svensk biloppslag: {payload[:240]}") from exc
 
 
 async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> Optional[Dict[str, Any]]:
@@ -20915,7 +20924,7 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
             result = await asyncio.to_thread(car_info_lookup_request, f"/api/run-plate/{plate}", {})
             results.append(result)
             if result.get("status") == "error":
-                errors.append(f"{plate}: {str(result.get('message') or 'car.info-feil')[:240]}")
+                errors.append(f"{plate}: {str(result.get('message') or 'svensk biloppslag-feil')[:240]}")
                 break
             if result.get("status") in {"backoff", "busy"} or result.get("rate_limited"):
                 break
@@ -20925,16 +20934,16 @@ async def trigger_car_info_after_svv_no_data(plates: list[str], source: str) -> 
 
     ok = not errors
     message = (
-        f"Direkte car.info-trigger for {len(selected)} av {len(candidates)} svenske SVV-uten-treff."
+        f"Direkte svensk biloppslag for {len(selected)} av {len(candidates)} svenske SVV-uten-treff."
         if ok
-        else f"Direkte car.info-trigger feilet: {errors[0]}"
+        else f"Direkte svensk biloppslag feilet: {errors[0]}"
     )
     async with async_session() as session:
         await record_import_job(
             session,
             "parking_vehicle_car_info_sync",
             ok=ok,
-            source=f"{source} -> car.info auto",
+            source=f"{source} -> Biluppgifter auto",
             started_at=started_at,
             records_imported=sum(int(item.get("confirmed_swedish") or 0) for item in results),
             records_total=len(candidates),
@@ -21758,7 +21767,7 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
             current_area = (vehicle.omrade or "").strip()
             if not current_area or is_not_found_marker(current_area):
                 vehicle.omrade = "Sverige"
-                vehicle.omrade_kilde = "car.info"
+                vehicle.omrade_kilde = car_info_provider_label(data.data)
                 vehicle.omrade_oppdatert = now
                 area_updated = True
         vehicle.updated_at = now
@@ -21766,7 +21775,7 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
             session,
             "parking_vehicle_car_info_sync",
             ok=data.status == 200,
-            source="car.info lookup",
+            source=car_info_provider_label(data.data),
             records_imported=1 if data.status == 200 else 0,
             records_total=1,
             message=f"{plate_value}: {car_info_status_label(data.status, data.data)}",

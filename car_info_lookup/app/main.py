@@ -13,7 +13,7 @@ import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 
-from .parsing import compact_plate, is_swedish_license_plate, looks_rate_limited, parse_car_info_html
+from .parsing import compact_plate, is_swedish_license_plate, looks_rate_limited, parse_biluppgifter_html
 
 load_dotenv()
 
@@ -25,7 +25,7 @@ FIBARO10_USERNAME = os.getenv("FIBARO10_USERNAME", "")
 FIBARO10_PASSWORD = os.getenv("FIBARO10_PASSWORD", "")
 APP_TOKEN = os.getenv("CAR_INFO_APP_TOKEN", "").strip()
 
-URL_TEMPLATE = os.getenv("CAR_INFO_URL_TEMPLATE", "https://www.car.info/sv-se/license-plate/S/{plate}")
+URL_TEMPLATE = os.getenv("CAR_INFO_URL_TEMPLATE", "https://biluppgifter.se/fordon/{plate_lower}/")
 USER_AGENT = os.getenv(
     "CAR_INFO_USER_AGENT",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36",
@@ -41,7 +41,8 @@ BACKLOG_ENABLED = os.getenv("CAR_INFO_BACKLOG_ENABLED", "true").strip().lower() 
 BACKLOG_MAX_PER_CYCLE = max(1, min(100, int(os.getenv("CAR_INFO_BACKLOG_MAX_PER_CYCLE", "12"))))
 BACKLOG_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_BACKLOG_DELAY_SECONDS", str(max(REQUEST_DELAY_SECONDS, 300)))))
 
-app = FastAPI(title="Fibaro10 car.info lookup")
+PROVIDER = "biluppgifter"
+app = FastAPI(title="Fibaro10 svensk biloppslag")
 lock = asyncio.Lock()
 worker_task: asyncio.Task | None = None
 state: dict[str, Any] = {
@@ -54,6 +55,7 @@ state: dict[str, Any] = {
     "last_url": None,
     "last_result": None,
     "backoff_until": None,
+    "provider": PROVIDER,
     "last_candidate_count": None,
     "backlog_enabled": BACKLOG_ENABLED,
     "backlog_last_cycle_at": None,
@@ -99,13 +101,14 @@ def save_state() -> None:
 
 
 def set_state(**values: Any) -> None:
+    values["provider"] = PROVIDER
     state.update(values)
     save_state()
 
 
 def require_token(token: str | None) -> None:
     if APP_TOKEN and token != APP_TOKEN:
-        raise HTTPException(status_code=401, detail="Ugyldig car.info-token")
+        raise HTTPException(status_code=401, detail="Ugyldig token for svensk biloppslag")
 
 
 def fibaro_headers() -> dict[str, str]:
@@ -145,15 +148,16 @@ def fibaro_post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     return response.json()
 
 
-def car_info_url(plate: str) -> str:
-    return URL_TEMPLATE.replace("{plate}", compact_plate(plate))
+def lookup_url(plate: str) -> str:
+    compact = compact_plate(plate)
+    return URL_TEMPLATE.replace("{plate_lower}", compact.lower()).replace("{plate}", compact)
 
 
-def fetch_car_info(plate: str) -> tuple[int, str, dict[str, Any], str | None]:
+def fetch_swedish_vehicle(plate: str) -> tuple[int, str, dict[str, Any], str | None]:
     compact = compact_plate(plate)
     if not is_swedish_license_plate(compact):
         return 400, "", {}, "Registreringsnummer matcher ikke svensk standardformat"
-    url = car_info_url(compact)
+    url = lookup_url(compact)
     response = requests.get(
         url,
         headers={
@@ -166,18 +170,20 @@ def fetch_car_info(plate: str) -> tuple[int, str, dict[str, Any], str | None]:
     )
     html_text = response.text or ""
     if looks_rate_limited(response.status_code, html_text):
-        return 429, response.url, {"rate_limit": True, "headers": dict(response.headers)}, "car.info rate-limit/coffee break"
+        return 429, response.url, {"rate_limit": True, "headers": dict(response.headers)}, "Biluppgifter rate-limit/Cloudflare"
     if response.status_code == 404:
-        return 404, response.url, {}, "Ikke funnet hos car.info"
+        return 404, response.url, {}, "Ikke funnet hos Biluppgifter"
     if response.status_code >= 400:
         return response.status_code, response.url, {}, f"HTTP {response.status_code}"
-    parsed = parse_car_info_html(compact, response.url, html_text, text_limit=TEXT_LIMIT)
+    parsed = parse_biluppgifter_html(compact, response.url, html_text, text_limit=TEXT_LIMIT)
     if not parsed.get("confirmed_swedish"):
         return 204, response.url, parsed, "Fant side, men kunne ikke bekrefte svensk bil"
     return 200, response.url, parsed, None
 
 
 def backoff_active() -> str | None:
+    if state.get("provider") != PROVIDER:
+        return None
     until = parse_iso(state.get("backoff_until"))
     if until and until > utcnow():
         return until.isoformat()
@@ -186,12 +192,12 @@ def backoff_active() -> str | None:
 
 async def run_once(limit: int = BATCH_SIZE, force: bool = False) -> dict[str, Any]:
     if lock.locked():
-        return {"status": "busy", "message": "Car.info-oppslag kjører allerede"}
+        return {"status": "busy", "message": "Svensk biloppslag kjoerer allerede"}
     async with lock:
         if not force:
             until = backoff_active()
             if until:
-                return {"status": "backoff", "message": f"Venter på car.info-rate-limit til {until}", "backoff_until": until}
+                return {"status": "backoff", "message": f"Venter paa svensk oppslagskilde til {until}", "backoff_until": until}
 
         started = time.monotonic()
         set_state(running=True, last_action="fetch_candidates", last_error=None)
@@ -211,8 +217,8 @@ async def run_once(limit: int = BATCH_SIZE, force: bool = False) -> dict[str, An
                     skipped += 1
                     results.append({"plate": plate, "status": "skipped", "message": "Ikke svensk format"})
                     continue
-                set_state(last_action="fetch_car_info", last_plate=plate, last_url=car_info_url(plate))
-                status_code, url, data, error = await asyncio.to_thread(fetch_car_info, plate)
+                set_state(last_action="fetch_swedish_vehicle", last_plate=plate, last_url=lookup_url(plate))
+                status_code, url, data, error = await asyncio.to_thread(fetch_swedish_vehicle, plate)
                 payload = {"status": status_code, "url": url, "error": error, "data": data}
                 post_result = await asyncio.to_thread(fibaro_post, f"/api/parkering/kjoretoy/{plate}/car-info", payload)
                 processed += 1
@@ -266,23 +272,23 @@ async def run_plate(plate: str, force: bool = False) -> dict[str, Any]:
     if not is_swedish_license_plate(compact):
         return {"status": "skipped", "message": "Ikke svensk format", "plate": compact, "processed": 0, "results": []}
     if lock.locked():
-        return {"status": "busy", "message": "Car.info-oppslag kjoerer allerede", "plate": compact, "processed": 0, "results": []}
+        return {"status": "busy", "message": "Svensk biloppslag kjoerer allerede", "plate": compact, "processed": 0, "results": []}
     async with lock:
         if not force:
             until = backoff_active()
             if until:
                 return {
                     "status": "backoff",
-                    "message": f"Venter paa car.info-rate-limit til {until}",
+                    "message": f"Venter paa svensk oppslagskilde til {until}",
                     "backoff_until": until,
                     "plate": compact,
                     "processed": 0,
                     "results": [],
                 }
         started = time.monotonic()
-        set_state(running=True, last_action="fetch_car_info_direct", last_plate=compact, last_url=car_info_url(compact), last_error=None)
+        set_state(running=True, last_action="fetch_swedish_vehicle_direct", last_plate=compact, last_url=lookup_url(compact), last_error=None)
         try:
-            status_code, url, data, error = await asyncio.to_thread(fetch_car_info, compact)
+            status_code, url, data, error = await asyncio.to_thread(fetch_swedish_vehicle, compact)
             payload = {"status": status_code, "url": url, "error": error, "data": data}
             post_result = await asyncio.to_thread(fibaro_post, f"/api/parkering/kjoretoy/{compact}/car-info", payload)
             result = {
@@ -337,7 +343,7 @@ async def run_backlog_cycle(max_items: int = BACKLOG_MAX_PER_CYCLE, force: bool 
             until = backoff_active()
             if until:
                 status = "backoff"
-                message = f"Venter paa car.info-rate-limit til {until}"
+                message = f"Venter paa svensk oppslagskilde til {until}"
                 break
 
         result = await run_once(1, force=force)
@@ -354,7 +360,7 @@ async def run_backlog_cycle(max_items: int = BACKLOG_MAX_PER_CYCLE, force: bool 
             break
         if result.get("rate_limited"):
             status = "backoff"
-            message = result.get("message") or "car.info rate-limit/coffee break"
+            message = result.get("message") or "Svensk oppslagskilde rate-limit"
             break
         if int(result.get("processed") or 0) == 0:
             status = "complete" if not candidate_count else "idle"
@@ -407,6 +413,10 @@ async def startup() -> None:
     global worker_task
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     load_state()
+    if state.get("provider") != PROVIDER:
+        set_state(provider=PROVIDER, backoff_until=None, last_error=None, last_action="provider_changed")
+    else:
+        set_state(provider=PROVIDER)
     if worker_task is None:
         worker_task = asyncio.create_task(scheduler_loop())
 
@@ -420,10 +430,11 @@ async def index() -> dict[str, Any]:
 async def health() -> dict[str, Any]:
     return {
         "status": "ok",
-        "service": "car_info_lookup",
+        "service": "swedish_vehicle_lookup",
         "state": state,
         "config": {
             "fibaro10_base_url": FIBARO10_BASE_URL,
+            "provider": PROVIDER,
             "url_template": URL_TEMPLATE,
             "run_interval_minutes": RUN_INTERVAL_MINUTES,
             "batch_size": BATCH_SIZE,

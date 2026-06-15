@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1175")
+APP_BUILD = os.getenv("APP_BUILD", "1176")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1176",
+        "date": "15.06.2026",
+        "headline": "Biluppgifter blir eneste svenske bilkilde",
+        "title": "Svenske kjoretoyoppslag bruker Biluppgifter.se",
+        "description": (
+            "Build 1176 fjerner car.info som aktiv kilde og parser. Biluppgifter.se er eneste runtime-kilde "
+            "for svenske biler. Kilden gir HTML med modell, aar, farge, forstegangsregistrering, siste eierbytte, "
+            "trafikkstatus, besiktning og tekniske felt naar siden svarer. Interne car_info-navn i database/API "
+            "beholdes bare som kompatibilitetslag."
+        ),
+        "applications": [
+            "Svensk biloppslag (car_info_lookup/app/main.py): bruker Biluppgifter.se som eneste provider.",
+            "Svensk biloppslag (car_info_lookup/app/parsing.py): fjerner gammel parser og leser Biluppgifter label/verdi-felter.",
+            "Fibaro10 backend (main.py): viser svensk kilde generisk og legger siste eierbytte fra Biluppgifter.",
+            "Konfigurasjon (.env.qnap.example, docker-compose.qnap.yml): fjerner provider-valg og dokumenterer Biluppgifter-URL.",
+            "Tester (test_car_info_lookup.py): dekker Biluppgifter-parseren med WDB22E-lignende HTML.",
+            "Dokumentasjon (docs/car-info-oppslag.md, car_info_lookup/README.md): oppdateres til Biluppgifter-only.",
+            "Buildlogg (build_log.py): registrerer build 1176.",
+        ],
+        "request": "Hva med aa legge om til https://biluppgifter.se/fordon/wdb22e/ med et testnummer? Glem car info.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Biluppgifter.se brukes som eneste URL for nye svenske oppslag.",
+            "Parseren henter modell, aar, farge, forst registrert, siste eierbytte, status, kontrollfrist og tekniske felt.",
+            "Gammel provider-backoff nullstilles automatisk fordi provider er endret til Biluppgifter.",
+        ],
+    },
     {
         "version": "1",
         "build": "1175",
