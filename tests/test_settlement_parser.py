@@ -1,5 +1,6 @@
 import os
 import unittest
+from datetime import date
 
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://example:example@127.0.0.1:5432/example")
 
@@ -191,6 +192,46 @@ class ParkingSettlementParserTests(unittest.TestCase):
         self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["expectedSource"], "sun2_finance_settlements")
         self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["status"], "ok")
         self.assertEqual(full_control_rows["sun_revenue_ex_vat"]["difference"], 0)
+
+        summary = main.sun_settlement_summary_row(
+            main.SettlementImport(
+                provider=main.SUN_SETTLEMENT_PROVIDER,
+                period_label="Januar 2026",
+                period_start=date(2026, 1, 1),
+                period_end=date(2026, 1, 31),
+                status="tolket",
+                parsed=parsed,
+            ),
+            {
+                "count": 8,
+                "quantity": 8,
+                "amount_ex_vat": 1742.4,
+                "amount_inc_vat": 2178,
+                "last_imported_at": None,
+            },
+            {
+                "count": 1,
+                "member_tanning_count": 208,
+                "member_tanning_inc_vat": 35963.85,
+                "unregistered_tanning_count": 721,
+                "unregistered_tanning_inc_vat": 125583.89,
+                "tanning_bonus_inc_vat": 462.38,
+                "tanning_bonus_ex_vat": 369.9,
+                "tanning_gross_ex_vat": 129238.19,
+                "tanning_control_ex_vat": 128868.29,
+            },
+            {
+                "count": 929,
+                "amount_ex_vat": 129238.19,
+            },
+        )
+        self.assertEqual(summary["sun_sessions_source_ex_vat"], 129238.19)
+        self.assertEqual(summary["sun_sessions_diff_vs_finance_ex_vat"], 369.9)
+        self.assertEqual(summary["sun_sessions_diff_vs_finance_gross_ex_vat"], 0)
+        self.assertEqual(summary["sun_sessions_control_status"], "OK")
+        self.assertEqual(summary["sun_finance_bonus_ex_vat"], 369.9)
+        self.assertEqual(summary["sun_finance_gross_ex_vat"], 129238.19)
+        self.assertEqual(summary["sun_revenue_diff_vs_finance_gross_ex_vat"], 369.9)
 
 
 if __name__ == "__main__":

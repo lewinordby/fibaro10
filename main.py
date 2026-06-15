@@ -17014,6 +17014,9 @@ async def sun2_finance_settlement_period_summary(session, start: date, end: date
         "unregistered_tanning_count": row.unregistered_tanning_count,
         "unregistered_tanning_inc_vat": row.unregistered_tanning_inc_vat_kr,
         "tanning_bonus_inc_vat": row.tanning_bonus_inc_vat_kr,
+        "tanning_bonus_ex_vat": round(float_or_zero(row.tanning_bonus_inc_vat_kr) / 1.25, 2) if row.tanning_bonus_inc_vat_kr is not None else None,
+        "tanning_gross_inc_vat": round(float_or_zero(row.member_tanning_inc_vat_kr) + float_or_zero(row.unregistered_tanning_inc_vat_kr), 2),
+        "tanning_gross_ex_vat": round((float_or_zero(row.member_tanning_inc_vat_kr) + float_or_zero(row.unregistered_tanning_inc_vat_kr)) / 1.25, 2),
         "tanning_control_inc_vat": row.tanning_control_inc_vat_kr,
         "tanning_control_ex_vat": row.tanning_control_ex_vat_kr,
         "last_imported_at": row.imported_at,
@@ -17050,6 +17053,49 @@ def sun2_tanning_revenue_expected(summary: Optional[Dict[str, Any]]) -> tuple[Op
     if last_imported:
         detail_parts.append(f"sist importert {format_local_datetime(last_imported)}")
     return round(float_or_zero(value), 2), ", ".join(detail_parts)
+
+
+async def sun2_tanning_sessions_period_summary(session, start: date, end: date) -> Dict[str, Any]:
+    result = (
+        await session.execute(
+            select(
+                func.count(Sun2TanningSession.id),
+                func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0),
+                func.min(Sun2TanningSession.started_at),
+                func.max(Sun2TanningSession.started_at),
+                func.max(Sun2TanningSession.imported_at),
+            )
+            .where(Sun2TanningSession.stat_date >= start)
+            .where(Sun2TanningSession.stat_date <= end)
+        )
+    ).one()
+    daily_result = (
+        await session.execute(
+            select(
+                func.coalesce(func.sum(Sun2RoomDailyStat.totalt_antall_solinger), 0),
+                func.coalesce(func.sum(Sun2RoomDailyStat.totalt_inntjent_kr), 0),
+                func.max(Sun2RoomDailyStat.imported_at),
+            )
+            .where(Sun2RoomDailyStat.stat_date >= start)
+            .where(Sun2RoomDailyStat.stat_date <= end)
+        )
+    ).one()
+    count_value, amount_inc, first_started, last_started, last_imported = result
+    daily_count, daily_amount_inc, daily_imported = daily_result
+    return {
+        "period_start": start,
+        "period_end": end,
+        "count": int_or_zero(count_value),
+        "amount_inc_vat": round(float_or_zero(amount_inc), 2),
+        "amount_ex_vat": round(float_or_zero(amount_inc) / 1.25, 2),
+        "first_started_at": first_started,
+        "last_started_at": last_started,
+        "last_imported_at": last_imported,
+        "daily_count": int_or_zero(daily_count),
+        "daily_amount_inc_vat": round(float_or_zero(daily_amount_inc), 2),
+        "daily_amount_ex_vat": round(float_or_zero(daily_amount_inc) / 1.25, 2),
+        "daily_last_imported_at": daily_imported,
+    }
 
 
 def settlement_form_rows(parsed: Any, source_summaries: Optional[Dict[str, Dict[str, Any]]] = None) -> list[Dict[str, Any]]:
@@ -17542,12 +17588,35 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
         if row.period_start and row.period_end
         else None
     )
+    sessions_summary = (
+        await sun2_tanning_sessions_period_summary(session, row.period_start, row.period_end)
+        if row.period_start and row.period_end
+        else None
+    )
     expected_sun_revenue, sun_revenue_detail = sun2_tanning_revenue_expected(finance_summary)
     expected_product_sales, product_sales_detail = sun2_product_sales_expected(product_sales_summary)
     sun_revenue_value = settlement_parsed_float(parsed, "sun_revenue_ex_vat")
     sun_revenue_diff = (
         round(sun_revenue_value - expected_sun_revenue, 2)
         if sun_revenue_value is not None and expected_sun_revenue is not None
+        else None
+    )
+    raw_sessions_ex = parse_settlement_number((sessions_summary or {}).get("amount_ex_vat"))
+    raw_sessions_diff = (
+        round(raw_sessions_ex - expected_sun_revenue, 2)
+        if raw_sessions_ex is not None and expected_sun_revenue is not None
+        else None
+    )
+    finance_gross_ex = parse_settlement_number((finance_summary or {}).get("tanning_gross_ex_vat"))
+    raw_sessions_gross_diff = (
+        round(raw_sessions_ex - finance_gross_ex, 2)
+        if raw_sessions_ex is not None and finance_gross_ex is not None
+        else None
+    )
+    finance_bonus_ex = parse_settlement_number((finance_summary or {}).get("tanning_bonus_ex_vat"))
+    finance_gross_diff = (
+        round(finance_gross_ex - sun_revenue_value, 2)
+        if finance_gross_ex is not None and sun_revenue_value is not None
         else None
     )
     product_sales_value = settlement_parsed_float(parsed, "product_sales_ex_vat")
@@ -17591,6 +17660,21 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
     if sun_revenue_diff is not None:
         tone = "status" if abs(sun_revenue_diff) <= 1 else "revenue"
         cards.append(api_card("Avvik soling", format_short_number(sun_revenue_diff, 2), "kr", "Skjema minus Sun2 eks. mva", tone))
+    if finance_bonus_ex is not None:
+        cards.append(api_card("Bonusavvik", format_short_number(finance_bonus_ex, 2), "kr", "Sun2 månedsomsetning før bonus minus oppgjør", "revenue" if finance_bonus_ex else "status"))
+    if raw_sessions_ex is not None:
+        cards.append(
+            api_card(
+                "Rå enkelttimer",
+                format_short_number(raw_sessions_ex, 2),
+                "kr",
+                f"{int_or_zero((sessions_summary or {}).get('count'))} timer eks. mva",
+                "sun2",
+            )
+        )
+    if raw_sessions_diff is not None:
+        tone = "status" if abs(raw_sessions_diff) <= 1 else "revenue"
+        cards.append(api_card("Råtimer mot netto", format_short_number(raw_sessions_diff, 2), "kr", "Rå enkelttimer minus Sun2 netto. Skal normalt speile bonus hvis råtimer er komplett.", tone))
     if expected_product_sales is not None:
         cards.append(api_card("Sun2 produktsalg", format_short_number(expected_product_sales, 2), "kr", product_sales_detail, "sun2"))
     if product_sales_diff is not None:
@@ -17604,6 +17688,19 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
         "original": original,
         "sections": [
             {"title": "Oppgjorsformular", "rows": sun_settlement_form_rows(parsed, product_sales_summary, finance_summary)},
+            {
+                "title": "Soling kontroll mot Sun2 finans og råtimer",
+                "rows": [
+                    settlement_field("Sun2 finans brutto inkl. mva", "sun_finance_gross_inc_vat", (finance_summary or {}).get("tanning_gross_inc_vat"), "Sun2 finanshistorikk", "Medlemssolinger + uregistrerte solinger for perioden."),
+                    settlement_field("Bonusbruk inkl. mva", "sun_finance_bonus_inc_vat", (finance_summary or {}).get("tanning_bonus_inc_vat"), "Sun2 finanshistorikk", "Bonusbruk trekkes fra før Altera-oppgjøret."),
+                    settlement_field("Bonusbruk eks. mva", "sun_finance_bonus_ex_vat", finance_bonus_ex, "Sun2 finanshistorikk", "Dette er forventet avvik mellom brutto månedsomsetning og oppgjørets solomsetning."),
+                    settlement_field("Avvik brutto måned - skjema eks. mva", "sun_finance_gross_diff_ex_vat", finance_gross_diff, "Beregnet kontroll", "Sun2 finans brutto eks. mva minus skjemaets Solomsetning."),
+                    settlement_field("Sun2 finans netto eks. mva", "sun_finance_net_ex_vat", expected_sun_revenue, "Sun2 finanshistorikk", "Dette er kontrollgrunnlaget mot skjemaets Solomsetning."),
+                    settlement_field("Rå enkelttimer eks. mva", "sun_sessions_raw_ex_vat", raw_sessions_ex, "sun2_tanning_sessions", f"{int_or_zero((sessions_summary or {}).get('count'))} enkelttimer i perioden."),
+                    settlement_field("Råtimer mot finans netto eks. mva", "sun_sessions_diff_vs_finance_ex_vat", raw_sessions_diff, "Beregnet kontroll", "Skal normalt speile bonus hvis råtimer er komplett."),
+                    settlement_field("Avvik råtimer - finans brutto eks. mva", "sun_sessions_diff_vs_finance_gross_ex_vat", raw_sessions_gross_diff, "Beregnet kontroll", "Dette avdekker om rå enkelttimer mangler mot Sun2 sin brutto finanssum før bonus."),
+                ],
+            },
             {"title": "Nokkeltall fra skjema", "rows": parsed_rows},
             {
                 "title": "Tolket periode",
@@ -17639,6 +17736,7 @@ def sun_settlement_summary_row(
     row: SettlementImport,
     product_sales_summary: Optional[Dict[str, Any]] = None,
     finance_summary: Optional[Dict[str, Any]] = None,
+    sessions_summary: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     parsed = row.parsed if isinstance(row.parsed, dict) else {}
     form_rows = sun_settlement_form_rows(parsed, product_sales_summary, finance_summary)
@@ -17659,6 +17757,27 @@ def sun_settlement_summary_row(
         sun_revenue_control_status = "OK"
     else:
         sun_revenue_control_status = "Avvik"
+    raw_sessions_ex = parse_settlement_number((sessions_summary or {}).get("amount_ex_vat"))
+    raw_sessions_diff = (
+        round(raw_sessions_ex - expected_sun_revenue, 2)
+        if raw_sessions_ex is not None and expected_sun_revenue is not None
+        else None
+    )
+    finance_gross_ex = parse_settlement_number((finance_summary or {}).get("tanning_gross_ex_vat"))
+    raw_sessions_gross_diff = (
+        round(raw_sessions_ex - finance_gross_ex, 2)
+        if raw_sessions_ex is not None and finance_gross_ex is not None
+        else None
+    )
+    finance_bonus_ex = parse_settlement_number((finance_summary or {}).get("tanning_bonus_ex_vat"))
+    finance_gross_diff = (
+        round(finance_gross_ex - sun_revenue_value, 2)
+        if finance_gross_ex is not None and sun_revenue_value is not None
+        else None
+    )
+    raw_sessions_status = "Mangler råtimer"
+    if raw_sessions_ex is not None and finance_gross_ex is not None:
+        raw_sessions_status = "OK" if abs(raw_sessions_gross_diff or 0) <= 1 else "Avvik"
     expected_product_sales, product_sales_detail = sun2_product_sales_expected(product_sales_summary)
     product_sales_value = settlement_parsed_float(parsed, "product_sales_ex_vat")
     product_sales_diff = (
@@ -17681,6 +17800,14 @@ def sun_settlement_summary_row(
         "sun_revenue_source_detail": sun_revenue_detail,
         "sun_revenue_diff_ex_vat": sun_revenue_diff,
         "sun_revenue_control_status": sun_revenue_control_status,
+        "sun_sessions_count": int_or_zero((sessions_summary or {}).get("count")),
+        "sun_sessions_source_ex_vat": raw_sessions_ex,
+        "sun_sessions_diff_vs_finance_ex_vat": raw_sessions_diff,
+        "sun_sessions_diff_vs_finance_gross_ex_vat": raw_sessions_gross_diff,
+        "sun_sessions_control_status": raw_sessions_status,
+        "sun_finance_bonus_ex_vat": finance_bonus_ex,
+        "sun_finance_gross_ex_vat": finance_gross_ex,
+        "sun_revenue_diff_vs_finance_gross_ex_vat": finance_gross_diff,
         "product_sales_source_ex_vat": expected_product_sales,
         "product_sales_source_detail": product_sales_detail,
         "product_sales_diff_ex_vat": product_sales_diff,
@@ -17719,16 +17846,24 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
     parsed_period_count = max(0, int_or_zero(total_settlements) - int_or_zero(unknown_period_count))
     product_sales_summaries: Dict[int, Dict[str, Any]] = {}
     finance_summaries: Dict[int, Dict[str, Any]] = {}
+    sessions_summaries: Dict[int, Dict[str, Any]] = {}
     for row in settlement_rows:
         if row.id and row.period_start and row.period_end:
             product_sales_summaries[row.id] = await sun2_product_sales_period_summary(session, row.period_start, row.period_end)
             finance_summaries[row.id] = await sun2_finance_settlement_period_summary(session, row.period_start, row.period_end)
+            sessions_summaries[row.id] = await sun2_tanning_sessions_period_summary(session, row.period_start, row.period_end)
     product_control_rows = [
-        sun_settlement_summary_row(row, product_sales_summaries.get(row.id or 0), finance_summaries.get(row.id or 0))
+        sun_settlement_summary_row(
+            row,
+            product_sales_summaries.get(row.id or 0),
+            finance_summaries.get(row.id or 0),
+            sessions_summaries.get(row.id or 0),
+        )
         for row in settlement_rows
     ]
     sun_revenue_control_ok = len([row for row in product_control_rows if row.get("sun_revenue_control_status") == "OK"])
     sun_revenue_control_missing = len([row for row in product_control_rows if row.get("sun_revenue_control_status") == "Mangler Sun2-grunnlag"])
+    raw_sessions_control_avvik = len([row for row in product_control_rows if row.get("sun_sessions_control_status") == "Avvik"])
     product_control_ok = len([row for row in product_control_rows if row.get("product_sales_control_status") == "OK"])
     product_control_missing = len([row for row in product_control_rows if row.get("product_sales_control_status") == "Mangler Sun2-grunnlag"])
     return {
@@ -17746,6 +17881,7 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
             ),
             api_card("Ikke periodetolket", unknown_period_count, "stk", "Krever manuell kontroll eller OCR", "status", href="/soling/oppgjor"),
             api_card("Soling kontroll", sun_revenue_control_ok, "OK", f"{sun_revenue_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
+            api_card("Råtimer avvik", raw_sessions_control_avvik, "stk", "Rå enkelttimer mot Sun2 brutto før bonus", "revenue" if raw_sessions_control_avvik else "status", href="/soling/oppgjor"),
             api_card("Produktsalg kontroll", product_control_ok, "OK", f"{product_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
         ],
         "charts": [],
@@ -17760,6 +17896,14 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
                     "sun_revenue_source_ex_vat",
                     "sun_revenue_diff_ex_vat",
                     "sun_revenue_control_status",
+                    "sun_sessions_count",
+                    "sun_sessions_source_ex_vat",
+                    "sun_sessions_diff_vs_finance_ex_vat",
+                    "sun_sessions_diff_vs_finance_gross_ex_vat",
+                    "sun_sessions_control_status",
+                    "sun_finance_bonus_ex_vat",
+                    "sun_finance_gross_ex_vat",
+                    "sun_revenue_diff_vs_finance_gross_ex_vat",
                     "product_sales_ex_vat",
                     "product_sales_source_ex_vat",
                     "product_sales_diff_ex_vat",

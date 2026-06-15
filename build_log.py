@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1189")
+APP_BUILD = os.getenv("APP_BUILD", "1190")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1190",
+        "date": "15.06.2026",
+        "headline": "Soling oppgjor viser maanedsomsetning og bonusavvik",
+        "title": "Sun2 brutto, bonus og netto oppgjor skilles tydelig",
+        "description": (
+            "Build 1190 rydder kontrollen av solingsoppgjor. Maanedsomsetning foer bonus hentes fra "
+            "Sun2 finanshistorikk og vises som brutto kontrollgrunnlag. Bonusbruk vises som eget avvik "
+            "mot kreditnotaens netto solomsetning, mens ra enkelttimer kontrolleres separat mot Sun2 brutto."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger brutto maanedsomsetning, bonusavvik og ra-timekontroll som separate felter.",
+            "Desktop V2 (SunSettlementsPage.tsx): viser Mnd brutto, Bonus og Nettoavvik i soloppgjorlisten.",
+            "Tester (test_settlement_parser.py): laaser at bonusavvik beregnes fra Sun2 brutto minus skjemaets netto solomsetning.",
+            "Buildlogg (build_log.py): registrerer build 1190.",
+        ],
+        "request": "Mai skal vise avvik paa soling fordi bonuskroner er delt ut, og vi maa se maanedsomsetningen.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Soloppgjor viser naa Sun2 brutto maanedsomsetning foer bonus.",
+            "Bonusbruk eks. mva vises som eget kontrollavvik, slik at mai viser ca. 983 kr.",
+            "Nettoavvik mot skjemaet beholdes separat og skal fortsatt kunne vaere 0 naar kreditnotaen stemmer.",
+            "Ra enkelttimer kontrolleres mot Sun2 brutto foer bonus, ikke mot netto oppgjor.",
+        ],
+    },
     {
         "version": "1",
         "build": "1189",

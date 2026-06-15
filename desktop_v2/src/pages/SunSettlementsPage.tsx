@@ -137,6 +137,8 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
   const productStatus = asText(row.product_sales_control_status);
   const sunTone = controlTone(sunStatus);
   const productTone = controlTone(productStatus);
+  const bonusValue = asNumber(row.sun_finance_bonus_ex_vat);
+  const bonusTone = bonusValue === null ? "empty" : bonusValue === 0 ? "ok" : "warn";
   return (
     <Link className="settlement-ledger-row sun" to={href || "#"}>
       <div className="settlement-ledger-identity">
@@ -166,9 +168,10 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
           <strong>Solkontroll</strong>
           <span>{sunStatus}</span>
         </div>
-        <div className="settlement-source-check-grid two">
-          <Metric label="Sun2" value={money(row.sun_revenue_source_ex_vat)} tone={sunTone} />
-          <Metric label="Avvik" value={money(row.sun_revenue_diff_ex_vat)} tone={sunTone} />
+        <div className="settlement-source-check-grid">
+          <Metric label="Mnd brutto" value={money(row.sun_finance_gross_ex_vat)} tone={sunTone} />
+          <Metric label="Bonus" value={money(row.sun_finance_bonus_ex_vat)} tone={bonusTone} />
+          <Metric label="Nettoavvik" value={money(row.sun_revenue_diff_ex_vat)} tone={sunTone} />
         </div>
       </div>
       <div className={`settlement-source-check ${productTone}`}>
