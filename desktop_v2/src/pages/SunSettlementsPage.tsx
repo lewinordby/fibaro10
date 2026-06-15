@@ -1,15 +1,12 @@
 import {
   ArrowRightOutlined,
-  LeftOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   FileTextOutlined,
-  RightOutlined,
-  SearchOutlined,
   UploadOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import { App as AntApp, Button, Card, Input, Space, Tooltip, Typography } from "antd";
+import { App as AntApp, Button, Card, Select, Space, Tooltip, Typography } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchModule, uploadSettlementFile, type ModuleResponse, type ModuleRow } from "../api";
@@ -49,20 +46,24 @@ function money(value: unknown): string {
   return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(numeric)} kr`;
 }
 
-function periodKey(row: ModuleRow): string {
-  return asText(row.period_start || row.period_label);
-}
-
 function periodSortValue(row: ModuleRow): number {
   const raw = asText(row.period_start || row.period_label);
   const parsed = new Date(`${raw}T00:00:00`).getTime();
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function settlementPeriodOptions(rows: SettlementRow[]) {
+function yearKey(row: ModuleRow): string {
+  const raw = asText(row.period_start || row.period_label);
+  const parsed = new Date(`${raw}T00:00:00`);
+  if (!Number.isNaN(parsed.getTime())) return String(parsed.getFullYear());
+  const match = raw.match(/\b(19\d{2}|20\d{2})\b/);
+  return match?.[1] ?? "-";
+}
+
+function settlementYearOptions(rows: SettlementRow[]) {
   const map = new Map<string, { key: string; label: string; sortValue: number; count: number }>();
   for (const row of rows) {
-    const key = periodKey(row);
+    const key = yearKey(row);
     if (!key || key === "-") continue;
     const existing = map.get(key);
     if (existing) {
@@ -71,13 +72,22 @@ function settlementPeriodOptions(rows: SettlementRow[]) {
     } else {
       map.set(key, {
         key,
-        label: asText(row.period_label || row.period_start),
+        label: key,
         sortValue: periodSortValue(row),
         count: 1,
       });
     }
   }
   return Array.from(map.values()).sort((left, right) => right.sortValue - left.sortValue || right.label.localeCompare(left.label, "nb"));
+}
+
+function sortSettlementsNewestFirst(rows: SettlementRow[]) {
+  return [...rows].sort(
+    (left, right) =>
+      periodSortValue(right) - periodSortValue(left) ||
+      asText(right.imported_at).localeCompare(asText(left.imported_at), "nb") ||
+      asText(right.period_label).localeCompare(asText(left.period_label), "nb"),
+  );
 }
 
 function confidencePercent(value: unknown): number | null {
@@ -137,16 +147,6 @@ function pathFor(row?: ModuleRow): string {
   return typeof row?.path === "string" ? row.path : "";
 }
 
-function filterSettlementRows(rows: SettlementRow[], query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return rows;
-  return rows.filter((row) =>
-    ["period_label", "attachment_filename", "email_subject", "sender", "status", "sum_check_status"].some((key) =>
-      asText(row[key]).toLowerCase().includes(normalized),
-    ),
-  );
-}
-
 function Metric({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" | "empty" }) {
   return (
     <div className={`settlement-control-metric ${tone ? `tone-${tone}` : ""}`}>
@@ -189,47 +189,19 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
   const productTone = controlTone(productStatus);
   return (
     <Link className="settlement-ledger-row sun" to={href || "#"}>
-      <div className="sun-settlement-ledger-main">
-        <div className="sun-settlement-ledger-top">
-          <div className="settlement-ledger-identity">
-            <div className="settlement-ledger-title">
-              <FileTextOutlined />
-              <strong>{asText(row.period_label)}</strong>
-            </div>
-            <span>{asText(row.attachment_filename)}</span>
-            <small>{asText(row.imported_at)}</small>
-          </div>
-          <div className="settlement-ledger-state">
-            <ParseStatus row={row} />
-            <small>{percent === null ? "Ingen score" : `${percent} %`}</small>
-          </div>
-          <div className="settlement-ledger-payout">
-            <span>Utbetalt</span>
-            <strong>{money(row.payout_inc_vat)}</strong>
-            <small>{money(row.vat_25_percent)} mva</small>
-          </div>
-        </div>
-        <div className="settlement-voucher" aria-label="Forenklet oppgjørsskjema">
-          <div className="settlement-voucher-head">
-            <span>Oppgjørsskjema</span>
-            <span>Beløp</span>
-          </div>
-          <div className="settlement-voucher-grid">
-            <VoucherLine label="Solomsetning" value={row.sun_revenue_ex_vat} kind="income" />
-            <VoucherLine label="Produktsalg" value={row.product_sales_ex_vat} kind="income" />
-            <VoucherLine label="Transaksjonskostnad" value={row.transaction_fee_ex_vat} kind="cost" />
-            <VoucherLine label="Serviceavtale" value={row.service_fee_ex_vat} kind="cost" />
-            <VoucherLine label="Markedsføring SMS" value={row.marketing_sms_fee_ex_vat} kind="cost" />
-            <VoucherLine label="Markedsføring e-post" value={row.marketing_email_fee_ex_vat} kind="cost" />
-          </div>
-          <div className="settlement-voucher-totals">
-            <VoucherLine label="Sum eks. mva" value={row.sum_ex_vat} kind="sum" />
-            <VoucherLine label="25 % mva" value={row.vat_25_percent} />
-            <VoucherLine label="Til utbetaling" value={row.payout_inc_vat} kind="payout" />
-          </div>
-        </div>
-      </div>
       <div className="sun-settlement-ledger-controls">
+        <div className="sun-settlement-ledger-context">
+          <div className="settlement-ledger-title">
+            <FileTextOutlined />
+            <strong>{asText(row.period_label)}</strong>
+          </div>
+          <div className="sun-settlement-context-meta">
+            <ParseStatus row={row} />
+            <span>{percent === null ? "Ingen score" : `${percent} % tolket`}</span>
+          </div>
+          <span>{asText(row.attachment_filename)}</span>
+          <small>Importert {asText(row.imported_at)}</small>
+        </div>
         <div className={`settlement-source-check ${sunTone}`}>
           <div className="settlement-source-check-head">
             <strong>Sol</strong>
@@ -252,6 +224,32 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
             <Metric label="Avvik" value={money(row.product_sales_diff_ex_vat)} tone={productTone} />
           </div>
         </div>
+        <div className="settlement-ledger-payout sun-settlement-payout">
+          <span>Utbetalt</span>
+          <strong>{money(row.payout_inc_vat)}</strong>
+          <small>{money(row.vat_25_percent)} mva</small>
+        </div>
+      </div>
+      <div className="sun-settlement-ledger-main">
+        <div className="settlement-voucher" aria-label="Forenklet oppgjørsskjema">
+          <div className="settlement-voucher-head">
+            <span>Oppgjørsskjema</span>
+            <span>Beløp</span>
+          </div>
+          <div className="settlement-voucher-grid">
+            <VoucherLine label="Solomsetning" value={row.sun_revenue_ex_vat} kind="income" />
+            <VoucherLine label="Produktsalg" value={row.product_sales_ex_vat} kind="income" />
+            <VoucherLine label="Transaksjonskostnad" value={row.transaction_fee_ex_vat} kind="cost" />
+            <VoucherLine label="Serviceavtale" value={row.service_fee_ex_vat} kind="cost" />
+            <VoucherLine label="Markedsføring SMS" value={row.marketing_sms_fee_ex_vat} kind="cost" />
+            <VoucherLine label="Markedsføring e-post" value={row.marketing_email_fee_ex_vat} kind="cost" />
+          </div>
+          <div className="settlement-voucher-totals">
+            <VoucherLine label="Sum eks. mva" value={row.sum_ex_vat} kind="sum" />
+            <VoucherLine label="25 % mva" value={row.vat_25_percent} />
+            <VoucherLine label="Til utbetaling" value={row.payout_inc_vat} kind="payout" />
+          </div>
+        </div>
       </div>
       <ArrowRightOutlined className="settlement-ledger-arrow" />
     </Link>
@@ -260,41 +258,31 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
 
 export default function SunSettlementsPage() {
   const { message } = AntApp.useApp();
-  const [query, setQuery] = useState("");
-  const [selectedPeriodKey, setSelectedPeriodKey] = useState<string | null>(null);
+  const [selectedYearKey, setSelectedYearKey] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { data, loading, error } = useAsyncData(() => fetchModule("soling", "oppgjor"), [refreshKey]);
 
   const rows = useMemo(() => (data ? settlementRows(data) : []), [data]);
-  const filteredRows = useMemo(() => filterSettlementRows(rows, query), [rows, query]);
-  const periods = useMemo(() => settlementPeriodOptions(filteredRows), [filteredRows]);
-  const activePeriod = periods.find((period) => period.key === selectedPeriodKey) ?? periods[0];
-  const activePeriodIndex = activePeriod ? periods.findIndex((period) => period.key === activePeriod.key) : -1;
-  const visibleRows = activePeriod ? filteredRows.filter((row) => periodKey(row) === activePeriod.key) : [];
+  const years = useMemo(() => settlementYearOptions(rows), [rows]);
+  const activeYear = years.find((year) => year.key === selectedYearKey) ?? years[0];
+  const visibleRows = useMemo(
+    () => (activeYear ? sortSettlementsNewestFirst(rows.filter((row) => yearKey(row) === activeYear.key)) : []),
+    [activeYear, rows],
+  );
   const parsedRows = rows.filter((row) => asText(row.status).toLowerCase().includes("tolket"));
   const reviewRows = rows.filter((row) => !asText(row.status).toLowerCase().includes("tolket"));
 
   useEffect(() => {
-    if (!periods.length) {
-      setSelectedPeriodKey(null);
+    if (!years.length) {
+      setSelectedYearKey(null);
       return;
     }
-    if (!selectedPeriodKey || !periods.some((period) => period.key === selectedPeriodKey)) {
-      setSelectedPeriodKey(periods[0].key);
+    if (!selectedYearKey || !years.some((year) => year.key === selectedYearKey)) {
+      setSelectedYearKey(years[0].key);
     }
-  }, [periods, selectedPeriodKey]);
-
-  function showOlderPeriod() {
-    if (activePeriodIndex < 0 || activePeriodIndex >= periods.length - 1) return;
-    setSelectedPeriodKey(periods[activePeriodIndex + 1].key);
-  }
-
-  function showNewerPeriod() {
-    if (activePeriodIndex <= 0) return;
-    setSelectedPeriodKey(periods[activePeriodIndex - 1].key);
-  }
+  }, [years, selectedYearKey]);
 
   async function uploadFiles(files?: FileList | null) {
     if (!files?.length || !data?.uploadEndpoint || uploading) return;
@@ -351,33 +339,25 @@ export default function SunSettlementsPage() {
           <div>
             <Typography.Title level={4}>Oppgjør</Typography.Title>
             <Typography.Text type="secondary">
-              {activePeriod ? `${visibleRows.length} oppgjør i ${activePeriod.label}.` : "Ingen periode valgt."} {parsedRows.length} tolket, {reviewRows.length} krever kontroll.
+              {activeYear ? `${visibleRows.length} bilag i ${activeYear.label}.` : "Ingen år valgt."} {parsedRows.length} tolket, {reviewRows.length} krever kontroll.
             </Typography.Text>
           </div>
-          <div className="settlement-period-tools">
-            <Button icon={<LeftOutlined />} disabled={activePeriodIndex < 0 || activePeriodIndex >= periods.length - 1} onClick={showOlderPeriod}>
-              Forrige måned
-            </Button>
-            <div className="settlement-period-current">
-              <strong>{activePeriod?.label || "-"}</strong>
-              <span>{periods.length ? `${activePeriodIndex + 1} av ${periods.length}` : "Ingen oppgjør"}</span>
-            </div>
-            <Button icon={<RightOutlined />} disabled={activePeriodIndex <= 0} onClick={showNewerPeriod}>
-              Neste måned
-            </Button>
-            <Input
-              allowClear
-              className="settlement-search"
-              prefix={<SearchOutlined />}
-              placeholder="Søk periode, fil eller status"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+          <div className="settlement-year-tools">
+            <Select
+              className="settlement-year-select"
+              value={activeYear?.key}
+              placeholder="Velg år"
+              onChange={setSelectedYearKey}
+              options={years.map((year) => ({
+                value: year.key,
+                label: `${year.label} (${year.count})`,
+              }))}
             />
           </div>
         </div>
         <div className="settlement-ledger-table-head sun">
-          <span>Oppgjør og skjema</span>
           <span>Kontroll</span>
+          <span>Bilag</span>
           <span />
         </div>
         <div className="settlement-ledger-list">
@@ -386,7 +366,7 @@ export default function SunSettlementsPage() {
           ))}
           {!visibleRows.length ? (
             <div className="empty-state compact">
-              <Typography.Text type="secondary">Ingen solingsoppgjør er importert for valgt måned.</Typography.Text>
+              <Typography.Text type="secondary">Ingen solingsoppgjør er importert for valgt år.</Typography.Text>
             </div>
           ) : null}
         </div>

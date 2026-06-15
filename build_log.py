@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1198")
+APP_BUILD = os.getenv("APP_BUILD", "1199")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1199",
+        "date": "15.06.2026",
+        "headline": "Soloppgjør samles per år med bilag og kontroll side om side",
+        "title": "Oppgjørslisten får årsvelger og tydeligere bilagslayout",
+        "description": (
+            "Build 1199 flytter sol- og produktkontrollene til venstre for oppgjørsskjemaet, legger utbetalt "
+            "under kontrollene og gjeninnfører alle bilag for valgt år på samme side. Nyeste bilag vises øverst, "
+            "og toppen er forenklet til en årsvelger."
+        ),
+        "applications": [
+            "Desktop V2 (SunSettlementsPage.tsx): bytter månedsfilter til årsvelger og sorterer oppgjør nyest først.",
+            "Desktop V2 (SunSettlementsPage.tsx): bygger om hver oppgjørsrad med kontrollkolonne til venstre og bilag til høyre.",
+            "Desktop V2 (styles.css): justerer grid, bilagsbredde, kontrollkolonne og responsiv oppførsel for soloppgjør.",
+            "Buildlogg (build_log.py): registrerer build 1199.",
+        ],
+        "request": "Legg kontrollboksene til venstre for skjemaet, utbetalt nederst under kontrollene, bilaget til høyre, og vis alle bilag for ett år med bare årsvelger øverst.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Oppgjørslisten viser valgt år i stedet for valgt måned.",
+            "Nyeste bilag i året ligger øverst.",
+            "Sol- og produktkontroll ligger samlet til venstre.",
+            "Utbetalt ligger som egen oppsummering nederst i kontrollkolonnen.",
+            "Bilaget ligger smalere og roligere til høyre.",
+        ],
+    },
     {
         "version": "1",
         "build": "1198",
