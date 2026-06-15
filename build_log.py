@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1197")
+APP_BUILD = os.getenv("APP_BUILD", "1198")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1198",
+        "date": "15.06.2026",
+        "headline": "Soloppgjør viser ett månedsbilag om gangen",
+        "title": "Oppgjørlisten får månedsblaing og roligere bilag",
+        "description": (
+            "Build 1198 retter norske tegn i soloppgjørlisten, viser bare valgt måned om gangen og gir "
+            "oppgjørbilaget mer plass. Bilaget er satt opp med alle linjer under hverandre, nøytrale farger "
+            "og lettere typografi, mens kontrollfeltene ligger stablet til høyre."
+        ),
+        "applications": [
+            "Desktop V2 (SunSettlementsPage.tsx): legger periodevalg, forrige/neste måned og viser bare oppgjør for valgt måned.",
+            "Desktop V2 (SunSettlementsPage.tsx): retter UTF-8/norske tegn i synlige tekster på soloppgjørssiden.",
+            "Desktop V2 (styles.css): gjør bilaget vertikalt, demper farger og fontvekter, og stabler Sol/Produkt-kontrollene.",
+            "Buildlogg (build_log.py): registrerer build 1198.",
+        ],
+        "request": "Rett norske ø-tegn, gi bilaget plass med alle linjer under hverandre, dropp sterke fonter/farger, stable kontrollfeltene og legg inn månedsblaing.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kun valgt oppgjørsmåned vises i listen.",
+            "Forrige/Neste måned-knapper er lagt inn over listen.",
+            "Bilaget har en linje per felt og nøytral beløpsvisning.",
+            "Sol- og Produktkontroll ligger over hverandre til høyre.",
+        ],
+    },
     {
         "version": "1",
         "build": "1197",
@@ -3224,7 +3251,7 @@ BUILD_LOG = [
         "date": "09.06.2026",
         "title": "Retter solingprognose i audit",
         "changes": [
-            "Retter en feil der solingprognosen brukte intradag-tempo fÃ¸r variabelen var definert.",
+            "Retter en feil der solingprognosen brukte intradag-tempo før variabelen var definert.",
             "Gjenoppretter V2-visningen Soling > Prognose slik at den returnerer prognosekort, graf og lagrede prognoser.",
             "Legger feilen inn i buildloggen som del av systemgjennomgangen.",
         ],
@@ -3233,10 +3260,10 @@ BUILD_LOG = [
         "version": "1",
         "build": "1069",
         "date": "09.06.2026",
-        "title": "Utvider tooltip pÃ¥ omsetningsgraf",
+        "title": "Utvider tooltip på omsetningsgraf",
         "changes": [
             "Viser sum for dagen i hover over Status > Omsetning.",
-            "Legger antall solinger og parkeringer inn sammen med belÃ¸pene i graf-tooltipen.",
+            "Legger antall solinger og parkeringer inn sammen med beløpene i graf-tooltipen.",
             "Holder totalsummen uten antall slik at tooltipen skiller mellom aktivitet og omsetning.",
         ],
     },
@@ -3246,19 +3273,19 @@ BUILD_LOG = [
         "date": "09.06.2026",
         "title": "Rydder dagslogg for ventilasjon",
         "changes": [
-            "Fjerner ekstra checkbox-filter over temperaturdiagrammet pÃ¥ Ventilasjon > Dagslogg.",
+            "Fjerner ekstra checkbox-filter over temperaturdiagrammet på Ventilasjon > Dagslogg.",
             "Lar ECharts-legend inne i diagrammet styre synlige temperaturserier.",
-            "Legger vifte av/pÃ¥-hendelser som vertikale markÃ¸rlinjer i dagsdiagrammet.",
+            "Legger vifte av/på-hendelser som vertikale markørlinjer i dagsdiagrammet.",
         ],
     },
     {
         "version": "1",
         "build": "1067",
         "date": "09.06.2026",
-        "title": "GjeninnfÃ¸rer Elvia-import i V2",
+        "title": "Gjeninnfører Elvia-import i V2",
         "changes": [
-            "Legger filopplasting og importstatus inn pÃ¥ Energi > Elvia i den nye desktopflaten.",
-            "Viser Elvia-summer, toppdager, toppmÃ¥neder og siste importer som egne arbeidsflater.",
+            "Legger filopplasting og importstatus inn på Energi > Elvia i den nye desktopflaten.",
+            "Viser Elvia-summer, toppdager, toppmåneder og siste importer som egne arbeidsflater.",
             "Eksponerer JSON-opplasting for Elvia med samme bakgrunnsimport som klassisk side.",
         ],
     },

@@ -1,14 +1,16 @@
 import {
   ArrowRightOutlined,
+  LeftOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   FileTextOutlined,
+  RightOutlined,
   SearchOutlined,
   UploadOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
 import { App as AntApp, Button, Card, Input, Space, Tooltip, Typography } from "antd";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchModule, uploadSettlementFile, type ModuleResponse, type ModuleRow } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
@@ -45,6 +47,37 @@ function money(value: unknown): string {
   const numeric = asNumber(value);
   if (numeric === null) return "-";
   return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(numeric)} kr`;
+}
+
+function periodKey(row: ModuleRow): string {
+  return asText(row.period_start || row.period_label);
+}
+
+function periodSortValue(row: ModuleRow): number {
+  const raw = asText(row.period_start || row.period_label);
+  const parsed = new Date(`${raw}T00:00:00`).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function settlementPeriodOptions(rows: SettlementRow[]) {
+  const map = new Map<string, { key: string; label: string; sortValue: number; count: number }>();
+  for (const row of rows) {
+    const key = periodKey(row);
+    if (!key || key === "-") continue;
+    const existing = map.get(key);
+    if (existing) {
+      existing.count += 1;
+      existing.sortValue = Math.max(existing.sortValue, periodSortValue(row));
+    } else {
+      map.set(key, {
+        key,
+        label: asText(row.period_label || row.period_start),
+        sortValue: periodSortValue(row),
+        count: 1,
+      });
+    }
+  }
+  return Array.from(map.values()).sort((left, right) => right.sortValue - left.sortValue || right.label.localeCompare(left.label, "nb"));
 }
 
 function confidencePercent(value: unknown): number | null {
@@ -176,18 +209,18 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
             <small>{money(row.vat_25_percent)} mva</small>
           </div>
         </div>
-        <div className="settlement-voucher" aria-label="Forenklet oppgj�rsskjema">
+        <div className="settlement-voucher" aria-label="Forenklet oppgjørsskjema">
           <div className="settlement-voucher-head">
-            <span>Oppgj�rsskjema</span>
-            <span>Bel�p</span>
+            <span>Oppgjørsskjema</span>
+            <span>Beløp</span>
           </div>
           <div className="settlement-voucher-grid">
             <VoucherLine label="Solomsetning" value={row.sun_revenue_ex_vat} kind="income" />
             <VoucherLine label="Produktsalg" value={row.product_sales_ex_vat} kind="income" />
             <VoucherLine label="Transaksjonskostnad" value={row.transaction_fee_ex_vat} kind="cost" />
             <VoucherLine label="Serviceavtale" value={row.service_fee_ex_vat} kind="cost" />
-            <VoucherLine label="Markedsf�ring SMS" value={row.marketing_sms_fee_ex_vat} kind="cost" />
-            <VoucherLine label="Markedsf�ring e-post" value={row.marketing_email_fee_ex_vat} kind="cost" />
+            <VoucherLine label="Markedsføring SMS" value={row.marketing_sms_fee_ex_vat} kind="cost" />
+            <VoucherLine label="Markedsføring e-post" value={row.marketing_email_fee_ex_vat} kind="cost" />
           </div>
           <div className="settlement-voucher-totals">
             <VoucherLine label="Sum eks. mva" value={row.sum_ex_vat} kind="sum" />
@@ -228,6 +261,7 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
 export default function SunSettlementsPage() {
   const { message } = AntApp.useApp();
   const [query, setQuery] = useState("");
+  const [selectedPeriodKey, setSelectedPeriodKey] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -235,8 +269,32 @@ export default function SunSettlementsPage() {
 
   const rows = useMemo(() => (data ? settlementRows(data) : []), [data]);
   const filteredRows = useMemo(() => filterSettlementRows(rows, query), [rows, query]);
+  const periods = useMemo(() => settlementPeriodOptions(filteredRows), [filteredRows]);
+  const activePeriod = periods.find((period) => period.key === selectedPeriodKey) ?? periods[0];
+  const activePeriodIndex = activePeriod ? periods.findIndex((period) => period.key === activePeriod.key) : -1;
+  const visibleRows = activePeriod ? filteredRows.filter((row) => periodKey(row) === activePeriod.key) : [];
   const parsedRows = rows.filter((row) => asText(row.status).toLowerCase().includes("tolket"));
   const reviewRows = rows.filter((row) => !asText(row.status).toLowerCase().includes("tolket"));
+
+  useEffect(() => {
+    if (!periods.length) {
+      setSelectedPeriodKey(null);
+      return;
+    }
+    if (!selectedPeriodKey || !periods.some((period) => period.key === selectedPeriodKey)) {
+      setSelectedPeriodKey(periods[0].key);
+    }
+  }, [periods, selectedPeriodKey]);
+
+  function showOlderPeriod() {
+    if (activePeriodIndex < 0 || activePeriodIndex >= periods.length - 1) return;
+    setSelectedPeriodKey(periods[activePeriodIndex + 1].key);
+  }
+
+  function showNewerPeriod() {
+    if (activePeriodIndex <= 0) return;
+    setSelectedPeriodKey(periods[activePeriodIndex - 1].key);
+  }
 
   async function uploadFiles(files?: FileList | null) {
     if (!files?.length || !data?.uploadEndpoint || uploading) return;
@@ -293,17 +351,29 @@ export default function SunSettlementsPage() {
           <div>
             <Typography.Title level={4}>Oppgjør</Typography.Title>
             <Typography.Text type="secondary">
-              {filteredRows.length} av {rows.length} vises. {parsedRows.length} tolket, {reviewRows.length} krever kontroll.
+              {activePeriod ? `${visibleRows.length} oppgjør i ${activePeriod.label}.` : "Ingen periode valgt."} {parsedRows.length} tolket, {reviewRows.length} krever kontroll.
             </Typography.Text>
           </div>
-          <Input
-            allowClear
-            className="settlement-search"
-            prefix={<SearchOutlined />}
-            placeholder="Søk periode, fil eller status"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+          <div className="settlement-period-tools">
+            <Button icon={<LeftOutlined />} disabled={activePeriodIndex < 0 || activePeriodIndex >= periods.length - 1} onClick={showOlderPeriod}>
+              Forrige måned
+            </Button>
+            <div className="settlement-period-current">
+              <strong>{activePeriod?.label || "-"}</strong>
+              <span>{periods.length ? `${activePeriodIndex + 1} av ${periods.length}` : "Ingen oppgjør"}</span>
+            </div>
+            <Button icon={<RightOutlined />} disabled={activePeriodIndex <= 0} onClick={showNewerPeriod}>
+              Neste måned
+            </Button>
+            <Input
+              allowClear
+              className="settlement-search"
+              prefix={<SearchOutlined />}
+              placeholder="Søk periode, fil eller status"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </div>
         </div>
         <div className="settlement-ledger-table-head sun">
           <span>Oppgjør og skjema</span>
@@ -311,12 +381,12 @@ export default function SunSettlementsPage() {
           <span />
         </div>
         <div className="settlement-ledger-list">
-          {filteredRows.map((row) => (
+          {visibleRows.map((row) => (
             <SunSettlementRow key={row.__rowKey} row={row} />
           ))}
-          {!filteredRows.length ? (
+          {!visibleRows.length ? (
             <div className="empty-state compact">
-              <Typography.Text type="secondary">Ingen solingsoppgjør er importert ennå.</Typography.Text>
+              <Typography.Text type="secondary">Ingen solingsoppgjør er importert for valgt måned.</Typography.Text>
             </div>
           ) : null}
         </div>
