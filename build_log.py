@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1195")
+APP_BUILD = os.getenv("APP_BUILD", "1196")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1196",
+        "date": "15.06.2026",
+        "headline": "Soloppgjor viser regnestykket som ren formellinje",
+        "title": "Oppgjorregnestykket er ryddet uten sma bokser",
+        "description": (
+            "Build 1196 forenkler regnskapslinjen i soloppgjorlisten. Tallene vises som ett lopende "
+            "regnestykke med pluss, minus og er-lik, i stedet for mange separate feltbokser."
+        ),
+        "applications": [
+            "Desktop V2 (SunSettlementsPage.tsx): bytter skjematallene fra enkeltbokser til en formellinje med operatorer.",
+            "Desktop V2 (styles.css): fjerner boksdesign for hvert skjematall og bruker lett inline typografi.",
+            "Buildlogg (build_log.py): registrerer build 1196.",
+        ],
+        "request": "Sett opp oppgjorstallene som et regnestykke uten masse bokser.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Regnestykket vises som Sol + Produkt - kostnader = Sum eks. mva + Mva = Utbetalt.",
+            "Kostnader vises med minus og absolutte belop for bedre lesbarhet.",
+            "Sol- og Produktkontrollene til hoyre beholdes uendret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1195",

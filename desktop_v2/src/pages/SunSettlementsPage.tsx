@@ -47,6 +47,12 @@ function money(value: unknown): string {
   return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(numeric)} kr`;
 }
 
+function moneyAbs(value: unknown): string {
+  const numeric = asNumber(value);
+  if (numeric === null) return "-";
+  return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(Math.abs(numeric))} kr`;
+}
+
 function confidencePercent(value: unknown): number | null {
   const numeric = asNumber(value);
   if (numeric === null) return null;
@@ -130,12 +136,25 @@ function controlTone(status: string): "ok" | "warn" | "empty" {
   return "warn";
 }
 
-function FormulaItem({ label, value, kind = "neutral" }: { label: string; value: unknown; kind?: "income" | "cost" | "total" | "neutral" }) {
+function FormulaTerm({
+  label,
+  value,
+  operator,
+  kind = "neutral",
+  absolute = false,
+}: {
+  label: string;
+  value: unknown;
+  operator?: "+" | "-" | "=";
+  kind?: "income" | "cost" | "total" | "neutral";
+  absolute?: boolean;
+}) {
   return (
-    <div className={`settlement-formula-item ${kind}`}>
-      <span>{label}</span>
-      <strong>{money(value)}</strong>
-    </div>
+    <span className={`settlement-formula-term ${kind}`}>
+      {operator ? <span className="settlement-formula-operator">{operator}</span> : null}
+      <span className="settlement-formula-label">{label}</span>
+      <strong>{absolute ? moneyAbs(value) : money(value)}</strong>
+    </span>
   );
 }
 
@@ -169,15 +188,15 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
           </div>
         </div>
         <div className="settlement-formula-strip" aria-label="Regnestykke fra oppgjørsskjema">
-          <FormulaItem label="Sol" value={row.sun_revenue_ex_vat} kind="income" />
-          <FormulaItem label="Produkt" value={row.product_sales_ex_vat} kind="income" />
-          <FormulaItem label="Trans." value={row.transaction_fee_ex_vat} kind="cost" />
-          <FormulaItem label="Service" value={row.service_fee_ex_vat} kind="cost" />
-          <FormulaItem label="SMS" value={row.marketing_sms_fee_ex_vat} kind="cost" />
-          <FormulaItem label="E-post" value={row.marketing_email_fee_ex_vat} kind="cost" />
-          <FormulaItem label="Sum eks." value={row.sum_ex_vat} kind="total" />
-          <FormulaItem label="Mva" value={row.vat_25_percent} kind="neutral" />
-          <FormulaItem label="Utbet." value={row.payout_inc_vat} kind="total" />
+          <FormulaTerm label="Sol" value={row.sun_revenue_ex_vat} kind="income" />
+          <FormulaTerm operator="+" label="Produkt" value={row.product_sales_ex_vat} kind="income" />
+          <FormulaTerm operator="-" label="Trans." value={row.transaction_fee_ex_vat} kind="cost" absolute />
+          <FormulaTerm operator="-" label="Service" value={row.service_fee_ex_vat} kind="cost" absolute />
+          <FormulaTerm operator="-" label="SMS" value={row.marketing_sms_fee_ex_vat} kind="cost" absolute />
+          <FormulaTerm operator="-" label="E-post" value={row.marketing_email_fee_ex_vat} kind="cost" absolute />
+          <FormulaTerm operator="=" label="Sum eks." value={row.sum_ex_vat} kind="total" />
+          <FormulaTerm operator="+" label="Mva" value={row.vat_25_percent} />
+          <FormulaTerm operator="=" label="Utbet." value={row.payout_inc_vat} kind="total" />
         </div>
       </div>
       <div className="sun-settlement-ledger-controls">

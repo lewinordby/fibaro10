@@ -3439,58 +3439,51 @@
 }
 
 .settlement-formula-strip {
-  display: grid;
-  grid-template-columns: repeat(9, minmax(0, 1fr));
-  gap: 3px;
-  margin-top: 6px;
-}
-
-.settlement-formula-item {
-  min-width: 0;
-  padding: 3px 5px;
-  border: 1px solid #eaf0f7;
-  border-radius: 5px;
-  background: #f8fafc;
-}
-
-.settlement-formula-item span {
-  display: block;
-  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  align-items: baseline;
+  margin-top: 7px;
   color: #64748b;
-  font-size: 8px;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.settlement-formula-term {
+  display: inline-flex;
+  gap: 3px;
+  align-items: baseline;
+  min-width: 0;
   white-space: nowrap;
 }
 
-.settlement-formula-item strong {
-  display: block;
-  margin-top: 1px;
-  overflow: hidden;
+.settlement-formula-operator {
+  color: #94a3b8;
+  font-weight: 760;
+}
+
+.settlement-formula-label {
+  color: #64748b;
+  font-weight: 720;
+}
+
+.settlement-formula-term strong {
   color: #111827;
   font-size: 10.5px;
   font-weight: 820;
-  line-height: 1.08;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.settlement-formula-item.income strong {
+.settlement-formula-term.income strong {
   color: #b45309;
 }
 
-.settlement-formula-item.cost strong {
+.settlement-formula-term.cost strong {
   color: #dc2626;
 }
 
-.settlement-formula-item.total {
-  border-color: #dbeafe;
-  background: #eff6ff;
-}
-
-.settlement-formula-item.total strong {
+.settlement-formula-term.total strong {
   color: #1d4ed8;
+  font-size: 11px;
 }
 
 .sun-settlement-ledger-controls {
@@ -4145,7 +4138,6 @@
     text-align: left;
   }
 
-  .settlement-formula-strip,
   .sun-settlement-ledger-controls {
     grid-template-columns: 1fr 1fr;
   }
