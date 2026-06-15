@@ -1,9 +1,9 @@
-import ReactECharts from "echarts-for-react";
 import { App as AntApp, Button, Card, Form, Input, InputNumber, Segmented, Space, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { saveConfig, type ModuleFilter, type ModuleResponse, type ModuleTable, type VentilationData, type VentilationSettingField } from "../api";
+import { AppChart } from "../components/AppChart";
 
 type VentilationPageProps = {
   data: ModuleResponse;
@@ -538,7 +538,7 @@ function DayChart({
           <Input className="vent-date-input" type="date" value={day.selectedDay} onChange={(event) => onDayChange(event.target.value)} />
         </Space>
       </div>
-      <ReactECharts key={`${day.selectedDay}-${focus}`} option={option} style={{ height: 360 }} />
+      <AppChart key={`${day.selectedDay}-${focus}`} option={option} style={{ height: 360 }} />
       <div className="vent-fan-lanes">
         {day.fans.map((fan) => {
           const events = day.fanEvents.filter((event) => event.fan_key === fan.key);
@@ -635,7 +635,7 @@ function WeatherChart({ table }: { table?: ModuleTable }) {
   };
   return (
     <Card className="chart-card vent-weather-card" title="Yr utvikling">
-      <ReactECharts option={option} style={{ height: 330 }} />
+      <AppChart option={option} style={{ height: 330 }} />
     </Card>
   );
 }

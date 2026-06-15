@@ -1,9 +1,9 @@
-import ReactECharts from "echarts-for-react";
 import { Alert, Card, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { EnergySunbedObservation, EnergySunbedRoom, ModuleResponse } from "../api";
+import { AppChart } from "../components/AppChart";
 import { decimal } from "../format";
-import { ModuleMetric } from "./module/ModuleVisuals";
+import { ModuleMetric } from "./module/ModuleMetric";
 
 function numberText(value: number | null | undefined, digits = 0) {
   return decimal(value, digits);
@@ -207,7 +207,7 @@ export default function EnergySunbedsPage({ data }: { data: ModuleResponse }) {
         />
       ) : (
         <Card className="chart-card energy-sunbeds-chart" title="Estimert effekt per solseng">
-          <ReactECharts option={effectChartOption(sunbeds.rooms)} style={{ height: 300 }} />
+          <AppChart option={effectChartOption(sunbeds.rooms)} style={{ height: 300 }} />
         </Card>
       )}
 

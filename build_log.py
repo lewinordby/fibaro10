@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1209")
+APP_BUILD = os.getenv("APP_BUILD", "1210")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1210",
+        "date": "15.06.2026",
+        "headline": "Frontend lastes raskere og CSS er ryddet",
+        "title": "Diagramkode splittes ut og ECharts bygges med bare nodvendige moduler",
+        "description": (
+            "Build 1210 rydder frontend-ytelse og styling. Standard modulsider laster ikke lenger "
+            "ventilasjon, Elvia, solsengforbruk eller diagramkomponenten for de faktisk trengs. "
+            "ECharts er lagt bak en felles core-wrapper som bare registrerer linje- og stolpediagrammer "
+            "med nodvendige komponenter. Metrikkort-CSS er samlet slik at samme tetthetsregler ikke ligger "
+            "duplisert flere steder."
+        ),
+        "applications": [
+            "Desktop V2 (ModulePage.tsx): lazy-loader ventilasjon, Elvia, solsengforbruk og moduldiagrammer.",
+            "Desktop V2 (ModulePage.tsx): memoizer tabellkolonner, filtrerte rader og tabellradnokler.",
+            "Desktop V2 (AppChart.tsx): innforer felles ECharts core-wrapper med bare bar/line, grid, tooltip, legend, dataZoom og markLine.",
+            "Desktop V2 (diagram-sider): bytter alle ReactECharts-standardimporter til AppChart.",
+            "Desktop V2 (ModuleMetric.tsx/ModuleChartPanel.tsx): splitter metrikkort og diagram i separate moduler.",
+            "Desktop V2 CSS (visual-refresh.css): konsoliderer metrikkort-tetthet og fjerner dupliserte sluttregler.",
+            "Buildlogg (build_log.py): registrerer build 1210.",
+        ],
+        "request": "Ta en skikkelig kontroll og opprydding i hele appen med hensyn paa hastighet, CSS osv.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "ModulePage-chunken ble redusert fra ca. 70,6 KB til ca. 37,6 KB for produksjonsbuild.",
+            "ECharts-chunken ble redusert fra ca. 1,05 MB til ca. 582 KB for produksjonsbuild.",
+            "Charts gzip-storrelse ble redusert fra ca. 350 KB til ca. 195 KB.",
+            "Metrikkort-styling ligger naa ett sted i visual-refresh-laget i stedet for som dupliserte sluttregler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1209",

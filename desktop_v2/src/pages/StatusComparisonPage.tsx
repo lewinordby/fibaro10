@@ -1,6 +1,5 @@
 import { ArrowLeftOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { Button, Card, Col, Row, Segmented, Space, Typography } from "antd";
-import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -10,6 +9,7 @@ import {
   type StatusComparisonResponse,
   type StatusComparisonSummary,
 } from "../api";
+import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { domainColors } from "../domainColors";
 import { nok } from "../format";
@@ -352,7 +352,7 @@ export default function StatusComparisonPage() {
         </div>
         <div className="status-comparison-chart-stack">
           {chartOptions.map((item) => (
-            <ReactECharts
+            <AppChart
               option={item.option}
               style={{ height: metric === "amount" ? 245 : 285 }}
               key={`${metric}-${item.kind}`}

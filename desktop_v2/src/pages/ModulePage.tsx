@@ -1,6 +1,6 @@
 import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -23,13 +23,15 @@ import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useAsyncData } from "../hooks";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { appPath } from "../navigation";
-import EnergyElviaPage from "./EnergyElviaPage";
-import EnergySunbedsPage from "./EnergySunbedsPage";
 import { ModuleFilterBar } from "./module/ModuleFilterBar";
-import { ModuleChartPanel, ModuleMetric } from "./module/ModuleVisuals";
+import { ModuleMetric } from "./module/ModuleMetric";
 import { ParkingTimelinePanel } from "./module/ParkingTimelinePanel";
 import { SunTimelinePanel } from "./module/SunTimelinePanel";
-import VentilationPage from "./VentilationPage";
+
+const EnergyElviaPage = lazy(() => import("./EnergyElviaPage"));
+const EnergySunbedsPage = lazy(() => import("./EnergySunbedsPage"));
+const ModuleChartPanel = lazy(() => import("./module/ModuleChartPanel"));
+const VentilationPage = lazy(() => import("./VentilationPage"));
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -513,11 +515,16 @@ function ModuleTablePane({
   query: string;
   onEdit?: (edit: ModuleEditConfig, row: ModuleRow, create?: boolean) => void;
 }) {
-  const filteredRows = filterRows(table.rows, table.columns, query);
-  const tableRows = filteredRows.map((row, index) => ({
-    ...row,
-    __rowKey: tableRowKey(row, table.title, index),
-  }));
+  const columns = useMemo(() => moduleColumns(table, onEdit), [onEdit, table]);
+  const filteredRows = useMemo(() => filterRows(table.rows, table.columns, query), [query, table.columns, table.rows]);
+  const tableRows = useMemo(
+    () =>
+      filteredRows.map((row, index) => ({
+        ...row,
+        __rowKey: tableRowKey(row, table.title, index),
+      })),
+    [filteredRows, table.title],
+  );
   return (
     <Space direction="vertical" size={8} className="table-pane">
       <div className="table-pane-head">
@@ -533,7 +540,7 @@ function ModuleTablePane({
       <Table
         rowKey="__rowKey"
         size="small"
-        columns={moduleColumns(table, onEdit)}
+        columns={columns}
         dataSource={tableRows}
         pagination={{ pageSize: 25, showSizeChanger: true }}
         scroll={{ x: "max-content" }}
@@ -964,24 +971,34 @@ export default function ModulePage({ module }: { module: string }) {
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
   if (module === "ventilasjon" && data.ventilation) {
-    return <VentilationPage data={data} view={safeView} onReload={() => setReloadToken((value) => value + 1)} />;
+    return (
+      <Suspense fallback={<LoadingBlock />}>
+        <VentilationPage data={data} view={safeView} onReload={() => setReloadToken((value) => value + 1)} />
+      </Suspense>
+    );
   }
   if (module === "energi" && safeView === "elvia" && data.energyElvia) {
-    return <EnergyElviaPage data={data} onReload={() => setReloadToken((value) => value + 1)} />;
+    return (
+      <Suspense fallback={<LoadingBlock />}>
+        <EnergyElviaPage data={data} onReload={() => setReloadToken((value) => value + 1)} />
+      </Suspense>
+    );
   }
   if (module === "energi" && safeView === "forbruk-per-seng" && data.energySunbeds) {
     return (
-      <Space direction="vertical" size={14} className="page-stack">
-        {data.filters?.length ? (
-          <ModuleFilterBar
-            filters={data.filters}
-            key={`${module}-${safeView}-${filterKey}`}
-            onApply={applyModuleFilters}
-            onClear={clearModuleFilters}
-          />
-        ) : null}
-        <EnergySunbedsPage data={data} />
-      </Space>
+      <Suspense fallback={<LoadingBlock />}>
+        <Space direction="vertical" size={14} className="page-stack">
+          {data.filters?.length ? (
+            <ModuleFilterBar
+              filters={data.filters}
+              key={`${module}-${safeView}-${filterKey}`}
+              onApply={applyModuleFilters}
+              onClear={clearModuleFilters}
+            />
+          ) : null}
+          <EnergySunbedsPage data={data} />
+        </Space>
+      </Suspense>
     );
   }
   const hideModuleChrome = Boolean(data.parkingTimeline);

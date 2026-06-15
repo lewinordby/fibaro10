@@ -1,4 +1,3 @@
-import ReactECharts from "echarts-for-react";
 import { Button, Card, Col, DatePicker, Row, Space, Table, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
@@ -6,6 +5,7 @@ import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/nb";
 import { fetchRevenueMonth, type RevenueDay } from "../api";
+import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { domainColors } from "../domainColors";
 import { decimal, nok } from "../format";
@@ -194,7 +194,7 @@ export default function RevenueMonthPage() {
       </Row>
 
       <Card className="chart-card">
-        <ReactECharts option={chartOption} style={{ height: 430 }} />
+        <AppChart option={chartOption} style={{ height: 430 }} />
       </Card>
 
       <Card className="table-card">
