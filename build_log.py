@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1185")
+APP_BUILD = os.getenv("APP_BUILD", "1186")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1186",
+        "date": "15.06.2026",
+        "headline": "Sun2 produktsalg filtreres riktig per dag",
+        "title": "Dagsimport av produktsalg bruker riktig Sun2-datovelger",
+        "description": (
+            "Build 1186 fikser datofilteret for Sun2 produktsalg. Produktsalg-siden bruker egen datovelger "
+            "`product-dates`, mens den opprinnelige importen bare aapnet datovelgeren for medlemsrapporten. "
+            "Daglig produktsalg kan dermed lagres som faktisk dagsgrunnlag, mens maanedsimporten fortsatt "
+            "brukes til kontroll og avstemming mot solingsoppgjor."
+        ),
+        "applications": [
+            "Sun2 scraper (sun2_session_scraper/app/main.py): datovelger-helperen aapner naa baade member-dates og product-dates.",
+            "Buildlogg (build_log.py): registrerer build 1186.",
+        ],
+        "request": "Kanskje vi ogsaa maa lage en pr dag slik at vi faar salget oppdelt pr dag og kun bruker mnd-kjoringen for kontroll og avstemming.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Produktsalg for enkelt dag filtreres via Sun2 sin #product-dates-kontroll.",
+            "Maanedsjobben beholdes som separat kontrollgrunnlag.",
+            "Manuell test mot 14.06.2026 viste dagslinje paa 89 kr i stedet for standard maanedsperiode.",
+        ],
+    },
     {
         "version": "1",
         "build": "1185",

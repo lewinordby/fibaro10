@@ -994,8 +994,10 @@ def extract_beds(page) -> list[dict[str, Any]]:
 def set_date_range(page, start: date, end: date) -> None:
     iso_start, iso_end = start.isoformat(), end.isoformat()
     no_start, no_end = start.strftime("%d.%m.%Y"), end.strftime("%d.%m.%Y")
-    if page.locator("#member-dates button").count() > 0:
-        page.locator("#member-dates button").first.click(timeout=5000)
+    for range_selector in ["#member-dates button", "#product-dates button"]:
+        if page.locator(range_selector).count() <= 0:
+            continue
+        page.locator(range_selector).first.click(timeout=5000)
         page.wait_for_timeout(250)
         custom_range = page.locator(".ranges li").filter(has_text=re.compile("^Valgfri$", re.I))
         if custom_range.count() > 0:
