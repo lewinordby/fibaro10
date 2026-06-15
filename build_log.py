@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1173")
+APP_BUILD = os.getenv("APP_BUILD", "1174")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1174",
+        "date": "15.06.2026",
+        "headline": "Car.info-oppslag kjoeres roligere",
+        "title": "Svenske biloppslag settes ned til ca. ett kall hvert femte minutt",
+        "description": (
+            "Build 1174 justerer car_info_lookup etter at 60 sekunder mellom oppslag traff car.info sin "
+            "rate-limit/coffee break. Ny standard er 300 sekunder mellom faktiske car.info-kall, maks 12 "
+            "kandidater per backlog-syklus og fortsatt 240 minutters global pause ved rate-limit."
+        ),
+        "applications": [
+            "Car.info-oppslag (car_info_lookup/app/main.py): setter roligere standarder for request- og backlog-pause.",
+            "Docker/QNAP (docker-compose.qnap.yml, .env.qnap.example): dokumenterer og eksponerer de nye rate-verdiene.",
+            "Dokumentasjon (docs/car-info-oppslag.md, car_info_lookup/README.md): beskriver 300 sekunders pause og manuell backlog-stoerrelse.",
+            "Buildlogg (build_log.py): registrerer build 1174.",
+        ],
+        "request": "Hvor sjelden maa vi kjoere om vi skal faa svar tror du?",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Observerte at QNAP fikk 429/coffee break etter 7 oppslag med 60 sekunders pause.",
+            "Setter anbefalt tempo til ett faktisk oppslag hvert 5. minutt.",
+            "Beholder automatisk 4 timers backoff naar car.info ber oss vente.",
+        ],
+    },
     {
         "version": "1",
         "build": "1173",

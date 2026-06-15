@@ -30,16 +30,16 @@ USER_AGENT = os.getenv(
     "CAR_INFO_USER_AGENT",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36",
 )
-RUN_INTERVAL_MINUTES = max(15, int(os.getenv("CAR_INFO_RUN_INTERVAL_MINUTES", "45")))
+RUN_INTERVAL_MINUTES = max(15, int(os.getenv("CAR_INFO_RUN_INTERVAL_MINUTES", "30")))
 RUN_ON_START = os.getenv("CAR_INFO_RUN_ON_START", "true").strip().lower() in {"1", "true", "yes", "ja"}
 BATCH_SIZE = max(1, min(5, int(os.getenv("CAR_INFO_BATCH_SIZE", "1"))))
 REQUEST_TIMEOUT_SECONDS = max(5, int(os.getenv("CAR_INFO_REQUEST_TIMEOUT_SECONDS", "30")))
-REQUEST_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_REQUEST_DELAY_SECONDS", "30")))
+REQUEST_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_REQUEST_DELAY_SECONDS", "300")))
 RATE_LIMIT_BACKOFF_MINUTES = max(30, int(os.getenv("CAR_INFO_RATE_LIMIT_BACKOFF_MINUTES", "240")))
 TEXT_LIMIT = max(1000, int(os.getenv("CAR_INFO_TEXT_LIMIT", "12000")))
 BACKLOG_ENABLED = os.getenv("CAR_INFO_BACKLOG_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-BACKLOG_MAX_PER_CYCLE = max(1, min(100, int(os.getenv("CAR_INFO_BACKLOG_MAX_PER_CYCLE", "25"))))
-BACKLOG_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_BACKLOG_DELAY_SECONDS", str(max(REQUEST_DELAY_SECONDS, 60)))))
+BACKLOG_MAX_PER_CYCLE = max(1, min(100, int(os.getenv("CAR_INFO_BACKLOG_MAX_PER_CYCLE", "12"))))
+BACKLOG_DELAY_SECONDS = max(0, int(os.getenv("CAR_INFO_BACKLOG_DELAY_SECONDS", str(max(REQUEST_DELAY_SECONDS, 300)))))
 
 app = FastAPI(title="Fibaro10 car.info lookup")
 lock = asyncio.Lock()

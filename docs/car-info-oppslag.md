@@ -20,7 +20,7 @@ Car.info har lav rate-limit for gratis/personlig bruk. Derfor skal dette kjore s
 
 ## Standardintervall
 
-QNAP-oppsettet kjoerer backlog-modus: appen tar en kandidat av gangen, venter mellom oppslag, og fortsetter til koeen er tom eller car.info svarer med `coffee break`/429. Ved rate-limit lagres statusen i Fibaro10 og appen tar global pause i 240 minutter foer den fortsetter automatisk.
+QNAP-oppsettet kjoerer backlog-modus: appen tar en kandidat av gangen, venter normalt 300 sekunder mellom faktiske car.info-oppslag, og fortsetter til koeen er tom eller car.info svarer med `coffee break`/429. Ved rate-limit lagres statusen i Fibaro10 og appen tar global pause i 240 minutter foer den fortsetter automatisk.
 
 ## Intern tilgang
 
@@ -30,7 +30,7 @@ Sett `CAR_INFO_APP_TOKEN` i QNAP `.env`. Fibaro10 godtar denne tokenen kun paa c
 
 - Appstatus: `http://192.168.20.218:8126/health`
 - Manuell Fibaro10-trigger: `POST /api/actions/parkering/car-info-sync?limit=1`
-- Manuell backlog-syklus: `POST http://192.168.20.218:8126/api/run-backlog?max_items=25`
+- Manuell backlog-syklus: `POST http://192.168.20.218:8126/api/run-backlog?max_items=12`
 - Svensk skiltfilter: `GET /api/svensk-skilt/{plate}`
 
 ## Lagrede felt
