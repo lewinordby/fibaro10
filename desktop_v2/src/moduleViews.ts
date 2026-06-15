@@ -20,6 +20,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
   omsetning: [
     { key: "oversikt", label: "Oversikt" },
     { key: "manedsoversikt", label: "Månedsoversikt" },
+    { key: "akkumulert", label: "Akkumulert år" },
     { key: "sammenligning", label: "Sammenligning" },
   ],
   parkering: [

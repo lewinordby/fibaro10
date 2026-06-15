@@ -13271,6 +13271,53 @@ def api_revenue_weekly_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
+def api_revenue_accumulated_year_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
+    chart_rows = summaries.get("weekly_chart", [])
+
+    def cumulative(values: list[Any]) -> list[Optional[float]]:
+        total = 0.0
+        result: list[Optional[float]] = []
+        normalized = list(values[:53])
+        last_value_index = max((index for index, value in enumerate(normalized) if value is not None), default=-1)
+        for index in range(53):
+            value = normalized[index] if index < len(normalized) else None
+            if index > last_value_index:
+                result.append(None)
+                continue
+            total += float_or_zero(value)
+            result.append(round(total, 2))
+        return result
+
+    def metric_series(metric: str) -> list[Dict[str, Any]]:
+        return [
+            {
+                "name": row["year"],
+                "data": cumulative(row.get(metric) or []),
+                "color": row.get("color"),
+                "unit": "kr" if metric == "revenue" else "stk",
+                "smooth": False,
+                "step": "end",
+            }
+            for row in chart_rows
+        ]
+
+    current_year = local_now_naive().year
+    return api_chart(
+        "Akkumulert år",
+        [str(week) for week in range(1, 54)],
+        metric_series("revenue"),
+        "Løpende sum uke for uke fra samme grunnlag som Omsetning oversikt.",
+        "line",
+        520,
+        metrics=[
+            {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": metric_series("revenue")},
+            {"key": "count", "label": "Antall", "unit": "stk", "series": metric_series("count")},
+        ],
+        default_metric="revenue",
+        default_visible_series=[str(current_year), str(current_year - 1)],
+    )
+
+
 def cumulative_energy_series(rows: list[EnergyFibaroSample], attr: str) -> list[float]:
     total = 0.0
     values = []
@@ -18231,6 +18278,40 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             combined_stats = combine_business_summaries(sun2_summaries, parking_summaries)
             week_start = today - timedelta(days=today.weekday())
             week_start_dt = datetime.combine(week_start, time.min)
+
+            if view == "akkumulert":
+                current_year = today.year
+
+                def year_summary(year: int) -> Dict[str, Any]:
+                    row = next((item for item in combined_stats.get("weekly_chart", []) if str(item.get("year")) == str(year)), None)
+                    revenue = sum(float_or_zero(value) for value in ((row or {}).get("revenue") or []) if value is not None)
+                    count = sum(int_or_zero(value) for value in ((row or {}).get("count") or []) if value is not None)
+                    return {"period_label": str(year), "total_paid": round(revenue, 2), "total_count": count}
+
+                current_year_summary = year_summary(current_year)
+                previous_year_summary = year_summary(current_year - 1)
+                diff_paid = current_year_summary["total_paid"] - previous_year_summary["total_paid"]
+                year_rows = [
+                    year_summary(int(row["year"]))
+                    for row in sorted(
+                        [item for item in combined_stats.get("weekly_chart", []) if str(item.get("year", "")).isdigit()],
+                        key=lambda item: int(item["year"]),
+                        reverse=True,
+                    )
+                ]
+                return {
+                    "title": "Omsetning · Akkumulert år",
+                    "subtitle": "Løpende akkumulert utvikling per uke, bygget på samme grunnlag som Omsetning oversikt.",
+                    "cards": [
+                        api_card("I år", format_short_number(current_year_summary["total_paid"]), "kr", f"{format_short_number(current_year_summary['total_count'])} hendelser", "revenue", href="/omsetning/akkumulert"),
+                        api_card("I fjor", format_short_number(previous_year_summary["total_paid"]), "kr", f"{format_short_number(previous_year_summary['total_count'])} hendelser", "status", href="/omsetning/akkumulert"),
+                        api_card("Differanse", format_short_number(diff_paid), "kr", f"{current_year} mot {current_year - 1}", "revenue" if diff_paid >= 0 else "status", href="/omsetning/akkumulert"),
+                    ],
+                    "charts": [api_revenue_accumulated_year_chart(combined_stats)],
+                    "tables": [
+                        api_table("Årssummer", ["period_label", "total_paid", "total_count"], year_rows),
+                    ],
+                }
 
             today_sun = await sun2_period_snapshot(session, today, tomorrow)
             week_sun = await sun2_period_snapshot(session, week_start, tomorrow)

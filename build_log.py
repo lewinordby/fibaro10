@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1190")
+APP_BUILD = os.getenv("APP_BUILD", "1191")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1191",
+        "date": "15.06.2026",
+        "headline": "Omsetning faar egen akkumulert aarsside",
+        "title": "Akkumulert aar viser lopende omsetning og antall per uke",
+        "description": (
+            "Build 1191 legger en egen side under Omsetning for akkumulert aarsutvikling. Diagrammet bruker "
+            "samme ukesgrunnlag som Omsetning oversikt, men summerer lopende fra uke 1 slik at utviklingen "
+            "kan sammenlignes direkte mellom aar."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bygger akkumulert aarsdiagram og aarskort fra samlet soling og parkering.",
+            "Desktop V2 (moduleViews.ts): legger Akkumulert aar som eget menyvalg under Omsetning.",
+            "Buildlogg (build_log.py): registrerer build 1191.",
+        ],
+        "request": "Lag et diagram for akkumulert aaret, samme som oversikt men bare akkumulert, paa en egen side.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny side: /omsetning/akkumulert.",
+            "Diagrammet viser akkumulert sum per uke med omsetning som standard.",
+            "Brukeren kan bytte mellom omsetning og antall.",
+            "Innevaerende aar og fjoraret er synlige som standard, andre aar kan slaas paa i legenda.",
+        ],
+    },
     {
         "version": "1",
         "build": "1190",
