@@ -1,5 +1,5 @@
 import { CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
-import { Card, Col, List, Row, Space, Tag, Tooltip, Typography } from "antd";
+import { Card, List, Space, Tag, Tooltip, Typography } from "antd";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -302,6 +302,26 @@ function OverviewInfoPanel({ title, children }: { title: string; children: React
   );
 }
 
+function StatusSection({
+  title,
+  detail,
+  children,
+}: {
+  title: string;
+  detail?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="status-section">
+      <div className="status-section-head">
+        <span>{title}</span>
+        {detail ? <em>{detail}</em> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function LatestEventList({
   items,
   itemTitle,
@@ -405,38 +425,43 @@ export default function OverviewPage() {
 
   return (
     <Space direction="vertical" size={14} className="page-stack status-page status-overview-page">
-      <StatusSummary
-        label={data.operatingWindow.label}
-        detail={data.operatingWindow.detail}
-        sourceCounts={overviewSourceCounts}
-        updatedAt={new Date(data.generatedAt).toLocaleString("nb-NO")}
-      />
+      <Card className="status-command-card">
+        <StatusSummary
+          label={data.operatingWindow.label}
+          detail={data.operatingWindow.detail}
+          sourceCounts={overviewSourceCounts}
+          updatedAt={new Date(data.generatedAt).toLocaleString("nb-NO")}
+        />
+        <div className="status-strip-stack">
+          <StatusStrip title="Lys" items={lightStripItems(data.lightItems)} />
+          <StatusStrip title="Ventilasjon" items={data.fanItems} />
+        </div>
+      </Card>
 
-      <div className="status-strip-stack">
-        <StatusStrip title="Lys" items={lightStripItems(data.lightItems)} />
-        <StatusStrip title="Ventilasjon" items={data.fanItems} />
-      </div>
+      <StatusSection title="Omsetning" detail="I dag, uke og måned med riktig datatidspunkt for sammenligning">
+        <div className="status-period-grid">
+          {data.statusPeriods.map((period) => (
+            <RevenuePeriodCard period={period} key={period.key} />
+          ))}
+        </div>
+      </StatusSection>
 
-      <div className="status-period-grid">
-        {data.statusPeriods.map((period) => (
-          <RevenuePeriodCard period={period} key={period.key} />
-        ))}
-      </div>
+      <StatusSection title="Nøkkeltall" detail="Energi, temperatur og vær akkurat nå">
+        <SupportMetricStrip cards={supportCards} />
+      </StatusSection>
 
-      <SupportMetricStrip cards={supportCards} />
-
-      <Row gutter={[16, 16]}>
-        <Col span={12}>
+      <div className="status-info-grid">
+        <div>
           <OverviewInfoPanel title="Siste hendelser">
             <LatestEventList items={data.latestItems} itemTitle={itemTitle} />
           </OverviewInfoPanel>
-        </Col>
-        <Col span={12}>
+        </div>
+        <div>
           <OverviewInfoPanel title="Status datakilder">
             <DatasourceList services={overviewServices} />
           </OverviewInfoPanel>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </Space>
   );
 }

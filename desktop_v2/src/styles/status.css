@@ -1094,3 +1094,127 @@
 .status-revenue-page .summary-card strong {
   font-size: 15px;
 }
+
+.status-overview-page {
+  gap: 12px;
+}
+
+.status-command-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  box-shadow: var(--shadow-sm);
+}
+
+.status-command-card .ant-card-body {
+  display: grid;
+  gap: 10px;
+  padding: 11px 12px;
+}
+
+.status-command-card .status-summary {
+  min-height: 0;
+  padding: 0 0 9px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.status-command-card .status-summary-state strong {
+  font-size: 17px;
+}
+
+.status-command-card .status-summary-state em {
+  color: #64748b;
+}
+
+.status-command-card .status-strip-stack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.status-command-card .status-strip {
+  min-height: 0;
+  align-items: flex-start;
+  padding: 8px 10px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.status-command-card .status-strip-title {
+  flex: 0 0 88px;
+  padding-top: 2px;
+}
+
+.status-command-card .status-strip-items {
+  gap: 5px 10px;
+}
+
+.status-section {
+  display: grid;
+  gap: 8px;
+}
+
+.status-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 2px;
+}
+
+.status-section-head span {
+  color: #263244;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.status-section-head em {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-info-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.status-info-grid > div,
+.status-info-grid .status-info-card {
+  min-width: 0;
+}
+
+.status-info-grid .status-info-card {
+  height: 100%;
+}
+
+.status-overview-page .status-info-card .ant-card-head {
+  min-height: 38px;
+}
+
+.status-overview-page .status-info-card .ant-card-body {
+  padding: 6px 16px 8px;
+}
+
+.status-overview-page :is(.status-event-list, .status-source-list) .ant-list-item {
+  padding: 9px 0;
+}
+
+.status-overview-page .status-support-strip {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.status-overview-page .status-support-item {
+  min-height: 80px;
+}
+
+.status-overview-page .status-period-card {
+  min-height: 216px;
+}

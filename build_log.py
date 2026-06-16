@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1217")
+APP_BUILD = os.getenv("APP_BUILD", "1218")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1218",
+        "date": "16.06.2026",
+        "headline": "Dashboardet er ryddet visuelt",
+        "title": "Statusoversikten har tydeligere seksjoner og roligere layout",
+        "description": (
+            "Build 1218 rydder dashboard/statusoversikten uten aa endre datagrunnlaget. Drift naa, omsetning, "
+            "nokkeltall og oppfolging er delt i tydeligere soner. Lys og ventilasjon er samlet i ett kompakt "
+            "driftskort, mens siste hendelser og datakilder ligger i en ren bunnseksjon."
+        ),
+        "applications": [
+            "Desktop V2 statusdashboard (src/pages/OverviewPage.tsx): deler siden i statuskort, omsetningsseksjon, nokkeltall og oppfolging.",
+            "Desktop V2 status-CSS (src/styles/status.css): legger til dashboard-spesifikke layoutregler for seksjoner, driftskort og bunnrutenett.",
+            "Buildlogg (build_log.py): registrerer build 1218.",
+        ],
+        "request": "Rydd dashboard siden, den er litt rotete.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Status, siste oppdatering og datakildestatus er samlet i ett toppkort.",
+            "Lys og ventilasjon vises side om side inne i samme driftsflate.",
+            "Omsetningskortene har egen seksjonsoverskrift.",
+            "Nokkeltall for energi, temperatur og vaer har egen seksjon.",
+            "Siste hendelser og datakilder er samlet i et roligere tospaltet bunnfelt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1217",
