@@ -123,6 +123,7 @@ export type StatusComparisonLane = {
   kind: "sun" | "parking";
   start: string | null;
   end: string | null;
+  endLeft?: number;
   count: number;
   paid: number;
   events: StatusComparisonEvent[];

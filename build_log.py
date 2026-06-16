@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1215")
+APP_BUILD = os.getenv("APP_BUILD", "1216")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1216",
+        "date": "16.06.2026",
+        "headline": "Sammenligning viser hele dagen",
+        "title": "Omsetning/sammenligning bruker full dagsakse i dagvis graf",
+        "description": (
+            "Build 1216 endrer grafgrunnlaget for Omsetning > Sammenligning. Dagvis sammenligning viser naa "
+            "hele dognaksen selv om dagen ikke er ferdig. Summeringskortene bruker fortsatt korrekt datatidspunkt "
+            "for soling og parkering, mens historiske kurver kan vise resten av dagen slik at utviklingen blir "
+            "lettere aa lese."
+        ),
+        "applications": [
+            "Backend status comparison API (main.py): skiller mellom summeringsperiode og grafperiode for dagvis sammenligning.",
+            "Backend status timeline lanes (main.py): sender endLeft slik at frontend vet hvor langt hver kurve faktisk har datagrunnlag.",
+            "Desktop V2 API-kontrakt (src/api.ts): utvider StatusComparisonLane med endLeft.",
+            "Desktop V2 sammenligningsgraf (src/pages/StatusComparisonPage.tsx): stopper dagens kurve ved faktisk datadekning og lar historiske dagkurver fylle hele dagen.",
+            "Buildlogg (build_log.py): registrerer build 1216.",
+        ],
+        "request": "Omsetning/sammenligning skal vise hele dagen selv om dagen ikke er over, slik at utviklingen videre kan sees.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dagvis sammenligning har naa 24-timers akse.",
+            "Historiske sammenligningskurver viser hele dagen.",
+            "Dagens kurve stopper ved siste tilgjengelige datatidspunkt i stedet for aa flate ut til midnatt.",
+            "Toppkortene og differansetallene er ikke endret og bruker fortsatt riktig datatidspunkt for sammenligning.",
+        ],
+    },
     {
         "version": "1",
         "build": "1215",

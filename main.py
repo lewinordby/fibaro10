@@ -6057,6 +6057,7 @@ async def status_timeline_lane(
         "kind": kind,
         "start": api_local_iso(start),
         "end": api_local_iso(end),
+        "endLeft": round(max(0, min(100, ((end - start).total_seconds() / axis_seconds) * 100)), 4) if axis_seconds > 0 else 0,
         "count": count,
         "paid": paid,
         "events": events,
@@ -12299,18 +12300,31 @@ async def api_v2_status_comparison(
         ]
 
         current_config = period_config["current"]
+        full_day_chart = period == "today"
+
+        def chart_end(config: Dict[str, Any], source_key: str) -> datetime:
+            if full_day_chart and config is not current_config:
+                return config["start"] + timedelta(days=1)
+            return config[source_key]
+
+        current_sun_chart_end = chart_end(current_config, "sunEnd")
+        current_parking_chart_end = chart_end(current_config, "parkingEnd")
+        comparison_sun_chart_end = chart_end(comparison_config, "sunEnd")
+        comparison_parking_chart_end = chart_end(comparison_config, "parkingEnd")
         axis_candidates = [
             3600.0,
-            (current_config["sunEnd"] - current_config["start"]).total_seconds(),
-            (current_config["parkingEnd"] - current_config["start"]).total_seconds(),
-            (comparison_config["sunEnd"] - comparison_config["start"]).total_seconds(),
-            (comparison_config["parkingEnd"] - comparison_config["start"]).total_seconds(),
+            (current_sun_chart_end - current_config["start"]).total_seconds(),
+            (current_parking_chart_end - current_config["start"]).total_seconds(),
+            (comparison_sun_chart_end - comparison_config["start"]).total_seconds(),
+            (comparison_parking_chart_end - comparison_config["start"]).total_seconds(),
         ]
         for reference_config in reference_configs:
+            reference_sun_chart_end = chart_end(reference_config, "sunEnd")
+            reference_parking_chart_end = chart_end(reference_config, "parkingEnd")
             axis_candidates.extend(
                 [
-                    (reference_config["sunEnd"] - reference_config["start"]).total_seconds(),
-                    (reference_config["parkingEnd"] - reference_config["start"]).total_seconds(),
+                    (reference_sun_chart_end - reference_config["start"]).total_seconds(),
+                    (reference_parking_chart_end - reference_config["start"]).total_seconds(),
                 ]
             )
         axis_seconds = max(axis_candidates)
@@ -12332,7 +12346,7 @@ async def api_v2_status_comparison(
                 current_config["label"],
                 "sun",
                 current_config["start"],
-                current_config["sunEnd"],
+                current_sun_chart_end,
                 axis_seconds,
             ),
             await status_timeline_lane(
@@ -12342,7 +12356,7 @@ async def api_v2_status_comparison(
                 current_config["label"],
                 "parking",
                 current_config["start"],
-                current_config["parkingEnd"],
+                current_parking_chart_end,
                 axis_seconds,
             ),
             await status_timeline_lane(
@@ -12352,7 +12366,7 @@ async def api_v2_status_comparison(
                 comparison_config["label"],
                 "sun",
                 comparison_config["start"],
-                comparison_config["sunEnd"],
+                comparison_sun_chart_end,
                 axis_seconds,
             ),
             await status_timeline_lane(
@@ -12362,12 +12376,14 @@ async def api_v2_status_comparison(
                 comparison_config["label"],
                 "parking",
                 comparison_config["start"],
-                comparison_config["parkingEnd"],
+                comparison_parking_chart_end,
                 axis_seconds,
             ),
         ]
         reference_results = []
         for reference_config in reference_configs:
+            reference_sun_chart_end = chart_end(reference_config, "sunEnd")
+            reference_parking_chart_end = chart_end(reference_config, "parkingEnd")
             reference_sun = await sun2_datetime_snapshot(session, reference_config["start"], reference_config["sunEnd"])
             reference_parking = await parking_datetime_snapshot(
                 session,
@@ -12382,7 +12398,7 @@ async def api_v2_status_comparison(
                     reference_config["label"],
                     "sun",
                     reference_config["start"],
-                    reference_config["sunEnd"],
+                    reference_sun_chart_end,
                     axis_seconds,
                 ),
                 await status_timeline_lane(
@@ -12392,7 +12408,7 @@ async def api_v2_status_comparison(
                     reference_config["label"],
                     "parking",
                     reference_config["start"],
-                    reference_config["parkingEnd"],
+                    reference_parking_chart_end,
                     axis_seconds,
                 ),
             ]

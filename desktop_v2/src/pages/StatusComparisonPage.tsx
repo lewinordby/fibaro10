@@ -64,6 +64,11 @@ function axisValue(value: number, metric: ComparisonMetric) {
 }
 
 function cumulativePoints(lanes: Array<StatusComparisonLane | undefined>, metric: ComparisonMetric): Array<[number, number]> {
+  const endLeft = lanes.reduce((max, lane) => {
+    const laneEnd = Number(lane?.endLeft);
+    if (!Number.isFinite(laneEnd)) return max;
+    return Math.max(max, Math.max(0, Math.min(100, laneEnd)));
+  }, 0);
   const events = lanes
     .flatMap((lane) => lane?.events ?? [])
     .filter((event) => Number.isFinite(event.left))
@@ -81,7 +86,10 @@ function cumulativePoints(lanes: Array<StatusComparisonLane | undefined>, metric
     total += batch;
     points.push([left, Math.round(total * 100) / 100]);
   }
-  points.push([100, Math.round(total * 100) / 100]);
+  const finalLeft = Math.max(endLeft, points[points.length - 1]?.[0] ?? 0);
+  if (finalLeft > (points[points.length - 1]?.[0] ?? 0)) {
+    points.push([finalLeft, Math.round(total * 100) / 100]);
+  }
   return points;
 }
 
