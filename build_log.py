@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1225")
+APP_BUILD = os.getenv("APP_BUILD", "1226")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1226",
+        "date": "16.06.2026",
+        "headline": "I dag viser sol og parkering separat",
+        "title": "Omsetning oversikt viser separat soling og parkering paa I dag-kortet",
+        "description": (
+            "Build 1226 retter I dag-kortet paa Omsetning > Oversikt slik at detaljlinjen viser soling og "
+            "parkering som separate belop. Kortet viser fortsatt totalomsetningen som hovedtall, men underteksten "
+            "folger naa samme fordeling som uke-, maaned- og aarskortene."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): endrer detaljlinjen paa I dag-kortet for omsetning.",
+            "Buildlogg (build_log.py): registrerer build 1226.",
+        ],
+        "request": "Paa I dag-kortet i Omsetning > Oversikt skal tall for parkering og soling vises separat.",
+        "work_duration": "ca. 5 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "I dag-kortet viser total omsetning som hovedtall.",
+            "Detaljlinjen viser naa Sol X kr og parkering Y kr separat.",
+        ],
+    },
     {
         "version": "1",
         "build": "1225",

@@ -18487,7 +18487,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "I dag",
                     format_short_number(float_or_zero(today_sun.paid) + float_or_zero(today_parking["paid"])),
                     "kr",
-                    f"{int_or_zero(today_sun.sessions) + int_or_zero(today_parking['count'])} hendelser",
+                    f"Sol {format_short_number(today_sun.paid)} kr - parkering {format_short_number(today_parking['paid'])} kr",
                     "revenue",
                     href="/omsetning/sammenligning?period=today",
                 ),
