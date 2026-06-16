@@ -95,6 +95,8 @@ export type RevenueMonthResponse = {
     parking: number;
     solCount: number;
     parkingCount: number;
+    averageDayCount: number;
+    averagePerDay: number;
     maxTotal: number;
     topDay: RevenueDay | null;
     todayRow: RevenueDay | null;

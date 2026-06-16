@@ -176,7 +176,8 @@ export default function RevenueMonthPage() {
         </Col>
         <Col span={4}>
           <Card className="summary-card" title="Snitt per dag">
-            <strong>{nok(summary.total / Math.max(1, data.rows.length))} kr</strong>
+            <strong>{nok(summary.averagePerDay)} kr</strong>
+            <span>{summary.averageDayCount ? `${summary.averageDayCount} dager` : "Ingen dager"}</span>
           </Card>
         </Col>
         <Col span={4}>

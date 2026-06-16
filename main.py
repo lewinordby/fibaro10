@@ -12250,6 +12250,13 @@ async def build_revenue_month_context(month: Optional[str] = None) -> Dict[str, 
             row["parking_pct"] *= scale
     total_sol = sum(row["sol"] for row in rows)
     total_parking = sum(row["parking"] for row in rows)
+    if month_start <= today < next_month:
+        average_day_count = (today - month_start).days + 1
+    elif month_start < today.replace(day=1):
+        average_day_count = days_in_month
+    else:
+        average_day_count = 0
+    average_per_day = (total_sol + total_parking) / average_day_count if average_day_count else 0.0
     top_day = max(rows, key=lambda row: row["total"], default=None)
     today_row = next((row for row in rows if row["day"] == today), None)
     return {
@@ -12265,6 +12272,8 @@ async def build_revenue_month_context(month: Optional[str] = None) -> Dict[str, 
             "parking": total_parking,
             "sol_count": sum(row["sol_count"] for row in rows),
             "parking_count": sum(row["parking_count"] for row in rows),
+            "average_day_count": average_day_count,
+            "average_per_day": average_per_day,
             "max_total": max_total,
             "top_day": top_day,
             "today_row": today_row,
@@ -12938,6 +12947,8 @@ async def api_v2_revenue_month(month: Optional[str] = None):
             "parking": summary["parking"],
             "solCount": summary["sol_count"],
             "parkingCount": summary["parking_count"],
+            "averageDayCount": summary["average_day_count"],
+            "averagePerDay": summary["average_per_day"],
             "maxTotal": summary["max_total"],
             "topDay": api_revenue_day(summary["top_day"]) if summary["top_day"] else None,
             "todayRow": api_revenue_day(summary["today_row"]) if summary["today_row"] else None,
@@ -20400,94 +20411,13 @@ async def api_v2_admin_user_update(request: Request, key_id: int, data: V2Access
 
 @app.get("/status/omsetning", response_class=HTMLResponse)
 async def status_revenue_month_view(request: Request, month: Optional[str] = None):
-    today = local_now_naive().date()
-    month_start = normalize_month(month, today)
-    next_month = add_months(month_start, 1)
-    previous_month = add_months(month_start, -1)
-    days_in_month = (next_month - month_start).days
-    async with async_session() as session:
-        sol_rows = (
-            await session.execute(
-                select(
-                    Sun2TanningSession.stat_date.label("day"),
-                    func.count(Sun2TanningSession.id).label("count"),
-                    func.coalesce(func.sum(Sun2TanningSession.paid_amount_kr), 0).label("amount"),
-                )
-                .where(Sun2TanningSession.stat_date >= month_start)
-                .where(Sun2TanningSession.stat_date < next_month)
-                .group_by(Sun2TanningSession.stat_date)
-            )
-        ).mappings().all()
-        parking_day = cast(ParkingSession.start_time, Date)
-        parking_rows = (
-            await session.execute(
-                select(
-                    parking_day.label("day"),
-                    func.count(ParkingSession.id).label("count"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("amount"),
-                )
-                .where(ParkingSession.start_time >= datetime.combine(month_start, time.min))
-                .where(ParkingSession.start_time < datetime.combine(next_month, time.min))
-                .group_by(parking_day)
-            )
-        ).mappings().all()
-
-    sol_by_day = {row["day"]: float_or_zero(row["amount"]) for row in sol_rows}
-    sol_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in sol_rows}
-    parking_by_day = {row["day"]: float_or_zero(row["amount"]) for row in parking_rows}
-    parking_count_by_day = {row["day"]: int_or_zero(row["count"]) for row in parking_rows}
-    rows = []
-    for offset in range(days_in_month):
-        day = month_start + timedelta(days=offset)
-        sol_amount = sol_by_day.get(day, 0.0)
-        parking_amount = parking_by_day.get(day, 0.0)
-        rows.append(
-            {
-                "day": day,
-                "day_label": day.strftime("%d.%m"),
-                "weekday": ["Man", "Tir", "Ons", "Tor", "Fre", "Lor", "Son"][day.weekday()],
-                "sol": sol_amount,
-                "sol_count": sol_count_by_day.get(day, 0),
-                "parking": parking_amount,
-                "parking_count": parking_count_by_day.get(day, 0),
-                "total": sol_amount + parking_amount,
-                "is_today": day == today,
-                "is_weekend": day.weekday() >= 5,
-            }
-        )
-    max_total = max([row["total"] for row in rows] + [1.0])
-    for row in rows:
-        row["sol_pct"] = 0.0 if row["sol"] <= 0 else max(4.0, row["sol"] / max_total * 100)
-        row["parking_pct"] = 0.0 if row["parking"] <= 0 else max(4.0, row["parking"] / max_total * 100)
-        if row["sol_pct"] + row["parking_pct"] > 100:
-            scale = 100.0 / (row["sol_pct"] + row["parking_pct"])
-            row["sol_pct"] *= scale
-            row["parking_pct"] *= scale
-    total_sol = sum(row["sol"] for row in rows)
-    total_parking = sum(row["parking"] for row in rows)
-    top_day = max(rows, key=lambda row: row["total"], default=None)
-    today_row = next((row for row in rows if row["day"] == today), None)
-    summary = {
-        "label": month_label(month_start),
-        "month": month_start.strftime("%Y-%m"),
-        "previous_month": previous_month.strftime("%Y-%m"),
-        "next_month": next_month.strftime("%Y-%m"),
-        "current_month": today.replace(day=1).strftime("%Y-%m"),
-        "total": total_sol + total_parking,
-        "sol": total_sol,
-        "parking": total_parking,
-        "sol_count": sum(row["sol_count"] for row in rows),
-        "parking_count": sum(row["parking_count"] for row in rows),
-        "max_total": max_total,
-        "top_day": top_day,
-        "today_row": today_row,
-    }
+    context = await build_revenue_month_context(month)
     return templates.TemplateResponse(
         request,
         "status_revenue_month.html",
         {
-            "rows": rows,
-            "summary": summary,
+            "rows": context["rows"],
+            "summary": context["summary"],
         },
     )
 

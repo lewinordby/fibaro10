@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1223")
+APP_BUILD = os.getenv("APP_BUILD", "1224")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1224",
+        "date": "16.06.2026",
+        "headline": "Riktig dagsnitt for paagaaende maaned",
+        "title": "Omsetning maanedsoversikt beregner snitt per dag bare til og med aktuell dag",
+        "description": (
+            "Build 1224 retter dagsnittet paa Omsetning > Maanedsoversikt. For innevaerende maaned deles "
+            "maanedssummen bare paa dager til og med i dag, mens avsluttede maaneder fortsatt bruker alle "
+            "dagene i maaneden. Backend sender naa ferdig beregnet snitt og daggrunnlag til frontend."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): beregner average_per_day og average_day_count i felles maanedscontext.",
+            "Fibaro10 klassisk statusrute (main.py): bruker samme felles maanedscontext for aa unngaa duplisert logikk.",
+            "Desktop V2 omsetning (src/pages/RevenueMonthPage.tsx): viser backend-beregnet snitt og antall dager i grunnlaget.",
+            "API-typer (src/api.ts): utvider maanedssammendrag med averagePerDay og averageDayCount.",
+            "Buildlogg (build_log.py): registrerer build 1224.",
+        ],
+        "request": "Paa Omsetning/Maanedsoversikt er Snitt per dag feil naar maaneden ikke er ferdig; snittet maa bare regnes til og med aktuell dag.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Innevaerende maaned bruker antall dager til og med i dag som divisor.",
+            "Historiske maaneder bruker hele maaneden som divisor.",
+            "Frontend viser antall dager som snittet bygger paa.",
+            "Klassisk statusrute bruker samme maanedsgrunnlag som ny frontend.",
+        ],
+    },
     {
         "version": "1",
         "build": "1223",
