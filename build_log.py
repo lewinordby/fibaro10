@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1220")
+APP_BUILD = os.getenv("APP_BUILD", "1221")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1221",
+        "date": "16.06.2026",
+        "headline": "Sammenligningsgraf starter paa omsetning",
+        "title": "Omsetning/sammenligning har renere grafheader og omsetning som standard",
+        "description": (
+            "Build 1221 fjerner den ekstra forklaringslegend-raden over grafen paa Omsetning > Sammenligning. "
+            "Valget for grafmodus ligger naa alene helt til hoyre, og siden starter paa omsetning som standard. "
+            "Antall kan fortsatt velges manuelt."
+        ),
+        "applications": [
+            "Desktop V2 omsetningssammenligning (src/pages/StatusComparisonPage.tsx): endrer standard metric til omsetning og fjerner ekstra legend i grafheader.",
+            "Desktop V2 status-CSS (src/styles/status.css): fjerner ubrukte legend-regler.",
+            "Buildlogg (build_log.py): registrerer build 1221.",
+        ],
+        "request": "Paa Omsetning/Sammenligning skal 'valgt periode, sammenligning, samme dag forrige uke' bort fra grafens topplinje, knappene helt til hoyre, og default skal vaere omsetning.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Grafen starter paa omsetning naar URL-en ikke angir metric.",
+            "Segmentert valg viser Omsetning og Antall.",
+            "Den ekstra legend-raden i grafheaderen er fjernet.",
+            "Ubrukte CSS-regler for den gamle legend-raden er fjernet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1220",

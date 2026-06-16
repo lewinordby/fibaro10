@@ -268,7 +268,7 @@ export default function StatusComparisonPage() {
   const period = searchParams.get("period") || "today";
   const compare = searchParams.get("compare") || "previous";
   const anchor = searchParams.get("anchor") || "";
-  const metric: ComparisonMetric = searchParams.get("metric") === "amount" ? "amount" : "count";
+  const metric: ComparisonMetric = searchParams.get("metric") === "count" ? "count" : "amount";
   const { data, loading, error } = useAsyncData(() => fetchStatusComparison(period, compare, anchor), [period, compare, anchor]);
   const chartOptions = useMemo(() => {
     if (!data) return [];
@@ -357,32 +357,19 @@ export default function StatusComparisonPage() {
               size="small"
               value={metric}
               options={[
+                { label: "Omsetning", value: "amount" },
                 { label: "Antall", value: "count" },
-                { label: "Beløp", value: "amount" },
               ]}
               onChange={(value) => {
                 const nextParams = new URLSearchParams(searchParams);
                 if (value === "amount") {
-                  nextParams.set("metric", "amount");
-                } else {
                   nextParams.delete("metric");
+                } else {
+                  nextParams.set("metric", "count");
                 }
                 setSearchParams(nextParams, { replace: true });
               }}
             />
-            <div className="status-comparison-legend">
-              <span><i className="kind-current" />Valgt periode</span>
-              <span><i className="kind-comparison" />Sammenligning</span>
-              {(data.referenceComparisons ?? []).map((reference, index) => (
-                <span key={reference.key}>
-                  <i
-                    className="kind-reference"
-                    style={{ backgroundColor: referenceColors[index % referenceColors.length] }}
-                  />
-                  {reference.label}
-                </span>
-              ))}
-            </div>
           </Space>
         }
       >
