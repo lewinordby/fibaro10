@@ -18,6 +18,7 @@ import { useAsyncData } from "../hooks";
 type ComparisonMetric = "count" | "amount";
 type ComparisonChartKind = StatusComparisonLane["kind"] | "total";
 type ComparisonSource = StatusComparisonLane["source"];
+type SummaryDelta = StatusComparisonReference["delta"];
 
 const referenceColors = ["#0f766e", "#7c3aed", "#be123c"];
 
@@ -29,6 +30,12 @@ function signedNok(value: number) {
 function signedCount(value: number) {
   if (!Number.isFinite(value) || value === 0) return "0 stk";
   return `${value > 0 ? "+" : "-"}${Math.abs(value)} stk`;
+}
+
+function deltaTone(value: number) {
+  if (value > 0) return "positive";
+  if (value < 0) return "negative";
+  return "neutral";
 }
 
 function shortTimeText(value?: string | null) {
@@ -212,14 +219,26 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
 function SummaryCard({
   title,
   summary,
+  delta,
+  deltaLabel,
 }: {
   title: string;
   summary: StatusComparisonSummary;
+  delta?: SummaryDelta;
+  deltaLabel?: string;
 }) {
+  const totalDeltaTone = delta ? deltaTone(delta.total) : "";
   return (
     <Card className="status-comparison-summary-card">
       <div className="status-comparison-summary-head">
-        <span>{title}</span>
+        <div>
+          <span>{title}</span>
+          {delta ? (
+            <em className={`status-comparison-card-delta ${totalDeltaTone}`}>
+              {deltaLabel ?? "Valgt periode"} {signedNok(delta.total)}
+            </em>
+          ) : null}
+        </div>
         <strong>{nok(summary.total)} kr</strong>
       </div>
       <div className="status-comparison-summary-meta">
@@ -231,11 +250,13 @@ function SummaryCard({
           <span>Soling</span>
           <strong>{nok(summary.sol)} kr</strong>
           <em>{summary.solCount} stk</em>
+          {delta ? <small className={deltaTone(delta.sol)}>{signedNok(delta.sol)} / {signedCount(delta.solCount)}</small> : null}
         </div>
         <div>
           <span>Parkering</span>
           <strong>{nok(summary.parking)} kr</strong>
           <em>{summary.parkingCount} stk</em>
+          {delta ? <small className={deltaTone(delta.parking)}>{signedNok(delta.parking)} / {signedCount(delta.parkingCount)}</small> : null}
         </div>
       </div>
     </Card>
@@ -257,6 +278,23 @@ export default function StatusComparisonPage() {
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
+
+  const sameWeekdayReference = (data.referenceComparisons ?? []).find((reference) => reference.key === "same-weekday-last-week");
+  const summaryCards = [
+    { title: data.current.label, summary: data.current },
+    { title: data.comparison.label, summary: data.comparison, delta: data.delta, deltaLabel: "Valgt periode" },
+    ...(sameWeekdayReference
+      ? [
+          {
+            title: sameWeekdayReference.summary.label || sameWeekdayReference.label,
+            summary: sameWeekdayReference.summary,
+            delta: sameWeekdayReference.delta,
+            deltaLabel: "Valgt periode",
+          },
+        ]
+      : []),
+  ];
+  const summaryColSpan = summaryCards.length >= 3 ? 8 : 12;
 
   const setAnchor = (nextAnchor: string) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -298,22 +336,16 @@ export default function StatusComparisonPage() {
       </div>
 
       <Row gutter={[14, 14]}>
-        <Col span={8}>
-          <SummaryCard title={data.current.label} summary={data.current} />
-        </Col>
-        <Col span={8}>
-          <SummaryCard title={data.comparison.label} summary={data.comparison} />
-        </Col>
-        <Col span={8}>
-          <Card className="status-comparison-delta-card">
-            <span>Differanse</span>
-            <strong>{signedNok(data.delta.total)}</strong>
-            <div>
-              <em>Soling {signedNok(data.delta.sol)} / {signedCount(data.delta.solCount)}</em>
-              <em>Parkering {signedNok(data.delta.parking)} / {signedCount(data.delta.parkingCount)}</em>
-            </div>
-          </Card>
-        </Col>
+        {summaryCards.map((card) => (
+          <Col span={summaryColSpan} key={card.title}>
+            <SummaryCard
+              title={card.title}
+              summary={card.summary}
+              delta={card.delta}
+              deltaLabel={card.deltaLabel}
+            />
+          </Col>
+        ))}
       </Row>
 
       <Card

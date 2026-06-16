@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1219")
+APP_BUILD = os.getenv("APP_BUILD", "1220")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1220",
+        "date": "16.06.2026",
+        "headline": "Sammenligning viser samme dag forrige uke",
+        "title": "Omsetning/sammenligning erstatter differansekortet med ukereferanse",
+        "description": (
+            "Build 1220 rydder toppkortene paa Omsetning > Sammenligning. Det separate differansekortet er "
+            "erstattet av et kort for samme dag forrige uke naar den referansen finnes. Differanser mot valgt "
+            "periode vises direkte inne i sammenligningskortene for total, soling og parkering."
+        ),
+        "applications": [
+            "Desktop V2 omsetningssammenligning (src/pages/StatusComparisonPage.tsx): bygger dynamisk kortrekke med valgt periode, aktiv sammenligning og samme dag forrige uke.",
+            "Desktop V2 status-CSS (src/styles/status.css): legger til kompakt visning av differanser inne i sammenligningskortene.",
+            "Buildlogg (build_log.py): registrerer build 1220.",
+        ],
+        "request": "Paa omsetning/sammenligning skal differansekortet endres til Samme dag forrige uke, med differanser inne paa de to sammenligningskortene.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Differanse vises ikke lenger som eget tredje kort.",
+            "Samme dag forrige uke vises som eget kort naar API-et leverer referansen.",
+            "Sammenligningskortene viser totaldifferanse mot valgt periode.",
+            "Soling og parkering viser egne differanser i kr og antall.",
+        ],
+    },
     {
         "version": "1",
         "build": "1219",
