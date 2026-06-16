@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1216")
+APP_BUILD = os.getenv("APP_BUILD", "1217")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1217",
+        "date": "16.06.2026",
+        "headline": "Dagsgrafen starter klokken 06",
+        "title": "Omsetning/sammenligning viser dagutvikling fra 06:00 til 00:00",
+        "description": (
+            "Build 1217 strammer inn dagvis omsetningssammenligning. Grafvinduet starter naa klokken 06:00 og "
+            "slutter ved midnatt, slik at visningen bruker plassen paa den delen av dognet som faktisk er relevant "
+            "for drift. Summeringskort og differansetall bruker fortsatt hele korrekt dataperiode."
+        ),
+        "applications": [
+            "Backend status comparison API (main.py): dagvis grafvindu settes til 06:00-00:00.",
+            "Backend status timeline lanes (main.py): soling og parkering i grafen klippes mot det nye grafvinduet.",
+            "Buildlogg (build_log.py): registrerer build 1217.",
+        ],
+        "request": "Begrens grafen/visningen paa Omsetning > Sammenligning til aa starte kl 06 og slutte kl 00.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dagvis grafakse gaar fra 06:00 til 00:00.",
+            "Historiske sammenligningskurver fyller hele 06:00-00:00-vinduet.",
+            "Dagens kurve stopper fortsatt ved siste tilgjengelige datatidspunkt.",
+            "Toppkortene og kontrolltallene er uendret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1216",

@@ -12302,29 +12302,41 @@ async def api_v2_status_comparison(
         current_config = period_config["current"]
         full_day_chart = period == "today"
 
-        def chart_end(config: Dict[str, Any], source_key: str) -> datetime:
-            if full_day_chart and config is not current_config:
-                return config["start"] + timedelta(days=1)
-            return config[source_key]
+        def chart_start(config: Dict[str, Any]) -> datetime:
+            if full_day_chart:
+                return config["start"] + timedelta(hours=6)
+            return config["start"]
 
+        def chart_end(config: Dict[str, Any], source_key: str) -> datetime:
+            if not full_day_chart:
+                return config[source_key]
+            window_start = chart_start(config)
+            window_end = config["start"] + timedelta(days=1)
+            if config is not current_config:
+                return window_end
+            return max(window_start, min(config[source_key], window_end))
+
+        current_chart_start = chart_start(current_config)
+        comparison_chart_start = chart_start(comparison_config)
         current_sun_chart_end = chart_end(current_config, "sunEnd")
         current_parking_chart_end = chart_end(current_config, "parkingEnd")
         comparison_sun_chart_end = chart_end(comparison_config, "sunEnd")
         comparison_parking_chart_end = chart_end(comparison_config, "parkingEnd")
         axis_candidates = [
             3600.0,
-            (current_sun_chart_end - current_config["start"]).total_seconds(),
-            (current_parking_chart_end - current_config["start"]).total_seconds(),
-            (comparison_sun_chart_end - comparison_config["start"]).total_seconds(),
-            (comparison_parking_chart_end - comparison_config["start"]).total_seconds(),
+            (current_sun_chart_end - current_chart_start).total_seconds(),
+            (current_parking_chart_end - current_chart_start).total_seconds(),
+            (comparison_sun_chart_end - comparison_chart_start).total_seconds(),
+            (comparison_parking_chart_end - comparison_chart_start).total_seconds(),
         ]
         for reference_config in reference_configs:
+            reference_chart_start = chart_start(reference_config)
             reference_sun_chart_end = chart_end(reference_config, "sunEnd")
             reference_parking_chart_end = chart_end(reference_config, "parkingEnd")
             axis_candidates.extend(
                 [
-                    (reference_sun_chart_end - reference_config["start"]).total_seconds(),
-                    (reference_parking_chart_end - reference_config["start"]).total_seconds(),
+                    (reference_sun_chart_end - reference_chart_start).total_seconds(),
+                    (reference_parking_chart_end - reference_chart_start).total_seconds(),
                 ]
             )
         axis_seconds = max(axis_candidates)
@@ -12345,7 +12357,7 @@ async def api_v2_status_comparison(
                 "Soling",
                 current_config["label"],
                 "sun",
-                current_config["start"],
+                current_chart_start,
                 current_sun_chart_end,
                 axis_seconds,
             ),
@@ -12355,7 +12367,7 @@ async def api_v2_status_comparison(
                 "Parkering",
                 current_config["label"],
                 "parking",
-                current_config["start"],
+                current_chart_start,
                 current_parking_chart_end,
                 axis_seconds,
             ),
@@ -12365,7 +12377,7 @@ async def api_v2_status_comparison(
                 "Soling",
                 comparison_config["label"],
                 "sun",
-                comparison_config["start"],
+                comparison_chart_start,
                 comparison_sun_chart_end,
                 axis_seconds,
             ),
@@ -12375,13 +12387,14 @@ async def api_v2_status_comparison(
                 "Parkering",
                 comparison_config["label"],
                 "parking",
-                comparison_config["start"],
+                comparison_chart_start,
                 comparison_parking_chart_end,
                 axis_seconds,
             ),
         ]
         reference_results = []
         for reference_config in reference_configs:
+            reference_chart_start = chart_start(reference_config)
             reference_sun_chart_end = chart_end(reference_config, "sunEnd")
             reference_parking_chart_end = chart_end(reference_config, "parkingEnd")
             reference_sun = await sun2_datetime_snapshot(session, reference_config["start"], reference_config["sunEnd"])
@@ -12397,7 +12410,7 @@ async def api_v2_status_comparison(
                     "Soling",
                     reference_config["label"],
                     "sun",
-                    reference_config["start"],
+                    reference_chart_start,
                     reference_sun_chart_end,
                     axis_seconds,
                 ),
@@ -12407,7 +12420,7 @@ async def api_v2_status_comparison(
                     "Parkering",
                     reference_config["label"],
                     "parking",
-                    reference_config["start"],
+                    reference_chart_start,
                     reference_parking_chart_end,
                     axis_seconds,
                 ),
@@ -12466,7 +12479,7 @@ async def api_v2_status_comparison(
                 "lanes": reference_result["lanes"],
             }
         )
-    axis_end = current_config["start"] + timedelta(seconds=axis_seconds)
+    axis_end = current_chart_start + timedelta(seconds=axis_seconds)
     return {
         "generatedAt": api_local_iso(now_dt),
         "periodKey": period,
@@ -12476,10 +12489,10 @@ async def api_v2_status_comparison(
         "comparisonLabel": comparison_config["label"],
         "navigation": period_config["navigation"],
         "axis": {
-            "start": api_local_iso(current_config["start"]),
+            "start": api_local_iso(current_chart_start),
             "end": api_local_iso(axis_end),
             "seconds": axis_seconds,
-            "ticks": status_timeline_ticks(current_config["start"], axis_seconds),
+            "ticks": status_timeline_ticks(current_chart_start, axis_seconds),
         },
         "current": current_summary,
         "comparison": comparison_summary,
