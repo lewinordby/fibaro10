@@ -1,0 +1,106 @@
+@media (max-width: 1400px) {
+  .primary-grid,
+  .vehicle-detail-card-grid,
+  .vehicle-field-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .elvia-top-row {
+    grid-template-columns: 1fr;
+  }
+
+  .elvia-main-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .vent-compact-main {
+    grid-template-columns: 170px minmax(0, 1fr) 190px;
+  }
+
+  .vent-compact-reading {
+    min-width: 104px;
+  }
+}
+
+@media (max-width: 980px) {
+  .elvia-summary-grid,
+  .elvia-import-grid,
+  .elvia-main-grid,
+  .vehicle-detail-card-grid,
+  .vehicle-field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settlement-ledger-row {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-ledger-row.sun {
+    grid-template-columns: 1fr;
+  }
+
+  .sun-settlement-ledger-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-voucher-grid,
+  .settlement-voucher-totals {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-ledger-table-head {
+    display: none;
+  }
+
+  .settlement-document-layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .settlement-read-card {
+    max-height: none;
+    position: static;
+  }
+
+  .settlement-document-card {
+    position: static;
+  }
+
+  .vent-compact-main {
+    grid-template-columns: 1fr;
+  }
+
+  .vent-compact-weather {
+    text-align: left;
+  }
+}
+
+@media (max-width: 720px) {
+  .vehicle-detail-top {
+    flex-direction: column;
+  }
+
+  .elvia-summary-grid,
+  .elvia-import-grid,
+  .elvia-main-grid,
+  .vehicle-detail-card-grid,
+  .vehicle-field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settlement-page-head,
+  .settlement-report-head,
+  .settlement-card-head {
+    flex-direction: column;
+  }
+
+  .settlement-year-tools {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .settlement-year-select {
+    width: 100%;
+  }
+
+}

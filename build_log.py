@@ -5,8 +5,42 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1213")
+APP_BUILD = os.getenv("APP_BUILD", "1214")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1214",
+        "date": "16.06.2026",
+        "headline": "CSS er delt etter funksjonsomraade",
+        "title": "Den gamle samlefila er erstattet med domenevise stilark",
+        "description": (
+            "Build 1214 strukturerer frontend-CSS videre. Den store styles.css-fila er delt i tydelige filer for "
+            "status, modulinnhold, tidslinjer, ventilasjon, energi, register/oppgjor og responsive regler. "
+            "Appstarten importerer filene i en eksplisitt rekkefolge, og CSS-auditen leser naa alle stilarkene i "
+            "styles-mappen."
+        ),
+        "applications": [
+            "Desktop V2 CSS (src/styles/status.css): statusoversikt, perioder og sammenligningssider.",
+            "Desktop V2 CSS (src/styles/module-content.css): felles modulinnhold, metrikkort, tabellflater, bildelister og modulfilter.",
+            "Desktop V2 CSS (src/styles/timelines.css): dagslinjer for soling og parkering.",
+            "Desktop V2 CSS (src/styles/ventilation.css): ventilasjonsoversikt, dagslogg og innstillinger.",
+            "Desktop V2 CSS (src/styles/energy.css): Elvia og energirelaterte visninger.",
+            "Desktop V2 CSS (src/styles/records.css): redigering, kjoretoy, oppgjor og generiske tabelltilstander.",
+            "Desktop V2 CSS (src/styles/responsive.css): felles responsive regler.",
+            "Desktop V2 appstart (main.tsx): importerer de nye domenevise stilarkene eksplisitt.",
+            "Desktop V2 verktøy (scripts/audit-css.mjs): auditerer alle CSS-filer i styles-mappen.",
+            "Buildlogg (build_log.py): registrerer build 1214.",
+        ],
+        "request": "Gjor de grepene du mener er riktig, men spor prinsipielle veivalg for videre utvikling.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "styles.css er fjernet som samlefil.",
+            "CSS-audit viser fortsatt 0 mulige ubrukte CSS-klasser.",
+            "Produksjons-CSS er uendret i storrelse, men kildekoden er vesentlig enklere aa navigere.",
+            "Neste prinsipielle valg er om vi skal fortsette med globale domene-stilark eller gaa til komponentnaer styling/CSS Modules.",
+        ],
+    },
     {
         "version": "1",
         "build": "1213",

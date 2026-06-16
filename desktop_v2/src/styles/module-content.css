@@ -1,0 +1,631 @@
+.metric-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.primary-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.card-link {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.metric-card {
+  height: 122px;
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.module-metric {
+  height: 104px;
+}
+
+.card-link:hover .metric-card {
+  border-color: color-mix(in srgb, var(--tone-color) 38%, var(--line));
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.metric-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.metric-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.metric-title {
+  min-width: 0;
+  overflow: hidden;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-tag {
+  flex: 0 0 auto;
+  margin-inline-end: 0;
+  color: var(--tone-color);
+  border: 0;
+  background: color-mix(in srgb, var(--tone-color) 10%, #ffffff);
+  font-weight: 680;
+}
+
+.metric-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 10px;
+}
+
+.metric-value {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 23px;
+  font-weight: 780;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-unit {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.metric-detail {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin-top: auto;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.metric-detail span {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.metric-detail svg {
+  flex: 0 0 auto;
+  color: var(--tone-color);
+}
+
+.module-actions .ant-card-body {
+  padding: 12px 14px;
+}
+
+.list-value {
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.status-ok {
+  color: var(--green);
+}
+
+.status-warn {
+  color: var(--amber);
+}
+
+.status-bad {
+  color: var(--red);
+}
+
+.summary-card .ant-card-head {
+  min-height: 34px;
+}
+
+.summary-card .ant-card-head-title {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.summary-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 66px;
+  padding: 10px 12px;
+}
+
+.summary-card strong {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.summary-card span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.table-note {
+  display: block;
+  margin-top: 12px;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.table-toolbar .ant-input-search {
+  max-width: 360px;
+}
+
+.table-pane {
+  width: 100%;
+}
+
+.table-pane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sun-session-list-head {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+
+.sun-session-list {
+  display: grid;
+  gap: 8px;
+}
+
+.sun-session-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.sun-session-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.sun-session-summary::-webkit-details-marker {
+  display: none;
+}
+
+.sun-session-main {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(80px, 0.5fr) minmax(140px, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sun-session-main span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.sun-session-tags {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sun-session-detail {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(320px, 1.4fr);
+  gap: 14px;
+  padding: 0 12px 12px;
+}
+
+.sun-session-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+
+.sun-session-field {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--surface-soft);
+}
+
+.sun-session-field span,
+.sun-session-field strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-card.module-metric .ant-card-body {
+  padding: 8px 10px;
+}
+
+.module-metric .metric-title {
+  font-size: 10.5px;
+}
+
+.module-metric .metric-tag {
+  padding-inline: 6px;
+  font-size: 9.5px;
+}
+
+.module-metric .metric-value-row {
+  margin-top: 6px;
+}
+
+.module-metric .metric-value {
+  font-size: 18px;
+  line-height: 1.05;
+}
+
+.module-metric .metric-unit,
+.module-metric .metric-detail {
+  font-size: 10.5px;
+}
+
+.module-metric .metric-detail {
+  min-height: 24px;
+  gap: 6px;
+  line-height: 1.2;
+}
+
+.sun-session-field span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sun-session-image-panel,
+.sun-session-empty-image {
+  min-height: 260px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.sun-session-inline-browser {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+}
+
+.sun-session-image-panel img,
+.sun-session-inline-browser img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #111827;
+}
+
+.sun-session-inline-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sun-session-inline-meta strong {
+  flex: 0 0 auto;
+  color: var(--ink);
+}
+
+.sun-session-inline-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sun-session-inline-meta .ant-tag {
+  margin-inline-end: 0;
+}
+
+.sun-session-inline-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.sun-session-empty-image {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 18px;
+}
+
+.sun-image-browser {
+  display: grid;
+  gap: 12px;
+}
+
+.sun-image-browser-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sun-image-browser-meta div {
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.sun-image-browser-meta span,
+.sun-image-browser-meta strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sun-image-browser-meta span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sun-image-browser-meta strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.sun-image-browser-image {
+  display: block;
+  width: 100%;
+  max-height: 68vh;
+  object-fit: contain;
+  background: #111827;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.sun-image-browser-loading,
+.sun-image-browser-empty {
+  display: grid;
+  min-height: 420px;
+  place-items: center;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.sun-session-empty {
+  min-height: 140px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
+@media (max-width: 760px) {
+  .sun-session-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sun-session-main {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .sun-session-tags {
+    justify-content: flex-start;
+  }
+
+  .sun-session-detail,
+  .sun-session-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .sun-image-browser-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+.module-chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+  margin-bottom: 4px;
+}
+
+.module-chart-toolbar .ant-typography {
+  font-size: 12px;
+}
+
+.module-chart-controls {
+  flex-shrink: 0;
+}
+
+.module-chart-day-nav .ant-btn {
+  font-weight: 650;
+}
+
+.module-chart-date {
+  width: 150px;
+}
+
+.module-filter-card .ant-card-body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+}
+
+.module-filter-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.module-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.module-filter-field > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.module-filter-actions {
+  flex-shrink: 0;
+  padding-bottom: 1px;
+}
+
+.energy-sunbeds-method .ant-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.9fr);
+  gap: 14px;
+  padding: 12px 14px;
+}
+
+.energy-sunbeds-method h4.ant-typography {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.energy-sunbeds-method .ant-typography {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sunbed-method-facts {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.sunbed-method-facts span {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-soft);
+  padding: 6px 8px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.energy-sunbeds-chart .ant-card-body {
+  padding: 8px 12px 10px;
+}
+
+.energy-sunbeds-table .ant-card-head {
+  min-height: 38px;
+}
+
+.energy-sunbeds-table .ant-card-head-title {
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.sunbed-room-name {
+  display: grid;
+  gap: 2px;
+}
+
+.sunbed-room-name strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.sunbed-room-name span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sunbed-power-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 132px;
+}
+
+.sunbed-power-cell span {
+  color: var(--ink);
+  font-weight: 760;
+}
+
+.sunbed-power-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f1e5cf;
+}
+
+.sunbed-power-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--domain-sun2), #b97821);
+}
+
+@media (max-width: 1280px) {
+  .module-filter-card .ant-card-body {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .module-filter-grid {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+
+  .energy-sunbeds-method .ant-card-body {
+    grid-template-columns: 1fr;
+  }
+}

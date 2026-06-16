@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = path.join(root, "src");
-const styleEntry = path.join(srcDir, "styles.css");
 const styleDir = path.join(srcDir, "styles");
 
 function walk(dir) {
@@ -22,10 +21,9 @@ function relative(file) {
   return path.relative(root, file).replaceAll("\\", "/");
 }
 
-const cssFiles = [
-  styleEntry,
-  ...walk(styleDir).filter((file) => file.endsWith(".css")).sort((left, right) => relative(left).localeCompare(relative(right))),
-];
+const cssFiles = walk(styleDir)
+  .filter((file) => file.endsWith(".css"))
+  .sort((left, right) => relative(left).localeCompare(relative(right)));
 const codeFiles = walk(srcDir).filter((file) => /\.(ts|tsx)$/.test(file));
 const codeText = codeFiles.map(read).join("\n");
 

@@ -1,4 +1,4 @@
-/* Shared visual layer for Desktop V2. Keep component-specific behavior in styles.css. */
+/* Shared visual layer for Desktop V2. Keep component-specific behavior in the domain CSS files. */
 
 .ant-btn {
   box-shadow: none;
