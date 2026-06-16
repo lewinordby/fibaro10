@@ -5,6 +5,8 @@ import {
   CalendarOutlined,
   CarOutlined,
   ExperimentOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
   SettingOutlined,
   ToolOutlined,
   ThunderboltOutlined,
@@ -19,6 +21,7 @@ import { LoadingBlock } from "./components/AsyncState";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
 
 const { Header, Sider, Content } = Layout;
+const MENU_HIDDEN_STORAGE_KEY = "fibaro10:mainMenuHidden";
 
 const OverviewPage = lazy(() => import("./pages/OverviewPage"));
 const RevenueMonthPage = lazy(() => import("./pages/RevenueMonthPage"));
@@ -130,6 +133,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [menuHidden, setMenuHidden] = useState(() => window.localStorage.getItem(MENU_HIDDEN_STORAGE_KEY) === "1");
   const module = activeModule(location.pathname);
   const viewItems = module ? MODULE_VIEWS[module] ?? [] : [];
   const rawActiveView = module ? location.pathname.split("/")[2] || defaultModuleView(module) : "";
@@ -150,9 +154,13 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    window.localStorage.setItem(MENU_HIDDEN_STORAGE_KEY, menuHidden ? "1" : "0");
+  }, [menuHidden]);
+
   return (
-    <Layout className={`app-shell domain-${module ?? "status"}`}>
-      <Sider width={218} className="app-sider">
+    <Layout className={`app-shell domain-${module ?? "status"} ${menuHidden ? "main-menu-hidden" : ""}`}>
+      <Sider width={218} collapsedWidth={0} collapsed={menuHidden} trigger={null} className="app-sider">
         <Link className="brand" to={modulePath("status", "oversikt")} aria-label="Gå til statusoversikt">
           <div className="brand-mark">L</div>
           <div>
@@ -171,6 +179,14 @@ export default function App() {
       </Sider>
       <Layout>
         <Header className="app-header">
+          <Button
+            className="main-menu-toggle"
+            type="text"
+            icon={menuHidden ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={() => setMenuHidden((value) => !value)}
+            aria-label={menuHidden ? "Vis hovedmeny" : "Skjul hovedmeny"}
+            title={menuHidden ? "Vis hovedmeny" : "Skjul hovedmeny"}
+          />
           <div className="app-header-main">
             {module && viewItems.length > 1 ? (
               <Segmented

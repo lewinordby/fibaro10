@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1221")
+APP_BUILD = os.getenv("APP_BUILD", "1222")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1222",
+        "date": "16.06.2026",
+        "headline": "Hovedmenyen kan skjules",
+        "title": "Desktopgrensesnittet har faatt enkel skjul/vis-knapp for hovedmenyen",
+        "description": (
+            "Build 1222 legger til en liten knapp i toppbaren som skjuler eller viser hovedmenyen. Valget lagres "
+            "lokalt i nettleseren, slik at arbeidsflaten kan holdes bredere uten aa endre menystruktur, ruting eller "
+            "innhold paa sidene."
+        ),
+        "applications": [
+            "Desktop V2 appskall (src/App.tsx): legger til skjul/vis-tilstand for hovedmenyen og lagrer valget lokalt.",
+            "Desktop V2 layout-CSS (src/styles/layout.css): styler den nye menyknappen og skjult sidemeny.",
+            "Buildlogg (build_log.py): registrerer build 1222.",
+        ],
+        "request": "Gjor saa hovedmenyen kan forsvinne om man vil og hentes tilbake paa en enkel maate, uten aa rote til noe.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny ikonknapp i toppbaren skjuler og viser hovedmenyen.",
+            "Menyen kollapser helt bort naar den skjules.",
+            "Valget lagres i localStorage per nettleser.",
+            "Menyinnhold, ruter og eksisterende navigasjon er uendret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1221",

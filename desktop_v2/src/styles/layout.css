@@ -76,10 +76,15 @@ a {
   top: 0;
   height: 100vh;
   overflow: auto;
+  transition: all 0.18s ease;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 210px),
     #17202e !important;
+}
+
+.main-menu-hidden .app-sider {
+  border-right: 0;
 }
 
 .app-sider .ant-layout-sider-children {
@@ -213,6 +218,22 @@ a {
   align-items: center;
   min-width: 0;
   flex: 1;
+}
+
+.main-menu-toggle {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  color: #475569;
+  border: 1px solid #dbe3ee;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+}
+
+.main-menu-toggle:hover {
+  color: #111827 !important;
+  border-color: #cbd5e1 !important;
+  background: #f8fafc !important;
 }
 
 .profile-button {
