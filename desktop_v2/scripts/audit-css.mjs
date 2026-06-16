@@ -76,6 +76,10 @@ const duplicateClassSelectors = Array.from(classes.entries())
   .filter((item) => item.count > 1)
   .sort((left, right) => right.count - left.count || left.className.localeCompare(right.className));
 
+const crossFileClassSelectors = duplicateClassSelectors
+  .filter((item) => item.files.length > 1)
+  .sort((left, right) => right.files.length - left.files.length || right.count - left.count || left.className.localeCompare(right.className));
+
 const possibleUnusedClasses = Array.from(classes.keys())
   .filter((className) => !isDynamicClass(className))
   .filter((className) => !staticClassUsed(className))
@@ -95,10 +99,12 @@ const summary = {
   codeFiles: codeFiles.length,
   classCount: classes.size,
   duplicateClassSelectors: duplicateClassSelectors.length,
+  crossFileClassSelectors: crossFileClassSelectors.length,
   possibleUnusedClasses: possibleUnusedClasses.length,
   hardcodedColorValues: hardcodedColors.length,
   largestCssFiles: [...cssFileStats].sort((left, right) => right.lines - left.lines).slice(0, 5),
   mostRepeatedClasses: duplicateClassSelectors.slice(0, 20),
+  crossFileClasses: crossFileClassSelectors.slice(0, 20),
   possibleUnusedClassNames: possibleUnusedClasses.slice(0, 80),
 };
 

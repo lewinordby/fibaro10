@@ -33,6 +33,40 @@ a {
   background: color-mix(in srgb, var(--active-module-color, #2563eb) 82%, #111827);
 }
 
+/* Global Ant Design control tuning. */
+.ant-btn {
+  box-shadow: none;
+}
+
+.ant-btn:not(.ant-btn-text):not(.ant-btn-link) {
+  border-color: #dbe3ee;
+}
+
+.ant-btn-primary {
+  background: color-mix(in srgb, var(--active-module-color) 86%, #1d4ed8);
+  border-color: color-mix(in srgb, var(--active-module-color) 86%, #1d4ed8);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--active-module-color) 20%, transparent);
+}
+
+.ant-btn-primary:hover {
+  background: color-mix(in srgb, var(--active-module-color) 76%, #0f172a) !important;
+  border-color: color-mix(in srgb, var(--active-module-color) 76%, #0f172a) !important;
+}
+
+:is(.ant-input, .ant-input-affix-wrapper, .ant-input-number, .ant-select-selector, .ant-picker) {
+  border-color: #dbe3ee !important;
+  box-shadow: none !important;
+}
+
+:is(.ant-input, .ant-input-affix-wrapper, .ant-input-number, .ant-select-selector, .ant-picker):hover {
+  border-color: #cbd5e1 !important;
+}
+
+:is(.ant-input:focus, .ant-input-affix-wrapper-focused, .ant-input-number-focused, .ant-select-focused .ant-select-selector, .ant-picker-focused) {
+  border-color: color-mix(in srgb, var(--active-module-color) 55%, #cbd5e1) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--active-module-color) 12%, transparent) !important;
+}
+
 .app-shell {
   min-height: 100vh;
 }

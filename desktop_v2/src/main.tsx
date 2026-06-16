@@ -8,14 +8,13 @@ import { antdTheme } from "./designTokens";
 import "./styles/tokens.css";
 import "./styles/layout.css";
 import "./styles/build.css";
-import "./styles/status.css";
 import "./styles/module-content.css";
+import "./styles/status.css";
 import "./styles/timelines.css";
 import "./styles/ventilation.css";
 import "./styles/energy.css";
 import "./styles/records.css";
 import "./styles/responsive.css";
-import "./styles/visual-refresh.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

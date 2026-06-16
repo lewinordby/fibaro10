@@ -600,3 +600,36 @@
   border: 1px dashed #cbd5e1;
   border-radius: 6px;
 }
+
+/* Timeline-specific visual refinements. */
+.sun-timeline-card .ant-card-head {
+  min-height: 44px;
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  border-bottom-color: var(--line-soft);
+}
+
+.sun-timeline-card .ant-card-head-title {
+  color: #263244;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.parking-timeline-summary div {
+  background: #f8fafc;
+  border-color: #e8edf4;
+  border-radius: var(--radius-md);
+}
+
+.parking-timeline-summary strong {
+  letter-spacing: 0;
+}
+
+.parking-space-line,
+.parking-occupancy-line {
+  border-color: #d8e2ef;
+  border-radius: var(--radius-md);
+}
+
+.parking-session-block {
+  opacity: 0.9;
+}

@@ -629,3 +629,170 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Shared module card, metric and chart refinements. */
+.work-card,
+.chart-card,
+.table-card,
+.summary-card {
+  border-color: var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.work-card .ant-card-head,
+.chart-card .ant-card-head,
+.table-card .ant-card-head {
+  min-height: 44px;
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  border-bottom-color: var(--line-soft);
+}
+
+.work-card .ant-card-head-title,
+.chart-card .ant-card-head-title,
+.table-card .ant-card-head-title {
+  color: #263244;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.metric-card {
+  position: relative;
+  overflow: hidden;
+  height: 96px;
+  border-color: var(--line);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  box-shadow: var(--shadow-sm);
+}
+
+.module-metric {
+  height: 82px;
+}
+
+.metric-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--tone-color);
+  content: "";
+}
+
+:is(.tone-revenue, .tone-sun2, .tone-parking, .tone-energy, .tone-vent, .tone-weather, .tone-light, .tone-status) {
+  border-top: 0;
+}
+
+.metric-card .ant-card-body {
+  padding: 6px 8px;
+}
+
+.metric-card-top {
+  gap: 6px;
+}
+
+.metric-title {
+  color: #475569;
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.metric-tag {
+  padding-inline: 5px;
+  color: color-mix(in srgb, var(--tone-color) 82%, #111827);
+  font-size: 9px;
+  line-height: 17px;
+  background: color-mix(in srgb, var(--tone-color) 11%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--tone-color) 18%, #e2e8f0);
+  border-radius: 999px;
+}
+
+.metric-value-row {
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.metric-value {
+  font-size: 16px;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.metric-unit {
+  font-size: 9.5px;
+}
+
+.metric-detail {
+  gap: 5px;
+  min-height: 19px;
+  color: var(--muted);
+  font-size: 9.5px;
+  line-height: 1.12;
+}
+
+.metric-detail svg {
+  width: 10px;
+  height: 10px;
+}
+
+:is(.card-link:hover .metric-card, .ant-card-hoverable:hover) {
+  border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 30%, var(--line));
+  box-shadow: var(--shadow-md);
+}
+
+.module-chart-card {
+  overflow: hidden;
+}
+
+.module-chart-card .ant-card-body,
+.chart-card .ant-card-body {
+  padding: 12px 14px 8px;
+}
+
+.module-chart-toolbar {
+  min-height: 34px;
+  margin-bottom: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.module-chart-toolbar .ant-segmented {
+  border: 1px solid #e1e8f0;
+  border-radius: var(--radius-md);
+}
+
+.module-chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.module-chart-day-nav .ant-btn,
+.module-chart-day-nav .ant-input-affix-wrapper {
+  border-color: #dbe3ee;
+}
+
+.metric-grid,
+.primary-grid {
+  gap: 8px;
+}
+
+.summary-card .ant-card-head {
+  min-height: 28px;
+}
+
+.summary-card .ant-card-head-title {
+  font-size: 10.5px;
+}
+
+.summary-card .ant-card-body {
+  min-height: 52px;
+  padding: 7px 9px;
+}
+
+.summary-card strong {
+  font-size: 15px;
+}
+
+.summary-card span {
+  font-size: 10px;
+}

@@ -428,3 +428,90 @@
   font-size: 13px;
   line-height: 1.35;
 }
+
+/* Ventilation-specific visual refinements. */
+.vent-zone-card,
+.vent-state-card,
+.vent-compact-card,
+.vent-day-card,
+.vent-weather-card,
+.vent-setting-card,
+.vent-save-card {
+  border-color: var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.vent-zone-card .ant-card-head {
+  min-height: 44px;
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  border-bottom-color: var(--line-soft);
+}
+
+.vent-zone-card .ant-card-head-title {
+  color: #263244;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.vent-reading,
+.vent-compact-reading {
+  background: #f8fafc;
+  border-color: #e8edf4;
+  border-radius: var(--radius-md);
+}
+
+.vent-compact-card {
+  overflow: hidden;
+}
+
+.vent-compact-main {
+  grid-template-columns: 180px minmax(0, 1fr) 230px;
+}
+
+.vent-compact-sample,
+.vent-compact-weather {
+  background: linear-gradient(180deg, #f9fbfd 0%, #ffffff 100%);
+  border-color: #e4ebf4;
+  border-radius: var(--radius-md);
+}
+
+.vent-fan-pill,
+.vent-compact-reading {
+  border-color: #e5ebf3;
+}
+
+.vent-fan-pill {
+  min-height: 30px;
+  padding: 4px 8px;
+  background: #f8fafc;
+}
+
+.vent-fan-pill .ant-tag {
+  height: 22px;
+  min-width: 42px;
+  padding-inline: 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 20px;
+}
+
+.vent-day-focus {
+  border: 1px solid #e1e8f0;
+  border-radius: var(--radius-md);
+}
+
+.vent-fan-track {
+  border-color: #d8e2ef;
+  border-radius: var(--radius-md);
+}
+
+.vent-fan-run {
+  opacity: 0.42;
+}
+
+.vent-current-row,
+.vent-settings-grid {
+  gap: 12px;
+}

@@ -5,8 +5,43 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1214")
+APP_BUILD = os.getenv("APP_BUILD", "1215")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1215",
+        "date": "16.06.2026",
+        "headline": "CSS-eierskap er strammet inn",
+        "title": "Visuelle overstyringer er flyttet fra patch-lag til riktige domene-filer",
+        "description": (
+            "Build 1215 rydder videre i frontend-CSS. visual-refresh.css er fjernet som eget sent overstyringslag. "
+            "Globale Ant Design-kontroller ligger naa i layout.css, mens status, modulinnhold, tidslinjer, ventilasjon, "
+            "energi og registertabeller eier sine egne visuelle justeringer. CSS-auditen rapporterer naa ogsaa hvor "
+            "mange klasser som fortsatt er spredt over flere stilark."
+        ),
+        "applications": [
+            "Desktop V2 layout (src/styles/layout.css): overtar global styling for Ant Design-knapper, input, select og datepicker.",
+            "Desktop V2 modulinnhold (src/styles/module-content.css): overtar felles metrikkort, summary-kort og chart-toolbar-styling.",
+            "Desktop V2 status (src/styles/status.css): overtar statusperioder, statusfliser, datakilder og sammenligningskort.",
+            "Desktop V2 tidslinjer (src/styles/timelines.css): overtar sol- og parkeringslinjenes visuelle finpuss.",
+            "Desktop V2 ventilasjon (src/styles/ventilation.css): overtar kompakt status, viftefelt og ventilasjonskort.",
+            "Desktop V2 energi (src/styles/energy.css): overtar Elvia-kort, uploadflate og energitabeller.",
+            "Desktop V2 register/tabeller (src/styles/records.css): overtar kjoretoyfelt, tabellflater og tom-/lastetilstander.",
+            "Desktop V2 appstart (main.tsx): fjerner import av visual-refresh.css og laster modulinnhold for domene-stilene.",
+            "Desktop V2 verktøy (scripts/audit-css.mjs): legger til crossFileClassSelectors for aa finne klasser som fortsatt krysser filgrenser.",
+            "Buildlogg (build_log.py): registrerer build 1215.",
+        ],
+        "request": "Gjor videre endringer som du mener er best. Alt skal vaere saa strukturert og effektivt som mulig.",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "visual-refresh.css er fjernet.",
+            "CSS-regler ligger naa naermere domenet eller felleskomponenten som faktisk bruker dem.",
+            "CSS-audit viser fortsatt 0 mulige ubrukte klasser.",
+            "Ny audit-verdi viser 42 klasser som krysser CSS-filgrenser. De fleste er bevisste globale tone-/statusklasser eller responsive regler.",
+            "Produksjons-CSS gzip er litt mindre enn forrige build selv om kildekoden er mer eksplisitt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1214",
