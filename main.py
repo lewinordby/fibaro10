@@ -2668,6 +2668,7 @@ def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> 
 
     daily = combine_items(sun.get("daily", []), parking.get("daily", []))
     monthly = combine_items(sun.get("monthly", []), parking.get("monthly", []))
+    yearly = combine_items(sun.get("yearly", []), parking.get("yearly", []))
     weekly: Dict[str, Dict[str, Any]] = {}
     palette = ["#4e8793", "#d59a18", "#071943", "#52a464", "#df705d", "#726189", "#2f8fa3", "#8b5cf6"]
     for source in (sun.get("weekly_chart", []), parking.get("weekly_chart", [])):
@@ -2716,6 +2717,7 @@ def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> 
     return {
         "top_days": sorted(daily, key=top_sort, reverse=True)[:10],
         "top_months": sorted(monthly, key=top_sort, reverse=True)[:10],
+        "yearly": sorted(yearly, key=lambda item: str(item.get("period") or ""), reverse=True),
         "weekly_chart": weekly_chart,
     }
 
@@ -18469,22 +18471,18 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             week_parking = await parking_period_summary(session, "Denne uken", week_start_dt, tomorrow_start)
             month_parking = await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start)
 
-            total_sun = sun2_summaries.get("total", {})
-            total_parking = parking_summaries.get("total", {})
-            total_sun_paid = float_or_zero(total_sun.get("totalt_inntjent_kr"))
-            total_parking_paid = float_or_zero(total_parking.get("paid"))
-            total_sun_count = int_or_zero(total_sun.get("totalt_antall_solinger"))
-            total_parking_count = int_or_zero(total_parking.get("sessions"))
+            current_year_key = str(today.year)
+            current_year_revenue = next(
+                (item for item in combined_stats.get("yearly", []) if str(item.get("period")) == current_year_key),
+                {},
+            )
+            year_sun_paid = float_or_zero(current_year_revenue.get("sun_paid"))
+            year_parking_paid = float_or_zero(current_year_revenue.get("parking_paid"))
+            year_sun_count = int_or_zero(current_year_revenue.get("sun_count"))
+            year_parking_count = int_or_zero(current_year_revenue.get("parking_count"))
+            year_total_paid = year_sun_paid + year_parking_paid
 
             cards = [
-                api_card(
-                    "Sum omsetning",
-                    format_short_number(total_sun_paid + total_parking_paid),
-                    "kr",
-                    f"Sol {format_short_number(total_sun_paid)} kr - parkering {format_short_number(total_parking_paid)} kr",
-                    "revenue",
-                    href="/omsetning/sammenligning",
-                ),
                 api_card(
                     "I dag",
                     format_short_number(float_or_zero(today_sun.paid) + float_or_zero(today_parking["paid"])),
@@ -18510,18 +18508,26 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     href="/omsetning/manedsoversikt",
                 ),
                 api_card(
-                    "Soling totalt",
-                    format_short_number(total_sun_paid),
+                    "I år",
+                    format_short_number(year_total_paid),
                     "kr",
-                    f"{format_short_number(total_sun_count)} solinger",
+                    f"Sol {format_short_number(year_sun_paid)} kr - parkering {format_short_number(year_parking_paid)} kr",
+                    "revenue",
+                    href="/omsetning/akkumulert",
+                ),
+                api_card(
+                    "Soling i år",
+                    format_short_number(year_sun_paid),
+                    "kr",
+                    f"{format_short_number(year_sun_count)} solinger",
                     "sun2",
                     href="/soling/oversikt",
                 ),
                 api_card(
-                    "Parkering totalt",
-                    format_short_number(total_parking_paid),
+                    "Parkering i år",
+                    format_short_number(year_parking_paid),
                     "kr",
-                    f"{format_short_number(total_parking_count)} parkeringer",
+                    f"{format_short_number(year_parking_count)} parkeringer",
                     "parking",
                     href="/parkering/oversikt",
                 ),

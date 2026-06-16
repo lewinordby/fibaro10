@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1224")
+APP_BUILD = os.getenv("APP_BUILD", "1225")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1225",
+        "date": "16.06.2026",
+        "headline": "Omsetning oversikt viser relevante aarstall",
+        "title": "Omsetning oversikt erstatter historiske totalfliser med innevaerende aar",
+        "description": (
+            "Build 1225 rydder toppflisene paa Omsetning > Oversikt. All-time totalene er fjernet fordi "
+            "datagrunnlaget ikke er komplett like langt tilbake for soling og parkering. Siden viser naa foerst "
+            "i dag, uke og maaned, og deretter innevaerende aar samlet med fordeling paa soling og parkering."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bygger aarsgrunnlag for samlet omsetning fra soling og parkering.",
+            "Fibaro10 backend (main.py): erstatter all-time kort med I aar, Soling i aar og Parkering i aar.",
+            "Buildlogg (build_log.py): registrerer build 1225.",
+        ],
+        "request": "Paa Omsetning > Oversikt skal Sum omsetning, Soling totalt og Parkering totalt fjernes. Vis i stedet dette aar, soling i aar og parkering i aar, plassert etter I dag, Uke og Maaned.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Historiske totalfliser er fjernet fra Omsetning > Oversikt.",
+            "Nye aarsfliser bruker bare innevaerende aar.",
+            "Aarskortet viser fordeling mellom soling og parkering.",
+            "Kortenes rekkefolge prioriterer dag, uke og maaned foer aarstall.",
+        ],
+    },
     {
         "version": "1",
         "build": "1224",
