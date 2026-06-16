@@ -1,7 +1,3 @@
-@import "./styles/tokens.css";
-@import "./styles/layout.css";
-@import "./styles/build.css";
-
 .status-page-top,
 .status-toolbar {
   display: flex;
@@ -2682,8 +2678,7 @@
   margin-bottom: 12px;
 }
 
-.vehicle-detail-top,
-.settlement-detail-top {
+.vehicle-detail-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -2691,13 +2686,11 @@
   padding-bottom: 2px;
 }
 
-.vehicle-detail-top .ant-typography,
-.settlement-detail-top .ant-typography {
+.vehicle-detail-top .ant-typography {
   margin-bottom: 0;
 }
 
-.vehicle-detail-top h2.ant-typography,
-.settlement-detail-top h2.ant-typography {
+.vehicle-detail-top h2.ant-typography {
   margin: 3px 0 2px;
   font-size: 24px;
   line-height: 1.15;
@@ -2707,10 +2700,6 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-}
-
-.settlement-card-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .vehicle-detail-card {
@@ -2782,21 +2771,6 @@
   line-height: 1.25;
 }
 
-.settlement-original-card .ant-card-body {
-  padding: 10px;
-}
-
-.settlement-detail-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(390px, 0.85fr);
-  gap: 14px;
-  align-items: start;
-}
-
-.settlement-detail-main {
-  width: 100%;
-}
-
 .settlement-original-frame {
   display: block;
   width: 100%;
@@ -2829,27 +2803,6 @@
   border: 0;
   border-radius: 0 0 8px 8px;
   background: #f8fafc;
-}
-
-.settlement-field-key {
-  font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-}
-
-.settlement-field-value {
-  font-weight: 680;
-}
-
-.settlement-raw-card pre {
-  max-height: 260px;
-  margin: 0;
-  padding: 10px;
-  overflow: auto;
-  color: #334155;
-  font-size: 12px;
-  background: #f8fafc;
-  border: 1px solid var(--line);
-  border-radius: 6px;
 }
 
 .settlement-page-head,
@@ -2893,69 +2846,6 @@
   font-size: 20px;
 }
 
-.settlement-summary-grid,
-.settlement-report-strip {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.settlement-summary-tile,
-.settlement-report-metric {
-  min-height: 86px;
-  padding: 12px 13px;
-  border: 1px solid var(--line);
-  border-top: 3px solid var(--domain-status);
-  border-radius: 7px;
-  background: #ffffff;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
-}
-
-.settlement-summary-tile.tone-parking,
-.settlement-report-metric.tone-parking {
-  border-top-color: var(--domain-parking);
-}
-
-.settlement-summary-tile.tone-revenue,
-.settlement-report-metric.tone-revenue {
-  border-top-color: var(--domain-revenue);
-}
-
-.settlement-summary-tile.tone-energy,
-.settlement-report-metric.tone-energy {
-  border-top-color: var(--domain-energy);
-}
-
-.settlement-summary-tile span,
-.settlement-report-metric span {
-  display: block;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 760;
-  text-transform: uppercase;
-}
-
-.settlement-summary-tile strong,
-.settlement-report-metric strong {
-  display: block;
-  margin-top: 7px;
-  color: var(--ink);
-  font-size: 20px;
-  font-weight: 780;
-  line-height: 1.08;
-}
-
-.settlement-summary-tile small,
-.settlement-report-metric small {
-  display: block;
-  margin-top: 5px;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .settlement-card-head {
   display: flex;
   align-items: flex-start;
@@ -2979,49 +2869,8 @@
   width: 150px;
 }
 
-.settlement-register-card .ant-card-body,
-.settlement-control-card .ant-card-body {
+.settlement-register-card .ant-card-body {
   padding: 14px;
-}
-
-.settlement-period-link {
-  color: var(--ink);
-  font-weight: 760;
-}
-
-.settlement-money-cell strong {
-  color: var(--ink);
-}
-
-.settlement-money-cell span {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.settlement-diff {
-  font-weight: 780;
-}
-
-.settlement-diff.warn {
-  color: var(--domain-revenue);
-}
-
-.settlement-diff.ok {
-  color: var(--domain-energy);
-}
-
-.settlement-report-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(460px, 0.95fr);
-  gap: 14px;
-  align-items: start;
-}
-
-.settlement-report-main {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
 }
 
 .settlement-document-layout {
@@ -3224,219 +3073,7 @@
   font-weight: 800;
 }
 
-.settlement-field-card {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.035);
-}
-
-.settlement-field-card .ant-card-head {
-  min-height: 40px;
-  border-bottom-color: #edf2f7;
-}
-
-.settlement-field-card .ant-card-head-title {
-  color: #1f2937;
-  font-size: 14px;
-  font-weight: 760;
-}
-
-.settlement-field-card .ant-card-body {
-  padding: 8px 12px;
-}
-
-.settlement-field-list {
-  display: grid;
-  grid-template-columns: 1fr;
-}
-
-.settlement-field-row {
-  display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
-  gap: 14px;
-  padding: 10px 0;
-  border-bottom: 1px solid #eef2f7;
-}
-
-.settlement-field-row:last-child {
-  border-bottom: 0;
-}
-
-.settlement-field-label strong {
-  display: block;
-  color: #1f2937;
-  font-size: 13px;
-  font-weight: 760;
-  line-height: 1.22;
-}
-
-.settlement-field-label span {
-  display: block;
-  margin-top: 3px;
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-size: 10.5px;
-}
-
-.settlement-field-data {
-  min-width: 0;
-}
-
-.settlement-field-value-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.settlement-field-value-line strong {
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 770;
-  overflow-wrap: anywhere;
-}
-
-.settlement-field-data p {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.settlement-field-data small {
-  display: block;
-  margin-top: 4px;
-  color: #94a3b8;
-  font-size: 11px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.settlement-field-card.compact .settlement-field-row {
-  grid-template-columns: 190px minmax(0, 1fr);
-  padding: 8px 0;
-}
-
-.settlement-secondary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.settlement-command-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(330px, 0.55fr);
-  gap: 12px;
-}
-
-.settlement-focus-card,
-.settlement-import-card {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
-}
-
-.settlement-focus-card .ant-card-body,
-.settlement-import-card .ant-card-body {
-  padding: 16px 18px;
-}
-
-.settlement-focus-head,
-.settlement-import-status {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.settlement-focus-head h3.ant-typography,
-.settlement-import-status h3.ant-typography {
-  margin: 2px 0 2px;
-  color: var(--ink);
-  font-size: 22px;
-  font-weight: 780;
-  line-height: 1.12;
-}
-
-.settlement-focus-head h3.ant-typography a {
-  color: inherit;
-}
-
-.settlement-focus-values {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.settlement-focus-value {
-  min-width: 0;
-  padding: 9px 10px;
-  border: 1px solid #e7edf5;
-  border-radius: 7px;
-  background: #f8fafc;
-}
-
-.settlement-focus-value span,
-.settlement-ledger-money span,
-.settlement-ledger-diff span,
-.settlement-import-meta span,
-.settlement-verdict span,
-.settlement-verdict-values span {
-  display: block;
-  color: #64748b;
-  font-size: 10.5px;
-  font-weight: 780;
-  line-height: 1.15;
-  text-transform: uppercase;
-}
-
-.settlement-focus-value strong,
-.settlement-ledger-money strong,
-.settlement-ledger-diff strong,
-.settlement-import-meta strong {
-  display: block;
-  margin-top: 4px;
-  color: var(--ink);
-  font-size: 16px;
-  font-weight: 790;
-  line-height: 1.1;
-}
-
-.settlement-focus-value small,
-.settlement-ledger-money small,
-.settlement-ledger-diff small,
-.settlement-import-meta small {
-  display: block;
-  margin-top: 4px;
-  overflow: hidden;
-  color: #8592a3;
-  font-size: 11px;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settlement-import-icon {
-  font-size: 28px;
-}
-
-.settlement-import-icon.ok {
-  color: var(--domain-energy);
-}
-
-.settlement-import-icon.warn {
-  color: var(--domain-revenue);
-}
-
-.settlement-import-meta {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid #edf2f7;
-}
-
-.settlement-ledger-list,
-.settlement-control-list {
+.settlement-ledger-list {
   display: grid;
   gap: 4px;
 }
@@ -3858,308 +3495,9 @@
   color: #dc2626;
 }
 
-.settlement-ledger-diff {
-  padding: 8px 10px;
-  border-radius: 7px;
-  background: #f8fafc;
-}
-
-.settlement-ledger-diff.ok {
-  border: 1px solid #bbf7d0;
-  background: #f0fdf4;
-}
-
-.settlement-ledger-diff.ok strong {
-  color: #15803d;
-}
-
-.settlement-ledger-diff.warn {
-  border: 1px solid #fecaca;
-  background: #fff1f2;
-}
-
-.settlement-ledger-diff.warn strong {
-  color: #dc2626;
-}
-
-.settlement-ledger-diff.empty {
-  border: 1px dashed #cbd5e1;
-}
-
 .settlement-ledger-arrow {
   color: #94a3b8;
   font-size: 11px;
-}
-
-.settlement-control-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 0.55fr) minmax(0, 1.45fr);
-  gap: 14px;
-  align-items: center;
-  padding: 10px 12px;
-  color: inherit;
-  text-decoration: none;
-  border: 1px solid #e5ebf4;
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.settlement-control-row:hover {
-  color: inherit;
-  border-color: rgba(37, 99, 235, 0.28);
-  background: #f8fbff;
-}
-
-.settlement-control-period strong {
-  display: block;
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 780;
-}
-
-.settlement-control-period span {
-  display: block;
-  margin-top: 3px;
-  color: #94a3b8;
-  font-size: 11px;
-}
-
-.settlement-control-numbers {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.settlement-verdict {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 92px;
-  padding: 15px 18px;
-  border: 1px solid #dbeafe;
-  border-left: 4px solid var(--domain-parking);
-  border-radius: 8px;
-  background: linear-gradient(90deg, #f8fbff 0%, #ffffff 62%);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
-}
-
-.settlement-verdict-ok {
-  border-color: #bbf7d0;
-  border-left-color: var(--domain-energy);
-  background: linear-gradient(90deg, #f0fdf4 0%, #ffffff 62%);
-}
-
-.settlement-verdict-warn {
-  border-color: #fecaca;
-  border-left-color: var(--domain-revenue);
-  background: linear-gradient(90deg, #fff1f2 0%, #ffffff 62%);
-}
-
-.settlement-verdict-empty {
-  border-color: #cbd5e1;
-  border-left-color: #94a3b8;
-  background: linear-gradient(90deg, #f8fafc 0%, #ffffff 62%);
-}
-
-.settlement-verdict > div:first-child {
-  min-width: 0;
-}
-
-.settlement-verdict > div:first-child strong {
-  display: block;
-  margin-top: 3px;
-  color: var(--ink);
-  font-size: 22px;
-  font-weight: 790;
-  line-height: 1.1;
-}
-
-.settlement-verdict p {
-  max-width: 760px;
-  margin: 6px 0 0;
-  color: #64748b;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.settlement-verdict-values {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
-  gap: 8px;
-  min-width: 430px;
-}
-
-.settlement-verdict-values > div {
-  padding: 9px 10px;
-  border: 1px solid #e5ebf4;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.settlement-verdict-values strong {
-  display: block;
-  margin-top: 4px;
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 780;
-}
-
-.settlement-simple-form {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
-}
-
-.settlement-simple-form .ant-card-head {
-  min-height: 44px;
-  border-bottom-color: #edf2f7;
-}
-
-.settlement-simple-form .ant-card-head-title {
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 780;
-}
-
-.settlement-simple-form .ant-card-body {
-  padding: 14px 16px 16px;
-}
-
-.settlement-simple-form-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-  gap: 18px;
-}
-
-.settlement-simple-form-grid > div {
-  min-width: 0;
-}
-
-.settlement-simple-form-head {
-  min-height: 54px;
-}
-
-.settlement-simple-form-head .ant-typography {
-  margin-bottom: 0;
-}
-
-.settlement-simple-form-head .ant-typography + .ant-typography {
-  margin-top: 4px;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.settlement-form-list {
-  display: grid;
-  gap: 8px;
-}
-
-.settlement-form-row {
-  display: grid;
-  grid-template-columns: minmax(210px, 1.15fr) minmax(130px, 0.55fr) 82px;
-  gap: 10px;
-  align-items: center;
-  min-height: 64px;
-  padding: 9px 10px;
-  border: 1px solid #e5ebf4;
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.settlement-form-list.control .settlement-form-row {
-  grid-template-columns: minmax(0, 1fr) repeat(3, minmax(84px, 0.38fr));
-}
-
-.settlement-form-list.amount .settlement-form-row.with-source-control {
-  grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(116px, 0.55fr)) 82px;
-}
-
-.settlement-form-row-ok {
-  border-color: #bbf7d0;
-  background: #fbfefc;
-}
-
-.settlement-form-row-warn {
-  border-color: #fecaca;
-  background: #fff8f8;
-}
-
-.settlement-form-label {
-  min-width: 0;
-}
-
-.settlement-form-label strong {
-  display: block;
-  overflow-wrap: anywhere;
-  color: #1f2937;
-  font-size: 13px;
-  font-weight: 760;
-  line-height: 1.2;
-}
-
-.settlement-form-label span {
-  display: block;
-  margin-top: 4px;
-  color: #94a3b8;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-size: 10px;
-}
-
-.settlement-form-value {
-  min-width: 0;
-  padding: 7px 8px;
-  border: 1px solid #edf2f7;
-  border-radius: 6px;
-  background: #f8fafc;
-}
-
-.settlement-form-value span {
-  display: block;
-  color: #64748b;
-  font-size: 10px;
-  font-weight: 780;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.settlement-form-value strong {
-  display: block;
-  margin-top: 4px;
-  overflow-wrap: anywhere;
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 790;
-  line-height: 1.12;
-}
-
-.settlement-form-value small {
-  display: block;
-  margin-top: 4px;
-  overflow-wrap: anywhere;
-  color: #64748b;
-  font-size: 10px;
-  line-height: 1.2;
-}
-
-.settlement-form-list.control .settlement-form-value strong {
-  overflow-wrap: normal;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.settlement-form-state {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.settlement-form-list.control .settlement-form-state {
-  grid-column: 1 / -1;
-}
-
-.settlement-form-state .ant-tag {
-  margin-inline-end: 0;
 }
 
 .module-table-card .ant-table {
@@ -4208,16 +3546,6 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .settlement-verdict {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .settlement-verdict-values {
-    width: 100%;
-    min-width: 0;
-  }
-
   .elvia-top-row {
     grid-template-columns: 1fr;
   }
@@ -4244,34 +3572,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .settlement-summary-grid,
-  .settlement-report-strip,
-  .settlement-secondary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .settlement-field-row,
-  .settlement-field-card.compact .settlement-field-row {
-    grid-template-columns: 1fr;
-    gap: 5px;
-  }
-
-  .settlement-simple-form-grid,
-  .settlement-form-row,
-  .settlement-form-list.amount .settlement-form-row.with-source-control,
-  .settlement-form-list.control .settlement-form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .settlement-simple-form-head {
-    min-height: auto;
-  }
-
-  .settlement-form-state {
-    justify-content: flex-start;
-  }
-
-  .settlement-command-grid,
   .settlement-ledger-row {
     grid-template-columns: 1fr;
   }
@@ -4293,10 +3593,6 @@
     display: none;
   }
 
-  .settlement-report-layout {
-    grid-template-columns: 1fr;
-  }
-
   .settlement-document-layout {
     grid-template-columns: 1fr;
     min-height: auto;
@@ -4311,16 +3607,6 @@
     position: static;
   }
 
-  .settlement-focus-values,
-  .settlement-control-numbers,
-  .settlement-verdict-values {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .settlement-control-row {
-    grid-template-columns: 1fr;
-  }
-
   .vent-compact-main {
     grid-template-columns: 1fr;
   }
@@ -4331,8 +3617,7 @@
 }
 
 @media (max-width: 720px) {
-  .vehicle-detail-top,
-  .settlement-detail-top {
+  .vehicle-detail-top {
     flex-direction: column;
   }
 
@@ -4344,24 +3629,10 @@
     grid-template-columns: 1fr;
   }
 
-  .settlement-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .settlement-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
   .settlement-page-head,
   .settlement-report-head,
   .settlement-card-head {
     flex-direction: column;
-  }
-
-  .settlement-summary-grid,
-  .settlement-report-strip,
-  .settlement-secondary-grid {
-    grid-template-columns: 1fr;
   }
 
   .settlement-year-tools {
@@ -4373,9 +3644,4 @@
     width: 100%;
   }
 
-  .settlement-focus-values,
-  .settlement-control-numbers,
-  .settlement-verdict-values {
-    grid-template-columns: 1fr;
-  }
 }

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "audit:css": "node scripts/audit-css.mjs",
     "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
     "check": "npm run typecheck && vite build",

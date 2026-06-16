@@ -5,6 +5,9 @@ import nbNO from "antd/locale/nb_NO";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { antdTheme } from "./designTokens";
+import "./styles/tokens.css";
+import "./styles/layout.css";
+import "./styles/build.css";
 import "./styles.css";
 import "./styles/visual-refresh.css";
 

@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1212")
+APP_BUILD = os.getenv("APP_BUILD", "1213")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1213",
+        "date": "16.06.2026",
+        "headline": "CSS-strukturen er kontrollert og ryddet",
+        "title": "Frontend-stilark har eksplisitt lastrekkefolge og audit for videre opprydding",
+        "description": (
+            "Build 1213 rydder frontendrammeverket rundt CSS. Globale CSS-avhengigheter lastes eksplisitt fra appstart "
+            "i stedet for skjulte @import i hovedstilarket. En ny audit-kommando rapporterer CSS-storrelse, dupliserte "
+            "selektorer, hardkodede farger og mulige ubrukte klasser. Gamle oppgjorsregler som ikke lenger brukes av "
+            "React-komponentene er fjernet."
+        ),
+        "applications": [
+            "Desktop V2 appstart (main.tsx): laster tokens.css, layout.css, build.css, styles.css og visual-refresh.css eksplisitt.",
+            "Desktop V2 CSS (styles.css): fjerner ubrukte gamle settlement-regler og tilhorende responsive rester.",
+            "Desktop V2 verktøy (scripts/audit-css.mjs): legger CSS-audit for klassebruk, duplisering, filstorrelse og hardkodede farger.",
+            "Desktop V2 package.json: legger npm-scriptet audit:css.",
+            "Buildlogg (build_log.py): registrerer build 1213.",
+        ],
+        "request": "Ta en grundig gjennomgang av CSS og frontend rammeverket.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "styles.css er redusert fra 4378 til 3648 linjer.",
+            "Statisk audit viser 0 mulige ubrukte CSS-klasser etter oppryddingen.",
+            "CSS-importrekkefolgen er tydelig og lettere aa vedlikeholde.",
+            "Auditrapporten peker videre paa at visual-refresh.css fortsatt overstyrer en del baseklasser som bor konsolideres gradvis.",
+        ],
+    },
     {
         "version": "1",
         "build": "1212",
