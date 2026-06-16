@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1222")
+APP_BUILD = os.getenv("APP_BUILD", "1223")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1223",
+        "date": "16.06.2026",
+        "headline": "Parkeringer viser valgt dag og bilhistorikk",
+        "title": "Parkeringer-listen starter paa dagens dato og viser tidligere bruk per bil",
+        "description": (
+            "Build 1223 rydder Parkering > Parkeringer. Siden bruker naa en kompakt dagvelger med forrige dag, "
+            "i dag, neste dag og datofelt. De fire toppflisene er fjernet, og tabellen starter med status. "
+            "Omraadefeltet fra EasyPark-listen er tatt bort, mens tidligere parkeringer og tidligere betalt belop "
+            "per bil vises direkte i tabellen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bruker day-parameter for parkeringer, beregner tidligere parkeringer/belop per bil og rydder tabellkolonner.",
+            "Desktop V2 modulside (src/pages/ModulePage.tsx): legger inn kompakt dagvelger og kolonnenavn for bilhistorikk.",
+            "Desktop V2 modul-CSS (src/styles/module-content.css): styler dagvelgeren.",
+            "API-typer (src/api.ts): utvider modulrespons med dayNavigation.",
+            "Buildlogg (build_log.py): registrerer build 1223.",
+        ],
+        "request": "Paa parkering/parkeringer: fjern flisene, start paa dagens dato med forrige/neste dag-knapper, flytt status forst i tabellen, fjern Lilletorget-omraadefelt og vis hvor mange parkeringer/belop bilen har hatt for.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Parkeringer-siden starter paa dagens dato naar day ikke er satt.",
+            "Dato styres med forrige dag, i dag, neste dag og datofelt.",
+            "De fire toppflisene paa Parkeringer er fjernet.",
+            "Status er forste tabellkolonne.",
+            "Omraadekolonnen fra parkeringslisten er fjernet.",
+            "Tabellen viser tidligere parkeringer og tidligere betalt belop per bil.",
+        ],
+    },
     {
         "version": "1",
         "build": "1222",

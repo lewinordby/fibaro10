@@ -348,6 +348,14 @@ export type ModuleFilter = {
   options?: Array<{ label: string; value: string | number }>;
 };
 
+export type ModuleDayNavigation = {
+  selectedDay: string;
+  selectedDayLabel: string;
+  prevDay: string;
+  nextDay: string;
+  isToday?: boolean;
+};
+
 export type SunSessionSnapshot = {
   id: string;
   capturedAt: string;
@@ -750,6 +758,7 @@ export type ModuleResponse = {
   tables: ModuleTable[];
   actions?: ModuleAction[];
   filters?: ModuleFilter[];
+  dayNavigation?: ModuleDayNavigation | null;
   sunTimeline?: SunTimeline | null;
   parkingTimeline?: ParkingTimeline | null;
   ventilation?: VentilationData;

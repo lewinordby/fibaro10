@@ -1,3 +1,4 @@
+import { AimOutlined, CalendarOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { lazy, Suspense, useMemo, useState } from "react";
@@ -12,6 +13,7 @@ import {
   submitModuleEdit,
   type JsonRecord,
   type ModuleAction,
+  type ModuleDayNavigation,
   type ModuleEditConfig,
   type ModuleEditField,
   type ModuleRow,
@@ -89,6 +91,8 @@ function labelize(column: string): string {
     sun2_id: "SUN2-ID",
     parking_time_min: "Min",
     parkering_count: "Parkeringer",
+    previous_parking_count: "Parkeringer før",
+    previous_paid_total: "Betalt før",
     duration_minutes: "Min",
     room: "Rom",
     user_name: "Bruker",
@@ -489,6 +493,43 @@ function tableRowKey(row: ModuleRow, tableTitle: string, index?: number) {
 function countText(filteredCount: number, totalCount: number, query: string): string {
   if (query.trim() && filteredCount !== totalCount) return `Viser ${filteredCount} av ${totalCount} rader`;
   return `${totalCount} rader`;
+}
+
+function ModuleDayNavigationBar({
+  navigation,
+  onDayChange,
+}: {
+  navigation: ModuleDayNavigation;
+  onDayChange: (day: string) => void;
+}) {
+  return (
+    <Card className="work-card module-day-nav-card">
+      <div className="module-day-nav-title">
+        <Typography.Text type="secondary">Dato</Typography.Text>
+        <Typography.Text strong>{navigation.selectedDayLabel}</Typography.Text>
+      </div>
+      <Space.Compact className="module-day-nav-actions">
+        <Button size="small" icon={<LeftOutlined />} onClick={() => onDayChange(navigation.prevDay)}>
+          Forrige dag
+        </Button>
+        <Button size="small" icon={<AimOutlined />} onClick={() => onDayChange("")}>
+          I dag
+        </Button>
+        <Button size="small" icon={<RightOutlined />} onClick={() => onDayChange(navigation.nextDay)}>
+          Neste dag
+        </Button>
+        <Input
+          aria-label="Dato"
+          className="module-day-nav-date"
+          prefix={<CalendarOutlined />}
+          size="small"
+          type="date"
+          value={navigation.selectedDay}
+          onChange={(event) => onDayChange(event.target.value)}
+        />
+      </Space.Compact>
+    </Card>
+  );
 }
 
 function tabLabel(table: ModuleTable, query: string): ReactNode {
@@ -1022,6 +1063,10 @@ export default function ModulePage({ module }: { module: string }) {
             ))}
           </Space>
         </Card>
+      ) : null}
+
+      {data.dayNavigation && !hideModuleChrome ? (
+        <ModuleDayNavigationBar navigation={data.dayNavigation} onDayChange={setTimelineDay} />
       ) : null}
 
       {data.filters?.length ? (

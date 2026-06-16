@@ -5998,9 +5998,9 @@ def status_parking_timeline_event(row: ParkingSession, period_start: datetime, l
         title_parts.append(str(row.parking_area))
     if paid:
         title_parts.append(f"{paid:.0f} kr")
-    href = f"/parkering/parkeringer?date_from={start_at.date().isoformat()}&date_to={start_at.date().isoformat()}"
+    href = f"/parkering/parkeringer?day={start_at.date().isoformat()}"
     if plate:
-        href += f"&q={quote_plus(plate)}"
+        href += f"&plate={quote_plus(plate)}"
     return {
         "id": f"parking-{row.id}",
         "kind": "parking",
@@ -13821,9 +13821,9 @@ async def api_parking_day_timeline(session, selected: date, now_dt: datetime) ->
                 "owner": vehicle.navn if vehicle else None,
                 "ownerArea": vehicle.omrade if vehicle else None,
                 "href": (
-                    f"/parkering/parkeringer?date_from={selected.isoformat()}&date_to={selected.isoformat()}&plate={quote(plate, safe='')}"
+                    f"/parkering/parkeringer?day={selected.isoformat()}&plate={quote(plate, safe='')}"
                     if plate
-                    else f"/parkering/parkeringer?date_from={selected.isoformat()}&date_to={selected.isoformat()}"
+                    else f"/parkering/parkeringer?day={selected.isoformat()}"
                 ),
             }
         )
@@ -14946,7 +14946,11 @@ def api_energy_elvia_payload(
     }
 
 
-def parking_row_api(row: ParkingSession, vehicle: Optional[ParkingVehicle] = None) -> Dict[str, Any]:
+def parking_row_api(
+    row: ParkingSession,
+    vehicle: Optional[ParkingVehicle] = None,
+    previous_stats: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     owner_warning = parking_current_ownership_warning(vehicle, row.start_time)
     data = {
         "id": row.id,
@@ -14962,6 +14966,13 @@ def parking_row_api(row: ParkingSession, vehicle: Optional[ParkingVehicle] = Non
         "subtype": row.subtype,
         "status": row.status,
     }
+    if previous_stats:
+        data.update(
+            {
+                "previous_parking_count": int_or_zero(previous_stats.get("count")),
+                "previous_paid_total": round(float_or_zero(previous_stats.get("paid")), 2),
+            }
+        )
     if vehicle:
         data.update(
             {
@@ -14971,6 +14982,42 @@ def parking_row_api(row: ParkingSession, vehicle: Optional[ParkingVehicle] = Non
             }
         )
     return data
+
+
+async def parking_previous_stats_for_rows(session, rows: list[ParkingSession]) -> Dict[int, Dict[str, Any]]:
+    candidates = [
+        row
+        for row in rows
+        if row.id is not None and row.start_time is not None and compact_plate(row.car_license_number)
+    ]
+    if not candidates:
+        return {}
+
+    selected_ids = {row.id for row in candidates}
+    selected_plates = {compact_plate(row.car_license_number) for row in candidates}
+    latest_start = max(row.start_time for row in candidates if row.start_time is not None)
+    plate_expr = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
+    history_rows = (
+        await session.execute(
+            select(ParkingSession.id, ParkingSession.car_license_number, ParkingSession.fee_inc_vat)
+            .where(plate_expr.in_(selected_plates))
+            .where(ParkingSession.start_time <= latest_start)
+            .order_by(plate_expr.asc(), ParkingSession.start_time.asc(), ParkingSession.id.asc())
+        )
+    ).all()
+
+    running: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"count": 0, "paid": 0.0})
+    previous_by_id: Dict[int, Dict[str, Any]] = {}
+    for session_id, plate, paid in history_rows:
+        compact = compact_plate(plate)
+        if not compact:
+            continue
+        current = running[compact]
+        if session_id in selected_ids:
+            previous_by_id[int(session_id)] = {"count": current["count"], "paid": current["paid"]}
+        current["count"] += 1
+        current["paid"] += float_or_zero(paid)
+    return previous_by_id
 
 
 def parking_vehicle_row_api(vehicle: ParkingVehicle, details: Optional[ParkingVehicleDetails]) -> Dict[str, Any]:
@@ -18572,6 +18619,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             filters = []
             charts = [api_parking_weekly_chart(parking_summaries)] if view in ("", "oversikt") else []
             parking_timeline = None
+            day_navigation = None
             if view == "dagslinje":
                 selected_parking_day = parse_day(day)
                 parking_timeline = await api_parking_day_timeline(session, selected_parking_day, now_dt)
@@ -18635,18 +18683,19 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     )
                 ]
             elif view == "parkeringer":
+                selected_parking_day = parse_day(api_filter_value(params, "day"))
+                selected_parking_start = datetime.combine(selected_parking_day, time.min)
+                selected_parking_end = selected_parking_start + timedelta(days=1)
+                day_navigation = api_day_navigation(selected_parking_day, today)
                 plate_value = compact_plate(api_filter_value(params, "plate"))
-                date_from_value = api_filter_value(params, "date_from")
-                date_to_value = api_filter_value(params, "date_to")
                 status_value = api_filter_value(params, "status")
                 limit_value = api_filter_int(params, "limit", 250, 25, 1000)
-                session_conditions = []
+                session_conditions = [
+                    ParkingSession.start_time >= selected_parking_start,
+                    ParkingSession.start_time < selected_parking_end,
+                ]
                 if plate_value:
                     session_conditions.append(func.upper(func.replace(ParkingSession.car_license_number, " ", "")).like(f"%{plate_value.upper()}%"))
-                if date_from_value:
-                    session_conditions.append(ParkingSession.start_time >= datetime.combine(parse_day(date_from_value), time.min))
-                if date_to_value:
-                    session_conditions.append(ParkingSession.start_time < datetime.combine(parse_day(date_to_value) + timedelta(days=1), time.min))
                 if status_value:
                     session_conditions.append(ParkingSession.status == status_value)
                 session_stmt = (
@@ -18654,34 +18703,34 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
                     .order_by(ParkingSession.start_time.desc())
                     .limit(limit_value)
+                    .where(*session_conditions)
                 )
-                count_stmt = select(func.count(ParkingSession.id))
-                if session_conditions:
-                    session_stmt = session_stmt.where(*session_conditions)
-                    count_stmt = count_stmt.where(*session_conditions)
                 parking_rows = (await session.execute(session_stmt)).all()
-                parking_count = (await session.execute(count_stmt)).scalar_one()
+                previous_stats = await parking_previous_stats_for_rows(session, [row for row, _ in parking_rows])
                 status_options = api_filter_options(
                     (await session.execute(select(ParkingSession.status).distinct().order_by(ParkingSession.status.asc()))).scalars().all()
                 )
                 filters = [
                     api_filter("plate", "Reg.nr", "text", plate_value, "Hele eller del av reg.nr"),
-                    api_filter("date_from", "Fra dato", "date", date_from_value),
-                    api_filter("date_to", "Til dato", "date", date_to_value),
                     api_filter("status", "Status", "select", status_value, options=status_options),
                     api_filter("limit", "Antall", "number", limit_value),
                 ]
-                cards = [
-                    api_card("Treff", parking_count, "stk", f"Viser {len(parking_rows)} rader", "parking", href="/parkering/parkeringer"),
-                    api_card("Beløp vist", format_short_number(sum(float_or_zero(row.fee_inc_vat) for row, _ in parking_rows)), "kr", "I tabellen", "revenue", href="/omsetning/oversikt"),
-                    api_card("Pågående", sum(1 for row, _ in parking_rows if (row.status or "").lower() == "ongoing"), "stk", "Blant viste rader", "parking", href="/parkering/dagslinje"),
-                    api_card("Kjøretøy", len({normalize_plate(row.car_license_number) for row, _ in parking_rows if row.car_license_number}), "stk", "Unike i tabellen", "status", href="/parkering/kjoretoy"),
-                ]
+                cards = []
                 tables = [
                     api_table(
                         "Parkeringer",
-                        ["start_time", "end_time", "car_license_number", "navn", "omrade", "fee_inc_vat", "parking_time_min", "status", "parking_area"],
-                        [parking_row_api(row, vehicle) for row, vehicle in parking_rows],
+                        [
+                            "status",
+                            "start_time",
+                            "end_time",
+                            "car_license_number",
+                            "navn",
+                            "fee_inc_vat",
+                            "parking_time_min",
+                            "previous_parking_count",
+                            "previous_paid_total",
+                        ],
+                        [parking_row_api(row, vehicle, previous_stats.get(row.id)) for row, vehicle in parking_rows],
                     )
                 ]
             elif view == "kjoretoy":
@@ -18942,6 +18991,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "tables": tables,
                 "actions": actions,
                 "filters": filters,
+                "dayNavigation": day_navigation,
                 "parkingTimeline": parking_timeline,
             }
 

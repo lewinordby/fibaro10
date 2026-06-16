@@ -118,6 +118,34 @@
   padding: 12px 14px;
 }
 
+.module-day-nav-card .ant-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.module-day-nav-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.module-day-nav-title .ant-typography-secondary {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.module-day-nav-actions .ant-btn {
+  font-weight: 650;
+}
+
+.module-day-nav-date {
+  width: 150px;
+}
+
 .list-value {
   color: var(--ink);
   font-weight: 750;
