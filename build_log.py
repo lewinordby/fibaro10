@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1218")
+APP_BUILD = os.getenv("APP_BUILD", "1219")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1219",
+        "date": "16.06.2026",
+        "headline": "Dashboardtoppen er strammet opp",
+        "title": "Status, lys og ventilasjon har faatt en roligere og mer presis toppseksjon",
+        "description": (
+            "Build 1219 rydder den oeverste delen av dashboardet. Den store datakilde-pillen er gjort om til "
+            "kompakt metadata, mens lys og ventilasjon vises som faste statusrader med jevn kolonnebruk. "
+            "Endringen er kun visuell og endrer ikke datagrunnlaget."
+        ),
+        "applications": [
+            "Desktop V2 statusdashboard (src/pages/OverviewPage.tsx): legger til egen toppstruktur for statusstripene.",
+            "Desktop V2 status-CSS (src/styles/status.css): strammer inn dashboard-toppen, metadatavisning og lys/ventilasjon-rader.",
+            "Buildlogg (build_log.py): registrerer build 1219.",
+        ],
+        "request": "Rydd opp i dashboardtoppen. Skjermbildet viser at dette ikke er ryddig.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Datakildestatus og sist oppdatert er gjort om fra tung pillestil til kompakt toppmetadata.",
+            "Lys og ventilasjon bruker faste rader med navn til venstre og status til hoyre.",
+            "Spacing, tag-storrelser og borderbruk i toppkortet er redusert.",
+            "Responsiv fallback samler toppseksjonen i en kolonne paa smalere skjermer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1218",

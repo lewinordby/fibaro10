@@ -145,7 +145,9 @@ function StatusStrip({
 }) {
   return (
     <div className="status-strip">
-      <div className="status-strip-title">{title}</div>
+      <div className="status-strip-head">
+        <div className="status-strip-title">{title}</div>
+      </div>
       <div className="status-strip-items">
         {items.map((item) => (
           <div className="status-strip-item" key={item.label}>
