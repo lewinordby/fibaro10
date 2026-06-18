@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1226")
+APP_BUILD = os.getenv("APP_BUILD", "1227")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1227",
+        "date": "18.06.2026",
+        "headline": "Soling faar akkumulert aarsammenligning",
+        "title": "Ny Soling > Sammenligning viser akkumulert utvikling aar mot aar",
+        "description": (
+            "Build 1227 legger til en egen sammenligningsside under Soling. Siden bruker dagssammendrag for aa "
+            "vise akkumulert solomsetning eller antall solinger gjennom valgt aar, sammenlignet med forrige aar. "
+            "For innevaerende aar sammenlignes hovedtallene mot forrige aar til samme dagnummer, mens grafen viser "
+            "hele forrige aar som kontekst."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): nytt API for soling aarsammenligning basert paa dagssammendrag.",
+            "Desktop V2 API-typer (src/api.ts): legger til respons-typer og fetcher for soling aarsammenligning.",
+            "Desktop V2 side (src/pages/SunYearComparisonPage.tsx): ny akkumulert graf med aar-navigasjon og omsetning/antall-valg.",
+            "Desktop V2 ruting og meny (src/App.tsx, src/moduleViews.ts): legger siden under Soling > Sammenligning.",
+            "Desktop V2 hurtigsoek (src/domainModel.ts): peker soling/sammenligning til ny side.",
+            "Buildlogg (build_log.py): registrerer build 1227.",
+        ],
+        "request": "Lag samme type akkumulert sammenligningsgraf under Soling som Omsetning > Sammenligning, men med sammenligning av aar i stedet for maaned.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny underside Soling > Sammenligning.",
+            "Valgt aar kan blas ett aar frem og tilbake.",
+            "Grafen kan skifte mellom omsetning og antall solinger.",
+            "Kortene viser valgt aar, forrige aar til samme dagnummer og forrige aar totalt.",
+            "Sammenligningen bruker dagssammendrag for rask respons.",
+        ],
+    },
     {
         "version": "1",
         "build": "1226",

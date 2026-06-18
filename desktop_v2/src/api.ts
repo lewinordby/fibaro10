@@ -195,6 +195,68 @@ export type StatusComparisonResponse = {
   referenceComparisons?: StatusComparisonReference[];
 };
 
+export type SunYearComparisonPoint = {
+  day: number;
+  date: string;
+  label: string;
+  amount: number;
+  count: number;
+  minutes: number;
+  cumulativeAmount: number;
+  cumulativeCount: number;
+  cumulativeMinutes: number;
+};
+
+export type SunYearComparisonSeries = {
+  key: string;
+  source: "current" | "comparison" | "comparison-full";
+  year: number;
+  label: string;
+  color: string;
+  daysInYear: number;
+  asOfDay: number;
+  daysWithData: number;
+  totalAmount: number;
+  totalCount: number;
+  totalMinutes: number;
+  points: SunYearComparisonPoint[];
+};
+
+export type SunYearComparisonResponse = {
+  generatedAt: string | null;
+  title: string;
+  anchorYear: number;
+  comparisonYear: number;
+  navigation: {
+    anchor: string;
+    label: string;
+    previousAnchor: string;
+    nextAnchor: string;
+    canPrevious: boolean;
+    canNext: boolean;
+    previousLabel: string;
+    nextLabel: string;
+  };
+  axis: {
+    days: number;
+    ticks: Array<{ label: string; day: number }>;
+  };
+  selected: SunYearComparisonSeries;
+  comparison: SunYearComparisonSeries;
+  comparisonFull: SunYearComparisonSeries;
+  delta: {
+    amount: number;
+    count: number;
+    minutes: number;
+  };
+  asOf: {
+    selectedLabel: string;
+    selectedDate: string;
+    comparisonLabel: string;
+    comparisonDate: string;
+  };
+};
+
 export type AuthUser = {
   username: string | null;
   role: string;
@@ -858,6 +920,11 @@ export function fetchStatusComparison(period: string, compare: string, anchor?: 
   if (anchor) queryParams.set("anchor", anchor);
   const query = queryParams.toString();
   return apiGet<StatusComparisonResponse>(`/api/status/comparison?${query}`);
+}
+
+export function fetchSunYearComparison(year?: string | null): Promise<SunYearComparisonResponse> {
+  const query = year ? `?year=${encodeURIComponent(year)}` : "";
+  return apiGet<SunYearComparisonResponse>(`/api/soling/year-comparison${query}`);
 }
 
 export function fetchCurrentUser(): Promise<AuthUser> {

@@ -18,6 +18,7 @@ const titleMatchers: Record<string, Array<{ words: string[]; href: string }>> = 
     { words: ["parkering", "pågående", "beløp", "treff"], href: modulePath("parkering", "parkeringer") },
   ],
   soling: [
+    { words: ["sammenligning", "år", "akkumulert"], href: modulePath("soling", "sammenligning") },
     { words: ["dagslinje"], href: modulePath("soling", "dagslinje") },
     { words: ["seng", "rom"], href: modulePath("soling", "senger") },
     { words: ["medlem"], href: modulePath("soling", "medlemmer") },

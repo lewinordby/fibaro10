@@ -36,6 +36,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
   ],
   soling: [
     { key: "oversikt", label: "Oversikt" },
+    { key: "sammenligning", label: "Sammenligning" },
     { key: "dagslinje", label: "Dagslinje" },
     { key: "enkeltimer", label: "Enkeltimer" },
     { key: "senger", label: "Senger" },
