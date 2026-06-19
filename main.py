@@ -2715,6 +2715,8 @@ def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> 
         )
     top_sort = lambda item: (item["total_paid"], item["total_count"])
     return {
+        "daily": sorted(daily, key=lambda item: str(item.get("period") or ""), reverse=True),
+        "monthly": sorted(monthly, key=lambda item: str(item.get("period") or ""), reverse=True),
         "top_days": sorted(daily, key=top_sort, reverse=True)[:10],
         "top_months": sorted(monthly, key=top_sort, reverse=True)[:10],
         "yearly": sorted(yearly, key=lambda item: str(item.get("period") or ""), reverse=True),
@@ -6107,6 +6109,77 @@ def parking_year_comparison_delta(current: Dict[str, Any], comparison: Dict[str,
         "amount": round(float_or_zero(current.get("totalAmount")) - float_or_zero(comparison.get("totalAmount")), 2),
         "count": int_or_zero(current.get("totalCount")) - int_or_zero(comparison.get("totalCount")),
         "minutes": round(float_or_zero(current.get("totalMinutes")) - float_or_zero(comparison.get("totalMinutes")), 2),
+    }
+
+
+def revenue_daily_by_year(summaries: Dict[str, Any]) -> Dict[int, Dict[int, Dict[str, Any]]]:
+    by_year: Dict[int, Dict[int, Dict[str, Any]]] = {}
+    for item in summaries.get("daily", []):
+        period = str(item.get("period") or "")
+        try:
+            stat_date = date.fromisoformat(period)
+        except ValueError:
+            continue
+        by_year.setdefault(stat_date.year, {})[stat_date.timetuple().tm_yday] = {
+            "date": stat_date,
+            "amount": float_or_zero(item.get("total_paid")),
+        }
+    return by_year
+
+
+def revenue_year_series(
+    daily_by_year: Dict[int, Dict[int, Dict[str, Any]]],
+    year: int,
+    as_of_day: int,
+    source: str,
+    color: str,
+) -> Dict[str, Any]:
+    max_day = days_in_year(year)
+    visible_day = max(1, min(as_of_day, max_day))
+    daily_rows = daily_by_year.get(year, {})
+    cumulative_amount = 0.0
+    points = []
+    days_with_data = 0
+    for day_number in range(1, visible_day + 1):
+        row = daily_rows.get(day_number)
+        if row:
+            days_with_data += 1
+            cumulative_amount += float_or_zero(row.get("amount"))
+        point_date = date(year, 1, 1) + timedelta(days=day_number - 1)
+        points.append(
+            {
+                "day": day_number,
+                "date": point_date.isoformat(),
+                "label": point_date.strftime("%d.%m"),
+                "amount": round(float_or_zero(row.get("amount")) if row else 0.0, 2),
+                "count": 0,
+                "minutes": 0.0,
+                "cumulativeAmount": round(cumulative_amount, 2),
+                "cumulativeCount": 0,
+                "cumulativeMinutes": 0.0,
+            }
+        )
+    return {
+        "key": f"{source}-{year}",
+        "source": source,
+        "year": year,
+        "label": str(year),
+        "color": color,
+        "daysInYear": max_day,
+        "asOfDay": visible_day,
+        "daysWithData": days_with_data,
+        "totalAmount": round(cumulative_amount, 2),
+        "totalCount": 0,
+        "totalMinutes": 0.0,
+        "points": points,
+    }
+
+
+def revenue_year_comparison_delta(current: Dict[str, Any], comparison: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "amount": round(float_or_zero(current.get("totalAmount")) - float_or_zero(comparison.get("totalAmount")), 2),
+        "count": 0,
+        "minutes": 0.0,
     }
 
 
@@ -12841,6 +12914,82 @@ async def api_v2_parking_year_comparison(year: Optional[str] = Query(None)):
         "comparison": comparison_series,
         "comparisonFull": comparison_full_series,
         "delta": parking_year_comparison_delta(selected_series, comparison_series),
+        "asOf": {
+            "selectedLabel": "Hittil i år" if anchor_year == current_year else "Hele året",
+            "selectedDate": selected_as_of_date.isoformat(),
+            "comparisonLabel": "Til samme dag i året",
+            "comparisonDate": comparison_as_of_date.isoformat(),
+        },
+    }
+
+
+@app.get("/api/omsetning/year-comparison")
+async def api_v2_revenue_year_comparison(year: Optional[str] = Query(None)):
+    now_dt = local_now_naive()
+    today = now_dt.date()
+    current_year = today.year
+    anchor_year = parse_anchor_year(year, current_year)
+    comparison_year = anchor_year - 1
+    selected_as_of_day = today.timetuple().tm_yday if anchor_year == current_year else days_in_year(anchor_year)
+    comparison_as_of_day = min(selected_as_of_day, days_in_year(comparison_year))
+    selected_as_of_date = date(anchor_year, 1, 1) + timedelta(days=selected_as_of_day - 1)
+    comparison_as_of_date = date(comparison_year, 1, 1) + timedelta(days=comparison_as_of_day - 1)
+
+    async with async_session() as session:
+        sun_summaries = await get_sun2_summaries(session)
+        parking_summaries = await get_parking_summaries(session)
+
+    summaries = combine_business_summaries(sun_summaries, parking_summaries)
+    daily_by_year = revenue_daily_by_year(summaries)
+    selected_series = revenue_year_series(daily_by_year, anchor_year, selected_as_of_day, "current", "#dc2626")
+    comparison_series = revenue_year_series(daily_by_year, comparison_year, comparison_as_of_day, "comparison", "#64748b")
+    comparison_full_series = revenue_year_series(
+        daily_by_year,
+        comparison_year,
+        days_in_year(comparison_year),
+        "comparison-full",
+        "#94a3b8",
+    )
+    available_years = sorted(set(daily_by_year.keys()) | {anchor_year, comparison_year}, reverse=True)
+    revenue_colors = ["#dc2626", "#64748b", "#0f766e", "#7c3aed", "#be123c", "#0891b2", "#ea580c", "#2563eb"]
+    all_series = []
+    for index, series_year in enumerate(available_years):
+        series_as_of_day = today.timetuple().tm_yday if series_year == current_year else days_in_year(series_year)
+        if series_year == anchor_year:
+            source = "current"
+        elif series_year == comparison_year:
+            source = "comparison"
+        else:
+            source = "reference"
+        all_series.append(
+            revenue_year_series(
+                daily_by_year,
+                series_year,
+                series_as_of_day,
+                source,
+                revenue_colors[index % len(revenue_colors)],
+            )
+        )
+    axis_days = max([selected_series["daysInYear"], comparison_full_series["daysInYear"], *(item["daysInYear"] for item in all_series)])
+    month_names = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Des"]
+    ticks = []
+    for month_index, month_name in enumerate(month_names, start=1):
+        tick_date = date(anchor_year, month_index, 1)
+        ticks.append({"label": month_name, "day": tick_date.timetuple().tm_yday})
+
+    return {
+        "generatedAt": api_local_iso(now_dt),
+        "title": "Omsetning sammenligning",
+        "anchorYear": anchor_year,
+        "comparisonYear": comparison_year,
+        "navigation": year_comparison_navigation(anchor_year, current_year),
+        "axis": {"days": axis_days, "ticks": ticks},
+        "availableYears": available_years,
+        "series": all_series,
+        "selected": selected_series,
+        "comparison": comparison_series,
+        "comparisonFull": comparison_full_series,
+        "delta": revenue_year_comparison_delta(selected_series, comparison_series),
         "asOf": {
             "selectedLabel": "Hittil i år" if anchor_year == current_year else "Hele året",
             "selectedDate": selected_as_of_date.isoformat(),

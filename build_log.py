@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1229")
+APP_BUILD = os.getenv("APP_BUILD", "1230")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1230",
+        "date": "19.06.2026",
+        "headline": "Omsetning faar akkumulert aarsammenligning",
+        "title": "Omsetning > Akkumulert aar viser aarsvis omsetning uten antallvalg",
+        "description": (
+            "Build 1230 legger en dedikert aarsammenligning under Omsetning. Siden viser akkumulert "
+            "omsetning aar mot aar, bruker samlet daglig omsetning fra soling og parkering, og holder "
+            "seg til omsetning uten antall-toggle."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): nytt API for omsetning aarsammenligning basert paa samlet daglig omsetning.",
+            "Desktop V2 API-typer (src/api.ts): legger til fetcher og typealiaser for omsetning aarsammenligning.",
+            "Desktop V2 side (src/pages/RevenueYearComparisonPage.tsx): ny akkumulert omsetningsgraf med aarvelger.",
+            "Desktop V2 ruting og hurtiglenker (src/App.tsx, src/domainModel.ts): kobler Omsetning > Akkumulert aar til den nye siden.",
+            "Buildlogg (build_log.py): registrerer build 1230.",
+        ],
+        "request": "Lag aarsammenligning paa omsetning paa samme maate som soling og parkering, men kun med omsetning og ikke antall.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny backendrespons for samlet omsetning per aar.",
+            "Standard aktiv graf er valgt aar og forrige aar.",
+            "Alle tilgjengelige aar kan slaas paa manuelt.",
+            "Siden viser bare kronebelop og har ikke antall-valg.",
+            "Eksisterende menyvalg Omsetning > Akkumulert aar bruker den nye siden.",
+        ],
+    },
     {
         "version": "1",
         "build": "1229",

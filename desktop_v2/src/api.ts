@@ -262,6 +262,9 @@ export type SunYearComparisonResponse = {
 export type ParkingYearComparisonPoint = SunYearComparisonPoint;
 export type ParkingYearComparisonSeries = SunYearComparisonSeries;
 export type ParkingYearComparisonResponse = SunYearComparisonResponse;
+export type RevenueYearComparisonPoint = SunYearComparisonPoint;
+export type RevenueYearComparisonSeries = SunYearComparisonSeries;
+export type RevenueYearComparisonResponse = SunYearComparisonResponse;
 
 export type AuthUser = {
   username: string | null;
@@ -936,6 +939,11 @@ export function fetchSunYearComparison(year?: string | null): Promise<SunYearCom
 export function fetchParkingYearComparison(year?: string | null): Promise<ParkingYearComparisonResponse> {
   const query = year ? `?year=${encodeURIComponent(year)}` : "";
   return apiGet<ParkingYearComparisonResponse>(`/api/parkering/year-comparison${query}`);
+}
+
+export function fetchRevenueYearComparison(year?: string | null): Promise<RevenueYearComparisonResponse> {
+  const query = year ? `?year=${encodeURIComponent(year)}` : "";
+  return apiGet<RevenueYearComparisonResponse>(`/api/omsetning/year-comparison${query}`);
 }
 
 export function fetchCurrentUser(): Promise<AuthUser> {

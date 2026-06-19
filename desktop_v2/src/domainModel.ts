@@ -7,6 +7,7 @@ type DomainKey = keyof typeof domainLabels;
 const titleMatchers: Record<string, Array<{ words: string[]; href: string }>> = {
   omsetning: [
     { words: ["måned", "måneds"], href: modulePath("omsetning", "manedsoversikt") },
+    { words: ["år", "akkumulert"], href: modulePath("omsetning", "akkumulert") },
     { words: ["sammenligning", "uke", "i dag"], href: "/omsetning/sammenligning" },
     { words: ["sol"], href: modulePath("soling", "oversikt") },
     { words: ["park"], href: modulePath("parkering", "oversikt") },

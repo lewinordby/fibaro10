@@ -25,6 +25,7 @@ const MENU_HIDDEN_STORAGE_KEY = "fibaro10:mainMenuHidden";
 
 const OverviewPage = lazy(() => import("./pages/OverviewPage"));
 const RevenueMonthPage = lazy(() => import("./pages/RevenueMonthPage"));
+const RevenueYearComparisonPage = lazy(() => import("./pages/RevenueYearComparisonPage"));
 const OperationsPage = lazy(() => import("./pages/OperationsPage"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
@@ -217,6 +218,7 @@ export default function App() {
               <Route path="/status/sammenligning" element={<StatusComparisonPage />} />
               <Route path="/omsetning" element={<Navigate to={modulePath("omsetning")} replace />} />
               <Route path="/omsetning/manedsoversikt" element={<RevenueMonthPage />} />
+              <Route path="/omsetning/akkumulert" element={<RevenueYearComparisonPage />} />
               <Route path="/omsetning/sammenligning" element={<StatusComparisonPage />} />
               <Route path="/omsetning/:view" element={<ModulePage module="omsetning" />} />
               <Route path="/parkering" element={<Navigate to={modulePath("parkering")} replace />} />
