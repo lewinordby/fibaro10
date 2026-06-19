@@ -5,8 +5,30 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1231")
+APP_BUILD = os.getenv("APP_BUILD", "1232")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1232",
+        "date": "19.06.2026",
+        "headline": "Produktsiden valideres mot PostgreSQL",
+        "title": "Soling > Produkter retter gruppering av topp produkter",
+        "description": (
+            "Build 1232 retter en PostgreSQL-spesifikk grupperingsfeil i topp-produkter-tabellen på Soling > Produkter. "
+            "Feilen ble fanget ved intern container-test mot QNAP-databasen etter deploy av build 1231."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bruker samme SQL-uttrykk i SELECT og GROUP BY for produktnavn/kategori.",
+            "Buildlogg (build_log.py): registrerer build 1232.",
+        ],
+        "request": "Rett valideringsfeilen på den nye produktsiden under Soling.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Retter PostgreSQL GROUP BY for Topp produkter.",
+            "Validerer produktsalg-payload direkte inne i QNAP-containeren.",
+        ],
+    },
     {
         "version": "1",
         "build": "1231",

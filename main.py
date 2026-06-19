@@ -14683,17 +14683,19 @@ async def sun2_product_module_payload(
     top_product_conditions = list(product_conditions)
     if not date_from_value and not date_to_value:
         top_product_conditions.append(Sun2ProductSale.stat_date >= recent_start)
+    product_name_expr = func.coalesce(Sun2ProductSale.product_name, "Ukjent")
+    product_category_expr = func.coalesce(Sun2ProductSale.product_category, "")
     top_product_stmt = (
         select(
-            func.coalesce(Sun2ProductSale.product_name, "Ukjent").label("product_name"),
-            func.coalesce(Sun2ProductSale.product_category, "").label("product_category"),
+            product_name_expr.label("product_name"),
+            product_category_expr.label("product_category"),
             func.count(Sun2ProductSale.id).label("sales_count"),
             func.coalesce(func.sum(Sun2ProductSale.quantity), 0).label("quantity"),
             func.coalesce(func.sum(amount_inc_expr), 0).label("amount_inc_vat_kr"),
             func.coalesce(func.sum(amount_ex_expr), 0).label("amount_ex_vat_kr"),
             func.max(Sun2ProductSale.stat_date).label("last_date"),
         )
-        .group_by(func.coalesce(Sun2ProductSale.product_name, "Ukjent"), func.coalesce(Sun2ProductSale.product_category, ""))
+        .group_by(product_name_expr, product_category_expr)
         .order_by(func.coalesce(func.sum(amount_inc_expr), 0).desc())
         .limit(20)
     )
