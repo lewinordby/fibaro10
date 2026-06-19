@@ -14714,31 +14714,44 @@ async def sun2_product_module_payload(
         for item in (await session.execute(top_product_stmt)).mappings().all()
     ]
 
-    daily_rows = [
-        {
-            "period": item.get("stat_date").isoformat() if item.get("stat_date") else "",
-            "period_label": item.get("stat_date").strftime("%d.%m") if item.get("stat_date") else "",
-            "sales_count": int_or_zero(item.get("sales_count")),
-            "quantity": round(float_or_zero(item.get("quantity")), 2),
-            "amount_inc_vat_kr": round(float_or_zero(item.get("amount_inc_vat_kr")), 2),
-            "amount_ex_vat_kr": round(float_or_zero(item.get("amount_ex_vat_kr")), 2),
-        }
-        for item in (
-            await session.execute(
-                select(
-                    Sun2ProductSale.stat_date.label("stat_date"),
-                    func.count(Sun2ProductSale.id).label("sales_count"),
-                    func.coalesce(func.sum(Sun2ProductSale.quantity), 0).label("quantity"),
-                    func.coalesce(func.sum(amount_inc_expr), 0).label("amount_inc_vat_kr"),
-                    func.coalesce(func.sum(amount_ex_expr), 0).label("amount_ex_vat_kr"),
-                )
-                .where(sun2_product_daily_scope_condition())
-                .where(Sun2ProductSale.stat_date >= recent_start)
-                .group_by(Sun2ProductSale.stat_date)
-                .order_by(Sun2ProductSale.stat_date.asc())
+    chart_anchor_day = today
+    if date_from_value:
+        chart_anchor_day = parse_day(date_from_value)
+    elif date_to_value:
+        chart_anchor_day = parse_day(date_to_value)
+    chart_month_start = date(chart_anchor_day.year, chart_anchor_day.month, 1)
+    chart_month_end = month_end(chart_anchor_day)
+    daily_chart_rows = (
+        await session.execute(
+            select(
+                Sun2ProductSale.stat_date.label("stat_date"),
+                func.count(Sun2ProductSale.id).label("sales_count"),
+                func.coalesce(func.sum(Sun2ProductSale.quantity), 0).label("quantity"),
+                func.coalesce(func.sum(amount_inc_expr), 0).label("amount_inc_vat_kr"),
+                func.coalesce(func.sum(amount_ex_expr), 0).label("amount_ex_vat_kr"),
             )
-        ).mappings().all()
-    ]
+            .where(sun2_product_daily_scope_condition())
+            .where(Sun2ProductSale.stat_date >= chart_month_start)
+            .where(Sun2ProductSale.stat_date <= chart_month_end)
+            .group_by(Sun2ProductSale.stat_date)
+            .order_by(Sun2ProductSale.stat_date.asc())
+        )
+    ).mappings().all()
+    daily_by_date = {item.get("stat_date"): item for item in daily_chart_rows if item.get("stat_date")}
+    daily_rows = []
+    for day in iter_dates(chart_month_start, chart_month_end):
+        item = daily_by_date.get(day)
+        future_day = day > today
+        daily_rows.append(
+            {
+                "period": day.isoformat(),
+                "period_label": day.strftime("%d.%m"),
+                "sales_count": None if future_day else int_or_zero(item.get("sales_count") if item else 0),
+                "quantity": None if future_day else round(float_or_zero(item.get("quantity") if item else 0), 2),
+                "amount_inc_vat_kr": None if future_day else round(float_or_zero(item.get("amount_inc_vat_kr") if item else 0), 2),
+                "amount_ex_vat_kr": None if future_day else round(float_or_zero(item.get("amount_ex_vat_kr") if item else 0), 2),
+            }
+        )
 
     category_options = api_filter_options(
         (await session.execute(select(Sun2ProductSale.product_category).distinct().order_by(Sun2ProductSale.product_category.asc()))).scalars().all()
@@ -14761,7 +14774,7 @@ async def sun2_product_module_payload(
                 {"name": "Omsetning inkl. mva", "data": [row["amount_inc_vat_kr"] for row in daily_rows], "type": "bar", "color": "#f59e0b"},
                 {"name": "Antall", "data": [row["sales_count"] for row in daily_rows], "type": "line", "color": "#64748b"},
             ],
-            "Daglige produktsalg siste 120 dager. Månedsimport brukes ikke her for å unngå dobbelttelling.",
+            f"Daglige produktsalg for {chart_month_start.strftime('%m.%Y')}. Månedsimport brukes ikke her for å unngå dobbelttelling.",
             "bar",
             320,
         ),

@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1232")
+APP_BUILD = os.getenv("APP_BUILD", "1233")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1233",
+        "date": "19.06.2026",
+        "headline": "Produktsalg per dag viser hele måneden",
+        "title": "Soling > Produkter fyller daggrafen med alle dager i måneden",
+        "description": (
+            "Build 1233 endrer daggrafen for produktsalg slik at den viser hele måneden, ikke bare dager med salg "
+            "eller siste 120 dager. Uten datofilter brukes inneværende måned. Ved datofilter brukes måneden til valgt dato."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bygger dagserie med en rad per kalenderdag i valgt måned.",
+            "Buildlogg (build_log.py): registrerer build 1233.",
+        ],
+        "request": "Produktsalg pr dag så bør vi jo vise alle dager inneværende mnd?",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Produktsalg per dag viser alle dager i måneden.",
+            "Dager uten salg vises som 0.",
+            "Fremtidige dager i inneværende måned vises uten verdi, slik at aksen likevel er komplett.",
+            "Graftekst er oppdatert fra siste 120 dager til valgt måned.",
+        ],
+    },
     {
         "version": "1",
         "build": "1232",
