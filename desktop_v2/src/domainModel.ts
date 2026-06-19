@@ -12,6 +12,7 @@ const titleMatchers: Record<string, Array<{ words: string[]; href: string }>> = 
     { words: ["park"], href: modulePath("parkering", "oversikt") },
   ],
   parkering: [
+    { words: ["sammenligning", "år", "akkumulert"], href: modulePath("parkering", "sammenligning") },
     { words: ["toppbelegg", "belegg"], href: modulePath("parkering", "dagslinje") },
     { words: ["kjøretøy", "bil", "område", "navn"], href: modulePath("parkering", "kjoretoy") },
     { words: ["prognose"], href: modulePath("parkering", "prognose") },

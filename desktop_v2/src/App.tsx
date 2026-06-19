@@ -31,6 +31,7 @@ const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
 const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const ParkingSettlementsPage = lazy(() => import("./pages/ParkingSettlementsPage"));
 const ParkingVehicleDetailPage = lazy(() => import("./pages/ParkingVehicleDetailPage"));
+const ParkingYearComparisonPage = lazy(() => import("./pages/ParkingYearComparisonPage"));
 const SettlementDetailPage = lazy(() => import("./pages/SettlementDetailPage"));
 const SunSettlementsPage = lazy(() => import("./pages/SunSettlementsPage"));
 const SunYearComparisonPage = lazy(() => import("./pages/SunYearComparisonPage"));
@@ -222,6 +223,7 @@ export default function App() {
               <Route path="/parkering/statistikk" element={<LegacyRedirect to={modulePath("parkering", "bilstatistikk")} />} />
               <Route path="/parkering/navn-oppslag" element={<LegacyRedirect to={modulePath("parkering", "oppslag")} />} />
               <Route path="/parkering/omrade-oppslag" element={<LegacyRedirect to={modulePath("parkering", "oppslag")} />} />
+              <Route path="/parkering/sammenligning" element={<ParkingYearComparisonPage />} />
               <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
               <Route path="/parkering/oppgjor" element={<ParkingSettlementsPage />} />
               <Route path="/parkering/oppgjor/:settlementId" element={<SettlementDetailPage />} />

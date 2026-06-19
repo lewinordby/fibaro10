@@ -5940,7 +5940,7 @@ def parse_anchor_year(value: Optional[str], fallback: int) -> int:
     return max(2000, min(fallback, year))
 
 
-def sun2_year_navigation(anchor_year: int, current_year: int) -> Dict[str, Any]:
+def year_comparison_navigation(anchor_year: int, current_year: int) -> Dict[str, Any]:
     return {
         "anchor": str(anchor_year),
         "label": str(anchor_year),
@@ -6023,6 +6023,83 @@ def sun2_year_series(
 
 
 def sun2_year_comparison_delta(current: Dict[str, Any], comparison: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "amount": round(float_or_zero(current.get("totalAmount")) - float_or_zero(comparison.get("totalAmount")), 2),
+        "count": int_or_zero(current.get("totalCount")) - int_or_zero(comparison.get("totalCount")),
+        "minutes": round(float_or_zero(current.get("totalMinutes")) - float_or_zero(comparison.get("totalMinutes")), 2),
+    }
+
+
+def parking_daily_by_year(summaries: Dict[str, Any]) -> Dict[int, Dict[int, Dict[str, Any]]]:
+    by_year: Dict[int, Dict[int, Dict[str, Any]]] = {}
+    for item in summaries.get("daily", []):
+        period = str(item.get("period") or "")
+        try:
+            stat_date = date.fromisoformat(period)
+        except ValueError:
+            continue
+        by_year.setdefault(stat_date.year, {})[stat_date.timetuple().tm_yday] = {
+            "date": stat_date,
+            "amount": float_or_zero(item.get("paid")),
+            "count": int_or_zero(item.get("sessions")),
+            "minutes": float_or_zero(item.get("minutes")),
+        }
+    return by_year
+
+
+def parking_year_series(
+    daily_by_year: Dict[int, Dict[int, Dict[str, Any]]],
+    year: int,
+    as_of_day: int,
+    source: str,
+    color: str,
+) -> Dict[str, Any]:
+    max_day = days_in_year(year)
+    visible_day = max(1, min(as_of_day, max_day))
+    daily_rows = daily_by_year.get(year, {})
+    cumulative_amount = 0.0
+    cumulative_count = 0
+    cumulative_minutes = 0.0
+    points = []
+    days_with_data = 0
+    for day_number in range(1, visible_day + 1):
+        row = daily_rows.get(day_number)
+        if row:
+            days_with_data += 1
+            cumulative_amount += float_or_zero(row.get("amount"))
+            cumulative_count += int_or_zero(row.get("count"))
+            cumulative_minutes += float_or_zero(row.get("minutes"))
+        point_date = date(year, 1, 1) + timedelta(days=day_number - 1)
+        points.append(
+            {
+                "day": day_number,
+                "date": point_date.isoformat(),
+                "label": point_date.strftime("%d.%m"),
+                "amount": round(float_or_zero(row.get("amount")) if row else 0.0, 2),
+                "count": int_or_zero(row.get("count")) if row else 0,
+                "minutes": round(float_or_zero(row.get("minutes")) if row else 0.0, 2),
+                "cumulativeAmount": round(cumulative_amount, 2),
+                "cumulativeCount": cumulative_count,
+                "cumulativeMinutes": round(cumulative_minutes, 2),
+            }
+        )
+    return {
+        "key": f"{source}-{year}",
+        "source": source,
+        "year": year,
+        "label": str(year),
+        "color": color,
+        "daysInYear": max_day,
+        "asOfDay": visible_day,
+        "daysWithData": days_with_data,
+        "totalAmount": round(cumulative_amount, 2),
+        "totalCount": cumulative_count,
+        "totalMinutes": round(cumulative_minutes, 2),
+        "points": points,
+    }
+
+
+def parking_year_comparison_delta(current: Dict[str, Any], comparison: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "amount": round(float_or_zero(current.get("totalAmount")) - float_or_zero(comparison.get("totalAmount")), 2),
         "count": int_or_zero(current.get("totalCount")) - int_or_zero(comparison.get("totalCount")),
@@ -12660,12 +12737,64 @@ async def api_v2_sun2_year_comparison(year: Optional[str] = Query(None)):
         "title": "Soling sammenligning",
         "anchorYear": anchor_year,
         "comparisonYear": comparison_year,
-        "navigation": sun2_year_navigation(anchor_year, current_year),
+        "navigation": year_comparison_navigation(anchor_year, current_year),
         "axis": {"days": axis_days, "ticks": ticks},
         "selected": selected_series,
         "comparison": comparison_series,
         "comparisonFull": comparison_full_series,
         "delta": sun2_year_comparison_delta(selected_series, comparison_series),
+        "asOf": {
+            "selectedLabel": "Hittil i år" if anchor_year == current_year else "Hele året",
+            "selectedDate": selected_as_of_date.isoformat(),
+            "comparisonLabel": "Til samme dag i året",
+            "comparisonDate": comparison_as_of_date.isoformat(),
+        },
+    }
+
+
+@app.get("/api/parkering/year-comparison")
+async def api_v2_parking_year_comparison(year: Optional[str] = Query(None)):
+    now_dt = local_now_naive()
+    today = now_dt.date()
+    current_year = today.year
+    anchor_year = parse_anchor_year(year, current_year)
+    comparison_year = anchor_year - 1
+    selected_as_of_day = today.timetuple().tm_yday if anchor_year == current_year else days_in_year(anchor_year)
+    comparison_as_of_day = min(selected_as_of_day, days_in_year(comparison_year))
+    selected_as_of_date = date(anchor_year, 1, 1) + timedelta(days=selected_as_of_day - 1)
+    comparison_as_of_date = date(comparison_year, 1, 1) + timedelta(days=comparison_as_of_day - 1)
+
+    async with async_session() as session:
+        summaries = await get_parking_summaries(session)
+
+    daily_by_year = parking_daily_by_year(summaries)
+    selected_series = parking_year_series(daily_by_year, anchor_year, selected_as_of_day, "current", "#2563eb")
+    comparison_series = parking_year_series(daily_by_year, comparison_year, comparison_as_of_day, "comparison", "#64748b")
+    comparison_full_series = parking_year_series(
+        daily_by_year,
+        comparison_year,
+        days_in_year(comparison_year),
+        "comparison-full",
+        "#94a3b8",
+    )
+    axis_days = max(selected_series["daysInYear"], comparison_full_series["daysInYear"])
+    month_names = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Des"]
+    ticks = []
+    for month_index, month_name in enumerate(month_names, start=1):
+        tick_date = date(anchor_year, month_index, 1)
+        ticks.append({"label": month_name, "day": tick_date.timetuple().tm_yday})
+
+    return {
+        "generatedAt": api_local_iso(now_dt),
+        "title": "Parkering sammenligning",
+        "anchorYear": anchor_year,
+        "comparisonYear": comparison_year,
+        "navigation": year_comparison_navigation(anchor_year, current_year),
+        "axis": {"days": axis_days, "ticks": ticks},
+        "selected": selected_series,
+        "comparison": comparison_series,
+        "comparisonFull": comparison_full_series,
+        "delta": parking_year_comparison_delta(selected_series, comparison_series),
         "asOf": {
             "selectedLabel": "Hittil i år" if anchor_year == current_year else "Hele året",
             "selectedDate": selected_as_of_date.isoformat(),

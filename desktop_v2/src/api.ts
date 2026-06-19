@@ -257,6 +257,10 @@ export type SunYearComparisonResponse = {
   };
 };
 
+export type ParkingYearComparisonPoint = SunYearComparisonPoint;
+export type ParkingYearComparisonSeries = SunYearComparisonSeries;
+export type ParkingYearComparisonResponse = SunYearComparisonResponse;
+
 export type AuthUser = {
   username: string | null;
   role: string;
@@ -925,6 +929,11 @@ export function fetchStatusComparison(period: string, compare: string, anchor?: 
 export function fetchSunYearComparison(year?: string | null): Promise<SunYearComparisonResponse> {
   const query = year ? `?year=${encodeURIComponent(year)}` : "";
   return apiGet<SunYearComparisonResponse>(`/api/soling/year-comparison${query}`);
+}
+
+export function fetchParkingYearComparison(year?: string | null): Promise<ParkingYearComparisonResponse> {
+  const query = year ? `?year=${encodeURIComponent(year)}` : "";
+  return apiGet<ParkingYearComparisonResponse>(`/api/parkering/year-comparison${query}`);
 }
 
 export function fetchCurrentUser(): Promise<AuthUser> {
