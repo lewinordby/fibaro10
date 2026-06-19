@@ -5953,6 +5953,9 @@ def year_comparison_navigation(anchor_year: int, current_year: int) -> Dict[str,
     }
 
 
+YEAR_COMPARISON_COLORS = ["#f59e0b", "#64748b", "#0f766e", "#7c3aed", "#be123c", "#0891b2", "#ea580c", "#2563eb"]
+
+
 def sun2_daily_by_year(summaries: Dict[str, Any]) -> Dict[int, Dict[int, Dict[str, Any]]]:
     by_year: Dict[int, Dict[int, Dict[str, Any]]] = {}
     for item in summaries.get("daily", []):
@@ -12725,7 +12728,26 @@ async def api_v2_sun2_year_comparison(year: Optional[str] = Query(None)):
         "comparison-full",
         "#94a3b8",
     )
-    axis_days = max(selected_series["daysInYear"], comparison_full_series["daysInYear"])
+    available_years = sorted(set(daily_by_year.keys()) | {anchor_year, comparison_year}, reverse=True)
+    all_series = []
+    for index, series_year in enumerate(available_years):
+        series_as_of_day = today.timetuple().tm_yday if series_year == current_year else days_in_year(series_year)
+        if series_year == anchor_year:
+            source = "current"
+        elif series_year == comparison_year:
+            source = "comparison"
+        else:
+            source = "reference"
+        all_series.append(
+            sun2_year_series(
+                daily_by_year,
+                series_year,
+                series_as_of_day,
+                source,
+                YEAR_COMPARISON_COLORS[index % len(YEAR_COMPARISON_COLORS)],
+            )
+        )
+    axis_days = max([selected_series["daysInYear"], comparison_full_series["daysInYear"], *(item["daysInYear"] for item in all_series)])
     month_names = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Des"]
     ticks = []
     for month_index, month_name in enumerate(month_names, start=1):
@@ -12739,6 +12761,8 @@ async def api_v2_sun2_year_comparison(year: Optional[str] = Query(None)):
         "comparisonYear": comparison_year,
         "navigation": year_comparison_navigation(anchor_year, current_year),
         "axis": {"days": axis_days, "ticks": ticks},
+        "availableYears": available_years,
+        "series": all_series,
         "selected": selected_series,
         "comparison": comparison_series,
         "comparisonFull": comparison_full_series,
@@ -12777,7 +12801,27 @@ async def api_v2_parking_year_comparison(year: Optional[str] = Query(None)):
         "comparison-full",
         "#94a3b8",
     )
-    axis_days = max(selected_series["daysInYear"], comparison_full_series["daysInYear"])
+    available_years = sorted(set(daily_by_year.keys()) | {anchor_year, comparison_year}, reverse=True)
+    parking_colors = ["#2563eb", "#64748b", "#0f766e", "#7c3aed", "#be123c", "#0891b2", "#ea580c", "#f59e0b"]
+    all_series = []
+    for index, series_year in enumerate(available_years):
+        series_as_of_day = today.timetuple().tm_yday if series_year == current_year else days_in_year(series_year)
+        if series_year == anchor_year:
+            source = "current"
+        elif series_year == comparison_year:
+            source = "comparison"
+        else:
+            source = "reference"
+        all_series.append(
+            parking_year_series(
+                daily_by_year,
+                series_year,
+                series_as_of_day,
+                source,
+                parking_colors[index % len(parking_colors)],
+            )
+        )
+    axis_days = max([selected_series["daysInYear"], comparison_full_series["daysInYear"], *(item["daysInYear"] for item in all_series)])
     month_names = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Des"]
     ticks = []
     for month_index, month_name in enumerate(month_names, start=1):
@@ -12791,6 +12835,8 @@ async def api_v2_parking_year_comparison(year: Optional[str] = Query(None)):
         "comparisonYear": comparison_year,
         "navigation": year_comparison_navigation(anchor_year, current_year),
         "axis": {"days": axis_days, "ticks": ticks},
+        "availableYears": available_years,
+        "series": all_series,
         "selected": selected_series,
         "comparison": comparison_series,
         "comparisonFull": comparison_full_series,

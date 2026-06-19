@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
-import { Button, Card, Col, Row, Segmented, Space, Typography } from "antd";
+import { Button, Card, Checkbox, Col, Row, Segmented, Space, Typography } from "antd";
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -57,6 +57,20 @@ function chartData(series: ParkingYearComparisonSeries, metric: ParkingYearMetri
   return series.points.map((point) => [point.day, pointValue(point, metric)]);
 }
 
+function defaultSelectedYears(data: ParkingYearComparisonResponse) {
+  return [data.anchorYear, data.comparisonYear].filter((year, index, years) => years.indexOf(year) === index);
+}
+
+function activeYearsFromParams(data: ParkingYearComparisonResponse, yearsParam: string | null) {
+  const available = new Set(data.availableYears);
+  const parsed = (yearsParam || "")
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((year) => Number.isFinite(year) && available.has(year));
+  const unique = parsed.filter((year, index, years) => years.indexOf(year) === index);
+  return unique.length ? unique : defaultSelectedYears(data);
+}
+
 function monthLabel(data: ParkingYearComparisonResponse, value: number) {
   const day = Math.round(Number(value));
   const tick = data.axis.ticks.reduce<{ label: string; day: number } | null>((best, item) => {
@@ -66,12 +80,12 @@ function monthLabel(data: ParkingYearComparisonResponse, value: number) {
   return tick?.label ?? "";
 }
 
-function cumulativeChartOption(data: ParkingYearComparisonResponse, metric: ParkingYearMetric) {
+function cumulativeChartOption(data: ParkingYearComparisonResponse, metric: ParkingYearMetric, activeYears: number[]) {
+  const visibleSeries = data.series.filter((series) => activeYears.includes(series.year));
   const selected = data.selected;
-  const comparison = data.comparisonFull;
   const yTitle = metric === "amount" ? "Akkumulert parkeringsbeløp" : "Akkumulerte parkeringer";
   return {
-    color: [domainColors.parking, "#64748b"],
+    color: visibleSeries.map((series) => series.color),
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "line" },
@@ -124,32 +138,26 @@ function cumulativeChartOption(data: ParkingYearComparisonResponse, metric: Park
       splitLine: { lineStyle: { color: "#e8edf4" } },
     },
     series: [
-      {
-        name: selected.label,
+      ...visibleSeries.map((series) => ({
+        name: series.label,
         type: "line",
         step: "end",
         symbol: "none",
-        lineStyle: { width: 3 },
-        areaStyle: { opacity: 0.08 },
+        lineStyle: { width: series.year === data.anchorYear ? 3 : 2, type: series.year === data.anchorYear ? "solid" : "dashed" },
+        areaStyle: series.year === data.anchorYear ? { opacity: 0.08 } : undefined,
         emphasis: { focus: "series" },
-        data: chartData(selected, metric),
-        markLine: {
-          symbol: "none",
-          silent: true,
-          lineStyle: { color: domainColors.parking, type: "dotted", width: 1.5 },
-          label: { formatter: "Hittil", color: "#1d4ed8", fontSize: 11 },
-          data: [{ xAxis: selected.asOfDay }],
-        },
-      },
-      {
-        name: comparison.label,
-        type: "line",
-        step: "end",
-        symbol: "none",
-        lineStyle: { width: 2, type: "dashed" },
-        emphasis: { focus: "series" },
-        data: chartData(comparison, metric),
-      },
+        data: chartData(series, metric),
+        markLine:
+          series.year === data.anchorYear && series.asOfDay < series.daysInYear
+            ? {
+                symbol: "none",
+                silent: true,
+                lineStyle: { color: series.color, type: "dotted", width: 1.5 },
+                label: { formatter: "Hittil", color: "#1d4ed8", fontSize: 11 },
+                data: [{ xAxis: selected.asOfDay }],
+              }
+            : undefined,
+      })),
     ],
     title: {
       text: yTitle,
@@ -209,7 +217,9 @@ export default function ParkingYearComparisonPage() {
   const year = searchParams.get("year") || "";
   const metric: ParkingYearMetric = searchParams.get("metric") === "count" ? "count" : "amount";
   const { data, loading, error } = useAsyncData(() => fetchParkingYearComparison(year), [year]);
-  const chartOption = useMemo(() => (data ? cumulativeChartOption(data, metric) : null), [data, metric]);
+  const activeYears = useMemo(() => (data ? activeYearsFromParams(data, searchParams.get("years")) : []), [data, searchParams]);
+  const activeYearKey = activeYears.join(",");
+  const chartOption = useMemo(() => (data ? cumulativeChartOption(data, metric, activeYears) : null), [data, metric, activeYearKey]);
 
   if (loading) return <LoadingBlock />;
   if (error || !data || !chartOption) return <ErrorBlock error={error} />;
@@ -218,6 +228,21 @@ export default function ParkingYearComparisonPage() {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("year", nextYear);
     setSearchParams(nextParams);
+  };
+  const setActiveYears = (values: Array<string | number | boolean>) => {
+    const years = values.map((value) => Number(value)).filter((value) => Number.isFinite(value));
+    const nextParams = new URLSearchParams(searchParams);
+    if (years.length) {
+      nextParams.set("years", years.join(","));
+    } else {
+      nextParams.delete("years");
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+  const resetActiveYears = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("years");
+    setSearchParams(nextParams, { replace: true });
   };
 
   return (
@@ -306,6 +331,17 @@ export default function ParkingYearComparisonPage() {
         <div className="status-comparison-axis-meta">
           <span>Årsakse fra januar til desember</span>
           <span>valgt år mot forrige år</span>
+        </div>
+        <div className="status-comparison-year-picker">
+          <Checkbox.Group
+            value={activeYears.map(String)}
+            options={data.availableYears.map((item) => ({ label: String(item), value: String(item) }))}
+            onChange={setActiveYears}
+          />
+          <Space size={6}>
+            <Button size="small" onClick={() => setActiveYears(data.availableYears.map(String))}>Alle år</Button>
+            <Button size="small" onClick={resetActiveYears}>Standard</Button>
+          </Space>
         </div>
         <div className="status-comparison-chart-stack">
           <AppChart option={chartOption} style={{ height: 460 }} />

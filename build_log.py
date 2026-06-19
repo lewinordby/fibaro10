@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1228")
+APP_BUILD = os.getenv("APP_BUILD", "1229")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1229",
+        "date": "19.06.2026",
+        "headline": "Aarsgrafer kan vise alle aar",
+        "title": "Soling og parkering aarsammenligning kan sammenligne alle tilgjengelige aar",
+        "description": (
+            "Build 1229 utvider Soling > Sammenligning og Parkering > Sammenligning med valg for hvilke aar som "
+            "skal vises i grafen. Standardvisningen er fortsatt siste/valgt aar og forrige aar, mens alle andre "
+            "tilgjengelige aar kan slaas paa manuelt eller aktiveres med Alle aar-knappen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): aarsammenlignings-API-ene returnerer alle tilgjengelige aar og komplette aarsserier.",
+            "Desktop V2 API-typer (src/api.ts): utvider aarsammenligningsresponsen med availableYears og series.",
+            "Desktop V2 soling (src/pages/SunYearComparisonPage.tsx): legger til aarvelger og fler-serie graf.",
+            "Desktop V2 parkering (src/pages/ParkingYearComparisonPage.tsx): legger til aarvelger og fler-serie graf.",
+            "Desktop V2 CSS (src/styles/status.css): styler aarvelgeren i grafkortet.",
+            "Buildlogg (build_log.py): registrerer build 1229.",
+        ],
+        "request": "Paa baade soling og parkering skal det vaere mulig aa sammenligne alle aar, men bare siste aar og fjoraar skal vaere aktive naar siden aapnes.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Alle tilgjengelige aar leveres til frontend for soling og parkering.",
+            "Standard aktivt utvalg er valgt aar og forrige aar.",
+            "Brukeren kan slaa paa enkelt-aar med avkryssing.",
+            "Alle aar-knapp aktiverer alle tilgjengelige aar.",
+            "Standard-knapp tilbakestiller til valgt aar og forrige aar.",
+        ],
+    },
     {
         "version": "1",
         "build": "1228",

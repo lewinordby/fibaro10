@@ -209,7 +209,7 @@ export type SunYearComparisonPoint = {
 
 export type SunYearComparisonSeries = {
   key: string;
-  source: "current" | "comparison" | "comparison-full";
+  source: "current" | "comparison" | "comparison-full" | "reference";
   year: number;
   label: string;
   color: string;
@@ -241,6 +241,8 @@ export type SunYearComparisonResponse = {
     days: number;
     ticks: Array<{ label: string; day: number }>;
   };
+  availableYears: number[];
+  series: SunYearComparisonSeries[];
   selected: SunYearComparisonSeries;
   comparison: SunYearComparisonSeries;
   comparisonFull: SunYearComparisonSeries;
