@@ -14502,6 +14502,330 @@ def api_parking_saved_forecast_rows(rows: list[Dict[str, Any]]) -> list[Dict[str
     ]
 
 
+def sun2_product_daily_scope_condition():
+    return Sun2ProductSale.period_start == Sun2ProductSale.period_end
+
+
+def sun2_product_monthly_scope_condition():
+    return and_(
+        Sun2ProductSale.period_start.is_not(None),
+        Sun2ProductSale.period_end.is_not(None),
+        Sun2ProductSale.period_start != Sun2ProductSale.period_end,
+    )
+
+
+def sun2_product_amount_inc_expr():
+    return func.coalesce(Sun2ProductSale.amount_inc_vat_kr, Sun2ProductSale.amount_ex_vat_kr * 1.25)
+
+
+def sun2_product_amount_ex_expr():
+    return func.coalesce(Sun2ProductSale.amount_ex_vat_kr, Sun2ProductSale.amount_inc_vat_kr / 1.25)
+
+
+def sun2_product_summary_row(period: str, label: str, summary: Dict[str, Any]) -> Dict[str, Any]:
+    amount_inc = float_or_zero(summary.get("amount_inc_vat"))
+    amount_ex = float_or_zero(summary.get("amount_ex_vat"))
+    count_value = int_or_zero(summary.get("count"))
+    quantity = float_or_zero(summary.get("quantity"))
+    return {
+        "period": period,
+        "period_label": label,
+        "sales_count": count_value,
+        "quantity": round(quantity, 2),
+        "amount_inc_vat_kr": round(amount_inc, 2),
+        "amount_ex_vat_kr": round(amount_ex, 2),
+        "average_sale_inc_vat_kr": round(amount_inc / count_value, 2) if count_value else None,
+        "first_date": summary.get("first_date"),
+        "last_date": summary.get("last_date"),
+        "last_imported_at": summary.get("last_imported_at"),
+        "source_scope": summary.get("source_scope"),
+        "control_basis": summary.get("control_basis"),
+    }
+
+
+async def sun2_product_sales_range_summary(session, start: date, end: date) -> Dict[str, Any]:
+    rows = []
+    cursor = date(start.year, start.month, 1)
+    while cursor <= end:
+        period_start = cursor
+        period_end = min(month_end(cursor), end)
+        summary = await sun2_product_sales_period_summary(session, period_start, period_end)
+        rows.append(sun2_product_summary_row(period_start.strftime("%Y-%m"), period_start.strftime("%m.%Y"), summary))
+        cursor = add_months(cursor, 1)
+    amount_inc = sum(float_or_zero(row.get("amount_inc_vat_kr")) for row in rows)
+    amount_ex = sum(float_or_zero(row.get("amount_ex_vat_kr")) for row in rows)
+    sales_count = sum(int_or_zero(row.get("sales_count")) for row in rows)
+    quantity = sum(float_or_zero(row.get("quantity")) for row in rows)
+    return {
+        "count": sales_count,
+        "quantity": round(quantity, 2),
+        "amount_inc_vat": round(amount_inc, 2),
+        "amount_ex_vat": round(amount_ex, 2),
+        "first_date": start,
+        "last_date": end,
+        "months": rows,
+        "source_scope": "month_summary",
+    }
+
+
+async def sun2_product_sales_month_rows(session, limit: int = 24) -> list[Dict[str, Any]]:
+    period_rows = (
+        await session.execute(
+            select(Sun2ProductSale.stat_date, Sun2ProductSale.period_start, Sun2ProductSale.period_end)
+            .order_by(Sun2ProductSale.stat_date.desc(), Sun2ProductSale.period_start.desc().nullslast())
+            .limit(6000)
+        )
+    ).all()
+    month_starts: list[date] = []
+    seen = set()
+    for stat_date, period_start, _period_end in period_rows:
+        candidate = period_start or stat_date
+        if not candidate:
+            continue
+        month_start = date(candidate.year, candidate.month, 1)
+        key = month_start.isoformat()
+        if key in seen:
+            continue
+        seen.add(key)
+        month_starts.append(month_start)
+        if len(month_starts) >= limit:
+            break
+    rows = []
+    for month_start_value in month_starts:
+        period_end = month_end(month_start_value)
+        summary = await sun2_product_sales_period_summary(session, month_start_value, period_end)
+        rows.append(sun2_product_summary_row(month_start_value.strftime("%Y-%m"), month_start_value.strftime("%B %Y"), summary))
+    return rows
+
+
+def api_sun2_product_sale_row(row: Sun2ProductSale) -> Dict[str, Any]:
+    data = api_pick(
+        row,
+        [
+            "sold_at",
+            "stat_date",
+            "period_start",
+            "period_end",
+            "product_name",
+            "product_category",
+            "quantity",
+            "unit_price_kr",
+            "amount_inc_vat_kr",
+            "amount_ex_vat_kr",
+            "vat_kr",
+            "payment_method",
+            "user_name",
+            "source_file",
+            "imported_at",
+        ],
+    )
+    data["source_scope"] = "maaned" if row.period_start and row.period_end and row.period_start != row.period_end else "dag"
+    return data
+
+
+async def sun2_product_module_payload(
+    session,
+    today: date,
+    month_start: date,
+    params: Any,
+) -> Dict[str, Any]:
+    year_start = date(today.year, 1, 1)
+    recent_start = today - timedelta(days=119)
+    q_value = api_filter_value(params, "q")
+    date_from_value = api_filter_value(params, "date_from")
+    date_to_value = api_filter_value(params, "date_to")
+    category_value = api_filter_value(params, "category")
+    payment_method_value = api_filter_value(params, "payment_method")
+    scope_value = api_filter_value(params, "scope", "daily") or "daily"
+    limit_value = api_filter_int(params, "limit", 250, 25, 1000)
+
+    today_summary = await sun2_product_sales_period_summary(session, today, today)
+    month_summary = await sun2_product_sales_period_summary(session, month_start, today)
+    year_summary = await sun2_product_sales_range_summary(session, year_start, today)
+    month_rows = await sun2_product_sales_month_rows(session)
+
+    product_conditions = []
+    if scope_value == "daily":
+        product_conditions.append(sun2_product_daily_scope_condition())
+    elif scope_value == "monthly":
+        product_conditions.append(sun2_product_monthly_scope_condition())
+    if q_value:
+        like = f"%{q_value.lower()}%"
+        product_conditions.append(
+            or_(
+                func.lower(func.coalesce(Sun2ProductSale.product_name, "")).like(like),
+                func.lower(func.coalesce(Sun2ProductSale.product_category, "")).like(like),
+                func.lower(func.coalesce(Sun2ProductSale.user_name, "")).like(like),
+                func.lower(func.coalesce(Sun2ProductSale.sun2_user_id, "")).like(like),
+                func.lower(func.coalesce(Sun2ProductSale.payment_method, "")).like(like),
+                func.lower(func.coalesce(Sun2ProductSale.source_file, "")).like(like),
+            )
+        )
+    if date_from_value:
+        product_conditions.append(Sun2ProductSale.stat_date >= parse_day(date_from_value))
+    if date_to_value:
+        product_conditions.append(Sun2ProductSale.stat_date <= parse_day(date_to_value))
+    if category_value:
+        product_conditions.append(Sun2ProductSale.product_category == category_value)
+    if payment_method_value:
+        product_conditions.append(Sun2ProductSale.payment_method == payment_method_value)
+
+    product_stmt = select(Sun2ProductSale).order_by(Sun2ProductSale.stat_date.desc(), Sun2ProductSale.sold_at.desc().nullslast()).limit(limit_value)
+    product_count_stmt = select(func.count(Sun2ProductSale.id))
+    if product_conditions:
+        product_stmt = product_stmt.where(*product_conditions)
+        product_count_stmt = product_count_stmt.where(*product_conditions)
+    product_rows = (await session.execute(product_stmt)).scalars().all()
+    filtered_count = (await session.execute(product_count_stmt)).scalar_one()
+
+    amount_inc_expr = sun2_product_amount_inc_expr()
+    amount_ex_expr = sun2_product_amount_ex_expr()
+    top_product_conditions = list(product_conditions)
+    if not date_from_value and not date_to_value:
+        top_product_conditions.append(Sun2ProductSale.stat_date >= recent_start)
+    top_product_stmt = (
+        select(
+            func.coalesce(Sun2ProductSale.product_name, "Ukjent").label("product_name"),
+            func.coalesce(Sun2ProductSale.product_category, "").label("product_category"),
+            func.count(Sun2ProductSale.id).label("sales_count"),
+            func.coalesce(func.sum(Sun2ProductSale.quantity), 0).label("quantity"),
+            func.coalesce(func.sum(amount_inc_expr), 0).label("amount_inc_vat_kr"),
+            func.coalesce(func.sum(amount_ex_expr), 0).label("amount_ex_vat_kr"),
+            func.max(Sun2ProductSale.stat_date).label("last_date"),
+        )
+        .group_by(func.coalesce(Sun2ProductSale.product_name, "Ukjent"), func.coalesce(Sun2ProductSale.product_category, ""))
+        .order_by(func.coalesce(func.sum(amount_inc_expr), 0).desc())
+        .limit(20)
+    )
+    if top_product_conditions:
+        top_product_stmt = top_product_stmt.where(*top_product_conditions)
+    top_products = [
+        {
+            "product_name": item.get("product_name"),
+            "product_category": item.get("product_category"),
+            "sales_count": int_or_zero(item.get("sales_count")),
+            "quantity": round(float_or_zero(item.get("quantity")), 2),
+            "amount_inc_vat_kr": round(float_or_zero(item.get("amount_inc_vat_kr")), 2),
+            "amount_ex_vat_kr": round(float_or_zero(item.get("amount_ex_vat_kr")), 2),
+            "last_date": item.get("last_date"),
+        }
+        for item in (await session.execute(top_product_stmt)).mappings().all()
+    ]
+
+    daily_rows = [
+        {
+            "period": item.get("stat_date").isoformat() if item.get("stat_date") else "",
+            "period_label": item.get("stat_date").strftime("%d.%m") if item.get("stat_date") else "",
+            "sales_count": int_or_zero(item.get("sales_count")),
+            "quantity": round(float_or_zero(item.get("quantity")), 2),
+            "amount_inc_vat_kr": round(float_or_zero(item.get("amount_inc_vat_kr")), 2),
+            "amount_ex_vat_kr": round(float_or_zero(item.get("amount_ex_vat_kr")), 2),
+        }
+        for item in (
+            await session.execute(
+                select(
+                    Sun2ProductSale.stat_date.label("stat_date"),
+                    func.count(Sun2ProductSale.id).label("sales_count"),
+                    func.coalesce(func.sum(Sun2ProductSale.quantity), 0).label("quantity"),
+                    func.coalesce(func.sum(amount_inc_expr), 0).label("amount_inc_vat_kr"),
+                    func.coalesce(func.sum(amount_ex_expr), 0).label("amount_ex_vat_kr"),
+                )
+                .where(sun2_product_daily_scope_condition())
+                .where(Sun2ProductSale.stat_date >= recent_start)
+                .group_by(Sun2ProductSale.stat_date)
+                .order_by(Sun2ProductSale.stat_date.asc())
+            )
+        ).mappings().all()
+    ]
+
+    category_options = api_filter_options(
+        (await session.execute(select(Sun2ProductSale.product_category).distinct().order_by(Sun2ProductSale.product_category.asc()))).scalars().all()
+    )
+    payment_options = api_filter_options(
+        (await session.execute(select(Sun2ProductSale.payment_method).distinct().order_by(Sun2ProductSale.payment_method.asc()))).scalars().all()
+    )
+    daily_status = (
+        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "sun2_product_sales_daily_import").limit(1))
+    ).scalars().first()
+    monthly_status = (
+        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "sun2_product_sales_monthly_import").limit(1))
+    ).scalars().first()
+
+    charts = [
+        api_chart(
+            "Produktsalg per dag",
+            [row["period_label"] for row in daily_rows],
+            [
+                {"name": "Omsetning inkl. mva", "data": [row["amount_inc_vat_kr"] for row in daily_rows], "type": "bar", "color": "#f59e0b"},
+                {"name": "Antall", "data": [row["sales_count"] for row in daily_rows], "type": "line", "color": "#64748b"},
+            ],
+            "Daglige produktsalg siste 120 dager. Månedsimport brukes ikke her for å unngå dobbelttelling.",
+            "bar",
+            320,
+        ),
+        api_chart(
+            "Produktsalg per måned",
+            [row["period_label"] for row in reversed(month_rows[:12])],
+            [
+                {"name": "Omsetning inkl. mva", "data": [row["amount_inc_vat_kr"] for row in reversed(month_rows[:12])], "type": "bar", "color": "#d97706"},
+            ],
+            "Månedsgrunnlag bruker månedsimport der den finnes, ellers daglige linjer.",
+            "bar",
+            300,
+        ),
+    ]
+    tables = [
+        api_table(
+            "Produktsalg",
+            ["sold_at", "stat_date", "product_name", "product_category", "quantity", "unit_price_kr", "amount_inc_vat_kr", "amount_ex_vat_kr", "payment_method", "user_name", "source_scope", "source_file", "imported_at"],
+            [api_sun2_product_sale_row(row) for row in product_rows],
+        ),
+        api_table(
+            "Månedsgrunnlag",
+            ["period_label", "sales_count", "quantity", "amount_inc_vat_kr", "amount_ex_vat_kr", "average_sale_inc_vat_kr", "source_scope", "control_basis", "last_imported_at"],
+            month_rows,
+        ),
+        api_table(
+            "Topp produkter",
+            ["product_name", "product_category", "sales_count", "quantity", "amount_inc_vat_kr", "amount_ex_vat_kr", "last_date"],
+            top_products,
+        ),
+    ]
+    return {
+        "title": "Soling · Produkter",
+        "subtitle": "Produktsalg fra Sun2. Månedsgrunnlag brukes til kontroll, daglige linjer brukes til dagsfordeling.",
+        "cards": [
+            api_card("I dag", format_short_number(today_summary.get("amount_inc_vat"), 2), "kr", f"{format_short_number(today_summary.get('quantity'), 2)} stk / {today_summary.get('count', 0)} linjer", "sun2", href="/soling/produkter"),
+            api_card("Måned", format_short_number(month_summary.get("amount_inc_vat"), 2), "kr", f"{format_short_number(month_summary.get('quantity'), 2)} stk / {month_summary.get('count', 0)} linjer", "revenue", href="/soling/produkter"),
+            api_card("I år", format_short_number(year_summary.get("amount_inc_vat"), 2), "kr", f"{format_short_number(year_summary.get('quantity'), 2)} stk", "revenue", href="/soling/produkter"),
+            api_card("Treff", filtered_count, "linjer", f"Viser {len(product_rows)} linjer", "status", href="/soling/produkter"),
+            api_card("Dagimport", import_job_age(daily_status) if daily_status else "-", "", daily_status.status_text if daily_status else "Ingen status", "status", href="/admin/datakilder"),
+            api_card("Månedsimport", import_job_age(monthly_status) if monthly_status else "-", "", monthly_status.status_text if monthly_status else "Ingen status", "status", href="/admin/datakilder"),
+        ],
+        "charts": charts,
+        "tables": tables,
+        "filters": [
+            api_filter("q", "Søk", "text", q_value, "Produkt, kategori, navn, betaling eller fil"),
+            api_filter("date_from", "Fra dato", "date", date_from_value),
+            api_filter("date_to", "Til dato", "date", date_to_value),
+            api_filter("category", "Kategori", "select", category_value, options=category_options),
+            api_filter("payment_method", "Betaling", "select", payment_method_value, options=payment_options),
+            api_filter(
+                "scope",
+                "Grunnlag",
+                "select",
+                scope_value,
+                options=[
+                    {"label": "Daglige linjer", "value": "daily"},
+                    {"label": "Månedsimport", "value": "monthly"},
+                    {"label": "Alle linjer", "value": "all"},
+                ],
+            ),
+            api_filter("limit", "Antall", "number", limit_value),
+        ],
+    }
+
+
 async def api_v2_soling_module(
     session,
     view: str,
@@ -14513,10 +14837,12 @@ async def api_v2_soling_module(
 ) -> Dict[str, Any]:
     params = params or {}
     view = view or "oversikt"
-    if view not in {"oversikt", "dagslinje", "prognose", "statistikk", "detaljer", "enkeltimer", "senger", "medlemmer", "oppgjor"}:
+    if view not in {"oversikt", "dagslinje", "prognose", "statistikk", "detaljer", "enkeltimer", "senger", "medlemmer", "produkter", "oppgjor"}:
         view = "oversikt"
     if view == "oppgjor":
         return await sun_settlement_module_payload(session)
+    if view == "produkter":
+        return await sun2_product_module_payload(session, today, month_start, params)
 
     yesterday = today - timedelta(days=1)
     recent_start = today - timedelta(days=119)

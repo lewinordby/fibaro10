@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1230")
+APP_BUILD = os.getenv("APP_BUILD", "1231")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1231",
+        "date": "19.06.2026",
+        "headline": "Produktsalg inn under Soling",
+        "title": "Soling > Produkter viser Sun2 produktsalg og kontrollgrunnlag",
+        "description": (
+            "Build 1231 legger produktsalg inn som egen underside under Soling. Siden viser daglige produktlinjer, "
+            "månedsgrunnlag, topp produkter og kort for i dag, måned og år. Månedsgrunnlaget bruker månedsimport "
+            "der den finnes og daglige linjer som fallback, slik at kontrollgrunnlaget ikke dobbelttelles."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): ny Soling > Produkter payload med kort, grafer, filtre og tabeller for sun2_product_sales.",
+            "Desktop V2 meny (src/moduleViews.ts): legger Produkter inn under Soling.",
+            "Desktop V2 tabeller (src/pages/ModulePage.tsx): legger lesbare norske labels for produktsalgskolonner.",
+            "Desktop V2 hurtiglenker (src/domainModel.ts): peker produktrelaterte solingkort til den nye siden.",
+            "Buildlogg (build_log.py): registrerer build 1231.",
+        ],
+        "request": "Jeg vil ha inn produkter under soling.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Nytt menyvalg Soling > Produkter.",
+            "Kort for produktsalg i dag, måned og år.",
+            "Graf for daglig produktsalg siste 120 dager.",
+            "Graf og tabell for månedsgrunnlag.",
+            "Filtre for søk, dato, kategori, betaling, grunnlag og antall rader.",
+            "Daglige linjer er standard for å unngå dobbelttelling mot månedsimport.",
+        ],
+    },
     {
         "version": "1",
         "build": "1230",

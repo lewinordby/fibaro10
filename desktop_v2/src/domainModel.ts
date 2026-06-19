@@ -24,6 +24,7 @@ const titleMatchers: Record<string, Array<{ words: string[]; href: string }>> = 
     { words: ["dagslinje"], href: modulePath("soling", "dagslinje") },
     { words: ["seng", "rom"], href: modulePath("soling", "senger") },
     { words: ["medlem"], href: modulePath("soling", "medlemmer") },
+    { words: ["produkt", "produktsalg"], href: modulePath("soling", "produkter") },
     { words: ["prognose"], href: modulePath("soling", "prognose") },
     { words: ["soling", "timer", "omsetning", "treff"], href: modulePath("soling", "enkeltimer") },
   ],

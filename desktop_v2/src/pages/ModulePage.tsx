@@ -98,6 +98,17 @@ function labelize(column: string): string {
     user_name: "Bruker",
     payment_method: "Betaling",
     customer_type: "Kundetype",
+    product_name: "Produkt",
+    product_category: "Kategori",
+    quantity: "Antall",
+    unit_price_kr: "Pris",
+    amount_inc_vat_kr: "Inkl. mva",
+    amount_ex_vat_kr: "Eks. mva",
+    vat_kr: "Mva",
+    sales_count: "Salgslinjer",
+    average_sale_inc_vat_kr: "Snitt inkl. mva",
+    source_scope: "Grunnlag",
+    control_basis: "Kontroll",
     physical_room_number: "Rom",
     room_id: "Rom-ID",
     bed_model: "Sengemodell",
@@ -338,7 +349,7 @@ function compareValues(left: unknown, right: unknown): number {
 }
 
 function numericColumn(column: string): boolean {
-  return /(_w|_kr|_kwh|_min|_m2|_count|_share|count|paid|fee|vat|payout|diff|confidence|duration|minutes|hour|age|battery|rssi|lux|temp|humidity|wind|cloud|precipitation|breaker|power|energy)$/i.test(
+  return /(_w|_kr|_kwh|_min|_m2|_count|_share|count|quantity|paid|fee|vat|payout|diff|confidence|duration|minutes|hour|age|battery|rssi|lux|temp|humidity|wind|cloud|precipitation|breaker|power|energy)$/i.test(
     column,
   );
 }
