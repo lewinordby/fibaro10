@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1239")
+APP_BUILD = os.getenv("APP_BUILD", "1240")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1240",
+        "date": "22.06.2026",
+        "headline": "Yr-logg får smal API-payload",
+        "title": "Ventilasjon > Yr logg sender ikke lenger rå Yr-json i tabellrader",
+        "description": (
+            "Build 1240 følger opp audit av tunge API-kall. Yr-tabellen viste bare et lite sett kolonner, men "
+            "backend sendte hele Yr-raden inkludert rå JSON for hver rad. Responsen er nå begrenset til de synlige "
+            "kolonnene i tabellen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): ny YR_LOG_TABLE_COLUMNS og smalere tabellpayload for Ventilasjon > Yr logg.",
+            "Buildlogg (build_log.py): registrerer build 1240.",
+        ],
+        "request": "Gå igjennom hele appen, sjekk funksjonalitet, logiske brister, fiks hastighet og sørg for at alt er perfekt.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Yr-tabellen returnerer bare synlige kolonner.",
+            "Skjulte felt som raw og extra sendes ikke lenger til V2 for denne tabellen.",
+            "Payloaden for Ventilasjon > Yr logg blir vesentlig mindre uten funksjonelt tap.",
+        ],
+    },
     {
         "version": "1",
         "build": "1239",

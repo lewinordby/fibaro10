@@ -1706,6 +1706,11 @@ YR_SAMPLE_COLUMNS = [
     "symbol_24h", "temp_min_next_6h", "temp_max_next_6h", "extra", "raw",
 ]
 
+YR_LOG_TABLE_COLUMNS = [
+    "bucket_start", "weather_text", "air_temperature", "relative_humidity",
+    "wind_speed", "wind_speed_of_gust", "cloud_area_fraction", "precipitation_next_1h",
+]
+
 ROBOROCK_ROBOT_COLUMNS = [
     "id", "duid", "name", "product", "model", "firmware", "protocol_version",
     "serial_number", "local_ip", "cloud_online", "shared", "time_zone_id",
@@ -20671,7 +20676,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             tables = [
                 api_table("Dagsmålinger", ["time", "mode", "temp_1etg", "humidity_1etg", "temp_2etg", "humidity_2etg", "temp_vip", "humidity_vip", "temp_ute", "temp_loft", "temp_kjeller", "humidity_kjeller", "fan_vip", "fan_2etg", "fan_tak", "fan_avfukter"], day_sample_rows),
                 api_table("Temperatur og fukt", sample_columns, [api_pick(row, VENT_SAMPLE_COLUMNS) for row in samples]),
-                api_table("Yr", ["bucket_start", "weather_text", "air_temperature", "relative_humidity", "wind_speed", "wind_speed_of_gust", "cloud_area_fraction", "precipitation_next_1h"], [api_pick(row, YR_SAMPLE_COLUMNS) for row in yr_rows]),
+                api_table("Yr", YR_LOG_TABLE_COLUMNS, [api_pick(row, YR_LOG_TABLE_COLUMNS) for row in yr_rows]),
                 api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], [api_pick(row, VENT_COLUMNS) for row in events]),
             ]
             if active_view == "dagslogg":
