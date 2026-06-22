@@ -4169,6 +4169,35 @@ def nearest_axis_snapshot(
     return captured_at, path, delta_seconds
 
 
+def axis_snapshot_series_around(
+    primary_captured_at: datetime,
+    root: Path = SUN2_AXIS_SNAPSHOT_ROOT,
+) -> list[tuple[int, datetime, Path, bool]]:
+    primary_captured_at = normalize_local_naive(primary_captured_at)
+    if primary_captured_at is None:
+        return []
+    day_start = datetime.combine(primary_captured_at.date(), time.min)
+    day_end = datetime.combine(primary_captured_at.date(), time.max.replace(microsecond=0))
+    candidates = axis_snapshot_candidates(root=root, start_at=day_start, end_at=day_end)
+    if not candidates:
+        return []
+    selected_index = closest_axis_snapshot_index(candidates, primary_captured_at)
+    if selected_index < 0:
+        return []
+    selected_at = candidates[selected_index][0]
+    selected_id = axis_snapshot_id(selected_at)
+    window_start = max(0, selected_index - 2)
+    window_end = min(len(candidates), selected_index + 3)
+    primary_offset = -SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS
+    series: list[tuple[int, datetime, Path, bool]] = []
+    for captured_at, path in candidates[window_start:window_end]:
+        relative_seconds = int(round((captured_at - selected_at).total_seconds()))
+        offset_seconds = primary_offset + relative_seconds
+        is_primary = axis_snapshot_id(captured_at) == selected_id
+        series.append((offset_seconds, captured_at, path, is_primary))
+    return series
+
+
 def sun2_session_axis_start_at(row: Sun2TanningSession) -> Optional[datetime]:
     started_at = normalize_local_naive(row.started_at)
     if not started_at:
@@ -4324,39 +4353,42 @@ async def replace_sun2_session_image_with_axis_snapshot(
     if not row:
         raise HTTPException(status_code=404, detail="Fant ikke soltimen.")
 
-    content = path.read_bytes()
-    if not content.startswith(b"\xff\xd8"):
-        raise HTTPException(status_code=400, detail="Valgt fil er ikke et gyldig JPEG-bilde.")
-    target_at = sun2_session_axis_target_at(row)
-    delta_seconds = abs((captured_at - target_at).total_seconds()) if target_at else None
-    stat = path.stat()
+    series = axis_snapshot_series_around(captured_at)
+    if not series:
+        series = [(-SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS, captured_at, path, True)]
+    primary_target_at = sun2_session_axis_target_at(row)
     primary_offset = -SUN2_AXIS_SNAPSHOT_OFFSET_SECONDS
     await session.execute(
-        update(Sun2TanningSessionImage)
-        .where(Sun2TanningSessionImage.session_id == row.id)
-        .values(is_primary=False)
+        delete(Sun2TanningSessionImage).where(Sun2TanningSessionImage.session_id == row.id)
     )
-    await session.execute(
-        delete(Sun2TanningSessionImage)
-        .where(Sun2TanningSessionImage.session_id == row.id)
-        .where(Sun2TanningSessionImage.offset_seconds == primary_offset)
-    )
-    image = Sun2TanningSessionImage(
-        session_id=row.id,
-        captured_at=captured_at,
-        target_at=target_at,
-        offset_seconds=primary_offset,
-        is_primary=True,
-        delta_seconds=delta_seconds,
-        source_path=str(path),
-        source_mtime=datetime.fromtimestamp(stat.st_mtime, LOCAL_TZ).replace(tzinfo=None),
-        content_type="image/jpeg",
-        image_bytes=content,
-        byte_size=len(content),
-        sha256=hashlib.sha256(content).hexdigest(),
-        source="axis_snapshot_manual",
-    )
-    session.add(image)
+    added_primary = False
+    for offset_seconds, image_captured_at, image_path, is_primary in series:
+        content = image_path.read_bytes()
+        if not content.startswith(b"\xff\xd8"):
+            raise HTTPException(status_code=400, detail=f"Valgt bildefil er ikke et gyldig JPEG-bilde: {image_path.name}")
+        relative_seconds = offset_seconds - primary_offset
+        target_at = primary_target_at + timedelta(seconds=relative_seconds) if primary_target_at else None
+        delta_seconds = abs((image_captured_at - target_at).total_seconds()) if target_at else None
+        stat = image_path.stat()
+        image = Sun2TanningSessionImage(
+            session_id=row.id,
+            captured_at=image_captured_at,
+            target_at=target_at,
+            offset_seconds=offset_seconds,
+            is_primary=is_primary,
+            delta_seconds=delta_seconds,
+            source_path=str(image_path),
+            source_mtime=datetime.fromtimestamp(stat.st_mtime, LOCAL_TZ).replace(tzinfo=None),
+            content_type="image/jpeg",
+            image_bytes=content,
+            byte_size=len(content),
+            sha256=hashlib.sha256(content).hexdigest(),
+            source="axis_snapshot_manual",
+        )
+        session.add(image)
+        added_primary = added_primary or is_primary
+    if not added_primary:
+        raise HTTPException(status_code=400, detail="Kunne ikke finne valgt hovedbilde i bildepakken.")
     await session.flush()
     images = (
         await session.execute(

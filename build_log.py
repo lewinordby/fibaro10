@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1235")
+APP_BUILD = os.getenv("APP_BUILD", "1236")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1236",
+        "date": "22.06.2026",
+        "headline": "Bildearkiv lagrer fem bilder uten hopp",
+        "title": "Soling > Enkelttimer lagrer valgt bildepakke fra arkivet",
+        "description": (
+            "Build 1236 endrer manuell lagring i bildearkivet slik at valgt arkivbilde blir midtpunktet i en ny "
+            "fem-bilders pakke. Modalflaten beholdes åpen, og knappene har stabil plassering under blaing og lagring."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): lagrer to bilder før, valgt hovedbilde og to bilder etter ved manuell arkivlagring.",
+            "Desktop V2 enkelttimer (src/pages/ModulePage.tsx): fast lagreknapp og ingen modal-lukking ved lagring.",
+            "Desktop V2 styling (src/styles/module-content.css): faste knappebredder i bildearkivet.",
+            "Tester (tests/test_sun2_axis_snapshots.py): dekker fem-bilders serie rundt valgt arkivbilde.",
+        ],
+        "request": "Ikke skift grensesnittflate ved eldre bilder; lagre fem aktuelle bilder, og ikke la knapper bytte plass eller hoppe ut ved lagring.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Valgt arkivbilde lagres som hovedbilde.",
+            "To arkivbilder før og to etter lagres sammen med hovedbildet.",
+            "Eksisterende bildepakke på posten erstattes samlet.",
+            "Modalen blir stående åpen etter lagring.",
+            "Footer-knapper har stabil tekst og bredde.",
+        ],
+    },
     {
         "version": "1",
         "build": "1235",

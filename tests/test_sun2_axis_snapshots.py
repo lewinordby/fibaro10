@@ -111,3 +111,17 @@ class Sun2AxisSnapshotTests(unittest.TestCase):
             )
 
         self.assertEqual([path.name for _captured_at, path in candidates], ["axis_2026-06-13_17-46-30.jpg"])
+
+    def test_axis_snapshot_series_around_uses_selected_image_as_primary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            day = root / "2026-06-13"
+            day.mkdir()
+            for second in [5, 10, 15, 20, 25, 30, 35]:
+                (day / f"axis_2026-06-13_17-46-{second:02d}.jpg").write_bytes(b"\xff\xd8test")
+
+            series = self.main.axis_snapshot_series_around(datetime(2026, 6, 13, 17, 46, 20), root)
+
+        self.assertEqual([item[0] for item in series], [-25, -20, -15, -10, -5])
+        self.assertEqual([item[1].strftime("%H:%M:%S") for item in series], ["17:46:10", "17:46:15", "17:46:20", "17:46:25", "17:46:30"])
+        self.assertEqual([item[3] for item in series], [False, False, True, False, False])

@@ -675,12 +675,12 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     setSavingImage(true);
     try {
       await selectSunSessionImage(sessionId, browser.current.id);
-      message.success("Bildet er byttet");
+      message.success("Bildepakken er lagret");
       const nextBrowser = await fetchSunSessionImageBrowser(sessionId, browser.current.id);
       setBrowser(nextBrowser);
       onImageChanged();
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "Kunne ikke bytte bilde");
+      message.error(err instanceof Error ? err.message : "Kunne ikke lagre bildepakken");
     } finally {
       setSavingImage(false);
     }
@@ -708,20 +708,21 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
   }
 
   const modalFooter = [
-    <Button key="older" disabled={browserLoading || !browser?.canPrevious} onClick={() => openBrowser(browser?.previousSnapshotId)}>
+    <Button key="older" className="sun-image-browser-nav-button" disabled={browserLoading || !browser?.canPrevious} onClick={() => openBrowser(browser?.previousSnapshotId)}>
       Arkiv eldre
     </Button>,
-    <Button key="newer" disabled={browserLoading || !browser?.canNext} onClick={() => openBrowser(browser?.nextSnapshotId)}>
+    <Button key="newer" className="sun-image-browser-nav-button" disabled={browserLoading || !browser?.canNext} onClick={() => openBrowser(browser?.nextSnapshotId)}>
       Arkiv nyere
     </Button>,
     <Button
       key="ok"
       type="primary"
+      className="sun-image-browser-save-button"
       loading={savingImage}
-      disabled={browserLoading || !browser?.current || browser.current.isLinked}
+      disabled={browserLoading || !browser?.current}
       onClick={useCurrentImage}
     >
-      {browser?.current?.isLinked ? "Allerede valgt" : "Bruk dette bildet"}
+      Lagre 5 bilder
     </Button>,
   ];
 

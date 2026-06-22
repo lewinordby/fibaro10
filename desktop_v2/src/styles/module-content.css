@@ -433,6 +433,20 @@
   box-shadow: var(--shadow-soft);
 }
 
+.sun-image-browser-modal .ant-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sun-image-browser-nav-button {
+  min-width: 112px;
+}
+
+.sun-image-browser-save-button {
+  min-width: 132px;
+}
+
 .sun-image-browser-meta {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
