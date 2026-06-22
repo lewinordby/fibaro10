@@ -8730,11 +8730,18 @@ def build_sunbed_power_analysis(
         if bucket is not None:
             ventilation_items.append({"time": bucket, "fan_tak": bool(fan_tak)})
     ventilation_items.sort(key=lambda item: item["time"])
+    ventilation_times = [item["time"] for item in ventilation_items]
 
     def roof_exhaust_adjustment(sample_time: datetime) -> float:
         if not ventilation_items:
             return 0.0
-        nearest = min(ventilation_items, key=lambda item: abs((sample_time - item["time"]).total_seconds()))
+        index = bisect_left(ventilation_times, sample_time)
+        candidates = []
+        if index < len(ventilation_items):
+            candidates.append(ventilation_items[index])
+        if index > 0:
+            candidates.append(ventilation_items[index - 1])
+        nearest = min(candidates, key=lambda item: abs((sample_time - item["time"]).total_seconds()))
         distance = abs((sample_time - nearest["time"]).total_seconds())
         if distance <= SUNBED_ANALYSIS_VENTILATION_MATCH_SECONDS and nearest["fan_tak"]:
             return ROOF_EXHAUST_UNMETERED_W
@@ -13781,6 +13788,22 @@ def ventilation_day_payload(temp_day: Dict[str, Any], selected_day: date, is_tod
         "fans": temp_day["fans"],
         "fanEvents": temp_day["fan_events"],
         "samples": samples,
+    }
+
+
+def empty_ventilation_day_payload(selected_day: date, is_today: bool, now_marker: Optional[float]) -> Dict[str, Any]:
+    return {
+        "selectedDay": selected_day.isoformat(),
+        "selectedDayLabel": selected_day.strftime("%d.%m.%Y"),
+        "prevDay": (selected_day - timedelta(days=1)).isoformat(),
+        "nextDay": (selected_day + timedelta(days=1)).isoformat(),
+        "isToday": is_today,
+        "nowMarker": now_marker,
+        "summary": {},
+        "series": [],
+        "fans": [],
+        "fanEvents": [],
+        "samples": [],
     }
 
 
@@ -20281,6 +20304,34 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             energy_sunbed_date_from = api_filter_value(params, "date_from")
             energy_sunbed_date_to = api_filter_value(params, "date_to")
             energy_limit_value = api_filter_int(params, "limit", 500, 25, 1000)
+            if view == "forbruk-per-seng":
+                energy_sunbeds_data = await load_sunbed_power_analysis(
+                    session,
+                    energy_sunbed_date_from or None,
+                    energy_sunbed_date_to or None,
+                    today,
+                )
+                sunbed_summary = energy_sunbeds_data["summary"]
+                filters = [
+                    api_filter("date_from", "Fra", "date", energy_sunbeds_data["dateFrom"]),
+                    api_filter("date_to", "Til", "date", energy_sunbeds_data["dateTo"]),
+                ]
+                energy_cards = [
+                    api_card("Senger med estimat", sunbed_summary.get("rooms_count"), "stk", "Rom med rene målepunkter", "sun2", href="/energi/forbruk-per-seng"),
+                    api_card("Rene målepunkter", sunbed_summary.get("single_samples"), "stk", f"Intervall {format_short_number(sunbed_summary.get('sample_interval_seconds'))} sek", "energy", href="/energi/forbruk-per-seng"),
+                    api_card("Baseline", format_short_number(sunbed_summary.get("global_baseline_w")), "W", "Median uten aktiv solseng", "energy", href="/energi/forbruk-per-seng"),
+                    api_card("Takvifte korrigert", sunbed_summary.get("roof_exhaust_adjusted_samples"), "stk", f"-{format_short_number(sunbed_summary.get('roof_exhaust_adjustment_w'))} W ved på", "vent", href="/energi/forbruk-per-seng"),
+                ]
+                return {
+                    "title": "Energi · forbruk per seng",
+                    "subtitle": "Estimert forbruk per solseng beregnet fra realtime differanseforbruk.",
+                    "cards": energy_cards,
+                    "charts": [],
+                    "tables": [],
+                    "filters": filters,
+                    "energyElvia": None,
+                    "energySunbeds": energy_sunbeds_data,
+                }
             latest = (
                 await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
             ).scalars().first()
@@ -20567,6 +20618,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             }
 
         if module == "ventilasjon":
+            active_view = view or "dagslogg"
             log_from_value = api_filter_value(params, "from")
             log_to_value = api_filter_value(params, "to")
             log_mode_value = api_filter_value(params, "mode")
@@ -20583,15 +20635,21 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             latest_yr = (
                 await session.execute(select(YrForecastSample).order_by(YrForecastSample.bucket_start.desc()).limit(1))
             ).scalars().first()
-            samples, _ = await fetch_rows(VentilationSample, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
-            yr_rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, log_from_value, log_to_value, log_limit_value, time_basis="utc")
-            events, _ = await fetch_rows(VentilationEvent, "fan_change", None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
+            samples = []
+            yr_rows = []
+            events = []
+            if active_view == "temp-logg":
+                samples, _ = await fetch_rows(VentilationSample, None, None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
+            if active_view == "yr-logg":
+                yr_rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, log_from_value, log_to_value, log_limit_value, time_basis="utc")
+            if active_view in {"dagslogg", "hendelser"}:
+                events, _ = await fetch_rows(VentilationEvent, "fan_change", None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
             fan_on = sum(1 for device in VENT_TIMELINE_DEVICES if latest and sample_state(latest, device) is True)
-            temp_day = await build_temp_day(day_start, day_end, timeline_end)
+            temp_day = await build_temp_day(day_start, day_end, timeline_end) if active_view in {"dagslogg", "hendelser"} else None
             ventilation_data: Dict[str, Any] = {
-                "view": view or "dagslogg",
+                "view": active_view,
                 "latest": ventilation_latest_payload(latest, latest_yr),
-                "day": ventilation_day_payload(temp_day, selected_day, is_today, now_marker),
+                "day": ventilation_day_payload(temp_day, selected_day, is_today, now_marker) if temp_day else empty_ventilation_day_payload(selected_day, is_today, now_marker),
             }
             charts: list[Dict[str, Any]] = []
             sample_columns = [
@@ -20616,15 +20674,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_table("Yr", ["bucket_start", "weather_text", "air_temperature", "relative_humidity", "wind_speed", "wind_speed_of_gust", "cloud_area_fraction", "precipitation_next_1h"], [api_pick(row, YR_SAMPLE_COLUMNS) for row in yr_rows]),
                 api_table("Hendelser", ["timestamp", "action", "device_name", "mode", "reason", "state"], [api_pick(row, VENT_COLUMNS) for row in events]),
             ]
-            if view in {"", "dagslogg"}:
+            if active_view == "dagslogg":
                 tables = [tables[0], tables[3]]
-            elif view == "temp-logg":
+            elif active_view == "temp-logg":
                 tables = [tables[1]]
-            elif view == "yr-logg":
+            elif active_view == "yr-logg":
                 tables = [tables[2]]
-            elif view == "hendelser":
+            elif active_view == "hendelser":
                 tables = [tables[3]]
-            elif view == "innstillinger":
+            elif active_view == "innstillinger":
                 config = await get_or_create_config(session, "ventilation")
                 values = merge_config_values("ventilation", config.values if config else {})
                 history = (
@@ -20666,7 +20724,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_filter("mode", "Modus", "text", log_mode_value),
                     api_filter("limit", "Antall", "number", log_limit_value),
                 ]
-                if view in {"temp-logg", "yr-logg", "hendelser"}
+                if active_view in {"temp-logg", "yr-logg", "hendelser"}
                 else [],
                 "ventilation": ventilation_data,
             }

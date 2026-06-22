@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1238")
+APP_BUILD = os.getenv("APP_BUILD", "1239")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1239",
+        "date": "22.06.2026",
+        "headline": "Audit fikser tunge API-kall",
+        "title": "Energi og ventilasjon laster bare data som sidene faktisk bruker",
+        "description": (
+            "Build 1239 retter en konkret ytelsesfeil i beregningen av solsengforbruk og rydder datalasting i "
+            "ventilasjonsmodulen. Energi > Forbruk per seng unngår nå tunge standardsvar fra energimodulen, og "
+            "ventilasjonsundersider henter ikke lenger Yr, temperatur, hendelser og dagsgrafgrunnlag samtidig."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): binærsøk for nærmeste ventilasjonssample i solsengforbruksberegningen.",
+            "Fibaro10 backend (main.py): tidlig, spesialisert payload for Energi > Forbruk per seng.",
+            "Fibaro10 backend (main.py): selektiv datalasting for Ventilasjon > Dagslogg, Temp logg, Yr logg og Hendelser.",
+            "Buildlogg (build_log.py): registrerer build 1239.",
+        ],
+        "request": "Gå igjennom hele appen, sjekk funksjonalitet, logiske brister, fiks hastighet og sørg for at alt er perfekt.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Solsengforbruksanalyse matcher takvifte-status med tidsindeks i stedet for lineært søk per energisample.",
+            "Energi > Forbruk per seng returnerer bare kort, filter og energySunbeds-data.",
+            "Ventilasjon > Yr logg slipper full dagslogg-payload.",
+            "Ventilasjon > Temp logg og Hendelser henter bare relevant tabellgrunnlag.",
+            "Automatiserte tester, frontend-build, UI-smoke og CSS-audit er kjørt før deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1238",
