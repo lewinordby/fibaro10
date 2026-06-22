@@ -5,8 +5,30 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1234")
+APP_BUILD = os.getenv("APP_BUILD", "1235")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1235",
+        "date": "22.06.2026",
+        "headline": "Enkelttimer får hurtigsti",
+        "title": "Soling > Enkelttimer slipper tunge oversiktsberegninger",
+        "description": (
+            "Build 1235 gjør Soling > Enkelttimer til en egen hurtigsti i API-et. Siden bygger nå bare filter, "
+            "enkelttime-tabell og bildemetadata, i stedet for å regne ut oversikt, statistikk, senger og medlemmer først."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): ny sun2_sessions_module_payload og tidlig retur for view=enkeltimer.",
+            "Buildlogg (build_log.py): registrerer build 1235.",
+        ],
+        "request": "Gjør hele bildeopplegget og soling/enkelttimer raskere og mer funksjonelt.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Enkelttimer henter ikke lenger unødvendige oversiktsgrafer før listen vises.",
+            "Filter, treffkort og bildemetadata bygges direkte for enkelttimevisningen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1234",

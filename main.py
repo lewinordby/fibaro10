@@ -14944,6 +14944,143 @@ async def sun2_product_module_payload(
     }
 
 
+async def sun2_sessions_module_payload(session, params: Optional[Any] = None) -> Dict[str, Any]:
+    params = params or {}
+    q_value = api_filter_value(params, "q")
+    date_from_value = api_filter_value(params, "date_from")
+    date_to_value = api_filter_value(params, "date_to")
+    room_id_value = api_filter_value(params, "room_id")
+    payment_method_value = api_filter_value(params, "payment_method")
+    status_value = api_filter_value(params, "status")
+    customer_type_value = api_filter_value(params, "customer_type")
+    limit_value = api_filter_int(params, "limit", 250, 25, 1000)
+    session_conditions = []
+    if q_value:
+        like = f"%{q_value.lower()}%"
+        session_conditions.append(
+            or_(
+                func.lower(func.coalesce(Sun2TanningSession.user_name, "")).like(like),
+                func.lower(func.coalesce(Sun2TanningSession.sun2_user_id, "")).like(like),
+                func.lower(func.coalesce(Sun2TanningSession.user_identifier, "")).like(like),
+                func.lower(func.coalesce(Sun2TanningSession.room, "")).like(like),
+                func.lower(func.coalesce(Sun2TanningSession.room_id, "")).like(like),
+                func.lower(func.coalesce(Sun2TanningSession.source_file, "")).like(like),
+            )
+        )
+    if date_from_value:
+        session_conditions.append(Sun2TanningSession.stat_date >= parse_day(date_from_value))
+    if date_to_value:
+        session_conditions.append(Sun2TanningSession.stat_date <= parse_day(date_to_value))
+    if room_id_value:
+        session_conditions.append(Sun2TanningSession.room_id == room_id_value)
+    if payment_method_value:
+        session_conditions.append(Sun2TanningSession.payment_method == payment_method_value)
+    if status_value:
+        session_conditions.append(Sun2TanningSession.status == status_value)
+    if customer_type_value:
+        session_conditions.append(Sun2TanningSession.customer_type == customer_type_value)
+
+    session_stmt = select(Sun2TanningSession).order_by(Sun2TanningSession.started_at.desc()).limit(limit_value)
+    session_count_stmt = select(func.count(Sun2TanningSession.id))
+    if session_conditions:
+        session_stmt = session_stmt.where(*session_conditions)
+        session_count_stmt = session_count_stmt.where(*session_conditions)
+    filtered_sessions = (await session.execute(session_stmt)).scalars().all()
+    filtered_count = (await session.execute(session_count_stmt)).scalar_one()
+
+    filtered_session_ids = [row.id for row in filtered_sessions if row.id]
+    filtered_image_lookup: Dict[int, Sun2TanningSessionImage] = {}
+    filtered_image_counts: Dict[int, int] = {}
+    images_by_session: Dict[int, list[Sun2TanningSessionImage]] = {}
+    if filtered_session_ids:
+        filtered_image_rows = (
+            await session.execute(
+                select(Sun2TanningSessionImage)
+                .options(sun2_session_image_meta_options())
+                .where(Sun2TanningSessionImage.session_id.in_(filtered_session_ids))
+                .order_by(
+                    Sun2TanningSessionImage.session_id.asc(),
+                    Sun2TanningSessionImage.is_primary.desc(),
+                    Sun2TanningSessionImage.offset_seconds.desc(),
+                    Sun2TanningSessionImage.created_at.desc(),
+                )
+            )
+        ).scalars().all()
+        images_by_session = defaultdict(list)
+        for image in filtered_image_rows:
+            images_by_session[image.session_id].append(image)
+        filtered_image_lookup = {
+            session_id: primary_sun2_session_image(images)
+            for session_id, images in images_by_session.items()
+        }
+        filtered_image_counts = {session_id: len(images) for session_id, images in images_by_session.items()}
+
+    room_option_rows = (
+        await session.execute(
+            select(Sun2TanningSession.room_id, func.max(Sun2TanningSession.room))
+            .where(Sun2TanningSession.room_id.is_not(None))
+            .group_by(Sun2TanningSession.room_id)
+            .order_by(Sun2TanningSession.room_id.asc())
+        )
+    ).all()
+    payment_options = api_filter_options(
+        (await session.execute(select(Sun2TanningSession.payment_method).distinct().order_by(Sun2TanningSession.payment_method.asc()))).scalars().all()
+    )
+    status_options = api_filter_options(
+        (await session.execute(select(Sun2TanningSession.status).distinct().order_by(Sun2TanningSession.status.asc()))).scalars().all()
+    )
+    customer_options = api_filter_options(
+        (await session.execute(select(Sun2TanningSession.customer_type).distinct().order_by(Sun2TanningSession.customer_type.asc()))).scalars().all()
+    )
+    room_options = [
+        {"label": sun2_room_label(room_id, room_name), "value": room_id}
+        for room_id, room_name in room_option_rows
+        if room_id
+    ]
+
+    return {
+        "title": "Soling · enkeltimer",
+        "subtitle": "Enkeltimer fra Sun2 med lagrede Axis-bilder og bildearkiv.",
+        "cards": [
+            api_card("Treff", filtered_count, "stk", f"Viser {len(filtered_sessions)} soltimer", "sun2", href="/soling/enkeltimer"),
+            api_card(
+                "Med bilde",
+                sum(1 for row in filtered_sessions if filtered_image_counts.get(row.id, 0)),
+                "stk",
+                "I viste rader",
+                "status",
+                href="/soling/enkeltimer",
+            ),
+        ],
+        "charts": [],
+        "tables": [
+            api_table(
+                "Enkeltimer",
+                ["started_at", "ended_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "payment_method", "customer_type", "status"],
+                [
+                    api_sun2_session_row(
+                        row,
+                        filtered_image_lookup.get(row.id),
+                        filtered_image_counts.get(row.id, 0),
+                        images_by_session.get(row.id, []),
+                    )
+                    for row in filtered_sessions
+                ],
+            ),
+        ],
+        "filters": [
+            api_filter("q", "Søk", "text", q_value, "Navn, SUN2-id, rom, fil"),
+            api_filter("date_from", "Fra dato", "date", date_from_value),
+            api_filter("date_to", "Til dato", "date", date_to_value),
+            api_filter("room_id", "Rom", "select", room_id_value, options=room_options),
+            api_filter("payment_method", "Betaling", "select", payment_method_value, options=payment_options),
+            api_filter("status", "Status", "select", status_value, options=status_options),
+            api_filter("customer_type", "Kundetype", "select", customer_type_value, options=customer_options),
+            api_filter("limit", "Antall", "number", limit_value),
+        ],
+    }
+
+
 async def api_v2_soling_module(
     session,
     view: str,
@@ -14961,6 +15098,8 @@ async def api_v2_soling_module(
         return await sun_settlement_module_payload(session)
     if view == "produkter":
         return await sun2_product_module_payload(session, today, month_start, params)
+    if view == "enkeltimer":
+        return await sun2_sessions_module_payload(session, params)
 
     yesterday = today - timedelta(days=1)
     recent_start = today - timedelta(days=119)
