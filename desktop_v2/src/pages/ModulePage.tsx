@@ -1,7 +1,7 @@
 import { AimOutlined, CalendarOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -9,7 +9,6 @@ import {
   fetchSunSessionImageBrowser,
   runModuleAction,
   selectSunSessionImage,
-  setSunSessionPrimaryImage,
   submitModuleEdit,
   type JsonRecord,
   type ModuleAction,
@@ -630,14 +629,33 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
   const [browserOpen, setBrowserOpen] = useState(false);
   const [browserLoading, setBrowserLoading] = useState(false);
   const [savingImage, setSavingImage] = useState(false);
-  const [settingPrimaryImageId, setSettingPrimaryImageId] = useState<number | null>(null);
+  const [settingPrimarySnapshotId, setSettingPrimarySnapshotId] = useState<string | null>(null);
   const [browser, setBrowser] = useState<SunSessionImageBrowser | null>(null);
+  const [inlineArchiveBrowser, setInlineArchiveBrowser] = useState<SunSessionImageBrowser | null>(null);
+  const [inlineArchiveLoading, setInlineArchiveLoading] = useState(false);
   const [selectedInlineImageId, setSelectedInlineImageId] = useState<number | null>(null);
   const inlineImages = rowSavedImages(row);
   const defaultInlineIndex = Math.max(0, inlineImages.findIndex((image) => image.isPrimary));
   const selectedInlineIndex = inlineImages.findIndex((image) => image.id === selectedInlineImageId);
   const activeInlineIndex = selectedInlineIndex >= 0 ? selectedInlineIndex : defaultInlineIndex;
   const activeInlineImage = inlineImages[activeInlineIndex] ?? null;
+  const activeArchiveSnapshot = inlineArchiveBrowser?.current ?? null;
+  const activeSnapshotId = activeArchiveSnapshot?.id || activeInlineImage?.snapshotId || "";
+  const activeImageUrl = activeArchiveSnapshot
+    ? `${activeArchiveSnapshot.imageUrl}?v=${encodeURIComponent(activeArchiveSnapshot.id)}`
+    : activeInlineImage
+      ? `${activeInlineImage.imageUrl}?v=${encodeURIComponent(activeInlineImage.id)}`
+      : "";
+  const activeImageLabel = activeArchiveSnapshot?.label || activeInlineImage?.label || "";
+  const activeImagePrefix = activeArchiveSnapshot ? "Arkiv" : activeInlineImage ? `${activeInlineIndex + 1} av ${inlineImages.length}` : "";
+  const activeImageOffset = activeArchiveSnapshot ? "Arkivbilde" : activeInlineImage?.offsetLabel || "";
+  const activeImageIsPrimary = Boolean(activeArchiveSnapshot?.isLinked || activeInlineImage?.isPrimary);
+  const canMoveInlinePrevious = activeArchiveSnapshot
+    ? Boolean(inlineArchiveBrowser?.canPrevious)
+    : Boolean(activeInlineImage && (activeInlineIndex > 0 || activeInlineImage.snapshotId));
+  const canMoveInlineNext = activeArchiveSnapshot
+    ? Boolean(inlineArchiveBrowser?.canNext)
+    : Boolean(activeInlineImage && (activeInlineIndex < inlineImages.length - 1 || activeInlineImage.snapshotId));
   const fields: Array<[string, unknown]> = [
     ["Start", row.started_at],
     ["Slutt", row.ended_at],
@@ -652,6 +670,11 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     ["Bilder", row.image_count ? `${displayValue(row.image_count)} lagret` : ""],
     ["Avvik", row.image_delta_seconds !== null && row.image_delta_seconds !== undefined ? `${displayValue(row.image_delta_seconds)} sek` : ""],
   ];
+
+  useEffect(() => {
+    setInlineArchiveBrowser(null);
+    setSelectedInlineImageId(null);
+  }, [row.id, row.image_captured_at, row.image_count]);
 
   async function openBrowser(snapshotId?: string | null) {
     if (!canBrowseImages) {
@@ -674,9 +697,8 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     if (!canBrowseImages || !browser?.current) return;
     setSavingImage(true);
     try {
-      await selectSunSessionImage(sessionId, browser.current.id);
+      const nextBrowser = await selectSunSessionImage(sessionId, browser.current.id);
       message.success("Bildepakken er lagret");
-      const nextBrowser = await fetchSunSessionImageBrowser(sessionId, browser.current.id);
       setBrowser(nextBrowser);
       onImageChanged();
     } catch (err) {
@@ -686,24 +708,69 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     }
   }
 
-  async function setInlineImageAsPrimary(image: SunSessionSavedImage) {
-    if (!canBrowseImages || image.isPrimary || settingPrimaryImageId) return;
-    setSettingPrimaryImageId(image.id);
+  async function saveInlineSnapshotAsPrimary(snapshotId: string) {
+    if (!canBrowseImages || !snapshotId || activeImageIsPrimary || settingPrimarySnapshotId) return;
+    setSettingPrimarySnapshotId(snapshotId);
     try {
-      await setSunSessionPrimaryImage(sessionId, image.id);
-      message.success("Hovedbildet er oppdatert");
-      setSelectedInlineImageId(image.id);
+      const nextBrowser = await selectSunSessionImage(sessionId, snapshotId);
+      message.success("Ny bildepakke er lagret");
+      setInlineArchiveBrowser(nextBrowser);
+      setSelectedInlineImageId(null);
       onImageChanged();
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "Kunne ikke sette hovedbilde");
+      message.error(err instanceof Error ? err.message : "Kunne ikke lagre ny bildepakke");
     } finally {
-      setSettingPrimaryImageId(null);
+      setSettingPrimarySnapshotId(null);
     }
   }
 
-  function moveInlineImage(delta: number) {
+  async function showInlineArchiveSnapshot(snapshotId: string) {
+    if (!canBrowseImages || !snapshotId) return;
+    setInlineArchiveLoading(true);
+    try {
+      const nextBrowser = await fetchSunSessionImageBrowser(sessionId, snapshotId);
+      setInlineArchiveBrowser(nextBrowser);
+      setSelectedInlineImageId(null);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Kunne ikke hente bildearkivet");
+    } finally {
+      setInlineArchiveLoading(false);
+    }
+  }
+
+  async function moveFromSavedImageToArchive(snapshotId: string, delta: number) {
+    if (!canBrowseImages || !snapshotId) return;
+    setInlineArchiveLoading(true);
+    try {
+      const referenceBrowser = await fetchSunSessionImageBrowser(sessionId, snapshotId);
+      const nextSnapshotId = delta < 0 ? referenceBrowser.previousSnapshotId : referenceBrowser.nextSnapshotId;
+      if (!nextSnapshotId) {
+        message.info(delta < 0 ? "Ingen eldre bilder i arkivet." : "Ingen nyere bilder i arkivet.");
+        return;
+      }
+      const nextBrowser = await fetchSunSessionImageBrowser(sessionId, nextSnapshotId);
+      setInlineArchiveBrowser(nextBrowser);
+      setSelectedInlineImageId(null);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Kunne ikke hente bildearkivet");
+    } finally {
+      setInlineArchiveLoading(false);
+    }
+  }
+
+  async function moveInlineImage(delta: number) {
+    if (activeArchiveSnapshot) {
+      const nextSnapshotId = delta < 0 ? inlineArchiveBrowser?.previousSnapshotId : inlineArchiveBrowser?.nextSnapshotId;
+      if (nextSnapshotId) await showInlineArchiveSnapshot(nextSnapshotId);
+      return;
+    }
     if (!inlineImages.length) return;
-    const nextIndex = (activeInlineIndex + delta + inlineImages.length) % inlineImages.length;
+    const nextIndex = activeInlineIndex + delta;
+    if (nextIndex < 0 || nextIndex >= inlineImages.length) {
+      await moveFromSavedImageToArchive(activeInlineImage?.snapshotId || "", delta);
+      return;
+    }
+    setInlineArchiveBrowser(null);
     setSelectedInlineImageId(inlineImages[nextIndex].id);
   }
 
@@ -737,35 +804,57 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
         ))}
       </div>
       <div className="sun-session-image-panel">
-        {activeInlineImage ? (
+        {activeImageUrl ? (
           <div className="sun-session-inline-browser">
             <img
-              src={`${activeInlineImage.imageUrl}?v=${encodeURIComponent(activeInlineImage.id)}`}
-              alt={`Lagret Axis-bilde ${activeInlineImage.label}`}
+              src={activeImageUrl}
+              alt={`Axis-bilde ${activeImageLabel}`}
               loading="lazy"
             />
+            {inlineArchiveLoading ? (
+              <div className="sun-session-inline-busy">
+                <Spin size="small" />
+                <span>Laster bilde</span>
+              </div>
+            ) : null}
             <div className="sun-session-inline-meta">
-              <strong>{activeInlineIndex + 1} av {inlineImages.length}</strong>
-              <span>{activeInlineImage.offsetLabel} - {activeInlineImage.label}</span>
-              {activeInlineImage.isPrimary ? <Tag color="gold">Hovedbilde</Tag> : null}
+              <strong>{activeImagePrefix}</strong>
+              <span>{activeImageOffset} - {activeImageLabel}</span>
+              {activeImageIsPrimary ? <Tag color="gold">Hovedbilde</Tag> : activeArchiveSnapshot ? <Tag>Arkiv</Tag> : null}
             </div>
             <div className="sun-session-inline-controls">
-              <Button size="small" disabled={inlineImages.length < 2} onClick={() => moveInlineImage(-1)}>
+              <Button
+                size="small"
+                className="sun-session-inline-nav-button"
+                disabled={!canMoveInlinePrevious || inlineArchiveLoading || Boolean(settingPrimarySnapshotId)}
+                onClick={() => moveInlineImage(-1)}
+              >
                 Forrige
               </Button>
-              <Button size="small" disabled={inlineImages.length < 2} onClick={() => moveInlineImage(1)}>
+              <Button
+                size="small"
+                className="sun-session-inline-nav-button"
+                disabled={!canMoveInlineNext || inlineArchiveLoading || Boolean(settingPrimarySnapshotId)}
+                onClick={() => moveInlineImage(1)}
+              >
                 Neste
               </Button>
               <Button
                 size="small"
-                type={activeInlineImage.isPrimary ? "default" : "primary"}
-                loading={settingPrimaryImageId === activeInlineImage.id}
-                disabled={activeInlineImage.isPrimary || Boolean(settingPrimaryImageId)}
-                onClick={() => setInlineImageAsPrimary(activeInlineImage)}
+                type={activeImageIsPrimary ? "default" : "primary"}
+                className="sun-session-inline-primary-button"
+                loading={settingPrimarySnapshotId === activeSnapshotId}
+                disabled={!activeSnapshotId || activeImageIsPrimary || inlineArchiveLoading || Boolean(settingPrimarySnapshotId)}
+                onClick={() => saveInlineSnapshotAsPrimary(activeSnapshotId)}
               >
-                {activeInlineImage.isPrimary ? "Hovedbilde" : "Sett som hovedbilde"}
+                {activeImageIsPrimary ? "Hovedbilde" : "Sett som hovedbilde"}
               </Button>
-              <Button size="small" onClick={() => openBrowser(activeInlineImage.snapshotId || null)} disabled={!canBrowseImages}>
+              <Button
+                size="small"
+                className="sun-session-inline-archive-button"
+                onClick={() => openBrowser(activeSnapshotId || null)}
+                disabled={!canBrowseImages || inlineArchiveLoading}
+              >
                 Bildearkiv
               </Button>
             </div>

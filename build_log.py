@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1236")
+APP_BUILD = os.getenv("APP_BUILD", "1237")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1237",
+        "date": "22.06.2026",
+        "headline": "Inline bildeviser blar videre i arkivet",
+        "title": "Soling > Enkelttimer kan bla forbi lagrede fem bilder uten å bytte flate",
+        "description": (
+            "Build 1237 gjør bildeviseren på soltimen mer direkte: forrige/neste går videre inn i Axis-arkivet når "
+            "brukeren blar ut av de fem lagrede bildene. Når et arkivbilde settes som hovedbilde, lagres en ny "
+            "fem-bilders pakke rundt valgt bilde automatisk."
+        ),
+        "applications": [
+            "Desktop V2 enkelttimer (src/pages/ModulePage.tsx): inline-viseren kan bla fra lagrede bilder og videre i arkivet.",
+            "Desktop V2 API-typer (src/api.ts): lagring av valgt snapshot returnerer bildearkiv-payload.",
+            "Desktop V2 styling (src/styles/module-content.css): faste knappebredder og loadingindikator i samme bildeflate.",
+        ],
+        "request": "Bla automatisk videre i bildearkivet når man blar ut fra de fem lagrede bildene, og lagre ny fem-bilders pakke når man trykker sett som hovedbilde.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Forrige/neste i soltimen går videre til eldre/nyere Axis-bilder når lagret pakke passeres.",
+            "Samme bildepanel brukes for både lagrede bilder og arkivbilder.",
+            "Sett som hovedbilde lagrer ny pakke på fem bilder rundt valgt snapshot.",
+            "Knapper holder fast bredde og flytter seg ikke under blaing eller lagring.",
+        ],
+    },
     {
         "version": "1",
         "build": "1236",

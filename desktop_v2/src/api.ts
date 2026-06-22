@@ -1008,7 +1008,7 @@ export function fetchSunSessionImageBrowser(sessionId: number, snapshotId?: stri
   return apiGet<SunSessionImageBrowser>(`/api/soling/enkeltimer/${encodeURIComponent(sessionId)}/image-browser${query}`);
 }
 
-export async function selectSunSessionImage(sessionId: number, snapshotId: string): Promise<JsonRecord> {
+export async function selectSunSessionImage(sessionId: number, snapshotId: string): Promise<SunSessionImageBrowser> {
   const params = new URLSearchParams({ snapshot_id: snapshotId });
   const response = await fetch(`/api/soling/enkeltimer/${encodeURIComponent(sessionId)}/image?${params.toString()}`, {
     method: "POST",
@@ -1019,7 +1019,7 @@ export async function selectSunSessionImage(sessionId: number, snapshotId: strin
   if (!response.ok) {
     throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
   }
-  return payload ?? {};
+  return (payload ?? {}) as SunSessionImageBrowser;
 }
 
 export async function setSunSessionPrimaryImage(sessionId: number, imageId: number): Promise<JsonRecord> {
