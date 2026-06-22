@@ -19505,6 +19505,137 @@ async def fetch_parking_settlements_from_gmail(session, since_days: int = 370, l
     }
 
 
+def reconciliation_diff(system_value: Optional[float], settlement_value: Optional[float]) -> Optional[float]:
+    if system_value is None or settlement_value is None:
+        return None
+    return round(float_or_zero(system_value) - float_or_zero(settlement_value), 2)
+
+
+def reconciliation_status(system_value: Optional[float], settlement_value: Optional[float], diff_value: Optional[float]) -> str:
+    if settlement_value is None:
+        return "Mangler oppgjør"
+    if system_value is None:
+        return "Mangler systemgrunnlag"
+    if diff_value is not None and abs(diff_value) <= 1:
+        return "OK"
+    return "Avvik"
+
+
+def settlement_amount_sum(*values: Optional[float]) -> Optional[float]:
+    parsed_values = [parse_settlement_number(value) for value in values]
+    if not any(value is not None for value in parsed_values):
+        return None
+    return round(sum(float_or_zero(value) for value in parsed_values), 2)
+
+
+async def revenue_settlement_reconciliation_rows(session, limit: int = 36) -> list[Dict[str, Any]]:
+    parking_settlements = (
+        await session.execute(
+            select(SettlementImport)
+            .where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+            .where(SettlementImport.period_start.is_not(None))
+            .where(SettlementImport.period_end.is_not(None))
+            .order_by(SettlementImport.period_start.desc(), SettlementImport.imported_at.desc())
+            .limit(limit * 2)
+        )
+    ).scalars().all()
+    sun_settlements = (
+        await session.execute(
+            select(SettlementImport)
+            .where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
+            .where(SettlementImport.period_start.is_not(None))
+            .where(SettlementImport.period_end.is_not(None))
+            .order_by(SettlementImport.period_start.desc(), SettlementImport.imported_at.desc())
+            .limit(limit * 2)
+        )
+    ).scalars().all()
+
+    periods: dict[tuple[date, date], Dict[str, Any]] = {}
+    for row in parking_settlements:
+        if not row.period_start or not row.period_end:
+            continue
+        key = (row.period_start, row.period_end)
+        periods.setdefault(key, {"start": row.period_start, "end": row.period_end})
+        periods[key].setdefault("parking", row)
+    for row in sun_settlements:
+        if not row.period_start or not row.period_end:
+            continue
+        key = (row.period_start, row.period_end)
+        periods.setdefault(key, {"start": row.period_start, "end": row.period_end})
+        periods[key].setdefault("sun", row)
+
+    rows: list[Dict[str, Any]] = []
+    for item in sorted(periods.values(), key=lambda value: value["start"], reverse=True)[:limit]:
+        start = item["start"]
+        end = item["end"]
+        parking_row: Optional[SettlementImport] = item.get("parking")
+        sun_row: Optional[SettlementImport] = item.get("sun")
+        period_label = (
+            (parking_row.period_label if parking_row else None)
+            or (sun_row.period_label if sun_row else None)
+            or month_label(start)
+        )
+
+        parking_source = await parking_period_source_summaries(
+            session,
+            datetime.combine(start, time.min),
+            datetime.combine(end + timedelta(days=1), time.min),
+        )
+        parking_system_ex = round(
+            float_or_zero(parking_source["easypark"].get("paid_ex_vat"))
+            + float_or_zero(parking_source["flowbird"].get("paid_ex_vat"))
+            + float_or_zero(parking_source["other"].get("paid_ex_vat")),
+            2,
+        )
+        parking_settlement_ex = None
+        if parking_row:
+            parking_settlement_ex = settlement_amount_sum(
+                settlement_parsed_float(parking_row.parsed, "gross_coin_card_ex_vat"),
+                settlement_parsed_float(parking_row.parsed, "easypark_ex_vat"),
+            )
+        parking_diff = reconciliation_diff(parking_system_ex, parking_settlement_ex)
+        parking_status = reconciliation_status(parking_system_ex, parking_settlement_ex, parking_diff)
+
+        finance_summary = await sun2_finance_settlement_period_summary(session, start, end)
+        sessions_summary = await sun2_tanning_sessions_period_summary(session, start, end)
+        sun_system_ex, _detail, _source, _source_label = sun2_tanning_revenue_control_expected(
+            finance_summary,
+            sessions_summary,
+        )
+        sun_settlement_ex = settlement_parsed_float(sun_row.parsed, "sun_revenue_ex_vat") if sun_row else None
+        sun_diff = reconciliation_diff(sun_system_ex, sun_settlement_ex)
+        sun_status = reconciliation_status(sun_system_ex, sun_settlement_ex, sun_diff)
+
+        system_total = settlement_amount_sum(parking_system_ex, sun_system_ex)
+        settlement_total = settlement_amount_sum(parking_settlement_ex, sun_settlement_ex)
+        total_diff = reconciliation_diff(system_total, settlement_total)
+        if parking_status == "OK" and sun_status == "OK":
+            status = "OK"
+        elif "Avvik" in {parking_status, sun_status}:
+            status = "Avvik"
+        else:
+            status = "Mangler grunnlag"
+
+        rows.append(
+            {
+                "period_label": period_label,
+                "parking_system_ex_vat": parking_system_ex,
+                "parking_settlement_ex_vat": parking_settlement_ex,
+                "parking_diff_ex_vat": parking_diff,
+                "parking_control_status": parking_status,
+                "sun_system_ex_vat": sun_system_ex,
+                "sun_settlement_ex_vat": sun_settlement_ex,
+                "sun_diff_ex_vat": sun_diff,
+                "sun_control_status": sun_status,
+                "system_total_ex_vat": system_total,
+                "settlement_total_ex_vat": settlement_total,
+                "total_diff_ex_vat": total_diff,
+                "status": status,
+            }
+        )
+    return rows
+
+
 @app.get("/api/modules/{module}")
 async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
@@ -19566,6 +19697,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             today_parking = await parking_period_summary(session, "I dag", today_start, tomorrow_start)
             week_parking = await parking_period_summary(session, "Denne uken", week_start_dt, tomorrow_start)
             month_parking = await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start)
+
+            settlement_reconciliation_rows = await revenue_settlement_reconciliation_rows(session)
 
             current_year_key = str(today.year)
             current_year_revenue = next(
@@ -19636,6 +19769,25 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "cards": cards,
                 "charts": [api_revenue_weekly_chart(combined_stats)],
                 "tables": [
+                    api_table(
+                        "Oppgjør mot Fibaro10",
+                        [
+                            "period_label",
+                            "parking_system_ex_vat",
+                            "parking_settlement_ex_vat",
+                            "parking_diff_ex_vat",
+                            "parking_control_status",
+                            "sun_system_ex_vat",
+                            "sun_settlement_ex_vat",
+                            "sun_diff_ex_vat",
+                            "sun_control_status",
+                            "system_total_ex_vat",
+                            "settlement_total_ex_vat",
+                            "total_diff_ex_vat",
+                            "status",
+                        ],
+                        settlement_reconciliation_rows,
+                    ),
                     api_table("Topp dager omsetning", revenue_columns, [api_revenue_summary_row(row) for row in combined_stats.get("top_days", [])]),
                     api_table("Topp måneder omsetning", ["period", *revenue_columns[1:]], [api_revenue_summary_row(row) for row in combined_stats.get("top_months", [])]),
                 ],

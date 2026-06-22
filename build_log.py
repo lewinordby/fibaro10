@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1237")
+APP_BUILD = os.getenv("APP_BUILD", "1238")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1238",
+        "date": "22.06.2026",
+        "headline": "Omsetning får samlet oppgjørsavstemming",
+        "title": "Omsetning > Oversikt viser Fibaro10 mot parkerings- og solingsoppgjør",
+        "description": (
+            "Build 1238 legger en samlet avstemmingstabell på Omsetning > Oversikt. Tabellen viser måned for måned "
+            "Fibaro10-tall for parkering og soling ved siden av importerte oppgjørstall, med avvik og status."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): ny samlet avstemmingsrad per oppgjørsperiode.",
+            "Desktop V2 tabeller (src/pages/ModulePage.tsx): lesbare kolonnenavn og statusmerking for kontrollkolonner.",
+        ],
+        "request": "På omsetning ønskes en forståelig tabell med parkering, oppgjør parkering, sol og oppgjør sol.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Omsetning > Oversikt får tabellen Oppgjør mot Fibaro10.",
+            "Parkering vises som Fibaro10 eks. mva mot oppgjør parkering eks. mva.",
+            "Soling vises som Fibaro10 eks. mva mot oppgjør soling eks. mva.",
+            "Avvik og status beregnes separat for parkering, soling og totalsum.",
+        ],
+    },
     {
         "version": "1",
         "build": "1237",

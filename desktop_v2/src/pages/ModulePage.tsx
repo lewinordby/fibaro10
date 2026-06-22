@@ -85,6 +85,17 @@ function labelize(column: string): string {
     parking_count: "Parkeringer",
     total_count: "Antall totalt",
     first_seen: "Først sett",
+    parking_system_ex_vat: "Parkering Fibaro10",
+    parking_settlement_ex_vat: "Oppgjør parkering",
+    parking_diff_ex_vat: "Avvik parkering",
+    parking_control_status: "Status parkering",
+    sun_system_ex_vat: "Soling Fibaro10",
+    sun_settlement_ex_vat: "Oppgjør soling",
+    sun_diff_ex_vat: "Avvik soling",
+    sun_control_status: "Status soling",
+    system_total_ex_vat: "Sum Fibaro10",
+    settlement_total_ex_vat: "Sum oppgjør",
+    total_diff_ex_vat: "Avvik sum",
     last_seen: "Sist sett",
     svv_status: "SVV",
     sun2_id: "SUN2-ID",
@@ -396,6 +407,11 @@ function moduleColumns(
         const normalized = value.toLowerCase();
         const color =
           normalized.includes("kritisk") ? "red" : normalized.includes("høy") ? "volcano" : normalized.includes("medium") ? "gold" : "blue";
+        return <Tag color={color}>{displayValue(value)}</Tag>;
+      }
+      if (column.endsWith("_control_status") && typeof value === "string") {
+        const normalized = value.toLowerCase();
+        const color = normalized.includes("ok") ? "green" : normalized.includes("avvik") ? "volcano" : "gold";
         return <Tag color={color}>{displayValue(value)}</Tag>;
       }
       if (typeof value === "string" && (column === "path" || /^https?:\/\//i.test(value) || value.startsWith("/"))) {
