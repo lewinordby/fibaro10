@@ -6557,6 +6557,10 @@ def month_end(day: date) -> date:
     return date(day.year, day.month, calendar.monthrange(day.year, day.month)[1])
 
 
+SUN2_FORECAST_SEASON_WEIGHTS = (1.75, 1.35, 1.05, 0.82)
+PARKING_FORECAST_SEASON_WEIGHTS = (1.85, 1.38, 1.05, 0.78)
+
+
 def weighted_average(values: list[tuple[float, float]]) -> tuple[float, float, int]:
     weighted_sum = sum(value * weight for value, weight in values)
     weight_sum = sum(weight for _, weight in values)
@@ -6602,6 +6606,70 @@ def sun2_daily_model(target_day: date, history: Dict[date, Dict[str, float]], to
         sessions_sum += float_or_zero(item.get("sessions")) * weight
         paid_sum += float_or_zero(item.get("paid")) * weight
         minutes_sum += float_or_zero(item.get("minutes")) * weight
+        weight_sum += weight
+        comparable_days += 1
+    if weight_sum <= 0:
+        sessions = paid = minutes = 0.0
+    else:
+        sessions = sessions_sum / weight_sum
+        paid = paid_sum / weight_sum
+        minutes = minutes_sum / weight_sum
+    return {
+        "day": target_day,
+        "sessions": sessions,
+        "paid": paid,
+        "minutes": minutes,
+        "weight_sum": weight_sum,
+        "comparable_days": comparable_days,
+        "holiday": target_holiday_name,
+    }
+
+
+def sun2_model_history_features(history: Dict[date, Dict[str, float]], today: date) -> list[tuple[int, int, bool, float, float, float, float]]:
+    features = []
+    for historical_day, item in history.items():
+        if historical_day >= today:
+            continue
+        age_years = max(0.0, (today - historical_day).days / 365.25)
+        features.append(
+            (
+                historical_day.month,
+                historical_day.weekday(),
+                bool(norwegian_holiday_name(historical_day)),
+                0.72 ** age_years,
+                float_or_zero(item.get("sessions")),
+                float_or_zero(item.get("paid")),
+                float_or_zero(item.get("minutes")),
+            )
+        )
+    return features
+
+
+def sun2_daily_model_from_features(
+    target_day: date,
+    features: list[tuple[int, int, bool, float, float, float, float]],
+) -> Dict[str, Any]:
+    target_holiday_name = norwegian_holiday_name(target_day)
+    target_holiday = bool(target_holiday_name)
+    target_month = target_day.month
+    target_weekday = target_day.weekday()
+    sessions_sum = 0.0
+    paid_sum = 0.0
+    minutes_sum = 0.0
+    weight_sum = 0.0
+    comparable_days = 0
+    for history_month, history_weekday, history_holiday, recency, sessions_value, paid_value, minutes_value in features:
+        raw_month_diff = abs(target_month - history_month)
+        month_diff = min(raw_month_diff, 12 - raw_month_diff)
+        season = SUN2_FORECAST_SEASON_WEIGHTS[month_diff] if month_diff < len(SUN2_FORECAST_SEASON_WEIGHTS) else 0.55
+        weekday = 1.35 if target_weekday == history_weekday else 0.82
+        holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.55
+        weight = recency * season * weekday * holiday
+        if weight <= 0:
+            continue
+        sessions_sum += sessions_value * weight
+        paid_sum += paid_value * weight
+        minutes_sum += minutes_value * weight
         weight_sum += weight
         comparable_days += 1
     if weight_sum <= 0:
@@ -6808,12 +6876,13 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
     closing_minute = 23 * 60
     day_fraction = opening_day_fraction(minute_of_day, opening_minute, closing_minute, power=0.86)
     day_fraction = await sun2_historical_day_fraction(session, today, today, model_history, minute_of_day, day_fraction)
+    model_features = sun2_model_history_features(model_history, today)
     daily_model_cache: Dict[date, Dict[str, Any]] = {}
 
     def model_for(day: date) -> Dict[str, Any]:
         model = daily_model_cache.get(day)
         if model is None:
-            model = sun2_daily_model(day, model_history, today)
+            model = sun2_daily_model_from_features(day, model_features)
             daily_model_cache[day] = model
         return model
 
@@ -6952,6 +7021,85 @@ def parking_daily_model(target_day: date, history: Dict[date, Dict[str, float]],
     }
 
 
+def parking_model_history_features(
+    history: Dict[date, Dict[str, float]],
+    today: date,
+) -> list[tuple[int, int, bool, float, float, float, float, float]]:
+    features = []
+    for historical_day, item in history.items():
+        if historical_day >= today:
+            continue
+        age_years = max(0.0, (today - historical_day).days / 365.25)
+        features.append(
+            (
+                historical_day.month,
+                historical_day.weekday(),
+                bool(norwegian_holiday_name(historical_day)),
+                0.74 ** age_years,
+                float_or_zero(item.get("sessions")),
+                float_or_zero(item.get("paid")),
+                float_or_zero(item.get("minutes")),
+                float_or_zero(item.get("vehicles")),
+            )
+        )
+    return features
+
+
+def parking_daily_model_from_features(
+    target_day: date,
+    features: list[tuple[int, int, bool, float, float, float, float, float]],
+) -> Dict[str, Any]:
+    target_holiday_name = norwegian_holiday_name(target_day)
+    target_holiday = bool(target_holiday_name)
+    target_month = target_day.month
+    target_weekday = target_day.weekday()
+    target_is_sunday = target_weekday == 6
+    sessions_sum = 0.0
+    paid_sum = 0.0
+    minutes_sum = 0.0
+    vehicles_sum = 0.0
+    weight_sum = 0.0
+    comparable_days = 0
+    for history_month, history_weekday, history_holiday, recency, sessions_value, paid_value, minutes_value, vehicles_value in features:
+        raw_month_diff = abs(target_month - history_month)
+        month_diff = min(raw_month_diff, 12 - raw_month_diff)
+        season = PARKING_FORECAST_SEASON_WEIGHTS[month_diff] if month_diff < len(PARKING_FORECAST_SEASON_WEIGHTS) else 0.48
+        history_is_sunday = history_weekday == 6
+        if target_is_sunday:
+            weekday = 3.2 if history_is_sunday else 0.035
+        elif history_is_sunday:
+            weekday = 0.10
+        else:
+            weekday = 1.45 if target_weekday == history_weekday else 0.78
+        holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.50
+        weight = recency * season * weekday * holiday
+        if weight <= 0:
+            continue
+        sessions_sum += sessions_value * weight
+        paid_sum += paid_value * weight
+        minutes_sum += minutes_value * weight
+        vehicles_sum += vehicles_value * weight
+        weight_sum += weight
+        comparable_days += 1
+    if weight_sum <= 0:
+        sessions = paid = minutes = vehicles = 0.0
+    else:
+        sessions = sessions_sum / weight_sum
+        paid = paid_sum / weight_sum
+        minutes = minutes_sum / weight_sum
+        vehicles = vehicles_sum / weight_sum
+    return {
+        "day": target_day,
+        "sessions": sessions,
+        "paid": paid,
+        "minutes": minutes,
+        "vehicles": vehicles,
+        "weight_sum": weight_sum,
+        "comparable_days": comparable_days,
+        "holiday": target_holiday_name,
+    }
+
+
 def parking_period_actual(history: Dict[date, Dict[str, float]], start: date, end: date) -> Dict[str, float]:
     total = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
     for day in iter_dates(start, end):
@@ -7034,12 +7182,13 @@ async def build_parking_forecast(session, today: date, now_local: datetime) -> D
     day_fraction = opening_day_fraction(minute_of_day, opening_minute, closing_minute, power=0.9)
     day_fraction = await parking_historical_day_fraction(session, today, today, model_history, minute_of_day, day_fraction)
 
+    model_features = parking_model_history_features(model_history, today)
     daily_model_cache: Dict[date, Dict[str, Any]] = {}
 
     def model_for(day: date) -> Dict[str, Any]:
         model = daily_model_cache.get(day)
         if model is None:
-            model = parking_daily_model(day, model_history, today)
+            model = parking_daily_model_from_features(day, model_features)
             daily_model_cache[day] = model
         return model
 

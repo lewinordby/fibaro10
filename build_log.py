@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1242")
+APP_BUILD = os.getenv("APP_BUILD", "1243")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1243",
+        "date": "23.06.2026",
+        "headline": "Prognosehistorikk forberedes én gang",
+        "title": "Kald prognoseberegning bruker ferdigindeksert historikk",
+        "description": (
+            "Build 1243 fortsetter ytelsesarbeidet fra build 1242. Historiske prognoseverdier for soling og parkering "
+            "normaliseres nå til en lett intern struktur før dagmodellene kjøres. Dermed slipper hver prognosedag aa "
+            "slaa opp de samme dato-, helligdag- og omsetningsverdiene gjentatte ganger."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): ferdigindeksert historikk for solprognose.",
+            "Fibaro10 backend (main.py): ferdigindeksert historikk for parkeringsprognose.",
+            "Fibaro10 backend (main.py): felles konstante sesongvekter i prognoseberegning.",
+            "Buildlogg (build_log.py): registrerer build 1243.",
+        ],
+        "request": "Soerg for at alt er perfekt. Fortsett aa forbedre hastighet og struktur uten aa endre prognoselogikk.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Historikkverdier pakkes én gang foer prognosedagene regnes ut.",
+            "Dagmodellene unngaar gjentatte dict-oppslag og datooperasjoner i innerloekken.",
+            "Samme vekter, tempo og sammenligningsgrunnlag beholdes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1242",
