@@ -10,6 +10,7 @@ from functools import lru_cache
 from statistics import median
 from types import SimpleNamespace
 from typing import Any, Dict, Iterable, Optional
+from time import monotonic
 import asyncio
 from bisect import bisect_left, bisect_right
 import calendar
@@ -38,7 +39,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, BigInteger, Column, Date, DateTime, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint, and_, case, cast, delete, func, or_, select, text as sql_text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, load_only
 from dateutil import parser as dtparser
 
 load_dotenv()
@@ -146,8 +147,11 @@ SUN2_AXIS_SNAPSHOT_LINK_INTERVAL_SECONDS = max(30, int(os.getenv("SUN2_AXIS_SNAP
 SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_INITIAL_DELAY_SECONDS", "45")))
 SUN2_AXIS_SNAPSHOT_LINK_DAYS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_DAYS", "7")))
 SUN2_AXIS_SNAPSHOT_LINK_LIMIT = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_LINK_LIMIT", "5000")))
+SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS = max(1, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS", "15")))
+SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS = max(60, int(os.getenv("SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS", "3600")))
 sun2_axis_snapshot_link_task: Optional[asyncio.Task] = None
 sun2_axis_snapshot_link_lock: Optional[asyncio.Lock] = None
+axis_snapshot_day_cache: Dict[tuple[str, str], Dict[str, Any]] = {}
 SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
 SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
 
@@ -4031,18 +4035,39 @@ def axis_snapshot_path_for_id(snapshot_id: str, root: Path = SUN2_AXIS_SNAPSHOT_
         return None
     if direct.is_file():
         return captured_at, direct
-    for candidate_at, path in axis_snapshot_candidates(root):
+    for candidate_at, path in axis_snapshot_day_candidates(captured_at.date(), root):
         if candidate_at == captured_at:
             return candidate_at, path
     return None
 
 
-def axis_snapshot_candidates(root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> list[tuple[datetime, Path]]:
-    if not root.exists():
-        return []
-    candidates: list[tuple[datetime, Path]] = []
+def axis_snapshot_day_candidates(day: date, root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> list[tuple[datetime, Path]]:
     root_resolved = root.resolve()
-    for path in root_resolved.rglob("*.jpg"):
+    day_dir = root_resolved / day.isoformat()
+    if not day_dir.is_dir():
+        return []
+    try:
+        day_dir.resolve().relative_to(root_resolved)
+    except (OSError, ValueError):
+        return []
+
+    cache_key = (str(root_resolved), day.isoformat())
+    stat = day_dir.stat()
+    ttl = (
+        SUN2_AXIS_SNAPSHOT_DAY_CACHE_CURRENT_SECONDS
+        if day >= local_now_naive().date()
+        else SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS
+    )
+    cached = axis_snapshot_day_cache.get(cache_key)
+    if (
+        cached
+        and cached.get("mtime_ns") == stat.st_mtime_ns
+        and float(cached.get("expires_at") or 0) > monotonic()
+    ):
+        return list(cached.get("candidates") or [])
+
+    candidates: list[tuple[datetime, Path]] = []
+    for path in day_dir.glob("*.jpg"):
         captured_at = parse_axis_snapshot_time(path)
         if captured_at is None:
             continue
@@ -4051,6 +4076,57 @@ def axis_snapshot_candidates(root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> list[tuple
         except (OSError, ValueError):
             continue
         candidates.append((captured_at, path))
+    candidates = sorted(candidates, key=lambda item: item[0])
+    axis_snapshot_day_cache[cache_key] = {
+        "mtime_ns": stat.st_mtime_ns,
+        "expires_at": monotonic() + ttl,
+        "candidates": candidates,
+    }
+    return list(candidates)
+
+
+def axis_snapshot_archive_days(root: Path = SUN2_AXIS_SNAPSHOT_ROOT) -> list[date]:
+    if not root.exists():
+        return []
+    root_resolved = root.resolve()
+    days: list[date] = []
+    for path in root_resolved.iterdir():
+        if not path.is_dir():
+            continue
+        try:
+            path.resolve().relative_to(root_resolved)
+            days.append(date.fromisoformat(path.name))
+        except (OSError, ValueError):
+            continue
+    return sorted(days)
+
+
+def axis_snapshot_candidates(
+    root: Path = SUN2_AXIS_SNAPSHOT_ROOT,
+    start_at: Optional[datetime] = None,
+    end_at: Optional[datetime] = None,
+) -> list[tuple[datetime, Path]]:
+    if not root.exists():
+        return []
+    if start_at or end_at:
+        start_bound = normalize_local_naive(start_at) if start_at else normalize_local_naive(end_at)
+        end_bound = normalize_local_naive(end_at) if end_at else normalize_local_naive(start_at)
+        if start_bound is None or end_bound is None:
+            return []
+        if end_bound < start_bound:
+            start_bound, end_bound = end_bound, start_bound
+        candidates: list[tuple[datetime, Path]] = []
+        for day in iter_dates(start_bound.date(), end_bound.date()):
+            candidates.extend(
+                item
+                for item in axis_snapshot_day_candidates(day, root)
+                if start_bound <= item[0] <= end_bound
+            )
+        return sorted(candidates, key=lambda item: item[0])
+
+    candidates: list[tuple[datetime, Path]] = []
+    for day in axis_snapshot_archive_days(root):
+        candidates.extend(axis_snapshot_day_candidates(day, root))
     return sorted(candidates, key=lambda item: item[0])
 
 
@@ -4136,6 +4212,22 @@ def primary_sun2_session_image(images: Iterable[Sun2TanningSessionImage]) -> Opt
     return sorted(rows, key=lambda image: abs(int_or_zero(getattr(image, "offset_seconds", 0)) - primary_offset))[0]
 
 
+def sun2_session_image_meta_options():
+    return load_only(
+        Sun2TanningSessionImage.id,
+        Sun2TanningSessionImage.session_id,
+        Sun2TanningSessionImage.captured_at,
+        Sun2TanningSessionImage.target_at,
+        Sun2TanningSessionImage.offset_seconds,
+        Sun2TanningSessionImage.is_primary,
+        Sun2TanningSessionImage.delta_seconds,
+        Sun2TanningSessionImage.source,
+        Sun2TanningSessionImage.created_at,
+        Sun2TanningSessionImage.byte_size,
+        Sun2TanningSessionImage.content_type,
+    )
+
+
 def sun2_session_image_payload(row: Sun2TanningSession, image: Sun2TanningSessionImage) -> Dict[str, Any]:
     captured_at = normalize_local_naive(image.captured_at)
     image_url = f"/soling/enkeltimer/{row.id}/bilder/{image.id}.jpg" if image.id else f"/soling/enkeltimer/{row.id}/bilde.jpg"
@@ -4163,11 +4255,14 @@ def axis_snapshot_browser_payload(
     images = sorted(images or [], key=lambda image: (int_or_zero(getattr(image, "offset_seconds", 0)), image.captured_at or datetime.min))
     primary_image = primary_sun2_session_image(images)
     saved_images = [sun2_session_image_payload(row, image) for image in images]
-    candidates = axis_snapshot_candidates()
     target_at = sun2_session_axis_target_at(row)
     linked_id = axis_snapshot_id(primary_image.captured_at) if primary_image and primary_image.captured_at else None
     requested_at = parse_axis_snapshot_id(snapshot_id_value or "") if snapshot_id_value else None
     preferred_at = requested_at or (normalize_local_naive(primary_image.captured_at) if primary_image and primary_image.captured_at else None) or target_at
+    archive_day = (preferred_at or target_at or normalize_local_naive(row.started_at) or local_now_naive()).date()
+    archive_start = datetime.combine(archive_day, time.min)
+    archive_end = datetime.combine(archive_day, time.max.replace(microsecond=0))
+    candidates = axis_snapshot_candidates(start_at=archive_start, end_at=archive_end)
     selected_index = closest_axis_snapshot_index(candidates, preferred_at) if preferred_at else -1
 
     current = None
@@ -4200,6 +4295,7 @@ def axis_snapshot_browser_payload(
         "targetLabel": target_at.strftime("%d.%m.%Y %H:%M:%S") if target_at else "",
         "seriesOffsets": SUN2_AXIS_SNAPSHOT_SERIES_OFFSETS_SECONDS,
         "snapshotRoot": str(SUN2_AXIS_SNAPSHOT_ROOT),
+        "archiveDay": archive_day.isoformat(),
         "snapshotsFound": len(candidates),
         "linked": linked,
         "savedImages": saved_images,
@@ -4265,6 +4361,7 @@ async def replace_sun2_session_image_with_axis_snapshot(
     images = (
         await session.execute(
             select(Sun2TanningSessionImage)
+            .options(sun2_session_image_meta_options())
             .where(Sun2TanningSessionImage.session_id == row.id)
             .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
         )
@@ -4288,6 +4385,7 @@ async def set_sun2_session_primary_image(
     image = (
         await session.execute(
             select(Sun2TanningSessionImage)
+            .options(sun2_session_image_meta_options())
             .where(Sun2TanningSessionImage.session_id == session_id)
             .where(Sun2TanningSessionImage.id == image_id)
         )
@@ -4310,6 +4408,7 @@ async def set_sun2_session_primary_image(
     images = (
         await session.execute(
             select(Sun2TanningSessionImage)
+            .options(sun2_session_image_meta_options())
             .where(Sun2TanningSessionImage.session_id == row.id)
             .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
         )
@@ -4327,7 +4426,11 @@ async def link_axis_snapshots_to_sun2_sessions(
     days = max(1, min(int(days or 7), 3650))
     limit = max(1, min(int(limit or 5000), 50000))
     tolerance_seconds = max(1, min(int(tolerance_seconds or SUN2_AXIS_SNAPSHOT_TOLERANCE_SECONDS), 300))
-    candidates = axis_snapshot_candidates()
+    start_cutoff = local_now_naive() - timedelta(days=days)
+    candidates = axis_snapshot_candidates(
+        start_at=start_cutoff - timedelta(seconds=tolerance_seconds + 60),
+        end_at=local_now_naive() + timedelta(seconds=60),
+    )
     result: Dict[str, Any] = {
         "snapshot_root": str(SUN2_AXIS_SNAPSHOT_ROOT),
         "snapshots_found": len(candidates),
@@ -4349,7 +4452,6 @@ async def link_axis_snapshots_to_sun2_sessions(
         return result
     candidate_times = [item[0] for item in candidates]
 
-    start_cutoff = local_now_naive() - timedelta(days=days)
     rows = (
         await session.execute(
             select(Sun2TanningSession)
@@ -11206,7 +11308,7 @@ async def sun2_session_image_item(session_id: int, image_id: int):
     return Response(
         content=image.image_bytes,
         media_type=image.content_type or "image/jpeg",
-        headers={"Cache-Control": "private, max-age=3600"},
+        headers={"Cache-Control": "private, max-age=86400, immutable"},
     )
 
 
@@ -11219,7 +11321,7 @@ async def api_sun2_axis_snapshot_image(snapshot_id: str):
     return FileResponse(
         path,
         media_type="image/jpeg",
-        headers={"Cache-Control": "private, max-age=300"},
+        headers={"Cache-Control": "private, max-age=86400, immutable"},
     )
 
 
@@ -11238,6 +11340,7 @@ async def api_sun2_session_image_browser(session_id: int, snapshot_id: Optional[
         images = (
             await session.execute(
                 select(Sun2TanningSessionImage)
+                .options(sun2_session_image_meta_options())
                 .where(Sun2TanningSessionImage.session_id == session_id)
                 .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
             )
@@ -15368,6 +15471,7 @@ async def api_v2_soling_module(
             filtered_image_rows = (
                 await session.execute(
                     select(Sun2TanningSessionImage)
+                    .options(sun2_session_image_meta_options())
                     .where(Sun2TanningSessionImage.session_id.in_(filtered_session_ids))
                     .order_by(
                         Sun2TanningSessionImage.session_id.asc(),
@@ -25172,6 +25276,7 @@ async def sun2_sessions_view(
             image_rows = (
                 await session.execute(
                     select(Sun2TanningSessionImage)
+                    .options(sun2_session_image_meta_options())
                     .where(Sun2TanningSessionImage.session_id.in_(row_ids))
                     .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
                 )
@@ -25388,6 +25493,7 @@ async def sun2_sessions_view(
                 image_rows = (
                     await session.execute(
                         select(Sun2TanningSessionImage)
+                        .options(sun2_session_image_meta_options())
                         .where(Sun2TanningSessionImage.session_id.in_(row_ids))
                         .order_by(Sun2TanningSessionImage.offset_seconds.asc(), Sun2TanningSessionImage.captured_at.asc())
                     )

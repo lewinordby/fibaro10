@@ -796,12 +796,18 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
         footer={modalFooter}
       >
         <div className="sun-image-browser">
-          {browserLoading ? (
+          {browserLoading && !browser?.current ? (
             <div className="sun-image-browser-loading">
               <Spin />
             </div>
           ) : browser?.current ? (
-            <>
+            <div className="sun-image-browser-current">
+              {browserLoading ? (
+                <div className="sun-image-browser-busy">
+                  <Spin size="small" />
+                  <span>Laster bilde</span>
+                </div>
+              ) : null}
               <div className="sun-image-browser-meta">
                 <div>
                   <span>Arkivbilde</span>
@@ -825,7 +831,7 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
                 src={`${browser.current.imageUrl}?v=${encodeURIComponent(browser.current.id)}`}
                 alt={`Axis-bilde ${browser.current.label}`}
               />
-            </>
+            </div>
           ) : (
             <div className="sun-image-browser-empty">
               <Typography.Text type="secondary">Ingen Axis-bilder finnes i arkivet.</Typography.Text>
@@ -834,6 +840,37 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
         </div>
       </Modal>
     </div>
+  );
+}
+
+function SunSessionItem({
+  row,
+  rowKey,
+  onImageChanged,
+}: {
+  row: ModuleRow;
+  rowKey: string;
+  onImageChanged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const hasImage = row.has_image === true;
+  const imageCount = Number(row.image_count || 0);
+  return (
+    <details className="sun-session-item" key={rowKey} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="sun-session-summary">
+        <div className="sun-session-main">
+          <Typography.Text strong>{displayValue(row.started_at)}</Typography.Text>
+          <span>{displayValue(row.room_label || row.room || row.room_id)}</span>
+          <span>{displayValue(row.user_name || row.sun2_user_id)}</span>
+        </div>
+        <div className="sun-session-tags">
+          <Tag>{row.duration_minutes ? `${displayValue(row.duration_minutes)} min` : "Tid -"}</Tag>
+          <Tag>{row.paid_amount_kr ? `${displayValue(row.paid_amount_kr)} kr` : "Kr -"}</Tag>
+          <Tag color={hasImage ? "green" : "default"}>{hasImage ? `${imageCount || 1} bilder` : "Ingen bilde"}</Tag>
+        </div>
+      </summary>
+      {open ? <SunSessionDetails row={row} onImageChanged={onImageChanged} /> : null}
+    </details>
   );
 }
 
@@ -878,25 +915,7 @@ function SunSessionsPanel({
         {rows.length ? (
           rows.map((row, index) => {
             const key = tableRowKey(row, table?.title ?? "Enkeltimer", index);
-            const hasImage = row.has_image === true;
-            const imageCount = Number(row.image_count || 0);
-            return (
-              <details className="sun-session-item" key={key}>
-                <summary className="sun-session-summary">
-                  <div className="sun-session-main">
-                    <Typography.Text strong>{displayValue(row.started_at)}</Typography.Text>
-                    <span>{displayValue(row.room_label || row.room || row.room_id)}</span>
-                    <span>{displayValue(row.user_name || row.sun2_user_id)}</span>
-                  </div>
-                  <div className="sun-session-tags">
-                    <Tag>{row.duration_minutes ? `${displayValue(row.duration_minutes)} min` : "Tid -"}</Tag>
-                    <Tag>{row.paid_amount_kr ? `${displayValue(row.paid_amount_kr)} kr` : "Kr -"}</Tag>
-                    <Tag color={hasImage ? "green" : "default"}>{hasImage ? `${imageCount || 1} bilder` : "Ingen bilde"}</Tag>
-                  </div>
-                </summary>
-                <SunSessionDetails row={row} onImageChanged={onImageChanged} />
-              </details>
-            );
+            return <SunSessionItem key={key} rowKey={key} row={row} onImageChanged={onImageChanged} />;
           })
         ) : (
           <div className="sun-session-empty">

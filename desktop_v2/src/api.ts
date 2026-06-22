@@ -460,6 +460,7 @@ export type SunSessionImageBrowser = {
   targetLabel: string;
   seriesOffsets: number[];
   snapshotRoot: string;
+  archiveDay?: string;
   snapshotsFound: number;
   linked: SunSessionSavedImage | null;
   savedImages: SunSessionSavedImage[];

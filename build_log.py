@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1233")
+APP_BUILD = os.getenv("APP_BUILD", "1234")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1234",
+        "date": "22.06.2026",
+        "headline": "Raskere bildearkiv for soltimer",
+        "title": "Soling > Enkelttimer og bildearkiv optimaliseres",
+        "description": (
+            "Build 1234 optimaliserer bildeopplegget for soltimer. Axis-arkivet indekseres per dag med cache i stedet "
+            "for å skanne hele snapshot-arkivet ved hvert bildearkivkall, og enkelttime-listen henter bare bildemetadata."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): dagbasert Axis-cache, avgrenset arkivsøk og lettere bilde-metadata-spørringer.",
+            "Desktop V2 enkelttimer (src/pages/ModulePage.tsx): detaljrader rendres først når de åpnes.",
+            "Desktop V2 styling (src/styles/module-content.css): bedre loading-overlegg i bildearkivet.",
+            "Desktop V2 API-typer (src/api.ts): legger til arkivdag i bildearkivresponsen.",
+            "Tester (tests/test_sun2_axis_snapshots.py): dekker tidsavgrenset Axis-kandidatsøk.",
+        ],
+        "request": "Soling/enkelttimer, bildearkiv og hele bildeopplegget er veldig tregt og lite funksjonelt.",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Bildearkivet skanner ikke lenger alle Axis-bilder ved hvert kall.",
+            "Periodisk bildekobling bruker bare relevant tidsrom i stedet for hele arkivet.",
+            "Enkelttime-listen unngår å hente JPEG-bytes for alle viste rader.",
+            "Skjulte enkelttime-detaljer bygges ikke før raden åpnes.",
+            "Bildearkivet beholder gjeldende bilde synlig mens neste/forrige bilde lastes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1233",

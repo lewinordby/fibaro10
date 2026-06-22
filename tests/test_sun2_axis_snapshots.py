@@ -92,3 +92,22 @@ class Sun2AxisSnapshotTests(unittest.TestCase):
         found_at, found_path = found
         self.assertEqual(found_at, captured_at)
         self.assertEqual(found_path.name, "axis_2026-06-13_17-46-27.jpg")
+
+    def test_axis_snapshot_candidates_can_be_limited_to_time_window(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            day_one = root / "2026-06-13"
+            day_two = root / "2026-06-14"
+            day_one.mkdir()
+            day_two.mkdir()
+            (day_one / "axis_2026-06-13_17-46-20.jpg").write_bytes(b"\xff\xd8one")
+            (day_one / "axis_2026-06-13_17-46-30.jpg").write_bytes(b"\xff\xd8two")
+            (day_two / "axis_2026-06-14_17-46-20.jpg").write_bytes(b"\xff\xd8three")
+
+            candidates = self.main.axis_snapshot_candidates(
+                root,
+                start_at=datetime(2026, 6, 13, 17, 46, 25),
+                end_at=datetime(2026, 6, 13, 17, 46, 35),
+            )
+
+        self.assertEqual([path.name for _captured_at, path in candidates], ["axis_2026-06-13_17-46-30.jpg"])
