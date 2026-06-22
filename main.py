@@ -6566,6 +6566,15 @@ def weighted_average(values: list[tuple[float, float]]) -> tuple[float, float, i
 
 
 def sun2_history_weight(target_day: date, historical_day: date, today: date) -> float:
+    return sun2_history_weight_precomputed(
+        target_day,
+        historical_day,
+        today,
+        bool(norwegian_holiday_name(target_day)),
+    )
+
+
+def sun2_history_weight_precomputed(target_day: date, historical_day: date, today: date, target_holiday: bool) -> float:
     if historical_day >= today:
         return 0.0
     age_years = max(0.0, (today - historical_day).days / 365.25)
@@ -6573,26 +6582,34 @@ def sun2_history_weight(target_day: date, historical_day: date, today: date) -> 
     month_diff = month_distance(target_day.month, historical_day.month)
     season = {0: 1.75, 1: 1.35, 2: 1.05, 3: 0.82}.get(month_diff, 0.55)
     weekday = 1.35 if target_day.weekday() == historical_day.weekday() else 0.82
-    target_holiday = bool(norwegian_holiday_name(target_day))
     history_holiday = bool(norwegian_holiday_name(historical_day))
     holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.55
     return max(0.0, recency * season * weekday * holiday)
 
 
 def sun2_daily_model(target_day: date, history: Dict[date, Dict[str, float]], today: date) -> Dict[str, Any]:
-    sessions_values = []
-    paid_values = []
-    minutes_values = []
+    target_holiday_name = norwegian_holiday_name(target_day)
+    target_holiday = bool(target_holiday_name)
+    sessions_sum = 0.0
+    paid_sum = 0.0
+    minutes_sum = 0.0
+    weight_sum = 0.0
+    comparable_days = 0
     for historical_day, item in history.items():
-        weight = sun2_history_weight(target_day, historical_day, today)
+        weight = sun2_history_weight_precomputed(target_day, historical_day, today, target_holiday)
         if weight <= 0:
             continue
-        sessions_values.append((float_or_zero(item.get("sessions")), weight))
-        paid_values.append((float_or_zero(item.get("paid")), weight))
-        minutes_values.append((float_or_zero(item.get("minutes")), weight))
-    sessions, weight_sum, comparable_days = weighted_average(sessions_values)
-    paid, _, _ = weighted_average(paid_values)
-    minutes, _, _ = weighted_average(minutes_values)
+        sessions_sum += float_or_zero(item.get("sessions")) * weight
+        paid_sum += float_or_zero(item.get("paid")) * weight
+        minutes_sum += float_or_zero(item.get("minutes")) * weight
+        weight_sum += weight
+        comparable_days += 1
+    if weight_sum <= 0:
+        sessions = paid = minutes = 0.0
+    else:
+        sessions = sessions_sum / weight_sum
+        paid = paid_sum / weight_sum
+        minutes = minutes_sum / weight_sum
     return {
         "day": target_day,
         "sessions": sessions,
@@ -6600,7 +6617,7 @@ def sun2_daily_model(target_day: date, history: Dict[date, Dict[str, float]], to
         "minutes": minutes,
         "weight_sum": weight_sum,
         "comparable_days": comparable_days,
-        "holiday": norwegian_holiday_name(target_day),
+        "holiday": target_holiday_name,
     }
 
 
@@ -6791,7 +6808,16 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
     closing_minute = 23 * 60
     day_fraction = opening_day_fraction(minute_of_day, opening_minute, closing_minute, power=0.86)
     day_fraction = await sun2_historical_day_fraction(session, today, today, model_history, minute_of_day, day_fraction)
-    model_today = sun2_daily_model(today, model_history, today)
+    daily_model_cache: Dict[date, Dict[str, Any]] = {}
+
+    def model_for(day: date) -> Dict[str, Any]:
+        model = daily_model_cache.get(day)
+        if model is None:
+            model = sun2_daily_model(day, model_history, today)
+            daily_model_cache[day] = model
+        return model
+
+    model_today = model_for(today)
     actual_sessions = float_or_zero(actual_today.get("sessions"))
     actual_paid = float_or_zero(actual_today.get("paid"))
     actual_minutes = float_or_zero(actual_today.get("minutes"))
@@ -6814,7 +6840,7 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
         today_remaining = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0}
         future_days = []
         for day in iter_dates(start, end):
-            model = sun2_daily_model(day, model_history, today)
+            model = model_for(day)
             if day < today:
                 expected_so_far["sessions"] += model["sessions"]
                 expected_so_far["paid"] += model["paid"]
@@ -6889,22 +6915,31 @@ async def build_sun2_forecast(session, today: date, now_local: datetime) -> Dict
 
 
 def parking_daily_model(target_day: date, history: Dict[date, Dict[str, float]], today: date) -> Dict[str, Any]:
-    sessions_values = []
-    paid_values = []
-    minutes_values = []
-    vehicles_values = []
+    target_holiday_name = norwegian_holiday_name(target_day)
+    target_holiday = bool(target_holiday_name)
+    sessions_sum = 0.0
+    paid_sum = 0.0
+    minutes_sum = 0.0
+    vehicles_sum = 0.0
+    weight_sum = 0.0
+    comparable_days = 0
     for historical_day, item in history.items():
-        weight = parking_history_weight(target_day, historical_day, today)
+        weight = parking_history_weight_precomputed(target_day, historical_day, today, target_holiday)
         if weight <= 0:
             continue
-        sessions_values.append((float_or_zero(item.get("sessions")), weight))
-        paid_values.append((float_or_zero(item.get("paid")), weight))
-        minutes_values.append((float_or_zero(item.get("minutes")), weight))
-        vehicles_values.append((float_or_zero(item.get("vehicles")), weight))
-    sessions, weight_sum, comparable_days = weighted_average(sessions_values)
-    paid, _, _ = weighted_average(paid_values)
-    minutes, _, _ = weighted_average(minutes_values)
-    vehicles, _, _ = weighted_average(vehicles_values)
+        sessions_sum += float_or_zero(item.get("sessions")) * weight
+        paid_sum += float_or_zero(item.get("paid")) * weight
+        minutes_sum += float_or_zero(item.get("minutes")) * weight
+        vehicles_sum += float_or_zero(item.get("vehicles")) * weight
+        weight_sum += weight
+        comparable_days += 1
+    if weight_sum <= 0:
+        sessions = paid = minutes = vehicles = 0.0
+    else:
+        sessions = sessions_sum / weight_sum
+        paid = paid_sum / weight_sum
+        minutes = minutes_sum / weight_sum
+        vehicles = vehicles_sum / weight_sum
     return {
         "day": target_day,
         "sessions": sessions,
@@ -6913,7 +6948,7 @@ def parking_daily_model(target_day: date, history: Dict[date, Dict[str, float]],
         "vehicles": vehicles,
         "weight_sum": weight_sum,
         "comparable_days": comparable_days,
-        "holiday": norwegian_holiday_name(target_day),
+        "holiday": target_holiday_name,
     }
 
 
@@ -6929,6 +6964,15 @@ def parking_period_actual(history: Dict[date, Dict[str, float]], start: date, en
 
 
 def parking_history_weight(target_day: date, historical_day: date, today: date) -> float:
+    return parking_history_weight_precomputed(
+        target_day,
+        historical_day,
+        today,
+        bool(norwegian_holiday_name(target_day)),
+    )
+
+
+def parking_history_weight_precomputed(target_day: date, historical_day: date, today: date, target_holiday: bool) -> float:
     if historical_day >= today:
         return 0.0
     age_years = max(0.0, (today - historical_day).days / 365.25)
@@ -6947,7 +6991,6 @@ def parking_history_weight(target_day: date, historical_day: date, today: date) 
     else:
         weekday = 1.45 if target_weekday == history_weekday else 0.78
 
-    target_holiday = bool(norwegian_holiday_name(target_day))
     history_holiday = bool(norwegian_holiday_name(historical_day))
     holiday = 1.8 if target_holiday and history_holiday else 1.0 if target_holiday == history_holiday else 0.50
     return max(0.0, recency * season * weekday * holiday)
@@ -6991,7 +7034,16 @@ async def build_parking_forecast(session, today: date, now_local: datetime) -> D
     day_fraction = opening_day_fraction(minute_of_day, opening_minute, closing_minute, power=0.9)
     day_fraction = await parking_historical_day_fraction(session, today, today, model_history, minute_of_day, day_fraction)
 
-    model_today = parking_daily_model(today, model_history, today)
+    daily_model_cache: Dict[date, Dict[str, Any]] = {}
+
+    def model_for(day: date) -> Dict[str, Any]:
+        model = daily_model_cache.get(day)
+        if model is None:
+            model = parking_daily_model(day, model_history, today)
+            daily_model_cache[day] = model
+        return model
+
+    model_today = model_for(today)
     actual_sessions = float_or_zero(actual_today.get("sessions"))
     actual_paid = float_or_zero(actual_today.get("paid"))
     actual_minutes = float_or_zero(actual_today.get("minutes"))
@@ -7037,7 +7089,7 @@ async def build_parking_forecast(session, today: date, now_local: datetime) -> D
         today_remaining = {"sessions": 0.0, "paid": 0.0, "minutes": 0.0, "vehicles": 0.0}
         future_days = []
         for day in iter_dates(start, end):
-            model = parking_daily_model(day, model_history, today)
+            model = model_for(day)
             if day < today:
                 expected_so_far["sessions"] += model["sessions"]
                 expected_so_far["paid"] += model["paid"]
@@ -7288,9 +7340,19 @@ async def saved_forecast_table(session, domain: str, limit: int = 18) -> list[Di
         )
     ).scalars().all()
     today = local_now_naive().date()
+    actual_by_period: Dict[tuple[date, date], Dict[str, float]] = {}
+    for row in rows:
+        period_key = (row.period_start, row.period_end)
+        if period_key not in actual_by_period:
+            actual_by_period[period_key] = await actual_for_forecast_period(
+                session,
+                domain,
+                row.period_start,
+                row.period_end,
+            )
     items = []
     for row in rows:
-        actual = await actual_for_forecast_period(session, domain, row.period_start, row.period_end)
+        actual = actual_by_period[(row.period_start, row.period_end)]
         forecast = {
             "sessions": float_or_zero(row.forecast_sessions),
             "paid": float_or_zero(row.forecast_paid),

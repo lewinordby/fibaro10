@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1241")
+APP_BUILD = os.getenv("APP_BUILD", "1242")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1242",
+        "date": "23.06.2026",
+        "headline": "Prognoser beregnes raskere",
+        "title": "Parkering og soling faar lettere prognosemodell og mindre dobbelarbeid",
+        "description": (
+            "Build 1242 optimaliserer de siste tydelige treghetene fra bred modulsmoke. Prognoseberegningen bruker "
+            "samme vektlogikk som foer, men summerer alle noekkeltall i én passering per historisk dag og gjenbruker "
+            "modellverdier for samme prognosedag. Lagrede prognoser beregner ogsaa faktisk resultat bare én gang per "
+            "unik periode i stedet for aa gjoere samme databasekall flere ganger."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): raskere dagmodell for soling og parkering.",
+            "Fibaro10 backend (main.py): intern prognosecache per dag i samme API-kall.",
+            "Fibaro10 backend (main.py): dedupliserer faktisk resultat i lagrede prognosetabeller.",
+            "Buildlogg (build_log.py): registrerer build 1242.",
+        ],
+        "request": "Soerg for at alt er perfekt. Gaa igjennom hele appen, sjekk funksjonalitet, logiske brister, fiks hastighet.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Kald prognoseberegning bruker mindre CPU uten endret beregningsgrunnlag.",
+            "Parkering og soling gjenbruker modell for samme dato innen ett prognosekall.",
+            "Lagrede prognoser slipper gjentatte identiske actual-spoerringer.",
+            "Endringen er verifisert med enhetstester foer deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1241",
