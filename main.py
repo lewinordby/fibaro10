@@ -20337,6 +20337,170 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "energyElvia": None,
                     "energySunbeds": energy_sunbeds_data,
                 }
+            if view in {"kurser", "laster", "verktoy"}:
+                all_circuits = (
+                    await session.execute(select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc()))
+                ).scalars().all()
+                circuits = filter_energy_circuits_by_sunbed(all_circuits, energy_sunbeds_value if view == "kurser" else None)
+                sunbed_circuit_numbers = [row.circuit_no for row in all_circuits if energy_circuit_is_sunbed(row)]
+                sunbed_filter_options = [
+                    {"label": "Skjul solsenger", "value": "hide"},
+                    {"label": "Kun solsenger", "value": "only"},
+                ]
+                circuit_options = [
+                    {
+                        "label": f"{row.circuit_no} - {row.description}" if row.description else str(row.circuit_no),
+                        "value": str(row.circuit_no),
+                    }
+                    for row in all_circuits
+                    if row.circuit_no is not None
+                ]
+
+                energy_circuit_no = None
+                if energy_circuit_value:
+                    try:
+                        energy_circuit_no = int(energy_circuit_value)
+                    except ValueError:
+                        energy_circuit_no = None
+                load_conditions = []
+                if energy_q_value:
+                    pattern = f"%{energy_q_value}%"
+                    load_conditions.append(
+                        or_(
+                            EnergyLoad.name.ilike(pattern),
+                            EnergyLoad.area.ilike(pattern),
+                            EnergyLoad.note.ilike(pattern),
+                            EnergyLoad.load_type.ilike(pattern),
+                        )
+                    )
+                if energy_circuit_no is not None:
+                    load_conditions.append(EnergyLoad.circuit_no == energy_circuit_no)
+                if energy_load_type_value:
+                    load_conditions.append(EnergyLoad.load_type == energy_load_type_value)
+                if energy_active_value == "1":
+                    load_conditions.append(EnergyLoad.active.is_(True))
+                elif energy_active_value == "0":
+                    load_conditions.append(EnergyLoad.active.is_(False))
+                if energy_sunbeds_value == "hide":
+                    load_conditions.append(or_(EnergyLoad.circuit_no.is_(None), ~EnergyLoad.circuit_no.in_(sunbed_circuit_numbers)))
+                elif energy_sunbeds_value == "only":
+                    load_conditions.append(EnergyLoad.circuit_no.in_(sunbed_circuit_numbers))
+
+                load_stmt = select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc()).limit(energy_limit_value)
+                load_count_stmt = select(func.count(EnergyLoad.id))
+                if load_conditions:
+                    load_stmt = load_stmt.where(*load_conditions)
+                    load_count_stmt = load_count_stmt.where(*load_conditions)
+                loads = (await session.execute(load_stmt)).scalars().all()
+                filtered_load_count = (await session.execute(load_count_stmt)).scalar_one()
+
+                if view == "kurser":
+                    return {
+                        "title": "Energi · kurser",
+                        "subtitle": "Kursregister med tekniske data og solsengmerking.",
+                        "cards": [
+                            api_card("Kurser", len(circuits), "stk", "Valgt kursfilter", "energy", href="/energi/kurser"),
+                            api_card("Solsengkurser", sum(1 for row in circuits if energy_circuit_is_sunbed(row)), "stk", "Blant viste", "sun2", href="/energi/forbruk-per-seng"),
+                            api_card("Med vern", sum(1 for row in circuits if row.breaker_rating_a is not None), "stk", "Registrert", "status", href="/energi/kurser"),
+                            api_card("Uten vern", sum(1 for row in circuits if row.breaker_rating_a is None), "stk", "Mangler data", "status", href="/energi/kurser"),
+                        ],
+                        "charts": [],
+                        "tables": [api_table("Kurser", ["circuit_no", "description", "breaker", "breaker_type", "is_sunbed", "status", "note"], [circuit_row_api(row) for row in circuits], edit=api_energy_circuit_edit())],
+                        "filters": [api_filter("sunbeds", "Solsenger", "select", energy_sunbeds_value, options=sunbed_filter_options)],
+                        "energyElvia": None,
+                        "energySunbeds": None,
+                    }
+
+                load_type_options = api_filter_options(
+                    (
+                        await session.execute(
+                            select(EnergyLoad.load_type)
+                            .where(EnergyLoad.load_type.is_not(None))
+                            .where(func.trim(EnergyLoad.load_type) != "")
+                            .distinct()
+                            .order_by(EnergyLoad.load_type.asc())
+                        )
+                    ).scalars().all()
+                )
+                if view == "laster":
+                    return {
+                        "title": "Energi · laster",
+                        "subtitle": "Lastregister med målere, kurser og forventet effekt.",
+                        "cards": [
+                            api_card("Treff", filtered_load_count, "stk", f"Viser {len(loads)} laster", "energy", href="/energi/laster"),
+                            api_card("Aktive vist", sum(1 for row in loads if row.active), "stk", "I tabellen", "status", href="/energi/laster"),
+                            api_card("Direktemålt", sum(1 for row in loads if row.measured_direct), "stk", "I tabellen", "energy", href="/energi/laster"),
+                            api_card("Effekt vist", format_short_number(sum(float_or_zero(row.expected_power_w) for row in loads)), "W", "For viste rader", "energy", href="/energi/laster"),
+                        ],
+                        "charts": [],
+                        "tables": [api_table("Laster", ["name", "load_type", "area", "circuit_no", "expected_power_w", "fibaro_device_id", "fibaro_meter_id", "active"], [load_row_api(row) for row in loads], edit=api_energy_load_edit())],
+                        "filters": [
+                            api_filter("q", "Søk", "text", energy_q_value, "Navn, område, type eller notat"),
+                            api_filter("circuit", "Kurs", "select", energy_circuit_value, options=circuit_options),
+                            api_filter("load_type", "Type", "select", energy_load_type_value, options=load_type_options),
+                            api_filter("active", "Aktiv", "select", energy_active_value, options=[{"label": "Aktive", "value": "1"}, {"label": "Inaktive", "value": "0"}]),
+                            api_filter("sunbeds", "Solsenger", "select", energy_sunbeds_value, options=sunbed_filter_options),
+                            api_filter("limit", "Antall", "number", energy_limit_value),
+                        ],
+                        "energyElvia": None,
+                        "energySunbeds": None,
+                    }
+
+                latest = (
+                    await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
+                ).scalars().first()
+                today_sample_count = (
+                    await session.execute(
+                        select(func.count(EnergyFibaroSample.id))
+                        .where(EnergyFibaroSample.bucket_start >= today_start)
+                        .where(EnergyFibaroSample.bucket_start < tomorrow_start)
+                    )
+                ).scalar_one()
+                elvia_import_count = (
+                    await session.execute(select(func.count(EnergyImportRun.id)))
+                ).scalar_one()
+                return {
+                    "title": "Energi · verktøy",
+                    "subtitle": "Snarveier og teknisk datagrunnlag for energi.",
+                    "cards": [
+                        api_card("Inntak nå", format_short_number(latest.inntak_w if latest else None), "W", "Realtime", "energy", href="/energi/status"),
+                        api_card("Samples i dag", today_sample_count, "stk", "Realtime energilogging", "energy", href="/energi/status"),
+                        api_card("Diff nå", format_short_number(latest.differanse_beregnet_w if latest else None), "W", "Beregnet fra realtime", "energy", href="/energi/status"),
+                        api_card("Laster", filtered_load_count, "stk", "Aktive og registrerte", "status", href="/energi/laster"),
+                    ],
+                    "charts": [],
+                    "tables": [
+                        api_table(
+                            "Energiverktøy",
+                            ["tool", "path", "description", "count"],
+                            [
+                                api_tool_row("Energi status", "/energi/status", "Realtime energiside med Elvia-sammenligning.", today_sample_count),
+                                api_tool_row("Kurser", "/energi/kurser", "Kursregister med redigering og tekniske data.", len(circuits)),
+                                api_tool_row("Laster", "/energi/laster", "Lastregister med målere, kurser og forventet effekt.", len(loads)),
+                                api_tool_row("Elvia", "/energi/elvia", "Import og kontroll av Elvia-timesdata.", elvia_import_count),
+                                api_tool_row("Kurs-PDF", "/classic/energi/kurser/pdf", "Eksporter kurslisten som PDF.", len(circuits)),
+                                api_tool_row("Last-PDF", "/classic/energi/laster/pdf", "Eksporter lastlisten som PDF.", len(loads)),
+                            ],
+                        ),
+                        api_table(
+                            "Datagrunnlag",
+                            ["key", "value"],
+                            api_config_value_rows(
+                                {
+                                    "samples_i_dag": today_sample_count,
+                                    "siste_sample": latest.bucket_start if latest else None,
+                                    "inntak_na_w": latest.inntak_w if latest else None,
+                                    "differanse_na_w": latest.differanse_beregnet_w if latest else None,
+                                    "aktive_laster": sum(1 for row in loads if row.active),
+                                    "direktemalte_laster": sum(1 for row in loads if row.measured_direct),
+                                }
+                            ),
+                        ),
+                    ],
+                    "filters": [],
+                    "energyElvia": None,
+                    "energySunbeds": None,
+                }
             latest = (
                 await session.execute(select(EnergyFibaroSample).order_by(EnergyFibaroSample.bucket_start.desc()).limit(1))
             ).scalars().first()

@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1240")
+APP_BUILD = os.getenv("APP_BUILD", "1241")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1241",
+        "date": "22.06.2026",
+        "headline": "Energiregistre slipper dagsgraf-payload",
+        "title": "Energi > Kurser, Laster og Verktøy får egne lette API-stier",
+        "description": (
+            "Build 1241 rydder videre etter bred modulsmoke. Energisidene for kurser, laster og verktøy brukte ikke "
+            "døgnchartet, men fikk likevel med full dagsgraf og energisample-tabell i API-responsen. Disse sidene "
+            "returnerer nå bare registerdata og relevante kort."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): tidlige retur-stier for Energi > Kurser, Laster og Verktøy.",
+            "Buildlogg (build_log.py): registrerer build 1241.",
+        ],
+        "request": "Gå igjennom hele appen, sjekk funksjonalitet, logiske brister, fiks hastighet og sørg for at alt er perfekt.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Energi > Kurser returnerer ikke lenger energidøgnchart.",
+            "Energi > Laster returnerer ikke lenger energidøgnchart.",
+            "Energi > Verktøy returnerer ikke lenger energidøgnchart.",
+            "Registersidene beholder kort, filtre og redigerbare tabeller.",
+        ],
+    },
     {
         "version": "1",
         "build": "1240",
