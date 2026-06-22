@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1243")
+APP_BUILD = os.getenv("APP_BUILD", "1244")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1244",
+        "date": "23.06.2026",
+        "headline": "Solsengforbruk cachet kort",
+        "title": "Energi > Forbruk per seng gjenbruker tung analyse i tre minutter",
+        "description": (
+            "Build 1244 legger kort cache på den tunge leseanalysen for estimert solsengforbruk. Siden bygger samme "
+            "beregning som før, men gjentatte åpninger av samme periode slipper å lese og analysere alle energisamples "
+            "og soltimer på nytt."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): tre minutters cache for load_sunbed_power_analysis.",
+            "Buildlogg (build_log.py): registrerer build 1244.",
+        ],
+        "request": "Soerg for at alt er perfekt. Reduser gjenværende trege sider etter bred modulsmoke.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Energi > Forbruk per seng returnerer cachet analyse for samme datoperiode.",
+            "Cache gjelder bare visningspayload og endrer ikke logging, import eller beregning.",
+            "Gjentatte sidevisninger blir vesentlig raskere.",
+        ],
+    },
     {
         "version": "1",
         "build": "1243",

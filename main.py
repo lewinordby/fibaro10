@@ -9200,6 +9200,11 @@ async def load_sunbed_power_analysis(
     today: date,
 ) -> Dict[str, Any]:
     start_day, end_day, max_days = sunbed_analysis_date_range(date_from, date_to, today)
+    cache_key = f"sunbed_power_analysis:{start_day.isoformat()}:{end_day.isoformat()}"
+    now_utc = datetime.utcnow()
+    cached = SUMMARY_CACHE.get(cache_key)
+    if cached and cached.get("expires", datetime.min) > now_utc:
+        return deepcopy(cached["value"])
     start_at = datetime.combine(start_day, time.min)
     end_at = datetime.combine(end_day + timedelta(days=1), time.min)
     session_rows = (
@@ -9246,13 +9251,15 @@ async def load_sunbed_power_analysis(
         [dict(row) for row in ventilation_rows],
     )
     max_power = max([float_or_zero(room.get("estimate_w")) for room in analysis["rooms"]] or [0.0])
-    return {
+    value = {
         "dateFrom": start_day.isoformat(),
         "dateTo": end_day.isoformat(),
         "maxDays": max_days,
         "maxPower": max_power,
         **analysis,
     }
+    SUMMARY_CACHE[cache_key] = {"expires": now_utc + timedelta(minutes=3), "value": deepcopy(value)}
+    return value
 
 
 def merged_extra(data: EventDataIn):
