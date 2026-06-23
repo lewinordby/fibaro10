@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1245")
+APP_BUILD = os.getenv("APP_BUILD", "1246")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1246",
+        "date": "23.06.2026",
+        "headline": "UniFi-lenker starter tidligere",
+        "title": "Protect-lenker paa parkering hopper til starten av videovinduet",
+        "description": (
+            "Build 1246 retter UniFi Protect-lenkene paa parkeringer slik at klikket aapner to minutter foer "
+            "start- eller sluttidspunktet. Selve videovinduet er fortsatt fra to minutter foer til fem minutter etter "
+            "hendelsen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): setter Protect time-parameteren til vindustart i stedet for hendelsestidspunkt.",
+            "Tester (tests/test_unifi_protect_links.py): verifiserer at time og start peker paa to minutter foer.",
+            "Buildlogg (build_log.py): registrerer build 1246.",
+        ],
+        "request": "UniFi-lenken aapnet ikke 2 min foer, men omtrent etter hendelsen.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Start- og sluttikonene aapner naa ved begynnelsen av videovinduet.",
+            "URL-ene beholder samme kamera og samme 7-minutters visningsvindu.",
+            "Regresjonstest dekker start, end og time-parametere.",
+        ],
+    },
     {
         "version": "1",
         "build": "1245",

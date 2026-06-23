@@ -16328,7 +16328,7 @@ def unifi_protect_parking_timelapse_url(target_at: Optional[datetime]) -> Option
         {
             "end": int(end_at.timestamp() * 1000),
             "start": int(start_at.timestamp() * 1000),
-            "time": int(target_local.timestamp() * 1000),
+            "time": int(start_at.timestamp() * 1000),
         }
     )
     console_id = quote(UNIFI_PROTECT_CONSOLE_ID, safe=":")
