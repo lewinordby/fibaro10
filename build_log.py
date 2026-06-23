@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1246")
+APP_BUILD = os.getenv("APP_BUILD", "1247")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1247",
+        "date": "23.06.2026",
+        "headline": "UniFi-video paa parkeringslisten",
+        "title": "Parkering > Parkeringer faar Protect-lenker paa start og slutt",
+        "description": (
+            "Build 1247 legger UniFi Protect-videoikon inn paa Parkering > Parkeringer. Denne listen bruker et kortere "
+            "oppslagspunkt med ett minutt foer start eller slutt, mens bilsiden fortsatt bruker to minutter foer."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): gjoer Protect-forhaandssekunder konfigurerbart per API-rad.",
+            "Fibaro10 backend (main.py): bruker 60 sekunder foer paa Parkering > Parkeringer.",
+            "Fibaro10 frontend (ModulePage.tsx): viser videoknapp ved start/slutt i generiske modultabeller.",
+            "Tester (tests/test_unifi_protect_links.py): dekker baade 2 min og 1 min foer.",
+            "Buildlogg (build_log.py): registrerer build 1247.",
+        ],
+        "request": "Legg UniFi-lenker inn paa Parkering > Parkeringer, men med 1 minutt foer.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Parkering > Parkeringer viser videoikon ved Start og Slutt.",
+            "Lenkene paa denne siden aapner ett minutt foer hendelsen og fem minutter etter.",
+            "Eksisterende bilside beholder to minutter foer hendelsen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1246",

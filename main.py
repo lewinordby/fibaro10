@@ -16315,14 +16315,15 @@ def api_energy_elvia_payload(
     }
 
 
-def unifi_protect_parking_timelapse_url(target_at: Optional[datetime]) -> Optional[str]:
+def unifi_protect_parking_timelapse_url(target_at: Optional[datetime], before_seconds: Optional[int] = None) -> Optional[str]:
     if not target_at or not UNIFI_PROTECT_CONSOLE_ID or not UNIFI_PROTECT_PARKING_CAMERA_ID:
         return None
+    preview_before_seconds = max(0, int(before_seconds if before_seconds is not None else UNIFI_PROTECT_PARKING_PREVIEW_BEFORE_SECONDS))
     if target_at.tzinfo is None:
         target_local = target_at.replace(tzinfo=LOCAL_TZ)
     else:
         target_local = target_at.astimezone(LOCAL_TZ)
-    start_at = target_local - timedelta(seconds=UNIFI_PROTECT_PARKING_PREVIEW_BEFORE_SECONDS)
+    start_at = target_local - timedelta(seconds=preview_before_seconds)
     end_at = target_local + timedelta(seconds=UNIFI_PROTECT_PARKING_PREVIEW_AFTER_SECONDS)
     params = urlencode(
         {
@@ -16340,6 +16341,7 @@ def parking_row_api(
     row: ParkingSession,
     vehicle: Optional[ParkingVehicle] = None,
     previous_stats: Optional[Dict[str, Any]] = None,
+    unifi_before_seconds: Optional[int] = None,
 ) -> Dict[str, Any]:
     owner_warning = parking_current_ownership_warning(vehicle, row.start_time)
     data = {
@@ -16355,8 +16357,8 @@ def parking_row_api(
         "user_interface": row.user_interface,
         "subtype": row.subtype,
         "status": row.status,
-        "unifi_start_url": unifi_protect_parking_timelapse_url(row.start_time),
-        "unifi_end_url": unifi_protect_parking_timelapse_url(row.end_time),
+        "unifi_start_url": unifi_protect_parking_timelapse_url(row.start_time, unifi_before_seconds),
+        "unifi_end_url": unifi_protect_parking_timelapse_url(row.end_time, unifi_before_seconds),
     }
     if previous_stats:
         data.update(
@@ -20278,7 +20280,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "previous_parking_count",
                             "previous_paid_total",
                         ],
-                        [parking_row_api(row, vehicle, previous_stats.get(row.id)) for row, vehicle in parking_rows],
+                        [parking_row_api(row, vehicle, previous_stats.get(row.id), unifi_before_seconds=60) for row, vehicle in parking_rows],
                     )
                 ]
             elif view == "kjoretoy":

@@ -1,5 +1,5 @@
-import { AimOutlined, CalendarOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
-import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd";
+import { AimOutlined, CalendarOutlined, LeftOutlined, RightOutlined, VideoCameraOutlined } from "@ant-design/icons";
+import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -371,6 +371,27 @@ function LinkValue({ value }: { value: string }) {
   return displayValue(value);
 }
 
+function renderTimeWithVideo(value: unknown, row: ModuleRow, urlKey: string, tooltip: string) {
+  const href = row[urlKey];
+  if (typeof href !== "string" || !href) return displayValue(value);
+  return (
+    <Space size={4} wrap={false}>
+      <span>{displayValue(value)}</span>
+      <Tooltip title={tooltip}>
+        <Button
+          aria-label={tooltip}
+          href={href}
+          icon={<VideoCameraOutlined />}
+          rel="noreferrer"
+          size="small"
+          target="_blank"
+          type="text"
+        />
+      </Tooltip>
+    </Space>
+  );
+}
+
 function moduleColumns(
   table: ModuleTable,
   onEdit?: (edit: ModuleEditConfig, row: ModuleRow, create?: boolean) => void,
@@ -383,6 +404,12 @@ function moduleColumns(
     ellipsis: true,
     sorter: (left, right) => compareValues(left[column], right[column]),
     render: (value: unknown, row) => {
+      if (column === "start_time" && typeof row.unifi_start_url === "string") {
+        return renderTimeWithVideo(value, row, "unifi_start_url", "Åpne start i UniFi Protect");
+      }
+      if (column === "end_time" && typeof row.unifi_end_url === "string") {
+        return renderTimeWithVideo(value, row, "unifi_end_url", "Åpne slutt i UniFi Protect");
+      }
       if ((column === "plate" || column === "car_license_number") && typeof value === "string" && typeof row.path === "string") {
         const internalPath = appPath(row.path);
         if (internalPath) return <Link to={internalPath}>{displayValue(value)}</Link>;
