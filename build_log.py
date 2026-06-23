@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1244")
+APP_BUILD = os.getenv("APP_BUILD", "1245")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1245",
+        "date": "23.06.2026",
+        "headline": "UniFi-video paa bilparkeringer",
+        "title": "Parkering per kjoeretoey faar direkte Protect-lenker paa start og slutt",
+        "description": (
+            "Build 1245 legger direkte UniFi Protect-lenker paa start- og sluttidspunkt for alle parkeringer paa "
+            "kjoeretoeysiden. Hver lenke aapner kameraet fra to minutter foer hendelsen til fem minutter etter, med "
+            "avspilling satt til selve start- eller sluttidspunktet."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bygger UniFi Protect timelapse-lenker for parkeringsstart og parkeringsslutt.",
+            "Fibaro10 frontend (ParkingVehicleDetailPage.tsx): viser videoknapp ved Start og Slutt i parkeringstabellen.",
+            "Tester (tests/test_unifi_protect_links.py): verifiserer tidsvinduet i Protect-lenken.",
+            "Buildlogg (build_log.py): registrerer build 1245.",
+        ],
+        "request": "Legg UniFi Protect-lenke paa parkeringer for enkeltbil, fra 2 min foer til 5 min etter start og slutt.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Starttidspunkt har videoknapp som aapner Protect paa riktig kamera.",
+            "Sluttidspunkt har tilsvarende videoknapp naar sluttid finnes.",
+            "Kamera og console er konfigurerbare via env, med default fra oppgitt UniFi-lenke.",
+        ],
+    },
     {
         "version": "1",
         "build": "1244",

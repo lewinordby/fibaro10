@@ -1,5 +1,5 @@
-import { ArrowLeftOutlined } from "@ant-design/icons";
-import { Alert, App as AntApp, Button, Card, Space, Table, Tag, Typography } from "antd";
+import { ArrowLeftOutlined, VideoCameraOutlined } from "@ant-design/icons";
+import { Alert, App as AntApp, Button, Card, Space, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -25,9 +25,39 @@ function displayValue(value: unknown): string {
   return text;
 }
 
+function renderTimeWithVideo(value: unknown, row: Record<string, unknown>, urlKey: string, tooltip: string) {
+  const href = row[urlKey];
+  if (typeof href !== "string" || !href) return displayValue(value);
+  return (
+    <Space size={4} wrap={false}>
+      <span>{displayValue(value)}</span>
+      <Tooltip title={tooltip}>
+        <Button
+          aria-label={tooltip}
+          href={href}
+          icon={<VideoCameraOutlined />}
+          rel="noreferrer"
+          size="small"
+          target="_blank"
+          type="text"
+        />
+      </Tooltip>
+    </Space>
+  );
+}
+
 const parkingColumns: ColumnsType<Record<string, unknown>> = [
-  { title: "Start", dataIndex: "start_time", sorter: (a, b) => String(a.start_time ?? "").localeCompare(String(b.start_time ?? "")), render: displayValue },
-  { title: "Slutt", dataIndex: "end_time", render: displayValue },
+  {
+    title: "Start",
+    dataIndex: "start_time",
+    sorter: (a, b) => String(a.start_time ?? "").localeCompare(String(b.start_time ?? "")),
+    render: (value, row) => renderTimeWithVideo(value, row, "unifi_start_url", "Åpne start i UniFi Protect"),
+  },
+  {
+    title: "Slutt",
+    dataIndex: "end_time",
+    render: (value, row) => renderTimeWithVideo(value, row, "unifi_end_url", "Åpne slutt i UniFi Protect"),
+  },
   { title: "Beløp", dataIndex: "fee_inc_vat", align: "right", sorter: (a, b) => Number(a.fee_inc_vat ?? 0) - Number(b.fee_inc_vat ?? 0), render: (value) => `${displayValue(value)} kr` },
   { title: "Min", dataIndex: "parking_time_min", align: "right", sorter: (a, b) => Number(a.parking_time_min ?? 0) - Number(b.parking_time_min ?? 0), render: displayValue },
   { title: "Område", dataIndex: "parking_area", render: displayValue },
