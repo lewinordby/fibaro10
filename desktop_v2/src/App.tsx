@@ -7,6 +7,7 @@ import {
   ExperimentOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MobileOutlined,
   SettingOutlined,
   ToolOutlined,
   ThunderboltOutlined,
@@ -28,6 +29,7 @@ const RevenueMonthPage = lazy(() => import("./pages/RevenueMonthPage"));
 const RevenueYearComparisonPage = lazy(() => import("./pages/RevenueYearComparisonPage"));
 const OperationsPage = lazy(() => import("./pages/OperationsPage"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
+const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
 const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
 const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const ParkingSettlementsPage = lazy(() => import("./pages/ParkingSettlementsPage"));
@@ -45,6 +47,7 @@ const mainModules = [
   { module: "energi", icon: <ThunderboltOutlined />, label: "Energi" },
   { module: "ventilasjon", icon: <ExperimentOutlined />, label: "Ventilasjon" },
   { module: "lys", icon: <BulbOutlined />, label: "Lys" },
+  { module: "mobil", icon: <MobileOutlined />, label: "Mobil" },
   { module: "renhold", icon: <ToolOutlined />, label: "Renhold" },
   { module: "admin", icon: <SettingOutlined />, label: "Admin" },
 ];
@@ -246,6 +249,9 @@ export default function App() {
               <Route path="/lys" element={<Navigate to={modulePath("lys")} replace />} />
               <Route path="/lys/dagslogg-lux" element={<LegacyRedirect to={modulePath("lys", "dagslogg")} />} />
               <Route path="/lys/:view" element={<ModulePage module="lys" />} />
+              <Route path="/mobil" element={<Navigate to={modulePath("mobil")} replace />} />
+              <Route path="/mobil/oversikt" element={<MobileOverviewPage />} />
+              <Route path="/mobil/:view" element={<MobileOverviewPage />} />
               <Route path="/renhold" element={<Navigate to={modulePath("renhold")} replace />} />
               <Route path="/renhold/robot/:duid" element={<LegacyRedirect to={modulePath("renhold", "roboter")} />} />
               <Route path="/renhold/:view" element={<ModulePage module="renhold" />} />

@@ -11,6 +11,7 @@ export const MODULE_LABELS: Record<string, string> = {
   energi: "Energi",
   ventilasjon: "Ventilasjon",
   lys: "Lys",
+  mobil: "Mobil",
   renhold: "Renhold",
   admin: "Admin",
 };
@@ -69,6 +70,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "hendelser", label: "Hendelser" },
     { key: "innstillinger", label: "Innstillinger" },
   ],
+  mobil: [{ key: "oversikt", label: "Oversikt" }],
   renhold: [
     { key: "oversikt", label: "Oversikt" },
     { key: "roboter", label: "Roboter" },

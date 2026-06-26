@@ -275,6 +275,19 @@ export type AuthUser = {
   appBuild: string;
 };
 
+export type MobilePreviewScreen = {
+  key: string;
+  title: string;
+  subtitle: string;
+  sourcePath: string;
+  frameUrl: string;
+};
+
+export type MobilePreviewResponse = {
+  refreshSeconds: number;
+  screens: MobilePreviewScreen[];
+};
+
 export type BuildLogEntry = {
   version: string;
   build: string;
@@ -949,6 +962,10 @@ export function fetchRevenueYearComparison(year?: string | null): Promise<Revenu
 
 export function fetchCurrentUser(): Promise<AuthUser> {
   return apiGet<AuthUser>("/api/auth/me");
+}
+
+export function fetchMobilePreviewScreens(): Promise<MobilePreviewResponse> {
+  return apiGet<MobilePreviewResponse>("/api/mobile-preview/screens");
 }
 
 export function fetchBuildLog(): Promise<BuildLogResponse> {

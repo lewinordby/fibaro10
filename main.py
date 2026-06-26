@@ -143,6 +143,7 @@ UNIFI_PROTECT_PARKING_PREVIEW_AFTER_SECONDS = max(
     0,
     int(os.getenv("UNIFI_PROTECT_PARKING_PREVIEW_AFTER_SECONDS", "300")),
 )
+MOBILE_PREVIEW_REFRESH_SECONDS = max(15, int(os.getenv("MOBILE_PREVIEW_REFRESH_SECONDS", "60")))
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
@@ -168,6 +169,19 @@ sun2_axis_snapshot_link_lock: Optional[asyncio.Lock] = None
 axis_snapshot_day_cache: Dict[tuple[str, str], Dict[str, Any]] = {}
 SECURITY_HSTS_ENABLED = os.getenv("SECURITY_HSTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
 SECURITY_HSTS_MAX_AGE_SECONDS = max(0, int(os.getenv("SECURITY_HSTS_MAX_AGE_SECONDS", str(60 * 60 * 24 * 180))))
+
+
+MOBILE_PREVIEW_SCREENS = [
+    {"key": "home", "title": "Forside", "subtitle": "Hovedkort og drift akkurat nå", "source_path": "/"},
+    {"key": "soling", "title": "Soling", "subtitle": "Dagens solinger og sammenligninger", "source_path": "/soling"},
+    {"key": "parkering", "title": "Parkering", "subtitle": "Dagens parkeringer og EasyPark-status", "source_path": "/parkering"},
+    {"key": "omsetning", "title": "Omsetning", "subtitle": "Samlet omsetning og periodekort", "source_path": "/omsetning"},
+    {"key": "omsetning-uke", "title": "Omsetning uke", "subtitle": "Mobilt søylediagram for uke", "source_path": "/omsetning/uke"},
+    {"key": "energi", "title": "Energi", "subtitle": "Strøm nå og forbruk i dag", "source_path": "/energi"},
+    {"key": "temperatur", "title": "Temperatur", "subtitle": "Temperatur og fukt fra mobilappen", "source_path": "/temperatur"},
+    {"key": "lys", "title": "Lys", "subtitle": "Lysstatus og siste hendelser", "source_path": "/lys"},
+    {"key": "ventilasjon", "title": "Ventilasjon", "subtitle": "Viftestatus og siste hendelser", "source_path": "/ventilasjon"},
+]
 
 
 app = FastAPI(title="Fibaro10")
@@ -11545,6 +11559,125 @@ def desktop_app_response() -> FileResponse:
     return FileResponse(index_path)
 
 
+def mobile_preview_screen_payload(screen: Dict[str, Any]) -> Dict[str, Any]:
+    key = str(screen["key"])
+    return {
+        "key": key,
+        "title": screen["title"],
+        "subtitle": screen["subtitle"],
+        "sourcePath": screen["source_path"],
+        "frameUrl": f"/api/mobile-preview/frame/{quote(key, safe='')}",
+    }
+
+
+def mobile_preview_access_key(request: Request) -> Dict[str, Any]:
+    return {
+        "id": getattr(request.state, "access_key_id", 0) or 0,
+        "name": getattr(request.state, "access_key_name", None) or "desktop",
+        "key_prefix": "desktop",
+        "role": "settings" if getattr(request.state, "auth_can_settings", False) else "viewer",
+        "is_master": bool(getattr(request.state, "auth_is_master", False)),
+        "active": True,
+    }
+
+
+def mobile_preview_injected_head() -> str:
+    return f"""
+  <style>
+    html,
+    body {{
+      min-width: 0 !important;
+      overflow: hidden !important;
+      background: #f6f8fb !important;
+    }}
+    body {{
+      margin: 0 !important;
+    }}
+    .topbar {{
+      min-height: 44px !important;
+      padding: 8px 12px !important;
+    }}
+    .topbar form {{
+      display: none !important;
+    }}
+    .dashboard {{
+      padding: 10px !important;
+      gap: 10px !important;
+    }}
+    a,
+    button,
+    input,
+    select,
+    textarea,
+    form {{
+      pointer-events: none !important;
+    }}
+    .metric-card,
+    .pulse-card,
+    .temperature-card,
+    .section-block,
+    .detail-card,
+    .detail-stat {{
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+    }}
+  </style>
+  <script>
+    window.setTimeout(() => window.location.reload(), {MOBILE_PREVIEW_REFRESH_SECONDS * 1000});
+  </script>
+"""
+
+
+def mobile_preview_html(html: str) -> str:
+    injected = mobile_preview_injected_head()
+    if "</head>" in html:
+        html = html.replace("</head>", f"{injected}</head>", 1)
+    else:
+        html = f"{injected}{html}"
+    return html
+
+
+async def render_mobile_preview_screen(request: Request, screen_key: str) -> HTMLResponse:
+    screen = next((item for item in MOBILE_PREVIEW_SCREENS if item["key"] == screen_key), None)
+    if not screen:
+        raise HTTPException(status_code=404, detail="Ukjent mobilskjerm")
+
+    from online_dashboard.app import main as mobile_app
+
+    fake_request = SimpleNamespace(state=SimpleNamespace(access_key=mobile_preview_access_key(request)))
+    handlers = {
+        "home": mobile_app.dashboard,
+        "soling": mobile_app.soling_detail,
+        "parkering": mobile_app.parking_detail,
+        "omsetning": mobile_app.revenue_detail,
+        "omsetning-uke": mobile_app.revenue_week_detail,
+        "energi": mobile_app.energy_detail,
+        "temperatur": mobile_app.temperature_detail,
+        "lys": mobile_app.light_detail,
+        "ventilasjon": mobile_app.ventilation_detail,
+    }
+    response = await handlers[screen_key](fake_request)
+    if not isinstance(response, HTMLResponse):
+        raise HTTPException(status_code=403, detail="Mobilskjermen kan ikke vises for denne brukeren")
+    html = response.body.decode(response.charset or "utf-8", errors="replace")
+    return HTMLResponse(
+        mobile_preview_html(html),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/mobile-preview/screens")
+async def api_mobile_preview_screens():
+    return {
+        "refreshSeconds": MOBILE_PREVIEW_REFRESH_SECONDS,
+        "screens": [mobile_preview_screen_payload(screen) for screen in MOBILE_PREVIEW_SCREENS],
+    }
+
+
+@app.get("/api/mobile-preview/frame/{screen_key}", response_class=HTMLResponse)
+async def api_mobile_preview_frame(request: Request, screen_key: str):
+    return await render_mobile_preview_screen(request, screen_key)
+
+
 @app.get("/soling/enkeltimer/{session_id:int}/bilde.jpg")
 async def sun2_session_image(session_id: int):
     async with async_session() as session:
@@ -11676,6 +11809,8 @@ async def api_sun2_session_set_primary_image(
 @app.get("/energi/{path:path}", response_class=HTMLResponse)
 @app.get("/ventilasjon/{path:path}", response_class=HTMLResponse)
 @app.get("/lys/{path:path}", response_class=HTMLResponse)
+@app.get("/mobil", response_class=HTMLResponse)
+@app.get("/mobil/{path:path}", response_class=HTMLResponse)
 @app.get("/renhold", response_class=HTMLResponse)
 @app.get("/renhold/{path:path}", response_class=HTMLResponse)
 @app.get("/admin", response_class=HTMLResponse)

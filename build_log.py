@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1247")
+APP_BUILD = os.getenv("APP_BUILD", "1248")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1248",
+        "date": "26.06.2026",
+        "headline": "Mobilveggen i desktop",
+        "title": "Ny hovedmeny Mobil viser live skjermbilder fra mobilappen",
+        "description": (
+            "Build 1248 legger inn hovedmenyen Mobil i desktop-appen. Siden viser alle sentrale mobilskjermer som "
+            "kompakte live-forhåndsvisninger i et rutenett, bygget med samme HTML/CSS og renderfunksjoner som "
+            "online_dashboard. Dermed følger visningen endringer i mobilappen uten å kopiere kortlogikken inn i desktop."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger skjermregister og interne preview-endepunkter for mobilrutene.",
+            "Fibaro10 frontend (MobileOverviewPage.tsx): ny ruteside med live iframe-rutenett og auto-refresh.",
+            "Fibaro10 frontend (App.tsx/moduleViews.ts): legger Mobil inn som eget hovedmenypunkt.",
+            "Fibaro10 frontend CSS (mobile-preview.css/tokens.css): kompakt telefonrutenett og egen mobilfarge.",
+            "Buildlogg (build_log.py): registrerer build 1248.",
+        ],
+        "request": "Legg alle skjermbildene fra mobilappen under egen hovedmeny Mobil i et smart rutesystem, og hold dem oppdatert mot mobilappen.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Ny hovedmeny Mobil med ruten Mobil > Oversikt.",
+            "Forside, soling, parkering, omsetning, ukediagram, energi, temperatur, lys og ventilasjon vises som live mobilrammer.",
+            "Previewene bruker mobilappens eksisterende renderkode og oppdateres automatisk.",
+        ],
+    },
     {
         "version": "1",
         "build": "1247",
