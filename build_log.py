@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1254")
+APP_BUILD = os.getenv("APP_BUILD", "1255")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1255",
+        "date": "26.06.2026",
+        "headline": "Riktig tid paa parkering oppdatert",
+        "title": "Sist oppdatert paa Parkering oversikt viser lokal importtid uten ekstra tidssonepaaslag",
+        "description": (
+            "Build 1255 retter tidsvisningen i kortet Sist oppdatert paa Parkering > Oversikt. EasyPark-importstatus "
+            "lagres som lokal Oslo-tid uten timezone, og skal derfor formateres som kildetidspunkt uten UTC-konvertering."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bruker format_source_datetime for EasyPark-importens lokale tidspunkt.",
+            "Tester (tests/test_time_formatting.py): dekker at lokal-naiv tid 15:52 vises som 15:52.",
+            "Buildlogg (build_log.py): registrerer build 1255.",
+        ],
+        "request": "Sist oppdatert viser 17:52, men riktig tidspunkt er 15:52.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Fjerner utilsiktet +2 timer i sist oppdatert-kortet.",
+            "EasyPark-importtid vises naa som lokal kildetid.",
+            "Regresjonstest lagt til for lokal-naiv tidsformattering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1254",

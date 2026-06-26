@@ -20274,7 +20274,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             cards = [
                 api_card(
                     "Sist oppdatert",
-                    format_local_datetime(parking_import_status.last_success_at) if parking_import_status and parking_import_status.last_success_at else "-",
+                    format_source_datetime(parking_import_status.last_success_at) if parking_import_status and parking_import_status.last_success_at else "-",
                     "",
                     f"EasyPark import - {import_job_age(parking_import_status)}" if parking_import_status else "Ingen importstatus",
                     "status",
