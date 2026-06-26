@@ -58,6 +58,7 @@ const mainModules = [
 
 const menuItems: MenuProps["items"] = mainModules.map((item) => ({
   key: modulePath(item.module),
+  className: `app-menu-${item.module}`,
   icon: item.icon,
   label: item.label,
 }));
@@ -142,13 +143,11 @@ function BuildFooter({ build }: { build?: string }) {
 function BrandHome({ className = "" }: { className?: string }) {
   return (
     <Link className={`brand-home-link ${className}`.trim()} to={modulePath("status", "oversikt")} aria-label="Gå til statusoversikt">
-      <span className="brand-emblem" aria-hidden="true">
-        <img src={`/static/lilletorget-mark.png?v=${BRAND_ASSET_VERSION}`} alt="" />
+      <span className="brand-wordmark-wrap" aria-hidden="true">
+        <img className="brand-wordmark" src={`/static/lilletorget-wordmark.png?v=${BRAND_ASSET_VERSION}`} alt="" />
       </span>
-      <span className="brand-copy">
-        <span className="brand-title">Lilletorget</span>
-        <span className="brand-subtitle">Solsenter & parkering</span>
-      </span>
+      <span className="brand-subtitle">Solsenter & parkering</span>
+      <span className="brand-chip">Driftssystem</span>
     </Link>
   );
 }

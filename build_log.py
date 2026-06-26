@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1262")
+APP_BUILD = os.getenv("APP_BUILD", "1263")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1263",
+        "date": "26.06.2026",
+        "headline": "Mer farge og tydeligere Lilletorget-brand",
+        "title": "Desktop V2 har faatt mer karakter i logo, hovedmeny og toppbar",
+        "description": (
+            "Build 1263 viderefoerer appskall-oppryddingen etter at forrige versjon ble for flat. Brandfeltet bruker "
+            "naa Lilletorget-wordmark, en tydelig driftssystem-brikke og varm/gullpreget bakgrunn. Hovedmenyen har "
+            "faste farger per fagomraade, og toppbaren har en diskret fargelinje koblet til aktivt omraade."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (App.tsx): bruker full Lilletorget-wordmark i BrandHome og legger klasse per hovedmenypunkt.",
+            "Fibaro10 desktop V2 (layout.css): legger mer farge i brandkort, domenefargede menyikoner, aktivfelt og toppbar.",
+            "Buildlogg (build_log.py): registrerer build 1263.",
+        ],
+        "request": "Jeg synes ikke det ble bra. Vil ha det bedre og med litt mer farger.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Brandfeltet viser naa Lilletorget-wordmark i stedet for kun mark + tekst.",
+            "Hvert hovedmenypunkt har egen domenefarge for ikon og hover/aktiv bakgrunn.",
+            "Toppbaren har en tynn fargelinje og mer aktiv farge i hjem-/menyknapper.",
+            "Visuell Playwright-preview er kontrollert etter endringen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1262",
