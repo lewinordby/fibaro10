@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1257")
+APP_BUILD = os.getenv("APP_BUILD", "1258")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1258",
+        "date": "26.06.2026",
+        "headline": "Mer systematisk CSS-opprydding",
+        "title": "Desktopdesignet har faatt mindre overlapp og ryddigere fellesregler",
+        "description": (
+            "Build 1258 fortsetter designoppryddingen ved aa samle aktive CSS-regler i hoveddefinisjonene og fjerne "
+            "gamle overstyringslag i modul-, status-, record-, energi- og ventilasjonsstilene. Resultatet er mindre "
+            "CSS, mer forutsigbar arv og et roligere, mer systematisk visuelt uttrykk."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (module-content.css): samler metrik-kort, diagramkort og felles modulflater.",
+            "Fibaro10 desktop V2 (status.css): fjerner gamle overstyringer for statuskort, sammenligning og dashboardflater.",
+            "Fibaro10 desktop V2 (records.css): samler tabell-, fanetall- og kjoeretoeykortregler.",
+            "Fibaro10 desktop V2 (energy.css): samler Elvia-kortregler og reduserer dupliserte verdier.",
+            "Fibaro10 desktop V2 (ventilation.css): samler ventilasjonskort, viftefelt og dagslogg-markeringer.",
+            "Buildlogg (build_log.py): registrerer build 1258.",
+        ],
+        "request": "Ta en designopprydding og gjoer alt penere og mer systematisk.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Fjernet flere gamle CSS-overstyringsblokker.",
+            "Reduserte CSS-stoerrelsen i frontend-builden.",
+            "Metrikkort, tabeller, energi- og ventilasjonsflater har mer konsistent grunnstil.",
+            "Dashboard/status bruker mindre spesiallogikk i CSS og blir enklere aa videreutvikle.",
+        ],
+    },
     {
         "version": "1",
         "build": "1257",

@@ -9,7 +9,7 @@
 .elvia-top-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
-  gap: 14px;
+  gap: 12px;
   align-items: stretch;
 }
 
@@ -20,15 +20,18 @@
 }
 
 .elvia-summary-tile {
-  min-height: 126px;
+  min-height: 108px;
+  border-color: var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
 }
 
 .elvia-summary-tile .ant-card-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   height: 100%;
-  padding: 13px 14px;
+  padding: 10px 12px;
 }
 
 .elvia-summary-tile span {
@@ -41,8 +44,9 @@
 .elvia-summary-tile strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 780;
+  letter-spacing: 0;
   line-height: 1.12;
   text-overflow: ellipsis;
 }
@@ -58,7 +62,7 @@
 .elvia-summary-tile small {
   margin-top: auto;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.25;
 }
 
@@ -199,7 +203,6 @@
 }
 
 /* Energy-specific visual refinements. */
-.elvia-summary-tile,
 .elvia-upload-card,
 .elvia-import-card {
   border-color: var(--line);
@@ -219,38 +222,10 @@
   font-weight: 800;
 }
 
-.elvia-top-row,
-.elvia-main-grid,
-.elvia-summary-grid,
-.elvia-import-grid {
-  gap: 12px;
-}
-
 .elvia-import-metrics span {
   background: #f8fafc;
   border-color: #e8edf4;
   border-radius: var(--radius-md);
-}
-
-.elvia-summary-tile strong {
-  letter-spacing: 0;
-}
-
-.elvia-summary-tile {
-  min-height: 108px;
-}
-
-.elvia-summary-tile .ant-card-body {
-  gap: 5px;
-  padding: 10px 12px;
-}
-
-.elvia-summary-tile strong {
-  font-size: 19px;
-}
-
-.elvia-summary-tile small {
-  font-size: 11px;
 }
 
 .elvia-table-card .ant-table-thead > tr > th {
