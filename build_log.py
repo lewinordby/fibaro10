@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1249")
+APP_BUILD = os.getenv("APP_BUILD", "1250")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1250",
+        "date": "26.06.2026",
+        "headline": "Ryddigere omsetningsoversikt",
+        "title": "Omsetning oversikt faar kompakte topplister med riktig kolonnerekkefolge",
+        "description": (
+            "Build 1250 rydder tabellene paa Omsetning > Oversikt. Oppgjorsfeltet har kortere tittel, "
+            "topplistene viser de 20 beste dagene og maanedene, og kolonene prioriterer sum kroner, parkering "
+            "og soling uten unodvendig totalt antall."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): utvider topplister til 20 og endrer kolonneoppsett for omsetningsoversikt.",
+            "Fibaro10 frontend (ModulePage.tsx): justerer tabelloverskrifter for sum og antall.",
+            "Buildlogg (build_log.py): registrerer build 1250.",
+        ],
+        "request": "Paa Omsetning > Oversikt: fjern 'Oppgjor mot Fibaro10', fjern 'Antall totalt' fra toppdager og toppmaaneder, sett rekkefolgen til Sum kr, Sum parkering, Antall parkering, Sum sol og Antall sol, og vis 20 beste maaneder og dager.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Oppgjorstabellen har naa kort tittel.",
+            "Topp dager og topp maaneder viser 20 rader.",
+            "Topplistene viser Sum kr forst og dropper Antall totalt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1249",

@@ -2754,8 +2754,8 @@ def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> 
     return {
         "daily": sorted(daily, key=lambda item: str(item.get("period") or ""), reverse=True),
         "monthly": sorted(monthly, key=lambda item: str(item.get("period") or ""), reverse=True),
-        "top_days": sorted(daily, key=top_sort, reverse=True)[:10],
-        "top_months": sorted(monthly, key=top_sort, reverse=True)[:10],
+        "top_days": sorted(daily, key=top_sort, reverse=True)[:20],
+        "top_months": sorted(monthly, key=top_sort, reverse=True)[:20],
         "yearly": sorted(yearly, key=lambda item: str(item.get("period") or ""), reverse=True),
         "weekly_chart": weekly_chart,
     }
@@ -20179,7 +20179,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ),
             ]
 
-            revenue_columns = ["period_label", "sun_paid", "parking_paid", "total_paid", "sun_count", "parking_count", "total_count"]
+            revenue_columns = ["period_label", "total_paid", "parking_paid", "parking_count", "sun_paid", "sun_count"]
             return {
                 "title": "Omsetning" if not view or view == "oversikt" else f"Omsetning · {view.replace('-', ' ')}",
                 "subtitle": "Samlet omsetning fra soling og parkering.",
@@ -20187,7 +20187,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "charts": [api_revenue_weekly_chart(combined_stats)],
                 "tables": [
                     api_table(
-                        "Oppgjør mot Fibaro10",
+                        "Oppgjør",
                         [
                             "period_label",
                             "parking_system_ex_vat",
