@@ -571,19 +571,6 @@
   justify-content: flex-end;
 }
 
-.status-comparison-current-period {
-  min-width: 104px;
-  min-height: 32px;
-  padding: 5px 10px;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 760;
-  text-align: center;
-  background: #ffffff;
-  border: 1px solid #dbe3ee;
-  border-radius: var(--radius-md);
-}
-
 .status-comparison-summary-card,
 .status-comparison-chart-card {
   border: 1px solid var(--line);

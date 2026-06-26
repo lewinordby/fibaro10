@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1266")
+APP_BUILD = os.getenv("APP_BUILD", "1267")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1267",
+        "date": "26.06.2026",
+        "headline": "Ubrukt status-CSS fjernet",
+        "title": "Desktop V2 har fjernet ubrukt CSS fra omsetning/sammenligning",
+        "description": (
+            "Build 1267 rydder opp etter CSS-audit. Den eneste konkrete ubrukt-klassen auditverktøyet fant, "
+            "status-comparison-current-period, er fjernet fra status.css. Dette er en liten kontrollert "
+            "opprydding uten funksjonell endring."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (status.css): fjerner ubrukt status-comparison-current-period.",
+            "Buildlogg (build_log.py): registrerer build 1267.",
+        ],
+        "request": "Fortsett med alle de tingene du foreslo at du ville gjore slik at alt er klart.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "CSS-audit er brukt til aa finne konkret ubrukt kode.",
+            "Ubrukt status-comparison-current-period er fjernet.",
+            "Ingen UI-logikk eller ruter er endret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1266",
