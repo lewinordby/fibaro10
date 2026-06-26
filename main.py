@@ -11593,15 +11593,12 @@ def mobile_preview_injected_head() -> str:
     body {{
       margin: 0 !important;
     }}
-    .topbar {{
-      min-height: 44px !important;
-      padding: 8px 12px !important;
-    }}
-    .topbar form {{
+    .topbar,
+    .detail-hero {{
       display: none !important;
     }}
     .dashboard {{
-      padding: 10px !important;
+      padding: 8px 10px 10px !important;
       gap: 10px !important;
     }}
     a,

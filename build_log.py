@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1248")
+APP_BUILD = os.getenv("APP_BUILD", "1249")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1249",
+        "date": "26.06.2026",
+        "headline": "Mobilrammer uten topp",
+        "title": "Mobilpreview starter direkte paa innholdet",
+        "description": (
+            "Build 1249 rydder mobilveggen ved aa skjule mobilappens logo-/topplinje og detaljhero inne i "
+            "previewrammene. Mobilappen ute paa nett er uendret; dette gjelder bare intern desktop-preview."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): justerer preview-CSS som injiseres i mobilrammene.",
+            "Buildlogg (build_log.py): registrerer build 1249.",
+        ],
+        "request": "Ta bort logoen og alt over i mobilpreviewen fordi det ikke gir verdi.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Logo-/topplinjen i mobilrammene skjules.",
+            "Detaljheroen inne i mobilskjermene skjules.",
+            "Rammene starter tettere paa faktisk innhold.",
+        ],
+    },
     {
         "version": "1",
         "build": "1248",
