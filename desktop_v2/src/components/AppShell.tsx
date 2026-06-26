@@ -1,17 +1,8 @@
 import {
-  BarChartOutlined,
-  BulbOutlined,
-  CalendarOutlined,
-  CarOutlined,
-  ExperimentOutlined,
   HomeOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  MobileOutlined,
-  SettingOutlined,
-  ToolOutlined,
-  ThunderboltOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { Avatar, Button, Dropdown, Layout, Segmented } from "antd";
@@ -21,42 +12,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { fetchCurrentUser, logoutUser, type AuthUser } from "../api";
+import { mainModuleGroups, selectedMainModuleKey } from "../appNavigation";
 import { modulePath, type ModuleView } from "../moduleViews";
 import { queryKeys } from "../queryKeys";
 
 const { Header, Sider, Content } = Layout;
 const MENU_HIDDEN_STORAGE_KEY = "fibaro10:mainMenuHidden";
 const BRAND_ASSET_VERSION = "20260626-shell";
-
-type MainModule = {
-  module: string;
-  icon: ReactNode;
-  label: string;
-  color: string;
-};
-
-const mainModules: MainModule[] = [
-  { module: "omsetning", icon: <BarChartOutlined />, label: "Omsetning", color: "var(--domain-revenue)" },
-  { module: "parkering", icon: <CarOutlined />, label: "Parkering", color: "var(--domain-parking)" },
-  { module: "soling", icon: <CalendarOutlined />, label: "Soling", color: "var(--domain-sun2)" },
-  { module: "energi", icon: <ThunderboltOutlined />, label: "Energi", color: "var(--domain-energy)" },
-  { module: "ventilasjon", icon: <ExperimentOutlined />, label: "Ventilasjon", color: "var(--domain-vent)" },
-  { module: "lys", icon: <BulbOutlined />, label: "Lys", color: "var(--domain-light)" },
-  { module: "renhold", icon: <ToolOutlined />, label: "Renhold", color: "#0f766e" },
-  { module: "mobil", icon: <MobileOutlined />, label: "Mobil", color: "var(--domain-mobile)" },
-  { module: "admin", icon: <SettingOutlined />, label: "Admin", color: "#64748b" },
-];
-
-const mainModuleGroups = [
-  { label: "Økonomi", modules: mainModules.slice(0, 3) },
-  { label: "Bygg og drift", modules: mainModules.slice(3, 7) },
-  { label: "System", modules: mainModules.slice(7) },
-];
-
-function selectedKey(pathname: string): string {
-  const menuModule = mainModules.find((item) => pathname.startsWith(`/${item.module}`));
-  return menuModule ? modulePath(menuModule.module) : "";
-}
 
 function userInitial(user?: AuthUser | null): string {
   const name = user?.username?.trim();
@@ -180,7 +142,7 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
     retry: false,
     staleTime: 60_000,
   });
-  const activeMenuKey = selectedKey(location.pathname);
+  const activeMenuKey = selectedMainModuleKey(location.pathname);
 
   useEffect(() => {
     window.localStorage.setItem(MENU_HIDDEN_STORAGE_KEY, menuHidden ? "1" : "0");

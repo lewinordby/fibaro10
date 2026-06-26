@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1267")
+APP_BUILD = os.getenv("APP_BUILD", "1268")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1268",
+        "date": "26.06.2026",
+        "headline": "Hovedmeny-modell skilt ut",
+        "title": "Desktop V2 har flyttet menystruktur og farger til egen appNavigation",
+        "description": (
+            "Build 1268 rydder videre i frontendfundamentet. Hovedmenyens moduler, ikoner, grupper og aktive "
+            "menyoppslag er flyttet ut av AppShell og inn i appNavigation.tsx. AppShell eier dermed layouten, "
+            "mens menystrukturen kan endres separat."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (appNavigation.tsx): ny fil for hovedmenyens moduler, grupper, ikoner og farger.",
+            "Fibaro10 desktop V2 (components/AppShell.tsx): bruker appNavigation i stedet for lokal menydefinisjon.",
+            "Buildlogg (build_log.py): registrerer build 1268.",
+        ],
+        "request": "Fortsett med alle de tingene du foreslo at du ville gjore slik at alt er klart.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Menystruktur ligger naa i appNavigation.tsx.",
+            "AppShell er redusert til layout, toppbar og brukerprofil.",
+            "Videre menyendringer kan gjores uten aa endre appskall-komponenten.",
+        ],
+    },
     {
         "version": "1",
         "build": "1267",
