@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1251")
+APP_BUILD = os.getenv("APP_BUILD", "1252")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1252",
+        "date": "26.06.2026",
+        "headline": "Siste parkeringer med eier og kamera",
+        "title": "Parkering oversikt faar bedre siste parkeringer-tabell",
+        "description": (
+            "Build 1252 rydder tabellen Siste parkeringer paa Parkering > Oversikt. Status flyttes forst, "
+            "eier-sjekk byttes ut med faktisk eiernavn paa bilen, og start/slutt-tidspunkt faar UniFi-lenker "
+            "som aapner 15 sekunder foer hendelsen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger vehicle_owner i parkeringsradene og endrer kolonneoppsett paa oversikten.",
+            "Fibaro10 backend (main.py): bruker 15 sekunder foer for UniFi-lenker paa Parkering > Oversikt.",
+            "Fibaro10 frontend (ModulePage.tsx): legger tabelloverskrift for Eier.",
+            "Tester (tests/test_unifi_protect_links.py): dekker 15-sekunders UniFi-vindu.",
+            "Buildlogg (build_log.py): registrerer build 1252.",
+        ],
+        "request": "Paa Parkering > Oversikt: i Siste parkeringer skal Eier-sjekk byttes med eier paa bilen, Status skal forst, og start/slutt skal ha kamera-lenker 15 sekunder foer tidspunktet.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Status er forste kolonne i Siste parkeringer.",
+            "Eier viser navn fra kjoeretoeyregisteret i stedet for eier-sjekk.",
+            "Start og slutt viser videoikon med 15 sekunder foer hendelsen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1251",

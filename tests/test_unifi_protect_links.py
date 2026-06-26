@@ -32,6 +32,18 @@ class UnifiProtectLinkTests(unittest.TestCase):
         self.assertEqual(int(params["time"][0]), target_ms - 60_000)
         self.assertEqual(int(params["end"][0]), target_ms + 300_000)
 
+    def test_parking_timelapse_url_can_use_fifteen_seconds_before(self):
+        target = datetime(2026, 6, 22, 16, 15, 12, 520000)
+
+        url = main.unifi_protect_parking_timelapse_url(target, before_seconds=15)
+
+        self.assertIsNotNone(url)
+        params = parse_qs(urlparse(url).query)
+        target_ms = int(target.replace(tzinfo=main.LOCAL_TZ).timestamp() * 1000)
+        self.assertEqual(int(params["start"][0]), target_ms - 15_000)
+        self.assertEqual(int(params["time"][0]), target_ms - 15_000)
+        self.assertEqual(int(params["end"][0]), target_ms + 300_000)
+
 
 if __name__ == "__main__":
     unittest.main()

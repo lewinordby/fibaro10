@@ -16502,6 +16502,7 @@ def parking_row_api(
         data.update(
             {
                 "navn": vehicle.navn,
+                "vehicle_owner": vehicle.navn,
                 "omrade": vehicle.omrade,
                 "path": f"/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
             }
@@ -20248,8 +20249,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             tables = [
                 api_table(
                     "Siste parkeringer",
-                    ["start_time", "car_license_number", "owner_warning", "fee_inc_vat", "parking_time_min", "status", "parking_area"],
-                    [parking_row_api(row, vehicle) for row, vehicle in latest_rows],
+                    ["status", "start_time", "end_time", "car_license_number", "vehicle_owner", "fee_inc_vat", "parking_time_min", "parking_area"],
+                    [parking_row_api(row, vehicle, unifi_before_seconds=15) for row, vehicle in latest_rows],
                 )
             ]
             cards = [

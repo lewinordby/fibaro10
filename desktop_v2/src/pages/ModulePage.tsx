@@ -66,6 +66,7 @@ function labelize(column: string): string {
     end_at: "Slutt",
     car_license_number: "Reg.nr",
     owner_warning: "Eier-sjekk",
+    vehicle_owner: "Eier",
     plate: "Reg.nr",
     vehicle_title: "Kjøretøy",
     current_ownership_at: "Sist eierskifte",
