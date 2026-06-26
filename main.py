@@ -5744,6 +5744,16 @@ def import_job_age(row: Optional[ImportJobStatus]) -> str:
     return age_label(minutes_since(stamp))
 
 
+def import_job_updated_ago(row: Optional[ImportJobStatus]) -> str:
+    stamp = row.last_success_at if row else None
+    minutes = minutes_since(stamp)
+    if minutes is None:
+        return "Ingen importstatus"
+    if minutes < 1:
+        return "Oppdatert under 1 min siden"
+    return f"Oppdatert {age_label(minutes)}"
+
+
 def format_short_number(value: Any, decimals: int = 0) -> str:
     number = float_or_zero(value)
     if decimals:
@@ -20281,7 +20291,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     href="/admin/datakilder",
                 ),
                 api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking", href="/parkering/dagslinje"),
-                api_card("Pågående", active, "stk", "Akkurat nå", "parking", href="/parkering/dagslinje"),
+                api_card("Pågående", active, "stk", import_job_updated_ago(parking_import_status), "parking", href="/parkering/dagslinje"),
                 api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue", href="/omsetning/manedsoversikt"),
                 api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
             ]

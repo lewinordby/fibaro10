@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1255")
+APP_BUILD = os.getenv("APP_BUILD", "1256")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1256",
+        "date": "26.06.2026",
+        "headline": "Paa gaaende viser oppdateringsalder",
+        "title": "Parkering oversikt viser hvor lenge siden paa gaaende-data ble oppdatert",
+        "description": (
+            "Build 1256 endrer kortet Paa gaaende paa Parkering > Oversikt slik at detaljteksten viser hvor lenge "
+            "det er siden siste vellykkede EasyPark-import, i stedet for en fast Akkurat naa-tekst."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger til en egen teksthelper for importstatus som aldri viser Akkurat naa paa dette kortet.",
+            "Fibaro10 backend (main.py): kobler Paa gaaende-kortet til EasyPark-importens faktiske oppdateringsalder.",
+            "Buildlogg (build_log.py): registrerer build 1256.",
+        ],
+        "request": "Paa kortet paa gaaende boer det ikke staa akkurat naa, men hvor lenge det er siden sist oppdatert.",
+        "work_duration": "ca. 8 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Paa gaaende-kortet viser naa for eksempel Oppdatert 11 min siden.",
+            "Ved helt fersk import vises Oppdatert under 1 min siden.",
+            "Manglende importstatus vises som Ingen importstatus.",
+        ],
+    },
     {
         "version": "1",
         "build": "1255",
