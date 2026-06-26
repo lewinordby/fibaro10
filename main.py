@@ -14317,12 +14317,11 @@ def api_revenue_weekly_chart(summaries: Dict[str, Any]) -> Dict[str, Any]:
         "Sum omsetning ukesutvikling",
         [str(week) for week in range(1, 54)],
         metric_series("revenue"),
-        "Samlet omsetning fra soling og parkering. Velg omsetning eller antall.",
+        "Samlet omsetning fra soling og parkering.",
         "line",
         360,
         metrics=[
             {"key": "revenue", "label": "Omsetning", "unit": "kr", "series": metric_series("revenue")},
-            {"key": "count", "label": "Antall", "unit": "stk", "series": metric_series("count")},
         ],
         default_metric="revenue",
         default_visible_series=[str(current_year), str(current_year - 1)],
@@ -20115,8 +20114,6 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             week_parking = await parking_period_summary(session, "Denne uken", week_start_dt, tomorrow_start)
             month_parking = await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start)
 
-            settlement_reconciliation_rows = await revenue_settlement_reconciliation_rows(session)
-
             current_year_key = str(today.year)
             current_year_revenue = next(
                 (item for item in combined_stats.get("yearly", []) if str(item.get("period")) == current_year_key),
@@ -20186,25 +20183,6 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "cards": cards,
                 "charts": [api_revenue_weekly_chart(combined_stats)],
                 "tables": [
-                    api_table(
-                        "Oppgjør",
-                        [
-                            "period_label",
-                            "parking_system_ex_vat",
-                            "parking_settlement_ex_vat",
-                            "parking_diff_ex_vat",
-                            "parking_control_status",
-                            "sun_system_ex_vat",
-                            "sun_settlement_ex_vat",
-                            "sun_diff_ex_vat",
-                            "sun_control_status",
-                            "system_total_ex_vat",
-                            "settlement_total_ex_vat",
-                            "total_diff_ex_vat",
-                            "status",
-                        ],
-                        settlement_reconciliation_rows,
-                    ),
                     api_table("Topp dager omsetning", revenue_columns, [api_revenue_summary_row(row) for row in combined_stats.get("top_days", [])]),
                     api_table("Topp måneder omsetning", ["period", *revenue_columns[1:]], [api_revenue_summary_row(row) for row in combined_stats.get("top_months", [])]),
                 ],

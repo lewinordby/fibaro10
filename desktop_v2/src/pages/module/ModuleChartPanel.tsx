@@ -17,9 +17,10 @@ export default function ModuleChartPanel({
   chart: ModuleChart;
   onDayChange?: (day: string) => void;
 }) {
-  const defaultMetric = chart.defaultMetric ?? chart.metrics?.[0]?.key ?? "";
+  const metricOptions = chart.metrics ?? [];
+  const defaultMetric = chart.defaultMetric ?? metricOptions[0]?.key ?? "";
   const [metricKey, setMetricKey] = useState(defaultMetric);
-  const activeMetric = chart.metrics?.find((metric) => metric.key === metricKey) ?? chart.metrics?.[0];
+  const activeMetric = metricOptions.find((metric) => metric.key === metricKey) ?? metricOptions[0];
   const chartSeries = activeMetric?.series ?? chart.series;
   const option = useMemo(() => {
     const isTimeAxis = chart.xAxisType === "time";
@@ -99,11 +100,11 @@ export default function ModuleChartPanel({
       <div className="module-chart-toolbar">
         {chart.subtitle ? <Typography.Text type="secondary">{chart.subtitle}</Typography.Text> : <span />}
         <Space size={10} className="module-chart-controls">
-          {chart.metrics?.length ? (
+          {metricOptions.length > 1 ? (
             <Segmented
               size="small"
               value={activeMetric?.key ?? metricKey}
-              options={chart.metrics.map((metric) => ({ label: metric.label, value: metric.key }))}
+              options={metricOptions.map((metric) => ({ label: metric.label, value: metric.key }))}
               onChange={(next) => setMetricKey(String(next))}
             />
           ) : null}

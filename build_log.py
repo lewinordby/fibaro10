@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1250")
+APP_BUILD = os.getenv("APP_BUILD", "1251")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1251",
+        "date": "26.06.2026",
+        "headline": "Omsetningsoversikt uten oppgjorstabell",
+        "title": "Omsetning oversikt viser kun relevante topplister og omsetningsgraf",
+        "description": (
+            "Build 1251 fjerner oppgjorstabellen fra Omsetning > Oversikt og lar ukesgrafen der vise bare "
+            "omsetning. Antall-valget fjernes fra grafen fordi antall ikke er relevant for denne oversikten."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): fjerner oppgjorstabell og oppgjorsoppslag fra omsetningsoversikten.",
+            "Fibaro10 backend (main.py): sender kun omsetningsmetric for ukesgrafen.",
+            "Fibaro10 frontend (ModuleChartPanel.tsx): skjuler metric-velger naar grafen bare har ett valg.",
+            "Buildlogg (build_log.py): registrerer build 1251.",
+        ],
+        "request": "Paa Omsetning > Oversikt: ta bort tabellen Oppgjor, og fjern valg mellom omsetning og antall i grafen fordi kun omsetning er relevant.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Oppgjorstabellen vises ikke lenger paa Omsetning > Oversikt.",
+            "Oversikten gjor ikke lenger oppgjorsavstemming i bakgrunnen.",
+            "Ukesgrafen viser bare omsetning og har ikke antall-bryter.",
+        ],
+    },
     {
         "version": "1",
         "build": "1250",
