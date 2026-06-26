@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1260")
+APP_BUILD = os.getenv("APP_BUILD", "1261")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1261",
+        "date": "26.06.2026",
+        "headline": "Felles tabellsoek i modulvisningene",
+        "title": "Desktop V2 har faatt en felles komponent for tabellsoek",
+        "description": (
+            "Build 1261 fortsetter frontend-oppryddingen med en liten, kontrollert komponentuttrekking. "
+            "Soltimepanelet og de generiske modultabellene bruker naa samme TableSearch-komponent, slik at "
+            "soek, enter-knapp, tomt felt og ryddelogikk oppfoerer seg likt."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (TableSearch.tsx): legger inn felles soekekomponent for tabellflater.",
+            "Fibaro10 desktop V2 (ModulePage.tsx): erstatter lokale Input.Search-blokker i soltimer og modultabeller.",
+            "Buildlogg (build_log.py): registrerer build 1261.",
+        ],
+        "request": "Kjoer neste ting du ville gjoere.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Tabellsoek i modulflater har naa ett felles implementasjonspunkt.",
+            "Soltimer og generiske modultabeller beholder samme funksjon, men med mindre duplisert frontend-kode.",
+            "Dette gjoer neste opprydding i ModulePage tryggere fordi soekelogikken allerede er isolert.",
+        ],
+    },
     {
         "version": "1",
         "build": "1260",

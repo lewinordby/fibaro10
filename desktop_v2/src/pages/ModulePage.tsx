@@ -23,6 +23,7 @@ import {
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PeriodNavigator } from "../components/PeriodNavigator";
+import { TableSearch } from "../components/TableSearch";
 import { useApiQuery } from "../hooks";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { appPath } from "../navigation";
@@ -1037,20 +1038,13 @@ function SunSessionsPanel({
   const rows = table ? filterRows(table.rows, table.columns, query) : [];
   return (
     <Card className="table-card sun-sessions-card">
-      <div className="table-toolbar">
-        <Input.Search
-          allowClear
-          placeholder="Søk i viste soltimer"
-          value={draftQuery}
-          onChange={(event) => {
-            const nextValue = event.target.value;
-            onDraftChange(nextValue);
-            if (!nextValue) onClear();
-          }}
-          onSearch={onSearch}
-          enterButton="Søk"
-        />
-      </div>
+      <TableSearch
+        placeholder="Søk i viste soltimer"
+        value={draftQuery}
+        onValueChange={onDraftChange}
+        onClear={onClear}
+        onSearch={onSearch}
+      />
       <div className="sun-session-list-head">
         <Typography.Text type="secondary">{countText(rows.length, table?.rows.length ?? 0, query)}</Typography.Text>
       </div>
@@ -1285,20 +1279,13 @@ export default function ModulePage({ module }: { module: string }) {
           {data.charts?.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} onDayChange={setTimelineDay} />)}
 
       <Card className="table-card module-table-card">
-        <div className="table-toolbar">
-          <Input.Search
-            allowClear
-            placeholder={tableSearchPlaceholder(module, safeView)}
-            value={draftQuery}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              setDraftQuery(nextValue);
-              if (!nextValue) clearSearch();
-            }}
-            onSearch={runSearch}
-            enterButton="Søk"
-          />
-        </div>
+        <TableSearch
+          placeholder={tableSearchPlaceholder(module, safeView)}
+          value={draftQuery}
+          onValueChange={setDraftQuery}
+          onClear={clearSearch}
+          onSearch={runSearch}
+        />
         <Tabs
           items={data.tables.map((table) => ({
             key: table.title,
