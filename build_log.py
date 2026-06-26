@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1252")
+APP_BUILD = os.getenv("APP_BUILD", "1253")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1253",
+        "date": "26.06.2026",
+        "headline": "Bilinfo i siste parkeringer",
+        "title": "Parkering oversikt viser merke, type og farge i siste parkeringer",
+        "description": (
+            "Build 1253 rydder videre i tabellen Siste parkeringer paa Parkering > Oversikt. Omraadekolonnen "
+            "fjernes, og bilen faar egne kolonner for bilmerke, type og farge rett etter registreringsnummer. "
+            "Feltene hentes fra SVV-nokkeldata der de finnes, med fallback til utenlandsk kjoeretoeyoppslag."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): kobler kjoeretoeydetaljer inn i siste parkeringer og fyller merke/type/farge.",
+            "Fibaro10 frontend (ModulePage.tsx): legger tabelloverskrifter for Bilmerke, Type og Farge.",
+            "Tester (tests/test_parking_row_api.py): dekker SVV-detaljer og utenlandsk fallback i parkeringsrader.",
+            "Buildlogg (build_log.py): registrerer build 1253.",
+        ],
+        "request": "Paa Siste parkeringer under Parkering > Oversikt: fjern Omraade og legg inn bilmerke, type og farge etter reg.nr.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Omraade er fjernet fra Siste parkeringer.",
+            "Bilmerke, Type og Farge vises etter Reg.nr.",
+            "Svenske/danske oppslag kan fylle feltene naar SVV-detaljer mangler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1252",

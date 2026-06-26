@@ -16471,6 +16471,7 @@ def unifi_protect_parking_timelapse_url(target_at: Optional[datetime], before_se
 def parking_row_api(
     row: ParkingSession,
     vehicle: Optional[ParkingVehicle] = None,
+    details: Optional[ParkingVehicleDetails] = None,
     previous_stats: Optional[Dict[str, Any]] = None,
     unifi_before_seconds: Optional[int] = None,
 ) -> Dict[str, Any]:
@@ -16507,6 +16508,17 @@ def parking_row_api(
                 "path": f"/parkering/kjoretoy/{quote(vehicle.plate or '', safe='')}",
             }
         )
+    data.update(
+        {
+            "vehicle_make": first_value(details.merke if details else None, car_info_field_value(vehicle.car_info_data if vehicle else None, "make", "brand")),
+            "vehicle_type": first_value(
+                details.typebetegnelse if details else None,
+                details.modell if details else None,
+                car_info_field_value(vehicle.car_info_data if vehicle else None, "vehicle_type", "model", "classification"),
+            ),
+            "vehicle_color": first_value(details.farge if details else None, car_info_field_value(vehicle.car_info_data if vehicle else None, "color")),
+        }
+    )
     return data
 
 
@@ -20196,8 +20208,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
             latest_rows = (
                 await session.execute(
-                    select(ParkingSession, ParkingVehicle)
+                    select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
                     .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
                     .order_by(ParkingSession.start_time.desc())
                     .limit(120)
                 )
@@ -20249,8 +20262,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             tables = [
                 api_table(
                     "Siste parkeringer",
-                    ["status", "start_time", "end_time", "car_license_number", "vehicle_owner", "fee_inc_vat", "parking_time_min", "parking_area"],
-                    [parking_row_api(row, vehicle, unifi_before_seconds=15) for row, vehicle in latest_rows],
+                    ["status", "start_time", "end_time", "car_license_number", "vehicle_make", "vehicle_type", "vehicle_color", "vehicle_owner", "fee_inc_vat", "parking_time_min"],
+                    [parking_row_api(row, vehicle, details, unifi_before_seconds=15) for row, vehicle, details in latest_rows],
                 )
             ]
             cards = [
@@ -20391,7 +20404,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "previous_parking_count",
                             "previous_paid_total",
                         ],
-                        [parking_row_api(row, vehicle, previous_stats.get(row.id), unifi_before_seconds=60) for row, vehicle in parking_rows],
+                        [parking_row_api(row, vehicle, previous_stats=previous_stats.get(row.id), unifi_before_seconds=60) for row, vehicle in parking_rows],
                     )
                 ]
             elif view == "kjoretoy":
