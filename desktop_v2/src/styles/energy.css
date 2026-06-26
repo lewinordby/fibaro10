@@ -204,7 +204,7 @@
 .elvia-import-card {
   border-color: var(--line);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .elvia-upload-card .ant-card-head {
@@ -234,6 +234,23 @@
 
 .elvia-summary-tile strong {
   letter-spacing: 0;
+}
+
+.elvia-summary-tile {
+  min-height: 108px;
+}
+
+.elvia-summary-tile .ant-card-body {
+  gap: 5px;
+  padding: 10px 12px;
+}
+
+.elvia-summary-tile strong {
+  font-size: 19px;
+}
+
+.elvia-summary-tile small {
+  font-size: 11px;
 }
 
 .elvia-table-card .ant-table-thead > tr > th {

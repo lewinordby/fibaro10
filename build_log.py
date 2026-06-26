@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1256")
+APP_BUILD = os.getenv("APP_BUILD", "1257")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1257",
+        "date": "26.06.2026",
+        "headline": "Ryddigere desktopdesign",
+        "title": "Desktopgrensesnittet har faatt strammere kort, tabeller, statusfelt og felles designregler",
+        "description": (
+            "Build 1257 rydder visuelt i V2-grensesnittet med mer systematiske tokens, tettere Ant Design-tema, "
+            "roligere kortflater, mer kompakte tabeller og en ryddigere statusoversikt. Endringen er avgrenset til "
+            "frontend-design og endrer ikke datalogikk."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (designTokens.ts): justerer felles Ant Design-tema for tettere kontrollhøyder, kort og tabeller.",
+            "Fibaro10 desktop V2 (tokens.css/layout.css): legger felles overflate-, spacing- og tabellregler for hele appen.",
+            "Fibaro10 desktop V2 (status.css): rydder status/dashboard med roligere lys- og ventilasjonsrader og mer kompakte kort.",
+            "Fibaro10 desktop V2 (module-content.css, records.css, energy.css, ventilation.css): standardiserer kort, nøkkeltall og tabellflater.",
+            "Buildlogg (build_log.py): registrerer build 1257.",
+        ],
+        "request": "Ta en designopprydding og gjoer alt penere og mer systematisk.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Mindre og mer konsekvente kort med roligere skygger.",
+            "Mer systematisk typografi og tettere Ant Design-kontroller.",
+            "Statusoversikten har slankere lys- og ventilasjonsrader.",
+            "Tabeller har mer lik header, radavstand og hover-effekt.",
+            "Energi- og ventilasjonskort er strammet inn visuelt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1256",

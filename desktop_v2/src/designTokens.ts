@@ -50,19 +50,24 @@ export const antdTheme = {
     colorBorder: semanticColors.line,
     colorBgLayout: semanticColors.surfaceSoft,
     colorBgContainer: semanticColors.surface,
-    controlHeight: 34,
+    controlHeight: 32,
+    controlHeightSM: 28,
+    controlHeightLG: 36,
+    fontSize: 13,
+    fontSizeSM: 12,
+    lineHeight: 1.35,
     fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   },
   components: {
     Button: {
       borderRadius: 7,
-      controlHeight: 34,
+      controlHeight: 32,
       fontWeight: 650,
     },
     Card: {
       borderRadiusLG: 8,
-      paddingLG: 16,
-      headerHeight: 44,
+      paddingLG: 12,
+      headerHeight: 38,
     },
     Input: {
       borderRadius: 7,
@@ -74,7 +79,7 @@ export const antdTheme = {
     },
     Menu: {
       itemBorderRadius: 7,
-      itemHeight: 38,
+      itemHeight: 36,
     },
     Segmented: {
       itemSelectedBg: semanticColors.blue,
@@ -86,6 +91,11 @@ export const antdTheme = {
       headerBg: "#f8fafc",
       headerColor: "#475569",
       rowHoverBg: "#f8fbff",
+      cellFontSize: 12,
+      cellFontSizeSM: 11,
+      cellPaddingBlock: 7,
+      cellPaddingInline: 9,
+      headerSplitColor: "#e8edf4",
     },
     Tabs: {
       horizontalMargin: "0 0 10px 0",

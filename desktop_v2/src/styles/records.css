@@ -889,7 +889,7 @@
 .vehicle-detail-card {
   border-color: var(--line);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .vehicle-field {
@@ -912,11 +912,11 @@
 }
 
 .module-table-card .ant-card-body {
-  padding: 12px 14px 14px;
+  padding: 10px 12px 12px;
 }
 
 .table-toolbar {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .table-pane-head {
@@ -928,7 +928,7 @@
 }
 
 .module-table-card .ant-tabs-tab {
-  padding: 9px 0;
+  padding: 8px 0;
   font-weight: 700;
 }
 
@@ -947,7 +947,7 @@
 
 .module-table-card .ant-table-thead > tr > th {
   color: #475569;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 850;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -956,6 +956,8 @@
 }
 
 .module-table-card .ant-table-tbody > tr > td {
+  padding-top: 7px;
+  padding-bottom: 7px;
   border-bottom-color: #edf2f7;
 }
 

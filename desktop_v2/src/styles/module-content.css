@@ -732,7 +732,8 @@
 .summary-card {
   border-color: var(--line);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
 }
 
 .work-card .ant-card-head,
@@ -754,15 +755,15 @@
 .metric-card {
   position: relative;
   overflow: hidden;
-  height: 96px;
+  height: 88px;
   border-color: var(--line);
   border-radius: var(--radius-md);
   background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .module-metric {
-  height: 82px;
+  height: 78px;
 }
 
 .metric-card::before {
@@ -778,7 +779,7 @@
 }
 
 .metric-card .ant-card-body {
-  padding: 6px 8px;
+  padding: 7px 9px;
 }
 
 .metric-card-top {
@@ -807,7 +808,7 @@
 }
 
 .metric-value {
-  font-size: 16px;
+  font-size: 16.5px;
   line-height: 1.05;
   letter-spacing: 0;
 }
@@ -818,9 +819,9 @@
 
 .metric-detail {
   gap: 5px;
-  min-height: 19px;
+  min-height: 18px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.12;
 }
 
@@ -831,7 +832,7 @@
 
 :is(.card-link:hover .metric-card, .ant-card-hoverable:hover) {
   border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 30%, var(--line));
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .module-chart-card {
@@ -840,13 +841,13 @@
 
 .module-chart-card .ant-card-body,
 .chart-card .ant-card-body {
-  padding: 12px 14px 8px;
+  padding: 10px 12px 8px;
 }
 
 .module-chart-toolbar {
-  min-height: 34px;
+  min-height: 32px;
   margin-bottom: 6px;
-  padding-bottom: 8px;
+  padding-bottom: 7px;
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -868,7 +869,7 @@
 
 .metric-grid,
 .primary-grid {
-  gap: 8px;
+  gap: 10px;
 }
 
 .summary-card .ant-card-head {
@@ -880,12 +881,12 @@
 }
 
 .summary-card .ant-card-body {
-  min-height: 52px;
+  min-height: 50px;
   padding: 7px 9px;
 }
 
 .summary-card strong {
-  font-size: 15px;
+  font-size: 14.5px;
 }
 
 .summary-card span {

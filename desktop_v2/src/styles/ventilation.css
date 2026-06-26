@@ -439,7 +439,7 @@
 .vent-save-card {
   border-color: var(--line);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
 }
 
 .vent-zone-card .ant-card-head {
@@ -482,19 +482,19 @@
 }
 
 .vent-fan-pill {
-  min-height: 30px;
-  padding: 4px 8px;
+  min-height: 28px;
+  padding: 4px 7px;
   background: #f8fafc;
 }
 
 .vent-fan-pill .ant-tag {
-  height: 22px;
-  min-width: 42px;
+  height: 20px;
+  min-width: 38px;
   padding-inline: 8px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 800;
-  line-height: 20px;
+  line-height: 18px;
 }
 
 .vent-day-focus {
