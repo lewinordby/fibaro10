@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1253")
+APP_BUILD = os.getenv("APP_BUILD", "1254")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1254",
+        "date": "26.06.2026",
+        "headline": "Tydelig sist oppdatert paa parkering",
+        "title": "Parkering oversikt viser siste EasyPark-oppdatering som eget nokkelkort",
+        "description": (
+            "Build 1254 gjor sist oppdatert-tidspunkt tydelig paa Parkering > Oversikt. Siden viser naa siste "
+            "vellykkede EasyPark-import som et eget nokkelkort forst i kortrekken, med lenke til datakilder."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): henter ImportJobStatus for easypark_parking_import paa parkeringsoversikten.",
+            "Fibaro10 backend (main.py): legger Sist oppdatert som forste kort paa Parkering > Oversikt.",
+            "Buildlogg (build_log.py): registrerer build 1254.",
+        ],
+        "request": "Sist oppdatert tidspunkt maa komme tydelig frem paa siden.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Parkering > Oversikt viser Sist oppdatert som tydelig forste kort.",
+            "Tidspunktet bruker siste vellykkede EasyPark-import.",
+            "Kortet peker til Admin > Datakilder for mer detaljer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1253",

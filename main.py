@@ -20217,6 +20217,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ).all()
             today_summary = await parking_period_summary(session, "I dag", today_start, tomorrow_start)
             month_summary = await parking_period_summary(session, "Denne måneden", month_start_dt, tomorrow_start)
+            parking_import_status = (
+                await session.execute(
+                    select(ImportJobStatus).where(ImportJobStatus.job_name == "easypark_parking_import")
+                )
+            ).scalars().first()
             active = (
                 await session.execute(
                     select(func.count(ParkingSession.id)).where(
@@ -20267,6 +20272,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 )
             ]
             cards = [
+                api_card(
+                    "Sist oppdatert",
+                    format_local_datetime(parking_import_status.last_success_at) if parking_import_status and parking_import_status.last_success_at else "-",
+                    "",
+                    f"EasyPark import - {import_job_age(parking_import_status)}" if parking_import_status else "Ingen importstatus",
+                    "status",
+                    href="/admin/datakilder",
+                ),
                 api_card("Parkeringer i dag", today_summary["count"], "stk", f"{format_short_number(today_summary['paid'])} kr", "parking", href="/parkering/dagslinje"),
                 api_card("Pågående", active, "stk", "Akkurat nå", "parking", href="/parkering/dagslinje"),
                 api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue", href="/omsetning/manedsoversikt"),
