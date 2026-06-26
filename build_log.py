@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1263")
+APP_BUILD = os.getenv("APP_BUILD", "1264")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1264",
+        "date": "26.06.2026",
+        "headline": "Stabil og gruppert hovedmeny",
+        "title": "Desktop V2 har faatt egen sidenavigasjon med faste fagfarger",
+        "description": (
+            "Build 1264 erstatter Ant Design Menu i venstremenyen med en egen, enklere sidenavigasjon. "
+            "Menyen er delt i Oekonomi, Bygg og drift og System, og fargene settes direkte per menypunkt "
+            "i komponenten. Det fjerner skjore nth-child-regler i CSS og gjoer videre designarbeid mer "
+            "forutsigbart."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (App.tsx): bytter Ant Design Menu til egen SideNavigation med grupper.",
+            "Fibaro10 desktop V2 (layout.css): rydder bort nth-child-regler og legger stabile fargevariabler per menypunkt.",
+            "Buildlogg (build_log.py): registrerer build 1264.",
+        ],
+        "request": "Fortsett med de endringene du ville gjore.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Venstremenyen er delt i Oekonomi, Bygg og drift og System.",
+            "Farge settes direkte per menypunkt i komponenten i stedet for via CSS-posisjon.",
+            "Menyikonene har fargede brikker og aktivtilstand med samme fagfarge.",
+        ],
+    },
     {
         "version": "1",
         "build": "1263",

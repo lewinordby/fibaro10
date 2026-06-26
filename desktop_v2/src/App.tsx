@@ -14,10 +14,11 @@ import {
   ThunderboltOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Avatar, Button, Dropdown, Layout, Menu, Segmented, Typography } from "antd";
+import { Avatar, Button, Dropdown, Layout, Segmented, Typography } from "antd";
 import type { MenuProps } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { fetchCurrentUser, logoutUser, type AuthUser } from "./api";
 import { LoadingBlock } from "./components/AsyncState";
@@ -44,24 +45,30 @@ const SunSettlementsPage = lazy(() => import("./pages/SunSettlementsPage"));
 const SunYearComparisonPage = lazy(() => import("./pages/SunYearComparisonPage"));
 const StatusComparisonPage = lazy(() => import("./pages/StatusComparisonPage"));
 
-const mainModules = [
-  { module: "omsetning", icon: <BarChartOutlined />, label: "Omsetning" },
-  { module: "parkering", icon: <CarOutlined />, label: "Parkering" },
-  { module: "soling", icon: <CalendarOutlined />, label: "Soling" },
-  { module: "energi", icon: <ThunderboltOutlined />, label: "Energi" },
-  { module: "ventilasjon", icon: <ExperimentOutlined />, label: "Ventilasjon" },
-  { module: "lys", icon: <BulbOutlined />, label: "Lys" },
-  { module: "mobil", icon: <MobileOutlined />, label: "Mobil" },
-  { module: "renhold", icon: <ToolOutlined />, label: "Renhold" },
-  { module: "admin", icon: <SettingOutlined />, label: "Admin" },
+type MainModule = {
+  module: string;
+  icon: ReactNode;
+  label: string;
+  color: string;
+};
+
+const mainModules: MainModule[] = [
+  { module: "omsetning", icon: <BarChartOutlined />, label: "Omsetning", color: "var(--domain-revenue)" },
+  { module: "parkering", icon: <CarOutlined />, label: "Parkering", color: "var(--domain-parking)" },
+  { module: "soling", icon: <CalendarOutlined />, label: "Soling", color: "var(--domain-sun2)" },
+  { module: "energi", icon: <ThunderboltOutlined />, label: "Energi", color: "var(--domain-energy)" },
+  { module: "ventilasjon", icon: <ExperimentOutlined />, label: "Ventilasjon", color: "var(--domain-vent)" },
+  { module: "lys", icon: <BulbOutlined />, label: "Lys", color: "var(--domain-light)" },
+  { module: "renhold", icon: <ToolOutlined />, label: "Renhold", color: "#0f766e" },
+  { module: "mobil", icon: <MobileOutlined />, label: "Mobil", color: "var(--domain-mobile)" },
+  { module: "admin", icon: <SettingOutlined />, label: "Admin", color: "#64748b" },
 ];
 
-const menuItems: MenuProps["items"] = mainModules.map((item) => ({
-  key: modulePath(item.module),
-  className: `app-menu-${item.module}`,
-  icon: item.icon,
-  label: item.label,
-}));
+const mainModuleGroups = [
+  { label: "Økonomi", modules: mainModules.slice(0, 3) },
+  { label: "Bygg og drift", modules: mainModules.slice(3, 7) },
+  { label: "System", modules: mainModules.slice(7) },
+];
 
 function selectedKey(pathname: string): string {
   const menuModule = mainModules.find((item) => pathname.startsWith(`/${item.module}`));
@@ -152,6 +159,37 @@ function BrandHome({ className = "" }: { className?: string }) {
   );
 }
 
+function SideNavigation({ activeKey }: { activeKey: string }) {
+  return (
+    <nav className="sider-nav" aria-label="Hovedmeny">
+      {mainModuleGroups.map((group) => (
+        <section className="sider-nav-group" key={group.label}>
+          <div className="sider-nav-label">{group.label}</div>
+          <div className="sider-nav-list">
+            {group.modules.map((item) => {
+              const path = modulePath(item.module);
+              const active = activeKey === path;
+              return (
+                <Link
+                  className={`sider-nav-item ${active ? "active" : ""} app-menu-${item.module}`}
+                  key={item.module}
+                  style={{ "--menu-item-color": item.color } as CSSProperties}
+                  to={path}
+                >
+                  <span className="sider-nav-icon" aria-hidden="true">
+                    {item.icon}
+                  </span>
+                  <span className="sider-nav-text">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </nav>
+  );
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -176,13 +214,7 @@ export default function App() {
     <Layout className={`app-shell domain-${module ?? "status"} ${menuHidden ? "main-menu-hidden" : ""}`}>
       <Sider width={218} collapsedWidth={0} collapsed={menuHidden} trigger={null} className="app-sider">
         <BrandHome className="sider-brand" />
-        <Menu
-          className="app-menu"
-          mode="inline"
-          selectedKeys={activeMenuKey ? [activeMenuKey] : []}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-        />
+        <SideNavigation activeKey={activeMenuKey} />
         <BuildFooter build={user?.appBuild} />
       </Sider>
       <Layout>

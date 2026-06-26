@@ -204,121 +204,91 @@ a {
   border-radius: 999px;
 }
 
-.app-menu {
+.sider-nav {
+  display: grid;
+  align-content: start;
   flex: 1 1 auto;
-  padding: 8px;
-  background: transparent;
-  border-inline-end: 0 !important;
+  gap: 9px;
+  padding: 7px 8px 10px;
 }
 
-.app-menu .ant-menu-item,
-.app-menu .ant-menu-item-divider {
+.sider-nav-group {
+  display: grid;
+  gap: 3px;
+}
+
+.sider-nav-label {
+  padding: 5px 10px 3px;
+  color: #8792a6;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.sider-nav-list {
+  display: grid;
+  gap: 2px;
+}
+
+.sider-nav-item {
   --menu-item-color: var(--active-module-color);
-  color: #42526b;
-  margin-inline: 0;
-  margin-block: 2px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 0 9px;
+  color: #26354d;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
   font-size: 13px;
-  font-weight: 720;
+  font-weight: 740;
+  transition:
+    color 0.14s ease,
+    background 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
 }
 
-.app-menu-omsetning {
-  --menu-item-color: var(--domain-revenue);
+.sider-nav-item:hover {
+  color: #071a45;
+  background: color-mix(in srgb, var(--menu-item-color) 8%, #ffffff);
+  border-color: color-mix(in srgb, var(--menu-item-color) 16%, transparent);
 }
 
-.app-menu-parkering {
-  --menu-item-color: var(--domain-parking);
-}
-
-.app-menu-soling {
-  --menu-item-color: var(--domain-sun2);
-}
-
-.app-menu-energi {
-  --menu-item-color: var(--domain-energy);
-}
-
-.app-menu-ventilasjon {
-  --menu-item-color: var(--domain-vent);
-}
-
-.app-menu-lys {
-  --menu-item-color: var(--domain-light);
-}
-
-.app-menu-mobil {
-  --menu-item-color: var(--domain-mobile);
-}
-
-.app-menu-renhold {
-  --menu-item-color: #0f766e;
-}
-
-.app-menu-admin {
-  --menu-item-color: #64748b;
-}
-
-.app-menu .ant-menu-item:nth-child(1) {
-  --menu-item-color: var(--domain-revenue);
-}
-
-.app-menu .ant-menu-item:nth-child(2) {
-  --menu-item-color: var(--domain-parking);
-}
-
-.app-menu .ant-menu-item:nth-child(3) {
-  --menu-item-color: var(--domain-sun2);
-}
-
-.app-menu .ant-menu-item:nth-child(4) {
-  --menu-item-color: var(--domain-energy);
-}
-
-.app-menu .ant-menu-item:nth-child(5) {
-  --menu-item-color: var(--domain-vent);
-}
-
-.app-menu .ant-menu-item:nth-child(6) {
-  --menu-item-color: var(--domain-light);
-}
-
-.app-menu .ant-menu-item:nth-child(7) {
-  --menu-item-color: var(--domain-mobile);
-}
-
-.app-menu .ant-menu-item:nth-child(8) {
-  --menu-item-color: #0f766e;
-}
-
-.app-menu .ant-menu-item:nth-child(9) {
-  --menu-item-color: #64748b;
-}
-
-.app-menu .ant-menu-item .anticon {
-  color: color-mix(in srgb, var(--menu-item-color) 70%, #738096);
-  font-size: 15px;
-  transition: color 0.14s ease;
-}
-
-.app-menu .ant-menu-item:hover {
-  color: #071a45 !important;
-  background: color-mix(in srgb, var(--menu-item-color) 8%, #ffffff) !important;
-}
-
-.app-menu .ant-menu-item:hover .anticon {
-  color: color-mix(in srgb, var(--menu-item-color) 88%, #071a45);
-}
-
-.app-menu .ant-menu-item-selected {
-  color: #071a45 !important;
-  background: color-mix(in srgb, var(--menu-item-color) 13%, #ffffff) !important;
+.sider-nav-item.active {
+  color: #071a45;
+  background: color-mix(in srgb, var(--menu-item-color) 13%, #ffffff);
+  border-color: color-mix(in srgb, var(--menu-item-color) 18%, #e4ebf3);
   box-shadow:
     inset 3px 0 0 var(--menu-item-color),
     0 5px 14px rgba(7, 26, 69, 0.055);
-  font-weight: 820;
+  font-weight: 830;
 }
 
-.app-menu .ant-menu-item-selected .anticon {
-  color: var(--menu-item-color);
+.sider-nav-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: color-mix(in srgb, var(--menu-item-color) 78%, #667085);
+  background: color-mix(in srgb, var(--menu-item-color) 9%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--menu-item-color) 16%, #e8edf4);
+  border-radius: 7px;
+}
+
+.sider-nav-item.active .sider-nav-icon {
+  color: #ffffff;
+  background: var(--menu-item-color);
+  border-color: var(--menu-item-color);
+}
+
+.sider-nav-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sider-build-link {
