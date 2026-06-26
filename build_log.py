@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1264")
+APP_BUILD = os.getenv("APP_BUILD", "1265")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1265",
+        "date": "26.06.2026",
+        "headline": "Appskall flyttet ut av App.tsx",
+        "title": "Desktop V2 har faatt et eget AppShell for meny, toppbar og brukerprofil",
+        "description": (
+            "Build 1265 fortsetter frontend-oppryddingen ved aa flytte venstremeny, toppbar, brandfelt, "
+            "brukerprofil og innholdskonteiner ut av App.tsx og inn i en egen AppShell-komponent. App.tsx "
+            "blir dermed mer rendyrket som rutefil, mens appskallet kan forbedres videre uten aa rote i "
+            "routing og spesialsider."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (components/AppShell.tsx): ny komponent for sidebaren, toppbaren, brandfelt og brukerprofil.",
+            "Fibaro10 desktop V2 (App.tsx): redusert til modulvalg, active view og ruter.",
+            "Buildlogg (build_log.py): registrerer build 1265.",
+        ],
+        "request": "Fortsett med alle de tingene du foreslo at du ville gjore slik at alt er klart.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Appskall og navigasjon ligger naa samlet i AppShell.",
+            "App.tsx blander ikke lenger brukerprofil, menytilstand og routing i samme komponent.",
+            "Dette gjoer neste opprydding i ruter eller menystruktur mindre risikabel.",
+        ],
+    },
     {
         "version": "1",
         "build": "1264",
