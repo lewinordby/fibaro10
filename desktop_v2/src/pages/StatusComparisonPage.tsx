@@ -13,7 +13,8 @@ import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { domainColors } from "../domainColors";
 import { nok } from "../format";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 type ComparisonMetric = "count" | "amount";
 type ComparisonChartKind = StatusComparisonLane["kind"] | "total";
@@ -269,7 +270,10 @@ export default function StatusComparisonPage() {
   const compare = searchParams.get("compare") || "previous";
   const anchor = searchParams.get("anchor") || "";
   const metric: ComparisonMetric = searchParams.get("metric") === "count" ? "count" : "amount";
-  const { data, loading, error } = useAsyncData(() => fetchStatusComparison(period, compare, anchor), [period, compare, anchor]);
+  const { data, loading, error } = useApiQuery(
+    queryKeys.statusComparison(period, compare, anchor),
+    () => fetchStatusComparison(period, compare, anchor),
+  );
   const chartOptions = useMemo(() => {
     if (!data) return [];
     const chartKinds: ComparisonChartKind[] = metric === "amount" ? ["total", "sun", "parking"] : ["sun", "parking"];

@@ -9,7 +9,8 @@ import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { domainColors } from "../domainColors";
 import { decimal, nok } from "../format";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 dayjs.locale("nb");
 
@@ -41,7 +42,7 @@ function tooltipMarker(color: string): string {
 
 export default function RevenueMonthPage() {
   const [month, setMonth] = useState<string | undefined>(undefined);
-  const { data, loading, error } = useAsyncData(() => fetchRevenueMonth(month), [month]);
+  const { data, loading, error } = useApiQuery(queryKeys.revenueMonth(month), () => fetchRevenueMonth(month));
 
   const chartOption = useMemo(() => {
     const rows = data?.rows ?? [];

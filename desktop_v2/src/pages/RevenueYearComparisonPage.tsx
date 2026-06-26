@@ -11,7 +11,8 @@ import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { domainColors } from "../domainColors";
 import { nok } from "../format";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 function dateLabel(value?: string | null) {
   if (!value) return "-";
@@ -198,7 +199,7 @@ function YearSummaryCard({
 export default function RevenueYearComparisonPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const year = searchParams.get("year") || "";
-  const { data, loading, error } = useAsyncData(() => fetchRevenueYearComparison(year), [year]);
+  const { data, loading, error } = useApiQuery(queryKeys.revenueYearComparison(year), () => fetchRevenueYearComparison(year));
   const activeYears = useMemo(() => (data ? activeYearsFromParams(data, searchParams.get("years")) : []), [data, searchParams]);
   const activeYearKey = activeYears.join(",");
   const chartOption = useMemo(() => (data ? cumulativeChartOption(data, activeYears) : null), [data, activeYearKey]);

@@ -3,12 +3,16 @@ import { Button, Card, Descriptions, List, Space, Tag, Typography } from "antd";
 import { Link, useParams } from "react-router-dom";
 import { fetchBuildLogEntry } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 export default function BuildDetailPage() {
   const params = useParams();
   const build = params.build ?? "";
-  const { data, loading, error } = useAsyncData(() => fetchBuildLogEntry(build), [build]);
+  const { data, loading, error } = useApiQuery(queryKeys.buildLogEntry(build), () => fetchBuildLogEntry(build), {
+    enabled: Boolean(build),
+    staleTime: 5 * 60_000,
+  });
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;

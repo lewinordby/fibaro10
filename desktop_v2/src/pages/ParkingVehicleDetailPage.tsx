@@ -1,12 +1,14 @@
 import { ArrowLeftOutlined, VideoCameraOutlined } from "@ant-design/icons";
 import { Alert, App as AntApp, Button, Card, Space, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchParkingVehicleDetail, runModuleAction, type ModuleAction } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
 import { modulePath } from "../moduleViews";
+import { queryKeys } from "../queryKeys";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -81,9 +83,12 @@ const parkingColumns: ColumnsType<Record<string, unknown>> = [
 export default function ParkingVehicleDetailPage() {
   const { plate = "" } = useParams();
   const { message, modal } = AntApp.useApp();
-  const [reloadToken, setReloadToken] = useState(0);
+  const queryClient = useQueryClient();
   const [runningAction, setRunningAction] = useState<string | null>(null);
-  const { data, loading, error } = useAsyncData(() => fetchParkingVehicleDetail(plate), [plate, reloadToken]);
+  const vehicleQueryKey = queryKeys.parkingVehicle(plate);
+  const { data, loading, error } = useApiQuery(vehicleQueryKey, () => fetchParkingVehicleDetail(plate), {
+    enabled: Boolean(plate),
+  });
 
   async function handleAction(action: ModuleAction) {
     if (runningAction) return;
@@ -92,7 +97,7 @@ export default function ParkingVehicleDetailPage() {
       try {
         const result = await runModuleAction(action);
         message.success(String(result.message || "Handling utført"));
-        setReloadToken((value) => value + 1);
+        await queryClient.invalidateQueries({ queryKey: vehicleQueryKey });
       } catch (err) {
         message.error(err instanceof Error ? err.message : "Handling feilet");
       } finally {

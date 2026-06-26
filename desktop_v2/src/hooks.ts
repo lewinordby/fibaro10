@@ -1,28 +1,21 @@
-import { useEffect, useState } from "react";
+import { useQuery, type QueryKey, type UseQueryOptions } from "@tanstack/react-query";
 
-export function useAsyncData<T>(loader: () => Promise<T>, deps: unknown[] = []) {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<unknown>(null);
-  const [loading, setLoading] = useState(true);
+export function useApiQuery<T>(
+  queryKey: QueryKey,
+  loader: () => Promise<T>,
+  options?: Omit<UseQueryOptions<T, Error, T, QueryKey>, "queryKey" | "queryFn">,
+) {
+  const query = useQuery<T, Error, T, QueryKey>({
+    queryKey,
+    queryFn: loader,
+    ...options,
+  });
 
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError(null);
-    loader()
-      .then((value) => {
-        if (active) setData(value);
-      })
-      .catch((err) => {
-        if (active) setError(err);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, deps);
-
-  return { data, error, loading };
+  return {
+    data: query.data ?? null,
+    error: query.error,
+    loading: query.isLoading,
+    fetching: query.isFetching,
+    refetch: query.refetch,
+  };
 }

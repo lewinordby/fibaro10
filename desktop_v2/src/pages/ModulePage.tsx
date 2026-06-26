@@ -1,6 +1,7 @@
 import { AimOutlined, CalendarOutlined, LeftOutlined, RightOutlined, VideoCameraOutlined } from "@ant-design/icons";
 import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
@@ -21,9 +22,10 @@ import {
   type SunSessionSavedImage,
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { appPath } from "../navigation";
+import { queryKeys } from "../queryKeys";
 import { ModuleFilterBar } from "./module/ModuleFilterBar";
 import { ModuleMetric } from "./module/ModuleMetric";
 import { ParkingTimelinePanel } from "./module/ParkingTimelinePanel";
@@ -1067,6 +1069,7 @@ function SunSessionsPanel({
 export default function ModulePage({ module }: { module: string }) {
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { message, modal } = AntApp.useApp();
   const [form] = Form.useForm();
   const [query, setQuery] = useState("");
@@ -1074,7 +1077,6 @@ export default function ModulePage({ module }: { module: string }) {
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [editState, setEditState] = useState<{ edit: ModuleEditConfig; row: ModuleRow; create: boolean } | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
-  const [reloadToken, setReloadToken] = useState(0);
   const view = params.view ?? defaultModuleView(module);
   const viewItems = MODULE_VIEWS[module] ?? [];
   const isKnownView = !viewItems.length || viewItems.some((item) => item.key === view);
@@ -1087,12 +1089,17 @@ export default function ModulePage({ module }: { module: string }) {
     (module === "ventilasjon" && safeView === "dagslogg")
       ? searchParams.get("day") ?? ""
       : "";
-  const { data, loading, error } = useAsyncData(
+  const moduleQueryKey = queryKeys.module(module, safeView, serverQuery, timelineDay || "", filterKey);
+  const { data, loading, error } = useApiQuery(
+    moduleQueryKey,
     () => fetchModule(module, safeView, serverQuery, timelineDay || undefined, searchParams),
-    [module, safeView, serverQuery, timelineDay, filterKey, reloadToken],
   );
 
   if (!isKnownView) return <Navigate to={modulePath(module)} replace />;
+
+  function reloadModule() {
+    return queryClient.invalidateQueries({ queryKey: moduleQueryKey });
+  }
 
   function runSearch(value = draftQuery) {
     setQuery(value.trim());
@@ -1140,7 +1147,7 @@ export default function ModulePage({ module }: { module: string }) {
       const result = await submitModuleEdit(editState.edit, editState.row, values, editState.create);
       message.success(String(result.message || "Lagret"));
       setEditState(null);
-      setReloadToken((value) => value + 1);
+      await reloadModule();
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Lagring feilet");
     } finally {
@@ -1155,7 +1162,7 @@ export default function ModulePage({ module }: { module: string }) {
       try {
         const result = await runModuleAction(action);
         message.success(String(result.message || "Handling utført"));
-        setReloadToken((value) => value + 1);
+        await reloadModule();
       } catch (err) {
         message.error(err instanceof Error ? err.message : "Handling feilet");
       } finally {
@@ -1181,14 +1188,14 @@ export default function ModulePage({ module }: { module: string }) {
   if (module === "ventilasjon" && data.ventilation) {
     return (
       <Suspense fallback={<LoadingBlock />}>
-        <VentilationPage data={data} view={safeView} onReload={() => setReloadToken((value) => value + 1)} />
+        <VentilationPage data={data} view={safeView} onReload={reloadModule} />
       </Suspense>
     );
   }
   if (module === "energi" && safeView === "elvia" && data.energyElvia) {
     return (
       <Suspense fallback={<LoadingBlock />}>
-        <EnergyElviaPage data={data} onReload={() => setReloadToken((value) => value + 1)} />
+        <EnergyElviaPage data={data} onReload={reloadModule} />
       </Suspense>
     );
   }
@@ -1253,7 +1260,7 @@ export default function ModulePage({ module }: { module: string }) {
           onSearch={runSearch}
           onClear={clearSearch}
           onDraftChange={setDraftQuery}
-          onImageChanged={() => setReloadToken((value) => value + 1)}
+          onImageChanged={reloadModule}
         />
       ) : (
         <>

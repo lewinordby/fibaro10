@@ -11,8 +11,9 @@ import {
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { nok } from "../format";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
 import { appPath } from "../navigation";
+import { queryKeys } from "../queryKeys";
 
 type StripState = { label: string; state: boolean | null; tooltip?: string };
 type StripItem = { label: string; state?: boolean | null; states?: StripState[]; tooltip?: string };
@@ -409,7 +410,9 @@ function SupportMetricStrip({ cards }: { cards: MetricCardData[] }) {
 }
 
 export default function OverviewPage() {
-  const { data, loading, error } = useAsyncData(fetchOverview, []);
+  const { data, loading, error } = useApiQuery(queryKeys.overview(), fetchOverview, {
+    refetchInterval: 60_000,
+  });
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;

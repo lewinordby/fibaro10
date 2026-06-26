@@ -8,11 +8,13 @@ import {
   WarningOutlined,
 } from "@ant-design/icons";
 import { App as AntApp, Button, Card, Input, Space, Tooltip, Typography } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchModule, runModuleAction, type ModuleAction, type ModuleResponse, type ModuleRow } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 type SettlementRow = ModuleRow & {
   __rowKey: string;
@@ -255,10 +257,11 @@ function filterSettlementRows(rows: SettlementRow[], query: string) {
 
 export default function ParkingSettlementsPage() {
   const { message, modal } = AntApp.useApp();
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0);
   const [runningAction, setRunningAction] = useState<string | null>(null);
-  const { data, loading, error } = useAsyncData(() => fetchModule("parkering", "oppgjor"), [refreshKey]);
+  const settlementsQueryKey = queryKeys.module("parkering", "oppgjor");
+  const { data, loading, error } = useApiQuery(settlementsQueryKey, () => fetchModule("parkering", "oppgjor"));
 
   const rows = useMemo(() => (data ? settlementRows(data) : []), [data]);
   const controls = useMemo(() => (data ? controlRows(data) : []), [data]);
@@ -274,7 +277,7 @@ export default function ParkingSettlementsPage() {
       try {
         const result = await runModuleAction(action);
         message.success(String(result.message || "Handling utført"));
-        setRefreshKey((value) => value + 1);
+        await queryClient.invalidateQueries({ queryKey: settlementsQueryKey });
       } catch (err) {
         message.error(err instanceof Error ? err.message : "Kunne ikke kjøre handlingen");
       } finally {

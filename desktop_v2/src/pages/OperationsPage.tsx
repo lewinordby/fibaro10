@@ -2,7 +2,9 @@ import { CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-
 import { Card, List, Space, Tag, Typography } from "antd";
 import { fetchOverview, type ServiceStatus } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { useAsyncData } from "../hooks";
+import { PageHeader } from "../components/PageHeader";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 function statusTag(row: ServiceStatus) {
   if (row.status === "ok") return <Tag color="green">OK</Tag>;
@@ -18,7 +20,9 @@ function statusIcon(row: ServiceStatus) {
 }
 
 export default function OperationsPage() {
-  const { data, loading, error } = useAsyncData(fetchOverview, []);
+  const { data, loading, error } = useApiQuery(queryKeys.overview(), fetchOverview, {
+    refetchInterval: 60_000,
+  });
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
@@ -27,18 +31,16 @@ export default function OperationsPage() {
 
   return (
     <Space direction="vertical" size={14} className="page-stack status-page status-operations-page">
-      <div className="status-page-top">
-        <div>
-          <Typography.Text className="eyebrow">Drift</Typography.Text>
-          <div className="status-meta-line">
-            <strong>Datakilder og signaler</strong>
-            <span>{data.services.length} datakilder</span>
-          </div>
-        </div>
-        <Typography.Text type={warnings ? "warning" : "secondary"}>
-          {warnings ? `${warnings} trenger sjekk` : "Alt OK"}
-        </Typography.Text>
-      </div>
+      <PageHeader
+        eyebrow="Drift"
+        title="Datakilder og signaler"
+        description={`${data.services.length} datakilder`}
+        meta={
+          <Typography.Text type={warnings ? "warning" : "secondary"}>
+            {warnings ? `${warnings} trenger sjekk` : "Alt OK"}
+          </Typography.Text>
+        }
+      />
 
       <Card className="work-card" title="Datakilder">
         <List

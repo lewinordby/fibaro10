@@ -3,7 +3,9 @@ import { Button, Card, Space, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { fetchMobilePreviewScreens } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { useAsyncData } from "../hooks";
+import { PageHeader } from "../components/PageHeader";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 function frameUrl(baseUrl: string, refreshToken: number): string {
   const separator = baseUrl.includes("?") ? "&" : "?";
@@ -11,7 +13,9 @@ function frameUrl(baseUrl: string, refreshToken: number): string {
 }
 
 export default function MobileOverviewPage() {
-  const { data, loading, error } = useAsyncData(fetchMobilePreviewScreens, []);
+  const { data, loading, error } = useApiQuery(queryKeys.mobileScreens(), fetchMobilePreviewScreens, {
+    staleTime: 60_000,
+  });
   const [refreshToken, setRefreshToken] = useState(() => Date.now());
   const refreshMs = Math.max(15, data?.refreshSeconds ?? 60) * 1000;
 
@@ -27,18 +31,16 @@ export default function MobileOverviewPage() {
 
   return (
     <Space direction="vertical" size={14} className="page-stack mobile-preview-page">
-      <div className="mobile-preview-toolbar">
-        <div>
-          <Typography.Text className="eyebrow">Mobil</Typography.Text>
-          <Typography.Title level={2}>Mobilskjermer</Typography.Title>
-          <Typography.Text type="secondary">
-            Live visning fra mobilappen. Rammene lastes på nytt hvert {data.refreshSeconds}. sekund.
-          </Typography.Text>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={() => setRefreshToken(Date.now())}>
-          Oppdater
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Mobil"
+        title="Mobilskjermer"
+        description={`Live visning fra mobilappen. Rammene lastes på nytt hvert ${data.refreshSeconds}. sekund.`}
+        actions={
+          <Button icon={<ReloadOutlined />} onClick={() => setRefreshToken(Date.now())}>
+            Oppdater
+          </Button>
+        }
+      />
 
       <div className="mobile-preview-grid">
         {screens.map((screen) => (

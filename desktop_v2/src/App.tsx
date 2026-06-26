@@ -15,11 +15,13 @@ import {
 } from "@ant-design/icons";
 import { Avatar, Button, Dropdown, Layout, Menu, Segmented, Typography } from "antd";
 import type { MenuProps } from "antd";
+import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { fetchCurrentUser, logoutUser, type AuthUser } from "./api";
 import { LoadingBlock } from "./components/AsyncState";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "./moduleViews";
+import { queryKeys } from "./queryKeys";
 
 const { Header, Sider, Content } = Layout;
 const MENU_HIDDEN_STORAGE_KEY = "fibaro10:mainMenuHidden";
@@ -138,27 +140,18 @@ function BuildFooter({ build }: { build?: string }) {
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [user, setUser] = useState<AuthUser | null>(null);
   const [menuHidden, setMenuHidden] = useState(() => window.localStorage.getItem(MENU_HIDDEN_STORAGE_KEY) === "1");
+  const { data: user = null } = useQuery<AuthUser | null>({
+    queryKey: queryKeys.auth.currentUser(),
+    queryFn: fetchCurrentUser,
+    retry: false,
+    staleTime: 60_000,
+  });
   const module = activeModule(location.pathname);
   const viewItems = module ? MODULE_VIEWS[module] ?? [] : [];
   const rawActiveView = module ? location.pathname.split("/")[2] || defaultModuleView(module) : "";
   const activeView = module && viewItems.some((item) => item.key === rawActiveView) ? rawActiveView : defaultModuleView(module || "");
   const activeMenuKey = selectedKey(location.pathname);
-
-  useEffect(() => {
-    let active = true;
-    fetchCurrentUser()
-      .then((value) => {
-        if (active) setUser(value);
-      })
-      .catch(() => {
-        if (active) setUser(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(MENU_HIDDEN_STORAGE_KEY, menuHidden ? "1" : "0");

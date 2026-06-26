@@ -3,11 +3,14 @@ import type { ColumnsType } from "antd/es/table";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchBuildLog, type BuildLogEntry } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 export default function BuildLogPage() {
   const navigate = useNavigate();
-  const { data, loading, error } = useAsyncData(fetchBuildLog, []);
+  const { data, loading, error } = useApiQuery(queryKeys.buildLog(), fetchBuildLog, {
+    staleTime: 5 * 60_000,
+  });
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;

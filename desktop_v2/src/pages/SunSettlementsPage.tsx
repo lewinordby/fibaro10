@@ -6,11 +6,13 @@ import {
   WarningOutlined,
 } from "@ant-design/icons";
 import { App as AntApp, Button, Card, Select, Space, Tooltip, Typography } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchModule, uploadSettlementFile, type ModuleResponse, type ModuleRow } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 type SettlementRow = ModuleRow & {
   __rowKey: string;
@@ -282,11 +284,12 @@ function SunSettlementRow({ row }: { row: SettlementRow }) {
 
 export default function SunSettlementsPage() {
   const { message } = AntApp.useApp();
+  const queryClient = useQueryClient();
   const [selectedYearKey, setSelectedYearKey] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const { data, loading, error } = useAsyncData(() => fetchModule("soling", "oppgjor"), [refreshKey]);
+  const settlementsQueryKey = queryKeys.module("soling", "oppgjor");
+  const { data, loading, error } = useApiQuery(settlementsQueryKey, () => fetchModule("soling", "oppgjor"));
 
   const rows = useMemo(() => (data ? settlementRows(data) : []), [data]);
   const years = useMemo(() => settlementYearOptions(rows), [rows]);
@@ -323,7 +326,7 @@ export default function SunSettlementsPage() {
       if (files.length > 1) {
         message.success(`${imported} solingsoppgjør er behandlet.`);
       }
-      setRefreshKey((value) => value + 1);
+      await queryClient.invalidateQueries({ queryKey: settlementsQueryKey });
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Import feilet");
     } finally {

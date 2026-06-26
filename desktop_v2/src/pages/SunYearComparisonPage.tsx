@@ -11,7 +11,8 @@ import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { domainColors } from "../domainColors";
 import { decimal, nok } from "../format";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
+import { queryKeys } from "../queryKeys";
 
 type SunYearMetric = "amount" | "count";
 
@@ -216,7 +217,7 @@ export default function SunYearComparisonPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const year = searchParams.get("year") || "";
   const metric: SunYearMetric = searchParams.get("metric") === "count" ? "count" : "amount";
-  const { data, loading, error } = useAsyncData(() => fetchSunYearComparison(year), [year]);
+  const { data, loading, error } = useApiQuery(queryKeys.sunYearComparison(year), () => fetchSunYearComparison(year));
   const activeYears = useMemo(() => (data ? activeYearsFromParams(data, searchParams.get("years")) : []), [data, searchParams]);
   const activeYearKey = activeYears.join(",");
   const chartOption = useMemo(() => (data ? cumulativeChartOption(data, metric, activeYears) : null), [data, metric, activeYearKey]);

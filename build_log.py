@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1258")
+APP_BUILD = os.getenv("APP_BUILD", "1259")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1259",
+        "date": "26.06.2026",
+        "headline": "Frontend datalag og felles sideheader",
+        "title": "Desktop V2 har faatt TanStack Query, tydelige query-noekler og felles toppkomponent",
+        "description": (
+            "Build 1259 starter den strukturelle frontend-oppryddingen uten rammeverksbytte. API-data gaar naa via "
+            "TanStack Query med felles QueryClient, navngitte query-noekler og cache-invalidation etter handlinger. "
+            "Drift og mobil bruker en ny felles PageHeader-komponent, og gamle lokale reload-tellere er fjernet fra "
+            "modul-, oppgjoer- og kjoeretoeysidene."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (package.json): legger til @tanstack/react-query.",
+            "Fibaro10 desktop V2 (queryClient.ts/queryKeys.ts/hooks.ts): etablerer felles query-cache, query-noekler og API-hook.",
+            "Fibaro10 desktop V2 (App.tsx/main.tsx): kobler appen til QueryClientProvider og henter innlogget bruker via query-cache.",
+            "Fibaro10 desktop V2 (ModulePage og oppgjoer/kjoeretoey-sider): bytter reloadToken/refreshKey til presis query-invalidation.",
+            "Fibaro10 desktop V2 (PageHeader.tsx/layout.css): legger inn felles toppkomponent for mer konsekvent sidestil.",
+            "Buildlogg (build_log.py): registrerer build 1259.",
+        ],
+        "request": "Kan du sette igang med det du sier du faktisk ville gjort.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Innfører TanStack Query som standard datalag for frontend.",
+            "Status, drift, buildlogg, mobil, omsetning, aarssammenligninger, modulvisninger, oppgjoer og kjoeretoeydetaljer har navngitte query-noekler.",
+            "Mutasjoner og importer oppdaterer naa relevante datasett med invalidateQueries i stedet for lokale reload-tellere.",
+            "Drift og mobil bruker felles PageHeader, og gammel mobil/status-header-CSS er ryddet bort.",
+        ],
+    },
     {
         "version": "1",
         "build": "1258",

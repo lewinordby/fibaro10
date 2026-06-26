@@ -3,8 +3,9 @@ import { Alert, Button, Space, Tag, Typography } from "antd";
 import { Link, useParams } from "react-router-dom";
 import { fetchSettlementDetail, fetchSunSettlementDetail, type SettlementField, type SettlementSection } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { useAsyncData } from "../hooks";
+import { useApiQuery } from "../hooks";
 import { modulePath } from "../moduleViews";
+import { queryKeys } from "../queryKeys";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";
@@ -112,7 +113,11 @@ type SettlementDomain = "parkering" | "soling";
 export default function SettlementDetailPage({ domain = "parkering" }: { domain?: SettlementDomain }) {
   const { settlementId = "" } = useParams();
   const fetcher = domain === "soling" ? fetchSunSettlementDetail : fetchSettlementDetail;
-  const { data, loading, error } = useAsyncData(() => fetcher(settlementId), [fetcher, settlementId]);
+  const { data, loading, error } = useApiQuery(
+    queryKeys.settlement(domain === "soling" ? "sun" : "parking", settlementId),
+    () => fetcher(settlementId),
+    { enabled: Boolean(settlementId) },
+  );
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
