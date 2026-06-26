@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1261")
+APP_BUILD = os.getenv("APP_BUILD", "1262")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1262",
+        "date": "26.06.2026",
+        "headline": "Ny appprofil og lysere navigasjon",
+        "title": "Desktop V2 har faatt mer moderne Lilletorget-profil i appskallet",
+        "description": (
+            "Build 1262 rydder hjemknapp, logo/navn, venstremeny og toppmeny. Den moerke sidebaren er erstattet "
+            "av en lysere Lilletorget-inspirert navigasjon med eksisterende logoasset, tydeligere aktivmarkering "
+            "og en egen hjemknapp i toppbaren. Toppfanene er gjort roligere og mer systematiske uten aa endre ruter "
+            "eller menyinnhold."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (App.tsx): legger inn gjenbrukbar BrandHome og egen Hjem-knapp i toppbaren.",
+            "Fibaro10 desktop V2 (layout.css): moderniserer sidebar, logo-/brandfelt, hovedmeny, buildlenke og toppfaner.",
+            "Fibaro10 desktop V2 (designTokens.ts): oppdaterer Ant Design Layout-token fra moerk til lys sidebar.",
+            "Buildlogg (build_log.py): registrerer build 1262.",
+        ],
+        "request": "Se paa hjemknappen, navn/logo, toppmeny og venstremeny og gjoer appen penere og mer moderne med inspirasjon fra mobilappen.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Sidebar bruker naa lys bakgrunn, Lilletorget-mark og tydeligere aktiv hovedmeny.",
+            "Appnavnet er endret fra Fibaro10-brand til Lilletorget med undertekst for solsenter og parkering.",
+            "Headeren har en separat Hjem-knapp ved siden av menyknappen.",
+            "Toppfanene har mindre tung graaflate og mer presis aktivfarge per fagomraade.",
+            "Endringen er visuelt verifisert med lokal Playwright-preview.",
+        ],
+    },
     {
         "version": "1",
         "build": "1261",

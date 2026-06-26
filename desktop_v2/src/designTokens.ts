@@ -74,8 +74,8 @@ export const antdTheme = {
     },
     Layout: {
       bodyBg: semanticColors.surfaceSoft,
-      siderBg: "#17202e",
-      triggerBg: "#17202e",
+      siderBg: "#ffffff",
+      triggerBg: "#ffffff",
     },
     Menu: {
       itemBorderRadius: 7,

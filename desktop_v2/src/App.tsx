@@ -5,6 +5,7 @@ import {
   CalendarOutlined,
   CarOutlined,
   ExperimentOutlined,
+  HomeOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   MobileOutlined,
@@ -25,6 +26,7 @@ import { queryKeys } from "./queryKeys";
 
 const { Header, Sider, Content } = Layout;
 const MENU_HIDDEN_STORAGE_KEY = "fibaro10:mainMenuHidden";
+const BRAND_ASSET_VERSION = "20260626-shell";
 
 const OverviewPage = lazy(() => import("./pages/OverviewPage"));
 const RevenueMonthPage = lazy(() => import("./pages/RevenueMonthPage"));
@@ -137,6 +139,20 @@ function BuildFooter({ build }: { build?: string }) {
   );
 }
 
+function BrandHome({ className = "" }: { className?: string }) {
+  return (
+    <Link className={`brand-home-link ${className}`.trim()} to={modulePath("status", "oversikt")} aria-label="Gå til statusoversikt">
+      <span className="brand-emblem" aria-hidden="true">
+        <img src={`/static/lilletorget-mark.png?v=${BRAND_ASSET_VERSION}`} alt="" />
+      </span>
+      <span className="brand-copy">
+        <span className="brand-title">Lilletorget</span>
+        <span className="brand-subtitle">Solsenter & parkering</span>
+      </span>
+    </Link>
+  );
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -160,13 +176,7 @@ export default function App() {
   return (
     <Layout className={`app-shell domain-${module ?? "status"} ${menuHidden ? "main-menu-hidden" : ""}`}>
       <Sider width={218} collapsedWidth={0} collapsed={menuHidden} trigger={null} className="app-sider">
-        <Link className="brand" to={modulePath("status", "oversikt")} aria-label="Gå til statusoversikt">
-          <div className="brand-mark">L</div>
-          <div>
-            <div className="brand-title">Fibaro10</div>
-            <div className="brand-subtitle">Lilletorget drift</div>
-          </div>
-        </Link>
+        <BrandHome className="sider-brand" />
         <Menu
           className="app-menu"
           mode="inline"
@@ -178,14 +188,20 @@ export default function App() {
       </Sider>
       <Layout>
         <Header className="app-header">
-          <Button
-            className="main-menu-toggle"
-            type="text"
-            icon={menuHidden ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setMenuHidden((value) => !value)}
-            aria-label={menuHidden ? "Vis hovedmeny" : "Skjul hovedmeny"}
-            title={menuHidden ? "Vis hovedmeny" : "Skjul hovedmeny"}
-          />
+          <div className="app-header-left">
+            <Button
+              className="main-menu-toggle"
+              type="text"
+              icon={menuHidden ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setMenuHidden((value) => !value)}
+              aria-label={menuHidden ? "Vis hovedmeny" : "Skjul hovedmeny"}
+              title={menuHidden ? "Vis hovedmeny" : "Skjul hovedmeny"}
+            />
+            <Link className="header-home-link" to={modulePath("status", "oversikt")} aria-label="Gå til statusoversikt">
+              <HomeOutlined />
+              <span>Hjem</span>
+            </Link>
+          </div>
           <div className="app-header-main">
             {module && viewItems.length > 1 ? (
               <Segmented
