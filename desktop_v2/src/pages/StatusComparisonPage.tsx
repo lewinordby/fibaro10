@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined } from "@ant-design/icons";
 import { Button, Card, Col, Row, Segmented, Space, Typography } from "antd";
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
+import { PeriodLabel, PeriodNavigator } from "../components/PeriodNavigator";
 import { domainColors } from "../domainColors";
 import { nok } from "../format";
 import { useApiQuery } from "../hooks";
@@ -316,27 +317,22 @@ export default function StatusComparisonPage() {
             <span>{data.comparisonLabel}</span>
           </div>
         </div>
-        <Space size={8} className="status-comparison-actions">
-          <Button
-            icon={<LeftOutlined />}
-            onClick={() => setAnchor(data.navigation.previousAnchor)}
-            title={data.navigation.previousLabel}
-          >
-            Forrige
-          </Button>
-          <div className="status-comparison-current-period">{data.navigation.label}</div>
-          <Button
-            disabled={!data.navigation.canNext}
-            icon={<RightOutlined />}
-            onClick={() => setAnchor(data.navigation.nextAnchor)}
-            title={data.navigation.nextLabel}
-          >
-            Neste
-          </Button>
+        <PeriodNavigator
+          className="status-comparison-actions"
+          previousLabel="Forrige"
+          previousTitle={data.navigation.previousLabel}
+          nextLabel="Neste"
+          nextTitle={data.navigation.nextLabel}
+          canNext={data.navigation.canNext}
+          onPrevious={() => setAnchor(data.navigation.previousAnchor)}
+          onNext={() => setAnchor(data.navigation.nextAnchor)}
+          middle={<PeriodLabel>{data.navigation.label}</PeriodLabel>}
+          extra={
           <Button icon={<ArrowLeftOutlined />}>
             <Link to="/omsetning/oversikt">Oversikt</Link>
           </Button>
-        </Space>
+          }
+        />
       </div>
 
       <Row gutter={[14, 14]}>

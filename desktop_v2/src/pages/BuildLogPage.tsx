@@ -1,7 +1,8 @@
-import { Card, Space, Table, Tag, Typography } from "antd";
+import { Card, Space, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchBuildLog, type BuildLogEntry } from "../api";
+import { DataTableCard } from "../components/DataTableCard";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
@@ -63,19 +64,19 @@ export default function BuildLogPage() {
         </div>
       </Card>
 
-      <Card className="table-card module-table-card" title="Buildoversikt">
-        <Table
-          rowKey="build"
-          size="small"
-          columns={columns}
-          dataSource={data.rows}
-          pagination={{ pageSize: 25, showSizeChanger: true }}
-          onRow={(row) => ({
-            onClick: () => navigate(row.path),
-          })}
-          rowClassName="clickable-table-row"
-        />
-      </Card>
+      <DataTableCard<BuildLogEntry>
+        cardTitle="Buildoversikt"
+        className="module-table-card"
+        rowKey="build"
+        size="small"
+        columns={columns}
+        dataSource={data.rows}
+        pagination={{ pageSize: 25, showSizeChanger: true }}
+        onRow={(row) => ({
+          onClick: () => navigate(row.path),
+        })}
+        rowClassName="clickable-table-row"
+      />
     </Space>
   );
 }

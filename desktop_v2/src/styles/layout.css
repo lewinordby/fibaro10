@@ -357,6 +357,30 @@ a {
   gap: 10px;
 }
 
+.period-navigator {
+  justify-content: flex-end;
+}
+
+.period-navigator-step .ant-picker,
+.period-navigator-step .ant-input-affix-wrapper,
+.period-navigator-step .ant-btn,
+.period-navigator-current {
+  min-height: 28px;
+}
+
+.period-navigator-current {
+  display: inline-flex;
+  align-items: center;
+  min-width: 104px;
+  padding: 0 12px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 760;
+  white-space: nowrap;
+  background: #ffffff;
+  border-block: 1px solid #dbe3ee;
+}
+
 .page-stack {
   width: 100%;
 }

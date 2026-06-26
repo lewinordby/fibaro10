@@ -2,6 +2,7 @@ import { Button, Card, Input, Space, Typography } from "antd";
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import type { SunTimeline, SunTimelineItem } from "../../api";
+import { PeriodNavigator } from "../../components/PeriodNavigator";
 
 function sunNumber(value: number, maximumFractionDigits = 0): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits }).format(value || 0);
@@ -39,26 +40,25 @@ export function SunTimelinePanel({ timeline, onDayChange }: { timeline: SunTimel
   return (
     <Space direction="vertical" size={12} className="sun-timeline-stack">
       <Card className="work-card sun-timeline-toolbar">
-        <Space size={8}>
-          <Button size="small" onClick={() => onDayChange(timeline.prevDay)}>
-            Forrige dag
-          </Button>
-          <Button size="small" onClick={() => onDayChange("")}>
-            I dag
-          </Button>
-          <Button size="small" onClick={() => onDayChange(timeline.nextDay)}>
-            Neste dag
-          </Button>
-        </Space>
-        <Space size={8}>
-          <Typography.Text type="secondary">Dato</Typography.Text>
-          <Input
-            className="sun-timeline-date"
-            type="date"
-            value={timeline.selectedDay}
-            onChange={(event) => onDayChange(event.target.value)}
-          />
-        </Space>
+        <PeriodNavigator
+          previousLabel="Forrige dag"
+          nextLabel="Neste dag"
+          onPrevious={() => onDayChange(timeline.prevDay)}
+          onNext={() => onDayChange(timeline.nextDay)}
+          middle={
+            <Button size="small" onClick={() => onDayChange("")}>
+              I dag
+            </Button>
+          }
+          extra={
+            <Input
+              className="sun-timeline-date"
+              type="date"
+              value={timeline.selectedDay}
+              onChange={(event) => onDayChange(event.target.value)}
+            />
+          }
+        />
       </Card>
 
       <Card

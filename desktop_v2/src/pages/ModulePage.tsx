@@ -1,4 +1,4 @@
-import { AimOutlined, CalendarOutlined, LeftOutlined, RightOutlined, VideoCameraOutlined } from "@ant-design/icons";
+import { CalendarOutlined, VideoCameraOutlined } from "@ant-design/icons";
 import { App as AntApp, Button, Card, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,6 +22,7 @@ import {
   type SunSessionSavedImage,
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
+import { PeriodNavigator } from "../components/PeriodNavigator";
 import { useApiQuery } from "../hooks";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { appPath } from "../navigation";
@@ -567,26 +568,29 @@ function ModuleDayNavigationBar({
         <Typography.Text type="secondary">Dato</Typography.Text>
         <Typography.Text strong>{navigation.selectedDayLabel}</Typography.Text>
       </div>
-      <Space.Compact className="module-day-nav-actions">
-        <Button size="small" icon={<LeftOutlined />} onClick={() => onDayChange(navigation.prevDay)}>
-          Forrige dag
-        </Button>
-        <Button size="small" icon={<AimOutlined />} onClick={() => onDayChange("")}>
-          I dag
-        </Button>
-        <Button size="small" icon={<RightOutlined />} onClick={() => onDayChange(navigation.nextDay)}>
-          Neste dag
-        </Button>
-        <Input
-          aria-label="Dato"
-          className="module-day-nav-date"
-          prefix={<CalendarOutlined />}
-          size="small"
-          type="date"
-          value={navigation.selectedDay}
-          onChange={(event) => onDayChange(event.target.value)}
-        />
-      </Space.Compact>
+      <PeriodNavigator
+        className="module-day-nav-actions"
+        previousLabel="Forrige dag"
+        nextLabel="Neste dag"
+        onPrevious={() => onDayChange(navigation.prevDay)}
+        onNext={() => onDayChange(navigation.nextDay)}
+        middle={
+          <Button size="small" onClick={() => onDayChange("")}>
+            I dag
+          </Button>
+        }
+        extra={
+          <Input
+            aria-label="Dato"
+            className="module-day-nav-date"
+            prefix={<CalendarOutlined />}
+            size="small"
+            type="date"
+            value={navigation.selectedDay}
+            onChange={(event) => onDayChange(event.target.value)}
+          />
+        }
+      />
     </Card>
   );
 }

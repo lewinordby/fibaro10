@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { saveConfig, type ModuleFilter, type ModuleResponse, type ModuleTable, type VentilationData, type VentilationSettingField } from "../api";
 import { AppChart } from "../components/AppChart";
+import { PeriodNavigator } from "../components/PeriodNavigator";
 
 type VentilationPageProps = {
   data: ModuleResponse;
@@ -522,21 +523,25 @@ function DayChart({
       }
     >
       <div className="vent-day-toolbar">
-        <Space size={8}>
-          <Button size="small" onClick={() => onDayChange(day.prevDay)}>
-            Forrige dag
-          </Button>
-          <Button size="small" onClick={() => onDayChange("")}>
-            I dag
-          </Button>
-          <Button size="small" onClick={() => onDayChange(day.nextDay)}>
-            Neste dag
-          </Button>
-        </Space>
-        <Space size={8}>
-          <Typography.Text type="secondary">Dato</Typography.Text>
-          <Input className="vent-date-input" type="date" value={day.selectedDay} onChange={(event) => onDayChange(event.target.value)} />
-        </Space>
+        <PeriodNavigator
+          previousLabel="Forrige dag"
+          nextLabel="Neste dag"
+          onPrevious={() => onDayChange(day.prevDay)}
+          onNext={() => onDayChange(day.nextDay)}
+          middle={
+            <Button size="small" onClick={() => onDayChange("")}>
+              I dag
+            </Button>
+          }
+          extra={
+            <Input
+              className="vent-date-input"
+              type="date"
+              value={day.selectedDay}
+              onChange={(event) => onDayChange(event.target.value)}
+            />
+          }
+        />
       </div>
       <AppChart key={`${day.selectedDay}-${focus}`} option={option} style={{ height: 360 }} />
       <div className="vent-fan-lanes">

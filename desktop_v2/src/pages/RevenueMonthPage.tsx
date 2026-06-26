@@ -1,12 +1,13 @@
 import { Button, Card, Col, DatePicker, Row, Space, Table, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/nb";
 import { fetchRevenueMonth, type RevenueDay } from "../api";
 import { AppChart } from "../components/AppChart";
+import { DataTableCard } from "../components/DataTableCard";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
+import { PeriodNavigator } from "../components/PeriodNavigator";
 import { domainColors } from "../domainColors";
 import { decimal, nok } from "../format";
 import { useApiQuery } from "../hooks";
@@ -138,23 +139,28 @@ export default function RevenueMonthPage() {
           <Typography.Text className="eyebrow">Omsetning</Typography.Text>
           <div className="status-toolbar-title">{summary.label}</div>
         </div>
-        <Space className="status-toolbar-actions">
-          <Button size="small" icon={<LeftOutlined />} onClick={() => setMonth(summary.previousMonth)}>
-            Forrige
-          </Button>
-          <DatePicker
-            size="small"
-            picker="month"
-            value={monthValue}
-            format="MMMM YYYY"
-            onChange={(value) => setMonth(value ? value.format("YYYY-MM") : undefined)}
-            allowClear={false}
-          />
-          <Button size="small" onClick={() => setMonth(summary.currentMonth)}>Denne måneden</Button>
-          <Button size="small" icon={<RightOutlined />} onClick={() => setMonth(summary.nextMonth)}>
-            Neste
-          </Button>
-        </Space>
+        <PeriodNavigator
+          className="status-toolbar-actions"
+          previousLabel="Forrige"
+          nextLabel="Neste"
+          onPrevious={() => setMonth(summary.previousMonth)}
+          onNext={() => setMonth(summary.nextMonth)}
+          middle={
+            <DatePicker
+              size="small"
+              picker="month"
+              value={monthValue}
+              format="MMMM YYYY"
+              onChange={(value) => setMonth(value ? value.format("YYYY-MM") : undefined)}
+              allowClear={false}
+            />
+          }
+          extra={
+            <Button size="small" onClick={() => setMonth(summary.currentMonth)}>
+              Denne måneden
+            </Button>
+          }
+        />
       </div>
 
       <Row gutter={[16, 16]}>
@@ -199,44 +205,40 @@ export default function RevenueMonthPage() {
         <AppChart option={chartOption} style={{ height: 430 }} />
       </Card>
 
-      <Card className="table-card">
-        <Table
-          rowKey="day"
-          size="middle"
-          columns={columns}
-          dataSource={data.rows}
-          pagination={false}
-          locale={{ emptyText: "Ingen omsetningsrader å vise" }}
-          rowClassName={(row) => [row.isToday ? "row-today" : "", row.isWeekend ? "row-weekend" : ""].join(" ")}
-          summary={(rows) => (
-            <Table.Summary fixed>
-              <Table.Summary.Row>
-                <Table.Summary.Cell index={0}>
-                  <strong>Sum</strong>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={1} align="right">
-                  {nok(rows.reduce((sum, row) => sum + row.sol, 0))} kr
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={2} align="right">
-                  {rows.reduce((sum, row) => sum + row.solCount, 0)}
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={3} align="right">
-                  {nok(rows.reduce((sum, row) => sum + row.parking, 0))} kr
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={4} align="right">
-                  {rows.reduce((sum, row) => sum + row.parkingCount, 0)}
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={5} align="right">
-                  <strong>{nok(rows.reduce((sum, row) => sum + row.total, 0))} kr</strong>
-                </Table.Summary.Cell>
-              </Table.Summary.Row>
-            </Table.Summary>
-          )}
-        />
-        <Typography.Text type="secondary" className="table-note">
-          Høyeste dagsomsetning: {decimal(summary.maxTotal, 0)} kr.
-        </Typography.Text>
-      </Card>
+      <DataTableCard<RevenueDay>
+        rowKey="day"
+        size="middle"
+        columns={columns}
+        dataSource={data.rows}
+        pagination={false}
+        locale={{ emptyText: "Ingen omsetningsrader å vise" }}
+        rowClassName={(row) => [row.isToday ? "row-today" : "", row.isWeekend ? "row-weekend" : ""].join(" ")}
+        note={`Høyeste dagsomsetning: ${decimal(summary.maxTotal, 0)} kr.`}
+        summary={(rows) => (
+          <Table.Summary fixed>
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0}>
+                <strong>Sum</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={1} align="right">
+                {nok(rows.reduce((sum, row) => sum + row.sol, 0))} kr
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={2} align="right">
+                {rows.reduce((sum, row) => sum + row.solCount, 0)}
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={3} align="right">
+                {nok(rows.reduce((sum, row) => sum + row.parking, 0))} kr
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={4} align="right">
+                {rows.reduce((sum, row) => sum + row.parkingCount, 0)}
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={5} align="right">
+                <strong>{nok(rows.reduce((sum, row) => sum + row.total, 0))} kr</strong>
+              </Table.Summary.Cell>
+            </Table.Summary.Row>
+          </Table.Summary>
+        )}
+      />
     </Space>
   );
 }

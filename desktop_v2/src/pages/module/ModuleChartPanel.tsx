@@ -1,8 +1,9 @@
-import { AimOutlined, CalendarOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { CalendarOutlined } from "@ant-design/icons";
 import { Button, Card, Input, Segmented, Space, Typography } from "antd";
 import { useMemo, useState } from "react";
 import type { ModuleChart } from "../../api";
 import { AppChart } from "../../components/AppChart";
+import { PeriodNavigator } from "../../components/PeriodNavigator";
 
 function timeAxisLabel(value: number | string) {
   const date = new Date(value);
@@ -109,26 +110,29 @@ export default function ModuleChartPanel({
             />
           ) : null}
           {chart.dayNavigation ? (
-            <Space.Compact className="module-chart-day-nav">
-              <Button size="small" icon={<LeftOutlined />} onClick={() => onDayChange?.(chart.dayNavigation?.prevDay ?? "")}>
-                Forrige dag
-              </Button>
-              <Button size="small" icon={<AimOutlined />} onClick={() => onDayChange?.("")}>
-                I dag
-              </Button>
-              <Button size="small" icon={<RightOutlined />} onClick={() => onDayChange?.(chart.dayNavigation?.nextDay ?? "")}>
-                Neste dag
-              </Button>
-              <Input
-                aria-label="Dato"
-                className="module-chart-date"
-                prefix={<CalendarOutlined />}
-                size="small"
-                type="date"
-                value={chart.dayNavigation.selectedDay}
-                onChange={(event) => onDayChange?.(event.target.value)}
-              />
-            </Space.Compact>
+            <PeriodNavigator
+              className="module-chart-day-nav"
+              previousLabel="Forrige dag"
+              nextLabel="Neste dag"
+              onPrevious={() => onDayChange?.(chart.dayNavigation?.prevDay ?? "")}
+              onNext={() => onDayChange?.(chart.dayNavigation?.nextDay ?? "")}
+              middle={
+                <Button size="small" onClick={() => onDayChange?.("")}>
+                  I dag
+                </Button>
+              }
+              extra={
+                <Input
+                  aria-label="Dato"
+                  className="module-chart-date"
+                  prefix={<CalendarOutlined />}
+                  size="small"
+                  type="date"
+                  value={chart.dayNavigation.selectedDay}
+                  onChange={(event) => onDayChange?.(event.target.value)}
+                />
+              }
+            />
           ) : null}
         </Space>
       </div>

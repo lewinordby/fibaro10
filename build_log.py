@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1259")
+APP_BUILD = os.getenv("APP_BUILD", "1260")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1260",
+        "date": "26.06.2026",
+        "headline": "Felles periodekontroller og tabellkort",
+        "title": "Desktop V2 har faatt standardkomponenter for periodevalg og tabellflater",
+        "description": (
+            "Build 1260 fortsetter frontend-oppryddingen med felles PeriodNavigator og DataTableCard. Dags-, maaneds- "
+            "og aarsnavigasjon bruker naa samme komponent paa tvers av omsetning, soling, parkering, moduldiagrammer "
+            "og ventilasjon. Buildloggen og maanedsoversikten bruker felles tabellkort."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (PeriodNavigator.tsx/layout.css): legger inn felles komponent og stil for forrige/neste/dato-kontroller.",
+            "Fibaro10 desktop V2 (DataTableCard.tsx): legger inn felles wrapper for standard tabellkort.",
+            "Fibaro10 desktop V2 (RevenueMonthPage, StatusComparisonPage og aarssammenligninger): flytter periodevalg til felles komponent.",
+            "Fibaro10 desktop V2 (ModulePage, ModuleChartPanel, ParkingTimelinePanel, SunTimelinePanel, VentilationPage): standardiserer dagsnavigasjon.",
+            "Fibaro10 desktop V2 (BuildLogPage): bruker felles tabellkort.",
+            "Buildlogg (build_log.py): registrerer build 1260.",
+        ],
+        "request": "Da kan du fortsette med neste.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Forrige/neste/dato-kontroller har samme struktur og CSS paa tvers av sidene.",
+            "Maanedsoversikt og buildlogg bruker felles DataTableCard.",
+            "Flere lokale ikon- og knappemønstre er fjernet fra sidene.",
+            "Dette gir mindre spesialkode og et bedre grunnlag for videre feature-opprydding.",
+        ],
+    },
     {
         "version": "1",
         "build": "1259",

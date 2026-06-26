@@ -1,8 +1,9 @@
-import { AimOutlined, CalendarOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
-import { Button, Card, Input, Space, Typography } from "antd";
+import { CalendarOutlined } from "@ant-design/icons";
+import { Button, Card, Input, Space } from "antd";
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import type { ParkingTimeline, ParkingTimelineItem } from "../../api";
+import { PeriodNavigator } from "../../components/PeriodNavigator";
 
 function parkingNumber(value: number, maximumFractionDigits = 0): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits }).format(value || 0);
@@ -46,27 +47,26 @@ export function ParkingTimelinePanel({
   return (
     <Space direction="vertical" size={12} className="parking-timeline-stack">
       <Card className="work-card parking-timeline-toolbar">
-        <Space size={8}>
-          <Button size="small" icon={<LeftOutlined />} onClick={() => onDayChange(timeline.prevDay)}>
-            Forrige dag
-          </Button>
-          <Button size="small" icon={<AimOutlined />} onClick={() => onDayChange("")}>
-            I dag
-          </Button>
-          <Button size="small" icon={<RightOutlined />} onClick={() => onDayChange(timeline.nextDay)}>
-            Neste dag
-          </Button>
-        </Space>
-        <Space size={8}>
-          <Typography.Text type="secondary">Dato</Typography.Text>
-          <Input
-            className="parking-timeline-date"
-            prefix={<CalendarOutlined />}
-            type="date"
-            value={timeline.selectedDay}
-            onChange={(event) => onDayChange(event.target.value)}
-          />
-        </Space>
+        <PeriodNavigator
+          previousLabel="Forrige dag"
+          nextLabel="Neste dag"
+          onPrevious={() => onDayChange(timeline.prevDay)}
+          onNext={() => onDayChange(timeline.nextDay)}
+          middle={
+            <Button size="small" onClick={() => onDayChange("")}>
+              I dag
+            </Button>
+          }
+          extra={
+            <Input
+              className="parking-timeline-date"
+              prefix={<CalendarOutlined />}
+              type="date"
+              value={timeline.selectedDay}
+              onChange={(event) => onDayChange(event.target.value)}
+            />
+          }
+        />
       </Card>
 
       <Card
