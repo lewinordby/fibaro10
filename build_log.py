@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1265")
+APP_BUILD = os.getenv("APP_BUILD", "1266")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1266",
+        "date": "26.06.2026",
+        "headline": "Ruter samlet i egen AppRoutes",
+        "title": "Desktop V2 har skilt appskall og ruter i to tydelige filer",
+        "description": (
+            "Build 1266 fullfoerer neste steg i appskall-oppryddingen. Alle lazy page-importer, legacy-redirects "
+            "og Route-definisjoner er flyttet fra App.tsx til AppRoutes.tsx. App.tsx holder naa bare styr paa aktiv "
+            "modul/view og monterer AppShell + AppRoutes."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (AppRoutes.tsx): ny rutekomponent med eksisterende ruter og redirects.",
+            "Fibaro10 desktop V2 (App.tsx): redusert til aktiv modul/view og montering av AppShell og AppRoutes.",
+            "Buildlogg (build_log.py): registrerer build 1266.",
+        ],
+        "request": "Fortsett med alle de tingene du foreslo at du ville gjore slik at alt er klart.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Rutekonfigurasjonen ligger naa i AppRoutes.",
+            "Legacy-redirects er samlet med rutene de gjelder.",
+            "App.tsx er mindre og tryggere aa endre videre.",
+        ],
+    },
     {
         "version": "1",
         "build": "1265",
