@@ -1,8 +1,6 @@
-import { CalendarOutlined } from "@ant-design/icons";
-import { App as AntApp, Button, Card, Form, Input, Modal, Space, Table, Tabs, Typography } from "antd";
+import { App as AntApp, Button, Card, Form, Modal, Space, Tabs } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import {
   fetchModule,
@@ -10,129 +8,27 @@ import {
   submitModuleEdit,
   type JsonRecord,
   type ModuleAction,
-  type ModuleDayNavigation,
   type ModuleEditConfig,
   type ModuleRow,
-  type ModuleTable,
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
-import { PeriodNavigator } from "../components/PeriodNavigator";
 import { TableSearch } from "../components/TableSearch";
 import { useApiQuery } from "../hooks";
 import { defaultModuleView, modulePath, MODULE_VIEWS } from "../moduleViews";
 import { queryKeys } from "../queryKeys";
+import { ModuleDayNavigationBar } from "./module/ModuleDayNavigationBar";
 import { ModuleFilterBar } from "./module/ModuleFilterBar";
 import { ModuleMetric } from "./module/ModuleMetric";
+import { ModuleTablePane, tabLabel, tableSearchPlaceholder } from "./module/ModuleTablePane";
 import { ParkingTimelinePanel } from "./module/ParkingTimelinePanel";
 import { SunTimelinePanel } from "./module/SunTimelinePanel";
 import { SunSessionsPanel } from "./module/SunSessionsPanel";
-import { countText, editInitialValues, fieldInput, filterRows, moduleColumns, tableRowKey } from "./module/moduleTableUtils";
+import { editInitialValues, fieldInput } from "./module/moduleTableUtils";
 
 const EnergyElviaPage = lazy(() => import("./EnergyElviaPage"));
 const EnergySunbedsPage = lazy(() => import("./EnergySunbedsPage"));
 const ModuleChartPanel = lazy(() => import("./module/ModuleChartPanel"));
 const VentilationPage = lazy(() => import("./VentilationPage"));
-
-function ModuleDayNavigationBar({
-  navigation,
-  onDayChange,
-}: {
-  navigation: ModuleDayNavigation;
-  onDayChange: (day: string) => void;
-}) {
-  return (
-    <Card className="work-card module-day-nav-card">
-      <div className="module-day-nav-title">
-        <Typography.Text type="secondary">Dato</Typography.Text>
-        <Typography.Text strong>{navigation.selectedDayLabel}</Typography.Text>
-      </div>
-      <PeriodNavigator
-        className="module-day-nav-actions"
-        previousLabel="Forrige dag"
-        nextLabel="Neste dag"
-        onPrevious={() => onDayChange(navigation.prevDay)}
-        onNext={() => onDayChange(navigation.nextDay)}
-        middle={
-          <Button size="small" onClick={() => onDayChange("")}>
-            I dag
-          </Button>
-        }
-        extra={
-          <Input
-            aria-label="Dato"
-            className="module-day-nav-date"
-            prefix={<CalendarOutlined />}
-            size="small"
-            type="date"
-            value={navigation.selectedDay}
-            onChange={(event) => onDayChange(event.target.value)}
-          />
-        }
-      />
-    </Card>
-  );
-}
-
-function tabLabel(table: ModuleTable, query: string): ReactNode {
-  const filteredCount = filterRows(table.rows, table.columns, query).length;
-  return (
-    <span>
-      {table.title}
-      <span className="tab-count">{query.trim() ? `${filteredCount}/${table.rows.length}` : table.rows.length}</span>
-    </span>
-  );
-}
-
-function tableSearchPlaceholder(module: string, view: string): string {
-  if (module === "parkering" && view === "kjoretoy") return "Søk etter reg.nr, bil, eier, område. Bruk \"nordby\" for eksakt ord.";
-  return "Søk i tabellene";
-}
-
-function ModuleTablePane({
-  table,
-  query,
-  onEdit,
-}: {
-  table: ModuleTable;
-  query: string;
-  onEdit?: (edit: ModuleEditConfig, row: ModuleRow, create?: boolean) => void;
-}) {
-  const columns = useMemo(() => moduleColumns(table, onEdit), [onEdit, table]);
-  const filteredRows = useMemo(() => filterRows(table.rows, table.columns, query), [query, table.columns, table.rows]);
-  const tableRows = useMemo(
-    () =>
-      filteredRows.map((row, index) => ({
-        ...row,
-        __rowKey: tableRowKey(row, table.title, index),
-      })),
-    [filteredRows, table.title],
-  );
-  return (
-    <Space direction="vertical" size={8} className="table-pane">
-      <div className="table-pane-head">
-        <Typography.Text type="secondary">
-          {countText(filteredRows.length, table.rows.length, query)}
-        </Typography.Text>
-        {table.edit?.createEndpoint && onEdit ? (
-          <Button type="primary" size="small" onClick={() => onEdit(table.edit as ModuleEditConfig, {}, true)}>
-            Ny
-          </Button>
-        ) : null}
-      </div>
-      <Table
-        rowKey="__rowKey"
-        size="small"
-        columns={columns}
-        dataSource={tableRows}
-        pagination={{ pageSize: 25, showSizeChanger: true }}
-        scroll={{ x: "max-content" }}
-        locale={{
-          emptyText: query.trim() ? "Ingen treff for søket" : "Ingen rader å vise",
-        }}
-      />
-    </Space>
-  );
-}
 
 export default function ModulePage({ module }: { module: string }) {
   const params = useParams();

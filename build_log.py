@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1290")
+APP_BUILD = os.getenv("APP_BUILD", "1291")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1291",
+        "date": "28.06.2026",
+        "headline": "ModulePage gjort til modulcontainer",
+        "title": "Desktop V2 har flyttet dagvelger og tabellpanelet ut av ModulePage",
+        "description": (
+            "Build 1291 fullforer ModulePage-splitten ved aa flytte dagvelgeren til "
+            "ModuleDayNavigationBar.tsx og tabellvisningen til ModuleTablePane.tsx. ModulePage "
+            "styrer naa primart ruting, lasting, filter, actions og valg av modulvisning."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (ModulePage.tsx): redusert til overordnet modulcontainer.",
+            "Fibaro10 desktop V2 (ModuleDayNavigationBar.tsx): ny komponent for dagvelger.",
+            "Fibaro10 desktop V2 (ModuleTablePane.tsx): ny komponent for generiske modultabeller.",
+            "Buildlogg (build_log.py): registrerer build 1291.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "ModulePage har tydeligere ansvar og mindre lokal UI-kode.",
+            "Dagvelger og tabellpanelet kan videreutvikles separat.",
+            "Dette avslutter ModulePage-delen av oppryddingen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1290",
