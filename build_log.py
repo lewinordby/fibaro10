@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1273")
+APP_BUILD = os.getenv("APP_BUILD", "1274")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1274",
+        "date": "27.06.2026",
+        "headline": "Felles diagramtema i V2",
+        "title": "Desktop V2 har samlet standard ECharts-stiler i chartTheme",
+        "description": (
+            "Build 1274 rydder i diagramkoden. Tooltip, legend, akselinjer, gridlinjer og tittelstil "
+            "er samlet i chartTheme og brukt på moduldiagram, månedsoversikt, periodesammenligning "
+            "og årssammenligningene for omsetning, soling og parkering."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (chartTheme.ts): ny felles modul for standard diagramutseende.",
+            "Fibaro10 desktop V2 (ModuleChartPanel.tsx): bruker felles tooltip, legend og aksestiler.",
+            "Fibaro10 desktop V2 (RevenueMonthPage.tsx): bruker felles diagramtema i månedsoversikten.",
+            "Fibaro10 desktop V2 (StatusComparisonPage.tsx): bruker felles diagramtema i periodesammenligning.",
+            "Fibaro10 desktop V2 (Revenue/Sun/ParkingYearComparisonPage.tsx): bruker felles diagramtema i årssammenligningene.",
+            "Buildlogg (build_log.py): registrerer build 1274.",
+        ],
+        "request": "Fortsett på gjøremålslisten og gjennomfør foreslått teknisk opprydding.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Repeterte ECharts-stiler er samlet i chartTheme.",
+            "Diagramsidene har mindre lokal stilkode og mer lik visuell oppførsel.",
+            "Ingen API-er eller datalogikk er endret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1273",

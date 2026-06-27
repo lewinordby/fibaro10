@@ -9,6 +9,7 @@ import {
   type StatusComparisonResponse,
   type StatusComparisonSummary,
 } from "../api";
+import { chartAxisLine, chartLegend, chartSplitLine, chartTitleTextStyle, chartTooltip } from "../chartTheme";
 import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PeriodLabel, PeriodNavigator } from "../components/PeriodNavigator";
@@ -129,13 +130,8 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
   return {
     color: [primaryColor, domainColors.comparison, ...references.map((_, index) => referenceColors[index % referenceColors.length])],
     tooltip: {
-      trigger: "axis",
+      ...chartTooltip(),
       axisPointer: { type: "line" },
-      backgroundColor: "rgba(255,255,255,0.96)",
-      borderColor: "#dbe3ee",
-      borderWidth: 1,
-      textStyle: { color: "#111827", fontSize: 12 },
-      extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
       formatter: (params: unknown) => {
         const items = Array.isArray(params) ? params : [params];
         const first = items[0] as { value?: [number, number] } | undefined;
@@ -155,13 +151,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         </div>`;
       },
     },
-    legend: {
-      top: 0,
-      icon: "roundRect",
-      itemWidth: 18,
-      itemHeight: 8,
-      textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
-    },
+    legend: chartLegend(),
     grid: { top: 48, left: 12, right: 16, bottom: 30, containLabel: true },
     xAxis: {
       type: "value",
@@ -169,14 +159,14 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
       max: 100,
       axisLabel: { formatter: (value: number) => axisText(data, value) },
       axisTick: { show: false },
-      axisLine: { lineStyle: { color: "#cbd5e1" } },
-      splitLine: { lineStyle: { color: domainColors.gridSoft } },
+      axisLine: chartAxisLine(),
+      splitLine: chartSplitLine(domainColors.gridSoft),
     },
     yAxis: {
       type: "value",
       minInterval: metric === "amount" ? undefined : 1,
       axisLabel: { formatter: (value: number) => axisValue(value, metric) },
-      splitLine: { lineStyle: { color: "#e8edf4" } },
+      splitLine: chartSplitLine(),
     },
     series: [
       {
@@ -213,7 +203,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
       text: title,
       top: 2,
       left: 0,
-      textStyle: { color: domainColors.ink, fontSize: 13, fontWeight: 760 },
+      textStyle: chartTitleTextStyle(),
     },
   };
 }

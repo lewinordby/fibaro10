@@ -2,6 +2,7 @@ import { CalendarOutlined } from "@ant-design/icons";
 import { Button, Card, Input, Segmented, Space, Typography } from "antd";
 import { useMemo, useState } from "react";
 import type { ModuleChart } from "../../api";
+import { chartAxisLabel, chartAxisLine, chartLegend, chartSplitLine, chartTooltip } from "../../chartTheme";
 import { AppChart } from "../../components/AppChart";
 import { PeriodNavigator } from "../../components/PeriodNavigator";
 
@@ -33,22 +34,8 @@ export default function ModuleChartPanel({
       : undefined;
 
     return {
-      tooltip: {
-        trigger: "axis",
-        backgroundColor: "rgba(255,255,255,0.96)",
-        borderColor: "#dbe3ee",
-        borderWidth: 1,
-        textStyle: { color: "#111827", fontSize: 12 },
-        extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
-      },
-      legend: {
-        top: 0,
-        icon: "roundRect",
-        itemWidth: 16,
-        itemHeight: 8,
-        textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
-        selected: selectedSeries,
-      },
+      tooltip: chartTooltip(),
+      legend: chartLegend({ itemWidth: 16, selected: selectedSeries }),
       grid: { top: 50, left: 56, right: 18, bottom: showZoom ? 58 : 32 },
       dataZoom: showZoom
         ? [
@@ -63,20 +50,18 @@ export default function ModuleChartPanel({
         max: isTimeAxis ? chart.xAxisMax : undefined,
         boundaryGap: isTimeAxis ? false : chart.type === "bar",
         axisTick: { show: false },
-        axisLine: { lineStyle: { color: "#cbd5e1" } },
-        axisLabel: {
+        axisLine: chartAxisLine(),
+        axisLabel: chartAxisLabel({
           hideOverlap: true,
-          color: "#64748b",
-          fontSize: 11,
           formatter: isTimeAxis ? timeAxisLabel : undefined,
-        },
+        }),
       },
       yAxis: {
         type: "value",
         name: activeMetric?.unit,
-        nameTextStyle: { color: "#64748b", fontSize: 11 },
-        axisLabel: { color: "#64748b", fontSize: 11, margin: 12 },
-        splitLine: { lineStyle: { color: "#e8edf4" } },
+        nameTextStyle: chartAxisLabel(),
+        axisLabel: chartAxisLabel({ margin: 12 }),
+        splitLine: chartSplitLine(),
       },
       series: chartSeries.map((series) => ({
         name: series.name,

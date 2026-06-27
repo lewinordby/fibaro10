@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/nb";
 import { fetchRevenueMonth, type RevenueDay } from "../api";
+import { chartAxisLabel, chartAxisLine, chartColors, chartLegend, chartSplitLine, chartTooltip } from "../chartTheme";
 import { AppChart } from "../components/AppChart";
 import { DataTableCard } from "../components/DataTableCard";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
@@ -50,13 +51,8 @@ export default function RevenueMonthPage() {
     return {
       color: [domainColors.sun2, domainColors.parking],
       tooltip: {
-        trigger: "axis",
+        ...chartTooltip(),
         axisPointer: { type: "shadow" },
-        backgroundColor: "rgba(255,255,255,0.96)",
-        borderColor: "#dbe3ee",
-        borderWidth: 1,
-        textStyle: { color: "#111827", fontSize: 12 },
-        extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
         formatter: (params: unknown) => {
           const items = Array.isArray(params) ? params : [params];
           const firstItem = items[0] as { dataIndex?: number } | undefined;
@@ -64,18 +60,18 @@ export default function RevenueMonthPage() {
           if (!row) return "";
           return `
             <div style="min-width:190px">
-              <div style="margin-bottom:6px;font-weight:700;color:#111827">${row.dayLabel} · ${row.weekday}</div>
+              <div style="margin-bottom:6px;font-weight:700;color:${chartColors.text}">${row.dayLabel} · ${row.weekday}</div>
               <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.65">
                 <span>${tooltipMarker(domainColors.sun2)}Soling</span>
                 <strong>${nok(row.sol)} kr</strong>
               </div>
-              <div style="margin:0 0 4px 16px;color:#6b7280;font-size:12px">${countLabel(row.solCount, "soling", "solinger")}</div>
+              <div style="margin:0 0 4px 16px;color:${chartColors.axisText};font-size:12px">${countLabel(row.solCount, "soling", "solinger")}</div>
               <div style="display:flex;justify-content:space-between;gap:16px;line-height:1.65">
                 <span>${tooltipMarker(domainColors.parking)}Parkering</span>
                 <strong>${nok(row.parking)} kr</strong>
               </div>
-              <div style="margin:0 0 7px 16px;color:#6b7280;font-size:12px">${countLabel(row.parkingCount, "parkering", "parkeringer")}</div>
-              <div style="display:flex;justify-content:space-between;gap:16px;padding-top:7px;border-top:1px solid #e5e7eb;line-height:1.6">
+              <div style="margin:0 0 7px 16px;color:${chartColors.axisText};font-size:12px">${countLabel(row.parkingCount, "parkering", "parkeringer")}</div>
+              <div style="display:flex;justify-content:space-between;gap:16px;padding-top:7px;border-top:1px solid ${chartColors.grid};line-height:1.6">
                 <span style="font-weight:700">Sum</span>
                 <strong>${nok(row.total)} kr</strong>
               </div>
@@ -83,25 +79,19 @@ export default function RevenueMonthPage() {
           `;
         },
       },
-      legend: {
-        top: 0,
-        icon: "roundRect",
-        itemWidth: 16,
-        itemHeight: 8,
-        textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
-      },
+      legend: chartLegend({ itemWidth: 16 }),
       grid: { top: 48, left: 12, right: 16, bottom: 34, containLabel: true },
       xAxis: {
         type: "category",
         data: rows.map((row) => row.dayLabel),
         axisTick: { show: false },
-        axisLine: { lineStyle: { color: "#cbd5e1" } },
-        axisLabel: { interval: 0, rotate: rows.length > 24 ? 45 : 0, color: "#64748b", fontSize: 11 },
+        axisLine: chartAxisLine(),
+        axisLabel: chartAxisLabel({ interval: 0, rotate: rows.length > 24 ? 45 : 0 }),
       },
       yAxis: {
         type: "value",
         axisLabel: { formatter: (value: number) => `${Math.round(value / 1000)}k` },
-        splitLine: { lineStyle: { color: "#e8edf4" } },
+        splitLine: chartSplitLine(),
       },
       series: [
         {
