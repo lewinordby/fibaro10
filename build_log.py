@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1291")
+APP_BUILD = os.getenv("APP_BUILD", "1292")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1292",
+        "date": "28.06.2026",
+        "headline": "Ventilasjonshjelpere skilt ut",
+        "title": "Desktop V2 har flyttet formattering, viftelogikk og ventilasjonstabeller ut av VentilationPage",
+        "description": (
+            "Build 1292 starter splitten av VentilationPage. Formattere, tids-/minutthjelpere, "
+            "viftestatussegmenter, tooltip-formattering og den generiske ventilasjonstabellen ligger "
+            "naa i ventilationHelpers.tsx."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (VentilationPage.tsx): bruker ventilasjonshjelpere fra egen fil.",
+            "Fibaro10 desktop V2 (ventilationHelpers.tsx): ny fil for formattering, viftelogikk og tabell.",
+            "Buildlogg (build_log.py): registrerer build 1292.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "VentilationPage er redusert og har mindre teknisk hjelpekode lokalt.",
+            "Dagslogg og tabeller bruker samme eksisterende logikk via import.",
+            "Dette legger grunnlag for videre komponentdeling av snapshot, diagram og settings.",
+        ],
+    },
     {
         "version": "1",
         "build": "1291",
