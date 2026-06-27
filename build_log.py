@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1293")
+APP_BUILD = os.getenv("APP_BUILD", "1294")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1294",
+        "date": "28.06.2026",
+        "headline": "Ventilasjonsdiagram skilt ut",
+        "title": "Desktop V2 har flyttet dagslogg- og Yr-diagrammene til egen charts-fil",
+        "description": (
+            "Build 1294 flytter DayChart og WeatherChart ut av VentilationPage og inn i "
+            "VentilationCharts.tsx. ECharts-oppsett, dagvelger, fokusvalg og viftebaner er dermed "
+            "samlet separat fra hovedsidens ruting og visningsvalg."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (VentilationPage.tsx): bruker DayChart og WeatherChart fra egen fil.",
+            "Fibaro10 desktop V2 (VentilationCharts.tsx): ny komponentfil for ventilasjonsdiagrammer.",
+            "Buildlogg (build_log.py): registrerer build 1294.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Diagramoppsett og viftebaner er isolert fra VentilationPage.",
+            "VentilationPage er redusert til overordnet ventilasjonsvisning.",
+            "Dagslogg og Yr-logg bruker samme data og samme visuelle oppsett som for.",
+        ],
+    },
     {
         "version": "1",
         "build": "1293",
