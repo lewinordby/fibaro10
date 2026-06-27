@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1276")
+APP_BUILD = os.getenv("APP_BUILD", "1277")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1277",
+        "date": "27.06.2026",
+        "headline": "Oppgjørs-CSS skilt ut",
+        "title": "Desktop V2 har flyttet oppgjørsflater ut av records.css",
+        "description": (
+            "Build 1277 fortsetter CSS-splittingen. Alle settlement- og sun-settlement-regler "
+            "er flyttet fra records.css til records-settlements.css, mens tabell-, kjøretøy- "
+            "og tomtilstandsstiler blir igjen i records.css."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (records-settlements.css): ny fil for oppgjør og bilagsflater.",
+            "Fibaro10 desktop V2 (records.css): beholder kjøretøy, tabell, skjema og tomtilstander.",
+            "Fibaro10 desktop V2 (main.tsx): importerer records-settlements.css etter records.css.",
+            "Buildlogg (build_log.py): registrerer build 1277.",
+        ],
+        "request": "Fortsett med CSS-opprydding og splitt de største stilarkene mer systematisk.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "records.css er redusert til under 4 KB.",
+            "Oppgjør for parkering og soling har fått eget stilark.",
+            "Responsive oppgjørsoverstyringer ligger fortsatt samlet i responsive.css og lastes sist.",
+        ],
+    },
     {
         "version": "1",
         "build": "1276",
