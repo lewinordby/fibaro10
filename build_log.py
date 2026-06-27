@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1288")
+APP_BUILD = os.getenv("APP_BUILD", "1289")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1289",
+        "date": "27.06.2026",
+        "headline": "ModulePage-tabeller skilt ut",
+        "title": "Desktop V2 har flyttet generiske modultabeller til en egen helperfil",
+        "description": (
+            "Build 1289 reduserer ModulePage ved aa flytte generiske tabellkolonner, sortering, "
+            "sok, radnokler, visningsformatering og redigeringsfelt til moduleTableUtils.tsx. "
+            "Dette endrer ikke funksjonalitet, men gjor modulsiden mindre og tryggere aa dele videre."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (ModulePage.tsx): bruker felles tabellhjelpere fra moduleTableUtils.",
+            "Fibaro10 desktop V2 (moduleTableUtils.tsx): ny fil for tabell-, filter- og edit-hjelpere.",
+            "Buildlogg (build_log.py): registrerer build 1289.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "ModulePage er redusert med generisk tabellkode flyttet ut.",
+            "Tabellvisning og redigeringsfelt har samme API som for.",
+            "Refaktoren gir bedre grunnlag for videre splitting av solbilder og dagvelger.",
+        ],
+    },
     {
         "version": "1",
         "build": "1288",
