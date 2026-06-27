@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1270")
+APP_BUILD = os.getenv("APP_BUILD", "1271")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1271",
+        "date": "27.06.2026",
+        "headline": "Menytekster og betegnelser er ryddet",
+        "title": "Desktop V2 har mer konsistente norske menyvalg, sidetitler og oppgjørstekster",
+        "description": (
+            "Build 1271 rydder synlige betegnelser i V2-grensesnittet. Årssammenligning, "
+            "periodesammenligning, Temperatur og fukt, Yr-logg, Lux-logg, Forbruk per seng "
+            "og Buildlogg brukes nå konsekvent i meny og sidetitler. I tillegg er noen "
+            "oppgjørs- og tabelltekster rettskrevet."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (moduleViews.ts): strammer inn menyetiketter og undermenyvalg.",
+            "Fibaro10 backend (main.py): legger inn felles V2-navneordbok og bruker den i moduloverskrifter.",
+            "Fibaro10 desktop V2 (sammenligningssider): retter årssammenligning/periodesammenligning og tidsaksetekst.",
+            "Fibaro10 desktop V2 (ModulePage.tsx): retter enkelte tabellkolonnenavn.",
+            "Buildlogg (build_log.py): registrerer build 1271.",
+        ],
+        "request": "Gå gjennom alle betegnelser og menyvalgtekster, sjekk konsistens og rettskriving, og vurder navneendringer.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Årssammenligning og periodesammenligning er tydeligere adskilt.",
+            "Temp/fukt, Yr logg, Lux logging, Forbruk/seng og Build er erstattet med mer konsistente navn.",
+            "Backendtitler bruker samme navnegrunnlag som menyen.",
+            "Flere synlige oppgjørstekster er rettskrevet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1270",

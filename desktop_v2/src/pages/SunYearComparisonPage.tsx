@@ -251,7 +251,7 @@ export default function SunYearComparisonPage() {
     <Space direction="vertical" size={14} className="page-stack status-page status-comparison-page sun-year-comparison-page">
       <div className="status-comparison-top">
         <div>
-          <Typography.Text className="eyebrow">Soling sammenligning</Typography.Text>
+          <Typography.Text className="eyebrow">Soling · årssammenligning</Typography.Text>
           <div className="status-comparison-title">
             <strong>{data.anchorYear} mot {data.comparisonYear}</strong>
             <span>Akkumulert utvikling gjennom året</span>
@@ -326,7 +326,7 @@ export default function SunYearComparisonPage() {
         }
       >
         <div className="status-comparison-axis-meta">
-          <span>Årsakse fra januar til desember</span>
+          <span>Tidsakse fra januar til desember</span>
           <span>valgt år mot forrige år</span>
         </div>
         <div className="status-comparison-year-picker">

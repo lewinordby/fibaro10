@@ -233,7 +233,7 @@ export default function RevenueYearComparisonPage() {
     <Space direction="vertical" size={14} className="page-stack status-page status-comparison-page revenue-year-comparison-page">
       <div className="status-comparison-top">
         <div>
-          <Typography.Text className="eyebrow">Omsetning sammenligning</Typography.Text>
+          <Typography.Text className="eyebrow">Omsetning · årssammenligning</Typography.Text>
           <div className="status-comparison-title">
             <strong>{data.anchorYear} mot {data.comparisonYear}</strong>
             <span>Akkumulert omsetning gjennom året</span>
@@ -284,7 +284,7 @@ export default function RevenueYearComparisonPage() {
 
       <Card className="status-comparison-chart-card" title="Akkumulert omsetning">
         <div className="status-comparison-axis-meta">
-          <span>Årsakse fra januar til desember</span>
+          <span>Tidsakse fra januar til desember</span>
           <span>valgt år mot forrige år</span>
         </div>
         <div className="status-comparison-year-picker">

@@ -12158,8 +12158,8 @@ async def index(request: Request):
         }
     )
     freshness_items = [
-        freshness_item("Temp logg", latest_sample, 7, 15),
-        freshness_item("Lux logging", latest_light_sample, 7, 15),
+        freshness_item("Temperatur og fukt", latest_sample, 7, 15),
+        freshness_item("Lux-logg", latest_light_sample, 7, 15),
         freshness_item("Yr API", latest_yr_sample, 70, 130),
         freshness_item("Lys-hendelser", lights[0] if lights else None, 120, 360),
         freshness_item("Ventilasjonshendelser", ventilation[0] if ventilation else None, 120, 360),
@@ -13350,7 +13350,7 @@ async def api_v2_sun2_year_comparison(year: Optional[str] = Query(None)):
 
     return {
         "generatedAt": api_local_iso(now_dt),
-        "title": "Soling sammenligning",
+        "title": "Soling · Årssammenligning",
         "anchorYear": anchor_year,
         "comparisonYear": comparison_year,
         "navigation": year_comparison_navigation(anchor_year, current_year),
@@ -13424,7 +13424,7 @@ async def api_v2_parking_year_comparison(year: Optional[str] = Query(None)):
 
     return {
         "generatedAt": api_local_iso(now_dt),
-        "title": "Parkering sammenligning",
+        "title": "Parkering · Årssammenligning",
         "anchorYear": anchor_year,
         "comparisonYear": comparison_year,
         "navigation": year_comparison_navigation(anchor_year, current_year),
@@ -13500,7 +13500,7 @@ async def api_v2_revenue_year_comparison(year: Optional[str] = Query(None)):
 
     return {
         "generatedAt": api_local_iso(now_dt),
-        "title": "Omsetning sammenligning",
+        "title": "Omsetning · Årssammenligning",
         "anchorYear": anchor_year,
         "comparisonYear": comparison_year,
         "navigation": year_comparison_navigation(anchor_year, current_year),
@@ -14074,6 +14074,106 @@ def api_filter_options(values: Iterable[Any]) -> list[Dict[str, Any]]:
         seen.add(text_value)
         options.append({"label": text_value, "value": text_value})
     return options
+
+
+V2_MODULE_LABELS: Dict[str, str] = {
+    "omsetning": "Omsetning",
+    "parkering": "Parkering",
+    "soling": "Soling",
+    "energi": "Energi",
+    "ventilasjon": "Ventilasjon",
+    "lys": "Lys",
+    "renhold": "Renhold",
+    "admin": "Admin",
+}
+
+
+V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
+    "omsetning": {
+        "oversikt": "Oversikt",
+        "manedsoversikt": "Månedsoversikt",
+        "akkumulert": "Årssammenligning",
+        "sammenligning": "Periodesammenligning",
+    },
+    "parkering": {
+        "oversikt": "Oversikt",
+        "sammenligning": "Årssammenligning",
+        "dagslinje": "Dagslinje",
+        "parkeringer": "Parkeringer",
+        "kjoretoy": "Kjøretøy",
+        "prognose": "Prognose",
+        "omrade": "Område",
+        "bilstatistikk": "Bilstatistikk",
+        "oppgjor": "Oppgjør",
+        "oppslag": "Oppslag",
+    },
+    "soling": {
+        "oversikt": "Oversikt",
+        "sammenligning": "Årssammenligning",
+        "dagslinje": "Dagslinje",
+        "enkeltimer": "Enkeltimer",
+        "senger": "Senger",
+        "medlemmer": "Medlemmer",
+        "produkter": "Produkter",
+        "prognose": "Prognose",
+        "oppgjor": "Oppgjør",
+        "statistikk": "Statistikk",
+        "detaljer": "Detaljer",
+    },
+    "energi": {
+        "status": "Status",
+        "kurser": "Kurser",
+        "laster": "Laster",
+        "forbruk-per-seng": "Forbruk per seng",
+        "elvia": "Elvia",
+        "verktoy": "Verktøy",
+    },
+    "ventilasjon": {
+        "dagslogg": "Dagslogg",
+        "temp-logg": "Temperatur og fukt",
+        "yr-logg": "Yr-logg",
+        "hendelser": "Hendelser",
+        "innstillinger": "Innstillinger",
+    },
+    "lys": {
+        "dagslogg": "Dagslogg",
+        "lux-logging": "Lux-logg",
+        "hendelser": "Hendelser",
+        "innstillinger": "Innstillinger",
+    },
+    "renhold": {
+        "oversikt": "Oversikt",
+        "roboter": "Roboter",
+    },
+    "admin": {
+        "oppgaver": "Oppgaver",
+        "datakvalitet": "Datakvalitet",
+        "analyse": "Analyse",
+        "drift": "Drift",
+        "build": "Buildlogg",
+        "datakilder": "Datakilder",
+        "ai": "AI",
+        "teknisk": "Teknisk",
+        "brukere": "Brukere",
+        "manual": "Manual",
+        "verktoy": "Verktøy",
+    },
+}
+
+
+def v2_view_label(module: str, view: str) -> str:
+    normalized_view = (view or "oversikt").strip().lower()
+    label = V2_VIEW_LABELS.get(module, {}).get(normalized_view)
+    if label:
+        return label
+    return normalized_view.replace("-", " ").capitalize()
+
+
+def v2_module_title(module: str, view: str = "") -> str:
+    module_label = V2_MODULE_LABELS.get(module, module.capitalize())
+    if not view or view == "oversikt":
+        return module_label
+    return f"{module_label} · {v2_view_label(module, view)}"
 
 
 def ventilation_latest_payload(latest: Optional[VentilationSample], latest_yr: Optional[YrForecastSample]) -> Dict[str, Any]:
@@ -16214,7 +16314,7 @@ async def api_v2_soling_module(
                     {"name": "Faktisk solinger", "data": [row["actual_sessions"] for row in forecast_table_rows], "type": "bar"},
                     {"name": "Prognose solinger", "data": [row["forecast_sessions"] for row in forecast_table_rows], "type": "bar"},
                 ],
-                "Nåverdi og beregnet sluttverdi.",
+                "Faktisk verdi nå og beregnet sluttverdi.",
                 "bar",
                 300,
             )
@@ -16241,7 +16341,7 @@ async def api_v2_soling_module(
         ]
 
     return {
-        "title": "Soling" if not view else f"Soling · {view.replace('-', ' ')}",
+        "title": v2_module_title("soling", view),
         "subtitle": subtitle,
         "cards": cards,
         "charts": charts,
@@ -18297,7 +18397,7 @@ def parse_sun_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
 
     is_creditnote = any("kreditnota" in line.lower() for line in lines)
     if is_creditnote and normalize_sun_creditnote_signs(parsed, field_sources):
-        parser_notes.append("Fortegn er snudd fordi Altera sender oppgjoret som kreditnota. Inntekter vises positivt og fratrekk/gebyrer negativt.")
+        parser_notes.append("Fortegn er snudd fordi Altera sender oppgjøret som kreditnota. Inntekter vises positivt og fratrekk/gebyrer negativt.")
 
     sum_ex_vat = settlement_parsed_float(parsed, "sum_ex_vat")
     vat = settlement_parsed_float(parsed, "vat_25_percent")
@@ -18307,7 +18407,7 @@ def parse_sun_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
     if sum_ex_vat is not None and vat is not None and payout is not None:
         diff = round(sum_ex_vat + vat - payout, 2)
         if abs(diff) > 1:
-            parser_notes.append(f"Sum eks. mva + mva avviker fra Belop NOK med {diff} kr.")
+            parser_notes.append(f"Sum eks. mva + mva avviker fra Beløp NOK med {diff} kr.")
 
     if not lines:
         parser_notes.append("Vedlegget har ikke tekstlag. Originalen er lagret, men tall maa kontrolleres manuelt eller OCR-leses senere.")
@@ -19039,7 +19139,7 @@ def sun_settlement_form_rows(
             expected_vat,
         ),
         settlement_form_field(
-            "Belop NOK",
+            "Beløp NOK",
             "payout_inc_vat",
             settlement_parsed_value(parsed, "payout_inc_vat"),
             parsed,
@@ -19119,7 +19219,7 @@ SUN_SETTLEMENT_PARSED_FIELD_LABELS: list[tuple[str, str, str]] = [
     ("Markedsforing e-post eks. mva", "marketing_email_fee_ex_vat", "Eventuelt fratrekk for markedsforing paa e-post."),
     ("Sum eks. mva", "sum_ex_vat", "Sum eks. mva fra skjemaet."),
     ("25% mva", "vat_25_percent", "Mva-linje fra skjemaet."),
-    ("Belop NOK", "payout_inc_vat", "Sluttsum fra skjemaet."),
+    ("Beløp NOK", "payout_inc_vat", "Sluttsum fra skjemaet."),
 ]
 
 
@@ -19372,7 +19472,7 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
         api_card("Periode", row.period_label or "Ikke tolket", "", "Fra skjema, filnavn eller dato", "sun2"),
         api_card("Original", original["sizeLabel"], "", row.attachment_filename or "-", "status"),
         api_card("Skjemafelter", len(public_parsed), "stk", f"Sikkerhet {format_short_number(float_or_zero(meta.get('confidence')) * 100, 0)} %", "status"),
-        api_card("Belop NOK", format_short_number(settlement_parsed_float(parsed, "payout_inc_vat") or 0, 2), "kr", "Fra skjema", "revenue"),
+        api_card("Beløp NOK", format_short_number(settlement_parsed_float(parsed, "payout_inc_vat") or 0, 2), "kr", "Fra skjema", "revenue"),
     ]
     if expected_sun_revenue is not None:
         cards.append(api_card("Sun2 soling", format_short_number(expected_sun_revenue, 2), "kr", sun_revenue_detail, "sun2"))
@@ -19399,12 +19499,12 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
         cards.append(api_card("Avvik produktsalg", format_short_number(product_sales_diff, 2), "kr", "Sun2 månedsomsetning minus skjema eks. mva", tone))
     return {
         "id": row.id,
-        "title": row.period_label or f"Solingsoppgjor {row.id}",
+        "title": row.period_label or f"Solingsoppgjør {row.id}",
         "subtitle": row.attachment_filename or row.email_subject or "",
         "cards": cards,
         "original": original,
         "sections": [
-            {"title": "Oppgjorsformular", "rows": sun_settlement_form_rows(parsed, product_sales_summary, finance_summary, sessions_summary)},
+            {"title": "Oppgjørsskjema", "rows": sun_settlement_form_rows(parsed, product_sales_summary, finance_summary, sessions_summary)},
             {
                 "title": "Kontroll mot intern månedsomsetning",
                 "rows": [
@@ -19425,8 +19525,8 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
                 "title": "Tolket periode",
                 "rows": [
                     settlement_field("Periodeetikett", "period_label", row.period_label, "Tolket fra skjema, filnavn eller dato"),
-                    settlement_field("Periodestart", "period_start", row.period_start, "Forste dag i tolket maaned"),
-                    settlement_field("Periodeslutt", "period_end", row.period_end, "Siste dag i tolket maaned"),
+                    settlement_field("Periodestart", "period_start", row.period_start, "Første dag i tolket måned"),
+                    settlement_field("Periodeslutt", "period_end", row.period_end, "Siste dag i tolket måned"),
                     settlement_field("Status", "status", row.status, "Importstatus i Fibaro10"),
                 ],
             },
@@ -19440,9 +19540,9 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
                     settlement_field("Postboks", "mailbox", row.mailbox, "Gmail IMAP mappe"),
                     settlement_field("Filnavn", "attachment_filename", row.attachment_filename, "Vedlegg"),
                     settlement_field("Filtype", "attachment_content_type", row.attachment_content_type, "Vedlegg MIME-type"),
-                    settlement_field("Filstorrelse", "attachment_size", format_file_size(row.attachment_size), "Vedlegg byte-storrelse"),
+                    settlement_field("Filstørrelse", "attachment_size", format_file_size(row.attachment_size), "Vedlegg byte-størrelse"),
                     settlement_field("SHA-256", "attachment_sha256", row.attachment_sha256, "Hash av originalvedlegg"),
-                    settlement_field("Importert", "imported_at", row.imported_at, "Tidspunkt Fibaro10 lagret oppgjoret"),
+                    settlement_field("Importert", "imported_at", row.imported_at, "Tidspunkt Fibaro10 lagret oppgjøret"),
                 ],
             },
             {"title": "Parserkontroll", "rows": parser_rows},
@@ -19589,27 +19689,27 @@ async def sun_settlement_module_payload(session) -> Dict[str, Any]:
     product_control_ok = len([row for row in product_control_rows if row.get("product_sales_control_status") == "OK"])
     product_control_missing = len([row for row in product_control_rows if row.get("product_sales_control_status") == "Mangler Sun2-grunnlag"])
     return {
-        "title": "Soling - Oppgjor",
+        "title": "Soling · Oppgjør",
         "subtitle": "Manuell innlasting av Altera-kreditnotaer og kontroll av skjemaets egne summer.",
         "cards": [
-            api_card("Oppgjor importert", total_settlements, "stk", f"{parsed_period_count} perioder tolket", "sun2", href="/soling/oppgjor"),
+            api_card("Oppgjør importert", total_settlements, "stk", f"{parsed_period_count} perioder tolket", "sun2", href="/soling/oppgjor"),
             api_card(
                 "Siste import",
                 format_local_datetime(latest_import_settlement.imported_at) if latest_import_settlement else "-",
                 "",
-                latest_import_settlement.period_label if latest_import_settlement else "Ingen importerte oppgjor",
+                latest_import_settlement.period_label if latest_import_settlement else "Ingen importerte oppgjør",
                 "status",
                 href="/soling/oppgjor",
             ),
-            api_card("Ikke periodetolket", unknown_period_count, "stk", "Krever manuell kontroll eller OCR", "status", href="/soling/oppgjor"),
-            api_card("Soling kontroll", sun_revenue_control_ok, "OK", f"{sun_revenue_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
-            api_card("Råtimer avvik", raw_sessions_control_avvik, "stk", "Rå enkelttimer mot Sun2 månedsomsetning", "revenue" if raw_sessions_control_avvik else "status", href="/soling/oppgjor"),
-            api_card("Produktsalg kontroll", product_control_ok, "OK", f"{product_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
+            api_card("Mangler periode", unknown_period_count, "stk", "Krever manuell kontroll eller OCR", "status", href="/soling/oppgjor"),
+            api_card("Kontroll soling", sun_revenue_control_ok, "OK", f"{sun_revenue_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
+            api_card("Råtimeavvik", raw_sessions_control_avvik, "stk", "Rå enkelttimer mot Sun2 månedsomsetning", "revenue" if raw_sessions_control_avvik else "status", href="/soling/oppgjor"),
+            api_card("Kontroll produktsalg", product_control_ok, "OK", f"{product_control_missing} mangler Sun2-grunnlag", "sun2", href="/soling/oppgjor"),
         ],
         "charts": [],
         "tables": [
             api_table(
-                "Solingsoppgjor",
+                "Solingsoppgjør",
                 [
                     "period_label",
                     "period_start",
@@ -20117,7 +20217,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     )
                 ]
                 return {
-                    "title": "Omsetning · Akkumulert år",
+                    "title": v2_module_title("omsetning", "akkumulert"),
                     "subtitle": "Løpende akkumulert utvikling per uke, bygget på samme grunnlag som Omsetning oversikt.",
                     "cards": [
                         api_card("I år", format_short_number(current_year_summary["total_paid"]), "kr", f"{format_short_number(current_year_summary['total_count'])} hendelser", "revenue", href="/omsetning/akkumulert"),
@@ -20201,7 +20301,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
 
             revenue_columns = ["period_label", "total_paid", "parking_paid", "parking_count", "sun_paid", "sun_count"]
             return {
-                "title": "Omsetning" if not view or view == "oversikt" else f"Omsetning · {view.replace('-', ' ')}",
+                "title": v2_module_title("omsetning", view),
                 "subtitle": "Samlet omsetning fra soling og parkering.",
                 "cards": cards,
                 "charts": [api_revenue_weekly_chart(combined_stats)],
@@ -20681,7 +20781,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     }
                 )
             return {
-                "title": "Parkering" if not view else f"Parkering · {view.replace('-', ' ')}",
+                "title": v2_module_title("parkering", view),
                 "subtitle": "EasyPark, aktive parkeringer og kjøretøygrunnlag.",
                 "cards": cards,
                 "charts": charts,
@@ -20732,7 +20832,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_card("Takvifte korrigert", sunbed_summary.get("roof_exhaust_adjusted_samples"), "stk", f"-{format_short_number(sunbed_summary.get('roof_exhaust_adjustment_w'))} W ved på", "vent", href="/energi/forbruk-per-seng"),
                 ]
                 return {
-                    "title": "Energi · forbruk per seng",
+                    "title": v2_module_title("energi", "forbruk-per-seng"),
                     "subtitle": "Estimert forbruk per solseng beregnet fra realtime differanseforbruk.",
                     "cards": energy_cards,
                     "charts": [],
@@ -20800,7 +20900,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
 
                 if view == "kurser":
                     return {
-                        "title": "Energi · kurser",
+                        "title": v2_module_title("energi", "kurser"),
                         "subtitle": "Kursregister med tekniske data og solsengmerking.",
                         "cards": [
                             api_card("Kurser", len(circuits), "stk", "Valgt kursfilter", "energy", href="/energi/kurser"),
@@ -21180,7 +21280,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     ),
                 ]
             return {
-                "title": "Energi" if not view else f"Energi · {view.replace('-', ' ')}",
+                "title": v2_module_title("energi", view),
                 "subtitle": "Realtime HC3-måling, kursregister og lastregister.",
                 "cards": energy_cards,
                 "charts": charts,
@@ -21281,7 +21381,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_table("Endringshistorikk", ["config_key", "version", "changed_at", "changed_by", "reason"], api_config_history_rows(history)),
                 ]
             return {
-                "title": "Ventilasjon" if not view else f"Ventilasjon · {view.replace('-', ' ')}",
+                "title": v2_module_title("ventilasjon", active_view),
                 "subtitle": "Temperatur, fukt, Yr og viftestatus.",
                 "cards": [
                     api_card("Innetemp", format_short_number(latest.temp_avg_inne if latest else None, 1), "grader", "Snitt inne", "vent", href="/ventilasjon/temp-logg"),
@@ -21411,7 +21511,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_table("Endringshistorikk", ["config_key", "version", "changed_at", "changed_by", "reason"], api_config_history_rows(history)),
                 ]
             return {
-                "title": "Lys" if not view else f"Lys · {view.replace('-', ' ')}",
+                "title": v2_module_title("lys", view),
                 "subtitle": "Utelys, lux, modus og hendelser.",
                 "cards": [
                     api_card("Lux", format_short_number(latest.lux if latest else None), "", latest.mode if latest and latest.mode else "", "light", href="/lys/lux-logging"),
@@ -21478,7 +21578,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     ),
                 ]
             return {
-                "title": "Renhold" if not view else f"Renhold · {view.replace('-', ' ')}",
+                "title": v2_module_title("renhold", view),
                 "subtitle": "Roborock-roboter, status og siste vasker.",
                 "cards": [
                     api_card("Roboter", len(robots), "stk", f"{online} online/ikke avvist", "status", href="/renhold/roboter"),
@@ -21781,7 +21881,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             elif view == "verktoy":
                 tables = [api_table("Adminverktøy", ["tool", "path", "description", "count"], admin_tools)]
             return {
-                "title": "Admin" if not view else f"Admin · {view.replace('-', ' ')}",
+                "title": v2_module_title("admin", view),
                 "subtitle": "Build, datakilder, teknisk drift og AI-logg.",
                 "cards": admin_cards,
                 "charts": charts,
@@ -21978,7 +22078,7 @@ async def api_v2_upload_sun_settlement(request: Request):
         if existing:
             return {
                 "status": "ok",
-                "message": "Solingsoppgjoret finnes allerede.",
+                "message": "Solingsoppgjøret finnes allerede.",
                 "id": existing.id,
                 "path": f"/soling/oppgjor/{existing.id}",
             }
@@ -22008,7 +22108,7 @@ async def api_v2_upload_sun_settlement(request: Request):
         await session.refresh(row)
     return {
         "status": "ok",
-        "message": f"Solingsoppgjor importert: {period_label}.",
+        "message": f"Solingsoppgjør importert: {period_label}.",
         "id": row.id,
         "path": f"/soling/oppgjor/{row.id}",
     }
@@ -24764,7 +24864,7 @@ async def parking_vehicle_name_api(request: Request, plate: str, data: ParkingVe
     async with async_session() as session:
         vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
         if not vehicle:
-            return JSONResponse({"detail": "Kjoretoy ikke funnet"}, status_code=404)
+            return JSONResponse({"detail": "Kjøretøy ikke funnet"}, status_code=404)
         vehicle.navn = name
         if data.sun2_id is not None:
             vehicle.sun2_id = data.sun2_id.strip() or None
@@ -24798,7 +24898,7 @@ async def parking_vehicle_area_api(request: Request, plate: str, data: ParkingVe
     async with async_session() as session:
         vehicle = (await session.execute(select(ParkingVehicle).where(ParkingVehicle.plate == plate_value))).scalars().first()
         if not vehicle:
-            return JSONResponse({"detail": "Kjoretoy ikke funnet"}, status_code=404)
+            return JSONResponse({"detail": "Kjøretøy ikke funnet"}, status_code=404)
         vehicle.omrade = area
         vehicle.omrade_kilde = (data.source or "manual-browser-helper").strip() or "manual-browser-helper"
         vehicle.omrade_oppdatert = datetime.utcnow()
@@ -24822,7 +24922,7 @@ async def parking_vehicle_car_info_api(request: Request, plate: str, data: Parki
     async with async_session() as session:
         vehicle = await parking_vehicle_by_plate_or_compact(session, plate_value)
         if not vehicle:
-            return JSONResponse({"detail": "Kjoretoy ikke funnet"}, status_code=404)
+            return JSONResponse({"detail": "Kjøretøy ikke funnet"}, status_code=404)
         vehicle.car_info_fetched_at = now
         vehicle.car_info_status = int(data.status or 0)
         vehicle.car_info_error = (data.error or "").strip()[:1000] or None

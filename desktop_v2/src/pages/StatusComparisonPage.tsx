@@ -311,7 +311,7 @@ export default function StatusComparisonPage() {
     <Space direction="vertical" size={14} className="page-stack status-page status-comparison-page">
       <div className="status-comparison-top">
         <div>
-          <Typography.Text className="eyebrow">Omsetning sammenligning</Typography.Text>
+          <Typography.Text className="eyebrow">Omsetning · periodesammenligning</Typography.Text>
           <div className="status-comparison-title">
             <strong>{data.title}</strong>
             <span>{data.comparisonLabel}</span>
