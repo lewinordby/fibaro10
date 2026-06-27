@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1294")
+APP_BUILD = os.getenv("APP_BUILD", "1295")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1295",
+        "date": "28.06.2026",
+        "headline": "VentilationPage fullfort som container",
+        "title": "Desktop V2 har flyttet filter, innstillinger og tabellomraade ut av VentilationPage",
+        "description": (
+            "Build 1295 fullforer splitten av VentilationPage. FilterBar, SettingsView og TableArea "
+            "ligger naa i VentilationPanels.tsx. VentilationPage er redusert til en liten container "
+            "som velger snapshot, dagslogg, Yr, innstillinger, hendelser og tabeller."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (VentilationPage.tsx): redusert til overordnet container.",
+            "Fibaro10 desktop V2 (VentilationPanels.tsx): ny komponentfil for filter, settings og tabeller.",
+            "Buildlogg (build_log.py): registrerer build 1295.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "VentilationPage har tydelig ansvar og mindre risiko ved videre endringer.",
+            "Innstillinger og tabellomraade kan videreutvikles separat.",
+            "Ventilasjonssplitten er fullfort uten funksjonsendring.",
+        ],
+    },
     {
         "version": "1",
         "build": "1294",
