@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1278")
+APP_BUILD = os.getenv("APP_BUILD", "1279")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1279",
+        "date": "27.06.2026",
+        "headline": "Dashboard-CSS skilt ut",
+        "title": "Desktop V2 har flyttet statusdashboard-stiler ut av status.css",
+        "description": (
+            "Build 1279 rydder i den største gjenværende CSS-filen. Dashboard-spesifikke regler "
+            "for status/oversikt, kommando-kort, seksjonshoder og info-grid er flyttet til "
+            "status-overview.css, mens status.css beholder felles statuskomponenter."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (status-overview.css): ny fil for dashboard/status oversikt.",
+            "Fibaro10 desktop V2 (status.css): beholder felles statuskort, striper, perioder og kildelister.",
+            "Fibaro10 desktop V2 (main.tsx): importerer status-overview.css etter status.css.",
+            "Buildlogg (build_log.py): registrerer build 1279.",
+        ],
+        "request": "Fortsett med CSS-opprydding og splitt de største stilarkene mer systematisk.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "status.css er redusert med dashboard-spesifikke regler.",
+            "OverviewPage sine egne layoutregler ligger nå samlet i status-overview.css.",
+            "Importrekkefølgen gjør at dashboard-overstyringer fortsatt kommer etter felles statusstiler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1278",

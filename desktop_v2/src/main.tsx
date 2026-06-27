@@ -13,6 +13,7 @@ import "./styles/build.css";
 import "./styles/module-content.css";
 import "./styles/sun-sessions.css";
 import "./styles/status.css";
+import "./styles/status-overview.css";
 import "./styles/status-comparison.css";
 import "./styles/timelines.css";
 import "./styles/ventilation.css";
