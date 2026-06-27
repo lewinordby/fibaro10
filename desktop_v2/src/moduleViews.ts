@@ -16,6 +16,23 @@ export const MODULE_LABELS: Record<string, string> = {
   admin: "Admin",
 };
 
+export const MODULE_NAVIGATION_LABELS: Record<string, string> = {
+  status: "Dashboard",
+};
+
+export const MODULE_COLORS: Record<string, string> = {
+  status: "var(--domain-status)",
+  omsetning: "var(--domain-revenue)",
+  parkering: "var(--domain-parking)",
+  soling: "var(--domain-sun2)",
+  energi: "var(--domain-energy)",
+  ventilasjon: "var(--domain-vent)",
+  lys: "var(--domain-light)",
+  mobil: "var(--domain-mobile)",
+  renhold: "#0f766e",
+  admin: "#64748b",
+};
+
 export const MODULE_VIEWS: Record<string, ModuleView[]> = {
   status: [{ key: "oversikt", label: "Oversikt" }],
   omsetning: [
@@ -96,6 +113,14 @@ export function defaultModuleView(module: string): string {
 
 export function moduleLabel(module: string): string {
   return MODULE_LABELS[module] ?? module;
+}
+
+export function moduleNavigationLabel(module: string): string {
+  return MODULE_NAVIGATION_LABELS[module] ?? moduleLabel(module);
+}
+
+export function moduleColor(module: string): string {
+  return MODULE_COLORS[module] ?? "var(--domain-status)";
 }
 
 export function modulePath(module: string, view?: string): string {

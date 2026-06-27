@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1272")
+APP_BUILD = os.getenv("APP_BUILD", "1273")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1273",
+        "date": "27.06.2026",
+        "headline": "Frontend-modulnavn samlet bedre",
+        "title": "Desktop V2 gjenbruker felles modulmodell i hovedmenyen",
+        "description": (
+            "Build 1273 fortsetter oppryddingen i V2-frontend. Hovedmenyen henter nå modulnavn "
+            "og menyfarger fra moduleViews i stedet for å hardkode alt direkte i appNavigation. "
+            "Ikoner og gruppering ligger fortsatt i appNavigation, der de hører hjemme som UI-struktur."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (moduleViews.ts): legger til felles navigasjonsnavn og modul-fargeoppslag.",
+            "Fibaro10 desktop V2 (appNavigation.tsx): bruker felles modulmodell for label og farge.",
+            "Buildlogg (build_log.py): registrerer build 1273.",
+        ],
+        "request": "Fortsett på gjøremålslisten og gjennomfør foreslått teknisk opprydding.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Hovedmenytekstene gjenbruker samme modulnavn som resten av frontend.",
+            "Menyfarger er samlet som moduloppslag i moduleViews.",
+            "appNavigation er smalere og eier bare ikonrekkefølge og gruppering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1272",
