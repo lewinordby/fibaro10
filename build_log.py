@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1297")
+APP_BUILD = os.getenv("APP_BUILD", "1298")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1298",
+        "date": "28.06.2026",
+        "headline": "Status-CSS delt opp",
+        "title": "Desktop V2 har splittet den storste status-CSS-filen i mindre ansvarsomraader",
+        "description": (
+            "Build 1298 gjennomforer siste planlagte CSS-opprydding. status-widgets.css er delt "
+            "slik at periodekort og status-refinements ligger i egne filer. Importrekkefolgen er "
+            "bevart for aa unngaa visuelle regresjoner."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (status-widgets.css): redusert til grunnleggende status/widgets.",
+            "Fibaro10 desktop V2 (status-periods.css): ny CSS-fil for periodekort og sammenligninger.",
+            "Fibaro10 desktop V2 (status-refinements.css): ny CSS-fil for siste visuelle status-justeringer.",
+            "Fibaro10 desktop V2 (main.tsx): importerer de nye CSS-filene i kontrollert rekkefolge.",
+            "Buildlogg (build_log.py): registrerer build 1298.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Den storste status-CSS-flaten er lettere aa vedlikeholde.",
+            "CSS parse/audit og UI smoke validerer splitten i standard sjekk.",
+            "Ingen komponentlogikk eller API er endret i dette bygget.",
+        ],
+    },
     {
         "version": "1",
         "build": "1297",
