@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1292")
+APP_BUILD = os.getenv("APP_BUILD", "1293")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1293",
+        "date": "28.06.2026",
+        "headline": "Ventilasjon snapshot skilt ut",
+        "title": "Desktop V2 har flyttet ventilasjonens status- og snapshotkort til egen komponentfil",
+        "description": (
+            "Build 1293 flytter Snapshot og CompactSnapshot ut av VentilationPage. Siste sample, "
+            "temperatur-/fuktkort, vaerlinje og viftestatuspiller ligger naa i VentilationSnapshot.tsx."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (VentilationPage.tsx): bruker Snapshot og CompactSnapshot fra egen fil.",
+            "Fibaro10 desktop V2 (VentilationSnapshot.tsx): ny komponentfil for statuskortene.",
+            "Buildlogg (build_log.py): registrerer build 1293.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ventilasjonsstatusen er isolert fra dagsloggdiagram og settings.",
+            "Hovedsiden har mindre JSX og tydeligere ansvar.",
+            "Ingen dataflyt eller visning er endret funksjonelt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1292",
