@@ -15,57 +15,21 @@ import { domainColors } from "../domainColors";
 import { nok } from "../format";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
-
-function dateLabel(value?: string | null) {
-  if (!value) return "-";
-  return new Date(`${value}T00:00:00`).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" });
-}
-
-function signedNok(value: number) {
-  if (!Number.isFinite(value) || value === 0) return "0 kr";
-  return `${value > 0 ? "+" : "-"}${nok(Math.abs(value))} kr`;
-}
-
-function deltaTone(value: number) {
-  if (value > 0) return "positive";
-  if (value < 0) return "negative";
-  return "neutral";
-}
+import {
+  activeYearsFromParams,
+  compactAmountAxisValue as axisAmountValue,
+  comparisonDateLabel as dateLabel,
+  deltaTone,
+  signedNok,
+  yearMonthLabel as monthLabel,
+} from "../yearComparison";
 
 function amountValue(value: number) {
   return `${nok(value)} kr`;
 }
 
-function axisAmountValue(value: number) {
-  if (Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`;
-  return `${Math.round(value)}`;
-}
-
 function chartData(series: RevenueYearComparisonSeries): Array<[number, number]> {
   return series.points.map((point) => [point.day, point.cumulativeAmount]);
-}
-
-function defaultSelectedYears(data: RevenueYearComparisonResponse) {
-  return [data.anchorYear, data.comparisonYear].filter((year, index, years) => years.indexOf(year) === index);
-}
-
-function activeYearsFromParams(data: RevenueYearComparisonResponse, yearsParam: string | null) {
-  const available = new Set(data.availableYears);
-  const parsed = (yearsParam || "")
-    .split(",")
-    .map((value) => Number(value.trim()))
-    .filter((year) => Number.isFinite(year) && available.has(year));
-  const unique = parsed.filter((year, index, years) => years.indexOf(year) === index);
-  return unique.length ? unique : defaultSelectedYears(data);
-}
-
-function monthLabel(data: RevenueYearComparisonResponse, value: number) {
-  const day = Math.round(Number(value));
-  const tick = data.axis.ticks.reduce<{ label: string; day: number } | null>((best, item) => {
-    if (item.day <= day && (!best || item.day > best.day)) return item;
-    return best;
-  }, null);
-  return tick?.label ?? "";
 }
 
 function cumulativeChartOption(data: RevenueYearComparisonResponse, activeYears: number[]) {

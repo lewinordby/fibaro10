@@ -15,29 +15,17 @@ import { domainColors } from "../domainColors";
 import { decimal, nok } from "../format";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
+import {
+  activeYearsFromParams,
+  compactAmountAxisValue,
+  comparisonDateLabel as dateLabel,
+  deltaTone,
+  signedCount,
+  signedNok,
+  yearMonthLabel as monthLabel,
+} from "../yearComparison";
 
 type ParkingYearMetric = "amount" | "count";
-
-function dateLabel(value?: string | null) {
-  if (!value) return "-";
-  return new Date(`${value}T00:00:00`).toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" });
-}
-
-function signedNok(value: number) {
-  if (!Number.isFinite(value) || value === 0) return "0 kr";
-  return `${value > 0 ? "+" : "-"}${nok(Math.abs(value))} kr`;
-}
-
-function signedCount(value: number) {
-  if (!Number.isFinite(value) || value === 0) return "0 stk";
-  return `${value > 0 ? "+" : "-"}${Math.abs(value)} stk`;
-}
-
-function deltaTone(value: number) {
-  if (value > 0) return "positive";
-  if (value < 0) return "negative";
-  return "neutral";
-}
 
 function metricValue(value: number, metric: ParkingYearMetric) {
   if (metric === "amount") return `${nok(value)} kr`;
@@ -46,8 +34,7 @@ function metricValue(value: number, metric: ParkingYearMetric) {
 
 function metricAxisValue(value: number, metric: ParkingYearMetric) {
   if (metric === "amount") {
-    if (Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`;
-    return `${Math.round(value)}`;
+    return compactAmountAxisValue(value);
   }
   return `${Math.round(value)}`;
 }
@@ -58,29 +45,6 @@ function pointValue(point: ParkingYearComparisonSeries["points"][number], metric
 
 function chartData(series: ParkingYearComparisonSeries, metric: ParkingYearMetric): Array<[number, number]> {
   return series.points.map((point) => [point.day, pointValue(point, metric)]);
-}
-
-function defaultSelectedYears(data: ParkingYearComparisonResponse) {
-  return [data.anchorYear, data.comparisonYear].filter((year, index, years) => years.indexOf(year) === index);
-}
-
-function activeYearsFromParams(data: ParkingYearComparisonResponse, yearsParam: string | null) {
-  const available = new Set(data.availableYears);
-  const parsed = (yearsParam || "")
-    .split(",")
-    .map((value) => Number(value.trim()))
-    .filter((year) => Number.isFinite(year) && available.has(year));
-  const unique = parsed.filter((year, index, years) => years.indexOf(year) === index);
-  return unique.length ? unique : defaultSelectedYears(data);
-}
-
-function monthLabel(data: ParkingYearComparisonResponse, value: number) {
-  const day = Math.round(Number(value));
-  const tick = data.axis.ticks.reduce<{ label: string; day: number } | null>((best, item) => {
-    if (item.day <= day && (!best || item.day > best.day)) return item;
-    return best;
-  }, null);
-  return tick?.label ?? "";
 }
 
 function cumulativeChartOption(data: ParkingYearComparisonResponse, metric: ParkingYearMetric, activeYears: number[]) {

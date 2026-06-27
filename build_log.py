@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1274")
+APP_BUILD = os.getenv("APP_BUILD", "1275")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1275",
+        "date": "27.06.2026",
+        "headline": "Årssammenligning deler felles hjelpefunksjoner",
+        "title": "Desktop V2 har samlet årvalg, differanseformat og månedsetiketter",
+        "description": (
+            "Build 1275 rydder videre i årssammenligningssidene. Felles logikk for aktivt årvalg "
+            "fra URL, standard sammenligningsår, månedsetiketter på aksen, datoformat og positive/"
+            "negative differanser er flyttet til yearComparison."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (yearComparison.ts): ny felles modul for årssammenligningshjelpere.",
+            "Fibaro10 desktop V2 (RevenueYearComparisonPage.tsx): bruker felles årvalg og formattering.",
+            "Fibaro10 desktop V2 (SunYearComparisonPage.tsx): bruker felles årvalg og formattering.",
+            "Fibaro10 desktop V2 (ParkingYearComparisonPage.tsx): bruker felles årvalg og formattering.",
+            "Buildlogg (build_log.py): registrerer build 1275.",
+        ],
+        "request": "Fortsett på gjøremålslisten og gjennomfør foreslått teknisk opprydding.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Årssammenligningssidene deler nå felles helper for aktivt årvalg.",
+            "Dato-, differanse- og månedsetikett-format er samlet.",
+            "Soling og parkering beholder lokal logikk for beløp/antall der den faktisk avviker.",
+        ],
+    },
     {
         "version": "1",
         "build": "1274",
