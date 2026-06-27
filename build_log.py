@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1279")
+APP_BUILD = os.getenv("APP_BUILD", "1280")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1280",
+        "date": "27.06.2026",
+        "headline": "Solsengenergi-CSS flyttet",
+        "title": "Desktop V2 har flyttet energisiden for solsenger til energy.css",
+        "description": (
+            "Build 1280 flytter stilene for energi/solsenger ut av module-content.css og inn "
+            "i energy.css. Generelle filter- og modulregler ligger fortsatt i module-content.css, "
+            "mens energidomenet nå eier både Elvia- og solsengenergi-visningene."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (energy.css): overtar energy-sunbeds- og sunbed-regler.",
+            "Fibaro10 desktop V2 (module-content.css): beholder felles modulfilter og modul-layout.",
+            "Buildlogg (build_log.py): registrerer build 1280.",
+        ],
+        "request": "Fortsett med CSS-opprydding og flytt domenespesifikke regler ut av felles stilark.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "module-content.css er redusert videre og inneholder mindre energispesifikk kode.",
+            "energy.css samler nå både Elvia og beregning av solsengforbruk.",
+            "Media-regelen for solsengenergi ble flyttet sammen med resten av domenestilene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1279",
