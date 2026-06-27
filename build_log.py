@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1277")
+APP_BUILD = os.getenv("APP_BUILD", "1278")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1278",
+        "date": "27.06.2026",
+        "headline": "Soltime-CSS skilt ut",
+        "title": "Desktop V2 har flyttet soltime- og bildearkivstiler ut av module-content.css",
+        "description": (
+            "Build 1278 rydder videre i frontend-stilene. Regler for soltime-listen, inline "
+            "bildevelger og bildearkivmodal er flyttet fra module-content.css til sun-sessions.css. "
+            "Generelle modulmetrikker og diagram-/filterregler blir igjen i module-content.css."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (sun-sessions.css): ny fil for soltimekort og bildearkiv.",
+            "Fibaro10 desktop V2 (module-content.css): beholder generelle modul-, tabell-, filter- og diagramstiler.",
+            "Fibaro10 desktop V2 (main.tsx): importerer sun-sessions.css etter module-content.css.",
+            "Buildlogg (build_log.py): registrerer build 1278.",
+        ],
+        "request": "Fortsett med CSS-opprydding og splitt de største stilarkene mer systematisk.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "module-content.css er redusert med rundt 4,9 KB.",
+            "Soltime- og bildearkivregler har fått eget domene-stilark.",
+            "Generelle module-metric-regler er bevisst beholdt i module-content.css fordi de brukes på tvers av modulsider.",
+        ],
+    },
     {
         "version": "1",
         "build": "1277",

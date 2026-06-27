@@ -11,6 +11,7 @@ import "./styles/tokens.css";
 import "./styles/layout.css";
 import "./styles/build.css";
 import "./styles/module-content.css";
+import "./styles/sun-sessions.css";
 import "./styles/status.css";
 import "./styles/status-comparison.css";
 import "./styles/timelines.css";
