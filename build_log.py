@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1282")
+APP_BUILD = os.getenv("APP_BUILD", "1283")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1283",
+        "date": "27.06.2026",
+        "headline": "Statusdashboard-CSS samlet",
+        "title": "Desktop V2 har flyttet statusdashboard-regler til status-overview.css",
+        "description": (
+            "Build 1283 rydder videre i status-stilene. Dashboard-spesifikke regler for "
+            "statussummary, lys/ventilasjon-striper, periodekort, stottekort, hendelser og "
+            "datakilder er flyttet til status-overview.css. status.css inneholder naa bare "
+            "status/omsetning-toolbar og omsetning-sidens summary-kort."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (status-overview.css): overtar dashboard-spesifikke statusregler.",
+            "Fibaro10 desktop V2 (status.css): redusert til status/omsetning-toolbar og omsetning-summary.",
+            "Buildlogg (build_log.py): registrerer build 1283.",
+        ],
+        "request": "Kjor videre trinn for trinn og gjor oppryddingen ferdig.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "status.css er redusert kraftig og har tydeligere ansvar.",
+            "Dashboardets statuskomponenter ligger naa samlet med resten av oversiktssiden.",
+            "Importrekkefolgen er uendret, slik at visuell prioritet fortsatt er den samme.",
+        ],
+    },
     {
         "version": "1",
         "build": "1282",
