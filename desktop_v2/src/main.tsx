@@ -22,6 +22,7 @@ import "./styles/ventilation.css";
 import "./styles/energy.css";
 import "./styles/records.css";
 import "./styles/records-settlements.css";
+import "./styles/sun-settlements.css";
 import "./styles/mobile-preview.css";
 import "./styles/responsive.css";
 

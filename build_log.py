@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1283")
+APP_BUILD = os.getenv("APP_BUILD", "1284")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1284",
+        "date": "27.06.2026",
+        "headline": "Soloppgjor-CSS skilt ut",
+        "title": "Desktop V2 har flyttet soling-oppgjor til sun-settlements.css",
+        "description": (
+            "Build 1284 rydder i oppgjorsstilene. Rene soling-regler for oppgjorslisten, "
+            "forenklet kreditnota/bilag, periodefelt, payout og soling-spesifikk tabellayout "
+            "er flyttet ut av records-settlements.css og inn i sun-settlements.css. Felles "
+            "oppgjorsdetaljer og kontrollkomponenter ligger fortsatt samlet."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (sun-settlements.css): ny fil for soling-oppgjor og forenklet bilag.",
+            "Fibaro10 desktop V2 (records-settlements.css): beholder felles oppgjorsvisning og parkering-liste.",
+            "Fibaro10 desktop V2 (main.tsx): importerer sun-settlements.css etter records-settlements.css.",
+            "Buildlogg (build_log.py): registrerer build 1284.",
+        ],
+        "request": "Kjor videre trinn for trinn og gjor oppryddingen ferdig.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Soling-oppgjorets bilagslayout er isolert fra felles oppgjors-CSS.",
+            "records-settlements.css er mindre og har tydeligere felles ansvar.",
+            "Importrekkefolgen bevarer tidligere cascade for soling-oppgjor.",
+        ],
+    },
     {
         "version": "1",
         "build": "1283",
