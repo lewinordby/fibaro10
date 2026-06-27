@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1289")
+APP_BUILD = os.getenv("APP_BUILD", "1290")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1290",
+        "date": "27.06.2026",
+        "headline": "Soltimepanel skilt ut",
+        "title": "Desktop V2 har flyttet soltime- og bildearkivpanelet ut av ModulePage",
+        "description": (
+            "Build 1290 flytter soling/enkeltimer-komponenten, inline bildebytte og bildearkiv-modal "
+            "til SunSessionsPanel.tsx. ModulePage beholder ruting, filter og overordnet modulvisning, "
+            "mens solbildelogikken er isolert i en egen komponent."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (ModulePage.tsx): bruker SunSessionsPanel for soling/enkeltimer.",
+            "Fibaro10 desktop V2 (SunSessionsPanel.tsx): ny komponent for soltimer og Axis-bildearkiv.",
+            "Buildlogg (build_log.py): registrerer build 1290.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Bildearkivlogikken er samlet i en egen komponent.",
+            "ModulePage er redusert til en mer overordnet modulcontainer.",
+            "Videre opprydding kan gjores med mindre risiko for soltimebildene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1289",
