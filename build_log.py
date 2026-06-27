@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1275")
+APP_BUILD = os.getenv("APP_BUILD", "1276")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1276",
+        "date": "27.06.2026",
+        "headline": "Sammenlignings-CSS skilt ut",
+        "title": "Desktop V2 har flyttet status-sammenligning ut av status.css",
+        "description": (
+            "Build 1276 starter CSS-splittingen av de største stilarkene. Regler for "
+            "periodesammenligning og årssammenligning er flyttet fra status.css til "
+            "status-comparison.css, mens importrekkefølgen er beholdt slik at visningen får "
+            "samme cascade som før."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (status-comparison.css): ny fil for sammenligningssidene.",
+            "Fibaro10 desktop V2 (status.css): fjerner status-comparison-regler fra hovedfilen.",
+            "Fibaro10 desktop V2 (main.tsx): importerer status-comparison.css etter status.css.",
+            "Buildlogg (build_log.py): registrerer build 1276.",
+        ],
+        "request": "Fortsett med CSS-opprydding og splitt de største stilarkene mer systematisk.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "status.css er redusert med rundt 4,6 KB.",
+            "Sammenligningssidene har fått eget stilark.",
+            "Blandede refinement-selectorer er splittet slik at statusdashboard og sammenligning ikke er koblet i samme CSS-regel.",
+        ],
+    },
     {
         "version": "1",
         "build": "1275",

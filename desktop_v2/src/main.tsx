@@ -12,6 +12,7 @@ import "./styles/layout.css";
 import "./styles/build.css";
 import "./styles/module-content.css";
 import "./styles/status.css";
+import "./styles/status-comparison.css";
 import "./styles/timelines.css";
 import "./styles/ventilation.css";
 import "./styles/energy.css";
