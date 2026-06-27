@@ -29,6 +29,12 @@ Run "python" @("-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py") $
 Write-Host "Frontend typecheck and build"
 Run $npm @("run", "check") $desktopDir
 
+Write-Host "Frontend CSS parse"
+Run $npm @("run", "parse:css") $desktopDir
+
+Write-Host "Frontend CSS audit"
+Run $npm @("run", "audit:css") $desktopDir
+
 Write-Host "Frontend UI smoke"
 Run $npm @("run", "smoke:ui") $desktopDir
 

@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1287")
+APP_BUILD = os.getenv("APP_BUILD", "1288")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1288",
+        "date": "27.06.2026",
+        "headline": "CSS-kvalitetsgate lagt til",
+        "title": "Desktop V2 parser og auditerer CSS som del av lokal sjekk",
+        "description": (
+            "Build 1288 styrker kvalitetssjekken for frontend. Alle CSS-filer parses med PostCSS "
+            "som en hard gate, og eksisterende CSS-audit kjores som rapport i check-local.ps1. "
+            "Dette skal stoppe feil som kappede selectors eller ugyldige stilark for deploy."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (parse-css.mjs): ny parser alle CSS-filer enkeltvis.",
+            "Fibaro10 desktop V2 (package.json): legger til npm-scriptet parse:css.",
+            "Deploy/test (check-local.ps1): kjorer parse:css og audit:css i standard sjekk.",
+            "Buildlogg (build_log.py): registrerer build 1288.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "CSS-parse blir en hard kvalitetsgate for deploy.",
+            "CSS-audit blir del av normal lokal rapportering.",
+            "Videre CSS- og komponentrydding kan gjores med lavere risiko.",
+        ],
+    },
     {
         "version": "1",
         "build": "1287",

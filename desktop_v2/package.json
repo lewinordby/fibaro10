@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "parse:css": "node scripts/parse-css.mjs",
     "audit:css": "node scripts/audit-css.mjs",
     "typecheck": "tsc -b",
     "build": "tsc -b && vite build",
