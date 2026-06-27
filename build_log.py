@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1268")
+APP_BUILD = os.getenv("APP_BUILD", "1269")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1269",
+        "date": "27.06.2026",
+        "headline": "Roligere Lilletorget-logo i sidebaren",
+        "title": "Desktop V2 har faatt et enklere og mer seriost logofelt",
+        "description": (
+            "Build 1269 rydder logo-/brandfeltet i venstremenyen. Kortutforming, driftssystem-brikke og "
+            "undertekst er fjernet, slik at det kun staar Lilletorget-logo/wordmark direkte paa bakgrunnen "
+            "med en diskret skillelinje under. Maalet er et roligere og mer kvalitetsorientert uttrykk."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (AppShell.tsx): fjerner undertekst og driftssystem-brikke fra BrandHome.",
+            "Fibaro10 desktop V2 (layout.css): erstatter kortpreget logoomraade med flat merkevareflate.",
+            "Buildlogg (build_log.py): registrerer build 1269.",
+        ],
+        "request": "Ta en ny runde paa logo feltet. Kun logoen og teksten Lilletorget, ikke som knapp, seriost kvalitetsuttrykk.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Logoomraadet viser kun Lilletorget-wordmark.",
+            "Kortbakgrunn, ramme, skygge, fargelinje og brikke er fjernet.",
+            "Flaten har kun diskret avstand og skillelinje mot hovedmenyen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1268",

@@ -88,8 +88,6 @@ function BrandHome({ className = "" }: { className?: string }) {
       <span className="brand-wordmark-wrap" aria-hidden="true">
         <img className="brand-wordmark" src={`/static/lilletorget-wordmark.png?v=${BRAND_ASSET_VERSION}`} alt="" />
       </span>
-      <span className="brand-subtitle">Solsenter & parkering</span>
-      <span className="brand-chip">Driftssystem</span>
     </Link>
   );
 }

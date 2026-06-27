@@ -127,6 +127,7 @@ a {
   color: #071a45;
   text-decoration: none;
   cursor: pointer;
+  border-radius: 8px;
 }
 
 .brand-home-link:hover {
@@ -134,40 +135,19 @@ a {
 }
 
 .sider-brand {
-  position: relative;
-  display: grid;
-  justify-items: start;
-  gap: 6px;
-  min-height: 108px;
-  margin: 10px 10px 6px;
-  padding: 12px 11px 11px;
-  overflow: hidden;
-  border: 1px solid #e5d5ad;
-  border-radius: 10px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 250, 239, 0.9)),
-    #ffffff;
-  box-shadow: 0 8px 24px rgba(7, 26, 69, 0.075);
-}
-
-.sider-brand::after {
-  position: absolute;
-  inset: auto 10px 0;
-  height: 3px;
-  content: "";
-  background: linear-gradient(90deg, #d29713, #2563eb, #f59e0b);
-  border-radius: 999px 999px 0 0;
+  min-height: 78px;
+  margin: 12px 14px 10px;
+  padding: 4px 0 13px;
+  border-bottom: 1px solid rgba(7, 26, 69, 0.1);
 }
 
 .sider-brand:hover {
-  border-color: #d7b25f;
-  background: #ffffff;
-  box-shadow: 0 10px 26px rgba(7, 26, 69, 0.09);
+  opacity: 0.88;
 }
 
 .brand-wordmark-wrap {
   display: block;
-  width: 164px;
+  width: 174px;
   max-width: 100%;
   padding: 0;
 }
@@ -177,31 +157,6 @@ a {
   width: 100%;
   height: auto;
   object-fit: contain;
-}
-
-.brand-subtitle {
-  overflow: hidden;
-  color: #3d4c65;
-  font-size: 11px;
-  font-weight: 760;
-  line-height: 1.12;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.brand-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 20px;
-  padding: 0 8px;
-  color: #071a45;
-  font-size: 10px;
-  font-weight: 850;
-  line-height: 1;
-  text-transform: uppercase;
-  background: linear-gradient(135deg, rgba(210, 151, 19, 0.2), rgba(37, 99, 235, 0.09));
-  border: 1px solid rgba(210, 151, 19, 0.34);
-  border-radius: 999px;
 }
 
 .sider-nav {
