@@ -9,6 +9,7 @@ import { antdTheme } from "./designTokens";
 import { queryClient } from "./queryClient";
 import "./styles/tokens.css";
 import "./styles/layout.css";
+import "./styles/app-shell.css";
 import "./styles/build.css";
 import "./styles/module-content.css";
 import "./styles/sun-sessions.css";

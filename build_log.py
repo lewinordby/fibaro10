@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1281")
+APP_BUILD = os.getenv("APP_BUILD", "1282")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1282",
+        "date": "27.06.2026",
+        "headline": "AppShell-CSS skilt ut",
+        "title": "Desktop V2 har flyttet venstremeny og toppbar til app-shell.css",
+        "description": (
+            "Build 1282 rydder i layout.css. Stiler for applikasjonsskall, venstremeny, logo/"
+            "wordmark, menyvalg, buildnummer, toppbar og brukerprofil er flyttet til app-shell.css. "
+            "layout.css beholder basisregler, globale Ant Design-justeringer og generelle sidekomponenter."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (app-shell.css): ny fil for AppShell, hovedmeny og toppbar.",
+            "Fibaro10 desktop V2 (layout.css): beholder grunnlayout, PageHeader, PeriodNavigator, tabeller og tabs.",
+            "Fibaro10 desktop V2 (main.tsx): importerer app-shell.css etter layout.css.",
+            "Buildlogg (build_log.py): registrerer build 1282.",
+        ],
+        "request": "Kjør videre trinn for trinn og gjør oppryddingen ferdig.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "layout.css er redusert betydelig og er mer generell.",
+            "Venstremeny og toppbar er samlet i eget stilark.",
+            "AppShell kan videreutvikles uten å blande seg med tabell- og sidekomponentstiler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1281",
