@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1295")
+APP_BUILD = os.getenv("APP_BUILD", "1296")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1296",
+        "date": "28.06.2026",
+        "headline": "Backendhjelpere skilt ut",
+        "title": "Fibaro10 har flyttet energi- og PDF-hjelpere ut av main.py",
+        "description": (
+            "Build 1296 starter backend-oppryddingen med lav risiko. Rene form-, filter- og "
+            "PDF-tabellhjelpere er flyttet til egne moduler, mens eksisterende energi-ruter og "
+            "API-kontrakter ligger uendret."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): redusert ved aa flytte ut energi- og PDF-hjelpere.",
+            "Fibaro10 backend (energy_helpers.py): ny modul for energi-formverdier, solsengfilter og URL-hjelper.",
+            "Fibaro10 backend (pdf_exports.py): ny modul for generering av enkle tabell-PDF-er.",
+            "Buildlogg (build_log.py): registrerer build 1296.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "main.py har mindre blanding av ruting og generelle hjelpefunksjoner.",
+            "Energiens kurs- og last-PDF-er bruker samme logikk via ny PDF-modul.",
+            "Endringen er bevisst avgrenset til lavrisiko kode uten databaseeierskap.",
+        ],
+    },
     {
         "version": "1",
         "build": "1295",
