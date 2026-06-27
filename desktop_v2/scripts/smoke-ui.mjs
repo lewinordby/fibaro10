@@ -67,6 +67,34 @@ const moduleResponse = {
   tables: [{ title: "Rader", columns: ["date", "title"], rows: [{ date: "2026-06-10", title: "Smoke row" }] }],
 };
 
+const moduleTitles = {
+  admin: "Admin",
+  energi: "Energi",
+  lys: "Lys",
+  omsetning: "Omsetning",
+  parkering: "Parkering",
+  renhold: "Renhold",
+  soling: "Soling",
+  ventilasjon: "Ventilasjon",
+};
+
+function modulePayload(url) {
+  const [, , , module, view = "oversikt"] = url.pathname.split("/");
+  const title = moduleTitles[module] || moduleResponse.title;
+  return {
+    ...moduleResponse,
+    title,
+    subtitle: `Smoke ${view}`,
+    tables: [
+      {
+        title: `${title} rader`,
+        columns: ["date", "title"],
+        rows: [{ date: "2026-06-10", title: `${title} smoke row` }],
+      },
+    ],
+  };
+}
+
 const server = http.createServer((request, response) => {
   const url = new URL(request.url || "/", baseUrl);
   if (url.pathname === "/api/auth/me") {
@@ -92,7 +120,7 @@ const server = http.createServer((request, response) => {
       fanItems: [],
     });
   }
-  if (url.pathname.startsWith("/api/modules/")) return sendJson(response, moduleResponse);
+  if (url.pathname.startsWith("/api/modules/")) return sendJson(response, modulePayload(url));
   return sendStatic(request, response).catch((error) => {
     response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
     response.end(String(error?.stack || error));
@@ -111,6 +139,13 @@ async function expectVisible(page, text) {
   await page.getByText(text, { exact: false }).first().waitFor({ timeout: 8000 });
 }
 
+async function smokeRoute(page, route, expectedTexts) {
+  await page.goto(`${baseUrl}${route}`, { waitUntil: "load" });
+  for (const text of expectedTexts) {
+    await expectVisible(page, text);
+  }
+}
+
 async function run() {
   await fs.access(path.join(distDir, "index.html"));
   await listen();
@@ -125,15 +160,22 @@ async function run() {
       }
     });
 
-    await page.goto(`${baseUrl}/admin/build`, { waitUntil: "load" });
-    await expectVisible(page, "Smoke-test build");
-    await expectVisible(page, "Build");
+    await smokeRoute(page, "/admin/build", ["Smoke-test build", "Build"]);
 
-    await page.goto(`${baseUrl}/soling/oversikt`, { waitUntil: "load" });
-    await expectVisible(page, "Soling");
-    await expectVisible(page, "I dag");
-    await expectVisible(page, "Ukesutvikling");
-    await expectVisible(page, "Smoke row");
+    const routes = [
+      ["/status/oversikt", ["Status", "Datakilder"]],
+      ["/omsetning/oversikt", ["Omsetning", "I dag", "Omsetning smoke row"]],
+      ["/parkering/oversikt", ["Parkering", "I dag", "Parkering smoke row"]],
+      ["/soling/oversikt", ["Soling", "I dag", "Soling smoke row"]],
+      ["/energi/status", ["Energi", "I dag", "Energi smoke row"]],
+      ["/ventilasjon/dagslogg", ["Ventilasjon", "I dag", "Ventilasjon smoke row"]],
+      ["/lys/dagslogg", ["Lys", "I dag", "Lys smoke row"]],
+      ["/renhold/oversikt", ["Renhold", "I dag", "Renhold smoke row"]],
+      ["/admin/brukere", ["Admin", "I dag", "Admin smoke row"]],
+    ];
+    for (const [route, expectedTexts] of routes) {
+      await smokeRoute(page, route, expectedTexts);
+    }
 
     if (errors.length) {
       throw new Error(`Browser console errors:\n${errors.join("\n")}`);

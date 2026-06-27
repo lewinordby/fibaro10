@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1296")
+APP_BUILD = os.getenv("APP_BUILD", "1297")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1297",
+        "date": "28.06.2026",
+        "headline": "UI smoke utvidet",
+        "title": "Desktop V2 tester flere hovedsider automatisk ved lokal sjekk og deploy",
+        "description": (
+            "Build 1297 utvider Playwright smoke-testen. Den sjekker naa status, omsetning, "
+            "parkering, soling, energi, ventilasjon, lys, renhold, admin og buildlogg med mocket "
+            "API-data. Dette fanger flere brutte ruter og renderfeil for hver build."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (smoke-ui.mjs): utvidet mocket API og rutesjekk.",
+            "Fibaro10 sjekk/deploy: eksisterende check-local og deploy kjører den utvidede smoke-testen.",
+            "Buildlogg (build_log.py): registrerer build 1297.",
+        ],
+        "request": "Gjor alt dette trinn for trinn slik at det blir klart.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Flere hovedmenyvalg blir automatisk validert.",
+            "Smoke-testen bruker fortsatt lokal dist og mocket API, saa den er rask og stabil.",
+            "Meny/brand, buildlogg og generiske modulflater har bedre regresjonsdekning.",
+        ],
+    },
     {
         "version": "1",
         "build": "1296",
