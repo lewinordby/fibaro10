@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1271")
+APP_BUILD = os.getenv("APP_BUILD", "1272")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1272",
+        "date": "27.06.2026",
+        "headline": "V2-navnetekster flyttet ut av main.py",
+        "title": "Backend har skilt V2-navnegrunnlag fra hovedlogikken",
+        "description": (
+            "Build 1272 fortsetter teknisk opprydding ved å flytte V2-modulnavn, sidenavn og "
+            "tittelbygging ut av main.py og inn i en egen v2_navigation-modul. Dette gjør "
+            "hovedfila mindre, reduserer duplisering og gjør videre meny-/tekstendringer tryggere."
+        ),
+        "applications": [
+            "Fibaro10 backend (v2_navigation.py): ny modul for V2-modulnavn, sidenavn og tittelbygging.",
+            "Fibaro10 backend (main.py): importerer felles tittelbygger i stedet for å eie V2-navneordbok.",
+            "Buildlogg (build_log.py): registrerer build 1272.",
+        ],
+        "request": "Fortsett på gjøremålslisten og gjennomfør foreslått teknisk opprydding.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "V2-navnegrunnlaget ligger nå samlet i v2_navigation.py.",
+            "main.py er redusert og slipper egen meny-/sidetittelordbok.",
+            "Ingen ruter, API-kontrakter eller synlig menyoppførsel er endret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1271",
