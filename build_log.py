@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1269")
+APP_BUILD = os.getenv("APP_BUILD", "1270")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1270",
+        "date": "27.06.2026",
+        "headline": "Dashboard inn i venstremenyen",
+        "title": "Desktop V2 har fjernet Hjem fra toppbar og lagt Dashboard øverst i hovedmenyen",
+        "description": (
+            "Build 1270 rydder videre i appnavigasjonen. Hjem-knappen i toppbaren er fjernet, og Dashboard "
+            "er lagt inn som første faste valg i venstremenyen. Dashboard peker til statusoversikten og bruker "
+            "statusfargen, slik at startsiden er tilgjengelig som en normal del av hovedmenyen."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (appNavigation.tsx): legger Dashboard/status inn som første hovedmenypunkt.",
+            "Fibaro10 desktop V2 (AppShell.tsx): fjerner Hjem-lenken fra toppbaren og håndterer gruppe uten overskrift.",
+            "Fibaro10 desktop V2 (layout.css): fjerner CSS for den gamle Hjem-knappen.",
+            "Buildlogg (build_log.py): registrerer build 1270.",
+        ],
+        "request": "Fjern Hjem-knapp i menyen og legg Dashboard øverst i venstremeny.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoering",
+        "changes": [
+            "Dashboard ligger nå øverst i venstremenyen.",
+            "Toppbaren har ikke lenger egen Hjem-knapp.",
+            "Gammel CSS for header-home-link er fjernet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1269",

@@ -3,6 +3,7 @@ import {
   BulbOutlined,
   CalendarOutlined,
   CarOutlined,
+  DashboardOutlined,
   ExperimentOutlined,
   MobileOutlined,
   SettingOutlined,
@@ -20,6 +21,7 @@ export type MainNavigationModule = {
 };
 
 const mainModules: MainNavigationModule[] = [
+  { module: "status", icon: <DashboardOutlined />, label: "Dashboard", color: "var(--domain-status)" },
   { module: "omsetning", icon: <BarChartOutlined />, label: "Omsetning", color: "var(--domain-revenue)" },
   { module: "parkering", icon: <CarOutlined />, label: "Parkering", color: "var(--domain-parking)" },
   { module: "soling", icon: <CalendarOutlined />, label: "Soling", color: "var(--domain-sun2)" },
@@ -32,9 +34,10 @@ const mainModules: MainNavigationModule[] = [
 ];
 
 export const mainModuleGroups = [
-  { label: "Økonomi", modules: mainModules.slice(0, 3) },
-  { label: "Bygg og drift", modules: mainModules.slice(3, 7) },
-  { label: "System", modules: mainModules.slice(7) },
+  { label: "", modules: mainModules.slice(0, 1) },
+  { label: "Økonomi", modules: mainModules.slice(1, 4) },
+  { label: "Bygg og drift", modules: mainModules.slice(4, 8) },
+  { label: "System", modules: mainModules.slice(8) },
 ];
 
 export function selectedMainModuleKey(pathname: string): string {

@@ -1,5 +1,4 @@
 import {
-  HomeOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -95,9 +94,9 @@ function BrandHome({ className = "" }: { className?: string }) {
 function SideNavigation({ activeKey }: { activeKey: string }) {
   return (
     <nav className="sider-nav" aria-label="Hovedmeny">
-      {mainModuleGroups.map((group) => (
-        <section className="sider-nav-group" key={group.label}>
-          <div className="sider-nav-label">{group.label}</div>
+      {mainModuleGroups.map((group, index) => (
+        <section className="sider-nav-group" key={group.label || `group-${index}`}>
+          {group.label ? <div className="sider-nav-label">{group.label}</div> : null}
           <div className="sider-nav-list">
             {group.modules.map((item) => {
               const path = modulePath(item.module);
@@ -164,10 +163,6 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
               aria-label={menuHidden ? "Vis hovedmeny" : "Skjul hovedmeny"}
               title={menuHidden ? "Vis hovedmeny" : "Skjul hovedmeny"}
             />
-            <Link className="header-home-link" to={modulePath("status", "oversikt")} aria-label="Gå til statusoversikt">
-              <HomeOutlined />
-              <span>Hjem</span>
-            </Link>
           </div>
           <div className="app-header-main">
             {module && viewItems.length > 1 ? (

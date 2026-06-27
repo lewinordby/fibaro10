@@ -336,27 +336,6 @@ a {
   background: #f8fafc !important;
 }
 
-.header-home-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 34px;
-  padding: 0 10px;
-  color: color-mix(in srgb, var(--active-module-color) 58%, #42526b);
-  font-size: 12px;
-  font-weight: 780;
-  text-decoration: none;
-  border: 1px solid #dbe3ee;
-  border-radius: var(--radius-md);
-  background: #ffffff;
-}
-
-.header-home-link:hover {
-  color: #071a45;
-  border-color: color-mix(in srgb, var(--active-module-color) 28%, #cbd5e1);
-  background: color-mix(in srgb, var(--active-module-color) 10%, #ffffff);
-}
-
 .profile-button {
   display: inline-flex;
   align-items: center;
