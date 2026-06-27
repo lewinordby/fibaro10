@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1286")
+APP_BUILD = os.getenv("APP_BUILD", "1287")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1287",
+        "date": "27.06.2026",
+        "headline": "Status-CSS cascade rettet",
+        "title": "Desktop V2 har rettet splitten mellom status-overview.css og status-widgets.css",
+        "description": (
+            "Build 1287 retter status-CSS-splitten slik at ingen selector blir kappet mellom to filer. "
+            "Oversiktssidens spesifikke kommando- og mediaregler ligger i status-overview.css, mens "
+            "status-widgets.css starter med globale basisregler for dashboard-widgetene."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (status-overview.css): komplett oversiktsside-CSS uten kappede selectors.",
+            "Fibaro10 desktop V2 (status-widgets.css): ren basisfil for status-widgeter.",
+            "Buildlogg (build_log.py): registrerer build 1287.",
+        ],
+        "request": "Kjor videre trinn for trinn og gjor oppryddingen ferdig.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kappede status-summary selectors er samlet tilbake i riktig fil.",
+            "Importrekkefolgen kan brukes uten implicit CSS-sammensying.",
+            "Videre CSS-splitt kan gjores fra en ryddig baseline.",
+        ],
+    },
     {
         "version": "1",
         "build": "1286",
