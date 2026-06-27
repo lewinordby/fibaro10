@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1285")
+APP_BUILD = os.getenv("APP_BUILD", "1286")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1286",
+        "date": "27.06.2026",
+        "headline": "Status-widget-CSS skilt ut",
+        "title": "Desktop V2 har flyttet statusdashboardets basisregler til status-widgets.css",
+        "description": (
+            "Build 1286 retter og rydder cascade for statusdashboardet. Basisregler for statussummary, "
+            "kommando-striper, periodekort, stottekort, hendelser og datakilder er flyttet til "
+            "status-widgets.css. status-overview.css ligger etterpaa og inneholder bare oversiktssidens "
+            "egne layoutoverstyringer."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (status-widgets.css): ny fil for dashboardets status-widgeter.",
+            "Fibaro10 desktop V2 (status-overview.css): redusert til oversiktssidens spesifikke layout.",
+            "Fibaro10 desktop V2 (main.tsx): importerer status-widgets.css for status-overview.css.",
+            "Buildlogg (build_log.py): registrerer build 1286.",
+        ],
+        "request": "Kjor videre trinn for trinn og gjor oppryddingen ferdig.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Cascade for statusdashboardet er gjort mer robust.",
+            "status-overview.css er tilbake til kun side-spesifikk layout.",
+            "Basisreglene kan vedlikeholdes separat fra oversiktssidens overstyringer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1285",
