@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1280")
+APP_BUILD = os.getenv("APP_BUILD", "1281")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1281",
+        "date": "27.06.2026",
+        "headline": "Tidslinje-CSS delt",
+        "title": "Desktop V2 har delt soling- og parkeringstidslinjer i egne stilark",
+        "description": (
+            "Build 1281 fjerner den gamle samlefilen timelines.css. Soling/dagslinje er flyttet "
+            "til sun-timeline.css, mens parkering/belegg er flyttet til parking-timeline.css. "
+            "Små refinement-regler er lagt i samme domene som resten av tidslinjen."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (sun-timeline.css): egen fil for soling/dagslinje.",
+            "Fibaro10 desktop V2 (parking-timeline.css): egen fil for parkering/belegg.",
+            "Fibaro10 desktop V2 (main.tsx): erstatter timelines.css-importen med de to nye stilarkene.",
+            "Buildlogg (build_log.py): registrerer build 1281.",
+        ],
+        "request": "Kjør videre trinn for trinn og gjør oppryddingen ferdig.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tidslinjestiler er nå delt etter funksjonsområde.",
+            "Samlefila timelines.css er fjernet.",
+            "Soling og parkering kan justeres videre hver for seg uten å påvirke den andre tidslinjen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1280",
