@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1284")
+APP_BUILD = os.getenv("APP_BUILD", "1285")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1285",
+        "date": "27.06.2026",
+        "headline": "Oppgjorsdetalj-CSS skilt ut",
+        "title": "Desktop V2 har flyttet originalskjema og leste verdier til settlement-detail.css",
+        "description": (
+            "Build 1285 rydder videre i oppgjorsstilene. PDF/originalvisning, leste verdier, "
+            "sumkontroll, filfakta og detaljsidens rapporthode er flyttet fra records-settlements.css "
+            "til settlement-detail.css. records-settlements.css beholder liste- og felles kontrollregler."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (settlement-detail.css): ny fil for oppgjorets detalj- og originalvisning.",
+            "Fibaro10 desktop V2 (records-settlements.css): redusert til oppgjorslister og felles kontroller.",
+            "Fibaro10 desktop V2 (main.tsx): importerer settlement-detail.css etter records-settlements.css.",
+            "Buildlogg (build_log.py): registrerer build 1285.",
+        ],
+        "request": "Kjor videre trinn for trinn og gjor oppryddingen ferdig.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Detaljsidens PDF/originalskjema ligger i eget stilark.",
+            "Oppgjorsliste-CSS er mer konsentrert om lister og kontrollfelter.",
+            "Felles topptekstregler er splittet mellom liste- og detaljvisning.",
+        ],
+    },
     {
         "version": "1",
         "build": "1284",
