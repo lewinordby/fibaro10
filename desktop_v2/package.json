@@ -11,6 +11,7 @@
     "build": "tsc -b && vite build",
     "check": "npm run typecheck && vite build",
     "smoke:ui": "node scripts/smoke-ui.mjs",
+    "smoke:live": "node scripts/smoke-live.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {

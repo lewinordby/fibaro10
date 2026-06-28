@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1299")
+APP_BUILD = os.getenv("APP_BUILD", "1300")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1300",
+        "date": "28.06.2026",
+        "headline": "Live smoke mot QNAP",
+        "title": "Desktop V2 har faatt en separat live-smoke for QNAP-installasjonen",
+        "description": (
+            "Build 1300 legger til en manuell Playwright-basert live-smoke. Den sjekker alltid "
+            "QNAP sin /health, og kan i tillegg gaa gjennom viktige innloggede sider naar "
+            "FIBARO10_LIVE_USERNAME og FIBARO10_LIVE_PASSWORD er satt. Standard lokal sjekk og deploy "
+            "er ikke gjort avhengig av innloggingsdata."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (smoke-live.mjs): ny live-smoke mot aktiv QNAP-installasjon.",
+            "Fibaro10 desktop V2 (package.json): ny npm-kommando smoke:live.",
+            "Buildlogg (build_log.py): registrerer build 1300.",
+        ],
+        "request": "fortsett med det",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "QNAP health kan sjekkes direkte fra frontend-toolchainen.",
+            "Innlogget smoke kan aktiveres uten aa hardkode brukernavn eller passord.",
+            "Automatisk deploy forblir stabil selv om live-miljoet mangler testcredentials.",
+        ],
+    },
     {
         "version": "1",
         "build": "1299",
