@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1306")
+APP_BUILD = os.getenv("APP_BUILD", "1307")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1307",
+        "date": "28.06.2026",
+        "headline": "Mer robust Docker-build",
+        "title": "Docker-builden har faatt npm-retry for aa ta bedre hoyde for nettbrudd paa QNAP",
+        "description": (
+            "Build 1307 gjoer deployen mer robust etter at QNAP-builden feilet i npm ci med ECONNRESET. "
+            "Frontend-builderen setter naa eksplisitte npm fetch-retries og lengre retry-timeouts for aa "
+            "redusere risikoen for at korte nettbrudd stopper deploy."
+        ),
+        "applications": [
+            "Fibaro10 Dockerfile: npm ci kjorer med fetch-retries og lengre retry-timeouts.",
+            "Buildlogg (build_log.py): registrerer build 1307.",
+        ],
+        "request": "fortsett aa forbedre",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "QNAP-deploy er mindre saarbar for midlertidige npm-nettverksbrudd.",
+            "Ingen funksjonell endring i app eller API.",
+        ],
+    },
     {
         "version": "1",
         "build": "1306",
