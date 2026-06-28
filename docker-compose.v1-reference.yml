@@ -1,0 +1,22 @@
+services:
+  fibaro10_v1:
+    build:
+      context: ./v1_reference
+    image: fibaro10-v1-reference
+    container_name: fibaro10_v1
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      APP_BUILD: ${APP_BUILD:-v1-reference}
+      V1_SOURCE_COMMIT: ${V1_SOURCE_COMMIT:-487044d}
+      V1_REFERENCE_PORT: "8111"
+    ports:
+      - "192.168.20.218:8111:8111"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8111/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

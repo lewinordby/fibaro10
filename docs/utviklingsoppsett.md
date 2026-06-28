@@ -68,6 +68,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 
 `desktop_v2/scripts/smoke-live.mjs` sjekker alltid QNAP `/health`. Hvis `.env.live-smoke` finnes, logger den i tillegg inn med `fibaro-smoke` og gaar gjennom alle desktop-rutene som ogsaa brukes av lokal UI-smoke. Deploy-scriptet kjorer denne live-smoken automatisk etter vanlig smoke.
 
+## V1-referanse
+
+V1 paa port `8111` er naa en frakoblet referansevisning, ikke en gammel live-app mot produksjonsdatabasen.
+
+- Adresse: `http://192.168.20.218:8111`
+- Container: `fibaro10_v1`
+- Compose-fil: `docker-compose.v1-reference.yml`
+- Appkode: `v1_reference/`
+- Kildecommit for meny/funksjoner: `487044d`
+
+Referansen viser V1-menyen og forklarer hva de gamle sidene gjorde. Den bruker ikke `.env`, database, HC3, EasyPark, Sun2, Yr, Roborock eller andre datakilder. Dette er valgt fordi den gamle V1-appen kunne henge seg paa tunge lesesider, og fordi formaalet naa bare er aa sammenligne funksjonalitet.
+
+Deploy/oppdater referansen slik:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap-v1-history.ps1
+```
+
 ## Produksjon
 
 - QNAP: `192.168.20.218`

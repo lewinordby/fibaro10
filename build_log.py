@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1311")
+APP_BUILD = os.getenv("APP_BUILD", "1312")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1312",
+        "date": "28.06.2026",
+        "headline": "V1 frakoblet datakilder",
+        "title": "Fibaro10 V1 er gjort om til en isolert funksjonsreferanse uten live datakilder",
+        "description": (
+            "Build 1312 kobler V1-porten fra produksjonsdatabasen og eksterne datakilder. I stedet "
+            "serveres en egen referanseapp paa port 8111 som viser V1-menyen, gamle ruter og hva slags "
+            "funksjonalitet sidene hadde. Dette fjerner risikoen for at gammel V1-kode henger seg paa "
+            "tunge lesesider, samtidig som den fortsatt kan brukes som sammenligningsgrunnlag."
+        ),
+        "applications": [
+            "Fibaro10 V1-referanse (v1_reference): ny isolert app uten database eller eksterne kilder.",
+            "QNAP V1-compose (docker-compose.v1-reference.yml): kjører fibaro10_v1 paa port 8111 som referanse.",
+            "V1 deploy (deploy-qnap-v1-history.ps1): bygger og starter frakoblet referanseapp.",
+            "Lokal kvalitetssjekk (check-local.ps1): inkluderer syntakskontroll av V1-referanseappen.",
+            "Dokumentasjon (docs/utviklingsoppsett.md): beskriver nytt V1-oppsett.",
+            "Buildlogg (build_log.py): registrerer build 1312.",
+        ],
+        "request": "du kan egentlig koble den ifra datakilder men jeg vil ha mulighet til aa se hva slags funksjonalitet den hadde",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Port 8111 viser historisk V1-funksjonalitet uten aa lese eller skrive produksjonsdata.",
+            "V1 referansen viser meny, ruter, formaal, funksjoner og hvilke kilder sidene opprinnelig brukte.",
+            "Gammel V1-container erstattes av en trygg referansecontainer med samme navn og port.",
+        ],
+    },
     {
         "version": "1",
         "build": "1311",
