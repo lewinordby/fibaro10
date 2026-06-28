@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1336")
+APP_BUILD = os.getenv("APP_BUILD", "1337")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1337",
+        "date": "28.06.2026",
+        "headline": "Antallsdashboard for parkering og soling",
+        "title": "Dashboard > Parkering og Dashboard > Soling får periodkort med antall som hovedfokus",
+        "description": (
+            "Build 1337 bygger om parkering- og soling-dashboardene slik at de følger samme 2x2-periodestruktur som "
+            "omsetningsdashboardet, men med antall som hovedtall. Kortene viser i dag, uke, måned og år, sammenligner "
+            "mot relevante referanseperioder og bruker beløp/snitt som støtteinfo i stedet for hovedfokus."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): legger til felles antallskort for parkering og soling basert på statusPeriods-data.",
+            "Desktop v2 CSS (status-periods.css): legger til visuell stil for antallsdashboardene med domain-farger for parkering og soling.",
+            "Buildlogg (build_log.py): registrerer build 1337.",
+        ],
+        "request": "Lag tilsvarende dashboard for parkering og soling, men fokusert på antall.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Parkering-dashboardet viser nå fire like antallskort for i dag, uke, måned og år.",
+            "Soling-dashboardet viser nå fire like antallskort for i dag, uke, måned og år.",
+            "Kortene sammenligner antall mot forrige periode og relevant fjorårs-/uke-referanse der data finnes.",
+            "Beløp og snitt vises som støtteinfo, ikke som hovedtall.",
+            "Sammenligningskortene åpner eksisterende periodesammenligning i antallsmodus.",
+        ],
+    },
     {
         "version": "1",
         "build": "1336",

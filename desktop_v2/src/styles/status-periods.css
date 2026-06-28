@@ -69,6 +69,56 @@
   white-space: nowrap;
 }
 
+.activity-period-card {
+  --activity-color: var(--tone-color, var(--domain-status));
+  min-height: 312px;
+}
+
+.activity-period-card::before {
+  background: var(--activity-color);
+}
+
+.activity-period-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 15px;
+  align-items: start;
+}
+
+.activity-period-head > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.activity-period-head em {
+  overflow: hidden;
+  color: var(--text-subtle);
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 620;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-period-head > strong {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 32px;
+  font-weight: 880;
+  line-height: 0.95;
+  white-space: nowrap;
+}
+
+.activity-period-head > strong span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 780;
+}
+
 .revenue-period-compare-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -110,6 +160,10 @@
 
 .revenue-period-compare-pill .revenue-period-delta {
   grid-area: delta;
+}
+
+.activity-compare-pill {
+  border-color: color-mix(in srgb, var(--activity-color) 18%, var(--border-control));
 }
 
 .revenue-period-direction {
@@ -376,6 +430,48 @@
   color: var(--text-label);
 }
 
+.activity-period-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--activity-color) 12%, var(--border-control));
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.activity-period-detail-grid > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 11px;
+  border-right: 1px solid var(--border-panel-soft);
+}
+
+.activity-period-detail-grid > div:last-child {
+  border-right: 0;
+}
+
+.activity-period-detail-grid span {
+  overflow: hidden;
+  color: var(--text-subtle);
+  font-size: 10px;
+  font-weight: 840;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.activity-period-detail-grid strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 840;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .revenue-driver-total {
   padding: 9px 11px;
   background: #fbfcff;
@@ -470,6 +566,10 @@
   color: var(--text-label);
 }
 
+.activity-period-reference {
+  border-color: color-mix(in srgb, var(--activity-color) 14%, var(--border-control));
+}
+
 .status-period-basis {
   display: flex;
   align-items: center;
@@ -499,6 +599,10 @@
   white-space: nowrap;
 }
 
+.activity-period-basis {
+  border-left-color: var(--tone-color);
+}
+
 @media (max-width: 1380px) {
   .revenue-driver-head,
   .revenue-driver-row,
@@ -513,6 +617,10 @@
 
   .revenue-period-head > strong {
     font-size: 28px;
+  }
+
+  .activity-period-head > strong {
+    font-size: 29px;
   }
 }
 
@@ -530,12 +638,30 @@
   }
 
   .revenue-period-head,
+  .activity-period-head,
   .revenue-period-compare-grid {
     grid-template-columns: 1fr;
   }
 
   .revenue-period-head > strong {
     font-size: 28px;
+  }
+
+  .activity-period-head > strong {
+    font-size: 28px;
+  }
+
+  .activity-period-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-period-detail-grid > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-panel-soft);
+  }
+
+  .activity-period-detail-grid > div:last-child {
+    border-bottom: 0;
   }
 
   .revenue-driver-head {

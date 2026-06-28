@@ -193,10 +193,6 @@ function referenceLabel(fullLabel: string | undefined, fallback: string) {
   return source ? `${source.charAt(0).toUpperCase()}${source.slice(1)}` : fallback;
 }
 
-function groupCards(cards: MetricCardData[], group: string) {
-  return cards.filter((card) => card.group === group);
-}
-
 function latestByLabel(items: LatestItem[], labels: string[]) {
   const normalizedLabels = labels.map((label) => label.toLowerCase());
   return items.filter((item) => normalizedLabels.some((label) => item.label.toLowerCase().includes(label)));
@@ -296,6 +292,57 @@ type PeriodDriver = {
   key: RevenueLineKey;
   tone: "positive" | "negative" | "neutral";
   label: string;
+};
+
+type ActivityDashboardKind = "parking" | "sun2";
+
+type ActivityDashboardConfig = {
+  kind: ActivityDashboardKind;
+  title: string;
+  pluralTitle: string;
+  periodPrefix: string;
+  lineLabel: string;
+  tone: string;
+  amountLabel: string;
+  comparisonPath: string;
+  asOf: (period: StatusPeriod) => string;
+  count: (period: StatusPeriod | StatusPeriodComparison) => number;
+  amount: (period: StatusPeriod | StatusPeriodComparison) => number;
+  fullCount: (comparison: StatusPeriodComparison) => number | undefined;
+  fullAmount: (comparison: StatusPeriodComparison) => number | undefined;
+};
+
+const ACTIVITY_DASHBOARDS: Record<ActivityDashboardKind, ActivityDashboardConfig> = {
+  parking: {
+    kind: "parking",
+    title: "Parkering",
+    pluralTitle: "Parkeringer",
+    periodPrefix: "Parkeringer",
+    lineLabel: "Parkering",
+    tone: "parking",
+    amountLabel: "Innbetalt",
+    comparisonPath: "/parkering/sammenligning",
+    asOf: (period) => period.parkingAsOfLabel,
+    count: (period) => period.parkingCount,
+    amount: (period) => period.parking,
+    fullCount: (comparison) => comparison.fullParkingCount,
+    fullAmount: (comparison) => comparison.fullParking,
+  },
+  sun2: {
+    kind: "sun2",
+    title: "Soling",
+    pluralTitle: "Solinger",
+    periodPrefix: "Solinger",
+    lineLabel: "Soling",
+    tone: "sun2",
+    amountLabel: "Omsetning",
+    comparisonPath: "/soling/sammenligning",
+    asOf: (period) => period.solAsOfLabel,
+    count: (period) => period.solCount,
+    amount: (period) => period.sol,
+    fullCount: (comparison) => comparison.fullSolCount,
+    fullAmount: (comparison) => comparison.fullSol,
+  },
 };
 
 function buildComparisonViews(period: StatusPeriod): PeriodComparisonView[] {
@@ -627,6 +674,144 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
   );
 }
 
+function signedCount(value: number) {
+  if (!Number.isFinite(value) || value === 0) return "0 stk";
+  return `${value > 0 ? "+" : "-"}${Math.abs(Math.round(value))} stk`;
+}
+
+function averageKrPerCount(amount: number, count: number) {
+  if (!Number.isFinite(amount) || !Number.isFinite(count) || count <= 0) return "-";
+  return `${nok(amount / count)} kr`;
+}
+
+function activityPeriodDisplayTitle(period: StatusPeriod, config: ActivityDashboardConfig) {
+  if (period.key === "today") return `${config.periodPrefix} hittil i dag`;
+  if (period.key === "week") return `${config.periodPrefix} hittil denne uken`;
+  if (period.key === "month") return `${config.periodPrefix} hittil denne måneden`;
+  if (period.key === "year") return `${config.periodPrefix} hittil i år`;
+  return `${config.periodPrefix} hittil: ${period.title}`;
+}
+
+function activityComparisonPath(config: ActivityDashboardConfig, periodKey: string, comparisonKey: string) {
+  if (periodKey === "year") return config.comparisonPath;
+  return `/status/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}&metric=count`;
+}
+
+function activityFullReferenceGap(currentCount: number, fullCount: number) {
+  const gap = fullCount - currentCount;
+  if (!Number.isFinite(gap) || gap === 0) return "Lik";
+  if (gap > 0) return `Gjenstår ${Math.round(gap)} stk`;
+  return `Over ${Math.abs(Math.round(gap))} stk`;
+}
+
+function CountDeltaValue({
+  current,
+  reference,
+  className,
+}: {
+  current: number;
+  reference: number;
+  className?: string;
+}) {
+  const percent = percentDelta(current, reference);
+  const state = deltaClass(current, reference);
+  return (
+    <div className={`revenue-period-delta ${state}${className ? ` ${className}` : ""}`}>
+      <strong>{signedCount(current - reference)}</strong>
+      {percent ? <span>({percent})</span> : null}
+    </div>
+  );
+}
+
+function ActivityPeriodCard({ period, config }: { period: StatusPeriod; config: ActivityDashboardConfig }) {
+  const comparisons = buildComparisonViews(period).slice(0, 2).map((item) => ({
+    ...item,
+    path: activityComparisonPath(config, period.key, item.comparisonKey),
+  }));
+  const count = config.count(period);
+  const amount = config.amount(period);
+
+  return (
+    <Card className={`status-period-card revenue-period-card activity-period-card tone-${config.tone}`}>
+      <div className="activity-period-head">
+        <div>
+          <span className="revenue-period-title">{activityPeriodDisplayTitle(period, config)}</span>
+          <em>Per {config.asOf(period)}</em>
+        </div>
+        <strong>
+          {Math.round(count)}
+          <span>stk</span>
+        </strong>
+      </div>
+
+      <div className={`revenue-period-compare-grid ${comparisons.length < 2 ? "single" : ""}`} aria-label="Antall sammenlignet med referanser">
+        {comparisons.map((item) => {
+          const referenceCount = config.count(item.comparison);
+          return (
+            <Link className="revenue-period-compare-pill activity-compare-pill" to={item.path} key={item.comparisonKey}>
+              <span>{periodTopComparisonLabel(period, item)}</span>
+              <CountDeltaValue current={count} reference={referenceCount} />
+              <DirectionIcon currentAmount={count} referenceAmount={referenceCount} />
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="activity-period-detail-grid">
+        <div>
+          <span>{config.lineLabel}</span>
+          <strong>{Math.round(count)} stk</strong>
+        </div>
+        <div>
+          <span>{config.amountLabel}</span>
+          <strong>{nok(amount)} kr</strong>
+        </div>
+        <div>
+          <span>Snitt</span>
+          <strong>{averageKrPerCount(amount, count)}</strong>
+        </div>
+      </div>
+
+      <div className="revenue-period-full-card activity-period-reference">
+        <span className={`revenue-driver-icon tone-${config.tone}`}>
+          {config.kind === "sun2" ? <LogoSunIcon /> : <LogoParkingIcon />}
+        </span>
+        <div>
+          <strong>{periodReferenceTitle(period)}</strong>
+          <div className="revenue-period-full-items">
+            {comparisons.map((item) => {
+              const currentCount = count;
+              const fullCount = comparisonAmount(config.fullCount(item.comparison), config.count(item.comparison));
+              const fullAmount = comparisonAmount(config.fullAmount(item.comparison), config.amount(item.comparison));
+              return (
+                <Link className="revenue-period-full-item" key={item.comparisonKey} to={item.path}>
+                  <span>
+                    {periodFullReferenceLabel(period.key, item)}: {Math.round(fullCount)} stk / {nok(fullAmount)} kr
+                  </span>
+                  <em className={fullReferenceGapClass(currentCount, fullCount)}>
+                    {activityFullReferenceGap(currentCount, fullCount)}
+                  </em>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function ActivityDataBasis({ period, config }: { period?: StatusPeriod; config: ActivityDashboardConfig }) {
+  if (!period) return null;
+  return (
+    <div className={`status-period-basis activity-period-basis tone-${config.tone}`} aria-label={`Datagrunnlag for ${config.title.toLowerCase()}`}>
+      <span>Datagrunnlag</span>
+      <strong>{config.title} {config.asOf(period)}</strong>
+      <strong>Beløp brukes kun som støtteinfo</strong>
+    </div>
+  );
+}
+
 function RevenueDataBasis({ period }: { period?: StatusPeriod }) {
   if (!period) return null;
   return (
@@ -804,8 +989,6 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
   const overview = data;
   const view = DASHBOARD_CONFIG[dashboard] ? dashboard : "omsetning";
   const supportCards = overview.cards.filter(isOverviewSupportCard);
-  const parkingCards = groupCards(overview.cards, "Parkering");
-  const sunCards = groupCards(overview.cards, "Soling");
   const overviewServices = sortedDatasources(overview.services);
   const overviewSourceCounts = datasourceCounts(overviewServices);
   const updatedAt = new Date(overview.generatedAt).toLocaleString("nb-NO");
@@ -831,40 +1014,39 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
     );
   }
 
-  function renderParkingDashboard() {
+  function renderActivityDashboard(kind: ActivityDashboardKind) {
+    const config = ACTIVITY_DASHBOARDS[kind];
+    const basis = overview.statusPeriods.find((period) => period.key === "today") ?? overview.statusPeriods[0];
+    const latestLabels = kind === "parking" ? ["parkering"] : ["soling"];
+
     return (
       <>
-        <StatusSection title="Parkering" detail="Dagens parkering og sammenligning mot forrige uke">
-          <SupportMetricStrip cards={parkingCards} />
+        <StatusSection title={config.title} detail={`Antall ${config.pluralTitle.toLowerCase()} i dag, uke, måned og år`}>
+          <ActivityDataBasis period={basis} config={config} />
+          <div className="status-period-grid">
+            {overview.statusPeriods.map((period) => (
+              <ActivityPeriodCard period={period} config={config} key={`${config.kind}-${period.key}`} />
+            ))}
+          </div>
         </StatusSection>
         <div className="status-info-grid">
-          <OverviewInfoPanel title="Siste parkering">
-            <LatestEventList items={latestByLabel(overview.latestItems, ["parkering"])} itemTitle={itemTitle} />
+          <OverviewInfoPanel title={`Siste ${config.title.toLowerCase()}`}>
+            <LatestEventList items={latestByLabel(overview.latestItems, latestLabels)} itemTitle={itemTitle} />
           </OverviewInfoPanel>
           <OverviewInfoPanel title="Arbeidsflater">
-            <DashboardActionGrid view="parkering" />
+            <DashboardActionGrid view={kind === "parking" ? "parkering" : "soling"} />
           </OverviewInfoPanel>
         </div>
       </>
     );
   }
 
+  function renderParkingDashboard() {
+    return renderActivityDashboard("parking");
+  }
+
   function renderSunDashboard() {
-    return (
-      <>
-        <StatusSection title="Soling" detail="Dagens soling og uketall fra Sun2">
-          <SupportMetricStrip cards={sunCards} />
-        </StatusSection>
-        <div className="status-info-grid">
-          <OverviewInfoPanel title="Siste soling">
-            <LatestEventList items={latestByLabel(overview.latestItems, ["soling"])} itemTitle={itemTitle} />
-          </OverviewInfoPanel>
-          <OverviewInfoPanel title="Arbeidsflater">
-            <DashboardActionGrid view="soling" />
-          </OverviewInfoPanel>
-        </div>
-      </>
-    );
+    return renderActivityDashboard("sun2");
   }
 
   function renderOperationsDashboard() {
