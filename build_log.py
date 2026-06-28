@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1313")
+APP_BUILD = os.getenv("APP_BUILD", "1314")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1314",
+        "date": "28.06.2026",
+        "headline": "OwnTracks MQTT for Fibaro10",
+        "title": "Fibaro10 har faatt intern MQTT-broker og OwnTracks-mottak",
+        "description": (
+            "Build 1314 setter opp Eclipse Mosquitto som egen QNAP-container for OwnTracks, med anonym tilgang "
+            "deaktivert, passordfil og ACL generert fra QNAP .env. Fibaro10 abonnerer paa owntracks/# via en intern "
+            "MQTT-bruker, lagrer siste status per enhet og historikk over mottatte meldinger, og viser dette under "
+            "Admin > OwnTracks. Datakilden OwnTracks MQTT er ogsaa lagt inn i eksisterende importstatus."
+        ),
+        "applications": [
+            "Docker/QNAP (docker-compose.qnap.yml): ny owntracks_mqtt Mosquitto-service paa intern port 1883.",
+            "Deploy (scripts/deploy-qnap.ps1): bevarer mqtt/data og starter owntracks_mqtt ved deploy.",
+            "Fibaro10 backend (main.py): OwnTracks-tabeller, MQTT-konsument, datakilde og JSON-endepunkt.",
+            "Fibaro10 desktop V2: nytt Admin > OwnTracks menyvalg, smoke-route og tabell-labels.",
+            "Konfigurasjon/dokumentasjon (.env.qnap.example, docs/owntracks-mqtt.md, mqtt/mosquitto.conf): oppskrift og broker-konfig.",
+        ],
+        "request": "sett opp en MQTT server for owntracks appen slik at jeg kan benytte dette i Fibaro10",
+        "work_duration": "ca. 60 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny Mosquitto-broker bundet til 192.168.20.218:1883.",
+            "Separate MQTT-brukere for OwnTracks-publisering og intern Fibaro10-abonnering.",
+            "OwnTracks-meldinger lagres i owntracks_devices og owntracks_locations.",
+            "Ny kontrollside /admin/owntracks og JSON-endepunkt /api/owntracks/devices.",
+            "OwnTracks MQTT vises som egen datakilde i datakildelisten.",
+        ],
+    },
     {
         "version": "1",
         "build": "1313",

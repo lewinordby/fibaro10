@@ -86,12 +86,13 @@ done
 [ -d car_info_lookup/data ] && mkdir -p "`$backup_dir/car_info_lookup" && cp -a car_info_lookup/data "`$backup_dir/car_info_lookup/data"
 [ -d sun2_session_scraper/data ] && mkdir -p "`$backup_dir/sun2_session_scraper" && cp -a sun2_session_scraper/data "`$backup_dir/sun2_session_scraper/data"
 [ -d axis_camera_snapshots/data ] && mkdir -p "`$backup_dir/axis_camera_snapshots" && cp -a axis_camera_snapshots/data "`$backup_dir/axis_camera_snapshots/data"
+[ -d mqtt/data ] && mkdir -p "`$backup_dir/mqtt" && cp -a mqtt/data "`$backup_dir/mqtt/data"
 legacy_sun2_dir="$RemoteDir/../sun2_session_scraper"
 [ -f "`$legacy_sun2_dir/.env" ] && mkdir -p "`$backup_dir/sun2_session_scraper" && cp -p "`$legacy_sun2_dir/.env" "`$backup_dir/sun2_session_scraper/.env"
 [ -d "`$legacy_sun2_dir/data" ] && mkdir -p "`$backup_dir/sun2_session_scraper" && cp -a "`$legacy_sun2_dir/data" "`$backup_dir/sun2_session_scraper/data"
 git fetch origin "$Branch"
 git reset --hard "origin/$Branch"
-git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/ -e car_info_lookup/.env -e 'car_info_lookup/.env.*' -e car_info_lookup/data/ -e sun2_session_scraper/.env -e 'sun2_session_scraper/.env.*' -e sun2_session_scraper/data/ -e axis_camera_snapshots/data/ -e axis_camera_snapshots/snapshots/
+git clean -fdx -e .env -e '.env.*' -e easypark_downloader/.env -e 'easypark_downloader/.env.*' -e easypark_downloader/data/ -e car_info_lookup/.env -e 'car_info_lookup/.env.*' -e car_info_lookup/data/ -e sun2_session_scraper/.env -e 'sun2_session_scraper/.env.*' -e sun2_session_scraper/data/ -e axis_camera_snapshots/data/ -e axis_camera_snapshots/snapshots/ -e mqtt/data/
 for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
     case "`$file" in .env.example|.env.qnap.example|*/.env.example) continue ;; esac
     source="`$backup_dir/`$file"
@@ -103,11 +104,13 @@ done
 [ -d "`$backup_dir/car_info_lookup/data" ] && [ ! -d car_info_lookup/data ] && mkdir -p car_info_lookup && cp -a "`$backup_dir/car_info_lookup/data" car_info_lookup/data
 [ -d "`$backup_dir/sun2_session_scraper/data" ] && [ ! -d sun2_session_scraper/data ] && mkdir -p sun2_session_scraper && cp -a "`$backup_dir/sun2_session_scraper/data" sun2_session_scraper/data
 [ -d "`$backup_dir/axis_camera_snapshots/data" ] && [ ! -d axis_camera_snapshots/data ] && mkdir -p axis_camera_snapshots && cp -a "`$backup_dir/axis_camera_snapshots/data" axis_camera_snapshots/data
+[ -d "`$backup_dir/mqtt/data" ] && [ ! -d mqtt/data ] && mkdir -p mqtt && cp -a "`$backup_dir/mqtt/data" mqtt/data
 mkdir -p axis_camera_snapshots/data axis_camera_snapshots/snapshots car_info_lookup/data
 mkdir -p sun2_session_scraper/data
+mkdir -p mqtt/data
 [ -d "`$legacy_sun2_dir" ] && (cd "`$legacy_sun2_dir" && "$Docker" compose down || true)
 export APP_COMMIT=`$(git rev-parse --short HEAD)
-"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 online_dashboard axis_camera_snapshots car_info_lookup sun2_session_scraper
+"$Docker" compose -f docker-compose.qnap.yml up -d --build owntracks_mqtt fibaro10 online_dashboard axis_camera_snapshots car_info_lookup sun2_session_scraper
 "$Docker" compose -f docker-compose.qnap.yml ps
 echo "Backup: `$backup_dir"
 "@

@@ -41,6 +41,10 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base, load_only
 from dateutil import parser as dtparser
+try:
+    import paho.mqtt.client as mqtt_client
+except ImportError:
+    mqtt_client = None
 
 load_dotenv()
 from build_log import APP_BUILD, APP_VERSION, BUILD_LOG, api_build_log_row, build_log_entry_by_build, normalized_build_log_entry
@@ -198,6 +202,17 @@ CAR_INFO_CANDIDATE_RETRY_HOURS = max(24, int(os.getenv("CAR_INFO_CANDIDATE_RETRY
 CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES = max(30, int(os.getenv("CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES", "240")))
 CAR_INFO_AUTO_TRIGGER_ENABLED = os.getenv("CAR_INFO_AUTO_TRIGGER_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN = max(0, min(5, int(os.getenv("CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN", "1"))))
+OWNTRACKS_MQTT_ENABLED = os.getenv("OWNTRACKS_MQTT_ENABLED", "false").strip().lower() in {"1", "true", "yes", "ja"}
+OWNTRACKS_MQTT_HOST = os.getenv("OWNTRACKS_MQTT_HOST", "127.0.0.1").strip()
+OWNTRACKS_MQTT_PORT = max(1, min(65535, int(os.getenv("OWNTRACKS_MQTT_PORT", "1883"))))
+OWNTRACKS_MQTT_USERNAME = os.getenv("FIBARO10_MQTT_USERNAME", os.getenv("OWNTRACKS_MQTT_USERNAME", "")).strip()
+OWNTRACKS_MQTT_PASSWORD = os.getenv("FIBARO10_MQTT_PASSWORD", os.getenv("OWNTRACKS_MQTT_PASSWORD", "")).strip()
+OWNTRACKS_MQTT_TOPIC = os.getenv("OWNTRACKS_MQTT_TOPIC", "owntracks/#").strip() or "owntracks/#"
+OWNTRACKS_MQTT_CLIENT_ID = os.getenv("OWNTRACKS_MQTT_CLIENT_ID", "fibaro10-owntracks").strip() or "fibaro10-owntracks"
+OWNTRACKS_MQTT_KEEPALIVE_SECONDS = max(15, int(os.getenv("OWNTRACKS_MQTT_KEEPALIVE_SECONDS", "60")))
+OWNTRACKS_MQTT_RECONNECT_SECONDS = max(5, int(os.getenv("OWNTRACKS_MQTT_RECONNECT_SECONDS", "15")))
+OWNTRACKS_MQTT_QUEUE_SIZE = max(10, int(os.getenv("OWNTRACKS_MQTT_QUEUE_SIZE", "500")))
+owntracks_mqtt_task: Optional[asyncio.Task] = None
 MOBILE_PREVIEW_REFRESH_SECONDS = max(15, int(os.getenv("MOBILE_PREVIEW_REFRESH_SECONDS", "60")))
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
@@ -580,6 +595,51 @@ class ImportJobRun(Base):
     records_total = Column(Integer, nullable=True)
     duration_seconds = Column(Float, nullable=True)
     message = Column(Text, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
+class OwnTracksDevice(Base):
+    __tablename__ = "owntracks_devices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, index=True, nullable=True)
+    device = Column(String, index=True, nullable=True)
+    tracker_id = Column(String, index=True, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True, index=True)
+    last_received_at = Column(DateTime, nullable=True, index=True)
+    last_message_type = Column(String, nullable=True)
+    last_event = Column(String, nullable=True)
+    last_lat = Column(Float, nullable=True)
+    last_lon = Column(Float, nullable=True)
+    last_accuracy_m = Column(Float, nullable=True)
+    last_battery_percent = Column(Integer, nullable=True)
+    last_connection = Column(String, nullable=True)
+    last_regions = Column(JSON, nullable=True)
+    last_raw = Column(JSON, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class OwnTracksLocation(Base):
+    __tablename__ = "owntracks_locations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, index=True, nullable=False)
+    username = Column(String, index=True, nullable=True)
+    device = Column(String, index=True, nullable=True)
+    tracker_id = Column(String, index=True, nullable=True)
+    message_type = Column(String, index=True, nullable=True)
+    event = Column(String, index=True, nullable=True)
+    timestamp = Column(DateTime, nullable=True, index=True)
+    received_at = Column(DateTime, default=datetime.utcnow, index=True)
+    lat = Column(Float, nullable=True)
+    lon = Column(Float, nullable=True)
+    accuracy_m = Column(Float, nullable=True)
+    battery_percent = Column(Integer, nullable=True)
+    connection = Column(String, nullable=True)
+    velocity_kmh = Column(Float, nullable=True)
+    altitude_m = Column(Float, nullable=True)
+    regions = Column(JSON, nullable=True)
     raw = Column(JSON, nullable=True)
 
 
@@ -3174,6 +3234,21 @@ PERFORMANCE_INDEXES = [
         "ON import_job_runs (job_name, finished_at DESC)",
     ),
     (
+        "ix_owntracks_locations_topic_time",
+        "CREATE INDEX IF NOT EXISTS ix_owntracks_locations_topic_time "
+        "ON owntracks_locations (topic, timestamp DESC)",
+    ),
+    (
+        "ix_owntracks_locations_received",
+        "CREATE INDEX IF NOT EXISTS ix_owntracks_locations_received "
+        "ON owntracks_locations (received_at DESC)",
+    ),
+    (
+        "ix_owntracks_devices_seen",
+        "CREATE INDEX IF NOT EXISTS ix_owntracks_devices_seen "
+        "ON owntracks_devices (last_seen_at DESC)",
+    ),
+    (
         "ix_parkering_plate_start",
         "CREATE INDEX IF NOT EXISTS ix_parkering_plate_start "
         "ON parkering (upper(car_license_number), start_time DESC)",
@@ -3236,6 +3311,14 @@ IMPORT_JOB_DEFINITIONS = {
         "expected_interval_minutes": 10,
         "warning_after_minutes": 30,
         "description": "Robotstatus, planlagte jobber og siste lokale/cloud-data.",
+    },
+    "owntracks_mqtt": {
+        "title": "OwnTracks MQTT",
+        "category": "Mobil",
+        "source": "Mosquitto",
+        "expected_interval_minutes": 30,
+        "warning_after_minutes": 120,
+        "description": "Siste posisjonsmelding fra OwnTracks via intern MQTT-broker.",
     },
     "sun2_daily_download": {
         "title": "Sun2 dagsfil nedlasting",
@@ -7956,6 +8039,230 @@ async def mark_import_job_running(
     return existing
 
 
+def owntracks_topic_identity(topic: str) -> tuple[Optional[str], Optional[str]]:
+    parts = [part for part in (topic or "").split("/") if part]
+    if len(parts) >= 3 and parts[0] == "owntracks":
+        return parts[1], parts[2]
+    if len(parts) >= 2:
+        return parts[-2], parts[-1]
+    return None, parts[-1] if parts else None
+
+
+def optional_float(value: Any) -> Optional[float]:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def optional_int(value: Any) -> Optional[int]:
+    if value in (None, ""):
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def owntracks_payload_timestamp(payload: Dict[str, Any], fallback: datetime) -> datetime:
+    raw_value = payload.get("tst") or payload.get("created_at") or payload.get("created")
+    if raw_value in (None, ""):
+        return fallback
+    try:
+        if isinstance(raw_value, (int, float)) or str(raw_value).strip().isdigit():
+            return datetime.fromtimestamp(float(raw_value), LOCAL_TZ).replace(tzinfo=None)
+        parsed = dtparser.parse(str(raw_value))
+        normalized = normalize_local_naive(parsed)
+        return normalized or fallback
+    except (TypeError, ValueError, OverflowError):
+        return fallback
+
+
+async def record_owntracks_import_status(ok: bool, message: str, raw: Optional[Dict[str, Any]] = None, records_imported: int = 0):
+    async with async_session() as session:
+        await record_import_job(
+            session,
+            "owntracks_mqtt",
+            ok=ok,
+            records_imported=records_imported,
+            message=message,
+            raw=raw or {},
+        )
+        await session.commit()
+
+
+async def store_owntracks_message(topic: str, payload_text: str) -> None:
+    received_at = local_now_naive()
+    try:
+        payload = json.loads(payload_text)
+    except json.JSONDecodeError as exc:
+        await record_owntracks_import_status(
+            False,
+            "MQTT-melding kunne ikke tolkes som JSON",
+            {"topic": topic, "error": str(exc)},
+        )
+        return
+    if not isinstance(payload, dict):
+        await record_owntracks_import_status(False, "MQTT-melding var ikke et JSON-objekt", {"topic": topic})
+        return
+
+    username, device = owntracks_topic_identity(topic)
+    tracker_id = payload.get("tid") or payload.get("topic") or None
+    message_type = str(payload.get("_type") or payload.get("type") or "unknown")
+    event = payload.get("event") or payload.get("desc") or None
+    timestamp = owntracks_payload_timestamp(payload, received_at)
+    lat = optional_float(payload.get("lat"))
+    lon = optional_float(payload.get("lon"))
+    accuracy = optional_float(payload.get("acc"))
+    battery = optional_int(payload.get("batt"))
+    connection = payload.get("conn") or payload.get("conn_type") or None
+    velocity = optional_float(payload.get("vel"))
+    altitude = optional_float(payload.get("alt"))
+    regions = payload.get("inregions")
+    if regions is None and payload.get("inregion") is not None:
+        regions = [payload.get("inregion")]
+    if regions is not None and not isinstance(regions, (list, dict)):
+        regions = [regions]
+
+    async with async_session() as session:
+        session.add(
+            OwnTracksLocation(
+                topic=topic,
+                username=username,
+                device=device,
+                tracker_id=str(tracker_id) if tracker_id is not None else None,
+                message_type=message_type,
+                event=str(event) if event is not None else None,
+                timestamp=timestamp,
+                received_at=received_at,
+                lat=lat,
+                lon=lon,
+                accuracy_m=accuracy,
+                battery_percent=battery,
+                connection=str(connection) if connection is not None else None,
+                velocity_kmh=velocity,
+                altitude_m=altitude,
+                regions=regions,
+                raw=payload,
+            )
+        )
+        device_row = (
+            await session.execute(select(OwnTracksDevice).where(OwnTracksDevice.topic == topic))
+        ).scalars().first()
+        if not device_row:
+            device_row = OwnTracksDevice(topic=topic)
+            session.add(device_row)
+        device_row.username = username
+        device_row.device = device
+        device_row.tracker_id = str(tracker_id) if tracker_id is not None else device_row.tracker_id
+        device_row.last_seen_at = timestamp
+        device_row.last_received_at = received_at
+        device_row.last_message_type = message_type
+        device_row.last_event = str(event) if event is not None else None
+        if lat is not None:
+            device_row.last_lat = lat
+        if lon is not None:
+            device_row.last_lon = lon
+        if accuracy is not None:
+            device_row.last_accuracy_m = accuracy
+        if battery is not None:
+            device_row.last_battery_percent = battery
+        if connection is not None:
+            device_row.last_connection = str(connection)
+        if regions is not None:
+            device_row.last_regions = regions
+        device_row.last_raw = payload
+        device_row.updated_at = received_at
+        await record_import_job(
+            session,
+            "owntracks_mqtt",
+            ok=True,
+            records_imported=1,
+            message=f"{topic} {message_type}",
+            raw={"topic": topic, "message_type": message_type, "has_position": lat is not None and lon is not None},
+        )
+        await session.commit()
+
+
+def create_mqtt_client(client_id: str):
+    if mqtt_client is None:
+        raise RuntimeError("paho-mqtt er ikke installert")
+    try:
+        return mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, client_id=client_id)
+    except (AttributeError, TypeError):
+        return mqtt_client.Client(client_id=client_id)
+
+
+def mqtt_connect_ok(reason_code: Any) -> bool:
+    try:
+        return int(reason_code) == 0
+    except (TypeError, ValueError):
+        value = getattr(reason_code, "value", None)
+        return value == 0 or str(reason_code).lower() in {"0", "success"}
+
+
+async def owntracks_mqtt_worker():
+    if mqtt_client is None:
+        await record_owntracks_import_status(False, "paho-mqtt mangler i runtime")
+        return
+    if not OWNTRACKS_MQTT_HOST or not OWNTRACKS_MQTT_USERNAME or not OWNTRACKS_MQTT_PASSWORD:
+        await record_owntracks_import_status(False, "MQTT er aktivert, men host/bruker/passord mangler")
+        return
+
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[tuple[str, str]] = asyncio.Queue(maxsize=OWNTRACKS_MQTT_QUEUE_SIZE)
+    client = create_mqtt_client(OWNTRACKS_MQTT_CLIENT_ID)
+    client.username_pw_set(OWNTRACKS_MQTT_USERNAME, OWNTRACKS_MQTT_PASSWORD)
+    client.reconnect_delay_set(min_delay=OWNTRACKS_MQTT_RECONNECT_SECONDS, max_delay=OWNTRACKS_MQTT_RECONNECT_SECONDS * 4)
+
+    def enqueue(topic: str, payload_text: str):
+        try:
+            queue.put_nowait((topic, payload_text))
+        except asyncio.QueueFull:
+            logger.warning("OwnTracks MQTT-kÃ¸en er full, dropper melding fra %s", topic)
+
+    def on_connect(client_obj, _userdata, _flags, reason_code, *_extra):
+        if mqtt_connect_ok(reason_code):
+            client_obj.subscribe(OWNTRACKS_MQTT_TOPIC)
+            logger.info("OwnTracks MQTT koblet til %s:%s og abonnerer pÃ¥ %s", OWNTRACKS_MQTT_HOST, OWNTRACKS_MQTT_PORT, OWNTRACKS_MQTT_TOPIC)
+        else:
+            logger.error("OwnTracks MQTT kunne ikke koble til: %s", reason_code)
+
+    def on_message(_client_obj, _userdata, message):
+        payload_text = message.payload.decode("utf-8", errors="replace")
+        loop.call_soon_threadsafe(enqueue, message.topic, payload_text)
+
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    while True:
+        try:
+            await asyncio.to_thread(
+                client.connect,
+                OWNTRACKS_MQTT_HOST,
+                OWNTRACKS_MQTT_PORT,
+                OWNTRACKS_MQTT_KEEPALIVE_SECONDS,
+            )
+            client.loop_start()
+            while True:
+                topic, payload_text = await queue.get()
+                await store_owntracks_message(topic, payload_text)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.exception("OwnTracks MQTT-worker feilet")
+            await record_owntracks_import_status(False, f"MQTT-worker feilet: {exc}", {"error": str(exc)})
+            await asyncio.sleep(OWNTRACKS_MQTT_RECONNECT_SECONDS)
+        finally:
+            client.loop_stop()
+            try:
+                client.disconnect()
+            except Exception:
+                pass
+
+
 async def fallback_car_info_import_status(session, job_name: str) -> Dict[str, Any]:
     country_code = next(
         (country for country, current_job_name in CAR_INFO_IMPORT_JOB_BY_COUNTRY.items() if current_job_name == job_name),
@@ -10881,7 +11188,7 @@ async def recent_ai_logs(limit: int = 10) -> list[AiQueryLog]:
 
 @app.on_event("startup")
 async def startup():
-    global svv_sync_task, sun2_axis_snapshot_link_task
+    global svv_sync_task, sun2_axis_snapshot_link_task, owntracks_mqtt_task
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         for table_name, columns in STARTUP_COLUMNS.items():
@@ -10961,6 +11268,8 @@ async def startup():
         svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
     if SUN2_AXIS_SNAPSHOT_LINK_ENABLED and sun2_axis_snapshot_link_task is None:
         sun2_axis_snapshot_link_task = asyncio.create_task(sun2_axis_snapshot_link_worker())
+    if OWNTRACKS_MQTT_ENABLED and owntracks_mqtt_task is None:
+        owntracks_mqtt_task = asyncio.create_task(owntracks_mqtt_worker())
 
 
 @app.get("/health")
@@ -21757,6 +22066,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_tool_row("Manual", "/konto/manual", "Intern manual og driftsnotater.", None),
                 api_tool_row("Brukere og tilgang", "/konto/brukere-og-tilgang", "Administrer brukere, roller og tilgang.", len(access_keys)),
                 api_tool_row("AI-innstillinger", "/ai/innstillinger", "Sett modell og API-nøkkel for analyseassistent.", len(ai_logs)),
+                api_tool_row("OwnTracks", "/admin/owntracks", "MQTT-status, siste enheter og siste posisjonsmeldinger.", None),
                 api_tool_row("Health", "/health", "Rask serverhelse og lagringsliste.", None),
                 api_tool_row("Events JSON", "/events/json", "Generiske hendelser som JSON.", None),
                 api_tool_row("Events CSV", "/download", "Generiske hendelser som CSV.", None),
@@ -21964,10 +22274,61 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         ["tool", "path", "description", "count"],
                         [
                             api_tool_row("Health", "/health", "Serverhelse og lagringstabeller.", len(import_rows)),
+                            api_tool_row("OwnTracks", "/admin/owntracks", "MQTT-status og siste posisjonsmeldinger.", None),
                             api_tool_row("Yr CSV", "/yr/samples/download", "Last ned Yr-samples.", None),
                             api_tool_row("Lys CSV", "/lights/samples/download", "Last ned lys-samples.", None),
                             api_tool_row("Ventilasjon CSV", "/ventilation/samples/download", "Last ned ventilasjonssamples.", None),
                         ],
+                    ),
+                ]
+            elif view == "owntracks":
+                owntracks_status = next((row for row in import_api_rows if row.get("job_name") == "owntracks_mqtt"), None)
+                owntracks_devices = (
+                    await session.execute(
+                        select(OwnTracksDevice)
+                        .order_by(OwnTracksDevice.last_seen_at.desc().nullslast(), OwnTracksDevice.updated_at.desc())
+                        .limit(50)
+                    )
+                ).scalars().all()
+                owntracks_locations = (
+                    await session.execute(
+                        select(OwnTracksLocation)
+                        .order_by(OwnTracksLocation.received_at.desc())
+                        .limit(200)
+                    )
+                ).scalars().all()
+                latest_device = owntracks_devices[0] if owntracks_devices else None
+                admin_cards = [
+                    api_card("MQTT", "Aktiv" if OWNTRACKS_MQTT_ENABLED else "Av", "", f"{OWNTRACKS_MQTT_HOST}:{OWNTRACKS_MQTT_PORT}", "status", href="/admin/owntracks"),
+                    api_card("Enheter", len(owntracks_devices), "stk", "Siste kjente OwnTracks-enheter", "status", href="/admin/owntracks"),
+                    api_card("Siste melding", format_source_datetime(latest_device.last_seen_at) if latest_device and latest_device.last_seen_at else "-", "", latest_device.topic if latest_device else "Ingen meldinger", "status", href="/admin/owntracks"),
+                    api_card("Datakilde", owntracks_status.get("status_text") if owntracks_status else "Mangler", "", owntracks_status.get("age") if owntracks_status else "Ingen status", "status", href="/admin/datakilder"),
+                ]
+                tables = [
+                    api_table(
+                        "OwnTracks-enheter",
+                        ["topic", "username", "device", "tracker_id", "last_seen_at", "last_received_at", "last_lat", "last_lon", "last_accuracy_m", "last_battery_percent", "last_connection", "last_event"],
+                        [row_to_dict(row, ["topic", "username", "device", "tracker_id", "last_seen_at", "last_received_at", "last_lat", "last_lon", "last_accuracy_m", "last_battery_percent", "last_connection", "last_event"]) for row in owntracks_devices],
+                    ),
+                    api_table(
+                        "Siste OwnTracks-meldinger",
+                        ["received_at", "timestamp", "topic", "message_type", "event", "lat", "lon", "accuracy_m", "battery_percent", "connection"],
+                        [row_to_dict(row, ["received_at", "timestamp", "topic", "message_type", "event", "lat", "lon", "accuracy_m", "battery_percent", "connection"]) for row in owntracks_locations],
+                    ),
+                    api_table(
+                        "MQTT-oppsett",
+                        ["key", "value"],
+                        api_config_value_rows(
+                            {
+                                "aktivert": OWNTRACKS_MQTT_ENABLED,
+                                "broker_host": OWNTRACKS_MQTT_HOST,
+                                "broker_port": OWNTRACKS_MQTT_PORT,
+                                "topic": OWNTRACKS_MQTT_TOPIC,
+                                "client_id": OWNTRACKS_MQTT_CLIENT_ID,
+                                "forventet_intervall_min": import_job_definition("owntracks_mqtt").get("expected_interval_minutes"),
+                                "varsel_etter_min": import_job_definition("owntracks_mqtt").get("warning_after_minutes"),
+                            }
+                        ),
                     ),
                 ]
             elif view == "ai":
@@ -22060,6 +22421,40 @@ def parking_vehicle_not_found_field_labels(vehicle: ParkingVehicle) -> list[str]
     if is_not_found_marker(vehicle.omrade):
         labels.append("område")
     return labels
+
+
+@app.get("/api/owntracks/devices")
+async def api_owntracks_devices(limit: int = Query(50, ge=1, le=200)):
+    async with async_session() as session:
+        devices = (
+            await session.execute(
+                select(OwnTracksDevice)
+                .order_by(OwnTracksDevice.last_seen_at.desc().nullslast(), OwnTracksDevice.updated_at.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+    return {
+        "enabled": OWNTRACKS_MQTT_ENABLED,
+        "topic": OWNTRACKS_MQTT_TOPIC,
+        "devices": [
+            {
+                "topic": row.topic,
+                "username": row.username,
+                "device": row.device,
+                "trackerId": row.tracker_id,
+                "lastSeenAt": api_local_iso(row.last_seen_at),
+                "lastReceivedAt": api_local_iso(row.last_received_at),
+                "lat": row.last_lat,
+                "lon": row.last_lon,
+                "accuracyM": row.last_accuracy_m,
+                "batteryPercent": row.last_battery_percent,
+                "connection": row.last_connection,
+                "regions": row.last_regions,
+                "event": row.last_event,
+            }
+            for row in devices
+        ],
+    }
 
 
 @app.get("/api/parking/vehicles/{plate}")

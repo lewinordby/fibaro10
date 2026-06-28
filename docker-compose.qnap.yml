@@ -1,4 +1,41 @@
 services:
+  owntracks_mqtt:
+    image: eclipse-mosquitto:2
+    container_name: owntracks_mqtt
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "192.168.20.218:1883:1883"
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mqtt/data:/mosquitto/data
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+        if [ -z "$${OWNTRACKS_MQTT_PASSWORD}" ] || [ -z "$${FIBARO10_MQTT_PASSWORD}" ]; then
+          echo "OWNTRACKS_MQTT_PASSWORD and FIBARO10_MQTT_PASSWORD must be set";
+          exit 1;
+        fi;
+        rm -f /mosquitto/data/passwords /mosquitto/data/acl;
+        mosquitto_passwd -b -c /mosquitto/data/passwords "$${OWNTRACKS_MQTT_USERNAME:-owntracks}" "$${OWNTRACKS_MQTT_PASSWORD}";
+        mosquitto_passwd -b /mosquitto/data/passwords "$${FIBARO10_MQTT_USERNAME:-fibaro10}" "$${FIBARO10_MQTT_PASSWORD}";
+        chmod 600 /mosquitto/data/passwords;
+        {
+          echo "user $${OWNTRACKS_MQTT_USERNAME:-owntracks}";
+          echo "topic readwrite owntracks/#";
+          echo "";
+          echo "user $${FIBARO10_MQTT_USERNAME:-fibaro10}";
+          echo "topic read owntracks/#";
+        } > /mosquitto/data/acl;
+        chmod 600 /mosquitto/data/acl;
+        exec mosquitto -c /mosquitto/config/mosquitto.conf;
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -u \"$${FIBARO10_MQTT_USERNAME:-fibaro10}\" -P \"$${FIBARO10_MQTT_PASSWORD}\" -t '$$SYS/broker/uptime' -C 1 -W 5 >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   fibaro10:
     build:
       context: .
@@ -8,6 +45,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    depends_on:
+      - owntracks_mqtt
     ports:
       - "192.168.20.218:8110:8110"
     volumes:
@@ -15,6 +54,12 @@ services:
     environment:
       SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
       CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
+      OWNTRACKS_MQTT_ENABLED: ${OWNTRACKS_MQTT_ENABLED:-true}
+      OWNTRACKS_MQTT_HOST: owntracks_mqtt
+      OWNTRACKS_MQTT_PORT: 1883
+      OWNTRACKS_MQTT_TOPIC: ${OWNTRACKS_MQTT_TOPIC:-owntracks/#}
+      FIBARO10_MQTT_USERNAME: ${FIBARO10_MQTT_USERNAME:-fibaro10}
+      FIBARO10_MQTT_PASSWORD: ${FIBARO10_MQTT_PASSWORD:-}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8110/health', timeout=5).read()\""]
       interval: 30s

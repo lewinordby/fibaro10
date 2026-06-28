@@ -17,6 +17,7 @@ easypark_downloader/downloads/
 car_info_lookup/.env
 car_info_lookup/.env.*
 car_info_lookup/data/
+mqtt/data/
 axis_camera_snapshots/data/
 axis_camera_snapshots/snapshots/
 sun2_session_scraper/.env

@@ -78,6 +78,7 @@ V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
         "drift": "Drift",
         "build": "Buildlogg",
         "datakilder": "Datakilder",
+        "owntracks": "OwnTracks",
         "ai": "AI",
         "teknisk": "Teknisk",
         "brukere": "Brukere",

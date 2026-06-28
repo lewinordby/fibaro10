@@ -50,6 +50,7 @@ export const smokeRoutes = [
   { path: "/admin/drift", name: "Admin drift" },
   { path: "/admin/build", name: "Admin buildlogg" },
   { path: "/admin/datakilder", name: "Admin datakilder" },
+  { path: "/admin/owntracks", name: "Admin OwnTracks" },
   { path: "/admin/ai", name: "Admin AI" },
   { path: "/admin/teknisk", name: "Admin teknisk" },
   { path: "/admin/brukere", name: "Admin brukere" },
