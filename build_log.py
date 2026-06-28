@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1308")
+APP_BUILD = os.getenv("APP_BUILD", "1309")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1309",
+        "date": "28.06.2026",
+        "headline": "Innlogget live-smoke",
+        "title": "Deploy har faatt innlogget live-smoke og Python-avhengigheter er laast",
+        "description": (
+            "Build 1309 gjoer videre kvalitetsoppsett for produksjon. Python runtime-avhengigheter "
+            "er laast med eksakte top-level-versjoner, live-smoke kan lese en lokal .env.live-smoke, "
+            "deploy kjorer live-smoke etter vanlig health/smoke, og det finnes et eget script for aa "
+            "opprette eller rotere en dedikert fibaro-smoke-bruker paa QNAP."
+        ),
+        "applications": [
+            "Fibaro10 kravfiler: top-level Python-avhengigheter er pinna med eksakte versjoner.",
+            "Fibaro10 desktop V2 (smoke-live.mjs): leser .env.live-smoke og kan kjore innloggede ruter.",
+            "Fibaro10 deploy (deploy-qnap.ps1): kjorer live-smoke etter vanlig smoke-check.",
+            "Fibaro10 driftsscript (provision-live-smoke-user.ps1): lager/roterer fibaro-smoke-brukeren og lokal env-fil.",
+            "Dokumentasjon (docs/utviklingsoppsett.md): beskriver innlogget live-smoke.",
+            "Buildlogg (build_log.py): registrerer build 1309.",
+        ],
+        "request": "gjor det",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "QNAP-deploy kan naa verifisere innloggede desktop-ruter naar lokal smoke-env finnes.",
+            "Smoke-brukeren er viewer og skal bare brukes til lesende rutesjekk.",
+            "Python-pakker endrer seg ikke lenger uventet fra deploy til deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1308",

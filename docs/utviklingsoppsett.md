@@ -20,6 +20,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 
 Deploy-scriptet pusher `main` til GitHub, logger inn paa QNAP via SSH, henter `origin/main`, tar backup av runtimefiler, bygger `fibaro10` og `online_dashboard`, og kjorer health/smoke checks.
 
+For innlogget live-smoke maa det finnes en lokal `.env.live-smoke` med en dedikert testbruker. Opprett eller roter denne slik:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\provision-live-smoke-user.ps1
+```
+
+Scriptet oppretter/oppdaterer `fibaro-smoke` som vanlig lesebruker paa QNAP og skriver passordet til `.env.live-smoke`. Filen er ignorert av Git og skal ikke commit'es.
+
 ## Ny PC
 
 Kjor lokal setup fra repo-roten:
@@ -57,6 +65,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 `qnap-status.ps1` viser QNAP host, git commit/status, compose-status, siste containerlogger og health-watch-logg. Loggutskrift redakterer `username=` og `password=` query-parametre.
 
 `smoke-check.ps1` sjekker de viktigste sidene etter deploy. Auth-beskyttede sider kan svare `401` eller `403`; det regnes som OK naar health-endepunktene svarer og auth-laget beskytter siden.
+
+`desktop_v2/scripts/smoke-live.mjs` sjekker alltid QNAP `/health`. Hvis `.env.live-smoke` finnes, logger den i tillegg inn med `fibaro-smoke` og gaar gjennom alle desktop-rutene som ogsaa brukes av lokal UI-smoke. Deploy-scriptet kjorer denne live-smoken automatisk etter vanlig smoke.
 
 ## Produksjon
 

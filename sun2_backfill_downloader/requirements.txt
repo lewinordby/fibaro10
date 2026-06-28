@@ -1,4 +1,4 @@
-fastapi
-uvicorn
-python-dotenv
-playwright==1.49.0
+fastapi==0.138.1
+uvicorn==0.49.0
+python-dotenv==1.2.2
+playwright==1.49.1

@@ -117,4 +117,14 @@ Run "ssh" @("-i", $IdentityFile, $QnapHost, (NormalizeRemote $remote))
 Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "health-check.ps1"))
 if (-not $SkipSmoke) {
     Run "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "smoke-check.ps1"))
+    $desktopDir = Join-Path $repoRoot "desktop_v2"
+    $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
+    $originalDir = (Get-Location).Path
+    try {
+        Set-Location $desktopDir
+        Run $npm @("run", "smoke:live")
+    }
+    finally {
+        Set-Location $originalDir
+    }
 }

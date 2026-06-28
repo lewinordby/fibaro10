@@ -1,5 +1,51 @@
 import { chromium } from "playwright";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { smokeRoutePathsFromEnv } from "./smoke-routes.mjs";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function unquoteEnvValue(value) {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function loadEnvFile(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return false;
+  const content = fs.readFileSync(filePath, "utf8");
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const normalizedLine = line.startsWith("export ") ? line.slice(7).trim() : line;
+    const separatorIndex = normalizedLine.indexOf("=");
+    if (separatorIndex <= 0) continue;
+    const key = normalizedLine.slice(0, separatorIndex).trim();
+    const value = unquoteEnvValue(normalizedLine.slice(separatorIndex + 1));
+    if (key && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+  return true;
+}
+
+const configuredEnvFile = process.env.FIBARO10_LIVE_ENV_FILE
+  ? path.resolve(process.cwd(), process.env.FIBARO10_LIVE_ENV_FILE)
+  : "";
+for (const envFile of [
+  configuredEnvFile,
+  path.resolve(__dirname, "../../.env.live-smoke"),
+  path.resolve(__dirname, "../.env.live-smoke"),
+]) {
+  if (loadEnvFile(envFile)) break;
+}
 
 const baseUrl = (process.env.FIBARO10_LIVE_BASE_URL || "http://192.168.20.218:8110").replace(/\/+$/, "");
 const username = process.env.FIBARO10_LIVE_USERNAME || process.env.FIBARO10_SMOKE_USERNAME || "";
