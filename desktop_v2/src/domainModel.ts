@@ -32,6 +32,7 @@ const titleMatchers: Record<string, Array<{ words: string[]; href: string }>> = 
     { words: ["solseng", "seng"], href: modulePath("energi", "forbruk-per-seng") },
     { words: ["kurs"], href: modulePath("energi", "kurser") },
     { words: ["last", "effekt"], href: modulePath("energi", "laster") },
+    { words: ["kontroll", "avvik"], href: modulePath("energi", "elvia-kontroll") },
     { words: ["elvia", "import", "forbruk"], href: modulePath("energi", "elvia") },
     { words: ["inntak", "diff", "strøm"], href: modulePath("energi", "status") },
   ],

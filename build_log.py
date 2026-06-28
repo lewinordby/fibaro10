@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1312")
+APP_BUILD = os.getenv("APP_BUILD", "1313")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1313",
+        "date": "28.06.2026",
+        "headline": "Elvia-kontroll for energi",
+        "title": "Energi har faatt en egen V2-side som sammenligner Elvia mot HC3 time for time",
+        "description": (
+            "Build 1313 legger til Energi > Elvia-kontroll i desktop V2. Siden materialiserer den gamle "
+            "Energi status-logikken som en tydelig kontrollflate: HC3/Fibaro10 sitt realtime-baserte "
+            "inntaksforbruk summeres per time, forskyves en time bakover fordi deltaene er endestemplet, "
+            "og sammenlignes mot importerte Elvia-timesverdier. Visningen gir sumkort, timegraf, "
+            "akkumulert graf og tabell med avvik per time."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): ny helper og modulrespons for Energi > Elvia-kontroll.",
+            "Fibaro10 desktop V2 (moduleViews.ts og v2_navigation.py): nytt menyvalg under Energi.",
+            "Fibaro10 desktop V2 (moduleTableUtils.tsx og domainModel.ts): labels og kortnavigasjon for kontrollfeltene.",
+            "Buildlogg (build_log.py): registrerer build 1313.",
+        ],
+        "request": "lag en ny side under energi paa v2 hvor du matrialiserer disse tankene",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny side /energi/elvia-kontroll med dagsvelger.",
+            "Sammenligner HC3 realtime-basert kWh mot Elvia per time og for hele valgt dag.",
+            "Viser baade timegraf og akkumulert graf for aa se hvor avviket oppstaar.",
+            "Tabellen viser HC3 kWh, Elvia kWh, avvik, prosentavvik, sampledekning og Elvia-status per time.",
+        ],
+    },
     {
         "version": "1",
         "build": "1312",

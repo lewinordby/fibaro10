@@ -20116,6 +20116,212 @@ async def revenue_settlement_reconciliation_rows(session, limit: int = 36) -> li
     return rows
 
 
+async def energy_elvia_control_module_payload(session, selected_day: date, today: date) -> Dict[str, Any]:
+    day_start = datetime.combine(selected_day, time.min)
+    day_end = day_start + timedelta(days=1)
+    compare_start = day_start + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
+    compare_end = day_end + ENERGY_HC3_HOURLY_DISPLAY_OFFSET
+
+    latest_hc3 = (
+        await session.execute(
+            select(EnergyFibaroSample)
+            .order_by(EnergyFibaroSample.bucket_start.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+    compare_rows = (
+        await session.execute(
+            select(EnergyFibaroSample)
+            .where(EnergyFibaroSample.bucket_start >= compare_start)
+            .where(EnergyFibaroSample.bucket_start < compare_end)
+            .order_by(EnergyFibaroSample.bucket_start.asc())
+        )
+    ).scalars().all()
+    elvia_rows = (
+        await session.execute(
+            select(EnergyHourlyConsumption)
+            .where(EnergyHourlyConsumption.stat_date == selected_day)
+            .order_by(EnergyHourlyConsumption.hour.asc(), EnergyHourlyConsumption.measured_at.asc())
+        )
+    ).scalars().all()
+    latest_elvia = (
+        await session.execute(
+            select(EnergyHourlyConsumption)
+            .order_by(EnergyHourlyConsumption.measured_at.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+
+    hc3_by_hour = {hour: 0.0 for hour in range(24)}
+    hc3_samples_by_hour = {hour: 0 for hour in range(24)}
+    hc3_valid_samples_by_hour = {hour: 0 for hour in range(24)}
+    for row in compare_rows:
+        if row.bucket_start is None:
+            continue
+        display_time = row.bucket_start - ENERGY_HC3_HOURLY_DISPLAY_OFFSET
+        if display_time.date() != selected_day:
+            continue
+        hour = display_time.hour
+        delta_value = row.inntak_delta_kwh
+        hc3_samples_by_hour[hour] += 1
+        if delta_value is not None:
+            hc3_valid_samples_by_hour[hour] += 1
+            hc3_by_hour[hour] += float_or_zero(delta_value)
+
+    elvia_by_hour = {hour: 0.0 for hour in range(24)}
+    elvia_status_by_hour: dict[int, set[str]] = defaultdict(set)
+    elvia_present = set()
+    for row in elvia_rows:
+        if row.hour is None:
+            continue
+        hour = int(row.hour)
+        if hour < 0 or hour > 23:
+            continue
+        elvia_present.add(hour)
+        elvia_by_hour[hour] += float_or_zero(row.consumption_kwh)
+        if row.status:
+            elvia_status_by_hour[hour].add(str(row.status))
+        if row.is_estimated:
+            elvia_status_by_hour[hour].add("estimert")
+
+    hourly_rows = []
+    hour_labels = []
+    hc3_values = []
+    elvia_values = []
+    diff_values = []
+    hc3_cumulative = []
+    elvia_cumulative = []
+    diff_cumulative = []
+    hc3_total = 0.0
+    elvia_total = 0.0
+    for hour in range(24):
+        hour_label = f"{hour:02d}:00"
+        hc3_kwh = round(hc3_by_hour[hour], 3)
+        elvia_kwh = round(elvia_by_hour[hour], 3)
+        diff_kwh = round(hc3_kwh - elvia_kwh, 3)
+        diff_percent = round((diff_kwh / elvia_kwh) * 100, 1) if elvia_kwh else None
+        hc3_total += hc3_kwh
+        elvia_total += elvia_kwh
+        hour_labels.append(hour_label)
+        hc3_values.append(hc3_kwh)
+        elvia_values.append(elvia_kwh if hour in elvia_present else None)
+        diff_values.append(diff_kwh if hour in elvia_present or hc3_kwh else None)
+        hc3_cumulative.append(round(hc3_total, 3))
+        elvia_cumulative.append(round(elvia_total, 3) if hour in elvia_present or elvia_total else None)
+        diff_cumulative.append(round(hc3_total - elvia_total, 3) if hour in elvia_present or hc3_total else None)
+        status_text = " / ".join(sorted(elvia_status_by_hour[hour])) if hour in elvia_present else "Mangler"
+        hourly_rows.append(
+            {
+                "hour_label": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00",
+                "hc3_kwh": hc3_kwh,
+                "elvia_kwh": elvia_kwh if hour in elvia_present else None,
+                "diff_kwh": diff_kwh if hour in elvia_present or hc3_kwh else None,
+                "diff_percent": diff_percent,
+                "hc3_samples": hc3_samples_by_hour[hour],
+                "hc3_delta_samples": hc3_valid_samples_by_hour[hour],
+                "elvia_status": status_text,
+            }
+        )
+
+    hc3_total = round(hc3_total, 3)
+    elvia_total = round(elvia_total, 3)
+    diff_total = round(hc3_total - elvia_total, 3)
+    diff_percent_total = round((diff_total / elvia_total) * 100, 1) if elvia_total else None
+    abs_diff = abs(diff_total)
+    ok_limit = max(1.0, elvia_total * 0.02)
+    has_elvia = bool(elvia_present)
+    control_status = "OK" if has_elvia and abs_diff <= ok_limit else "Avvik" if has_elvia else "Mangler Elvia"
+    diff_detail = (
+        f"{format_signed_short_number(diff_percent_total, 1)} % mot Elvia"
+        if diff_percent_total is not None
+        else "Mangler Elvia-grunnlag"
+    )
+    sample_detail = f"{sum(hc3_valid_samples_by_hour.values())}/{sum(hc3_samples_by_hour.values())} samples med delta"
+    latest_elvia_detail = (
+        f"Siste Elvia-time {format_source_datetime(latest_elvia.measured_at)}"
+        if latest_elvia and latest_elvia.measured_at
+        else "Ingen Elvia-time importert"
+    )
+
+    chart = api_chart(
+        f"Elvia mot HC3 {selected_day.strftime('%d.%m.%Y')}",
+        hour_labels,
+        [
+            {"name": "HC3", "data": hc3_values, "type": "bar", "color": "#15803d", "unit": "kWh"},
+            {"name": "Elvia", "data": elvia_values, "type": "bar", "color": "#5b6b84", "unit": "kWh"},
+            {"name": "Avvik", "data": diff_values, "type": "line", "color": "#dc2626", "unit": "kWh", "smooth": False},
+        ],
+        "HC3 er realtime-basert delta forskjøvet én time bakover for å matche Elvia-timen.",
+        "bar",
+        430,
+        metrics=[
+            {
+                "key": "hourly",
+                "label": "Per time",
+                "unit": "kWh",
+                "series": [
+                    {"name": "HC3", "data": hc3_values, "type": "bar", "color": "#15803d", "unit": "kWh"},
+                    {"name": "Elvia", "data": elvia_values, "type": "bar", "color": "#5b6b84", "unit": "kWh"},
+                    {"name": "Avvik", "data": diff_values, "type": "line", "color": "#dc2626", "unit": "kWh", "smooth": False},
+                ],
+            },
+            {
+                "key": "cumulative",
+                "label": "Akkumulert",
+                "unit": "kWh",
+                "series": [
+                    {"name": "HC3 akk.", "data": hc3_cumulative, "type": "line", "color": "#15803d", "unit": "kWh", "smooth": False},
+                    {"name": "Elvia akk.", "data": elvia_cumulative, "type": "line", "color": "#5b6b84", "unit": "kWh", "smooth": False},
+                    {"name": "Avvik akk.", "data": diff_cumulative, "type": "line", "color": "#dc2626", "unit": "kWh", "smooth": False},
+                ],
+            },
+        ],
+        default_metric="hourly",
+        disable_zoom=True,
+    )
+
+    return {
+        "title": v2_module_title("energi", "elvia-kontroll"),
+        "subtitle": "Kontroll av Elvia-timesforbruk mot HC3/Fibaro10 realtime-basert energilogging.",
+        "cards": [
+            api_card("HC3 valgt dag", format_short_number(hc3_total, 1), "kWh", sample_detail, "energy", href="/energi/status"),
+            api_card("Elvia valgt dag", format_short_number(elvia_total, 1), "kWh", f"{len(elvia_present)}/24 timer importert", "status", href="/energi/elvia"),
+            api_card("Avvik", format_signed_short_number(diff_total, 1), "kWh", diff_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
+            api_card("Status", control_status, "", latest_elvia_detail, "energy" if control_status == "OK" else "status", href="/energi/elvia-kontroll"),
+            api_card("Tidsjustering", "-1", "time", "HC3-delta er endestemplet", "status", href="/energi/elvia-kontroll"),
+        ],
+        "charts": [chart],
+        "tables": [
+            api_table(
+                "Timekontroll",
+                ["hour_label", "hc3_kwh", "elvia_kwh", "diff_kwh", "diff_percent", "hc3_samples", "hc3_delta_samples", "elvia_status"],
+                hourly_rows,
+            ),
+            api_table(
+                "Kontrollgrunnlag",
+                ["key", "value"],
+                api_config_value_rows(
+                    {
+                        "valgt_dag": selected_day.isoformat(),
+                        "hc3_periode_fra": compare_start,
+                        "hc3_periode_til": compare_end,
+                        "elvia_dato": selected_day.isoformat(),
+                        "delta_kilde": "realtime_w",
+                        "maks_intervall_sek": ENERGY_REALTIME_MAX_DELTA_SECONDS,
+                        "timeforskyvning": "-1 time i visning",
+                        "siste_hc3_sample": latest_hc3.bucket_start if latest_hc3 else None,
+                        "siste_elvia_time": latest_elvia.measured_at if latest_elvia else None,
+                    }
+                ),
+            ),
+        ],
+        "filters": [],
+        "dayNavigation": api_day_navigation(selected_day, today),
+        "energyElvia": None,
+        "energySunbeds": None,
+    }
+
+
 @app.get("/api/modules/{module}")
 async def api_v2_module(request: Request, module: str, view: Optional[str] = None, q: Optional[str] = None, day: Optional[str] = None):
     module = module.strip().lower()
@@ -20754,6 +20960,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             energy_sunbed_date_from = api_filter_value(params, "date_from")
             energy_sunbed_date_to = api_filter_value(params, "date_to")
             energy_limit_value = api_filter_int(params, "limit", 500, 25, 1000)
+            if view == "elvia-kontroll":
+                return await energy_elvia_control_module_payload(session, selected_day, today)
             if view == "forbruk-per-seng":
                 energy_sunbeds_data = await load_sunbed_power_analysis(
                     session,

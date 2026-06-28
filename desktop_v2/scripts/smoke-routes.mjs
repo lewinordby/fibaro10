@@ -30,6 +30,7 @@ export const smokeRoutes = [
   { path: "/energi/laster", name: "Energi laster" },
   { path: "/energi/forbruk-per-seng", name: "Energi forbruk per seng" },
   { path: "/energi/elvia", name: "Energi Elvia" },
+  { path: "/energi/elvia-kontroll", name: "Energi Elvia-kontroll" },
   { path: "/energi/verktoy", name: "Energi verktoy" },
   { path: "/ventilasjon/dagslogg", name: "Ventilasjon dagslogg" },
   { path: "/ventilasjon/temp-logg", name: "Ventilasjon temperatur og fukt" },

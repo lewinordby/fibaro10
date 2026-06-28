@@ -47,6 +47,7 @@ V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
     },
     "energi": {
         "status": "Status",
+        "elvia-kontroll": "Elvia-kontroll",
         "kurser": "Kurser",
         "laster": "Laster",
         "forbruk-per-seng": "Forbruk per seng",
