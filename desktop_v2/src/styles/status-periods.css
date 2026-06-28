@@ -1,6 +1,6 @@
 .status-period-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -58,53 +58,6 @@
   white-space: nowrap;
 }
 
-.status-period-rows {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.status-period-rows div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 7px 8px;
-  background: #f8fafc;
-  border: 1px solid #eef2f7;
-  border-radius: 6px;
-}
-
-.status-period-row.tone-sun2 {
-  border-left: 3px solid var(--domain-sun2);
-}
-
-.status-period-row.tone-parking {
-  border-left: 3px solid var(--domain-parking);
-}
-
-.status-period-rows span {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.2;
-}
-
-.status-period-rows strong {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 750;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.status-period-rows em {
-  color: var(--muted);
-  font-size: 11px;
-  font-style: normal;
-}
-
 .status-period-facts {
   display: flex;
   flex-direction: column;
@@ -121,6 +74,62 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.status-period-current-table,
+.status-period-comparison-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.status-period-current-table th,
+.status-period-current-table td,
+.status-period-comparison-table th,
+.status-period-comparison-table td {
+  padding: 5px 7px;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 10.5px;
+  line-height: 1.25;
+  vertical-align: top;
+}
+
+.status-period-current-table thead th,
+.status-period-comparison-table thead th {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status-period-current-table th,
+.status-period-comparison-table th {
+  color: #273244;
+  font-weight: 760;
+  text-align: left;
+}
+
+.status-period-current-table td,
+.status-period-comparison-table td {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.status-period-current-table tbody tr:first-child th,
+.status-period-current-table tbody tr:first-child td {
+  background: color-mix(in srgb, var(--domain-revenue) 5%, #ffffff);
+  font-weight: 820;
+}
+
+.status-period-current-table tbody tr.tone-sun2 th {
+  border-left: 3px solid var(--domain-sun2);
+}
+
+.status-period-current-table tbody tr.tone-parking th {
+  border-left: 3px solid var(--domain-parking);
 }
 
 .status-period-comparisons {
@@ -140,95 +149,79 @@
 }
 
 .status-period-comparison-row {
-  display: flex;
-  flex-direction: column;
-  gap: 5px 10px;
-  padding: 6px 0 0;
   color: inherit;
-  border-top: 1px solid #eef2f7;
-  text-decoration: none;
-  cursor: pointer;
 }
 
-.status-period-comparison-row:hover .status-period-comparison-title-row strong {
+.status-period-comparison-row:hover th a {
   color: var(--blue);
 }
 
-.status-period-comparison-title-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-}
-
-.status-period-comparison-title-row strong {
+.status-period-comparison-row th a,
+.status-period-comparison-row th span {
   display: block;
   overflow: hidden;
-  color: #273244;
-  font-size: 11px;
-  font-weight: 820;
-  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.status-period-comparison-title-row span {
-  flex: 0 0 auto;
+.status-period-comparison-row th a {
+  color: #273244;
+  font-size: 10.5px;
+  font-weight: 820;
+  text-decoration: none;
+}
+
+.status-period-comparison-row th span {
   color: #6b7280;
-  font-size: 10px;
+  font-size: 9.5px;
+  font-weight: 500;
+}
+
+.status-period-comparison-table strong,
+.status-period-comparison-table em,
+.status-period-comparison-table span {
+  display: block;
+}
+
+.status-period-comparison-table strong {
+  color: var(--ink);
+  font-size: 10.5px;
+  font-weight: 780;
   line-height: 1.2;
-  white-space: nowrap;
 }
 
-.status-period-comparison-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.status-period-comparison-line {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.status-period-comparison-line span {
+.status-period-comparison-table td span {
   overflow: hidden;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9.5px;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.status-period-comparison-line strong {
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 780;
-  line-height: 1.15;
-  white-space: nowrap;
-}
-
-.status-period-comparison-line em {
+.status-period-comparison-table em {
   color: #4b5563;
-  font-size: 10px;
+  font-size: 9.5px;
   font-style: normal;
   font-weight: 760;
   line-height: 1.15;
   white-space: nowrap;
 }
 
-.status-period-comparison-line em.positive {
+.status-period-comparison-table em.positive {
   color: #166534;
 }
 
-.status-period-comparison-line em.negative {
+.status-period-comparison-table em.negative {
   color: #b91c1c;
 }
 
-.status-period-comparison-line em.neutral {
+.status-period-comparison-table em.neutral {
   color: #4b5563;
+}
+
+@media (max-width: 1180px) {
+  .status-period-grid {
+    grid-template-columns: 1fr;
+  }
 }

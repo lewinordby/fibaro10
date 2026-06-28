@@ -43,7 +43,7 @@ const EXTRA_COMPARISON_KEYS: Record<string, string[]> = {
 const DASHBOARD_CONFIG: Record<DashboardView, { title: string; detail: string; tone: string }> = {
   omsetning: {
     title: "Omsetning",
-    detail: "I dag, uke og måned med samme datatidspunkt i sammenligningene.",
+    detail: "I dag, uke, måned og år med samme datatidspunkt i sammenligningene.",
     tone: "revenue",
   },
   parkering: {
@@ -286,33 +286,32 @@ function ComparisonRow({
   const simpleLabel = referenceLabel(comparison.fullLabel, comparison.label);
   const sameTimeClass = deltaClass(currentTotal, comparison.total);
   const fullClass = fullReferenceClass(currentTotal, fullTotal);
+  const comparisonPath =
+    periodKey === "year"
+      ? "/omsetning/akkumulert"
+      : `/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`;
 
   return (
-    <Link
-      className="status-period-comparison-row"
-      title="Vis tidslinje for sammenligningen"
-      to={`/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`}
-    >
-      <div className="status-period-comparison-title-row">
-        <strong>{simpleLabel}</strong>
+    <tr className="status-period-comparison-row">
+      <th scope="row">
+        <Link title="Vis sammenligning" to={comparisonPath}>{simpleLabel}</Link>
         <span>til {comparisonTimeText(comparison)}</span>
-      </div>
-      <div className="status-period-comparison-lines">
-        <div className="status-period-comparison-line">
-          <span>Samme tidspunkt</span>
-          <strong>{nok(comparison.total)} kr</strong>
-          <em className={sameTimeClass}>
-            {signedNok(sameTimeDelta)}
-            {percent ? ` (${percent})` : ""}
-          </em>
-        </div>
-        <div className="status-period-comparison-line">
-          <span>{fullLabel}</span>
-          <strong>{nok(fullTotal)} kr</strong>
-          <em className={fullClass}>{fullReferenceText(currentTotal, fullTotal)}</em>
-        </div>
-      </div>
-    </Link>
+      </th>
+      <td>
+        <strong>{nok(comparison.total)} kr</strong>
+        <em className={sameTimeClass}>
+          {signedNok(sameTimeDelta)}
+          {percent ? ` (${percent})` : ""}
+        </em>
+      </td>
+      <td>
+        <strong>{nok(fullTotal)} kr</strong>
+        <span>{fullLabel}</span>
+      </td>
+      <td>
+        <em className={fullClass}>{fullReferenceText(currentTotal, fullTotal)}</em>
+      </td>
+    </tr>
   );
 }
 
@@ -350,18 +349,34 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
         </div>
         <strong>{nok(period.total)} kr</strong>
       </div>
-      <div className="status-period-rows">
-        <div className="status-period-row tone-sun2">
-          <span>Soling</span>
-          <strong>{nok(period.sol)} kr</strong>
-          <em>{period.solCount} stk</em>
-        </div>
-        <div className="status-period-row tone-parking">
-          <span>Parkering</span>
-          <strong>{nok(period.parking)} kr</strong>
-          <em>{period.parkingCount} stk</em>
-        </div>
-      </div>
+
+      <table className="status-period-current-table">
+        <thead>
+          <tr>
+            <th scope="col">Grunnlag</th>
+            <th scope="col">Kr</th>
+            <th scope="col">Antall</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="status-period-total-row">
+            <th scope="row">Sum</th>
+            <td>{nok(period.total)} kr</td>
+            <td>-</td>
+          </tr>
+          <tr className="tone-sun2">
+            <th scope="row">Soling</th>
+            <td>{nok(period.sol)} kr</td>
+            <td>{period.solCount} stk</td>
+          </tr>
+          <tr className="tone-parking">
+            <th scope="row">Parkering</th>
+            <td>{nok(period.parking)} kr</td>
+            <td>{period.parkingCount} stk</td>
+          </tr>
+        </tbody>
+      </table>
+
       <div className="status-period-facts" aria-label={`Målepunkter for ${period.title}`}>
         <span>
           Snitt: sol {averageAmountText(period.sol, period.solCount)} / park {averageAmountText(period.parking, period.parkingCount)}
@@ -370,17 +385,30 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
           Fordeling: sol {solShare} / park {parkingShare}
         </span>
       </div>
+
       <div className="status-period-comparisons">
         <div className="status-period-comparisons-title">Sammenligning</div>
-        {comparisons.map((comparison, index) => (
-          <ComparisonRow
-            comparison={comparison}
-            comparisonKey={index === 0 ? "previous" : EXTRA_COMPARISON_KEYS[period.key]?.[index - 1] || `extra-${index - 1}`}
-            currentTotal={period.total}
-            key={comparison.label}
-            periodKey={period.key}
-          />
-        ))}
+        <table className="status-period-comparison-table">
+          <thead>
+            <tr>
+              <th scope="col">Referanse</th>
+              <th scope="col">Samme tid</th>
+              <th scope="col">Hele</th>
+              <th scope="col">Mot hele</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparisons.map((comparison, index) => (
+              <ComparisonRow
+                comparison={comparison}
+                comparisonKey={index === 0 ? "previous" : EXTRA_COMPARISON_KEYS[period.key]?.[index - 1] || `extra-${index - 1}`}
+                currentTotal={period.total}
+                key={comparison.label}
+                periodKey={period.key}
+              />
+            ))}
+          </tbody>
+        </table>
       </div>
     </Card>
   );
@@ -566,7 +594,6 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
   const overview = data;
   const view = DASHBOARD_CONFIG[dashboard] ? dashboard : "omsetning";
   const supportCards = overview.cards.filter(isOverviewSupportCard);
-  const revenueCards = overview.cards.filter(isCombinedRevenueSource);
   const parkingCards = groupCards(overview.cards, "Parkering");
   const sunCards = groupCards(overview.cards, "Soling");
   const overviewServices = sortedDatasources(overview.services);
@@ -582,18 +609,13 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
 
   function renderRevenueDashboard() {
     return (
-      <>
-        <StatusSection title="Omsetning" detail="I dag, uke og måned med korrekt datatidspunkt">
-          <div className="status-period-grid">
-            {overview.statusPeriods.map((period) => (
-              <RevenuePeriodCard period={period} key={period.key} />
-            ))}
-          </div>
-        </StatusSection>
-        <StatusSection title="Fordeling" detail="Omsetning, soling og parkering fra samme grunnlag">
-          <SupportMetricStrip cards={revenueCards} />
-        </StatusSection>
-      </>
+      <StatusSection title="Omsetning" detail="I dag, uke, måned og år med korrekt datatidspunkt">
+        <div className="status-period-grid">
+          {overview.statusPeriods.map((period) => (
+            <RevenuePeriodCard period={period} key={period.key} />
+          ))}
+        </div>
+      </StatusSection>
     );
   }
 

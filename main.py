@@ -13292,6 +13292,9 @@ async def status_key_metrics_view(request: Request):
     revenue_previous_week = float_or_zero(previous_week_sun.paid) + float_or_zero(previous_week_parking.paid)
     revenue_month = float_or_zero(month_sun.paid) + float_or_zero(month_parking.paid)
     revenue_previous_month = float_or_zero(previous_month_sun.paid) + float_or_zero(previous_month_parking.paid)
+    revenue_year = float_or_zero(year_sun.paid) + float_or_zero(year_parking.paid)
+    revenue_previous_year = float_or_zero(previous_year_sun.paid) + float_or_zero(previous_year_parking.paid)
+    revenue_two_years = float_or_zero(two_years_full_sun.paid) + float_or_zero(two_years_parking.paid)
     cards = [
         {
             "group": "Drift",
@@ -14233,6 +14236,9 @@ async def api_v2_overview():
     month_start = today.replace(day=1)
     previous_month_start = (month_start - timedelta(days=1)).replace(day=1)
     two_months_start = (previous_month_start - timedelta(days=1)).replace(day=1)
+    year_start = date(today.year, 1, 1)
+    previous_year_start = date(today.year - 1, 1, 1)
+    two_years_start = date(today.year - 2, 1, 1)
     tomorrow = today + timedelta(days=1)
     today_start = datetime.combine(today, time.min)
     tomorrow_start = datetime.combine(tomorrow, time.min)
@@ -14245,6 +14251,10 @@ async def api_v2_overview():
     month_start_dt = datetime.combine(month_start, time.min)
     previous_month_start_dt = datetime.combine(previous_month_start, time.min)
     two_months_start_dt = datetime.combine(two_months_start, time.min)
+    year_start_dt = datetime.combine(year_start, time.min)
+    previous_year_start_dt = datetime.combine(previous_year_start, time.min)
+    two_years_start_dt = datetime.combine(two_years_start, time.min)
+    next_year_start_dt = datetime.combine(date(today.year + 1, 1, 1), time.min)
     async with async_session() as session:
         latest_light_sample = (
             await session.execute(select(OutdoorLightSample).order_by(OutdoorLightSample.timestamp.desc()).limit(1))
@@ -14264,9 +14274,11 @@ async def api_v2_overview():
         sun_today_cutoff = period_cutoff(today_start, tomorrow_start, sun_as_of)
         sun_week_cutoff = period_cutoff(week_start_dt, tomorrow_start, sun_as_of)
         sun_month_cutoff = period_cutoff(month_start_dt, tomorrow_start, sun_as_of)
+        sun_year_cutoff = period_cutoff(year_start_dt, next_year_start_dt, sun_as_of)
         parking_today_cutoff = period_cutoff(today_start, tomorrow_start, parking_as_of)
         parking_week_cutoff = period_cutoff(week_start_dt, tomorrow_start, parking_as_of)
         parking_month_cutoff = period_cutoff(month_start_dt, tomorrow_start, parking_as_of)
+        parking_year_cutoff = period_cutoff(year_start_dt, next_year_start_dt, parking_as_of)
         sun_yesterday_cutoff = shifted_period_cutoff(today_start, sun_today_cutoff, yesterday_start, today_start)
         sun_last_week_same_day_cutoff = shifted_period_cutoff(
             today_start,
@@ -14287,6 +14299,18 @@ async def api_v2_overview():
             sun_month_cutoff,
             two_months_start_dt,
             previous_month_start_dt,
+        )
+        sun_previous_year_cutoff = shifted_period_cutoff(
+            year_start_dt,
+            sun_year_cutoff,
+            previous_year_start_dt,
+            year_start_dt,
+        )
+        sun_two_years_cutoff = shifted_period_cutoff(
+            year_start_dt,
+            sun_year_cutoff,
+            two_years_start_dt,
+            previous_year_start_dt,
         )
         parking_yesterday_cutoff = shifted_period_cutoff(today_start, parking_today_cutoff, yesterday_start, today_start)
         parking_last_week_same_day_cutoff = shifted_period_cutoff(
@@ -14319,12 +14343,27 @@ async def api_v2_overview():
             two_months_start_dt,
             previous_month_start_dt,
         )
+        parking_previous_year_cutoff = shifted_period_cutoff(
+            year_start_dt,
+            parking_year_cutoff,
+            previous_year_start_dt,
+            year_start_dt,
+        )
+        parking_two_years_cutoff = shifted_period_cutoff(
+            year_start_dt,
+            parking_year_cutoff,
+            two_years_start_dt,
+            previous_year_start_dt,
+        )
         today_sun = await sun2_datetime_snapshot(session, today_start, sun_today_cutoff)
         yesterday_sun = await sun2_period_snapshot(session, yesterday, today)
         week_sun = await sun2_datetime_snapshot(session, week_start_dt, sun_week_cutoff)
         previous_week_sun = await sun2_period_snapshot(session, previous_week_start, week_start)
         month_sun = await sun2_datetime_snapshot(session, month_start_dt, sun_month_cutoff)
         previous_month_sun = await sun2_period_snapshot(session, previous_month_start, month_start)
+        year_sun = await sun2_datetime_snapshot(session, year_start_dt, sun_year_cutoff)
+        previous_year_sun = await sun2_period_snapshot(session, previous_year_start, year_start)
+        two_years_full_sun = await sun2_period_snapshot(session, two_years_start, previous_year_start)
         last_week_same_day_full_sun = await sun2_period_snapshot(
             session,
             last_week_same_day,
@@ -14357,6 +14396,16 @@ async def api_v2_overview():
             session,
             two_months_start_dt,
             sun_two_months_cutoff,
+        )
+        previous_year_same_time_sun = await sun2_datetime_snapshot(
+            session,
+            previous_year_start_dt,
+            sun_previous_year_cutoff,
+        )
+        two_years_same_time_sun = await sun2_datetime_snapshot(
+            session,
+            two_years_start_dt,
+            sun_two_years_cutoff,
         )
         today_parking = await parking_datetime_snapshot(session, today_start, parking_today_cutoff)
         yesterday_parking = (
@@ -14444,6 +14493,19 @@ async def api_v2_overview():
             two_months_start_dt,
             parking_two_months_cutoff,
         )
+        year_parking = await parking_datetime_snapshot(session, year_start_dt, parking_year_cutoff)
+        previous_year_parking = await parking_datetime_snapshot(session, previous_year_start_dt, year_start_dt)
+        two_years_parking = await parking_datetime_snapshot(session, two_years_start_dt, previous_year_start_dt)
+        previous_year_same_time_parking = await parking_datetime_snapshot(
+            session,
+            previous_year_start_dt,
+            parking_previous_year_cutoff,
+        )
+        two_years_same_time_parking = await parking_datetime_snapshot(
+            session,
+            two_years_start_dt,
+            parking_two_years_cutoff,
+        )
         active_parking = (
             await session.execute(
                 select(func.count(ParkingSession.id)).where(
@@ -14506,6 +14568,12 @@ async def api_v2_overview():
     )
     previous_month_same_time = (
         float_or_zero(previous_month_same_time_sun.paid) + float_or_zero(previous_month_same_time_parking.paid)
+    )
+    previous_year_same_time = (
+        float_or_zero(previous_year_same_time_sun.paid) + float_or_zero(previous_year_same_time_parking.paid)
+    )
+    two_years_same_time = (
+        float_or_zero(two_years_same_time_sun.paid) + float_or_zero(two_years_same_time_parking.paid)
     )
     status_periods = [
         {
@@ -14652,6 +14720,49 @@ async def api_v2_overview():
                     ),
                     "solAsOfLabel": cutoff_label(sun_two_months_cutoff, today),
                     "parkingAsOfLabel": cutoff_label(parking_two_months_cutoff, today),
+                }
+            ],
+        },
+        {
+            "key": "year",
+            "title": "Dette \u00e5r",
+            "sol": float_or_zero(year_sun.paid),
+            "solCount": int_or_zero(year_sun.sessions),
+            "parking": float_or_zero(year_parking.paid),
+            "parkingCount": int_or_zero(year_parking.sessions),
+            "total": revenue_year,
+            "previousSol": float_or_zero(previous_year_same_time_sun.paid),
+            "previousSolCount": int_or_zero(previous_year_same_time_sun.sessions),
+            "previousParking": float_or_zero(previous_year_same_time_parking.paid),
+            "previousParkingCount": int_or_zero(previous_year_same_time_parking.sessions),
+            "previousTotal": previous_year_same_time,
+            "previousLabel": "Sammenlignet med tilsvarende datatidspunkt i fjor",
+            "previousFullLabel": "Hele i fjor",
+            "previousFullSol": float_or_zero(previous_year_sun.paid),
+            "previousFullSolCount": int_or_zero(previous_year_sun.sessions),
+            "previousFullParking": float_or_zero(previous_year_parking.paid),
+            "previousFullParkingCount": int_or_zero(previous_year_parking.sessions),
+            "previousFullTotal": revenue_previous_year,
+            "solAsOfLabel": cutoff_label(sun_year_cutoff, today),
+            "parkingAsOfLabel": cutoff_label(parking_year_cutoff, today),
+            "previousSolAsOfLabel": cutoff_label(sun_previous_year_cutoff, today),
+            "previousParkingAsOfLabel": cutoff_label(parking_previous_year_cutoff, today),
+            "extraComparisons": [
+                {
+                    "label": "Sammenlignet med tilsvarende datatidspunkt for to \u00e5r siden",
+                    "sol": float_or_zero(two_years_same_time_sun.paid),
+                    "solCount": int_or_zero(two_years_same_time_sun.sessions),
+                    "parking": float_or_zero(two_years_same_time_parking.paid),
+                    "parkingCount": int_or_zero(two_years_same_time_parking.sessions),
+                    "total": two_years_same_time,
+                    "fullLabel": "Hele \u00e5ret for to \u00e5r siden",
+                    "fullSol": float_or_zero(two_years_full_sun.paid),
+                    "fullSolCount": int_or_zero(two_years_full_sun.sessions),
+                    "fullParking": float_or_zero(two_years_parking.paid),
+                    "fullParkingCount": int_or_zero(two_years_parking.sessions),
+                    "fullTotal": revenue_two_years,
+                    "solAsOfLabel": cutoff_label(sun_two_years_cutoff, today),
+                    "parkingAsOfLabel": cutoff_label(parking_two_years_cutoff, today),
                 }
             ],
         },

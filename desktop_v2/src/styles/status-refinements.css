@@ -121,36 +121,9 @@
 }
 
 .status-period-head em,
-.status-period-rows span,
-.status-period-rows em,
-.status-period-comparison-title-row span,
 .status-period-facts {
   color: var(--muted);
   font-size: 10px;
-}
-
-.status-period-rows {
-  gap: 8px;
-}
-
-.status-period-rows div {
-  padding: 7px 9px;
-  background: color-mix(in srgb, var(--tone-color, var(--domain-status)) 4%, #f8fafc);
-  border-color: color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, #e8edf4);
-  border-radius: var(--radius-md);
-}
-
-.status-period-row.tone-sun2 {
-  border-left-color: var(--domain-sun2);
-}
-
-.status-period-row.tone-parking {
-  border-left-color: var(--domain-parking);
-}
-
-.status-period-rows strong,
-.status-period-comparison-line strong {
-  font-size: 12px;
 }
 
 .status-period-facts {
@@ -166,15 +139,6 @@
 
 .status-period-comparisons {
   gap: 6px;
-}
-
-.status-period-comparison-row {
-  padding: 7px 0 0;
-  border-top-color: var(--line-soft);
-}
-
-.status-period-comparison-row:hover .status-period-comparison-title-row strong {
-  color: color-mix(in srgb, var(--domain-revenue) 82%, #111827);
 }
 
 :is(.status-event-list, .status-source-list) .ant-list-item {

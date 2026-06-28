@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1324")
+APP_BUILD = os.getenv("APP_BUILD", "1325")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1325",
+        "date": "28.06.2026",
+        "headline": "Omsetningsdashboard med fire periodebokser",
+        "title": "Dashboard > Omsetning viser dag, uke, m\u00e5ned og \u00e5r som store tabellkort",
+        "description": (
+            "Build 1325 fjerner Fordeling-flisene fra omsetningsdashboardet og erstatter de tre gamle "
+            "periodekortene med fire store bokser i to kolonner. Hver boks viser sum, soling, parkering "
+            "og sammenligninger i tabeller med h\u00f8yrejusterte tall."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): /api/overview sender n\u00e5 ogs\u00e5 \u00e5rsperiode med i fjor og to \u00e5r siden som referanser.",
+            "Desktop v2 (OverviewPage.tsx): omsetningsdashboardet bruker fire periodekort og fjerner Fordeling-seksjonen.",
+            "Desktop v2 CSS (status-periods.css/status-refinements.css/status-overview.css): periodekortene er lagt om til tabellbasert 2x2-layout.",
+            "Buildlogg (build_log.py): registrerer build 1325.",
+        ],
+        "request": "hva om vi dropper alle de flisene under fordeling ogs\u00e5, lager 4 store bokser to i bredden p\u00e5 en vanlig skjermbredde. i dag, denne uke, denne mnd, dette \u00e5r. med tilsvarende sammenligninger for alt. husk \u00e5 sette ting inn i tabeller slik at det blir riktig justert sm\u00e5 og store tall osv.",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "La til \u00e5r som fjerde periode i omsetningsdashboardet.",
+            "Fjernet Fordeling-seksjonen under omsetningsperiodene.",
+            "Byttet periodeinnhold fra fliser til tabeller med justerte tallkolonner.",
+            "Beholder snitt og prosentvis fordeling inne i hvert periodekort.",
+            "\u00c5rskortets sammenligningslenker peker til \u00e5rssammenligningen for \u00e5 unng\u00e5 tung hendelsestidslinje for hele \u00e5r.",
+        ],
+    },
     {
         "version": "1",
         "build": "1324",
