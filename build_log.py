@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1310")
+APP_BUILD = os.getenv("APP_BUILD", "1311")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1311",
+        "date": "28.06.2026",
+        "headline": "Robust smoke-provisionering",
+        "title": "Provision-scriptet sender Python-koden robust over SSH uten quoting-problemer",
+        "description": (
+            "Build 1311 gjoer provision-live-smoke-user.ps1 mer robust mot QNAP/SSH-quoting ved aa "
+            "sende databaseoppdateringen som base64-kodet Python-payload. Dermed kan fibaro-smoke "
+            "opprettes eller roteres uten at remote shell fjerner anfoerselstegn i Python-koden."
+        ),
+        "applications": [
+            "Fibaro10 driftsscript (provision-live-smoke-user.ps1): base64-kodet Python-payload over SSH.",
+            "Buildlogg (build_log.py): registrerer build 1311.",
+        ],
+        "request": "gjor det",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Provisionering av fibaro-smoke er robust mot remote shell-quoting.",
+            "Ingen endring i produksjonsdata utover at scriptet kan opprette/rotere smoke-brukeren.",
+        ],
+    },
     {
         "version": "1",
         "build": "1310",

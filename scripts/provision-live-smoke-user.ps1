@@ -53,15 +53,7 @@ Assert-SafeShellValue "Role" $Role
 Assert-SafeShellValue "RemoteDir" $RemoteDir
 Assert-SafeShellValue "Docker" $Docker
 
-$remote = @"
-set -e
-source /opt/etc/profile 2>/dev/null || true
-cd "$RemoteDir"
-"$Docker" exec -i \
-  -e FIBARO10_SMOKE_USERNAME="$Username" \
-  -e FIBARO10_SMOKE_PASSWORD="$Password" \
-  -e FIBARO10_SMOKE_ROLE="$Role" \
-  fibaro10 python - <<'PY'
+$pythonSource = @'
 import asyncio
 import os
 from sqlalchemy import select
@@ -110,6 +102,22 @@ async def run():
 
 
 asyncio.run(run())
+'@
+$pythonPayload = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($pythonSource))
+$pythonPayloadBytes = [System.Text.Encoding]::ASCII.GetBytes($pythonPayload)
+$pythonPayloadArray = ($pythonPayloadBytes | ForEach-Object { [string][int]$_ }) -join ","
+
+$remote = @"
+set -e
+source /opt/etc/profile 2>/dev/null || true
+cd "$RemoteDir"
+"$Docker" exec -i \
+  -e FIBARO10_SMOKE_USERNAME="$Username" \
+  -e FIBARO10_SMOKE_PASSWORD="$Password" \
+  -e FIBARO10_SMOKE_ROLE="$Role" \
+  fibaro10 python - <<PY
+_payload = bytes([$pythonPayloadArray])
+exec(__import__(chr(98)+chr(97)+chr(115)+chr(101)+chr(54)+chr(52)).b64decode(_payload).decode(chr(117)+chr(116)+chr(102)+chr(45)+chr(56)))
 PY
 "@
 
