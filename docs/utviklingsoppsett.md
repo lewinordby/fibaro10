@@ -71,6 +71,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 ## V1-referanse
 
 V1 paa port `8111` er naa en frakoblet referansevisning, ikke en gammel live-app mot produksjonsdatabasen.
+V2 paa port `8110` er daglig drift og skal behandles som produksjon. V1-referansen skal bare brukes for aa sammenligne gamle funksjoner mot V2.
 
 - Adresse: `http://192.168.20.218:8111`
 - Container: `fibaro10_v1`
@@ -85,6 +86,8 @@ Deploy/oppdater referansen slik:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap-v1-history.ps1
 ```
+
+Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compose.v1-reference.yml`, bygger/restarter bare `fibaro10_v1`, og skal ikke kjoere `docker-compose.qnap.yml`, `git reset` eller restart av V2.
 
 ## Produksjon
 

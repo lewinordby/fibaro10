@@ -36,14 +36,48 @@ if (-not (Test-Path -LiteralPath $IdentityFile)) {
     throw "Missing SSH identity file: $IdentityFile. Run scripts\setup-local-dev.ps1 first."
 }
 
+foreach ($path in @(
+    "docker-compose.v1-reference.yml",
+    "v1_reference/Dockerfile",
+    "v1_reference/requirements.txt",
+    "v1_reference/app/main.py"
+)) {
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "Missing V1 reference deploy file: $path"
+    }
+}
+
+$uploadDir = "$RemoteDir/.v1_reference_upload"
+
+$prepareRemote = @"
+set -e
+source /opt/etc/profile 2>/dev/null || true
+test -d "$RemoteDir"
+test -x "$Docker"
+cd "$RemoteDir"
+rm -rf "$uploadDir"
+mkdir -p "$uploadDir/v1_reference/app"
+"@
+
+Run "ssh" @("-i", $IdentityFile, $QnapHost, (NormalizeRemote $prepareRemote))
+
+Run "scp" @("-i", $IdentityFile, "docker-compose.v1-reference.yml", "${QnapHost}:${uploadDir}/docker-compose.v1-reference.yml")
+Run "scp" @("-i", $IdentityFile, "v1_reference/Dockerfile", "v1_reference/requirements.txt", "${QnapHost}:${uploadDir}/v1_reference/")
+Run "scp" @("-i", $IdentityFile, "v1_reference/app/main.py", "${QnapHost}:${uploadDir}/v1_reference/app/")
+
 $remote = @"
 set -e
 source /opt/etc/profile 2>/dev/null || true
 test -d "$RemoteDir"
 test -x "$Docker"
 cd "$RemoteDir"
-git fetch origin main
-git reset --hard origin/main
+cp "$uploadDir/docker-compose.v1-reference.yml" docker-compose.v1-reference.yml
+rm -rf v1_reference.prev
+if [ -d v1_reference ]; then
+    mv v1_reference v1_reference.prev
+fi
+mv "$uploadDir/v1_reference" v1_reference
+rm -rf v1_reference.prev "$uploadDir"
 "$Docker" rm -f fibaro10_v1 >/dev/null 2>&1 || true
 APP_BUILD=v1-reference V1_SOURCE_COMMIT="$SourceCommit" "$Docker" compose -f docker-compose.v1-reference.yml up -d --build fibaro10_v1
 "$Docker" compose -f docker-compose.v1-reference.yml ps
