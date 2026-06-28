@@ -141,8 +141,20 @@
 }
 
 .status-period-rows strong,
-.status-period-comparison-main strong {
+.status-period-comparison-main strong,
+.status-period-kpis strong {
   font-size: 12px;
+}
+
+.status-period-kpis {
+  gap: 3px 7px;
+  padding-top: 5px;
+  border-top-color: var(--line-soft);
+}
+
+.status-period-kpis span {
+  color: var(--muted);
+  font-size: 9.5px;
 }
 
 .status-period-comparisons {

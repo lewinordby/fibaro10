@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1319")
+APP_BUILD = os.getenv("APP_BUILD", "1320")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1320",
+        "date": "28.06.2026",
+        "headline": "Omsetningsdashboard målepunkter",
+        "title": "Omsetningskortene viser snitt, fordeling og volumendring",
+        "description": (
+            "Build 1320 gjør de tre periodekortene på Dashboard > Omsetning mer analytiske. "
+            "Kortene viser fortsatt total, soling, parkering og sammenligninger, men har nå også "
+            "snitt per soling, snitt per parkering, inntektsfordeling og volumendring mot hovedsammenligningen."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): periodekortene beregner snitt, fordeling og volumendring fra eksisterende statusPeriods-data.",
+            "Desktop v2 CSS (status-periods.css/status-refinements.css): kompakt visning for nye målepunkter i periodekortene.",
+            "Buildlogg (build_log.py): registrerer build 1320.",
+        ],
+        "request": "nå kan vi gjøre de 3 øverste på dashboard/omsetning litt mer utfyllende. ønsker at du skal finne nyttige parametre å måle mot",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "I dag, Uke og Måned viser snittomsetning per soling.",
+            "I dag, Uke og Måned viser snittomsetning per parkering.",
+            "Kortene viser inntektsfordeling mellom soling og parkering.",
+            "Kortene viser volumendring for soling og parkering mot hovedsammenligningen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1319",

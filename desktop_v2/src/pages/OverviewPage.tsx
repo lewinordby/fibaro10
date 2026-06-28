@@ -165,6 +165,21 @@ function deltaClass(current: number, previous: number) {
   return "neutral";
 }
 
+function averageAmountText(amount: number, count: number) {
+  if (!Number.isFinite(amount) || !Number.isFinite(count) || count <= 0) return "-";
+  return `${nok(amount / count)} kr`;
+}
+
+function sharePercentText(amount: number, total: number) {
+  if (!Number.isFinite(amount) || !Number.isFinite(total) || total <= 0) return "-";
+  return `${Math.round((amount / total) * 100)}%`;
+}
+
+function signedCountText(value: number) {
+  if (!Number.isFinite(value) || value === 0) return "0";
+  return `${value > 0 ? "+" : "-"}${Math.abs(value)}`;
+}
+
 function groupCards(cards: MetricCardData[], group: string) {
   return cards.filter((card) => card.group === group);
 }
@@ -279,6 +294,10 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
     },
     ...(period.extraComparisons ?? []),
   ];
+  const solShare = sharePercentText(period.sol, period.total);
+  const parkingShare = sharePercentText(period.parking, period.total);
+  const solCountDelta = period.solCount - period.previousSolCount;
+  const parkingCountDelta = period.parkingCount - period.previousParkingCount;
 
   return (
     <Card className="status-period-card">
@@ -301,6 +320,28 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
           <span>Parkering</span>
           <strong>{nok(period.parking)} kr</strong>
           <em>{period.parkingCount} stk</em>
+        </div>
+      </div>
+      <div className="status-period-kpis" aria-label={`Målepunkter for ${period.title}`}>
+        <div>
+          <span>Snitt soling</span>
+          <strong>{averageAmountText(period.sol, period.solCount)}</strong>
+        </div>
+        <div>
+          <span>Snitt parkering</span>
+          <strong>{averageAmountText(period.parking, period.parkingCount)}</strong>
+        </div>
+        <div>
+          <span>Fordeling</span>
+          <strong>
+            Sol {solShare} / park {parkingShare}
+          </strong>
+        </div>
+        <div title={period.previousLabel}>
+          <span>Volumendring</span>
+          <strong>
+            Sol {signedCountText(solCountDelta)} / park {signedCountText(parkingCountDelta)}
+          </strong>
         </div>
       </div>
       <div className="status-period-comparisons">
