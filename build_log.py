@@ -24,7 +24,7 @@ BUILD_LOG = [
             "Deploy (scripts/deploy-qnap.ps1): bevarer mqtt/data og starter owntracks_mqtt ved deploy.",
             "Fibaro10 backend (main.py): OwnTracks-tabeller, MQTT-konsument, datakilde og JSON-endepunkt.",
             "Fibaro10 desktop V2: nytt Admin > OwnTracks menyvalg, smoke-route og tabell-labels.",
-            "Konfigurasjon/dokumentasjon (.env.qnap.example, docs/owntracks-mqtt.md, mqtt/mosquitto.conf): oppskrift og broker-konfig.",
+            "Konfigurasjon/dokumentasjon (.env.qnap.example, docs/owntracks-mqtt.md, mqtt/mosquitto.conf, mqtt/entrypoint.sh): oppskrift og broker-konfig.",
         ],
         "request": "sett opp en MQTT server for owntracks appen slik at jeg kan benytte dette i Fibaro10",
         "work_duration": "ca. 60 min",
