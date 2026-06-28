@@ -1,4 +1,15 @@
-import { ArrowRightOutlined, CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
+import {
+  AimOutlined,
+  ArrowDownOutlined,
+  ArrowRightOutlined,
+  ArrowUpOutlined,
+  CarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  FireOutlined,
+  MinusOutlined,
+  WarningOutlined,
+} from "@ant-design/icons";
 import { Card, List, Space, Tag, Tooltip, Typography } from "antd";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -243,17 +254,6 @@ function StatusStrip({ title, items }: { title: string; items: StripItem[] }) {
   );
 }
 
-function ComparisonDelta({ currentAmount, referenceAmount }: { currentAmount: number; referenceAmount: number }) {
-  const percent = percentDelta(currentAmount, referenceAmount);
-  const diffClass = deltaClass(currentAmount, referenceAmount);
-  return (
-    <em className={diffClass}>
-      {signedNok(currentAmount - referenceAmount)}
-      {percent ? ` (${percent})` : ""}
-    </em>
-  );
-}
-
 function periodComparisonPath(periodKey: string, comparisonKey: string) {
   return periodKey === "year"
     ? "/omsetning/akkumulert"
@@ -283,7 +283,7 @@ type PeriodComparisonView = {
   fullTotal: number;
 };
 
-type RevenueLineKey = "soling" | "parkering" | "sum";
+type RevenueLineKey = "soling" | "parkering";
 
 type RevenuePeriodLine = {
   key: RevenueLineKey;
@@ -291,6 +291,12 @@ type RevenuePeriodLine = {
   tone: string;
   currentAmount: number;
   currentCount?: number;
+};
+
+type PeriodDriver = {
+  key: RevenueLineKey;
+  tone: "positive" | "negative" | "neutral";
+  label: string;
 };
 
 function buildComparisonViews(period: StatusPeriod): PeriodComparisonView[] {
@@ -341,10 +347,49 @@ function periodComparisonLabel(periodKey: string, item: PeriodComparisonView) {
   return item.shortLabel;
 }
 
+function periodTopComparisonLabel(period: StatusPeriod, item: PeriodComparisonView) {
+  return `Mot ${periodComparisonLabel(period.key, item).toLowerCase()}`;
+}
+
+function periodColumnComparisonLabel(period: StatusPeriod, item: PeriodComparisonView) {
+  if (period.key === "today" && item.comparisonKey === "previous") return "Mot i går";
+  if (period.key === "today" && item.comparisonKey === "same-weekday-last-week") return "Mot forrige uke";
+  if (period.key === "week" && item.comparisonKey === "previous") return "Mot forrige uke";
+  if (period.key === "week" && item.comparisonKey === "two-weeks-ago") return "Mot to uker siden";
+  if (period.key === "month" && item.comparisonKey === "previous") return "Mot forrige måned";
+  if (period.key === "month" && item.comparisonKey === "two-months-ago") return "Mot to måneder siden";
+  if (period.key === "year" && item.comparisonKey === "previous") return "Mot i fjor";
+  return `Mot ${item.shortLabel.toLowerCase()}`;
+}
+
 function periodFullReferenceLabel(periodKey: string, item: PeriodComparisonView) {
   if (periodKey === "today" && item.comparisonKey === "previous") return "I går totalt";
   if (periodKey === "today" && item.comparisonKey === "same-weekday-last-week") return "Samme ukedag forrige uke totalt";
   return `Hele ${item.shortLabel.toLowerCase()}`;
+}
+
+function periodDisplayTitle(period: StatusPeriod) {
+  if (period.key === "today") return "Omsetning hittil i dag";
+  if (period.key === "week") return "Omsetning hittil denne uken";
+  if (period.key === "month") return "Omsetning hittil denne måneden";
+  if (period.key === "year") return "Omsetning hittil i år";
+  return `Omsetning hittil: ${period.title}`;
+}
+
+function periodCurrentColumnLabel(period: StatusPeriod) {
+  if (period.key === "today") return "I dag hittil";
+  if (period.key === "week") return "Uke hittil";
+  if (period.key === "month") return "Måned hittil";
+  if (period.key === "year") return "År hittil";
+  return "Hittil";
+}
+
+function periodReferenceTitle(period: StatusPeriod) {
+  if (period.key === "today") return "Hele referansedagen";
+  if (period.key === "week") return "Hele referanseuken";
+  if (period.key === "month") return "Hele referansemåneden";
+  if (period.key === "year") return "Hele referanseåret";
+  return "Hele referansen";
 }
 
 function periodDataBasisText(period: StatusPeriod) {
@@ -370,12 +415,6 @@ function revenuePeriodLines(period: StatusPeriod): RevenuePeriodLine[] {
       currentAmount: period.parking,
       currentCount: period.parkingCount,
     },
-    {
-      key: "sum",
-      label: "Sum",
-      tone: "revenue",
-      currentAmount: period.total,
-    },
   ];
 }
 
@@ -385,124 +424,171 @@ function comparisonLineAmount(lineKey: RevenueLineKey, comparison: StatusPeriodC
   return comparison.total;
 }
 
-function revenueSharePercent(amount: number, total: number) {
-  if (!Number.isFinite(amount) || !Number.isFinite(total) || total <= 0) return 0;
-  return Math.max(0, Math.min(100, Math.round((amount / total) * 100)));
-}
-
-function strongestDeviationText(period: StatusPeriod, comparison?: PeriodComparisonView) {
-  if (!comparison) return "Mangler sammenligningsgrunnlag.";
+function strongestDriver(period: StatusPeriod, comparison?: PeriodComparisonView): PeriodDriver | null {
+  if (!comparison) return null;
   const solDelta = period.sol - comparison.comparison.sol;
   const parkingDelta = period.parking - comparison.comparison.parking;
   const totalDelta = period.total - comparison.comparison.total;
-  const label = periodComparisonLabel(period.key, comparison).toLowerCase();
-  const candidates = [
-    { label: "Soling", delta: solDelta },
-    { label: "Parkering", delta: parkingDelta },
+  const candidates: Array<{ key: RevenueLineKey; delta: number }> = [
+    { key: "soling", delta: solDelta },
+    { key: "parkering", delta: parkingDelta },
   ];
-  const primary =
-    totalDelta > 0
-      ? candidates.reduce((best, item) => (item.delta > best.delta ? item : best), candidates[0])
-      : candidates.reduce((best, item) => (Math.abs(item.delta) > Math.abs(best.delta) ? item : best), candidates[0]);
+  const directional =
+    totalDelta > 0 ? candidates.filter((item) => item.delta > 0) : candidates.filter((item) => item.delta < 0);
+  const pool = directional.length ? directional : candidates;
+  const primary = pool.reduce((best, item) => (Math.abs(item.delta) > Math.abs(best.delta) ? item : best), pool[0]);
+  const tone = primary.delta > 0 ? "positive" : primary.delta < 0 ? "negative" : "neutral";
+  return {
+    key: primary.key,
+    tone,
+    label: tone === "positive" ? "Største positive driver" : tone === "negative" ? "Største negative driver" : "Største driver",
+  };
+}
 
-  if (Math.abs(totalDelta) < 0.5) {
-    return `Omsetningen er på nivå med ${label}.`;
-  }
-  if (totalDelta > 0 && primary.delta > 0) {
-    return `${primary.label} forklarer størst positivt avvik: ${signedNok(primary.delta)}.`;
-  }
-  return `${primary.label} forklarer størst avvik: ${signedNok(primary.delta)} av ${signedNok(totalDelta)}.`;
+function DirectionIcon({ currentAmount, referenceAmount }: { currentAmount: number; referenceAmount: number }) {
+  const state = deltaClass(currentAmount, referenceAmount);
+  const Icon = state === "positive" ? ArrowUpOutlined : state === "negative" ? ArrowDownOutlined : MinusOutlined;
+  return (
+    <span className={`revenue-period-direction ${state}`}>
+      <Icon />
+    </span>
+  );
+}
+
+function DeltaValue({
+  currentAmount,
+  referenceAmount,
+  className,
+}: {
+  currentAmount: number;
+  referenceAmount: number;
+  className?: string;
+}) {
+  const percent = percentDelta(currentAmount, referenceAmount);
+  const state = deltaClass(currentAmount, referenceAmount);
+  return (
+    <div className={`revenue-period-delta ${state}${className ? ` ${className}` : ""}`}>
+      <strong>{signedNok(currentAmount - referenceAmount)}</strong>
+      {percent ? <span>({percent})</span> : null}
+    </div>
+  );
 }
 
 function PeriodComparisonPill({ period, item }: { period: StatusPeriod; item: PeriodComparisonView }) {
   return (
     <Link className="revenue-period-compare-pill" to={item.path}>
-      <span>{periodComparisonLabel(period.key, item)}</span>
-      <ComparisonDelta currentAmount={period.total} referenceAmount={item.comparison.total} />
+      <span>{periodTopComparisonLabel(period, item)}</span>
+      <DeltaValue currentAmount={period.total} referenceAmount={item.comparison.total} />
+      <DirectionIcon currentAmount={period.total} referenceAmount={item.comparison.total} />
     </Link>
   );
 }
 
-function RevenueLineSummary({
+function RevenueLineIcon({ line }: { line: RevenuePeriodLine }) {
+  const Icon = line.key === "soling" ? FireOutlined : CarOutlined;
+  return (
+    <span className={`revenue-driver-icon tone-${line.tone}`}>
+      <Icon />
+    </span>
+  );
+}
+
+function RevenueDriverRow({
   line,
-  period,
-  comparison,
+  comparisons,
+  driver,
 }: {
   line: RevenuePeriodLine;
-  period: StatusPeriod;
-  comparison?: PeriodComparisonView;
+  comparisons: PeriodComparisonView[];
+  driver: PeriodDriver | null;
 }) {
-  const referenceAmount = comparison ? comparisonLineAmount(line.key, comparison.comparison) : undefined;
-  const share = revenueSharePercent(line.currentAmount, period.total);
   return (
-    <div className={`revenue-period-line tone-${line.tone}`}>
-      <div className="revenue-period-line-head">
-        <span>{line.label}</span>
+    <div className={`revenue-driver-row tone-${line.tone}`}>
+      <div className="revenue-driver-line">
+        <RevenueLineIcon line={line} />
+        <div>
+          <strong>{line.label}</strong>
+          {Number.isFinite(line.currentCount) ? (
+            <em>
+              {line.currentCount} stk · {averageAmountText(line.currentAmount, line.currentCount as number)} snitt
+            </em>
+          ) : null}
+        </div>
+      </div>
+      <div className="revenue-driver-current">
         <strong>{nok(line.currentAmount)} kr</strong>
       </div>
-      <div className="revenue-period-line-meta">
-        {Number.isFinite(line.currentCount) ? (
-          <span>
-            {line.currentCount} stk · {averageAmountText(line.currentAmount, line.currentCount as number)} snitt
-          </span>
-        ) : (
-          <span>Sum soling og parkering</span>
-        )}
-        {Number.isFinite(referenceAmount) ? (
-          <ComparisonDelta currentAmount={line.currentAmount} referenceAmount={referenceAmount as number} />
-        ) : null}
-      </div>
-      <div className="revenue-period-line-bar" aria-hidden="true">
-        <div style={{ width: `${share}%` }} />
-      </div>
+      {comparisons.map((item, index) => {
+        const referenceAmount = comparisonLineAmount(line.key, item.comparison);
+        const showDriver = index === 0 && driver?.key === line.key;
+        return (
+          <div className="revenue-driver-delta-cell" key={item.comparisonKey}>
+            <DeltaValue currentAmount={line.currentAmount} referenceAmount={referenceAmount} />
+            {showDriver ? <span className={`revenue-driver-badge ${driver.tone}`}>{driver.label}</span> : null}
+          </div>
+        );
+      })}
     </div>
-  );
-}
-
-function RevenueFullReferenceSummary({ period, item }: { period: StatusPeriod; item: PeriodComparisonView }) {
-  return (
-    <Link className="revenue-period-full-row" to={item.path}>
-      <span>{periodFullReferenceLabel(period.key, item)}</span>
-      <strong>{nok(item.fullTotal)} kr</strong>
-      <em className={fullReferenceGapClass(period.total, item.fullTotal)}>{fullReferenceGap(period.total, item.fullTotal)}</em>
-    </Link>
   );
 }
 
 function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
   const comparisons = buildComparisonViews(period);
-  const primaryComparison = comparisons[0];
-  const lines = revenuePeriodLines(period).filter((line) => line.key !== "sum");
+  const shownComparisons = comparisons.slice(0, 2);
+  const driver = strongestDriver(period, shownComparisons[0]);
+  const lines = revenuePeriodLines(period);
 
   return (
     <Card className="status-period-card revenue-period-card">
       <div className="revenue-period-head">
         <div>
-          <span className="revenue-period-title">{period.title}</span>
+          <span className="revenue-period-title">{periodDisplayTitle(period)}</span>
           <em>{periodDataBasisText(period)}</em>
         </div>
         <strong>{nok(period.total)} kr</strong>
       </div>
 
-      <div className="revenue-period-compare-grid" aria-label="Sammenligning mot samme tidspunkt">
-        {comparisons.map((item) => (
+      <div className={`revenue-period-compare-grid ${shownComparisons.length < 2 ? "single" : ""}`} aria-label="Sammenligning mot samme tidspunkt">
+        {shownComparisons.map((item) => (
           <PeriodComparisonPill item={item} key={item.comparisonKey} period={period} />
         ))}
       </div>
 
-      <div className="revenue-period-insight">{strongestDeviationText(period, primaryComparison)}</div>
-
-      <div className="revenue-period-lines" aria-label="Fordeling og forklaring">
-        {lines.map((line) => (
-          <RevenueLineSummary comparison={primaryComparison} key={line.key} line={line} period={period} />
-        ))}
+      <div className="revenue-drivers" aria-label="Drivere for omsetning">
+        <div className="revenue-drivers-title">Drivere</div>
+        <div className={`revenue-driver-table ${shownComparisons.length < 2 ? "single" : ""}`}>
+          <div className="revenue-driver-head">
+            <span>Linje</span>
+            <span>{periodCurrentColumnLabel(period)}</span>
+            {shownComparisons.map((item) => (
+              <span key={item.comparisonKey}>{periodColumnComparisonLabel(period, item)}</span>
+            ))}
+          </div>
+          {lines.map((line) => (
+            <RevenueDriverRow comparisons={shownComparisons} driver={driver} key={line.key} line={line} />
+          ))}
+          <div className="revenue-driver-total">
+            <span>Sum hittil</span>
+            <strong>{nok(period.total)} kr</strong>
+          </div>
+        </div>
       </div>
 
-      <div className="revenue-period-full">
-        <span>Hele referansen</span>
-        {comparisons.map((item) => (
-          <RevenueFullReferenceSummary item={item} key={item.comparisonKey} period={period} />
-        ))}
+      <div className="revenue-period-full-card">
+        <span className="revenue-period-full-icon">
+          <AimOutlined />
+        </span>
+        <div>
+          <strong>{periodReferenceTitle(period)}</strong>
+          <div className="revenue-period-full-items">
+            {comparisons.map((item) => (
+              <Link className="revenue-period-full-item" key={item.comparisonKey} to={item.path}>
+                <span>{periodFullReferenceLabel(period.key, item)}: {nok(item.fullTotal)} kr</span>
+                <em className={fullReferenceGapClass(period.total, item.fullTotal)}>{fullReferenceGap(period.total, item.fullTotal)}</em>
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
     </Card>
   );

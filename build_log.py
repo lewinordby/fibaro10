@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1332")
+APP_BUILD = os.getenv("APP_BUILD", "1333")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1333",
+        "date": "28.06.2026",
+        "headline": "Omsetningskort som kompakte driverkort",
+        "title": "Dashboard > Omsetning får tydeligere 2x2-kort med tabellstyrte drivere",
+        "description": (
+            "Build 1333 viderefører fire like omsetningskort i 2x2-grid, men organiserer hvert kort mer som et "
+            "kompakt kontrollkort. Hovedomsetningen er størst, sammenligningene ligger øverst, soling og parkering "
+            "står i en fast driver-tabell, og hele referanseperioden ligger som sekundær kontroll nederst."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): bygger om omsetningskortene til felles driverstruktur med ikon, differanse og referansefot.",
+            "Desktop v2 CSS (status-periods.css): lager ny kompakt kortlayout inspirert av ønsket eksempel, men beholdt som fire like kort.",
+            "Buildlogg (build_log.py): registrerer build 1333.",
+        ],
+        "request": (
+            "Hva med noe slikt, men underteksten på når data er oppdatert må være som det er på build 1332. "
+            "Kortene skal fortsatt være like, i grid med 2 i bredden og 2 i høyden, og omsetning skal være det "
+            "viktigste tallet."
+        ),
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Alle fire kort bruker samme visuelle struktur og samme informasjonsrekkefølge.",
+            "Hovedomsetning er løftet visuelt øverst til høyre i hvert kort.",
+            "Sammenligningene vises som tydelige avvikskort med retning.",
+            "Soling og parkering vises i en fast tabell med dagens/periodebeløp og avvik mot referanser.",
+            "Underteksten for datatidspunkt er beholdt i samme form som build 1332.",
+        ],
+    },
     {
         "version": "1",
         "build": "1332",
