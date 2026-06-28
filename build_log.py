@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1305")
+APP_BUILD = os.getenv("APP_BUILD", "1306")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1306",
+        "date": "28.06.2026",
+        "headline": "Ruteaudit og tekstfiks",
+        "title": "Desktop V2 har faatt automatisk kontroll av meny-/smoke-dekning og ryddet synlige tekstfeil",
+        "description": (
+            "Build 1306 legger inn en egen ruteaudit som sammenligner menystrukturen i MODULE_VIEWS "
+            "med rutene som dekkes av Playwright smoke-testen. Standard lokal sjekk stopper naa hvis "
+            "et nytt menyvalg ikke er med i smoke-dekningen. Samtidig er synlige feil med norske tegn "
+            "i tabellsok og tom-tabelltekst rettet."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (audit-routes.mjs): ny automatisk kontroll av menyvalg mot smoke-ruter.",
+            "Fibaro10 desktop V2 (package.json): ny npm-kommando audit:routes.",
+            "Fibaro10 sjekk (check-local.ps1): route audit kjorer som fast del av lokal kvalitetssjekk.",
+            "Fibaro10 desktop V2 (ModuleTablePane.tsx): rettet synlige norske tegn i tabellsok og tom-tabelltekst.",
+            "Buildlogg (build_log.py): registrerer build 1306.",
+        ],
+        "request": "fortsett aa forbedre",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Nye eller endrede menyvalg maa naa ogsaa dekkes av smoke-ruter.",
+            "Menystrukturen kontrolleres automatisk mot smoke-testens ruteliste.",
+            "Tabellsok og tom-tabelltekst viser riktige norske tegn.",
+        ],
+    },
     {
         "version": "1",
         "build": "1305",

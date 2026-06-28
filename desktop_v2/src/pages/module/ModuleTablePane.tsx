@@ -16,8 +16,8 @@ export function tabLabel(table: ModuleTable, query: string): ReactNode {
 }
 
 export function tableSearchPlaceholder(module: string, view: string): string {
-  if (module === "parkering" && view === "kjoretoy") return "SÃ¸k etter reg.nr, bil, eier, omrÃ¥de. Bruk \"nordby\" for eksakt ord.";
-  return "SÃ¸k i tabellene";
+  if (module === "parkering" && view === "kjoretoy") return "Søk etter reg.nr, bil, eier, område. Bruk \"nordby\" for eksakt ord.";
+  return "Søk i tabellene";
 }
 
 export function ModuleTablePane({
@@ -59,7 +59,7 @@ export function ModuleTablePane({
         pagination={{ pageSize: 25, showSizeChanger: true }}
         scroll={{ x: "max-content" }}
         locale={{
-          emptyText: query.trim() ? "Ingen treff for sÃ¸ket" : "Ingen rader Ã¥ vise",
+          emptyText: query.trim() ? "Ingen treff for søket" : "Ingen rader å vise",
         }}
       />
     </Space>
