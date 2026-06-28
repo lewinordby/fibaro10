@@ -644,6 +644,56 @@ class OwnTracksLocation(Base):
     raw = Column(JSON, nullable=True)
 
 
+class OwnTracksWaypointState(Base):
+    __tablename__ = "owntracks_waypoints"
+    __table_args__ = (UniqueConstraint("topic", "waypoint_name", name="uq_owntracks_waypoints_topic_name"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, index=True, nullable=False)
+    username = Column(String, index=True, nullable=True)
+    device = Column(String, index=True, nullable=True)
+    tracker_id = Column(String, index=True, nullable=True)
+    waypoint_name = Column(String, index=True, nullable=False)
+    waypoint_id = Column(String, index=True, nullable=True)
+    last_state = Column(String, index=True, nullable=True)
+    is_inside = Column(Boolean, index=True, nullable=True)
+    last_event = Column(String, index=True, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True, index=True)
+    last_event_at = Column(DateTime, nullable=True, index=True)
+    last_received_at = Column(DateTime, nullable=True, index=True)
+    last_location_id = Column(Integer, ForeignKey("owntracks_locations.id", ondelete="SET NULL"), nullable=True, index=True)
+    lat = Column(Float, nullable=True)
+    lon = Column(Float, nullable=True)
+    accuracy_m = Column(Float, nullable=True)
+    radius_m = Column(Float, nullable=True)
+    raw = Column(JSON, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class OwnTracksWaypointEvent(Base):
+    __tablename__ = "owntracks_waypoint_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, index=True, nullable=False)
+    username = Column(String, index=True, nullable=True)
+    device = Column(String, index=True, nullable=True)
+    tracker_id = Column(String, index=True, nullable=True)
+    waypoint_name = Column(String, index=True, nullable=False)
+    waypoint_id = Column(String, index=True, nullable=True)
+    event_type = Column(String, index=True, nullable=False)
+    source_message_type = Column(String, index=True, nullable=True)
+    is_synthetic = Column(Boolean, index=True, nullable=False, default=False)
+    is_inside = Column(Boolean, index=True, nullable=True)
+    timestamp = Column(DateTime, nullable=True, index=True)
+    received_at = Column(DateTime, default=datetime.utcnow, index=True)
+    location_id = Column(Integer, ForeignKey("owntracks_locations.id", ondelete="CASCADE"), nullable=True, index=True)
+    lat = Column(Float, nullable=True)
+    lon = Column(Float, nullable=True)
+    accuracy_m = Column(Float, nullable=True)
+    radius_m = Column(Float, nullable=True)
+    raw = Column(JSON, nullable=True)
+
+
 class RoborockRobot(Base):
     __tablename__ = "roborock_robots"
 
@@ -3248,6 +3298,21 @@ PERFORMANCE_INDEXES = [
         "ix_owntracks_devices_seen",
         "CREATE INDEX IF NOT EXISTS ix_owntracks_devices_seen "
         "ON owntracks_devices (last_seen_at DESC)",
+    ),
+    (
+        "ix_owntracks_waypoints_topic_state",
+        "CREATE INDEX IF NOT EXISTS ix_owntracks_waypoints_topic_state "
+        "ON owntracks_waypoints (topic, last_state, last_seen_at DESC)",
+    ),
+    (
+        "ix_owntracks_waypoint_events_topic_time",
+        "CREATE INDEX IF NOT EXISTS ix_owntracks_waypoint_events_topic_time "
+        "ON owntracks_waypoint_events (topic, timestamp DESC)",
+    ),
+    (
+        "ix_owntracks_waypoint_events_name_time",
+        "CREATE INDEX IF NOT EXISTS ix_owntracks_waypoint_events_name_time "
+        "ON owntracks_waypoint_events (waypoint_name, timestamp DESC)",
     ),
     (
         "ix_parkering_plate_start",
@@ -8108,6 +8173,240 @@ def owntracks_payload_timestamp(payload: Dict[str, Any], fallback: datetime) -> 
         return fallback
 
 
+def owntracks_waypoint_names(regions: Any) -> list[str]:
+    if regions in (None, ""):
+        return []
+    if isinstance(regions, dict):
+        raw_values: Iterable[Any] = regions.values()
+    elif isinstance(regions, (list, tuple, set)):
+        raw_values = regions
+    else:
+        raw_values = [regions]
+    names: list[str] = []
+    seen: set[str] = set()
+    for value in raw_values:
+        if isinstance(value, dict):
+            value = value.get("desc") or value.get("name") or value.get("rid") or value.get("id")
+        text = str(value or "").strip()
+        if not text:
+            continue
+        key = text.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        names.append(text[:160])
+    return names
+
+
+def owntracks_waypoint_name_from_payload(payload: Dict[str, Any]) -> Optional[str]:
+    for key in ("desc", "waypoint", "name", "rid"):
+        value = payload.get(key)
+        if value not in (None, ""):
+            return str(value).strip()[:160]
+    return None
+
+
+def owntracks_waypoint_state_for_event(event_type: Optional[str]) -> tuple[Optional[str], Optional[bool]]:
+    event = str(event_type or "").strip().lower()
+    if event == "enter":
+        return "inside", True
+    if event == "leave":
+        return "outside", False
+    if event == "defined":
+        return "defined", None
+    if event == "inside":
+        return "inside", True
+    return None, None
+
+
+async def upsert_owntracks_waypoint(
+    session,
+    location: OwnTracksLocation,
+    payload: Dict[str, Any],
+    *,
+    waypoint_name: str,
+    event_type: str,
+    waypoint_id: Optional[str] = None,
+    is_synthetic: bool = False,
+    create_event: bool = True,
+) -> OwnTracksWaypointState:
+    now_dt = location.received_at or local_now_naive()
+    state_value, is_inside = owntracks_waypoint_state_for_event(event_type)
+    radius = optional_float(payload.get("rad") or payload.get("radius"))
+    existing = (
+        await session.execute(
+            select(OwnTracksWaypointState)
+            .where(OwnTracksWaypointState.topic == location.topic)
+            .where(OwnTracksWaypointState.waypoint_name == waypoint_name)
+        )
+    ).scalars().first()
+    if not existing:
+        existing = OwnTracksWaypointState(topic=location.topic, waypoint_name=waypoint_name)
+        session.add(existing)
+    existing.username = location.username
+    existing.device = location.device
+    existing.tracker_id = location.tracker_id
+    existing.waypoint_id = waypoint_id or existing.waypoint_id
+    existing.last_seen_at = location.timestamp or now_dt
+    existing.last_received_at = now_dt
+    existing.last_location_id = location.id
+    if state_value is not None:
+        existing.last_state = state_value
+        existing.is_inside = is_inside
+    if event_type:
+        existing.last_event = event_type
+        existing.last_event_at = location.timestamp or now_dt
+    if location.lat is not None:
+        existing.lat = location.lat
+    if location.lon is not None:
+        existing.lon = location.lon
+    if location.accuracy_m is not None:
+        existing.accuracy_m = location.accuracy_m
+    if radius is not None:
+        existing.radius_m = radius
+    existing.raw = payload
+    existing.updated_at = now_dt
+    if create_event:
+        session.add(
+            OwnTracksWaypointEvent(
+                topic=location.topic,
+                username=location.username,
+                device=location.device,
+                tracker_id=location.tracker_id,
+                waypoint_name=waypoint_name,
+                waypoint_id=waypoint_id,
+                event_type=event_type,
+                source_message_type=location.message_type,
+                is_synthetic=is_synthetic,
+                is_inside=is_inside,
+                timestamp=location.timestamp,
+                received_at=now_dt,
+                location_id=location.id,
+                lat=location.lat,
+                lon=location.lon,
+                accuracy_m=location.accuracy_m,
+                radius_m=radius,
+                raw=payload,
+            )
+        )
+    return existing
+
+
+async def materialize_owntracks_waypoints(
+    session,
+    location: OwnTracksLocation,
+    payload: Dict[str, Any],
+    regions: Any,
+) -> None:
+    message_type = str(location.message_type or payload.get("_type") or "").strip().lower()
+    event_value = str(payload.get("event") or "").strip().lower()
+    waypoint_id = str(payload.get("rid") or "").strip() or None
+
+    if message_type == "transition":
+        waypoint_name = owntracks_waypoint_name_from_payload(payload)
+        if waypoint_name and event_value:
+            await upsert_owntracks_waypoint(
+                session,
+                location,
+                payload,
+                waypoint_name=waypoint_name,
+                event_type=event_value,
+                waypoint_id=waypoint_id,
+                is_synthetic=False,
+                create_event=True,
+            )
+        return
+
+    if message_type == "waypoint":
+        waypoint_name = owntracks_waypoint_name_from_payload(payload)
+        if waypoint_name:
+            await upsert_owntracks_waypoint(
+                session,
+                location,
+                payload,
+                waypoint_name=waypoint_name,
+                event_type="defined",
+                waypoint_id=waypoint_id,
+                is_synthetic=False,
+                create_event=True,
+            )
+        return
+
+    if "inregions" not in payload and "inregion" not in payload:
+        return
+
+    current_names = owntracks_waypoint_names(regions)
+    current_keys = {name.casefold() for name in current_names}
+    for waypoint_name in current_names:
+        existing = (
+            await session.execute(
+                select(OwnTracksWaypointState)
+                .where(OwnTracksWaypointState.topic == location.topic)
+                .where(OwnTracksWaypointState.waypoint_name == waypoint_name)
+            )
+        ).scalars().first()
+        changed = not existing or existing.last_state != "inside"
+        await upsert_owntracks_waypoint(
+            session,
+            location,
+            payload,
+            waypoint_name=waypoint_name,
+            event_type="enter" if changed else "inside",
+            is_synthetic=True,
+            create_event=changed,
+        )
+
+    active_rows = (
+        await session.execute(
+            select(OwnTracksWaypointState)
+            .where(OwnTracksWaypointState.topic == location.topic)
+            .where(OwnTracksWaypointState.last_state == "inside")
+        )
+    ).scalars().all()
+    for state_row in active_rows:
+        if state_row.waypoint_name.casefold() in current_keys:
+            continue
+        await upsert_owntracks_waypoint(
+            session,
+            location,
+            payload,
+            waypoint_name=state_row.waypoint_name,
+            event_type="leave",
+            waypoint_id=state_row.waypoint_id,
+            is_synthetic=True,
+            create_event=True,
+        )
+
+
+async def backfill_owntracks_waypoints_if_empty(limit: int = 50000) -> int:
+    async with async_session() as session:
+        existing_count = (
+            await session.execute(select(func.count(OwnTracksWaypointState.id)))
+        ).scalar_one()
+        if existing_count:
+            return 0
+        rows = (
+            await session.execute(
+                select(OwnTracksLocation)
+                .where(
+                    or_(
+                        OwnTracksLocation.regions.isnot(None),
+                        OwnTracksLocation.message_type.in_(["transition", "waypoint"]),
+                    )
+                )
+                .order_by(OwnTracksLocation.timestamp.asc().nullslast(), OwnTracksLocation.received_at.asc())
+                .limit(limit)
+            )
+        ).scalars().all()
+        for row in rows:
+            payload = row.raw or {}
+            if not isinstance(payload, dict):
+                continue
+            await materialize_owntracks_waypoints(session, row, payload, row.regions)
+        await session.commit()
+        return len(rows)
+
+
 async def record_owntracks_import_status(ok: bool, message: str, raw: Optional[Dict[str, Any]] = None, records_imported: int = 0):
     async with async_session() as session:
         await record_import_job(
@@ -8155,27 +8454,28 @@ async def store_owntracks_message(topic: str, payload_text: str) -> None:
         regions = [regions]
 
     async with async_session() as session:
-        session.add(
-            OwnTracksLocation(
-                topic=topic,
-                username=username,
-                device=device,
-                tracker_id=str(tracker_id) if tracker_id is not None else None,
-                message_type=message_type,
-                event=str(event) if event is not None else None,
-                timestamp=timestamp,
-                received_at=received_at,
-                lat=lat,
-                lon=lon,
-                accuracy_m=accuracy,
-                battery_percent=battery,
-                connection=str(connection) if connection is not None else None,
-                velocity_kmh=velocity,
-                altitude_m=altitude,
-                regions=regions,
-                raw=payload,
-            )
+        location_row = OwnTracksLocation(
+            topic=topic,
+            username=username,
+            device=device,
+            tracker_id=str(tracker_id) if tracker_id is not None else None,
+            message_type=message_type,
+            event=str(event) if event is not None else None,
+            timestamp=timestamp,
+            received_at=received_at,
+            lat=lat,
+            lon=lon,
+            accuracy_m=accuracy,
+            battery_percent=battery,
+            connection=str(connection) if connection is not None else None,
+            velocity_kmh=velocity,
+            altitude_m=altitude,
+            regions=regions,
+            raw=payload,
         )
+        session.add(location_row)
+        await session.flush()
+        await materialize_owntracks_waypoints(session, location_row, payload, regions)
         device_row = (
             await session.execute(select(OwnTracksDevice).where(OwnTracksDevice.topic == topic))
         ).scalars().first()
@@ -11292,6 +11592,7 @@ async def startup():
             await get_or_create_config(session, config_key)
         await seed_energy_circuits(session)
         await session.commit()
+    await backfill_owntracks_waypoints_if_empty()
     if SVV_SYNC_ENABLED and SVV_API_KEY and svv_sync_task is None:
         svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
     if SUN2_AXIS_SNAPSHOT_LINK_ENABLED and sun2_axis_snapshot_link_task is None:
@@ -22325,14 +22626,42 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         .limit(200)
                     )
                 ).scalars().all()
+                owntracks_waypoints = (
+                    await session.execute(
+                        select(OwnTracksWaypointState)
+                        .order_by(
+                            OwnTracksWaypointState.last_seen_at.desc().nullslast(),
+                            OwnTracksWaypointState.updated_at.desc(),
+                        )
+                        .limit(100)
+                    )
+                ).scalars().all()
+                owntracks_waypoint_events = (
+                    await session.execute(
+                        select(OwnTracksWaypointEvent)
+                        .order_by(OwnTracksWaypointEvent.timestamp.desc().nullslast(), OwnTracksWaypointEvent.received_at.desc())
+                        .limit(100)
+                    )
+                ).scalars().all()
                 latest_device = owntracks_devices[0] if owntracks_devices else None
                 admin_cards = [
-                    api_card("MQTT", "Aktiv" if OWNTRACKS_MQTT_ENABLED else "Av", "", f"{OWNTRACKS_MQTT_HOST}:{OWNTRACKS_MQTT_PORT}", "status", href="/admin/owntracks"),
+                    api_card("HTTP", "Aktiv", "", "Fibaro10-brukere via /owntracks/pub", "status", href="/admin/owntracks"),
                     api_card("Enheter", len(owntracks_devices), "stk", "Siste kjente OwnTracks-enheter", "status", href="/admin/owntracks"),
+                    api_card("Waypoints", len(owntracks_waypoints), "stk", "Siste kjente soner og status", "status", href="/admin/owntracks"),
                     api_card("Siste melding", format_source_datetime(latest_device.last_seen_at) if latest_device and latest_device.last_seen_at else "-", "", latest_device.topic if latest_device else "Ingen meldinger", "status", href="/admin/owntracks"),
                     api_card("Datakilde", owntracks_status.get("status_text") if owntracks_status else "Mangler", "", owntracks_status.get("age") if owntracks_status else "Ingen status", "status", href="/admin/datakilder"),
                 ]
                 tables = [
+                    api_table(
+                        "Waypoints / soner",
+                        ["waypoint_name", "username", "device", "last_state", "is_inside", "last_event", "last_seen_at", "last_event_at", "lat", "lon", "accuracy_m"],
+                        [row_to_dict(row, ["waypoint_name", "username", "device", "last_state", "is_inside", "last_event", "last_seen_at", "last_event_at", "lat", "lon", "accuracy_m"]) for row in owntracks_waypoints],
+                    ),
+                    api_table(
+                        "Waypoint-hendelser",
+                        ["timestamp", "waypoint_name", "username", "device", "event_type", "source_message_type", "is_synthetic", "lat", "lon", "accuracy_m"],
+                        [row_to_dict(row, ["timestamp", "waypoint_name", "username", "device", "event_type", "source_message_type", "is_synthetic", "lat", "lon", "accuracy_m"]) for row in owntracks_waypoint_events],
+                    ),
                     api_table(
                         "OwnTracks-enheter",
                         ["topic", "username", "device", "tracker_id", "last_seen_at", "last_received_at", "last_lat", "last_lon", "last_accuracy_m", "last_battery_percent", "last_connection", "last_event"],
@@ -22481,6 +22810,69 @@ async def api_owntracks_devices(limit: int = Query(50, ge=1, le=200)):
                 "event": row.last_event,
             }
             for row in devices
+        ],
+    }
+
+
+@app.get("/api/owntracks/waypoints")
+async def api_owntracks_waypoints(limit: int = Query(100, ge=1, le=500), events: int = Query(100, ge=0, le=500)):
+    async with async_session() as session:
+        waypoints = (
+            await session.execute(
+                select(OwnTracksWaypointState)
+                .order_by(OwnTracksWaypointState.last_seen_at.desc().nullslast(), OwnTracksWaypointState.updated_at.desc())
+                .limit(limit)
+            )
+        ).scalars().all()
+        event_rows = (
+            await session.execute(
+                select(OwnTracksWaypointEvent)
+                .order_by(OwnTracksWaypointEvent.timestamp.desc().nullslast(), OwnTracksWaypointEvent.received_at.desc())
+                .limit(events)
+            )
+        ).scalars().all()
+    return {
+        "waypoints": [
+            {
+                "topic": row.topic,
+                "username": row.username,
+                "device": row.device,
+                "trackerId": row.tracker_id,
+                "name": row.waypoint_name,
+                "waypointId": row.waypoint_id,
+                "state": row.last_state,
+                "inside": row.is_inside,
+                "lastEvent": row.last_event,
+                "lastSeenAt": api_local_iso(row.last_seen_at),
+                "lastEventAt": api_local_iso(row.last_event_at),
+                "lastReceivedAt": api_local_iso(row.last_received_at),
+                "lat": row.lat,
+                "lon": row.lon,
+                "accuracyM": row.accuracy_m,
+                "radiusM": row.radius_m,
+            }
+            for row in waypoints
+        ],
+        "events": [
+            {
+                "topic": row.topic,
+                "username": row.username,
+                "device": row.device,
+                "trackerId": row.tracker_id,
+                "name": row.waypoint_name,
+                "waypointId": row.waypoint_id,
+                "eventType": row.event_type,
+                "sourceMessageType": row.source_message_type,
+                "synthetic": row.is_synthetic,
+                "inside": row.is_inside,
+                "timestamp": api_local_iso(row.timestamp),
+                "receivedAt": api_local_iso(row.received_at),
+                "lat": row.lat,
+                "lon": row.lon,
+                "accuracyM": row.accuracy_m,
+                "radiusM": row.radius_m,
+            }
+            for row in event_rows
         ],
     }
 

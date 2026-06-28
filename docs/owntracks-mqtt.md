@@ -23,6 +23,22 @@ Fibaro10 lagrer meldingen som `owntracks/<fibaro10-bruker>/<device>`.
 
 Denne ruten gaar gjennom Caddy paa eksisterende offentlig HTTPS-port 443 og videre til Fibaro10. Vanlig Fibaro10 auth/middleware validerer brukernavn og passord.
 
+## Waypoints / soner
+
+Alle OwnTracks-meldinger lagres fortsatt som raadata i `owntracks_locations`.
+
+Waypoints gjores i tillegg lettere tilgjengelig i egne tabeller:
+
+- `owntracks_waypoints`: siste kjente status per bruker/enhet/waypoint
+- `owntracks_waypoint_events`: inn/ut-hendelser og waypoint-definisjoner
+
+Vanlige location-meldinger med `inregions` oppdaterer siste kjente sone. Hvis appen sender eksplisitte `transition`-meldinger, lagres disse som egne `enter`/`leave`-hendelser. Hvis appen bare sender `inregions`, lager Fibaro10 syntetiske inn/ut-hendelser naar sonestatus endrer seg.
+
+Kontroll:
+
+- `/admin/owntracks`
+- JSON-endepunkt: `/api/owntracks/waypoints`
+
 ## Broker
 
 Internt nett:
@@ -90,8 +106,11 @@ Fibaro10 abonnerer internt paa `owntracks/#` og lagrer meldinger i:
 
 - `owntracks_devices`: siste kjente status per topic/enhet
 - `owntracks_locations`: historikk over mottatte OwnTracks-meldinger
+- `owntracks_waypoints`: siste kjente waypoint-/sonestatus
+- `owntracks_waypoint_events`: waypoint-hendelser
 
 Kontrollside:
 
 - `/admin/owntracks`
 - JSON-endepunkt: `/api/owntracks/devices`
+- JSON-endepunkt: `/api/owntracks/waypoints`

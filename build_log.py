@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1316")
+APP_BUILD = os.getenv("APP_BUILD", "1317")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1317",
+        "date": "28.06.2026",
+        "headline": "OwnTracks waypoints",
+        "title": "OwnTracks-waypoints lagres i egne tabeller for rask oversikt",
+        "description": (
+            "Build 1317 beholder full historikk av alle OwnTracks-lokasjoner i owntracks_locations, "
+            "men materialiserer waypoints/soner i egne tabeller. Siste kjente sonestatus lagres i "
+            "owntracks_waypoints, og inn/ut-hendelser, waypoint-definisjoner og syntetiske endringer "
+            "lagres i owntracks_waypoint_events."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): nye OwnTracksWaypointState og OwnTracksWaypointEvent-tabeller.",
+            "OwnTracks-lagring (main.py): location-meldinger med inregions oppdaterer sonestatus.",
+            "OwnTracks-lagring (main.py): transition- og waypoint-meldinger lagres som egne hendelser.",
+            "Fibaro10 admin/API (main.py): /admin/owntracks viser waypoints og hendelser, /api/owntracks/waypoints er lagt til.",
+            "Drift/observability (observability.py): nye tabeller er med i storage-listen.",
+            "Dokumentasjon (docs/owntracks-mqtt.md): beskriver waypoint-lagring og endepunkt.",
+            "Buildlogg (build_log.py): registrerer build 1317.",
+        ],
+        "request": "jeg vil gjerne lagre alle lokasjonsdata for senere bruk, men akkurat Waypoint vil jeg gjerne ha litt lettere tilgjengelig så en egen tabell er sikkert fint",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Alle OwnTracks-lokasjoner lagres fortsatt komplett i historikktabellen.",
+            "Waypoints/soner kan leses direkte fra egne tabeller uten aa parse raadata.",
+            "Fibaro10 lager syntetiske enter/leave-hendelser naar inregions endrer seg.",
+            "Eksisterende OwnTracks-historikk backfilles forsiktig hvis waypoint-tabellene er tomme.",
+        ],
+    },
     {
         "version": "1",
         "build": "1316",
