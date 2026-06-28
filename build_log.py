@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1300")
+APP_BUILD = os.getenv("APP_BUILD", "1301")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1301",
+        "date": "28.06.2026",
+        "headline": "Ventilasjons-CSS delt opp",
+        "title": "Desktop V2 har splittet ventilasjons-CSS i grunnlayout, diagram og innstillinger",
+        "description": (
+            "Build 1301 rydder videre i frontend-CSS. Den tidligere store ventilation.css er delt "
+            "i egne filer for dagslogg/Yr-diagram og innstillingsflater. Importrekkefolgen er "
+            "bevart slik at eksisterende uttrykk og komponentoppforsel ikke endres."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (ventilation.css): redusert til grunnlayout, statuskort og visuelle refinements.",
+            "Fibaro10 desktop V2 (ventilation-charts.css): ny CSS-fil for dagslogg, viftebaner og hendelsesliste.",
+            "Fibaro10 desktop V2 (ventilation-settings.css): ny CSS-fil for ventilasjonsinnstillinger.",
+            "Fibaro10 desktop V2 (main.tsx): importerer de nye CSS-filene.",
+            "Buildlogg (build_log.py): registrerer build 1301.",
+        ],
+        "request": "fortsett med det",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Stor ventilasjons-CSS er mindre og lettere aa vedlikeholde.",
+            "Diagram- og innstillingsstil kan endres separat fremover.",
+            "Ingen React-komponenter eller API-kontrakter er endret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1300",

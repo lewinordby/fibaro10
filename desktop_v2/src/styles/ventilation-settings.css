@@ -1,0 +1,47 @@
+.vent-settings-head {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vent-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vent-setting-card .ant-card-body {
+  padding: 12px 14px 4px;
+}
+
+.vent-setting-card .ant-typography {
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.vent-setting-card .ant-form-item {
+  margin-bottom: 11px;
+}
+
+.vent-setting-card .ant-form-item-label > label {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.vent-save-card .ant-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.vent-rule-list {
+  display: grid;
+  gap: 8px;
+  padding-left: 18px;
+  margin: 0;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.35;
+}
