@@ -42,3 +42,35 @@
 .status-revenue-page .summary-card strong {
   font-size: 15px;
 }
+
+.operations-summary-grid {
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+}
+
+.operations-source-title {
+  display: grid;
+  gap: 2px;
+}
+
+.operations-source-title strong {
+  color: var(--ink);
+  font-size: 12.5px;
+  line-height: 1.25;
+}
+
+.operations-source-title span {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.operations-table-card .ant-table-cell {
+  vertical-align: top;
+}
+
+.tone-warning {
+  border-color: color-mix(in srgb, var(--amber) 35%, var(--line));
+}
+
+.tone-danger {
+  border-color: color-mix(in srgb, var(--red) 35%, var(--line));
+}

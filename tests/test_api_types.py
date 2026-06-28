@@ -33,7 +33,7 @@ class ApiTypeContractTests(unittest.TestCase):
     def test_health_contract_has_operational_fields(self) -> None:
         required = set(HealthPayload.__required_keys__)
 
-        self.assertEqual(required, {"status", "app", "checks", "sources", "storage"})
+        self.assertEqual(required, {"status", "app", "checks", "summary", "sources", "storage"})
 
 
 if __name__ == "__main__":

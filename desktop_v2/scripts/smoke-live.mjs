@@ -1,23 +1,10 @@
 import { chromium } from "playwright";
+import { smokeRoutePathsFromEnv } from "./smoke-routes.mjs";
 
 const baseUrl = (process.env.FIBARO10_LIVE_BASE_URL || "http://192.168.20.218:8110").replace(/\/+$/, "");
 const username = process.env.FIBARO10_LIVE_USERNAME || process.env.FIBARO10_SMOKE_USERNAME || "";
 const password = process.env.FIBARO10_LIVE_PASSWORD || process.env.FIBARO10_SMOKE_PASSWORD || "";
-const routeList = (process.env.FIBARO10_LIVE_SMOKE_ROUTES || "")
-  .split(",")
-  .map((route) => route.trim())
-  .filter(Boolean);
-
-const defaultRoutes = [
-  "/status/dashboard",
-  "/omsetning/oversikt",
-  "/parkering/oversikt",
-  "/soling/oversikt",
-  "/energi/status",
-  "/ventilasjon/dagslogg",
-  "/lys/dagslogg",
-  "/admin/build",
-];
+const routeList = smokeRoutePathsFromEnv(process.env.FIBARO10_LIVE_SMOKE_ROUTES);
 
 function timeoutSignal(milliseconds) {
   const controller = new AbortController();
@@ -92,8 +79,8 @@ async function runAuthenticatedSmoke() {
     });
 
     await login(page);
-    for (const route of routeList.length ? routeList : defaultRoutes) {
-      await smokeRoute(page, route);
+    for (const route of routeList) {
+      await smokeRoute(page, route.path);
     }
     if (errors.length) {
       throw new Error(`Live smoke fant browser/API-feil:\n${errors.join("\n")}`);

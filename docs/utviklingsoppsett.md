@@ -101,7 +101,7 @@ Uten dette vedlegget vil brutto mynt/kortautomat ikke kunne kontrolleres automat
 
 Deploy-scriptet tar backup av `.env`, `.env.*`, EasyPark `.env` og EasyPark runtime-data for hver deploy.
 
-QNAP-backup-scriptet ligger i `scripts/qnap-backup.sh` og tar vare paa `.env`, EasyPark runtime-data og PostgreSQL-dump naar `postgres-1` er tilgjengelig:
+QNAP-backup-scriptet ligger i `scripts/qnap-backup.sh` og tar vare paa `.env`, EasyPark runtime-data, Axis snapshot-arkiv og PostgreSQL-dump naar `postgres-1` er tilgjengelig:
 
 ```sh
 sh /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/scripts/qnap-backup.sh
@@ -118,6 +118,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-qnap-backup
 ```
 
 Scriptet kjorer `qnap-backup.sh`, sjekker at backupmappen og SQL-dumpen finnes, oppretter en midlertidig PostgreSQL-database, leser dumpen inn i den og sletter testdatabasen etterpaa. Produksjonsdatabasen endres ikke.
+
+For at restore-testen skal gaa raskt hopper den normalt over Axis snapshot-arkivet. Full snapshot-backup kan testes eksplisitt:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-qnap-backup.ps1 -IncludeSnapshots
+```
 
 Hvis du kun vil sjekke backupfilene uten SQL-restore:
 

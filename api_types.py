@@ -51,18 +51,43 @@ class HealthCheckPayload(TypedDict, total=False):
 
 
 class HealthSourcePayload(TypedDict, total=False):
+    sourceNo: int | None
     jobName: str
     title: str
     label: str
+    category: str
+    source: str
     status: str
+    statusText: str
     detail: str
     ageMinutes: float | None
+    lastRunAt: str | None
+    lastSuccessAt: str | None
+    lastFailedAt: str | None
+    nextExpectedAt: str | None
+    recordsImported: int | None
+    recordsTotal: int | None
+    durationSeconds: float | None
+    message: str
+
+
+class HealthSummarySourcesPayload(TypedDict):
+    total: int
+    ok: int
+    warn: int
+    bad: int
+    unknown: int
+
+
+class HealthSummaryPayload(TypedDict):
+    sources: HealthSummarySourcesPayload
 
 
 class HealthPayload(TypedDict):
     status: HealthStatus
     app: HealthAppPayload
     checks: Dict[str, HealthCheckPayload]
+    summary: HealthSummaryPayload
     sources: List[HealthSourcePayload]
     storage: List[str]
 

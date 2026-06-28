@@ -6,20 +6,25 @@ param(
     [string]$PostgresContainer = "postgres-1",
     [string]$PostgresUser = "app",
     [string]$PostgresDb = "fibaro10_local",
+    [switch]$IncludeSnapshots,
     [switch]$SkipSqlRestore
 )
 
 $ErrorActionPreference = "Stop"
 
 $skipRestoreValue = if ($SkipSqlRestore) { "1" } else { "0" }
+$snapshotValue = if ($IncludeSnapshots) { "1" } else { "0" }
 
 $remote = @"
 set -e
 . /opt/etc/profile 2>/dev/null || true
 cd "$RemoteDir"
-backup_dir=`$(BACKUP_ROOT="$BackupRoot" POSTGRES_CONTAINER="$PostgresContainer" POSTGRES_USER="$PostgresUser" POSTGRES_DB="$PostgresDb" sh scripts/qnap-backup.sh </dev/null)
+backup_dir=`$(BACKUP_ROOT="$BackupRoot" POSTGRES_CONTAINER="$PostgresContainer" POSTGRES_USER="$PostgresUser" POSTGRES_DB="$PostgresDb" BACKUP_SNAPSHOTS="$snapshotValue" sh scripts/qnap-backup.sh </dev/null)
 test -d "`$backup_dir"
 echo "Backup: `$backup_dir"
+if [ "$snapshotValue" != "1" ]; then
+    echo "Snapshots: SKIPPED for verification"
+fi
 
 if [ ! -f "`$backup_dir/.env" ]; then
     echo "WARN: .env was not present in backup"

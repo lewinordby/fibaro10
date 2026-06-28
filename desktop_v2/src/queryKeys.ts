@@ -3,6 +3,7 @@ export const queryKeys = {
     currentUser: () => ["auth", "current-user"] as const,
   },
   overview: () => ["overview"] as const,
+  health: (details = false) => ["health", details] as const,
   buildLog: () => ["admin", "build-log"] as const,
   buildLogEntry: (build: string) => ["admin", "build-log", build] as const,
   mobileScreens: () => ["mobile", "screens"] as const,

@@ -318,12 +318,24 @@ export type HealthCheck = {
 };
 
 export type HealthSource = {
+  sourceNo?: number | null;
   jobName?: string;
   title?: string;
   label?: string;
+  category?: string;
+  source?: string;
   status?: string;
+  statusText?: string;
   detail?: string;
   ageMinutes?: number | null;
+  lastRunAt?: string | null;
+  lastSuccessAt?: string | null;
+  lastFailedAt?: string | null;
+  nextExpectedAt?: string | null;
+  recordsImported?: number | null;
+  recordsTotal?: number | null;
+  durationSeconds?: number | null;
+  message?: string;
   [key: string]: unknown;
 };
 
@@ -336,6 +348,15 @@ export type HealthResponse = {
     startedAt: string;
   };
   checks: Record<string, HealthCheck>;
+  summary: {
+    sources: {
+      total: number;
+      ok: number;
+      warn: number;
+      bad: number;
+      unknown: number;
+    };
+  };
   sources: HealthSource[];
   storage: string[];
 };

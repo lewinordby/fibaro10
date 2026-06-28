@@ -10972,21 +10972,29 @@ async def health(details: bool = Query(False)):
         async with async_session() as session:
             await session.execute(sql_text("SELECT 1"))
             if details:
-                rows = (
-                    await session.execute(select(ImportJobStatus).order_by(ImportJobStatus.title))
-                ).scalars().all()
+                rows = await import_status_rows(session)
                 for row in rows:
-                    stamp = row.last_success_at or row.last_run_at
+                    stamp = row.get("last_success_at") or row.get("last_run_at")
                     sources.append(
                         {
-                            "jobName": row.job_name,
-                            "title": row.title,
-                            "status": row.status,
-                            "statusText": row.status_text,
-                            "lastRunAt": api_local_iso(row.last_run_at),
-                            "lastSuccessAt": api_local_iso(row.last_success_at),
+                            "sourceNo": row.get("source_no"),
+                            "jobName": row.get("job_name"),
+                            "title": row.get("title"),
+                            "label": row.get("title"),
+                            "category": row.get("category"),
+                            "source": row.get("source"),
+                            "status": row.get("status"),
+                            "statusText": row.get("status_text"),
+                            "detail": row.get("age") or row.get("status_text") or "",
+                            "lastRunAt": api_local_iso(row.get("last_run_at")),
+                            "lastSuccessAt": api_local_iso(row.get("last_success_at")),
+                            "lastFailedAt": api_local_iso(row.get("last_failed_at")),
+                            "nextExpectedAt": api_local_iso(row.get("next_expected_at")),
                             "ageMinutes": minutes_since(stamp),
-                            "message": row.message or "",
+                            "recordsImported": row.get("records_imported"),
+                            "recordsTotal": row.get("records_total"),
+                            "durationSeconds": row.get("duration_seconds"),
+                            "message": row.get("message") or "",
                         }
                     )
     except Exception as exc:

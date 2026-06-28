@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1304")
+APP_BUILD = os.getenv("APP_BUILD", "1305")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1305",
+        "date": "28.06.2026",
+        "headline": "Bred smoke-test og driftstatus",
+        "title": "Fibaro10 har faatt bredere rutesjekk, bedre health-details og mer operasjonell Drift-side",
+        "description": (
+            "Build 1305 gjoer kvalitetskontrollen mer systematisk. Smoke-testen har en felles ruteliste "
+            "som dekker hovedsidene og undersidene i desktop-appen, lokal smoke har mockdata for spesialsider, "
+            "og live-smoke bruker samme rutegrunnlag naar innloggingsmiljoe er satt. Drift-siden leser naa "
+            "health-details og viser datakilder/jobber med status, kilde, sist OK, neste forventet og melding."
+        ),
+        "applications": [
+            "Fibaro10 backend (health): health-details bruker samme importstatuslogikk som dashboard/datkilder.",
+            "Fibaro10 backend (observability.py/api_types.py): health har summary for datakilder.",
+            "Fibaro10 desktop V2 (smoke-routes.mjs): felles rutegrunnlag for lokal og live smoke.",
+            "Fibaro10 desktop V2 (smoke-ui.mjs): lokal Playwright-smoke dekker alle sentrale desktop-ruter.",
+            "Fibaro10 desktop V2 (smoke-live.mjs): live-smoke bruker samme rutegrunnlag og kan overstyres med env.",
+            "Fibaro10 desktop V2 (OperationsPage.tsx): Drift viser operasjonell jobb-/datakildetabell.",
+            "Fibaro10 backup (qnap-backup.sh/verify-qnap-backup.ps1): restore-test kan hoppe over Axis snapshot-arkiv.",
+            "Dokumentasjon (docs/utviklingsoppsett.md): backup/restore-test er oppdatert.",
+        ],
+        "request": "kjor paa med alt du foreslo her",
+        "work_duration": "ca. 1 t 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Lokal UI-smoke sjekker 55 ruter og feiler paa manglende API-mock eller HTTP 4xx/5xx.",
+            "Health har summering av OK/treg/feil/ukjent datakilder.",
+            "Admin > Drift gir bedre oversikt over importjobber og datakilder.",
+            "Backup-verifikasjon kan testes raskt uten aa pakke hele bildearkivet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1304",
