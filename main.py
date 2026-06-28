@@ -13292,9 +13292,6 @@ async def status_key_metrics_view(request: Request):
     revenue_previous_week = float_or_zero(previous_week_sun.paid) + float_or_zero(previous_week_parking.paid)
     revenue_month = float_or_zero(month_sun.paid) + float_or_zero(month_parking.paid)
     revenue_previous_month = float_or_zero(previous_month_sun.paid) + float_or_zero(previous_month_parking.paid)
-    revenue_year = float_or_zero(year_sun.paid) + float_or_zero(year_parking.paid)
-    revenue_previous_year = float_or_zero(previous_year_sun.paid) + float_or_zero(previous_year_parking.paid)
-    revenue_two_years = float_or_zero(two_years_full_sun.paid) + float_or_zero(two_years_parking.paid)
     cards = [
         {
             "group": "Drift",
@@ -14560,6 +14557,9 @@ async def api_v2_overview():
     revenue_previous_week = float_or_zero(previous_week_sun.paid) + float_or_zero(previous_week_parking.paid)
     revenue_month = float_or_zero(month_sun.paid) + float_or_zero(month_parking.paid)
     revenue_previous_month = float_or_zero(previous_month_sun.paid) + float_or_zero(previous_month_parking.paid)
+    revenue_year = float_or_zero(year_sun.paid) + float_or_zero(year_parking.paid)
+    revenue_previous_year = float_or_zero(previous_year_sun.paid) + float_or_zero(previous_year_parking.paid)
+    revenue_two_years = float_or_zero(two_years_full_sun.paid) + float_or_zero(two_years_parking.paid)
     previous_today_same_time = (
         float_or_zero(yesterday_same_time_sun.paid) + float_or_zero(yesterday_same_time_parking.paid)
     )
@@ -14627,7 +14627,7 @@ async def api_v2_overview():
         },
         {
             "key": "week",
-            "title": "Uke",
+            "title": "Denne uke",
             "sol": float_or_zero(week_sun.paid),
             "solCount": int_or_zero(week_sun.sessions),
             "parking": float_or_zero(week_parking.paid),
@@ -14676,7 +14676,7 @@ async def api_v2_overview():
         },
         {
             "key": "month",
-            "title": "M\u00e5ned",
+            "title": "Denne m\u00e5ned",
             "sol": float_or_zero(month_sun.paid),
             "solCount": int_or_zero(month_sun.sessions),
             "parking": float_or_zero(month_parking.paid),

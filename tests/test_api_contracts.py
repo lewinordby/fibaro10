@@ -1,5 +1,7 @@
+import ast
 import importlib.util
 import os
+from pathlib import Path
 import unittest
 
 import api_contracts
@@ -27,6 +29,27 @@ class AdminBuildApiContractTests(unittest.TestCase):
         self.assertIn("headline", payload)
         self.assertIn("changes", payload)
         self.assertIsInstance(payload["changes"], list)
+
+
+class OverviewApiContractTests(unittest.TestCase):
+    def test_overview_year_revenue_totals_are_assigned(self) -> None:
+        tree = ast.parse(Path("main.py").read_text(encoding="utf-8"))
+        overview_func = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "api_v2_overview"
+        )
+        assigned_names: set[str] = set()
+        for node in ast.walk(overview_func):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        assigned_names.add(target.id)
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                assigned_names.add(node.target.id)
+
+        for name in ("revenue_year", "revenue_previous_year", "revenue_two_years"):
+            self.assertIn(name, assigned_names)
 
 
 @unittest.skipUnless(
