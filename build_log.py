@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1333")
+APP_BUILD = os.getenv("APP_BUILD", "1334")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1334",
+        "date": "28.06.2026",
+        "headline": "Omsetningskort gjort strammere",
+        "title": "Dashboard > Omsetning får lavere kort og logo-inspirerte sol- og parkeringsikoner",
+        "description": (
+            "Build 1334 strammer inn de fire omsetningskortene slik at de tar mindre høyde uten å endre "
+            "informasjonsstrukturen. Driverlinjene bruker nå solsymbolet fra logo-uttrykket for soling og en "
+            "tilsvarende P for parkering, slik at ikonbruken blir mer konsekvent med resten av løsningen."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): bytter soling og parkering til egne logo-inspirerte inline-ikoner i driverlinjene.",
+            "Desktop v2 CSS (status-periods.css): reduserer padding, fontstørrelser og ikonstørrelser i omsetningskortene.",
+            "Buildlogg (build_log.py): registrerer build 1334.",
+        ],
+        "request": (
+            "Prøv å redusere litt på størrelse og skift ut symbolet på sol til solsymbolet vårt. "
+            "Bruk gjerne P-en på parkering også."
+        ),
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Omsetningskortene er gjort lavere og mer kompakte i 2x2-gridet.",
+            "Soling bruker et eget solikon basert på logoens formspråk.",
+            "Parkering bruker en tilsvarende P i samme ikonstil.",
+            "Avstand, tabelltekst, sammenligningsfelt og referansefot er justert ned for bedre skjermutnyttelse.",
+        ],
+    },
     {
         "version": "1",
         "build": "1333",

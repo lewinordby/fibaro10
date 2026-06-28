@@ -1,13 +1,13 @@
 .status-period-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
   align-items: stretch;
 }
 
 .status-period-card.revenue-period-card,
 .status-overview-page .status-period-card.revenue-period-card {
-  min-height: 394px;
+  min-height: 360px;
   border: 1px solid #dde5ef;
   border-radius: 8px;
   background: linear-gradient(180deg, #ffffff 0%, #ffffff 72%, #fbfcff 100%);
@@ -17,9 +17,9 @@
 .status-period-card.revenue-period-card .ant-card-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 11px;
   height: 100%;
-  padding: 18px 20px 16px;
+  padding: 15px 17px 14px;
 }
 
 .revenue-period-card {
@@ -29,7 +29,7 @@
 .revenue-period-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
+  gap: 15px;
   align-items: start;
 }
 
@@ -42,7 +42,7 @@
 .revenue-period-title {
   overflow: hidden;
   color: #0f172a;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 860;
   line-height: 1.12;
   text-overflow: ellipsis;
@@ -52,7 +52,7 @@
 .revenue-period-head em {
   overflow: hidden;
   color: #667085;
-  font-size: 12px;
+  font-size: 11.5px;
   font-style: normal;
   font-weight: 620;
   line-height: 1.2;
@@ -62,7 +62,7 @@
 
 .revenue-period-head > strong {
   color: #0f172a;
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 880;
   letter-spacing: 0;
   line-height: 0.95;
@@ -72,7 +72,7 @@
 .revenue-period-compare-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .revenue-period-compare-grid.single {
@@ -85,10 +85,10 @@
     "label icon"
     "delta icon";
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 7px 10px;
+  gap: 6px 9px;
   align-items: center;
   min-width: 0;
-  padding: 12px 13px;
+  padding: 9px 11px;
   border: 1px solid #dbe3ee;
   border-radius: 7px;
   background: #ffffff;
@@ -101,7 +101,7 @@
   grid-area: label;
   overflow: hidden;
   color: #182234;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 680;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -116,11 +116,11 @@
   display: inline-grid;
   grid-area: icon;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 27px;
+  height: 27px;
   border: 2px solid currentColor;
   border-radius: 999px;
-  font-size: 15px;
+  font-size: 13.5px;
 }
 
 .revenue-period-direction.positive {
@@ -145,12 +145,12 @@
 }
 
 .revenue-period-delta strong {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 850;
 }
 
 .revenue-period-delta span {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 760;
 }
 
@@ -168,13 +168,13 @@
 
 .revenue-drivers {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
 }
 
 .revenue-drivers-title {
   color: #0f172a;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 820;
   line-height: 1;
 }
@@ -202,7 +202,7 @@
 }
 
 .revenue-driver-head {
-  padding: 9px 12px;
+  padding: 8px 11px;
   border-bottom: 1px solid #e6edf5;
   background: #fbfcff;
 }
@@ -225,7 +225,7 @@
 
 .revenue-driver-row {
   position: relative;
-  padding: 12px;
+  padding: 10px 11px;
   border-bottom: 1px solid #e8eef6;
 }
 
@@ -256,12 +256,12 @@
 .revenue-driver-icon {
   display: inline-grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 13%, #ffffff);
   color: var(--driver-color, var(--domain-revenue));
-  font-size: 17px;
+  font-size: 15px;
 }
 
 .revenue-driver-icon.tone-sun2 {
@@ -272,11 +272,33 @@
   --driver-color: var(--domain-parking);
 }
 
+.revenue-logo-sun {
+  width: 20px;
+  height: 20px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3.4;
+}
+
+.revenue-logo-parking {
+  width: 19px;
+  height: 20px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4.4;
+}
+
 .revenue-driver-line strong {
   display: block;
   overflow: hidden;
   color: #182234;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 820;
   line-height: 1.15;
   text-overflow: ellipsis;
@@ -288,7 +310,7 @@
   overflow: hidden;
   margin-top: 3px;
   color: #667085;
-  font-size: 11px;
+  font-size: 10.5px;
   font-style: normal;
   font-weight: 620;
   line-height: 1.15;
@@ -304,7 +326,7 @@
 
 .revenue-driver-current strong {
   color: #0f172a;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 840;
   line-height: 1.1;
   white-space: nowrap;
@@ -315,24 +337,24 @@
 }
 
 .revenue-driver-delta-cell .revenue-period-delta strong {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 820;
 }
 
 .revenue-driver-delta-cell .revenue-period-delta span {
   width: 100%;
-  font-size: 11px;
+  font-size: 10.5px;
   text-align: right;
 }
 
 .revenue-driver-badge {
   display: inline-block;
   max-width: 100%;
-  margin-top: 5px;
-  padding: 4px 7px;
+  margin-top: 4px;
+  padding: 3px 6px;
   overflow: hidden;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 760;
   line-height: 1.1;
   text-overflow: ellipsis;
@@ -355,14 +377,14 @@
 }
 
 .revenue-driver-total {
-  padding: 10px 12px;
+  padding: 9px 11px;
   background: #fbfcff;
 }
 
 .revenue-driver-total span {
   grid-column: 1;
   color: #182234;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 820;
   line-height: 1.15;
 }
@@ -370,7 +392,7 @@
 .revenue-driver-total strong {
   grid-column: 2;
   color: #0f172a;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 860;
   line-height: 1.1;
   text-align: right;
@@ -380,10 +402,10 @@
 .revenue-period-full-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 11px;
+  gap: 10px;
   align-items: center;
   margin-top: auto;
-  padding: 11px 13px;
+  padding: 9px 11px;
   border: 1px solid #dbe3ee;
   border-radius: 7px;
   background: #ffffff;
@@ -393,8 +415,8 @@
 .revenue-period-full-icon {
   display: inline-grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 29px;
+  height: 29px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--blue) 12%, #ffffff);
   color: var(--blue);
@@ -404,7 +426,7 @@
 .revenue-period-full-card strong {
   display: block;
   color: #182234;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 820;
   line-height: 1.15;
 }
@@ -412,8 +434,8 @@
 .revenue-period-full-items {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px 15px;
-  margin-top: 5px;
+  gap: 6px 13px;
+  margin-top: 4px;
 }
 
 .revenue-period-full-item {
@@ -429,7 +451,7 @@
 .revenue-period-full-item span,
 .revenue-period-full-item em {
   color: #475569;
-  font-size: 11px;
+  font-size: 10.5px;
   font-style: normal;
   font-weight: 660;
   line-height: 1.15;
@@ -486,11 +508,11 @@
   }
 
   .revenue-period-title {
-    font-size: 16px;
+    font-size: 15.5px;
   }
 
   .revenue-period-head > strong {
-    font-size: 30px;
+    font-size: 28px;
   }
 }
 

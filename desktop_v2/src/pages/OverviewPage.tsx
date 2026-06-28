@@ -3,10 +3,8 @@ import {
   ArrowDownOutlined,
   ArrowRightOutlined,
   ArrowUpOutlined,
-  CarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  FireOutlined,
   MinusOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
@@ -484,11 +482,34 @@ function PeriodComparisonPill({ period, item }: { period: StatusPeriod; item: Pe
   );
 }
 
+function LogoSunIcon() {
+  return (
+    <svg className="revenue-logo-sun" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <circle cx="24" cy="24" r="12.5" />
+      <path d="M24 4.5v8" />
+      <path d="M24 35.5v8" />
+      <path d="M4.5 24h8" />
+      <path d="M35.5 24h8" />
+      <path d="M10.2 10.2l5.6 5.6" />
+      <path d="M32.2 32.2l5.6 5.6" />
+      <path d="M37.8 10.2l-5.6 5.6" />
+      <path d="M15.8 32.2l-5.6 5.6" />
+    </svg>
+  );
+}
+
+function LogoParkingIcon() {
+  return (
+    <svg className="revenue-logo-parking" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path d="M16 40V8h13.5C36 8 40 12.2 40 18.2S36 28.5 29.5 28.5H23" />
+    </svg>
+  );
+}
+
 function RevenueLineIcon({ line }: { line: RevenuePeriodLine }) {
-  const Icon = line.key === "soling" ? FireOutlined : CarOutlined;
   return (
     <span className={`revenue-driver-icon tone-${line.tone}`}>
-      <Icon />
+      {line.key === "soling" ? <LogoSunIcon /> : <LogoParkingIcon />}
     </span>
   );
 }
