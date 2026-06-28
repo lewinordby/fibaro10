@@ -8,7 +8,7 @@
   height: 100vh;
   overflow: auto;
   transition: all 0.18s ease;
-  border-right: 1px solid #e4ebf3;
+  border-right: 1px solid var(--border-panel);
   background:
     linear-gradient(180deg, rgba(210, 151, 19, 0.13) 0, rgba(210, 151, 19, 0) 92px),
     radial-gradient(circle at 24px 20px, rgba(37, 99, 235, 0.08), transparent 130px),
@@ -30,14 +30,14 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  color: #071a45;
+  color: var(--ink);
   text-decoration: none;
   cursor: pointer;
   border-radius: 8px;
 }
 
 .brand-home-link:hover {
-  color: #071a45;
+  color: var(--ink);
 }
 
 .sider-brand {
@@ -80,7 +80,7 @@
 
 .sider-nav-label {
   padding: 5px 10px 3px;
-  color: #8792a6;
+  color: var(--text-subtle);
   font-size: 10px;
   font-weight: 850;
   line-height: 1;
@@ -100,7 +100,7 @@
   gap: 9px;
   min-height: 34px;
   padding: 0 9px;
-  color: #26354d;
+  color: var(--text-body);
   text-decoration: none;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -114,15 +114,15 @@
 }
 
 .sider-nav-item:hover {
-  color: #071a45;
+  color: var(--ink);
   background: color-mix(in srgb, var(--menu-item-color) 8%, #ffffff);
   border-color: color-mix(in srgb, var(--menu-item-color) 16%, transparent);
 }
 
 .sider-nav-item.active {
-  color: #071a45;
+  color: var(--ink);
   background: color-mix(in srgb, var(--menu-item-color) 13%, #ffffff);
-  border-color: color-mix(in srgb, var(--menu-item-color) 18%, #e4ebf3);
+  border-color: color-mix(in srgb, var(--menu-item-color) 18%, var(--border-panel));
   box-shadow:
     inset 3px 0 0 var(--menu-item-color),
     0 5px 14px rgba(7, 26, 69, 0.055);
@@ -134,9 +134,9 @@
   place-items: center;
   width: 22px;
   height: 22px;
-  color: color-mix(in srgb, var(--menu-item-color) 78%, #667085);
+  color: color-mix(in srgb, var(--menu-item-color) 78%, var(--text-subtle));
   background: color-mix(in srgb, var(--menu-item-color) 9%, #ffffff);
-  border: 1px solid color-mix(in srgb, var(--menu-item-color) 16%, #e8edf4);
+  border: 1px solid color-mix(in srgb, var(--menu-item-color) 16%, var(--border-panel-soft));
   border-radius: 7px;
 }
 
@@ -159,21 +159,21 @@
   gap: 10px;
   margin: auto 10px 12px;
   padding: 10px 11px;
-  color: #334155;
+  color: var(--text-body);
   text-decoration: none;
-  border: 1px solid #e4ebf3;
+  border: 1px solid var(--border-panel);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.68);
 }
 
 .sider-build-link:hover {
-  color: #071a45;
-  border-color: color-mix(in srgb, var(--active-module-color) 24%, #dbe3ee);
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--active-module-color) 24%, var(--border-control));
   background: #ffffff;
 }
 
 .sider-build-link span {
-  color: #738096;
+  color: var(--text-subtle);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0;
@@ -230,16 +230,16 @@
   flex: 0 0 auto;
   width: 34px;
   height: 34px;
-  color: color-mix(in srgb, var(--active-module-color) 66%, #475569);
-  border: 1px solid #dbe3ee;
+  color: color-mix(in srgb, var(--active-module-color) 66%, var(--text-label));
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
   background: #ffffff;
 }
 
 .main-menu-toggle:hover {
-  color: #111827 !important;
-  border-color: #cbd5e1 !important;
-  background: #f8fafc !important;
+  color: var(--ink) !important;
+  border-color: var(--line-strong) !important;
+  background: var(--surface-muted) !important;
 }
 
 .profile-button {
@@ -250,13 +250,13 @@
   height: 36px;
   max-width: 210px;
   padding: 4px 8px 4px 5px;
-  color: #334155;
+  color: var(--text-body);
   border-radius: 999px;
 }
 
 .profile-button:hover {
-  color: #111827 !important;
-  background: #f1f5f9 !important;
+  color: var(--ink) !important;
+  background: var(--surface-soft) !important;
 }
 
 .profile-avatar {
@@ -286,7 +286,7 @@
 }
 
 .profile-menu-identity strong {
-  color: #111827;
+  color: var(--ink);
   font-size: 13px;
   font-weight: 760;
 }

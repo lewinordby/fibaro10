@@ -15,7 +15,7 @@
   min-height: 32px;
   margin-bottom: 6px;
   padding-bottom: 7px;
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--border-panel-soft);
 }
 
 .module-chart-toolbar .ant-typography {
@@ -23,7 +23,7 @@
 }
 
 .module-chart-toolbar .ant-segmented {
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-panel);
   border-radius: var(--radius-md);
 }
 
@@ -40,7 +40,7 @@
 
 .module-chart-day-nav .ant-btn,
 .module-chart-day-nav .ant-input-affix-wrapper {
-  border-color: var(--line-strong);
+  border-color: var(--border-control);
 }
 
 .module-chart-date {

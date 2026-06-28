@@ -54,34 +54,6 @@
   color: var(--red);
 }
 
-.summary-card .ant-card-head {
-  min-height: 34px;
-}
-
-.summary-card .ant-card-head-title {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.summary-card .ant-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 66px;
-  padding: 10px 12px;
-}
-
-.summary-card strong {
-  color: var(--ink);
-  font-size: 18px;
-  line-height: 1.1;
-}
-
-.summary-card span {
-  color: var(--muted);
-  font-size: 11px;
-}
-
 .table-note {
   display: block;
   margin-top: 12px;
@@ -113,7 +85,7 @@
 .chart-card,
 .table-card,
 .summary-card {
-  border-color: var(--line);
+  border-color: var(--border-panel);
   border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: var(--shadow-xs);
@@ -123,14 +95,14 @@
 .chart-card .ant-card-head,
 .table-card .ant-card-head {
   min-height: 44px;
-  background: linear-gradient(180deg, #ffffff, #fbfcfe);
-  border-bottom-color: var(--line-soft);
+  background: var(--panel-header-bg);
+  border-bottom-color: var(--border-panel-soft);
 }
 
 .work-card .ant-card-head-title,
 .chart-card .ant-card-head-title,
 .table-card .ant-card-head-title {
-  color: #263244;
+  color: var(--text-body);
   font-size: 13px;
   font-weight: 800;
 }
@@ -144,18 +116,26 @@
 }
 
 .summary-card .ant-card-head-title {
+  color: var(--muted);
   font-size: 10.5px;
+  font-weight: 800;
 }
 
 .summary-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   min-height: 50px;
   padding: 7px 9px;
 }
 
 .summary-card strong {
+  color: var(--ink);
   font-size: 14.5px;
+  line-height: 1.1;
 }
 
 .summary-card span {
+  color: var(--muted);
   font-size: 10px;
 }

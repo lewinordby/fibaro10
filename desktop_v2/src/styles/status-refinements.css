@@ -7,12 +7,12 @@
 
 .status-info-card .ant-card-head {
   min-height: 44px;
-  background: linear-gradient(180deg, #ffffff, #fbfcfe);
-  border-bottom-color: var(--line-soft);
+  background: var(--panel-header-bg);
+  border-bottom-color: var(--border-panel-soft);
 }
 
 .status-info-card .ant-card-head-title {
-  color: #263244;
+  color: var(--text-body);
   font-size: 13px;
   font-weight: 800;
 }
@@ -27,7 +27,7 @@
 }
 
 .status-summary-state span {
-  color: #475569;
+  color: var(--text-label);
 }
 
 .status-summary-state strong {
@@ -50,13 +50,13 @@
 }
 
 .status-strip-title {
-  color: #243041;
+  color: var(--ink-soft);
   font-size: 12px;
   font-weight: 800;
 }
 
 .status-strip-item {
-  color: #465568;
+  color: var(--text-label);
 }
 
 .status-strip .ant-tag {
@@ -79,7 +79,7 @@
   min-height: 226px;
   border-top: 0;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--domain-revenue) 3%, #ffffff) 0%, #ffffff 52%, #fbfcfe 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--domain-revenue) 3%, var(--surface)) 0%, var(--surface) 52%, #fbfcfe 100%);
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
@@ -107,5 +107,5 @@
 }
 
 :is(.status-event-list, .status-source-list) .ant-list-item:hover {
-  background: linear-gradient(90deg, #f8fbff, transparent);
+  background: linear-gradient(90deg, var(--surface-hover), transparent);
 }

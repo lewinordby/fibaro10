@@ -55,17 +55,17 @@
   align-items: baseline;
   gap: 7px;
   padding: 5px 9px;
-  color: #334155;
+  color: var(--text-body);
   text-decoration: none;
-  border: 1px solid #dbe3ee;
+  border: 1px solid var(--border-control);
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .status-summary-source-pill:hover {
-  color: #111827;
-  border-color: #cbd5e1;
-  background: #f8fafc;
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: var(--surface-muted);
 }
 
 .status-summary-source-pill.ok {
@@ -84,7 +84,7 @@
 }
 
 .status-summary-source-pill strong {
-  color: #111827;
+  color: var(--ink);
   font-size: 12px;
   font-weight: 780;
 }
@@ -97,7 +97,7 @@
 }
 
 .status-summary-updated strong {
-  color: #6b7280;
+  color: var(--muted);
   font-size: 12px;
   font-weight: 650;
 }
@@ -115,14 +115,14 @@
   min-height: 38px;
   padding: 7px 12px;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-panel);
   border-radius: 6px;
   box-shadow: 0 3px 10px rgba(15, 23, 42, 0.03);
 }
 
 .status-strip-title {
   flex: 0 0 110px;
-  color: #374151;
+  color: var(--ink-soft);
   font-size: 13px;
   font-weight: 750;
 }
@@ -141,7 +141,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  color: #374151;
+  color: var(--ink-soft);
   font-size: 11px;
 }
 
@@ -269,11 +269,11 @@
 
 .status-info-card .ant-card-head {
   min-height: 44px;
-  border-bottom-color: #eef2f7;
+  border-bottom-color: var(--border-panel-soft);
 }
 
 .status-info-card .ant-card-head-title {
-  color: #374151;
+  color: var(--ink-soft);
   font-size: 14px;
   font-weight: 760;
 }
@@ -285,7 +285,7 @@
 .status-event-list .ant-list-item,
 .status-source-list .ant-list-item {
   padding: 11px 0;
-  border-block-end-color: #eef2f7;
+  border-block-end-color: var(--border-panel-soft);
 }
 
 .status-event-list .ant-list-item-meta-title,
@@ -297,10 +297,10 @@
 .status-source-list .status-source-number {
   min-width: 30px;
   padding: 2px 7px;
-  border: 1px solid #dbe3ee;
+  border: 1px solid var(--border-control);
   border-radius: 999px;
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--surface-muted);
+  color: var(--muted);
   font-size: 11px;
   font-weight: 760;
   text-align: center;

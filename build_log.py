@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1335")
+APP_BUILD = os.getenv("APP_BUILD", "1336")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1336",
+        "date": "28.06.2026",
+        "headline": "Felles design- og CSS-opprydding",
+        "title": "Desktop v2 får strammere grunnstil for kort, tabeller, kontroller og statusflater",
+        "description": (
+            "Build 1336 rydder i de sentrale CSS-lagene som styrer hele desktop-appen. Felles designtokens er utvidet, "
+            "Ant Design-kort, tabeller og kontroller bruker nå mer konsistente regler, og status-/omsetningskortene er "
+            "justert mot samme visuelle språk. Målet er mindre lokal CSS-støy og et roligere, mer systematisk uttrykk på tvers av sidene."
+        ),
+        "applications": [
+            "Desktop v2 CSS (tokens.css): utvider felles designtokens for paneler, kontroller, overflater og tekstnivåer.",
+            "Desktop v2 CSS (layout.css): normaliserer kort, tabeller, skjemaelementer, segmenterte valg og global tabelltetthet.",
+            "Desktop v2 CSS (module-content.css): fjerner dupliserte summary-card-regler og samler felles kortstil.",
+            "Desktop v2 CSS (app-shell.css, module-metrics.css, module-charts.css, status-*.css): flytter sentrale farger og kanter over på felles tokens.",
+            "Buildlogg (build_log.py): registrerer build 1336.",
+        ],
+        "request": "Gjør en grundig gjennomgang av design og CSS slik at hele appen blir mer ryddig, pen og systematisk.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Hardkodede CSS-farger er redusert fra 458 til 346 i audit.",
+            "Felles tabeller er gjort mer kompakte og konsekvente.",
+            "Summary-kort har én samlet definisjon i stedet for konkurrerende overstyringer.",
+            "Status-, omsetnings-, meny- og nøkkelkort bruker mer av samme designsystem.",
+            "Ingen funksjonelle sider eller API-er er endret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1335",

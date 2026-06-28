@@ -12,9 +12,9 @@
   position: relative;
   overflow: hidden;
   height: 88px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-panel);
   border-radius: var(--radius-md);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  background: var(--panel-header-bg);
   box-shadow: var(--shadow-xs);
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
@@ -54,7 +54,7 @@
 .metric-title {
   min-width: 0;
   overflow: hidden;
-  color: var(--domain-status);
+  color: var(--text-label);
   font-size: 10px;
   font-weight: 760;
   text-overflow: ellipsis;
