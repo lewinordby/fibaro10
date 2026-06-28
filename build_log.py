@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1301")
+APP_BUILD = os.getenv("APP_BUILD", "1302")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1302",
+        "date": "28.06.2026",
+        "headline": "UniFi Protect skilt ut",
+        "title": "Fibaro10 har flyttet UniFi Protect-lenker ut av main.py og isolert testen",
+        "description": (
+            "Build 1302 fortsetter backend-oppryddingen med lav risiko. Generering av UniFi "
+            "Protect-timelapse-lenker for parkering ligger naa i egen modul. Den tilhorende testen "
+            "importerer modulen direkte, slik at den ikke lenger trenger aa starte hele main.py."
+        ),
+        "applications": [
+            "Fibaro10 backend (unifi_protect.py): ny modul for UniFi Protect-konfigurasjon og timelapse-URL.",
+            "Fibaro10 backend (main.py): bruker UniFi Protect-modulen i parkeringsrad-API.",
+            "Fibaro10 tester (test_unifi_protect_links.py): tester modulen direkte uten databaseoppsett.",
+            "Buildlogg (build_log.py): registrerer build 1302.",
+        ],
+        "request": "kjor paa med alt dette",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "main.py har mindre hardkodet ekstern-lenkeoppsett.",
+            "UniFi-lenketesten er raskere og mer isolert.",
+            "Eksisterende API-felt for unifi_start_url og unifi_end_url er uendret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1301",

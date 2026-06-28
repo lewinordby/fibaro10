@@ -133,6 +133,10 @@ from time_formatting import (
     format_source_datetime_short,
     format_source_time,
 )
+from unifi_protect import (
+    UNIFI_PROTECT_PARKING_CAMERA_ID,
+    unifi_protect_parking_timelapse_url,
+)
 from v2_navigation import v2_module_title
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -194,20 +198,6 @@ CAR_INFO_CANDIDATE_RETRY_HOURS = max(24, int(os.getenv("CAR_INFO_CANDIDATE_RETRY
 CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES = max(30, int(os.getenv("CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES", "240")))
 CAR_INFO_AUTO_TRIGGER_ENABLED = os.getenv("CAR_INFO_AUTO_TRIGGER_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN = max(0, min(5, int(os.getenv("CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN", "1"))))
-UNIFI_PROTECT_BASE_URL = os.getenv("UNIFI_PROTECT_BASE_URL", "https://unifi.ui.com").rstrip("/")
-UNIFI_PROTECT_CONSOLE_ID = os.getenv(
-    "UNIFI_PROTECT_CONSOLE_ID",
-    "28704E24487D000000000821D3930000000008902F110000000066747401:303733909",
-).strip()
-UNIFI_PROTECT_PARKING_CAMERA_ID = os.getenv("UNIFI_PROTECT_PARKING_CAMERA_ID", "6a35340e009cef03e402fcb1").strip()
-UNIFI_PROTECT_PARKING_PREVIEW_BEFORE_SECONDS = max(
-    0,
-    int(os.getenv("UNIFI_PROTECT_PARKING_PREVIEW_BEFORE_SECONDS", "120")),
-)
-UNIFI_PROTECT_PARKING_PREVIEW_AFTER_SECONDS = max(
-    0,
-    int(os.getenv("UNIFI_PROTECT_PARKING_PREVIEW_AFTER_SECONDS", "300")),
-)
 MOBILE_PREVIEW_REFRESH_SECONDS = max(15, int(os.getenv("MOBILE_PREVIEW_REFRESH_SECONDS", "60")))
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
@@ -16519,28 +16509,6 @@ def api_energy_elvia_payload(
         "status": api_import_job_status(status),
         "uploadEndpoint": "/api/energy/elvia/upload",
     }
-
-
-def unifi_protect_parking_timelapse_url(target_at: Optional[datetime], before_seconds: Optional[int] = None) -> Optional[str]:
-    if not target_at or not UNIFI_PROTECT_CONSOLE_ID or not UNIFI_PROTECT_PARKING_CAMERA_ID:
-        return None
-    preview_before_seconds = max(0, int(before_seconds if before_seconds is not None else UNIFI_PROTECT_PARKING_PREVIEW_BEFORE_SECONDS))
-    if target_at.tzinfo is None:
-        target_local = target_at.replace(tzinfo=LOCAL_TZ)
-    else:
-        target_local = target_at.astimezone(LOCAL_TZ)
-    start_at = target_local - timedelta(seconds=preview_before_seconds)
-    end_at = target_local + timedelta(seconds=UNIFI_PROTECT_PARKING_PREVIEW_AFTER_SECONDS)
-    params = urlencode(
-        {
-            "end": int(end_at.timestamp() * 1000),
-            "start": int(start_at.timestamp() * 1000),
-            "time": int(start_at.timestamp() * 1000),
-        }
-    )
-    console_id = quote(UNIFI_PROTECT_CONSOLE_ID, safe=":")
-    camera_id = quote(UNIFI_PROTECT_PARKING_CAMERA_ID, safe="")
-    return f"{UNIFI_PROTECT_BASE_URL}/consoles/{console_id}/protect/timelapse/{camera_id}?{params}"
 
 
 def parking_row_api(
