@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1309")
+APP_BUILD = os.getenv("APP_BUILD", "1310")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1310",
+        "date": "28.06.2026",
+        "headline": "Smoke-provisionering rettet",
+        "title": "Provision-scriptet for innlogget live-smoke fungerer ogsaa i Windows PowerShell",
+        "description": (
+            "Build 1310 retter passordgenereringen i provision-live-smoke-user.ps1 slik at scriptet "
+            "bruker RandomNumberGenerator.Create().GetBytes(...), som fungerer i Windows PowerShell "
+            "paa denne maskinen. Dette gjoer at fibaro-smoke-brukeren kan opprettes eller roteres "
+            "fra utviklingsmaskinen uten manuell databaseendring."
+        ),
+        "applications": [
+            "Fibaro10 driftsscript (provision-live-smoke-user.ps1): kompatibel kryptografisk passordgenerering.",
+            "Buildlogg (build_log.py): registrerer build 1310.",
+        ],
+        "request": "gjor det",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Innlogget live-smoke kan provisioneres fra Windows PowerShell.",
+            "Ingen endring i produksjonsdata eller applikasjonslogikk.",
+        ],
+    },
     {
         "version": "1",
         "build": "1309",
