@@ -45,8 +45,9 @@ const DATASOURCE_PRIORITY = [
 
 const EXTRA_COMPARISON_KEYS: Record<string, string[]> = {
   today: ["same-weekday-last-week"],
-  week: ["two-weeks-ago"],
-  month: ["two-months-ago"],
+  week: ["same-week-last-year"],
+  month: ["same-month-last-year"],
+  year: ["two-years-ago"],
 };
 
 const DASHBOARD_CONFIG: Record<DashboardView, { title: string; detail: string; tone: string }> = {
@@ -334,14 +335,24 @@ function buildComparisonViews(period: StatusPeriod): PeriodComparisonView[] {
   });
 }
 
+function comparisonYear(item: PeriodComparisonView) {
+  const source = `${item.comparison.label} ${item.comparison.fullLabel ?? ""}`;
+  return source.match(/\b(19|20)\d{2}\b/)?.[0];
+}
+
 function periodComparisonLabel(periodKey: string, item: PeriodComparisonView) {
   if (periodKey === "today" && item.comparisonKey === "previous") return "I går samme tidspunkt";
   if (periodKey === "today" && item.comparisonKey === "same-weekday-last-week") return "Samme ukedag forrige uke";
   if (periodKey === "week" && item.comparisonKey === "previous") return "Forrige uke samme tidspunkt";
-  if (periodKey === "week" && item.comparisonKey === "two-weeks-ago") return "To uker siden";
+  if (periodKey === "week" && item.comparisonKey === "same-week-last-year") {
+    return `Samme uke ${comparisonYear(item) ?? ""}`.trim();
+  }
   if (periodKey === "month" && item.comparisonKey === "previous") return "Forrige måned samme tidspunkt";
-  if (periodKey === "month" && item.comparisonKey === "two-months-ago") return "To måneder siden";
-  if (periodKey === "year" && item.comparisonKey === "previous") return "I fjor samme tidspunkt";
+  if (periodKey === "month" && item.comparisonKey === "same-month-last-year") {
+    return `Samme måned ${comparisonYear(item) ?? ""}`.trim();
+  }
+  if (periodKey === "year" && item.comparisonKey === "previous") return comparisonYear(item) ?? "I fjor";
+  if (periodKey === "year" && item.comparisonKey === "two-years-ago") return comparisonYear(item) ?? item.shortLabel;
   return item.shortLabel;
 }
 
@@ -353,10 +364,11 @@ function periodColumnComparisonLabel(period: StatusPeriod, item: PeriodCompariso
   if (period.key === "today" && item.comparisonKey === "previous") return "Mot i går";
   if (period.key === "today" && item.comparisonKey === "same-weekday-last-week") return "Mot forrige uke";
   if (period.key === "week" && item.comparisonKey === "previous") return "Mot forrige uke";
-  if (period.key === "week" && item.comparisonKey === "two-weeks-ago") return "Mot to uker siden";
+  if (period.key === "week" && item.comparisonKey === "same-week-last-year") return `Mot samme uke ${comparisonYear(item) ?? ""}`.trim();
   if (period.key === "month" && item.comparisonKey === "previous") return "Mot forrige måned";
-  if (period.key === "month" && item.comparisonKey === "two-months-ago") return "Mot to måneder siden";
-  if (period.key === "year" && item.comparisonKey === "previous") return "Mot i fjor";
+  if (period.key === "month" && item.comparisonKey === "same-month-last-year") return `Mot samme måned ${comparisonYear(item) ?? ""}`.trim();
+  if (period.key === "year" && item.comparisonKey === "previous") return `Mot ${comparisonYear(item) ?? "i fjor"}`;
+  if (period.key === "year" && item.comparisonKey === "two-years-ago") return `Mot ${comparisonYear(item) ?? item.shortLabel}`;
   return `Mot ${item.shortLabel.toLowerCase()}`;
 }
 

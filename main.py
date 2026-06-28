@@ -6067,6 +6067,22 @@ def add_months(value: date, months: int) -> date:
     return date(year, month, day)
 
 
+def iso_week_start(target_year: int, iso_week: int) -> date:
+    week = iso_week
+    while week > 1:
+        try:
+            return date.fromisocalendar(target_year, week, 1)
+        except ValueError:
+            week -= 1
+    return date.fromisocalendar(target_year, 1, 1)
+
+
+def same_iso_week_previous_year(value: date) -> tuple[date, int]:
+    iso = value.isocalendar()
+    target_year = iso.year - 1
+    return iso_week_start(target_year, iso.week), target_year
+
+
 def month_label(value: date) -> str:
     return f"{NB_MONTH_NAMES[value.month - 1]} {value.year}"
 
@@ -6127,11 +6143,12 @@ def status_comparison_windows(
     current_week_start = today - timedelta(days=today.weekday())
     week_start = selected_day - timedelta(days=selected_day.weekday())
     previous_week_start = week_start - timedelta(days=7)
-    two_weeks_start = previous_week_start - timedelta(days=7)
+    same_week_last_year_start, same_week_last_year = same_iso_week_previous_year(week_start)
     current_month_start = today.replace(day=1)
     month_start = selected_day.replace(day=1)
     previous_month_start = add_months(month_start, -1)
-    two_months_start = add_months(month_start, -2)
+    same_month_last_year_start = date(month_start.year - 1, month_start.month, 1)
+    same_month_last_year = same_month_last_year_start.year
     tomorrow = selected_day + timedelta(days=1)
 
     day_start = datetime.combine(selected_day, time.min)
@@ -6142,11 +6159,13 @@ def status_comparison_windows(
     week_start_dt = datetime.combine(week_start, time.min)
     week_end_dt = week_start_dt + timedelta(days=7)
     previous_week_start_dt = datetime.combine(previous_week_start, time.min)
-    two_weeks_start_dt = datetime.combine(two_weeks_start, time.min)
+    same_week_last_year_start_dt = datetime.combine(same_week_last_year_start, time.min)
+    same_week_last_year_end_dt = same_week_last_year_start_dt + timedelta(days=7)
     month_start_dt = datetime.combine(month_start, time.min)
     month_end_dt = datetime.combine(add_months(month_start, 1), time.min)
     previous_month_start_dt = datetime.combine(previous_month_start, time.min)
-    two_months_start_dt = datetime.combine(two_months_start, time.min)
+    same_month_last_year_start_dt = datetime.combine(same_month_last_year_start, time.min)
+    same_month_last_year_end_dt = datetime.combine(add_months(same_month_last_year_start, 1), time.min)
 
     is_current_day = selected_day == today
     is_current_week = week_start == current_week_start
@@ -6228,10 +6247,10 @@ def status_comparison_windows(
                     parking_week_cutoff,
                 ),
                 compare(
-                    "two-weeks-ago",
-                    "Tilsvarende datatidspunkt for to uker siden" if is_current_week else "To uker f\u00f8r",
-                    two_weeks_start_dt,
-                    previous_week_start_dt,
+                    "same-week-last-year",
+                    f"Samme uke {same_week_last_year}",
+                    same_week_last_year_start_dt,
+                    same_week_last_year_end_dt,
                     week_start_dt,
                     sun_week_cutoff,
                     parking_week_cutoff,
@@ -6254,10 +6273,10 @@ def status_comparison_windows(
                     parking_month_cutoff,
                 ),
                 compare(
-                    "two-months-ago",
-                    "Tilsvarende datatidspunkt for to m\u00e5neder siden" if is_current_month else "To m\u00e5neder f\u00f8r",
-                    two_months_start_dt,
-                    previous_month_start_dt,
+                    "same-month-last-year",
+                    f"Samme m\u00e5ned {same_month_last_year}",
+                    same_month_last_year_start_dt,
+                    same_month_last_year_end_dt,
                     month_start_dt,
                     sun_month_cutoff,
                     parking_month_cutoff,
@@ -14229,10 +14248,13 @@ async def api_v2_overview():
     last_week_same_day = today - timedelta(days=7)
     week_start = today - timedelta(days=today.weekday())
     previous_week_start = week_start - timedelta(days=7)
-    two_weeks_start = previous_week_start - timedelta(days=7)
+    same_week_last_year_start, same_week_last_year = same_iso_week_previous_year(week_start)
+    same_week_last_year_end = same_week_last_year_start + timedelta(days=7)
     month_start = today.replace(day=1)
     previous_month_start = (month_start - timedelta(days=1)).replace(day=1)
-    two_months_start = (previous_month_start - timedelta(days=1)).replace(day=1)
+    same_month_last_year_start = date(month_start.year - 1, month_start.month, 1)
+    same_month_last_year_end = add_months(same_month_last_year_start, 1)
+    same_month_last_year = same_month_last_year_start.year
     year_start = date(today.year, 1, 1)
     previous_year_start = date(today.year - 1, 1, 1)
     two_years_start = date(today.year - 2, 1, 1)
@@ -14244,10 +14266,12 @@ async def api_v2_overview():
     last_week_same_day_end = last_week_same_day_start + timedelta(days=1)
     week_start_dt = datetime.combine(week_start, time.min)
     previous_week_start_dt = datetime.combine(previous_week_start, time.min)
-    two_weeks_start_dt = datetime.combine(two_weeks_start, time.min)
+    same_week_last_year_start_dt = datetime.combine(same_week_last_year_start, time.min)
+    same_week_last_year_end_dt = datetime.combine(same_week_last_year_end, time.min)
     month_start_dt = datetime.combine(month_start, time.min)
     previous_month_start_dt = datetime.combine(previous_month_start, time.min)
-    two_months_start_dt = datetime.combine(two_months_start, time.min)
+    same_month_last_year_start_dt = datetime.combine(same_month_last_year_start, time.min)
+    same_month_last_year_end_dt = datetime.combine(same_month_last_year_end, time.min)
     year_start_dt = datetime.combine(year_start, time.min)
     previous_year_start_dt = datetime.combine(previous_year_start, time.min)
     two_years_start_dt = datetime.combine(two_years_start, time.min)
@@ -14284,18 +14308,18 @@ async def api_v2_overview():
             last_week_same_day_end,
         )
         sun_previous_week_cutoff = shifted_period_cutoff(week_start_dt, sun_week_cutoff, previous_week_start_dt, week_start_dt)
-        sun_two_weeks_cutoff = shifted_period_cutoff(
+        sun_same_week_last_year_cutoff = shifted_period_cutoff(
             week_start_dt,
             sun_week_cutoff,
-            two_weeks_start_dt,
-            previous_week_start_dt,
+            same_week_last_year_start_dt,
+            same_week_last_year_end_dt,
         )
         sun_previous_month_cutoff = shifted_period_cutoff(month_start_dt, sun_month_cutoff, previous_month_start_dt, month_start_dt)
-        sun_two_months_cutoff = shifted_period_cutoff(
+        sun_same_month_last_year_cutoff = shifted_period_cutoff(
             month_start_dt,
             sun_month_cutoff,
-            two_months_start_dt,
-            previous_month_start_dt,
+            same_month_last_year_start_dt,
+            same_month_last_year_end_dt,
         )
         sun_previous_year_cutoff = shifted_period_cutoff(
             year_start_dt,
@@ -14322,11 +14346,11 @@ async def api_v2_overview():
             previous_week_start_dt,
             week_start_dt,
         )
-        parking_two_weeks_cutoff = shifted_period_cutoff(
+        parking_same_week_last_year_cutoff = shifted_period_cutoff(
             week_start_dt,
             parking_week_cutoff,
-            two_weeks_start_dt,
-            previous_week_start_dt,
+            same_week_last_year_start_dt,
+            same_week_last_year_end_dt,
         )
         parking_previous_month_cutoff = shifted_period_cutoff(
             month_start_dt,
@@ -14334,11 +14358,11 @@ async def api_v2_overview():
             previous_month_start_dt,
             month_start_dt,
         )
-        parking_two_months_cutoff = shifted_period_cutoff(
+        parking_same_month_last_year_cutoff = shifted_period_cutoff(
             month_start_dt,
             parking_month_cutoff,
-            two_months_start_dt,
-            previous_month_start_dt,
+            same_month_last_year_start_dt,
+            same_month_last_year_end_dt,
         )
         parking_previous_year_cutoff = shifted_period_cutoff(
             year_start_dt,
@@ -14366,8 +14390,16 @@ async def api_v2_overview():
             last_week_same_day,
             last_week_same_day + timedelta(days=1),
         )
-        two_weeks_full_sun = await sun2_period_snapshot(session, two_weeks_start, previous_week_start)
-        two_months_full_sun = await sun2_period_snapshot(session, two_months_start, previous_month_start)
+        same_week_last_year_full_sun = await sun2_period_snapshot(
+            session,
+            same_week_last_year_start,
+            same_week_last_year_end,
+        )
+        same_month_last_year_full_sun = await sun2_period_snapshot(
+            session,
+            same_month_last_year_start,
+            same_month_last_year_end,
+        )
         yesterday_same_time_sun = await sun2_datetime_snapshot(session, yesterday_start, sun_yesterday_cutoff)
         last_week_same_day_sun = await sun2_datetime_snapshot(
             session,
@@ -14379,20 +14411,20 @@ async def api_v2_overview():
             previous_week_start_dt,
             sun_previous_week_cutoff,
         )
-        two_weeks_same_time_sun = await sun2_datetime_snapshot(
+        same_week_last_year_same_time_sun = await sun2_datetime_snapshot(
             session,
-            two_weeks_start_dt,
-            sun_two_weeks_cutoff,
+            same_week_last_year_start_dt,
+            sun_same_week_last_year_cutoff,
         )
         previous_month_same_time_sun = await sun2_datetime_snapshot(
             session,
             previous_month_start_dt,
             sun_previous_month_cutoff,
         )
-        two_months_same_time_sun = await sun2_datetime_snapshot(
+        same_month_last_year_same_time_sun = await sun2_datetime_snapshot(
             session,
-            two_months_start_dt,
-            sun_two_months_cutoff,
+            same_month_last_year_start_dt,
+            sun_same_month_last_year_cutoff,
         )
         previous_year_same_time_sun = await sun2_datetime_snapshot(
             session,
@@ -14442,28 +14474,16 @@ async def api_v2_overview():
                 ).where(ParkingSession.start_time >= previous_month_start_dt, ParkingSession.start_time < month_start_dt)
             )
         ).one()
-        two_weeks_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= two_weeks_start_dt,
-                    ParkingSession.start_time < previous_week_start_dt,
-                )
-            )
-        ).one()
-        two_months_parking = (
-            await session.execute(
-                select(
-                    func.count(ParkingSession.id).label("sessions"),
-                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
-                ).where(
-                    ParkingSession.start_time >= two_months_start_dt,
-                    ParkingSession.start_time < previous_month_start_dt,
-                )
-            )
-        ).one()
+        same_week_last_year_parking = await parking_datetime_snapshot(
+            session,
+            same_week_last_year_start_dt,
+            same_week_last_year_end_dt,
+        )
+        same_month_last_year_parking = await parking_datetime_snapshot(
+            session,
+            same_month_last_year_start_dt,
+            same_month_last_year_end_dt,
+        )
         yesterday_same_time_parking = await parking_datetime_snapshot(session, yesterday_start, parking_yesterday_cutoff)
         last_week_same_day_same_time_parking = await parking_datetime_snapshot(
             session,
@@ -14475,20 +14495,20 @@ async def api_v2_overview():
             previous_week_start_dt,
             parking_previous_week_cutoff,
         )
-        two_weeks_same_time_parking = await parking_datetime_snapshot(
+        same_week_last_year_same_time_parking = await parking_datetime_snapshot(
             session,
-            two_weeks_start_dt,
-            parking_two_weeks_cutoff,
+            same_week_last_year_start_dt,
+            parking_same_week_last_year_cutoff,
         )
         previous_month_same_time_parking = await parking_datetime_snapshot(
             session,
             previous_month_start_dt,
             parking_previous_month_cutoff,
         )
-        two_months_same_time_parking = await parking_datetime_snapshot(
+        same_month_last_year_same_time_parking = await parking_datetime_snapshot(
             session,
-            two_months_start_dt,
-            parking_two_months_cutoff,
+            same_month_last_year_start_dt,
+            parking_same_month_last_year_cutoff,
         )
         year_parking = await parking_datetime_snapshot(session, year_start_dt, parking_year_cutoff)
         previous_year_parking = await parking_datetime_snapshot(session, previous_year_start_dt, year_start_dt)
@@ -14560,14 +14580,28 @@ async def api_v2_overview():
     revenue_year = float_or_zero(year_sun.paid) + float_or_zero(year_parking.paid)
     revenue_previous_year = float_or_zero(previous_year_sun.paid) + float_or_zero(previous_year_parking.paid)
     revenue_two_years = float_or_zero(two_years_full_sun.paid) + float_or_zero(two_years_parking.paid)
+    revenue_same_week_last_year = (
+        float_or_zero(same_week_last_year_full_sun.paid) + float_or_zero(same_week_last_year_parking.paid)
+    )
+    revenue_same_month_last_year = (
+        float_or_zero(same_month_last_year_full_sun.paid) + float_or_zero(same_month_last_year_parking.paid)
+    )
     previous_today_same_time = (
         float_or_zero(yesterday_same_time_sun.paid) + float_or_zero(yesterday_same_time_parking.paid)
     )
     previous_week_same_time = (
         float_or_zero(previous_week_same_time_sun.paid) + float_or_zero(previous_week_same_time_parking.paid)
     )
+    same_week_last_year_same_time = (
+        float_or_zero(same_week_last_year_same_time_sun.paid)
+        + float_or_zero(same_week_last_year_same_time_parking.paid)
+    )
     previous_month_same_time = (
         float_or_zero(previous_month_same_time_sun.paid) + float_or_zero(previous_month_same_time_parking.paid)
+    )
+    same_month_last_year_same_time = (
+        float_or_zero(same_month_last_year_same_time_sun.paid)
+        + float_or_zero(same_month_last_year_same_time_parking.paid)
     )
     previous_year_same_time = (
         float_or_zero(previous_year_same_time_sun.paid) + float_or_zero(previous_year_same_time_parking.paid)
@@ -14651,26 +14685,20 @@ async def api_v2_overview():
             "previousParkingAsOfLabel": cutoff_label(parking_previous_week_cutoff, today),
             "extraComparisons": [
                 {
-                    "label": "Sammenlignet med tilsvarende datatidspunkt for to uker siden",
-                    "sol": float_or_zero(two_weeks_same_time_sun.paid),
-                    "solCount": int_or_zero(two_weeks_same_time_sun.sessions),
-                    "parking": float_or_zero(two_weeks_same_time_parking.paid),
-                    "parkingCount": int_or_zero(two_weeks_same_time_parking.sessions),
-                    "total": (
-                        float_or_zero(two_weeks_same_time_sun.paid)
-                        + float_or_zero(two_weeks_same_time_parking.paid)
-                    ),
-                    "fullLabel": "Hele uken for to uker siden",
-                    "fullSol": float_or_zero(two_weeks_full_sun.paid),
-                    "fullSolCount": int_or_zero(two_weeks_full_sun.sessions),
-                    "fullParking": float_or_zero(two_weeks_parking.paid),
-                    "fullParkingCount": int_or_zero(two_weeks_parking.sessions),
-                    "fullTotal": (
-                        float_or_zero(two_weeks_full_sun.paid)
-                        + float_or_zero(two_weeks_parking.paid)
-                    ),
-                    "solAsOfLabel": cutoff_label(sun_two_weeks_cutoff, today),
-                    "parkingAsOfLabel": cutoff_label(parking_two_weeks_cutoff, today),
+                    "label": f"Sammenlignet med tilsvarende datatidspunkt samme uke {same_week_last_year}",
+                    "sol": float_or_zero(same_week_last_year_same_time_sun.paid),
+                    "solCount": int_or_zero(same_week_last_year_same_time_sun.sessions),
+                    "parking": float_or_zero(same_week_last_year_same_time_parking.paid),
+                    "parkingCount": int_or_zero(same_week_last_year_same_time_parking.sessions),
+                    "total": same_week_last_year_same_time,
+                    "fullLabel": f"Hele samme uke {same_week_last_year}",
+                    "fullSol": float_or_zero(same_week_last_year_full_sun.paid),
+                    "fullSolCount": int_or_zero(same_week_last_year_full_sun.sessions),
+                    "fullParking": float_or_zero(same_week_last_year_parking.paid),
+                    "fullParkingCount": int_or_zero(same_week_last_year_parking.sessions),
+                    "fullTotal": revenue_same_week_last_year,
+                    "solAsOfLabel": cutoff_label(sun_same_week_last_year_cutoff, today),
+                    "parkingAsOfLabel": cutoff_label(parking_same_week_last_year_cutoff, today),
                 }
             ],
         },
@@ -14700,26 +14728,20 @@ async def api_v2_overview():
             "previousParkingAsOfLabel": cutoff_label(parking_previous_month_cutoff, today),
             "extraComparisons": [
                 {
-                    "label": "Sammenlignet med tilsvarende datatidspunkt for to m\u00e5neder siden",
-                    "sol": float_or_zero(two_months_same_time_sun.paid),
-                    "solCount": int_or_zero(two_months_same_time_sun.sessions),
-                    "parking": float_or_zero(two_months_same_time_parking.paid),
-                    "parkingCount": int_or_zero(two_months_same_time_parking.sessions),
-                    "total": (
-                        float_or_zero(two_months_same_time_sun.paid)
-                        + float_or_zero(two_months_same_time_parking.paid)
-                    ),
-                    "fullLabel": "Hele m\u00e5neden for to m\u00e5neder siden",
-                    "fullSol": float_or_zero(two_months_full_sun.paid),
-                    "fullSolCount": int_or_zero(two_months_full_sun.sessions),
-                    "fullParking": float_or_zero(two_months_parking.paid),
-                    "fullParkingCount": int_or_zero(two_months_parking.sessions),
-                    "fullTotal": (
-                        float_or_zero(two_months_full_sun.paid)
-                        + float_or_zero(two_months_parking.paid)
-                    ),
-                    "solAsOfLabel": cutoff_label(sun_two_months_cutoff, today),
-                    "parkingAsOfLabel": cutoff_label(parking_two_months_cutoff, today),
+                    "label": f"Sammenlignet med tilsvarende datatidspunkt samme m\u00e5ned {same_month_last_year}",
+                    "sol": float_or_zero(same_month_last_year_same_time_sun.paid),
+                    "solCount": int_or_zero(same_month_last_year_same_time_sun.sessions),
+                    "parking": float_or_zero(same_month_last_year_same_time_parking.paid),
+                    "parkingCount": int_or_zero(same_month_last_year_same_time_parking.sessions),
+                    "total": same_month_last_year_same_time,
+                    "fullLabel": f"Hele samme m\u00e5ned {same_month_last_year}",
+                    "fullSol": float_or_zero(same_month_last_year_full_sun.paid),
+                    "fullSolCount": int_or_zero(same_month_last_year_full_sun.sessions),
+                    "fullParking": float_or_zero(same_month_last_year_parking.paid),
+                    "fullParkingCount": int_or_zero(same_month_last_year_parking.sessions),
+                    "fullTotal": revenue_same_month_last_year,
+                    "solAsOfLabel": cutoff_label(sun_same_month_last_year_cutoff, today),
+                    "parkingAsOfLabel": cutoff_label(parking_same_month_last_year_cutoff, today),
                 }
             ],
         },
@@ -14736,8 +14758,8 @@ async def api_v2_overview():
             "previousParking": float_or_zero(previous_year_same_time_parking.paid),
             "previousParkingCount": int_or_zero(previous_year_same_time_parking.sessions),
             "previousTotal": previous_year_same_time,
-            "previousLabel": "Sammenlignet med tilsvarende datatidspunkt i fjor",
-            "previousFullLabel": "Hele i fjor",
+            "previousLabel": f"Sammenlignet med tilsvarende datatidspunkt i {previous_year_start.year}",
+            "previousFullLabel": f"Hele {previous_year_start.year}",
             "previousFullSol": float_or_zero(previous_year_sun.paid),
             "previousFullSolCount": int_or_zero(previous_year_sun.sessions),
             "previousFullParking": float_or_zero(previous_year_parking.paid),
@@ -14749,13 +14771,13 @@ async def api_v2_overview():
             "previousParkingAsOfLabel": cutoff_label(parking_previous_year_cutoff, today),
             "extraComparisons": [
                 {
-                    "label": "Sammenlignet med tilsvarende datatidspunkt for to \u00e5r siden",
+                    "label": f"Sammenlignet med tilsvarende datatidspunkt i {two_years_start.year}",
                     "sol": float_or_zero(two_years_same_time_sun.paid),
                     "solCount": int_or_zero(two_years_same_time_sun.sessions),
                     "parking": float_or_zero(two_years_same_time_parking.paid),
                     "parkingCount": int_or_zero(two_years_same_time_parking.sessions),
                     "total": two_years_same_time,
-                    "fullLabel": "Hele \u00e5ret for to \u00e5r siden",
+                    "fullLabel": f"Hele {two_years_start.year}",
                     "fullSol": float_or_zero(two_years_full_sun.paid),
                     "fullSolCount": int_or_zero(two_years_full_sun.sessions),
                     "fullParking": float_or_zero(two_years_parking.paid),

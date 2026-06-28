@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1334")
+APP_BUILD = os.getenv("APP_BUILD", "1335")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1335",
+        "date": "28.06.2026",
+        "headline": "Omsetning sammenlignes mot samme periode i fjor",
+        "title": "Dashboard > Omsetning bruker samme uke og måned i fjor som sekundær referanse",
+        "description": (
+            "Build 1335 bytter ut sekundærsammenligningene for uke og måned fra to uker/to måneder tilbake til "
+            "samme ISO-uke og samme kalendermåned året før. Årskortet viser konkrete dynamiske årstall, slik at "
+            "kortet nå viser mot fjoråret og året før med faktiske årstall i stedet for generiske tekster."
+        ),
+        "applications": [
+            "Backend (main.py): beregner samme ISO-uke i fjor og samme måned i fjor med samme relative datatidspunkt.",
+            "Desktop v2 (OverviewPage.tsx): viser dynamiske etiketter som Mot samme uke 2025, Mot samme måned 2025, Mot 2025 og Mot 2024.",
+            "Buildlogg (build_log.py): registrerer build 1335.",
+        ],
+        "request": (
+            "Bytt ut 'mot to uker siden' med samme uke 2025, 'mot to måneder siden' med samme måned 2025, "
+            "og endre årskortet til Mot 2025 og Mot 2024. Alle årstall skal være dynamiske."
+        ),
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Uke-kortet sammenligner nå sekundært mot samme ISO-uke året før.",
+            "Måned-kortet sammenligner nå sekundært mot samme kalendermåned året før.",
+            "År-kortet viser konkrete sammenligningsår dynamisk.",
+            "Omsetning/periodesammenligning-ruten støtter de nye sammenligningsnøklene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1334",
