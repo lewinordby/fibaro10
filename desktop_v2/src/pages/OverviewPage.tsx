@@ -593,14 +593,6 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
         <StatusSection title="Fordeling" detail="Omsetning, soling og parkering fra samme grunnlag">
           <SupportMetricStrip cards={revenueCards} />
         </StatusSection>
-        <div className="status-info-grid">
-          <OverviewInfoPanel title="Siste soling og parkering">
-            <LatestEventList items={latestByLabel(overview.latestItems, ["soling", "parkering"])} itemTitle={itemTitle} />
-          </OverviewInfoPanel>
-          <OverviewInfoPanel title="Snarveier">
-            <DashboardActionGrid view="omsetning" />
-          </OverviewInfoPanel>
-        </div>
       </>
     );
   }

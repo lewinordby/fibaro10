@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1322")
+APP_BUILD = os.getenv("APP_BUILD", "1323")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1323",
+        "date": "28.06.2026",
+        "headline": "Omsetningsdashboard ryddet",
+        "title": "Omsetningsdashboardet viser bare perioder og fordeling",
+        "description": (
+            "Build 1323 fjerner de nederste blokkene for siste soling/parkering og snarveier fra Dashboard > Omsetning. "
+            "Siden blir dermed mer fokusert pa omsetningstallene og sammenligningene."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): omsetningsdashboardet stopper etter fordeling.",
+            "Buildlogg (build_log.py): registrerer build 1323.",
+        ],
+        "request": "du klarer a gjore den enda bedre, de to nederste blokkene \"siste soing og parkering\" og \"Snarveier\" trenger vi ikke her",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Fjernet blokken Siste soling og parkering fra omsetningsdashboardet.",
+            "Fjernet blokken Snarveier fra omsetningsdashboardet.",
+            "Parkering, soling og drift beholder sine egne arbeidsflateblokker.",
+        ],
+    },
     {
         "version": "1",
         "build": "1322",
