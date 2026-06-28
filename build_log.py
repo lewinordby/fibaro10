@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1328")
+APP_BUILD = os.getenv("APP_BUILD", "1329")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1329",
+        "date": "28.06.2026",
+        "headline": "Sammenligninger komprimert",
+        "title": "Dashboard > Omsetning bruker brede mini-kort for sammenligningene",
+        "description": (
+            "Build 1329 reduserer høyden på omsetningskortene ved å gjøre sammenligningene om til kompakte "
+            "mini-kort i bredderetningen. Referanser som i går og samme dag forrige uke vises nå mer likt "
+            "hovedutregningen: tittel, sum, avvik og egne linjer for soling og parkering."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): erstatter tunge sammenligningstabeller med kompakte sammenligningskort.",
+            "Desktop v2 CSS (status-periods.css): legger sammenligningene i et to-kolonne grid og rydder bort gamle referansetabellregler.",
+            "Buildlogg (build_log.py): registrerer build 1329.",
+        ],
+        "request": (
+            "fortsatt for mange linjer, kan ikke sammenligningene i går og samme dag forrige uke settes opp mer "
+            "på samme måte som I dag.. vær kreativ. vi har jo bredde men vi kan ikke bruke så mye høyde"
+        ),
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Sammenligninger vises som mini-kort ved siden av hverandre når det er plass.",
+            "Hvert mini-kort viser referansesum og avvik mot valgt periode i toppen.",
+            "Soling og parkering vises som to kompakte linjer med antall, snitt, beløp og avvik.",
+            "Fullperiodetall beholdes som en liten sekundærlinje nederst i mini-kortet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1328",

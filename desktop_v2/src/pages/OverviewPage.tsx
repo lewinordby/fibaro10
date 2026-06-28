@@ -174,19 +174,6 @@ function comparisonAmount(value: number | undefined, fallback: number) {
   return Number.isFinite(value) ? Number(value) : fallback;
 }
 
-function fullReferenceText(currentTotal: number, fullTotal: number) {
-  const gap = fullTotal - currentTotal;
-  if (!Number.isFinite(gap) || Math.abs(gap) < 0.5) return "Lik full referanse";
-  if (gap > 0) return `Mangler ${nok(gap)} kr`;
-  return `Over ${nok(Math.abs(gap))} kr`;
-}
-
-function fullReferenceClass(currentTotal: number, fullTotal: number) {
-  const gap = fullTotal - currentTotal;
-  if (!Number.isFinite(gap) || Math.abs(gap) < 0.5) return "neutral";
-  return gap > 0 ? "negative" : "positive";
-}
-
 function referenceLabel(fullLabel: string | undefined, fallback: string) {
   const source = (fullLabel || fallback)
     .replace(/^Hele\s+/i, "")
@@ -256,32 +243,23 @@ function StatusStrip({ title, items }: { title: string; items: StripItem[] }) {
   );
 }
 
-function ComparisonValueCell({
-  amount,
-  count,
-  currentAmount,
-}: {
-  amount: number;
-  count?: number;
-  currentAmount?: number;
-}) {
-  const percent = Number.isFinite(currentAmount) ? percentDelta(Number(currentAmount), amount) : "";
-  const diffClass = Number.isFinite(currentAmount) ? deltaClass(Number(currentAmount), amount) : "neutral";
+function ComparisonDelta({ currentAmount, referenceAmount }: { currentAmount: number; referenceAmount: number }) {
+  const percent = percentDelta(currentAmount, referenceAmount);
+  const diffClass = deltaClass(currentAmount, referenceAmount);
   return (
-    <>
-      <strong>{nok(amount)} kr</strong>
-      {Number.isFinite(count) ? <span>{Number(count)} stk</span> : null}
-      {Number.isFinite(currentAmount) ? (
-        <em className={diffClass}>
-          {signedNok(Number(currentAmount) - amount)}
-          {percent ? ` (${percent})` : ""}
-        </em>
-      ) : null}
-    </>
+    <em className={diffClass}>
+      {signedNok(currentAmount - referenceAmount)}
+      {percent ? ` (${percent})` : ""}
+    </em>
   );
 }
 
-function ComparisonBlock({
+function comparisonTimingText(comparison: StatusPeriodComparison) {
+  if (comparison.solAsOfLabel === comparison.parkingAsOfLabel) return comparison.solAsOfLabel;
+  return `Soling ${comparison.solAsOfLabel} · parkering ${comparison.parkingAsOfLabel}`;
+}
+
+function ComparisonMiniCard({
   comparison,
   current,
   periodKey,
@@ -303,90 +281,59 @@ function ComparisonBlock({
       : `/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`;
   const rows = [
     {
-      key: "sum",
-      label: "Sum",
-      tone: "revenue",
-      currentAmount: current.total,
-      sameTimeAmount: comparison.total,
-      fullAmount: fullTotal,
-    },
-    {
       key: "soling",
       label: "Soling",
       tone: "sun2",
+      count: comparison.solCount,
+      amount: comparison.sol,
       currentAmount: current.sol,
-      sameTimeAmount: comparison.sol,
-      sameTimeCount: comparison.solCount,
-      fullAmount: fullSol,
-      fullCount: comparison.fullSolCount,
     },
     {
       key: "parkering",
       label: "Parkering",
       tone: "parking",
+      count: comparison.parkingCount,
+      amount: comparison.parking,
       currentAmount: current.parking,
-      sameTimeAmount: comparison.parking,
-      sameTimeCount: comparison.parkingCount,
-      fullAmount: fullParking,
-      fullCount: comparison.fullParkingCount,
     },
   ];
+  const hasFullPeriod = Math.abs(fullTotal - comparison.total) >= 0.5;
 
   return (
-    <div className="status-period-comparison-block">
-      <div className="status-period-comparison-head">
-        <Link title="Vis sammenligning" to={comparisonPath}>
-          {simpleLabel}
-        </Link>
-        <div className="status-period-reference-lines">
-          <span>
-            <b>Soling</b>
-            <em>{comparison.solAsOfLabel}</em>
-          </span>
-          <span>
-            <b>Parkering</b>
-            <em>{comparison.parkingAsOfLabel}</em>
-          </span>
-          <span>
-            <b>Hele perioden</b>
-            <em>{fullLabel}</em>
-          </span>
+    <div className="status-period-comparison-mini">
+      <div className="status-period-comparison-mini-head">
+        <div>
+          <Link title="Vis sammenligning" to={comparisonPath}>
+            {simpleLabel}
+          </Link>
+          <span>{comparisonTimingText(comparison)}</span>
+        </div>
+        <div className="status-period-comparison-total">
+          <strong>{nok(comparison.total)} kr</strong>
+          <ComparisonDelta currentAmount={current.total} referenceAmount={comparison.total} />
         </div>
       </div>
-      <table className="status-period-comparison-table">
-        <thead>
-          <tr>
-            <th scope="col">Linje</th>
-            <th scope="col">Samme tidspunkt</th>
-            <th scope="col">Hele periode</th>
-            <th scope="col">Avvik mot hele</th>
-          </tr>
-        </thead>
+      <table className="status-period-mini-table">
         <tbody>
           {rows.map((row) => (
-            <tr className="status-period-comparison-row" key={`${comparison.label}-${row.key}`}>
-              <th className={`status-period-line-cell tone-${row.tone}`} scope="row">
-                <span>{row.label}</span>
+            <tr className={`tone-${row.tone}`} key={`${comparison.label}-${row.key}`}>
+              <th scope="row">
+                {row.label} <span>({row.count} stk, {averageAmountText(row.amount, row.count)} snitt)</span>
               </th>
               <td>
-                <ComparisonValueCell
-                  amount={row.sameTimeAmount}
-                  count={row.sameTimeCount}
-                  currentAmount={row.currentAmount}
-                />
-              </td>
-              <td>
-                <ComparisonValueCell amount={row.fullAmount} count={row.fullCount} />
-              </td>
-              <td>
-                <em className={fullReferenceClass(row.currentAmount, row.fullAmount)}>
-                  {fullReferenceText(row.currentAmount, row.fullAmount)}
-                </em>
+                <strong>{nok(row.amount)} kr</strong>
+                <ComparisonDelta currentAmount={row.currentAmount} referenceAmount={row.amount} />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {hasFullPeriod ? (
+        <div className="status-period-comparison-full">
+          <span>{fullLabel}</span>
+          <strong>{nok(fullTotal)} kr</strong>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -454,15 +401,17 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
 
       <div className="status-period-comparisons">
         <div className="status-period-comparisons-title">Sammenligning</div>
-        {comparisons.map((comparison, index) => (
-          <ComparisonBlock
-            comparison={comparison}
-            comparisonKey={index === 0 ? "previous" : EXTRA_COMPARISON_KEYS[period.key]?.[index - 1] || `extra-${index - 1}`}
-            current={{ total: period.total, sol: period.sol, parking: period.parking }}
-            key={comparison.label}
-            periodKey={period.key}
-          />
-        ))}
+        <div className="status-period-comparison-grid">
+          {comparisons.map((comparison, index) => (
+            <ComparisonMiniCard
+              comparison={comparison}
+              comparisonKey={index === 0 ? "previous" : EXTRA_COMPARISON_KEYS[period.key]?.[index - 1] || `extra-${index - 1}`}
+              current={{ total: period.total, sol: period.sol, parking: period.parking }}
+              key={comparison.label}
+              periodKey={period.key}
+            />
+          ))}
+        </div>
       </div>
     </Card>
   );
