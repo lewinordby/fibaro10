@@ -24,6 +24,7 @@ import math
 import mimetypes
 import os
 import re
+import base64
 from urllib.parse import parse_qs, quote, quote_plus, urlencode, urlparse
 import urllib.error
 import urllib.request
@@ -3952,6 +3953,14 @@ def client_ip(request: Request) -> str:
 
 
 def presented_credentials(request: Request) -> tuple[Optional[str], Optional[str]]:
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("basic "):
+        try:
+            decoded = base64.b64decode(authorization.split(" ", 1)[1].strip()).decode("utf-8")
+            username, password = decoded.split(":", 1)
+            return username, password
+        except Exception:
+            return None, None
     username = (
         request.query_params.get("username")
         or request.headers.get("x-access-username")
@@ -8046,6 +8055,25 @@ def owntracks_topic_identity(topic: str) -> tuple[Optional[str], Optional[str]]:
     if len(parts) >= 2:
         return parts[-2], parts[-1]
     return None, parts[-1] if parts else None
+
+
+def owntracks_topic_part(value: Optional[str], fallback: str) -> str:
+    text = normalize_username(value or "") or fallback
+    text = re.sub(r"[^a-z0-9_.-]+", "-", text.strip().lower()).strip("-")
+    return text[:80] or fallback
+
+
+def owntracks_http_topic(request: Request, payload: Dict[str, Any]) -> str:
+    username = owntracks_topic_part(getattr(request.state, "access_key_name", None), "user")
+    device = (
+        request.query_params.get("d")
+        or request.headers.get("x-limit-d")
+        or payload.get("topic")
+        or payload.get("tid")
+        or payload.get("device")
+        or "phone"
+    )
+    return f"owntracks/{username}/{owntracks_topic_part(str(device), 'phone')}"
 
 
 def optional_float(value: Any) -> Optional[float]:
@@ -22455,6 +22483,26 @@ async def api_owntracks_devices(limit: int = Query(50, ge=1, le=200)):
             for row in devices
         ],
     }
+
+
+@app.post("/owntracks/pub")
+async def owntracks_http_publish(request: Request):
+    body = await request.body()
+    if not body:
+        return []
+    payload_text = body.decode("utf-8", "replace").strip()
+    if not payload_text:
+        return []
+    try:
+        payload = json.loads(payload_text)
+    except json.JSONDecodeError:
+        await record_owntracks_import_status(False, "OwnTracks HTTP-melding var ikke gyldig JSON")
+        raise HTTPException(status_code=400, detail="Ugyldig JSON")
+    if not isinstance(payload, dict):
+        await record_owntracks_import_status(False, "OwnTracks HTTP-melding var ikke et JSON-objekt")
+        raise HTTPException(status_code=400, detail="JSON-objekt kreves")
+    await store_owntracks_message(owntracks_http_topic(request, payload), payload_text)
+    return []
 
 
 @app.get("/api/parking/vehicles/{plate}")

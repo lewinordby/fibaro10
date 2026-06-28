@@ -1,9 +1,27 @@
 # OwnTracks MQTT
 
-Fibaro10 kjorer en Mosquitto MQTT-broker for OwnTracks. Broker har to innganger:
+Fibaro10 kan ta imot OwnTracks paa to maater:
 
-- intern MQTT paa LAN for testing og intern drift
-- offentlig MQTT over WebSocket via eksisterende Caddy/TLS paa `online.lilletorget.net/mqtt`
+- anbefalt ekstern inngang: HTTP mot Fibaro10 med vanlige Fibaro10-brukere
+- MQTT-inngang: Mosquitto-broker for intern drift og MQTT-klienter
+
+Bruk HTTP-modus naar OwnTracks skal brukes uten VPN, fordi Fibaro10 da autentiserer med samme brukere som resten av appen.
+
+## OwnTracks app uten VPN, anbefalt
+
+Sett appen i HTTP-modus:
+
+- Mode: `HTTP`
+- URL: `https://online.lilletorget.net/owntracks/pub`
+- Authentication: paa
+- Username/User ID: vanlig Fibaro10-brukernavn
+- Password: vanlig Fibaro10-passord
+- Device ID: f.eks. `iphone`
+- Tracker ID: f.eks. initialer eller kort navn
+
+Fibaro10 lagrer meldingen som `owntracks/<fibaro10-bruker>/<device>`.
+
+Denne ruten gaar gjennom Caddy paa eksisterende offentlig HTTPS-port 443 og videre til Fibaro10. Vanlig Fibaro10 auth/middleware validerer brukernavn og passord.
 
 ## Broker
 
@@ -39,7 +57,7 @@ Passord settes i QNAP sin `.env`, ikke i git.
 
 Mosquitto lager passordfil og ACL ved containerstart.
 
-## OwnTracks app uten VPN
+## OwnTracks app uten VPN, MQTT-alternativ
 
 Sett appen i MQTT-modus:
 

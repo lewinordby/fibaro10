@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1315")
+APP_BUILD = os.getenv("APP_BUILD", "1316")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1316",
+        "date": "28.06.2026",
+        "headline": "OwnTracks med Fibaro10-brukere",
+        "title": "OwnTracks kan bruke vanlige Fibaro10-brukere via HTTP-endepunkt",
+        "description": (
+            "Build 1316 legger til en anbefalt OwnTracks-inngang paa "
+            "https://online.lilletorget.net/owntracks/pub. Endepunktet bruker Fibaro10 sin eksisterende "
+            "autentisering med HTTP Basic, slik at vanlige Fibaro10-brukere og passord kan brukes direkte "
+            "i OwnTracks. MQTT-brokeren beholdes for intern bruk og MQTT-klienter."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): Basic auth-stotte i innloggingslaget og nytt /owntracks/pub-endepunkt.",
+            "OwnTracks-lagring (main.py): HTTP-publisering lagres i samme owntracks_devices/owntracks_locations-tabeller.",
+            "Caddy (Caddyfile): ruter /owntracks/* paa online.lilletorget.net til Fibaro10.",
+            "Dokumentasjon (docs/owntracks-mqtt.md): anbefaler HTTP-modus med Fibaro10-bruker.",
+            "Buildlogg (build_log.py): registrerer build 1316.",
+        ],
+        "request": "kan du ikke gjøre slik at brukerne i fibaro10 kan benyttes",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "OwnTracks kan settes til HTTP-modus og bruke samme brukernavn/passord som Fibaro10.",
+            "Endepunktet returnerer OwnTracks-kompatibel tom JSON-liste etter mottak.",
+            "Meldinger fra HTTP og MQTT havner i samme OwnTracks-oversikt i Admin.",
+            "Eksisterende MQTT-oppsett beholdes som alternativ.",
+        ],
+    },
     {
         "version": "1",
         "build": "1315",
