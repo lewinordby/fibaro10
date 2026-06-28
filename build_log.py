@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1314")
+APP_BUILD = os.getenv("APP_BUILD", "1315")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1315",
+        "date": "28.06.2026",
+        "headline": "OwnTracks via lilletorget.net",
+        "title": "OwnTracks MQTT kan brukes uten VPN via eksisterende online-domene",
+        "description": (
+            "Build 1315 eksponerer OwnTracks-brokeren via MQTT over WebSocket paa "
+            "https://online.lilletorget.net/mqtt. Caddy tar TLS paa eksisterende offentlig "
+            "HTTPS-endepunkt og sender bare /mqtt videre til Mosquitto sin interne WebSocket-listener. "
+            "Fibaro10 fortsetter samtidig aa abonnere internt paa vanlig MQTT-port."
+        ),
+        "applications": [
+            "Mosquitto (mqtt/mosquitto.conf): legger til intern WebSocket-listener paa port 9001.",
+            "Caddy (Caddyfile): ruter /mqtt paa online.lilletorget.net til owntracks_mqtt.",
+            "Docker/QNAP (docker-compose.qnap.yml): proxyen avhenger ogsaa av owntracks_mqtt.",
+            "Dokumentasjon (docs/owntracks-mqtt.md): beskriver ekstern OwnTracks-konfig uten VPN.",
+            "Buildlogg (build_log.py): registrerer build 1315.",
+        ],
+        "request": "jeg oensker at den skal eksponeres gjennom lilletorget.net serveren som allerede er tilgjengelig uten aa gaa via vpn",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Offentlig OwnTracks-tilgang gaar over eksisterende HTTPS-port 443.",
+            "Ingen vanlig MQTT-port eksponeres direkte mot internett.",
+            "Eksisterende MQTT-brukere og ACL brukes videre.",
+            "Intern Fibaro10-integrasjon er uendret og bruker broker-navnet owntracks_mqtt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1314",

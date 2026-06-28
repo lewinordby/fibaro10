@@ -153,6 +153,7 @@ services:
     restart: unless-stopped
     depends_on:
       - online_dashboard
+      - owntracks_mqtt
     ports:
       - "8081:80"
       - "8443:443"
