@@ -120,21 +120,9 @@
   font-size: 17px;
 }
 
-.status-period-head em,
-.status-period-facts {
+.status-period-head em {
   color: var(--muted);
   font-size: 10px;
-}
-
-.status-period-facts {
-  gap: 2px;
-  padding-top: 7px;
-  border-top-color: var(--line-soft);
-}
-
-.status-period-facts span {
-  color: var(--muted);
-  font-size: 9.5px;
 }
 
 .status-period-comparisons {

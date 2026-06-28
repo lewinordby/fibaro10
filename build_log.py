@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1326")
+APP_BUILD = os.getenv("APP_BUILD", "1327")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1327",
+        "date": "28.06.2026",
+        "headline": "Omsetningskort ryddet i egne linjer",
+        "title": "Dashboard > Omsetning viser datagrunnlag, utregning og sammenligning med tydelige linjer",
+        "description": (
+            "Build 1327 rydder periodekortene på omsetningsdashboardet videre. Kortene har egne blokker for "
+            "datagrunnlag, utregning, nøkkeltall og sammenligning, og soling/parkering vises som egne linjer "
+            "i stedet for sammenslåtte tekstlinjer. Sammenligninger er lagt i egne referanseblokker slik at "
+            "tidspunkt for soling, parkering og hele perioden ikke klemmes inn i en smal tabellkolonne."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): deler datatidspunkt, nøkkeltall og sammenligninger i egne soling-/parkeringlinjer.",
+            "Desktop v2 CSS (status-periods.css): bygger ny tabell-layout for utregning, nøkkeltall og referanseblokker.",
+            "Buildlogg (build_log.py): registrerer build 1327.",
+        ],
+        "request": "du kan gjøre det enda mer ryddig. hva om vi på hvert sted bruker egne linjer for soling og parkering ikke sånn samlet med / i mellom. tydelige ledetekster er dag viktig. og logisk oppsett med utregning. vurder og lag en god løsning",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Datagrunnlag viser soling og parkering på hver sin rad.",
+            "Utregning viser soling, parkering og sum i logisk rekkefølge.",
+            "Nøkkeltall viser snitt og andel på separate rader for soling og parkering.",
+            "Sammenligninger er delt i egne blokker med referansetidspunkt og underrader for sum, soling og parkering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1326",
