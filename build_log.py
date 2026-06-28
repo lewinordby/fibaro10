@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1331")
+APP_BUILD = os.getenv("APP_BUILD", "1332")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1332",
+        "date": "28.06.2026",
+        "headline": "Omsetningskort samlet i lik struktur",
+        "title": "Dashboard > Omsetning bruker fire like kort i 2x2-grid",
+        "description": (
+            "Build 1332 rydder omsetningsdashboardet tilbake til fire like oversiktskort. Alle periodene bruker "
+            "samme struktur: total omsetning øverst, sammenligning mot relevante referanser, kort forklaring av "
+            "største avvik, fordeling mellom soling og parkering, og en diskret kontroll mot hele referanseperioden."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): fjerner spesialkortet for dagsomsetning og samler dag, uke, måned og år i samme kortkomponent.",
+            "Desktop v2 CSS (status-periods.css): erstatter tabell-/dagskort-CSS med kompakte felles kortregler for 2x2-grid.",
+            "Buildlogg (build_log.py): registrerer build 1332.",
+        ],
+        "request": (
+            "Jeg synes ikke dette ble bra, alle kortene skal jo være like også. jeg tneker at en grid med 2 i "
+            "bredden og 2 i høyden er noe vi skal etterstrebe. KAn du gjøre en veldig nøye vurdering av disse "
+            "dataene og hva som er viktig i et slikt oversiktskort. det er som før sagt omsetning som er det aller "
+            "viktigste og det må være lett å få oversikt. Gjør det nøye ryddig og bra nå så får jeg se. RYDD OPP"
+        ),
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Alle fire omsetningsperioder bruker nå samme kortlayout.",
+            "Kortene prioriterer total omsetning og avvik mot relevante referanser.",
+            "Soling og parkering vises som forklarende linjer med beløp, antall, snitt og avvik.",
+            "Hele referanseperioden er flyttet til en diskret fot i hvert kort.",
+            "Gammel spesial-CSS og tabellvisning for dagskortet er fjernet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1331",
