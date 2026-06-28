@@ -36,6 +36,12 @@ export type StatusPeriodComparison = {
   total: number;
   solAsOfLabel: string;
   parkingAsOfLabel: string;
+  fullLabel?: string;
+  fullSol?: number;
+  fullSolCount?: number;
+  fullParking?: number;
+  fullParkingCount?: number;
+  fullTotal?: number;
 };
 
 export type StatusPeriod = {
@@ -52,6 +58,12 @@ export type StatusPeriod = {
   previousParkingCount: number;
   previousTotal: number;
   previousLabel: string;
+  previousFullLabel?: string;
+  previousFullSol?: number;
+  previousFullSolCount?: number;
+  previousFullParking?: number;
+  previousFullParkingCount?: number;
+  previousFullTotal?: number;
   solAsOfLabel: string;
   parkingAsOfLabel: string;
   previousSolAsOfLabel: string;

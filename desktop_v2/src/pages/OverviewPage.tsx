@@ -180,6 +180,23 @@ function signedCountText(value: number) {
   return `${value > 0 ? "+" : "-"}${Math.abs(value)}`;
 }
 
+function comparisonAmount(value: number | undefined, fallback: number) {
+  return Number.isFinite(value) ? Number(value) : fallback;
+}
+
+function fullReferenceText(currentTotal: number, fullTotal: number) {
+  const gap = fullTotal - currentTotal;
+  if (!Number.isFinite(gap) || Math.abs(gap) < 0.5) return "Lik full referanse";
+  if (gap > 0) return `Mangler ${nok(gap)} kr`;
+  return `Over ${nok(Math.abs(gap))} kr`;
+}
+
+function fullReferenceClass(currentTotal: number, fullTotal: number) {
+  const gap = fullTotal - currentTotal;
+  if (!Number.isFinite(gap) || Math.abs(gap) < 0.5) return "neutral";
+  return gap > 0 ? "negative" : "positive";
+}
+
 function groupCards(cards: MetricCardData[], group: string) {
   return cards.filter((card) => card.group === group);
 }
@@ -251,8 +268,12 @@ function ComparisonRow({
   periodKey: string;
   comparisonKey: string;
 }) {
-  const delta = currentTotal - comparison.total;
+  const sameTimeDelta = currentTotal - comparison.total;
   const percent = percentDelta(currentTotal, comparison.total);
+  const fullSol = comparisonAmount(comparison.fullSol, comparison.sol);
+  const fullParking = comparisonAmount(comparison.fullParking, comparison.parking);
+  const fullTotal = comparisonAmount(comparison.fullTotal, fullSol + fullParking);
+  const fullLabel = comparison.fullLabel || "Hele referansen";
 
   return (
     <Link
@@ -260,15 +281,33 @@ function ComparisonRow({
       title="Vis tidslinje for sammenligningen"
       to={`/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`}
     >
-      <div className="status-period-comparison-main">
+      <div className="status-period-comparison-title-row">
         <span>{comparison.label}</span>
-        <strong>{nok(comparison.total)} kr</strong>
+        <strong className={`status-period-full-gap ${fullReferenceClass(currentTotal, fullTotal)}`}>
+          {fullReferenceText(currentTotal, fullTotal)}
+        </strong>
       </div>
-      <div className={`status-period-delta ${deltaClass(currentTotal, comparison.total)}`}>
-        <span>{signedNok(delta)}</span>
-        {percent ? <em>{percent}</em> : null}
+      <div className="status-period-comparison-totals">
+        <div className="status-period-comparison-total-card">
+          <span>Samme tidspunkt</span>
+          <strong>{nok(comparison.total)} kr</strong>
+          <em className={deltaClass(currentTotal, comparison.total)}>
+            {signedNok(sameTimeDelta)}
+            {percent ? ` / ${percent}` : ""}
+          </em>
+        </div>
+        <div className="status-period-comparison-total-card">
+          <span>{fullLabel}</span>
+          <strong>{nok(fullTotal)} kr</strong>
+          <em>
+            Sol {nok(fullSol)} kr / park {nok(fullParking)} kr
+          </em>
+        </div>
       </div>
-      <div className="status-period-comparison-detail">
+      <div className="status-period-comparison-time">
+        Sammenligningstidspunkt: sol {comparison.solAsOfLabel} / parkering {comparison.parkingAsOfLabel}
+      </div>
+      <div className="status-period-comparison-detail status-period-comparison-detail-hidden">
         <span>
           Soling {comparison.solCount} stk / {nok(comparison.sol)} kr · {comparison.solAsOfLabel}
         </span>
@@ -291,6 +330,12 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
       total: period.previousTotal,
       solAsOfLabel: period.previousSolAsOfLabel,
       parkingAsOfLabel: period.previousParkingAsOfLabel,
+      fullLabel: period.previousFullLabel,
+      fullSol: period.previousFullSol,
+      fullSolCount: period.previousFullSolCount,
+      fullParking: period.previousFullParking,
+      fullParkingCount: period.previousFullParkingCount,
+      fullTotal: period.previousFullTotal,
     },
     ...(period.extraComparisons ?? []),
   ];

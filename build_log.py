@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1320")
+APP_BUILD = os.getenv("APP_BUILD", "1321")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1321",
+        "date": "28.06.2026",
+        "headline": "Omsetningsdashboard fullreferanser",
+        "title": "Dashboard viser samme tidspunkt, full referanse og mangler til referansetotal",
+        "description": (
+            "Build 1321 gjor Dashboard > Omsetning tydeligere i periodekortene. "
+            "Sammenligningene viser na bade totalen ved samme datatidspunkt og full total for referanseperioden, "
+            "slik at det kommer klart frem hvor mye dagens, ukens eller manedens omsetning mangler for a matche referansen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): /api/overview sender full referansetotal for hver sammenligning.",
+            "Desktop v2 (OverviewPage.tsx): periodekortene viser samme tidspunkt, full referanse og mangler/over.",
+            "Desktop v2 CSS (status-periods.css/status-refinements.css): ny kompakt layout for sammenligningsrader.",
+            "Desktop v2 API-typer (api.ts): statusPeriod-typene er utvidet med fullreferanser.",
+            "Buildlogg (build_log.py): registrerer build 1321.",
+        ],
+        "request": "jeg savner a se totalen for i gar, samme dag, forrige uke osv.. gjerne med hvor mye man mangler og tydelig tidspunkt for sammenligningstidspunktet. kan du oppgradere dashboard og gjore det enda mer oversiktelig",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "I dag viser na samme tidspunkt i gar og hele i gar.",
+            "I dag viser ogsa samme dag forrige uke med full dag som referanse.",
+            "Uke og maned viser full referanseperiode for forrige periode og ekstra sammenligning.",
+            "Kortene markerer tydelig om man mangler til full referansetotal eller ligger over.",
+            "Sammenligningstidspunkt for soling og parkering vises eksplisitt i hver rad.",
+        ],
+    },
     {
         "version": "1",
         "build": "1320",

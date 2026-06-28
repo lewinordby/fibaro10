@@ -14325,6 +14325,13 @@ async def api_v2_overview():
         previous_week_sun = await sun2_period_snapshot(session, previous_week_start, week_start)
         month_sun = await sun2_datetime_snapshot(session, month_start_dt, sun_month_cutoff)
         previous_month_sun = await sun2_period_snapshot(session, previous_month_start, month_start)
+        last_week_same_day_full_sun = await sun2_period_snapshot(
+            session,
+            last_week_same_day,
+            last_week_same_day + timedelta(days=1),
+        )
+        two_weeks_full_sun = await sun2_period_snapshot(session, two_weeks_start, previous_week_start)
+        two_months_full_sun = await sun2_period_snapshot(session, two_months_start, previous_month_start)
         yesterday_same_time_sun = await sun2_datetime_snapshot(session, yesterday_start, sun_yesterday_cutoff)
         last_week_same_day_sun = await sun2_datetime_snapshot(
             session,
@@ -14387,6 +14394,28 @@ async def api_v2_overview():
                     func.count(ParkingSession.id).label("sessions"),
                     func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
                 ).where(ParkingSession.start_time >= previous_month_start_dt, ParkingSession.start_time < month_start_dt)
+            )
+        ).one()
+        two_weeks_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= two_weeks_start_dt,
+                    ParkingSession.start_time < previous_week_start_dt,
+                )
+            )
+        ).one()
+        two_months_parking = (
+            await session.execute(
+                select(
+                    func.count(ParkingSession.id).label("sessions"),
+                    func.coalesce(func.sum(ParkingSession.fee_inc_vat), 0).label("paid"),
+                ).where(
+                    ParkingSession.start_time >= two_months_start_dt,
+                    ParkingSession.start_time < previous_month_start_dt,
+                )
             )
         ).one()
         yesterday_same_time_parking = await parking_datetime_snapshot(session, yesterday_start, parking_yesterday_cutoff)
@@ -14493,6 +14522,12 @@ async def api_v2_overview():
             "previousParkingCount": int_or_zero(yesterday_same_time_parking.sessions),
             "previousTotal": previous_today_same_time,
             "previousLabel": "Sammenlignet med tilsvarende datatidspunkt i g\u00e5r",
+            "previousFullLabel": "Hele i g\u00e5r",
+            "previousFullSol": float_or_zero(yesterday_sun.paid),
+            "previousFullSolCount": int_or_zero(yesterday_sun.sessions),
+            "previousFullParking": float_or_zero(yesterday_parking.paid),
+            "previousFullParkingCount": int_or_zero(yesterday_parking.sessions),
+            "previousFullTotal": revenue_yesterday,
             "solAsOfLabel": cutoff_label(sun_today_cutoff, today),
             "parkingAsOfLabel": cutoff_label(parking_today_cutoff, today),
             "previousSolAsOfLabel": cutoff_label(sun_yesterday_cutoff, today),
@@ -14507,6 +14542,15 @@ async def api_v2_overview():
                     "total": (
                         float_or_zero(last_week_same_day_sun.paid)
                         + float_or_zero(last_week_same_day_same_time_parking.paid)
+                    ),
+                    "fullLabel": "Hele samme dag forrige uke",
+                    "fullSol": float_or_zero(last_week_same_day_full_sun.paid),
+                    "fullSolCount": int_or_zero(last_week_same_day_full_sun.sessions),
+                    "fullParking": float_or_zero(last_week_parking.paid),
+                    "fullParkingCount": int_or_zero(last_week_parking.sessions),
+                    "fullTotal": (
+                        float_or_zero(last_week_same_day_full_sun.paid)
+                        + float_or_zero(last_week_parking.paid)
                     ),
                     "solAsOfLabel": cutoff_label(sun_last_week_same_day_cutoff, today),
                     "parkingAsOfLabel": cutoff_label(parking_last_week_same_day_cutoff, today),
@@ -14527,6 +14571,12 @@ async def api_v2_overview():
             "previousParkingCount": int_or_zero(previous_week_same_time_parking.sessions),
             "previousTotal": previous_week_same_time,
             "previousLabel": "Sammenlignet med tilsvarende datatidspunkt forrige uke",
+            "previousFullLabel": "Hele forrige uke",
+            "previousFullSol": float_or_zero(previous_week_sun.paid),
+            "previousFullSolCount": int_or_zero(previous_week_sun.sessions),
+            "previousFullParking": float_or_zero(previous_week_parking.paid),
+            "previousFullParkingCount": int_or_zero(previous_week_parking.sessions),
+            "previousFullTotal": revenue_previous_week,
             "solAsOfLabel": cutoff_label(sun_week_cutoff, today),
             "parkingAsOfLabel": cutoff_label(parking_week_cutoff, today),
             "previousSolAsOfLabel": cutoff_label(sun_previous_week_cutoff, today),
@@ -14541,6 +14591,15 @@ async def api_v2_overview():
                     "total": (
                         float_or_zero(two_weeks_same_time_sun.paid)
                         + float_or_zero(two_weeks_same_time_parking.paid)
+                    ),
+                    "fullLabel": "Hele uken for to uker siden",
+                    "fullSol": float_or_zero(two_weeks_full_sun.paid),
+                    "fullSolCount": int_or_zero(two_weeks_full_sun.sessions),
+                    "fullParking": float_or_zero(two_weeks_parking.paid),
+                    "fullParkingCount": int_or_zero(two_weeks_parking.sessions),
+                    "fullTotal": (
+                        float_or_zero(two_weeks_full_sun.paid)
+                        + float_or_zero(two_weeks_parking.paid)
                     ),
                     "solAsOfLabel": cutoff_label(sun_two_weeks_cutoff, today),
                     "parkingAsOfLabel": cutoff_label(parking_two_weeks_cutoff, today),
@@ -14561,6 +14620,12 @@ async def api_v2_overview():
             "previousParkingCount": int_or_zero(previous_month_same_time_parking.sessions),
             "previousTotal": previous_month_same_time,
             "previousLabel": "Sammenlignet med tilsvarende datatidspunkt forrige m\u00e5ned",
+            "previousFullLabel": "Hele forrige m\u00e5ned",
+            "previousFullSol": float_or_zero(previous_month_sun.paid),
+            "previousFullSolCount": int_or_zero(previous_month_sun.sessions),
+            "previousFullParking": float_or_zero(previous_month_parking.paid),
+            "previousFullParkingCount": int_or_zero(previous_month_parking.sessions),
+            "previousFullTotal": revenue_previous_month,
             "solAsOfLabel": cutoff_label(sun_month_cutoff, today),
             "parkingAsOfLabel": cutoff_label(parking_month_cutoff, today),
             "previousSolAsOfLabel": cutoff_label(sun_previous_month_cutoff, today),
@@ -14575,6 +14640,15 @@ async def api_v2_overview():
                     "total": (
                         float_or_zero(two_months_same_time_sun.paid)
                         + float_or_zero(two_months_same_time_parking.paid)
+                    ),
+                    "fullLabel": "Hele m\u00e5neden for to m\u00e5neder siden",
+                    "fullSol": float_or_zero(two_months_full_sun.paid),
+                    "fullSolCount": int_or_zero(two_months_full_sun.sessions),
+                    "fullParking": float_or_zero(two_months_parking.paid),
+                    "fullParkingCount": int_or_zero(two_months_parking.sessions),
+                    "fullTotal": (
+                        float_or_zero(two_months_full_sun.paid)
+                        + float_or_zero(two_months_parking.paid)
                     ),
                     "solAsOfLabel": cutoff_label(sun_two_months_cutoff, today),
                     "parkingAsOfLabel": cutoff_label(parking_two_months_cutoff, today),
