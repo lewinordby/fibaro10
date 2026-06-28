@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1330")
+APP_BUILD = os.getenv("APP_BUILD", "1331")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1331",
+        "date": "28.06.2026",
+        "headline": "Dagsomsetning som KPI-kort",
+        "title": "Dashboard > Omsetning fremhever omsetning hittil i dag med tydelige sammenligninger",
+        "description": (
+            "Build 1331 gjør dagskortet på omsetningsdashboardet mer KPI-drevet. Hovedtallet for omsetning hittil "
+            "i dag løftes frem, sammenligning mot i går samme tidspunkt og samme ukedag forrige uke vises rett under, "
+            "og omsetning per linje samles i en tydelig tabell. Hele referansedagen er flyttet ned som sekundær "
+            "kontekst."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): legger til egen KPI-komponent for dagsomsetning uten å endre datakilder.",
+            "Desktop v2 CSS (status-periods.css): legger til fullbredde dagskort, KPI-strip, innsiktslinje og responsiv tabell.",
+            "Buildlogg (build_log.py): registrerer build 1331.",
+        ],
+        "request": (
+            "Du jobber i eksisterende repo. Finn komponenten som rendrer kortet for “Omsetning hittil i dag” / "
+            "dagsomsetning, og endre layouten slik at kortet blir lettere å forstå. Kortet skal vise dagens "
+            "omsetning, sammenligning mot i går samme tidspunkt og samme ukedag forrige uke, største avvik, "
+            "omsetning per linje og sekundær visning av hele referansedagen."
+        ),
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dagskortet bruker tittel 'Omsetning hittil i dag' og stor KPI-verdi.",
+            "Sammenligning mot i går samme tidspunkt og samme ukedag forrige uke vises rett under hovedtallet.",
+            "Automatisk innsiktslinje viser største bidragsyter til avviket mot i går.",
+            "Hovedtabellen bruker kolonnene I dag hittil, I går samme tidspunkt og Samme ukedag forrige uke.",
+            "Hele referansedagen er gjort sekundær med kompakte totalsummer og gjenstår/over-beregning.",
+        ],
+    },
     {
         "version": "1",
         "build": "1330",

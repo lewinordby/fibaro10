@@ -20,6 +20,296 @@
   padding: 11px 12px;
 }
 
+.today-revenue-card {
+  grid-column: 1 / -1;
+}
+
+.today-revenue-card .ant-card-body {
+  gap: 11px;
+  padding: 13px 14px;
+}
+
+.today-revenue-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.today-revenue-hero > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.today-revenue-title {
+  color: #1f2937;
+  font-size: 15px;
+  font-weight: 820;
+  line-height: 1.15;
+}
+
+.today-revenue-hero em {
+  color: #64748b;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 620;
+  line-height: 1.25;
+}
+
+.today-revenue-hero > strong {
+  color: var(--ink);
+  font-size: 28px;
+  font-weight: 840;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.today-revenue-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.today-revenue-kpi {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #e5ebf3;
+  border-radius: 6px;
+  background: #f8fafc;
+  text-decoration: none;
+}
+
+.today-revenue-kpi span {
+  color: #374151;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.today-revenue-kpi em,
+.today-revenue-reference-cell em {
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 820;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.today-revenue-kpi em.positive,
+.today-revenue-reference-cell em.positive,
+.today-revenue-full-list em.positive {
+  color: #166534;
+}
+
+.today-revenue-kpi em.negative,
+.today-revenue-reference-cell em.negative,
+.today-revenue-full-list em.negative {
+  color: #b91c1c;
+}
+
+.today-revenue-kpi em.neutral,
+.today-revenue-reference-cell em.neutral,
+.today-revenue-full-list em.neutral {
+  color: #4b5563;
+}
+
+.today-revenue-insight {
+  padding: 8px 10px;
+  border-left: 3px solid var(--domain-revenue);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--domain-revenue) 6%, #ffffff);
+  color: #273244;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.today-revenue-section {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.today-revenue-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.today-revenue-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.today-revenue-table th,
+.today-revenue-table td {
+  padding: 7px 9px;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 11px;
+  line-height: 1.25;
+  vertical-align: top;
+}
+
+.today-revenue-table thead th {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 820;
+  text-align: right;
+  text-transform: uppercase;
+  white-space: normal;
+}
+
+.today-revenue-table thead th:first-child,
+.today-revenue-table tbody th {
+  text-align: left;
+}
+
+.today-revenue-table thead th:first-child {
+  width: 18%;
+}
+
+.today-revenue-table thead a {
+  color: #374151;
+  text-decoration: none;
+}
+
+.today-revenue-table tbody th {
+  color: #273244;
+  font-weight: 800;
+}
+
+.today-revenue-table tbody tr.tone-sun2 th {
+  border-left: 3px solid var(--domain-sun2);
+}
+
+.today-revenue-table tbody tr.tone-parking th {
+  border-left: 3px solid var(--domain-parking);
+}
+
+.today-revenue-table tbody tr.tone-revenue th {
+  border-left: 3px solid var(--domain-revenue);
+}
+
+.today-revenue-total-row th,
+.today-revenue-total-row td {
+  background: color-mix(in srgb, var(--domain-revenue) 5%, #ffffff);
+}
+
+.today-revenue-primary-cell,
+.today-revenue-reference-cell {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.today-revenue-primary-cell strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 840;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.today-revenue-primary-cell span {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 620;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.today-revenue-reference-cell strong {
+  color: #1f2937;
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.today-revenue-full-reference {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.3fr);
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid #edf1f7;
+  border-radius: 6px;
+  background: #fbfcfe;
+}
+
+.today-revenue-full-reference > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.today-revenue-full-reference > div:first-child span {
+  color: #4b5563;
+  font-size: 10.5px;
+  font-weight: 820;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.today-revenue-full-reference > div:first-child em {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.25;
+}
+
+.today-revenue-full-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.today-revenue-full-list a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  color: #273244;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.today-revenue-full-list span {
+  overflow: hidden;
+  color: #4b5563;
+  font-size: 10.5px;
+  font-weight: 720;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-revenue-full-list strong {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 820;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.today-revenue-full-list em {
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 780;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
 .status-period-head {
   display: flex;
   align-items: flex-start;
@@ -262,6 +552,22 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
+  }
+
+  .today-revenue-hero,
+  .today-revenue-full-reference {
+    grid-template-columns: 1fr;
+  }
+
+  .today-revenue-hero {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .today-revenue-kpi-strip,
+  .today-revenue-full-list {
+    grid-template-columns: 1fr;
   }
 
   .status-period-current-table,

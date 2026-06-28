@@ -263,7 +263,7 @@ function periodComparisonPath(periodKey: string, comparisonKey: string) {
 function fullReferenceGap(currentAmount: number, fullAmount: number) {
   const gap = fullAmount - currentAmount;
   if (!Number.isFinite(gap) || Math.abs(gap) < 0.5) return "Lik";
-  if (gap > 0) return `Mangler ${nok(gap)} kr`;
+  if (gap > 0) return `Gjenstår ${nok(gap)} kr`;
   return `Over ${nok(Math.abs(gap))} kr`;
 }
 
@@ -316,6 +316,16 @@ type PeriodComparisonView = {
   fullTotal: number;
 };
 
+type RevenueLineKey = "soling" | "parkering" | "sum";
+
+type TodayRevenueLine = {
+  key: RevenueLineKey;
+  label: string;
+  tone: string;
+  currentAmount: number;
+  currentCount?: number;
+};
+
 function buildComparisonViews(period: StatusPeriod): PeriodComparisonView[] {
   const comparisons: StatusPeriodComparison[] = [
     {
@@ -351,6 +361,173 @@ function buildComparisonViews(period: StatusPeriod): PeriodComparisonView[] {
       fullTotal: comparisonAmount(comparison.fullTotal, fullSol + fullParking),
     };
   });
+}
+
+function todayComparisonLabel(item: PeriodComparisonView) {
+  if (item.comparisonKey === "previous") return "I går samme tidspunkt";
+  if (item.comparisonKey === "same-weekday-last-week") return "Samme ukedag forrige uke";
+  return item.shortLabel;
+}
+
+function todayFullReferenceLabel(item: PeriodComparisonView) {
+  if (item.comparisonKey === "previous") return "I går totalt";
+  if (item.comparisonKey === "same-weekday-last-week") return "Samme ukedag forrige uke totalt";
+  return `Hele ${item.shortLabel.toLowerCase()}`;
+}
+
+function periodDataBasisText(period: StatusPeriod) {
+  if (period.solAsOfLabel === period.parkingAsOfLabel) {
+    return `Per ${period.solAsOfLabel} · sammenlignet med samme tidspunkt`;
+  }
+  return `Per soling ${period.solAsOfLabel} · parkering ${period.parkingAsOfLabel} · sammenlignet med samme tidspunkt`;
+}
+
+function todayRevenueLines(period: StatusPeriod): TodayRevenueLine[] {
+  return [
+    {
+      key: "soling",
+      label: "Soling",
+      tone: "sun2",
+      currentAmount: period.sol,
+      currentCount: period.solCount,
+    },
+    {
+      key: "parkering",
+      label: "Parkering",
+      tone: "parking",
+      currentAmount: period.parking,
+      currentCount: period.parkingCount,
+    },
+    {
+      key: "sum",
+      label: "Sum",
+      tone: "revenue",
+      currentAmount: period.total,
+    },
+  ];
+}
+
+function comparisonLineAmount(lineKey: RevenueLineKey, comparison: StatusPeriodComparison) {
+  if (lineKey === "soling") return comparison.sol;
+  if (lineKey === "parkering") return comparison.parking;
+  return comparison.total;
+}
+
+function todayDeviationInsight(period: StatusPeriod, comparison?: PeriodComparisonView) {
+  if (!comparison) return "Mangler sammenligningsgrunnlag mot i går.";
+  const solDelta = period.sol - comparison.comparison.sol;
+  const parkingDelta = period.parking - comparison.comparison.parking;
+  const totalDelta = period.total - comparison.comparison.total;
+  const candidates = [
+    { label: "Soling", delta: solDelta },
+    { label: "Parkering", delta: parkingDelta },
+  ];
+  const primary =
+    totalDelta > 0
+      ? candidates.reduce((best, item) => (item.delta > best.delta ? item : best), candidates[0])
+      : candidates.reduce((best, item) => (Math.abs(item.delta) > Math.abs(best.delta) ? item : best), candidates[0]);
+
+  if (Math.abs(totalDelta) < 0.5) {
+    return "Omsetningen er på nivå med i går ved samme tidspunkt.";
+  }
+  if (totalDelta > 0 && primary.delta > 0) {
+    return `Største positive bidrag mot i går: ${primary.label} står for ${signedNok(primary.delta)}.`;
+  }
+  return `Største avvik mot i går: ${primary.label} står for ${signedNok(primary.delta)} av ${signedNok(totalDelta)}.`;
+}
+
+function TodayRevenuePeriodCard({ period }: { period: StatusPeriod }) {
+  const comparisons = buildComparisonViews(period);
+  const previousComparison = comparisons[0];
+  const lines = todayRevenueLines(period);
+
+  return (
+    <Card className="status-period-card today-revenue-card">
+      <div className="today-revenue-hero">
+        <div>
+          <span className="today-revenue-title">Omsetning hittil i dag</span>
+          <em>{periodDataBasisText(period)}</em>
+        </div>
+        <strong>{nok(period.total)} kr</strong>
+      </div>
+
+      <div className="today-revenue-kpi-strip" aria-label="Sammenligning mot samme tidspunkt">
+        {comparisons.map((item) => (
+          <Link className="today-revenue-kpi" key={item.comparisonKey} to={item.path}>
+            <span>Mot {todayComparisonLabel(item).toLowerCase()}</span>
+            <ComparisonDelta currentAmount={period.total} referenceAmount={item.comparison.total} />
+          </Link>
+        ))}
+      </div>
+
+      <div className="today-revenue-insight">{todayDeviationInsight(period, previousComparison)}</div>
+
+      <div className="today-revenue-section">
+        <div className="status-period-block-title">Omsetning per linje</div>
+        <div className="today-revenue-table-wrap">
+          <table className="today-revenue-table">
+            <thead>
+              <tr>
+                <th scope="col">Linje</th>
+                <th scope="col">I dag hittil</th>
+                {comparisons.map((item) => (
+                  <th key={item.comparisonKey} scope="col">
+                    <Link title="Vis sammenligning" to={item.path}>
+                      {todayComparisonLabel(item)}
+                    </Link>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((line) => (
+                <tr className={`tone-${line.tone} ${line.key === "sum" ? "today-revenue-total-row" : ""}`} key={line.key}>
+                  <th scope="row">{line.label}</th>
+                  <td>
+                    <div className="today-revenue-primary-cell">
+                      <strong>{nok(line.currentAmount)} kr</strong>
+                      {Number.isFinite(line.currentCount) ? (
+                        <span>
+                          {line.currentCount} stk · {averageAmountText(line.currentAmount, line.currentCount as number)} snitt
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
+                  {comparisons.map((item) => {
+                    const referenceAmount = comparisonLineAmount(line.key, item.comparison);
+                    return (
+                      <td key={`${line.key}-${item.comparisonKey}`}>
+                        <div className="today-revenue-reference-cell">
+                          <strong>{nok(referenceAmount)} kr</strong>
+                          <ComparisonDelta currentAmount={line.currentAmount} referenceAmount={referenceAmount} />
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="today-revenue-full-reference">
+        <div>
+          <span>Til sammenligning: hele referansedagen</span>
+          <em>Dette er totalen for hele referansedagen, ikke samme tidsvindu.</em>
+        </div>
+        <div className="today-revenue-full-list">
+          {comparisons.map((item) => (
+            <Link key={item.comparisonKey} to={item.path}>
+              <span>{todayFullReferenceLabel(item)}</span>
+              <strong>{nok(item.fullTotal)} kr</strong>
+              <em className={fullReferenceGapClass(period.total, item.fullTotal)}>{fullReferenceGap(period.total, item.fullTotal)}</em>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 function RevenuePeriodCurrentTable({ period, comparisons }: { period: StatusPeriod; comparisons: PeriodComparisonView[] }) {
@@ -478,6 +655,7 @@ function RevenuePeriodFullTable({ period, comparisons }: { period: StatusPeriod;
 }
 
 function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
+  if (period.key === "today") return <TodayRevenuePeriodCard period={period} />;
   const comparisons = buildComparisonViews(period);
 
   return (
