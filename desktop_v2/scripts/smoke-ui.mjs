@@ -326,7 +326,7 @@ function mobileScreensPayload() {
         title: "Status",
         subtitle: "Smoke",
         sourcePath: "/mobile/status",
-        frameUrl: "/status/oversikt",
+        frameUrl: "/status/omsetning",
       },
     ],
   };

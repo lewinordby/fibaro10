@@ -12260,7 +12260,7 @@ async def update_settings(request: Request, config_key: str):
 
 @app.get("/")
 async def root_redirect(request: Request):
-    return redirect_keep_query(request, "/status/oversikt", status_code=303)
+    return redirect_keep_query(request, "/status/omsetning", status_code=303)
 
 
 def desktop_app_response() -> FileResponse:
@@ -14591,7 +14591,7 @@ async def api_v2_overview():
         for device in VENT_TIMELINE_DEVICES
     ]
     cards = [
-        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/status/oversikt", "tone": "status"},
+        {"group": "Drift", "title": "\u00c5pning", "value": operating["label"], "detail": operating["detail"], "href": "/status/drift", "tone": "status"},
         {"group": "Drift", "title": "Datakilder", "value": f"{import_counts['ok']}/{import_counts['total']}", "unit": "OK", "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel", "href": "/admin/drift", "tone": "status"},
         {"group": "Omsetning", "title": "I dag", "value": dashboard_compare_value(revenue_today, revenue_yesterday), "unit": "kr", "detail": f"Sol {format_short_number(today_sun.paid)} kr - park {format_short_number(today_parking.paid)} kr", "href": "/omsetning/oversikt", "tone": "revenue"},
         {"group": "Omsetning", "title": "Uke", "value": dashboard_compare_value(revenue_week, revenue_previous_week), "unit": "kr", "detail": "Denne / forrige uke", "href": "/omsetning/oversikt", "tone": "revenue"},

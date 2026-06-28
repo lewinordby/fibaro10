@@ -1,9 +1,10 @@
-import { CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
+import { ArrowRightOutlined, CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
 import { Card, List, Space, Tag, Tooltip, Typography } from "antd";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   fetchOverview,
+  type LatestItem,
   type MetricCard as MetricCardData,
   type ServiceStatus,
   type StatusPeriod,
@@ -15,8 +16,10 @@ import { useApiQuery } from "../hooks";
 import { appPath } from "../navigation";
 import { queryKeys } from "../queryKeys";
 
+type DashboardView = "omsetning" | "parkering" | "soling" | "drift";
 type StripState = { label: string; state: boolean | null; tooltip?: string };
 type StripItem = { label: string; state?: boolean | null; states?: StripState[]; tooltip?: string };
+type DashboardAction = { label: string; detail: string; href: string; tone: string };
 
 const SPOT_FRONT_LABELS = new Set(["Spot foran glassvegg", "Spot foran massasje"]);
 
@@ -35,6 +38,56 @@ const EXTRA_COMPARISON_KEYS: Record<string, string[]> = {
   today: ["same-weekday-last-week"],
   week: ["two-weeks-ago"],
   month: ["two-months-ago"],
+};
+
+const DASHBOARD_CONFIG: Record<DashboardView, { title: string; detail: string; tone: string }> = {
+  omsetning: {
+    title: "Omsetning",
+    detail: "I dag, uke og måned med samme datatidspunkt i sammenligningene.",
+    tone: "revenue",
+  },
+  parkering: {
+    title: "Parkering",
+    detail: "Status, utvikling og snarveier til parkeringstall og kjøretøy.",
+    tone: "parking",
+  },
+  soling: {
+    title: "Soling",
+    detail: "Dagens soling, uketall og snarveier til timer, senger og produkter.",
+    tone: "sun2",
+  },
+  drift: {
+    title: "Drift",
+    detail: "Åpning, datakilder, lys, ventilasjon, energi, temperatur og vær.",
+    tone: "status",
+  },
+};
+
+const DASHBOARD_ACTIONS: Record<DashboardView, DashboardAction[]> = {
+  omsetning: [
+    { label: "Omsetning oversikt", detail: "Ukesutvikling og toppperioder", href: "/omsetning/oversikt", tone: "revenue" },
+    { label: "Månedsoversikt", detail: "Dag for dag inneværende måned", href: "/omsetning/manedsoversikt", tone: "revenue" },
+    { label: "Periodesammenligning", detail: "Akkumulert dag, uke og måned", href: "/omsetning/sammenligning", tone: "revenue" },
+    { label: "Årssammenligning", detail: "Akkumulert omsetning per år", href: "/omsetning/akkumulert", tone: "revenue" },
+  ],
+  parkering: [
+    { label: "Parkering oversikt", detail: "Hovedtall og siste parkeringer", href: "/parkering/oversikt", tone: "parking" },
+    { label: "Parkeringer", detail: "Dagsliste og kamerakoblinger", href: "/parkering/parkeringer", tone: "parking" },
+    { label: "Kjøretøy", detail: "Biler, eiere og oppslag", href: "/parkering/kjoretoy", tone: "parking" },
+    { label: "Område", detail: "Områdevalg og manglende område", href: "/parkering/omrade", tone: "parking" },
+  ],
+  soling: [
+    { label: "Soling oversikt", detail: "Årstall, utvikling og nøkkeltall", href: "/soling/oversikt", tone: "sun2" },
+    { label: "Dagslinje", detail: "Timer, bilder og energikort", href: "/soling/dagslinje", tone: "sun2" },
+    { label: "Enkeltimer", detail: "Soltimer med bildevalg", href: "/soling/enkeltimer", tone: "sun2" },
+    { label: "Produkter", detail: "Produktsalg og kontrollgrunnlag", href: "/soling/produkter", tone: "sun2" },
+  ],
+  drift: [
+    { label: "Datakilder", detail: "Importstatus og kildehelse", href: "/admin/datakilder", tone: "status" },
+    { label: "Energi", detail: "Realtime strøm og Elvia-kontroll", href: "/energi/status", tone: "energy" },
+    { label: "Ventilasjon", detail: "Temperatur, fukt og viftehendelser", href: "/ventilasjon/dagslogg", tone: "vent" },
+    { label: "Lys", detail: "Dagslogg, lux og lysstyring", href: "/lys/dagslogg", tone: "light" },
+  ],
 };
 
 function stateTag(state: boolean | null) {
@@ -112,6 +165,15 @@ function deltaClass(current: number, previous: number) {
   return "neutral";
 }
 
+function groupCards(cards: MetricCardData[], group: string) {
+  return cards.filter((card) => card.group === group);
+}
+
+function latestByLabel(items: LatestItem[], labels: string[]) {
+  const normalizedLabels = labels.map((label) => label.toLowerCase());
+  return items.filter((item) => normalizedLabels.some((label) => item.label.toLowerCase().includes(label)));
+}
+
 function lightStripItems(items: Array<{ label: string; state: boolean | null }>): StripItem[] {
   const glassSpot = items.find((item) => item.label === "Spot foran glassvegg");
   const massageSpot = items.find((item) => item.label === "Spot foran massasje");
@@ -137,13 +199,7 @@ function lightStripItems(items: Array<{ label: string; state: boolean | null }>)
   return stripItems;
 }
 
-function StatusStrip({
-  title,
-  items,
-}: {
-  title: string;
-  items: StripItem[];
-}) {
+function StatusStrip({ title, items }: { title: string; items: StripItem[] }) {
   return (
     <div className="status-strip">
       <div className="status-strip-head">
@@ -229,7 +285,9 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
       <div className="status-period-head">
         <div>
           <span>{period.title}</span>
-          <em>Sol {period.solAsOfLabel} · parkering {period.parkingAsOfLabel}</em>
+          <em>
+            Sol {period.solAsOfLabel} · parkering {period.parkingAsOfLabel}
+          </em>
         </div>
         <strong>{nok(period.total)} kr</strong>
       </div>
@@ -305,15 +363,7 @@ function OverviewInfoPanel({ title, children }: { title: string; children: React
   );
 }
 
-function StatusSection({
-  title,
-  detail,
-  children,
-}: {
-  title: string;
-  detail?: string;
-  children: ReactNode;
-}) {
+function StatusSection({ title, detail, children }: { title: string; detail?: string; children: ReactNode }) {
   return (
     <section className="status-section">
       <div className="status-section-head">
@@ -368,6 +418,7 @@ function DatasourceList({ services }: { services: ServiceStatus[] }) {
 }
 
 function SupportMetricStrip({ cards }: { cards: MetricCardData[] }) {
+  if (!cards.length) return <div className="empty-state">Ingen nøkkeltall å vise.</div>;
   return (
     <div className="status-support-strip">
       {cards.map((card) => {
@@ -409,7 +460,35 @@ function SupportMetricStrip({ cards }: { cards: MetricCardData[] }) {
   );
 }
 
-export default function OverviewPage() {
+function DashboardHeader({ view, updatedAt }: { view: DashboardView; updatedAt: string }) {
+  const config = DASHBOARD_CONFIG[view];
+  return (
+    <section className={`dashboard-view-head tone-${config.tone}`}>
+      <div>
+        <span>Dashboard</span>
+        <strong>{config.title}</strong>
+      </div>
+      <p>{config.detail}</p>
+      <em>Sist oppdatert {updatedAt}</em>
+    </section>
+  );
+}
+
+function DashboardActionGrid({ view }: { view: DashboardView }) {
+  return (
+    <div className="dashboard-action-grid">
+      {DASHBOARD_ACTIONS[view].map((action) => (
+        <Link className={`dashboard-action tone-${action.tone}`} to={action.href} key={action.href}>
+          <span>{action.label}</span>
+          <small>{action.detail}</small>
+          <ArrowRightOutlined className="dashboard-action-icon" />
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: DashboardView }) {
   const { data, loading, error } = useApiQuery(queryKeys.overview(), fetchOverview, {
     refetchInterval: 60_000,
   });
@@ -417,9 +496,15 @@ export default function OverviewPage() {
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
-  const supportCards = data.cards.filter(isOverviewSupportCard);
-  const overviewServices = sortedDatasources(data.services);
+  const overview = data;
+  const view = DASHBOARD_CONFIG[dashboard] ? dashboard : "omsetning";
+  const supportCards = overview.cards.filter(isOverviewSupportCard);
+  const revenueCards = overview.cards.filter(isCombinedRevenueSource);
+  const parkingCards = groupCards(overview.cards, "Parkering");
+  const sunCards = groupCards(overview.cards, "Soling");
+  const overviewServices = sortedDatasources(overview.services);
   const overviewSourceCounts = datasourceCounts(overviewServices);
+  const updatedAt = new Date(overview.generatedAt).toLocaleString("nb-NO");
 
   function itemTitle(item: { href?: string; label: string }) {
     const internalPath = appPath(item.href);
@@ -428,45 +513,107 @@ export default function OverviewPage() {
     return item.label;
   }
 
-  return (
-    <Space direction="vertical" size={14} className="page-stack status-page status-overview-page">
-      <Card className="status-command-card">
-        <StatusSummary
-          label={data.operatingWindow.label}
-          detail={data.operatingWindow.detail}
-          sourceCounts={overviewSourceCounts}
-          updatedAt={new Date(data.generatedAt).toLocaleString("nb-NO")}
-        />
-        <div className="status-strip-stack">
-          <StatusStrip title="Lys" items={lightStripItems(data.lightItems)} />
-          <StatusStrip title="Ventilasjon" items={data.fanItems} />
-        </div>
-      </Card>
-
-      <StatusSection title="Omsetning" detail="I dag, uke og måned med riktig datatidspunkt for sammenligning">
-        <div className="status-period-grid">
-          {data.statusPeriods.map((period) => (
-            <RevenuePeriodCard period={period} key={period.key} />
-          ))}
-        </div>
-      </StatusSection>
-
-      <StatusSection title="Nøkkeltall" detail="Energi, temperatur og vær akkurat nå">
-        <SupportMetricStrip cards={supportCards} />
-      </StatusSection>
-
-      <div className="status-info-grid">
-        <div>
-          <OverviewInfoPanel title="Siste hendelser">
-            <LatestEventList items={data.latestItems} itemTitle={itemTitle} />
+  function renderRevenueDashboard() {
+    return (
+      <>
+        <StatusSection title="Omsetning" detail="I dag, uke og måned med korrekt datatidspunkt">
+          <div className="status-period-grid">
+            {overview.statusPeriods.map((period) => (
+              <RevenuePeriodCard period={period} key={period.key} />
+            ))}
+          </div>
+        </StatusSection>
+        <StatusSection title="Fordeling" detail="Omsetning, soling og parkering fra samme grunnlag">
+          <SupportMetricStrip cards={revenueCards} />
+        </StatusSection>
+        <div className="status-info-grid">
+          <OverviewInfoPanel title="Siste soling og parkering">
+            <LatestEventList items={latestByLabel(overview.latestItems, ["soling", "parkering"])} itemTitle={itemTitle} />
+          </OverviewInfoPanel>
+          <OverviewInfoPanel title="Snarveier">
+            <DashboardActionGrid view="omsetning" />
           </OverviewInfoPanel>
         </div>
-        <div>
+      </>
+    );
+  }
+
+  function renderParkingDashboard() {
+    return (
+      <>
+        <StatusSection title="Parkering" detail="Dagens parkering og sammenligning mot forrige uke">
+          <SupportMetricStrip cards={parkingCards} />
+        </StatusSection>
+        <div className="status-info-grid">
+          <OverviewInfoPanel title="Siste parkering">
+            <LatestEventList items={latestByLabel(overview.latestItems, ["parkering"])} itemTitle={itemTitle} />
+          </OverviewInfoPanel>
+          <OverviewInfoPanel title="Arbeidsflater">
+            <DashboardActionGrid view="parkering" />
+          </OverviewInfoPanel>
+        </div>
+      </>
+    );
+  }
+
+  function renderSunDashboard() {
+    return (
+      <>
+        <StatusSection title="Soling" detail="Dagens soling og uketall fra Sun2">
+          <SupportMetricStrip cards={sunCards} />
+        </StatusSection>
+        <div className="status-info-grid">
+          <OverviewInfoPanel title="Siste soling">
+            <LatestEventList items={latestByLabel(overview.latestItems, ["soling"])} itemTitle={itemTitle} />
+          </OverviewInfoPanel>
+          <OverviewInfoPanel title="Arbeidsflater">
+            <DashboardActionGrid view="soling" />
+          </OverviewInfoPanel>
+        </div>
+      </>
+    );
+  }
+
+  function renderOperationsDashboard() {
+    return (
+      <>
+        <Card className="status-command-card">
+          <StatusSummary
+            label={overview.operatingWindow.label}
+            detail={overview.operatingWindow.detail}
+            sourceCounts={overviewSourceCounts}
+            updatedAt={updatedAt}
+          />
+          <div className="status-strip-stack">
+            <StatusStrip title="Lys" items={lightStripItems(overview.lightItems)} />
+            <StatusStrip title="Ventilasjon" items={overview.fanItems} />
+          </div>
+        </Card>
+        <StatusSection title="Nøkkeltall" detail="Energi, temperatur og vær akkurat nå">
+          <SupportMetricStrip cards={supportCards} />
+        </StatusSection>
+        <div className="status-info-grid">
+          <OverviewInfoPanel title="Siste driftshendelser">
+            <LatestEventList items={latestByLabel(overview.latestItems, ["energi", "temp"])} itemTitle={itemTitle} />
+          </OverviewInfoPanel>
           <OverviewInfoPanel title="Status datakilder">
             <DatasourceList services={overviewServices} />
           </OverviewInfoPanel>
         </div>
-      </div>
+        <StatusSection title="Arbeidsflater">
+          <DashboardActionGrid view="drift" />
+        </StatusSection>
+      </>
+    );
+  }
+
+  return (
+    <Space direction="vertical" size={14} className={`page-stack status-page status-overview-page status-dashboard-page dashboard-${view}`}>
+      <DashboardHeader view={view} updatedAt={updatedAt} />
+      {view === "omsetning" ? renderRevenueDashboard() : null}
+      {view === "parkering" ? renderParkingDashboard() : null}
+      {view === "soling" ? renderSunDashboard() : null}
+      {view === "drift" ? renderOperationsDashboard() : null}
     </Space>
   );
 }

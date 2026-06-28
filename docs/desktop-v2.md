@@ -1,6 +1,6 @@
 # Fibaro10 Desktop
 
-`desktop_v2` er primart desktop-grensesnitt for Fibaro10. React-appen ligger pa rene hovedruter uten separat URL-prefix, for eksempel `/status/oversikt`, `/parkering/kjoretoy` og `/soling/dagslinje`.
+`desktop_v2` er primart desktop-grensesnitt for Fibaro10. React-appen ligger pa rene hovedruter uten separat URL-prefix, for eksempel `/status/omsetning`, `/parkering/kjoretoy` og `/soling/dagslinje`.
 
 ## Mal
 
@@ -11,9 +11,8 @@
 
 ## URL-er
 
-- Startside: `/status/oversikt`
-- Status omsetning: `/status/omsetning`
-- Status drift: `/status/drift`
+- Startside: `/status/omsetning`
+- Dashboard: `/status/omsetning`, `/status/parkering`, `/status/soling`, `/status/drift`
 - Parkering: `/parkering/oversikt`, `/parkering/parkeringer`, `/parkering/kjoretoy`
 - Soling: `/soling/dagslinje`, `/soling/enkeltimer`, `/soling/senger`
 - Energi: `/energi/status`, `/energi/kurser`, `/energi/laster`

@@ -31,14 +31,16 @@ export function AppRoutes() {
       <Routes>
         <Route index element={<Navigate to={modulePath("status")} replace />} />
         <Route path="/status" element={<Navigate to={modulePath("status")} replace />} />
-        <Route path="/status/dashboard" element={<LegacyRedirect to={modulePath("status", "oversikt")} />} />
-        <Route path="/status/nokkeltall" element={<LegacyRedirect to={modulePath("status", "oversikt")} />} />
+        <Route path="/status/dashboard" element={<LegacyRedirect to={modulePath("status")} />} />
+        <Route path="/status/nokkeltall" element={<LegacyRedirect to={modulePath("status", "drift")} />} />
         <Route path="/status/statistikk" element={<LegacyRedirect to={modulePath("omsetning", "oversikt")} />} />
         <Route path="/status/datakilder" element={<LegacyRedirect to={modulePath("admin", "datakilder")} />} />
         <Route path="/status/dagslinje" element={<LegacyRedirect to={modulePath("ventilasjon", "dagslogg")} />} />
-        <Route path="/status/oversikt" element={<OverviewPage />} />
-        <Route path="/status/omsetning" element={<Navigate to={modulePath("omsetning", "manedsoversikt")} replace />} />
-        <Route path="/status/drift" element={<Navigate to={modulePath("admin", "drift")} replace />} />
+        <Route path="/status/oversikt" element={<LegacyRedirect to={modulePath("status")} />} />
+        <Route path="/status/omsetning" element={<OverviewPage dashboard="omsetning" />} />
+        <Route path="/status/parkering" element={<OverviewPage dashboard="parkering" />} />
+        <Route path="/status/soling" element={<OverviewPage dashboard="soling" />} />
+        <Route path="/status/drift" element={<OverviewPage dashboard="drift" />} />
         <Route path="/status/sammenligning" element={<StatusComparisonPage />} />
         <Route path="/omsetning" element={<Navigate to={modulePath("omsetning")} replace />} />
         <Route path="/omsetning/manedsoversikt" element={<RevenueMonthPage />} />

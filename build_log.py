@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1318")
+APP_BUILD = os.getenv("APP_BUILD", "1319")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1319",
+        "date": "28.06.2026",
+        "headline": "Fire dashboardflater",
+        "title": "Dashboard er delt i omsetning, parkering, soling og drift",
+        "description": (
+            "Build 1319 deler Fibaro10 sitt Dashboard i fire tydelige arbeidsflater. "
+            "Omsetning viser periodene med datatidspunkt og sammenligninger, Parkering og Soling viser "
+            "egne nøkkeltall og snarveier, mens Drift samler åpning, datakilder, lys, ventilasjon, energi, temperatur og vær."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): ny Dashboard-rendering med fire visninger.",
+            "Desktop v2 (moduleViews.ts/AppRoutes.tsx): Dashboard-menyen har Omsetning, Parkering, Soling og Drift.",
+            "Desktop v2 (status-overview.css): styling for dashboard-header og snarveikort.",
+            "Desktop v2 smoke (smoke-routes.mjs/smoke-ui.mjs): tester de fire nye Dashboard-rutene.",
+            "Fibaro10 backend (main.py): root og driftkort peker til nye Dashboard-ruter.",
+            "Dokumentasjon (docs/desktop-v2.md): startside og Dashboard-ruter er oppdatert.",
+            "Buildlogg (build_log.py): registrerer build 1319.",
+        ],
+        "request": "under dashboard så tenker jeg vi kan dele i 4 dashboard. omsetning, parkering, soling og drift",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dashboard har fire sidestilte toppvalg i stedet for én samlet oversikt.",
+            "Omsetningsdashboardet beholder sammenligningskortene for dag, uke og måned.",
+            "Parkering og Soling har egne nøkkeltall, siste hendelse og relevante snarveier.",
+            "Driftdashboardet samler datakilder, lys, ventilasjon og teknisk status.",
+        ],
+    },
     {
         "version": "1",
         "build": "1318",

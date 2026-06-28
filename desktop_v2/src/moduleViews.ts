@@ -34,7 +34,12 @@ export const MODULE_COLORS: Record<string, string> = {
 };
 
 export const MODULE_VIEWS: Record<string, ModuleView[]> = {
-  status: [{ key: "oversikt", label: "Oversikt" }],
+  status: [
+    { key: "omsetning", label: "Omsetning" },
+    { key: "parkering", label: "Parkering" },
+    { key: "soling", label: "Soling" },
+    { key: "drift", label: "Drift" },
+  ],
   omsetning: [
     { key: "oversikt", label: "Oversikt" },
     { key: "manedsoversikt", label: "Månedsoversikt" },

@@ -21,7 +21,8 @@ export function appPath(href?: string): string | null {
   const view = parts[1] || defaultModuleView(module);
 
   if (module === "status") {
-    return ["oversikt", "sammenligning"].includes(view) ? path : null;
+    const moduleViews = MODULE_VIEWS[module] ?? [];
+    return moduleViews.some((item) => item.key === view) ? path : null;
   }
 
   const moduleViews = MODULE_VIEWS[module];

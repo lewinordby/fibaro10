@@ -1,5 +1,8 @@
 export const smokeRoutes = [
-  { path: "/status/oversikt", name: "Dashboard" },
+  { path: "/status/omsetning", name: "Dashboard omsetning" },
+  { path: "/status/parkering", name: "Dashboard parkering" },
+  { path: "/status/soling", name: "Dashboard soling" },
+  { path: "/status/drift", name: "Dashboard drift" },
   { path: "/omsetning/oversikt", name: "Omsetning oversikt" },
   { path: "/omsetning/manedsoversikt", name: "Omsetning manedsoversikt" },
   { path: "/omsetning/akkumulert", name: "Omsetning arssammenligning" },

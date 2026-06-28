@@ -1,4 +1,4 @@
-import {
+﻿import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -74,7 +74,7 @@ function UserProfileMenu({ user, onAccount }: { user: AuthUser | null; onAccount
 
 function BuildFooter({ build }: { build?: string }) {
   return (
-    <Link className="sider-build-link" to={modulePath("admin", "build")} aria-label="Åpne buildlogg">
+    <Link className="sider-build-link" to={modulePath("admin", "build")} aria-label="Ã…pne buildlogg">
       <span>Build</span>
       <strong>{build || "-"}</strong>
     </Link>
@@ -83,7 +83,7 @@ function BuildFooter({ build }: { build?: string }) {
 
 function BrandHome({ className = "" }: { className?: string }) {
   return (
-    <Link className={`brand-home-link ${className}`.trim()} to={modulePath("status", "oversikt")} aria-label="Gå til statusoversikt">
+    <Link className={`brand-home-link ${className}`.trim()} to={modulePath("status")} aria-label="Gå til dashboard">
       <span className="brand-wordmark-wrap" aria-hidden="true">
         <img className="brand-wordmark" src={`/static/lilletorget-wordmark.png?v=${BRAND_ASSET_VERSION}`} alt="" />
       </span>
