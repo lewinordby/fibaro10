@@ -105,34 +105,20 @@
   font-style: normal;
 }
 
-.status-period-kpis {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px 8px;
+.status-period-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   padding: 6px 0 2px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.25;
   border-top: 1px solid #eef2f7;
 }
 
-.status-period-kpis div {
-  min-width: 0;
-}
-
-.status-period-kpis span {
-  display: block;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 760;
-  line-height: 1.15;
-}
-
-.status-period-kpis strong {
+.status-period-facts span {
   display: block;
   overflow: hidden;
-  margin-top: 1px;
-  color: #273244;
-  font-size: 11px;
-  font-weight: 760;
-  line-height: 1.18;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -164,119 +150,85 @@
   cursor: pointer;
 }
 
-.status-period-comparison-row:hover .status-period-comparison-title-row span,
 .status-period-comparison-row:hover .status-period-comparison-title-row strong {
   color: var(--blue);
 }
 
 .status-period-comparison-title-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
 }
 
-.status-period-comparison-title-row span {
+.status-period-comparison-title-row strong {
   display: block;
-  color: #6b7280;
+  overflow: hidden;
+  color: #273244;
   font-size: 11px;
+  font-weight: 820;
   line-height: 1.2;
-}
-
-.status-period-full-gap {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 7px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 760;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.status-period-comparison-totals {
+.status-period-comparison-title-row span {
+  flex: 0 0 auto;
+  color: #6b7280;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.status-period-comparison-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.status-period-comparison-line {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px;
-}
-
-.status-period-comparison-total-card {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
-  padding: 6px 7px;
-  background: #f8fafc;
-  border: 1px solid #eef2f7;
-  border-radius: 6px;
 }
 
-.status-period-comparison-total-card span,
-.status-period-comparison-time {
-  display: block;
+.status-period-comparison-line span {
+  overflow: hidden;
   color: var(--muted);
   font-size: 10px;
   line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.status-period-comparison-total-card strong {
-  display: block;
-  overflow: hidden;
-  margin-top: 1px;
+.status-period-comparison-line strong {
   color: var(--ink);
   font-size: 12px;
   font-weight: 780;
   line-height: 1.15;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.status-period-comparison-total-card em {
-  display: block;
-  overflow: hidden;
-  margin-top: 2px;
-  color: var(--muted);
+.status-period-comparison-line em {
+  color: #4b5563;
   font-size: 10px;
   font-style: normal;
+  font-weight: 760;
   line-height: 1.15;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.status-period-comparison-total-card em.positive {
+.status-period-comparison-line em.positive {
   color: #166534;
 }
 
-.status-period-comparison-total-card em.negative {
+.status-period-comparison-line em.negative {
   color: #b91c1c;
 }
 
-.status-period-comparison-total-card em.neutral {
+.status-period-comparison-line em.neutral {
   color: #4b5563;
-}
-
-.status-period-full-gap.positive {
-  background: #ecfdf3;
-  color: #166534;
-}
-
-.status-period-full-gap.negative {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-.status-period-full-gap.neutral {
-  background: #f3f4f6;
-  color: #4b5563;
-}
-
-.status-period-comparison-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  min-width: 0;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.25;
-}
-
-.status-period-comparison-detail-hidden {
-  display: none;
 }

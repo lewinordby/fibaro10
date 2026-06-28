@@ -175,11 +175,6 @@ function sharePercentText(amount: number, total: number) {
   return `${Math.round((amount / total) * 100)}%`;
 }
 
-function signedCountText(value: number) {
-  if (!Number.isFinite(value) || value === 0) return "0";
-  return `${value > 0 ? "+" : "-"}${Math.abs(value)}`;
-}
-
 function comparisonAmount(value: number | undefined, fallback: number) {
   return Number.isFinite(value) ? Number(value) : fallback;
 }
@@ -195,6 +190,20 @@ function fullReferenceClass(currentTotal: number, fullTotal: number) {
   const gap = fullTotal - currentTotal;
   if (!Number.isFinite(gap) || Math.abs(gap) < 0.5) return "neutral";
   return gap > 0 ? "negative" : "positive";
+}
+
+function referenceLabel(fullLabel: string | undefined, fallback: string) {
+  const source = (fullLabel || fallback)
+    .replace(/^Hele\s+/i, "")
+    .replace(/^Sammenlignet med\s+/i, "")
+    .replace(/^tilsvarende datatidspunkt\s+/i, "")
+    .trim();
+  return source ? `${source.charAt(0).toUpperCase()}${source.slice(1)}` : fallback;
+}
+
+function comparisonTimeText(comparison: StatusPeriodComparison) {
+  if (comparison.solAsOfLabel === comparison.parkingAsOfLabel) return comparison.solAsOfLabel;
+  return `sol ${comparison.solAsOfLabel} / park ${comparison.parkingAsOfLabel}`;
 }
 
 function groupCards(cards: MetricCardData[], group: string) {
@@ -274,6 +283,9 @@ function ComparisonRow({
   const fullParking = comparisonAmount(comparison.fullParking, comparison.parking);
   const fullTotal = comparisonAmount(comparison.fullTotal, fullSol + fullParking);
   const fullLabel = comparison.fullLabel || "Hele referansen";
+  const simpleLabel = referenceLabel(comparison.fullLabel, comparison.label);
+  const sameTimeClass = deltaClass(currentTotal, comparison.total);
+  const fullClass = fullReferenceClass(currentTotal, fullTotal);
 
   return (
     <Link
@@ -282,38 +294,23 @@ function ComparisonRow({
       to={`/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`}
     >
       <div className="status-period-comparison-title-row">
-        <span>{comparison.label}</span>
-        <strong className={`status-period-full-gap ${fullReferenceClass(currentTotal, fullTotal)}`}>
-          {fullReferenceText(currentTotal, fullTotal)}
-        </strong>
+        <strong>{simpleLabel}</strong>
+        <span>til {comparisonTimeText(comparison)}</span>
       </div>
-      <div className="status-period-comparison-totals">
-        <div className="status-period-comparison-total-card">
+      <div className="status-period-comparison-lines">
+        <div className="status-period-comparison-line">
           <span>Samme tidspunkt</span>
           <strong>{nok(comparison.total)} kr</strong>
-          <em className={deltaClass(currentTotal, comparison.total)}>
+          <em className={sameTimeClass}>
             {signedNok(sameTimeDelta)}
-            {percent ? ` / ${percent}` : ""}
+            {percent ? ` (${percent})` : ""}
           </em>
         </div>
-        <div className="status-period-comparison-total-card">
+        <div className="status-period-comparison-line">
           <span>{fullLabel}</span>
           <strong>{nok(fullTotal)} kr</strong>
-          <em>
-            Sol {nok(fullSol)} kr / park {nok(fullParking)} kr
-          </em>
+          <em className={fullClass}>{fullReferenceText(currentTotal, fullTotal)}</em>
         </div>
-      </div>
-      <div className="status-period-comparison-time">
-        Sammenligningstidspunkt: sol {comparison.solAsOfLabel} / parkering {comparison.parkingAsOfLabel}
-      </div>
-      <div className="status-period-comparison-detail status-period-comparison-detail-hidden">
-        <span>
-          Soling {comparison.solCount} stk / {nok(comparison.sol)} kr · {comparison.solAsOfLabel}
-        </span>
-        <span>
-          Parkering {comparison.parkingCount} stk / {nok(comparison.parking)} kr · {comparison.parkingAsOfLabel}
-        </span>
       </div>
     </Link>
   );
@@ -341,8 +338,6 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
   ];
   const solShare = sharePercentText(period.sol, period.total);
   const parkingShare = sharePercentText(period.parking, period.total);
-  const solCountDelta = period.solCount - period.previousSolCount;
-  const parkingCountDelta = period.parkingCount - period.previousParkingCount;
 
   return (
     <Card className="status-period-card">
@@ -367,27 +362,13 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
           <em>{period.parkingCount} stk</em>
         </div>
       </div>
-      <div className="status-period-kpis" aria-label={`Målepunkter for ${period.title}`}>
-        <div>
-          <span>Snitt soling</span>
-          <strong>{averageAmountText(period.sol, period.solCount)}</strong>
-        </div>
-        <div>
-          <span>Snitt parkering</span>
-          <strong>{averageAmountText(period.parking, period.parkingCount)}</strong>
-        </div>
-        <div>
-          <span>Fordeling</span>
-          <strong>
-            Sol {solShare} / park {parkingShare}
-          </strong>
-        </div>
-        <div title={period.previousLabel}>
-          <span>Volumendring</span>
-          <strong>
-            Sol {signedCountText(solCountDelta)} / park {signedCountText(parkingCountDelta)}
-          </strong>
-        </div>
+      <div className="status-period-facts" aria-label={`Målepunkter for ${period.title}`}>
+        <span>
+          Snitt: sol {averageAmountText(period.sol, period.solCount)} / park {averageAmountText(period.parking, period.parkingCount)}
+        </span>
+        <span>
+          Fordeling: sol {solShare} / park {parkingShare}
+        </span>
       </div>
       <div className="status-period-comparisons">
         <div className="status-period-comparisons-title">Sammenligning</div>

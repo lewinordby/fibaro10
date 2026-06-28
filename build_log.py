@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1321")
+APP_BUILD = os.getenv("APP_BUILD", "1322")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1322",
+        "date": "28.06.2026",
+        "headline": "Omsetningsdashboard forenklet",
+        "title": "Sammenligningskortene er gjort enklere og mer lesbare",
+        "description": (
+            "Build 1322 forenkler Dashboard > Omsetning etter at fullreferansene ble lagt inn. "
+            "Sammenligningene vises na som rene linjer med referanse, samme tidspunkt, full periode og mangler/over, "
+            "mens ekstra malepunkter er samlet i korte tekstlinjer."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): sammenligningsradene er skrevet om til enklere linjevisning.",
+            "Desktop v2 CSS (status-periods.css/status-refinements.css): gamle bokser er fjernet og erstattet med kompakt tabellpreg.",
+            "Buildlogg (build_log.py): registrerer build 1322.",
+        ],
+        "request": "kan du gjore det enklere a forsta, enda enklere utforming og mer oversiktelig - fol deg fri",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Referansene heter kortere, for eksempel I gar og Forrige uke.",
+            "Samme tidspunkt og full referanse vises som to enkle linjer.",
+            "Mangler/over vises direkte pa full referanselinje.",
+            "Snitt og fordeling er samlet i to kompakte tekstlinjer.",
+            "Ubrukt CSS fra forrige kortdesign er fjernet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1321",

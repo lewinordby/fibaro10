@@ -116,7 +116,7 @@
 .status-period-rows span,
 .status-period-rows em,
 .status-period-comparison-title-row span,
-.status-period-comparison-detail {
+.status-period-facts {
   color: var(--muted);
   font-size: 10px;
 }
@@ -141,18 +141,17 @@
 }
 
 .status-period-rows strong,
-.status-period-comparison-total-card strong,
-.status-period-kpis strong {
+.status-period-comparison-line strong {
   font-size: 12px;
 }
 
-.status-period-kpis {
-  gap: 3px 7px;
+.status-period-facts {
+  gap: 2px;
   padding-top: 5px;
   border-top-color: var(--line-soft);
 }
 
-.status-period-kpis span {
+.status-period-facts span {
   color: var(--muted);
   font-size: 9.5px;
 }
@@ -166,26 +165,8 @@
   border-top-color: var(--line-soft);
 }
 
-.status-period-comparison-row:hover :is(.status-period-comparison-title-row span, .status-period-comparison-title-row strong) {
+.status-period-comparison-row:hover .status-period-comparison-title-row strong {
   color: color-mix(in srgb, var(--domain-revenue) 82%, #111827);
-}
-
-.status-period-full-gap {
-  padding: 3px 6px;
-  font-size: 10px;
-  border: 1px solid transparent;
-}
-
-.status-period-full-gap.positive {
-  border-color: #bbf7d0;
-}
-
-.status-period-full-gap.negative {
-  border-color: #fecaca;
-}
-
-.status-period-full-gap.neutral {
-  border-color: #e2e8f0;
 }
 
 :is(.status-event-list, .status-source-list) .ant-list-item {
