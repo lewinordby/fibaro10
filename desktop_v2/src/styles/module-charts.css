@@ -1,0 +1,48 @@
+.module-chart-card {
+  overflow: hidden;
+}
+
+.module-chart-card .ant-card-body,
+.chart-card .ant-card-body {
+  padding: 10px 12px 8px;
+}
+
+.module-chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  margin-bottom: 6px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.module-chart-toolbar .ant-typography {
+  font-size: 12px;
+}
+
+.module-chart-toolbar .ant-segmented {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.module-chart-controls {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.module-chart-day-nav .ant-btn {
+  font-weight: 650;
+}
+
+.module-chart-day-nav .ant-btn,
+.module-chart-day-nav .ant-input-affix-wrapper {
+  border-color: var(--line-strong);
+}
+
+.module-chart-date {
+  width: 150px;
+}

@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1302")
+APP_BUILD = os.getenv("APP_BUILD", "1303")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1303",
+        "date": "28.06.2026",
+        "headline": "Modul-CSS delt opp",
+        "title": "Desktop V2 har splittet generisk modul-CSS i metrics, diagram og filter",
+        "description": (
+            "Build 1303 rydder videre i frontend-rammeverket. module-content.css er redusert "
+            "ved aa flytte kort/metrics, chart-toolbar og filterlayout til egne CSS-filer. "
+            "Noen hardkodede modul-farger er samtidig byttet til eksisterende design tokens."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (module-content.css): redusert til generisk modulinnhold og felles kort.",
+            "Fibaro10 desktop V2 (module-metrics.css): ny CSS-fil for metrics og kompakte kort.",
+            "Fibaro10 desktop V2 (module-charts.css): ny CSS-fil for diagramkort og diagramkontroller.",
+            "Fibaro10 desktop V2 (module-filters.css): ny CSS-fil for filterkort og responsive filtergrid.",
+            "Fibaro10 desktop V2 (main.tsx): importerer de nye modul-CSS-filene.",
+            "Buildlogg (build_log.py): registrerer build 1303.",
+        ],
+        "request": "kjor paa med alt dette",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Storre generisk CSS er delt etter ansvar.",
+            "Metrics og chart-kontroller bruker flere felles tokens for farge/linjer.",
+            "Ingen React-komponenter eller API-kontrakter er endret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1302",
