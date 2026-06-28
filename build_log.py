@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1329")
+APP_BUILD = os.getenv("APP_BUILD", "1330")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1330",
+        "date": "28.06.2026",
+        "headline": "Dashboardtabeller samlet",
+        "title": "Dashboard > Omsetning viser hittil-sammenligninger i samme tabell som nåtallene",
+        "description": (
+            "Build 1330 legger referansetallene for tilsvarende tidspunkt inn i samme tabell som dagens/periodens "
+            "nåtall. Hele referanseperioder ligger i en egen kompakt tabell under, med beregning av hvor mye som "
+            "mangler eller hvor mye perioden ligger over for soling, parkering og sum."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): erstatter sammenligningskort med felles hittil-tabell og egen fullperiode-tabell.",
+            "Desktop v2 CSS (status-periods.css): justerer tabellbredder, beløpsceller og kompakt differansevisning.",
+            "Buildlogg (build_log.py): registrerer build 1330.",
+        ],
+        "request": (
+            "hva om vi putter tallet så langt i går og så langt smame dag forrige uke i samme tabell som i dag. "
+            "også tar vi hele dag i går og hele samme dag forrige uke i en tabell under med utregning av hvor mye "
+            "vi mangler på begge. både parkering og sol."
+        ),
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Hittil-tall for referansene vises som egne kolonner i utregningstabellen.",
+            "Full dag/uke/måned/år vises i en egen tabell under med mangler/over-beregning.",
+            "Soling, parkering og sum får samme struktur i begge tabeller.",
+            "Gamle mini-kort for sammenligning er fjernet fra dashboardet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1329",

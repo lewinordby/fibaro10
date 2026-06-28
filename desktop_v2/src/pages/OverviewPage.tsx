@@ -254,91 +254,69 @@ function ComparisonDelta({ currentAmount, referenceAmount }: { currentAmount: nu
   );
 }
 
-function comparisonTimingText(comparison: StatusPeriodComparison) {
-  if (comparison.solAsOfLabel === comparison.parkingAsOfLabel) return comparison.solAsOfLabel;
-  return `Soling ${comparison.solAsOfLabel} · parkering ${comparison.parkingAsOfLabel}`;
+function periodComparisonPath(periodKey: string, comparisonKey: string) {
+  return periodKey === "year"
+    ? "/omsetning/akkumulert"
+    : `/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`;
 }
 
-function ComparisonMiniCard({
-  comparison,
-  current,
-  periodKey,
-  comparisonKey,
-}: {
-  comparison: StatusPeriodComparison;
-  current: { total: number; sol: number; parking: number };
-  periodKey: string;
-  comparisonKey: string;
-}) {
-  const fullSol = comparisonAmount(comparison.fullSol, comparison.sol);
-  const fullParking = comparisonAmount(comparison.fullParking, comparison.parking);
-  const fullTotal = comparisonAmount(comparison.fullTotal, fullSol + fullParking);
-  const fullLabel = comparison.fullLabel || "Hele referansen";
-  const simpleLabel = referenceLabel(comparison.fullLabel, comparison.label);
-  const comparisonPath =
-    periodKey === "year"
-      ? "/omsetning/akkumulert"
-      : `/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`;
-  const rows = [
-    {
-      key: "soling",
-      label: "Soling",
-      tone: "sun2",
-      count: comparison.solCount,
-      amount: comparison.sol,
-      currentAmount: current.sol,
-    },
-    {
-      key: "parkering",
-      label: "Parkering",
-      tone: "parking",
-      count: comparison.parkingCount,
-      amount: comparison.parking,
-      currentAmount: current.parking,
-    },
-  ];
-  const hasFullPeriod = Math.abs(fullTotal - comparison.total) >= 0.5;
+function fullReferenceGap(currentAmount: number, fullAmount: number) {
+  const gap = fullAmount - currentAmount;
+  if (!Number.isFinite(gap) || Math.abs(gap) < 0.5) return "Lik";
+  if (gap > 0) return `Mangler ${nok(gap)} kr`;
+  return `Over ${nok(Math.abs(gap))} kr`;
+}
 
+function fullReferenceGapClass(currentAmount: number, fullAmount: number) {
+  const gap = fullAmount - currentAmount;
+  if (!Number.isFinite(gap) || Math.abs(gap) < 0.5) return "neutral";
+  return gap > 0 ? "negative" : "positive";
+}
+
+function CurrentAmountCell({ amount, count }: { amount: number; count?: number }) {
   return (
-    <div className="status-period-comparison-mini">
-      <div className="status-period-comparison-mini-head">
-        <div>
-          <Link title="Vis sammenligning" to={comparisonPath}>
-            {simpleLabel}
-          </Link>
-          <span>{comparisonTimingText(comparison)}</span>
-        </div>
-        <div className="status-period-comparison-total">
-          <strong>{nok(comparison.total)} kr</strong>
-          <ComparisonDelta currentAmount={current.total} referenceAmount={comparison.total} />
-        </div>
-      </div>
-      <table className="status-period-mini-table">
-        <tbody>
-          {rows.map((row) => (
-            <tr className={`tone-${row.tone}`} key={`${comparison.label}-${row.key}`}>
-              <th scope="row">
-                {row.label} <span>({row.count} stk, {averageAmountText(row.amount, row.count)} snitt)</span>
-              </th>
-              <td>
-                <strong>{nok(row.amount)} kr</strong>
-                <ComparisonDelta currentAmount={row.currentAmount} referenceAmount={row.amount} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {hasFullPeriod ? (
-        <div className="status-period-comparison-full">
-          <span>{fullLabel}</span>
-          <strong>{nok(fullTotal)} kr</strong>
-        </div>
-      ) : null}
+    <div className="status-period-amount-cell">
+      <strong>{nok(amount)} kr</strong>
+      {Number.isFinite(count) ? <span>{Number(count)} stk</span> : null}
     </div>
   );
 }
 
-function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
+function ReferenceAmountCell({
+  amount,
+  currentAmount,
+}: {
+  amount: number;
+  currentAmount: number;
+}) {
+  return (
+    <div className="status-period-amount-cell">
+      <strong>{nok(amount)} kr</strong>
+      <ComparisonDelta currentAmount={currentAmount} referenceAmount={amount} />
+    </div>
+  );
+}
+
+function FullReferenceCell({ currentAmount, fullAmount }: { currentAmount: number; fullAmount: number }) {
+  return (
+    <div className="status-period-amount-cell">
+      <strong>{nok(fullAmount)} kr</strong>
+      <em className={fullReferenceGapClass(currentAmount, fullAmount)}>{fullReferenceGap(currentAmount, fullAmount)}</em>
+    </div>
+  );
+}
+
+type PeriodComparisonView = {
+  comparison: StatusPeriodComparison;
+  comparisonKey: string;
+  shortLabel: string;
+  path: string;
+  fullSol: number;
+  fullParking: number;
+  fullTotal: number;
+};
+
+function buildComparisonViews(period: StatusPeriod): PeriodComparisonView[] {
   const comparisons: StatusPeriodComparison[] = [
     {
       label: period.previousLabel,
@@ -359,6 +337,149 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
     ...(period.extraComparisons ?? []),
   ];
 
+  return comparisons.map((comparison, index) => {
+    const comparisonKey = index === 0 ? "previous" : EXTRA_COMPARISON_KEYS[period.key]?.[index - 1] || `extra-${index - 1}`;
+    const fullSol = comparisonAmount(comparison.fullSol, comparison.sol);
+    const fullParking = comparisonAmount(comparison.fullParking, comparison.parking);
+    return {
+      comparison,
+      comparisonKey,
+      shortLabel: referenceLabel(comparison.fullLabel, comparison.label),
+      path: periodComparisonPath(period.key, comparisonKey),
+      fullSol,
+      fullParking,
+      fullTotal: comparisonAmount(comparison.fullTotal, fullSol + fullParking),
+    };
+  });
+}
+
+function RevenuePeriodCurrentTable({ period, comparisons }: { period: StatusPeriod; comparisons: PeriodComparisonView[] }) {
+  const rows = [
+    {
+      key: "soling",
+      label: "Soling",
+      tone: "sun2",
+      currentAmount: period.sol,
+      currentCount: period.solCount,
+      referenceAmount: (comparison: StatusPeriodComparison) => comparison.sol,
+    },
+    {
+      key: "parkering",
+      label: "Parkering",
+      tone: "parking",
+      currentAmount: period.parking,
+      currentCount: period.parkingCount,
+      referenceAmount: (comparison: StatusPeriodComparison) => comparison.parking,
+    },
+    {
+      key: "sum",
+      label: "Sum",
+      tone: "revenue",
+      currentAmount: period.total,
+      currentCount: undefined,
+      referenceAmount: (comparison: StatusPeriodComparison) => comparison.total,
+    },
+  ];
+
+  return (
+    <table className="status-period-current-table">
+      <thead>
+        <tr>
+          <th scope="col">Linje</th>
+          <th scope="col">Nå</th>
+          {comparisons.map((item) => (
+            <th key={item.comparisonKey} scope="col">
+              <Link className="status-period-table-link" title="Vis sammenligning" to={item.path}>
+                {item.shortLabel} hittil
+              </Link>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr className={`tone-${row.tone} ${row.key === "sum" ? "status-period-total-row" : ""}`} key={row.key}>
+            <th scope="row">
+              {row.label}{" "}
+              {Number.isFinite(row.currentCount) ? (
+                <span className="status-period-line-note">
+                  ({row.currentCount} stk, {averageAmountText(row.currentAmount, row.currentCount as number)} snitt)
+                </span>
+              ) : null}
+            </th>
+            <td>
+              <CurrentAmountCell amount={row.currentAmount} count={row.currentCount} />
+            </td>
+            {comparisons.map((item) => (
+              <td key={`${row.key}-${item.comparisonKey}`}>
+                <ReferenceAmountCell amount={row.referenceAmount(item.comparison)} currentAmount={row.currentAmount} />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function RevenuePeriodFullTable({ period, comparisons }: { period: StatusPeriod; comparisons: PeriodComparisonView[] }) {
+  const rows = [
+    {
+      key: "soling",
+      label: "Soling",
+      tone: "sun2",
+      currentAmount: period.sol,
+      fullAmount: (comparison: PeriodComparisonView) => comparison.fullSol,
+    },
+    {
+      key: "parkering",
+      label: "Parkering",
+      tone: "parking",
+      currentAmount: period.parking,
+      fullAmount: (comparison: PeriodComparisonView) => comparison.fullParking,
+    },
+    {
+      key: "sum",
+      label: "Sum",
+      tone: "revenue",
+      currentAmount: period.total,
+      fullAmount: (comparison: PeriodComparisonView) => comparison.fullTotal,
+    },
+  ];
+
+  return (
+    <table className="status-period-full-table">
+      <thead>
+        <tr>
+          <th scope="col">Linje</th>
+          {comparisons.map((item) => (
+            <th key={item.comparisonKey} scope="col">
+              <Link className="status-period-table-link" title="Vis sammenligning" to={item.path}>
+                Hele {item.shortLabel.toLowerCase()}
+              </Link>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr className={`tone-${row.tone}`} key={row.key}>
+            <th scope="row">{row.label}</th>
+            {comparisons.map((item) => (
+              <td key={`${row.key}-${item.comparisonKey}`}>
+                <FullReferenceCell currentAmount={row.currentAmount} fullAmount={row.fullAmount(item)} />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
+  const comparisons = buildComparisonViews(period);
+
   return (
     <Card className="status-period-card">
       <div className="status-period-head">
@@ -370,48 +491,13 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
       </div>
 
       <div className="status-period-block">
-        <div className="status-period-block-title">Utregning</div>
-        <table className="status-period-current-table">
-          <thead>
-            <tr>
-              <th scope="col">Linje</th>
-              <th scope="col">Beløp</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="tone-sun2">
-              <th scope="row">
-                Soling <span className="status-period-line-note">({period.solCount} stk, {averageAmountText(period.sol, period.solCount)} snitt)</span>
-              </th>
-              <td>{nok(period.sol)} kr</td>
-            </tr>
-            <tr className="tone-parking">
-              <th scope="row">
-                Parkering <span className="status-period-line-note">({period.parkingCount} stk, {averageAmountText(period.parking, period.parkingCount)} snitt)</span>
-              </th>
-              <td>{nok(period.parking)} kr</td>
-            </tr>
-            <tr className="status-period-total-row">
-              <th scope="row">Sum</th>
-              <td>{nok(period.total)} kr</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="status-period-block-title">Utregning hittil</div>
+        <RevenuePeriodCurrentTable comparisons={comparisons} period={period} />
       </div>
 
       <div className="status-period-comparisons">
-        <div className="status-period-comparisons-title">Sammenligning</div>
-        <div className="status-period-comparison-grid">
-          {comparisons.map((comparison, index) => (
-            <ComparisonMiniCard
-              comparison={comparison}
-              comparisonKey={index === 0 ? "previous" : EXTRA_COMPARISON_KEYS[period.key]?.[index - 1] || `extra-${index - 1}`}
-              current={{ total: period.total, sol: period.sol, parking: period.parking }}
-              key={comparison.label}
-              periodKey={period.key}
-            />
-          ))}
-        </div>
+        <div className="status-period-comparisons-title">Hele referansen</div>
+        <RevenuePeriodFullTable comparisons={comparisons} period={period} />
       </div>
     </Card>
   );
