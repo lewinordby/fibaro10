@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1303")
+APP_BUILD = os.getenv("APP_BUILD", "1304")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1304",
+        "date": "28.06.2026",
+        "headline": "Bundle-audit lagt til",
+        "title": "Desktop V2 har faatt automatisk kontroll av frontend-bundle-storrelse",
+        "description": (
+            "Build 1304 legger til en bundle-audit etter frontend-build. Den rapporterer storste "
+            "JS/CSS-assets, total gzip-storrelse og stopper sjekken dersom bundles vokser over "
+            "definerte grenser. Dette gir fast ytelseskontroll for de tunge sidene uten aa endre UI."
+        ),
+        "applications": [
+            "Fibaro10 desktop V2 (audit-bundle.mjs): ny bundle-audit for dist/assets.",
+            "Fibaro10 desktop V2 (package.json): ny npm-kommando audit:bundle.",
+            "Fibaro10 sjekk (check-local.ps1): kjorer bundle-audit som del av standard lokal sjekk.",
+            "Buildlogg (build_log.py): registrerer build 1304.",
+        ],
+        "request": "kjor paa med alt dette",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Tunge chunks som antd-core og charts blir synlige i hver sjekk.",
+            "Total gzip-budget hindrer at frontend vokser ubemerket.",
+            "Grensene kan overstyres via FIBARO10_BUNDLE_* miljo variabler ved behov.",
+        ],
+    },
     {
         "version": "1",
         "build": "1303",

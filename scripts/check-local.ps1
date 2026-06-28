@@ -35,6 +35,9 @@ Run $npm @("run", "parse:css") $desktopDir
 Write-Host "Frontend CSS audit"
 Run $npm @("run", "audit:css") $desktopDir
 
+Write-Host "Frontend bundle audit"
+Run $npm @("run", "audit:bundle") $desktopDir
+
 Write-Host "Frontend UI smoke"
 Run $npm @("run", "smoke:ui") $desktopDir
 
