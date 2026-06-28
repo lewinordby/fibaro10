@@ -22,6 +22,7 @@ mosquitto_passwd -b /mosquitto/data/passwords "$FIBARO10_MQTT_USERNAME" "$FIBARO
   echo ""
   echo "user $FIBARO10_MQTT_USERNAME"
   echo "topic read owntracks/#"
+  echo 'topic read $SYS/#'
 } > /mosquitto/data/acl
 
 chown mosquitto:mosquitto /mosquitto/data/passwords /mosquitto/data/acl

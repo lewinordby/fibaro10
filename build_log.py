@@ -21,8 +21,10 @@ BUILD_LOG = [
         ),
         "applications": [
             "Mosquitto (mqtt/mosquitto.conf): legger til intern WebSocket-listener paa port 9001.",
+            "Mosquitto entrypoint (mqtt/entrypoint.sh): gir intern Fibaro10-bruker lesetilgang til $SYS for healthcheck.",
             "Caddy (Caddyfile): ruter /mqtt paa online.lilletorget.net til owntracks_mqtt.",
             "Docker/QNAP (docker-compose.qnap.yml): proxyen avhenger ogsaa av owntracks_mqtt.",
+            "Deploy (scripts/deploy-qnap.ps1): restart/reload av broker og Caddy naar konfig endres.",
             "Dokumentasjon (docs/owntracks-mqtt.md): beskriver ekstern OwnTracks-konfig uten VPN.",
             "Buildlogg (build_log.py): registrerer build 1315.",
         ],
@@ -33,6 +35,7 @@ BUILD_LOG = [
             "Offentlig OwnTracks-tilgang gaar over eksisterende HTTPS-port 443.",
             "Ingen vanlig MQTT-port eksponeres direkte mot internett.",
             "Eksisterende MQTT-brukere og ACL brukes videre.",
+            "Deploy aktiverer Caddy/Mosquitto-konfig uten manuell restart.",
             "Intern Fibaro10-integrasjon er uendret og bruker broker-navnet owntracks_mqtt.",
         ],
     },

@@ -110,7 +110,9 @@ mkdir -p sun2_session_scraper/data
 mkdir -p mqtt/data
 [ -d "`$legacy_sun2_dir" ] && (cd "`$legacy_sun2_dir" && "$Docker" compose down || true)
 export APP_COMMIT=`$(git rev-parse --short HEAD)
-"$Docker" compose -f docker-compose.qnap.yml up -d --build owntracks_mqtt fibaro10 online_dashboard axis_camera_snapshots car_info_lookup sun2_session_scraper
+"$Docker" compose -f docker-compose.qnap.yml up -d --build --force-recreate owntracks_mqtt fibaro10_proxy
+"$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 online_dashboard axis_camera_snapshots car_info_lookup sun2_session_scraper
+"$Docker" exec fibaro10_proxy caddy reload --config /etc/caddy/Caddyfile || "$Docker" restart fibaro10_proxy
 "$Docker" compose -f docker-compose.qnap.yml ps
 echo "Backup: `$backup_dir"
 "@
