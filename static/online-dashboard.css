@@ -719,6 +719,33 @@ h2 { font-size: 1.05rem; }
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.parking-vehicle-list li {
+    grid-template-columns: 4.8rem minmax(0, 1fr) auto;
+    align-items: start;
+}
+.parking-vehicle-list time {
+    grid-row: span 2;
+}
+.parking-vehicle-list strong {
+    display: flex;
+    gap: .35rem;
+    align-items: baseline;
+}
+.parking-vehicle-list strong span {
+    color: var(--muted);
+    font-size: .68rem;
+    font-weight: 850;
+}
+.parking-vehicle-list small {
+    grid-column: 2 / 4;
+}
+.parking-vehicle-list em {
+    color: var(--muted);
+    font-size: .78rem;
+    font-style: normal;
+    font-weight: 850;
+    white-space: nowrap;
+}
 .empty-list {
     color: var(--muted);
     font-weight: 750;

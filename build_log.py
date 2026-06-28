@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1317")
+APP_BUILD = os.getenv("APP_BUILD", "1318")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1318",
+        "date": "28.06.2026",
+        "headline": "Mobil parkering ryddet",
+        "title": "Mobil parkering viser dagens biler med kjoretoyinfo",
+        "description": (
+            "Build 1318 rydder mobilundersiden for parkering. Listen over siste importforsok er tatt bort, "
+            "mens siste importtidspunkt og eventuell feil fortsatt vises kompakt over innholdet. "
+            "Dagens parkeringer listes med regnr og samme kjoretoyfelt som hovedappen bruker."
+        ),
+        "applications": [
+            "Online dashboard (online_dashboard/app/main.py): /parkering henter dagens parkeringer med kjoretoydata fra kjoretoy og kjoretoy_nokkeldata.",
+            "Online dashboard (online_dashboard/app/main.py): importhistorikk-listen er fjernet fra mobilvisningen.",
+            "Online dashboard CSS (static/online-dashboard.css): ny kompakt listevisning for dagens biler.",
+            "Buildlogg (build_log.py): registrerer build 1318.",
+        ],
+        "request": "i mobil appen så har vi mulighet til å velge parkeringer, på undersiden der så er det nå brukt masse plass på å liste opp siste importer. dette trenger vi ikke, holder med sist import øverst slik som nå og evt feilet om den feiler. så vil jeg liste ut bilene som har parkert inkl merke/type/årsmodell alstså det feltet vi kaller \"Kjøretøy\" under parkering\\kjøretøy i hoved appen",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Mobil parkering bruker ikke lenger plass paa flere tidligere importforsok.",
+            "Siste importstatus beholdes i toppstatusen, med egen melding hvis siste forsok feilet.",
+            "Dagens parkeringer viser regnr, status, kjoretoy, varighet og belop for brukere med tilgang.",
+        ],
+    },
     {
         "version": "1",
         "build": "1317",

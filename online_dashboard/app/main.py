@@ -5,6 +5,7 @@ from html import escape
 import asyncio
 import json
 import os
+import re
 import time
 from typing import Any, Optional
 from urllib.parse import urlencode
@@ -603,26 +604,82 @@ def short_message(value: Any, max_length: int = 110) -> str:
     return f"{text[: max_length - 3].rstrip()}..."
 
 
-def import_run_rows(runs: list[dict[str, Any]]) -> list[tuple[str, str, str]]:
-    rows: list[tuple[str, str, str]] = []
-    for run in runs:
-        ok = run.get("ok")
-        status = "OK" if ok is True else "Feil" if ok is False else str(run.get("status") or "-")
-        imported = run.get("records_imported")
-        total = run.get("records_total")
-        if imported is not None and total is not None:
-            records = f"{fmt_int(imported)} / {fmt_int(total)} rader"
-        elif total is not None:
-            records = f"{fmt_int(total)} rader"
-        elif imported is not None:
-            records = f"{fmt_int(imported)} rader"
-        else:
-            records = "Ingen radtall"
-        message = short_message(run.get("message")) or "Ingen melding"
-        stamp = run.get("finished_at") or run.get("started_at")
-        return_time = fmt_time(stamp)
-        rows.append((return_time, escape(status), escape(f"{records} · {message}")))
-    return rows
+def first_value(*values: Any) -> Any:
+    for value in values:
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def car_info_fields(data: Any) -> dict[str, Any]:
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            return {}
+    if not isinstance(data, dict):
+        return {}
+    fields = data.get("fields")
+    return fields if isinstance(fields, dict) else {}
+
+
+def car_info_field_value(data: Any, *keys: str) -> Any:
+    fields = car_info_fields(data)
+    for key in keys:
+        value = fields.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def car_info_vehicle_title(data: Any) -> Optional[str]:
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(data, dict):
+        return None
+    return first_value(
+        car_info_field_value(data, "vehicle_title"),
+        data.get("vehicle_title"),
+        data.get("title"),
+    )
+
+
+def parking_vehicle_label_is_unknown(value: Optional[str]) -> bool:
+    text_value = (value or "").strip().lower()
+    return not text_value or text_value.startswith("ukjent")
+
+
+def year_from_value(value: Any) -> Optional[int]:
+    if isinstance(value, datetime):
+        return value.year
+    if isinstance(value, date):
+        return value.year
+    text_value = str(value or "")
+    match = re.search(r"(19|20)\d{2}", text_value)
+    return int(match.group(0)) if match else None
+
+
+def parking_vehicle_summary(row: dict[str, Any]) -> str:
+    label = " ".join(
+        str(part).strip()
+        for part in [row.get("merke"), row.get("modell"), row.get("typebetegnelse")]
+        if str(part or "").strip()
+    )
+    if parking_vehicle_label_is_unknown(label):
+        label = car_info_vehicle_title(row.get("car_info_data")) or ""
+    if parking_vehicle_label_is_unknown(label):
+        return "Ukjent kjøretøy"
+    year = (
+        year_from_value(row.get("forstegangsregistrert_norge"))
+        or year_from_value(row.get("svv_teknisk_gyldig_fra"))
+        or year_from_value(car_info_field_value(row.get("car_info_data"), "model_year", "first_registered", "first_registration"))
+    )
+    color = str(first_value(row.get("farge"), car_info_field_value(row.get("car_info_data"), "color")) or "").strip()
+    summary = f"{year} {label}" if year else label
+    return f"{summary} - {color}" if color else summary
 
 
 def amount_sum(*values: Any) -> float:
@@ -1646,31 +1703,43 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
     easypark_status = easypark_downloader_status() if SOURCE_MODE else {}
     parking_import_at = data["parking_import"].get("updated_at")
     parking_failed_at = data["parking_import"].get("last_failed_at")
+    latest_import_failed = isinstance(parking_failed_at, datetime) and (
+        not isinstance(parking_import_at, datetime) or parking_failed_at > parking_import_at
+    )
     import_status_text = f"Sist OK: {display_stamp(parking_import_at)}"
-    if isinstance(parking_failed_at, datetime) and (not isinstance(parking_import_at, datetime) or parking_failed_at > parking_import_at):
+    if latest_import_failed:
         import_status_text = f"Siste forsøk feilet. Sist OK: {display_stamp(parking_import_at)}"
     rows = []
-    import_runs = []
     if SOURCE_MODE:
         start, end = day_bounds(data["now"].date())
         rows = await many_mappings(
             """
-            select start_time, end_time, car_license_number, fee_inc_vat, parking_time_min, status
-            from parkering
-            where start_time >= :start and start_time < :end
-            order by start_time desc
-            limit 14
+            with dagens as (
+                select p.*,
+                       upper(replace(coalesce(p.car_license_number, ''), ' ', '')) as plate_key
+                from parkering p
+                where p.start_time >= :start and p.start_time < :end
+            )
+            select d.start_time,
+                   d.end_time,
+                   d.car_license_number,
+                   d.fee_inc_vat,
+                   d.parking_time_min,
+                   d.status,
+                   v.car_info_data,
+                   k.merke,
+                   k.modell,
+                   k.typebetegnelse,
+                   k.farge,
+                   k.forstegangsregistrert_norge,
+                   k.svv_teknisk_gyldig_fra
+            from dagens d
+            left join kjoretoy v on v.plate = d.plate_key
+            left join kjoretoy_nokkeldata k on k.plate = d.plate_key
+            order by d.start_time desc
+            limit 30
             """,
             {"start": start, "end": end},
-        )
-        import_runs = await many_mappings(
-            """
-            select finished_at, started_at, ok, status, records_imported, records_total, message
-            from import_job_runs
-            where job_name = 'easypark_parking_import'
-            order by finished_at desc nulls last, id desc
-            limit 5
-            """
         )
     can_refresh = SOURCE_MODE and can_manage(request.state.access_key)
     cooldown_remaining = parking_refresh_cooldown_remaining_seconds()
@@ -1740,20 +1809,11 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
     )
     body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(parking_import_at)} {fmt_date(parking_import_at)}</p>'
     body += button
+    if latest_import_failed:
+        body += f'<p class="notice">{escape(import_status_text)}</p>'
     if SNAPSHOT_MODE:
         return render_detail_page("Parkering", "Dagens parkeringer med trygg manuell oppdatering.", body, icon="parking")
-    body += render_list("Siste importforsøk", import_run_rows(import_runs))
-    body += render_list(
-        "Siste parkeringer",
-        [
-            (
-                fmt_time(row.get("start_time")),
-                escape(str(row.get("car_license_number") or "Uten regnr")),
-                (f"{amount(row.get('fee_inc_vat'))} - " if can_view_money else "") + f"{float(row.get('parking_time_min') or 0):.0f} min",
-            )
-            for row in rows
-        ],
-    )
+    body += render_parking_vehicle_list(rows, can_view_money)
     return render_detail_page("Parkering", "Dagens parkeringer med trygg manuell oppdatering.", body, icon="parking")
 
 
@@ -1962,6 +2022,32 @@ def render_list(title: str, rows: list[tuple[str, str, str]]) -> str:
             for time_text, main, detail in rows
         )
     return f'<section class="section-block detail-list"><h2>{escape(title)}</h2><ul>{content}</ul></section>'
+
+
+def render_parking_vehicle_list(rows: list[dict[str, Any]], can_view_money: bool) -> str:
+    if not rows:
+        content = '<p class="empty-list">Ingen parkeringer registrert i dag.</p>'
+    else:
+        items = []
+        for row in rows:
+            plate = str(row.get("car_license_number") or "Uten regnr").strip()
+            status = str(row.get("status") or "").strip()
+            vehicle = parking_vehicle_summary(row)
+            duration = f"{float(row.get('parking_time_min') or 0):.0f} min"
+            amount_text = f"{fmt_amount(row.get('fee_inc_vat'))} kr · " if can_view_money else ""
+            status_html = f"<span>{escape(status)}</span>" if status else ""
+            items.append(
+                f"""
+                <li class="parking-vehicle-row">
+                    <time>{escape(fmt_time(row.get("start_time")))}</time>
+                    <strong>{escape(plate)}{status_html}</strong>
+                    <small>{escape(vehicle)}</small>
+                    <em>{escape(amount_text + duration)}</em>
+                </li>
+                """
+            )
+        content = "".join(items)
+    return f'<section class="section-block detail-list parking-vehicle-list"><h2>Dagens parkeringer</h2><ul>{content}</ul></section>'
 
 
 def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> str:
@@ -2258,7 +2344,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-spaced-2">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260628-mobile-parking-vehicles">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -2291,7 +2377,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-spaced-2">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260628-mobile-parking-vehicles">
 </head>
 <body>
   <header class="topbar">
@@ -2401,7 +2487,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260605-revenue-chart-spaced-2">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260628-mobile-parking-vehicles">
 </head>
 <body>
   <header class="topbar">
