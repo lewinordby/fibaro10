@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1298")
+APP_BUILD = os.getenv("APP_BUILD", "1299")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1299",
+        "date": "28.06.2026",
+        "headline": "Kjoretoyhelpers skilt ut",
+        "title": "Fibaro10 har flyttet nummerplate-, SVV- og utenlandsoppslag-hjelpere ut av main.py",
+        "description": (
+            "Build 1299 fortsetter backend-oppryddingen. Logikk for normalisering av registreringsnummer, "
+            "svenske/danske skilt, SVV-data og visning av kjoretoyinfo er flyttet til en egen helpermodul. "
+            "Ruter, databasekall og API-kontrakter er beholdt i main.py."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): redusert ved aa importere kjoretoyhelpers fra egen modul.",
+            "Fibaro10 backend (parking_vehicle_helpers.py): ny modul for skilt, SVV-felter, car-info og parkeringsrad-context.",
+            "Buildlogg (build_log.py): registrerer build 1299.",
+        ],
+        "request": "fortsett med det",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "main.py har mindre blanding av parkeringsruting og generell kjoretoylogikk.",
+            "Nordiske kjoretoyoppslag og SVV-visningsfelter ligger samlet ett sted.",
+            "Endringen er strukturell og skal ikke endre dataflyt eller brukergrensesnitt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1298",
