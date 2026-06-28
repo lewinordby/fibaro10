@@ -69,12 +69,13 @@
   white-space: nowrap;
 }
 
-.activity-period-card {
+.status-period-card.revenue-period-card.activity-period-card,
+.status-overview-page .status-period-card.revenue-period-card.activity-period-card {
   --activity-color: var(--tone-color, var(--domain-status));
-  min-height: 312px;
+  min-height: 272px;
 }
 
-.activity-period-card::before {
+.status-period-card.activity-period-card::before {
   background: var(--activity-color);
 }
 
