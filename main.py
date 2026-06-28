@@ -21149,7 +21149,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 period_detail = "-"
                 if summaries.get("first_at") and summaries.get("last_at"):
                     period_detail = f"{format_local_datetime(summaries['first_at'])} - {format_local_datetime(summaries['last_at'])}"
-                latest_detail = "Ingen import ennÃ¥"
+                latest_detail = "Ingen import ennå"
                 if latest_import:
                     latest_detail = f"Data til {format_source_datetime(latest_import.period_last) if latest_import.period_last else '-'}"
                 charts = []
@@ -21160,9 +21160,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_card("Siste import", format_local_datetime(latest_import.timestamp) if latest_import else "-", "", latest_detail, "status", href="/energi/elvia"),
                 ]
                 tables = [
-                    api_table("Ã…rssummer", ["period", "consumption_kwh", "days_count", "hours_count", "estimated_hours_count"], energy_elvia_data["yearly"]),
+                    api_table("Årssummer", ["period", "consumption_kwh", "days_count", "hours_count", "estimated_hours_count"], energy_elvia_data["yearly"]),
                     api_table("Topp dager", ["period_label", "consumption_kwh", "hours_count", "estimated_hours_count"], energy_elvia_data["topDays"]),
-                    api_table("Topp mÃ¥neder", ["period", "consumption_kwh", "days_count", "estimated_hours_count"], energy_elvia_data["topMonths"]),
+                    api_table("Topp måneder", ["period", "consumption_kwh", "days_count", "estimated_hours_count"], energy_elvia_data["topMonths"]),
                     api_table("Elvia timer", ["measured_at", "stat_date", "hour", "consumption_kwh", "status", "is_estimated", "source"], [api_pick(row, ENERGY_HOURLY_COLUMNS) for row in elvia_rows]),
                     api_table("Elvia importer", ["timestamp", "period_first", "period_last", "hours_count", "total_kwh", "ok", "message"], [api_pick(row, ENERGY_IMPORT_COLUMNS) for row in elvia_imports]),
                 ]
@@ -24627,7 +24627,7 @@ async def api_energy_elvia_upload(request: Request, background_tasks: Background
         upload = form.get("file")
         filename = Path(getattr(upload, "filename", "") or "").name
         if not upload or not filename or not hasattr(upload, "read"):
-            return JSONResponse({"detail": "Velg en JSON-fil fra Elvia fÃ¸r du importerer."}, status_code=400)
+            return JSONResponse({"detail": "Velg en JSON-fil fra Elvia før du importerer."}, status_code=400)
         content = await upload.read()
         if not content:
             return JSONResponse({"detail": "Filen er tom."}, status_code=400)

@@ -5,8 +5,30 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1307")
+APP_BUILD = os.getenv("APP_BUILD", "1308")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1308",
+        "date": "28.06.2026",
+        "headline": "Elvia-tekster rettet",
+        "title": "Energi/Elvia har faatt ryddet siste synlige mojibake-tekster i backend",
+        "description": (
+            "Build 1308 retter fire feilkodede norske tekster i backend for Elvia-visningen: "
+            "tom importstatus, aarsoppsummering, topp maaneder og valideringsmelding ved opplasting."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): rettet synlige Elvia-tekster med feil tegnsett.",
+            "Buildlogg (build_log.py): registrerer build 1308.",
+        ],
+        "request": "fortsett aa forbedre",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Energi/Elvia viser riktige norske tegn for aar, maaned, for og ennaa.",
+            "Ingen endring i beregninger, database eller API-struktur.",
+        ],
+    },
     {
         "version": "1",
         "build": "1307",
