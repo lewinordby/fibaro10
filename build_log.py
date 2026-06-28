@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1323")
+APP_BUILD = os.getenv("APP_BUILD", "1324")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1324",
+        "date": "28.06.2026",
+        "headline": "Dashboard visuelt ryddet",
+        "title": "Dashboardet har faatt mer luft, tydeligere seksjoner og roligere fargebruk",
+        "description": (
+            "Build 1324 gjoer et samlet designgrep paa dashboardflatene. "
+            "Toppfelt, seksjoner, periodekort, noekkeltall og snarveier har faatt mer luft, "
+            "mykere flater og konsekvente domenefarger uten endringer i datagrunnlag eller logikk."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): dashboardets vertikale avstand er oekt noe.",
+            "Desktop v2 CSS (status-overview.css): toppfelt, seksjonshoder og dashboardflater er modernisert.",
+            "Desktop v2 CSS (status-refinements.css): periodekort og statusflater har faatt tydeligere rytme og markeringer.",
+            "Desktop v2 CSS (status-widgets.css): noekkeltallskort har faatt mer luft og konsekvent tonefarge.",
+            "Buildlogg (build_log.py): registrerer build 1324.",
+        ],
+        "request": "gjoer et designgrep paa dashboard, trenger litt mer luft, kanksje litt mer farger eller markeringer. kort sagt gjoer det ryddig, pent, oversiktelig og moderne",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dashboard-headeren er gjort roligere med domenefarge, oppdatert-tidspunkt som pill og bedre typografisk hierarki.",
+            "Dashboard-seksjoner har faatt mer luft, egen flate og tydelig seksjonsmarkering.",
+            "Omsetningskortene har faatt bedre avstand, tydeligere toppmarkering og mer lesbar intern struktur.",
+            "Noekkeltallskort og snarveier bruker samme domenefarger og mykere hover-effekt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1323",

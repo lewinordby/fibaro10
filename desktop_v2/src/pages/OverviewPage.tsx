@@ -667,7 +667,11 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
   }
 
   return (
-    <Space direction="vertical" size={14} className={`page-stack status-page status-overview-page status-dashboard-page dashboard-${view}`}>
+    <Space
+      direction="vertical"
+      size={16}
+      className={`page-stack status-page status-overview-page status-dashboard-page dashboard-${view} tone-${DASHBOARD_CONFIG[view].tone}`}
+    >
       <DashboardHeader view={view} updatedAt={updatedAt} />
       {view === "omsetning" ? renderRevenueDashboard() : null}
       {view === "parkering" ? renderParkingDashboard() : null}

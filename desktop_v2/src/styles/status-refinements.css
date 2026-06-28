@@ -1,6 +1,6 @@
 .status-info-card,
 .status-period-card {
-  border-color: var(--line);
+  border-color: color-mix(in srgb, var(--tone-color, var(--domain-status)) 12%, var(--line));
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
 }
@@ -44,7 +44,7 @@
 .status-strip {
   min-height: 42px;
   padding: 8px 12px;
-  border-color: var(--line);
+  border-color: color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--line));
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
 }
@@ -70,36 +70,44 @@
 }
 
 .status-period-grid {
-  gap: 8px;
+  gap: 12px;
 }
 
 .status-period-card {
   position: relative;
   overflow: hidden;
-  min-height: 218px;
+  min-height: 226px;
   border-top: 0;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--domain-revenue) 3%, #ffffff) 0%, #ffffff 52%, #fbfcfe 100%);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .status-period-card::before {
   position: absolute;
   inset: 0 0 auto;
-  height: 2px;
+  height: 3px;
   background: linear-gradient(90deg, var(--domain-sun2), var(--domain-parking), var(--domain-revenue));
   content: "";
 }
 
+.status-period-card:hover {
+  border-color: color-mix(in srgb, var(--domain-revenue) 18%, var(--line));
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07);
+  transform: translateY(-1px);
+}
+
 .status-period-card .ant-card-body {
-  gap: 5px;
-  padding: 8px 9px;
+  gap: 8px;
+  padding: 11px 12px;
 }
 
 .status-period-head {
-  padding-bottom: 0;
+  padding-bottom: 2px;
 }
 
 .status-period-head div {
-  gap: 2px;
+  gap: 3px;
 }
 
 .status-period-head span {
@@ -122,13 +130,13 @@
 }
 
 .status-period-rows {
-  gap: 5px;
+  gap: 8px;
 }
 
 .status-period-rows div {
-  padding: 5px 7px;
-  background: #f8fafc;
-  border-color: #e8edf4;
+  padding: 7px 9px;
+  background: color-mix(in srgb, var(--tone-color, var(--domain-status)) 4%, #f8fafc);
+  border-color: color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, #e8edf4);
   border-radius: var(--radius-md);
 }
 
@@ -147,7 +155,7 @@
 
 .status-period-facts {
   gap: 2px;
-  padding-top: 5px;
+  padding-top: 7px;
   border-top-color: var(--line-soft);
 }
 
@@ -157,11 +165,11 @@
 }
 
 .status-period-comparisons {
-  gap: 5px;
+  gap: 6px;
 }
 
 .status-period-comparison-row {
-  padding: 5px 0 0;
+  padding: 7px 0 0;
   border-top-color: var(--line-soft);
 }
 

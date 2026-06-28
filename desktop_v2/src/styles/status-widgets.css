@@ -169,7 +169,7 @@
 .status-support-strip {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .status-support-link {
@@ -185,9 +185,9 @@
   overflow: hidden;
   height: 100%;
   min-width: 0;
-  padding: 7px 9px;
-  background: linear-gradient(180deg, #ffffff, #fbfcfe);
-  border: 1px solid var(--line);
+  padding: 9px 11px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-color, #cbd5e1) 5%, #ffffff), #fbfcfe);
+  border: 1px solid color-mix(in srgb, var(--tone-color, #cbd5e1) 12%, var(--line));
   border-top: 0;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
@@ -197,13 +197,13 @@
 .status-support-item::before {
   position: absolute;
   inset: 0 0 auto;
-  height: 2px;
+  height: 3px;
   background: var(--tone-color, #cbd5e1);
   content: "";
 }
 
 .status-support-link:hover .status-support-item {
-  border-color: #cbd5e1;
+  border-color: color-mix(in srgb, var(--tone-color, #cbd5e1) 28%, #cbd5e1);
   box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
@@ -226,11 +226,11 @@
 }
 
 .status-support-head em {
-  padding: 1px 5px;
-  color: var(--muted);
+  padding: 2px 6px;
+  color: color-mix(in srgb, var(--tone-color, #64748b) 72%, #475569);
   font-size: 9.5px;
   font-style: normal;
-  background: #f1f5f9;
+  background: color-mix(in srgb, var(--tone-color, #64748b) 10%, #f8fafc);
   border-radius: 999px;
 }
 
@@ -262,7 +262,7 @@
 }
 
 .status-info-card {
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--line));
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
 }
