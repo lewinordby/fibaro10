@@ -1,7 +1,8 @@
 services:
   fibaro10_v1:
     build:
-      context: ./v1_reference
+      context: .
+      dockerfile: v1_reference/Dockerfile
     image: fibaro10-v1-reference
     container_name: fibaro10_v1
     restart: unless-stopped

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 
 APP_BUILD = os.getenv("APP_BUILD", "v1-reference")
@@ -84,6 +85,7 @@ PAGE_BY_PATH = {page.path: page for page in PAGES}
 SECTIONS = tuple(dict.fromkeys(page.section for page in PAGES))
 
 app = FastAPI(title="Fibaro10 V1 referanse", docs_url=None, redoc_url=None)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 def esc(value: object) -> str:
@@ -361,17 +363,91 @@ def render_demo(page: V1Page) -> str:
     return render_admin_demo(page)
 
 
+NAV_CLASS = {
+    "Status": ("section-status", "nav-status", "dashboard"),
+    "Parkering": ("section-parking", "nav-parking", "parking"),
+    "Soling": ("section-sun2", "nav-sun2", "sun"),
+    "Lys": ("section-light", "nav-light", "light"),
+    "Ventilasjon": ("section-vent", "nav-vent", "vent"),
+    "Energi": ("section-energy", "nav-energy", "energy"),
+    "Renhold": ("section-cleaning", "nav-cleaning", "cleaning"),
+    "AI": ("section-ai", "nav-ai", "ai"),
+    "Konto": ("section-admin", "nav-account", "account"),
+}
+
+
+def icon_svg(name: str, css_class: str) -> str:
+    paths = {
+        "dashboard": '<path d="M4 13.5A8 8 0 0 1 20 13.5"></path><path d="M12 13l4-4"></path><path d="M4 18h16"></path>',
+        "parking": '<path d="M7 20V4h6.2a4.7 4.7 0 0 1 0 9.4H10.5"></path><path d="M10.5 13.4V20"></path>',
+        "sun": '<circle cx="12" cy="12" r="3.6"></circle><path d="M12 2.5v3"></path><path d="M12 18.5v3"></path><path d="M2.5 12h3"></path><path d="M18.5 12h3"></path>',
+        "light": '<path d="M9 18h6"></path><path d="M10 21h4"></path><path d="M8 12a4 4 0 1 1 8 0c0 1.4-.8 2.4-1.7 3.2-.6.5-.8 1-.8 1.8h-3c0-.8-.2-1.3-.8-1.8C8.8 14.4 8 13.4 8 12Z"></path>',
+        "vent": '<circle cx="12" cy="12" r="2.1"></circle><path d="M12 4.2c2 0 3.8 1.4 3.8 3.3 0 1.5-1.1 2.6-2.7 3.1"></path><path d="M19 15.8c-1 1.7-3.1 2.3-4.8 1.4-1.3-.8-1.8-2.2-1.4-3.8"></path>',
+        "energy": '<path d="M13 2.8 5.8 13H12l-1 8.2L18.2 10H12l1-7.2Z"></path>',
+        "cleaning": '<circle cx="12" cy="12" r="7.2"></circle><circle cx="9.4" cy="10.2" r="0.7"></circle><circle cx="14.6" cy="10.2" r="0.7"></circle><path d="M8.4 15h7.2"></path>',
+        "ai": '<path d="M10.8 4.2 12 7.6l3.4 1.2L12 10l-1.2 3.4L9.6 10 6.2 8.8l3.4-1.2 1.2-3.4Z"></path><path d="M17.5 12.5l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8.8-2.1Z"></path>',
+        "account": '<circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.8-4 3.3-6 7-6s6.2 2 7 6"></path>',
+        "list": '<path d="M8 6h12"></path><path d="M8 12h12"></path><path d="M8 18h12"></path><path d="M4 6h.01"></path><path d="M4 12h.01"></path><path d="M4 18h.01"></path>',
+        "chart": '<path d="M4 19h16"></path><path d="M7 16l3-4 3 2 4-7"></path><path d="M17 7h3v3"></path>',
+        "settings": '<circle cx="12" cy="12" r="3"></circle><path d="M12 2.8v2.4"></path><path d="M12 18.8v2.4"></path><path d="M2.8 12h2.4"></path><path d="M18.8 12h2.4"></path>',
+    }
+    return f'<svg class="{css_class}" aria-hidden="true" viewBox="0 0 24 24">{paths.get(name, paths["list"])}</svg>'
+
+
+def sub_icon_for(page: V1Page) -> str:
+    title = page.title.lower()
+    if "dagslinje" in title or "dagslogg" in title:
+        return "chart"
+    if "innstillinger" in title or "brukere" in title:
+        return "settings"
+    if "prognose" in title or "statistikk" in title or "omsetning" in title:
+        return "chart"
+    if "kjoretoy" in title or "omraade" in title:
+        return "parking"
+    if "senger" in title:
+        return "sun"
+    return "list"
+
+
 def render_main_nav(active_path: str) -> str:
-    buttons = []
     active_section = PAGE_BY_PATH.get(active_path, PAGES[0]).section
+    section_class = NAV_CLASS.get(active_section, NAV_CLASS["Status"])[0]
+    chunks = [f'<nav class="app-nav {section_class}" aria-label="Hovedmeny"><div class="nav-row nav-main">']
     for section in SECTIONS:
-        href = pages_for(section)[0].path
-        buttons.append(f'<a class="nav-button {"active" if section == active_section else ""}" href="{esc(href)}">{esc(section)}</a>')
-    subs = "".join(
-        f'<a class="sub-button {"active" if page.path == active_path else ""}" href="{esc(page.path)}">{esc(page.title)}</a>'
-        for page in pages_for(active_section)
+        pages = pages_for(section)
+        first_page = pages[0]
+        _, nav_class, icon = NAV_CLASS.get(section, NAV_CLASS["Status"])
+        is_active = section == active_section
+        chunks.append(
+            f'<a class="button {nav_class} has-sub {"active" if is_active else ""}" href="{esc(first_page.path)}" title="{esc(section)}">'
+            f'{icon_svg(icon, "nav-icon")}<span class="nav-label">{esc(section)}</span><span class="nav-chevron" aria-hidden="true"></span></a>'
+        )
+        chunks.append(f'<div class="nav-row nav-sub {"active-section" if is_active else ""}" aria-label="Undermeny for {esc(section)}">')
+        for page in pages:
+            chunks.append(
+                f'<a class="button {"active" if page.path == active_path else ""}" href="{esc(page.path)}">'
+                f'{icon_svg(sub_icon_for(page), "nav-sub-icon")}<span class="nav-sub-label">{esc(page.title)}</span></a>'
+            )
+        chunks.append("</div>")
+    chunks.append(
+        '</div><div class="nav-build-info" aria-label="Versjon og build">'
+        f'<span>V1 dummy</span><a href="/konto/build">Build {esc(APP_BUILD)}</a></div></nav>'
     )
-    return f'<nav class="main-nav">{"".join(buttons)}</nav><nav class="sub-nav">{subs}</nav>'
+    return "".join(chunks)
+
+
+def body_theme(section: str) -> str:
+    return {
+        "Status": "theme-status",
+        "Parkering": "theme-parking",
+        "Soling": "theme-sun2",
+        "Lys": "theme-light",
+        "Ventilasjon": "theme-vent",
+        "Energi": "theme-energy",
+        "Renhold": "theme-cleaning",
+        "AI": "theme-ai",
+        "Konto": "theme-admin",
+    }.get(section, "theme-status")
 
 
 def render_shell(page: V1Page, content: str) -> str:
@@ -452,12 +528,18 @@ def render_shell(page: V1Page, content: str) -> str:
     .field-grid div {{ border:1px solid var(--line-soft); border-radius:10px; padding:.55rem .65rem; background:#f8fafc; }}
     @media (max-width:760px) {{ .brand-bar,.split-two,.control-card,.page-title {{ grid-template-columns:1fr; display:grid; }} .hero {{ align-items:flex-start; flex-direction:column; }} }}
   </style>
+  <link rel="stylesheet" href="/static/app.css?v=v1-reference">
+  <link rel="stylesheet" href="/static/lilletorget-system.css?v=v1-reference">
+  <link rel="stylesheet" href="/static/owner-nav.css?v=v1-reference">
+  <link rel="icon" href="/static/favicon.ico?v=v1-reference" sizes="any">
 </head>
-<body>
+<body class="{body_theme(page.section)}">
   <header class="site-header">
     <div class="brand-bar">
-      <a class="brand" href="/status/dashboard"><span class="brand-mark">LT</span><span>Lilletorget<small>Fibaro10 V1 dummy</small></span></a>
-      <div class="navs">{render_main_nav(page.path)}</div>
+      <a class="brand-home brand-lilletorget" href="/status/dashboard" aria-label="Gå til status">
+        <img class="brand-logo brand-lilletorget-text-logo" src="/static/lilletorget-text.png?v=v1-reference" alt="Lilletorget">
+      </a>
+      {render_main_nav(page.path)}
     </div>
   </header>
   <main>
