@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1325")
+APP_BUILD = os.getenv("APP_BUILD", "1326")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1326",
+        "date": "28.06.2026",
+        "headline": "Dashboardbanner fjernet",
+        "title": "Dashboard starter direkte på innholdet",
+        "description": (
+            "Build 1326 fjerner det store toppfeltet med teksten Dashboard og aktivt område fra "
+            "dashboardflatene. Sidene starter nå direkte på innholdsseksjonen, slik at skjermplassen "
+            "brukes på tall og tabeller."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): fjerner DashboardHeader fra dashboardflatene.",
+            "Desktop v2 CSS (status-overview.css): fjerner ubrukt banner-CSS for dashboard-view-head.",
+            "Buildlogg (build_log.py): registrerer build 1326.",
+        ],
+        "request": "det store feltet \"DASHBOARD Omseting\" helt øverst er helt unødvendig. fjern det!",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Fjernet toppbanneret fra Dashboard > Omsetning og de andre dashboardflatene.",
+            "Beholdt eksisterende innholdsseksjoner, periodekort og topplinje-navigasjon uendret.",
+            "Ryddet bort tilhørende CSS slik at det ikke ligger ubrukt bannerkode igjen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1325",

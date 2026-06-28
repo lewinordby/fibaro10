@@ -555,20 +555,6 @@ function SupportMetricStrip({ cards }: { cards: MetricCardData[] }) {
   );
 }
 
-function DashboardHeader({ view, updatedAt }: { view: DashboardView; updatedAt: string }) {
-  const config = DASHBOARD_CONFIG[view];
-  return (
-    <section className={`dashboard-view-head tone-${config.tone}`}>
-      <div>
-        <span>Dashboard</span>
-        <strong>{config.title}</strong>
-      </div>
-      <p>{config.detail}</p>
-      <em>Sist oppdatert {updatedAt}</em>
-    </section>
-  );
-}
-
 function DashboardActionGrid({ view }: { view: DashboardView }) {
   return (
     <div className="dashboard-action-grid">
@@ -694,7 +680,6 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
       size={16}
       className={`page-stack status-page status-overview-page status-dashboard-page dashboard-${view} tone-${DASHBOARD_CONFIG[view].tone}`}
     >
-      <DashboardHeader view={view} updatedAt={updatedAt} />
       {view === "omsetning" ? renderRevenueDashboard() : null}
       {view === "parkering" ? renderParkingDashboard() : null}
       {view === "soling" ? renderSunDashboard() : null}

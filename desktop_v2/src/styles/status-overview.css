@@ -7,82 +7,6 @@
   --dashboard-tint: color-mix(in srgb, var(--tone-color) 7%, #ffffff);
 }
 
-.dashboard-view-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 18px;
-  align-items: center;
-  padding: 15px 18px;
-  border: 1px solid color-mix(in srgb, var(--tone-color) 18%, var(--line));
-  border-top: 3px solid var(--tone-color);
-  border-radius: var(--radius-md);
-  background:
-    linear-gradient(90deg, var(--dashboard-tint), #ffffff 48%, #ffffff),
-    #ffffff;
-  box-shadow: var(--shadow-sm);
-}
-
-.dashboard-view-head div {
-  display: grid;
-  gap: 3px;
-  grid-column: 1;
-  grid-row: 1;
-  min-width: 0;
-}
-
-.dashboard-view-head span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 820;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.dashboard-view-head span::before {
-  width: 7px;
-  height: 7px;
-  background: var(--tone-color);
-  border-radius: 999px;
-  content: "";
-}
-
-.dashboard-view-head strong {
-  color: var(--ink);
-  font-size: 22px;
-  font-weight: 820;
-  line-height: 1.05;
-}
-
-.dashboard-view-head p,
-.dashboard-view-head em {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  font-style: normal;
-  line-height: 1.25;
-}
-
-.dashboard-view-head p {
-  grid-column: 1;
-  grid-row: 2;
-  max-width: 760px;
-}
-
-.dashboard-view-head em {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  justify-self: end;
-  padding: 7px 10px;
-  color: color-mix(in srgb, var(--tone-color) 72%, #334155);
-  border: 1px solid color-mix(in srgb, var(--tone-color) 18%, var(--line));
-  border-radius: 999px;
-  background: var(--dashboard-tint);
-  white-space: nowrap;
-}
-
 .status-dashboard-page .status-support-strip {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
@@ -436,20 +360,6 @@
 }
 
 @media (max-width: 1200px) {
-  .dashboard-view-head {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-view-head p,
-  .dashboard-view-head em {
-    grid-column: 1;
-    grid-row: auto;
-  }
-
-  .dashboard-view-head em {
-    justify-self: start;
-  }
-
   .status-overview-page .status-command-card .status-strip-stack {
     grid-template-columns: 1fr;
   }
