@@ -170,11 +170,6 @@ function averageAmountText(amount: number, count: number) {
   return `${nok(amount / count)} kr`;
 }
 
-function sharePercentText(amount: number, total: number) {
-  if (!Number.isFinite(amount) || !Number.isFinite(total) || total <= 0) return "-";
-  return `${Math.round((amount / total) * 100)}%`;
-}
-
 function comparisonAmount(value: number | undefined, fallback: number) {
   return Number.isFinite(value) ? Number(value) : fallback;
 }
@@ -416,84 +411,42 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
     },
     ...(period.extraComparisons ?? []),
   ];
-  const solShare = sharePercentText(period.sol, period.total);
-  const parkingShare = sharePercentText(period.parking, period.total);
 
   return (
     <Card className="status-period-card">
       <div className="status-period-head">
         <div>
-          <span>{period.title}</span>
+          <span className="status-period-title">{period.title}</span>
           <em>Omsetning hittil i perioden</em>
         </div>
         <strong>{nok(period.total)} kr</strong>
       </div>
 
       <div className="status-period-block">
-        <div className="status-period-block-title">Datagrunnlag</div>
-        <table className="status-period-meta-table">
-          <tbody>
-            <tr>
-              <th scope="row">Soling oppdatert</th>
-              <td>{period.solAsOfLabel}</td>
-            </tr>
-            <tr>
-              <th scope="row">Parkering oppdatert</th>
-              <td>{period.parkingAsOfLabel}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div className="status-period-block">
         <div className="status-period-block-title">Utregning</div>
-      <table className="status-period-current-table">
-        <thead>
-          <tr>
-            <th scope="col">Linje</th>
-            <th scope="col">Beløp</th>
-            <th scope="col">Antall</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr className="tone-sun2">
-            <th scope="row">Soling</th>
-            <td>{nok(period.sol)} kr</td>
-            <td>{period.solCount} stk</td>
-          </tr>
-          <tr className="tone-parking">
-            <th scope="row">Parkering</th>
-            <td>{nok(period.parking)} kr</td>
-            <td>{period.parkingCount} stk</td>
-          </tr>
-          <tr className="status-period-total-row">
-            <th scope="row">Sum</th>
-            <td>{nok(period.total)} kr</td>
-            <td>-</td>
-          </tr>
-        </tbody>
-      </table>
-      </div>
-
-      <div className="status-period-block">
-        <div className="status-period-block-title">Nøkkeltall</div>
-        <table className="status-period-metric-table" aria-label={`Målepunkter for ${period.title}`}>
+        <table className="status-period-current-table">
+          <thead>
+            <tr>
+              <th scope="col">Linje</th>
+              <th scope="col">Beløp</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr>
-              <th scope="row">Snitt per soling</th>
-              <td>{averageAmountText(period.sol, period.solCount)}</td>
+            <tr className="tone-sun2">
+              <th scope="row">
+                Soling <span className="status-period-line-note">({period.solCount} stk, {averageAmountText(period.sol, period.solCount)} snitt)</span>
+              </th>
+              <td>{nok(period.sol)} kr</td>
             </tr>
-            <tr>
-              <th scope="row">Snitt per parkering</th>
-              <td>{averageAmountText(period.parking, period.parkingCount)}</td>
+            <tr className="tone-parking">
+              <th scope="row">
+                Parkering <span className="status-period-line-note">({period.parkingCount} stk, {averageAmountText(period.parking, period.parkingCount)} snitt)</span>
+              </th>
+              <td>{nok(period.parking)} kr</td>
             </tr>
-            <tr>
-              <th scope="row">Andel soling</th>
-              <td>{solShare}</td>
-            </tr>
-            <tr>
-              <th scope="row">Andel parkering</th>
-              <td>{parkingShare}</td>
+            <tr className="status-period-total-row">
+              <th scope="row">Sum</th>
+              <td>{nok(period.total)} kr</td>
             </tr>
           </tbody>
         </table>
@@ -512,6 +465,17 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
         ))}
       </div>
     </Card>
+  );
+}
+
+function RevenueDataBasis({ period }: { period?: StatusPeriod }) {
+  if (!period) return null;
+  return (
+    <div className="status-period-basis" aria-label="Felles datagrunnlag for omsetningskort">
+      <span>Datagrunnlag</span>
+      <strong>Soling {period.solAsOfLabel}</strong>
+      <strong>Parkering {period.parkingAsOfLabel}</strong>
+    </div>
   );
 }
 
@@ -695,8 +659,10 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
   }
 
   function renderRevenueDashboard() {
+    const revenueBasis = overview.statusPeriods.find((period) => period.key === "today") ?? overview.statusPeriods[0];
     return (
       <StatusSection title="Omsetning" detail="I dag, uke, måned og år med korrekt datatidspunkt">
+        <RevenueDataBasis period={revenueBasis} />
         <div className="status-period-grid">
           {overview.statusPeriods.map((period) => (
             <RevenuePeriodCard period={period} key={period.key} />

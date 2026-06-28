@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1327")
+APP_BUILD = os.getenv("APP_BUILD", "1328")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1328",
+        "date": "28.06.2026",
+        "headline": "Omsetningskort forenklet",
+        "title": "Dashboard > Omsetning samler datagrunnlag over kortene og flytter antall inn i ledetekstene",
+        "description": (
+            "Build 1328 forenkler periodekortene på omsetningsdashboardet etter visuell gjennomgang. "
+            "Oppdateringstidspunkt for soling og parkering vises nå i ett felles datagrunnlagfelt over de fire "
+            "kortene. Egen nøkkeltallblokk og antallkolonne er fjernet; antall og snitt står i stedet som "
+            "sekundær tekst i ledeteksten for soling og parkering."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): flytter datagrunnlag til ett felles felt og forenkler utregningstabellen.",
+            "Desktop v2 CSS (status-periods.css): rydder bort ubrukt nøkkeltall-/datagrunnlagstabell og legger til kompakt datagrunnlagstripe.",
+            "Buildlogg (build_log.py): registrerer build 1328.",
+        ],
+        "request": (
+            "Dette ble jo mye rot, nøkkeltall må vi finne en smartere måte å vise. å ha egne linjer for når det er "
+            "oppdatert synes jeg også blir overkill. la det stå i parantes bak \"I dag\" osv. I å med at antall kun er "
+            "en opplysning og ikke noe som ksal regnes noe med så kan vi ant skrive det i ledeteksten eks: Soling "
+            "(1177 stk, 189 kr snitt). trenger ikke å ha det i en egen kollonne liksom. eller at tidspunkt for "
+            "oppdatert parkering og soling står i et eget felt felles for alt over de 4 boksene"
+        ),
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Felles datagrunnlagfelt over de fire omsetningskortene viser soling og parkering sitt oppdateringstidspunkt.",
+            "Fjernet egen datagrunnlagstabell fra hvert kort.",
+            "Fjernet egen nøkkeltallblokk fra hvert kort.",
+            "Fjernet antallkolonnen og viser antall/snitt i ledeteksten for soling og parkering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1327",

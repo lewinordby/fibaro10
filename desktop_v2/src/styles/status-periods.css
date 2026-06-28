@@ -15,7 +15,7 @@
 .status-period-card .ant-card-body {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 8px;
   height: 100%;
   padding: 11px 12px;
 }
@@ -34,7 +34,7 @@
   min-width: 0;
 }
 
-.status-period-head span {
+.status-period-title {
   color: #374151;
   font-size: 12px;
   font-weight: 750;
@@ -58,6 +58,35 @@
   white-space: nowrap;
 }
 
+.status-period-basis {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e4eaf2;
+  border-left: 3px solid var(--domain-revenue);
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
+}
+
+.status-period-basis span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.status-period-basis strong {
+  color: #273244;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .status-period-block {
   display: grid;
   gap: 4px;
@@ -72,9 +101,7 @@
   text-transform: uppercase;
 }
 
-.status-period-meta-table,
 .status-period-current-table,
-.status-period-metric-table,
 .status-period-comparison-table {
   width: 100%;
   border-collapse: separate;
@@ -82,12 +109,8 @@
   table-layout: fixed;
 }
 
-.status-period-meta-table th,
-.status-period-meta-table td,
 .status-period-current-table th,
 .status-period-current-table td,
-.status-period-metric-table th,
-.status-period-metric-table td,
 .status-period-comparison-table th,
 .status-period-comparison-table td {
   padding: 5px 7px;
@@ -105,33 +128,33 @@
   text-transform: uppercase;
 }
 
-.status-period-meta-table th,
 .status-period-current-table th,
-.status-period-metric-table th,
 .status-period-comparison-table th {
   color: #273244;
   font-weight: 760;
   text-align: left;
 }
 
-.status-period-meta-table td,
 .status-period-current-table td,
-.status-period-metric-table td,
 .status-period-comparison-table td {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-.status-period-meta-table th,
-.status-period-metric-table th {
-  width: 58%;
-}
-
-.status-period-meta-table td,
-.status-period-metric-table td,
 .status-period-current-table td,
 .status-period-comparison-table td {
+  white-space: nowrap;
+}
+
+.status-period-current-table th {
+  width: 68%;
+}
+
+.status-period-line-note {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 620;
   white-space: nowrap;
 }
 
@@ -297,6 +320,12 @@
 }
 
 @media (max-width: 860px) {
+  .status-period-basis {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
   .status-period-reference-lines {
     grid-template-columns: 1fr;
   }
