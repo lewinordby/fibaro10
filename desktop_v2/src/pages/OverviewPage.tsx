@@ -647,10 +647,6 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
           {lines.map((line) => (
             <RevenueDriverRow comparisons={shownComparisons} driver={driver} key={line.key} line={line} />
           ))}
-          <div className="revenue-driver-total">
-            <span>Sum hittil</span>
-            <strong>{nok(period.total)} kr</strong>
-          </div>
         </div>
       </div>
 

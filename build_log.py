@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1339")
+APP_BUILD = os.getenv("APP_BUILD", "1340")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1340",
+        "date": "29.06.2026",
+        "headline": "Fjerner redundant sumlinje",
+        "title": "Omsetningskortene viser ikke lenger Sum hittil inne i driver-tabellen",
+        "description": (
+            "Build 1340 fjerner den overflodige Sum hittil-raden i driver-tabellen på omsetningskortene. "
+            "Totalen står allerede tydelig som hovedtall øverst i hvert periodekort, så driver-tabellen viser nå kun "
+            "fordelingen mellom soling og parkering."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): fjerner Sum hittil-raden fra RevenuePeriodCard.",
+            "Desktop v2 CSS (status-periods.css): fjerner ubrukt styling for revenue-driver-total og rydder siste driverlinje.",
+            "Buildlogg (build_log.py): registrerer build 1340.",
+        ],
+        "request": "Sum hittil-linja på omsetningskortene er overflødig fordi summen allerede står øverst.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Omsetningskortenes driver-tabell viser nå bare Soling og Parkering.",
+            "Den redundante Sum hittil-raden er fjernet fra markup og CSS.",
+            "Siste driverlinje avsluttes rent uten ekstra bunnstrek.",
+        ],
+    },
     {
         "version": "1",
         "build": "1339",

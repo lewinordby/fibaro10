@@ -249,8 +249,7 @@
 }
 
 .revenue-driver-head,
-.revenue-driver-row,
-.revenue-driver-total {
+.revenue-driver-row {
   display: grid;
   grid-template-columns: minmax(135px, 1.25fr) minmax(92px, 0.72fr) repeat(2, minmax(112px, 1fr));
   column-gap: 14px;
@@ -258,8 +257,7 @@
 }
 
 .revenue-driver-table.single .revenue-driver-head,
-.revenue-driver-table.single .revenue-driver-row,
-.revenue-driver-table.single .revenue-driver-total {
+.revenue-driver-table.single .revenue-driver-row {
   grid-template-columns: minmax(145px, 1.35fr) minmax(96px, 0.78fr) minmax(120px, 1fr);
 }
 
@@ -289,6 +287,10 @@
   position: relative;
   padding: 9px 10px;
   border-bottom: 1px solid var(--border-panel-soft);
+}
+
+.revenue-driver-row:last-child {
+  border-bottom: 0;
 }
 
 .revenue-driver-row::before {
@@ -480,29 +482,6 @@
   white-space: nowrap;
 }
 
-.revenue-driver-total {
-  padding: 8px 10px;
-  background: color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 3%, #fbfcff);
-}
-
-.revenue-driver-total span {
-  grid-column: 1;
-  color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 740;
-  line-height: 1.15;
-}
-
-.revenue-driver-total strong {
-  grid-column: 2;
-  color: var(--ink);
-  font-size: 12.8px;
-  font-weight: 780;
-  line-height: 1.1;
-  text-align: right;
-  white-space: nowrap;
-}
-
 .revenue-period-full-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -613,8 +592,7 @@
 
 @media (max-width: 1380px) {
   .revenue-driver-head,
-  .revenue-driver-row,
-  .revenue-driver-total {
+  .revenue-driver-row {
     grid-template-columns: minmax(122px, 1.15fr) minmax(84px, 0.7fr) repeat(2, minmax(96px, 1fr));
     column-gap: 10px;
   }
@@ -696,12 +674,4 @@
     text-align: left;
   }
 
-  .revenue-driver-total,
-  .revenue-driver-table.single .revenue-driver-total {
-    grid-template-columns: 1fr auto;
-  }
-
-  .revenue-driver-total strong {
-    grid-column: 2;
-  }
 }
