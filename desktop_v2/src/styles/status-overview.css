@@ -130,6 +130,10 @@
   box-shadow: 0 5px 18px rgba(15, 23, 42, 0.028);
 }
 
+.status-section--no-head {
+  gap: 0;
+}
+
 .status-section-head {
   display: flex;
   align-items: center;

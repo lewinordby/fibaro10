@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1341")
+APP_BUILD = os.getenv("APP_BUILD", "1342")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1342",
+        "date": "29.06.2026",
+        "headline": "Fjerner dashboardtoppfelt",
+        "title": "Omsetning-, parkering- og solingdashboard starter rett på periodekortene",
+        "description": (
+            "Build 1342 fjerner seksjonsfeltet som lå over de fire periodekortene på dashboardene. "
+            "Kortene inneholder allerede datatidspunkt og periodekontekst, så dashboardet får nå mindre repetisjon og mer plass til selve tallene."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): gjør StatusSection-headeren valgfri og skjuler den på omsetning-, parkering- og solingdashboardene.",
+            "Desktop v2 CSS (status-overview.css): legger til enkel no-header-variant for dashboardseksjoner.",
+            "Buildlogg (build_log.py): registrerer build 1342.",
+        ],
+        "request": "Feltet over alle omsetningskortene er overflødig fordi tidspunkt repeteres i hvert kort.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Omsetningsdashboardet starter nå rett på de fire periodekortene.",
+            "Parkering- og solingdashboardene følger samme mønster for konsistens.",
+            "Driftdashboardet beholder egne seksjonsoverskrifter der de fortsatt grupperer ulikt innhold.",
+        ],
+    },
     {
         "version": "1",
         "build": "1341",

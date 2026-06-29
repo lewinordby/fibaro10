@@ -841,13 +841,25 @@ function OverviewInfoPanel({ title, children }: { title: string; children: React
   );
 }
 
-function StatusSection({ title, detail, children }: { title: string; detail?: string; children: ReactNode }) {
+function StatusSection({
+  title,
+  detail,
+  children,
+  hideHeader = false,
+}: {
+  title: string;
+  detail?: string;
+  children: ReactNode;
+  hideHeader?: boolean;
+}) {
   return (
-    <section className="status-section">
-      <div className="status-section-head">
-        <span>{title}</span>
-        {detail ? <em>{detail}</em> : null}
-      </div>
+    <section className={`status-section${hideHeader ? " status-section--no-head" : ""}`} aria-label={hideHeader ? title : undefined}>
+      {hideHeader ? null : (
+        <div className="status-section-head">
+          <span>{title}</span>
+          {detail ? <em>{detail}</em> : null}
+        </div>
+      )}
       {children}
     </section>
   );
@@ -976,7 +988,7 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
 
   function renderRevenueDashboard() {
     return (
-      <StatusSection title="Omsetning" detail="I dag, uke, måned og år med korrekt datatidspunkt">
+      <StatusSection title="Omsetning" hideHeader>
         <div className="status-period-grid">
           {overview.statusPeriods.map((period) => (
             <RevenuePeriodCard period={period} key={period.key} />
@@ -992,7 +1004,7 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
 
     return (
       <>
-        <StatusSection title={config.title} detail={`Antall ${config.pluralTitle.toLowerCase()} i dag, uke, måned og år`}>
+        <StatusSection title={config.title} hideHeader>
           <div className="status-period-grid">
             {overview.statusPeriods.map((period) => (
               <ActivityPeriodCard period={period} config={config} key={`${config.kind}-${period.key}`} />
