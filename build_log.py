@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1346")
+APP_BUILD = os.getenv("APP_BUILD", "1347")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1347",
+        "date": "29.06.2026",
+        "headline": "Finjusterer korttetthet",
+        "title": "Dashboardkortene er senket ytterligere mot samme mellomromsrytme",
+        "description": (
+            "Build 1347 finjusterer minimumshøyden på periodekortene etter live-måling av avstanden før nederste "
+            "referansefelt. Omsetningskortene og antallskortene blir litt lavere, slik at nederste felt ligger "
+            "nærmere samme visuelle rytme som sammenligningsboksene øverst."
+        ),
+        "applications": [
+            "Desktop v2 CSS (status-periods.css): justerer min-height fra 312/264 til 300/254.",
+            "Buildlogg (build_log.py): registrerer build 1347.",
+        ],
+        "request": "Gjør kortene lavere og la nederste felt få tilsvarende mellomrom som de øverste boksene.",
+        "work_duration": "ca. 5 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Omsetningskortene er senket ytterligere.",
+            "Parkering- og solingkortene er senket ytterligere.",
+            "Avstanden før nederste referansefelt er redusert for å matche resten av kortets rytme bedre.",
+        ],
+    },
     {
         "version": "1",
         "build": "1346",

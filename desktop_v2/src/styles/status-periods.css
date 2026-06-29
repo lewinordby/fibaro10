@@ -7,7 +7,7 @@
 
 .status-period-card.revenue-period-card,
 .status-overview-page .status-period-card.revenue-period-card {
-  min-height: 312px;
+  min-height: 300px;
   border: 1px solid var(--dashboard-card-border, var(--border-panel));
   border-radius: 9px;
   background:
@@ -29,7 +29,7 @@
 
 .status-period-card.revenue-period-card.activity-period-card,
 .status-overview-page .status-period-card.revenue-period-card.activity-period-card {
-  min-height: 264px;
+  min-height: 254px;
 }
 
 .revenue-period-head {
