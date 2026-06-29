@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1350")
+APP_BUILD = os.getenv("APP_BUILD", "1351")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1351",
+        "date": "29.06.2026",
+        "headline": "Ukegraf som dagsgraf",
+        "title": "Ukegrafen i periodesammenligning bruker nå full uke som visningsakse",
+        "description": (
+            "Build 1351 gjør ukegrafen i omsetningens periodesammenligning likere dagsgrafen. "
+            "Sammendragstallene sammenlignes fortsatt på riktig datatidspunkt, men selve grafen "
+            "viser en full ukeakse og lar sammenligningsuken gå helt ut."
+        ),
+        "applications": [
+            "Backend (main.py): bruker fast full uke som grafvindu for period=week i /api/status/comparison.",
+            "Buildlogg (build_log.py): registrerer build 1351.",
+        ],
+        "request": "Ukegrafen er ikke lik dagsgrafen og bør endres.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ukegrafen får nå full uke som visningsakse.",
+            "Inneværende uke stopper fortsatt ved siste datatidspunkt, slik dagsgrafen gjør for dagen i dag.",
+            "Sammenligningsuken vises helt ut, slik gårsdagen vises helt ut i dagsgrafen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1350",

@@ -13815,18 +13815,25 @@ async def api_v2_status_comparison(
         )
 
         current_config = period_config["current"]
-        full_day_chart = period == "today"
+        fixed_chart_period = period in {"today", "week"}
 
         def chart_start(config: Dict[str, Any]) -> datetime:
-            if full_day_chart:
+            if period == "today":
                 return config["start"] + timedelta(hours=6)
             return config["start"]
 
+        def chart_window_end(config: Dict[str, Any]) -> datetime:
+            if period == "today":
+                return config["start"] + timedelta(days=1)
+            if period == "week":
+                return config["start"] + timedelta(days=7)
+            return max(config["sunEnd"], config["parkingEnd"])
+
         def chart_end(config: Dict[str, Any], source_key: str) -> datetime:
-            if not full_day_chart:
+            if not fixed_chart_period:
                 return config[source_key]
             window_start = chart_start(config)
-            window_end = config["start"] + timedelta(days=1)
+            window_end = chart_window_end(config)
             if config is not current_config:
                 return window_end
             return max(window_start, min(config[source_key], window_end))
