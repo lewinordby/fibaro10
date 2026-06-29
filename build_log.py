@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1337")
+APP_BUILD = os.getenv("APP_BUILD", "1338")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1338",
+        "date": "29.06.2026",
+        "headline": "Strammere dashboardkort",
+        "title": "Dashboardkortene får roligere typografi og mindre dominerende hovedtall",
+        "description": (
+            "Build 1338 justerer typografien i periodekortene på dashboardene. De største tallene, titlene, "
+            "sammenligningsfeltene og støtteverdiene er redusert noe i størrelse og fontvekt, slik at kortene "
+            "leses mer som et operativt styringspanel og mindre som store plakater."
+        ),
+        "applications": [
+            "Desktop v2 CSS (status-periods.css): reduserer fontstørrelser, fontvekter, padding og ikonstørrelser i periodekortene.",
+            "Buildlogg (build_log.py): registrerer build 1338.",
+        ],
+        "request": "Reduser litt størrelse på fonter på kortene, spesielt de største bokstavene og tallene, og vurder bold/strammere design.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Hovedtall i omsetning-, parkering- og solingkort er gjort mindre og lettere.",
+            "Korttitler og datagrunnlagstekst bruker lavere fontvekt.",
+            "Sammenligningsfelter, støttefelter og referansebokser er strammet inn.",
+            "Responsive fontstørrelser er justert slik at kortene holder samme rolige skala på smalere skjermer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1337",

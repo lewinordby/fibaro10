@@ -17,9 +17,9 @@
 .status-period-card.revenue-period-card .ant-card-body {
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 9px;
   height: 100%;
-  padding: 15px 17px 14px;
+  padding: 13px 15px 12px;
 }
 
 .revenue-period-card {
@@ -29,7 +29,7 @@
 .revenue-period-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 15px;
+  gap: 13px;
   align-items: start;
 }
 
@@ -42,9 +42,9 @@
 .revenue-period-title {
   overflow: hidden;
   color: var(--ink);
-  font-size: 17px;
-  font-weight: 860;
-  line-height: 1.12;
+  font-size: 15.5px;
+  font-weight: 780;
+  line-height: 1.16;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -52,9 +52,9 @@
 .revenue-period-head em {
   overflow: hidden;
   color: var(--text-subtle);
-  font-size: 11.5px;
+  font-size: 11px;
   font-style: normal;
-  font-weight: 620;
+  font-weight: 560;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -62,10 +62,10 @@
 
 .revenue-period-head > strong {
   color: var(--ink);
-  font-size: 30px;
-  font-weight: 880;
+  font-size: 26px;
+  font-weight: 800;
   letter-spacing: 0;
-  line-height: 0.95;
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -82,7 +82,7 @@
 .activity-period-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 15px;
+  gap: 13px;
   align-items: start;
 }
 
@@ -95,9 +95,9 @@
 .activity-period-head em {
   overflow: hidden;
   color: var(--text-subtle);
-  font-size: 11.5px;
+  font-size: 11px;
   font-style: normal;
-  font-weight: 620;
+  font-weight: 560;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -106,18 +106,18 @@
 .activity-period-head > strong {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 5px;
   color: var(--ink);
-  font-size: 32px;
-  font-weight: 880;
-  line-height: 0.95;
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .activity-period-head > strong span {
   color: var(--muted);
-  font-size: 13px;
-  font-weight: 780;
+  font-size: 11.5px;
+  font-weight: 680;
 }
 
 .revenue-period-compare-grid {
@@ -136,10 +136,10 @@
     "label icon"
     "delta icon";
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 9px;
+  gap: 5px 8px;
   align-items: center;
   min-width: 0;
-  padding: 9px 11px;
+  padding: 8px 10px;
   border: 1px solid var(--border-control);
   border-radius: 7px;
   background: var(--surface);
@@ -152,8 +152,8 @@
   grid-area: label;
   overflow: hidden;
   color: var(--ink-soft);
-  font-size: 11.5px;
-  font-weight: 680;
+  font-size: 11px;
+  font-weight: 620;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -171,11 +171,11 @@
   display: inline-grid;
   grid-area: icon;
   place-items: center;
-  width: 27px;
-  height: 27px;
-  border: 2px solid currentColor;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid currentColor;
   border-radius: 999px;
-  font-size: 13.5px;
+  font-size: 12px;
 }
 
 .revenue-period-direction.positive {
@@ -200,13 +200,13 @@
 }
 
 .revenue-period-delta strong {
-  font-size: 16px;
-  font-weight: 850;
+  font-size: 14.5px;
+  font-weight: 760;
 }
 
 .revenue-period-delta span {
-  font-size: 12px;
-  font-weight: 760;
+  font-size: 11.5px;
+  font-weight: 650;
 }
 
 .revenue-period-delta.positive {
@@ -223,14 +223,14 @@
 
 .revenue-drivers {
   display: grid;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
 }
 
 .revenue-drivers-title {
   color: var(--ink);
-  font-size: 13px;
-  font-weight: 820;
+  font-size: 12.5px;
+  font-weight: 740;
   line-height: 1;
 }
 
@@ -257,7 +257,7 @@
 }
 
 .revenue-driver-head {
-  padding: 8px 11px;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--border-panel-soft);
   background: #fbfcff;
 }
@@ -266,7 +266,7 @@
   overflow: hidden;
   color: var(--text-subtle);
   font-size: 10px;
-  font-weight: 840;
+  font-weight: 760;
   letter-spacing: 0.02em;
   line-height: 1.1;
   text-overflow: ellipsis;
@@ -280,7 +280,7 @@
 
 .revenue-driver-row {
   position: relative;
-  padding: 10px 11px;
+  padding: 9px 10px;
   border-bottom: 1px solid var(--border-panel-soft);
 }
 
@@ -303,7 +303,7 @@
 .revenue-driver-line {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 9px;
   align-items: center;
   min-width: 0;
 }
@@ -311,8 +311,8 @@
 .revenue-driver-icon {
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 13%, #ffffff);
   color: var(--driver-color, var(--domain-revenue));
@@ -328,8 +328,8 @@
 }
 
 .revenue-logo-sun {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   overflow: visible;
   fill: none;
   stroke: currentColor;
@@ -339,8 +339,8 @@
 }
 
 .revenue-logo-parking {
-  width: 19px;
-  height: 20px;
+  width: 17px;
+  height: 18px;
   overflow: visible;
   fill: none;
   stroke: currentColor;
@@ -353,8 +353,8 @@
   display: block;
   overflow: hidden;
   color: var(--ink-soft);
-  font-size: 12.5px;
-  font-weight: 820;
+  font-size: 12px;
+  font-weight: 740;
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -381,8 +381,8 @@
 
 .revenue-driver-current strong {
   color: var(--ink);
-  font-size: 13.5px;
-  font-weight: 840;
+  font-size: 12.8px;
+  font-weight: 760;
   line-height: 1.1;
   white-space: nowrap;
 }
@@ -392,8 +392,8 @@
 }
 
 .revenue-driver-delta-cell .revenue-period-delta strong {
-  font-size: 12.5px;
-  font-weight: 820;
+  font-size: 12px;
+  font-weight: 740;
 }
 
 .revenue-driver-delta-cell .revenue-period-delta span {
@@ -442,9 +442,9 @@
 
 .activity-period-detail-grid > div {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
-  padding: 9px 11px;
+  padding: 8px 10px;
   border-right: 1px solid var(--border-panel-soft);
 }
 
@@ -456,7 +456,7 @@
   overflow: hidden;
   color: var(--text-subtle);
   font-size: 10px;
-  font-weight: 840;
+  font-weight: 740;
   line-height: 1.1;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -466,31 +466,31 @@
 .activity-period-detail-grid strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 13.5px;
-  font-weight: 840;
+  font-size: 12.8px;
+  font-weight: 760;
   line-height: 1.12;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .revenue-driver-total {
-  padding: 9px 11px;
+  padding: 8px 10px;
   background: #fbfcff;
 }
 
 .revenue-driver-total span {
   grid-column: 1;
   color: var(--ink-soft);
-  font-size: 12.5px;
-  font-weight: 820;
+  font-size: 12px;
+  font-weight: 740;
   line-height: 1.15;
 }
 
 .revenue-driver-total strong {
   grid-column: 2;
   color: var(--ink);
-  font-size: 13.5px;
-  font-weight: 860;
+  font-size: 12.8px;
+  font-weight: 780;
   line-height: 1.1;
   text-align: right;
   white-space: nowrap;
@@ -499,10 +499,10 @@
 .revenue-period-full-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 9px;
   align-items: center;
   margin-top: auto;
-  padding: 9px 11px;
+  padding: 8px 10px;
   border: 1px solid var(--border-control);
   border-radius: 7px;
   background: var(--surface);
@@ -512,8 +512,8 @@
 .revenue-period-full-icon {
   display: inline-grid;
   place-items: center;
-  width: 29px;
-  height: 29px;
+  width: 27px;
+  height: 27px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--blue) 12%, #ffffff);
   color: var(--blue);
@@ -523,16 +523,16 @@
 .revenue-period-full-card strong {
   display: block;
   color: var(--ink-soft);
-  font-size: 11.5px;
-  font-weight: 820;
+  font-size: 11px;
+  font-weight: 740;
   line-height: 1.15;
 }
 
 .revenue-period-full-items {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 13px;
-  margin-top: 4px;
+  gap: 5px 12px;
+  margin-top: 3px;
 }
 
 .revenue-period-full-item {
@@ -550,7 +550,7 @@
   color: var(--text-label);
   font-size: 10.5px;
   font-style: normal;
-  font-weight: 660;
+  font-weight: 600;
   line-height: 1.15;
   white-space: nowrap;
 }
@@ -613,15 +613,15 @@
   }
 
   .revenue-period-title {
-    font-size: 15.5px;
+    font-size: 14.5px;
   }
 
   .revenue-period-head > strong {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .activity-period-head > strong {
-    font-size: 29px;
+    font-size: 25px;
   }
 }
 
@@ -645,11 +645,11 @@
   }
 
   .revenue-period-head > strong {
-    font-size: 28px;
+    font-size: 25px;
   }
 
   .activity-period-head > strong {
-    font-size: 28px;
+    font-size: 25px;
   }
 
   .activity-period-detail-grid {
