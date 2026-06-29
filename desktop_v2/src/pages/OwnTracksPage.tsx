@@ -23,6 +23,7 @@ import { ModuleTablePane, tabLabel } from "./module/ModuleTablePane";
 const DEFAULT_CENTER: [number, number] = [61.1153, 10.4662];
 const TRACK_COLORS = ["#2563eb", "#f59e0b", "#16a34a", "#dc2626", "#7c3aed", "#0891b2", "#be123c"];
 const MAP_LIMIT = 5000;
+const ALL_POSITIONS_LIMIT = 0;
 
 function displayName(value: { username?: string | null; device?: string | null; trackerId?: string | null; topic: string }) {
   return [value.username, value.device || value.trackerId].filter(Boolean).join(" / ") || value.topic;
@@ -249,9 +250,11 @@ function OwnTracksTables({ data }: { data: ModuleResponse }) {
 
 export default function OwnTracksPage() {
   const [hours, setHours] = useState(24);
-  const mapQuery = useApiQuery(queryKeys.ownTracksMap(hours, MAP_LIMIT), () => fetchOwnTracksMap(hours, MAP_LIMIT));
+  const mapLimit = hours === 0 ? ALL_POSITIONS_LIMIT : MAP_LIMIT;
+  const mapQuery = useApiQuery(queryKeys.ownTracksMap(hours, mapLimit), () => fetchOwnTracksMap(hours, mapLimit));
   const moduleQuery = useApiQuery(queryKeys.module("admin", "owntracks"), () => fetchModule("admin", "owntracks"));
   const generatedLabel = useMemo(() => shortDateTime(mapQuery.data?.generatedAt), [mapQuery.data?.generatedAt]);
+  const positionLabel = hours === 0 ? "alle lagrede posisjoner" : "posisjoner";
 
   if (mapQuery.loading || moduleQuery.loading) return <LoadingBlock />;
   if (mapQuery.error || !mapQuery.data) return <ErrorBlock error={mapQuery.error} />;
@@ -289,7 +292,7 @@ export default function OwnTracksPage() {
       >
         <div className="owntracks-map-meta">
           <Typography.Text type="secondary">
-            {mapQuery.data.locations.length} meldinger · {mapQuery.data.devices.length} enheter · {mapQuery.data.waypoints.length} waypoints
+            {mapQuery.data.locations.length} {positionLabel} · {mapQuery.data.devices.length} enheter · {mapQuery.data.waypoints.length} waypoints
           </Typography.Text>
           <Typography.Text type="secondary">Sist oppdatert {generatedLabel}</Typography.Text>
         </div>

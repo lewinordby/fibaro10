@@ -23098,7 +23098,7 @@ async def api_owntracks_waypoints(limit: int = Query(100, ge=1, le=500), events:
 
 
 @app.get("/api/owntracks/map")
-async def api_owntracks_map(hours: int = Query(24, ge=0, le=24 * 365), limit: int = Query(2000, ge=1, le=10000)):
+async def api_owntracks_map(hours: int = Query(24, ge=0, le=24 * 365), limit: int = Query(2000, ge=0, le=10000)):
     now_dt = local_now_naive()
     since = now_dt - timedelta(hours=hours) if hours > 0 else None
     async with async_session() as session:
@@ -23107,8 +23107,9 @@ async def api_owntracks_map(hours: int = Query(24, ge=0, le=24 * 365), limit: in
             .where(OwnTracksLocation.lat.isnot(None))
             .where(OwnTracksLocation.lon.isnot(None))
             .order_by(OwnTracksLocation.timestamp.desc().nullslast(), OwnTracksLocation.received_at.desc())
-            .limit(limit)
         )
+        if limit > 0:
+            location_stmt = location_stmt.limit(limit)
         if since is not None:
             location_stmt = location_stmt.where(
                 or_(

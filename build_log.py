@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1352")
+APP_BUILD = os.getenv("APP_BUILD", "1353")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1353",
+        "date": "29.06.2026",
+        "headline": "Alle OwnTracks-posisjoner",
+        "title": "OwnTracks-kartet kan vise alle lagrede posisjonsmeldinger",
+        "description": (
+            "Build 1353 gjør Alle-valget i OwnTracks-kartet reelt ubegrenset. "
+            "Når Alle er valgt hentes alle lagrede OwnTracks-meldinger som har koordinater, "
+            "ikke bare et fast antall siste meldinger."
+        ),
+        "applications": [
+            "Backend (main.py): lar /api/owntracks/map bruke limit=0 som ubegrenset posisjonsuttrekk.",
+            "Desktop v2 (OwnTracksPage.tsx): lar Alle-valget hente alle lagrede posisjoner og viser dette tydelig i metateksten.",
+            "Buildlogg (build_log.py): registrerer build 1353.",
+        ],
+        "request": "Gi mulighet til å vise alle OwnTracks-meldinger, altså alle rapporterte posisjoner.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Alle-valget på OwnTracks-kartet henter nå uten radbegrensning.",
+            "Tidsfiltrene 1t, 6t, 24t og 7d beholder en praktisk grense for rask visning.",
+            "Kartet teller og beskriver punktene som posisjoner, siden bare meldinger med koordinater kan vises på kart.",
+        ],
+    },
     {
         "version": "1",
         "build": "1352",
