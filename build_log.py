@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1347")
+APP_BUILD = os.getenv("APP_BUILD", "1348")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1348",
+        "date": "29.06.2026",
+        "headline": "Tonet referansefelt",
+        "title": "Nederste felt på dashboardkortene skiller seg tydeligere ut",
+        "description": (
+            "Build 1348 gir nederste referansefelt på dashboardets periodekort en svak domene-tonet bakgrunn "
+            "og en smal venstremarkering. Feltet bruker samme tone som siden, slik at omsetning, parkering og "
+            "soling fortsatt er konsekvente uten at referansefeltet blir visuelt tungt."
+        ),
+        "applications": [
+            "Desktop v2 CSS (status-periods.css): legger svak tonet bakgrunn, tydeligere border og venstremarkering på referansefeltet.",
+            "Buildlogg (build_log.py): registrerer build 1348.",
+        ],
+        "request": "Gjør nederste felt på kortene mer adskilt med bakgrunnsfarge.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Referansefeltet nederst får en svak farget bakgrunn basert på kortets domene.",
+            "En diskret farget venstremarkering gir tydeligere separasjon.",
+            "Kortets størrelse og innhold er ellers uendret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1347",
