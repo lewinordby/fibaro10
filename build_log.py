@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1344")
+APP_BUILD = os.getenv("APP_BUILD", "1345")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1345",
+        "date": "29.06.2026",
+        "headline": "Strammere referansefelt",
+        "title": "Referansefeltet nederst på dashboardkortene viser bare tallene",
+        "description": (
+            "Build 1345 fjerner overskriftene Hele referansedagen, Hele referanseuken, Hele referansemåneden "
+            "og Hele referanseåret fra nederste referansefelt på dashboardkortene. Selve referansetallene og "
+            "lenkene er uendret, men kortene blir lavere og mer konsekvente."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): fjerner referanseoverskriften fra omsetning-, parkering- og solingkort.",
+            "Desktop v2 CSS (status-periods.css): fjerner ubrukt tittelstyling og toppmargin i referansefeltet.",
+            "Buildlogg (build_log.py): registrerer build 1345.",
+        ],
+        "request": "Overskriften på den nederste boksen, for eksempel Hele referanseuken, kan fjernes på alle kortene.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Nederste referansefelt viser nå direkte referanselinjene uten egen overskrift.",
+            "Endringen gjelder alle periodkort på omsetning, parkering og soling.",
+            "Ubrukt CSS for den fjernede overskriften er ryddet bort.",
+        ],
+    },
     {
         "version": "1",
         "build": "1344",

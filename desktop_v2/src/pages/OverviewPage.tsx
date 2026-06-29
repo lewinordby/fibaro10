@@ -432,14 +432,6 @@ function periodCurrentColumnLabel(period: StatusPeriod) {
   return "Hittil";
 }
 
-function periodReferenceTitle(period: StatusPeriod) {
-  if (period.key === "today") return "Hele referansedagen";
-  if (period.key === "week") return "Hele referanseuken";
-  if (period.key === "month") return "Hele referansemåneden";
-  if (period.key === "year") return "Hele referanseåret";
-  return "Hele referansen";
-}
-
 function periodDataBasisText(period: StatusPeriod) {
   if (period.solAsOfLabel === period.parkingAsOfLabel) {
     return `Per ${period.solAsOfLabel}`;
@@ -619,7 +611,6 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
           <AimOutlined />
         </span>
         <div>
-          <strong>{periodReferenceTitle(period)}</strong>
           <div className="revenue-period-full-items">
             {comparisons.map((item) => (
               <Link className="revenue-period-full-item" key={item.comparisonKey} to={item.path}>
@@ -771,7 +762,6 @@ function ActivityPeriodCard({ period, config }: { period: StatusPeriod; config: 
           <AimOutlined />
         </span>
         <div>
-          <strong>{periodReferenceTitle(period)}</strong>
           <div className="revenue-period-full-items">
             {comparisons.map((item) => {
               const currentCount = count;
