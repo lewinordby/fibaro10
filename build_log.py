@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1353")
+APP_BUILD = os.getenv("APP_BUILD", "1354")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1354",
+        "date": "29.06.2026",
+        "headline": "Stabile OwnTracks-punkter",
+        "title": "OwnTracks-posisjoner blir liggende over kartflisene",
+        "description": (
+            "Build 1354 retter visningen av OwnTracks-kartet der posisjonspunktene kunne vises kort "
+            "og deretter forsvinne når kartflisene var ferdig lastet. Leaflet-panene får nå eksplisitt "
+            "lagrekkefølge slik at spor, punkter, markører og popup ligger over kartbakgrunnen."
+        ),
+        "applications": [
+            "Desktop v2 CSS (owntracks.css): legger eksplisitt z-index for Leaflet tile-, overlay-, marker-, tooltip- og popup-pane.",
+            "Buildlogg (build_log.py): registrerer build 1354.",
+        ],
+        "request": "Posisjonene vises et kort øyeblikk ved refresh og blir deretter borte.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kartflisene ligger nå under posisjonspunktene.",
+            "Spor og punkter skal ikke lenger forsvinne etter at kartet har lastet ferdig.",
+            "Markører og popup har også eksplisitt lagrekkefølge.",
+        ],
+    },
     {
         "version": "1",
         "build": "1353",

@@ -72,6 +72,34 @@
   visibility: hidden;
 }
 
+.owntracks-map .leaflet-map-pane {
+  z-index: 400;
+}
+
+.owntracks-map .leaflet-tile-pane {
+  z-index: 200;
+}
+
+.owntracks-map .leaflet-overlay-pane {
+  z-index: 400;
+}
+
+.owntracks-map .leaflet-shadow-pane {
+  z-index: 500;
+}
+
+.owntracks-map .leaflet-marker-pane {
+  z-index: 600;
+}
+
+.owntracks-map .leaflet-tooltip-pane {
+  z-index: 650;
+}
+
+.owntracks-map .leaflet-popup-pane {
+  z-index: 700;
+}
+
 .owntracks-map .leaflet-interactive {
   cursor: pointer;
 }
