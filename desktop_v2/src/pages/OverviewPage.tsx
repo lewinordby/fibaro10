@@ -288,12 +288,6 @@ type RevenuePeriodLine = {
   currentCount?: number;
 };
 
-type PeriodDriver = {
-  key: RevenueLineKey;
-  tone: "positive" | "negative" | "neutral";
-  label: string;
-};
-
 type ActivityDashboardKind = "parking" | "sun2";
 
 type ActivityDashboardConfig = {
@@ -303,7 +297,6 @@ type ActivityDashboardConfig = {
   periodPrefix: string;
   lineLabel: string;
   tone: string;
-  amountLabel: string;
   comparisonPath: string;
   asOf: (period: StatusPeriod) => string;
   count: (period: StatusPeriod | StatusPeriodComparison) => number;
@@ -320,7 +313,6 @@ const ACTIVITY_DASHBOARDS: Record<ActivityDashboardKind, ActivityDashboardConfig
     periodPrefix: "Parkeringer",
     lineLabel: "Parkering",
     tone: "parking",
-    amountLabel: "Innbetalt",
     comparisonPath: "/parkering/sammenligning",
     asOf: (period) => period.parkingAsOfLabel,
     count: (period) => period.parkingCount,
@@ -335,7 +327,6 @@ const ACTIVITY_DASHBOARDS: Record<ActivityDashboardKind, ActivityDashboardConfig
     periodPrefix: "Solinger",
     lineLabel: "Soling",
     tone: "sun2",
-    amountLabel: "Omsetning",
     comparisonPath: "/soling/sammenligning",
     asOf: (period) => period.solAsOfLabel,
     count: (period) => period.solCount,
@@ -481,27 +472,6 @@ function comparisonLineAmount(lineKey: RevenueLineKey, comparison: StatusPeriodC
   return comparison.total;
 }
 
-function strongestDriver(period: StatusPeriod, comparison?: PeriodComparisonView): PeriodDriver | null {
-  if (!comparison) return null;
-  const solDelta = period.sol - comparison.comparison.sol;
-  const parkingDelta = period.parking - comparison.comparison.parking;
-  const totalDelta = period.total - comparison.comparison.total;
-  const candidates: Array<{ key: RevenueLineKey; delta: number }> = [
-    { key: "soling", delta: solDelta },
-    { key: "parkering", delta: parkingDelta },
-  ];
-  const directional =
-    totalDelta > 0 ? candidates.filter((item) => item.delta > 0) : candidates.filter((item) => item.delta < 0);
-  const pool = directional.length ? directional : candidates;
-  const primary = pool.reduce((best, item) => (Math.abs(item.delta) > Math.abs(best.delta) ? item : best), pool[0]);
-  const tone = primary.delta > 0 ? "positive" : primary.delta < 0 ? "negative" : "neutral";
-  return {
-    key: primary.key,
-    tone,
-    label: tone === "positive" ? "Største positive driver" : tone === "negative" ? "Største negative driver" : "Største driver",
-  };
-}
-
 function DirectionIcon({ currentAmount, referenceAmount }: { currentAmount: number; referenceAmount: number }) {
   const state = deltaClass(currentAmount, referenceAmount);
   const Icon = state === "positive" ? ArrowUpOutlined : state === "negative" ? ArrowDownOutlined : MinusOutlined;
@@ -576,11 +546,9 @@ function RevenueLineIcon({ line }: { line: RevenuePeriodLine }) {
 function RevenueDriverRow({
   line,
   comparisons,
-  driver,
 }: {
   line: RevenuePeriodLine;
   comparisons: PeriodComparisonView[];
-  driver: PeriodDriver | null;
 }) {
   return (
     <div className={`revenue-driver-row tone-${line.tone}`}>
@@ -598,13 +566,11 @@ function RevenueDriverRow({
       <div className="revenue-driver-current">
         <strong>{nok(line.currentAmount)} kr</strong>
       </div>
-      {comparisons.map((item, index) => {
+      {comparisons.map((item) => {
         const referenceAmount = comparisonLineAmount(line.key, item.comparison);
-        const showDriver = index === 0 && driver?.key === line.key;
         return (
           <div className="revenue-driver-delta-cell" key={item.comparisonKey}>
             <DeltaValue currentAmount={line.currentAmount} referenceAmount={referenceAmount} />
-            {showDriver ? <span className={`revenue-driver-badge ${driver.tone}`}>{driver.label}</span> : null}
           </div>
         );
       })}
@@ -615,7 +581,6 @@ function RevenueDriverRow({
 function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
   const comparisons = buildComparisonViews(period);
   const shownComparisons = comparisons.slice(0, 2);
-  const driver = strongestDriver(period, shownComparisons[0]);
   const lines = revenuePeriodLines(period);
 
   return (
@@ -644,7 +609,7 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
             ))}
           </div>
           {lines.map((line) => (
-            <RevenueDriverRow comparisons={shownComparisons} driver={driver} key={line.key} line={line} />
+            <RevenueDriverRow comparisons={shownComparisons} key={line.key} line={line} />
           ))}
         </div>
       </div>
@@ -718,6 +683,42 @@ function CountDeltaValue({
   );
 }
 
+function ActivityDriverRow({
+  config,
+  comparisons,
+  count,
+  amount,
+}: {
+  config: ActivityDashboardConfig;
+  comparisons: PeriodComparisonView[];
+  count: number;
+  amount: number;
+}) {
+  return (
+    <div className={`revenue-driver-row tone-${config.tone}`}>
+      <div className="revenue-driver-line">
+        <span className={`revenue-driver-icon tone-${config.tone}`}>
+          {config.kind === "sun2" ? <LogoSunIcon /> : <LogoParkingIcon />}
+        </span>
+        <div>
+          <strong>{config.lineLabel}</strong>
+          <em>
+            {nok(amount)} kr · {averageKrPerCount(amount, count)} snitt
+          </em>
+        </div>
+      </div>
+      <div className="revenue-driver-current">
+        <strong>{Math.round(count)} stk</strong>
+      </div>
+      {comparisons.map((item) => (
+        <div className="revenue-driver-delta-cell" key={item.comparisonKey}>
+          <CountDeltaValue current={count} reference={config.count(item.comparison)} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ActivityPeriodCard({ period, config }: { period: StatusPeriod; config: ActivityDashboardConfig }) {
   const comparisons = buildComparisonViews(period).slice(0, 2).map((item) => ({
     ...item,
@@ -728,7 +729,7 @@ function ActivityPeriodCard({ period, config }: { period: StatusPeriod; config: 
 
   return (
     <Card className={`status-period-card revenue-period-card activity-period-card tone-${config.tone}`}>
-      <div className="activity-period-head">
+      <div className="revenue-period-head">
         <div>
           <span className="revenue-period-title">{activityPeriodDisplayTitle(period, config)}</span>
           <em>Per {config.asOf(period)}</em>
@@ -743,7 +744,7 @@ function ActivityPeriodCard({ period, config }: { period: StatusPeriod; config: 
         {comparisons.map((item) => {
           const referenceCount = config.count(item.comparison);
           return (
-            <Link className="revenue-period-compare-pill activity-compare-pill" to={item.path} key={item.comparisonKey}>
+            <Link className="revenue-period-compare-pill" to={item.path} key={item.comparisonKey}>
               <span>{periodTopComparisonLabel(period, item)}</span>
               <CountDeltaValue current={count} reference={referenceCount} />
               <DirectionIcon currentAmount={count} referenceAmount={referenceCount} />
@@ -752,24 +753,22 @@ function ActivityPeriodCard({ period, config }: { period: StatusPeriod; config: 
         })}
       </div>
 
-      <div className="activity-period-detail-grid">
-        <div>
-          <span>{config.lineLabel}</span>
-          <strong>{Math.round(count)} stk</strong>
-        </div>
-        <div>
-          <span>{config.amountLabel}</span>
-          <strong>{nok(amount)} kr</strong>
-        </div>
-        <div>
-          <span>Snitt</span>
-          <strong>{averageKrPerCount(amount, count)}</strong>
+      <div className="revenue-drivers" aria-label={`${config.title} fordeling`}>
+        <div className={`revenue-driver-table ${comparisons.length < 2 ? "single" : ""}`}>
+          <div className="revenue-driver-head">
+            <span>Linje</span>
+            <span>{periodCurrentColumnLabel(period)}</span>
+            {comparisons.map((item) => (
+              <span key={item.comparisonKey}>{periodColumnComparisonLabel(period, item)}</span>
+            ))}
+          </div>
+          <ActivityDriverRow amount={amount} comparisons={comparisons} config={config} count={count} />
         </div>
       </div>
 
-      <div className="revenue-period-full-card activity-period-reference">
-        <span className={`revenue-driver-icon tone-${config.tone}`}>
-          {config.kind === "sun2" ? <LogoSunIcon /> : <LogoParkingIcon />}
+      <div className="revenue-period-full-card">
+        <span className="revenue-period-full-icon">
+          <AimOutlined />
         </span>
         <div>
           <strong>{periodReferenceTitle(period)}</strong>

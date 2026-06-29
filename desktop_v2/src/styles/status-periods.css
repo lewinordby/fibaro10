@@ -62,6 +62,9 @@
 }
 
 .revenue-period-head > strong {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
   color: var(--ink);
   font-size: 26px;
   font-weight: 800;
@@ -70,52 +73,7 @@
   white-space: nowrap;
 }
 
-.status-period-card.revenue-period-card.activity-period-card,
-.status-overview-page .status-period-card.revenue-period-card.activity-period-card {
-  --activity-color: var(--tone-color, var(--domain-status));
-  min-height: 272px;
-}
-
-.status-period-card.activity-period-card::before {
-  background: color-mix(in srgb, var(--activity-color) 88%, #ffffff);
-}
-
-.activity-period-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 13px;
-  align-items: start;
-}
-
-.activity-period-head > div {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.activity-period-head em {
-  overflow: hidden;
-  color: var(--text-subtle);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 560;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.activity-period-head > strong {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  color: var(--ink);
-  font-size: 27px;
-  font-weight: 800;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.activity-period-head > strong span {
+.revenue-period-head > strong span {
   color: var(--muted);
   font-size: 11.5px;
   font-weight: 680;
@@ -168,10 +126,6 @@
 
 .revenue-period-compare-pill .revenue-period-delta {
   grid-area: delta;
-}
-
-.activity-compare-pill {
-  border-color: color-mix(in srgb, var(--activity-color) 9%, var(--border-control));
 }
 
 .revenue-period-direction {
@@ -404,77 +358,6 @@
   text-align: right;
 }
 
-.revenue-driver-badge {
-  display: inline-block;
-  max-width: 100%;
-  margin-top: 4px;
-  padding: 3px 6px;
-  overflow: hidden;
-  border-radius: 5px;
-  font-size: 9.5px;
-  font-weight: 760;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.revenue-driver-badge.positive {
-  background: #dcfce7;
-  color: var(--green);
-}
-
-.revenue-driver-badge.negative {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.revenue-driver-badge.neutral {
-  background: var(--line);
-  color: var(--text-label);
-}
-
-.activity-period-detail-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--activity-color) 8%, var(--border-control));
-  border-radius: 7px;
-  background: linear-gradient(180deg, #ffffff, #fbfcfe);
-}
-
-.activity-period-detail-grid > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  padding: 8px 10px;
-  border-right: 1px solid var(--border-panel-soft);
-}
-
-.activity-period-detail-grid > div:last-child {
-  border-right: 0;
-}
-
-.activity-period-detail-grid span {
-  overflow: hidden;
-  color: var(--text-subtle);
-  font-size: 10px;
-  font-weight: 740;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.activity-period-detail-grid strong {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 12.8px;
-  font-weight: 760;
-  line-height: 1.12;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .revenue-period-full-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -551,10 +434,6 @@
   color: var(--text-label);
 }
 
-.activity-period-reference {
-  border-color: color-mix(in srgb, var(--activity-color) 8%, var(--border-control));
-}
-
 @media (max-width: 1380px) {
   .revenue-driver-head,
   .revenue-driver-row {
@@ -569,10 +448,6 @@
   .revenue-period-head > strong {
     font-size: 24px;
   }
-
-  .activity-period-head > strong {
-    font-size: 25px;
-  }
 }
 
 @media (max-width: 1180px) {
@@ -583,30 +458,12 @@
 
 @media (max-width: 860px) {
   .revenue-period-head,
-  .activity-period-head,
   .revenue-period-compare-grid {
     grid-template-columns: 1fr;
   }
 
   .revenue-period-head > strong {
     font-size: 25px;
-  }
-
-  .activity-period-head > strong {
-    font-size: 25px;
-  }
-
-  .activity-period-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .activity-period-detail-grid > div {
-    border-right: 0;
-    border-bottom: 1px solid var(--border-panel-soft);
-  }
-
-  .activity-period-detail-grid > div:last-child {
-    border-bottom: 0;
   }
 
   .revenue-driver-head {
@@ -632,5 +489,4 @@
     width: auto;
     text-align: left;
   }
-
 }

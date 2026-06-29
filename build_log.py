@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1343")
+APP_BUILD = os.getenv("APP_BUILD", "1344")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1344",
+        "date": "29.06.2026",
+        "headline": "Likere dashboardkort",
+        "title": "Parkering og soling bruker samme kortstruktur som omsetning",
+        "description": (
+            "Build 1344 fjerner Største driver-etikettene fra omsetningskortene og legger parkering-/solingkortene "
+            "over på samme interne struktur som omsetningskortene. Antallskortene bruker nå samme topp, sammenligningsfelt, "
+            "tabellseksjon og referansefelt nederst, men med én linje og antall som hovedverdi."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): fjerner største-driver-logikken og bygger parkering-/solingkort med samme tabellstruktur som omsetning.",
+            "Desktop v2 CSS (status-periods.css): fjerner activity-spesiallayout og badge-styling slik at kortene deler samme grunnstil.",
+            "Buildlogg (build_log.py): registrerer build 1344.",
+        ],
+        "request": "Ta bort etiketter med Største driver, og sørg for at parkering- og solingkortene er eksakt like som omsetning selv om de ikke har alle feltene.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Alle synlige Største driver-etiketter er fjernet.",
+            "Omsetningskortene beholder samme tall og sammenligninger uten ekstra badge-støy.",
+            "Parkering- og solingkortene bruker samme tabellseksjon som omsetningskortene.",
+            "Den gamle tre-boks-layouten for antallskort er fjernet.",
+            "Activity-spesifikk CSS er ryddet bort der felles kortstil nå dekker behovet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1343",
