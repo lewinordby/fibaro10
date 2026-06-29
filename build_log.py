@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1349")
+APP_BUILD = os.getenv("APP_BUILD", "1350")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1350",
+        "date": "29.06.2026",
+        "headline": "Presise omsetningsklikk",
+        "title": "Klikk på omsetningskort åpner grafen med bare valgt sammenligning aktiv",
+        "description": (
+            "Build 1350 gjør lenkene fra omsetningskortene mer presise. Når man klikker på for eksempel "
+            "Mot i går samme tidspunkt, åpnes periodesammenligningen med bare dagens periode og gårsdagen "
+            "som aktive dataserier. Ekstra referanselinjer blir ikke sendt med for disse kortklikkene."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): legger references=none på lenker fra omsetningskortene.",
+            "Desktop v2 (StatusComparisonPage.tsx, api.ts, queryKeys.ts): sender og cacher referansevalget som del av grafspørringen.",
+            "Backend (main.py): støtter references=none på /api/status/comparison.",
+            "Buildlogg (build_log.py): registrerer build 1350.",
+        ],
+        "request": "Når man klikker på sammenligningsfeltene på omsetningskortene, skal grafen bare ha valgt sammenligning og aktuell periode aktiv.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Omsetningskortene åpner nå sammenligningsgrafen uten ekstra referanseserier.",
+            "Direkte bruk av sammenligningssiden kan fortsatt bruke standard referanser.",
+            "Navigering frem og tilbake i grafen beholder samme rene sammenligningsmodus.",
+        ],
+    },
     {
         "version": "1",
         "build": "1349",

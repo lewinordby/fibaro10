@@ -971,9 +971,15 @@ export function fetchRevenueMonth(month?: string): Promise<RevenueMonthResponse>
   return apiGet<RevenueMonthResponse>(`/api/revenue/month${query}`);
 }
 
-export function fetchStatusComparison(period: string, compare: string, anchor?: string | null): Promise<StatusComparisonResponse> {
+export function fetchStatusComparison(
+  period: string,
+  compare: string,
+  anchor?: string | null,
+  references?: string | null,
+): Promise<StatusComparisonResponse> {
   const queryParams = new URLSearchParams({ period, compare });
   if (anchor) queryParams.set("anchor", anchor);
+  if (references) queryParams.set("references", references);
   const query = queryParams.toString();
   return apiGet<StatusComparisonResponse>(`/api/status/comparison?${query}`);
 }

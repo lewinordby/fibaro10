@@ -13786,6 +13786,7 @@ async def api_v2_status_comparison(
     period: str = Query("today"),
     compare: str = Query("previous"),
     anchor: Optional[str] = Query(None),
+    references: str = Query("auto"),
 ):
     now_dt = local_now_naive()
     today = now_dt.date()
@@ -13802,11 +13803,16 @@ async def api_v2_status_comparison(
         )
         if not comparison_config:
             raise HTTPException(status_code=404, detail="Ukjent sammenligning")
-        reference_configs = [
-            item
-            for item in period_config["comparisons"]
-            if item["key"] == "same-weekday-last-week" and item["key"] != comparison_config["key"]
-        ]
+        include_reference_comparisons = references != "none"
+        reference_configs = (
+            [
+                item
+                for item in period_config["comparisons"]
+                if item["key"] == "same-weekday-last-week" and item["key"] != comparison_config["key"]
+            ]
+            if include_reference_comparisons
+            else []
+        )
 
         current_config = period_config["current"]
         full_day_chart = period == "today"

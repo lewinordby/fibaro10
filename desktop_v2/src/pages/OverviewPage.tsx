@@ -252,7 +252,7 @@ function StatusStrip({ title, items }: { title: string; items: StripItem[] }) {
 function periodComparisonPath(periodKey: string, comparisonKey: string) {
   return periodKey === "year"
     ? "/omsetning/akkumulert"
-    : `/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}`;
+    : `/omsetning/sammenligning?period=${encodeURIComponent(periodKey)}&compare=${encodeURIComponent(comparisonKey)}&references=none`;
 }
 
 function fullReferenceGap(currentAmount: number, fullAmount: number) {

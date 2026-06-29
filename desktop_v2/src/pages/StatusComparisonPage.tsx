@@ -260,10 +260,11 @@ export default function StatusComparisonPage() {
   const period = searchParams.get("period") || "today";
   const compare = searchParams.get("compare") || "previous";
   const anchor = searchParams.get("anchor") || "";
+  const references = searchParams.get("references") || "";
   const metric: ComparisonMetric = searchParams.get("metric") === "count" ? "count" : "amount";
   const { data, loading, error } = useApiQuery(
-    queryKeys.statusComparison(period, compare, anchor),
-    () => fetchStatusComparison(period, compare, anchor),
+    queryKeys.statusComparison(period, compare, anchor, references),
+    () => fetchStatusComparison(period, compare, anchor, references),
   );
   const chartOptions = useMemo(() => {
     if (!data) return [];
