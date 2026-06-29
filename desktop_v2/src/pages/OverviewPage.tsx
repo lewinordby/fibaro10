@@ -634,8 +634,7 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
         ))}
       </div>
 
-      <div className="revenue-drivers" aria-label="Drivere for omsetning">
-        <div className="revenue-drivers-title">Drivere</div>
+      <div className="revenue-drivers" aria-label="Omsetningsfordeling">
         <div className={`revenue-driver-table ${shownComparisons.length < 2 ? "single" : ""}`}>
           <div className="revenue-driver-head">
             <span>Linje</span>

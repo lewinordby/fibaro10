@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1342")
+APP_BUILD = os.getenv("APP_BUILD", "1343")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1343",
+        "date": "29.06.2026",
+        "headline": "Fjerner Drivere-overskrift",
+        "title": "Omsetningskortene starter driverdelen rett på tabellen",
+        "description": (
+            "Build 1343 fjerner den ekstra Drivere-overskriften inne i omsetningskortene. "
+            "Tabellhodet forklarer allerede innholdet, så kortene blir lavere og roligere uten å miste informasjon."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): fjerner Drivere-tittelen fra RevenuePeriodCard.",
+            "Desktop v2 CSS (status-periods.css): fjerner ubrukt styling for revenue-drivers-title.",
+            "Buildlogg (build_log.py): registrerer build 1343.",
+        ],
+        "request": "Overskriften Drivere på omsetningskortene kan fjernes.",
+        "work_duration": "ca. 5 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Drivere-overskriften er fjernet fra alle omsetningskort.",
+            "Driver-tabellen og alle tall/sammenligninger er uendret.",
+            "Ubrukt CSS for den fjernede overskriften er ryddet bort.",
+        ],
+    },
     {
         "version": "1",
         "build": "1342",
