@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1338")
+APP_BUILD = os.getenv("APP_BUILD", "1339")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1339",
+        "date": "29.06.2026",
+        "headline": "Helhetlig dashboarddesign",
+        "title": "Dashboardflatene får roligere rammer, tydeligere hierarki og mer kontrollert fargebruk",
+        "description": (
+            "Build 1339 gjør en samlet designopprydding av dashboardene for omsetning, parkering, soling og drift. "
+            "Rammer og skygger er dempet, domenefarger brukes mer som aksenter enn som full ramme rundt alle elementer, "
+            "og periodekort, datagrunnlag, støttebokser og arbeidsflater er justert til samme visuelle system."
+        ),
+        "applications": [
+            "Desktop v2 CSS (status-overview.css): strammer opp dashboardseksjoner, arbeidsflatekort, infofelt og dashboard-spesifikke kortoverstyringer.",
+            "Desktop v2 CSS (status-periods.css): demper periodekort, sammenligningsbokser, støttefelt og intern korttypografi.",
+            "Buildlogg (build_log.py): registrerer build 1339.",
+        ],
+        "request": "Kjør seriøs designgjennomgang av dashboard og gjør det enda proffere og mer helhetlig.",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dashboardseksjonene er gjort roligere med mindre konkurrerende rammer og mykere flater.",
+            "Periodekortene bruker nå domenefarge som aksentlinje i stedet for kraftig ramme rundt alt.",
+            "Sammenligningsbokser, driver-tabeller og referansefelt er dempet for bedre lesbarhet.",
+            "Arbeidsflatekort og infofelt er justert til samme visuelle rytme som periodekortene.",
+            "CSS-overstyringer er lagt i riktig importrekkefølge slik at dashboardstilen blir stabil.",
+        ],
+    },
     {
         "version": "1",
         "build": "1338",

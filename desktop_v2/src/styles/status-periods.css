@@ -1,23 +1,24 @@
 .status-period-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
   align-items: stretch;
 }
 
 .status-period-card.revenue-period-card,
 .status-overview-page .status-period-card.revenue-period-card {
   min-height: 360px;
-  border: 1px solid var(--border-panel);
-  border-radius: 8px;
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface) 72%, #fbfcff 100%);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.055);
+  border: 1px solid var(--dashboard-card-border, var(--border-panel));
+  border-radius: 9px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 2%, #ffffff) 0%, #ffffff 34%, #fbfcfe 100%);
+  box-shadow: 0 7px 20px rgba(15, 23, 42, 0.04);
 }
 
 .status-period-card.revenue-period-card .ant-card-body {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
   height: 100%;
   padding: 13px 15px 12px;
 }
@@ -76,7 +77,7 @@
 }
 
 .status-period-card.activity-period-card::before {
-  background: var(--activity-color);
+  background: color-mix(in srgb, var(--activity-color) 88%, #ffffff);
 }
 
 .activity-period-head {
@@ -123,7 +124,7 @@
 .revenue-period-compare-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 7px;
 }
 
 .revenue-period-compare-grid.single {
@@ -139,13 +140,19 @@
   gap: 5px 8px;
   align-items: center;
   min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--border-control);
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--border-control));
   border-radius: 7px;
-  background: var(--surface);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.035);
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  box-shadow: none;
   color: inherit;
   text-decoration: none;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.revenue-period-compare-pill:hover {
+  border-color: color-mix(in srgb, var(--tone-color, var(--domain-status)) 20%, var(--line-strong));
+  background: color-mix(in srgb, var(--tone-color, var(--domain-status)) 3%, #ffffff);
 }
 
 .revenue-period-compare-pill > span:first-child {
@@ -164,7 +171,7 @@
 }
 
 .activity-compare-pill {
-  border-color: color-mix(in srgb, var(--activity-color) 18%, var(--border-control));
+  border-color: color-mix(in srgb, var(--activity-color) 9%, var(--border-control));
 }
 
 .revenue-period-direction {
@@ -236,7 +243,7 @@
 
 .revenue-driver-table {
   overflow: hidden;
-  border: 1px solid var(--border-control);
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 8%, var(--border-control));
   border-radius: 7px;
   background: var(--surface);
 }
@@ -259,7 +266,7 @@
 .revenue-driver-head {
   padding: 7px 10px;
   border-bottom: 1px solid var(--border-panel-soft);
-  background: #fbfcff;
+  background: color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 3%, #fbfcff);
 }
 
 .revenue-driver-head span {
@@ -287,8 +294,8 @@
 .revenue-driver-row::before {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--driver-color, var(--domain-revenue));
+  width: 2px;
+  background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 78%, #ffffff);
   content: "";
 }
 
@@ -314,7 +321,7 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 13%, #ffffff);
+  background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 10%, #ffffff);
   color: var(--driver-color, var(--domain-revenue));
   font-size: 15px;
 }
@@ -435,9 +442,9 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--activity-color) 12%, var(--border-control));
+  border: 1px solid color-mix(in srgb, var(--activity-color) 8%, var(--border-control));
   border-radius: 7px;
-  background: var(--surface);
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
 }
 
 .activity-period-detail-grid > div {
@@ -475,7 +482,7 @@
 
 .revenue-driver-total {
   padding: 8px 10px;
-  background: #fbfcff;
+  background: color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 3%, #fbfcff);
 }
 
 .revenue-driver-total span {
@@ -503,10 +510,10 @@
   align-items: center;
   margin-top: auto;
   padding: 8px 10px;
-  border: 1px solid var(--border-control);
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--border-control));
   border-radius: 7px;
-  background: var(--surface);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.025);
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  box-shadow: none;
 }
 
 .revenue-period-full-icon {
@@ -515,8 +522,8 @@
   width: 27px;
   height: 27px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--blue) 12%, #ffffff);
-  color: var(--blue);
+  background: color-mix(in srgb, var(--tone-color, var(--blue)) 10%, #ffffff);
+  color: var(--tone-color, var(--blue));
   font-size: 16px;
 }
 
@@ -568,26 +575,26 @@
 }
 
 .activity-period-reference {
-  border-color: color-mix(in srgb, var(--activity-color) 14%, var(--border-control));
+  border-color: color-mix(in srgb, var(--activity-color) 8%, var(--border-control));
 }
 
 .status-period-basis {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--border-panel);
-  border-left: 3px solid var(--domain-revenue);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
+  gap: 12px;
+  margin-bottom: 6px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 8%, var(--border-panel));
+  border-left: 2px solid var(--domain-revenue);
+  border-radius: 7px;
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  box-shadow: none;
 }
 
 .status-period-basis span {
   color: var(--muted);
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 760;
   line-height: 1;
   text-transform: uppercase;
 }
@@ -595,7 +602,7 @@
 .status-period-basis strong {
   color: var(--text-body);
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 680;
   line-height: 1.2;
   white-space: nowrap;
 }
