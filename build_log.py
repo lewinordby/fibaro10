@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1345")
+APP_BUILD = os.getenv("APP_BUILD", "1346")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1346",
+        "date": "29.06.2026",
+        "headline": "Lavere dashboardkort",
+        "title": "Periodekortene er strammet inn i høyde og referansefelt",
+        "description": (
+            "Build 1346 reduserer minimumshøyden på dashboardets periodekort og strammer inn luft, padding "
+            "og ikonstørrelse i nederste referansefelt. Parkering- og solingkortene får lavere minimumshøyde "
+            "fordi de har én datalinje, mens omsetningskortene beholder samme struktur med to linjer."
+        ),
+        "applications": [
+            "Desktop v2 CSS (status-periods.css): reduserer min-height, card-body-gap, referansepadding og referanseikon.",
+            "Buildlogg (build_log.py): registrerer build 1346.",
+        ],
+        "request": "Gjør alle kortene litt lavere, og gjør mellomrommet i nederste boks tilsvarende de øverste boksene med utgangspunkt i omsetningskortene.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Omsetningskortene har lavere minimumshøyde og mindre ubrukt luft før referansefeltet.",
+            "Parkering- og solingkortene bruker samme kompakte rytme, men med lavere høyde tilpasset én datalinje.",
+            "Nederste referansefelt har strammere padding og mindre ikon slik at det visuelt matcher toppboksene bedre.",
+        ],
+    },
     {
         "version": "1",
         "build": "1345",
