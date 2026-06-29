@@ -10,6 +10,7 @@ const RevenueYearComparisonPage = lazy(() => import("./pages/RevenueYearComparis
 const OperationsPage = lazy(() => import("./pages/OperationsPage"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
+const OwnTracksPage = lazy(() => import("./pages/OwnTracksPage"));
 const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
 const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const ParkingSettlementsPage = lazy(() => import("./pages/ParkingSettlementsPage"));
@@ -82,6 +83,7 @@ export function AppRoutes() {
         <Route path="/admin/drift" element={<OperationsPage />} />
         <Route path="/admin/build" element={<BuildLogPage />} />
         <Route path="/admin/build/:build" element={<BuildDetailPage />} />
+        <Route path="/admin/owntracks" element={<OwnTracksPage />} />
         <Route path="/admin/:view" element={<ModulePage module="admin" />} />
         <Route
           path="*"

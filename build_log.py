@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1351")
+APP_BUILD = os.getenv("APP_BUILD", "1352")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1352",
+        "date": "29.06.2026",
+        "headline": "OwnTracks kart",
+        "title": "OwnTracks-meldinger vises på kart under Admin",
+        "description": (
+            "Build 1352 legger en dedikert kartside for OwnTracks under Admin. "
+            "Siden viser siste posisjonsmeldinger som punkter og spor, siste posisjon per enhet "
+            "og registrerte waypoints med radius der dette finnes."
+        ),
+        "applications": [
+            "Backend (main.py): legger /api/owntracks/map med posisjoner, enheter og waypoints.",
+            "Desktop v2 (OwnTracksPage.tsx): bygger kart med spor, siste posisjoner, waypoints, filter og eksisterende OwnTracks-tabeller.",
+            "Desktop v2 CSS (owntracks.css): legger kartflate, markører, popup og nødvendig Leaflet-basestil.",
+            "Desktop v2 ruting/API: kobler /admin/owntracks til dedikert side og legger typed fetch-funksjon.",
+            "Frontend dependencies: legger til leaflet og @types/leaflet.",
+            "Buildlogg (build_log.py): registrerer build 1352.",
+        ],
+        "request": "Vis alle siste OwnTracks-meldinger på et kart på enklest mulig måte.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "OwnTracks-siden under Admin har nå kart øverst.",
+            "Kartet kan filtreres på 1 time, 6 timer, 24 timer, 7 dager eller alle lagrede punkter.",
+            "Posisjonsmeldinger tegnes som punkter og spor per enhet.",
+            "Siste kjente enhetsposisjon og waypoints vises direkte i kartet.",
+            "Eksisterende OwnTracks-kort og tabeller beholdes under kartet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1351",
