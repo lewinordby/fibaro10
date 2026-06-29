@@ -797,28 +797,6 @@ function ActivityPeriodCard({ period, config }: { period: StatusPeriod; config: 
   );
 }
 
-function ActivityDataBasis({ period, config }: { period?: StatusPeriod; config: ActivityDashboardConfig }) {
-  if (!period) return null;
-  return (
-    <div className={`status-period-basis activity-period-basis tone-${config.tone}`} aria-label={`Datagrunnlag for ${config.title.toLowerCase()}`}>
-      <span>Datagrunnlag</span>
-      <strong>{config.title} {config.asOf(period)}</strong>
-      <strong>Beløp brukes kun som støtteinfo</strong>
-    </div>
-  );
-}
-
-function RevenueDataBasis({ period }: { period?: StatusPeriod }) {
-  if (!period) return null;
-  return (
-    <div className="status-period-basis" aria-label="Felles datagrunnlag for omsetningskort">
-      <span>Datagrunnlag</span>
-      <strong>Soling {period.solAsOfLabel}</strong>
-      <strong>Parkering {period.parkingAsOfLabel}</strong>
-    </div>
-  );
-}
-
 function StatusSummary({
   label,
   detail,
@@ -997,10 +975,8 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
   }
 
   function renderRevenueDashboard() {
-    const revenueBasis = overview.statusPeriods.find((period) => period.key === "today") ?? overview.statusPeriods[0];
     return (
       <StatusSection title="Omsetning" detail="I dag, uke, måned og år med korrekt datatidspunkt">
-        <RevenueDataBasis period={revenueBasis} />
         <div className="status-period-grid">
           {overview.statusPeriods.map((period) => (
             <RevenuePeriodCard period={period} key={period.key} />
@@ -1012,13 +988,11 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
 
   function renderActivityDashboard(kind: ActivityDashboardKind) {
     const config = ACTIVITY_DASHBOARDS[kind];
-    const basis = overview.statusPeriods.find((period) => period.key === "today") ?? overview.statusPeriods[0];
     const latestLabels = kind === "parking" ? ["parkering"] : ["soling"];
 
     return (
       <>
         <StatusSection title={config.title} detail={`Antall ${config.pluralTitle.toLowerCase()} i dag, uke, måned og år`}>
-          <ActivityDataBasis period={basis} config={config} />
           <div className="status-period-grid">
             {overview.statusPeriods.map((period) => (
               <ActivityPeriodCard period={period} config={config} key={`${config.kind}-${period.key}`} />

@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1340")
+APP_BUILD = os.getenv("APP_BUILD", "1341")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1341",
+        "date": "29.06.2026",
+        "headline": "Rydder periodekort",
+        "title": "Datagrunnlagstripen er fjernet og årsreferanser vises på egne linjer",
+        "description": (
+            "Build 1341 fjerner det overflødige datagrunnlagsfeltet over periodekortene på dashboardene. "
+            "Tidspunktet står allerede inne i hvert kort, så visningen blir roligere uten å miste informasjon. "
+            "Referansefeltet nederst på omsetningskortene er samtidig strammet opp slik at hvert referanseår vises på egen linje."
+        ),
+        "applications": [
+            "Desktop v2 (OverviewPage.tsx): fjerner felles datagrunnlagstrip over omsetning-, parkering- og solingkort.",
+            "Desktop v2 CSS (status-periods.css): viser referanser nederst i omsetningskortene som separate, ryddige linjer og fjerner ubrukt basis-styling.",
+            "Buildlogg (build_log.py): registrerer build 1341.",
+        ],
+        "request": "Årskortet for omsetning må bruke to linjer på referanseårene, og feltet over alle kortene er overflødig fordi tidspunkt repeteres i hvert kort.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Felles datagrunnlagsfelt over periodekortene er fjernet.",
+            "Omsetningskortenes referansefelt nederst viser nå én referanse per linje.",
+            "Årskortet får samme referansestruktur som dag-, uke- og månedskortene.",
+            "Ubrukt CSS for datagrunnlagstripen er fjernet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1340",

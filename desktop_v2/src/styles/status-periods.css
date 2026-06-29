@@ -515,15 +515,15 @@
 }
 
 .revenue-period-full-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px 12px;
-  margin-top: 3px;
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
 }
 
 .revenue-period-full-item {
-  display: inline-flex;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
   align-items: baseline;
   min-width: 0;
   color: var(--text-body);
@@ -541,6 +541,11 @@
   white-space: nowrap;
 }
 
+.revenue-period-full-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .revenue-period-full-item em.positive {
   color: var(--green);
 }
@@ -555,39 +560,6 @@
 
 .activity-period-reference {
   border-color: color-mix(in srgb, var(--activity-color) 8%, var(--border-control));
-}
-
-.status-period-basis {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 6px;
-  padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 8%, var(--border-panel));
-  border-left: 2px solid var(--domain-revenue);
-  border-radius: 7px;
-  background: linear-gradient(180deg, #ffffff, #fbfcfe);
-  box-shadow: none;
-}
-
-.status-period-basis span {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 760;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.status-period-basis strong {
-  color: var(--text-body);
-  font-size: 11px;
-  font-weight: 680;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.activity-period-basis {
-  border-left-color: var(--tone-color);
 }
 
 @media (max-width: 1380px) {
@@ -617,12 +589,6 @@
 }
 
 @media (max-width: 860px) {
-  .status-period-basis {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
-  }
-
   .revenue-period-head,
   .activity-period-head,
   .revenue-period-compare-grid {
