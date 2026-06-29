@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1348")
+APP_BUILD = os.getenv("APP_BUILD", "1349")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1349",
+        "date": "29.06.2026",
+        "headline": "Ryddigere CSS-eierskap",
+        "title": "Dashboardkortene har tydeligere CSS-eierskap og færre skjulte overstyringer",
+        "description": (
+            "Build 1349 rydder i CSS-eierskapet mellom status-overview.css og status-periods.css. "
+            "De generiske dashboardreglene er avgrenset slik at de ikke overstyrer periodekortene for "
+            "omsetning, parkering og soling, og gjentatte farge- og borderverdier er samlet i lokale "
+            "variabler på periodekortene."
+        ),
+        "applications": [
+            "Desktop v2 CSS (status-periods.css): samler periodekortets tone-, border- og bakgrunnsverdier i lokale CSS-variabler.",
+            "Desktop v2 CSS (status-overview.css): avgrenser generiske status-period-card-regler slik at de ikke overstyrer revenue-period-card.",
+            "Buildlogg (build_log.py): registrerer build 1349.",
+        ],
+        "request": "Gjennomgå CSS, stram opp, rydd opp og effektiviser uten å endre funksjon.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Skjult cascade-konflikt mellom status-overview.css og status-periods.css er ryddet bort.",
+            "Gjentatte farge- og borderuttrykk i periodekortene er samlet i lokale CSS-variabler.",
+            "Topplinjen på periodekortene styres nå fra periodkortets egen CSS.",
+            "Dashboardenes visuelle uttrykk er beholdt, men CSS-strukturen er tydeligere.",
+        ],
+    },
     {
         "version": "1",
         "build": "1348",

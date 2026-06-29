@@ -213,23 +213,23 @@
   background: linear-gradient(180deg, #ffffff, var(--dashboard-muted-tint) 78%);
 }
 
-.status-overview-page .status-period-card {
+.status-overview-page .status-period-card:not(.revenue-period-card) {
   min-height: 312px;
 }
 
-.status-dashboard-page .status-period-card {
+.status-dashboard-page .status-period-card:not(.revenue-period-card) {
   border-color: var(--dashboard-card-border);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2%, #ffffff) 0%, #ffffff 36%, #fbfcfe 100%);
   box-shadow: 0 7px 20px rgba(15, 23, 42, 0.04);
 }
 
-.status-dashboard-page .status-period-card::before {
+.status-dashboard-page .status-period-card:not(.revenue-period-card)::before {
   height: 2px;
   background: color-mix(in srgb, var(--tone-color) 86%, #ffffff);
 }
 
-.status-dashboard-page.tone-revenue .status-period-card::before {
+.status-dashboard-page.tone-revenue .status-period-card:not(.revenue-period-card)::before {
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--domain-sun2) 82%, #ffffff),

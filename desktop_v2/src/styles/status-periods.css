@@ -7,6 +7,12 @@
 
 .status-period-card.revenue-period-card,
 .status-overview-page .status-period-card.revenue-period-card {
+  --period-border: color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--border-control));
+  --period-border-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 20%, var(--line-strong));
+  --period-surface: linear-gradient(180deg, #ffffff, #fbfcfe);
+  --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 3%, #ffffff);
+  --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 5%, #ffffff);
+  --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 16%, #ffffff);
   min-height: 300px;
   border: 1px solid var(--dashboard-card-border, var(--border-panel));
   border-radius: 9px;
@@ -25,6 +31,20 @@
 
 .revenue-period-card {
   min-width: 0;
+}
+
+.status-period-card.revenue-period-card::before {
+  height: 2px;
+  background: color-mix(in srgb, var(--tone-color, var(--domain-status)) 86%, #ffffff);
+}
+
+.status-dashboard-page.tone-revenue .status-period-card.revenue-period-card::before {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--domain-sun2) 82%, #ffffff),
+    color-mix(in srgb, var(--domain-parking) 82%, #ffffff),
+    color-mix(in srgb, var(--domain-revenue) 82%, #ffffff)
+  );
 }
 
 .status-period-card.revenue-period-card.activity-period-card,
@@ -104,9 +124,9 @@
   align-items: center;
   min-width: 0;
   padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--border-control));
+  border: 1px solid var(--period-border);
   border-radius: 7px;
-  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  background: var(--period-surface);
   box-shadow: none;
   color: inherit;
   text-decoration: none;
@@ -114,8 +134,8 @@
 }
 
 .revenue-period-compare-pill:hover {
-  border-color: color-mix(in srgb, var(--tone-color, var(--domain-status)) 20%, var(--line-strong));
-  background: color-mix(in srgb, var(--tone-color, var(--domain-status)) 3%, #ffffff);
+  border-color: var(--period-border-strong);
+  background: var(--period-tint-soft);
 }
 
 .revenue-period-compare-pill > span:first-child {
@@ -195,7 +215,7 @@
 
 .revenue-driver-table {
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 8%, var(--border-control));
+  border: 1px solid var(--period-border);
   border-radius: 7px;
   background: var(--surface);
 }
@@ -216,7 +236,7 @@
 .revenue-driver-head {
   padding: 6px 9px;
   border-bottom: 1px solid var(--border-panel-soft);
-  background: color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 3%, #fbfcff);
+  background: var(--period-tint-soft);
 }
 
 .revenue-driver-head span {
@@ -373,10 +393,10 @@
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 14%, var(--border-control));
   border-radius: 7px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--tone-color, var(--domain-status)) 16%, #ffffff) 0 2px, transparent 2px),
+    linear-gradient(90deg, var(--period-tint-strong) 0 2px, transparent 2px),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--tone-color, var(--domain-status)) 5%, #ffffff),
+      var(--period-tint-muted),
       color-mix(in srgb, var(--tone-color, var(--domain-status)) 2%, #fbfcfe)
     );
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
