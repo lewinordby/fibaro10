@@ -13,10 +13,10 @@
   min-width: 24px;
   margin-left: 7px;
   padding: 0 6px;
-  color: #475569;
+  color: var(--text-label);
   font-size: 11px;
   font-weight: 700;
-  background: #eef2f7;
+  background: var(--line-soft);
   border-radius: 999px;
 }
 
@@ -110,7 +110,7 @@
   gap: 3px;
   min-height: 68px;
   padding: 9px 10px;
-  background: #f8fafc;
+  background: var(--surface-muted);
   border: 1px solid #e8edf4;
   border-radius: var(--radius-md);
 }
@@ -157,9 +157,9 @@
   display: grid;
   place-items: center;
   min-height: 420px;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--line-strong);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 /* Record, table and form visual refinements. */
@@ -187,19 +187,19 @@
 }
 
 .module-table-card .ant-table-thead > tr > th {
-  color: #475569;
+  color: var(--text-label);
   font-size: 10.5px;
   font-weight: 850;
   letter-spacing: 0;
   text-transform: uppercase;
-  background: #f8fafc;
+  background: var(--surface-muted);
   border-bottom-color: var(--line);
 }
 
 .module-table-card .ant-table-tbody > tr > td {
   padding-top: 7px;
   padding-bottom: 7px;
-  border-bottom-color: #edf2f7;
+  border-bottom-color: var(--line-soft);
 }
 
 .module-table-card .ant-table-tbody > tr:hover > td {
@@ -208,8 +208,8 @@
 
 .empty-state,
 .loading-block {
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
-  border-color: #dbe3ee;
+  background: linear-gradient(180deg, var(--surface), var(--surface-muted));
+  border-color: var(--border-control);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
 }

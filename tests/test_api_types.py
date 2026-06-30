@@ -1,6 +1,6 @@
 import unittest
 
-from api_types import BuildLogEntryPayload, BuildLogResponsePayload, HealthPayload
+from api_types import BuildLogEntryPayload, BuildLogResponsePayload, HealthPayload, ModuleCardPayload, ModulePayload, ModuleTablePayload
 
 
 class ApiTypeContractTests(unittest.TestCase):
@@ -34,6 +34,15 @@ class ApiTypeContractTests(unittest.TestCase):
         required = set(HealthPayload.__required_keys__)
 
         self.assertEqual(required, {"status", "app", "checks", "summary", "sources", "storage"})
+
+    def test_module_contract_has_generic_cards_and_tables(self) -> None:
+        card_required = set(ModuleCardPayload.__required_keys__)
+        table_required = set(ModuleTablePayload.__required_keys__)
+        module_optional = set(ModulePayload.__optional_keys__)
+
+        self.assertTrue({"title", "value", "tone"}.issubset(card_required))
+        self.assertTrue({"title", "columns", "rows"}.issubset(table_required))
+        self.assertTrue({"cards", "charts", "tables", "actions", "filters"}.issubset(module_optional))
 
 
 if __name__ == "__main__":

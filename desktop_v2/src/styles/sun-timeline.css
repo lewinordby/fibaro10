@@ -16,7 +16,7 @@
 
 .sun-timeline-card .ant-card-head {
   min-height: 44px;
-  border-bottom-color: #eef2f7;
+  border-bottom-color: var(--line-soft);
 }
 
 .sun-timeline-card .ant-card-head-title {
@@ -154,11 +154,11 @@
 .sun-energy-line {
   position: relative;
   overflow: hidden;
-  border: 1px solid #dbe3ee;
+  border: 1px solid var(--border-control);
   border-radius: 6px;
   background:
     linear-gradient(90deg, rgba(148, 163, 184, 0.4) 1px, transparent 1px),
-    linear-gradient(180deg, #ffffff, #f8fafc);
+    linear-gradient(180deg, var(--surface), var(--surface-muted));
   background-size: calc(100% / 24) 100%, 100% 100%;
 }
 
@@ -189,7 +189,7 @@
   position: absolute;
   min-width: 3px;
   border-radius: 4px;
-  color: #ffffff;
+  color: var(--surface);
   text-decoration: none;
   box-shadow: 0 3px 7px rgba(15, 23, 42, 0.13);
 }
@@ -265,7 +265,7 @@
   top: 0;
   bottom: 0;
   width: 2px;
-  background: #111827;
+  background: var(--ink);
   opacity: 0.76;
 }
 
@@ -273,7 +273,7 @@
   position: absolute;
   top: -14px;
   left: 50%;
-  color: #111827;
+  color: var(--ink);
   content: "Nå";
   font-size: 10px;
   font-weight: 800;
@@ -285,8 +285,8 @@
   padding: 10px 12px;
   color: var(--muted);
   font-size: 12px;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: var(--surface-muted);
+  border: 1px dashed var(--line-strong);
   border-radius: 6px;
 }
 
@@ -295,7 +295,7 @@
 /* Timeline-specific visual refinements. */
 .sun-timeline-card .ant-card-head {
   min-height: 44px;
-  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  background: linear-gradient(180deg, var(--surface), #fbfcfe);
   border-bottom-color: var(--line-soft);
 }
 

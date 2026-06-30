@@ -100,11 +100,13 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
   ],
   admin: [
     { key: "oppgaver", label: "Oppgaver" },
+    { key: "kontroll", label: "Kontroll" },
     { key: "datakvalitet", label: "Datakvalitet" },
     { key: "analyse", label: "Analyse" },
     { key: "drift", label: "Drift" },
     { key: "build", label: "Buildlogg" },
     { key: "datakilder", label: "Datakilder" },
+    { key: "systemkart", label: "Systemkart" },
     { key: "owntracks", label: "OwnTracks" },
     { key: "ai", label: "AI" },
     { key: "teknisk", label: "Teknisk" },

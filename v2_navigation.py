@@ -73,11 +73,13 @@ V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
     },
     "admin": {
         "oppgaver": "Oppgaver",
+        "kontroll": "Kontroll",
         "datakvalitet": "Datakvalitet",
         "analyse": "Analyse",
         "drift": "Drift",
         "build": "Buildlogg",
         "datakilder": "Datakilder",
+        "systemkart": "Systemkart",
         "owntracks": "OwnTracks",
         "ai": "AI",
         "teknisk": "Teknisk",

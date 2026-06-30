@@ -50,6 +50,7 @@ except ImportError:
 load_dotenv()
 from build_log import APP_BUILD, APP_VERSION, BUILD_LOG, api_build_log_row, build_log_entry_by_build, normalized_build_log_entry
 from api_contracts import admin_build_payload, admin_builds_payload
+from api_types import ModuleCardPayload, ModuleTablePayload
 from energy_helpers import (
     circuit_technical_label,
     energy_circuit_is_sunbed,
@@ -61,6 +62,7 @@ from energy_helpers import (
     form_text,
     normalize_energy_sunbed_filter,
 )
+from import_jobs import IMPORT_JOB_DEFINITIONS, IMPORT_JOB_NUMBER_BY_NAME
 from observability import health_payload
 from pdf_exports import build_table_pdf, pdf_response
 from parking_vehicle_helpers import (
@@ -131,6 +133,7 @@ from roborock_domain import (
     roborock_water_label,
 )
 from security import apply_security_headers
+from system_inventory import system_component_rows, system_component_summary
 from time_formatting import (
     format_local_datetime,
     format_local_time,
@@ -3335,175 +3338,6 @@ PERFORMANCE_INDEXES = [
         "ON kjoretoy (sun2_id)",
     ),
 ]
-
-
-IMPORT_JOB_DEFINITIONS = {
-    "hc3_light_5min": {
-        "title": "Lys / lux fra HC3",
-        "category": "Lys",
-        "source": "HC3",
-        "expected_interval_minutes": 7,
-        "warning_after_minutes": 15,
-        "description": "5-minutters luxlogg og status for utelys.",
-    },
-    "hc3_ventilation_5min": {
-        "title": "Ventilasjon / temperatur fra HC3",
-        "category": "Ventilasjon",
-        "source": "HC3",
-        "expected_interval_minutes": 7,
-        "warning_after_minutes": 15,
-        "description": "5-minutters temperatur, effekt og viftestatus.",
-    },
-    "yr_weather_refresh": {
-        "title": "Yr API",
-        "category": "Vær",
-        "source": "MET/Yr",
-        "expected_interval_minutes": 70,
-        "warning_after_minutes": 130,
-        "description": "Værvarsel hentet fra Yr/MET når forrige varsel går ut.",
-    },
-    "hc3_energy_1min": {
-        "title": "Energi fra HC3",
-        "category": "Energi",
-        "source": "HC3",
-        "expected_interval_minutes": 2,
-        "warning_after_minutes": 5,
-        "description": "30-sekunders logging av realtime effekt og akkumulert kWh fra Fibaro.",
-    },
-    "roborock_sync": {
-        "title": "Roborock logger",
-        "category": "Renhold",
-        "source": "QNAP",
-        "expected_interval_minutes": 10,
-        "warning_after_minutes": 30,
-        "description": "Robotstatus, planlagte jobber og siste lokale/cloud-data.",
-    },
-    "owntracks_mqtt": {
-        "title": "OwnTracks MQTT",
-        "category": "Mobil",
-        "source": "Mosquitto",
-        "expected_interval_minutes": 30,
-        "warning_after_minutes": 120,
-        "description": "Siste posisjonsmelding fra OwnTracks via intern MQTT-broker.",
-    },
-    "sun2_daily_download": {
-        "title": "Sun2 dagsfil nedlasting",
-        "category": "Soling",
-        "source": "QNAP",
-        "expected_interval_minutes": 36 * 60,
-        "warning_after_minutes": 72 * 60,
-        "description": "Nattlig nedlasting av SUN2 dagsfil for import.",
-    },
-    "sun2_room_daily_import": {
-        "title": "Sun2 dagsimport rom",
-        "category": "Soling",
-        "source": "QNAP",
-        "expected_interval_minutes": 36 * 60,
-        "warning_after_minutes": 72 * 60,
-        "description": "Daglige summer per rom fra Sun2.",
-    },
-    "sun2_sessions_import": {
-        "title": "Sun2 enkelttimer",
-        "category": "Soling",
-        "source": "QNAP",
-        "expected_interval_minutes": 7,
-        "warning_after_minutes": 20,
-        "description": "Import av enkeltsolinger fra Sun2.",
-    },
-    "sun2_beds_import": {
-        "title": "Sun2 senger",
-        "category": "Soling",
-        "source": "QNAP",
-        "expected_interval_minutes": 7 * 24 * 60,
-        "warning_after_minutes": 14 * 24 * 60,
-        "description": "Seng-/rommetadata fra Sun2.",
-    },
-    "sun2_members_import": {
-        "title": "Sun2 medlemmer",
-        "category": "Soling",
-        "source": "QNAP",
-        "expected_interval_minutes": 7 * 24 * 60,
-        "warning_after_minutes": 14 * 24 * 60,
-        "description": "Medlemsregister og profilfelter fra Sun2.",
-    },
-    "sun2_product_sales_daily_import": {
-        "title": "Sun2 produktsalg daglig",
-        "category": "Soling",
-        "source": "QNAP",
-        "expected_interval_minutes": 36 * 60,
-        "warning_after_minutes": 72 * 60,
-        "description": "Daglig import av produktsalg fra Sun2 for dagsfordeling.",
-    },
-    "sun2_product_sales_monthly_import": {
-        "title": "Sun2 produktsalg maanedskontroll",
-        "category": "Soling",
-        "source": "QNAP",
-        "expected_interval_minutes": 40 * 24 * 60,
-        "warning_after_minutes": 55 * 24 * 60,
-        "description": "Maanedlig import av hele forrige maaned fra Sun2 for kontroll mot solingsoppgjor.",
-    },
-    "sun2_finance_settlement_monthly_import": {
-        "title": "Sun2 finansoppgjor",
-        "category": "Soling",
-        "source": "QNAP",
-        "expected_interval_minutes": 40 * 24 * 60,
-        "warning_after_minutes": 55 * 24 * 60,
-        "description": "Maanedlig import av Sun2 finanshistorikk for solomsetning og uregistrerte solinger.",
-    },
-    "elvia_monthly_import": {
-        "title": "Elvia månedsfil",
-        "category": "Energi",
-        "source": "Manuell opplasting",
-        "expected_interval_minutes": 40 * 24 * 60,
-        "warning_after_minutes": 55 * 24 * 60,
-        "description": "Månedlig import av strømforbruk fra Elvia.",
-    },
-    "easypark_parking_import": {
-        "title": "EasyPark import",
-        "category": "Parkering",
-        "source": "EasyPark",
-        "expected_interval_minutes": 26 * 60,
-        "warning_after_minutes": 50 * 60,
-        "description": "Automatisk nedlasting og import av parkeringsliste fra EasyPark.",
-    },
-    "parking_history_import": {
-        "title": "Parkering historikk",
-        "category": "Parkering",
-        "source": "QNAP appdb",
-        "expected_interval_minutes": None,
-        "warning_after_minutes": None,
-        "description": "Migrert EasyPark-historikk med kjoretoydata fra Statens vegvesen.",
-    },
-    "parking_vehicle_svv_sync": {
-        "title": "Kjøretøydata fra SVV",
-        "category": "Parkering",
-        "source": "Statens vegvesen",
-        "expected_interval_minutes": 30,
-        "warning_after_minutes": 90,
-        "description": "Løpende berikelse av registreringsnummer som mangler tekniske kjøretøydata.",
-    },
-    "parking_vehicle_biluppgifter_sync": {
-        "title": "Biluppgifter Sverige",
-        "category": "Parkering",
-        "source": "Biluppgifter.se",
-        "expected_interval_minutes": None,
-        "warning_after_minutes": None,
-        "description": "Oppslag av svenske registreringsnummer der SVV ikke fant kjoretoydata.",
-    },
-    "parking_vehicle_tjekbil_sync": {
-        "title": "Tjekbil Danmark",
-        "category": "Parkering",
-        "source": "Tjekbil.dk",
-        "expected_interval_minutes": None,
-        "warning_after_minutes": None,
-        "description": "Oppslag av danske registreringsnummer der SVV ikke fant kjoretoydata.",
-    },
-}
-
-IMPORT_JOB_NUMBER_BY_NAME = {
-    job_name: index + 1
-    for index, job_name in enumerate(IMPORT_JOB_DEFINITIONS)
-}
 
 
 CONFIG_DEFINITIONS = {
@@ -14939,7 +14773,7 @@ async def api_v2_sun_settlement_attachment(settlement_id: int, download: bool = 
         )
 
 
-def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]], edit: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]], edit: Optional[Dict[str, Any]] = None) -> ModuleTablePayload:
     payload = {
         "title": title,
         "columns": columns,
@@ -15325,6 +15159,16 @@ def cumulative_energy_points(rows: list[EnergyFibaroSample], attr: str) -> list[
         total += float_or_zero(getattr(row, attr, None))
         points.append([stamp, round(total, 3)])
     return points
+
+
+def decimate_rows(rows: list[Any], max_points: int) -> list[Any]:
+    if max_points <= 0 or len(rows) <= max_points:
+        return rows
+    step = max(1, math.ceil(len(rows) / max_points))
+    decimated = rows[::step]
+    if decimated[-1] is not rows[-1]:
+        decimated.append(rows[-1])
+    return decimated
 
 
 def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = None) -> Dict[str, Any]:
@@ -16307,7 +16151,7 @@ async def sun2_sessions_module_payload(session, params: Optional[Any] = None) ->
     payment_method_value = api_filter_value(params, "payment_method")
     status_value = api_filter_value(params, "status")
     customer_type_value = api_filter_value(params, "customer_type")
-    limit_value = api_filter_int(params, "limit", 250, 25, 1000)
+    limit_value = api_filter_int(params, "limit", 100, 25, 1000)
     session_conditions = []
     if q_value:
         like = f"%{q_value.lower()}%"
@@ -17045,7 +16889,7 @@ async def api_v2_soling_module(
         q_value = api_filter_value(params, "q")
         customer_type_value = api_filter_value(params, "customer_type")
         status_value = api_filter_value(params, "status")
-        limit_value = api_filter_int(params, "limit", 300, 25, 1000)
+        limit_value = api_filter_int(params, "limit", 150, 25, 1000)
         member_conditions = []
         if q_value:
             like = f"%{q_value.lower()}%"
@@ -17297,7 +17141,7 @@ def api_access_key_edit() -> Dict[str, Any]:
     }
 
 
-def api_card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status", href: str = "") -> Dict[str, str]:
+def api_card(title: str, value: Any, unit: str = "", detail: str = "", tone: str = "status", href: str = "") -> ModuleCardPayload:
     card = {
         "title": title,
         "value": str(value if value is not None else "-"),
@@ -22109,7 +21953,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             energy_elvia_data = None
             energy_sunbeds_data = None
             total_kwh = sum(float_or_zero(row.inntak_delta_kwh) for row in selected_energy_rows)
-            energy_chart_rows = list(reversed(selected_energy_rows))
+            energy_chart_rows = decimate_rows(list(reversed(selected_energy_rows)), 1440)
             energy_chart_items = [
                 ("inntak", "Inntak", "#15803d"),
                 ("varmepumper", "Varmepumper", "#0891b2"),
@@ -22696,6 +22540,82 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         ),
                     ),
                 ]
+            elif view == "kontroll":
+                parking_settlement_count = (
+                    await session.execute(
+                        select(func.count(SettlementImport.id)).where(SettlementImport.provider == PARKING_SETTLEMENT_PROVIDER)
+                    )
+                ).scalar_one()
+                sun_settlement_count = (
+                    await session.execute(
+                        select(func.count(SettlementImport.id)).where(SettlementImport.provider == SUN_SETTLEMENT_PROVIDER)
+                    )
+                ).scalar_one()
+                datasource_issue_count = sum(1 for row in import_rows if row["status"] != "ok")
+                data_quality_issue_count = len([row for row in admin_task_rows if row["domain"] in {"Datakvalitet", "Datakilde"}])
+                admin_cards = [
+                    api_card("Parkering", parking_settlement_count, "oppgjør", "ParkNordic mot EasyPark/Flowbird", "parking", href="/parkering/oppgjor"),
+                    api_card("Soling", sun_settlement_count, "oppgjør", "Altera/Sun2 mot intern omsetning", "sun2", href="/soling/oppgjor"),
+                    api_card("Energi", "Elvia", "", "Elvia mot HC3 og realtime grunnlag", "energy", href="/energi/elvia-kontroll"),
+                    api_card("Avvik", datasource_issue_count + data_quality_issue_count, "stk", "Datakilder og datakvalitet", "status", href="/admin/datakvalitet"),
+                ]
+                tables = [
+                    api_table(
+                        "Kontrollflater",
+                        ["domain", "control", "source", "compared_with", "cadence", "path", "purpose"],
+                        [
+                            {
+                                "domain": "Parkering",
+                                "control": "Oppgjør",
+                                "source": "ParkNordic / EasyPark",
+                                "compared_with": "Fibaro10 EasyPark + flowbird-parknordic",
+                                "cadence": "Månedlig",
+                                "path": "/parkering/oppgjor",
+                                "purpose": "Kontrollere brutto mynt/kort og EasyPark-beløp mot oppgjørsskjema.",
+                            },
+                            {
+                                "domain": "Soling",
+                                "control": "Oppgjør",
+                                "source": "Altera kreditnota",
+                                "compared_with": "Sun2 solomsetning og produktsalg",
+                                "cadence": "Månedlig",
+                                "path": "/soling/oppgjor",
+                                "purpose": "Finne avvik mellom oppgjør og intern omsetning, blant annet bonus/korreksjoner.",
+                            },
+                            {
+                                "domain": "Energi",
+                                "control": "Elvia-kontroll",
+                                "source": "Elvia timesfil",
+                                "compared_with": "HC3 realtime energilogging",
+                                "cadence": "Månedlig / ved import",
+                                "path": "/energi/elvia-kontroll",
+                                "purpose": "Sammenligne strømforbruk fra nettselskap mot egne målinger.",
+                            },
+                            {
+                                "domain": "System",
+                                "control": "Datakvalitet",
+                                "source": "Fibaro10-tabeller og importstatus",
+                                "compared_with": "Definerte kvalitetsmål",
+                                "cadence": "Løpende",
+                                "path": "/admin/datakvalitet",
+                                "purpose": "Finne manglende kjøretøydata, gamle datakilder og andre oppfølgingspunkter.",
+                            },
+                        ],
+                    ),
+                    api_table(
+                        "Kontrollstatus",
+                        ["key", "value"],
+                        api_config_value_rows(
+                            {
+                                "parkering_oppgjor": parking_settlement_count,
+                                "soling_oppgjor": sun_settlement_count,
+                                "datakilder_med_varsel": datasource_issue_count,
+                                "datakvalitet_oppgaver": data_quality_issue_count,
+                                "apne_oppgaver": len(admin_task_rows),
+                            }
+                        ),
+                    ),
+                ]
             elif view == "datakvalitet":
                 data_quality = await build_admin_data_quality(session, import_rows, now_dt)
                 actions = [
@@ -22829,6 +22749,23 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             api_tool_row("Ventilasjon CSV", "/ventilation/samples/download", "Last ned ventilasjonssamples.", None),
                         ],
                     ),
+                ]
+            elif view == "systemkart":
+                inventory = system_component_summary()
+                admin_cards = [
+                    api_card("Komponenter", inventory["components"], "stk", "Apper, tjenester og verktøy i løsningen", "status", href="/admin/systemkart"),
+                    api_card("Aktive", inventory["active"], "stk", "Kjører eller brukes i daglig drift", "status", href="/admin/systemkart"),
+                    api_card("Kritiske", inventory["critical"], "stk", "Påvirker drift eller datagrunnlag direkte", "status", href="/admin/systemkart"),
+                    api_card("Områder", inventory["areas"], "stk", "Funksjonelle systemområder", "status", href="/admin/systemkart"),
+                ]
+                tables = [
+                    api_table(
+                        "Systemkomponenter",
+                        ["component", "area", "role", "runtime", "compose_service", "health", "status", "criticality"],
+                        system_component_rows(),
+                    ),
+                    api_table("Områder", ["area", "count"], inventory["area_rows"]),
+                    api_table("Status", ["status", "count"], inventory["status_rows"]),
                 ]
             elif view == "owntracks":
                 owntracks_status = next((row for row in import_api_rows if row.get("job_name") == "owntracks_mqtt"), None)

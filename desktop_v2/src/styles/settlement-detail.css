@@ -4,7 +4,7 @@
   min-height: 620px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .settlement-original-image {
@@ -14,7 +14,7 @@
   object-fit: contain;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #111827;
+  background: var(--ink);
 }
 
 .settlement-document-card.focus .settlement-original-frame {
@@ -29,7 +29,7 @@
   max-height: calc(100vh - 195px);
   border: 0;
   border-radius: 0 0 8px 8px;
-  background: #f8fafc;
+  background: var(--surface-muted);
 }
 
 .settlement-report-head {
@@ -83,7 +83,7 @@
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 7px 18px rgba(15, 23, 42, 0.035);
 }
 
@@ -93,7 +93,7 @@
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #edf2f7;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .settlement-read-head > div {
@@ -104,7 +104,7 @@
 
 .settlement-read-head span,
 .settlement-read-section-title {
-  color: #111827;
+  color: var(--ink);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0;
@@ -113,7 +113,7 @@
 
 .settlement-read-head strong {
   overflow: hidden;
-  color: #64748b;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 680;
   text-overflow: ellipsis;
@@ -128,7 +128,7 @@
 .settlement-value-list {
   display: grid;
   gap: 0;
-  border-top: 1px solid #edf2f7;
+  border-top: 1px solid var(--line-soft);
 }
 
 .settlement-value-row {
@@ -137,7 +137,7 @@
   gap: 10px;
   align-items: baseline;
   padding: 5px 0;
-  border-bottom: 1px solid #edf2f7;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .settlement-value-row:last-child {
@@ -145,15 +145,15 @@
 }
 
 .settlement-value-row.ok > strong {
-  color: #15803d;
+  color: var(--domain-energy);
 }
 
 .settlement-value-row.warn > strong {
-  color: #dc2626;
+  color: var(--domain-revenue);
 }
 
 .settlement-value-row.missing > strong {
-  color: #94a3b8;
+  color: var(--muted-soft);
 }
 
 .settlement-value-main {
@@ -169,7 +169,7 @@
 .settlement-value-title span {
   flex: 1 1 auto;
   overflow: hidden;
-  color: #64748b;
+  color: var(--muted);
   font-size: 10px;
   font-weight: 760;
   letter-spacing: 0;
@@ -198,7 +198,7 @@
   gap: 4px;
   margin: 2px 0 0;
   padding-top: 8px;
-  border-top: 1px solid #edf2f7;
+  border-top: 1px solid var(--line-soft);
 }
 
 .settlement-file-facts div {
@@ -216,14 +216,14 @@
 }
 
 .settlement-file-facts dt {
-  color: #94a3b8;
+  color: var(--muted-soft);
   font-weight: 760;
   text-transform: uppercase;
 }
 
 .settlement-file-facts dd {
   overflow: hidden;
-  color: #475569;
+  color: var(--text-label);
   font-weight: 620;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -243,7 +243,7 @@
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .settlement-document-toolbar {
@@ -251,11 +251,11 @@
   align-items: center;
   min-height: 34px;
   padding: 7px 10px;
-  border-bottom: 1px solid #edf2f7;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .settlement-document-toolbar strong {
-  color: #111827;
+  color: var(--ink);
   font-size: 13px;
   font-weight: 800;
 }

@@ -3,12 +3,12 @@
 }
 
 .status-dashboard-page {
-  --dashboard-panel-bg: linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2.5%, #ffffff), rgba(255, 255, 255, 0.82));
+  --dashboard-panel-bg: linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2.5%, var(--surface)), rgba(255, 255, 255, 0.82));
   --dashboard-panel-border: color-mix(in srgb, var(--tone-color) 7%, var(--line));
   --dashboard-card-border: color-mix(in srgb, var(--tone-color) 6%, var(--line));
   --dashboard-card-border-hover: color-mix(in srgb, var(--tone-color) 18%, var(--line-strong));
-  --dashboard-tint: color-mix(in srgb, var(--tone-color) 6%, #ffffff);
-  --dashboard-muted-tint: color-mix(in srgb, var(--tone-color) 3%, #ffffff);
+  --dashboard-tint: color-mix(in srgb, var(--tone-color) 6%, var(--surface));
+  --dashboard-muted-tint: color-mix(in srgb, var(--tone-color) 3%, var(--surface));
 }
 
 .status-dashboard-page .status-support-strip {
@@ -34,8 +34,8 @@
   border: 1px solid var(--dashboard-card-border);
   border-radius: var(--radius-md);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 10%, #ffffff) 0 3px, transparent 3px),
-    linear-gradient(180deg, #ffffff, var(--dashboard-muted-tint));
+    linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 10%, var(--surface)) 0 3px, transparent 3px),
+    linear-gradient(180deg, var(--surface), var(--dashboard-muted-tint));
   box-shadow: 0 3px 10px rgba(15, 23, 42, 0.028);
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
@@ -107,7 +107,7 @@
   min-height: 0;
   align-items: flex-start;
   padding: 8px 10px;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: none;
 }
 
@@ -191,7 +191,7 @@
 
 .status-overview-page .status-info-card .ant-card-head {
   min-height: 36px;
-  background: linear-gradient(180deg, #ffffff, var(--dashboard-muted-tint));
+  background: linear-gradient(180deg, var(--surface), var(--dashboard-muted-tint));
 }
 
 .status-overview-page .status-info-card .ant-card-body {
@@ -210,7 +210,7 @@
   min-height: 78px;
   padding: 9px 11px;
   border-color: var(--dashboard-card-border);
-  background: linear-gradient(180deg, #ffffff, var(--dashboard-muted-tint) 78%);
+  background: linear-gradient(180deg, var(--surface), var(--dashboard-muted-tint) 78%);
 }
 
 .status-overview-page .status-period-card:not(.revenue-period-card) {
@@ -220,21 +220,21 @@
 .status-dashboard-page .status-period-card:not(.revenue-period-card) {
   border-color: var(--dashboard-card-border);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2%, #ffffff) 0%, #ffffff 36%, #fbfcfe 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2%, var(--surface)) 0%, var(--surface) 36%, #fbfcfe 100%);
   box-shadow: 0 7px 20px rgba(15, 23, 42, 0.04);
 }
 
 .status-dashboard-page .status-period-card:not(.revenue-period-card)::before {
   height: 2px;
-  background: color-mix(in srgb, var(--tone-color) 86%, #ffffff);
+  background: color-mix(in srgb, var(--tone-color) 86%, var(--surface));
 }
 
 .status-dashboard-page.tone-revenue .status-period-card:not(.revenue-period-card)::before {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--domain-sun2) 82%, #ffffff),
-    color-mix(in srgb, var(--domain-parking) 82%, #ffffff),
-    color-mix(in srgb, var(--domain-revenue) 82%, #ffffff)
+    color-mix(in srgb, var(--domain-sun2) 82%, var(--surface)),
+    color-mix(in srgb, var(--domain-parking) 82%, var(--surface)),
+    color-mix(in srgb, var(--domain-revenue) 82%, var(--surface))
   );
 }
 

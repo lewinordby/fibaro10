@@ -29,8 +29,8 @@ a {
 }
 
 ::selection {
-  color: #ffffff;
-  background: color-mix(in srgb, var(--active-module-color, #2563eb) 82%, #111827);
+  color: var(--surface);
+  background: color-mix(in srgb, var(--active-module-color, var(--domain-parking)) 82%, var(--ink));
 }
 
 /* Global Ant Design control tuning. */
@@ -94,7 +94,7 @@ a {
 }
 
 :is(.ant-input:focus, .ant-input-affix-wrapper-focused, .ant-input-number-focused, .ant-select-focused .ant-select-selector, .ant-picker-focused) {
-  border-color: color-mix(in srgb, var(--active-module-color) 55%, #cbd5e1) !important;
+  border-color: color-mix(in srgb, var(--active-module-color) 55%, var(--line-strong)) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--active-module-color) 12%, transparent) !important;
 }
 
@@ -190,8 +190,8 @@ a {
 }
 
 .module-view-switcher .ant-segmented-item-selected {
-  color: #ffffff;
-  background: color-mix(in srgb, var(--active-module-color) 90%, #111827);
+  color: var(--surface);
+  background: color-mix(in srgb, var(--active-module-color) 90%, var(--ink));
   font-weight: 780;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--active-module-color) 22%, transparent);
 }

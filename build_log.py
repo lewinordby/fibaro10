@@ -5,8 +5,43 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1354")
+APP_BUILD = os.getenv("APP_BUILD", "1355")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1355",
+        "date": "30.06.2026",
+        "headline": "Struktur- og ytelsesopprydding",
+        "title": "Backend, CSS, systemkart og API-kontrakter er strammet opp",
+        "description": (
+            "Build 1355 starter den systematiske oppryddingen av Fibaro10 V2. Importjobb-definisjoner er flyttet "
+            "ut av main.py, Admin har fått systemkart, CSS bruker flere felles design-tokens, tunge listevisninger "
+            "er justert, Admin har fått samlet kontrollinngang og API-kontraktene for modulinnhold er tydeligere."
+        ),
+        "applications": [
+            "Backend (main.py/import_jobs.py): flytter importjobb-metadata ut av monolitten og beholder samme API-bruk.",
+            "Backend (system_inventory.py): legger felles systemoversikt som brukes av Admin/Systemkart.",
+            "Backend/Admin: legger Kontroll som samlet inngang til parkering-, soling-, energi- og datakvalitetsavstemming.",
+            "Backend ytelse: tynner energigrafdata til praktisk visningsoppløsning og reduserer standarduttrekk for tunge solinglister.",
+            "Desktop v2 meny/ruting: legger Admin/Systemkart og retter fallback-lenke til reell dashboard-startside.",
+            "Desktop v2 CSS: erstatter mange hardkodede farger med eksisterende design-tokens.",
+            "API-kontrakter/tester: legger typer for modul-kort og tabeller, samt tester for importjobber og systemkart.",
+            "Dokumentasjon: legger funksjonsstruktur for videre meny- og sideopprydding.",
+        ],
+        "request": "Kjør på med alle 7 trinnene, gjør det grundig.",
+        "work_duration": "ca. 1 t 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Importjobb-definisjonene ligger nå i en egen modul i stedet for direkte i main.py.",
+            "Admin-menyen har fått Systemkart med komponenter, runtime, helsesjekk og kritikalitet.",
+            "Admin-menyen har fått Kontroll som samler eksisterende avstemminger uten å duplisere faglogikk.",
+            "CSS-audit har færre hardkodede farger og mer konsekvent bruk av tokens.",
+            "Energistatus sender færre grafpunkter til nettleseren uten å endre lagret 30-sekunders logging.",
+            "Soling/enkeltimer og soling/medlemmer laster færre rader som standard, men beholder Antall-filter.",
+            "Funksjonsstruktur er dokumentert for å redusere overlapp mellom sider videre.",
+            "API-kontraktene dekker generiske modul-kort og tabeller.",
+        ],
+    },
     {
         "version": "1",
         "build": "1354",

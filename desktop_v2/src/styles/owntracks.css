@@ -1,6 +1,6 @@
 .owntracks-page {
   --owntracks-border: color-mix(in srgb, var(--domain-mobile) 12%, var(--border-panel));
-  --owntracks-tint: color-mix(in srgb, var(--domain-mobile) 4%, #ffffff);
+  --owntracks-tint: color-mix(in srgb, var(--domain-mobile) 4%, var(--surface));
 }
 
 .owntracks-map-card {
@@ -157,7 +157,7 @@
   overflow: hidden;
   border: 1px solid var(--border-panel);
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 5px 18px rgba(15, 23, 42, 0.12);
 }
 
@@ -196,7 +196,7 @@
   overflow: hidden;
   border: 1px solid var(--border-panel);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
 }
 
@@ -219,7 +219,7 @@
   margin: -7px auto 0;
   transform: rotate(45deg);
   border: 1px solid var(--border-panel);
-  background: #ffffff;
+  background: var(--surface);
 }
 
 .owntracks-map .leaflet-popup-close-button {
@@ -245,11 +245,11 @@
   min-width: 34px;
   height: 26px;
   padding: 0 8px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--surface);
   border-radius: 999px;
   background: var(--marker-color, var(--domain-mobile));
   box-shadow: 0 7px 18px rgba(15, 23, 42, 0.25);
-  color: #ffffff;
+  color: var(--surface);
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
@@ -305,18 +305,18 @@
 }
 
 .owntracks-map-legend .track {
-  background: #2563eb;
+  background: var(--domain-parking);
 }
 
 .owntracks-map-legend .device {
-  border: 2px solid #ffffff;
+  border: 2px solid var(--surface);
   background: var(--domain-mobile);
   box-shadow: 0 0 0 1px var(--border-control);
 }
 
 .owntracks-map-legend .waypoint {
   border: 2px solid #16a34a;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 @media (max-width: 900px) {

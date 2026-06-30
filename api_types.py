@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, TypedDict
+from typing import Any, Dict, List, Literal, NotRequired, TypedDict
 
 
 HealthStatus = Literal["ok", "warn", "bad"]
@@ -36,6 +36,32 @@ class BuildLogTableRowPayload(TypedDict):
     work_duration: str
     credits_used: str
     path: str
+
+
+class ModuleCardPayload(TypedDict):
+    title: str
+    value: str
+    unit: str
+    detail: str
+    tone: str
+    href: NotRequired[str]
+
+
+class ModuleTablePayload(TypedDict):
+    title: str
+    columns: List[str]
+    rows: List[Dict[str, Any]]
+    edit: NotRequired[Dict[str, Any]]
+
+
+class ModulePayload(TypedDict, total=False):
+    title: str
+    subtitle: str
+    cards: List[ModuleCardPayload]
+    charts: List[Dict[str, Any]]
+    tables: List[ModuleTablePayload]
+    actions: List[Dict[str, Any]]
+    filters: List[Dict[str, Any]]
 
 
 class HealthAppPayload(TypedDict):

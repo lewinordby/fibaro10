@@ -9,15 +9,15 @@
 .status-overview-page .status-period-card.revenue-period-card {
   --period-border: color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--border-control));
   --period-border-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 20%, var(--line-strong));
-  --period-surface: linear-gradient(180deg, #ffffff, #fbfcfe);
-  --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 3%, #ffffff);
-  --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 5%, #ffffff);
-  --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 16%, #ffffff);
+  --period-surface: linear-gradient(180deg, var(--surface), #fbfcfe);
+  --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 3%, var(--surface));
+  --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 5%, var(--surface));
+  --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 16%, var(--surface));
   min-height: 300px;
   border: 1px solid var(--dashboard-card-border, var(--border-panel));
   border-radius: 9px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 2%, #ffffff) 0%, #ffffff 34%, #fbfcfe 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 2%, var(--surface)) 0%, var(--surface) 34%, #fbfcfe 100%);
   box-shadow: 0 7px 20px rgba(15, 23, 42, 0.04);
 }
 
@@ -35,15 +35,15 @@
 
 .status-period-card.revenue-period-card::before {
   height: 2px;
-  background: color-mix(in srgb, var(--tone-color, var(--domain-status)) 86%, #ffffff);
+  background: color-mix(in srgb, var(--tone-color, var(--domain-status)) 86%, var(--surface));
 }
 
 .status-dashboard-page.tone-revenue .status-period-card.revenue-period-card::before {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--domain-sun2) 82%, #ffffff),
-    color-mix(in srgb, var(--domain-parking) 82%, #ffffff),
-    color-mix(in srgb, var(--domain-revenue) 82%, #ffffff)
+    color-mix(in srgb, var(--domain-sun2) 82%, var(--surface)),
+    color-mix(in srgb, var(--domain-parking) 82%, var(--surface)),
+    color-mix(in srgb, var(--domain-revenue) 82%, var(--surface))
   );
 }
 
@@ -269,7 +269,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: 2px;
-  background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 78%, #ffffff);
+  background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 78%, var(--surface));
   content: "";
 }
 
@@ -295,7 +295,7 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 10%, #ffffff);
+  background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 10%, var(--surface));
   color: var(--driver-color, var(--domain-revenue));
   font-size: 15px;
 }
@@ -408,7 +408,7 @@
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--tone-color, var(--blue)) 10%, #ffffff);
+  background: color-mix(in srgb, var(--tone-color, var(--blue)) 10%, var(--surface));
   color: var(--tone-color, var(--blue));
   font-size: 14px;
 }

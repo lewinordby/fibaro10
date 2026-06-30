@@ -48,16 +48,16 @@
   width: 100%;
   height: 486px;
   overflow: hidden;
-  border: 1px solid #dbe3ee;
+  border: 1px solid var(--border-control);
   border-radius: 8px;
-  background: #eef2f7;
+  background: var(--line-soft);
 }
 
 .mobile-preview-frame {
   width: 390px;
   height: 784px;
   border: 0;
-  background: #ffffff;
+  background: var(--surface);
   transform: scale(var(--mobile-preview-scale));
   transform-origin: top left;
 }
