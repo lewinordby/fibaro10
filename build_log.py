@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1360")
+APP_BUILD = os.getenv("APP_BUILD", "1361")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1361",
+        "date": "30.06.2026",
+        "headline": "Backend delt videre opp",
+        "title": "Elvia-parser, SUN2-romlogikk og generisk verdi-parsing er flyttet ut av main.py",
+        "description": (
+            "Build 1361 fortsetter oppryddingen i backend-monolitten. Elvia-importens JSON-parser ligger nå i "
+            "energy_helpers.py, SUN2-rommapping og mojibake-reparasjon ligger i sun2_helpers.py, og felles "
+            "bool/int/float/timestamp-parsing ligger i value_parsing.py. API-oppførsel og databasekontrakter er "
+            "uendret."
+        ),
+        "applications": [
+            "Backend energi (energy_helpers.py): overtar parser for Elvia JSON-import og bruker felles verdi-parsing.",
+            "Backend SUN2 (sun2_helpers.py): samler rom-id, rometiketter, gammel rom-10-spesialregel og mojibake-reparasjon.",
+            "Backend verdi-parsing (value_parsing.py): samler bool/int/float/timestamp/areal/first-dict-hjelpere.",
+            "Backend hovedapp (main.py): importerer de nye modulene og mister flere hundre linjer hjelpefunksjoner.",
+            "Tester: legger til målrettede tester for Elvia-parser, SUN2-romlogikk og verdi-parsing.",
+            "Lokal sjekk (scripts/check-local.ps1): kompilerer de nye modulene i standard pipeline.",
+        ],
+        "request": "fortsett med videre oppsplitting",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "main.py er redusert med omtrent 300 linjer netto i denne runden.",
+            "Elvia-importlogikken er testet med norsk desimalformat, delvis måned og meter-id fra filnavn.",
+            "SUN2-rommappingen er testet for display-rom 10, gammel ukjent rom-10 og vanlige rom-id-formater.",
+            "Felles verdi-parsing har egne tester for norske boolske verdier, tallformat, timestamp og Roborock-areal.",
+        ],
+    },
     {
         "version": "1",
         "build": "1360",

@@ -61,6 +61,7 @@ from energy_helpers import (
     form_int,
     form_text,
     normalize_energy_sunbed_filter,
+    parse_elvia_json_payload,
 )
 from import_jobs import IMPORT_JOB_DEFINITIONS, IMPORT_JOB_NUMBER_BY_NAME
 from observability import health_payload
@@ -134,6 +135,16 @@ from roborock_domain import (
 )
 from security import apply_security_headers
 from system_inventory import system_component_rows, system_component_summary
+from sun2_helpers import (
+    SUN2_ROOM_MAP_BY_DISPLAY,
+    SUN2_ROOM_OPTIONS,
+    SUN2_ROOM_UNKNOWN_OLD_10,
+    normalize_room_id,
+    repair_mojibake,
+    room_key_from_name,
+    sun2_room_identity,
+    sun2_room_label,
+)
 from time_formatting import (
     LOCAL_TZ,
     format_local_datetime,
@@ -151,6 +162,14 @@ from time_formatting import (
 from unifi_protect import (
     UNIFI_PROTECT_PARKING_CAMERA_ID,
     unifi_protect_parking_timelapse_url,
+)
+from value_parsing import (
+    area_m2_from_payload,
+    bool_value,
+    first_dict,
+    float_value,
+    int_value,
+    timestamp_value,
 )
 from v2_navigation import v2_module_title
 
@@ -3539,294 +3558,6 @@ def json_value(value):
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     return value
-
-
-def repair_mojibake(value: Any) -> Any:
-    if not isinstance(value, str) or ("Ã" not in value and "Â" not in value):
-        return value
-    try:
-        return value.encode("latin1").decode("utf-8")
-    except UnicodeError:
-        return value
-
-
-def room_key_from_name(value: Any) -> Optional[str]:
-    text = repair_mojibake(value)
-    if not isinstance(text, str):
-        return None
-    match = re.search(r"\brom\s*0*(\d+)\b", text, re.IGNORECASE)
-    if not match:
-        return None
-    return f"rom_{int(match.group(1)):02d}"
-
-
-SUN2_ROOM_MAP_BY_DISPLAY = {
-    1: {"room_id": "rom-01", "physical_room_number": 1, "display_room_number": 1, "sun2_bed_id": "640"},
-    2: {"room_id": "rom-02", "physical_room_number": 2, "display_room_number": 2, "sun2_bed_id": "641"},
-    3: {"room_id": "rom-03", "physical_room_number": 3, "display_room_number": 3, "sun2_bed_id": "642"},
-    4: {"room_id": "rom-04", "physical_room_number": 4, "display_room_number": 4, "sun2_bed_id": "643"},
-    5: {"room_id": "rom-05", "physical_room_number": 5, "display_room_number": 5, "sun2_bed_id": "644"},
-    6: {"room_id": "rom-06", "physical_room_number": 6, "display_room_number": 6, "sun2_bed_id": "645"},
-    7: {"room_id": "rom-07", "physical_room_number": 7, "display_room_number": 7, "sun2_bed_id": "646"},
-    8: {"room_id": "rom-08", "physical_room_number": 8, "display_room_number": 8, "sun2_bed_id": "647"},
-    9: {"room_id": "rom-09", "physical_room_number": 9, "display_room_number": 9, "sun2_bed_id": "648"},
-    10: {"room_id": "rom-11", "physical_room_number": 11, "display_room_number": 10, "sun2_bed_id": "679"},
-    11: {"room_id": "rom-12", "physical_room_number": 12, "display_room_number": 11, "sun2_bed_id": "680"},
-    12: {"room_id": "rom-13", "physical_room_number": 13, "display_room_number": 12, "sun2_bed_id": "681"},
-}
-
-SUN2_ROOM_UNKNOWN_OLD_10 = {
-    "room_id": "rom-10",
-    "physical_room_number": 10,
-    "display_room_number": None,
-    "sun2_bed_id": "649",
-}
-
-
-def normalize_room_id(value: Any) -> Optional[str]:
-    if value is None:
-        return None
-    text = str(value).strip().lower().replace("_", "-")
-    match = re.search(r"(?:rom[-\s]*)?0*(\d{1,2})$", text)
-    if not match:
-        return None
-    number = int(match.group(1))
-    if 1 <= number <= 13:
-        return f"rom-{number:02d}"
-    return None
-
-
-def sun2_room_identity(value: Any = None, room_id: Any = None, bed_id: Any = None) -> Dict[str, Any]:
-    explicit_room_id = normalize_room_id(room_id)
-    bed_id_text = (repair_mojibake(bed_id) or "").strip()
-    if explicit_room_id:
-        physical_number = int(explicit_room_id.rsplit("-", 1)[-1])
-        identity = {
-            "room_id": explicit_room_id,
-            "physical_room_number": physical_number,
-            "display_room_number": None,
-            "sun2_bed_id": bed_id_text or None,
-        }
-        for item in list(SUN2_ROOM_MAP_BY_DISPLAY.values()) + [SUN2_ROOM_UNKNOWN_OLD_10]:
-            if item["room_id"] == explicit_room_id:
-                identity.update(item)
-                if bed_id_text:
-                    identity["sun2_bed_id"] = bed_id_text
-                break
-        return identity
-
-    text_value = repair_mojibake(value)
-    text = str(text_value).strip() if text_value is not None else ""
-    if text in {".", "-", ""}:
-        identity = dict(SUN2_ROOM_UNKNOWN_OLD_10)
-        if bed_id_text:
-            identity["sun2_bed_id"] = bed_id_text
-        return identity
-
-    match = re.search(r"\brom\s*0*(\d{1,2})\b", text, re.IGNORECASE)
-    if match:
-        display_number = int(match.group(1))
-        identity = dict(SUN2_ROOM_MAP_BY_DISPLAY.get(display_number) or {})
-        if identity:
-            if bed_id_text:
-                identity["sun2_bed_id"] = bed_id_text
-            return identity
-
-    explicit_from_value = normalize_room_id(text)
-    if explicit_from_value:
-        return sun2_room_identity(room_id=explicit_from_value, bed_id=bed_id_text)
-    return {"room_id": None, "physical_room_number": None, "display_room_number": None, "sun2_bed_id": bed_id_text or None}
-
-
-def sun2_room_label(room_id: Optional[str], source_name: Optional[str] = None) -> str:
-    normalized = normalize_room_id(room_id)
-    source = (repair_mojibake(source_name) or "").strip()
-    if not normalized:
-        return source or "-"
-    number = int(normalized.rsplit("-", 1)[-1])
-    if source and source not in {".", "-"}:
-        return f"Rom {number} - {source}"
-    if normalized == "rom-10":
-        return "Rom 10 - tidligere SUN2-navn '.'"
-    return f"Rom {number}"
-
-
-SUN2_ROOM_OPTIONS = [
-    {"value": f"rom-{number:02d}", "label": f"Rom {number}"}
-    for number in range(1, 14)
-]
-
-
-def bool_value(value: Any) -> Optional[bool]:
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return bool(value)
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"1", "true", "yes", "on", "ja"}:
-            return True
-        if normalized in {"0", "false", "no", "off", "nei"}:
-            return False
-    return None
-
-
-def int_value(value: Any) -> Optional[int]:
-    if value is None or value == "":
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def float_value(value: Any) -> Optional[float]:
-    if value is None or value == "":
-        return None
-    if isinstance(value, str):
-        normalized = value.strip().replace("\u00a0", "").replace(" ", "")
-        if "," in normalized and "." in normalized:
-            normalized = normalized.replace(".", "").replace(",", ".")
-        elif "," in normalized:
-            normalized = normalized.replace(",", ".")
-        value = normalized
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def nested_total(value: Any) -> Optional[float]:
-    if not isinstance(value, dict):
-        return None
-    return float_value(value.get("Total"))
-
-
-def consumption_value(value: Any) -> Optional[float]:
-    if not isinstance(value, dict):
-        return None
-    return float_value(value.get("Value"))
-
-
-def meter_id_from_filename(filename: Optional[str]) -> str:
-    match = re.match(r"(\d+)", filename or "")
-    return match.group(1) if match else "elvia"
-
-
-def parse_elvia_json_payload(content: bytes, filename: str) -> Dict[str, Any]:
-    data = json.loads(content.decode("utf-8-sig"))
-    meter_id = meter_id_from_filename(filename)
-    rows: list[Dict[str, Any]] = []
-    day_ids = set()
-    month_days: Dict[str, set[int]] = {}
-    estimated_hours = 0
-
-    for year_data in data.get("Years") or []:
-        for month_data in year_data.get("Months") or []:
-            for day_data in month_data.get("Days") or []:
-                day = date(int(day_data["Year"]), int(day_data["Month"]), int(day_data["Day"]))
-                day_ids.add(day)
-                month_key = f"{day.year:04d}-{day.month:02d}"
-                month_days.setdefault(month_key, set()).add(day.day)
-                for hour_data in day_data.get("Hours") or []:
-                    measured_at = datetime(
-                        int(hour_data["Year"]),
-                        int(hour_data["Month"]),
-                        int(hour_data["Day"]),
-                        int(hour_data["Hour"]),
-                    )
-                    consumption = consumption_value(hour_data.get("Consumption"))
-                    if consumption is None:
-                        continue
-                    production = consumption_value(hour_data.get("Production"))
-                    status = (hour_data.get("Consumption") or {}).get("Status")
-                    is_estimated = status != "OK"
-                    if is_estimated:
-                        estimated_hours += 1
-                    rows.append(
-                        {
-                            "meter_id": meter_id,
-                            "measured_at": measured_at,
-                            "stat_date": measured_at.date(),
-                            "year": measured_at.year,
-                            "month": measured_at.month,
-                            "day": measured_at.day,
-                            "hour": measured_at.hour,
-                            "consumption_kwh": consumption,
-                            "production_kwh": production,
-                            "status": status,
-                            "is_verified": bool_value((hour_data.get("Consumption") or {}).get("IsVerified")),
-                            "is_estimated": is_estimated,
-                            "is_public_holiday": bool_value(hour_data.get("IsPublicHoliday")),
-                            "use_weekend_prices": bool_value(hour_data.get("UseWeekendPrices")),
-                            "raw": hour_data,
-                        }
-                    )
-
-    rows.sort(key=lambda item: item["measured_at"])
-    first_at = rows[0]["measured_at"] if rows else None
-    last_at = rows[-1]["measured_at"] if rows else None
-    partial_months = []
-    for month_key, days in sorted(month_days.items()):
-        year_number, month_number = [int(part) for part in month_key.split("-")]
-        expected_days = calendar.monthrange(year_number, month_number)[1]
-        if len(days) != expected_days:
-            partial_months.append(
-                {
-                    "month": month_key,
-                    "days": len(days),
-                    "expected_days": expected_days,
-                    "first_day": min(days),
-                    "last_day": max(days),
-                }
-            )
-    return {
-        "meter_id": meter_id,
-        "rows": rows,
-        "first_at": first_at,
-        "last_at": last_at,
-        "days_count": len(day_ids),
-        "hours_count": len(rows),
-        "total_kwh": sum(row["consumption_kwh"] for row in rows),
-        "estimated_hours_count": estimated_hours,
-        "partial_months": partial_months,
-        "source_file": filename,
-    }
-
-
-def timestamp_value(value: Any) -> Optional[datetime]:
-    if isinstance(value, datetime):
-        return value
-    if isinstance(value, (int, float)):
-        return datetime.utcfromtimestamp(value)
-    if isinstance(value, str):
-        parsed = parse_datetime(value)
-        if parsed:
-            return parsed
-        try:
-            return datetime.utcfromtimestamp(int(value))
-        except (TypeError, ValueError):
-            return None
-    return None
-
-
-def area_m2_from_payload(value: Any) -> Optional[float]:
-    number = float_value(value)
-    if number is None:
-        return None
-    if number > 100000:
-        return round(number / 1_000_000, 2)
-    return number
-
-
-def first_dict(value: Any) -> Dict[str, Any]:
-    if isinstance(value, list) and value and isinstance(value[0], dict):
-        return value[0]
-    if isinstance(value, dict):
-        return value
-    return {}
 
 
 def roborock_schedule_params(schedule: Dict[str, Any]) -> Dict[str, Any]:
