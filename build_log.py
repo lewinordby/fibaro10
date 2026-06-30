@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1356")
+APP_BUILD = os.getenv("APP_BUILD", "1357")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1357",
+        "date": "30.06.2026",
+        "headline": "Mindre soling-monolitt",
+        "title": "Død enkeltimer-kode er fjernet fra soling-modulen",
+        "description": (
+            "Build 1357 rydder bort en gammel duplisert kodegren for soling/enkeltimer i hovedmodulen. "
+            "Aktiv enkeltimer-logikk ligger allerede i egen payload-funksjon, og ruten returnerer dit før "
+            "den gamle grenen kunne nås. Dette gjør videre arbeid med soling tryggere og reduserer main.py."
+        ),
+        "applications": [
+            "Backend (main.py): fjerner gammel unreachable enkeltimer-gren fra api_v2_soling_module.",
+            "Backend struktur: beholder sun2_sessions_module_payload som eneste aktive modulbygger for soling/enkeltimer.",
+            "Buildlogg (build_log.py): registrerer build 1357.",
+        ],
+        "request": "Kjør på gjør applikasjonen bedre og bedre. du har dagen på deg.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "115 døde linjer er fjernet fra main.py.",
+            "Soling/enkeltimer har fortsatt samme aktive API-flate som build 1356.",
+            "Senere endringer i enkeltimer trenger nå bare å gjøres i én funksjon.",
+        ],
+    },
     {
         "version": "1",
         "build": "1356",
