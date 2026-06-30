@@ -29,6 +29,7 @@ const codeText = codeFiles.map(read).join("\n");
 
 const dynamicClassPatterns = [
   /^ant-/,
+  /^leaflet-/,
   /^domain-/,
   /^tone-/,
   /^kind-/,

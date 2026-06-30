@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1358")
+APP_BUILD = os.getenv("APP_BUILD", "1359")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1359",
+        "date": "30.06.2026",
+        "headline": "Renere CSS-audit",
+        "title": "CSS-auditen skiller Leaflet runtime-klasser fra reelt ubrukt CSS",
+        "description": (
+            "Build 1359 forbedrer kvalitetssignalet i frontend-auditen. Leaflet lager egne CSS-klasser i DOM "
+            "runtime, og disse ble tidligere rapportert som mulig ubrukt CSS. Audit-scriptet behandler nå "
+            "leaflet-prefixen som dynamisk på samme måte som Ant Design."
+        ),
+        "applications": [
+            "Frontend audit (desktop_v2/scripts/audit-css.mjs): legger Leaflet-klasser inn som dynamiske runtime-klasser.",
+            "Buildlogg (build_log.py): registrerer build 1359.",
+        ],
+        "request": "Kjør på gjør applikasjonen bedre og bedre. du har dagen på deg.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "CSS-auditens possibleUnusedClasses gikk fra 35 til 0.",
+            "Kart-CSS for OwnTracks beholdes uendret.",
+            "Videre CSS-opprydding får tydeligere signal, fordi tredjepartsklassene ikke lenger skaper falske funn.",
+        ],
+    },
     {
         "version": "1",
         "build": "1358",
