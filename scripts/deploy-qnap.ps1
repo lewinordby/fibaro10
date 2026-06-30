@@ -112,7 +112,7 @@ mkdir -p mqtt/data
 export APP_COMMIT=`$(git rev-parse --short HEAD)
 "$Docker" compose -f docker-compose.qnap.yml up -d --build --force-recreate owntracks_mqtt fibaro10_proxy
 "$Docker" compose -f docker-compose.qnap.yml up -d --build fibaro10 online_dashboard axis_camera_snapshots car_info_lookup sun2_session_scraper
-"$Docker" exec fibaro10_proxy caddy reload --config /etc/caddy/Caddyfile || "$Docker" restart fibaro10_proxy
+"$Docker" exec fibaro10_proxy caddy validate --config /etc/caddy/Caddyfile || { "$Docker" logs --tail=80 fibaro10_proxy; exit 1; }
 "$Docker" compose -f docker-compose.qnap.yml ps
 echo "Backup: `$backup_dir"
 "@

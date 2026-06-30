@@ -1,27 +1,25 @@
 {
-    admin off
+	admin off
 }
 
 online.lilletorget.net {
-    encode zstd gzip
+	encode zstd gzip
 
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        X-Content-Type-Options "nosniff"
-        Referrer-Policy "strict-origin-when-cross-origin"
-        -Server
-    }
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
 
-    @owntracks_mqtt path /mqtt /mqtt/*
-    reverse_proxy @owntracks_mqtt owntracks_mqtt:9001
+	@owntracks_mqtt path /mqtt /mqtt/*
+	reverse_proxy @owntracks_mqtt owntracks_mqtt:9001
 
-    @owntracks_http path /owntracks /owntracks/*
-    reverse_proxy @owntracks_http fibaro10:8110
+	@owntracks_http path /owntracks /owntracks/*
+	reverse_proxy @owntracks_http fibaro10:8110
 
-    reverse_proxy online_dashboard:8111 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
+	reverse_proxy online_dashboard:8111 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
 }

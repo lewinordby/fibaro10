@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1357")
+APP_BUILD = os.getenv("APP_BUILD", "1358")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1358",
+        "date": "30.06.2026",
+        "headline": "Renere QNAP-deploy",
+        "title": "Deploy validerer Caddy i stedet for å reloade en nystartet proxy",
+        "description": (
+            "Build 1358 rydder opp i QNAP-deployen. Caddy kjører med admin-API avslått, og deployscriptet "
+            "prøvde derfor å kjøre reload etter at proxyen allerede var startet på nytt. Scriptet validerer nå "
+            "Caddyfile i containeren i stedet. Caddyfile er også formatert og ryddet for proxy-headere som Caddy "
+            "setter selv."
+        ),
+        "applications": [
+            "Deploy (scripts/deploy-qnap.ps1): bytter Caddy reload til Caddy validate etter proxy-restart.",
+            "Proxy (Caddyfile): formaterer Caddyfile og fjerner unødvendige X-Forwarded-header overrides.",
+            "Buildlogg (build_log.py): registrerer build 1358.",
+        ],
+        "request": "Kjør på gjør applikasjonen bedre og bedre. du har dagen på deg.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Deployloggen skal ikke lenger vise Caddy reload-feil på grunn av admin off.",
+            "Caddyfile valideres eksplisitt etter restart.",
+            "Proxyoppsettet beholder samme upstreams for online_dashboard, OwnTracks HTTP og OwnTracks MQTT/WebSocket.",
+        ],
+    },
     {
         "version": "1",
         "build": "1357",
