@@ -41,6 +41,10 @@ CODE_COOLDOWN_MINUTES = int(os.getenv("EASYPARK_CODE_COOLDOWN_MINUTES", "5"))
 CODE_WAIT_SECONDS = max(30, int(os.getenv("EASYPARK_CODE_WAIT_SECONDS", "120")))
 FORCE_LOGIN_TIMES = os.getenv("EASYPARK_FORCE_LOGIN_TIMES", "").strip()
 EDGE_EXECUTABLE_PATH = os.getenv("EASYPARK_EDGE_EXECUTABLE_PATH", "/usr/bin/microsoft-edge")
+VNC_PUBLIC_URL = os.getenv(
+    "EASYPARK_VNC_PUBLIC_URL",
+    "http://192.168.20.218:8112/vnc.html?autoconnect=true&resize=remote",
+)
 JOB_TIMEOUT_SECONDS = max(60, int(os.getenv("EASYPARK_JOB_TIMEOUT_SECONDS", "300")))
 WATCHDOG_INTERVAL_SECONDS = max(10, int(os.getenv("EASYPARK_WATCHDOG_INTERVAL_SECONDS", "30")))
 STALE_JOB_SECONDS = max(JOB_TIMEOUT_SECONDS + 30, int(os.getenv("EASYPARK_STALE_JOB_SECONDS", "600")))
@@ -61,6 +65,10 @@ lock = asyncio.Lock()
 worker_task: asyncio.Task | None = None
 watchdog_task: asyncio.Task | None = None
 running_started_monotonic: float | None = None
+manual_playwright: Any | None = None
+manual_context: Any | None = None
+manual_page: Any | None = None
+manual_started_at: str | None = None
 state: dict[str, Any] = {
     "started_at": datetime.now(timezone.utc).isoformat(),
     "running": False,
@@ -71,6 +79,21 @@ state: dict[str, Any] = {
     "last_period": None,
     "last_action": "init",
 }
+
+
+def browser_launch_options() -> dict[str, Any]:
+    launch_options: dict[str, Any] = {}
+    if EDGE_EXECUTABLE_PATH and Path(EDGE_EXECUTABLE_PATH).exists():
+        launch_options["executable_path"] = EDGE_EXECUTABLE_PATH
+    return launch_options
+
+
+def manual_login_status() -> dict[str, Any]:
+    return {
+        "active": manual_context is not None,
+        "started_at": manual_started_at,
+        "vnc_url": VNC_PUBLIC_URL,
+    }
 
 
 def env_required(name: str) -> str:
@@ -490,9 +513,6 @@ async def logout_easypark(page) -> bool:
 async def try_logout_existing_session(playwright) -> bool:
     if not PROFILE_DIR.exists():
         return False
-    launch_options: dict[str, Any] = {}
-    if EDGE_EXECUTABLE_PATH and Path(EDGE_EXECUTABLE_PATH).exists():
-        launch_options["executable_path"] = EDGE_EXECUTABLE_PATH
     clear_stale_browser_locks()
     context = await playwright.chromium.launch_persistent_context(
         str(PROFILE_DIR),
@@ -501,7 +521,7 @@ async def try_logout_existing_session(playwright) -> bool:
         viewport={"width": 1365, "height": 900},
         locale="en-US",
         timezone_id="Europe/Oslo",
-        **launch_options,
+        **browser_launch_options(),
     )
     page = context.pages[0] if context.pages else await context.new_page()
     try:
@@ -688,6 +708,8 @@ async def _run_download_import(
     to_day: date | None = None,
     force_login: bool = False,
 ) -> dict[str, Any]:
+    if manual_context is not None:
+        raise RuntimeError("Manuell EasyPark-login er apen. Fullfor eller stopp den for ny import.")
     validate_period(from_day, to_day)
     period = period_label(from_day, to_day)
     set_state(running=True, last_action="starting", last_error=None, last_period=period)
@@ -705,10 +727,6 @@ async def _run_download_import(
                     last_login_at=None,
                 )
 
-            launch_options: dict[str, Any] = {}
-            if EDGE_EXECUTABLE_PATH and Path(EDGE_EXECUTABLE_PATH).exists():
-                launch_options["executable_path"] = EDGE_EXECUTABLE_PATH
-
             clear_stale_browser_locks()
             context = await playwright.chromium.launch_persistent_context(
                 str(PROFILE_DIR),
@@ -718,7 +736,7 @@ async def _run_download_import(
                 viewport={"width": 1365, "height": 900},
                 locale="en-US",
                 timezone_id="Europe/Oslo",
-                **launch_options,
+                **browser_launch_options(),
             )
             page = context.pages[0] if context.pages else await context.new_page()
             try:
@@ -795,6 +813,8 @@ def should_force_login_now() -> bool:
 
 
 async def run_scheduled_once() -> dict[str, Any]:
+    if manual_context is not None:
+        return {"status": "busy", "message": "Manuell EasyPark-login er apen.", **state}
     from_day, to_day = scheduled_period()
     async with lock:
         return await run_download_import(from_day, to_day, force_login=should_force_login_now())
@@ -817,6 +837,56 @@ async def run_backfill_year(year: int, end_day: date | None = None) -> dict[str,
         }
         set_state(running=False, last_action="backfill_done", last_period=str(year))
         return {"ok": True, "year": year, "totals": totals, "results": results}
+
+
+async def close_manual_login() -> None:
+    global manual_playwright, manual_context, manual_page, manual_started_at
+    if manual_context is not None:
+        try:
+            await manual_context.close()
+        except Exception:
+            pass
+    if manual_playwright is not None:
+        try:
+            await manual_playwright.stop()
+        except Exception:
+            pass
+    manual_playwright = None
+    manual_context = None
+    manual_page = None
+    manual_started_at = None
+
+
+async def start_manual_login_session() -> dict[str, Any]:
+    global manual_playwright, manual_context, manual_page, manual_started_at
+    if manual_context is not None:
+        return {"status": "ok", "message": "Manuell EasyPark-login er allerede apen.", "manual_login": manual_login_status()}
+    manual_started_at = utcnow_iso()
+    set_state(last_action="manual_login_start", last_error=None)
+    try:
+        manual_playwright = await async_playwright().start()
+        clear_stale_browser_locks()
+        manual_context = await manual_playwright.chromium.launch_persistent_context(
+            str(PROFILE_DIR),
+            headless=False,
+            accept_downloads=False,
+            viewport={"width": 1365, "height": 900},
+            locale="en-US",
+            timezone_id="Europe/Oslo",
+            **browser_launch_options(),
+        )
+        manual_page = manual_context.pages[0] if manual_context.pages else await manual_context.new_page()
+        await manual_page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
+        await manual_page.wait_for_timeout(2000)
+        return {
+            "status": "ok",
+            "message": "Manuell EasyPark-login er apnet i browserprofilen.",
+            "manual_login": manual_login_status(),
+        }
+    except Exception:
+        await close_manual_login()
+        set_state(last_action="manual_login_error", last_error="Klarte ikke a apne manuell EasyPark-login.")
+        raise
 
 
 async def worker_loop() -> None:
@@ -889,7 +959,13 @@ async def startup() -> None:
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
-    return {"ok": True, "running": state["running"], "last_success_at": state["last_success_at"], "last_error": state["last_error"]}
+    return {
+        "ok": True,
+        "running": state["running"],
+        "last_success_at": state["last_success_at"],
+        "last_error": state["last_error"],
+        "manual_login": manual_login_status(),
+    }
 
 
 @app.get("/status")
@@ -897,6 +973,7 @@ async def status() -> dict[str, Any]:
     return {
         **state,
         "auth": read_auth_state(),
+        "manual_login": manual_login_status(),
         "schedule": {
             "run_times": [f"{hour:02d}:{minute:02d}" for hour, minute in parse_run_times(RUN_TIMES)],
             "run_at": RUN_AT,
@@ -911,12 +988,52 @@ async def status() -> dict[str, Any]:
     }
 
 
+@app.post("/manual-login/start")
+async def manual_login_start() -> dict[str, Any]:
+    if lock.locked():
+        return {"status": "busy", "message": "EasyPark-import kjorer allerede.", "manual_login": manual_login_status()}
+    async with lock:
+        return await start_manual_login_session()
+
+
+@app.post("/manual-login/finish")
+async def manual_login_finish() -> dict[str, Any]:
+    if manual_context is None or manual_page is None:
+        return {"status": "error", "message": "Ingen manuell EasyPark-login er apen.", "manual_login": manual_login_status()}
+    try:
+        await manual_page.goto(REPORT_URL, wait_until="domcontentloaded", timeout=60000)
+        await manual_page.wait_for_timeout(3000)
+        if not await looks_logged_in(manual_page):
+            set_state(last_action="manual_login_waiting", last_error="Manuell EasyPark-login er ikke fullfort.")
+            return {
+                "status": "error",
+                "message": "EasyPark er fortsatt ikke logget inn. Fullfor login/captcha i noVNC og prov igjen.",
+                "manual_login": manual_login_status(),
+            }
+        mark_login_completed()
+        set_state(last_action="manual_login_done", last_error=None)
+        await close_manual_login()
+        return {"status": "ok", "message": "EasyPark-login er bekreftet og lagret i browserprofilen.", "manual_login": manual_login_status()}
+    except Exception as exc:
+        set_state(last_action="manual_login_error", last_error=str(exc))
+        return {"status": "error", "message": str(exc), "manual_login": manual_login_status()}
+
+
+@app.post("/manual-login/stop")
+async def manual_login_stop() -> dict[str, Any]:
+    await close_manual_login()
+    set_state(last_action="manual_login_stopped")
+    return {"status": "ok", "message": "Manuell EasyPark-login er lukket.", "manual_login": manual_login_status()}
+
+
 @app.post("/sync-now")
 async def sync_now(
     from_date: str | None = Query(default=None),
     to_date: str | None = Query(default=None),
     force_login: bool = Query(default=False),
 ) -> dict[str, Any]:
+    if manual_context is not None:
+        return {"status": "busy", "detail": "Manuell EasyPark-login er apen.", **state, "manual_login": manual_login_status()}
     if lock.locked():
         return {"status": "busy", **state}
     try:
@@ -932,6 +1049,8 @@ async def sync_period(
     to_date: str = Query(...),
     force_login: bool = Query(default=False),
 ) -> dict[str, Any]:
+    if manual_context is not None:
+        return {"status": "busy", "detail": "Manuell EasyPark-login er apen.", **state, "manual_login": manual_login_status()}
     if lock.locked():
         return {"status": "busy", **state}
     try:
@@ -946,6 +1065,8 @@ async def backfill_year(
     year: int = Query(..., ge=2017, le=2100),
     end_date: str | None = Query(default=None),
 ) -> dict[str, Any]:
+    if manual_context is not None:
+        return {"status": "busy", "detail": "Manuell EasyPark-login er apen.", **state, "manual_login": manual_login_status()}
     if lock.locked():
         return {"status": "busy", **state}
     try:

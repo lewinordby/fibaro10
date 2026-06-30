@@ -10,6 +10,18 @@ Liten QNAP-container som logger inn i EasyPark, laster ned CSV-rapport og sender
 - `POST /sync-now?from_date=2026-01-01&to_date=2026-01-31` laster ned valgt periode.
 - `POST /sync-period?from_date=2026-01-01&to_date=2026-01-31` er en tydelig variant for perioder.
 - `POST /backfill-year?year=2026` kjorer maned for maned fra 1. januar til dagens dato.
+- `POST /manual-login/start` apner en synlig EasyPark-browser i samme persistente profil.
+- `POST /manual-login/finish` bekrefter at manuell login er ferdig og lukker browseren.
+- `POST /manual-login/stop` lukker manuell browser uten a markere login som fullfort.
+
+Hvis EasyPark krever reCAPTCHA eller annen manuell sikkerhetssjekk:
+
+1. Start manuell login: `POST http://192.168.20.218:8109/manual-login/start`.
+2. Apne noVNC: `http://192.168.20.218:8112/vnc.html?autoconnect=true&resize=remote`.
+3. Logg inn i EasyPark og los eventuell reCAPTCHA i browseren.
+4. Bekreft login: `POST http://192.168.20.218:8109/manual-login/finish`.
+
+noVNC bruker `EASYPARK_VNC_PASSWORD`. Hvis den ikke er satt, brukes `FIBARO10_PASSWORD` fra `easypark_downloader/.env`.
 
 Containeren bruker persistent browserprofil i `./data/browser-profile`, slik at EasyPark-sesjonen kan gjenbrukes sa lenge EasyPark godtar den. Tidspunkt for siste fullforte EasyPark-login lagres i `./data/auth-state.json`, men brukes bare som statusinformasjon. Appen kaster ikke sesjonen bare fordi den har blitt eldre enn et visst antall timer, og nattjobben skal normalt ikke tvinge ny login.
 

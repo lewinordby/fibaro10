@@ -7,6 +7,7 @@ services:
     env_file: .env
     ports:
       - "8109:8109"
+      - "192.168.20.218:8112:6080"
     volumes:
       - ./data:/data
     networks:
