@@ -22,6 +22,8 @@ load_dotenv()
 
 DATA_DIR = Path(os.getenv("EASYPARK_DATA_DIR", "/data"))
 PROFILE_DIR = DATA_DIR / "browser-profile"
+PROFILE_SNAPSHOT_DIR = DATA_DIR / "last-good-browser-profile"
+FAILED_PROFILE_DIR = DATA_DIR / "failed-browser-profiles"
 DOWNLOAD_DIR = DATA_DIR / "downloads"
 ARTIFACT_DIR = DATA_DIR / "artifacts"
 STATE_PATH = DATA_DIR / "state.json"
@@ -153,6 +155,17 @@ def should_restart_after_error(message: str) -> bool:
     )
 
 
+def should_restore_profile_after_error(message: str) -> bool:
+    normalized = message.casefold()
+    return (
+        "recaptcha" in normalized
+        or "sikkerhetskontroll" in normalized
+        or "bestilling av e-postkode" in normalized
+        or "easypark-login full" in normalized
+        or "blokkerer automatisk login" in normalized
+    )
+
+
 def schedule_self_restart(reason: str) -> None:
     if not AUTO_RESTART_ON_BROWSER_FAILURE:
         return
@@ -203,6 +216,38 @@ def clear_stale_browser_locks() -> None:
                 path.unlink()
         except Exception:
             pass
+
+
+def profile_copy_ignore(_directory: str, names: list[str]) -> set[str]:
+    ignored = {"SingletonLock", "SingletonCookie", "SingletonSocket", "Crashpad", "BrowserMetrics"}
+    return {name for name in names if name in ignored}
+
+
+def snapshot_browser_profile() -> None:
+    if not PROFILE_DIR.exists():
+        return
+    clear_stale_browser_locks()
+    tmp_dir = DATA_DIR / "last-good-browser-profile.tmp"
+    if tmp_dir.exists():
+        shutil.rmtree(tmp_dir)
+    shutil.copytree(PROFILE_DIR, tmp_dir, symlinks=True, ignore=profile_copy_ignore)
+    if PROFILE_SNAPSHOT_DIR.exists():
+        shutil.rmtree(PROFILE_SNAPSHOT_DIR)
+    tmp_dir.rename(PROFILE_SNAPSHOT_DIR)
+    write_auth_state(last_good_profile_at=utcnow_iso())
+
+
+def restore_browser_profile_snapshot(reason: str) -> bool:
+    if not PROFILE_SNAPSHOT_DIR.exists():
+        return False
+    clear_stale_browser_locks()
+    FAILED_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    failed_target = FAILED_PROFILE_DIR / stamp()
+    if PROFILE_DIR.exists():
+        shutil.move(str(PROFILE_DIR), str(failed_target))
+    shutil.copytree(PROFILE_SNAPSHOT_DIR, PROFILE_DIR, symlinks=True, ignore=profile_copy_ignore)
+    write_auth_state(last_profile_restore_at=utcnow_iso(), last_profile_restore_reason=reason)
+    return True
 
 
 def mark_login_completed() -> None:
@@ -687,6 +732,7 @@ async def _run_download_import(
     from_day: date | None = None,
     to_day: date | None = None,
     force_login: bool = False,
+    allow_profile_restore: bool = True,
 ) -> dict[str, Any]:
     validate_period(from_day, to_day)
     period = period_label(from_day, to_day)
@@ -742,6 +788,10 @@ async def _run_download_import(
 
         set_state(last_action="import")
         import_result = post_to_fibaro10(file_path)
+        try:
+            snapshot_browser_profile()
+        except Exception:
+            pass
         result = {"ok": True, "started_at": started, "period": period, "file": str(file_path), "import": import_result}
         set_state(
             running=False,
@@ -755,6 +805,18 @@ async def _run_download_import(
         return result
     except Exception as exc:
         message = str(exc)
+        if (
+            allow_profile_restore
+            and should_restore_profile_after_error(message)
+            and restore_browser_profile_snapshot(message)
+        ):
+            set_state(running=False, last_error=None, last_action="profile_restore_retry", last_period=period)
+            return await _run_download_import(
+                from_day,
+                to_day,
+                force_login=False,
+                allow_profile_restore=False,
+            )
         set_state(running=False, last_error=message, last_action="error", last_period=period)
         report_failure_to_fibaro10(started, message)
         if should_restart_after_error(message):

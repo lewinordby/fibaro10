@@ -13,6 +13,8 @@ Liten QNAP-container som logger inn i EasyPark, laster ned CSV-rapport og sender
 
 Containeren bruker persistent browserprofil i `./data/browser-profile`, slik at EasyPark-sesjonen kan gjenbrukes sa lenge EasyPark godtar den. Tidspunkt for siste fullforte EasyPark-login lagres i `./data/auth-state.json`, men brukes bare som statusinformasjon. Appen kaster ikke sesjonen bare fordi den har blitt eldre enn et visst antall timer, og nattjobben skal normalt ikke tvinge ny login.
 
+Etter en vellykket import tar appen en kopi av siste fungerende browserprofil til `./data/last-good-browser-profile`. Hvis EasyPark senere returnerer reCAPTCHA eller tilsvarende login-feil, restaurerer appen automatisk denne profilen og prover samme import en gang til for a unnga at en korrupt loginflyt stopper fast drift.
+
 Hvis EasyPark krever ny sikkerhetskontroll, forsoker appen a hente verifikasjonskode fra Gmail nar kodefeltet faktisk vises.
 Etter at EasyPark er bedt om a sende kode, prover appen Gmail flere ganger i opptil `EASYPARK_CODE_WAIT_SECONDS`, standard 120 sekunder.
 
