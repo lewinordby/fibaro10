@@ -52,6 +52,7 @@ class ModuleTablePayload(TypedDict):
     columns: List[str]
     rows: List[Dict[str, Any]]
     edit: NotRequired[Dict[str, Any]]
+    meta: NotRequired[Dict[str, Any]]
 
 
 class ModulePayload(TypedDict, total=False):

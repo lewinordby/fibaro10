@@ -42,6 +42,7 @@ class ApiTypeContractTests(unittest.TestCase):
 
         self.assertTrue({"title", "value", "tone"}.issubset(card_required))
         self.assertTrue({"title", "columns", "rows"}.issubset(table_required))
+        self.assertIn("meta", set(ModuleTablePayload.__optional_keys__))
         self.assertTrue({"cards", "charts", "tables", "actions", "filters"}.issubset(module_optional))
 
 

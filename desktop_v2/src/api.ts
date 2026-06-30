@@ -387,6 +387,17 @@ export type ModuleTable = {
   columns: string[];
   rows: ModuleRow[];
   edit?: ModuleEditConfig;
+  meta?: {
+    totalRows?: number;
+    page?: number;
+    pageSize?: number;
+    offset?: number;
+    shownRows?: number;
+    firstRow?: number;
+    lastRow?: number;
+    hasPrevious?: boolean;
+    hasMore?: boolean;
+  };
 };
 
 export type OwnTracksMapLocation = {

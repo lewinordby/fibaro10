@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1355")
+APP_BUILD = os.getenv("APP_BUILD", "1356")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1356",
+        "date": "30.06.2026",
+        "headline": "Server-side tabellpaging",
+        "title": "Store modultabeller kan bla uten å hente alt på én gang",
+        "description": (
+            "Build 1356 gjør tunge tabellsider mer robuste ved at backend sender tabellmetadata og bare aktuell side "
+            "av store lister. Frontend viser hvilket radintervall som er hentet og har Forrige/Neste-knapper direkte "
+            "i tabellhodet. Dette reduserer lastetid og payload-risiko på sider som vokser med historikk."
+        ),
+        "applications": [
+            "Backend (main.py): legger felles tabellmetadata og page/offset for soling/enkeltimer, soling/medlemmer og parkering/kjøretøy.",
+            "API-kontrakter (api_types.py): utvider modul-tabeller med valgfri meta-informasjon.",
+            "Desktop v2 API (api.ts): legger type for tabellmetadata.",
+            "Desktop v2 modulsider (ModulePage.tsx, ModuleTablePane.tsx): viser radintervall og Forrige/Neste for server-side paging.",
+            "Tester (tests/test_api_types.py): dekker at modul-tabeller kan ha metadata.",
+            "Buildlogg (build_log.py): registrerer build 1356.",
+        ],
+        "request": "Kjør på gjør applikasjonen bedre og bedre. du har dagen på deg.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Soling/enkeltimer henter nå bare valgt side fra databasen, ikke første blokk uten sidekontroll.",
+            "Soling/medlemmer og parkering/kjøretøy har samme server-side blaing.",
+            "Tabellene viser nå tydelig radintervallet som er lastet, for eksempel 1-100 av 4823.",
+            "Forrige/Neste-knapper ligger ved tabellen slik at brukeren slipper å skrive sidetall manuelt.",
+            "Eksisterende Antall-filter beholdes for å styre hvor mange rader som lastes per side.",
+        ],
+    },
     {
         "version": "1",
         "build": "1355",

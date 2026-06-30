@@ -14773,7 +14773,13 @@ async def api_v2_sun_settlement_attachment(settlement_id: int, download: bool = 
         )
 
 
-def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]], edit: Optional[Dict[str, Any]] = None) -> ModuleTablePayload:
+def api_table(
+    title: str,
+    columns: list[str],
+    rows: list[Dict[str, Any]],
+    edit: Optional[Dict[str, Any]] = None,
+    meta: Optional[Dict[str, Any]] = None,
+) -> ModuleTablePayload:
     payload = {
         "title": title,
         "columns": columns,
@@ -14781,7 +14787,26 @@ def api_table(title: str, columns: list[str], rows: list[Dict[str, Any]], edit: 
     }
     if edit:
         payload["edit"] = edit
+    if meta:
+        payload["meta"] = meta
     return payload
+
+
+def api_table_meta(total_rows: int, page: int, page_size: int, shown_rows: int) -> Dict[str, Any]:
+    offset = max(0, (page - 1) * page_size)
+    first_row = offset + 1 if total_rows and shown_rows else 0
+    last_row = offset + shown_rows if shown_rows else 0
+    return {
+        "totalRows": total_rows,
+        "page": page,
+        "pageSize": page_size,
+        "offset": offset,
+        "shownRows": shown_rows,
+        "firstRow": first_row,
+        "lastRow": min(last_row, total_rows),
+        "hasPrevious": page > 1,
+        "hasMore": offset + shown_rows < total_rows,
+    }
 
 
 def api_filter(
@@ -16152,6 +16177,8 @@ async def sun2_sessions_module_payload(session, params: Optional[Any] = None) ->
     status_value = api_filter_value(params, "status")
     customer_type_value = api_filter_value(params, "customer_type")
     limit_value = api_filter_int(params, "limit", 100, 25, 1000)
+    page_value = api_filter_int(params, "page", 1, 1, 100000)
+    offset_value = (page_value - 1) * limit_value
     session_conditions = []
     if q_value:
         like = f"%{q_value.lower()}%"
@@ -16178,7 +16205,7 @@ async def sun2_sessions_module_payload(session, params: Optional[Any] = None) ->
     if customer_type_value:
         session_conditions.append(Sun2TanningSession.customer_type == customer_type_value)
 
-    session_stmt = select(Sun2TanningSession).order_by(Sun2TanningSession.started_at.desc()).limit(limit_value)
+    session_stmt = select(Sun2TanningSession).order_by(Sun2TanningSession.started_at.desc()).offset(offset_value).limit(limit_value)
     session_count_stmt = select(func.count(Sun2TanningSession.id))
     if session_conditions:
         session_stmt = session_stmt.where(*session_conditions)
@@ -16240,7 +16267,7 @@ async def sun2_sessions_module_payload(session, params: Optional[Any] = None) ->
         "title": "Soling · enkeltimer",
         "subtitle": "Enkeltimer fra Sun2 med lagrede Axis-bilder og bildearkiv.",
         "cards": [
-            api_card("Treff", filtered_count, "stk", f"Viser {len(filtered_sessions)} soltimer", "sun2", href="/soling/enkeltimer"),
+            api_card("Treff", filtered_count, "stk", f"Viser {offset_value + 1 if filtered_sessions else 0}-{min(offset_value + len(filtered_sessions), filtered_count)}", "sun2", href="/soling/enkeltimer"),
             api_card(
                 "Med bilde",
                 sum(1 for row in filtered_sessions if filtered_image_counts.get(row.id, 0)),
@@ -16264,6 +16291,7 @@ async def sun2_sessions_module_payload(session, params: Optional[Any] = None) ->
                     )
                     for row in filtered_sessions
                 ],
+                meta=api_table_meta(filtered_count, page_value, limit_value, len(filtered_sessions)),
             ),
         ],
         "filters": [
@@ -16274,6 +16302,7 @@ async def sun2_sessions_module_payload(session, params: Optional[Any] = None) ->
             api_filter("payment_method", "Betaling", "select", payment_method_value, options=payment_options),
             api_filter("status", "Status", "select", status_value, options=status_options),
             api_filter("customer_type", "Kundetype", "select", customer_type_value, options=customer_options),
+            api_filter("page", "Side", "number", page_value),
             api_filter("limit", "Antall", "number", limit_value),
         ],
     }
@@ -16890,6 +16919,8 @@ async def api_v2_soling_module(
         customer_type_value = api_filter_value(params, "customer_type")
         status_value = api_filter_value(params, "status")
         limit_value = api_filter_int(params, "limit", 150, 25, 1000)
+        page_value = api_filter_int(params, "page", 1, 1, 100000)
+        offset_value = (page_value - 1) * limit_value
         member_conditions = []
         if q_value:
             like = f"%{q_value.lower()}%"
@@ -16910,6 +16941,7 @@ async def api_v2_soling_module(
         member_stmt = (
             select(Sun2Member)
             .order_by(Sun2Member.last_seen_at.desc().nullslast(), Sun2Member.name.asc(), Sun2Member.sun2_user_id.asc())
+            .offset(offset_value)
             .limit(limit_value)
         )
         member_count_stmt = select(func.count()).select_from(Sun2Member)
@@ -16955,16 +16987,22 @@ async def api_v2_soling_module(
                 options=api_filter_options((await session.execute(select(Sun2Member.status).distinct().order_by(Sun2Member.status.asc()))).scalars().all()),
             ),
             api_filter("limit", "Antall", "number", limit_value),
+            api_filter("page", "Side", "number", page_value),
         ]
         charts = [user_chart]
         cards = [
-            api_card("Treff", member_count, "stk", f"Viser {len(member_rows)} medlemmer", "status", href="/soling/medlemmer"),
+            api_card("Treff", member_count, "stk", f"Viser {offset_value + 1 if member_rows else 0}-{min(offset_value + len(member_rows), member_count)}", "status", href="/soling/medlemmer"),
             api_card("Kjent fra soling", known_members, "stk", "Unike bruker-ID-er i enkeltimer", "sun2", href="/soling/enkeltimer"),
             api_card("Aktive i lista", len([row for row in member_rows if (member_stats.get(row.sun2_user_id) or {}).get("sessions_count")]), "stk", "Blant viste medlemmer", "sun2", href="/soling/medlemmer"),
             api_card("Sist importert", member_rows[0].imported_at if member_rows else "-", "", "Medlemsliste", "status", href="/soling/medlemmer"),
         ]
         tables = [
-            api_table("Medlemmer", ["sun2_user_id", "name", "customer_type", "age", "gender", "last_seen_at", "visits_count", "total_spent_kr", "balance_kr", "sessions_count", "duration_hours", "paid_amount_kr", "last_session_at", "session_name"], [api_sun2_member_row(row, member_stats) for row in member_rows]),
+            api_table(
+                "Medlemmer",
+                ["sun2_user_id", "name", "customer_type", "age", "gender", "last_seen_at", "visits_count", "total_spent_kr", "balance_kr", "sessions_count", "duration_hours", "paid_amount_kr", "last_session_at", "session_name"],
+                [api_sun2_member_row(row, member_stats) for row in member_rows],
+                meta=api_table_meta(member_count, page_value, limit_value, len(member_rows)),
+            ),
             api_table("Topp brukere", ["sun2_user_id", "user_name", "sessions_count", "duration_hours", "paid_amount_kr", "last_at"], top_users),
         ]
     elif view == "prognose":
@@ -21382,11 +21420,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             elif view == "kjoretoy":
                 q_value = q or api_filter_value(params, "q")
                 limit_value = api_filter_int(params, "limit", 500, 25, 1000)
+                page_value = api_filter_int(params, "page", 1, 1, 100000)
+                offset_value = (page_value - 1) * limit_value
                 vehicle_search = parking_vehicle_search_condition(q_value)
                 vehicle_stmt = (
                     select(ParkingVehicle, ParkingVehicleDetails)
                     .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
                     .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+                    .offset(offset_value)
                     .limit(limit_value)
                 )
                 vehicle_count_stmt = select(func.count(ParkingVehicle.plate)).outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
@@ -21397,10 +21438,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 vehicle_filtered_count = (await session.execute(vehicle_count_stmt)).scalar_one()
                 filters = [
                     api_filter("q", "Søk", "text", q_value, "Reg.nr, bil, eier eller område"),
+                    api_filter("page", "Side", "number", page_value),
                     api_filter("limit", "Antall", "number", limit_value),
                 ]
                 cards = [
-                    api_card("Treff", vehicle_filtered_count, "stk", f"Viser {len(vehicle_detail_rows)} kjøretøy", "parking", href="/parkering/kjoretoy"),
+                    api_card("Treff", vehicle_filtered_count, "stk", f"Viser {offset_value + 1 if vehicle_detail_rows else 0}-{min(offset_value + len(vehicle_detail_rows), vehicle_filtered_count)}", "parking", href="/parkering/kjoretoy"),
                     api_card("Kjøretøy totalt", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
                     api_card(
                         "Mangler navn",
@@ -21432,6 +21474,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "parkering_count",
                         ],
                         [parking_vehicle_row_api(vehicle, details) for vehicle, details in vehicle_detail_rows],
+                        meta=api_table_meta(vehicle_filtered_count, page_value, limit_value, len(vehicle_detail_rows)),
                     )
                 ]
             elif view == "omrade":

@@ -97,6 +97,12 @@ export default function ModulePage({ module }: { module: string }) {
     setSearchParams(nextParams);
   }
 
+  function setServerPage(page: number) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("page", String(Math.max(1, page)));
+    setSearchParams(nextParams);
+  }
+
   function openEdit(edit: ModuleEditConfig, row: ModuleRow, create = false) {
     form.resetFields();
     form.setFieldsValue(editInitialValues(edit, row, create));
@@ -256,7 +262,7 @@ export default function ModulePage({ module }: { module: string }) {
           items={data.tables.map((table) => ({
             key: table.title,
             label: tabLabel(table, query),
-            children: <ModuleTablePane table={table} query={query} onEdit={openEdit} />,
+            children: <ModuleTablePane table={table} query={query} onEdit={openEdit} onServerPageChange={setServerPage} />,
           }))}
         />
       </Card>
