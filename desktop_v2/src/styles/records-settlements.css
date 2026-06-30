@@ -195,7 +195,7 @@
 
 .settlement-source-check-head strong {
   overflow: hidden;
-  color: #1f2937;
+  color: var(--text-compact-strong);
   font-size: 10.5px;
   font-weight: 800;
   text-overflow: ellipsis;

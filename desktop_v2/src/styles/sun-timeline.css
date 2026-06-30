@@ -110,7 +110,7 @@
 }
 
 .sun-room-label {
-  color: #1f2937;
+  color: var(--text-compact-strong);
   font-size: 12px;
   font-weight: 760;
   line-height: 1.15;
@@ -295,12 +295,12 @@
 /* Timeline-specific visual refinements. */
 .sun-timeline-card .ant-card-head {
   min-height: 44px;
-  background: linear-gradient(180deg, var(--surface), #fbfcfe);
+  background: linear-gradient(180deg, var(--surface), var(--surface-panel-end));
   border-bottom-color: var(--line-soft);
 }
 
 .sun-timeline-card .ant-card-head-title {
-  color: #263244;
+  color: var(--text-panel-strong);
   font-size: 13px;
   font-weight: 800;
 }

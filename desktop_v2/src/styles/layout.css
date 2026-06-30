@@ -19,7 +19,7 @@ body,
 
 body {
   background:
-    linear-gradient(180deg, #fbfcfe 0%, var(--surface-page) 260px),
+    linear-gradient(180deg, var(--surface-panel-end) 0%, var(--surface-page) 260px),
     var(--surface-page);
   color: var(--ink);
 }
@@ -175,7 +175,7 @@ a {
   background: color-mix(in srgb, var(--surface) 78%, transparent);
   border: 1px solid var(--border-panel);
   border-radius: var(--radius-md);
-  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.035);
+  box-shadow: 0 3px 12px var(--shadow-ink-faint-color);
 }
 
 .module-view-switcher .ant-segmented-group {

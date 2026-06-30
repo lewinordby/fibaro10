@@ -9,7 +9,7 @@
 .status-overview-page .status-period-card.revenue-period-card {
   --period-border: color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--border-control));
   --period-border-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 20%, var(--line-strong));
-  --period-surface: linear-gradient(180deg, var(--surface), #fbfcfe);
+  --period-surface: linear-gradient(180deg, var(--surface), var(--surface-panel-end));
   --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 3%, var(--surface));
   --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 5%, var(--surface));
   --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 16%, var(--surface));
@@ -17,7 +17,7 @@
   border: 1px solid var(--dashboard-card-border, var(--border-panel));
   border-radius: 9px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 2%, var(--surface)) 0%, var(--surface) 34%, #fbfcfe 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 2%, var(--surface)) 0%, var(--surface) 34%, var(--surface-panel-end) 100%);
   box-shadow: 0 7px 20px rgba(15, 23, 42, 0.04);
 }
 
@@ -397,7 +397,7 @@
     linear-gradient(
       180deg,
       var(--period-tint-muted),
-      color-mix(in srgb, var(--tone-color, var(--domain-status)) 2%, #fbfcfe)
+      color-mix(in srgb, var(--tone-color, var(--domain-status)) 2%, var(--surface-panel-end))
     );
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
 }

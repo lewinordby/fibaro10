@@ -24,7 +24,7 @@
 }
 
 .vent-setting-card .ant-form-item-label > label {
-  color: #374151;
+  color: var(--text-neutral);
   font-size: 12px;
   font-weight: 700;
 }
@@ -41,7 +41,7 @@
   gap: 8px;
   padding-left: 18px;
   margin: 0;
-  color: #374151;
+  color: var(--text-neutral);
   font-size: 13px;
   line-height: 1.35;
 }

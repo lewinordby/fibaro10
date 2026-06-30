@@ -186,7 +186,7 @@
   height: 100%;
   min-width: 0;
   padding: 9px 11px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--line-strong)) 5%, var(--surface)), #fbfcfe);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--line-strong)) 5%, var(--surface)), var(--surface-panel-end));
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--line-strong)) 12%, var(--line));
   border-top: 0;
   border-radius: var(--radius-md);

@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1359")
+APP_BUILD = os.getenv("APP_BUILD", "1360")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1360",
+        "date": "30.06.2026",
+        "headline": "CSS- og tidsmodul ryddet",
+        "title": "Design-tokens, CSS-audit og felles datetime-hjelpere er strammet opp",
+        "description": (
+            "Build 1360 gjør en vedlikeholdsrunde med lav risiko. De mest repeterte nøytrale fargene og skyggene "
+            "er flyttet til felles design-tokens, CSS-auditen skiller nå mellom token-definisjoner og reelle "
+            "hardkodede verdier, og datetime-hjelpere som brukes bredt i backend er flyttet ut av main.py."
+        ),
+        "applications": [
+            "Frontend design-system (desktop_v2/src/styles/tokens.css): legger til delte tokens for panelbakgrunn, linjer, tekst og svak skygge.",
+            "Frontend CSS: bytter gjentatte hardkodede farger til tokens i status, energi, ventilasjon, parkering, soling og oppgjør.",
+            "Frontend audit (desktop_v2/scripts/audit-css.mjs): teller token-farger separat og rapporterer topp hardkodede farger utenfor token-filen.",
+            "Backend tidshåndtering (time_formatting.py, main.py): flytter felles datetime-hjelpere ut av main.py.",
+            "Tester (tests/test_time_formatting.py): dekker lokal/UTC-konvertering og femminutters bucket.",
+            "Shell (AppShell.tsx): retter tekstkoding på buildlogg-lenken.",
+        ],
+        "request": "kjør på gjør alt",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "CSS-auditen viser nå 41 token-farger og 121 hardkodede farger utenfor tokens, mot ca. 164 utenfor tokens før oppryddingen.",
+            "possibleUnusedClasses er fortsatt 0 etter endringen.",
+            "Frontend bundle er fortsatt innenfor grensen: 756,9 kB gzip mot 760 kB.",
+            "main.py er litt mindre og bruker felles tidshjelpere fra time_formatting.py.",
+        ],
+    },
     {
         "version": "1",
         "build": "1359",

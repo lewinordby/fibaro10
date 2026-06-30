@@ -52,6 +52,18 @@ function staticClassUsed(className) {
 const selectorPattern = /\.(-?[_a-zA-Z]+[_a-zA-Z0-9-]*)/g;
 const classes = new Map();
 const hardcodedColors = [];
+const tokenColorValues = [];
+
+function topColorValues(items, limit = 20) {
+  const counts = new Map();
+  for (const item of items) {
+    counts.set(item.value, (counts.get(item.value) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([value, count]) => ({ value, count }))
+    .sort((left, right) => right.count - left.count || left.value.localeCompare(right.value))
+    .slice(0, limit);
+}
 
 for (const file of cssFiles) {
   const text = read(file);
@@ -64,7 +76,12 @@ for (const file of cssFiles) {
     classes.set(className, list);
   }
   for (const match of text.matchAll(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]+\)|hsla?\([^)]+\)/g)) {
-    hardcodedColors.push({ file: rel, value: match[0] });
+    const colorValue = { file: rel, value: match[0] };
+    if (rel === "src/styles/tokens.css") {
+      tokenColorValues.push(colorValue);
+    } else {
+      hardcodedColors.push(colorValue);
+    }
   }
 }
 
@@ -102,8 +119,11 @@ const summary = {
   duplicateClassSelectors: duplicateClassSelectors.length,
   crossFileClassSelectors: crossFileClassSelectors.length,
   possibleUnusedClasses: possibleUnusedClasses.length,
+  tokenColorValues: tokenColorValues.length,
   hardcodedColorValues: hardcodedColors.length,
+  hardcodedColorValuesIncludingTokens: hardcodedColors.length + tokenColorValues.length,
   largestCssFiles: [...cssFileStats].sort((left, right) => right.lines - left.lines).slice(0, 5),
+  topHardcodedColors: topColorValues(hardcodedColors),
   mostRepeatedClasses: duplicateClassSelectors.slice(0, 20),
   crossFileClasses: crossFileClassSelectors.slice(0, 20),
   possibleUnusedClassNames: possibleUnusedClasses.slice(0, 80),

@@ -97,7 +97,7 @@
   padding: 8px 10px;
   border: 1px solid #dbeafe;
   border-radius: 6px;
-  background: #f8fbff;
+  background: var(--surface-hover);
 }
 
 .parking-timeline-summary span {
@@ -154,7 +154,7 @@
   align-items: center;
   gap: 8px;
   margin-top: 2px;
-  color: #1f2937;
+  color: var(--text-compact-strong);
   font-size: 11px;
   font-weight: 820;
   text-transform: uppercase;
@@ -175,7 +175,7 @@
 }
 
 .parking-space-label {
-  color: #1f2937;
+  color: var(--text-compact-strong);
   font-size: 11px;
   font-weight: 800;
   line-height: 1.12;
@@ -226,7 +226,7 @@
   border-color: #bfdbfe;
   background:
     linear-gradient(90deg, rgba(37, 99, 235, 0.16) 1px, transparent 1px),
-    linear-gradient(180deg, #f8fbff, #eff6ff);
+    linear-gradient(180deg, var(--surface-hover), #eff6ff);
   background-size: calc(100% / 24) 100%, 100% 100%;
 }
 
@@ -314,7 +314,7 @@
 /* Timeline-specific visual refinements. */
 .parking-timeline-summary div {
   background: var(--surface-muted);
-  border-color: #e8edf4;
+  border-color: var(--line-muted);
   border-radius: var(--radius-md);
 }
 

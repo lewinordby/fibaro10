@@ -74,7 +74,7 @@ function UserProfileMenu({ user, onAccount }: { user: AuthUser | null; onAccount
 
 function BuildFooter({ build }: { build?: string }) {
   return (
-    <Link className="sider-build-link" to={modulePath("admin", "build")} aria-label="Ã…pne buildlogg">
+    <Link className="sider-build-link" to={modulePath("admin", "build")} aria-label="Åpne buildlogg">
       <span>Build</span>
       <strong>{build || "-"}</strong>
     </Link>

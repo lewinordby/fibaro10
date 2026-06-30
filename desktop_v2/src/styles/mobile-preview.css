@@ -22,7 +22,7 @@
 }
 
 .mobile-preview-card .ant-card-head-title {
-  color: #1f2937;
+  color: var(--text-compact-strong);
   font-size: 13px;
   font-weight: 760;
 }

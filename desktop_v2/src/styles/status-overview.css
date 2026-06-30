@@ -186,7 +186,7 @@
 .status-info-grid .status-info-card {
   height: 100%;
   border-color: var(--dashboard-card-border);
-  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.035);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color);
 }
 
 .status-overview-page .status-info-card .ant-card-head {
@@ -220,7 +220,7 @@
 .status-dashboard-page .status-period-card:not(.revenue-period-card) {
   border-color: var(--dashboard-card-border);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2%, var(--surface)) 0%, var(--surface) 36%, #fbfcfe 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2%, var(--surface)) 0%, var(--surface) 36%, var(--surface-panel-end) 100%);
   box-shadow: 0 7px 20px rgba(15, 23, 42, 0.04);
 }
 
@@ -247,7 +247,7 @@
 .status-overview-page .status-command-card {
   background: var(--surface);
   border-color: var(--dashboard-card-border);
-  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.035);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color);
 }
 
 .status-overview-page .status-command-card .ant-card-body {

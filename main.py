@@ -135,11 +135,18 @@ from roborock_domain import (
 from security import apply_security_headers
 from system_inventory import system_component_rows, system_component_summary
 from time_formatting import (
+    LOCAL_TZ,
     format_local_datetime,
     format_local_time,
     format_source_datetime,
     format_source_datetime_short,
     format_source_time,
+    local_naive_to_utc_naive,
+    local_now_naive,
+    normalize_local_naive,
+    parse_datetime,
+    sample_bucket,
+    utc_naive_to_local_naive,
 )
 from unifi_protect import (
     UNIFI_PROTECT_PARKING_CAMERA_ID,
@@ -149,7 +156,6 @@ from v2_navigation import v2_module_title
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 logger = logging.getLogger("fibaro10")
-LOCAL_TZ = ZoneInfo("Europe/Oslo")
 APP_STARTED_AT = datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 APP_COMMIT = os.getenv("APP_COMMIT") or os.getenv("GIT_COMMIT") or "unknown"
 SUN2_SESSIONS_QUIET_START_HOUR = 0
@@ -4032,45 +4038,6 @@ def require_settings_or_car_info_access(request: Request):
     return require_settings_access(request)
 
 
-def parse_datetime(value: Optional[str]) -> Optional[datetime]:
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value)
-    except ValueError:
-        return None
-
-
-def sample_bucket(value: Optional[datetime]) -> datetime:
-    stamp = value or datetime.utcnow()
-    minute = (stamp.minute // 5) * 5
-    return stamp.replace(minute=minute, second=0, microsecond=0)
-
-
-def normalize_local_naive(value: Optional[datetime]) -> Optional[datetime]:
-    if not value:
-        return None
-    if value.tzinfo is not None:
-        return value.astimezone(LOCAL_TZ).replace(tzinfo=None)
-    return value.replace(tzinfo=None)
-
-
-def utc_naive_to_local_naive(value: Optional[datetime]) -> Optional[datetime]:
-    if not value:
-        return None
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=ZoneInfo("UTC"))
-    return value.astimezone(LOCAL_TZ).replace(tzinfo=None)
-
-
-def local_naive_to_utc_naive(value: Optional[datetime]) -> Optional[datetime]:
-    if not value:
-        return None
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=LOCAL_TZ)
-    return value.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
-
-
 AXIS_SNAPSHOT_FILENAME_RE = re.compile(r"^axis_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})\.jpg$")
 AXIS_SNAPSHOT_ID_RE = re.compile(r"^\d{14}$")
 
@@ -5040,10 +5007,6 @@ def day_zoom_window(selected_day: date, zoom_key: Optional[str]):
         for hour in config["ticks"]
     ]
     return config, window_start, window_end, ticks
-
-
-def local_now_naive() -> datetime:
-    return datetime.now(LOCAL_TZ).replace(tzinfo=None)
 
 
 def display_action(action: Optional[str]) -> str:
