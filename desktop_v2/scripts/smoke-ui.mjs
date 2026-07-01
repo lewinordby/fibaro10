@@ -72,6 +72,7 @@ const moduleResponse = {
 const moduleTitles = {
   admin: "Admin",
   energi: "Energi",
+  koble: "Koble",
   lys: "Lys",
   omsetning: "Omsetning",
   parkering: "Parkering",

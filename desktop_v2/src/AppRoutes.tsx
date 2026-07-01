@@ -63,6 +63,8 @@ export function AppRoutes() {
         <Route path="/soling/oppgjor" element={<SunSettlementsPage />} />
         <Route path="/soling/oppgjor/:settlementId" element={<SettlementDetailPage domain="soling" />} />
         <Route path="/soling/:view" element={<ModulePage module="soling" />} />
+        <Route path="/koble" element={<Navigate to={modulePath("koble")} replace />} />
+        <Route path="/koble/:view" element={<ModulePage module="koble" />} />
         <Route path="/energi" element={<Navigate to={modulePath("energi")} replace />} />
         <Route path="/energi/oversikt" element={<LegacyRedirect to={modulePath("energi", "status")} />} />
         <Route path="/energi/soling" element={<LegacyRedirect to={modulePath("energi", "forbruk-per-seng")} />} />

@@ -28,6 +28,7 @@ export const smokeRoutes = [
   { path: "/soling/oppgjor", name: "Soling oppgjor" },
   { path: "/soling/statistikk", name: "Soling statistikk" },
   { path: "/soling/detaljer", name: "Soling detaljer" },
+  { path: "/koble/oversikt", name: "Koble oversikt" },
   { path: "/energi/status", name: "Energi status" },
   { path: "/energi/kurser", name: "Energi kurser" },
   { path: "/energi/laster", name: "Energi laster" },

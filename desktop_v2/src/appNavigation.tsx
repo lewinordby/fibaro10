@@ -25,6 +25,7 @@ const mainModuleIcons: Array<Pick<MainNavigationModule, "module" | "icon">> = [
   { module: "omsetning", icon: <BarChartOutlined /> },
   { module: "parkering", icon: <CarOutlined /> },
   { module: "soling", icon: <CalendarOutlined /> },
+  { module: "koble", icon: <ToolOutlined /> },
   { module: "energi", icon: <ThunderboltOutlined /> },
   { module: "ventilasjon", icon: <ExperimentOutlined /> },
   { module: "lys", icon: <BulbOutlined /> },
@@ -41,9 +42,9 @@ const mainModules: MainNavigationModule[] = mainModuleIcons.map((item) => ({
 
 export const mainModuleGroups = [
   { label: "", modules: mainModules.slice(0, 1) },
-  { label: "Økonomi", modules: mainModules.slice(1, 4) },
-  { label: "Bygg og drift", modules: mainModules.slice(4, 8) },
-  { label: "System", modules: mainModules.slice(8) },
+  { label: "Økonomi", modules: mainModules.slice(1, 5) },
+  { label: "Bygg og drift", modules: mainModules.slice(5, 9) },
+  { label: "System", modules: mainModules.slice(9) },
 ];
 
 export function selectedMainModuleKey(pathname: string): string {

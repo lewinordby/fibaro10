@@ -14622,6 +14622,144 @@ def api_filter_options(values: Iterable[Any]) -> list[Dict[str, Any]]:
     return options
 
 
+async def parking_sun_link_candidates(
+    session: Any,
+    min_matches: int = 2,
+    max_minutes: int = 3,
+    evening_start_hour: int = 16,
+    limit: int = 250,
+) -> Dict[str, Any]:
+    parking_plate = func.upper(func.replace(func.coalesce(ParkingSession.car_license_number, ""), " ", ""))
+    vehicle_sun2_id = func.trim(func.coalesce(ParkingVehicle.sun2_id, ""))
+    session_sun2_id = func.trim(func.coalesce(Sun2TanningSession.sun2_user_id, ""))
+    delta_seconds = func.extract("epoch", Sun2TanningSession.started_at - ParkingSession.start_time)
+    match_conditions = [
+        ParkingSession.start_time.is_not(None),
+        ParkingSession.car_license_number.is_not(None),
+        Sun2TanningSession.started_at.is_not(None),
+        vehicle_sun2_id != "",
+        session_sun2_id != "",
+        delta_seconds >= 0,
+        delta_seconds <= max_minutes * 60,
+        func.extract("hour", ParkingSession.start_time) >= evening_start_hour,
+    ]
+
+    base_from = (
+        select()
+        .select_from(ParkingSession)
+        .join(ParkingVehicle, ParkingVehicle.plate == parking_plate)
+        .join(Sun2TanningSession, session_sun2_id == vehicle_sun2_id)
+        .where(*match_conditions)
+    )
+    count_expr = func.count().label("matches_count")
+    latest_parking_expr = func.max(ParkingSession.start_time)
+    candidate_stmt = (
+        base_from.with_only_columns(
+            ParkingVehicle.plate.label("plate"),
+            vehicle_sun2_id.label("sun2_id"),
+            count_expr,
+            func.min(ParkingSession.start_time).label("first_match_at"),
+            latest_parking_expr.label("last_match_at"),
+            func.avg(delta_seconds / 60.0).label("avg_delta_minutes"),
+            func.max(ParkingVehicle.navn).label("vehicle_name"),
+            func.max(ParkingVehicle.omrade).label("vehicle_area"),
+            func.max(Sun2TanningSession.user_name).label("sun2_user_name"),
+            func.max(ParkingVehicle.parkering_count).label("parking_count"),
+            func.max(ParkingVehicle.paid_total).label("paid_total"),
+        )
+        .group_by(ParkingVehicle.plate, vehicle_sun2_id)
+        .having(func.count() >= min_matches)
+        .order_by(count_expr.desc(), latest_parking_expr.desc())
+        .limit(limit)
+    )
+    candidate_rows_raw = (await session.execute(candidate_stmt)).all()
+    candidate_pairs = [(row.plate, row.sun2_id) for row in candidate_rows_raw if row.plate and row.sun2_id]
+
+    match_rows: list[Dict[str, Any]] = []
+    if candidate_pairs:
+        match_stmt = (
+            base_from.with_only_columns(
+                ParkingSession.id.label("parking_record_id"),
+                ParkingSession.parking_id.label("parking_id"),
+                ParkingSession.source_system.label("source_system"),
+                ParkingSession.start_time.label("parking_start_at"),
+                ParkingSession.end_time.label("parking_end_at"),
+                ParkingSession.status.label("parking_status"),
+                ParkingSession.fee_inc_vat.label("fee_inc_vat"),
+                ParkingVehicle.plate.label("plate"),
+                vehicle_sun2_id.label("sun2_id"),
+                ParkingVehicle.navn.label("vehicle_name"),
+                ParkingVehicle.omrade.label("vehicle_area"),
+                Sun2TanningSession.id.label("sun_session_id"),
+                Sun2TanningSession.source_session_id.label("source_session_id"),
+                Sun2TanningSession.started_at.label("sun_started_at"),
+                Sun2TanningSession.ended_at.label("sun_ended_at"),
+                Sun2TanningSession.room_id.label("room_id"),
+                Sun2TanningSession.room.label("room"),
+                Sun2TanningSession.user_name.label("sun2_user_name"),
+                Sun2TanningSession.duration_minutes.label("duration_minutes"),
+                Sun2TanningSession.paid_amount_kr.label("paid_amount_kr"),
+                delta_seconds.label("delta_seconds"),
+            )
+            .where(tuple_(ParkingVehicle.plate, vehicle_sun2_id).in_(candidate_pairs))
+            .order_by(ParkingSession.start_time.desc(), Sun2TanningSession.started_at.desc())
+            .limit(max(250, min(1000, limit * 6)))
+        )
+        for row in (await session.execute(match_stmt)).all():
+            plate = str(row.plate or "").strip()
+            match_rows.append(
+                {
+                    "id": f"{row.parking_record_id}-{row.sun_session_id}",
+                    "parking_start_at": api_local_iso(row.parking_start_at),
+                    "sun_started_at": api_local_iso(row.sun_started_at),
+                    "delta_minutes": round(float_or_zero(row.delta_seconds) / 60.0, 2),
+                    "plate": plate,
+                    "sun2_id": row.sun2_id,
+                    "navn": row.vehicle_name,
+                    "omrade": row.vehicle_area,
+                    "room_label": sun2_room_label(row.room_id, row.room),
+                    "user_name": row.sun2_user_name,
+                    "duration_minutes": round(float_or_zero(row.duration_minutes), 1),
+                    "paid_amount_kr": round(float_or_zero(row.paid_amount_kr), 2),
+                    "fee_inc_vat": round(float_or_zero(row.fee_inc_vat), 2),
+                    "source_system": row.source_system,
+                    "parking_id": row.parking_id,
+                    "parking_record_id": int_or_zero(row.parking_record_id),
+                    "sun_session_id": int_or_zero(row.sun_session_id),
+                    "source_session_id": row.source_session_id,
+                    "path": f"/parkering/kjoretoy/{quote(plate)}" if plate else "",
+                }
+            )
+
+    candidate_rows: list[Dict[str, Any]] = []
+    for row in candidate_rows_raw:
+        plate = str(row.plate or "").strip()
+        candidate_rows.append(
+            {
+                "id": f"{plate}-{row.sun2_id}",
+                "plate": plate,
+                "sun2_id": row.sun2_id,
+                "matches_count": int_or_zero(row.matches_count),
+                "first_match_at": api_local_iso(row.first_match_at),
+                "last_match_at": api_local_iso(row.last_match_at),
+                "avg_delta_minutes": round(float_or_zero(row.avg_delta_minutes), 2),
+                "navn": row.vehicle_name,
+                "omrade": row.vehicle_area,
+                "user_name": row.sun2_user_name,
+                "parking_count": int_or_zero(row.parking_count),
+                "paid_total": round(float_or_zero(row.paid_total), 2),
+                "path": f"/parkering/kjoretoy/{quote(plate)}" if plate else "",
+            }
+        )
+
+    return {
+        "candidate_rows": candidate_rows,
+        "match_rows": match_rows,
+        "candidate_count": len(candidate_rows),
+        "match_count": sum(row["matches_count"] for row in candidate_rows),
+    }
+
+
 def ventilation_latest_payload(latest: Optional[VentilationSample], latest_yr: Optional[YrForecastSample]) -> Dict[str, Any]:
     def measurement(key: str, label: str, temp_key: Optional[str] = None, humidity_key: Optional[str] = None, detail: str = "") -> Dict[str, Any]:
         return {
@@ -20849,6 +20987,105 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "tables": [
                     api_table("Topp dager omsetning", revenue_columns, [api_revenue_summary_row(row) for row in combined_stats.get("top_days", [])]),
                     api_table("Topp måneder omsetning", ["period", *revenue_columns[1:]], [api_revenue_summary_row(row) for row in combined_stats.get("top_months", [])]),
+                ],
+            }
+
+        if module == "koble":
+            min_matches = api_filter_int(params, "min_treff", 2, 1, 20)
+            max_minutes = api_filter_int(params, "maks_minutter", 3, 1, 30)
+            evening_start_hour = api_filter_int(params, "kveld_fra", 16, 0, 23)
+            limit_value = api_filter_int(params, "limit", 250, 25, 1000)
+            link_data = await parking_sun_link_candidates(
+                session,
+                min_matches=min_matches,
+                max_minutes=max_minutes,
+                evening_start_hour=evening_start_hour,
+                limit=limit_value,
+            )
+            return {
+                "title": v2_module_title("koble", view),
+                "subtitle": (
+                    "FÃ¸rste koblingsregel: samme bil og samme SUN2-ID, der soltime starter "
+                    f"innen {max_minutes} minutter etter parkering pÃ¥ kvelden."
+                ),
+                "cards": [
+                    api_card(
+                        "Kandidater",
+                        format_short_number(link_data["candidate_count"]),
+                        "",
+                        f"Minst {min_matches} treff per bil/SUN2-ID",
+                        "status",
+                        href="/koble/oversikt",
+                    ),
+                    api_card(
+                        "Treffgrunnlag",
+                        format_short_number(link_data["match_count"]),
+                        "treff",
+                        "Konkrete parkeringer med soltime like etter",
+                        "parking",
+                        href="/koble/oversikt",
+                    ),
+                    api_card(
+                        "Tidsvindu",
+                        f"0-{max_minutes}",
+                        "min",
+                        "Soltime etter parkering-start",
+                        "sun2",
+                        href="/koble/oversikt",
+                    ),
+                    api_card(
+                        "Kveld",
+                        f"{evening_start_hour:02d}:00",
+                        "",
+                        "Parkeringer fra og med denne timen",
+                        "status",
+                        href="/koble/oversikt",
+                    ),
+                ],
+                "charts": [],
+                "tables": [
+                    api_table(
+                        "Sannsynlige koblinger",
+                        [
+                            "plate",
+                            "sun2_id",
+                            "matches_count",
+                            "first_match_at",
+                            "last_match_at",
+                            "avg_delta_minutes",
+                            "navn",
+                            "omrade",
+                            "user_name",
+                            "parking_count",
+                            "paid_total",
+                        ],
+                        link_data["candidate_rows"],
+                    ),
+                    api_table(
+                        "Treffgrunnlag",
+                        [
+                            "parking_start_at",
+                            "sun_started_at",
+                            "delta_minutes",
+                            "plate",
+                            "sun2_id",
+                            "room_label",
+                            "user_name",
+                            "duration_minutes",
+                            "paid_amount_kr",
+                            "fee_inc_vat",
+                            "source_system",
+                            "parking_id",
+                            "sun_session_id",
+                        ],
+                        link_data["match_rows"],
+                    ),
+                ],
+                "filters": [
+                    api_filter("min_treff", "Min treff", "number", min_matches),
+                    api_filter("maks_minutter", "Maks min etter parkering", "number", max_minutes),
+                    api_filter("kveld_fra", "Kveld fra time", "number", evening_start_hour),
+                    api_filter("limit", "Antall", "number", limit_value),
                 ],
             }
 

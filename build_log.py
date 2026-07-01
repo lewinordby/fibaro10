@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1369")
+APP_BUILD = os.getenv("APP_BUILD", "1370")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1370",
+        "date": "01.07.2026",
+        "headline": "Koble parkering og soltime",
+        "title": "Ny Koble-side finner sannsynlige koblinger mellom bil og Sun2-ID",
+        "description": (
+            "Build 1370 legger til hovedmenyen Koble med en foerste regel for aa finne sannsynlige "
+            "koblinger mellom parkering og soltime. Siden lister biler der samme registreringsnummer "
+            "og lagret SUN2-ID minst to ganger har soltime-start innen valgt minuttvindu etter "
+            "parkering-start paa kvelden."
+        ),
+        "applications": [
+            "Backend modul-API (main.py): legger til kandidatberegning for parkering/soltime og eksponerer kort, filtre og tabeller.",
+            "Desktop V2 navigasjon (moduleViews.ts, appNavigation.tsx, AppRoutes.tsx): legger til hovedmenyen Koble.",
+            "Desktop V2 tabeller (moduleTableUtils.tsx): legger til norske kolonnenavn for koblingsgrunnlag.",
+            "Smoke/audit (smoke-routes.mjs, smoke-ui.mjs): legger Koble inn i route-testene.",
+            "Buildlogg (build_log.py): registrerer build 1370.",
+        ],
+        "request": "jeg vil lage en egen side for aa koble parkering og soltime, om det min 2 ganger stemmer med at soltime starter maks 3 min etter en parkeiing paa kvelden samme bilnr og samme sun2 id saa er det sannsynlig at de hoerer sammenn da vil jeg at de skal listes ut paa en egen side.. lag en hovedmeny \"Koble\" saa skal vi etterhvert proeve aa finne smarte maater aa koble paa",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny hovedmeny Koble er tilgjengelig i venstremenyen.",
+            "Siden viser sannsynlige koblinger per bil og SUN2-ID, med antall treff og foerste/siste treff.",
+            "Siden viser konkrete trefflinjer med parkering-start, soltime-start, tidsdiff, rom, belop og kilde.",
+            "Regelen kan justeres i grensesnittet med min. treff, maks minutter etter parkering og kveld-fra time.",
+        ],
+    },
     {
         "version": "1",
         "build": "1369",
