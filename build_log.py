@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1373")
+APP_BUILD = os.getenv("APP_BUILD", "1374")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1374",
+        "date": "01.07.2026",
+        "headline": "Koble worker-token",
+        "title": "Koble-sideappen kan bruke eksisterende intern app-token",
+        "description": (
+            "Build 1374 justerer intern tokenkontroll for Koble-sideappen. Worker-API-et godtar naa baade "
+            "egen KOBLE_WORKER_TOKEN og eksisterende CAR_INFO_APP_TOKEN, slik at QNAP-oppsettet fungerer uten "
+            "manuell endring av sensitiv .env."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): worker-API for Koble godtar begge interne app-tokenene.",
+            "Buildlogg (build_log.py): registrerer build 1374.",
+        ],
+        "request": "jeg må kunne bekrefte om en kobling er rett - frem til da skal jeg ha en sannsynlighet på koblingen",
+        "work_duration": "ca. 5 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "parking_sun_linker kan autentisere mot Fibaro10 med tokenet som allerede finnes i QNAP-miljoet.",
+            "Ingen endring i brukerrettigheter eller eksternt API.",
+        ],
+    },
     {
         "version": "1",
         "build": "1373",

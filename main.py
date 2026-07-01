@@ -3923,7 +3923,8 @@ def has_car_info_app_access(request: Request) -> bool:
 
 def has_koble_worker_access(request: Request) -> bool:
     token = (request.headers.get("x-koble-token") or request.query_params.get("koble_token") or "").strip()
-    return bool(KOBLE_WORKER_TOKEN and token and token == KOBLE_WORKER_TOKEN)
+    allowed_tokens = {value for value in [KOBLE_WORKER_TOKEN, CAR_INFO_APP_TOKEN] if value}
+    return bool(token and token in allowed_tokens)
 
 
 def is_car_info_app_request_path(path: str) -> bool:
