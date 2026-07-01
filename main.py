@@ -8251,6 +8251,8 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
             await session.execute(select(ImportJobStatus))
         ).scalars().all()
     }
+    easypark_status = easypark_downloader_status()
+    easypark_next_run_at = easypark_next_run_at_from_status(easypark_status)
     rows = []
     for job_name, definition in IMPORT_JOB_DEFINITIONS.items():
         row = existing.get(job_name)
@@ -8273,6 +8275,8 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
                 next_expected_at = live_start_today
             elif stamp and stamp < live_start_today:
                 next_expected_at = live_start_today + timedelta(minutes=expected_minutes)
+        if job_name == "easypark_parking_import" and easypark_next_run_at:
+            next_expected_at = easypark_next_run_at
         if row and row.status == "running":
             status, status_text = "running", "Kjører"
         elif job_name == "sun2_sessions_import":
@@ -14368,6 +14372,8 @@ async def api_v2_overview():
             "status": row["status"] if row["status"] in {"ok", "warn", "bad"} else "unknown",
             "detail": row["age"] or row["status_text"],
             "ageMinutes": minutes_since(row["last_success_at"]) if row.get("last_success_at") else None,
+            "lastSuccessAt": api_local_iso(row.get("last_success_at")),
+            "nextExpectedAt": api_local_iso(row.get("next_expected_at")),
         }
         for row in import_rows
     ]
@@ -24451,6 +24457,26 @@ def easypark_downloader_request(path: str, params: Dict[str, Any]) -> Dict[str, 
         return json.loads(payload)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"Ugyldig svar fra EasyPark-downloader: {payload[:240]}") from exc
+
+
+def easypark_downloader_status() -> Dict[str, Any]:
+    try:
+        with urllib.request.urlopen(f"{EASYPARK_DOWNLOADER_URL}/status", timeout=2) as response:
+            payload = response.read().decode("utf-8", errors="replace")
+        return json.loads(payload)
+    except Exception:
+        return {}
+
+
+def easypark_next_run_at_from_status(status: Dict[str, Any]) -> Optional[datetime]:
+    schedule = status.get("schedule") if isinstance(status, dict) else None
+    next_run_at = schedule.get("next_run_at") if isinstance(schedule, dict) else status.get("next_run_at")
+    parsed = parse_datetime(next_run_at) if next_run_at else None
+    if not parsed:
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return parsed
 
 
 def car_info_lookup_request(path: str, params: Dict[str, Any]) -> Dict[str, Any]:

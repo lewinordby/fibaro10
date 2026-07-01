@@ -233,6 +233,20 @@ def display_stamp(value: Any) -> str:
     return value.strftime("%d.%m kl. %H:%M")
 
 
+def easypark_next_run_at(status: dict[str, Any]) -> Optional[datetime]:
+    schedule = status.get("schedule") if isinstance(status, dict) else None
+    raw_value = schedule.get("next_run_at") if isinstance(schedule, dict) else status.get("next_run_at")
+    if not raw_value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(raw_value))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(LOCAL_TZ).replace(tzinfo=None)
+    return parsed
+
+
 def format_duration_short(seconds: int) -> str:
     if seconds <= 60:
         return "under 1 min"
@@ -546,7 +560,7 @@ def easypark_downloader_request(path: str, params: dict[str, Any]) -> dict[str, 
 
 def easypark_downloader_status() -> dict[str, Any]:
     try:
-        with urllib.request.urlopen(f"{EASYPARK_DOWNLOADER_URL}/status", timeout=4) as response:
+        with urllib.request.urlopen(f"{EASYPARK_DOWNLOADER_URL}/status", timeout=2) as response:
             payload = response.read().decode("utf-8", errors="replace")
         return json.loads(payload)
     except Exception:
@@ -1703,12 +1717,21 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
     easypark_status = easypark_downloader_status() if SOURCE_MODE else {}
     parking_import_at = data["parking_import"].get("updated_at")
     parking_failed_at = data["parking_import"].get("last_failed_at")
+    parking_next_import_at = easypark_next_run_at(easypark_status)
+    next_import_text = (
+        f"Neste planlagt: {display_stamp(parking_next_import_at)}"
+        if parking_next_import_at
+        else "Neste planlagt: -"
+    )
     latest_import_failed = isinstance(parking_failed_at, datetime) and (
         not isinstance(parking_import_at, datetime) or parking_failed_at > parking_import_at
     )
-    import_status_text = f"Sist OK: {display_stamp(parking_import_at)}"
     if latest_import_failed:
         import_status_text = f"Siste forsøk feilet. Sist OK: {display_stamp(parking_import_at)}"
+    if latest_import_failed:
+        import_status_text = f"Siste fors\u00f8k feilet. Sist OK: {display_stamp(parking_import_at)}. {next_import_text}"
+    else:
+        import_status_text = f"Sist OK: {display_stamp(parking_import_at)}. {next_import_text}"
     rows = []
     if SOURCE_MODE:
         start, end = day_bounds(data["now"].date())
@@ -1807,7 +1830,10 @@ async def parking_detail(request: Request, refresh: Optional[str] = None, reason
             ("Forrige måned", fmt_int(data["parking_previous_month"].get("count")), amount(data["parking_previous_month"].get("amount"))),
         ]
     )
-    body += f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(parking_import_at)} {fmt_date(parking_import_at)}</p>'
+    body += (
+        f'<p class="detail-updated-line">Sist oppdatert {fmt_clock(parking_import_at)} '
+        f'{fmt_date(parking_import_at)} - {escape(next_import_text)}</p>'
+    )
     body += button
     if latest_import_failed:
         body += f'<p class="notice">{escape(import_status_text)}</p>'

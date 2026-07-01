@@ -157,6 +157,26 @@ function datasourceCounts(services: ServiceStatus[]) {
   return { total, ok, warn, bad, problem: warn + bad };
 }
 
+function shortDateTime(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("nb-NO", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function datasourceDetail(service: ServiceStatus) {
+  const next = shortDateTime(service.nextExpectedAt);
+  if (service.jobName === "easypark_parking_import" && next) {
+    return `${service.detail} - neste ${next}`;
+  }
+  return service.detail;
+}
+
 function signedNok(value: number) {
   if (!Number.isFinite(value) || value === 0) return "0 kr";
   return `${value > 0 ? "+" : "-"}${nok(Math.abs(value))} kr`;
@@ -888,7 +908,7 @@ function DatasourceList({ services }: { services: ServiceStatus[] }) {
             {item.sourceNo ? <span className="status-source-number">#{item.sourceNo}</span> : null}
             <span>{item.label}</span>
           </Space>
-          <Typography.Text type="secondary">{item.detail}</Typography.Text>
+          <Typography.Text type="secondary">{datasourceDetail(item)}</Typography.Text>
         </List.Item>
       )}
     />

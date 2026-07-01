@@ -856,6 +856,31 @@ def should_force_login_now() -> bool:
     return False
 
 
+def next_run_at() -> datetime:
+    schedule_times = parse_run_times(RUN_TIMES)
+    if schedule_times:
+        now = datetime.now(LOCAL_TZ)
+        candidates = [
+            now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            for hour, minute in schedule_times
+        ]
+        future = [candidate for candidate in candidates if candidate > now]
+        return min(future) if future else min(candidates) + timedelta(days=1)
+    if RUN_EVERY_HOUR:
+        now = datetime.now(LOCAL_TZ)
+        target = now.replace(minute=RUN_MINUTE, second=0, microsecond=0)
+        return target if target > now else target + timedelta(hours=1)
+    if RUN_AT:
+        match = re.match(r"^(\d{1,2}):(\d{2})$", RUN_AT)
+        if match:
+            hour = max(0, min(23, int(match.group(1))))
+            minute = max(0, min(59, int(match.group(2))))
+            now = datetime.now(LOCAL_TZ)
+            target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            return target if target > now else target + timedelta(days=1)
+    return datetime.now(LOCAL_TZ) + timedelta(minutes=max(1, RUN_INTERVAL_MINUTES))
+
+
 async def run_scheduled_once() -> dict[str, Any]:
     from_day, to_day = scheduled_period()
     async with lock:
@@ -911,33 +936,8 @@ async def watchdog_loop() -> None:
 
 
 def seconds_until_next_run() -> int:
-    schedule_times = parse_run_times(RUN_TIMES)
-    if schedule_times:
-        now = datetime.now(LOCAL_TZ)
-        candidates = [
-            now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            for hour, minute in schedule_times
-        ]
-        future = [candidate for candidate in candidates if candidate > now]
-        target = min(future) if future else min(candidates) + timedelta(days=1)
-        return max(60, int((target - now).total_seconds()))
-    if RUN_EVERY_HOUR:
-        now = datetime.now(LOCAL_TZ)
-        target = now.replace(minute=RUN_MINUTE, second=0, microsecond=0)
-        if target <= now:
-            target += timedelta(hours=1)
-        return max(60, int((target - now).total_seconds()))
-    if RUN_AT:
-        match = re.match(r"^(\d{1,2}):(\d{2})$", RUN_AT)
-        if match:
-            hour = max(0, min(23, int(match.group(1))))
-            minute = max(0, min(59, int(match.group(2))))
-            now = datetime.now(LOCAL_TZ)
-            target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            if target <= now:
-                target += timedelta(days=1)
-            return max(60, int((target - now).total_seconds()))
-    return max(1, RUN_INTERVAL_MINUTES) * 60
+    now = datetime.now(LOCAL_TZ)
+    return max(60, int((next_run_at() - now).total_seconds()))
 
 
 @app.on_event("startup")
@@ -951,7 +951,13 @@ async def startup() -> None:
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
-    return {"ok": True, "running": state["running"], "last_success_at": state["last_success_at"], "last_error": state["last_error"]}
+    return {
+        "ok": True,
+        "running": state["running"],
+        "last_success_at": state["last_success_at"],
+        "last_error": state["last_error"],
+        "next_run_at": next_run_at().isoformat(),
+    }
 
 
 @app.get("/status")
@@ -965,6 +971,7 @@ async def status() -> dict[str, Any]:
             "run_every_hour": RUN_EVERY_HOUR,
             "force_login_times": [f"{hour:02d}:{minute:02d}" for hour, minute in parse_run_times(FORCE_LOGIN_TIMES)],
             "recent_days": RECENT_DAYS,
+            "next_run_at": next_run_at().isoformat(),
         },
         "watchdog": {
             "stale_job_seconds": STALE_JOB_SECONDS,

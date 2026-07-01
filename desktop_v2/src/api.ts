@@ -25,6 +25,8 @@ export type ServiceStatus = {
   status: "ok" | "warn" | "bad" | "unknown";
   detail: string;
   ageMinutes?: number | null;
+  lastSuccessAt?: string | null;
+  nextExpectedAt?: string | null;
 };
 
 export type StatusPeriodComparison = {

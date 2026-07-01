@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1361")
+APP_BUILD = os.getenv("APP_BUILD", "1362")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1362",
+        "date": "01.07.2026",
+        "headline": "Neste EasyPark-import synlig",
+        "title": "PC og mobil viser faktisk neste planlagte EasyPark-import",
+        "description": (
+            "Build 1362 lar EasyPark-downloaderen eksponere tidspunktet for neste planlagte import fra samme "
+            "schedulerlogikk som faktisk styrer jobben. Backend bruker dette tidspunktet i datakildestatus, "
+            "PC-dashboardet viser neste import paa EasyPark-linjen, og mobilens parkering-side viser neste "
+            "planlagte import sammen med sist oppdatert og manuell importstatus."
+        ),
+        "applications": [
+            "EasyPark-downloader (easypark_downloader/app/main.py): eksponerer next_run_at i /health og /status.",
+            "Backend datakilder (main.py): bruker faktisk next_run_at for EasyPark sin nextExpectedAt.",
+            "Desktop V2 status (api.ts, OverviewPage.tsx): viser neste EasyPark-import i Status datakilder.",
+            "Mobil dashboard (online_dashboard/app/main.py): viser neste planlagte EasyPark-import paa /parkering.",
+            "Robusthet: statuskall mot EasyPark-downloaderen bruker kortere timeout i PC- og mobilbackend.",
+        ],
+        "request": "neste planlagte import burde vaere tydelig i grensesnittene baade paa mobil og pc",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Neste importtid beregnes ett sted i EasyPark-downloaderen og gjenbrukes av statusendepunktene.",
+            "PC-grensesnittet viser neste planlagte EasyPark-import i datakildelisten.",
+            "Mobilens parkering-side viser neste planlagte import i oppdatert-linjen og i manuell importstatus.",
+        ],
+    },
     {
         "version": "1",
         "build": "1361",
