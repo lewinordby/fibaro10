@@ -161,6 +161,14 @@ IMPORT_JOB_DEFINITIONS = {
         "warning_after_minutes": None,
         "description": "Oppslag av danske registreringsnummer der SVV ikke fant kjøretøydata.",
     },
+    "parking_sun_link_worker": {
+        "title": "Koble parkering og soling",
+        "category": "Koble",
+        "source": "Fibaro10",
+        "expected_interval_minutes": 15,
+        "warning_after_minutes": 60,
+        "description": "Kontinuerlig bakgrunnsjobb som finner sannsynlige koblinger mellom parkeringer og SUN2-ID.",
+    },
 }
 
 IMPORT_JOB_NUMBER_BY_NAME = {
@@ -248,6 +256,10 @@ IMPORT_JOB_DETAILS = {
     "parking_vehicle_tjekbil_sync": {
         "data_flow": "Nordisk kjøretøyoppslag sjekker danske registreringsnummer som ikke fikk treff hos SVV. Data brukes til å markere Danmark og fylle tekniske kjøretøyfelter der kilden gir svar.",
         "dependencies": ["car_info_lookup", "Tjekbil.dk", "Fibaro10 API", "PostgreSQL"],
+    },
+    "parking_sun_link_worker": {
+        "data_flow": "Fibaro10 velger biler som har parkert siste valgte antall dager, starter fra nyeste parkering og jobber seg bakover gjennom alle parkeringer for disse bilene. For hver parkering lagres soltimer der samme SUN2-ID starter innen valgt minuttvindu etter parkeringstart. Kandidat opprettes naar samme bil/SUN2-ID har minst valgt antall distinkte soltimer.",
+        "dependencies": ["Fibaro10 bakgrunnsjobb", "EasyPark parkeringer", "Sun2 enkelttimer", "PostgreSQL"],
     },
 }
 
