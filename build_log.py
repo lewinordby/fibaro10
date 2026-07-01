@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1363")
+APP_BUILD = os.getenv("APP_BUILD", "1364")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1364",
+        "date": "01.07.2026",
+        "headline": "Nye kjoretoy utvidet",
+        "title": "Nye kjoretoy-kortet viser maaned, forrige maaned og hittil i aar",
+        "description": (
+            "Build 1364 utvider toppkortet for nye kjoretoy paa Parkering > Oversikt. Hovedtallet viser fortsatt "
+            "nye kjoretoy denne maaneden, mens detaljlinjen viser forrige maaned og hittil i aar basert paa samme "
+            "first_seen-grunnlag."
+        ),
+        "applications": [
+            "Backend moduldata (main.py): legger til periodegrenser for forrige maaned og innevaerende aar i modul-API-et.",
+            "Parkering oversikt: Nye kjoretoy-kortet viser naa forrige maaned og hittil i aar i samme boks.",
+            "Buildlogg (build_log.py): registrerer build 1364.",
+        ],
+        "request": "kan du ta med forste parkering forrige mnd samt saa langt dette aaret ogsaa i samme boks",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Denne maaneden er fortsatt hovedverdien i kortet.",
+            "Detaljteksten viser forrige maaned og hittil i aar fra kjoretoy.first_seen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1363",

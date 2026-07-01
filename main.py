@@ -20659,6 +20659,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
     tomorrow_start = datetime.combine(tomorrow, time.min)
     month_start = today.replace(day=1)
     month_start_dt = datetime.combine(month_start, time.min)
+    previous_month_start = add_months(month_start, -1)
+    previous_month_start_dt = datetime.combine(previous_month_start, time.min)
+    year_start_dt = datetime.combine(date(today.year, 1, 1), time.min)
 
     async with async_session() as session:
         if module == "omsetning":
@@ -20824,6 +20827,20 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .where(ParkingVehicle.first_seen < tomorrow_start)
                 )
             ).scalar_one()
+            new_vehicle_previous_month_count = (
+                await session.execute(
+                    select(func.count(ParkingVehicle.plate))
+                    .where(ParkingVehicle.first_seen >= previous_month_start_dt)
+                    .where(ParkingVehicle.first_seen < month_start_dt)
+                )
+            ).scalar_one()
+            new_vehicle_year_count = (
+                await session.execute(
+                    select(func.count(ParkingVehicle.plate))
+                    .where(ParkingVehicle.first_seen >= year_start_dt)
+                    .where(ParkingVehicle.first_seen < tomorrow_start)
+                )
+            ).scalar_one()
             vehicle_blank_name_count = (
                 await session.execute(
                     select(func.count(ParkingVehicle.plate)).where(vehicle_blank_name_condition())
@@ -20873,7 +20890,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_card("Pågående", active, "stk", import_job_updated_ago(parking_import_status), "parking", href="/parkering/dagslinje"),
                 api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue", href="/omsetning/manedsoversikt"),
                 api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
-                api_card("Nye kj\u00f8ret\u00f8y", new_vehicle_month_count, "stk", "F\u00f8rste parkering denne m\u00e5neden", "parking", href="/parkering/kjoretoy"),
+                api_card(
+                    "Nye kj\u00f8ret\u00f8y",
+                    new_vehicle_month_count,
+                    "stk",
+                    f"Forrige mnd {format_short_number(new_vehicle_previous_month_count)} - i \u00e5r {format_short_number(new_vehicle_year_count)} stk",
+                    "parking",
+                    href="/parkering/kjoretoy",
+                ),
             ]
             actions = [
                 {
