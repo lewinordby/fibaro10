@@ -3247,6 +3247,81 @@ STARTUP_COLUMNS = {
         ("role", "VARCHAR"),
         ("last_notified_at", "TIMESTAMP"),
     ],
+    "parking_sun_link_job_state": [
+        ("enabled", "BOOLEAN DEFAULT FALSE"),
+        ("generation", "INTEGER DEFAULT 1"),
+        ("min_matches", "INTEGER DEFAULT 2"),
+        ("max_minutes", "INTEGER DEFAULT 3"),
+        ("recent_days", "INTEGER DEFAULT 14"),
+        ("idle_sleep_seconds", "INTEGER DEFAULT 20"),
+        ("status", "VARCHAR DEFAULT 'stoppet'"),
+        ("status_text", "TEXT"),
+        ("processed_count", "INTEGER DEFAULT 0"),
+        ("matched_count", "INTEGER DEFAULT 0"),
+        ("candidate_count", "INTEGER DEFAULT 0"),
+        ("strong_candidate_count", "INTEGER DEFAULT 0"),
+        ("checked_plate_count", "INTEGER DEFAULT 0"),
+        ("last_processed_parking_id", "BIGINT"),
+        ("last_processed_plate", "TEXT"),
+        ("last_processed_at", "TIMESTAMP"),
+        ("last_worker_seen_at", "TIMESTAMP"),
+        ("last_started_at", "TIMESTAMP"),
+        ("last_finished_at", "TIMESTAMP"),
+        ("last_error", "TEXT"),
+        ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("raw", "JSON"),
+    ],
+    "parking_sun_link_processed": [
+        ("generation", "INTEGER"),
+        ("parking_record_id", "BIGINT"),
+        ("plate", "TEXT"),
+        ("parking_start_at", "TIMESTAMP"),
+        ("matches_found", "INTEGER DEFAULT 0"),
+        ("checked_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ],
+    "parking_sun_link_matches": [
+        ("generation", "INTEGER"),
+        ("plate", "TEXT"),
+        ("sun2_id", "TEXT"),
+        ("parking_record_id", "BIGINT"),
+        ("parking_id", "BIGINT"),
+        ("source_system", "TEXT"),
+        ("parking_start_at", "TIMESTAMP"),
+        ("sun_session_id", "INTEGER"),
+        ("source_session_id", "VARCHAR"),
+        ("sun_started_at", "TIMESTAMP"),
+        ("room_id", "VARCHAR"),
+        ("room", "VARCHAR"),
+        ("user_name", "VARCHAR"),
+        ("duration_minutes", "DOUBLE PRECISION"),
+        ("paid_amount_kr", "DOUBLE PRECISION"),
+        ("fee_inc_vat", "DOUBLE PRECISION"),
+        ("delta_minutes", "DOUBLE PRECISION"),
+        ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ],
+    "parking_sun_link_candidates": [
+        ("generation", "INTEGER"),
+        ("plate", "TEXT"),
+        ("sun2_id", "TEXT"),
+        ("status", "VARCHAR DEFAULT 'Avventer'"),
+        ("confidence", "DOUBLE PRECISION DEFAULT 0"),
+        ("matches_count", "INTEGER DEFAULT 0"),
+        ("first_match_at", "TIMESTAMP"),
+        ("last_match_at", "TIMESTAMP"),
+        ("avg_delta_minutes", "DOUBLE PRECISION"),
+        ("navn", "TEXT"),
+        ("omrade", "TEXT"),
+        ("user_name", "VARCHAR"),
+        ("parking_count", "BIGINT"),
+        ("paid_total", "DOUBLE PRECISION"),
+        ("note", "TEXT"),
+        ("confirmed_at", "TIMESTAMP"),
+        ("confirmed_by", "VARCHAR"),
+        ("rejected_at", "TIMESTAMP"),
+        ("rejected_by", "VARCHAR"),
+        ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ],
     "yr_forecast_samples": [
         ("api_updated_at", "TIMESTAMP"),
         ("last_modified", "TIMESTAMP"),
@@ -3533,6 +3608,21 @@ PERFORMANCE_INDEXES = [
         "ix_kjoretoy_sun2_id",
         "CREATE INDEX IF NOT EXISTS ix_kjoretoy_sun2_id "
         "ON kjoretoy (sun2_id)",
+    ),
+    (
+        "ux_parking_sun_link_processed_generation_parking",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_parking_sun_link_processed_generation_parking "
+        "ON parking_sun_link_processed (generation, parking_record_id)",
+    ),
+    (
+        "ux_parking_sun_link_match_pair",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_parking_sun_link_match_pair "
+        "ON parking_sun_link_matches (generation, parking_record_id, sun_session_id)",
+    ),
+    (
+        "ux_parking_sun_link_candidate_pair",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_parking_sun_link_candidate_pair "
+        "ON parking_sun_link_candidates (generation, plate, sun2_id)",
     ),
 ]
 
@@ -15035,6 +15125,30 @@ async def get_parking_sun_link_state(session: Any) -> ParkingSunLinkJobState:
         state = ParkingSunLinkJobState(id=1)
         session.add(state)
         await session.flush()
+    changed = False
+    defaults = {
+        "enabled": False,
+        "generation": 1,
+        "min_matches": 2,
+        "max_minutes": 3,
+        "recent_days": 14,
+        "idle_sleep_seconds": 20,
+        "status": "stoppet",
+        "status_text": "Koblingsjobben er stoppet.",
+        "processed_count": 0,
+        "matched_count": 0,
+        "candidate_count": 0,
+        "strong_candidate_count": 0,
+        "checked_plate_count": 0,
+        "updated_at": local_now_naive(),
+        "raw": {},
+    }
+    for key, value in defaults.items():
+        if getattr(state, key, None) is None:
+            setattr(state, key, value)
+            changed = True
+    if changed:
+        await session.flush()
     return state
 
 
@@ -24257,7 +24371,7 @@ async def api_v2_koble_worker_results(request: Request, data: ParkingSunLinkWork
             stmt = pg_insert(ParkingSunLinkProcessed).values(processed_values)
             await session.execute(
                 stmt.on_conflict_do_update(
-                    constraint="uq_parking_sun_link_processed_generation_parking",
+                    index_elements=["generation", "parking_record_id"],
                     set_={
                         "plate": stmt.excluded.plate,
                         "parking_start_at": stmt.excluded.parking_start_at,
@@ -24301,7 +24415,7 @@ async def api_v2_koble_worker_results(request: Request, data: ParkingSunLinkWork
             stmt = pg_insert(ParkingSunLinkMatch).values(match_values)
             await session.execute(
                 stmt.on_conflict_do_update(
-                    constraint="uq_parking_sun_link_match_pair",
+                    index_elements=["generation", "parking_record_id", "sun_session_id"],
                     set_={
                         "plate": stmt.excluded.plate,
                         "sun2_id": stmt.excluded.sun2_id,

@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1375")
+APP_BUILD = os.getenv("APP_BUILD", "1376")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1376",
+        "date": "01.07.2026",
+        "headline": "Koble database-skjema",
+        "title": "Koble reparerer delvise tabeller og viser kandidater til bekreftelse",
+        "description": (
+            "Build 1376 gjor oppstartsmigreringen for Koble robust dersom en tidligere deploy har opprettet "
+            "tabellene delvis. Manglende kolonner og unike indekser legges inn ved oppstart, og sideappen kan "
+            "rapportere prosesserte parkeringer og matcher uten aa vaere avhengig av gamle constraint-navn."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger inn manglende Koble-kolonner, unike indekser og standardverdier for jobbstatus.",
+            "Fibaro10 worker-API (main.py): bruker index_elements for upsert av prosesserte parkeringer og matcher.",
+            "Buildlogg (build_log.py): registrerer build 1376.",
+        ],
+        "request": "jeg maa kunne bekrefte om en kobling er rett - frem til da skal jeg ha en sannsynlighet paa koblingen",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Koble-sideappen stopper ikke lenger paa delvis opprettede tabeller.",
+            "Kandidater kan ligge som Avventer med sannsynlighet til bruker bekrefter eller avviser dem.",
+            "Bekreftelse/avvisning og start/stopp forblir styrt fra Fibaro10-grensesnittet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1375",
