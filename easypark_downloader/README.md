@@ -20,6 +20,6 @@ Etter at EasyPark er bedt om a sende kode, prover appen Gmail flere ganger i opp
 
 EasyPark sitt datofilter tillater maks ett ar per eksport. Backfill kjorer derfor i manedlige biter, og Fibaro10 dedupliserer pa `source_system` + `parking_id`.
 
-Anbefalt fast drift er henting flere ganger daglig: `EASYPARK_RUN_TIMES=03:00,09:00,12:00,15:00,18:00,21:00`, `EASYPARK_SCHEDULE_MODE=recent`, `EASYPARK_RECENT_DAYS=2` og `EASYPARK_RUN_ON_START=false`. Da henter appen i gar og i dag på faste tidspunkt. Fibaro10 lagrer en ny parkeringsprognose etter hver vellykkede import. Ved behov kan Fibaro10 sin parkeringsside starte samme henting manuelt med knappen "Oppdater tall".
+Anbefalt fast drift er henting flere ganger daglig: `EASYPARK_RUN_TIMES=08:00,10:00,12:00,14:00,16:00,18:00,20:00,23:00`, `EASYPARK_SCHEDULE_MODE=recent`, `EASYPARK_RECENT_DAYS=2` og `EASYPARK_RUN_ON_START=false`. Da henter appen i gar og i dag på faste tidspunkt. Fibaro10 lagrer en ny parkeringsprognose etter hver vellykkede import. Ved behov kan Fibaro10 sin parkeringsside starte samme henting manuelt med knappen "Oppdater tall".
 
 `EASYPARK_FORCE_LOGIN_TIMES` skal normalt sta tom, fordi tvungen logout kan bryte en fortsatt gyldig EasyPark-session og skape kodefeil uten at EasyPark faktisk har sendt ny kode.

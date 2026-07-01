@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1365")
+APP_BUILD = os.getenv("APP_BUILD", "1366")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1366",
+        "date": "01.07.2026",
+        "headline": "EasyPark importplan oppdatert",
+        "title": "EasyPark-import kjoerer annenhver time gjennom dagen",
+        "description": (
+            "Build 1366 dokumenterer ny fast EasyPark-importplan. Runtime-konfigen paa QNAP er satt til "
+            "08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00 og 23:00, slik at parkeringsgrunnlaget "
+            "oppdateres oftere gjennom aapningstiden."
+        ),
+        "applications": [
+            "EasyPark-downloader runtime: EASYPARK_RUN_TIMES er endret paa QNAP og containeren er restartet.",
+            "EasyPark-downloader oppskrift (.env.example, README.md): dokumenterer ny standard importplan.",
+            "Buildlogg (build_log.py): registrerer build 1366.",
+        ],
+        "request": "gjor det",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny plan er 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00 og 23:00.",
+            "Neste import i grensesnittet beregnes videre fra EasyPark-downloaderens faktiske /status-endepunkt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1365",
