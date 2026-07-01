@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1362")
+APP_BUILD = os.getenv("APP_BUILD", "1363")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1363",
+        "date": "01.07.2026",
+        "headline": "Nye kjoretoy paa parkering",
+        "title": "Parkering oversikt viser nye kjoretoy denne maaneden",
+        "description": (
+            "Build 1363 legger til et nytt toppkort paa Parkering > Oversikt. Kortet viser hvor mange unike "
+            "kjoretoy som har sin forste registrerte parkering i innevaerende maaned, basert paa kjoretoy.first_seen."
+        ),
+        "applications": [
+            "Backend moduldata (main.py): beregner nye kjoretoy denne maaneden fra ParkingVehicle.first_seen.",
+            "Desktop V2 parkering/oversikt: viser nytt kort i eksisterende toppgrid uten egen frontend-endring.",
+            "Buildlogg (build_log.py): registrerer build 1363.",
+        ],
+        "request": "paa siden parkering/oversikt onsker jeg paa toppen sammen med de 5 andre boksene aa ha informasjon om hvor mange nye kjoretoy det er denne mnd.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kortet heter Nye kjoretoy og lenker til kjoretoyoversikten.",
+            "Tallet teller bare biler med first_seen fra maanedsstart til og med dagens importgrunnlag.",
+        ],
+    },
     {
         "version": "1",
         "build": "1362",

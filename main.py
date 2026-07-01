@@ -20817,6 +20817,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 )
             ).scalar_one()
             vehicle_count = (await session.execute(select(func.count()).select_from(ParkingVehicle))).scalar_one()
+            new_vehicle_month_count = (
+                await session.execute(
+                    select(func.count(ParkingVehicle.plate))
+                    .where(ParkingVehicle.first_seen >= month_start_dt)
+                    .where(ParkingVehicle.first_seen < tomorrow_start)
+                )
+            ).scalar_one()
             vehicle_blank_name_count = (
                 await session.execute(
                     select(func.count(ParkingVehicle.plate)).where(vehicle_blank_name_condition())
@@ -20866,6 +20873,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 api_card("Pågående", active, "stk", import_job_updated_ago(parking_import_status), "parking", href="/parkering/dagslinje"),
                 api_card("Måned", month_summary["count"], "stk", f"{format_short_number(month_summary['paid'])} kr", "revenue", href="/omsetning/manedsoversikt"),
                 api_card("Kjøretøy", vehicle_count, "stk", "Registrert i kjøretøytabellen", "status", href="/parkering/kjoretoy"),
+                api_card("Nye kj\u00f8ret\u00f8y", new_vehicle_month_count, "stk", "F\u00f8rste parkering denne m\u00e5neden", "parking", href="/parkering/kjoretoy"),
             ]
             actions = [
                 {
