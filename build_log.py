@@ -5,38 +5,8 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1372")
+APP_BUILD = os.getenv("APP_BUILD", "1371")
 BUILD_LOG = [
-    {
-        "version": "1",
-        "build": "1372",
-        "date": "01.07.2026",
-        "headline": "Kontinuerlig Koble-jobb",
-        "title": "Koble parkering og soling kjører som bakgrunnsjobb fra nyeste parkering",
-        "description": (
-            "Build 1372 flytter Koble fra en tung live-sporring til en kontinuerlig bakgrunnsjobb. "
-            "Jobben tar en og en parkering fra nyeste, bruker biler med parkering siste valgte antall dager "
-            "som bilutvalg, og jobber bakover gjennom alle parkeringer for disse bilene. Resultater lagres "
-            "i egne tabeller og Koble-siden viser jobbstatus, parametere, kandidater og treffgrunnlag."
-        ),
-        "applications": [
-            "Backend database (main.py): legger til tabeller for Koble-jobbstatus, behandlede parkeringer, treff og kandidater.",
-            "Backend worker (main.py): legger til kontinuerlig worker som prosesserer parkering for parkering fra nyeste.",
-            "Backend API (main.py): legger til restart-action og redigerbare jobbparametere med automatisk restart ved parameterendring.",
-            "Koble-grensesnitt (main.py payload): viser lagrede resultater, jobbstatus, parametere og restart-knapp.",
-            "Datakilder (import_jobs.py): registrerer Koble parkering og soling som egen intern datakilde.",
-            "Buildlogg (build_log.py): registrerer build 1372.",
-        ],
-        "request": "jobben maa gaa kontunuerlig i bakgrunnen og ta parkering for parkering fra den nyeste. den skal bare jobbe seg igjennom trenger ikke aa stoppe eller ha et maks antall. men parametere maa kunne endres og starte jobben paa nytt med fra nyeste parkering",
-        "work_duration": "ca. 60 min",
-        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
-        "changes": [
-            "Koble-jobben starter automatisk med appen og kan deaktiveres i jobbparametere.",
-            "Numeriske parameterendringer nullstiller grunnlaget og starter gjennomgangen fra nyeste parkering.",
-            "Selve jobben har ingen maksgrense; UI-limit styrer bare hvor mange rader som vises.",
-            "Admin/datakilder viser Koble-jobben med status, avhengigheter og datagrunnlagsforklaring.",
-        ],
-    },
     {
         "version": "1",
         "build": "1371",
