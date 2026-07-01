@@ -177,6 +177,16 @@ function datasourceDetail(service: ServiceStatus) {
   return service.detail;
 }
 
+function easyparkNextImportText(services: ServiceStatus[]) {
+  const service = services.find((item) => item.jobName === "easypark_parking_import");
+  const next = shortDateTime(service?.nextExpectedAt);
+  return next ? `neste ${next}` : "";
+}
+
+function appendNextParkingImport(label: string, nextImportText: string) {
+  return nextImportText ? `${label} (${nextImportText})` : label;
+}
+
 function signedNok(value: number) {
   if (!Number.isFinite(value) || value === 0) return "0 kr";
   return `${value > 0 ? "+" : "-"}${nok(Math.abs(value))} kr`;
@@ -452,11 +462,12 @@ function periodCurrentColumnLabel(period: StatusPeriod) {
   return "Hittil";
 }
 
-function periodDataBasisText(period: StatusPeriod) {
+function periodDataBasisText(period: StatusPeriod, nextParkingImportText = "") {
   if (period.solAsOfLabel === period.parkingAsOfLabel) {
-    return `Per ${period.solAsOfLabel}`;
+    const parkingPart = nextParkingImportText ? ` (parkering ${nextParkingImportText})` : "";
+    return `Per ${period.solAsOfLabel}${parkingPart}`;
   }
-  return `Soling ${period.solAsOfLabel} · parkering ${period.parkingAsOfLabel}`;
+  return `Soling ${period.solAsOfLabel} · parkering ${appendNextParkingImport(period.parkingAsOfLabel, nextParkingImportText)}`;
 }
 
 function revenuePeriodLines(period: StatusPeriod): RevenuePeriodLine[] {
@@ -590,7 +601,7 @@ function RevenueDriverRow({
   );
 }
 
-function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
+function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPeriod; nextParkingImportText: string }) {
   const comparisons = buildComparisonViews(period);
   const shownComparisons = comparisons.slice(0, 2);
   const lines = revenuePeriodLines(period);
@@ -600,7 +611,7 @@ function RevenuePeriodCard({ period }: { period: StatusPeriod }) {
       <div className="revenue-period-head">
         <div>
           <span className="revenue-period-title">{periodDisplayTitle(period)}</span>
-          <em>{periodDataBasisText(period)}</em>
+          <em>{periodDataBasisText(period, nextParkingImportText)}</em>
         </div>
         <strong>{nok(period.total)} kr</strong>
       </div>
@@ -730,7 +741,15 @@ function ActivityDriverRow({
   );
 }
 
-function ActivityPeriodCard({ period, config }: { period: StatusPeriod; config: ActivityDashboardConfig }) {
+function ActivityPeriodCard({
+  period,
+  config,
+  nextParkingImportText,
+}: {
+  period: StatusPeriod;
+  config: ActivityDashboardConfig;
+  nextParkingImportText: string;
+}) {
   const comparisons = buildComparisonViews(period).slice(0, 2).map((item) => ({
     ...item,
     path: activityComparisonPath(config, period.key, item.comparisonKey),
@@ -743,7 +762,7 @@ function ActivityPeriodCard({ period, config }: { period: StatusPeriod; config: 
       <div className="revenue-period-head">
         <div>
           <span className="revenue-period-title">{activityPeriodDisplayTitle(period, config)}</span>
-          <em>Per {config.asOf(period)}</em>
+          <em>Per {config.kind === "parking" ? appendNextParkingImport(config.asOf(period), nextParkingImportText) : config.asOf(period)}</em>
         </div>
         <strong>
           {Math.round(count)}
@@ -986,6 +1005,7 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
   const overviewServices = sortedDatasources(overview.services);
   const overviewSourceCounts = datasourceCounts(overviewServices);
   const updatedAt = new Date(overview.generatedAt).toLocaleString("nb-NO");
+  const nextParkingImportText = easyparkNextImportText(overview.services);
 
   function itemTitle(item: { href?: string; label: string }) {
     const internalPath = appPath(item.href);
@@ -999,7 +1019,7 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
       <StatusSection title="Omsetning" hideHeader>
         <div className="status-period-grid">
           {overview.statusPeriods.map((period) => (
-            <RevenuePeriodCard period={period} key={period.key} />
+            <RevenuePeriodCard period={period} nextParkingImportText={nextParkingImportText} key={period.key} />
           ))}
         </div>
       </StatusSection>
@@ -1015,7 +1035,12 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
         <StatusSection title={config.title} hideHeader>
           <div className="status-period-grid">
             {overview.statusPeriods.map((period) => (
-              <ActivityPeriodCard period={period} config={config} key={`${config.kind}-${period.key}`} />
+              <ActivityPeriodCard
+                period={period}
+                config={config}
+                nextParkingImportText={nextParkingImportText}
+                key={`${config.kind}-${period.key}`}
+              />
             ))}
           </div>
         </StatusSection>

@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1364")
+APP_BUILD = os.getenv("APP_BUILD", "1365")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1365",
+        "date": "01.07.2026",
+        "headline": "Neste import paa dashboard",
+        "title": "Dashboardkort viser neste EasyPark-import ved parkeringsgrunnlaget",
+        "description": (
+            "Build 1365 viser neste planlagte EasyPark-import direkte i dashboardkortene der parkeringsdatatidspunktet "
+            "allerede vises. Dette gjor at kortene viser baade hvor langt parkeringsgrunnlaget er oppdatert og naar "
+            "neste import forventes aa kjoere."
+        ),
+        "applications": [
+            "Desktop V2 dashboard (OverviewPage.tsx): henter nextExpectedAt fra EasyPark-datakilden og legger den bak parkeringsdatatidspunktet.",
+            "Omsetningsdashboard: viser neste EasyPark-import paa datagrunnlagslinjen i hvert kort.",
+            "Parkeringsdashboard: viser neste EasyPark-import paa per-linjen i hvert kort.",
+            "Buildlogg (build_log.py): registrerer build 1365.",
+        ],
+        "request": "paa dashboard kortene saa kan ogsaa neste import tas med i parantes bak naar sist import for parkering gikk",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Neste import vises som kort tekst i parentes, for eksempel neste 01.07. 12:00.",
+            "Solingkortene er ikke endret, siden neste import gjelder EasyPark/parkering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1364",
