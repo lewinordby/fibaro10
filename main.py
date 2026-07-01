@@ -226,6 +226,7 @@ SVV_TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
 svv_sync_task: Optional[asyncio.Task] = None
 CAR_INFO_LOOKUP_URL = os.getenv("CAR_INFO_LOOKUP_URL", "http://127.0.0.1:8126").rstrip("/")
 CAR_INFO_APP_TOKEN = os.getenv("CAR_INFO_APP_TOKEN", "").strip()
+KOBLE_WORKER_TOKEN = (os.getenv("KOBLE_WORKER_TOKEN") or CAR_INFO_APP_TOKEN).strip()
 CAR_INFO_LOOKUP_TIMEOUT_SECONDS = max(5, int(os.getenv("CAR_INFO_LOOKUP_TIMEOUT_SECONDS", "30")))
 CAR_INFO_CANDIDATE_RETRY_HOURS = max(24, int(os.getenv("CAR_INFO_CANDIDATE_RETRY_HOURS", "720")))
 CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES = max(30, int(os.getenv("CAR_INFO_CANDIDATE_TRANSIENT_RETRY_MINUTES", "240")))
@@ -1363,6 +1364,106 @@ class ParkingVehicle(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class ParkingSunLinkJobState(Base):
+    __tablename__ = "parking_sun_link_job_state"
+
+    id = Column(Integer, primary_key=True, default=1)
+    enabled = Column(Boolean, nullable=False, default=False)
+    generation = Column(Integer, nullable=False, default=1)
+    min_matches = Column(Integer, nullable=False, default=2)
+    max_minutes = Column(Integer, nullable=False, default=3)
+    recent_days = Column(Integer, nullable=False, default=14)
+    idle_sleep_seconds = Column(Integer, nullable=False, default=20)
+    status = Column(String, index=True, nullable=False, default="stoppet")
+    status_text = Column(Text, nullable=True)
+    processed_count = Column(Integer, nullable=False, default=0)
+    matched_count = Column(Integer, nullable=False, default=0)
+    candidate_count = Column(Integer, nullable=False, default=0)
+    strong_candidate_count = Column(Integer, nullable=False, default=0)
+    checked_plate_count = Column(Integer, nullable=False, default=0)
+    last_processed_parking_id = Column(BigInteger, nullable=True)
+    last_processed_plate = Column(Text, nullable=True)
+    last_processed_at = Column(DateTime, nullable=True, index=True)
+    last_worker_seen_at = Column(DateTime, nullable=True, index=True)
+    last_started_at = Column(DateTime, nullable=True, index=True)
+    last_finished_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    raw = Column(JSON, nullable=True)
+
+
+class ParkingSunLinkProcessed(Base):
+    __tablename__ = "parking_sun_link_processed"
+    __table_args__ = (
+        UniqueConstraint("generation", "parking_record_id", name="uq_parking_sun_link_processed_generation_parking"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    generation = Column(Integer, index=True, nullable=False)
+    parking_record_id = Column(BigInteger, index=True, nullable=False)
+    plate = Column(Text, index=True, nullable=False)
+    parking_start_at = Column(DateTime, nullable=True, index=True)
+    matches_found = Column(Integer, nullable=False, default=0)
+    checked_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class ParkingSunLinkMatch(Base):
+    __tablename__ = "parking_sun_link_matches"
+    __table_args__ = (
+        UniqueConstraint("generation", "parking_record_id", "sun_session_id", name="uq_parking_sun_link_match_pair"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    generation = Column(Integer, index=True, nullable=False)
+    plate = Column(Text, index=True, nullable=False)
+    sun2_id = Column(Text, index=True, nullable=False)
+    parking_record_id = Column(BigInteger, index=True, nullable=False)
+    parking_id = Column(BigInteger, nullable=True)
+    source_system = Column(Text, nullable=True)
+    parking_start_at = Column(DateTime, nullable=True, index=True)
+    sun_session_id = Column(Integer, index=True, nullable=False)
+    source_session_id = Column(String, nullable=True)
+    sun_started_at = Column(DateTime, nullable=True, index=True)
+    room_id = Column(String, nullable=True)
+    room = Column(String, nullable=True)
+    user_name = Column(String, nullable=True)
+    duration_minutes = Column(Float, nullable=True)
+    paid_amount_kr = Column(Float, nullable=True)
+    fee_inc_vat = Column(Float, nullable=True)
+    delta_minutes = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class ParkingSunLinkCandidate(Base):
+    __tablename__ = "parking_sun_link_candidates"
+    __table_args__ = (
+        UniqueConstraint("generation", "plate", "sun2_id", name="uq_parking_sun_link_candidate_pair"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    generation = Column(Integer, index=True, nullable=False)
+    plate = Column(Text, index=True, nullable=False)
+    sun2_id = Column(Text, index=True, nullable=False)
+    status = Column(String, index=True, nullable=False, default="Avventer")
+    confidence = Column(Float, nullable=False, default=0.0)
+    matches_count = Column(Integer, nullable=False, default=0)
+    first_match_at = Column(DateTime, nullable=True, index=True)
+    last_match_at = Column(DateTime, nullable=True, index=True)
+    avg_delta_minutes = Column(Float, nullable=True)
+    navn = Column(Text, nullable=True)
+    omrade = Column(Text, nullable=True)
+    user_name = Column(String, nullable=True)
+    parking_count = Column(BigInteger, nullable=True)
+    paid_total = Column(Float, nullable=True)
+    note = Column(Text, nullable=True)
+    confirmed_at = Column(DateTime, nullable=True)
+    confirmed_by = Column(String, nullable=True)
+    rejected_at = Column(DateTime, nullable=True)
+    rejected_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class ParkingVehicleDetails(Base):
     __tablename__ = "kjoretoy_nokkeldata"
 
@@ -1827,6 +1928,69 @@ class ParkingVehicleCarInfoUpdate(BaseModel):
     url: Optional[str] = Field(None, max_length=1000)
     error: Optional[str] = Field(None, max_length=1000)
     data: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ParkingSunLinkSettingsUpdate(BaseModel):
+    min_matches: Optional[int] = Field(None, ge=1, le=20)
+    max_minutes: Optional[int] = Field(None, ge=1, le=30)
+    recent_days: Optional[int] = Field(None, ge=1, le=90)
+    idle_sleep_seconds: Optional[int] = Field(None, ge=5, le=3600)
+
+
+class ParkingSunLinkCandidateUpdate(BaseModel):
+    status: Optional[str] = Field(None, max_length=40)
+    note: Optional[str] = Field(None, max_length=2000)
+
+
+class ParkingSunLinkWorkerStatusIn(BaseModel):
+    generation: int = Field(1, ge=1)
+    status: str = Field("kjorer", max_length=40)
+    status_text: Optional[str] = Field(None, max_length=1000)
+    processed_count: Optional[int] = Field(None, ge=0)
+    matched_count: Optional[int] = Field(None, ge=0)
+    candidate_count: Optional[int] = Field(None, ge=0)
+    strong_candidate_count: Optional[int] = Field(None, ge=0)
+    checked_plate_count: Optional[int] = Field(None, ge=0)
+    last_processed_parking_id: Optional[int] = None
+    last_processed_plate: Optional[str] = Field(None, max_length=40)
+    last_processed_at: Optional[datetime] = None
+    last_error: Optional[str] = Field(None, max_length=4000)
+    raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ParkingSunLinkProcessedIn(BaseModel):
+    generation: int = Field(1, ge=1)
+    parking_record_id: int
+    plate: str = Field(..., max_length=40)
+    parking_start_at: Optional[datetime] = None
+    matches_found: int = Field(0, ge=0)
+
+
+class ParkingSunLinkMatchIn(BaseModel):
+    generation: int = Field(1, ge=1)
+    plate: str = Field(..., max_length=40)
+    sun2_id: str = Field(..., max_length=120)
+    parking_record_id: int
+    parking_id: Optional[int] = None
+    source_system: Optional[str] = Field(None, max_length=240)
+    parking_start_at: Optional[datetime] = None
+    sun_session_id: int
+    source_session_id: Optional[str] = Field(None, max_length=240)
+    sun_started_at: Optional[datetime] = None
+    room_id: Optional[str] = Field(None, max_length=120)
+    room: Optional[str] = Field(None, max_length=240)
+    user_name: Optional[str] = Field(None, max_length=500)
+    duration_minutes: Optional[float] = None
+    paid_amount_kr: Optional[float] = None
+    fee_inc_vat: Optional[float] = None
+    delta_minutes: Optional[float] = None
+
+
+class ParkingSunLinkWorkerResultsIn(BaseModel):
+    generation: int = Field(1, ge=1)
+    processed: list[ParkingSunLinkProcessedIn] = Field(default_factory=list)
+    matches: list[ParkingSunLinkMatchIn] = Field(default_factory=list)
+    status: Optional[ParkingSunLinkWorkerStatusIn] = None
 
 
 class V2EnergyCircuitUpdate(BaseModel):
@@ -3755,6 +3919,11 @@ def require_settings_access(request: Request):
 def has_car_info_app_access(request: Request) -> bool:
     token = (request.headers.get("x-car-info-token") or request.query_params.get("car_info_token") or "").strip()
     return bool(CAR_INFO_APP_TOKEN and token and token == CAR_INFO_APP_TOKEN)
+
+
+def has_koble_worker_access(request: Request) -> bool:
+    token = (request.headers.get("x-koble-token") or request.query_params.get("koble_token") or "").strip()
+    return bool(KOBLE_WORKER_TOKEN and token and token == KOBLE_WORKER_TOKEN)
 
 
 def is_car_info_app_request_path(path: str) -> bool:
@@ -14771,6 +14940,309 @@ async def parking_sun_link_candidates(
     }
 
 
+PARKING_SUN_LINK_PENDING = "Avventer"
+PARKING_SUN_LINK_CONFIRMED = "Bekreftet"
+PARKING_SUN_LINK_REJECTED = "Avvist"
+PARKING_SUN_LINK_STATUSES = [
+    PARKING_SUN_LINK_PENDING,
+    PARKING_SUN_LINK_CONFIRMED,
+    PARKING_SUN_LINK_REJECTED,
+]
+
+
+def parking_sun_link_status_value(value: Optional[str]) -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in {"bekreftet", "confirmed", "ok", "ja"}:
+        return PARKING_SUN_LINK_CONFIRMED
+    if normalized in {"avvist", "rejected", "nei"}:
+        return PARKING_SUN_LINK_REJECTED
+    return PARKING_SUN_LINK_PENDING
+
+
+def parking_sun_link_probability(matches_count: int, avg_delta_minutes: Optional[float]) -> float:
+    matches = int_or_zero(matches_count)
+    avg_delta = float_or_zero(avg_delta_minutes)
+    probability = 35.0
+    if matches >= 2:
+        probability += 25.0
+    if matches >= 3:
+        probability += 10.0
+    if matches >= 5:
+        probability += 5.0
+    if avg_delta <= 1:
+        probability += 15.0
+    elif avg_delta <= 2:
+        probability += 10.0
+    elif avg_delta <= 3:
+        probability += 5.0
+    return round(max(5.0, min(98.0, probability)), 1)
+
+
+def parking_sun_link_settings_edit() -> Dict[str, Any]:
+    return {
+        "kind": "koble-settings",
+        "title": "parameter",
+        "idField": "id",
+        "endpoint": "/api/koble/settings/{id}",
+        "method": "PATCH",
+        "fields": [
+            {"key": "min_matches", "label": "Sterk kandidat fra treff", "type": "number"},
+            {"key": "max_minutes", "label": "Maks minutter etter parkering", "type": "number"},
+            {"key": "recent_days", "label": "Bilutvalg siste dager", "type": "number"},
+            {"key": "idle_sleep_seconds", "label": "Pause naar ajour sek", "type": "number"},
+        ],
+    }
+
+
+def parking_sun_link_candidate_edit() -> Dict[str, Any]:
+    return {
+        "kind": "koble-candidate",
+        "title": "kobling",
+        "idField": "id",
+        "endpoint": "/api/koble/candidates/{id}",
+        "method": "PATCH",
+        "fields": [
+            {
+                "key": "status",
+                "label": "Status",
+                "type": "select",
+                "options": [{"label": value, "value": value} for value in PARKING_SUN_LINK_STATUSES],
+                "required": True,
+            },
+            {"key": "note", "label": "Notat", "type": "textarea"},
+        ],
+    }
+
+
+async def get_parking_sun_link_state(session: Any) -> ParkingSunLinkJobState:
+    state = (
+        await session.execute(select(ParkingSunLinkJobState).where(ParkingSunLinkJobState.id == 1))
+    ).scalars().first()
+    if not state:
+        state = ParkingSunLinkJobState(id=1)
+        session.add(state)
+        await session.flush()
+    return state
+
+
+async def reset_parking_sun_link_data(session: Any, state: ParkingSunLinkJobState, *, enabled: bool = True) -> ParkingSunLinkJobState:
+    await session.execute(delete(ParkingSunLinkMatch))
+    await session.execute(delete(ParkingSunLinkCandidate))
+    await session.execute(delete(ParkingSunLinkProcessed))
+    state.enabled = enabled
+    state.generation = int_or_zero(state.generation) + 1
+    state.status = "venter" if enabled else "stoppet"
+    state.status_text = "Starter fra nyeste parkering." if enabled else "Stoppet."
+    state.processed_count = 0
+    state.matched_count = 0
+    state.candidate_count = 0
+    state.strong_candidate_count = 0
+    state.checked_plate_count = 0
+    state.last_processed_parking_id = None
+    state.last_processed_plate = None
+    state.last_processed_at = None
+    state.last_started_at = local_now_naive() if enabled else state.last_started_at
+    state.last_finished_at = None
+    state.last_error = None
+    state.updated_at = local_now_naive()
+    state.raw = {}
+    return state
+
+
+def api_parking_sun_link_state_row(state: ParkingSunLinkJobState) -> Dict[str, Any]:
+    return {
+        "id": state.id,
+        "enabled": bool(state.enabled),
+        "generation": int_or_zero(state.generation),
+        "min_matches": int_or_zero(state.min_matches),
+        "max_minutes": int_or_zero(state.max_minutes),
+        "recent_days": int_or_zero(state.recent_days),
+        "idle_sleep_seconds": int_or_zero(state.idle_sleep_seconds),
+        "status": state.status,
+        "status_text": state.status_text,
+        "processed_count": int_or_zero(state.processed_count),
+        "matched_count": int_or_zero(state.matched_count),
+        "candidate_count": int_or_zero(state.candidate_count),
+        "strong_candidate_count": int_or_zero(state.strong_candidate_count),
+        "checked_plate_count": int_or_zero(state.checked_plate_count),
+        "last_processed_parking_id": state.last_processed_parking_id,
+        "last_processed_plate": state.last_processed_plate,
+        "last_processed_at": api_local_iso(state.last_processed_at),
+        "last_worker_seen_at": api_local_iso(state.last_worker_seen_at),
+        "updated_at": api_local_iso(state.updated_at),
+    }
+
+
+def api_parking_sun_link_candidate_row(row: ParkingSunLinkCandidate) -> Dict[str, Any]:
+    plate = str(row.plate or "").strip()
+    return {
+        "id": row.id,
+        "status": row.status,
+        "confidence": round(float_or_zero(row.confidence), 1),
+        "plate": plate,
+        "sun2_id": row.sun2_id,
+        "matches_count": int_or_zero(row.matches_count),
+        "first_match_at": api_local_iso(row.first_match_at),
+        "last_match_at": api_local_iso(row.last_match_at),
+        "avg_delta_minutes": round(float_or_zero(row.avg_delta_minutes), 2),
+        "navn": row.navn,
+        "omrade": row.omrade,
+        "user_name": row.user_name,
+        "parking_count": int_or_zero(row.parking_count),
+        "paid_total": round(float_or_zero(row.paid_total), 2),
+        "note": row.note,
+        "confirmed_at": api_local_iso(row.confirmed_at),
+        "confirmed_by": row.confirmed_by,
+        "rejected_at": api_local_iso(row.rejected_at),
+        "rejected_by": row.rejected_by,
+        "path": f"/parkering/kjoretoy/{quote(plate)}" if plate else "",
+    }
+
+
+def api_parking_sun_link_match_row(row: ParkingSunLinkMatch) -> Dict[str, Any]:
+    plate = str(row.plate or "").strip()
+    return {
+        "id": row.id,
+        "parking_start_at": api_local_iso(row.parking_start_at),
+        "sun_started_at": api_local_iso(row.sun_started_at),
+        "delta_minutes": round(float_or_zero(row.delta_minutes), 2),
+        "plate": plate,
+        "sun2_id": row.sun2_id,
+        "room_label": sun2_room_label(row.room_id, row.room),
+        "user_name": row.user_name,
+        "duration_minutes": round(float_or_zero(row.duration_minutes), 1),
+        "paid_amount_kr": round(float_or_zero(row.paid_amount_kr), 2),
+        "fee_inc_vat": round(float_or_zero(row.fee_inc_vat), 2),
+        "source_system": row.source_system,
+        "parking_id": row.parking_id,
+        "parking_record_id": row.parking_record_id,
+        "sun_session_id": row.sun_session_id,
+        "source_session_id": row.source_session_id,
+        "path": f"/parkering/kjoretoy/{quote(plate)}" if plate else "",
+    }
+
+
+async def refresh_parking_sun_link_candidate_pairs(
+    session: Any,
+    generation: int,
+    pairs: Optional[Iterable[tuple[str, str]]] = None,
+) -> None:
+    clean_pairs = sorted({(str(plate or "").strip(), str(sun2_id or "").strip()) for plate, sun2_id in (pairs or []) if plate and sun2_id})
+    stmt = (
+        select(
+            ParkingSunLinkMatch.plate,
+            ParkingSunLinkMatch.sun2_id,
+            func.count(ParkingSunLinkMatch.id).label("matches_count"),
+            func.min(ParkingSunLinkMatch.parking_start_at).label("first_match_at"),
+            func.max(ParkingSunLinkMatch.parking_start_at).label("last_match_at"),
+            func.avg(ParkingSunLinkMatch.delta_minutes).label("avg_delta_minutes"),
+            func.max(ParkingVehicle.navn).label("navn"),
+            func.max(ParkingVehicle.omrade).label("omrade"),
+            func.max(ParkingSunLinkMatch.user_name).label("user_name"),
+            func.max(ParkingVehicle.parkering_count).label("parking_count"),
+            func.max(ParkingVehicle.paid_total).label("paid_total"),
+        )
+        .select_from(ParkingSunLinkMatch)
+        .outerjoin(ParkingVehicle, ParkingVehicle.plate == ParkingSunLinkMatch.plate)
+        .where(ParkingSunLinkMatch.generation == generation)
+        .group_by(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id)
+    )
+    if clean_pairs:
+        stmt = stmt.where(tuple_(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id).in_(clean_pairs))
+    rows = (await session.execute(stmt)).all()
+    now_value = local_now_naive()
+    for row in rows:
+        candidate = (
+            await session.execute(
+                select(ParkingSunLinkCandidate)
+                .where(ParkingSunLinkCandidate.generation == generation)
+                .where(ParkingSunLinkCandidate.plate == row.plate)
+                .where(ParkingSunLinkCandidate.sun2_id == row.sun2_id)
+            )
+        ).scalars().first()
+        if not candidate:
+            candidate = ParkingSunLinkCandidate(
+                generation=generation,
+                plate=row.plate,
+                sun2_id=row.sun2_id,
+                status=PARKING_SUN_LINK_PENDING,
+                created_at=now_value,
+            )
+            session.add(candidate)
+        candidate.matches_count = int_or_zero(row.matches_count)
+        candidate.first_match_at = normalize_local_naive(row.first_match_at) if row.first_match_at else None
+        candidate.last_match_at = normalize_local_naive(row.last_match_at) if row.last_match_at else None
+        candidate.avg_delta_minutes = float_or_zero(row.avg_delta_minutes)
+        candidate.navn = row.navn
+        candidate.omrade = row.omrade
+        candidate.user_name = row.user_name
+        candidate.parking_count = int_or_zero(row.parking_count)
+        candidate.paid_total = float_or_zero(row.paid_total)
+        candidate.confidence = 100.0 if candidate.status == PARKING_SUN_LINK_CONFIRMED else parking_sun_link_probability(
+            candidate.matches_count,
+            candidate.avg_delta_minutes,
+        )
+        candidate.updated_at = now_value
+
+
+async def refresh_parking_sun_link_state_counts(session: Any, state: ParkingSunLinkJobState) -> None:
+    generation = int_or_zero(state.generation)
+    state.processed_count = int_or_zero(
+        (await session.execute(select(func.count(ParkingSunLinkProcessed.id)).where(ParkingSunLinkProcessed.generation == generation))).scalar_one_or_none()
+    )
+    state.matched_count = int_or_zero(
+        (await session.execute(select(func.count(ParkingSunLinkMatch.id)).where(ParkingSunLinkMatch.generation == generation))).scalar_one_or_none()
+    )
+    state.candidate_count = int_or_zero(
+        (await session.execute(select(func.count(ParkingSunLinkCandidate.id)).where(ParkingSunLinkCandidate.generation == generation))).scalar_one_or_none()
+    )
+    state.strong_candidate_count = int_or_zero(
+        (
+            await session.execute(
+                select(func.count(ParkingSunLinkCandidate.id))
+                .where(ParkingSunLinkCandidate.generation == generation)
+                .where(ParkingSunLinkCandidate.matches_count >= state.min_matches)
+            )
+        ).scalar_one_or_none()
+    )
+    state.checked_plate_count = int_or_zero(
+        (
+            await session.execute(
+                select(func.count(func.distinct(ParkingSunLinkProcessed.plate))).where(ParkingSunLinkProcessed.generation == generation)
+            )
+        ).scalar_one_or_none()
+    )
+    state.updated_at = local_now_naive()
+
+
+async def update_parking_sun_link_import_status(session: Any, state: ParkingSunLinkJobState) -> None:
+    definition = import_job_definition("parking_sun_link_worker")
+    now_value = local_now_naive()
+    row = (
+        await session.execute(select(ImportJobStatus).where(ImportJobStatus.job_name == "parking_sun_link_worker"))
+    ).scalars().first()
+    if not row:
+        row = ImportJobStatus(job_name="parking_sun_link_worker", title=definition["title"], category=definition["category"])
+        session.add(row)
+    row.title = definition["title"]
+    row.category = definition["category"]
+    row.source = definition.get("source")
+    row.status = "bad" if state.status == "feil" else ("running" if state.enabled and state.status not in {"ajour", "stoppet"} else "ok")
+    row.status_text = state.status_text or state.status
+    row.last_run_at = state.last_worker_seen_at or now_value
+    if row.status == "bad":
+        row.last_failed_at = state.last_worker_seen_at or now_value
+    else:
+        row.last_success_at = state.last_worker_seen_at or now_value
+    row.expected_interval_minutes = definition.get("expected_interval_minutes")
+    row.warning_after_minutes = definition.get("warning_after_minutes")
+    row.records_imported = int_or_zero(state.processed_count)
+    row.records_total = int_or_zero(state.candidate_count)
+    row.next_expected_at = (state.last_worker_seen_at or now_value) + timedelta(minutes=definition.get("expected_interval_minutes") or 10)
+    row.message = state.status_text
+    row.raw = api_parking_sun_link_state_row(state)
+
+
 def ventilation_latest_payload(latest: Optional[VentilationSample], latest_yr: Optional[YrForecastSample]) -> Dict[str, Any]:
     def measurement(key: str, label: str, temp_key: Optional[str] = None, humidity_key: Optional[str] = None, detail: str = "") -> Dict[str, Any]:
         return {
@@ -21002,63 +21474,150 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             }
 
         if module == "koble":
-            min_matches = api_filter_int(params, "min_treff", 2, 1, 20)
-            max_minutes = api_filter_int(params, "maks_minutter", 3, 1, 30)
-            recent_days = api_filter_int(params, "siste_dager", 14, 1, 90)
             limit_value = api_filter_int(params, "limit", 250, 25, 1000)
-            link_data = await parking_sun_link_candidates(
-                session,
-                now_dt,
-                min_matches=min_matches,
-                max_minutes=max_minutes,
-                recent_days=recent_days,
-                limit=limit_value,
-            )
+            state = await get_parking_sun_link_state(session)
+            await refresh_parking_sun_link_state_counts(session, state)
+            generation = int_or_zero(state.generation)
+            candidates = (
+                await session.execute(
+                    select(ParkingSunLinkCandidate)
+                    .where(ParkingSunLinkCandidate.generation == generation)
+                    .order_by(
+                        case(
+                            (ParkingSunLinkCandidate.status == PARKING_SUN_LINK_PENDING, 0),
+                            (ParkingSunLinkCandidate.status == PARKING_SUN_LINK_CONFIRMED, 1),
+                            else_=2,
+                        ),
+                        ParkingSunLinkCandidate.confidence.desc(),
+                        ParkingSunLinkCandidate.matches_count.desc(),
+                        ParkingSunLinkCandidate.last_match_at.desc(),
+                    )
+                    .limit(limit_value)
+                )
+            ).scalars().all()
+            matches = (
+                await session.execute(
+                    select(ParkingSunLinkMatch)
+                    .where(ParkingSunLinkMatch.generation == generation)
+                    .order_by(ParkingSunLinkMatch.parking_start_at.desc(), ParkingSunLinkMatch.sun_started_at.desc())
+                    .limit(max(250, min(1000, limit_value * 5)))
+                )
+            ).scalars().all()
+            processed_rows = (
+                await session.execute(
+                    select(ParkingSunLinkProcessed)
+                    .where(ParkingSunLinkProcessed.generation == generation)
+                    .order_by(ParkingSunLinkProcessed.checked_at.desc())
+                    .limit(20)
+                )
+            ).scalars().all()
+            state_row = api_parking_sun_link_state_row(state)
+            worker_seen = format_source_datetime_short(state.last_worker_seen_at) if state.last_worker_seen_at else "-"
+            worker_detail = state.status_text or ("Jobben er aktiv." if state.enabled else "Jobben er stoppet.")
+            processed_table_rows = [
+                {
+                    "id": row.id,
+                    "checked_at": api_local_iso(row.checked_at),
+                    "plate": row.plate,
+                    "parking_record_id": row.parking_record_id,
+                    "parking_start_at": api_local_iso(row.parking_start_at),
+                    "matches_found": int_or_zero(row.matches_found),
+                }
+                for row in processed_rows
+            ]
             return {
                 "title": v2_module_title("koble", view),
                 "subtitle": (
-                    f"Kontrollerer biler med parkering siste {recent_days} dager. For disse bilene sjekkes "
-                    "alle parkeringer mot alle soltimer for aa finne gjentatte SUN2-ID-kandidater."
+                    "Egen bakgrunnsapp gaar gjennom parkeringer fra nyeste og finner mulige koblinger mot SUN2-ID. "
+                    "Koblinger maa bekreftes foer de brukes."
                 ),
                 "cards": [
                     api_card(
-                        "Biler sjekket",
-                        format_short_number(link_data["recent_plate_count"]),
+                        "Jobb",
+                        state.status or "-",
                         "",
-                        f"Har parkert siden {link_data['recent_cutoff']:%d.%m.%Y}",
+                        worker_detail,
+                        "status" if state.status != "feil" else "warning",
+                        href="/koble/oversikt",
+                    ),
+                    api_card(
+                        "Sterke kandidater",
+                        format_short_number(state.strong_candidate_count),
+                        "",
+                        f"Minst {state.min_matches} treff",
                         "parking",
                         href="/koble/oversikt",
                     ),
                     api_card(
-                        "Kandidater",
-                        format_short_number(link_data["candidate_count"]),
+                        "Alle kandidater",
+                        format_short_number(state.candidate_count),
                         "",
-                        f"Minst {min_matches} treff per bil/SUN2-ID",
-                        "status",
-                        href="/koble/oversikt",
-                    ),
-                    api_card(
-                        "Treffgrunnlag",
-                        format_short_number(link_data["match_count"]),
-                        "soltimer",
-                        "Distinkte soltimer i kandidatene",
-                        "parking",
-                        href="/koble/oversikt",
-                    ),
-                    api_card(
-                        "Tidsvindu",
-                        f"0-{max_minutes}",
-                        "min",
-                        "Soltime etter parkering-start",
+                        "Inkluderer enkeltfunn med lavere sannsynlighet",
                         "sun2",
                         href="/koble/oversikt",
                     ),
+                    api_card(
+                        "Behandlet",
+                        format_short_number(state.processed_count),
+                        "parkeringer",
+                        f"{format_short_number(state.checked_plate_count)} biler, {format_short_number(state.matched_count)} treff",
+                        "parking",
+                        href="/koble/oversikt",
+                    ),
+                    api_card(
+                        "Worker sist sett",
+                        worker_seen,
+                        "",
+                        f"Generasjon {generation}",
+                        "status",
+                        href="/admin/datakilder",
+                    ),
                 ],
                 "charts": [],
+                "actions": [
+                    {
+                        "label": "Start",
+                        "path": "/api/actions/koble/start",
+                        "method": "POST",
+                        "variant": "primary",
+                        "confirm": "Starte koblingsjobben?",
+                    },
+                    {
+                        "label": "Stopp",
+                        "path": "/api/actions/koble/stop",
+                        "method": "POST",
+                        "confirm": "Stoppe koblingsjobben?",
+                    },
+                    {
+                        "label": "Start fra nyeste",
+                        "path": "/api/actions/koble/restart",
+                        "method": "POST",
+                        "confirm": "Tomme koblingsgrunnlag og starte fra nyeste parkering?",
+                    },
+                ],
                 "tables": [
+                    api_table(
+                        "Jobbparametere",
+                        [
+                            "id",
+                            "enabled",
+                            "generation",
+                            "min_matches",
+                            "max_minutes",
+                            "recent_days",
+                            "idle_sleep_seconds",
+                            "status",
+                            "status_text",
+                            "last_worker_seen_at",
+                        ],
+                        [state_row],
+                        edit=parking_sun_link_settings_edit(),
+                    ),
                     api_table(
                         "Sannsynlige koblinger",
                         [
+                            "status",
+                            "confidence",
                             "plate",
                             "sun2_id",
                             "matches_count",
@@ -21070,8 +21629,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "user_name",
                             "parking_count",
                             "paid_total",
+                            "note",
                         ],
-                        link_data["candidate_rows"],
+                        [api_parking_sun_link_candidate_row(row) for row in candidates],
+                        edit=parking_sun_link_candidate_edit(),
                     ),
                     api_table(
                         "Treffgrunnlag",
@@ -21090,13 +21651,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "parking_id",
                             "sun_session_id",
                         ],
-                        link_data["match_rows"],
+                        [api_parking_sun_link_match_row(row) for row in matches],
+                    ),
+                    api_table(
+                        "Sist behandlet",
+                        ["checked_at", "plate", "parking_record_id", "parking_start_at", "matches_found"],
+                        processed_table_rows,
                     ),
                 ],
                 "filters": [
-                    api_filter("min_treff", "Min treff", "number", min_matches),
-                    api_filter("maks_minutter", "Maks min etter parkering", "number", max_minutes),
-                    api_filter("siste_dager", "Bilutvalg siste dager", "number", recent_days),
                     api_filter("limit", "Antall", "number", limit_value),
                 ],
             }
@@ -23475,6 +24038,292 @@ async def api_v2_parking_vehicle_clear_not_found(request: Request, plate: str):
         "message": f"{plate_value}: fjernet 'ikke funnet' fra {', '.join(cleared_fields)}.",
         "cleared": cleared_fields,
     }
+
+
+@app.post("/api/actions/koble/start")
+async def api_v2_koble_start(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        state = await get_parking_sun_link_state(session)
+        state.enabled = True
+        state.status = "venter"
+        state.status_text = "Koblingsjobben er aktiv og venter paa worker."
+        state.last_started_at = local_now_naive()
+        state.last_finished_at = None
+        state.last_error = None
+        state.updated_at = local_now_naive()
+        await update_parking_sun_link_import_status(session, state)
+        await session.commit()
+    return {"status": "ok", "message": "Koblingsjobben er startet."}
+
+
+@app.post("/api/actions/koble/stop")
+async def api_v2_koble_stop(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        state = await get_parking_sun_link_state(session)
+        state.enabled = False
+        state.status = "stoppet"
+        state.status_text = "Koblingsjobben er stoppet fra Fibaro10."
+        state.last_finished_at = local_now_naive()
+        state.updated_at = local_now_naive()
+        await update_parking_sun_link_import_status(session, state)
+        await session.commit()
+    return {"status": "ok", "message": "Koblingsjobben er stoppet."}
+
+
+@app.post("/api/actions/koble/restart")
+async def api_v2_koble_restart(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        state = await get_parking_sun_link_state(session)
+        await reset_parking_sun_link_data(session, state, enabled=True)
+        await update_parking_sun_link_import_status(session, state)
+        await session.commit()
+    return {"status": "ok", "message": "Koblingsjobben starter fra nyeste parkering."}
+
+
+@app.patch("/api/koble/settings/{state_id}")
+async def api_v2_koble_settings_update(request: Request, state_id: int, data: ParkingSunLinkSettingsUpdate):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    if state_id != 1:
+        raise HTTPException(status_code=404, detail="Koble-innstillinger ikke funnet")
+    values = data.dict(exclude_unset=True)
+    if not values:
+        raise HTTPException(status_code=400, detail="Ingen endringer")
+    async with async_session() as session:
+        state = await get_parking_sun_link_state(session)
+        changed = False
+        for key, value in values.items():
+            if value is None:
+                continue
+            if getattr(state, key) != value:
+                setattr(state, key, value)
+                changed = True
+        if changed:
+            await reset_parking_sun_link_data(session, state, enabled=True)
+            state.status_text = "Parametere er endret. Jobben starter fra nyeste parkering."
+        await update_parking_sun_link_import_status(session, state)
+        await session.commit()
+    return {"status": "ok", "message": "Koble-parametere er lagret."}
+
+
+@app.patch("/api/koble/candidates/{candidate_id}")
+async def api_v2_koble_candidate_update(request: Request, candidate_id: int, data: ParkingSunLinkCandidateUpdate):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    values = data.dict(exclude_unset=True)
+    async with async_session() as session:
+        candidate = await session.get(ParkingSunLinkCandidate, candidate_id)
+        if not candidate:
+            raise HTTPException(status_code=404, detail="Koblingskandidat ikke funnet")
+        actor = getattr(request.state, "access_key_name", None) or getattr(request.state, "auth_username", None) or "Fibaro10"
+        now_value = local_now_naive()
+        if "note" in values:
+            candidate.note = (values.get("note") or "").strip() or None
+        if "status" in values:
+            new_status = parking_sun_link_status_value(values.get("status"))
+            candidate.status = new_status
+            if new_status == PARKING_SUN_LINK_CONFIRMED:
+                candidate.confirmed_at = now_value
+                candidate.confirmed_by = actor
+                candidate.rejected_at = None
+                candidate.rejected_by = None
+                candidate.confidence = 100.0
+                vehicle = await session.get(ParkingVehicle, candidate.plate)
+                if vehicle:
+                    vehicle.sun2_id = candidate.sun2_id
+                    vehicle.updated_at = now_value
+            elif new_status == PARKING_SUN_LINK_REJECTED:
+                candidate.rejected_at = now_value
+                candidate.rejected_by = actor
+                candidate.confirmed_at = None
+                candidate.confirmed_by = None
+            else:
+                candidate.confirmed_at = None
+                candidate.confirmed_by = None
+                candidate.rejected_at = None
+                candidate.rejected_by = None
+                candidate.confidence = parking_sun_link_probability(candidate.matches_count, candidate.avg_delta_minutes)
+        candidate.updated_at = now_value
+        await session.commit()
+    clear_summary_cache("parking")
+    return {"status": "ok", "message": f"Kobling {candidate.plate} / {candidate.sun2_id} er oppdatert."}
+
+
+@app.get("/api/koble/worker/config")
+async def api_v2_koble_worker_config(request: Request):
+    if not has_koble_worker_access(request):
+        raise HTTPException(status_code=401, detail="Mangler gyldig koble-token")
+    async with async_session() as session:
+        state = await get_parking_sun_link_state(session)
+        await refresh_parking_sun_link_state_counts(session, state)
+        state.last_worker_seen_at = local_now_naive()
+        await update_parking_sun_link_import_status(session, state)
+        await session.commit()
+    return {
+        "enabled": bool(state.enabled),
+        "generation": int_or_zero(state.generation),
+        "min_matches": int_or_zero(state.min_matches),
+        "max_minutes": int_or_zero(state.max_minutes),
+        "recent_days": int_or_zero(state.recent_days),
+        "idle_sleep_seconds": int_or_zero(state.idle_sleep_seconds),
+    }
+
+
+@app.post("/api/koble/worker/status")
+async def api_v2_koble_worker_status(request: Request, data: ParkingSunLinkWorkerStatusIn):
+    if not has_koble_worker_access(request):
+        raise HTTPException(status_code=401, detail="Mangler gyldig koble-token")
+    now_value = local_now_naive()
+    async with async_session() as session:
+        state = await get_parking_sun_link_state(session)
+        if data.generation != state.generation:
+            return {"status": "stale", "generation": int_or_zero(state.generation)}
+        state.last_worker_seen_at = now_value
+        state.status = (data.status or state.status or "kjorer").strip()[:40]
+        state.status_text = data.status_text or state.status_text
+        state.last_error = data.last_error
+        if data.last_error:
+            state.status = "feil"
+        for key in [
+            "processed_count",
+            "matched_count",
+            "candidate_count",
+            "strong_candidate_count",
+            "checked_plate_count",
+            "last_processed_parking_id",
+            "last_processed_plate",
+        ]:
+            value = getattr(data, key)
+            if value is not None:
+                setattr(state, key, value)
+        if data.last_processed_at:
+            state.last_processed_at = normalize_local_naive(data.last_processed_at)
+        state.raw = data.raw or {}
+        state.updated_at = now_value
+        await update_parking_sun_link_import_status(session, state)
+        await session.commit()
+    return {"status": "ok", "generation": int_or_zero(state.generation)}
+
+
+@app.post("/api/koble/worker/results")
+async def api_v2_koble_worker_results(request: Request, data: ParkingSunLinkWorkerResultsIn):
+    if not has_koble_worker_access(request):
+        raise HTTPException(status_code=401, detail="Mangler gyldig koble-token")
+    now_value = local_now_naive()
+    async with async_session() as session:
+        state = await get_parking_sun_link_state(session)
+        if data.generation != state.generation:
+            return {"status": "stale", "generation": int_or_zero(state.generation)}
+        processed_values = []
+        for row in data.processed:
+            plate_value = normalize_plate(row.plate)
+            if not plate_value or int_or_zero(row.parking_record_id) <= 0:
+                continue
+            processed_values.append(
+                {
+                    "generation": data.generation,
+                    "parking_record_id": int(row.parking_record_id),
+                    "plate": plate_value,
+                    "parking_start_at": normalize_local_naive(row.parking_start_at) if row.parking_start_at else None,
+                    "matches_found": int_or_zero(row.matches_found),
+                    "checked_at": now_value,
+                }
+            )
+        if processed_values:
+            stmt = pg_insert(ParkingSunLinkProcessed).values(processed_values)
+            await session.execute(
+                stmt.on_conflict_do_update(
+                    constraint="uq_parking_sun_link_processed_generation_parking",
+                    set_={
+                        "plate": stmt.excluded.plate,
+                        "parking_start_at": stmt.excluded.parking_start_at,
+                        "matches_found": stmt.excluded.matches_found,
+                        "checked_at": stmt.excluded.checked_at,
+                    },
+                )
+            )
+
+        touched_pairs: set[tuple[str, str]] = set()
+        match_values = []
+        for row in data.matches:
+            plate_value = normalize_plate(row.plate)
+            sun2_id = str(row.sun2_id or "").strip()
+            if not plate_value or not sun2_id or int_or_zero(row.sun_session_id) <= 0:
+                continue
+            touched_pairs.add((plate_value, sun2_id))
+            match_values.append(
+                {
+                    "generation": data.generation,
+                    "plate": plate_value,
+                    "sun2_id": sun2_id,
+                    "parking_record_id": int(row.parking_record_id),
+                    "parking_id": row.parking_id,
+                    "source_system": row.source_system,
+                    "parking_start_at": normalize_local_naive(row.parking_start_at) if row.parking_start_at else None,
+                    "sun_session_id": int(row.sun_session_id),
+                    "source_session_id": row.source_session_id,
+                    "sun_started_at": normalize_local_naive(row.sun_started_at) if row.sun_started_at else None,
+                    "room_id": row.room_id,
+                    "room": row.room,
+                    "user_name": row.user_name,
+                    "duration_minutes": row.duration_minutes,
+                    "paid_amount_kr": row.paid_amount_kr,
+                    "fee_inc_vat": row.fee_inc_vat,
+                    "delta_minutes": row.delta_minutes,
+                    "created_at": now_value,
+                }
+            )
+        if match_values:
+            stmt = pg_insert(ParkingSunLinkMatch).values(match_values)
+            await session.execute(
+                stmt.on_conflict_do_update(
+                    constraint="uq_parking_sun_link_match_pair",
+                    set_={
+                        "plate": stmt.excluded.plate,
+                        "sun2_id": stmt.excluded.sun2_id,
+                        "parking_id": stmt.excluded.parking_id,
+                        "source_system": stmt.excluded.source_system,
+                        "parking_start_at": stmt.excluded.parking_start_at,
+                        "source_session_id": stmt.excluded.source_session_id,
+                        "sun_started_at": stmt.excluded.sun_started_at,
+                        "room_id": stmt.excluded.room_id,
+                        "room": stmt.excluded.room,
+                        "user_name": stmt.excluded.user_name,
+                        "duration_minutes": stmt.excluded.duration_minutes,
+                        "paid_amount_kr": stmt.excluded.paid_amount_kr,
+                        "fee_inc_vat": stmt.excluded.fee_inc_vat,
+                        "delta_minutes": stmt.excluded.delta_minutes,
+                    },
+                )
+            )
+            await refresh_parking_sun_link_candidate_pairs(session, data.generation, touched_pairs)
+        if data.status:
+            state.status = (data.status.status or "kjorer").strip()[:40]
+            state.status_text = data.status.status_text or state.status_text
+            state.last_error = data.status.last_error
+        elif state.enabled:
+            state.status = "kjorer"
+            state.status_text = "Koblingsjobben behandler parkeringer."
+        state.last_worker_seen_at = now_value
+        state.last_processed_at = now_value if processed_values else state.last_processed_at
+        if processed_values:
+            state.last_processed_parking_id = processed_values[-1]["parking_record_id"]
+            state.last_processed_plate = processed_values[-1]["plate"]
+        await refresh_parking_sun_link_state_counts(session, state)
+        await update_parking_sun_link_import_status(session, state)
+        await session.commit()
+    return {"status": "ok", "generation": int_or_zero(state.generation), "matches": len(match_values), "processed": len(processed_values)}
 
 
 @app.patch("/api/energy/circuits/{circuit_no}")

@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1371")
+APP_BUILD = os.getenv("APP_BUILD", "1373")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1373",
+        "date": "01.07.2026",
+        "headline": "Koble som sideapp",
+        "title": "Koble-jobben kjører som egen app med sannsynlighet og manuell bekreftelse",
+        "description": (
+            "Build 1373 flytter den kontinuerlige koblingsjobben ut av Fibaro10-prosessen og inn i egen "
+            "sideapp. Fibaro10 styrer parametere, start/stopp, status og bekreftelse. Kandidater lagres "
+            "med sannsynlighet frem til bruker bekrefter eller avviser koblingen."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger til persistente tabeller, worker-API, start/stopp/restart og bekreftelse av kandidater.",
+            "Koble-side (main.py payload): viser jobbstatus, parametere, kandidater med sannsynlighet og treffgrunnlag fra lagrede data.",
+            "parking_sun_linker: ny FastAPI-sideapp som leser parkeringer/soltimer og rapporterer funn tilbake til Fibaro10.",
+            "Docker/deploy: legger parking_sun_linker inn i QNAP compose og deployflyt.",
+            "Datakilder (import_jobs.py): registrerer Koble parkering/SUN2 som egen datakilde med forklaring.",
+            "Desktop V2 tabeller: legger norske kolonnenavn for Koble-feltene.",
+        ],
+        "request": "jeg synes dette skal være en egen applikasjon som skal kjøre på siden, den skal hente styringsparameter fra fibaro10 siden og rapportere tilbake status og antall lest osv. den skal kunne stoppes og startes og alle mulige matcher skal vises løpende i grensesnittet på fibaro10. jeg må kunne bekrefte om en kobling er rett - frem til da skal jeg ha en sannsynlighet på koblingen",
+        "work_duration": "ca. 70 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Koblingsjobben er ikke lenger en del av FastAPI-starten til Fibaro10.",
+            "Sideappen prosesserer parkeringer fra nyeste og fortsetter til den er ajour.",
+            "Parametere endres i Fibaro10 og starter jobben fra nyeste parkering.",
+            "Alle kandidater vises med sannsynlighet, status og treffgrunnlag.",
+            "Bekreftet kandidat skriver SUN2-ID tilbake på bilen; avvist kandidat blir liggende som avvist.",
+        ],
+    },
     {
         "version": "1",
         "build": "1371",

@@ -147,6 +147,28 @@ services:
       retries: 3
       start_period: 30s
  
+  parking_sun_linker:
+    build:
+      context: ./parking_sun_linker
+    container_name: parking_sun_linker
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - fibaro10
+    ports:
+      - "192.168.20.218:8127:8127"
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      KOBLE_RUN_ON_START: ${KOBLE_RUN_ON_START:-true}
+      KOBLE_LOOP_SLEEP_SECONDS: ${KOBLE_LOOP_SLEEP_SECONDS:-0.2}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8127/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   fibaro10_proxy:
     image: caddy:2-alpine
     container_name: fibaro10_proxy
