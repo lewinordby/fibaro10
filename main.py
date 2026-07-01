@@ -339,6 +339,14 @@ async def access_key_middleware(request: Request, call_next):
         request.state.auth_can_settings = True
         return await call_next(request)
 
+    if is_koble_worker_request_path(request.url.path) and has_koble_worker_access(request):
+        request.state.access_key_id = None
+        request.state.access_key_name = "parking_sun_linker"
+        request.state.auth_role = "settings"
+        request.state.auth_is_master = False
+        request.state.auth_can_settings = True
+        return await call_next(request)
+
     username, password = presented_credentials(request)
     access_key = await find_access_key(username, password)
     if not access_key:
@@ -3931,6 +3939,10 @@ def is_car_info_app_request_path(path: str) -> bool:
     return path == "/api/parkering/kjoretoy/car-info-kandidater" or bool(
         re.fullmatch(r"/api/parkering/kjoretoy/[A-Za-z0-9]+/car-info", path or "")
     )
+
+
+def is_koble_worker_request_path(path: str) -> bool:
+    return bool((path or "").startswith("/api/koble/worker/"))
 
 
 def require_settings_or_car_info_access(request: Request):

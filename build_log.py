@@ -5,8 +5,30 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1374")
+APP_BUILD = os.getenv("APP_BUILD", "1375")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1375",
+        "date": "01.07.2026",
+        "headline": "Koble worker-auth",
+        "title": "Koble-sideappen slipper korrekt gjennom innloggingsmiddleware",
+        "description": (
+            "Build 1375 legger worker-rutene for Koble inn i intern app-autentisering i middleware. "
+            "Sideappen kan dermed hente styringsparametere og rapportere status/resultater uten vanlig brukerinnlogging."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger /api/koble/worker/* inn i intern app-bypass med Koble-token.",
+            "Buildlogg (build_log.py): registrerer build 1375.",
+        ],
+        "request": "jeg synes dette skal være en egen applikasjon som skal kjøre på siden, den skal hente styringsparameter fra fibaro10 siden og rapportere tilbake status og antall lest osv.",
+        "work_duration": "ca. 5 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Koble-worker kan naa bruke worker-API uten 401 fra login-middleware.",
+            "Vanlig brukerinnlogging er fortsatt krav for alle Koble-handlinger i grensesnittet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1374",
