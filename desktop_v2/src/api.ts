@@ -375,6 +375,54 @@ export type HealthResponse = {
   storage: string[];
 };
 
+export type ImportStatusSource = {
+  source_no?: number | null;
+  job_name: string;
+  title: string;
+  category?: string | null;
+  source?: string | null;
+  description?: string | null;
+  status?: string | null;
+  status_text?: string | null;
+  age?: string | null;
+  last_success_at?: string | null;
+  last_run_at?: string | null;
+  last_failed_at?: string | null;
+  next_expected_at?: string | null;
+  records_imported?: number | null;
+  records_total?: number | null;
+  duration_seconds?: number | null;
+  message?: string | null;
+  path?: string;
+};
+
+export type ImportStatusRun = {
+  id: number;
+  job_name: string;
+  title?: string | null;
+  category?: string | null;
+  source?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  ok?: boolean | null;
+  status?: string | null;
+  records_imported?: number | null;
+  records_total?: number | null;
+  duration_seconds?: number | null;
+  message?: string | null;
+};
+
+export type ImportStatusDetailResponse = {
+  source: ImportStatusSource;
+  runs: ImportStatusRun[];
+  summary: {
+    runs: number;
+    ok: number;
+    failed: number;
+    unknown: number;
+  };
+};
+
 export type ModuleCard = {
   title: string;
   value: string;
@@ -1101,6 +1149,10 @@ export function fetchBuildLogEntry(build: string): Promise<BuildLogEntry> {
 
 export function fetchHealth(details = false): Promise<HealthResponse> {
   return apiGet<HealthResponse>(`/health${details ? "?details=true" : ""}`);
+}
+
+export function fetchImportStatusDetail(jobName: string): Promise<ImportStatusDetailResponse> {
+  return apiGet<ImportStatusDetailResponse>(`/api/import-status/${encodeURIComponent(jobName)}`);
 }
 
 export async function logoutUser(): Promise<void> {

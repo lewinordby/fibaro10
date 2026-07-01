@@ -13188,11 +13188,31 @@ def api_import_status_row(row: Dict[str, Any]) -> Dict[str, Any]:
     payload = dict(row)
     for key in ("last_success_at", "last_run_at", "last_failed_at", "next_expected_at"):
         payload[key] = api_local_iso(payload.get(key))
+    if payload.get("job_name"):
+        payload["path"] = f"/admin/datakilder/{quote(str(payload['job_name']))}"
     return payload
 
 
 def api_import_status_rows(rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
     return [api_import_status_row(row) for row in rows]
+
+
+def api_import_job_run_row(row: ImportJobRun) -> Dict[str, Any]:
+    return {
+        "id": row.id,
+        "job_name": row.job_name,
+        "title": row.title,
+        "category": row.category,
+        "source": row.source,
+        "started_at": api_local_iso(row.started_at),
+        "finished_at": api_local_iso(row.finished_at),
+        "ok": row.ok,
+        "status": row.status,
+        "records_imported": row.records_imported,
+        "records_total": row.records_total,
+        "duration_seconds": row.duration_seconds,
+        "message": row.message,
+    }
 
 
 def api_bool_state(value: Any) -> Optional[bool]:
@@ -23641,6 +23661,37 @@ async def import_status_json():
     async with async_session() as session:
         rows = await import_status_rows(session)
     return {"rows": api_import_status_rows(rows)}
+
+
+@app.get("/api/import-status/{job_name}")
+async def import_status_detail(job_name: str):
+    async with async_session() as session:
+        rows = await import_status_rows(session)
+        row = next((item for item in rows if item.get("job_name") == job_name), None)
+        if not row:
+            raise HTTPException(status_code=404, detail="Datakilde ikke funnet")
+        runs = (
+            await session.execute(
+                select(ImportJobRun)
+                .where(ImportJobRun.job_name == job_name)
+                .order_by(ImportJobRun.finished_at.desc().nullslast(), ImportJobRun.id.desc())
+                .limit(50)
+            )
+        ).scalars().all()
+    api_row = api_import_status_row(row)
+    total_runs = len(runs)
+    ok_runs = sum(1 for run in runs if run.ok is True)
+    failed_runs = sum(1 for run in runs if run.ok is False)
+    return {
+        "source": api_row,
+        "runs": [api_import_job_run_row(run) for run in runs],
+        "summary": {
+            "runs": total_runs,
+            "ok": ok_runs,
+            "failed": failed_runs,
+            "unknown": total_runs - ok_runs - failed_runs,
+        },
+    }
 
 
 @app.post("/api/renhold/ingest")

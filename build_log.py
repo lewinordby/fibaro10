@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1366")
+APP_BUILD = os.getenv("APP_BUILD", "1367")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1367",
+        "date": "01.07.2026",
+        "headline": "Klikkbare datakilder",
+        "title": "Admin datakilder har egen infoside per datakilde",
+        "description": (
+            "Build 1367 gjor datakildene klikkbare og legger til en egen detaljside for hver importjobb. "
+            "Detaljsiden viser status, definisjon, siste tidspunkt, neste forventede kjoring og siste "
+            "lagrede importkjoringer."
+        ),
+        "applications": [
+            "Backend importstatus (main.py): legger til path paa datakilder og nytt detalj-API per job_name.",
+            "Desktop V2 ruting (AppRoutes.tsx): legger til /admin/datakilder/:jobName.",
+            "Desktop V2 datakilder (DataSourceDetailPage.tsx): ny infoside med statuskort, metadata og kjoringslogg.",
+            "Admin drift (OperationsPage.tsx): datakildenavn lenker til samme infoside.",
+            "Smoke-ruter: detaljsiden testes med EasyPark-importen.",
+        ],
+        "request": "alle datakilder under Admin/datakilder burde vaere klikkbare og ha en info side",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Alle datakilder i Admin/datakilder faar path og klikkbar tittel.",
+            "Infosiden viser de siste 50 importkjoringene naar de finnes.",
+            "Admin/drift lenker ogsaa til samme datakildeside for konsistent navigasjon.",
+        ],
+    },
     {
         "version": "1",
         "build": "1366",

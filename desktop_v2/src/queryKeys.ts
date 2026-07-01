@@ -4,6 +4,7 @@ export const queryKeys = {
   },
   overview: () => ["overview"] as const,
   health: (details = false) => ["health", details] as const,
+  importStatusDetail: (jobName: string) => ["import-status", jobName] as const,
   buildLog: () => ["admin", "build-log"] as const,
   buildLogEntry: (build: string) => ["admin", "build-log", build] as const,
   mobileScreens: () => ["mobile", "screens"] as const,

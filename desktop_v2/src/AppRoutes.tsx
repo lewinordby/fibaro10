@@ -8,6 +8,7 @@ const OverviewPage = lazy(() => import("./pages/OverviewPage"));
 const RevenueMonthPage = lazy(() => import("./pages/RevenueMonthPage"));
 const RevenueYearComparisonPage = lazy(() => import("./pages/RevenueYearComparisonPage"));
 const OperationsPage = lazy(() => import("./pages/OperationsPage"));
+const DataSourceDetailPage = lazy(() => import("./pages/DataSourceDetailPage"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
 const OwnTracksPage = lazy(() => import("./pages/OwnTracksPage"));
@@ -81,6 +82,7 @@ export function AppRoutes() {
         <Route path="/renhold/:view" element={<ModulePage module="renhold" />} />
         <Route path="/admin" element={<Navigate to={modulePath("admin")} replace />} />
         <Route path="/admin/drift" element={<OperationsPage />} />
+        <Route path="/admin/datakilder/:jobName" element={<DataSourceDetailPage />} />
         <Route path="/admin/build" element={<BuildLogPage />} />
         <Route path="/admin/build/:build" element={<BuildDetailPage />} />
         <Route path="/admin/owntracks" element={<OwnTracksPage />} />

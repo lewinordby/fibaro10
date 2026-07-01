@@ -1,6 +1,7 @@
 import { CheckCircleOutlined, ClockCircleOutlined, WarningOutlined } from "@ant-design/icons";
 import { Card, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { Link } from "react-router-dom";
 import { fetchHealth, type HealthResponse, type HealthSource } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PageHeader } from "../components/PageHeader";
@@ -26,6 +27,10 @@ function statusIcon(row: HealthSource) {
 
 function sourceTitle(row: HealthSource) {
   return row.title || row.label || row.jobName || "-";
+}
+
+function sourcePath(row: HealthSource) {
+  return row.jobName ? `/admin/datakilder/${encodeURIComponent(row.jobName)}` : "";
 }
 
 function formatDateTime(value?: string | null) {
@@ -98,7 +103,7 @@ const columns: ColumnsType<SourceRow> = [
     sorter: (left, right) => sourceTitle(left).localeCompare(sourceTitle(right), "nb"),
     render: (_, row) => (
       <div className="operations-source-title">
-        <strong>{sourceTitle(row)}</strong>
+        <strong>{sourcePath(row) ? <Link to={sourcePath(row)}>{sourceTitle(row)}</Link> : sourceTitle(row)}</strong>
         <span>{row.jobName}</span>
       </div>
     ),

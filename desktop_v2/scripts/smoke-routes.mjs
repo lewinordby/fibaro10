@@ -54,6 +54,7 @@ export const smokeRoutes = [
   { path: "/admin/drift", name: "Admin drift" },
   { path: "/admin/build", name: "Admin buildlogg" },
   { path: "/admin/datakilder", name: "Admin datakilder" },
+  { path: "/admin/datakilder/easypark_parking_import", name: "Admin datakilde detalj" },
   { path: "/admin/systemkart", name: "Admin systemkart" },
   { path: "/admin/owntracks", name: "Admin OwnTracks" },
   { path: "/admin/ai", name: "Admin AI" },

@@ -61,6 +61,9 @@ function duplicates(values) {
 
 const source = await fs.readFile(moduleViewsPath, "utf8");
 const moduleViews = extractModuleViews(source);
+const allowedExtraPaths = new Set([
+  "/admin/datakilder/easypark_parking_import",
+]);
 const expectedPaths = [...moduleViews.entries()].flatMap(([moduleName, views]) =>
   views.map((view) => `/${moduleName}/${view}`),
 );
@@ -69,7 +72,7 @@ const expectedSet = new Set(expectedPaths);
 const smokeSet = new Set(smokePaths);
 
 const missing = expectedPaths.filter((routePath) => !smokeSet.has(routePath));
-const extra = smokePaths.filter((routePath) => !expectedSet.has(routePath));
+const extra = smokePaths.filter((routePath) => !expectedSet.has(routePath) && !allowedExtraPaths.has(routePath));
 const duplicateSmokeRoutes = duplicates(smokePaths);
 
 const result = {
