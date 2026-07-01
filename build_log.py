@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1368")
+APP_BUILD = os.getenv("APP_BUILD", "1369")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1369",
+        "date": "01.07.2026",
+        "headline": "SUN2-ID paa enkelttimer",
+        "title": "Soling enkelttimer viser og kopierer SUN2-ID",
+        "description": (
+            "Build 1369 gjor SUN2-ID/medlemsnummer lett tilgjengelig naar en enkelt soltime aapnes. "
+            "Feltet ligger oeverst i detaljpanelet og har egen kopiknapp slik at nummeret kan limes inn "
+            "paa kjoretoy eller andre registreringer."
+        ),
+        "applications": [
+            "Desktop V2 soling enkelttimer (SunSessionsPanel.tsx): viser SUN2-ID som eget felt og legger til kopiknapp med fallback.",
+            "Desktop V2 CSS (sun-sessions.css): fremhever SUN2-ID-feltet kompakt i detaljpanelet.",
+            "Buildlogg (build_log.py): registrerer build 1369.",
+        ],
+        "request": "paa soling enkelttimer saa mangler vi sun2 id lett tilgjengelig naar vi aapner posten. den boer vaere lett aa finne og med en knapp for aa kopiere medlemsnummeret/sun2 id enkelt slik at vi kan lime den inn paa kjoretoy",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "SUN2-ID vises som eget felt oeverst naar en soltime aapnes.",
+            "Kopier-knappen kopierer medlemsnummer/SUN2-ID til utklippstavlen.",
+            "Kopiering har fallback for interne HTTP-flater der moderne Clipboard API kan vaere begrenset.",
+        ],
+    },
     {
         "version": "1",
         "build": "1368",

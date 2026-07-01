@@ -28,6 +28,27 @@ function rowSavedImages(row: ModuleRow): SunSessionSavedImage[] {
   return Array.isArray(row.session_images) ? (row.session_images as SunSessionSavedImage[]) : [];
 }
 
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    const copied = document.execCommand("copy");
+    if (!copied) throw new Error("copy failed");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+}
+
 function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageChanged: () => void }) {
   const { message } = AntApp.useApp();
   const imageUrl = sessionImageUrl(row);
@@ -64,13 +85,15 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
   const canMoveInlineNext = activeArchiveSnapshot
     ? Boolean(inlineArchiveBrowser?.canNext)
     : Boolean(activeInlineImage && (activeInlineIndex < inlineImages.length - 1 || activeInlineImage.snapshotId));
+  const sun2UserId = rowString(row, "sun2_user_id");
+  const userName = rowString(row, "user_name");
   const fields: Array<[string, unknown]> = [
     ["Start", row.started_at],
     ["Slutt", row.ended_at],
     ["Rom", row.room_label || row.room || row.room_id],
     ["Varighet", row.duration_minutes ? `${displayValue(row.duration_minutes)} min` : ""],
     ["Betalt", row.paid_amount_kr ? `${displayValue(row.paid_amount_kr)} kr` : ""],
-    ["Bruker", row.user_name || row.sun2_user_id],
+    ["Bruker", userName],
     ["Betaling", row.payment_method],
     ["Kundetype", row.customer_type],
     ["Status", row.status],
@@ -182,6 +205,19 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
     setSelectedInlineImageId(inlineImages[nextIndex].id);
   }
 
+  async function copySun2UserId() {
+    if (!sun2UserId) {
+      message.warning("Denne soltimen mangler SUN2-ID.");
+      return;
+    }
+    try {
+      await copyText(sun2UserId);
+      message.success("SUN2-ID kopiert");
+    } catch {
+      message.error("Kunne ikke kopiere SUN2-ID");
+    }
+  }
+
   const modalFooter = [
     <Button key="older" className="sun-image-browser-nav-button" disabled={browserLoading || !browser?.canPrevious} onClick={() => openBrowser(browser?.previousSnapshotId)}>
       Arkiv eldre
@@ -204,6 +240,19 @@ function SunSessionDetails({ row, onImageChanged }: { row: ModuleRow; onImageCha
   return (
     <div className="sun-session-detail">
       <div className="sun-session-fields">
+        <div className="sun-session-member-field">
+          <div>
+            <span>SUN2-ID / medlemsnummer</span>
+            <strong>{displayValue(sun2UserId)}</strong>
+          </div>
+          <Button
+            size="small"
+            onClick={copySun2UserId}
+            disabled={!sun2UserId}
+          >
+            Kopier
+          </Button>
+        </div>
         {fields.map(([label, value]) => (
           <div className="sun-session-field" key={label}>
             <span>{label}</span>
