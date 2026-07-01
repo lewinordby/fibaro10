@@ -1455,6 +1455,12 @@ class ParkingSunLinkCandidate(Base):
     status = Column(String, index=True, nullable=False, default="Avventer")
     confidence = Column(Float, nullable=False, default=0.0)
     matches_count = Column(Integer, nullable=False, default=0)
+    parking_match_count = Column(Integer, nullable=False, default=0)
+    match_days_count = Column(Integer, nullable=False, default=0)
+    plate_candidate_count = Column(Integer, nullable=False, default=1)
+    sun2_candidate_count = Column(Integer, nullable=False, default=1)
+    competitor_matches_count = Column(Integer, nullable=False, default=0)
+    assessment = Column(Text, nullable=True)
     first_match_at = Column(DateTime, nullable=True, index=True)
     last_match_at = Column(DateTime, nullable=True, index=True)
     avg_delta_minutes = Column(Float, nullable=True)
@@ -3306,6 +3312,12 @@ STARTUP_COLUMNS = {
         ("status", "VARCHAR DEFAULT 'Avventer'"),
         ("confidence", "DOUBLE PRECISION DEFAULT 0"),
         ("matches_count", "INTEGER DEFAULT 0"),
+        ("parking_match_count", "INTEGER DEFAULT 0"),
+        ("match_days_count", "INTEGER DEFAULT 0"),
+        ("plate_candidate_count", "INTEGER DEFAULT 1"),
+        ("sun2_candidate_count", "INTEGER DEFAULT 1"),
+        ("competitor_matches_count", "INTEGER DEFAULT 0"),
+        ("assessment", "TEXT"),
         ("first_match_at", "TIMESTAMP"),
         ("last_match_at", "TIMESTAMP"),
         ("avg_delta_minutes", "DOUBLE PRECISION"),
@@ -15062,23 +15074,84 @@ def parking_sun_link_status_value(value: Optional[str]) -> str:
     return PARKING_SUN_LINK_PENDING
 
 
-def parking_sun_link_probability(matches_count: int, avg_delta_minutes: Optional[float]) -> float:
+def parking_sun_link_probability(
+    matches_count: int,
+    avg_delta_minutes: Optional[float],
+    *,
+    min_matches: int = 2,
+    parking_match_count: Optional[int] = None,
+    match_days_count: Optional[int] = None,
+    plate_candidate_count: Optional[int] = None,
+    sun2_candidate_count: Optional[int] = None,
+    competitor_matches_count: Optional[int] = None,
+) -> float:
     matches = int_or_zero(matches_count)
+    observations = int_or_zero(parking_match_count) or matches
+    days = int_or_zero(match_days_count)
+    plate_options = max(1, int_or_zero(plate_candidate_count) or 1)
+    sun2_options = max(1, int_or_zero(sun2_candidate_count) or 1)
+    competitor = int_or_zero(competitor_matches_count)
+    required = max(1, int_or_zero(min_matches) or 2)
     avg_delta = float_or_zero(avg_delta_minutes)
-    probability = 35.0
-    if matches >= 2:
-        probability += 25.0
-    if matches >= 3:
+
+    if observations >= required:
+        probability = 58.0 + min(24.0, (observations - required) * 8.0)
+    else:
+        probability = min(54.0, 18.0 + observations * 22.0)
+
+    if days >= 3:
         probability += 10.0
-    if matches >= 5:
-        probability += 5.0
-    if avg_delta <= 1:
-        probability += 15.0
+    elif days >= 2:
+        probability += 6.0
+
+    if avg_delta <= 0.5:
+        probability += 12.0
+    elif avg_delta <= 1:
+        probability += 9.0
     elif avg_delta <= 2:
-        probability += 10.0
+        probability += 6.0
     elif avg_delta <= 3:
-        probability += 5.0
+        probability += 3.0
+
+    probability -= min(20.0, (plate_options - 1) * 8.0)
+    probability -= min(20.0, (sun2_options - 1) * 8.0)
+    if competitor >= observations and competitor > 0:
+        probability -= 18.0
+    elif competitor >= max(1, observations - 1):
+        probability -= 8.0
+
+    if observations < required:
+        probability = min(probability, 55.0)
     return round(max(5.0, min(98.0, probability)), 1)
+
+
+def parking_sun_link_assessment(
+    status: str,
+    confidence: float,
+    *,
+    min_matches: int,
+    parking_match_count: int,
+    plate_candidate_count: int,
+    sun2_candidate_count: int,
+    competitor_matches_count: int,
+) -> str:
+    if status == PARKING_SUN_LINK_CONFIRMED:
+        return "Bekreftet manuelt"
+    if status == PARKING_SUN_LINK_REJECTED:
+        return "Avvist manuelt"
+    required = max(1, int_or_zero(min_matches) or 2)
+    observations = int_or_zero(parking_match_count)
+    if observations < required:
+        return f"Venter på flere treff ({observations}/{required})"
+    if competitor_matches_count >= observations and competitor_matches_count > 0:
+        return "Usikker: konkurrerende kobling er like sterk"
+    if plate_candidate_count > 1 or sun2_candidate_count > 1:
+        return "Mulig kobling, men har alternativer"
+    if confidence >= 85:
+        return "Svært sannsynlig"
+    if confidence >= 70:
+        return "Sannsynlig"
+    return "Krever manuell vurdering"
 
 
 def parking_sun_link_settings_edit() -> Dict[str, Any]:
@@ -15206,9 +15279,15 @@ def api_parking_sun_link_candidate_row(row: ParkingSunLinkCandidate) -> Dict[str
         "id": row.id,
         "status": row.status,
         "confidence": round(float_or_zero(row.confidence), 1),
+        "assessment": row.assessment,
         "plate": plate,
         "sun2_id": row.sun2_id,
         "matches_count": int_or_zero(row.matches_count),
+        "parking_match_count": int_or_zero(row.parking_match_count),
+        "match_days_count": int_or_zero(row.match_days_count),
+        "plate_candidate_count": int_or_zero(row.plate_candidate_count),
+        "sun2_candidate_count": int_or_zero(row.sun2_candidate_count),
+        "competitor_matches_count": int_or_zero(row.competitor_matches_count),
         "first_match_at": api_local_iso(row.first_match_at),
         "last_match_at": api_local_iso(row.last_match_at),
         "avg_delta_minutes": round(float_or_zero(row.avg_delta_minutes), 2),
@@ -15253,13 +15332,40 @@ async def refresh_parking_sun_link_candidate_pairs(
     session: Any,
     generation: int,
     pairs: Optional[Iterable[tuple[str, str]]] = None,
+    min_matches: int = 2,
 ) -> None:
     clean_pairs = sorted({(str(plate or "").strip(), str(sun2_id or "").strip()) for plate, sun2_id in (pairs or []) if plate and sun2_id})
+    pair_count_rows = (
+        await session.execute(
+            select(
+                ParkingSunLinkMatch.plate,
+                ParkingSunLinkMatch.sun2_id,
+                func.count(func.distinct(ParkingSunLinkMatch.parking_record_id)).label("parking_match_count"),
+            )
+            .where(ParkingSunLinkMatch.generation == generation)
+            .group_by(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id)
+        )
+    ).all()
+    pair_counts: Dict[tuple[str, str], int] = {}
+    plate_options: Dict[str, set[str]] = {}
+    sun2_options: Dict[str, set[str]] = {}
+    for pair_row in pair_count_rows:
+        plate_key = str(pair_row.plate or "").strip()
+        sun2_key = str(pair_row.sun2_id or "").strip()
+        if not plate_key or not sun2_key:
+            continue
+        pair_key = (plate_key, sun2_key)
+        pair_counts[pair_key] = int_or_zero(pair_row.parking_match_count)
+        plate_options.setdefault(plate_key, set()).add(sun2_key)
+        sun2_options.setdefault(sun2_key, set()).add(plate_key)
+
     stmt = (
         select(
             ParkingSunLinkMatch.plate,
             ParkingSunLinkMatch.sun2_id,
             func.count(ParkingSunLinkMatch.id).label("matches_count"),
+            func.count(func.distinct(ParkingSunLinkMatch.parking_record_id)).label("parking_match_count"),
+            func.count(func.distinct(cast(ParkingSunLinkMatch.parking_start_at, Date))).label("match_days_count"),
             func.min(ParkingSunLinkMatch.parking_start_at).label("first_match_at"),
             func.max(ParkingSunLinkMatch.parking_start_at).label("last_match_at"),
             func.avg(ParkingSunLinkMatch.delta_minutes).label("avg_delta_minutes"),
@@ -15279,6 +15385,20 @@ async def refresh_parking_sun_link_candidate_pairs(
     rows = (await session.execute(stmt)).all()
     now_value = local_now_naive()
     for row in rows:
+        plate_key = str(row.plate or "").strip()
+        sun2_key = str(row.sun2_id or "").strip()
+        pair_key = (plate_key, sun2_key)
+        parking_match_count = int_or_zero(row.parking_match_count)
+        match_days_count = int_or_zero(row.match_days_count)
+        plate_candidate_count = len(plate_options.get(plate_key, set())) or 1
+        sun2_candidate_count = len(sun2_options.get(sun2_key, set())) or 1
+        competitor_matches_count = 0
+        for other_key, other_count in pair_counts.items():
+            other_plate, other_sun2 = other_key
+            if other_key == pair_key:
+                continue
+            if other_plate == plate_key or other_sun2 == sun2_key:
+                competitor_matches_count = max(competitor_matches_count, int_or_zero(other_count))
         candidate = (
             await session.execute(
                 select(ParkingSunLinkCandidate)
@@ -15297,6 +15417,11 @@ async def refresh_parking_sun_link_candidate_pairs(
             )
             session.add(candidate)
         candidate.matches_count = int_or_zero(row.matches_count)
+        candidate.parking_match_count = parking_match_count
+        candidate.match_days_count = match_days_count
+        candidate.plate_candidate_count = plate_candidate_count
+        candidate.sun2_candidate_count = sun2_candidate_count
+        candidate.competitor_matches_count = competitor_matches_count
         candidate.first_match_at = normalize_local_naive(row.first_match_at) if row.first_match_at else None
         candidate.last_match_at = normalize_local_naive(row.last_match_at) if row.last_match_at else None
         candidate.avg_delta_minutes = float_or_zero(row.avg_delta_minutes)
@@ -15308,6 +15433,21 @@ async def refresh_parking_sun_link_candidate_pairs(
         candidate.confidence = 100.0 if candidate.status == PARKING_SUN_LINK_CONFIRMED else parking_sun_link_probability(
             candidate.matches_count,
             candidate.avg_delta_minutes,
+            min_matches=min_matches,
+            parking_match_count=parking_match_count,
+            match_days_count=match_days_count,
+            plate_candidate_count=plate_candidate_count,
+            sun2_candidate_count=sun2_candidate_count,
+            competitor_matches_count=competitor_matches_count,
+        )
+        candidate.assessment = parking_sun_link_assessment(
+            candidate.status,
+            candidate.confidence,
+            min_matches=min_matches,
+            parking_match_count=parking_match_count,
+            plate_candidate_count=plate_candidate_count,
+            sun2_candidate_count=sun2_candidate_count,
+            competitor_matches_count=competitor_matches_count,
         )
         candidate.updated_at = now_value
 
@@ -15328,7 +15468,8 @@ async def refresh_parking_sun_link_state_counts(session: Any, state: ParkingSunL
             await session.execute(
                 select(func.count(ParkingSunLinkCandidate.id))
                 .where(ParkingSunLinkCandidate.generation == generation)
-                .where(ParkingSunLinkCandidate.matches_count >= state.min_matches)
+                .where(ParkingSunLinkCandidate.status == PARKING_SUN_LINK_PENDING)
+                .where(ParkingSunLinkCandidate.confidence >= 70)
             )
         ).scalar_one_or_none()
     )
@@ -21603,8 +21744,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
         if module == "koble":
             limit_value = api_filter_int(params, "limit", 250, 25, 1000)
             state = await get_parking_sun_link_state(session)
-            await refresh_parking_sun_link_state_counts(session, state)
             generation = int_or_zero(state.generation)
+            await refresh_parking_sun_link_candidate_pairs(session, generation, min_matches=state.min_matches)
+            await refresh_parking_sun_link_state_counts(session, state)
+            await session.commit()
             candidates = (
                 await session.execute(
                     select(ParkingSunLinkCandidate)
@@ -21671,7 +21814,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Sterke kandidater",
                         format_short_number(state.strong_candidate_count),
                         "",
-                        f"Minst {state.min_matches} treff",
+                        "Avventer med minst 70 % sannsynlighet",
                         "parking",
                         href="/koble/oversikt",
                     ),
@@ -21745,9 +21888,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         [
                             "status",
                             "confidence",
+                            "assessment",
                             "plate",
                             "sun2_id",
+                            "parking_match_count",
                             "matches_count",
+                            "match_days_count",
+                            "plate_candidate_count",
+                            "sun2_candidate_count",
+                            "competitor_matches_count",
                             "first_match_at",
                             "last_match_at",
                             "avg_delta_minutes",
@@ -24280,7 +24429,27 @@ async def api_v2_koble_candidate_update(request: Request, candidate_id: int, dat
                 candidate.confirmed_by = None
                 candidate.rejected_at = None
                 candidate.rejected_by = None
-                candidate.confidence = parking_sun_link_probability(candidate.matches_count, candidate.avg_delta_minutes)
+                state = await get_parking_sun_link_state(session)
+                candidate.confidence = parking_sun_link_probability(
+                    candidate.matches_count,
+                    candidate.avg_delta_minutes,
+                    min_matches=state.min_matches,
+                    parking_match_count=candidate.parking_match_count,
+                    match_days_count=candidate.match_days_count,
+                    plate_candidate_count=candidate.plate_candidate_count,
+                    sun2_candidate_count=candidate.sun2_candidate_count,
+                    competitor_matches_count=candidate.competitor_matches_count,
+                )
+            state = await get_parking_sun_link_state(session)
+            candidate.assessment = parking_sun_link_assessment(
+                candidate.status,
+                candidate.confidence,
+                min_matches=state.min_matches,
+                parking_match_count=candidate.parking_match_count,
+                plate_candidate_count=candidate.plate_candidate_count,
+                sun2_candidate_count=candidate.sun2_candidate_count,
+                competitor_matches_count=candidate.competitor_matches_count,
+            )
         candidate.updated_at = now_value
         await session.commit()
     clear_summary_cache("parking")
@@ -24434,7 +24603,7 @@ async def api_v2_koble_worker_results(request: Request, data: ParkingSunLinkWork
                     },
                 )
             )
-            await refresh_parking_sun_link_candidate_pairs(session, data.generation, touched_pairs)
+            await refresh_parking_sun_link_candidate_pairs(session, data.generation, touched_pairs, min_matches=state.min_matches)
         if data.status:
             state.status = (data.status.status or "kjorer").strip()[:40]
             state.status_text = data.status.status_text or state.status_text

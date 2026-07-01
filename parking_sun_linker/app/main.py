@@ -22,6 +22,7 @@ KOBLE_WORKER_TOKEN = (os.getenv("KOBLE_WORKER_TOKEN") or os.getenv("CAR_INFO_APP
 HTTP_TIMEOUT_SECONDS = max(5, int(os.getenv("KOBLE_HTTP_TIMEOUT_SECONDS", "30")))
 RUN_ON_START = os.getenv("KOBLE_RUN_ON_START", "true").strip().lower() in {"1", "true", "yes", "ja"}
 LOOP_SLEEP_SECONDS = max(0.05, float(os.getenv("KOBLE_LOOP_SLEEP_SECONDS", "0.2")))
+BATCH_SIZE = max(1, min(100, int(os.getenv("KOBLE_BATCH_SIZE", "25"))))
 
 Base = declarative_base()
 app = FastAPI(title="Fibaro10 parking sun linker")
@@ -141,7 +142,7 @@ async def post_status(config: dict[str, Any], status: str, status_text: str, las
         set_state(last_error=f"Statusrapport feilet: {exc}")
 
 
-async def next_parking(session, config: dict[str, Any]) -> tuple[ParkingSession, str] | None:
+async def next_parkings(session, config: dict[str, Any], limit: int) -> list[tuple[ParkingSession, str]]:
     generation = int(config.get("generation") or 1)
     recent_days = max(1, int(config.get("recent_days") or 14))
     recent_cutoff = datetime.now() - timedelta(days=recent_days)
@@ -164,12 +165,10 @@ async def next_parking(session, config: dict[str, Any]) -> tuple[ParkingSession,
         .where(plate_expr.in_(select(active_plates.c.plate)))
         .where(~ParkingSession.id.in_(select(processed_ids.c.parking_record_id)))
         .order_by(ParkingSession.start_time.desc(), ParkingSession.id.desc())
-        .limit(1)
+        .limit(limit)
     )
-    row = (await session.execute(stmt)).first()
-    if not row:
-        return None
-    return row[0], compact_plate(row.plate)
+    rows = (await session.execute(stmt)).all()
+    return [(row[0], compact_plate(row.plate)) for row in rows if compact_plate(row.plate)]
 
 
 async def session_matches(session, parking: ParkingSession, plate: str, config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -216,32 +215,40 @@ async def session_matches(session, parking: ParkingSession, plate: str, config: 
     return matches
 
 
-async def process_one(config: dict[str, Any]) -> bool:
+async def process_batch(config: dict[str, Any]) -> bool:
     if async_session is None:
         raise RuntimeError("DATABASE_URL mangler")
     async with async_session() as session:
-        item = await next_parking(session, config)
-        if not item:
+        items = await next_parkings(session, config, BATCH_SIZE)
+        if not items:
             return False
-        parking, plate = item
-        matches = await session_matches(session, parking, plate, config)
+        processed_rows: list[dict[str, Any]] = []
+        match_rows: list[dict[str, Any]] = []
+        for parking, plate in items:
+            matches = await session_matches(session, parking, plate, config)
+            processed_rows.append(
+                {
+                    "generation": int(config.get("generation") or 1),
+                    "parking_record_id": int(parking.id),
+                    "plate": plate,
+                    "parking_start_at": iso_value(parking.start_time),
+                    "matches_found": len(matches),
+                }
+            )
+            match_rows.extend(matches)
+    last_processed = processed_rows[-1]
     payload = {
         "generation": int(config.get("generation") or 1),
-        "processed": [
-            {
-                "generation": int(config.get("generation") or 1),
-                "parking_record_id": int(parking.id),
-                "plate": plate,
-                "parking_start_at": iso_value(parking.start_time),
-                "matches_found": len(matches),
-            }
-        ],
-        "matches": matches,
+        "processed": processed_rows,
+        "matches": match_rows,
         "status": {
             "generation": int(config.get("generation") or 1),
             "status": "kjorer",
-            "status_text": f"Behandler {plate}. Siste parkering {iso_value(parking.start_time)}.",
-            "raw": {"worker": "parking_sun_linker"},
+            "status_text": (
+                f"Behandlet {len(processed_rows)} parkeringer. "
+                f"Siste {last_processed['plate']} {last_processed['parking_start_at']}."
+            ),
+            "raw": {"worker": "parking_sun_linker", "batch_size": len(processed_rows)},
         },
     }
     await fibaro_post("/api/koble/worker/results", payload)
@@ -249,10 +256,10 @@ async def process_one(config: dict[str, Any]) -> bool:
         last_action="processed",
         last_success_at=utcnow_iso(),
         last_error=None,
-        last_parking_id=int(parking.id),
-        last_plate=plate,
-        processed_since_start=int(state.get("processed_since_start") or 0) + 1,
-        matches_since_start=int(state.get("matches_since_start") or 0) + len(matches),
+        last_parking_id=int(last_processed["parking_record_id"]),
+        last_plate=last_processed["plate"],
+        processed_since_start=int(state.get("processed_since_start") or 0) + len(processed_rows),
+        matches_since_start=int(state.get("matches_since_start") or 0) + len(match_rows),
     )
     return True
 
@@ -271,7 +278,7 @@ async def worker_loop() -> None:
                 await post_status(config, "stoppet", "Worker er klar, men jobben er stoppet i Fibaro10.")
                 await asyncio.sleep(max(5, int(config.get("idle_sleep_seconds") or 20)))
                 continue
-            processed = await process_one(config)
+            processed = await process_batch(config)
             if processed:
                 await asyncio.sleep(LOOP_SLEEP_SECONDS)
                 continue
@@ -313,6 +320,7 @@ async def health() -> dict[str, Any]:
         "fibaro10_base_url": FIBARO10_BASE_URL,
         "has_database_url": bool(DATABASE_URL),
         "has_token": bool(KOBLE_WORKER_TOKEN),
+        "batch_size": BATCH_SIZE,
     }
 
 

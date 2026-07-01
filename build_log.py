@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1376")
+APP_BUILD = os.getenv("APP_BUILD", "1377")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1377",
+        "date": "01.07.2026",
+        "headline": "Koble smartere scoring",
+        "title": "Koble-motoren scorer kandidater med forklaring, konkurranse og raskere batchkjøring",
+        "description": (
+            "Build 1377 videreutvikler koblingsmotoren mellom parkering og SUN2. Kandidater vurderes naa ut fra "
+            "unike parkeringstreff, treffdager, tidsavstand og konkurrerende koblinger. Sideappen behandler flere "
+            "parkeringer per runde for raskere ajourforing."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): utvider Koble-kandidatene med vurdering, parkeringstreff, treffdager og konkurransefelter.",
+            "Fibaro10 backend (main.py): ny sannsynlighetsmodell som skiller svake observasjoner fra sterke kandidater.",
+            "Koble-sideapp (parking_sun_linker): behandler parkeringer i batcher og rapporterer samlet resultat.",
+            "Docker/QNAP (docker-compose.qnap.yml): legger til konfigurerbar KOBLE_BATCH_SIZE.",
+            "Desktop V2 tabeller: legger lesbare kolonnenavn for de nye Koble-feltene.",
+            "Buildlogg (build_log.py): registrerer build 1377.",
+        ],
+        "request": "prøv å videreutvikle denne koblingsmotoren på best mulig måte",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kandidater viser naa en kort vurdering i tillegg til prosent.",
+            "Sannsynlighet bruker unike parkeringer, ikke bare antall soltimer.",
+            "Konkurrerende koblinger trekker ned sannsynligheten.",
+            "Sterke kandidater betyr naa avventende kandidater med minst 70 % sannsynlighet.",
+            "Sideappen behandler som standard 25 parkeringer per runde.",
+        ],
+    },
     {
         "version": "1",
         "build": "1376",
