@@ -14624,39 +14624,47 @@ def api_filter_options(values: Iterable[Any]) -> list[Dict[str, Any]]:
 
 async def parking_sun_link_candidates(
     session: Any,
+    reference_time: datetime,
     min_matches: int = 2,
     max_minutes: int = 3,
-    evening_start_hour: int = 16,
+    recent_days: int = 14,
     limit: int = 250,
 ) -> Dict[str, Any]:
     parking_plate = func.upper(func.replace(func.coalesce(ParkingSession.car_license_number, ""), " ", ""))
-    vehicle_sun2_id = func.trim(func.coalesce(ParkingVehicle.sun2_id, ""))
     session_sun2_id = func.trim(func.coalesce(Sun2TanningSession.sun2_user_id, ""))
     delta_seconds = func.extract("epoch", Sun2TanningSession.started_at - ParkingSession.start_time)
+    recent_cutoff = reference_time - timedelta(days=recent_days)
+    recent_plates = (
+        select(parking_plate.label("plate"))
+        .where(ParkingSession.start_time >= recent_cutoff)
+        .where(ParkingSession.car_license_number.is_not(None))
+        .where(parking_plate != "")
+        .distinct()
+        .subquery()
+    )
     match_conditions = [
         ParkingSession.start_time.is_not(None),
         ParkingSession.car_license_number.is_not(None),
         Sun2TanningSession.started_at.is_not(None),
-        vehicle_sun2_id != "",
         session_sun2_id != "",
+        parking_plate.in_(select(recent_plates.c.plate)),
         delta_seconds >= 0,
         delta_seconds <= max_minutes * 60,
-        func.extract("hour", ParkingSession.start_time) >= evening_start_hour,
     ]
 
     base_from = (
         select()
         .select_from(ParkingSession)
-        .join(ParkingVehicle, ParkingVehicle.plate == parking_plate)
-        .join(Sun2TanningSession, session_sun2_id == vehicle_sun2_id)
+        .outerjoin(ParkingVehicle, ParkingVehicle.plate == parking_plate)
+        .join(Sun2TanningSession, and_(Sun2TanningSession.started_at >= ParkingSession.start_time, session_sun2_id != ""))
         .where(*match_conditions)
     )
-    count_expr = func.count().label("matches_count")
+    count_expr = func.count(func.distinct(Sun2TanningSession.id)).label("matches_count")
     latest_parking_expr = func.max(ParkingSession.start_time)
     candidate_stmt = (
         base_from.with_only_columns(
-            ParkingVehicle.plate.label("plate"),
-            vehicle_sun2_id.label("sun2_id"),
+            parking_plate.label("plate"),
+            session_sun2_id.label("sun2_id"),
             count_expr,
             func.min(ParkingSession.start_time).label("first_match_at"),
             latest_parking_expr.label("last_match_at"),
@@ -14667,11 +14675,12 @@ async def parking_sun_link_candidates(
             func.max(ParkingVehicle.parkering_count).label("parking_count"),
             func.max(ParkingVehicle.paid_total).label("paid_total"),
         )
-        .group_by(ParkingVehicle.plate, vehicle_sun2_id)
-        .having(func.count() >= min_matches)
+        .group_by(parking_plate, session_sun2_id)
+        .having(func.count(func.distinct(Sun2TanningSession.id)) >= min_matches)
         .order_by(count_expr.desc(), latest_parking_expr.desc())
         .limit(limit)
     )
+    recent_plate_count = int_or_zero((await session.execute(select(func.count()).select_from(recent_plates))).scalar_one_or_none())
     candidate_rows_raw = (await session.execute(candidate_stmt)).all()
     candidate_pairs = [(row.plate, row.sun2_id) for row in candidate_rows_raw if row.plate and row.sun2_id]
 
@@ -14686,8 +14695,8 @@ async def parking_sun_link_candidates(
                 ParkingSession.end_time.label("parking_end_at"),
                 ParkingSession.status.label("parking_status"),
                 ParkingSession.fee_inc_vat.label("fee_inc_vat"),
-                ParkingVehicle.plate.label("plate"),
-                vehicle_sun2_id.label("sun2_id"),
+                parking_plate.label("plate"),
+                session_sun2_id.label("sun2_id"),
                 ParkingVehicle.navn.label("vehicle_name"),
                 ParkingVehicle.omrade.label("vehicle_area"),
                 Sun2TanningSession.id.label("sun_session_id"),
@@ -14701,7 +14710,7 @@ async def parking_sun_link_candidates(
                 Sun2TanningSession.paid_amount_kr.label("paid_amount_kr"),
                 delta_seconds.label("delta_seconds"),
             )
-            .where(tuple_(ParkingVehicle.plate, vehicle_sun2_id).in_(candidate_pairs))
+            .where(tuple_(parking_plate, session_sun2_id).in_(candidate_pairs))
             .order_by(ParkingSession.start_time.desc(), Sun2TanningSession.started_at.desc())
             .limit(max(250, min(1000, limit * 6)))
         )
@@ -14757,6 +14766,8 @@ async def parking_sun_link_candidates(
         "match_rows": match_rows,
         "candidate_count": len(candidate_rows),
         "match_count": sum(row["matches_count"] for row in candidate_rows),
+        "recent_plate_count": recent_plate_count,
+        "recent_cutoff": recent_cutoff,
     }
 
 
@@ -20993,22 +21004,31 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
         if module == "koble":
             min_matches = api_filter_int(params, "min_treff", 2, 1, 20)
             max_minutes = api_filter_int(params, "maks_minutter", 3, 1, 30)
-            evening_start_hour = api_filter_int(params, "kveld_fra", 16, 0, 23)
+            recent_days = api_filter_int(params, "siste_dager", 14, 1, 90)
             limit_value = api_filter_int(params, "limit", 250, 25, 1000)
             link_data = await parking_sun_link_candidates(
                 session,
+                now_dt,
                 min_matches=min_matches,
                 max_minutes=max_minutes,
-                evening_start_hour=evening_start_hour,
+                recent_days=recent_days,
                 limit=limit_value,
             )
             return {
                 "title": v2_module_title("koble", view),
                 "subtitle": (
-                    "FÃ¸rste koblingsregel: samme bil og samme SUN2-ID, der soltime starter "
-                    f"innen {max_minutes} minutter etter parkering pÃ¥ kvelden."
+                    f"Kontrollerer biler med parkering siste {recent_days} dager. For disse bilene sjekkes "
+                    "alle parkeringer mot alle soltimer for aa finne gjentatte SUN2-ID-kandidater."
                 ),
                 "cards": [
+                    api_card(
+                        "Biler sjekket",
+                        format_short_number(link_data["recent_plate_count"]),
+                        "",
+                        f"Har parkert siden {link_data['recent_cutoff']:%d.%m.%Y}",
+                        "parking",
+                        href="/koble/oversikt",
+                    ),
                     api_card(
                         "Kandidater",
                         format_short_number(link_data["candidate_count"]),
@@ -21020,8 +21040,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_card(
                         "Treffgrunnlag",
                         format_short_number(link_data["match_count"]),
-                        "treff",
-                        "Konkrete parkeringer med soltime like etter",
+                        "soltimer",
+                        "Distinkte soltimer i kandidatene",
                         "parking",
                         href="/koble/oversikt",
                     ),
@@ -21031,14 +21051,6 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "min",
                         "Soltime etter parkering-start",
                         "sun2",
-                        href="/koble/oversikt",
-                    ),
-                    api_card(
-                        "Kveld",
-                        f"{evening_start_hour:02d}:00",
-                        "",
-                        "Parkeringer fra og med denne timen",
-                        "status",
                         href="/koble/oversikt",
                     ),
                 ],
@@ -21084,7 +21096,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "filters": [
                     api_filter("min_treff", "Min treff", "number", min_matches),
                     api_filter("maks_minutter", "Maks min etter parkering", "number", max_minutes),
-                    api_filter("kveld_fra", "Kveld fra time", "number", evening_start_hour),
+                    api_filter("siste_dager", "Bilutvalg siste dager", "number", recent_days),
                     api_filter("limit", "Antall", "number", limit_value),
                 ],
             }

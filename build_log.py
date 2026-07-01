@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1370")
+APP_BUILD = os.getenv("APP_BUILD", "1371")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1371",
+        "date": "01.07.2026",
+        "headline": "Koble-regel siste 14 dager",
+        "title": "Koble analyserer biler parkert siste 14 dager mot alle soltimer",
+        "description": (
+            "Build 1371 endrer Koble-siden slik at den foerst finner biler som har parkert siste 14 dager. "
+            "For disse bilene sjekkes alle historiske parkeringer mot alle soltimer, og kandidat opprettes "
+            "naar minst to distinkte soltimer paa samme SUN2-ID starter innen valgt minuttvindu etter "
+            "parkering-start paa samme bil."
+        ),
+        "applications": [
+            "Backend modul-API (main.py): endrer koblingssporringen fra lagret bil-SUN2-ID til kandidat-SUN2-ID fra soltimene.",
+            "Backend modul-API (main.py): legger til filter for bilutvalg siste dager og teller biler som faktisk sjekkes.",
+            "Koble-grensesnitt (main.py payload): fjerner kveldsfilter og viser at treffgrunnlaget teller distinkte soltimer.",
+            "Buildlogg (build_log.py): registrerer build 1371.",
+        ],
+        "request": "jeg vil at loesningen skal gaa igjennom alle parkeringer de to siste uker og sjekke alle parkeringer for disse bilene mot alle soltimer. match er naar det er to soltimer paa samme sun2-id som starter innen 3 min etter en parkering paa samme bil.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Bilutvalget er naa biler med parkering siste 14 dager som standard.",
+            "Alle parkeringer for disse bilene sjekkes mot alle soltimer.",
+            "Kandidat-SUN2-ID hentes fra soltimehistorikken, ikke fra lagret sun2_id paa bilen.",
+            "Minst to distinkte soltimer paa samme SUN2-ID maa starte innen valgt minuttvindu etter parkering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1370",
