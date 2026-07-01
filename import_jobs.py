@@ -135,7 +135,7 @@ IMPORT_JOB_DEFINITIONS = {
         "source": "QNAP appdb",
         "expected_interval_minutes": None,
         "warning_after_minutes": None,
-        "description": "Migrert EasyPark-historikk med kjoretoydata fra Statens vegvesen.",
+        "description": "Migrert EasyPark-historikk med kjøretøydata fra Statens vegvesen.",
     },
     "parking_vehicle_svv_sync": {
         "title": "Kjøretøydata fra SVV",
@@ -151,7 +151,7 @@ IMPORT_JOB_DEFINITIONS = {
         "source": "Biluppgifter.se",
         "expected_interval_minutes": None,
         "warning_after_minutes": None,
-        "description": "Oppslag av svenske registreringsnummer der SVV ikke fant kjoretoydata.",
+        "description": "Oppslag av svenske registreringsnummer der SVV ikke fant kjøretøydata.",
     },
     "parking_vehicle_tjekbil_sync": {
         "title": "Tjekbil Danmark",
@@ -159,7 +159,7 @@ IMPORT_JOB_DEFINITIONS = {
         "source": "Tjekbil.dk",
         "expected_interval_minutes": None,
         "warning_after_minutes": None,
-        "description": "Oppslag av danske registreringsnummer der SVV ikke fant kjoretoydata.",
+        "description": "Oppslag av danske registreringsnummer der SVV ikke fant kjøretøydata.",
     },
 }
 
@@ -167,3 +167,90 @@ IMPORT_JOB_NUMBER_BY_NAME = {
     job_name: index + 1
     for index, job_name in enumerate(IMPORT_JOB_DEFINITIONS)
 }
+
+IMPORT_JOB_DETAILS = {
+    "hc3_light_5min": {
+        "data_flow": "HC3 QuickApp sender luxmålinger og lysstatus til Fibaro10 sitt event-endepunkt. Fibaro10 lagrer sample i lysloggen og bruker samme grunnlag i status, dagslogg og datakildehelse.",
+        "dependencies": ["HC3", "Fibaro QuickApp", "Fibaro10 API", "PostgreSQL"],
+    },
+    "hc3_ventilation_5min": {
+        "data_flow": "HC3 QuickApp sender temperatur, fuktighet, modus og viftestatus til Fibaro10. Data lagres i ventilasjonsloggen og brukes i ventilasjonssider, dashboard og friskhetskontroll.",
+        "dependencies": ["HC3", "Fibaro QuickApp", "Fibaro10 API", "PostgreSQL"],
+    },
+    "yr_weather_refresh": {
+        "data_flow": "Fibaro10 henter oppdaterte værdata fra MET/Yr og lagrer siste relevante varsel sammen med lys- og ventilasjonssamples. Verdiene brukes til værvisning, sammenligning og senere analyse.",
+        "dependencies": ["MET/Yr API", "Fibaro10 backend", "PostgreSQL"],
+    },
+    "hc3_energy_1min": {
+        "data_flow": "HC3 sender realtime effektverdier fra hovedmåler og undermålere til Fibaro10. Systemet bruker realtime målingene som grunnlag for energisider, differanse og akkumulert forbruk.",
+        "dependencies": ["HC3", "Fibaro energimåler/QuickApp", "Fibaro10 API", "PostgreSQL"],
+    },
+    "roborock_sync": {
+        "data_flow": "Roborock-loggeren på QNAP henter robotstatus, jobber, kart og vedlikeholdsdata og poster resultatet til Fibaro10. Fibaro10 lagrer status og viser renholdsdata i drift/admin.",
+        "dependencies": ["roborock_logger", "Roborock cloud/lokal robot", "Fibaro10 API", "PostgreSQL"],
+    },
+    "owntracks_mqtt": {
+        "data_flow": "OwnTracks publiserer posisjoner og waypoint-hendelser til Mosquitto. Fibaro10 abonnerer på MQTT-topicene og lagrer både råposisjoner og egne waypoint-tabeller.",
+        "dependencies": ["OwnTracks app", "Mosquitto MQTT", "Fibaro10 MQTT-worker", "PostgreSQL"],
+    },
+    "sun2_daily_download": {
+        "data_flow": "Sun2 backfill/downloader laster ned dagsfil fra Sun2 og legger filgrunnlaget klart for import. Dette er kildefilen for daglige romsummer.",
+        "dependencies": ["sun2_backfill_downloader", "Sun2", "QNAP filområde", "Fibaro10 API"],
+    },
+    "sun2_room_daily_import": {
+        "data_flow": "Sun2-importeren leser dagsfilene og lagrer summer per rom, dato, tid og omsetning. Dette brukes til historiske dags- og romsummer.",
+        "dependencies": ["sun2_importer", "Sun2 dagsfil", "Fibaro10 API", "PostgreSQL"],
+    },
+    "sun2_sessions_import": {
+        "data_flow": "Sun2 session scraper henter enkeltsolinger fra Sun2 og poster nye eller endrede timer til Fibaro10. Fibaro10 kobler i tillegg relevante Axis-bilder til soltimene.",
+        "dependencies": ["sun2_session_scraper", "Sun2", "Axis snapshot-arkiv", "Fibaro10 API", "PostgreSQL"],
+    },
+    "sun2_beds_import": {
+        "data_flow": "Sun2 session scraper henter rom- og sengmetadata fra Sun2 og oppdaterer lokal sengtabell. Metadata brukes for visningsnavn, romkobling og energiberegning.",
+        "dependencies": ["sun2_session_scraper", "Sun2", "Fibaro10 API", "PostgreSQL"],
+    },
+    "sun2_members_import": {
+        "data_flow": "Sun2 session scraper henter medlemsregister fra Sun2 og lagrer bruker-/profilfelter lokalt. Brukes for enkelttimer, søk og historikk der Sun2-bruker finnes.",
+        "dependencies": ["sun2_session_scraper", "Sun2", "Fibaro10 API", "PostgreSQL"],
+    },
+    "sun2_product_sales_daily_import": {
+        "data_flow": "Sun2 session scraper henter produktsalg for forrige dag og lagrer salgene med dato, produkt og beløp. Daglig import brukes for fordeling per dag og kontrollgrunnlag.",
+        "dependencies": ["sun2_session_scraper", "Sun2", "Fibaro10 API", "PostgreSQL"],
+    },
+    "sun2_product_sales_monthly_import": {
+        "data_flow": "Sun2 session scraper henter hele forrige måneds produktsalg som kontrollimport. Resultatet brukes til avstemming mot solingsoppgjør og daglige produktsalg.",
+        "dependencies": ["sun2_session_scraper", "Sun2", "Fibaro10 API", "PostgreSQL"],
+    },
+    "sun2_finance_settlement_monthly_import": {
+        "data_flow": "Sun2 session scraper henter finanshistorikk/oppgjør fra Sun2 og lagrer solomsetning, produktsalg, kostnader og utbetalt beløp. Brukes til oppgjørskontroll.",
+        "dependencies": ["sun2_session_scraper", "Sun2", "Fibaro10 API", "PostgreSQL"],
+    },
+    "elvia_monthly_import": {
+        "data_flow": "Elvia-fil lastes opp manuelt i energi-grensesnittet. Fibaro10 leser timesverdier fra filen og bruker dem til kontroll mot egne HC3-målinger.",
+        "dependencies": ["Elvia eksportfil", "Fibaro10 opplasting", "PostgreSQL"],
+    },
+    "easypark_parking_import": {
+        "data_flow": "EasyPark-downloaderen logger inn via lagret Google/OAuth-sesjon, laster ned parkeringsliste for nyere dager og poster importstatus til Fibaro10. Fibaro10 importerer parkeringer, oppdaterer prognose og beriker kjøretøydata etterpå.",
+        "dependencies": ["easypark_downloader", "EasyPark portal", "Google/OAuth-token", "Fibaro10 API", "PostgreSQL"],
+    },
+    "parking_history_import": {
+        "data_flow": "Historiske parkeringsdata er migrert fra tidligere QNAP/appdb-oppsett til Fibaro10. Dette er ikke en løpende jobb, men et arkivgrunnlag som brukes i rapporter og historikk.",
+        "dependencies": ["QNAP appdb backup", "Fibaro10 migrering", "PostgreSQL"],
+    },
+    "parking_vehicle_svv_sync": {
+        "data_flow": "Fibaro10 finner norske registreringsnummer som mangler tekniske data og slår dem opp mot Statens vegvesen. Resultatet lagres på kjøretøy og brukes i parkeringslister og områdekontroll.",
+        "dependencies": ["Fibaro10 bakgrunnsjobb", "Statens vegvesen API", "PostgreSQL"],
+    },
+    "parking_vehicle_biluppgifter_sync": {
+        "data_flow": "Nordisk kjøretøyoppslag sjekker svenske registreringsnummer som ikke fikk treff hos SVV. Data brukes til å markere Sverige og fylle tekniske kjøretøyfelter der kilden gir svar.",
+        "dependencies": ["car_info_lookup", "Biluppgifter.se", "Fibaro10 API", "PostgreSQL"],
+    },
+    "parking_vehicle_tjekbil_sync": {
+        "data_flow": "Nordisk kjøretøyoppslag sjekker danske registreringsnummer som ikke fikk treff hos SVV. Data brukes til å markere Danmark og fylle tekniske kjøretøyfelter der kilden gir svar.",
+        "dependencies": ["car_info_lookup", "Tjekbil.dk", "Fibaro10 API", "PostgreSQL"],
+    },
+}
+
+for job_name, details in IMPORT_JOB_DETAILS.items():
+    if job_name in IMPORT_JOB_DEFINITIONS:
+        IMPORT_JOB_DEFINITIONS[job_name].update(details)

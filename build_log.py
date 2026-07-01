@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1367")
+APP_BUILD = os.getenv("APP_BUILD", "1368")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1368",
+        "date": "01.07.2026",
+        "headline": "Datakildeforklaringer",
+        "title": "Datakildesider viser datagrunnlag, avhengigheter og kjoring",
+        "description": (
+            "Build 1368 utvider detaljsiden for datakilder med et forklaringsfelt som beskriver hvordan "
+            "datagrunnlaget hentes, hvilke komponenter datakilden er avhengig av, og hvordan eller naar "
+            "jobben forventes aa kjoere."
+        ),
+        "applications": [
+            "Importjobb-definisjoner (import_jobs.py): legger til datagrunnlagstekst og avhengige komponenter per datakilde.",
+            "Backend importstatus (main.py): eksponerer forklaring, avhengigheter, forventet intervall og beregnet kjoringsbeskrivelse.",
+            "Desktop V2 datakilder (DataSourceDetailPage.tsx): viser nytt forklaringskort paa datakildedetaljen.",
+            "Desktop V2 CSS (status.css): legger til kompakt layout for datakildeforklaringen.",
+        ],
+        "request": "jeg savner et tekst felt med forklaring paa hvordan dette datagrunnlaget hentes og hvilke komponenter det er avhengig av, naar det planlegges kjort alle tidspunkter eller hvor ofte liksom",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Alle definerte datakilder faar forklaring og komponentliste der metadata finnes.",
+            "EasyPark viser faktisk fast importplan fra downloader-statusen, inkludert klokkeslettene.",
+            "Andre datakilder viser forventet frekvens og varselgrense basert paa importjobb-definisjonen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1367",

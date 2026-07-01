@@ -29,6 +29,20 @@ function formatDuration(value?: number | null) {
   return `${Math.round(value / 60)} min`;
 }
 
+function formatMinutes(value?: number | null) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "-";
+  if (value < 60) return `${value} min`;
+  if (value % (24 * 60) === 0) {
+    const days = value / (24 * 60);
+    return days === 1 ? "1 dag" : `${days} dager`;
+  }
+  if (value % 60 === 0) {
+    const hours = value / 60;
+    return hours === 1 ? "1 time" : `${hours} timer`;
+  }
+  return `${Math.floor(value / 60)} t ${value % 60} min`;
+}
+
 function recordText(imported?: number | null, total?: number | null) {
   if (imported !== null && imported !== undefined && total !== null && total !== undefined) return `${imported}/${total}`;
   if (total !== null && total !== undefined) return String(total);
@@ -112,6 +126,7 @@ export default function DataSourceDetailPage() {
   const source = data.source;
   const title = sourceTitle(source);
   const latestMessage = source.message || source.status_text || source.age || "-";
+  const dependencies = (source.dependencies || []).filter(Boolean);
 
   return (
     <Space direction="vertical" size={14} className="page-stack status-page status-datasource-detail-page">
@@ -145,6 +160,25 @@ export default function DataSourceDetailPage() {
         </Card>
       </div>
 
+      <Card className="work-card datasource-explanation-card" title="Hvordan hentes datagrunnlaget">
+        <div className="datasource-explanation-grid">
+          <section>
+            <Typography.Text type="secondary">Datagrunnlag</Typography.Text>
+            <Typography.Paragraph>{source.data_flow || source.description || "-"}</Typography.Paragraph>
+          </section>
+          <section>
+            <Typography.Text type="secondary">Kjøreplan</Typography.Text>
+            <Typography.Paragraph>{source.schedule_text || "-"}</Typography.Paragraph>
+          </section>
+          <section>
+            <Typography.Text type="secondary">Avhengige komponenter</Typography.Text>
+            <div className="datasource-dependencies">
+              {dependencies.length ? dependencies.map((item) => <Tag key={item}>{item}</Tag>) : <span>-</span>}
+            </div>
+          </section>
+        </div>
+      </Card>
+
       <Card className="work-card" title="Datakildeinfo">
         <Descriptions bordered column={{ xs: 1, sm: 2, xl: 3 }} size="small">
           <Descriptions.Item label="Jobbnavn">
@@ -157,6 +191,8 @@ export default function DataSourceDetailPage() {
           <Descriptions.Item label="Siste feil">{formatDateTime(source.last_failed_at)}</Descriptions.Item>
           <Descriptions.Item label="Rader">{recordText(source.records_imported, source.records_total)}</Descriptions.Item>
           <Descriptions.Item label="Varighet">{formatDuration(source.duration_seconds)}</Descriptions.Item>
+          <Descriptions.Item label="Forventet intervall">{formatMinutes(source.expected_interval_minutes)}</Descriptions.Item>
+          <Descriptions.Item label="Varsel etter">{formatMinutes(source.warning_after_minutes)}</Descriptions.Item>
           <Descriptions.Item label="Alder">{source.age || "-"}</Descriptions.Item>
           <Descriptions.Item label="Melding" span={3}>
             {latestMessage}

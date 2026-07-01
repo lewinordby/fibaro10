@@ -382,6 +382,11 @@ export type ImportStatusSource = {
   category?: string | null;
   source?: string | null;
   description?: string | null;
+  data_flow?: string | null;
+  dependencies?: string[];
+  schedule_text?: string | null;
+  expected_interval_minutes?: number | null;
+  warning_after_minutes?: number | null;
   status?: string | null;
   status_text?: string | null;
   age?: string | null;

@@ -5433,8 +5433,49 @@ def import_job_definition(job_name: str) -> Dict[str, Any]:
         "expected_interval_minutes": None,
         "warning_after_minutes": None,
         "description": "",
+        "data_flow": "",
+        "dependencies": [],
     }
     return {**fallback, **IMPORT_JOB_DEFINITIONS.get(job_name, {})}
+
+
+def import_job_interval_text(minutes: Optional[int]) -> Optional[str]:
+    if minutes is None:
+        return None
+    if minutes < 60:
+        return f"{minutes} min"
+    if minutes % (24 * 60) == 0:
+        days = minutes // (24 * 60)
+        return "1 dag" if days == 1 else f"{days} dager"
+    if minutes % 60 == 0:
+        hours = minutes // 60
+        return "1 time" if hours == 1 else f"{hours} timer"
+    hours = minutes // 60
+    rest = minutes % 60
+    return f"{hours} t {rest} min"
+
+
+def import_job_schedule_text(
+    job_name: str,
+    definition: Dict[str, Any],
+    easypark_status: Optional[Dict[str, Any]] = None,
+) -> str:
+    if job_name == "easypark_parking_import" and isinstance(easypark_status, dict):
+        schedule = easypark_status.get("schedule") if isinstance(easypark_status.get("schedule"), dict) else {}
+        run_times = schedule.get("run_times")
+        if isinstance(run_times, list) and run_times:
+            times = ", ".join(str(item) for item in run_times)
+            return f"Fast plan fra EasyPark-downloader: {times}. Neste kjøring beregnes fra downloaderens /status."
+
+    expected_minutes = definition.get("expected_interval_minutes")
+    warning_minutes = definition.get("warning_after_minutes")
+    expected_text = import_job_interval_text(expected_minutes)
+    warning_text = import_job_interval_text(warning_minutes)
+    if expected_text and warning_text:
+        return f"Forventet ny vellykket oppdatering minst hver {expected_text}. Varselgrense: {warning_text}."
+    if expected_text:
+        return f"Forventet ny vellykket oppdatering minst hver {expected_text}."
+    return "Ingen fast intervallovervåking. Datakilden kjøres manuelt, ved behov eller som del av en separat bakgrunnsjobb."
 
 
 def import_job_status_from_age(stamp: Optional[datetime], expected_minutes: Optional[int], warning_minutes: Optional[int]) -> tuple[str, str]:
@@ -8302,6 +8343,11 @@ async def import_status_rows(session) -> list[Dict[str, Any]]:
                 "category": row.category if row else definition["category"],
                 "source": row.source if row and row.source else definition.get("source"),
                 "description": definition.get("description", ""),
+                "data_flow": definition.get("data_flow") or definition.get("description", ""),
+                "dependencies": definition.get("dependencies", []),
+                "schedule_text": import_job_schedule_text(job_name, definition, easypark_status),
+                "expected_interval_minutes": expected_minutes,
+                "warning_after_minutes": warning_minutes,
                 "status": status,
                 "status_text": status_text,
                 "age": age_label(sun2_sessions_active_minutes_since(stamp)) if job_name == "sun2_sessions_import" else (import_job_age(row) if row else age_label(minutes_since(stamp))),
