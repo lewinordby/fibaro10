@@ -22,6 +22,8 @@ BUILD_LOG = [
             "EasyPark-downloader (easypark_downloader/app/main.py): legger til queue-sync-now og queue-sync-period som starter import i bakgrunnen.",
             "Fibaro10 backend (main.py): V2 og klassisk parkeringsoppdatering bruker ko-endepunkt med kort timeout.",
             "Mobil dashboard (online_dashboard/app/main.py): manuell parkeringsoppdatering bruker samme ko-endepunkt.",
+            "QNAP deploy (scripts/deploy-qnap.ps1): bygger og restarter den separate EasyPark-downloaderen sammen med hoveddeploy.",
+            "Live smoke (desktop_v2/scripts/smoke-live.mjs): sjekker faktisk HTTP-status i stedet for aa tolke datakildetekst som 404-side.",
             "Dokumentasjon (easypark_downloader/README.md): dokumenterer nye ko-endepunkter.",
             "Buildlogg (build_log.py): registrerer build 1393.",
         ],

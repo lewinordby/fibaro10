@@ -96,7 +96,10 @@ async function login(page) {
 }
 
 async function smokeRoute(page, route) {
-  await page.goto(`${baseUrl}${route}`, { waitUntil: "load" });
+  const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "load" });
+  if (response && response.status() >= 400) {
+    throw new Error(`${route} svarte HTTP ${response.status()}`);
+  }
   if (new URL(page.url()).pathname.startsWith("/auth/login")) {
     throw new Error(`${route} sendte tilbake til login`);
   }
@@ -106,7 +109,7 @@ async function smokeRoute(page, route) {
   if (!bodyText.trim()) {
     throw new Error(`${route} rendret tom side`);
   }
-  if (/ugyldig brukernavn|application error|internal server error|not found|404/i.test(bodyText)) {
+  if (/ugyldig brukernavn|application error|internal server error/i.test(bodyText)) {
     throw new Error(`${route} viste feilmelding`);
   }
   console.log(`Live route OK: ${route}`);
