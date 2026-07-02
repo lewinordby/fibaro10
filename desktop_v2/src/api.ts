@@ -599,6 +599,61 @@ export type ModuleFilter = {
   options?: Array<{ label: string; value: string | number }>;
 };
 
+export type KobleReviewMatch = {
+  id: number;
+  parkingStartAt?: string | null;
+  sunStartedAt?: string | null;
+  deltaMinutes?: number | null;
+  roomLabel?: string | null;
+  userName?: string | null;
+  durationMinutes?: number | null;
+  paidAmountKr?: number | null;
+  feeIncVat?: number | null;
+  sourceSystem?: string | null;
+  parkingId?: number | string | null;
+  parkingRecordId?: number | null;
+  sunSessionId?: number | null;
+};
+
+export type KobleReviewCandidate = {
+  id: number;
+  status: string;
+  confidence: number;
+  assessment?: string | null;
+  plate: string;
+  sun2Id: string;
+  vehicleName?: string | null;
+  vehicleArea?: string | null;
+  userName?: string | null;
+  matchesCount: number;
+  parkingMatchCount: number;
+  matchDaysCount: number;
+  plateCandidateCount: number;
+  sun2CandidateCount: number;
+  competitorMatchesCount: number;
+  firstMatchAt?: string | null;
+  lastMatchAt?: string | null;
+  avgDeltaMinutes?: number | null;
+  parkingCount?: number | null;
+  paidTotal?: number | null;
+  note?: string | null;
+  path?: string | null;
+  matches: KobleReviewMatch[];
+};
+
+export type KobleReviewData = {
+  generatedAt?: string | null;
+  generation: number;
+  minMatches: number;
+  maxMinutes: number;
+  visibleCandidateCount: number;
+  candidateCount: number;
+  strongCandidateCount: number;
+  processedCount: number;
+  matchedCount: number;
+  candidates: KobleReviewCandidate[];
+};
+
 export type ModuleDayNavigation = {
   selectedDay: string;
   selectedDayLabel: string;
@@ -1013,6 +1068,7 @@ export type ModuleResponse = {
   dayNavigation?: ModuleDayNavigation | null;
   sunTimeline?: SunTimeline | null;
   parkingTimeline?: ParkingTimeline | null;
+  kobleReview?: KobleReviewData | null;
   ventilation?: VentilationData;
   energyElvia?: EnergyElviaData | null;
   energySunbeds?: EnergySunbedsData | null;
@@ -1262,6 +1318,20 @@ export async function submitModuleEdit(
   const method = create && edit.createEndpoint ? "POST" : edit.method ?? "PATCH";
   const response = await fetch(endpoint, {
     method,
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
+}
+
+export async function updateKobleCandidate(candidateId: number, values: JsonRecord): Promise<JsonRecord> {
+  const response = await fetch(`/api/koble/candidates/${encodeURIComponent(candidateId)}`, {
+    method: "PATCH",
     credentials: "same-origin",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(values),

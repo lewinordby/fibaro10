@@ -24,6 +24,7 @@ import "./styles/status-overview.css";
 import "./styles/status-comparison.css";
 import "./styles/sun-timeline.css";
 import "./styles/parking-timeline.css";
+import "./styles/koble.css";
 import "./styles/ventilation.css";
 import "./styles/ventilation-charts.css";
 import "./styles/ventilation-settings.css";

@@ -21788,6 +21788,22 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .limit(max(250, min(1000, limit_value * 5)))
                 )
             ).scalars().all()
+            review_pairs = [(row.plate, row.sun2_id) for row in candidates if row.plate and row.sun2_id]
+            review_matches_by_pair: Dict[tuple[str, str], list[ParkingSunLinkMatch]] = defaultdict(list)
+            if review_pairs:
+                review_matches = (
+                    await session.execute(
+                        select(ParkingSunLinkMatch)
+                        .where(ParkingSunLinkMatch.generation == generation)
+                        .where(tuple_(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id).in_(review_pairs))
+                        .order_by(ParkingSunLinkMatch.parking_start_at.desc(), ParkingSunLinkMatch.sun_started_at.desc())
+                        .limit(max(300, min(2000, len(review_pairs) * 10)))
+                    )
+                ).scalars().all()
+                for match in review_matches:
+                    pair_key = (str(match.plate or "").strip(), str(match.sun2_id or "").strip())
+                    if len(review_matches_by_pair[pair_key]) < 6:
+                        review_matches_by_pair[pair_key].append(match)
             processed_rows = (
                 await session.execute(
                     select(ParkingSunLinkProcessed)
@@ -21799,6 +21815,54 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             state_row = api_parking_sun_link_state_row(state)
             worker_seen = format_source_datetime_short(state.last_worker_seen_at) if state.last_worker_seen_at else "-"
             worker_detail = state.status_text or ("Jobben er aktiv." if state.enabled else "Jobben er stoppet.")
+            review_candidates = []
+            for candidate in candidates:
+                pair_key = (str(candidate.plate or "").strip(), str(candidate.sun2_id or "").strip())
+                row = api_parking_sun_link_candidate_row(candidate)
+                review_candidates.append(
+                    {
+                        "id": row["id"],
+                        "status": row["status"],
+                        "confidence": row["confidence"],
+                        "assessment": row["assessment"],
+                        "plate": row["plate"],
+                        "sun2Id": row["sun2_id"],
+                        "vehicleName": row["navn"],
+                        "vehicleArea": row["omrade"],
+                        "userName": row["user_name"],
+                        "matchesCount": row["matches_count"],
+                        "parkingMatchCount": row["parking_match_count"],
+                        "matchDaysCount": row["match_days_count"],
+                        "plateCandidateCount": row["plate_candidate_count"],
+                        "sun2CandidateCount": row["sun2_candidate_count"],
+                        "competitorMatchesCount": row["competitor_matches_count"],
+                        "firstMatchAt": row["first_match_at"],
+                        "lastMatchAt": row["last_match_at"],
+                        "avgDeltaMinutes": row["avg_delta_minutes"],
+                        "parkingCount": row["parking_count"],
+                        "paidTotal": row["paid_total"],
+                        "note": row["note"],
+                        "path": row["path"],
+                        "matches": [
+                            {
+                                "id": match.id,
+                                "parkingStartAt": api_local_iso(match.parking_start_at),
+                                "sunStartedAt": api_local_iso(match.sun_started_at),
+                                "deltaMinutes": round(float_or_zero(match.delta_minutes), 2),
+                                "roomLabel": sun2_room_label(match.room_id, match.room),
+                                "userName": match.user_name,
+                                "durationMinutes": round(float_or_zero(match.duration_minutes), 1),
+                                "paidAmountKr": round(float_or_zero(match.paid_amount_kr), 2),
+                                "feeIncVat": round(float_or_zero(match.fee_inc_vat), 2),
+                                "sourceSystem": match.source_system,
+                                "parkingId": match.parking_id,
+                                "parkingRecordId": match.parking_record_id,
+                                "sunSessionId": match.sun_session_id,
+                            }
+                            for match in review_matches_by_pair.get(pair_key, [])
+                        ],
+                    }
+                )
             processed_table_rows = [
                 {
                     "id": row.id,
@@ -21816,6 +21880,18 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "Egen bakgrunnsapp gaar gjennom parkeringer fra nyeste og finner mulige koblinger mot SUN2-ID. "
                     "Koblinger maa bekreftes foer de brukes."
                 ),
+                "kobleReview": {
+                    "generatedAt": api_local_iso(now_dt),
+                    "generation": generation,
+                    "minMatches": int_or_zero(state.min_matches),
+                    "maxMinutes": int_or_zero(state.max_minutes),
+                    "visibleCandidateCount": len(review_candidates),
+                    "candidateCount": int_or_zero(state.candidate_count),
+                    "strongCandidateCount": int_or_zero(state.strong_candidate_count),
+                    "processedCount": int_or_zero(state.processed_count),
+                    "matchedCount": int_or_zero(state.matched_count),
+                    "candidates": review_candidates,
+                },
                 "cards": [
                     api_card(
                         "Jobb",

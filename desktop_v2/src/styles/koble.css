@@ -1,0 +1,366 @@
+.koble-review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.koble-review-intro .ant-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+}
+
+.koble-review-intro-main {
+  min-width: 0;
+}
+
+.koble-review-eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--text-label);
+  font-size: 10.5px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.koble-review-intro h3.ant-typography {
+  margin: 0 0 2px;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.koble-review-intro-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(78px, 1fr));
+  gap: 8px;
+  min-width: 420px;
+}
+
+.koble-review-intro-stats span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--surface-muted);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.koble-review-intro-stats strong {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.koble-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.koble-candidate-card {
+  overflow: hidden;
+  border-left: 4px solid var(--amber);
+}
+
+.koble-candidate-card.is-success {
+  border-left-color: var(--green);
+}
+
+.koble-candidate-card.is-warning {
+  border-left-color: var(--amber);
+}
+
+.koble-candidate-card.is-danger {
+  border-left-color: var(--red);
+}
+
+.koble-candidate-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 13px 14px;
+}
+
+.koble-candidate-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 14px;
+  align-items: start;
+}
+
+.koble-candidate-title {
+  min-width: 0;
+}
+
+.koble-candidate-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.koble-candidate-pair strong {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 820;
+}
+
+.koble-confidence {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.koble-confidence strong {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 820;
+  line-height: 1;
+  text-align: right;
+}
+
+.koble-confidence-bar {
+  overflow: hidden;
+  height: 7px;
+  background: var(--line-soft);
+  border-radius: 999px;
+}
+
+.koble-confidence-bar span {
+  display: block;
+  height: 100%;
+  background: var(--amber);
+  border-radius: inherit;
+}
+
+.koble-candidate-card.is-success .koble-confidence-bar span {
+  background: var(--green);
+}
+
+.koble-candidate-card.is-danger .koble-confidence-bar span {
+  background: var(--red);
+}
+
+.koble-identity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.koble-identity-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 58px;
+  padding: 8px 9px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.koble-identity-grid span,
+.koble-evidence-strip span,
+.koble-match-row span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.koble-identity-grid strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 770;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.koble-identity-grid small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.koble-evidence-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.koble-evidence-strip > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 9px;
+  background: var(--surface);
+  border-right: 1px solid var(--line-soft);
+}
+
+.koble-evidence-strip > div:last-child {
+  border-right: 0;
+}
+
+.koble-evidence-strip strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.koble-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 27px;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--green) 5%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--green) 16%, var(--line-soft));
+  border-radius: var(--radius-md);
+}
+
+.koble-flags.has-warning {
+  background: color-mix(in srgb, var(--amber) 7%, var(--surface));
+  border-color: color-mix(in srgb, var(--amber) 24%, var(--line-soft));
+}
+
+.koble-flags .ant-tag {
+  margin-inline-end: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.koble-flags .ant-typography {
+  color: var(--text-body);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.koble-match-list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.koble-match-row {
+  display: grid;
+  grid-template-columns: minmax(132px, 1.1fr) 72px minmax(160px, 1.4fr) minmax(84px, 0.7fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 48px;
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.koble-match-row:last-child {
+  border-bottom: 0;
+}
+
+.koble-match-row strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.koble-match-delta {
+  display: flex;
+  justify-content: center;
+}
+
+.koble-match-delta span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  height: 26px;
+  color: var(--blue);
+  font-weight: 800;
+  background: color-mix(in srgb, var(--blue) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--blue) 18%, var(--line));
+  border-radius: 999px;
+}
+
+.koble-match-empty {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  background: var(--surface-muted);
+}
+
+.koble-candidate-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+}
+
+.koble-review-more {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 1480px) {
+  .koble-review-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .koble-review-intro .ant-card-body,
+  .koble-candidate-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .koble-review-intro-stats,
+  .koble-candidate-head,
+  .koble-identity-grid,
+  .koble-evidence-strip,
+  .koble-match-row {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .koble-evidence-strip > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .koble-evidence-strip > div:last-child {
+    border-bottom: 0;
+  }
+
+  .koble-confidence strong {
+    text-align: left;
+  }
+}

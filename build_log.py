@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1380")
+APP_BUILD = os.getenv("APP_BUILD", "1381")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1381",
+        "date": "02.07.2026",
+        "headline": "Koble visuell kontroll",
+        "title": "Koble-siden faar egen kontrollflate for a vurdere parkering mot SUN2",
+        "description": (
+            "Build 1381 videreutvikler Koble fra rene tabeller til en visuell kontrollko. Kandidater vises med "
+            "sannsynlighet, bil/eier, SUN2-bruker, konkurranseindikatorer og konkrete parkering-soling-treff."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): sender strukturert kobleReview-payload med kandidater og detaljtreff.",
+            "Desktop V2 (KobleReviewPanel.tsx): ny visuell kontrollflate med bekreft/avvis og kopiering av SUN2-ID.",
+            "Desktop V2 styling (koble.css): kompakt review-design for scanning av score, identitet og tidslinjer.",
+            "Buildlogg (build_log.py): registrerer build 1381.",
+        ],
+        "request": "proev aa videreutvikle dette konseptet slik at det er enkelt for meg aa gjoere en visuell kontroll",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kandidater kan kontrolleres visuelt foer tabellgrunnlaget.",
+            "Treff vises som parkeringstid, tidsavstand og soltime i samme rad.",
+            "Konkurrerende kandidater markeres tydelig.",
+            "Bekreft/avvis kan gjores direkte fra kontrollkortet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1380",

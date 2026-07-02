@@ -23,6 +23,7 @@ import { ModuleTablePane, tabLabel, tableSearchPlaceholder } from "./module/Modu
 import { ParkingTimelinePanel } from "./module/ParkingTimelinePanel";
 import { SunTimelinePanel } from "./module/SunTimelinePanel";
 import { SunSessionsPanel } from "./module/SunSessionsPanel";
+import { KobleReviewPanel } from "./module/KobleReviewPanel";
 import { editInitialValues, fieldInput } from "./module/moduleTableUtils";
 
 const EnergyElviaPage = lazy(() => import("./EnergyElviaPage"));
@@ -248,6 +249,7 @@ export default function ModulePage({ module }: { module: string }) {
         <ParkingTimelinePanel timeline={data.parkingTimeline} onDayChange={setTimelineDay} />
       ) : (
         <>
+          {module === "koble" && data.kobleReview ? <KobleReviewPanel review={data.kobleReview} onReload={reloadModule} /> : null}
           {data.charts?.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} onDayChange={setTimelineDay} />)}
 
       <Card className="table-card module-table-card">
