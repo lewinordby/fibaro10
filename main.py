@@ -24725,8 +24725,9 @@ async def api_v2_parking_refresh(request: Request):
     try:
         result = await asyncio.to_thread(
             easypark_downloader_request,
-            "/sync-period",
+            "/queue-sync-period",
             {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
+            10,
         )
         status = result.get("status")
         if status == "busy":
@@ -24734,8 +24735,7 @@ async def api_v2_parking_refresh(request: Request):
         elif status == "error":
             raise RuntimeError(str(result.get("detail") or result.get("last_error") or "EasyPark-import feilet"))
         else:
-            message = "EasyPark-oppdatering er kjørt."
-        clear_summary_cache("parking")
+            message = "EasyPark-oppdatering er startet. Datakilden oppdateres når importen er ferdig."
         return {"status": "ok", "message": message, "result": result}
     except Exception as exc:
         logger.exception("EasyPark-import feilet for periode %s til %s", from_day.isoformat(), to_day.isoformat())
@@ -26467,13 +26467,13 @@ def easypark_recent_period() -> tuple[date, date]:
     return today - timedelta(days=1), today
 
 
-def easypark_downloader_request(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
+def easypark_downloader_request(path: str, params: Dict[str, Any], timeout_seconds: int = 180) -> Dict[str, Any]:
     query = urlencode({key: value for key, value in params.items() if value is not None})
     url = f"{EASYPARK_DOWNLOADER_URL}{path}"
     if query:
         url = f"{url}?{query}"
     request = urllib.request.Request(url, method="POST")
-    with urllib.request.urlopen(request, timeout=180) as response:
+    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
         payload = response.read().decode("utf-8", errors="replace")
     try:
         return json.loads(payload)
@@ -26560,8 +26560,9 @@ async def parking_refresh(request: Request):
     try:
         result = await asyncio.to_thread(
             easypark_downloader_request,
-            "/sync-period",
+            "/queue-sync-period",
             {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
+            10,
         )
         status = result.get("status")
         if status == "busy":

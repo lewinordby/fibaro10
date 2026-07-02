@@ -9,6 +9,7 @@ Liten QNAP-container som logger inn i EasyPark, laster ned CSV-rapport og sender
 - `POST /sync-now` starter en nedlasting med standardperioden EasyPark viser.
 - `POST /sync-now?from_date=2026-01-01&to_date=2026-01-31` laster ned valgt periode.
 - `POST /sync-period?from_date=2026-01-01&to_date=2026-01-31` er en tydelig variant for perioder.
+- `POST /queue-sync-now` og `POST /queue-sync-period?from_date=2026-01-01&to_date=2026-01-31` starter samme jobb i bakgrunnen og svarer med en gang.
 - `POST /backfill-year?year=2026` kjorer maned for maned fra 1. januar til dagens dato.
 
 Containeren bruker persistent browserprofil i `./data/browser-profile`, slik at EasyPark-sesjonen kan gjenbrukes sa lenge EasyPark godtar den. Tidspunkt for siste fullforte EasyPark-login lagres i `./data/auth-state.json`, men brukes bare som statusinformasjon. Appen kaster ikke sesjonen bare fordi den har blitt eldre enn et visst antall timer, og nattjobben skal normalt ikke tvinge ny login.

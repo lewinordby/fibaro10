@@ -547,13 +547,17 @@ def easypark_period() -> tuple[date, date]:
     return today - timedelta(days=1), today
 
 
-def easypark_downloader_request(path: str, params: dict[str, Any]) -> dict[str, Any]:
+def easypark_downloader_request(
+    path: str,
+    params: dict[str, Any],
+    timeout_seconds: int = EASYPARK_DOWNLOADER_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
     query = urlencode({key: value for key, value in params.items() if value is not None})
     url = f"{EASYPARK_DOWNLOADER_URL}{path}"
     if query:
         url = f"{url}?{query}"
     request = urllib.request.Request(url, method="POST")
-    with urllib.request.urlopen(request, timeout=EASYPARK_DOWNLOADER_TIMEOUT_SECONDS) as response:
+    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
         payload = response.read().decode("utf-8", errors="replace")
     return json.loads(payload)
 
@@ -1868,8 +1872,9 @@ async def parking_refresh(request: Request):
             try:
                 result = await asyncio.to_thread(
                     easypark_downloader_request,
-                    "/sync-period",
+                    "/queue-sync-period",
                     {"from_date": from_day.isoformat(), "to_date": to_day.isoformat()},
+                    10,
                 )
                 status = result.get("status")
                 reason = ""

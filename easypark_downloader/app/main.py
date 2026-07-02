@@ -848,6 +848,37 @@ async def run_once(from_day: date | None = None, to_day: date | None = None) -> 
         return await run_download_import(from_day, to_day)
 
 
+def import_is_active() -> bool:
+    return lock.locked() or bool(state.get("running"))
+
+
+async def run_import_background(
+    from_day: date | None = None,
+    to_day: date | None = None,
+    force_login: bool = False,
+) -> None:
+    period = period_label(from_day, to_day)
+    try:
+        async with lock:
+            await run_download_import(from_day, to_day, force_login=force_login)
+    except Exception as exc:
+        set_state(running=False, last_error=str(exc), last_action="error", last_period=period)
+
+
+def queue_import(
+    from_day: date | None = None,
+    to_day: date | None = None,
+    force_login: bool = False,
+) -> dict[str, Any]:
+    validate_period(from_day, to_day)
+    if import_is_active():
+        return {"status": "busy", **state}
+    period = period_label(from_day, to_day)
+    set_state(running=True, last_action="queued", last_error=None, last_period=period)
+    asyncio.create_task(run_import_background(from_day, to_day, force_login=force_login))
+    return {"status": "started", **state}
+
+
 def should_force_login_now() -> bool:
     now = datetime.now(LOCAL_TZ)
     for hour, minute in parse_run_times(FORCE_LOGIN_TIMES):
@@ -882,6 +913,8 @@ def next_run_at() -> datetime:
 
 
 async def run_scheduled_once() -> dict[str, Any]:
+    if import_is_active():
+        return {"status": "busy", **state}
     from_day, to_day = scheduled_period()
     async with lock:
         return await run_download_import(from_day, to_day, force_login=should_force_login_now())
@@ -986,11 +1019,23 @@ async def sync_now(
     to_date: str | None = Query(default=None),
     force_login: bool = Query(default=False),
 ) -> dict[str, Any]:
-    if lock.locked():
+    if import_is_active():
         return {"status": "busy", **state}
     try:
         async with lock:
             return await run_download_import(parse_iso_date(from_date), parse_iso_date(to_date), force_login=force_login)
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc), **state}
+
+
+@app.post("/queue-sync-now")
+async def queue_sync_now(
+    from_date: str | None = Query(default=None),
+    to_date: str | None = Query(default=None),
+    force_login: bool = Query(default=False),
+) -> dict[str, Any]:
+    try:
+        return queue_import(parse_iso_date(from_date), parse_iso_date(to_date), force_login=force_login)
     except Exception as exc:
         return {"status": "error", "detail": str(exc), **state}
 
@@ -1001,11 +1046,23 @@ async def sync_period(
     to_date: str = Query(...),
     force_login: bool = Query(default=False),
 ) -> dict[str, Any]:
-    if lock.locked():
+    if import_is_active():
         return {"status": "busy", **state}
     try:
         async with lock:
             return await run_download_import(parse_iso_date(from_date), parse_iso_date(to_date), force_login=force_login)
+    except Exception as exc:
+        return {"status": "error", "detail": str(exc), **state}
+
+
+@app.post("/queue-sync-period")
+async def queue_sync_period(
+    from_date: str = Query(...),
+    to_date: str = Query(...),
+    force_login: bool = Query(default=False),
+) -> dict[str, Any]:
+    try:
+        return queue_import(parse_iso_date(from_date), parse_iso_date(to_date), force_login=force_login)
     except Exception as exc:
         return {"status": "error", "detail": str(exc), **state}
 
@@ -1015,7 +1072,7 @@ async def backfill_year(
     year: int = Query(..., ge=2017, le=2100),
     end_date: str | None = Query(default=None),
 ) -> dict[str, Any]:
-    if lock.locked():
+    if import_is_active():
         return {"status": "busy", **state}
     try:
         return await run_backfill_year(year, parse_iso_date(end_date))

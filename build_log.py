@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1392")
+APP_BUILD = os.getenv("APP_BUILD", "1393")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1393",
+        "date": "02.07.2026",
+        "headline": "EasyPark startes i bakgrunnen",
+        "title": "Oppdater EasyPark blokkerer ikke grensesnittet",
+        "description": (
+            "Build 1393 endrer manuell EasyPark-oppdatering fra synkron import til bakgrunnsstart. "
+            "Knappen starter naa downloader-jobben og slipper brukerflaten fri, mens faktisk parkeringsgrunnlag "
+            "oppdateres naar EasyPark-downloaderen poster CSV-en tilbake til Fibaro10."
+        ),
+        "applications": [
+            "EasyPark-downloader (easypark_downloader/app/main.py): legger til queue-sync-now og queue-sync-period som starter import i bakgrunnen.",
+            "Fibaro10 backend (main.py): V2 og klassisk parkeringsoppdatering bruker ko-endepunkt med kort timeout.",
+            "Mobil dashboard (online_dashboard/app/main.py): manuell parkeringsoppdatering bruker samme ko-endepunkt.",
+            "Dokumentasjon (easypark_downloader/README.md): dokumenterer nye ko-endepunkter.",
+            "Buildlogg (build_log.py): registrerer build 1393.",
+        ],
+        "request": "hvorfor stopper hele grensesnittet og venter til importen er ferdig naar man trykker paa Oppdater EasyPark paa Parkering oversikt. det trigger jo bare en annen tjeneste",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Manuell EasyPark-start svarer med en gang naar jobben er koet.",
+            "Downloaderens status viser running/queued mens importen faktisk gaar.",
+            "Planlagte importer hopper over ny start hvis manuell import allerede er aktiv.",
+            "Parkeringscache ryddes fortsatt bare naar CSV-importen faktisk er mottatt av Fibaro10.",
+        ],
+    },
     {
         "version": "1",
         "build": "1392",
