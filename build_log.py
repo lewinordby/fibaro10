@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1382")
+APP_BUILD = os.getenv("APP_BUILD", "1383")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1383",
+        "date": "02.07.2026",
+        "headline": "Koble bilnr med gjentatte soltreff",
+        "title": "Koble viser hvor mange bilnummer som har 2+ soltreff mot samme SUN2-bruker",
+        "description": (
+            "Build 1383 legger inn et tydelig tall og en sortert liste paa Koble-siden for bilnummer som har minst "
+            "to soltimer fra samme SUN2-bruker innen koblingsvinduet etter parkering."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): teller unike bilnummer og kandidatpar med 2+ soltreff.",
+            "Desktop V2 (KobleReviewPanel.tsx): viser egen liste sortert etter flest treff.",
+            "Desktop V2 styling (koble.css): kompakt listevisning for bil/SUN2, treff og status.",
+            "Buildlogg (build_log.py): registrerer build 1383.",
+        ],
+        "request": "paa koble siden saa vil jeg ha en oversikt over hvor mange bilnr som har to eller flere soltime av saamme bruker etter seg innenfor 3 min",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Koble faar kortet Bilnr 2+ soltreff.",
+            "KobleReview-payloaden inkluderer qualifiedPlateCount, qualifiedPairCount og qualifiedRows.",
+            "Visuell kontrollflate viser topp 12 sortert etter flest soltreff.",
+            "Tabellen Bilnr med 2+ soltreff viser samme grunnlag i tabellform.",
+        ],
+    },
     {
         "version": "1",
         "build": "1382",

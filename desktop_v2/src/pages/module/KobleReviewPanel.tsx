@@ -2,7 +2,7 @@ import { App as AntApp, Button, Card, Empty, Space, Tag, Tooltip, Typography } f
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import type { KobleReviewCandidate, KobleReviewData } from "../../api";
+import type { KobleQualifiedRow, KobleReviewCandidate, KobleReviewData } from "../../api";
 import { updateKobleCandidate } from "../../api";
 
 const krFormatter = new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 });
@@ -68,6 +68,10 @@ function statusLabel(candidate: KobleReviewCandidate): string {
   return candidate.confidence >= 85 ? "Klar for visuell kontroll" : "Krever ekstra kontroll";
 }
 
+function qualifiedRowKey(row: KobleQualifiedRow): string {
+  return `${row.plate}-${row.sun2Id}-${row.id}`;
+}
+
 export function KobleReviewPanel({
   review,
   onReload,
@@ -80,6 +84,8 @@ export function KobleReviewPanel({
   const [shown, setShown] = useState(10);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const visibleCandidates = useMemo(() => review.candidates.slice(0, shown), [review.candidates, shown]);
+  const qualifiedRows = review.qualifiedRows ?? [];
+  const visibleQualifiedRows = qualifiedRows.slice(0, 12);
 
   async function setCandidateStatus(candidate: KobleReviewCandidate, status: "Bekreftet" | "Avvist") {
     if (updatingId) return;
@@ -146,6 +152,71 @@ export function KobleReviewPanel({
             generasjon
           </span>
         </div>
+      </Card>
+
+      <Card className="work-card koble-qualified-card">
+        <div className="koble-qualified-head">
+          <div>
+            <Typography.Text className="koble-review-eyebrow">Bilnummer med gjentatte treff</Typography.Text>
+            <Typography.Title level={4}>
+              {numberFormatter.format(Number(review.qualifiedPlateCount || 0))} bilnr har 2+ soltreff mot samme SUN2-bruker
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              Sortert etter flest soltreff innen {review.maxMinutes} minutter etter parkering.
+            </Typography.Text>
+          </div>
+          <div className="koble-qualified-summary">
+            <strong>{numberFormatter.format(Number(review.qualifiedPairCount || 0))}</strong>
+            <span>kandidatkoblinger</span>
+          </div>
+        </div>
+
+        {visibleQualifiedRows.length ? (
+          <div className="koble-qualified-list">
+            <div className="koble-qualified-row is-head">
+              <span>Bil / SUN2</span>
+              <span>Treff</span>
+              <span>Siste treff</span>
+              <span>Status</span>
+              <span />
+            </div>
+            {visibleQualifiedRows.map((row) => (
+              <div className="koble-qualified-row" key={qualifiedRowKey(row)}>
+                <div className="koble-qualified-identity">
+                  <strong>{row.plate}</strong>
+                  <span>
+                    SUN2 {row.sun2Id}
+                    {row.userName ? ` · ${row.userName}` : ""}
+                  </span>
+                  <small>{row.vehicleName || row.vehicleArea || "Kjøretøy mangler"}</small>
+                </div>
+                <div>
+                  <strong>{row.matchesCount}</strong>
+                  <span>{row.parkingMatchCount} parkeringer · {row.matchDaysCount} dager</span>
+                </div>
+                <div>
+                  <strong>{formatDateTime(row.lastMatchAt)}</strong>
+                  <span>{formatNumber(row.avgDeltaMinutes, " min snitt")}</span>
+                </div>
+                <div>
+                  <Tag color={statusColor(row.status)}>{row.status}</Tag>
+                  <span>{Math.round(Number(row.confidence || 0))}%</span>
+                </div>
+                <div className="koble-qualified-actions">
+                  {row.path ? <Button size="small" onClick={() => navigate(row.path || "/parkering/kjoretoy")}>Åpne bil</Button> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Empty description="Ingen bilnummer har to eller flere soltreff ennå" />
+        )}
+
+        {qualifiedRows.length > visibleQualifiedRows.length ? (
+          <Typography.Text type="secondary">
+            Viser {visibleQualifiedRows.length} av {qualifiedRows.length}. Hele listen ligger i tabellen Bilnr med 2+ soltreff under.
+          </Typography.Text>
+        ) : null}
       </Card>
 
       {visibleCandidates.length ? (

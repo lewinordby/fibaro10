@@ -21825,6 +21825,39 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .limit(20)
                 )
             ).scalars().all()
+            qualified_filter = [
+                ParkingSunLinkCandidate.generation == generation,
+                ParkingSunLinkCandidate.matches_count >= 2,
+            ]
+            qualified_plate_count = int_or_zero(
+                (
+                    await session.execute(
+                        select(func.count(func.distinct(func.upper(func.trim(ParkingSunLinkCandidate.plate))))).where(
+                            *qualified_filter
+                        )
+                    )
+                ).scalar_one_or_none()
+            )
+            qualified_pair_count = int_or_zero(
+                (
+                    await session.execute(
+                        select(func.count(ParkingSunLinkCandidate.id)).where(*qualified_filter)
+                    )
+                ).scalar_one_or_none()
+            )
+            qualified_candidates = (
+                await session.execute(
+                    select(ParkingSunLinkCandidate)
+                    .where(*qualified_filter)
+                    .order_by(
+                        ParkingSunLinkCandidate.matches_count.desc(),
+                        ParkingSunLinkCandidate.parking_match_count.desc(),
+                        ParkingSunLinkCandidate.last_match_at.desc(),
+                    )
+                    .limit(max(100, min(1000, limit_value * 2)))
+                )
+            ).scalars().all()
+            qualified_candidate_rows = [api_parking_sun_link_candidate_row(row) for row in qualified_candidates]
             state_row = api_parking_sun_link_state_row(state)
             worker_seen = format_source_datetime_short(state.last_worker_seen_at) if state.last_worker_seen_at else "-"
             worker_detail = state.status_text or ("Jobben er aktiv." if state.enabled else "Jobben er stoppet.")
@@ -21903,6 +21936,31 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "strongCandidateCount": int_or_zero(state.strong_candidate_count),
                     "processedCount": int_or_zero(state.processed_count),
                     "matchedCount": int_or_zero(state.matched_count),
+                    "qualifiedPlateCount": qualified_plate_count,
+                    "qualifiedPairCount": qualified_pair_count,
+                    "qualifiedRows": [
+                        {
+                            "id": row["id"],
+                            "status": row["status"],
+                            "confidence": row["confidence"],
+                            "assessment": row["assessment"],
+                            "plate": row["plate"],
+                            "sun2Id": row["sun2_id"],
+                            "vehicleName": row["navn"],
+                            "vehicleArea": row["omrade"],
+                            "userName": row["user_name"],
+                            "matchesCount": row["matches_count"],
+                            "parkingMatchCount": row["parking_match_count"],
+                            "matchDaysCount": row["match_days_count"],
+                            "firstMatchAt": row["first_match_at"],
+                            "lastMatchAt": row["last_match_at"],
+                            "avgDeltaMinutes": row["avg_delta_minutes"],
+                            "parkingCount": row["parking_count"],
+                            "paidTotal": row["paid_total"],
+                            "path": row["path"],
+                        }
+                        for row in qualified_candidate_rows
+                    ],
                     "candidates": review_candidates,
                 },
                 "cards": [
@@ -21927,6 +21985,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         format_short_number(state.candidate_count),
                         "",
                         "Inkluderer enkeltfunn med lavere sannsynlighet",
+                        "sun2",
+                        href="/koble/oversikt",
+                    ),
+                    api_card(
+                        "Bilnr 2+ soltreff",
+                        format_short_number(qualified_plate_count),
+                        "",
+                        f"{format_short_number(qualified_pair_count)} koblinger med samme SUN2 innen {int_or_zero(state.max_minutes)} min",
                         "sun2",
                         href="/koble/oversikt",
                     ),
@@ -22013,6 +22079,26 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         ],
                         [api_parking_sun_link_candidate_row(row) for row in candidates],
                         edit=parking_sun_link_candidate_edit(),
+                    ),
+                    api_table(
+                        "Bilnr med 2+ soltreff",
+                        [
+                            "status",
+                            "plate",
+                            "sun2_id",
+                            "user_name",
+                            "matches_count",
+                            "parking_match_count",
+                            "match_days_count",
+                            "confidence",
+                            "last_match_at",
+                            "avg_delta_minutes",
+                            "navn",
+                            "omrade",
+                            "parking_count",
+                            "paid_total",
+                        ],
+                        qualified_candidate_rows,
                     ),
                     api_table(
                         "Treffgrunnlag",
