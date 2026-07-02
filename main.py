@@ -21694,6 +21694,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             year_sun_count = int_or_zero(current_year_revenue.get("sun_count"))
             year_parking_count = int_or_zero(current_year_revenue.get("parking_count"))
             year_total_paid = year_sun_paid + year_parking_paid
+            elapsed_year_days = max(1, (today - date(today.year, 1, 1)).days + 1)
+            elapsed_week_count = max(1, math.ceil(elapsed_year_days / 7))
+            average_week_paid = year_total_paid / elapsed_week_count
+            average_week_sun_paid = year_sun_paid / elapsed_week_count
+            average_week_parking_paid = year_parking_paid / elapsed_week_count
 
             cards = [
                 api_card(
@@ -21725,6 +21730,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     format_short_number(year_total_paid),
                     "kr",
                     f"Sol {format_short_number(year_sun_paid)} kr - parkering {format_short_number(year_parking_paid)} kr",
+                    "revenue",
+                    href="/omsetning/akkumulert",
+                ),
+                api_card(
+                    "Snitt pr uke",
+                    format_short_number(average_week_paid),
+                    "kr",
+                    f"Sol {format_short_number(average_week_sun_paid)} kr - parkering {format_short_number(average_week_parking_paid)} kr ({elapsed_week_count} uker)",
                     "revenue",
                     href="/omsetning/akkumulert",
                 ),

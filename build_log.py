@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1381")
+APP_BUILD = os.getenv("APP_BUILD", "1382")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1382",
+        "date": "02.07.2026",
+        "headline": "Omsetning snitt pr uke",
+        "title": "Omsetning oversikt viser gjennomsnittlig ukeomsetning hittil i aar",
+        "description": (
+            "Build 1382 legger inn et eget noekkeltall for snitt pr uke paa Omsetning oversikt. "
+            "Tallet beregnes av samlet aarsomsetning delt paa antall paabegynte uker hittil i innevaerende aar."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): beregner snitt pr uke for samlet omsetning, soling og parkering.",
+            "Buildlogg (build_log.py): registrerer build 1382.",
+        ],
+        "request": "paa omsetning oversikt saa skulle jeg gjerne hatt inn snitt pr uke",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Omsetning oversikt faar kortet Snitt pr uke.",
+            "Detaljen viser fordeling mellom soling og parkering.",
+            "Uketallet er basert paa antall paabegynte uker hittil i aar.",
+        ],
+    },
     {
         "version": "1",
         "build": "1381",
