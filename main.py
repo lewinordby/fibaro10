@@ -22483,6 +22483,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     ["period", "paid", "sessions", "vehicles", "minutes", "days_count"],
                     [api_parking_summary_row(row) for row in parking_summaries.get("top_months", [])],
                 ),
+                api_table(
+                    "Topp dager antall",
+                    ["period_label", "sessions", "paid", "vehicles", "minutes"],
+                    [api_parking_summary_row(row) for row in parking_summaries.get("top_days_by_count", [])],
+                ),
+                api_table(
+                    "Topp m\u00e5neder antall",
+                    ["period", "sessions", "paid", "vehicles", "minutes", "days_count"],
+                    [api_parking_summary_row(row) for row in parking_summaries.get("top_months_by_count", [])],
+                ),
             ]
             cards = [
                 api_card(

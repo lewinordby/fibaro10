@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1390")
+APP_BUILD = os.getenv("APP_BUILD", "1391")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1391",
+        "date": "02.07.2026",
+        "headline": "Parkering topp antall",
+        "title": "Parkering oversikt viser topp dager og måneder etter antall",
+        "description": (
+            "Build 1391 kompletterer toppoversikten for parkering med egne tabeller sortert på antall parkeringer. "
+            "Dermed kan Parkering oversikt vise både beste perioder etter omsetning og høyeste volum."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): eksponerer top_days_by_count og top_months_by_count i V2 Parkering oversikt.",
+            "Fibaro10 V2 Parkering oversikt: legger til Topp dager antall og Topp måneder antall.",
+            "Buildlogg (build_log.py): registrerer build 1391.",
+        ],
+        "request": "du tok ikke med topp dager antall oensker ogsaa det og topp mnd antall",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Parkering/oversikt viser naa topp 20 dager sortert etter antall parkeringer.",
+            "Parkering/oversikt viser naa topp 20 maaneder sortert etter antall parkeringer.",
+            "Antall-tabellene viser ogsaa omsetning, biler og minutter som kontrollgrunnlag.",
+        ],
+    },
     {
         "version": "1",
         "build": "1390",
