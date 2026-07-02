@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1387")
+APP_BUILD = os.getenv("APP_BUILD", "1388")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1388",
+        "date": "02.07.2026",
+        "headline": "Dashboard dagsrangering",
+        "title": "Omsetning hittil i dag viser dagens rangering mot historiske dager",
+        "description": (
+            "Build 1388 legger til en kompakt rangering foran hovedtallet paa omsetningskortet for i dag. "
+            "Rangeringen beregnes mot historiske hele dagstotaler for samlet omsetning fra soling og parkering."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): beregner dagens omsetningsrangering fra kombinerte historiske dagssummer.",
+            "Desktop V2 API-typer (api.ts): legger til valgfri rank-metadata paa statusperioder.",
+            "Desktop V2 dashboard (OverviewPage.tsx): viser rangering foran dagens omsetningstall.",
+            "Desktop V2 styling (status-periods.css): legger til kompakt rangeringsbadge i kortheader.",
+            "Buildlogg (build_log.py): registrerer build 1388.",
+        ],
+        "request": "paa Dashboard omsetning, saa oensker jeg paa omsetning hitill i dag - foran det tallet et eget tall som viser hvilken rangering dagen har \"5 beste\" eller noe slikt",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dagens omsetningskort viser for eksempel 5. beste foran hovedbelopet.",
+            "Rangeringen oppdateres sammen med dashboardets vanlige datagrunnlag.",
+            "Hovertekst forklarer at rangeringen er mot historiske hele dager.",
+        ],
+    },
     {
         "version": "1",
         "build": "1387",

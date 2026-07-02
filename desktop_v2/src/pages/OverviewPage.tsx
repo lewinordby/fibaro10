@@ -470,6 +470,12 @@ function periodDataBasisText(period: StatusPeriod, nextParkingImportText = "") {
   return `Soling ${period.solAsOfLabel} · parkering ${appendNextParkingImport(period.parkingAsOfLabel, nextParkingImportText)}`;
 }
 
+function periodRankTitle(period: StatusPeriod) {
+  if (!period.rank) return "";
+  const totalDays = period.rank.totalDays ? ` av ${period.rank.totalDays} dager` : "";
+  return `${period.rank.basis || "Rangert mot historiske dager"}${totalDays}`;
+}
+
 function revenuePeriodLines(period: StatusPeriod): RevenuePeriodLine[] {
   return [
     {
@@ -605,6 +611,7 @@ function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPe
   const comparisons = buildComparisonViews(period);
   const shownComparisons = comparisons.slice(0, 2);
   const lines = revenuePeriodLines(period);
+  const rankLabel = period.key === "today" ? period.rank?.label : "";
 
   return (
     <Card className="status-period-card revenue-period-card">
@@ -613,7 +620,14 @@ function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPe
           <span className="revenue-period-title">{periodDisplayTitle(period)}</span>
           <em>{periodDataBasisText(period, nextParkingImportText)}</em>
         </div>
-        <strong>{nok(period.total)} kr</strong>
+        <div className="revenue-period-total">
+          {rankLabel ? (
+            <span className="revenue-period-rank" title={periodRankTitle(period)}>
+              {rankLabel}
+            </span>
+          ) : null}
+          <strong>{nok(period.total)} kr</strong>
+        </div>
       </div>
 
       <div className={`revenue-period-compare-grid ${shownComparisons.length < 2 ? "single" : ""}`} aria-label="Sammenligning mot samme tidspunkt">

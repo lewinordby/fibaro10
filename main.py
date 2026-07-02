@@ -3133,6 +3133,36 @@ def combine_business_summaries(sun: Dict[str, Any], parking: Dict[str, Any]) -> 
     }
 
 
+def revenue_day_rank_summary(summaries: Dict[str, Any], current_total: Any, today: date) -> Optional[Dict[str, Any]]:
+    current_value = float_or_zero(current_total)
+    historical_days = []
+    for item in summaries.get("daily", []):
+        period = str(item.get("period") or "")
+        try:
+            stat_day = date.fromisoformat(period)
+        except ValueError:
+            continue
+        if stat_day >= today:
+            continue
+        total = float_or_zero(item.get("total_paid"))
+        if total <= 0:
+            continue
+        historical_days.append({"date": stat_day, "total": total})
+    if not historical_days:
+        return None
+
+    better_days = sum(1 for item in historical_days if item["total"] > current_value)
+    rank = better_days + 1
+    return {
+        "rank": rank,
+        "label": f"{rank}. beste",
+        "basis": "Rangert mot historiske hele dager",
+        "totalDays": len(historical_days) + 1,
+        "bestTotal": round(max(item["total"] for item in historical_days), 2),
+        "currentTotal": round(current_value, 2),
+    }
+
+
 def clear_summary_cache(*keys: str) -> None:
     for key in keys:
         SUMMARY_CACHE.pop(key, None)
@@ -14474,6 +14504,8 @@ async def api_v2_overview():
                 ).where(EnergyFibaroSample.bucket_start >= today_start, EnergyFibaroSample.bucket_start < tomorrow_start)
             )
         ).one()
+        revenue_sun_summaries = await get_sun2_summaries(session)
+        revenue_parking_summaries = await get_parking_summaries(session)
 
     now_status = build_now_status(latest_sample, latest_light_sample, latest_light, latest_yr_sample)
     operating = operating_window(now_dt)
@@ -14492,6 +14524,8 @@ async def api_v2_overview():
     revenue_year = float_or_zero(year_sun.paid) + float_or_zero(year_parking.paid)
     revenue_previous_year = float_or_zero(previous_year_sun.paid) + float_or_zero(previous_year_parking.paid)
     revenue_two_years = float_or_zero(two_years_full_sun.paid) + float_or_zero(two_years_parking.paid)
+    revenue_summaries = combine_business_summaries(revenue_sun_summaries, revenue_parking_summaries)
+    revenue_today_rank = revenue_day_rank_summary(revenue_summaries, revenue_today, today)
     revenue_same_week_last_year = (
         float_or_zero(same_week_last_year_full_sun.paid) + float_or_zero(same_week_last_year_parking.paid)
     )
@@ -14530,6 +14564,7 @@ async def api_v2_overview():
             "parking": float_or_zero(today_parking.paid),
             "parkingCount": int_or_zero(today_parking.sessions),
             "total": revenue_today,
+            "rank": revenue_today_rank,
             "previousSol": float_or_zero(yesterday_same_time_sun.paid),
             "previousSolCount": int_or_zero(yesterday_same_time_sun.sessions),
             "previousParking": float_or_zero(yesterday_same_time_parking.paid),

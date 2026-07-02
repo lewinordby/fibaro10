@@ -86,7 +86,31 @@
   white-space: nowrap;
 }
 
-.revenue-period-head > strong {
+.revenue-period-total {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.revenue-period-rank {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--domain-revenue) 22%, var(--border-control));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--domain-revenue) 7%, var(--surface));
+  color: color-mix(in srgb, var(--domain-revenue) 78%, var(--ink));
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.revenue-period-head > strong,
+.revenue-period-total > strong {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
@@ -98,7 +122,8 @@
   white-space: nowrap;
 }
 
-.revenue-period-head > strong span {
+.revenue-period-head > strong span,
+.revenue-period-total > strong span {
   color: var(--muted);
   font-size: 11.5px;
   font-weight: 680;
@@ -467,7 +492,8 @@
     font-size: 14.5px;
   }
 
-  .revenue-period-head > strong {
+  .revenue-period-head > strong,
+  .revenue-period-total > strong {
     font-size: 24px;
   }
 }
@@ -484,7 +510,12 @@
     grid-template-columns: 1fr;
   }
 
-  .revenue-period-head > strong {
+  .revenue-period-total {
+    justify-content: flex-start;
+  }
+
+  .revenue-period-head > strong,
+  .revenue-period-total > strong {
     font-size: 25px;
   }
 

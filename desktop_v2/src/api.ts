@@ -46,6 +46,15 @@ export type StatusPeriodComparison = {
   fullTotal?: number;
 };
 
+export type StatusPeriodRank = {
+  rank: number;
+  label: string;
+  basis?: string;
+  totalDays?: number;
+  bestTotal?: number;
+  currentTotal?: number;
+};
+
 export type StatusPeriod = {
   key: string;
   title: string;
@@ -54,6 +63,7 @@ export type StatusPeriod = {
   parking: number;
   parkingCount: number;
   total: number;
+  rank?: StatusPeriodRank | null;
   previousSol: number;
   previousSolCount: number;
   previousParking: number;
