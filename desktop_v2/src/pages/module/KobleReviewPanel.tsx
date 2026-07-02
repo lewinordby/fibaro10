@@ -193,8 +193,12 @@ export function KobleReviewPanel({
               <span>kandidatkoblinger med 2+ parkeringer</span>
             </div>
             <div className="koble-qualified-summary">
+              <strong>{formatKr(review.qualifiedMatchedPaidTotal)}</strong>
+              <span>parkert ved soltreff</span>
+            </div>
+            <div className="koble-qualified-summary">
               <strong>{formatKr(review.qualifiedPaidTotal)}</strong>
-              <span>parkert for</span>
+              <span>parkert totalt</span>
             </div>
           </div>
         </div>
@@ -205,7 +209,7 @@ export function KobleReviewPanel({
               <span>Bil / SUN2</span>
               <span>Treff</span>
               <span>Siste treff</span>
-              <span>Parkert for</span>
+              <span>Parkert ved soltreff</span>
               <span>Status</span>
               <span />
             </div>
@@ -228,8 +232,8 @@ export function KobleReviewPanel({
                   <span>{formatNumber(row.avgDeltaMinutes, " min snitt")}</span>
                 </div>
                 <div>
-                  <strong>{formatKr(row.paidTotal)}</strong>
-                  <span>{row.parkingCount ? `${numberFormatter.format(Number(row.parkingCount))} totalt` : "historikk"}</span>
+                  <strong>{formatKr(row.matchedPaidTotal)}</strong>
+                  <span>{formatKr(row.paidTotal)} totalt</span>
                 </div>
                 <div>
                   <Tag color={statusColor(row.status)}>{row.status}</Tag>
@@ -295,7 +299,7 @@ export function KobleReviewPanel({
                   </div>
                   <div>
                     <strong>{numberFormatter.format(Number(row.parkingMatchCount || 0))} av {numberFormatter.format(Number(row.parkingCount || 0))}</strong>
-                    <span>{formatPercent(row.parkingMatchShare)} med soltreff · {formatKr(row.paidTotal)}</span>
+                    <span>{formatPercent(row.parkingMatchShare)} · {formatKr(row.matchedPaidTotal)} ved soltreff / {formatKr(row.paidTotal)} totalt</span>
                   </div>
                   <div>
                     <strong>{numberFormatter.format(Number(row.parkingWithoutSunCount || 0))}</strong>
@@ -362,7 +366,7 @@ export function KobleReviewPanel({
                   <div>
                     <span>Bilens historikk</span>
                     <strong>{candidate.parkingCount || 0} parkeringer</strong>
-                    <small>{formatKr(candidate.paidTotal)} totalt</small>
+                    <small>{formatKr(candidate.matchedPaidTotal)} ved soltreff / {formatKr(candidate.paidTotal)} totalt</small>
                   </div>
                   <div>
                     <span>Tidsrom</span>

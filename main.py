@@ -1469,6 +1469,7 @@ class ParkingSunLinkCandidate(Base):
     user_name = Column(String, nullable=True)
     parking_count = Column(BigInteger, nullable=True)
     paid_total = Column(Float, nullable=True)
+    matched_paid_total = Column(Float, nullable=True)
     note = Column(Text, nullable=True)
     confirmed_at = Column(DateTime, nullable=True)
     confirmed_by = Column(String, nullable=True)
@@ -3356,6 +3357,7 @@ STARTUP_COLUMNS = {
         ("user_name", "VARCHAR"),
         ("parking_count", "BIGINT"),
         ("paid_total", "DOUBLE PRECISION"),
+        ("matched_paid_total", "DOUBLE PRECISION"),
         ("note", "TEXT"),
         ("confirmed_at", "TIMESTAMP"),
         ("confirmed_by", "VARCHAR"),
@@ -15348,6 +15350,7 @@ def api_parking_sun_link_candidate_row(row: ParkingSunLinkCandidate) -> Dict[str
         "user_name": row.user_name,
         "parking_count": int_or_zero(row.parking_count),
         "paid_total": round(float_or_zero(row.paid_total), 2),
+        "matched_paid_total": round(float_or_zero(row.matched_paid_total), 2),
         "note": row.note,
         "confirmed_at": api_local_iso(row.confirmed_at),
         "confirmed_by": row.confirmed_by,
@@ -15378,6 +15381,67 @@ def api_parking_sun_link_match_row(row: ParkingSunLinkMatch) -> Dict[str, Any]:
         "source_session_id": row.source_session_id,
         "path": f"/parkering/kjoretoy/{quote(plate)}" if plate else "",
     }
+
+
+async def parking_sun_link_matched_paid_totals(
+    session: Any,
+    generation: int,
+    pairs: Optional[Iterable[tuple[str, str]]] = None,
+) -> Dict[tuple[str, str], float]:
+    clean_pairs = sorted({(str(plate or "").strip(), str(sun2_id or "").strip()) for plate, sun2_id in (pairs or []) if plate and sun2_id})
+    stmt = (
+        select(
+            ParkingSunLinkMatch.plate.label("plate"),
+            ParkingSunLinkMatch.sun2_id.label("sun2_id"),
+            ParkingSunLinkMatch.parking_record_id.label("parking_record_id"),
+            func.max(ParkingSunLinkMatch.fee_inc_vat).label("fee_inc_vat"),
+        )
+        .where(ParkingSunLinkMatch.generation == generation)
+        .group_by(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id, ParkingSunLinkMatch.parking_record_id)
+    )
+    if clean_pairs:
+        stmt = stmt.where(tuple_(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id).in_(clean_pairs))
+    matched_parking_amounts = stmt.subquery()
+    rows = (
+        await session.execute(
+            select(
+                matched_parking_amounts.c.plate,
+                matched_parking_amounts.c.sun2_id,
+                func.coalesce(func.sum(matched_parking_amounts.c.fee_inc_vat), 0).label("matched_paid_total"),
+            ).group_by(matched_parking_amounts.c.plate, matched_parking_amounts.c.sun2_id)
+        )
+    ).all()
+    return {
+        (str(row.plate or "").strip(), str(row.sun2_id or "").strip()): float_or_zero(row.matched_paid_total)
+        for row in rows
+    }
+
+
+async def parking_sun_link_distinct_matched_paid_total(
+    session: Any,
+    generation: int,
+    pairs: Iterable[tuple[str, str]],
+) -> float:
+    clean_pairs = sorted({(str(plate or "").strip(), str(sun2_id or "").strip()) for plate, sun2_id in pairs if plate and sun2_id})
+    if not clean_pairs:
+        return 0.0
+    matched_parking_amounts = (
+        select(
+            ParkingSunLinkMatch.parking_record_id.label("parking_record_id"),
+            func.max(ParkingSunLinkMatch.fee_inc_vat).label("fee_inc_vat"),
+        )
+        .where(ParkingSunLinkMatch.generation == generation)
+        .where(tuple_(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id).in_(clean_pairs))
+        .group_by(ParkingSunLinkMatch.parking_record_id)
+        .subquery()
+    )
+    return float_or_zero(
+        (
+            await session.execute(
+                select(func.coalesce(func.sum(matched_parking_amounts.c.fee_inc_vat), 0))
+            )
+        ).scalar_one_or_none()
+    )
 
 
 async def refresh_parking_sun_link_candidate_pairs(
@@ -15411,6 +15475,27 @@ async def refresh_parking_sun_link_candidate_pairs(
         plate_options.setdefault(plate_key, set()).add(sun2_key)
         sun2_options.setdefault(sun2_key, set()).add(plate_key)
 
+    matched_parking_amounts = (
+        select(
+            ParkingSunLinkMatch.plate.label("plate"),
+            ParkingSunLinkMatch.sun2_id.label("sun2_id"),
+            ParkingSunLinkMatch.parking_record_id.label("parking_record_id"),
+            func.max(ParkingSunLinkMatch.fee_inc_vat).label("fee_inc_vat"),
+        )
+        .where(ParkingSunLinkMatch.generation == generation)
+        .group_by(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id, ParkingSunLinkMatch.parking_record_id)
+        .subquery()
+    )
+    matched_paid_by_pair = (
+        select(
+            matched_parking_amounts.c.plate.label("plate"),
+            matched_parking_amounts.c.sun2_id.label("sun2_id"),
+            func.coalesce(func.sum(matched_parking_amounts.c.fee_inc_vat), 0).label("matched_paid_total"),
+        )
+        .group_by(matched_parking_amounts.c.plate, matched_parking_amounts.c.sun2_id)
+        .subquery()
+    )
+
     stmt = (
         select(
             ParkingSunLinkMatch.plate,
@@ -15426,9 +15511,17 @@ async def refresh_parking_sun_link_candidate_pairs(
             func.max(ParkingSunLinkMatch.user_name).label("user_name"),
             func.max(ParkingVehicle.parkering_count).label("parking_count"),
             func.max(ParkingVehicle.paid_total).label("paid_total"),
+            func.max(matched_paid_by_pair.c.matched_paid_total).label("matched_paid_total"),
         )
         .select_from(ParkingSunLinkMatch)
         .outerjoin(ParkingVehicle, ParkingVehicle.plate == ParkingSunLinkMatch.plate)
+        .outerjoin(
+            matched_paid_by_pair,
+            and_(
+                matched_paid_by_pair.c.plate == ParkingSunLinkMatch.plate,
+                matched_paid_by_pair.c.sun2_id == ParkingSunLinkMatch.sun2_id,
+            ),
+        )
         .where(ParkingSunLinkMatch.generation == generation)
         .group_by(ParkingSunLinkMatch.plate, ParkingSunLinkMatch.sun2_id)
     )
@@ -15482,6 +15575,7 @@ async def refresh_parking_sun_link_candidate_pairs(
         candidate.user_name = row.user_name
         candidate.parking_count = int_or_zero(row.parking_count)
         candidate.paid_total = float_or_zero(row.paid_total)
+        candidate.matched_paid_total = float_or_zero(row.matched_paid_total)
         candidate.confidence = 100.0 if candidate.status == PARKING_SUN_LINK_CONFIRMED else parking_sun_link_probability(
             candidate.matches_count,
             candidate.avg_delta_minutes,
@@ -21852,6 +21946,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     pair_key = (str(match.plate or "").strip(), str(match.sun2_id or "").strip())
                     if len(review_matches_by_pair[pair_key]) < 6:
                         review_matches_by_pair[pair_key].append(match)
+            review_matched_paid_by_pair = await parking_sun_link_matched_paid_totals(session, generation, review_pairs) if review_pairs else {}
             processed_rows = (
                 await session.execute(
                     select(ParkingSunLinkProcessed)
@@ -21908,6 +22003,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 )
             ).scalars().all()
             qualified_candidate_rows = [api_parking_sun_link_candidate_row(row) for row in qualified_candidates]
+            qualified_pairs = [(row["plate"], row["sun2_id"]) for row in qualified_candidate_rows if row.get("plate") and row.get("sun2_id")]
+            qualified_matched_paid_by_pair = await parking_sun_link_matched_paid_totals(session, generation, qualified_pairs) if qualified_pairs else {}
+            for row in qualified_candidate_rows:
+                pair_key = (str(row.get("plate") or "").strip(), str(row.get("sun2_id") or "").strip())
+                row["matched_paid_total"] = round(qualified_matched_paid_by_pair.get(pair_key, float_or_zero(row.get("matched_paid_total"))), 2)
+            qualified_matched_paid_total = await parking_sun_link_distinct_matched_paid_total(session, generation, qualified_pairs)
             qualified_sun2_group_counts: Dict[str, int] = {}
             for row in qualified_candidate_rows:
                 sun2_key = str(row.get("sun2_id") or "").strip()
@@ -21941,6 +22042,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "lastMatchAt": row["last_match_at"],
                         "avgDeltaMinutes": row["avg_delta_minutes"],
                         "paidTotal": row["paid_total"],
+                        "matchedPaidTotal": row["matched_paid_total"],
                         "path": row["path"],
                     }
                 )
@@ -21982,6 +22084,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "avgDeltaMinutes": row["avg_delta_minutes"],
                         "parkingCount": row["parking_count"],
                         "paidTotal": row["paid_total"],
+                        "matchedPaidTotal": round(review_matched_paid_by_pair.get(pair_key, float_or_zero(row.get("matched_paid_total"))), 2),
                         "note": row["note"],
                         "path": row["path"],
                         "matches": [
@@ -22034,6 +22137,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "qualifiedPlateCount": qualified_plate_count,
                     "qualifiedPairCount": qualified_pair_count,
                     "qualifiedPaidTotal": round(qualified_paid_total, 2),
+                    "qualifiedMatchedPaidTotal": round(qualified_matched_paid_total, 2),
                     "qualifiedSun2Rows": qualified_sun2_rows,
                     "qualifiedRows": [
                         {
@@ -22054,6 +22158,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "avgDeltaMinutes": row["avg_delta_minutes"],
                             "parkingCount": row["parking_count"],
                             "paidTotal": row["paid_total"],
+                            "matchedPaidTotal": row["matched_paid_total"],
                             "path": row["path"],
                         }
                         for row in qualified_candidate_rows
@@ -22094,7 +22199,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         href="/koble/biltreff",
                     ),
                     api_card(
-                        "Parkert for",
+                        "Parkert ved soltreff",
+                        format_short_number(qualified_matched_paid_total),
+                        "kr",
+                        "Unike parkeringer som har soltreff i kvalifisert grunnlag",
+                        "parking",
+                        href="/koble/biltreff",
+                    ),
+                    api_card(
+                        "Parkert totalt",
                         format_short_number(qualified_paid_total),
                         "kr",
                         "Samlet parkering for disse unike bilene",
@@ -22179,6 +22292,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "omrade",
                             "user_name",
                             "parking_count",
+                            "matched_paid_total",
                             "paid_total",
                             "note",
                         ],
@@ -22201,6 +22315,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "lastMatchAt",
                             "confidence",
                             "status",
+                            "matchedPaidTotal",
                             "paidTotal",
                         ],
                         qualified_sun2_rows,
@@ -22221,6 +22336,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "navn",
                             "omrade",
                             "parking_count",
+                            "matched_paid_total",
                             "paid_total",
                         ],
                         qualified_candidate_rows,

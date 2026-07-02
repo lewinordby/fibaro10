@@ -83,7 +83,7 @@
 
 .koble-qualified-summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(126px, 1fr));
+  grid-template-columns: repeat(3, minmax(126px, 1fr));
   gap: 8px;
 }
 
@@ -129,7 +129,7 @@
 
 .koble-qualified-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) minmax(116px, 0.7fr) minmax(130px, 0.85fr) minmax(118px, 0.75fr) minmax(96px, 0.55fr) 92px;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(116px, 0.7fr) minmax(130px, 0.85fr) minmax(150px, 0.82fr) minmax(96px, 0.55fr) 92px;
   gap: 12px;
   align-items: center;
   min-height: 48px;

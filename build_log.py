@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1388")
+APP_BUILD = os.getenv("APP_BUILD", "1389")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1389",
+        "date": "02.07.2026",
+        "headline": "Koble parkering ved soltreff",
+        "title": "Koble skiller mellom total parkering og parkering knyttet til soltreff",
+        "description": (
+            "Build 1389 legger til belopet Parkert ved soltreff i Koble. Summen beregnes fra unike "
+            "parkeringshendelser som faktisk har soltreff for bil/SUN2-paret, slik at den ikke blandes med "
+            "bilens totale parkeringshistorikk."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger til matched_paid_total paa Koble-kandidater.",
+            "Fibaro10 backend (main.py): beregner parkering ved soltreff per bil/SUN2-par og som deduplisert totalsum.",
+            "Desktop V2 API-typer (api.ts): legger til matchedPaidTotal og qualifiedMatchedPaidTotal.",
+            "Desktop V2 Koble (KobleReviewPanel.tsx): viser ved-soltreff-belop og totalbelop hver for seg.",
+            "Desktop V2 tabeller/styling: legger til kolonnenavn og plass til tre oppsummeringskort.",
+            "Buildlogg (build_log.py): registrerer build 1389.",
+        ],
+        "request": "du maa ogsaa gjoere det du foreslo for aa faa oversikt over parkering ved soltreff",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Koble > Biltreff viser Parkert ved soltreff som hovedbelop og Parkert totalt som undertekst.",
+            "Koble > SUN2-kontroll viser begge belop i parkeringskolonnen.",
+            "Koble-oversiktens kort skiller Parkert ved soltreff fra Parkert totalt.",
+            "Eksisterende kandidater faar korrekt verdi direkte fra API-et uten aa vente paa bakgrunnsjobben.",
+        ],
+    },
     {
         "version": "1",
         "build": "1388",

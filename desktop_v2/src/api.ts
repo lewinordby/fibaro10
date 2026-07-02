@@ -646,6 +646,7 @@ export type KobleReviewCandidate = {
   avgDeltaMinutes?: number | null;
   parkingCount?: number | null;
   paidTotal?: number | null;
+  matchedPaidTotal?: number | null;
   note?: string | null;
   path?: string | null;
   matches: KobleReviewMatch[];
@@ -669,6 +670,7 @@ export type KobleQualifiedRow = {
   avgDeltaMinutes?: number | null;
   parkingCount?: number | null;
   paidTotal?: number | null;
+  matchedPaidTotal?: number | null;
   path?: string | null;
 };
 
@@ -691,6 +693,7 @@ export type KobleQualifiedSun2Row = {
   lastMatchAt?: string | null;
   avgDeltaMinutes?: number | null;
   paidTotal?: number | null;
+  matchedPaidTotal?: number | null;
   path?: string | null;
 };
 
@@ -707,6 +710,7 @@ export type KobleReviewData = {
   qualifiedPlateCount?: number;
   qualifiedPairCount?: number;
   qualifiedPaidTotal?: number;
+  qualifiedMatchedPaidTotal?: number;
   qualifiedSun2Rows?: KobleQualifiedSun2Row[];
   qualifiedRows?: KobleQualifiedRow[];
   candidates: KobleReviewCandidate[];

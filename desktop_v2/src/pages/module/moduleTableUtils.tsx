@@ -50,6 +50,8 @@ function labelize(column: string): string {
     fee_inc_vat: "Beløp",
     paid_amount_kr: "Beløp",
     paid_total: "Sum betalt",
+    matched_paid_total: "Parkert ved soltreff",
+    matchedPaidTotal: "Parkert ved soltreff",
     paid: "Betalt",
     vehicle_share: "Andel biler %",
     parking_share: "Andel parkeringer %",
