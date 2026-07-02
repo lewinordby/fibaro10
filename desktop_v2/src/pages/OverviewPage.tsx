@@ -76,9 +76,9 @@ const DASHBOARD_CONFIG: Record<DashboardView, { title: string; detail: string; t
 const DASHBOARD_ACTIONS: Record<DashboardView, DashboardAction[]> = {
   omsetning: [
     { label: "Omsetning oversikt", detail: "Ukesutvikling og toppperioder", href: "/omsetning/oversikt", tone: "revenue" },
-    { label: "Månedsoversikt", detail: "Dag for dag inneværende måned", href: "/omsetning/manedsoversikt", tone: "revenue" },
     { label: "Periodesammenligning", detail: "Akkumulert dag, uke og måned", href: "/omsetning/sammenligning", tone: "revenue" },
     { label: "Årssammenligning", detail: "Akkumulert omsetning per år", href: "/omsetning/akkumulert", tone: "revenue" },
+    { label: "Månedsoversikt", detail: "Dag for dag inneværende måned", href: "/omsetning/manedsoversikt", tone: "revenue" },
   ],
   parkering: [
     { label: "Parkering oversikt", detail: "Hovedtall og siste parkeringer", href: "/parkering/oversikt", tone: "parking" },

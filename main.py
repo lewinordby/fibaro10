@@ -2465,10 +2465,10 @@ def build_sun2_summaries(rows: list[Any]) -> Dict[str, Any]:
         "monthly": monthly_items,
         "yearly": yearly_items,
         "weekly_chart": weekly_chart,
-        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
-        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
-        "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:10],
-        "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:10],
+        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:20],
+        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:20],
+        "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:20],
+        "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:20],
         "total": finalize_sun2_summary(total),
         "first_date": first_date,
         "last_date": last_date,
@@ -2771,10 +2771,10 @@ async def build_sun2_summaries_fast(session) -> Dict[str, Any]:
         "monthly": monthly_items,
         "yearly": yearly_items,
         "weekly_chart": weekly_chart,
-        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
-        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
-        "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:10],
-        "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:10],
+        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:20],
+        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:20],
+        "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:20],
+        "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:20],
         "total": total,
         "first_date": first_date,
         "last_date": last_date,
@@ -16043,6 +16043,71 @@ def api_revenue_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def api_revenue_overview_tables(summaries: Dict[str, Any]) -> list[Dict[str, Any]]:
+    revenue_columns = ["period_label", "total_paid", "parking_paid", "parking_count", "sun_paid", "sun_count"]
+    return [
+        api_table("Topp dager omsetning", revenue_columns, [api_revenue_summary_row(row) for row in summaries.get("top_days", [])]),
+        api_table("Topp m\u00e5neder omsetning", ["period", *revenue_columns[1:]], [api_revenue_summary_row(row) for row in summaries.get("top_months", [])]),
+    ]
+
+
+def api_parking_overview_tables(summaries: Dict[str, Any], latest_rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    return [
+        api_table(
+            "Topp dager omsetning",
+            ["period_label", "paid", "sessions", "vehicles", "minutes"],
+            [api_parking_summary_row(row) for row in summaries.get("top_days", [])],
+        ),
+        api_table(
+            "Topp m\u00e5neder omsetning",
+            ["period", "paid", "sessions", "vehicles", "minutes", "days_count"],
+            [api_parking_summary_row(row) for row in summaries.get("top_months", [])],
+        ),
+        api_table(
+            "Topp dager antall",
+            ["period_label", "sessions", "paid", "vehicles", "minutes"],
+            [api_parking_summary_row(row) for row in summaries.get("top_days_by_count", [])],
+        ),
+        api_table(
+            "Topp m\u00e5neder antall",
+            ["period", "sessions", "paid", "vehicles", "minutes", "days_count"],
+            [api_parking_summary_row(row) for row in summaries.get("top_months_by_count", [])],
+        ),
+        api_table(
+            "Siste parkeringer",
+            ["status", "start_time", "end_time", "car_license_number", "vehicle_make", "vehicle_type", "vehicle_color", "vehicle_owner", "fee_inc_vat", "parking_time_min"],
+            latest_rows,
+        ),
+    ]
+
+
+def api_sun2_overview_tables(summaries: Dict[str, Any], latest_sessions: list[Dict[str, Any]], latest_import_rows: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    return [
+        api_table(
+            "Topp dager omsetning",
+            ["period_label", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "rooms_count"],
+            [api_sun2_summary_row(row) for row in summaries.get("top_days", [])],
+        ),
+        api_table(
+            "Topp m\u00e5neder omsetning",
+            ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"],
+            [api_sun2_summary_row(row) for row in summaries.get("top_months", [])],
+        ),
+        api_table(
+            "Topp dager antall",
+            ["period_label", "totalt_antall_solinger", "totalt_inntjent_kr", "total_soletid_timer", "rooms_count"],
+            [api_sun2_summary_row(row) for row in summaries.get("top_days_by_count", [])],
+        ),
+        api_table(
+            "Topp m\u00e5neder antall",
+            ["period", "totalt_antall_solinger", "totalt_inntjent_kr", "total_soletid_timer", "days_count"],
+            [api_sun2_summary_row(row) for row in summaries.get("top_months_by_count", [])],
+        ),
+        api_table("Siste solinger", ["started_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "customer_type", "status"], latest_sessions),
+        api_table("Siste import", SUN2_IMPORT_COLUMNS, latest_import_rows),
+    ]
+
+
 def api_sun2_weekly_chart(summaries: Dict[str, Any], metric: str = "revenue") -> Dict[str, Any]:
     chart_rows = summaries.get("weekly_chart", [])
 
@@ -17505,13 +17570,11 @@ async def api_v2_soling_module(
 
     if view == "oversikt":
         charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart]
-        tables = [
-            api_table("Topp dager omsetning", ["period_label", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("top_days", [])]),
-            api_table("Topp måneder omsetning", ["period", "totalt_inntjent_kr", "totalt_antall_solinger", "total_soletid_timer", "days_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("top_months", [])]),
-            api_table("Topp dager antall", ["period_label", "totalt_antall_solinger", "totalt_inntjent_kr", "total_soletid_timer", "rooms_count"], [api_sun2_summary_row(row) for row in sun2_summaries.get("top_days_by_count", [])]),
-            api_table("Siste solinger", ["started_at", "room_label", "duration_minutes", "paid_amount_kr", "user_name", "customer_type", "status"], [api_sun2_session_row(row) for row in latest_sessions[:80]]),
-            api_table("Siste import", SUN2_IMPORT_COLUMNS, [api_pick(latest_import, SUN2_IMPORT_COLUMNS)] if latest_import else []),
-        ]
+        tables = api_sun2_overview_tables(
+            sun2_summaries,
+            [api_sun2_session_row(row) for row in latest_sessions[:80]],
+            [api_pick(latest_import, SUN2_IMPORT_COLUMNS)] if latest_import else [],
+        )
     elif view == "statistikk":
         charts = [api_sun2_weekly_chart(sun2_summaries, "revenue"), daily_count_chart, daily_revenue_chart]
         cards = [
@@ -21900,16 +21963,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ),
             ]
 
-            revenue_columns = ["period_label", "total_paid", "parking_paid", "parking_count", "sun_paid", "sun_count"]
             return {
                 "title": v2_module_title("omsetning", view),
                 "subtitle": "Samlet omsetning fra soling og parkering.",
                 "cards": cards,
                 "charts": [api_revenue_weekly_chart(combined_stats)],
-                "tables": [
-                    api_table("Topp dager omsetning", revenue_columns, [api_revenue_summary_row(row) for row in combined_stats.get("top_days", [])]),
-                    api_table("Topp måneder omsetning", ["period", *revenue_columns[1:]], [api_revenue_summary_row(row) for row in combined_stats.get("top_months", [])]),
-                ],
+                "tables": api_revenue_overview_tables(combined_stats),
             }
 
         if module == "koble":
@@ -22467,33 +22526,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .limit(250)
                 )
             ).scalars().all()
-            tables = [
-                api_table(
-                    "Siste parkeringer",
-                    ["status", "start_time", "end_time", "car_license_number", "vehicle_make", "vehicle_type", "vehicle_color", "vehicle_owner", "fee_inc_vat", "parking_time_min"],
-                    [parking_row_api(row, vehicle, details, unifi_before_seconds=15) for row, vehicle, details in latest_rows],
-                ),
-                api_table(
-                    "Topp dager omsetning",
-                    ["period_label", "paid", "sessions", "vehicles", "minutes"],
-                    [api_parking_summary_row(row) for row in parking_summaries.get("top_days", [])],
-                ),
-                api_table(
-                    "Topp m\u00e5neder omsetning",
-                    ["period", "paid", "sessions", "vehicles", "minutes", "days_count"],
-                    [api_parking_summary_row(row) for row in parking_summaries.get("top_months", [])],
-                ),
-                api_table(
-                    "Topp dager antall",
-                    ["period_label", "sessions", "paid", "vehicles", "minutes"],
-                    [api_parking_summary_row(row) for row in parking_summaries.get("top_days_by_count", [])],
-                ),
-                api_table(
-                    "Topp m\u00e5neder antall",
-                    ["period", "sessions", "paid", "vehicles", "minutes", "days_count"],
-                    [api_parking_summary_row(row) for row in parking_summaries.get("top_months_by_count", [])],
-                ),
-            ]
+            tables = api_parking_overview_tables(
+                parking_summaries,
+                [parking_row_api(row, vehicle, details, unifi_before_seconds=15) for row, vehicle, details in latest_rows],
+            )
             cards = [
                 api_card(
                     "Sist oppdatert",

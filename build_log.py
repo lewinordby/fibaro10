@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1391")
+APP_BUILD = os.getenv("APP_BUILD", "1392")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1392",
+        "date": "02.07.2026",
+        "headline": "Rydding omsetning parkering soling",
+        "title": "Omsetning, parkering og soling er strukturert mer likt",
+        "description": (
+            "Build 1392 rydder i de tre mest brukte fagomraadene. Topp-tabeller er samlet i felles backend-hjelpere, "
+            "parkering og soling viser samme fire toppperioder der det er relevant, og menyrekkefolgen er justert slik at oversikt, analyse, drift, oppgjor, prognose og grunnlagsdata ligger mer konsekvent."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): samler topp-tabeller for omsetning, parkering og soling i egne helper-funksjoner.",
+            "Fibaro10 backend (main.py): utvider soling toppperioder til 20 rader og legger til Topp maaneder antall.",
+            "Fibaro10 V2 Parkering oversikt: starter tabellfanene med toppperioder foer siste parkeringer.",
+            "Desktop V2 meny (moduleViews.ts): sorterer omsetning, parkering og soling etter samme arbeidsflyt.",
+            "Desktop V2 dashboard (OverviewPage.tsx): sorterer omsetningssnarveier likt som menyen.",
+            "V2 navigasjonsmetadata (v2_navigation.py): speiler samme view-rekkefolge for titteloppslag.",
+            "Buildlogg (build_log.py): registrerer build 1392.",
+        ],
+        "request": "grundig opprydding i applikasjonen baade omsetning, parkering og soling. rydd opp og strukturer til samme systemer og funksjoner men soerg for at alt blir med og funker",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Omsetning bruker felles topp-tabellbygger for oversikt.",
+            "Parkering bruker felles topp-tabellbygger og viser toppperioder foer siste parkeringer.",
+            "Soling viser naa topp dager/maaneder for baade omsetning og antall.",
+            "Soling toppperioder er utvidet fra 10 til 20 rader.",
+            "Menyene for omsetning, parkering og soling er sortert mer konsekvent uten at ruter er fjernet.",
+            "Omsetning-dashboardets snarveier foelger samme rekkefolge som toppmenyen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1391",
