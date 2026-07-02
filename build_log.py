@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1386")
+APP_BUILD = os.getenv("APP_BUILD", "1387")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1387",
+        "date": "02.07.2026",
+        "headline": "Koble krav presisert",
+        "title": "SUN2-kontroll krever to ulike parkeringer med soltreff",
+        "description": (
+            "Build 1387 retter Koble-grunnlaget slik at kvalifiserte bil/SUN2-koblinger maa ha minst to ulike "
+            "parkeringer med soltreff. Tidligere kunne en bil slippe inn hvis to soltimer var koblet til samme "
+            "parkering, noe som gjorde at SUN2-kontroll kunne vise 1 av 2 parkeringer med soltreff."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): kvalifisert Koble-filter bruker parking_match_count >= 2.",
+            "Fibaro10 backend (main.py): kort og tabelltitler beskriver 2+ parkeringer med soltreff.",
+            "Desktop V2 (KobleReviewPanel.tsx): SUN2-kontroll og Biltreff forklarer at kravet er ulike parkeringer.",
+            "Buildlogg (build_log.py): registrerer build 1387.",
+        ],
+        "request": "jeg forstaar ikke, naar jeg ser i sun2-kontorll tabellen saa er det su2 id er der som har 1 av 2 parkeringer med soltreff",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Rader med bare en parkering med soltreff blir ikke lenger med i kvalifisert SUN2-kontroll.",
+            "Soltreff vises fortsatt som antall soltimer, men kvalifisering skjer paa ulike parkeringer.",
+            "Tekster i Koble er justert for aa unngaa blanding av soltreff og parkeringstreff.",
+        ],
+    },
     {
         "version": "1",
         "build": "1386",

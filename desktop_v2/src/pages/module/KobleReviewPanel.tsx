@@ -181,16 +181,16 @@ export function KobleReviewPanel({
           <div>
             <Typography.Text className="koble-review-eyebrow">Bilnummer med gjentatte treff</Typography.Text>
             <Typography.Title level={4}>
-              {numberFormatter.format(Number(review.qualifiedPlateCount || 0))} bilnr har 2+ soltreff mot samme SUN2-bruker
+              {numberFormatter.format(Number(review.qualifiedPlateCount || 0))} bilnr har 2+ parkeringer med soltreff mot samme SUN2-bruker
             </Typography.Title>
             <Typography.Text type="secondary">
-              Sortert etter flest soltreff innen {review.maxMinutes} minutter etter parkering.
+              Sortert etter flest ulike parkeringer med soltreff innen {review.maxMinutes} minutter etter parkering.
             </Typography.Text>
           </div>
           <div className="koble-qualified-summary-grid">
             <div className="koble-qualified-summary">
               <strong>{numberFormatter.format(Number(review.qualifiedPairCount || 0))}</strong>
-              <span>kandidatkoblinger</span>
+              <span>kandidatkoblinger med 2+ parkeringer</span>
             </div>
             <div className="koble-qualified-summary">
               <strong>{formatKr(review.qualifiedPaidTotal)}</strong>
@@ -242,7 +242,7 @@ export function KobleReviewPanel({
             ))}
           </div>
         ) : (
-          <Empty description="Ingen bilnummer har to eller flere soltreff ennå" />
+          <Empty description="Ingen bilnummer har to eller flere parkeringer med soltreff ennå" />
         )}
 
       </Card>
@@ -253,13 +253,13 @@ export function KobleReviewPanel({
         <div className="koble-sun2-head">
           <div>
             <Typography.Text className="koble-review-eyebrow">SUN2-basert kontroll</Typography.Text>
-            <Typography.Title level={4}>Biler med 2+ treff mot samme SUN2-ID</Typography.Title>
+            <Typography.Title level={4}>Biler med 2+ parkeringer mot samme SUN2-ID</Typography.Title>
             <Typography.Text type="secondary">
               Viser {numberFormatter.format(qualifiedSun2Rows.length)} bil/SUN2-rader fordelt på {numberFormatter.format(qualifiedSun2Count)} SUN2-ID-er.
             </Typography.Text>
           </div>
           <Typography.Text type="secondary">
-            Parkering uten soltreff = alle registrerte parkeringer på bilen minus parkeringer som fikk soltime innen {review.maxMinutes} min.
+            Tabellen viser bare bil/SUN2-koblinger der minst to ulike parkeringer fikk soltime innen {review.maxMinutes} min.
           </Typography.Text>
         </div>
 
@@ -315,7 +315,7 @@ export function KobleReviewPanel({
             })}
           </div>
         ) : (
-          <Empty description="Ingen SUN2-ID-er har biler med to eller flere soltreff ennå" />
+          <Empty description="Ingen SUN2-ID-er har biler med to eller flere parkeringer med soltreff ennå" />
         )}
       </Card>
       ) : null}

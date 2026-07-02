@@ -21827,7 +21827,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ).scalars().all()
             qualified_filter = [
                 ParkingSunLinkCandidate.generation == generation,
-                ParkingSunLinkCandidate.matches_count >= 2,
+                ParkingSunLinkCandidate.parking_match_count >= 2,
             ]
             qualified_plate_count = int_or_zero(
                 (
@@ -22051,10 +22051,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         href="/koble/kandidater",
                     ),
                     api_card(
-                        "Bilnr 2+ soltreff",
+                        "Bilnr 2+ parkeringer",
                         format_short_number(qualified_plate_count),
                         "",
-                        f"{format_short_number(qualified_pair_count)} koblinger med samme SUN2 innen {int_or_zero(state.max_minutes)} min",
+                        f"{format_short_number(qualified_pair_count)} SUN2-koblinger med soltreff innen {int_or_zero(state.max_minutes)} min",
                         "sun2",
                         href="/koble/biltreff",
                     ),
@@ -22171,7 +22171,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         qualified_sun2_rows,
                     ),
                     api_table(
-                        "Bilnr med 2+ soltreff",
+                        "Bilnr med 2+ parkeringer",
                         [
                             "status",
                             "plate",
