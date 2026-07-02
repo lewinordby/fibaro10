@@ -2,7 +2,7 @@ import { App as AntApp, Button, Card, Empty, Space, Tag, Tooltip, Typography } f
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import type { KobleQualifiedRow, KobleReviewCandidate, KobleReviewData } from "../../api";
+import type { KobleQualifiedRow, KobleQualifiedSun2Row, KobleReviewCandidate, KobleReviewData } from "../../api";
 import { updateKobleCandidate } from "../../api";
 
 const krFormatter = new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 });
@@ -39,6 +39,10 @@ function formatNumber(value?: number | null, suffix = ""): string {
   return `${numberFormatter.format(numeric)}${suffix}`;
 }
 
+function formatPercent(value?: number | null): string {
+  return `${numberFormatter.format(Number(value || 0))}%`;
+}
+
 function confidenceTone(candidate: KobleReviewCandidate): "success" | "warning" | "danger" {
   if (candidate.status === "Bekreftet") return "success";
   if (candidate.status === "Avvist") return "danger";
@@ -72,6 +76,10 @@ function qualifiedRowKey(row: KobleQualifiedRow): string {
   return `${row.plate}-${row.sun2Id}-${row.id}`;
 }
 
+function qualifiedSun2RowKey(row: KobleQualifiedSun2Row): string {
+  return `${row.sun2Id}-${row.plate}-${row.id}`;
+}
+
 export function KobleReviewPanel({
   review,
   onReload,
@@ -85,7 +93,12 @@ export function KobleReviewPanel({
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const visibleCandidates = useMemo(() => review.candidates.slice(0, shown), [review.candidates, shown]);
   const qualifiedRows = review.qualifiedRows ?? [];
+  const qualifiedSun2Rows = review.qualifiedSun2Rows ?? [];
   const visibleQualifiedRows = qualifiedRows.slice(0, 12);
+  const qualifiedSun2Count = useMemo(
+    () => new Set(qualifiedSun2Rows.map((row) => row.sun2Id).filter(Boolean)).size,
+    [qualifiedSun2Rows],
+  );
 
   async function setCandidateStatus(candidate: KobleReviewCandidate, status: "Bekreftet" | "Avvist") {
     if (updatingId) return;
@@ -228,6 +241,76 @@ export function KobleReviewPanel({
             Viser {visibleQualifiedRows.length} av {qualifiedRows.length}. Hele listen ligger i tabellen Bilnr med 2+ soltreff under.
           </Typography.Text>
         ) : null}
+      </Card>
+
+      <Card className="work-card koble-sun2-card">
+        <div className="koble-sun2-head">
+          <div>
+            <Typography.Text className="koble-review-eyebrow">SUN2-basert kontroll</Typography.Text>
+            <Typography.Title level={4}>Biler med 2+ treff mot samme SUN2-ID</Typography.Title>
+            <Typography.Text type="secondary">
+              Viser {numberFormatter.format(qualifiedSun2Rows.length)} bil/SUN2-rader fordelt på {numberFormatter.format(qualifiedSun2Count)} SUN2-ID-er.
+            </Typography.Text>
+          </div>
+          <Typography.Text type="secondary">
+            Parkering uten soltreff = alle registrerte parkeringer på bilen minus parkeringer som fikk soltime innen {review.maxMinutes} min.
+          </Typography.Text>
+        </div>
+
+        {qualifiedSun2Rows.length ? (
+          <div className="koble-sun2-table">
+            <div className="koble-sun2-row is-head">
+              <span>SUN2</span>
+              <span>Bil</span>
+              <span>Soltreff</span>
+              <span>Parkeringer</span>
+              <span>Uten soltreff</span>
+              <span>Siste</span>
+              <span>Status</span>
+            </div>
+            {qualifiedSun2Rows.map((row, index) => {
+              const isNewSun2 = index === 0 || qualifiedSun2Rows[index - 1]?.sun2Id !== row.sun2Id;
+              return (
+                <div className={`koble-sun2-row${isNewSun2 ? " is-new-sun2" : ""}`} key={qualifiedSun2RowKey(row)}>
+                  <div className="koble-sun2-id">
+                    <strong>SUN2 {row.sun2Id}</strong>
+                    <span>
+                      {row.userName || "Ukjent bruker"}
+                      {row.sun2VehicleCount > 1 ? ` · ${row.sun2VehicleCount} biler` : ""}
+                    </span>
+                  </div>
+                  <div className="koble-sun2-car">
+                    <strong>{row.plate}</strong>
+                    <span>{row.vehicleName || row.vehicleArea || "Kjøretøy mangler"}</span>
+                  </div>
+                  <div>
+                    <strong>{numberFormatter.format(Number(row.matchesCount || 0))}</strong>
+                    <span>{row.matchDaysCount} dager · {formatNumber(row.avgDeltaMinutes, " min snitt")}</span>
+                  </div>
+                  <div>
+                    <strong>{numberFormatter.format(Number(row.parkingMatchCount || 0))} av {numberFormatter.format(Number(row.parkingCount || 0))}</strong>
+                    <span>{formatPercent(row.parkingMatchShare)} med soltreff · {formatKr(row.paidTotal)}</span>
+                  </div>
+                  <div>
+                    <strong>{numberFormatter.format(Number(row.parkingWithoutSunCount || 0))}</strong>
+                    <span>parkeringer uten soltreff</span>
+                  </div>
+                  <div>
+                    <strong>{formatDateTime(row.lastMatchAt)}</strong>
+                    <span>siste parkering med soltreff</span>
+                  </div>
+                  <div className="koble-sun2-status">
+                    <Tag color={statusColor(row.status)}>{row.status}</Tag>
+                    <span>{Math.round(Number(row.confidence || 0))}%</span>
+                    {row.path ? <Button size="small" onClick={() => navigate(row.path || "/parkering/kjoretoy")}>Åpne</Button> : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <Empty description="Ingen SUN2-ID-er har biler med to eller flere soltreff ennå" />
+        )}
       </Card>
 
       {visibleCandidates.length ? (

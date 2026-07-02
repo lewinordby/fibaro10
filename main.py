@@ -21870,10 +21870,54 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         ParkingSunLinkCandidate.parking_match_count.desc(),
                         ParkingSunLinkCandidate.last_match_at.desc(),
                     )
-                    .limit(max(100, min(1000, limit_value * 2)))
                 )
             ).scalars().all()
             qualified_candidate_rows = [api_parking_sun_link_candidate_row(row) for row in qualified_candidates]
+            qualified_sun2_group_counts: Dict[str, int] = {}
+            for row in qualified_candidate_rows:
+                sun2_key = str(row.get("sun2_id") or "").strip()
+                if not sun2_key:
+                    continue
+                qualified_sun2_group_counts[sun2_key] = qualified_sun2_group_counts.get(sun2_key, 0) + 1
+            qualified_sun2_rows = []
+            for row in qualified_candidate_rows:
+                parking_count = int_or_zero(row.get("parking_count"))
+                parking_match_count = int_or_zero(row.get("parking_match_count"))
+                parking_without_sun = max(0, parking_count - parking_match_count)
+                parking_match_share = (parking_match_count / parking_count * 100.0) if parking_count > 0 else 0.0
+                sun2_id = str(row.get("sun2_id") or "").strip()
+                qualified_sun2_rows.append(
+                    {
+                        "id": row["id"],
+                        "sun2Id": sun2_id,
+                        "sun2VehicleCount": qualified_sun2_group_counts.get(sun2_id, 1),
+                        "userName": row["user_name"],
+                        "plate": row["plate"],
+                        "vehicleName": row["navn"],
+                        "vehicleArea": row["omrade"],
+                        "status": row["status"],
+                        "confidence": row["confidence"],
+                        "matchesCount": row["matches_count"],
+                        "parkingMatchCount": parking_match_count,
+                        "parkingCount": parking_count,
+                        "parkingWithoutSunCount": parking_without_sun,
+                        "parkingMatchShare": round(parking_match_share, 1),
+                        "matchDaysCount": row["match_days_count"],
+                        "lastMatchAt": row["last_match_at"],
+                        "avgDeltaMinutes": row["avg_delta_minutes"],
+                        "paidTotal": row["paid_total"],
+                        "path": row["path"],
+                    }
+                )
+            qualified_sun2_rows.sort(
+                key=lambda item: (
+                    -int_or_zero(item.get("sun2VehicleCount")),
+                    str(item.get("sun2Id") or ""),
+                    -int_or_zero(item.get("matchesCount")),
+                    -int_or_zero(item.get("parkingMatchCount")),
+                    str(item.get("plate") or ""),
+                )
+            )
             state_row = api_parking_sun_link_state_row(state)
             worker_seen = format_source_datetime_short(state.last_worker_seen_at) if state.last_worker_seen_at else "-"
             worker_detail = state.status_text or ("Jobben er aktiv." if state.enabled else "Jobben er stoppet.")
@@ -21955,6 +21999,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "qualifiedPlateCount": qualified_plate_count,
                     "qualifiedPairCount": qualified_pair_count,
                     "qualifiedPaidTotal": round(qualified_paid_total, 2),
+                    "qualifiedSun2Rows": qualified_sun2_rows,
                     "qualifiedRows": [
                         {
                             "id": row["id"],
@@ -22104,6 +22149,26 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         ],
                         [api_parking_sun_link_candidate_row(row) for row in candidates],
                         edit=parking_sun_link_candidate_edit(),
+                    ),
+                    api_table(
+                        "SUN2 med biltreff",
+                        [
+                            "sun2Id",
+                            "sun2VehicleCount",
+                            "userName",
+                            "plate",
+                            "vehicleName",
+                            "matchesCount",
+                            "parkingMatchCount",
+                            "parkingCount",
+                            "parkingWithoutSunCount",
+                            "parkingMatchShare",
+                            "lastMatchAt",
+                            "confidence",
+                            "status",
+                            "paidTotal",
+                        ],
+                        qualified_sun2_rows,
                     ),
                     api_table(
                         "Bilnr med 2+ soltreff",

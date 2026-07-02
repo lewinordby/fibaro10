@@ -662,6 +662,28 @@ export type KobleQualifiedRow = {
   path?: string | null;
 };
 
+export type KobleQualifiedSun2Row = {
+  id: number;
+  sun2Id: string;
+  sun2VehicleCount: number;
+  userName?: string | null;
+  plate: string;
+  vehicleName?: string | null;
+  vehicleArea?: string | null;
+  status: string;
+  confidence: number;
+  matchesCount: number;
+  parkingMatchCount: number;
+  parkingCount?: number | null;
+  parkingWithoutSunCount: number;
+  parkingMatchShare: number;
+  matchDaysCount: number;
+  lastMatchAt?: string | null;
+  avgDeltaMinutes?: number | null;
+  paidTotal?: number | null;
+  path?: string | null;
+};
+
 export type KobleReviewData = {
   generatedAt?: string | null;
   generation: number;
@@ -675,6 +697,7 @@ export type KobleReviewData = {
   qualifiedPlateCount?: number;
   qualifiedPairCount?: number;
   qualifiedPaidTotal?: number;
+  qualifiedSun2Rows?: KobleQualifiedSun2Row[];
   qualifiedRows?: KobleQualifiedRow[];
   candidates: KobleReviewCandidate[];
 };

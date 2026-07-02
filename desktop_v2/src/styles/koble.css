@@ -182,6 +182,118 @@
   justify-content: flex-end;
 }
 
+.koble-sun2-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 13px 15px;
+}
+
+.koble-sun2-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.koble-sun2-head > .ant-typography {
+  max-width: 520px;
+  text-align: right;
+}
+
+.koble-sun2-head h4.ant-typography {
+  margin: 0 0 2px;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.15;
+}
+
+.koble-sun2-table {
+  display: flex;
+  flex-direction: column;
+  max-height: 560px;
+  overflow: auto;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.koble-sun2-row {
+  display: grid;
+  grid-template-columns:
+    minmax(155px, 0.8fr)
+    minmax(180px, 1fr)
+    minmax(118px, 0.64fr)
+    minmax(174px, 0.9fr)
+    minmax(128px, 0.68fr)
+    minmax(130px, 0.72fr)
+    minmax(138px, 0.7fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 46px;
+  padding: 7px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.koble-sun2-row:last-child {
+  border-bottom: 0;
+}
+
+.koble-sun2-row.is-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 34px;
+  color: var(--text-label);
+  font-size: 10.5px;
+  font-weight: 820;
+  text-transform: uppercase;
+  background: var(--surface-muted);
+}
+
+.koble-sun2-row.is-new-sun2:not(:first-child) {
+  border-top: 2px solid color-mix(in srgb, var(--blue) 22%, var(--line-soft));
+}
+
+.koble-sun2-row strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 790;
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.koble-sun2-row span {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.koble-sun2-id strong,
+.koble-sun2-car strong {
+  font-size: 13.5px;
+}
+
+.koble-sun2-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.koble-sun2-status .ant-tag {
+  margin-inline-end: 0;
+  font-size: 10.5px;
+  font-weight: 760;
+}
+
 .koble-review-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -460,14 +572,21 @@
 @media (max-width: 980px) {
   .koble-review-intro .ant-card-body,
   .koble-qualified-head,
+  .koble-sun2-head,
   .koble-candidate-actions {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .koble-sun2-head > .ant-typography {
+    max-width: none;
+    text-align: left;
+  }
+
   .koble-review-intro-stats,
   .koble-qualified-summary-grid,
   .koble-qualified-row,
+  .koble-sun2-row,
   .koble-candidate-head,
   .koble-identity-grid,
   .koble-evidence-strip,

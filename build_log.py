@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1384")
+APP_BUILD = os.getenv("APP_BUILD", "1385")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1385",
+        "date": "02.07.2026",
+        "headline": "Koble SUN2-tabell",
+        "title": "Koble viser SUN2-orientert tabell over biler med gjentatte soltreff",
+        "description": (
+            "Build 1385 legger til en egen kontrolltabell som tar utgangspunkt i SUN2-ID. Tabellen viser alle "
+            "bil/SUN2-kandidater med minst to soltreff, hvor mange soltreff paret har, hvor mange parkeringer "
+            "som fikk soltime i tilknytning, total parkering på bilen og parkeringer uten soltreff."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): bygger qualifiedSun2Rows sortert og gruppert etter SUN2-ID.",
+            "Desktop V2 API-typer (api.ts): legger til KobleQualifiedSun2Row.",
+            "Desktop V2 (KobleReviewPanel.tsx): viser SUN2-basert kontrolltabell på Koble-siden.",
+            "Desktop V2 styling (koble.css): legger til kompakt scrollbar tabell med SUN2-gruppeskiller.",
+            "Buildlogg (build_log.py): registrerer build 1385.",
+        ],
+        "request": (
+            "jeg ønsker at du skal vise en tabell med alle biler som er valgt ut som har mer enn 2 treff på en "
+            "sun2 id. jeg vil at tabellen skal ta utgangspunt i sun2 id og vise hvilke bilnr som er assosiert "
+            "med den 2 sun2 id min 2 ganger. men også hvor mange ganger og hvor mange av de parkeringene som "
+            "har en sun2 time i tilknytning."
+        ),
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny SUN2-basert kontrolltabell på Koble-siden.",
+            "Tabellen viser soltreff, parkeringer med soltreff, total parkering og parkeringer uten soltreff.",
+            "Samme SUN2-ID kan ha flere biler i tabellen.",
+            "Generisk tabellgrunnlag får også tabellen SUN2 med biltreff.",
+        ],
+    },
     {
         "version": "1",
         "build": "1384",
