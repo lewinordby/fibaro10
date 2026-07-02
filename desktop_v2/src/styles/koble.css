@@ -81,6 +81,12 @@
   line-height: 1.15;
 }
 
+.koble-qualified-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(126px, 1fr));
+  gap: 8px;
+}
+
 .koble-qualified-summary {
   display: flex;
   flex: 0 0 auto;
@@ -118,7 +124,7 @@
 
 .koble-qualified-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) minmax(130px, 0.8fr) minmax(140px, 0.9fr) minmax(96px, 0.55fr) 92px;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(116px, 0.7fr) minmax(130px, 0.85fr) minmax(118px, 0.75fr) minmax(96px, 0.55fr) 92px;
   gap: 12px;
   align-items: center;
   min-height: 48px;
@@ -460,6 +466,7 @@
   }
 
   .koble-review-intro-stats,
+  .koble-qualified-summary-grid,
   .koble-qualified-row,
   .koble-candidate-head,
   .koble-identity-grid,

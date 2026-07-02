@@ -674,6 +674,7 @@ export type KobleReviewData = {
   matchedCount: number;
   qualifiedPlateCount?: number;
   qualifiedPairCount?: number;
+  qualifiedPaidTotal?: number;
   qualifiedRows?: KobleQualifiedRow[];
   candidates: KobleReviewCandidate[];
 };

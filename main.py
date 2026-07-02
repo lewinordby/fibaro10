@@ -21845,6 +21845,22 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     )
                 ).scalar_one_or_none()
             )
+            qualified_paid_subquery = (
+                select(
+                    func.upper(func.trim(ParkingSunLinkCandidate.plate)).label("plate"),
+                    func.max(ParkingSunLinkCandidate.paid_total).label("paid_total"),
+                )
+                .where(*qualified_filter)
+                .group_by(func.upper(func.trim(ParkingSunLinkCandidate.plate)))
+                .subquery()
+            )
+            qualified_paid_total = float_or_zero(
+                (
+                    await session.execute(
+                        select(func.coalesce(func.sum(qualified_paid_subquery.c.paid_total), 0))
+                    )
+                ).scalar_one_or_none()
+            )
             qualified_candidates = (
                 await session.execute(
                     select(ParkingSunLinkCandidate)
@@ -21938,6 +21954,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "matchedCount": int_or_zero(state.matched_count),
                     "qualifiedPlateCount": qualified_plate_count,
                     "qualifiedPairCount": qualified_pair_count,
+                    "qualifiedPaidTotal": round(qualified_paid_total, 2),
                     "qualifiedRows": [
                         {
                             "id": row["id"],
@@ -21994,6 +22011,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "",
                         f"{format_short_number(qualified_pair_count)} koblinger med samme SUN2 innen {int_or_zero(state.max_minutes)} min",
                         "sun2",
+                        href="/koble/oversikt",
+                    ),
+                    api_card(
+                        "Parkert for",
+                        format_short_number(qualified_paid_total),
+                        "kr",
+                        "Samlet parkering for disse unike bilene",
+                        "parking",
                         href="/koble/oversikt",
                     ),
                     api_card(

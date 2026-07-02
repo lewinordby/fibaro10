@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1383")
+APP_BUILD = os.getenv("APP_BUILD", "1384")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1384",
+        "date": "02.07.2026",
+        "headline": "Koble parkeringssum",
+        "title": "Koble viser hvor mye bilene med 2+ soltreff har parkert for",
+        "description": (
+            "Build 1384 legger til samlet parkeringsomsetning for de unike bilnummerne som har minst to soltreff "
+            "mot samme SUN2-bruker innen koblingsvinduet. Summen dobbeltteller ikke biler med flere kandidatkoblinger."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): summerer paid_total per unikt bilnummer i kvalifisert Koble-grunnlag.",
+            "Desktop V2 (KobleReviewPanel.tsx): viser totalen og parkeringssum per rad.",
+            "Desktop V2 styling (koble.css): legger inn kompakt sumfelt og egen Parkert for-kolonne.",
+            "Buildlogg (build_log.py): registrerer build 1384.",
+        ],
+        "request": "kan du lage en sum hvor mye disse bilene har parkert for",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Nytt kort i Koble: Parkert for.",
+            "KobleReview-payloaden inkluderer qualifiedPaidTotal.",
+            "Bilnummer med gjentatte treff viser samlet parkeringssum i toppfeltet.",
+            "Listen viser Parkert for per bil/kandidat.",
+        ],
+    },
     {
         "version": "1",
         "build": "1383",

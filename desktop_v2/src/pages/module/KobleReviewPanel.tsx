@@ -165,9 +165,15 @@ export function KobleReviewPanel({
               Sortert etter flest soltreff innen {review.maxMinutes} minutter etter parkering.
             </Typography.Text>
           </div>
-          <div className="koble-qualified-summary">
-            <strong>{numberFormatter.format(Number(review.qualifiedPairCount || 0))}</strong>
-            <span>kandidatkoblinger</span>
+          <div className="koble-qualified-summary-grid">
+            <div className="koble-qualified-summary">
+              <strong>{numberFormatter.format(Number(review.qualifiedPairCount || 0))}</strong>
+              <span>kandidatkoblinger</span>
+            </div>
+            <div className="koble-qualified-summary">
+              <strong>{formatKr(review.qualifiedPaidTotal)}</strong>
+              <span>parkert for</span>
+            </div>
           </div>
         </div>
 
@@ -177,6 +183,7 @@ export function KobleReviewPanel({
               <span>Bil / SUN2</span>
               <span>Treff</span>
               <span>Siste treff</span>
+              <span>Parkert for</span>
               <span>Status</span>
               <span />
             </div>
@@ -197,6 +204,10 @@ export function KobleReviewPanel({
                 <div>
                   <strong>{formatDateTime(row.lastMatchAt)}</strong>
                   <span>{formatNumber(row.avgDeltaMinutes, " min snitt")}</span>
+                </div>
+                <div>
+                  <strong>{formatKr(row.paidTotal)}</strong>
+                  <span>{row.parkingCount ? `${numberFormatter.format(Number(row.parkingCount))} totalt` : "historikk"}</span>
                 </div>
                 <div>
                   <Tag color={statusColor(row.status)}>{row.status}</Tag>
