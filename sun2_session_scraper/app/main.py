@@ -261,6 +261,17 @@ def save_progress(extra: dict[str, Any]) -> None:
     STATUS_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 
 
+def export_row_count(path: Path) -> int:
+    if not path.exists():
+        return 0
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        rows = data.get("rows") if isinstance(data, dict) else data if isinstance(data, list) else []
+        return len(rows or [])
+    except Exception:
+        return 0
+
+
 def normalize_text(value: Any) -> str:
     text = str(value or "").replace("\xa0", " ").strip()
     text = re.sub(r"\s+", " ", text)
@@ -1830,6 +1841,7 @@ def scrape_month_sync(start: date, end: date, source_filename: str | None = None
     state.update({"last_period": f"{start.isoformat()} - {end.isoformat()}", "current_file": filename, "rows_last_file": 0})
 
     period_is_still_open = end >= local_today()
+    existing_rows_count = export_row_count(out_path)
     if SKIP_EXISTING and out_path.exists() and not period_is_still_open:
         state["skipped_files"] += 1
         state["last_success_period"] = state["last_period"]
@@ -1867,6 +1879,11 @@ def scrape_month_sync(start: date, end: date, source_filename: str | None = None
                 validation_error = (
                     f"Antall stemmer ikke for {start.isoformat()} - {end.isoformat()}: "
                     f"fant {len(sessions)} av {expected_count}"
+                )
+            if not sessions and period_is_still_open and existing_rows_count > 0:
+                validation_error = (
+                    f"Tom Sun2-scrape for aapen periode {filename}: fant 0 rader, "
+                    f"eksisterende fil har {existing_rows_count}. Avviser for aa beskytte livegrunnlaget."
                 )
             outside_period = [
                 item

@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1395")
+APP_BUILD = os.getenv("APP_BUILD", "1396")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1396",
+        "date": "02.07.2026",
+        "headline": "Sun2 stopper tom livefil",
+        "title": "Sun2-scraper beskytter eksisterende dagsfil mot tom scrape",
+        "description": (
+            "Build 1396 hindrer at en aapen Sun2-dagsfil med eksisterende rader blir overskrevet av en scrape som plutselig "
+            "finner 0 rader. Dette beskytter dagens grunnlag ved midlertidig feil i Sun2-listen eller tabellinnlesingen."
+        ),
+        "applications": [
+            "Sun2 session scraper (sun2_session_scraper/app/main.py): sjekker eksisterende eksportfil og avviser tom scrape for aapen periode med tidligere rader.",
+            "Buildlogg (build_log.py): registrerer build 1396.",
+        ],
+        "request": "Rett ustabil Sun2 live-sync etter at omsetning falt uten ny parkeringsimport.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Eksisterende dagsfil telles foer ny scrape skrives.",
+            "Hvis ny scrape gir 0 rader mens eksisterende aapen dagsfil har rader, stoppes filskriving og posting.",
+            "Dette kommer i tillegg til duplikatkontrollen fra build 1395 og backend-sperren fra build 1394.",
+        ],
+    },
     {
         "version": "1",
         "build": "1395",
