@@ -3636,6 +3636,21 @@ PERFORMANCE_INDEXES = [
         "CREATE UNIQUE INDEX IF NOT EXISTS ux_parking_sun_link_candidate_pair "
         "ON parking_sun_link_candidates (generation, plate, sun2_id)",
     ),
+    (
+        "ix_parking_sun_link_candidates_list",
+        "CREATE INDEX IF NOT EXISTS ix_parking_sun_link_candidates_list "
+        "ON parking_sun_link_candidates (generation, status, confidence DESC, matches_count DESC, last_match_at DESC)",
+    ),
+    (
+        "ix_parking_sun_link_matches_list",
+        "CREATE INDEX IF NOT EXISTS ix_parking_sun_link_matches_list "
+        "ON parking_sun_link_matches (generation, parking_start_at DESC, sun_started_at DESC)",
+    ),
+    (
+        "ix_parking_sun_link_processed_checked",
+        "CREATE INDEX IF NOT EXISTS ix_parking_sun_link_processed_checked "
+        "ON parking_sun_link_processed (generation, checked_at DESC)",
+    ),
 ]
 
 
@@ -21745,9 +21760,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             limit_value = api_filter_int(params, "limit", 250, 25, 1000)
             state = await get_parking_sun_link_state(session)
             generation = int_or_zero(state.generation)
-            await refresh_parking_sun_link_candidate_pairs(session, generation, min_matches=state.min_matches)
             await refresh_parking_sun_link_state_counts(session, state)
-            await session.commit()
             candidates = (
                 await session.execute(
                     select(ParkingSunLinkCandidate)

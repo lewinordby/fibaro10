@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1378")
+APP_BUILD = os.getenv("APP_BUILD", "1379")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1379",
+        "date": "02.07.2026",
+        "headline": "Koble rask sidevisning",
+        "title": "Koble-siden leser ferdigberegnede kandidater uten full rescore ved åpning",
+        "description": (
+            "Build 1379 fjerner tung full-rescore fra selve Koble-sidevisningen. Siden leser nå lagrede kandidater, "
+            "treffgrunnlag og jobbstatus, mens scoring oppdateres når sideappen rapporterer nye matcher."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): fjerner full refresh_parking_sun_link_candidate_pairs fra /api/modules/koble.",
+            "Fibaro10 databaseindekser (main.py): legger indekser for kandidat-, treff- og sist behandlet-tabellene.",
+            "Buildlogg (build_log.py): registrerer build 1379.",
+        ],
+        "request": "hvorfor går koble menyen så seint",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Koble-siden skal ikke lenger trigge dyr aggregering over hele historikken.",
+            "Tabellene får indekser til sortering og paginering.",
+            "Sideappen fortsetter å oppdatere kandidater løpende i bakgrunnen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1378",
