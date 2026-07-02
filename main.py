@@ -3024,10 +3024,10 @@ async def build_parking_summaries_fast(session) -> Dict[str, Any]:
         "monthly": monthly_items,
         "yearly": yearly_items,
         "weekly_chart": weekly_chart,
-        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:10],
-        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:10],
-        "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:10],
-        "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:10],
+        "top_days": sorted(daily_items, key=top_sort, reverse=True)[:20],
+        "top_months": sorted(monthly_items, key=top_sort, reverse=True)[:20],
+        "top_days_by_count": sorted(daily_items, key=count_sort, reverse=True)[:20],
+        "top_months_by_count": sorted(monthly_items, key=count_sort, reverse=True)[:20],
         "total": total,
         "first_date": first_date,
         "last_date": last_date,
@@ -16018,6 +16018,18 @@ def api_sun2_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def api_parking_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "period": item.get("period"),
+        "period_label": item.get("period_label") or item.get("period"),
+        "paid": round(float_or_zero(item.get("paid")), 2),
+        "sessions": int_or_zero(item.get("sessions")),
+        "vehicles": int_or_zero(item.get("vehicles")),
+        "minutes": round(float_or_zero(item.get("minutes")), 2),
+        "days_count": int_or_zero(item.get("days_count")),
+    }
+
+
 def api_revenue_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "period": item.get("period"),
@@ -22460,7 +22472,17 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "Siste parkeringer",
                     ["status", "start_time", "end_time", "car_license_number", "vehicle_make", "vehicle_type", "vehicle_color", "vehicle_owner", "fee_inc_vat", "parking_time_min"],
                     [parking_row_api(row, vehicle, details, unifi_before_seconds=15) for row, vehicle, details in latest_rows],
-                )
+                ),
+                api_table(
+                    "Topp dager omsetning",
+                    ["period_label", "paid", "sessions", "vehicles", "minutes"],
+                    [api_parking_summary_row(row) for row in parking_summaries.get("top_days", [])],
+                ),
+                api_table(
+                    "Topp m\u00e5neder omsetning",
+                    ["period", "paid", "sessions", "vehicles", "minutes", "days_count"],
+                    [api_parking_summary_row(row) for row in parking_summaries.get("top_months", [])],
+                ),
             ]
             cards = [
                 api_card(

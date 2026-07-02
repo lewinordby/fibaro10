@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1389")
+APP_BUILD = os.getenv("APP_BUILD", "1390")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1390",
+        "date": "02.07.2026",
+        "headline": "Parkering topp omsetning",
+        "title": "Parkering oversikt viser topp dager og måneder etter omsetning",
+        "description": (
+            "Build 1390 legger inn egne topp-tabeller for parkeringsomsetning på Parkering oversikt. "
+            "Tabellene viser de 20 beste dagene og månedene sortert på beløp, med antall parkeringer, biler og minutter som kontrollgrunnlag."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): utvider parkeringssummeringene til 20 toppperioder.",
+            "Fibaro10 backend (main.py): legger til API-rad for parkeringssummeringer.",
+            "Fibaro10 V2 Parkering oversikt: viser Topp dager omsetning og Topp måneder omsetning.",
+            "Desktop V2 tabeller: gir tydelige kolonnenavn for parkeringssummeringer.",
+            "Buildlogg (build_log.py): registrerer build 1390.",
+        ],
+        "request": "vi har ikke topp dager og topp mnd paa parkering med hensyn til omsetning",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Parkering/oversikt har naa topp 20 dager rangert etter parkeringsomsetning.",
+            "Parkering/oversikt har naa topp 20 maaneder rangert etter parkeringsomsetning.",
+            "Tabellene viser omsetning, antall parkeringer, unike biler og minutter.",
+        ],
+    },
     {
         "version": "1",
         "build": "1389",
