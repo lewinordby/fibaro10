@@ -9,6 +9,7 @@ import re
 import time
 import urllib.error
 import urllib.request
+from collections import Counter
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -89,6 +90,7 @@ LIVE_SYNC_ENABLED = (env_value("LIVE_SYNC_ENABLED", "1") or "1") == "1"
 LIVE_SYNC_INTERVAL_SECONDS = int(env_value("LIVE_SYNC_INTERVAL_SECONDS", "300") or "300")
 LIVE_SYNC_QUIET_START_HOUR = int(env_value("LIVE_SYNC_QUIET_START_HOUR", "0") or "0")
 LIVE_SYNC_QUIET_END_HOUR = int(env_value("LIVE_SYNC_QUIET_END_HOUR", "7") or "7")
+SCRAPE_VALIDATE_RETRIES = max(1, int(env_value("SCRAPE_VALIDATE_RETRIES", "3") or "3"))
 POST_TO_FIBARO10 = (env_value("POST_TO_FIBARO10", "0") or "0") == "1"
 FIBARO10_API_BASE_URL = (env_value("FIBARO10_API_BASE_URL", "http://fibaro10:8110") or "").rstrip("/")
 FIBARO10_API_USERNAME = env_value("FIBARO10_API_USERNAME", "") or ""
@@ -599,6 +601,11 @@ def normalize_session_row(raw: dict[str, str], fallback_day: date) -> dict[str, 
         "status": normalize_text(status) or None,
         "raw": raw_for_storage,
     }
+
+
+def duplicate_session_source_ids(sessions: list[dict[str, Any]]) -> list[str]:
+    counts = Counter(normalize_text(item.get("source_session_id")) for item in sessions)
+    return sorted(source_id for source_id, count in counts.items() if source_id and count > 1)
 
 
 def pick_amount_by_key(row: dict[str, str], include_any: list[str], exclude_any: list[str] | None = None) -> float | None:
@@ -1843,21 +1850,44 @@ def scrape_month_sync(start: date, end: date, source_filename: str | None = None
         page = context.new_page()
         open_sessions_page(page, username, password)
         set_date_range(page, start, end)
-        expected_count = extract_expected_sessions_count(page)
-        headers, table_rows = extract_paginated_table(page)
-        sessions = [item for item in (normalize_session_row(row, start) for row in table_rows) if item]
-        if expected_count is not None and len(sessions) != expected_count:
-            save_debug(page, f"COUNT_MISMATCH_{start:%Y_%m}")
-            raise RuntimeError(f"Antall stemmer ikke for {start.isoformat()} - {end.isoformat()}: fant {len(sessions)} av {expected_count}")
-        outside_period = [
-            item
-            for item in sessions
-            if not (start <= date.fromisoformat(item["stat_date"]) <= end)
-        ]
-        if outside_period:
-            save_debug(page, f"DATE_MISMATCH_{start:%Y_%m}")
-            sample = outside_period[0].get("started_at") or outside_period[0].get("stat_date")
-            raise RuntimeError(f"Dato-filter feilet for {start.isoformat()} - {end.isoformat()}, eksempelrad: {sample}")
+        expected_count = None
+        headers: list[str] = []
+        table_rows: list[dict[str, str]] = []
+        sessions: list[dict[str, Any]] = []
+        for attempt in range(1, SCRAPE_VALIDATE_RETRIES + 1):
+            if attempt > 1:
+                page.reload(wait_until="networkidle", timeout=30000)
+                set_date_range(page, start, end)
+                time.sleep(min(2, attempt))
+            expected_count = extract_expected_sessions_count(page)
+            headers, table_rows = extract_paginated_table(page)
+            sessions = [item for item in (normalize_session_row(row, start) for row in table_rows) if item]
+            validation_error = None
+            if expected_count is not None and len(sessions) != expected_count:
+                validation_error = (
+                    f"Antall stemmer ikke for {start.isoformat()} - {end.isoformat()}: "
+                    f"fant {len(sessions)} av {expected_count}"
+                )
+            outside_period = [
+                item
+                for item in sessions
+                if not (start <= date.fromisoformat(item["stat_date"]) <= end)
+            ]
+            if outside_period:
+                sample = outside_period[0].get("started_at") or outside_period[0].get("stat_date")
+                validation_error = f"Dato-filter feilet for {start.isoformat()} - {end.isoformat()}, eksempelrad: {sample}"
+            duplicate_ids = duplicate_session_source_ids(sessions)
+            if duplicate_ids:
+                validation_error = (
+                    f"Duplikate source_session_id i {filename}: {len(duplicate_ids)} duplikat-id "
+                    f"etter scrape-forsok {attempt}/{SCRAPE_VALIDATE_RETRIES}"
+                )
+            if validation_error:
+                save_debug(page, f"SESSION_VALIDATE_{start:%Y_%m_%d}_{attempt}")
+                if attempt < SCRAPE_VALIDATE_RETRIES:
+                    continue
+                raise RuntimeError(validation_error)
+            break
         if not sessions:
             save_debug(page, f"NO_ROWS_{start:%Y_%m}")
         payload = {

@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1394")
+APP_BUILD = os.getenv("APP_BUILD", "1395")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1395",
+        "date": "02.07.2026",
+        "headline": "Sun2-scraper validerer foer post",
+        "title": "Sun2 live-sync retryer og stopper dupliserte session-filer",
+        "description": (
+            "Build 1395 flytter Sun2-kontrollen ett steg tidligere i kjeden. Scraperen sjekker naa antall, dato og "
+            "duplikate source_session_id foer den skriver dagsfilen og poster til Fibaro10. Ved midlertidig duplikat "
+            "prover den paa nytt foer den gir opp."
+        ),
+        "applications": [
+            "Sun2 session scraper (sun2_session_scraper/app/main.py): legger til valideringsretry og duplikatkontroll foer filskriving/post.",
+            "Buildlogg (build_log.py): registrerer build 1395.",
+        ],
+        "request": "Finn aarsaken til at omsetning falt uten ny parkeringsimport og sorg for at det ikke skjer igjen.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Scraperen gjor inntil tre forsok dersom Sun2-listen gir duplikate source_session_id.",
+            "En duplikatfil blir ikke skrevet til dagens eksportfil og blir ikke postet til Fibaro10.",
+            "Backend-sperren fra build 1394 blir dermed siste forsvar, mens scraperen selv stopper feilgrunnlaget tidligere.",
+            "Dagens Sun2-grunnlag ble reparert fra en korrekt backupfil med 48 unike soltimer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1394",
