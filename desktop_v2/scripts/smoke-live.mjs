@@ -106,7 +106,7 @@ async function smokeRoute(page, route) {
   if (!bodyText.trim()) {
     throw new Error(`${route} rendret tom side`);
   }
-  if (/ugyldig brukernavn|application error|internal server error/i.test(bodyText)) {
+  if (/ugyldig brukernavn|application error|internal server error|not found|404/i.test(bodyText)) {
     throw new Error(`${route} viste feilmelding`);
   }
   console.log(`Live route OK: ${route}`);

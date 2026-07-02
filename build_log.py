@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1379")
+APP_BUILD = os.getenv("APP_BUILD", "1380")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1380",
+        "date": "02.07.2026",
+        "headline": "Koble refresh",
+        "title": "Koble-siden kan lastes direkte og refreshes uten 404",
+        "description": (
+            "Build 1380 legger Koble inn i backendens SPA-fallback-ruter. Hard refresh paa /koble/oversikt "
+            "returnerer naa desktop-appen i stedet for 404 fra FastAPI."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): legger til /koble og /koble/{path} som desktop-app-ruter.",
+            "Live smoke-test (desktop_v2/scripts/smoke-live.mjs): feiler naa tydelig ved 404/Not Found.",
+            "Buildlogg (build_log.py): registrerer build 1380.",
+        ],
+        "request": "om man trykker refresh naar man er inne paa koblingsiden saa blir det feil",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Direkte aapning og refresh av /koble/oversikt gaar til React-appen.",
+            "Smoke-testen skal ikke lenger feilaktig godkjenne Not Found-sider.",
+        ],
+    },
     {
         "version": "1",
         "build": "1379",

@@ -12409,6 +12409,8 @@ async def api_sun2_session_set_primary_image(
 @app.get("/parkering/{path:path}", response_class=HTMLResponse)
 @app.get("/soling", response_class=HTMLResponse)
 @app.get("/soling/{path:path}", response_class=HTMLResponse)
+@app.get("/koble", response_class=HTMLResponse)
+@app.get("/koble/{path:path}", response_class=HTMLResponse)
 @app.get("/energi", response_class=HTMLResponse)
 @app.get("/energi/{path:path}", response_class=HTMLResponse)
 @app.get("/ventilasjon/{path:path}", response_class=HTMLResponse)
