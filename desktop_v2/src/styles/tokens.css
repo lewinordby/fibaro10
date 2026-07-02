@@ -48,6 +48,7 @@
   --domain-vent: #0891b2;
   --domain-weather: #64748b;
   --domain-light: #ca8a04;
+  --domain-ideas: #db2777;
   --domain-mobile: #7c3aed;
   --domain-status: #475569;
   --tone-color: var(--domain-status);
@@ -108,6 +109,10 @@
 
 .domain-lys {
   --active-module-color: var(--domain-light);
+}
+
+.domain-ideer {
+  --active-module-color: var(--domain-ideas);
 }
 
 .domain-mobil {

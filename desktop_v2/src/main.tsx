@@ -29,6 +29,7 @@ import "./styles/ventilation.css";
 import "./styles/ventilation-charts.css";
 import "./styles/ventilation-settings.css";
 import "./styles/energy.css";
+import "./styles/ideas.css";
 import "./styles/records.css";
 import "./styles/records-settlements.css";
 import "./styles/settlement-detail.css";

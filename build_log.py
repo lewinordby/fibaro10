@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1393")
+APP_BUILD = os.getenv("APP_BUILD", "1394")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1394",
+        "date": "02.07.2026",
+        "headline": "Idebank og Sun2-importvern",
+        "title": "Ideer-meny og beskyttelse mot duplikate Sun2-sessioner",
+        "description": (
+            "Build 1394 legger til en egen Ideer-seksjon for forslag som kan vurderes foer de flyttes inn i fagomraadene. "
+            "Builden stopper ogsaa Sun2 session-importer som inneholder duplikate source_session_id foer de kan erstatte korrekt dagsgrunnlag."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): avviser Sun2 session-import med duplikate source_session_id foer databasegrunnlaget erstattes.",
+            "Desktop V2 Ideer (IdeasPage.tsx, ideas.css): ny hovedmeny med undersider for oversikt, kontroll, innsikt, automatisering og arbeidsflyt.",
+            "Desktop V2 navigasjon/ruting (moduleViews.ts, appNavigation.tsx, AppRoutes.tsx): legger Ideer inn som eget hovedomraade.",
+            "Server-ruting (main.py, v2_navigation.py): eksponerer Ideer-rutene i SPA og servermetadata.",
+            "Kvalitetssjekker (smoke-routes.mjs, audit-bundle.mjs): legger Ideer inn i route smoke og justerer bundle-budsjett til faktisk app-storrelse.",
+            "Buildlogg (build_log.py): registrerer build 1394.",
+        ],
+        "request": (
+            "Lag en egen hovedmeny Ideer med undersider for forslag, og undersok hvorfor omsetning hittil i dag falt "
+            "selv om det ikke var kjort ny parkeringsimport."
+        ),
+        "work_duration": "ca. 70 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ideer er lagt inn som ny hovedmeny med fem undersider og konkrete forslag til videre funksjonalitet.",
+            "Sun2-importen validerer naa duplikate source_session_id foer den sletter/erstatter eksisterende rader fra samme kildefil.",
+            "Feil Sun2-import blir logget som mislykket import med forklaring og uten aa endre soltimegrunnlaget.",
+            "Fallet i omsetning ble sporet til Sun2 session-import, ikke EasyPark: parkeringssummen var uendret.",
+            "Route smoke dekker Ideer-rutene slik at manglende SPA-ruting fanges foer deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1393",

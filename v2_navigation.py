@@ -9,6 +9,7 @@ V2_MODULE_LABELS: Dict[str, str] = {
     "energi": "Energi",
     "ventilasjon": "Ventilasjon",
     "lys": "Lys",
+    "ideer": "Ideer",
     "renhold": "Renhold",
     "admin": "Admin",
 }
@@ -75,6 +76,13 @@ V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
         "lux-logging": "Lux-logg",
         "hendelser": "Hendelser",
         "innstillinger": "Innstillinger",
+    },
+    "ideer": {
+        "oversikt": "Oversikt",
+        "kontroll": "Kontroll",
+        "innsikt": "Innsikt",
+        "automatisering": "Automatisering",
+        "arbeidsflyt": "Arbeidsflyt",
     },
     "renhold": {
         "oversikt": "Oversikt",

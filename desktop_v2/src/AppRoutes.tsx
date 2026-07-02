@@ -14,6 +14,7 @@ const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
 const OwnTracksPage = lazy(() => import("./pages/OwnTracksPage"));
 const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
 const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
+const IdeasPage = lazy(() => import("./pages/IdeasPage"));
 const ParkingSettlementsPage = lazy(() => import("./pages/ParkingSettlementsPage"));
 const ParkingVehicleDetailPage = lazy(() => import("./pages/ParkingVehicleDetailPage"));
 const ParkingYearComparisonPage = lazy(() => import("./pages/ParkingYearComparisonPage"));
@@ -76,6 +77,8 @@ export function AppRoutes() {
         <Route path="/lys" element={<Navigate to={modulePath("lys")} replace />} />
         <Route path="/lys/dagslogg-lux" element={<LegacyRedirect to={modulePath("lys", "dagslogg")} />} />
         <Route path="/lys/:view" element={<ModulePage module="lys" />} />
+        <Route path="/ideer" element={<Navigate to={modulePath("ideer")} replace />} />
+        <Route path="/ideer/:view" element={<IdeasPage />} />
         <Route path="/mobil" element={<Navigate to={modulePath("mobil")} replace />} />
         <Route path="/mobil/oversikt" element={<MobileOverviewPage />} />
         <Route path="/mobil/:view" element={<MobileOverviewPage />} />

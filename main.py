@@ -10939,6 +10939,37 @@ async def ingest_sun2_tanning_sessions(session, data: Sun2TanningSessionsIngestI
     return {"inserted": inserted, "updated": updated, "skipped": skipped, "replaced": replaced}
 
 
+def sun2_duplicate_session_id_payload(rows: list[Sun2TanningSessionIn]) -> list[Dict[str, Any]]:
+    grouped: Dict[str, list[Sun2TanningSessionIn]] = defaultdict(list)
+    for row in rows:
+        source_session_id = (repair_mojibake(row.source_session_id) or "").strip()
+        if source_session_id:
+            grouped[source_session_id].append(row)
+
+    duplicates: list[Dict[str, Any]] = []
+    for source_session_id, items in grouped.items():
+        if len(items) < 2:
+            continue
+        duplicates.append(
+            {
+                "source_session_id": source_session_id,
+                "count": len(items),
+                "rows": [
+                    {
+                        "started_at": item.started_at.isoformat() if item.started_at else None,
+                        "room_id": item.room_id,
+                        "sun2_bed_id": item.sun2_bed_id,
+                        "sun2_user_id": item.sun2_user_id,
+                        "duration_minutes": item.duration_minutes,
+                        "paid_amount_kr": item.paid_amount_kr,
+                    }
+                    for item in items
+                ],
+            }
+        )
+    return duplicates
+
+
 async def backfill_sun2_room_identity(session) -> Dict[str, int]:
     counts = {"daily": 0, "sessions": 0}
     for model, key in [(Sun2RoomDailyStat, "daily"), (Sun2TanningSession, "sessions")]:
@@ -12447,6 +12478,8 @@ async def api_sun2_session_set_primary_image(
 @app.get("/energi/{path:path}", response_class=HTMLResponse)
 @app.get("/ventilasjon/{path:path}", response_class=HTMLResponse)
 @app.get("/lys/{path:path}", response_class=HTMLResponse)
+@app.get("/ideer", response_class=HTMLResponse)
+@app.get("/ideer/{path:path}", response_class=HTMLResponse)
 @app.get("/mobil", response_class=HTMLResponse)
 @app.get("/mobil/{path:path}", response_class=HTMLResponse)
 @app.get("/renhold", response_class=HTMLResponse)
@@ -25705,6 +25738,47 @@ async def sun2_sessions_ingest(data: Sun2TanningSessionsIngestIn):
     batch_time = data.timestamp or datetime.utcnow()
     period_first = min((row.started_at for row in data.rows if row.started_at), default=None)
     period_last = max((row.started_at for row in data.rows if row.started_at), default=None)
+    duplicate_source_session_ids = sun2_duplicate_session_id_payload(data.rows)
+    if duplicate_source_session_ids:
+        message = (
+            f"Avvist Sun2 session-import: {len(duplicate_source_session_ids)} duplikat "
+            f"source_session_id i {data.source_file or 'ukjent fil'}"
+        )
+        async with async_session() as session:
+            session.add(
+                Sun2SessionImportRun(
+                    timestamp=batch_time,
+                    collector_id=data.collector_id,
+                    source=data.source,
+                    ok=False,
+                    source_file=data.source_file,
+                    period_first=period_first,
+                    period_last=period_last,
+                    rows_count=len(data.rows),
+                    inserted_count=0,
+                    updated_count=0,
+                    skipped_count=len(data.rows),
+                    message=message,
+                    raw={"extra": data.extra, "duplicate_source_session_ids": duplicate_source_session_ids},
+                )
+            )
+            await record_import_job(
+                session,
+                "sun2_sessions_import",
+                ok=False,
+                source=data.source,
+                records_imported=0,
+                records_total=len(data.rows),
+                message=message,
+                raw={
+                    "collector_id": data.collector_id,
+                    "source_file": data.source_file,
+                    "duplicate_source_session_ids": duplicate_source_session_ids,
+                },
+            )
+            await session.commit()
+        raise HTTPException(status_code=409, detail=message)
+
     async with async_session() as session:
         counts = await ingest_sun2_tanning_sessions(session, data, batch_time)
         session.add(
