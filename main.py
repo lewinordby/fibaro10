@@ -22032,7 +22032,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "",
                         worker_detail,
                         "status" if state.status != "feil" else "warning",
-                        href="/koble/oversikt",
+                        href="/koble/jobb",
                     ),
                     api_card(
                         "Sterke kandidater",
@@ -22040,7 +22040,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "",
                         "Avventer med minst 70 % sannsynlighet",
                         "parking",
-                        href="/koble/oversikt",
+                        href="/koble/kandidater",
                     ),
                     api_card(
                         "Alle kandidater",
@@ -22048,7 +22048,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "",
                         "Inkluderer enkeltfunn med lavere sannsynlighet",
                         "sun2",
-                        href="/koble/oversikt",
+                        href="/koble/kandidater",
                     ),
                     api_card(
                         "Bilnr 2+ soltreff",
@@ -22056,7 +22056,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "",
                         f"{format_short_number(qualified_pair_count)} koblinger med samme SUN2 innen {int_or_zero(state.max_minutes)} min",
                         "sun2",
-                        href="/koble/oversikt",
+                        href="/koble/biltreff",
                     ),
                     api_card(
                         "Parkert for",
@@ -22064,7 +22064,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "kr",
                         "Samlet parkering for disse unike bilene",
                         "parking",
-                        href="/koble/oversikt",
+                        href="/koble/biltreff",
                     ),
                     api_card(
                         "Behandlet",
@@ -22072,7 +22072,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "parkeringer",
                         f"{format_short_number(state.checked_plate_count)} biler, {format_short_number(state.matched_count)} treff",
                         "parking",
-                        href="/koble/oversikt",
+                        href="/koble/jobb",
                     ),
                     api_card(
                         "Worker sist sett",

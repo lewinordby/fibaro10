@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1385")
+APP_BUILD = os.getenv("APP_BUILD", "1386")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1386",
+        "date": "02.07.2026",
+        "headline": "Koble ryddigere meny",
+        "title": "Koble deles i tydelige undersider for kontroll, kandidater og jobbstatus",
+        "description": (
+            "Build 1386 rydder Koble-modulen ved aa dele arbeidsflaten i egne undersider i den horisontale "
+            "menyen: Oversikt, SUN2-kontroll, Biltreff, Kandidater, Treffgrunnlag og Jobb. Hver underside viser "
+            "bare relevant innhold."
+        ),
+        "applications": [
+            "Desktop V2 navigasjon (moduleViews.ts): legger til egne Koble-undersider.",
+            "Fibaro10 backend navigation (v2_navigation.py): legger til titler for nye Koble-visninger.",
+            "Desktop V2 (ModulePage.tsx): filtrerer Koble-kort, actions og tabeller etter aktiv underside.",
+            "Desktop V2 (KobleReviewPanel.tsx): viser bare relevant Koble-seksjon per underside.",
+            "Desktop V2 styling (koble.css): gir lange Koble-lister egen scrollflate.",
+            "Fibaro10 backend (main.py): peker Koble-kort til riktige nye undersider.",
+            "Buildlogg (build_log.py): registrerer build 1386.",
+        ],
+        "request": "naa kan du rydde opp og proeve aa gjoere alt rundt koble menyen mer oversiktlig. lag gjerne flere undersider med tilgang fra den horisontale menyen",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny horisontal Koble-meny med seks undersider.",
+            "Oversikt viser kun statuskort og kort forklaring.",
+            "SUN2-kontroll og Biltreff har egne kontrollflater.",
+            "Treffgrunnlag og Jobb viser bare relevante generiske tabeller.",
+            "Koble-actions vises bare paa Jobb-siden.",
+        ],
+    },
     {
         "version": "1",
         "build": "1385",

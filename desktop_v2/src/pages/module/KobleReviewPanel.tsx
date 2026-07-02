@@ -82,9 +82,11 @@ function qualifiedSun2RowKey(row: KobleQualifiedSun2Row): string {
 
 export function KobleReviewPanel({
   review,
+  view,
   onReload,
 }: {
   review: KobleReviewData;
+  view: string;
   onReload: () => Promise<unknown> | unknown;
 }) {
   const { message, modal } = AntApp.useApp();
@@ -95,10 +97,12 @@ export function KobleReviewPanel({
   const qualifiedRows = review.qualifiedRows ?? [];
   const qualifiedSun2Rows = review.qualifiedSun2Rows ?? [];
   const visibleQualifiedRows = qualifiedRows.slice(0, 12);
+  const shownQualifiedRows = view === "biltreff" ? qualifiedRows : visibleQualifiedRows;
   const qualifiedSun2Count = useMemo(
     () => new Set(qualifiedSun2Rows.map((row) => row.sun2Id).filter(Boolean)).size,
     [qualifiedSun2Rows],
   );
+  const hasCustomKobleView = view === "oversikt" || view === "biltreff" || view === "sun2" || view === "kandidater";
 
   async function setCandidateStatus(candidate: KobleReviewCandidate, status: "Bekreftet" | "Avvist") {
     if (updatingId) return;
@@ -137,14 +141,17 @@ export function KobleReviewPanel({
     }
   }
 
+  if (!hasCustomKobleView) return null;
+
   return (
     <section className="koble-review">
+      {view === "oversikt" ? (
       <Card className="work-card koble-review-intro">
         <div className="koble-review-intro-main">
-          <Typography.Text className="koble-review-eyebrow">Visuell kontroll</Typography.Text>
-          <Typography.Title level={3}>Kandidater som bør vurderes</Typography.Title>
+          <Typography.Text className="koble-review-eyebrow">Koblingsmotor</Typography.Text>
+          <Typography.Title level={3}>Parkering mot SUN2</Typography.Title>
           <Typography.Text type="secondary">
-            Kontroller at bilen og SUN2-brukeren henger logisk sammen før koblingen bekreftes.
+            Bruk undersidene til SUN2-kontroll, biltreff, kandidater, treffgrunnlag og jobbstatus.
           </Typography.Text>
         </div>
         <div className="koble-review-intro-stats">
@@ -166,7 +173,9 @@ export function KobleReviewPanel({
           </span>
         </div>
       </Card>
+      ) : null}
 
+      {view === "biltreff" ? (
       <Card className="work-card koble-qualified-card">
         <div className="koble-qualified-head">
           <div>
@@ -190,8 +199,8 @@ export function KobleReviewPanel({
           </div>
         </div>
 
-        {visibleQualifiedRows.length ? (
-          <div className="koble-qualified-list">
+        {shownQualifiedRows.length ? (
+          <div className="koble-qualified-list is-full">
             <div className="koble-qualified-row is-head">
               <span>Bil / SUN2</span>
               <span>Treff</span>
@@ -200,7 +209,7 @@ export function KobleReviewPanel({
               <span>Status</span>
               <span />
             </div>
-            {visibleQualifiedRows.map((row) => (
+            {shownQualifiedRows.map((row) => (
               <div className="koble-qualified-row" key={qualifiedRowKey(row)}>
                 <div className="koble-qualified-identity">
                   <strong>{row.plate}</strong>
@@ -236,13 +245,10 @@ export function KobleReviewPanel({
           <Empty description="Ingen bilnummer har to eller flere soltreff ennå" />
         )}
 
-        {qualifiedRows.length > visibleQualifiedRows.length ? (
-          <Typography.Text type="secondary">
-            Viser {visibleQualifiedRows.length} av {qualifiedRows.length}. Hele listen ligger i tabellen Bilnr med 2+ soltreff under.
-          </Typography.Text>
-        ) : null}
       </Card>
+      ) : null}
 
+      {view === "sun2" ? (
       <Card className="work-card koble-sun2-card">
         <div className="koble-sun2-head">
           <div>
@@ -312,8 +318,10 @@ export function KobleReviewPanel({
           <Empty description="Ingen SUN2-ID-er har biler med to eller flere soltreff ennå" />
         )}
       </Card>
+      ) : null}
 
-      {visibleCandidates.length ? (
+      {view === "kandidater" ? (
+      visibleCandidates.length ? (
         <div className="koble-review-grid">
           {visibleCandidates.map((candidate) => {
             const tone = confidenceTone(candidate);
@@ -456,9 +464,10 @@ export function KobleReviewPanel({
         <Card className="work-card">
           <Empty description="Ingen kandidater å kontrollere" />
         </Card>
-      )}
+      )
+      ) : null}
 
-      {shown < review.candidates.length ? (
+      {view === "kandidater" && shown < review.candidates.length ? (
         <div className="koble-review-more">
           <Button onClick={() => setShown((value) => Math.min(review.candidates.length, value + 10))}>
             Vis flere kandidater

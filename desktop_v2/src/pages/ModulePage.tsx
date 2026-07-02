@@ -189,13 +189,23 @@ export default function ModulePage({ module }: { module: string }) {
   }
   const hideModuleChrome = Boolean(data.parkingTimeline);
   const isSunSessionsView = module === "soling" && safeView === "enkeltimer";
+  const kobleTableTitlesByView: Record<string, string[]> = {
+    treffgrunnlag: ["Treffgrunnlag"],
+    jobb: ["Jobbparametere", "Sist behandlet"],
+  };
+  const visibleTables =
+    module === "koble"
+      ? data.tables.filter((table) => (kobleTableTitlesByView[safeView] ?? []).includes(table.title))
+      : data.tables;
+  const showModuleActions = Boolean(data.actions?.length && !hideModuleChrome && !(module === "koble" && safeView !== "jobb"));
+  const showModuleCards = Boolean(data.cards.length && !hideModuleChrome && !(module === "koble" && safeView !== "oversikt"));
 
   return (
     <Space direction="vertical" size={18} className="page-stack">
-      {data.actions?.length && !hideModuleChrome ? (
+      {showModuleActions ? (
         <Card className="work-card module-actions">
           <Space>
-            {data.actions.map((action) => (
+            {(data.actions ?? []).map((action) => (
               <Button
                 key={action.key}
                 type={action.tone === "primary" ? "primary" : "default"}
@@ -235,7 +245,7 @@ export default function ModulePage({ module }: { module: string }) {
         />
       ) : (
         <>
-      {data.cards.length && !hideModuleChrome ? (
+      {showModuleCards ? (
         <div className="metric-grid primary-grid">
           {data.cards.map((card) => (
             <ModuleMetric card={card} key={card.title} module={module} view={safeView} />
@@ -249,9 +259,10 @@ export default function ModulePage({ module }: { module: string }) {
         <ParkingTimelinePanel timeline={data.parkingTimeline} onDayChange={setTimelineDay} />
       ) : (
         <>
-          {module === "koble" && data.kobleReview ? <KobleReviewPanel review={data.kobleReview} onReload={reloadModule} /> : null}
+          {module === "koble" && data.kobleReview ? <KobleReviewPanel review={data.kobleReview} view={safeView} onReload={reloadModule} /> : null}
           {data.charts?.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} onDayChange={setTimelineDay} />)}
 
+      {visibleTables.length ? (
       <Card className="table-card module-table-card">
         <TableSearch
           placeholder={tableSearchPlaceholder(module, safeView)}
@@ -261,13 +272,14 @@ export default function ModulePage({ module }: { module: string }) {
           onSearch={runSearch}
         />
         <Tabs
-          items={data.tables.map((table) => ({
+          items={visibleTables.map((table) => ({
             key: table.title,
             label: tabLabel(table, query),
             children: <ModuleTablePane table={table} query={query} onEdit={openEdit} onServerPageChange={setServerPage} />,
           }))}
         />
       </Card>
+      ) : null}
         </>
       )}
         </>

@@ -72,7 +72,14 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "statistikk", label: "Statistikk" },
     { key: "detaljer", label: "Detaljer" },
   ],
-  koble: [{ key: "oversikt", label: "Oversikt" }],
+  koble: [
+    { key: "oversikt", label: "Oversikt" },
+    { key: "sun2", label: "SUN2-kontroll" },
+    { key: "biltreff", label: "Biltreff" },
+    { key: "kandidater", label: "Kandidater" },
+    { key: "treffgrunnlag", label: "Treffgrunnlag" },
+    { key: "jobb", label: "Jobb" },
+  ],
   energi: [
     { key: "status", label: "Status" },
     { key: "elvia-kontroll", label: "Elvia-kontroll" },

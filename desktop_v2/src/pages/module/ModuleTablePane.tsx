@@ -23,6 +23,7 @@ export function tabLabel(table: ModuleTable, query: string): ReactNode {
 }
 
 export function tableSearchPlaceholder(module: string, view: string): string {
+  if (module === "koble") return "Søk etter SUN2, reg.nr, bil eller bruker";
   if (module === "parkering" && view === "kjoretoy") return "Søk etter reg.nr, bil, eier, område. Bruk \"nordby\" for eksakt ord.";
   return "Søk i tabellene";
 }

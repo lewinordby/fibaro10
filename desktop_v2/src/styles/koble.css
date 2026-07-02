@@ -122,6 +122,11 @@
   border-radius: var(--radius-md);
 }
 
+.koble-qualified-list.is-full {
+  max-height: 560px;
+  overflow: auto;
+}
+
 .koble-qualified-row {
   display: grid;
   grid-template-columns: minmax(220px, 1.5fr) minmax(116px, 0.7fr) minmax(130px, 0.85fr) minmax(118px, 0.75fr) minmax(96px, 0.55fr) 92px;
@@ -137,6 +142,9 @@
 }
 
 .koble-qualified-row.is-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   min-height: 34px;
   color: var(--text-label);
   font-size: 10.5px;

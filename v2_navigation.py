@@ -48,6 +48,11 @@ V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
     },
     "koble": {
         "oversikt": "Oversikt",
+        "sun2": "SUN2-kontroll",
+        "biltreff": "Biltreff",
+        "kandidater": "Kandidater",
+        "treffgrunnlag": "Treffgrunnlag",
+        "jobb": "Jobb",
     },
     "energi": {
         "status": "Status",
