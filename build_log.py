@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1377")
+APP_BUILD = os.getenv("APP_BUILD", "1378")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1378",
+        "date": "02.07.2026",
+        "headline": "Koble hele historikken",
+        "title": "Koble kan kjøre mot alle biler og alle parkeringer uten tidsbegrenset bilutvalg",
+        "description": (
+            "Build 1378 endrer Koble-motorens bilutvalg slik at verdien 0 betyr hele historikken. "
+            "Da sjekkes alle parkeringer vi har mot soltimer, ikke bare biler som har parkert de siste dagene."
+        ),
+        "applications": [
+            "Koble-sideapp (parking_sun_linker): recent_days=0 betyr alle biler og alle parkeringer.",
+            "Fibaro10 backend (main.py): tillater 0 som parameterverdi og bruker 0 som standard for nye state-rader.",
+            "Desktop V2 tabeller: viser tydelig at bilutvalg 0 betyr alle.",
+            "Buildlogg (build_log.py): registrerer build 1378.",
+        ],
+        "request": "tror ikke vi skal begrense til biler inneværende år, men sjekke parkeringer mot soling for alle parkeriger vi har på den enkelte bilen",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Bilutvalg kan nå settes til 0 for full historikk.",
+            "Sideappen velger da alle ubehandlede parkeringer uavhengig av hvor nylig bilen har parkert.",
+            "Live-jobben skal startes fra nyeste parkering med full historikk etter deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1377",

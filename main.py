@@ -1380,7 +1380,7 @@ class ParkingSunLinkJobState(Base):
     generation = Column(Integer, nullable=False, default=1)
     min_matches = Column(Integer, nullable=False, default=2)
     max_minutes = Column(Integer, nullable=False, default=3)
-    recent_days = Column(Integer, nullable=False, default=14)
+    recent_days = Column(Integer, nullable=False, default=0)
     idle_sleep_seconds = Column(Integer, nullable=False, default=20)
     status = Column(String, index=True, nullable=False, default="stoppet")
     status_text = Column(Text, nullable=True)
@@ -1947,7 +1947,7 @@ class ParkingVehicleCarInfoUpdate(BaseModel):
 class ParkingSunLinkSettingsUpdate(BaseModel):
     min_matches: Optional[int] = Field(None, ge=1, le=20)
     max_minutes: Optional[int] = Field(None, ge=1, le=30)
-    recent_days: Optional[int] = Field(None, ge=1, le=90)
+    recent_days: Optional[int] = Field(None, ge=0, le=3650)
     idle_sleep_seconds: Optional[int] = Field(None, ge=5, le=3600)
 
 
@@ -3258,7 +3258,7 @@ STARTUP_COLUMNS = {
         ("generation", "INTEGER DEFAULT 1"),
         ("min_matches", "INTEGER DEFAULT 2"),
         ("max_minutes", "INTEGER DEFAULT 3"),
-        ("recent_days", "INTEGER DEFAULT 14"),
+        ("recent_days", "INTEGER DEFAULT 0"),
         ("idle_sleep_seconds", "INTEGER DEFAULT 20"),
         ("status", "VARCHAR DEFAULT 'stoppet'"),
         ("status_text", "TEXT"),
@@ -14911,21 +14911,21 @@ async def parking_sun_link_candidates(
     reference_time: datetime,
     min_matches: int = 2,
     max_minutes: int = 3,
-    recent_days: int = 14,
+    recent_days: int = 0,
     limit: int = 250,
 ) -> Dict[str, Any]:
     parking_plate = func.upper(func.replace(func.coalesce(ParkingSession.car_license_number, ""), " ", ""))
     session_sun2_id = func.trim(func.coalesce(Sun2TanningSession.sun2_user_id, ""))
     delta_seconds = func.extract("epoch", Sun2TanningSession.started_at - ParkingSession.start_time)
-    recent_cutoff = reference_time - timedelta(days=recent_days)
-    recent_plates = (
+    recent_cutoff = reference_time - timedelta(days=recent_days) if recent_days > 0 else None
+    recent_plates_query = (
         select(parking_plate.label("plate"))
-        .where(ParkingSession.start_time >= recent_cutoff)
         .where(ParkingSession.car_license_number.is_not(None))
         .where(parking_plate != "")
-        .distinct()
-        .subquery()
     )
+    if recent_cutoff:
+        recent_plates_query = recent_plates_query.where(ParkingSession.start_time >= recent_cutoff)
+    recent_plates = recent_plates_query.distinct().subquery()
     match_conditions = [
         ParkingSession.start_time.is_not(None),
         ParkingSession.car_license_number.is_not(None),
@@ -15164,7 +15164,7 @@ def parking_sun_link_settings_edit() -> Dict[str, Any]:
         "fields": [
             {"key": "min_matches", "label": "Sterk kandidat fra treff", "type": "number"},
             {"key": "max_minutes", "label": "Maks minutter etter parkering", "type": "number"},
-            {"key": "recent_days", "label": "Bilutvalg siste dager", "type": "number"},
+            {"key": "recent_days", "label": "Bilutvalg dager (0 = alle)", "type": "number"},
             {"key": "idle_sleep_seconds", "label": "Pause naar ajour sek", "type": "number"},
         ],
     }
@@ -15204,7 +15204,7 @@ async def get_parking_sun_link_state(session: Any) -> ParkingSunLinkJobState:
         "generation": 1,
         "min_matches": 2,
         "max_minutes": 3,
-        "recent_days": 14,
+        "recent_days": 0,
         "idle_sleep_seconds": 20,
         "status": "stoppet",
         "status_text": "Koblingsjobben er stoppet.",

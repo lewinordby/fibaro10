@@ -144,16 +144,8 @@ async def post_status(config: dict[str, Any], status: str, status_text: str, las
 
 async def next_parkings(session, config: dict[str, Any], limit: int) -> list[tuple[ParkingSession, str]]:
     generation = int(config.get("generation") or 1)
-    recent_days = max(1, int(config.get("recent_days") or 14))
-    recent_cutoff = datetime.now() - timedelta(days=recent_days)
+    recent_days = max(0, int(config.get("recent_days") or 0))
     plate_expr = func.upper(func.replace(func.coalesce(ParkingSession.car_license_number, ""), " ", ""))
-    active_plates = (
-        select(plate_expr.label("plate"))
-        .where(ParkingSession.start_time >= recent_cutoff)
-        .where(plate_expr != "")
-        .distinct()
-        .subquery()
-    )
     processed_ids = (
         select(ParkingSunLinkProcessed.parking_record_id)
         .where(ParkingSunLinkProcessed.generation == generation)
@@ -162,11 +154,21 @@ async def next_parkings(session, config: dict[str, Any], limit: int) -> list[tup
     stmt = (
         select(ParkingSession, plate_expr.label("plate"))
         .where(ParkingSession.start_time.is_not(None))
-        .where(plate_expr.in_(select(active_plates.c.plate)))
+        .where(plate_expr != "")
         .where(~ParkingSession.id.in_(select(processed_ids.c.parking_record_id)))
         .order_by(ParkingSession.start_time.desc(), ParkingSession.id.desc())
         .limit(limit)
     )
+    if recent_days > 0:
+        recent_cutoff = datetime.now() - timedelta(days=recent_days)
+        active_plates = (
+            select(plate_expr.label("plate"))
+            .where(ParkingSession.start_time >= recent_cutoff)
+            .where(plate_expr != "")
+            .distinct()
+            .subquery()
+        )
+        stmt = stmt.where(plate_expr.in_(select(active_plates.c.plate)))
     rows = (await session.execute(stmt)).all()
     return [(row[0], compact_plate(row.plate)) for row in rows if compact_plate(row.plate)]
 
