@@ -19,6 +19,7 @@ BUILD_LOG = [
         ),
         "applications": [
             "Fibaro10 backend (main.py): beregner snitt pr uke for samlet omsetning, soling og parkering.",
+            "Desktop V2 styling (module-metrics.css): lar modulens noekkeltall fylle tilgjengelig bredde uten enslig kort paa ny rad.",
             "Buildlogg (build_log.py): registrerer build 1382.",
         ],
         "request": "paa omsetning oversikt saa skulle jeg gjerne hatt inn snitt pr uke",
@@ -28,6 +29,7 @@ BUILD_LOG = [
             "Omsetning oversikt faar kortet Snitt pr uke.",
             "Detaljen viser fordeling mellom soling og parkering.",
             "Uketallet er basert paa antall paabegynte uker hittil i aar.",
+            "Kortgriden justeres slik at sju noekkeltall kan ligge paa samme rad ved bred skjerm.",
         ],
     },
     {
