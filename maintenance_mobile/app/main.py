@@ -328,7 +328,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1400">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1401">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -360,8 +360,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1400">
-  <script src="/assets/maintenance-mobile.js?v=1400" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1401">
+  <script src="/assets/maintenance-mobile.js?v=1401" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -379,62 +379,50 @@ INDEX_HTML = """<!doctype html>
     </form>
   </header>
   <main class="app-shell">
-    <section class="hero-card">
-      <div>
-        <p class="eyebrow">Mobil registrering</p>
-        <h1>Ny vedlikeholdspost</h1>
-        <p id="userLine" class="muted">Henter bruker og valg...</p>
-      </div>
-      <button id="refreshButton" class="ghost-button" type="button">Oppdater</button>
+    <section id="taskScreen" class="screen">
+      <section class="hero-card task-hero">
+        <div>
+          <p class="eyebrow">Vedlikehold</p>
+          <h1>Hva skal registreres?</h1>
+          <p id="userLine" class="muted">Henter bruker...</p>
+        </div>
+        <button id="refreshButton" class="ghost-button" type="button">Oppdater</button>
+      </section>
+
+      <section id="taskGrid" class="task-grid" aria-label="Vedlikeholdsoppgaver"></section>
     </section>
 
-    <section id="statusCards" class="status-grid" aria-live="polite"></section>
+    <section id="entryScreen" class="screen is-hidden">
+      <section class="entry-head">
+        <button id="backButton" class="back-button" type="button">Tilbake</button>
+        <div>
+          <p id="taskCategory" class="eyebrow">Oppgave</p>
+          <h1 id="taskTitle">Vedlikehold</h1>
+          <p id="taskSubtitle" class="muted"></p>
+        </div>
+      </section>
 
-    <form id="maintenanceForm" class="entry-card">
-      <div class="form-row two">
-        <label>Tidspunkt<input id="performed_at" name="performed_at" type="datetime-local" required></label>
-        <label>Utført av<input id="performed_by" name="performed_by" placeholder="Bruker eller navn"></label>
-      </div>
+      <form id="maintenanceForm" class="entry-card">
+        <div class="form-row two">
+          <label>Tidspunkt<input id="performed_at" name="performed_at" type="datetime-local" required></label>
+          <label>Utført av<input id="performed_by" name="performed_by" placeholder="Bruker eller navn"></label>
+        </div>
 
-      <div class="field-group">
-        <span class="field-label">Objekt</span>
-        <div id="targetChips" class="chip-grid"></div>
-      </div>
+        <label id="roomField" class="is-hidden">Seng / rom<select id="room_id" name="room_id"></select></label>
 
-      <div class="form-row two">
-        <label id="roomField">Seng / rom<select id="room_id" name="room_id"></select></label>
-        <label>Objektnavn<input id="target_name" name="target_name" placeholder="Blankt gir navn fra valgt rom"></label>
-      </div>
+        <label>Notat<textarea id="summary" name="summary" rows="5" placeholder="Skriv eventuelt kort hva som ble gjort eller avvik du fant." required></textarea></label>
 
-      <div class="field-group">
-        <span class="field-label">Tiltak</span>
-        <div id="actionChips" class="chip-grid compact"></div>
-      </div>
+        <div class="form-row follow-row">
+          <label class="toggle-line"><input id="follow_up_needed" name="follow_up_needed" type="checkbox"> Må følges opp</label>
+          <label>Varighet<input id="duration_minutes" name="duration_minutes" type="number" min="0" inputmode="numeric" placeholder="min"></label>
+        </div>
 
-      <div class="form-row three">
-        <label>Type<select id="presence_type" name="presence_type"></select></label>
-        <label>Prioritet<select id="priority" name="priority"></select></label>
-        <label>Status<select id="status" name="status"></select></label>
-      </div>
+        <label id="followUpField" class="is-hidden">Oppfølging<textarea id="follow_up_text" name="follow_up_text" rows="3" placeholder="Hva må gjøres videre?"></textarea></label>
 
-      <label>Hva ble gjort<textarea id="summary" name="summary" rows="6" placeholder="Skriv kort og konkret hva som ble gjort eller observert." required></textarea></label>
-
-      <div class="field-group">
-        <span class="field-label">Tagger</span>
-        <div id="tagChips" class="chip-grid compact"></div>
-        <input id="custom_tags" name="custom_tags" placeholder="Ekstra tagger, komma-separert">
-      </div>
-
-      <div class="form-row follow-row">
-        <label class="toggle-line"><input id="follow_up_needed" name="follow_up_needed" type="checkbox"> Må følges opp</label>
-        <label>Varighet<input id="duration_minutes" name="duration_minutes" type="number" min="0" inputmode="numeric" placeholder="min"></label>
-      </div>
-
-      <label>Oppfølging<textarea id="follow_up_text" name="follow_up_text" rows="3" placeholder="Hva må gjøres videre?"></textarea></label>
-
-      <button id="submitButton" class="primary-button" type="submit">Lagre vedlikehold</button>
-      <p id="formMessage" class="form-message" role="status"></p>
-    </form>
+        <button id="submitButton" class="primary-button" type="submit">Lagre</button>
+        <p id="formMessage" class="form-message" role="status"></p>
+      </form>
+    </section>
 
     <section class="recent-card">
       <div class="section-head">

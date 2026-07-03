@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1400")
+APP_BUILD = os.getenv("APP_BUILD", "1401")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1401",
+        "date": "03.07.2026",
+        "headline": "Vedlikehold mobil får oppgaveknapper",
+        "title": "Mobilflaten forenkles til 8 store vedlikeholdsvalg",
+        "description": (
+            "Build 1401 gjør vedlikeholdsappen enklere å bruke på mobil. Første skjerm er nå en 2x4-flate med store "
+            "oppgaveknapper. Når en oppgave velges, åpnes et smalt registreringsskjema der riktig oppgavetype, objekt, "
+            "status, prioritet og tagger settes automatisk."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: bytter startsiden til oppgavevalg og egen registreringsskjerm.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: legger inn oppgavepresets, automatisk tagging og forenklet lagringspayload.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: bygger 2x4 mobilgrid med store knapper og strammere registreringsskjema.",
+        ],
+        "request": (
+            "Forenkle vedlikeholdsappen. Første skjerm skal ha 8 store knapper, 4 rader og 2 i bredden, som går videre "
+            "til mobilskjerm for utfylling. Start med Rens støvsugere, og automatisk tagg oppgaven med dato og type."
+        ),
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Første skjerm viser åtte faste oppgavevalg, inkludert Rens støvsugere.",
+            "Valgt oppgave fyller automatisk ut objekt, tiltak, prioritet, status og standardnotat.",
+            "Seng/rom vises bare for oppgaver som trenger det.",
+            "Lagring sender automatiske tagger for oppgave, kategori, mobilregistrering og dato.",
+            "Etter lagring oppdateres historikken og brukeren sendes tilbake til oppgavevalgene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1400",
