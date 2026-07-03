@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1407")
+APP_BUILD = os.getenv("APP_BUILD", "1408")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1408",
+        "date": "03.07.2026",
+        "headline": "OwnTracks far eget token-beskyttet webgrensesnitt",
+        "title": "Standalone OwnTracks kan kontrolleres direkte uten Fibaro10",
+        "description": (
+            "Build 1408 legger inn en enkel administrasjonsside i owntracks_service. Siden viser status, enheter, "
+            "siste posisjoner, waypoints, waypoint-hendelser og beregnede sonebesok. Eksterne visnings-API-er under "
+            "/owntracks/api krever samme token som mobilpubliseringen, slik at posisjonsdata ikke ligger apent."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: legger til token-beskyttet webgrensesnitt, kart, tabeller og eksterne API-aliaser.",
+            "docs/owntracks-http.md: dokumenterer visningsside og tokenbruk.",
+            "tests/test_owntracks_service.py: dekker at OwnTracks-service og administrasjonsside responderer riktig.",
+        ],
+        "request": "Lag et grensesnitt pa OwnTracks-serveren hvor jeg kan se det som kommer inn, men ikke la det ligge helt apent.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny side: https://online.lilletorget.net/owntracks.",
+            "Siden viser siste posisjoner, enheter, waypoints, sonebesok og hendelser.",
+            "Kartet viser spor, siste enhetsposisjon og waypoint-radius.",
+            "Eksterne visningsendepunkter krever token eller Basic Auth.",
+            "Lokal /health pa QNAP-porten er fortsatt tilgjengelig for intern helsesjekk.",
+        ],
+    },
     {
         "version": "1",
         "build": "1407",

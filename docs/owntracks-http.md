@@ -32,6 +32,17 @@ Bruk HTTP-modus:
 - Device ID: valgfritt, men bruk et stabilt navn
 - Reporting mode: etter behov, for eksempel significant changes eller manual
 
+## Visning
+
+Webgrensesnittet ligger her:
+
+- `https://online.lilletorget.net/owntracks`
+
+Siden og de eksterne `/owntracks/api/...`-endepunktene krever samme token som HTTP-publisering. Nettleseren kan bruke
+Basic Auth: valgfritt brukernavn og token som passord. Alternativt kan token sendes som querystring:
+
+- `https://online.lilletorget.net/owntracks?token=<OWNTRACKS_HTTP_TOKEN>`
+
 ## Videre Fibaro10-integrasjon
 
 Fibaro10 skal ikke lese OwnTracks direkte nå. Når HTTP-tjenesten er verifisert, lager vi et eksplisitt API i

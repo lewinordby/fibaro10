@@ -1,13 +1,14 @@
 import os
 import tempfile
 import unittest
+import base64
 
 _tmpdir = tempfile.mkdtemp(prefix="owntracks-service-test-")
 os.environ.setdefault("OWNTRACKS_DATA_DIR", _tmpdir)
 os.environ.setdefault("OWNTRACKS_DATABASE_URL", f"sqlite:///{os.path.join(_tmpdir, 'owntracks-test.db')}")
 
+from owntracks_service.app import main as owntracks_main  # noqa: E402
 from owntracks_service.app.main import (  # noqa: E402
-    app,
     normalized_event_type,
     waypoint_items_from_plural,
     waypoint_name_from_payload,
@@ -15,6 +16,8 @@ from owntracks_service.app.main import (  # noqa: E402
     waypoint_state_for_event,
 )
 from fastapi.testclient import TestClient  # noqa: E402
+
+app = owntracks_main.app
 
 
 class OwnTracksServiceTests(unittest.TestCase):
@@ -47,6 +50,35 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertGreaterEqual(health["counts"]["locations"], 1)
             self.assertGreaterEqual(health["counts"]["devices"], 1)
 
+    def test_admin_ui_is_closed_when_token_is_not_configured(self) -> None:
+        original_token = owntracks_main.HTTP_TOKEN
+        owntracks_main.HTTP_TOKEN = ""
+        try:
+            with TestClient(app) as client:
+                page = client.get("/owntracks")
+                self.assertEqual(page.status_code, 503)
+        finally:
+            owntracks_main.HTTP_TOKEN = original_token
+
+    def test_admin_ui_and_external_api_require_and_accept_token(self) -> None:
+        original_token = owntracks_main.HTTP_TOKEN
+        owntracks_main.HTTP_TOKEN = "test-token"
+        basic_auth = base64.b64encode(b"admin:test-token").decode("ascii")
+        try:
+            with TestClient(app) as client:
+                missing = client.get("/owntracks")
+                self.assertEqual(missing.status_code, 401)
+                self.assertIn("WWW-Authenticate", missing.headers)
+
+                page = client.get("/owntracks", headers={"Authorization": f"Basic {basic_auth}"})
+                self.assertEqual(page.status_code, 200)
+                self.assertIn("OwnTracks", page.text)
+
+                module = client.get("/owntracks/api/module?token=test-token")
+                self.assertEqual(module.status_code, 200)
+                self.assertIn("tables", module.json())
+        finally:
+            owntracks_main.HTTP_TOKEN = original_token
 
 if __name__ == "__main__":
     unittest.main()

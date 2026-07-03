@@ -15,6 +15,7 @@ import time
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import (
     Boolean,
@@ -883,6 +884,526 @@ def require_http_token(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Invalid OwnTracks token")
 
 
+def require_owntracks_admin(request: Request) -> None:
+    if not HTTP_TOKEN:
+        raise HTTPException(status_code=503, detail="OwnTracks token is not configured")
+    try:
+        require_http_token(request)
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            raise HTTPException(
+                status_code=401,
+                detail="OwnTracks token required",
+                headers={"WWW-Authenticate": 'Basic realm="OwnTracks"'},
+            ) from exc
+        raise
+
+
+OWNTRACKS_ADMIN_HTML = """
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OwnTracks | Lilletorget</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --line: #dfe7f1;
+      --text: #111827;
+      --muted: #64748b;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --orange: #f59e0b;
+      --red: #dc2626;
+      --shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+    .shell {
+      width: min(1680px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+    .brand p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    button, select {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      min-height: 36px;
+      border-radius: 8px;
+      padding: 0 12px;
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+      font-weight: 650;
+    }
+    button.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+    button:disabled {
+      cursor: wait;
+      opacity: 0.65;
+    }
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      min-height: 20px;
+    }
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--green);
+      display: inline-block;
+    }
+    .dot.warn { background: var(--orange); }
+    .dot.err { background: var(--red); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    .metric {
+      padding: 14px 16px;
+      min-height: 88px;
+    }
+    .metric .label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .metric .value {
+      margin-top: 8px;
+      font-size: 24px;
+      line-height: 1;
+      font-weight: 760;
+    }
+    .metric .sub {
+      margin-top: 8px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .panel-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .panel-head h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .panel-head span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    #map {
+      height: 560px;
+      border-radius: 0 0 12px 12px;
+      background: #e8eef6;
+    }
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+    .table-wrap {
+      overflow: auto;
+      max-height: 360px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #edf2f7;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--panel-soft);
+      color: #475569;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      z-index: 1;
+    }
+    td.muted { color: var(--muted); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 0 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .pill.ok { color: #166534; border-color: #bbf7d0; background: #f0fdf4; }
+    .pill.warn { color: #92400e; border-color: #fde68a; background: #fffbeb; }
+    .pill.err { color: #991b1b; border-color: #fecaca; background: #fef2f2; }
+    .empty {
+      padding: 22px 16px;
+      color: var(--muted);
+    }
+    a { color: var(--blue); text-decoration: none; font-weight: 650; }
+    @media (max-width: 1200px) {
+      .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .main-grid { grid-template-columns: 1fr; }
+      #map { height: 460px; }
+    }
+    @media (max-width: 720px) {
+      .shell { width: min(100vw - 20px, 1680px); padding-top: 14px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .actions { justify-content: flex-start; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric .value { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div class="brand">
+        <h1>OwnTracks</h1>
+        <p>HTTP-mottak for posisjoner, waypoints og beregnede sonebesok.</p>
+      </div>
+      <div class="actions">
+        <select id="hours">
+          <option value="24">Siste 24 timer</option>
+          <option value="168">Siste 7 dager</option>
+          <option value="720">Siste 30 dager</option>
+          <option value="0">Alt</option>
+        </select>
+        <button id="rebuild">Bygg sonebesok</button>
+        <button id="refresh" class="primary">Oppdater</button>
+      </div>
+    </section>
+    <div class="status-line" id="status"><span class="dot warn"></span><span>Laster...</span></div>
+    <section class="grid" id="metrics"></section>
+    <section class="main-grid">
+      <article class="card">
+        <div class="panel-head">
+          <h2>Kart og spor</h2>
+          <span id="mapMeta">-</span>
+        </div>
+        <div id="map"></div>
+      </article>
+      <div class="stack">
+        <article class="card" id="devicesPanel"></article>
+        <article class="card" id="visitsPanel"></article>
+      </div>
+    </section>
+    <section class="stack" style="margin-top:14px">
+      <article class="card" id="locationsPanel"></article>
+      <article class="card" id="waypointsPanel"></article>
+      <article class="card" id="eventsPanel"></article>
+    </section>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token") || "";
+    const state = { map: null, layers: [] };
+
+    function api(path, extra = {}) {
+      const url = new URL(path, window.location.origin);
+      Object.entries(extra).forEach(([key, value]) => url.searchParams.set(key, value));
+      if (token) url.searchParams.set("token", token);
+      return url.toString();
+    }
+
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[ch]));
+    }
+
+    function fmtTime(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString("no-NO", { dateStyle: "short", timeStyle: "medium" });
+    }
+
+    function fmtNum(value, decimals = 0) {
+      if (value === null || value === undefined || value === "") return "-";
+      const number = Number(value);
+      if (!Number.isFinite(number)) return String(value);
+      return number.toLocaleString("no-NO", { maximumFractionDigits: decimals, minimumFractionDigits: decimals });
+    }
+
+    function status(text, tone = "ok") {
+      const dot = tone === "err" ? "err" : tone === "warn" ? "warn" : "";
+      document.getElementById("status").innerHTML = `<span class="dot ${dot}"></span><span>${esc(text)}</span>`;
+    }
+
+    async function fetchJson(path, extra = {}, options = {}) {
+      const res = await fetch(api(path, extra), { credentials: "same-origin", ...options });
+      if (res.status === 401) throw new Error("Mangler gyldig token. Bruk Basic Auth eller ?token=...");
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    }
+
+    function metric(label, value, sub = "") {
+      return `<article class="card metric"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div><div class="sub">${esc(sub)}</div></article>`;
+    }
+
+    function renderMetrics(health, moduleData) {
+      const counts = health.counts || {};
+      const stateData = health.state || {};
+      const lastCard = (moduleData.cards || []).find(card => card.title === "Siste melding");
+      document.getElementById("metrics").innerHTML = [
+        metric("Status", health.status || "-", health.ingest?.authTokenEnabled ? "Token aktivt" : "Token mangler"),
+        metric("Meldinger", counts.locations ?? 0, `Lagret: ${stateData.messagesStored ?? 0}, dublett: ${stateData.messagesDuplicate ?? 0}`),
+        metric("Enheter", counts.devices ?? 0, "Telefoner/enheter"),
+        metric("Waypoints", counts.waypoints ?? 0, "Definerte soner"),
+        metric("Sonebesok", counts.zoneVisits ?? 0, "Beregnet fra posisjoner"),
+        metric("Siste melding", lastCard?.value || "-", lastCard?.subtitle || "")
+      ].join("");
+    }
+
+    function tablePanel(id, title, rows, columns) {
+      const panel = document.getElementById(id);
+      if (!rows || rows.length === 0) {
+        panel.innerHTML = `<div class="panel-head"><h2>${esc(title)}</h2><span>0 rader</span></div><div class="empty">Ingen data enna.</div>`;
+        return;
+      }
+      const head = columns.map(col => `<th>${esc(col.label)}</th>`).join("");
+      const body = rows.map(row => `<tr>${columns.map(col => `<td>${col.render ? col.render(row) : esc(row[col.key])}</td>`).join("")}</tr>`).join("");
+      panel.innerHTML = `<div class="panel-head"><h2>${esc(title)}</h2><span>${rows.length} rader</span></div><div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    }
+
+    function mapsLink(lat, lon) {
+      if (lat === null || lon === null || lat === undefined || lon === undefined) return "-";
+      const href = `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lon}`)}`;
+      return `<a href="${href}" target="_blank" rel="noreferrer">${fmtNum(lat, 5)}, ${fmtNum(lon, 5)}</a>`;
+    }
+
+    function pill(value, truthyLabel = "Inne") {
+      if (value === true) return `<span class="pill ok">${truthyLabel}</span>`;
+      if (value === false) return `<span class="pill">Ute</span>`;
+      return `<span class="pill warn">Ukjent</span>`;
+    }
+
+    function renderTables(moduleData, mapData) {
+      tablePanel("devicesPanel", "Enheter", mapData.devices || [], [
+        { label: "Enhet", render: row => esc(row.topic || `${row.username || ""}/${row.device || ""}`) },
+        { label: "Sist sett", render: row => fmtTime(row.lastSeenAt) },
+        { label: "Posisjon", render: row => mapsLink(row.lastLat, row.lastLon) },
+        { label: "Noyaktighet", render: row => `${fmtNum(row.lastAccuracyM)} m` },
+        { label: "Batteri", render: row => row.lastBatteryPercent == null ? "-" : `${fmtNum(row.lastBatteryPercent)} %` },
+      ]);
+      tablePanel("visitsPanel", "Sonebesok", mapData.zoneVisits || [], [
+        { label: "Sone", key: "waypointName" },
+        { label: "Start", render: row => fmtTime(row.startedAt) },
+        { label: "Slutt", render: row => fmtTime(row.endedAt) },
+        { label: "Varighet", key: "duration" },
+        { label: "Status", render: row => `<span class="pill ${row.status === "open" ? "ok" : ""}">${esc(row.status)}</span>` },
+      ]);
+      tablePanel("locationsPanel", "Siste posisjoner", [...(mapData.locations || [])].reverse().slice(0, 200), [
+        { label: "Tid", render: row => fmtTime(row.timestamp || row.receivedAt) },
+        { label: "Enhet", key: "topic" },
+        { label: "Type", key: "messageType" },
+        { label: "Event", key: "event" },
+        { label: "Posisjon", render: row => mapsLink(row.lat, row.lon) },
+        { label: "Noyaktighet", render: row => `${fmtNum(row.accuracyM)} m` },
+        { label: "Batteri", render: row => row.batteryPercent == null ? "-" : `${fmtNum(row.batteryPercent)} %` },
+      ]);
+      tablePanel("waypointsPanel", "Waypoints", mapData.waypoints || [], [
+        { label: "Navn", key: "waypointName" },
+        { label: "Status", render: row => pill(row.isInside) },
+        { label: "Sist sett", render: row => fmtTime(row.lastSeenAt) },
+        { label: "Radius", render: row => `${fmtNum(row.radiusM)} m` },
+        { label: "Senter", render: row => mapsLink(row.lat, row.lon) },
+      ]);
+      const eventTable = (moduleData.tables || []).find(table => table.title === "Waypoint-hendelser");
+      tablePanel("eventsPanel", "Waypoint-hendelser", eventTable?.rows || [], [
+        { label: "Tid", render: row => fmtTime(row.timestamp || row.receivedAt) },
+        { label: "Sone", key: "waypointName" },
+        { label: "Hendelse", render: row => `<span class="pill ${row.eventType === "enter" ? "ok" : ""}">${esc(row.eventType)}</span>` },
+        { label: "Kilde", key: "sourceMessageType" },
+        { label: "Posisjon", render: row => mapsLink(row.lat, row.lon) },
+        { label: "Noyaktighet", render: row => `${fmtNum(row.accuracyM)} m` },
+      ]);
+    }
+
+    function ensureMap() {
+      if (state.map || !window.L) return state.map;
+      state.map = L.map("map", { scrollWheelZoom: true });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(state.map);
+      state.map.setView([61.115, 10.466], 13);
+      return state.map;
+    }
+
+    function clearMap() {
+      if (!state.map) return;
+      state.layers.forEach(layer => state.map.removeLayer(layer));
+      state.layers = [];
+    }
+
+    function addLayer(layer) {
+      layer.addTo(state.map);
+      state.layers.push(layer);
+      return layer;
+    }
+
+    function renderMap(data) {
+      const map = ensureMap();
+      if (!map) {
+        document.getElementById("mapMeta").textContent = "Kartbibliotek kunne ikke lastes";
+        return;
+      }
+      clearMap();
+      const bounds = [];
+      const locations = data.locations || [];
+      const points = locations.filter(row => Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lon)));
+      if (points.length > 1) {
+        addLayer(L.polyline(points.map(row => [row.lat, row.lon]), { color: "#2563eb", weight: 3, opacity: 0.65 }));
+      }
+      points.forEach((row, index) => {
+        bounds.push([row.lat, row.lon]);
+        if (index === points.length - 1) {
+          addLayer(L.circleMarker([row.lat, row.lon], { radius: 7, color: "#2563eb", fillColor: "#2563eb", fillOpacity: 0.9 })
+            .bindPopup(`<b>${esc(row.topic)}</b><br>${fmtTime(row.timestamp || row.receivedAt)}<br>${fmtNum(row.accuracyM)} m`));
+        }
+      });
+      (data.devices || []).forEach(row => {
+        if (!Number.isFinite(Number(row.lastLat)) || !Number.isFinite(Number(row.lastLon))) return;
+        bounds.push([row.lastLat, row.lastLon]);
+        addLayer(L.marker([row.lastLat, row.lastLon]).bindPopup(`<b>${esc(row.topic)}</b><br>Sist sett: ${fmtTime(row.lastSeenAt)}<br>${fmtNum(row.lastAccuracyM)} m`));
+      });
+      (data.waypoints || []).forEach(row => {
+        if (!Number.isFinite(Number(row.lat)) || !Number.isFinite(Number(row.lon))) return;
+        bounds.push([row.lat, row.lon]);
+        addLayer(L.circle([row.lat, row.lon], {
+          radius: Number(row.radiusM || 50),
+          color: row.isInside ? "#16a34a" : "#f59e0b",
+          fillColor: row.isInside ? "#bbf7d0" : "#fde68a",
+          fillOpacity: 0.22,
+          weight: 2
+        }).bindPopup(`<b>${esc(row.waypointName)}</b><br>${row.isInside ? "Inne" : "Ute"}<br>Radius ${fmtNum(row.radiusM)} m`));
+      });
+      if (bounds.length) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 16 });
+      document.getElementById("mapMeta").textContent = `${points.length} posisjoner, ${(data.waypoints || []).length} waypoints`;
+    }
+
+    async function refresh() {
+      const button = document.getElementById("refresh");
+      button.disabled = true;
+      try {
+        const hours = document.getElementById("hours").value;
+        const [health, moduleData, mapData] = await Promise.all([
+          fetchJson("/owntracks/health"),
+          fetchJson("/owntracks/api/module"),
+          fetchJson("/owntracks/api/map", { hours, limit: 5000 })
+        ]);
+        renderMetrics(health, moduleData);
+        renderTables(moduleData, mapData);
+        renderMap(mapData);
+        status(`Oppdatert ${new Date().toLocaleTimeString("no-NO")}`);
+      } catch (error) {
+        console.error(error);
+        status(error.message || "Feil ved lasting", "err");
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function rebuild() {
+      const button = document.getElementById("rebuild");
+      button.disabled = true;
+      try {
+        const res = await fetch(api("/owntracks/api/rebuild"), { method: "POST", credentials: "same-origin" });
+        if (res.status === 401) throw new Error("Mangler gyldig token.");
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const data = await res.json();
+        status(`Sonebesok bygget: ${data.locationsProcessed} posisjoner`);
+        await refresh();
+      } catch (error) {
+        status(error.message || "Feil ved rebuild", "err");
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById("refresh").addEventListener("click", refresh);
+    document.getElementById("hours").addEventListener("change", refresh);
+    document.getElementById("rebuild").addEventListener("click", rebuild);
+    refresh();
+    setInterval(refresh, 30000);
+  </script>
+</body>
+</html>
+"""
+
+
 app = FastAPI(title="OwnTracks service")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
@@ -897,9 +1418,14 @@ def root() -> dict[str, Any]:
     return {"service": "owntracks_service", "health": "/health", "map": "/api/owntracks/map"}
 
 
-@app.get("/health")
-@app.get("/owntracks/health")
-def health() -> dict[str, Any]:
+@app.get("/owntracks", response_class=HTMLResponse)
+@app.get("/owntracks/", response_class=HTMLResponse)
+def owntracks_admin(request: Request) -> HTMLResponse:
+    require_owntracks_admin(request)
+    return HTMLResponse(OWNTRACKS_ADMIN_HTML)
+
+
+def health_payload() -> dict[str, Any]:
     with SessionLocal() as session:
         counts = {
             "devices": db_count(session, OwnTracksDevice),
@@ -917,6 +1443,17 @@ def health() -> dict[str, Any]:
         "counts": counts,
         "time": iso_dt(utc_now()),
     }
+
+
+@app.get("/health")
+def health() -> dict[str, Any]:
+    return health_payload()
+
+
+@app.get("/owntracks/health")
+def owntracks_external_health(request: Request) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return health_payload()
 
 
 @app.post("/owntracks/pub")
@@ -939,6 +1476,12 @@ def api_rebuild() -> dict[str, Any]:
     return {"ok": True, "locationsProcessed": count, "seconds": round(time.monotonic() - started, 3)}
 
 
+@app.post("/owntracks/api/rebuild")
+def owntracks_external_rebuild(request: Request) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_rebuild()
+
+
 @app.get("/api/owntracks/devices")
 def api_devices(limit: int = Query(50, ge=1, le=500)) -> dict[str, Any]:
     with SessionLocal() as session:
@@ -948,6 +1491,12 @@ def api_devices(limit: int = Query(50, ge=1, le=500)) -> dict[str, Any]:
             .limit(limit)
         ).scalars()
         return {"enabled": True, "ingest": "http", "devices": [row_device(row) for row in rows]}
+
+
+@app.get("/owntracks/api/devices")
+def owntracks_external_devices(request: Request, limit: int = Query(50, ge=1, le=500)) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_devices(limit=limit)
 
 
 @app.get("/api/owntracks/waypoints")
@@ -967,6 +1516,16 @@ def api_waypoints(limit: int = Query(100, ge=1, le=1000), events: int = Query(10
             "waypoints": [row_waypoint(row) for row in waypoint_rows],
             "events": [row_event(row) for row in event_rows],
         }
+
+
+@app.get("/owntracks/api/waypoints")
+def owntracks_external_waypoints(
+    request: Request,
+    limit: int = Query(100, ge=1, le=1000),
+    events: int = Query(100, ge=0, le=1000),
+) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_waypoints(limit=limit, events=events)
 
 
 @app.get("/api/owntracks/map")
@@ -1018,6 +1577,16 @@ def api_map(hours: int = Query(24, ge=0, le=24 * 365), limit: int = Query(2000, 
             "waypointDefinitions": waypoint_list,
             "zoneVisits": [row_visit(row) for row in visits],
         }
+
+
+@app.get("/owntracks/api/map")
+def owntracks_external_map(
+    request: Request,
+    hours: int = Query(24, ge=0, le=24 * 365),
+    limit: int = Query(2000, ge=0, le=20000),
+) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_map(hours=hours, limit=limit)
 
 
 @app.get("/api/owntracks/module")
@@ -1076,6 +1645,12 @@ def api_module() -> dict[str, Any]:
         "actions": [],
         "metadata": {"state": state},
     }
+
+
+@app.get("/owntracks/api/module")
+def owntracks_external_module(request: Request) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_module()
 
 
 class DebugMessage(BaseModel):
