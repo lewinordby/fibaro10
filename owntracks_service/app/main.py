@@ -1496,7 +1496,7 @@ def owntracks_external_health(request: Request) -> dict[str, Any]:
 
 
 @app.post("/owntracks/pub")
-async def owntracks_http_publish(request: Request) -> dict[str, Any]:
+async def owntracks_http_publish(request: Request) -> list[Any]:
     require_http_token(request)
     try:
         payload = await request.json()
@@ -1507,7 +1507,8 @@ async def owntracks_http_publish(request: Request) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     topic = http_topic(request, normalized_payload)
-    return store_message(topic, json_string(normalized_payload))
+    store_message(topic, json_string(normalized_payload))
+    return []
 
 
 @app.post("/api/owntracks/rebuild")

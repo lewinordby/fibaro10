@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1410")
+APP_BUILD = os.getenv("APP_BUILD", "1411")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1411",
+        "date": "03.07.2026",
+        "headline": "OwnTracks HTTP svarer med riktig JSON-format",
+        "title": "Publish-endepunktet returnerer tom JSON-array slik OwnTracks forventer",
+        "description": (
+            "Build 1411 retter HTTP-responsen fra OwnTracks-mottaket. OwnTracks Android forventer at et vellykket "
+            "HTTP-publish svarer med en JSON-array, normalt []. Endepunktet lagrer fortsatt meldingen internt, men "
+            "returnerer ikke lenger et statusobjekt som appen tolker som feil JSON-format."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: /owntracks/pub returnerer [] etter vellykket lagring.",
+            "tests/test_owntracks_service.py: HTTP-publish-testene forventer OwnTracks-kompatibel respons.",
+        ],
+        "request": "OwnTracks viser statusfeil: java.io.IOExp: Failed to parse Json etter Publish Waypoints.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Rettet vellykket HTTP-respons fra JSON-objekt til tom JSON-array.",
+            "Beholdt lagring og waypoint-normalisering uendret.",
+            "Oppdatert testene slik at protokollformatet mot appen kontrolleres.",
+        ],
+    },
     {
         "version": "1",
         "build": "1410",

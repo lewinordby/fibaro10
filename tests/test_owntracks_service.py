@@ -45,7 +45,7 @@ class OwnTracksServiceTests(unittest.TestCase):
                 json={"_type": "location", "lat": 61.115, "lon": 10.466, "acc": 7, "tst": 1783080000},
             )
             self.assertEqual(response.status_code, 200)
-            self.assertTrue(response.json()["stored"])
+            self.assertEqual(response.json(), [])
             health = client.get("/health").json()
             self.assertGreaterEqual(health["counts"]["locations"], 1)
             self.assertGreaterEqual(health["counts"]["devices"], 1)
@@ -92,7 +92,7 @@ class OwnTracksServiceTests(unittest.TestCase):
                     json={"_type": "location", "lat": 61.115, "lon": 10.466, "acc": 7, "tst": 1783080300},
                 )
                 self.assertEqual(response.status_code, 200)
-                self.assertTrue(response.json()["stored"])
+                self.assertEqual(response.json(), [])
         finally:
             owntracks_main.HTTP_TOKEN = original_token
 
@@ -106,7 +106,7 @@ class OwnTracksServiceTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(response.status_code, 200)
-            self.assertTrue(response.json()["stored"])
+            self.assertEqual(response.json(), [])
 
             rows = client.get("/api/owntracks/waypoints").json()["waypoints"]
             by_name = {
@@ -124,7 +124,7 @@ class OwnTracksServiceTests(unittest.TestCase):
                 json={"data": {"a": {"desc": "Kontor", "lat": 61.333, "lon": 10.666, "rad": 70}}},
             )
             self.assertEqual(response.status_code, 200)
-            self.assertTrue(response.json()["stored"])
+            self.assertEqual(response.json(), [])
 
             rows = client.get("/api/owntracks/waypoints").json()["waypoints"]
             names = {row["waypointName"] for row in rows if row["topic"] == "owntracks/waypoint-wrapped/android"}
