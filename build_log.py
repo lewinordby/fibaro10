@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1412")
+APP_BUILD = os.getenv("APP_BUILD", "1413")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1413",
+        "date": "03.07.2026",
+        "headline": "OwnTracks oppstartsrebuild er stabilisert",
+        "title": "Device-rader caches under rebuild slik at samme telefon ikke opprettes flere ganger",
+        "description": (
+            "Build 1413 retter en oppstartsfeil i OwnTracks-service fra build 1412. Når gamle topic-suffikser ble "
+            "normalisert, kunne flere meldinger for samme telefon forsøke å opprette samme device-rad før commit. "
+            "Rebuild bruker nå en session-cache og oppdaterer samme rad gjennom hele kjøringen."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: cacher OwnTracksDevice per topic under rebuild og vanlig ingest.",
+            "build_log.py: dokumenterer oppstartsrettelsen.",
+        ],
+        "request": "OwnTracks-service restartet etter opprydding av waypoint-topics og må stabiliseres.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Hindrer duplikate pending OwnTracksDevice-rader i samme database-session.",
+            "Beholder topic-normalisering og waypoint-opprydding fra build 1412.",
+        ],
+    },
     {
         "version": "1",
         "build": "1412",

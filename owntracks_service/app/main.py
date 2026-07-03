@@ -801,10 +801,14 @@ def store_message(topic: str, payload_text: str) -> dict[str, Any]:
 
 
 def update_device_from_location(session: Session, location: OwnTracksLocation) -> OwnTracksDevice:
-    device_row = session.execute(select(OwnTracksDevice).where(OwnTracksDevice.topic == location.topic)).scalar_one_or_none()
+    device_cache = session.info.setdefault("owntracks_device_cache", {})
+    device_row = device_cache.get(location.topic)
+    if device_row is None:
+        device_row = session.execute(select(OwnTracksDevice).where(OwnTracksDevice.topic == location.topic)).scalar_one_or_none()
     if device_row is None:
         device_row = OwnTracksDevice(topic=location.topic, username=location.username, device=location.device)
         session.add(device_row)
+    device_cache[location.topic] = device_row
     device_row.username = location.username
     device_row.device = location.device
     device_row.tracker_id = location.tracker_id or device_row.tracker_id
