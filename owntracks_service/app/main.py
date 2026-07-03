@@ -15,7 +15,8 @@ import time
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import (
     Boolean,
@@ -52,6 +53,8 @@ HTTP_TOKEN = (os.getenv("OWNTRACKS_HTTP_TOKEN") or os.getenv("CAR_INFO_APP_TOKEN
 DEFAULT_TOPIC_USERNAME = os.getenv("OWNTRACKS_HTTP_DEFAULT_USER", "http").strip() or "http"
 DEFAULT_TOPIC_DEVICE = os.getenv("OWNTRACKS_HTTP_DEFAULT_DEVICE", "phone").strip() or "phone"
 OWNTRACKS_PUBLIC_BASE_URL = os.getenv("OWNTRACKS_PUBLIC_BASE_URL", "https://owntracks.lilletorget.net").rstrip("/")
+FRONTEND_DIST = Path(__file__).resolve().parent / "frontend_dist"
+FRONTEND_INDEX = FRONTEND_DIST / "index.html"
 
 ZONE_VISIT_BUFFER_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_BUFFER_M", "25")))
 ZONE_VISIT_ACCURACY_CAP_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M", "100")))
@@ -1618,6 +1621,8 @@ OWNTRACKS_ADMIN_HTML = """
 
 app = FastAPI(title="OwnTracks service")
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+if (FRONTEND_DIST / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="owntracks_assets")
 
 
 @app.on_event("startup")
@@ -1626,10 +1631,16 @@ def on_startup() -> None:
     normalize_existing_owntracks_data()
 
 
-@app.get("/", response_class=HTMLResponse)
-def root_admin(request: Request) -> HTMLResponse:
-    require_owntracks_admin(request)
+def owntracks_admin_response() -> Response:
+    if FRONTEND_INDEX.exists():
+        return FileResponse(FRONTEND_INDEX)
     return HTMLResponse(OWNTRACKS_ADMIN_HTML)
+
+
+@app.get("/", response_model=None)
+def root_admin(request: Request) -> Response:
+    require_owntracks_admin(request)
+    return owntracks_admin_response()
 
 
 @app.get("/service")
@@ -1644,11 +1655,11 @@ def service_root() -> dict[str, Any]:
     }
 
 
-@app.get("/owntracks", response_class=HTMLResponse)
-@app.get("/owntracks/", response_class=HTMLResponse)
-def owntracks_admin(request: Request) -> HTMLResponse:
+@app.get("/owntracks", response_model=None)
+@app.get("/owntracks/", response_model=None)
+def owntracks_admin(request: Request) -> Response:
     require_owntracks_admin(request)
-    return HTMLResponse(OWNTRACKS_ADMIN_HTML)
+    return owntracks_admin_response()
 
 
 def health_payload() -> dict[str, Any]:

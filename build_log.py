@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1418")
+APP_BUILD = os.getenv("APP_BUILD", "1419")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1419",
+        "date": "03.07.2026",
+        "headline": "OwnTracks faar samme frontendrammeverk",
+        "title": "Eget React/Vite/Ant Design-grensesnitt med venstremeny",
+        "description": (
+            "Build 1419 forbedrer OwnTracks-appen som selvstendig applikasjon. Den gamle innebygde HTML-siden "
+            "erstattes i produksjon av et eget React/Vite/Ant Design-frontend med venstremeny, toppfelt, dashboard, "
+            "kart, sonebesok, waypoints, meldinger, hendelser og buildlogg. FastAPI server fortsatt API-et og bruker "
+            "gammel HTML som fallback dersom frontend_dist ikke er bygget."
+        ),
+        "applications": [
+            "owntracks_service/frontend: nytt frontendprosjekt med React, TypeScript, Vite og Ant Design.",
+            "owntracks_service/app/main.py: serverer bygget frontend og statiske assets.",
+            "owntracks_service/Dockerfile: bygger frontend i Node-stage foer Python-imaget lages.",
+            "scripts/check-local.ps1: inkluderer OwnTracks frontend typecheck/build i lokal kvalitetssjekk.",
+            ".gitignore, .dockerignore og owntracks_service/.dockerignore: holder node_modules/dist ute av repo og Docker-kontekst.",
+            "owntracks_service/app/build_log.py, docker-compose.qnap.yml og .env.qnap.example: OwnTracks build 5.",
+        ],
+        "request": "Kan du forbedre appen med venstremeny paa samme maate som Fibaro10, innfoere samme rammeverk.",
+        "work_duration": "ca. 60 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "OwnTracks har samme type venstremeny og appskall som Fibaro10.",
+            "Grensesnittet er delt i Dashboard, Kart, Sonebesok, Waypoints, Meldinger, Hendelser og Build.",
+            "Produksjonsimaget bygger og serverer React-frontenden automatisk.",
+        ],
+    },
     {
         "version": "1",
         "build": "1418",

@@ -10,6 +10,10 @@ desktop_v2/node_modules
 desktop_v2/dist
 desktop_v2/*.tsbuildinfo
 desktop_v2/.vite
+owntracks_service/frontend/node_modules
+owntracks_service/frontend/dist
+owntracks_service/frontend/*.tsbuildinfo
+owntracks_service/frontend/.vite
 *.log
 _*.html
 _*.css

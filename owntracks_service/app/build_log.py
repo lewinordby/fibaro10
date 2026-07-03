@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "4")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "5")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "5",
+        "date": "03.07.2026",
+        "headline": "OwnTracks faar React-rammeverk",
+        "title": "Venstremeny og appskall bygges med samme rammeverk som Fibaro10",
+        "description": (
+            "Build 5 flytter OwnTracks-grensesnittet fra innebygd HTML til et eget React/Vite/Ant Design-frontend. "
+            "Appen faar venstremeny, toppfelt, dashboard, kart, sonebesok, waypoints, meldinger, hendelser og buildlogg "
+            "i et mer strukturert appskall."
+        ),
+        "applications": [
+            "owntracks_service/frontend: nytt React/Vite/Ant Design-frontendprosjekt.",
+            "owntracks_service/app/main.py: server bygget frontend fra frontend_dist med gammel HTML som fallback.",
+            "owntracks_service/Dockerfile: bygger frontend i Node-stage og kopierer dist inn i Python-imaget.",
+        ],
+        "request": "Kan du forbedre appen med venstremeny paa samme maate som Fibaro10, innfoere samme rammeverk.",
+        "work_duration": "ca. 60 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "OwnTracks har naa eget appskall med venstremeny.",
+            "Kart, tabeller og statuskort ligger i samme React/Ant Design-familie som Fibaro10.",
+            "Docker-builden bygger og serverer frontend automatisk.",
+        ],
+    },
     {
         "version": "1",
         "build": "4",

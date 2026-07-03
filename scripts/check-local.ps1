@@ -18,6 +18,7 @@ function Run($exe, [string[]]$arguments, [string]$WorkingDirectory = "") {
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $desktopDir = Join-Path $repoRoot "desktop_v2"
+$owntracksFrontendDir = Join-Path $repoRoot "owntracks_service/frontend"
 $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
 
 Write-Host "Python syntax check"
@@ -28,6 +29,9 @@ Run "python" @("-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py") $
 
 Write-Host "Frontend typecheck and build"
 Run $npm @("run", "check") $desktopDir
+
+Write-Host "OwnTracks frontend typecheck and build"
+Run $npm @("run", "check") $owntracksFrontendDir
 
 Write-Host "Frontend CSS parse"
 Run $npm @("run", "parse:css") $desktopDir

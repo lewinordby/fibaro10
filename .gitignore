@@ -18,6 +18,9 @@ car_info_lookup/.env
 car_info_lookup/.env.*
 car_info_lookup/data/
 owntracks_service/data/
+owntracks_service/frontend/dist/
+owntracks_service/frontend/node_modules/
+owntracks_service/frontend/*.tsbuildinfo
 axis_camera_snapshots/data/
 axis_camera_snapshots/snapshots/
 sun2_session_scraper/.env
