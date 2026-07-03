@@ -14,15 +14,6 @@ Databasebytte er ikke gjort i denne revisjonen. SQLite beholdes til mottak, visn
 
 `owntracks.lilletorget.net` maa peke til samme offentlige IP som `online.lilletorget.net`.
 
-## Overgangs-URL
-
-Gammel URL beholdes midlertidig slik at telefonen ikke slutter aa publisere foer appinnstillinger er endret:
-
-- `https://online.lilletorget.net/owntracks`
-- `https://online.lilletorget.net/owntracks/pub?token=<OWNTRACKS_HTTP_TOKEN>`
-
-Ny konfigurasjon skal bruke `owntracks.lilletorget.net`.
-
 ## OwnTracks Android
 
 Bruk HTTP-modus:

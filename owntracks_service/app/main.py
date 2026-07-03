@@ -52,7 +52,6 @@ HTTP_TOKEN = (os.getenv("OWNTRACKS_HTTP_TOKEN") or os.getenv("CAR_INFO_APP_TOKEN
 DEFAULT_TOPIC_USERNAME = os.getenv("OWNTRACKS_HTTP_DEFAULT_USER", "http").strip() or "http"
 DEFAULT_TOPIC_DEVICE = os.getenv("OWNTRACKS_HTTP_DEFAULT_DEVICE", "phone").strip() or "phone"
 OWNTRACKS_PUBLIC_BASE_URL = os.getenv("OWNTRACKS_PUBLIC_BASE_URL", "https://owntracks.lilletorget.net").rstrip("/")
-OWNTRACKS_LEGACY_PUBLIC_BASE_URL = os.getenv("OWNTRACKS_LEGACY_PUBLIC_BASE_URL", "https://online.lilletorget.net/owntracks").rstrip("/")
 
 ZONE_VISIT_BUFFER_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_BUFFER_M", "25")))
 ZONE_VISIT_ACCURACY_CAP_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M", "100")))
@@ -1632,7 +1631,6 @@ def service_root() -> dict[str, Any]:
         "health": "/health",
         "admin": "/",
         "publish": "/pub",
-        "legacyPublish": "/owntracks/pub",
         "map": "/owntracks/api/map",
     }
 
@@ -1658,13 +1656,11 @@ def health_payload() -> dict[str, Any]:
         "service": "owntracks_service",
         "app": owntracks_build_summary(),
         "database": "ok",
-        "ingest": {"mode": "http", "path": "/pub", "legacyPath": "/owntracks/pub", "authTokenEnabled": bool(HTTP_TOKEN)},
+        "ingest": {"mode": "http", "path": "/pub", "authTokenEnabled": bool(HTTP_TOKEN)},
         "public": {
             "baseUrl": OWNTRACKS_PUBLIC_BASE_URL,
             "publishUrl": f"{OWNTRACKS_PUBLIC_BASE_URL}/pub",
             "adminUrl": OWNTRACKS_PUBLIC_BASE_URL,
-            "legacyBaseUrl": OWNTRACKS_LEGACY_PUBLIC_BASE_URL,
-            "legacyPublishUrl": f"{OWNTRACKS_LEGACY_PUBLIC_BASE_URL}/pub",
         },
         "state": STATE.snapshot(),
         "counts": counts,
@@ -1684,7 +1680,6 @@ def owntracks_external_health(request: Request) -> dict[str, Any]:
 
 
 @app.post("/pub")
-@app.post("/owntracks/pub")
 async def owntracks_http_publish(request: Request) -> list[Any]:
     require_http_token(request)
     try:

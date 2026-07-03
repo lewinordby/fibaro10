@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "1")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "2")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "2",
+        "date": "03.07.2026",
+        "headline": "Gammel OwnTracks-adresse er fjernet",
+        "title": "Publisering skjer kun via owntracks.lilletorget.net/pub",
+        "description": (
+            "Build 2 fjerner overgangsadressen via online.lilletorget.net/owntracks. OwnTracks publisering skal "
+            "naa bare bruke /pub paa eget domene. Basen ble ogsaa klargjort for ren ny start i produksjon."
+        ),
+        "applications": [
+            "Caddyfile: fjerner proxy-ruting for online.lilletorget.net/owntracks.",
+            "owntracks_service/app/main.py: fjerner legacy publish-aliaset /owntracks/pub fra tjenesten.",
+            "docker-compose.qnap.yml: oppdaterer OwnTracks-build til 2.",
+            "docs/owntracks-http.md: fjerner overgangsadresse fra oppskriften.",
+        ],
+        "request": "Tom hele basen slik at jeg ser at det funker, fjern gammel adresse ogsaa.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kun /pub er gyldig publiseringsendepunkt.",
+            "online.lilletorget.net/owntracks rutes ikke lenger til OwnTracks.",
+            "OwnTracks database kan startes tom med samme SQLite-oppsett.",
+        ],
+    },
     {
         "version": "1",
         "build": "1",

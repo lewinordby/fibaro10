@@ -12,9 +12,6 @@ online.lilletorget.net {
 		-Server
 	}
 
-	@owntracks_http path /owntracks /owntracks/*
-	reverse_proxy @owntracks_http owntracks_service:8128
-
 	reverse_proxy online_dashboard:8111 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}

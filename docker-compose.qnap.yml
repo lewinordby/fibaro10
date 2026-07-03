@@ -13,8 +13,7 @@ services:
     environment:
       OWNTRACKS_DATA_DIR: /data
       OWNTRACKS_PUBLIC_BASE_URL: ${OWNTRACKS_PUBLIC_BASE_URL:-https://owntracks.lilletorget.net}
-      OWNTRACKS_LEGACY_PUBLIC_BASE_URL: ${OWNTRACKS_LEGACY_PUBLIC_BASE_URL:-https://online.lilletorget.net/owntracks}
-      OWNTRACKS_APP_BUILD: ${OWNTRACKS_APP_BUILD:-1}
+      OWNTRACKS_APP_BUILD: ${OWNTRACKS_APP_BUILD:-2}
       OWNTRACKS_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8128/health', timeout=5).read()\""]

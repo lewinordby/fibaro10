@@ -106,7 +106,7 @@ class OwnTracksServiceTests(unittest.TestCase):
         try:
             with TestClient(app) as client:
                 response = client.post(
-                    "/owntracks/pub?token=test-token&user=tester&device=android",
+                    "/pub?token=test-token&user=tester&device=android",
                     headers={"Authorization": f"Basic {wrong_basic_auth}"},
                     json={"_type": "location", "lat": 61.115, "lon": 10.466, "acc": 7, "tst": 1783080300},
                 )
@@ -115,10 +115,18 @@ class OwnTracksServiceTests(unittest.TestCase):
         finally:
             owntracks_main.HTTP_TOKEN = original_token
 
+    def test_legacy_publish_route_is_removed(self) -> None:
+        with TestClient(app) as client:
+            response = client.post(
+                "/owntracks/pub?user=tester&device=android",
+                json={"_type": "location", "lat": 61.115, "lon": 10.466, "acc": 7, "tst": 1783080350},
+            )
+            self.assertEqual(response.status_code, 404)
+
     def test_publish_waypoints_accepts_plain_list_payload(self) -> None:
         with TestClient(app) as client:
             response = client.post(
-                "/owntracks/pub?user=waypoint-list&device=android",
+                "/pub?user=waypoint-list&device=android",
                 json=[
                     {"desc": "Hjemme", "lat": 61.111, "lon": 10.444, "rad": 125},
                     {"desc": "Sun2", "lat": 61.222, "lng": 10.555, "radius": 80},
@@ -139,7 +147,7 @@ class OwnTracksServiceTests(unittest.TestCase):
     def test_publish_waypoints_accepts_wrapped_payload_without_type(self) -> None:
         with TestClient(app) as client:
             response = client.post(
-                "/owntracks/pub?user=waypoint-wrapped&device=android",
+                "/pub?user=waypoint-wrapped&device=android",
                 json={"data": {"a": {"desc": "Kontor", "lat": 61.333, "lon": 10.666, "rad": 70}}},
             )
             self.assertEqual(response.status_code, 200)
@@ -152,7 +160,7 @@ class OwnTracksServiceTests(unittest.TestCase):
     def test_payload_topic_suffix_is_stored_on_base_topic(self) -> None:
         with TestClient(app) as client:
             response = client.post(
-                "/owntracks/pub",
+                "/pub",
                 json={
                     "_type": "waypoints",
                     "topic": "owntracks/lewi/Lewi/waypoints",
@@ -169,7 +177,7 @@ class OwnTracksServiceTests(unittest.TestCase):
     def test_transition_without_defined_waypoint_does_not_create_waypoint_state(self) -> None:
         with TestClient(app) as client:
             response = client.post(
-                "/owntracks/pub",
+                "/pub",
                 json={
                     "_type": "transition",
                     "topic": "owntracks/transition-only/android/event",

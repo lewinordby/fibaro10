@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1415")
+APP_BUILD = os.getenv("APP_BUILD", "1416")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1416",
+        "date": "03.07.2026",
+        "headline": "OwnTracks gammel adresse fjernes",
+        "title": "OwnTracks publiserer kun paa eget domene og klargjoeres for tom database",
+        "description": (
+            "Build 1416 fullfoerer utskillingen av OwnTracks ved aa fjerne den gamle offentlige ruten via "
+            "online.lilletorget.net/owntracks. Publisering skal naa skje via owntracks.lilletorget.net/pub. "
+            "OwnTracks sin egen buildlogg oppdateres til build 2."
+        ),
+        "applications": [
+            "Caddyfile: fjerner /owntracks-ruting fra online.lilletorget.net.",
+            "owntracks_service/app/main.py: fjerner /owntracks/pub som publiseringsalias og legacy-informasjon fra status.",
+            "owntracks_service/app/build_log.py: registrerer OwnTracks build 2.",
+            "docker-compose.qnap.yml og .env.qnap.example: oppdaterer OwnTracks build default og fjerner legacy URL.",
+            "docs/owntracks-http.md: fjerner overgangs-URL.",
+            "tests/test_owntracks_service.py: tester ny /pub-rute og at legacy publish-ruten er borte.",
+        ],
+        "request": "Kan du tomme hele basen slik at jeg ser at det funker, fjern gammel adresse ogsaa.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Gammel online.lilletorget.net/owntracks-adresse er ikke lenger proxyet til OwnTracks.",
+            "OwnTracks publisering skal bruke https://owntracks.lilletorget.net/pub?token=<token>.",
+            "Database-toemming gjores paa QNAP etter deploy med backup foerst.",
+        ],
+    },
     {
         "version": "1",
         "build": "1415",
