@@ -585,13 +585,19 @@ def open_zone_visit(
     confidence: float,
 ) -> OwnTracksZoneVisit:
     event_at = location.timestamp or location.received_at
-    existing = session.execute(
-        select(OwnTracksZoneVisit)
-        .where(OwnTracksZoneVisit.topic == location.topic)
-        .where(OwnTracksZoneVisit.waypoint_name == waypoint.waypoint_name)
-        .where(OwnTracksZoneVisit.status == "open")
-        .limit(1)
-    ).scalar_one_or_none()
+    visit_cache = session.info.setdefault("owntracks_open_zone_visit_cache", {})
+    cache_key = (location.topic, waypoint.waypoint_name)
+    existing = visit_cache.get(cache_key)
+    if existing is None:
+        existing = session.execute(
+            select(OwnTracksZoneVisit)
+            .where(OwnTracksZoneVisit.topic == location.topic)
+            .where(OwnTracksZoneVisit.waypoint_name == waypoint.waypoint_name)
+            .where(OwnTracksZoneVisit.status == "open")
+            .limit(1)
+        ).scalar_one_or_none()
+        if existing is not None:
+            visit_cache[cache_key] = existing
     if existing:
         update_zone_visit_position(existing, location, confidence)
         return existing
@@ -613,6 +619,7 @@ def open_zone_visit(
         last_location_id=location.id,
     )
     session.add(visit)
+    visit_cache[cache_key] = visit
     return visit
 
 
@@ -624,13 +631,17 @@ def close_zone_visit(
     source: str,
 ) -> Optional[OwnTracksZoneVisit]:
     event_at = location.timestamp or location.received_at
-    visit = session.execute(
-        select(OwnTracksZoneVisit)
-        .where(OwnTracksZoneVisit.topic == location.topic)
-        .where(OwnTracksZoneVisit.waypoint_name == waypoint_name)
-        .where(OwnTracksZoneVisit.status == "open")
-        .limit(1)
-    ).scalar_one_or_none()
+    visit_cache = session.info.setdefault("owntracks_open_zone_visit_cache", {})
+    cache_key = (location.topic, waypoint_name)
+    visit = visit_cache.get(cache_key)
+    if visit is None:
+        visit = session.execute(
+            select(OwnTracksZoneVisit)
+            .where(OwnTracksZoneVisit.topic == location.topic)
+            .where(OwnTracksZoneVisit.waypoint_name == waypoint_name)
+            .where(OwnTracksZoneVisit.status == "open")
+            .limit(1)
+        ).scalar_one_or_none()
     if not visit:
         return None
     visit.ended_at = event_at
@@ -644,6 +655,7 @@ def close_zone_visit(
     visit.last_location_id = location.id
     visit.leave_source = source
     visit.updated_at = utc_now()
+    visit_cache.pop(cache_key, None)
     return visit
 
 

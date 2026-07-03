@@ -197,6 +197,45 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertNotIn("Udefinert", state_names)
             self.assertIn("Udefinert", event_names)
 
+    def test_inregions_and_computed_position_do_not_open_duplicate_zone_visit(self) -> None:
+        topic = "owntracks/zone-dup/android"
+        with TestClient(app) as client:
+            waypoint = client.post(
+                "/pub",
+                json={
+                    "_type": "waypoint",
+                    "topic": f"{topic}/waypoint",
+                    "desc": "Kontor",
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "rad": 100,
+                    "tst": 1783081000,
+                },
+            )
+            self.assertEqual(waypoint.status_code, 200)
+
+            location = client.post(
+                "/pub",
+                json={
+                    "_type": "location",
+                    "topic": topic,
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "acc": 5,
+                    "inregions": ["Kontor"],
+                    "tst": 1783081060,
+                },
+            )
+            self.assertEqual(location.status_code, 200)
+
+            visits = client.get("/api/owntracks/map?hours=0&limit=0").json()["zoneVisits"]
+            matching_visits = [
+                row
+                for row in visits
+                if row["topic"] == topic and row["waypointName"] == "Kontor"
+            ]
+            self.assertEqual(len(matching_visits), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

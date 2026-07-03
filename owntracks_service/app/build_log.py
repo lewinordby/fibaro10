@@ -5,10 +5,34 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "2")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "3")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "3",
+        "date": "03.07.2026",
+        "headline": "Sonebesok dupliseres ikke lenger",
+        "title": "Inregions og radiusberegning samles til samme apne besok",
+        "description": (
+            "Build 3 retter at samme posisjonsmelding kunne apne samme waypoint to ganger. Telefonens inregions "
+            "og serverens radiusberegning kjoeres i samme database-session, og apne sonebesok caches naa i sessionen "
+            "slik at den andre vurderingen oppdaterer eksisterende rad i stedet for aa opprette en ny."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: cacher apne OwnTracksZoneVisit-rader per topic og waypoint.",
+            "tests/test_owntracks_service.py: dekker posisjon med baade inregions og radiusmatch.",
+        ],
+        "request": "Hvorfor genererer den to poster med samme tidspunkt paa start?",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Samme posisjon kan ikke lenger apne samme sone to ganger.",
+            "Eksisterende apen rad oppdateres med siste posisjon og hoeyeste confidence.",
+            "Rebuild av sonebesok vil rydde historiske duplikater.",
+        ],
+    },
     {
         "version": "1",
         "build": "2",

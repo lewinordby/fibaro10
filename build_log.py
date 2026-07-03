@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1416")
+APP_BUILD = os.getenv("APP_BUILD", "1417")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1417",
+        "date": "03.07.2026",
+        "headline": "OwnTracks sonebesok dupliseres ikke",
+        "title": "Inregions og radiusberegning apner ikke samme sone to ganger",
+        "description": (
+            "Build 1417 retter en OwnTracks-feil der samme posisjonsmelding kunne gi to sonebesok med identisk "
+            "starttid. Telefonen sender inregions samtidig som QNAP beregner radiusmatch selv. Begge signalene "
+            "kunne treffe samme waypoint i samme database-session. Na caches apne sonebesok i sessionen slik at "
+            "andre treff oppdaterer eksisterende rad."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: cacher apne OwnTracksZoneVisit-rader per topic og waypoint i session.",
+            "owntracks_service/app/build_log.py: registrerer OwnTracks build 3.",
+            "docker-compose.qnap.yml og .env.qnap.example: oppdaterer OwnTracks build default til 3.",
+            "tests/test_owntracks_service.py: legger regresjonstest for inregions + computed-position uten duplikat.",
+        ],
+        "request": "Hvorfor genererer den to poster med samme tidspunkt paa start?",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Samme posisjon kan ikke lenger apne samme waypoint to ganger.",
+            "Rebuild av sonebesok rydder eksisterende duplikater etter deploy.",
+            "OwnTracks buildnummer er oppdatert til 3.",
+        ],
+    },
     {
         "version": "1",
         "build": "1416",
