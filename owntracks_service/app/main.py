@@ -256,10 +256,31 @@ def re_topic_part(value: Optional[str]) -> str:
     return cleaned[:80]
 
 
+OWNTRACKS_TOPIC_SUFFIXES = {
+    "beacon",
+    "cmd",
+    "dump",
+    "event",
+    "info",
+    "step",
+    "status",
+    "waypoint",
+    "waypoints",
+}
+
+
+def canonical_owntracks_topic(topic: str) -> str:
+    cleaned = str(topic or "").strip().strip("/")
+    parts = [part for part in cleaned.split("/") if part]
+    if len(parts) >= 4 and parts[0] == "owntracks" and parts[3].lower() in OWNTRACKS_TOPIC_SUFFIXES:
+        return "/".join(parts[:3])
+    return cleaned
+
+
 def http_topic(request: Request, payload: dict[str, Any]) -> str:
     topic = str(payload.get("topic") or payload.get("_topic") or "").strip()
     if topic.startswith("owntracks/"):
-        return topic
+        return canonical_owntracks_topic(topic)
     username = str(payload.get("username") or payload.get("user") or request.query_params.get("user") or DEFAULT_TOPIC_USERNAME)
     device = str(
         payload.get("device")
@@ -268,7 +289,7 @@ def http_topic(request: Request, payload: dict[str, Any]) -> str:
         or request.query_params.get("device")
         or DEFAULT_TOPIC_DEVICE
     )
-    return f"owntracks/{topic_part(username, DEFAULT_TOPIC_USERNAME)}/{topic_part(device, DEFAULT_TOPIC_DEVICE)}"
+    return canonical_owntracks_topic(f"owntracks/{topic_part(username, DEFAULT_TOPIC_USERNAME)}/{topic_part(device, DEFAULT_TOPIC_DEVICE)}")
 
 
 def payload_timestamp(payload: dict[str, Any], fallback: datetime) -> datetime:
@@ -433,6 +454,54 @@ def event_already_exists(
     return existing is not None
 
 
+def find_waypoint(session: Session, topic: str, waypoint_name: str) -> Optional[OwnTracksWaypointState]:
+    return session.execute(
+        select(OwnTracksWaypointState)
+        .where(OwnTracksWaypointState.topic == topic)
+        .where(OwnTracksWaypointState.waypoint_name == waypoint_name)
+    ).scalar_one_or_none()
+
+
+def record_waypoint_event(
+    session: Session,
+    location: OwnTracksLocation,
+    waypoint_name: str,
+    event_type: str,
+    *,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    radius_m: Optional[float] = None,
+    accuracy_m: Optional[float] = None,
+    synthetic: bool = False,
+    event_payload: Optional[dict[str, Any]] = None,
+) -> None:
+    event_type = normalized_event_type(event_type)
+    event_time = location.timestamp or location.received_at
+    if event_type not in {"enter", "leave", "defined"}:
+        return
+    if event_already_exists(session, location.topic, waypoint_name, event_type, event_time):
+        return
+    session.add(
+        OwnTracksWaypointEvent(
+            topic=location.topic,
+            username=location.username,
+            device=location.device,
+            waypoint_name=waypoint_name,
+            event_type=event_type,
+            source_message_type=location.message_type,
+            timestamp=event_time,
+            received_at=location.received_at,
+            lat=lat if lat is not None else location.lat,
+            lon=lon if lon is not None else location.lon,
+            radius_m=radius_m,
+            accuracy_m=accuracy_m if accuracy_m is not None else location.accuracy_m,
+            location_id=location.id,
+            is_synthetic=synthetic,
+            payload=event_payload or location.payload,
+        )
+    )
+
+
 def upsert_waypoint(
     session: Session,
     location: OwnTracksLocation,
@@ -448,11 +517,7 @@ def upsert_waypoint(
 ) -> OwnTracksWaypointState:
     event_type = normalized_event_type(event_type)
     state_value, is_inside = waypoint_state_for_event(event_type)
-    row = session.execute(
-        select(OwnTracksWaypointState)
-        .where(OwnTracksWaypointState.topic == location.topic)
-        .where(OwnTracksWaypointState.waypoint_name == waypoint_name)
-    ).scalar_one_or_none()
+    row = find_waypoint(session, location.topic, waypoint_name)
     if row is None:
         row = OwnTracksWaypointState(topic=location.topic, waypoint_name=waypoint_name)
         session.add(row)
@@ -476,29 +541,18 @@ def upsert_waypoint(
         row.last_event = event_type
         row.last_event_at = location.timestamp or location.received_at
 
-    event_time = location.timestamp or location.received_at
-    if event_type in {"enter", "leave", "defined"} and not event_already_exists(
-        session, location.topic, waypoint_name, event_type, event_time
-    ):
-        session.add(
-            OwnTracksWaypointEvent(
-                topic=location.topic,
-                username=location.username,
-                device=location.device,
-                waypoint_name=waypoint_name,
-                event_type=event_type,
-                source_message_type=location.message_type,
-                timestamp=event_time,
-                received_at=location.received_at,
-                lat=lat if lat is not None else location.lat,
-                lon=lon if lon is not None else location.lon,
-                radius_m=radius_m,
-                accuracy_m=accuracy_m if accuracy_m is not None else location.accuracy_m,
-                location_id=location.id,
-                is_synthetic=synthetic,
-                payload=event_payload or location.payload,
-            )
-        )
+    record_waypoint_event(
+        session,
+        location,
+        waypoint_name,
+        event_type,
+        lat=lat,
+        lon=lon,
+        radius_m=radius_m,
+        accuracy_m=accuracy_m,
+        synthetic=synthetic,
+        event_payload=event_payload,
+    )
     return row
 
 
@@ -644,35 +698,46 @@ def materialize_waypoints(session: Session, location: OwnTracksLocation, payload
         name = waypoint_name_from_payload(payload)
         event_type = normalized_event_type(str(payload.get("event") or payload.get("transition") or ""))
         if name:
-            waypoint = upsert_waypoint(
-                session,
-                location,
-                name,
-                event_type,
-                lat=location.lat,
-                lon=location.lon,
-                radius_m=float_value(payload.get("rad") or payload.get("radius")),
-                accuracy_m=location.accuracy_m,
-            )
-            if event_type == "enter":
-                open_zone_visit(session, location, waypoint, source="transition", confidence=1.0)
-            elif event_type == "leave":
-                close_zone_visit(session, location, name, source="transition")
+            waypoint = find_waypoint(session, location.topic, name)
+            radius_m = float_value(payload.get("rad") or payload.get("radius"))
+            if waypoint:
+                waypoint = upsert_waypoint(
+                    session,
+                    location,
+                    name,
+                    event_type,
+                    lat=location.lat,
+                    lon=location.lon,
+                    radius_m=radius_m,
+                    accuracy_m=location.accuracy_m,
+                )
+                if event_type == "enter":
+                    open_zone_visit(session, location, waypoint, source="transition", confidence=1.0)
+                elif event_type == "leave":
+                    close_zone_visit(session, location, name, source="transition")
+            else:
+                record_waypoint_event(
+                    session,
+                    location,
+                    name,
+                    event_type,
+                    lat=location.lat,
+                    lon=location.lon,
+                    radius_m=radius_m,
+                    accuracy_m=location.accuracy_m,
+                )
         return
 
     current_names = waypoint_names(payload.get("inregions") or payload.get("regions"))
     if current_names:
         for name in current_names:
-            waypoint = session.execute(
-                select(OwnTracksWaypointState)
-                .where(OwnTracksWaypointState.topic == location.topic)
-                .where(OwnTracksWaypointState.waypoint_name == name)
-            ).scalar_one_or_none()
+            waypoint = find_waypoint(session, location.topic, name)
             if waypoint:
                 open_zone_visit(session, location, waypoint, source="inregions", confidence=0.9)
 
 
 def store_message(topic: str, payload_text: str) -> dict[str, Any]:
+    topic = canonical_owntracks_topic(topic)
     received_at = utc_now()
     with STATE.lock:
         STATE.messages_received += 1
@@ -726,33 +791,38 @@ def store_message(topic: str, payload_text: str) -> dict[str, Any]:
         materialize_waypoints(session, location, payload)
         materialize_zone_visits_for_location(session, location)
 
-        device_row = session.execute(select(OwnTracksDevice).where(OwnTracksDevice.topic == topic)).scalar_one_or_none()
-        if device_row is None:
-            device_row = OwnTracksDevice(topic=topic, username=username, device=device)
-            session.add(device_row)
-        device_row.username = username
-        device_row.device = device
-        device_row.tracker_id = location.tracker_id or device_row.tracker_id
-        device_row.last_seen_at = timestamp
-        device_row.last_received_at = received_at
-        if lat is not None:
-            device_row.last_lat = lat
-        if lon is not None:
-            device_row.last_lon = lon
-        if accuracy_m is not None:
-            device_row.last_accuracy_m = accuracy_m
-        if location.battery_percent is not None:
-            device_row.last_battery_percent = location.battery_percent
-        device_row.last_connection = location.connection or device_row.last_connection
-        device_row.last_event = event_type or message_type or device_row.last_event
-        device_row.message_count = int(device_row.message_count or 0) + 1
-        device_row.updated_at = utc_now()
+        update_device_from_location(session, location)
         session.commit()
 
     with STATE.lock:
         STATE.messages_stored += 1
         STATE.last_store_error = None
     return {"stored": True, "duplicate": False, "topic": topic, "messageType": message_type}
+
+
+def update_device_from_location(session: Session, location: OwnTracksLocation) -> OwnTracksDevice:
+    device_row = session.execute(select(OwnTracksDevice).where(OwnTracksDevice.topic == location.topic)).scalar_one_or_none()
+    if device_row is None:
+        device_row = OwnTracksDevice(topic=location.topic, username=location.username, device=location.device)
+        session.add(device_row)
+    device_row.username = location.username
+    device_row.device = location.device
+    device_row.tracker_id = location.tracker_id or device_row.tracker_id
+    device_row.last_seen_at = location.timestamp or device_row.last_seen_at
+    device_row.last_received_at = location.received_at
+    if location.lat is not None:
+        device_row.last_lat = location.lat
+    if location.lon is not None:
+        device_row.last_lon = location.lon
+    if location.accuracy_m is not None:
+        device_row.last_accuracy_m = location.accuracy_m
+    if location.battery_percent is not None:
+        device_row.last_battery_percent = location.battery_percent
+    device_row.last_connection = location.connection or device_row.last_connection
+    device_row.last_event = location.event or location.message_type or device_row.last_event
+    device_row.message_count = int(device_row.message_count or 0) + 1
+    device_row.updated_at = utc_now()
+    return device_row
 
 
 def rebuild_zone_visits() -> int:
@@ -771,6 +841,50 @@ def rebuild_zone_visits() -> int:
             count += 1
         session.commit()
         return count
+
+
+def normalize_existing_owntracks_data() -> None:
+    with SessionLocal() as session:
+        tables_to_check = (OwnTracksLocation, OwnTracksDevice, OwnTracksWaypointState, OwnTracksWaypointEvent, OwnTracksZoneVisit)
+        needs_rebuild = False
+        for table in tables_to_check:
+            rows = session.execute(select(table.topic).limit(10000)).scalars()
+            if any(topic != canonical_owntracks_topic(topic) for topic in rows):
+                needs_rebuild = True
+                break
+        if not needs_rebuild:
+            return
+
+        session.execute(delete(OwnTracksZoneVisit))
+        session.execute(delete(OwnTracksWaypointEvent))
+        session.execute(delete(OwnTracksWaypointState))
+        session.execute(delete(OwnTracksDevice))
+        session.flush()
+
+        kept_locations: list[OwnTracksLocation] = []
+        seen_hashes: set[str] = set()
+        locations = list(
+            session.execute(
+                select(OwnTracksLocation).order_by(OwnTracksLocation.received_at.asc(), OwnTracksLocation.id.asc())
+            ).scalars()
+        )
+        for location in locations:
+            canonical_topic = canonical_owntracks_topic(location.topic)
+            location.topic = canonical_topic
+            location.username, location.device = topic_identity(canonical_topic)
+            location.message_hash = message_hash(canonical_topic, json_string(location.payload or {}))
+            if location.message_hash in seen_hashes:
+                session.delete(location)
+                continue
+            seen_hashes.add(location.message_hash)
+            kept_locations.append(location)
+        session.flush()
+
+        for location in kept_locations:
+            materialize_waypoints(session, location, location.payload or {})
+            materialize_zone_visits_for_location(session, location)
+            update_device_from_location(session, location)
+        session.commit()
 
 
 def db_count(session: Session, model: Any) -> int:
@@ -1450,6 +1564,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1024)
 @app.on_event("startup")
 def on_startup() -> None:
     Base.metadata.create_all(engine)
+    normalize_existing_owntracks_data()
 
 
 @app.get("/")

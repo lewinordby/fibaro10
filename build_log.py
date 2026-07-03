@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1411")
+APP_BUILD = os.getenv("APP_BUILD", "1412")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1412",
+        "date": "03.07.2026",
+        "headline": "OwnTracks waypoints samles på riktig enhet",
+        "title": "Waypoint-, waypoints- og event-topic normaliseres til samme telefon",
+        "description": (
+            "Build 1412 rydder OwnTracks-datamodellen etter at Publish Waypoints begynte å komme inn. Android sender "
+            "topic-varianter som /waypoint, /waypoints og /event. Disse normaliseres nå til samme enhet, slik at "
+            "waypoint-listen speiler telefonens definerte waypoints uten duplikater fra transition-events."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: normaliserer OwnTracks-topic og bygger avledede waypoint-tabeller på nytt ved behov.",
+            "tests/test_owntracks_service.py: dekker topic-suffikser og transition uten definert waypoint.",
+        ],
+        "request": "Publish Waypoints kommer inn, men Waypoints skal kun vise de som ligger på telefonen og ikke avledede duplikater.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Lagrer OwnTracks-meldinger under base-topic for telefonen.",
+            "Transition-events oppretter ikke lenger egne waypoint-rader når waypoint ikke allerede er definert.",
+            "Ved oppstart normaliseres gamle suffix-topics og avledede tabeller bygges ryddig opp igjen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1411",

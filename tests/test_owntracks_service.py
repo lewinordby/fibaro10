@@ -9,6 +9,7 @@ os.environ.setdefault("OWNTRACKS_DATABASE_URL", f"sqlite:///{os.path.join(_tmpdi
 
 from owntracks_service.app import main as owntracks_main  # noqa: E402
 from owntracks_service.app.main import (  # noqa: E402
+    canonical_owntracks_topic,
     normalized_event_type,
     waypoint_items_from_plural,
     waypoint_name_from_payload,
@@ -37,6 +38,11 @@ class OwnTracksServiceTests(unittest.TestCase):
         dict_payload = {"waypoints": {"a": {"desc": "A"}, "b": {"desc": "B"}}}
         self.assertEqual([item["desc"] for item in waypoint_items_from_plural(list_payload)], ["A", "B"])
         self.assertEqual([item["desc"] for item in waypoint_items_from_plural(dict_payload)], ["A", "B"])
+
+    def test_owntracks_topic_suffixes_are_canonicalized(self) -> None:
+        self.assertEqual(canonical_owntracks_topic("owntracks/lewi/Lewi/waypoints"), "owntracks/lewi/Lewi")
+        self.assertEqual(canonical_owntracks_topic("owntracks/lewi/Lewi/event"), "owntracks/lewi/Lewi")
+        self.assertEqual(canonical_owntracks_topic("owntracks/lewi/Lewi"), "owntracks/lewi/Lewi")
 
     def test_http_publish_stores_location(self) -> None:
         with TestClient(app) as client:
@@ -129,6 +135,46 @@ class OwnTracksServiceTests(unittest.TestCase):
             rows = client.get("/api/owntracks/waypoints").json()["waypoints"]
             names = {row["waypointName"] for row in rows if row["topic"] == "owntracks/waypoint-wrapped/android"}
             self.assertIn("Kontor", names)
+
+    def test_payload_topic_suffix_is_stored_on_base_topic(self) -> None:
+        with TestClient(app) as client:
+            response = client.post(
+                "/owntracks/pub",
+                json={
+                    "_type": "waypoints",
+                    "topic": "owntracks/lewi/Lewi/waypoints",
+                    "waypoints": [{"desc": "Lilletorget", "lat": 61.1, "lon": 10.4, "rad": 50}],
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), [])
+
+            rows = client.get("/api/owntracks/waypoints").json()["waypoints"]
+            names = {row["waypointName"] for row in rows if row["topic"] == "owntracks/lewi/Lewi"}
+            self.assertIn("Lilletorget", names)
+
+    def test_transition_without_defined_waypoint_does_not_create_waypoint_state(self) -> None:
+        with TestClient(app) as client:
+            response = client.post(
+                "/owntracks/pub",
+                json={
+                    "_type": "transition",
+                    "topic": "owntracks/transition-only/android/event",
+                    "desc": "Udefinert",
+                    "event": "enter",
+                    "lat": 61.1,
+                    "lon": 10.4,
+                    "tst": 1783080900,
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), [])
+
+            payload = client.get("/api/owntracks/waypoints").json()
+            state_names = {row["waypointName"] for row in payload["waypoints"] if row["topic"] == "owntracks/transition-only/android"}
+            event_names = {row["waypointName"] for row in payload["events"] if row["topic"] == "owntracks/transition-only/android"}
+            self.assertNotIn("Udefinert", state_names)
+            self.assertIn("Udefinert", event_names)
 
 
 if __name__ == "__main__":
