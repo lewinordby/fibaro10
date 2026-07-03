@@ -23,3 +23,20 @@ online.lilletorget.net {
 		header_up X-Real-IP {remote_host}
 	}
 }
+
+vedl.lilletorget.net {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	reverse_proxy maintenance_mobile:8112 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

@@ -65,6 +65,26 @@ services:
       retries: 3
       start_period: 30s
 
+  maintenance_mobile:
+    build:
+      context: .
+      dockerfile: maintenance_mobile/Dockerfile
+    container_name: maintenance_mobile
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - fibaro10
+    environment:
+      FIBARO10_BASE_URL: http://fibaro10:8110
+      MAINTENANCE_MOBILE_SESSION_SECRET: ${MAINTENANCE_MOBILE_SESSION_SECRET:-}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8112/health', timeout=5).read()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   axis_camera_snapshots:
     build:
       context: ./axis_camera_snapshots

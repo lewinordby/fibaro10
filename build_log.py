@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1399")
+APP_BUILD = os.getenv("APP_BUILD", "1400")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1400",
+        "date": "03.07.2026",
+        "headline": "Egen mobilapp for vedlikehold",
+        "title": "Vedlikehold får separat mobilflate på vedl.lilletorget.net",
+        "description": (
+            "Build 1400 legger til en egen mobiloptimalisert vedlikeholdsapp som bruker samme brukerbase som Fibaro10 "
+            "og skriver nye vedlikeholdsposter til samme datagrunnlag. Appen er laget som en separat container og "
+            "eksponeres via Caddy på vedl.lilletorget.net."
+        ),
+        "applications": [
+            "maintenance_mobile: ny FastAPI/PWA-lignende mobilapp med innlogging, skjema, statuskort og siste vedlikeholdslogger.",
+            "Fibaro10 API-integrasjon: mobilappen validerer brukere mot /api/auth/me og oppretter poster via /api/maintenance/logs.",
+            "Docker/Caddy (docker-compose.qnap.yml, Caddyfile): ny maintenance_mobile-container og reverse proxy for vedl.lilletorget.net.",
+            "Deploy og kvalitetssjekk (deploy-qnap.ps1, check-local.ps1): ny app bygges, startes og syntakssjekkes sammen med resten.",
+            "Dokumentasjon (.env.qnap.example, maintenance_mobile/README.md): miljøvariabler og driftsformål dokumentert.",
+        ],
+        "request": (
+            "Lag en helt egen vedlikeholdsapp for mobil, gjerne på vedl.lilletorget.net, med design hentet fra eksisterende mobilapp, "
+            "samme brukerbase og logging til samme vedlikeholdsgrunnlag som Fibaro10."
+        ),
+        "work_duration": "ca. 1 t 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Alle innloggede Fibaro10-brukere kan registrere vedlikehold fra mobilflaten.",
+            "Skjemaet har touch-vennlige valg for objekt, seng/rom, tiltak, prioritet, status og tagger.",
+            "Siste vedlikeholdsposter vises direkte i mobilappen etter lagring.",
+            "Appen lagrer ikke egne vedlikeholdsdata, men bruker Fibaro10 som autoritativ backend.",
+            "Domeneoppsett er klart for vedl.lilletorget.net når DNS peker til samme server.",
+        ],
+    },
     {
         "version": "1",
         "build": "1399",

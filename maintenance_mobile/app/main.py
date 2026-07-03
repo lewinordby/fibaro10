@@ -1,0 +1,450 @@
+from __future__ import annotations
+
+import asyncio
+import base64
+import hashlib
+import hmac
+import json
+import os
+import time
+from datetime import datetime
+from html import escape
+from typing import Any, Optional
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
+
+load_dotenv()
+
+FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
+SESSION_COOKIE_NAME = "lilletorget_maintenance_session"
+SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+SESSION_SECRET = (
+    os.getenv("MAINTENANCE_MOBILE_SESSION_SECRET")
+    or os.getenv("PUBLIC_DASHBOARD_SESSION_SECRET")
+    or os.getenv("PUBLIC_DASHBOARD_PASSWORD")
+    or "change-this-maintenance-mobile-secret"
+)
+
+app = FastAPI(title="Lilletorget Vedlikehold", docs_url=None, redoc_url=None)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/assets", StaticFiles(directory="maintenance_mobile/app/static"), name="assets")
+
+
+def json_safe(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
+def normalize_username(value: Any) -> str:
+    return str(value or "").strip().casefold()
+
+
+def b64_encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def b64_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode((value + padding).encode("ascii"))
+
+
+def sign_payload(payload: str) -> str:
+    return hmac.new(SESSION_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def make_session_token(username: str, password: str) -> str:
+    payload = {
+        "u": normalize_username(username),
+        "p": password,
+        "iat": int(time.time()),
+    }
+    body = b64_encode(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+    return f"{body}.{sign_payload(body)}"
+
+
+def read_session_token(token: str) -> Optional[tuple[str, str]]:
+    if not token or "." not in token:
+        return None
+    body, signature = token.rsplit(".", 1)
+    if not hmac.compare_digest(sign_payload(body), signature):
+        return None
+    try:
+        payload = json.loads(b64_decode(body).decode("utf-8"))
+    except (ValueError, json.JSONDecodeError):
+        return None
+    issued_at = int(payload.get("iat") or 0)
+    if issued_at <= 0 or time.time() - issued_at > SESSION_MAX_AGE_SECONDS:
+        return None
+    username = normalize_username(payload.get("u"))
+    password = str(payload.get("p") or "")
+    if not username or not password:
+        return None
+    return username, password
+
+
+def session_credentials(request: Request) -> Optional[tuple[str, str]]:
+    return read_session_token(request.cookies.get(SESSION_COOKIE_NAME, ""))
+
+
+def require_session(request: Request) -> tuple[str, str]:
+    credentials = session_credentials(request)
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Ikke innlogget")
+    return credentials
+
+
+def secure_cookie(request: Request) -> bool:
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
+    return request.url.scheme == "https" or forwarded_proto == "https"
+
+
+def fibaro_request_sync(
+    path: str,
+    username: str,
+    password: str,
+    *,
+    method: str = "GET",
+    payload: Optional[dict[str, Any]] = None,
+    timeout: int = 25,
+) -> Any:
+    data = None
+    headers = {
+        "Accept": "application/json",
+        "X-Access-Username": username,
+        "X-Access-Password": password,
+        "User-Agent": "lilletorget-maintenance-mobile/1",
+    }
+    if payload is not None:
+        data = json.dumps(payload, ensure_ascii=False, default=json_safe).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    request = UrlRequest(f"{FIBARO10_BASE_URL}{path}", data=data, headers=headers, method=method)
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            raw = response.read().decode("utf-8")
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        try:
+            parsed = json.loads(detail)
+            message = parsed.get("detail") or parsed.get("message") or detail
+        except json.JSONDecodeError:
+            message = detail or exc.reason
+        raise HTTPException(status_code=exc.code, detail=message) from exc
+    except URLError as exc:
+        raise HTTPException(status_code=502, detail=f"Fibaro10 er ikke tilgjengelig: {exc.reason}") from exc
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=502, detail="Fibaro10 svarte ikke med gyldig JSON") from exc
+
+
+async def fibaro_request(
+    path: str,
+    username: str,
+    password: str,
+    *,
+    method: str = "GET",
+    payload: Optional[dict[str, Any]] = None,
+    timeout: int = 25,
+) -> Any:
+    return await asyncio.to_thread(
+        fibaro_request_sync,
+        path,
+        username,
+        password,
+        method=method,
+        payload=payload,
+        timeout=timeout,
+    )
+
+
+def fields_by_key(module_payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    for table in module_payload.get("tables") or []:
+        edit = table.get("edit") if isinstance(table, dict) else None
+        if isinstance(edit, dict) and edit.get("kind") == "maintenance-log":
+            return {field.get("key"): field for field in edit.get("fields") or [] if isinstance(field, dict)}
+    return {}
+
+
+def maintenance_rows(module_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    for table in module_payload.get("tables") or []:
+        if isinstance(table, dict) and table.get("title") == "Vedlikeholdslogg":
+            rows = table.get("rows") or []
+            return [row for row in rows if isinstance(row, dict)]
+    return []
+
+
+def option_values(field: Optional[dict[str, Any]]) -> list[dict[str, str]]:
+    options = (field or {}).get("options") or []
+    result = []
+    for option in options:
+        if not isinstance(option, dict):
+            continue
+        label = str(option.get("label") or option.get("value") or "").strip()
+        value = str(option.get("value") or option.get("label") or "").strip()
+        if label and value:
+            result.append({"label": label, "value": value})
+    return result
+
+
+def bootstrap_payload(module_payload: dict[str, Any], user_payload: dict[str, Any]) -> dict[str, Any]:
+    fields = fields_by_key(module_payload)
+    recent_rows = maintenance_rows(module_payload)[:40]
+    default_performed_at = (fields.get("performed_at") or {}).get("defaultValue")
+    return {
+        "user": user_payload,
+        "cards": module_payload.get("cards") or [],
+        "recent": recent_rows,
+        "defaults": {
+            "performed_at": default_performed_at,
+            "target_type": "Seng",
+            "action_type": "Kontroll",
+            "priority": "Normal",
+            "status": "Utført",
+            "presence_type": "Tilstede Sun2",
+        },
+        "options": {
+            "presence_type": option_values(fields.get("presence_type")),
+            "target_type": option_values(fields.get("target_type")),
+            "room_id": option_values(fields.get("room_id")),
+            "action_type": option_values(fields.get("action_type")),
+            "priority": option_values(fields.get("priority")),
+            "status": option_values(fields.get("status")),
+            "tags": option_values(fields.get("tags")),
+        },
+    }
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True, "service": "maintenance_mobile", "fibaro10": FIBARO10_BASE_URL}
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    return RedirectResponse("/static/lilletorget-favicon.png", status_code=307)
+
+
+@app.get("/manifest.webmanifest")
+async def manifest():
+    return JSONResponse(
+        {
+            "name": "Lilletorget Vedlikehold",
+            "short_name": "Vedlikehold",
+            "start_url": "/",
+            "display": "standalone",
+            "background_color": "#f4f7fb",
+            "theme_color": "#0f766e",
+            "icons": [
+                {"src": "/static/lilletorget-favicon.png", "sizes": "512x512", "type": "image/png"},
+            ],
+        }
+    )
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    if not session_credentials(request):
+        return RedirectResponse("/auth/login", status_code=303)
+    return HTMLResponse(INDEX_HTML)
+
+
+@app.get("/auth/login", response_class=HTMLResponse)
+async def login_view(request: Request):
+    if session_credentials(request):
+        return RedirectResponse("/", status_code=303)
+    return HTMLResponse(login_html())
+
+
+@app.post("/auth/login")
+async def login_submit(request: Request):
+    form = await request.form()
+    username = normalize_username(form.get("username"))
+    password = str(form.get("password") or "").strip()
+    error = ""
+    if not username or not password:
+        error = "Brukernavn og passord må fylles ut."
+    else:
+        try:
+            await fibaro_request("/api/auth/me", username, password, timeout=12)
+        except HTTPException:
+            error = "Ugyldig brukernavn eller passord."
+    if error:
+        return HTMLResponse(login_html(error), status_code=401)
+    response = RedirectResponse("/", status_code=303)
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        make_session_token(username, password),
+        max_age=SESSION_MAX_AGE_SECONDS,
+        httponly=True,
+        secure=secure_cookie(request),
+        samesite="lax",
+    )
+    return response
+
+
+@app.post("/konto/logg-ut")
+async def logout():
+    response = RedirectResponse("/auth/login", status_code=303)
+    response.delete_cookie(SESSION_COOKIE_NAME)
+    return response
+
+
+@app.get("/api/bootstrap")
+async def api_bootstrap(request: Request):
+    username, password = require_session(request)
+    user_payload, module_payload = await asyncio.gather(
+        fibaro_request("/api/auth/me", username, password),
+        fibaro_request("/api/modules/vedlikehold", username, password),
+    )
+    return bootstrap_payload(module_payload, user_payload)
+
+
+@app.post("/api/maintenance/logs")
+async def api_create_maintenance_log(request: Request):
+    username, password = require_session(request)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Ugyldig payload")
+    result = await fibaro_request("/api/maintenance/logs", username, password, method="POST", payload=payload)
+    return result
+
+
+def login_html(error: str = "") -> str:
+    error_html = f'<div class="login-error">{escape(error)}</div>' if error else ""
+    return f"""<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Logg inn · Vedlikehold</title>
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1400">
+</head>
+<body class="login-body">
+  <main class="login-screen">
+    <section class="login-brand">
+      <img src="/static/lilletorget-login.png" alt="Lilletorget">
+    </section>
+    <section class="login-panel">
+      <p class="eyebrow">Lilletorget</p>
+      <h1>Vedlikehold</h1>
+      <p class="muted">Samme brukere som Fibaro10. Alle innloggede brukere kan registrere arbeid og observasjoner.</p>
+      {error_html}
+      <form method="post" action="/auth/login" class="login-form">
+        <label>Brukernavn<input name="username" autocomplete="username" required autofocus></label>
+        <label>Passord<input type="password" name="password" autocomplete="current-password" required></label>
+        <button type="submit">Logg inn</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>"""
+
+
+INDEX_HTML = """<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <title>Lilletorget Vedlikehold</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1400">
+  <script src="/assets/maintenance-mobile.js?v=1400" defer></script>
+</head>
+<body>
+  <header class="app-topbar">
+    <div class="brand-lockup">
+      <img src="/static/lilletorget-mark.png" alt="">
+      <div>
+        <strong>Lilletorget</strong>
+        <span>Vedlikehold</span>
+      </div>
+    </div>
+    <form method="post" action="/konto/logg-ut">
+      <button class="icon-button" type="submit" title="Logg ut" aria-label="Logg ut">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 4v16"/></svg>
+      </button>
+    </form>
+  </header>
+  <main class="app-shell">
+    <section class="hero-card">
+      <div>
+        <p class="eyebrow">Mobil registrering</p>
+        <h1>Ny vedlikeholdspost</h1>
+        <p id="userLine" class="muted">Henter bruker og valg...</p>
+      </div>
+      <button id="refreshButton" class="ghost-button" type="button">Oppdater</button>
+    </section>
+
+    <section id="statusCards" class="status-grid" aria-live="polite"></section>
+
+    <form id="maintenanceForm" class="entry-card">
+      <div class="form-row two">
+        <label>Tidspunkt<input id="performed_at" name="performed_at" type="datetime-local" required></label>
+        <label>Utført av<input id="performed_by" name="performed_by" placeholder="Bruker eller navn"></label>
+      </div>
+
+      <div class="field-group">
+        <span class="field-label">Objekt</span>
+        <div id="targetChips" class="chip-grid"></div>
+      </div>
+
+      <div class="form-row two">
+        <label id="roomField">Seng / rom<select id="room_id" name="room_id"></select></label>
+        <label>Objektnavn<input id="target_name" name="target_name" placeholder="Blankt gir navn fra valgt rom"></label>
+      </div>
+
+      <div class="field-group">
+        <span class="field-label">Tiltak</span>
+        <div id="actionChips" class="chip-grid compact"></div>
+      </div>
+
+      <div class="form-row three">
+        <label>Type<select id="presence_type" name="presence_type"></select></label>
+        <label>Prioritet<select id="priority" name="priority"></select></label>
+        <label>Status<select id="status" name="status"></select></label>
+      </div>
+
+      <label>Hva ble gjort<textarea id="summary" name="summary" rows="6" placeholder="Skriv kort og konkret hva som ble gjort eller observert." required></textarea></label>
+
+      <div class="field-group">
+        <span class="field-label">Tagger</span>
+        <div id="tagChips" class="chip-grid compact"></div>
+        <input id="custom_tags" name="custom_tags" placeholder="Ekstra tagger, komma-separert">
+      </div>
+
+      <div class="form-row follow-row">
+        <label class="toggle-line"><input id="follow_up_needed" name="follow_up_needed" type="checkbox"> Må følges opp</label>
+        <label>Varighet<input id="duration_minutes" name="duration_minutes" type="number" min="0" inputmode="numeric" placeholder="min"></label>
+      </div>
+
+      <label>Oppfølging<textarea id="follow_up_text" name="follow_up_text" rows="3" placeholder="Hva må gjøres videre?"></textarea></label>
+
+      <button id="submitButton" class="primary-button" type="submit">Lagre vedlikehold</button>
+      <p id="formMessage" class="form-message" role="status"></p>
+    </form>
+
+    <section class="recent-card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Historikk</p>
+          <h2>Siste registreringer</h2>
+        </div>
+      </div>
+      <div id="recentList" class="recent-list"></div>
+    </section>
+  </main>
+</body>
+</html>"""
