@@ -898,6 +898,7 @@ def root() -> dict[str, Any]:
 
 
 @app.get("/health")
+@app.get("/owntracks/health")
 def health() -> dict[str, Any]:
     with SessionLocal() as session:
         counts = {
