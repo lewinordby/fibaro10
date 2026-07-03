@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1404")
+APP_BUILD = os.getenv("APP_BUILD", "1405")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1405",
+        "date": "03.07.2026",
+        "headline": "OwnTracks rydder gamle dublette sonehendelser",
+        "title": "Inn/ut-hendelser dedupliseres ved oppstart",
+        "description": (
+            "Build 1405 legger inn en egen opprydding for OwnTracks-hendelser som tidligere kunne bli liggende dobbelt "
+            "når både transition-melding og syntetisk inregions-tolkning traff samme tidspunkt. Oppryddingen beholder den "
+            "beste hendelsen, normalt ekte transition foran syntetisk event, og gjør Sonebesøk-listen ryddigere."
+        ),
+        "applications": [
+            "main.py: legger til cleanup_owntracks_waypoint_event_duplicates og kjører den ved oppstart.",
+            "build_log.py: registrerer build 1405.",
+        ],
+        "request": "Fullfør OwnTracks-oppryddingen slik at waypoint-loggingen blir forståelig og uten gamle dubletter.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dublette enter/leave-hendelser innenfor samme korte tidsvindu fjernes.",
+            "Ekte transition-events prioriteres foran syntetiske events når samme hendelse finnes flere ganger.",
+            "Oppryddingen kjøres automatisk ved Fibaro10-oppstart.",
+        ],
+    },
     {
         "version": "1",
         "build": "1404",

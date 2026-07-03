@@ -8587,6 +8587,58 @@ async def repair_owntracks_waypoint_centers() -> int:
         return repaired
 
 
+def owntracks_event_dedup_score(row: OwnTracksWaypointEvent) -> tuple[int, int, int, datetime]:
+    return (
+        1 if not row.is_synthetic else 0,
+        1 if str(row.source_message_type or "").lower() == "transition" else 0,
+        1 if row.location_id is not None else 0,
+        row.received_at or row.timestamp or datetime.min,
+    )
+
+
+async def cleanup_owntracks_waypoint_event_duplicates(window_seconds: int = 120) -> int:
+    async with async_session() as session:
+        rows = (
+            await session.execute(
+                select(OwnTracksWaypointEvent)
+                .where(OwnTracksWaypointEvent.timestamp.isnot(None))
+                .order_by(OwnTracksWaypointEvent.timestamp.asc(), OwnTracksWaypointEvent.received_at.asc())
+            )
+        ).scalars().all()
+        kept_by_key: Dict[tuple[str, str, str], list[OwnTracksWaypointEvent]] = defaultdict(list)
+        delete_ids: set[int] = set()
+        for row in rows:
+            event_kind = owntracks_visit_event_kind(row.event_type)
+            if not event_kind:
+                continue
+            key = (row.topic, row.waypoint_name.casefold(), event_kind)
+            row_time = row.timestamp or row.received_at
+            if not row_time:
+                continue
+            duplicates = [
+                existing
+                for existing in kept_by_key[key]
+                if existing.id not in delete_ids
+                and existing.timestamp
+                and abs((row_time - existing.timestamp).total_seconds()) <= window_seconds
+            ]
+            if not duplicates:
+                kept_by_key[key].append(row)
+                continue
+            best = max([row, *duplicates], key=owntracks_event_dedup_score)
+            for duplicate in [row, *duplicates]:
+                if duplicate is best or not duplicate.id:
+                    continue
+                delete_ids.add(duplicate.id)
+            if row is best:
+                kept_by_key[key] = [item for item in kept_by_key[key] if item.id not in delete_ids]
+                kept_by_key[key].append(row)
+        if delete_ids:
+            await session.execute(delete(OwnTracksWaypointEvent).where(OwnTracksWaypointEvent.id.in_(delete_ids)))
+            await session.commit()
+        return len(delete_ids)
+
+
 async def record_owntracks_import_status(ok: bool, message: str, raw: Optional[Dict[str, Any]] = None, records_imported: int = 0):
     async with async_session() as session:
         await record_import_job(
@@ -11814,6 +11866,7 @@ async def startup():
         await session.commit()
     await backfill_owntracks_waypoints_if_empty()
     await repair_owntracks_waypoint_centers()
+    await cleanup_owntracks_waypoint_event_duplicates()
     if SVV_SYNC_ENABLED and SVV_API_KEY and svv_sync_task is None:
         svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
     if SUN2_AXIS_SNAPSHOT_LINK_ENABLED and sun2_axis_snapshot_link_task is None:
