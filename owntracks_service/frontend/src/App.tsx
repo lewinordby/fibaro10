@@ -196,6 +196,11 @@ const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: React.ReactNode; col
   { key: "build", label: "Build", icon: <BuildOutlined />, color: "#475569" },
 ];
 
+function viewFromHash(): ViewKey {
+  const hash = window.location.hash.replace("#", "");
+  return NAV_ITEMS.some((item) => item.key === hash) ? (hash as ViewKey) : "dashboard";
+}
+
 function tokenFromUrl() {
   return new URLSearchParams(window.location.search).get("token") || "";
 }
@@ -620,7 +625,7 @@ function AppShell({
 }
 
 export default function App() {
-  const [view, setView] = useState<ViewKey>(() => (window.location.hash.replace("#", "") as ViewKey) || "dashboard");
+  const [view, setView] = useState<ViewKey>(() => viewFromHash());
   const [hours, setHours] = useState("24");
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [moduleData, setModuleData] = useState<ModulePayload | null>(null);
@@ -665,6 +670,12 @@ export default function App() {
   useEffect(() => {
     window.location.hash = view;
   }, [view]);
+
+  useEffect(() => {
+    const onHashChange = () => setView(viewFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   const topicOptions = useMemo(() => {
     const topics = new Set<string>();
