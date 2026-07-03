@@ -5,8 +5,30 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1397")
+APP_BUILD = os.getenv("APP_BUILD", "1398")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1398",
+        "date": "03.07.2026",
+        "headline": "Ideer flyttet til System",
+        "title": "Utvikling-gruppen fjernes fra hovedmenyen",
+        "description": (
+            "Build 1398 forenkler venstremenyen ved aa fjerne overskriften Utvikling og flytte Ideer ned under System. "
+            "Dette er kun en menystrukturendring; rutene og funksjonaliteten for Ideer er uendret."
+        ),
+        "applications": [
+            "Desktop V2 navigasjon (appNavigation.tsx): fjerner Utvikling-gruppen og legger Ideer under System.",
+            "Buildlogg (build_log.py): registrerer build 1398.",
+        ],
+        "request": "Fjern overskriften Utvikling i menyen og flytt Ideer ned under System.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Utvikling vises ikke lenger som egen menygruppe.",
+            "System-gruppen viser naa Ideer, Mobil og Admin.",
+        ],
+    },
     {
         "version": "1",
         "build": "1397",

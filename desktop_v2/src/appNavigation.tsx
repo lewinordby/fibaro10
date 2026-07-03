@@ -51,8 +51,7 @@ export const mainModuleGroups = [
   { label: "", modules: modulesForGroup(["status"]) },
   { label: "Økonomi", modules: modulesForGroup(["omsetning", "parkering", "soling", "koble"]) },
   { label: "Bygg og drift", modules: modulesForGroup(["energi", "ventilasjon", "lys", "renhold", "vedlikehold"]) },
-  { label: "Utvikling", modules: modulesForGroup(["ideer"]) },
-  { label: "System", modules: modulesForGroup(["mobil", "admin"]) },
+  { label: "System", modules: modulesForGroup(["ideer", "mobil", "admin"]) },
 ];
 
 export function selectedMainModuleKey(pathname: string): string {
