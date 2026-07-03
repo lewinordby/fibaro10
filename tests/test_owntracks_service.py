@@ -80,5 +80,22 @@ class OwnTracksServiceTests(unittest.TestCase):
         finally:
             owntracks_main.HTTP_TOKEN = original_token
 
+    def test_query_token_is_accepted_even_if_basic_auth_is_wrong(self) -> None:
+        original_token = owntracks_main.HTTP_TOKEN
+        owntracks_main.HTTP_TOKEN = "test-token"
+        wrong_basic_auth = base64.b64encode(b"admin:wrong-token").decode("ascii")
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/owntracks/pub?token=test-token&user=tester&device=android",
+                    headers={"Authorization": f"Basic {wrong_basic_auth}"},
+                    json={"_type": "location", "lat": 61.115, "lon": 10.466, "acc": 7, "tst": 1783080300},
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.json()["stored"])
+        finally:
+            owntracks_main.HTTP_TOKEN = original_token
+
+
 if __name__ == "__main__":
     unittest.main()

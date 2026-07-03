@@ -869,18 +869,24 @@ def module_card(title: str, value: Any, unit: str = "", subtitle: str = "") -> d
 def require_http_token(request: Request) -> None:
     if not HTTP_TOKEN:
         return
+    candidates = []
     auth = request.headers.get("authorization", "")
-    token = request.headers.get("x-owntracks-token") or request.query_params.get("token")
+    header_token = request.headers.get("x-owntracks-token")
+    query_token = request.query_params.get("token")
+    if header_token:
+        candidates.append(header_token.strip())
+    if query_token:
+        candidates.append(query_token.strip())
     if auth.lower().startswith("bearer "):
-        token = auth[7:].strip()
+        candidates.append(auth[7:].strip())
     elif auth.lower().startswith("basic "):
         try:
             decoded = base64.b64decode(auth[6:].strip()).decode("utf-8", errors="replace")
             _username, _separator, password = decoded.partition(":")
-            token = password
+            candidates.append(password.strip())
         except Exception:
-            token = ""
-    if token != HTTP_TOKEN:
+            pass
+    if HTTP_TOKEN not in candidates:
         raise HTTPException(status_code=401, detail="Invalid OwnTracks token")
 
 

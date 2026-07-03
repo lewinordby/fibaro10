@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1408")
+APP_BUILD = os.getenv("APP_BUILD", "1409")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1409",
+        "date": "03.07.2026",
+        "headline": "OwnTracks godtar riktig URL-token selv med Basic Auth-felter",
+        "title": "Retter HTTP-tokenprioritering for OwnTracks Android",
+        "description": (
+            "Build 1409 retter en feil der OwnTracks kunne sende riktig token i URL-en samtidig som appens "
+            "Basic Auth-felt sendte et annet eller tomt passord. Serveren prioriterte tidligere Basic Auth over "
+            "query-token og avviste derfor meldingen med 401. Na godtas meldingen hvis en av tokenkildene matcher."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: samler tokenkandidater fra query, X-OwnTracks-Token, Bearer og Basic Auth.",
+            "owntracks_service/Dockerfile: skrur av access-logg slik at query-token ikke havner i containerloggen.",
+            "tests/test_owntracks_service.py: legger regresjonstest for riktig query-token kombinert med feil Basic Auth.",
+        ],
+        "request": "OwnTracks appen sender data hele tiden pa Move, men det kommer ikke inn noe.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "HTTP POST fra OwnTracks avvises ikke lenger hvis riktig token ligger i URL-en.",
+            "Basic Auth kan fortsatt brukes alene nar passordet er riktig token.",
+            "Token blir ikke lenger skrevet i uvicorn access-logg.",
+        ],
+    },
     {
         "version": "1",
         "build": "1408",
