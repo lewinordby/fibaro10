@@ -5,11 +5,13 @@ import {
   ClockCircleOutlined,
   CompassOutlined,
   DashboardOutlined,
+  EditOutlined,
   EnvironmentOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   NodeIndexOutlined,
   PlusOutlined,
+  PoweroffOutlined,
   PushpinOutlined,
   ReloadOutlined,
   ToolOutlined,
@@ -26,6 +28,7 @@ import {
   InputNumber,
   Layout,
   Modal,
+  Popconfirm,
   Row,
   Select,
   Space,
@@ -163,6 +166,43 @@ type VisitRow = {
   enterSource?: string;
   leaveSource?: string;
   confidence?: number;
+};
+
+type ZoneSummaryRow = {
+  id: string;
+  topic: string;
+  username?: string;
+  device?: string;
+  waypointName: string;
+  visits: number;
+  openVisits: number;
+  totalDuration: string;
+  totalDurationSeconds: number;
+  avgDuration: string;
+  avgDurationSeconds: number;
+  firstSeenAt?: string;
+  lastSeenAt?: string;
+  lastStartedAt?: string;
+  lastEndedAt?: string;
+  lastDuration?: string;
+  lastStatus?: string;
+  lastConfidence?: number;
+  enterSources?: string[];
+};
+
+type ZoneSummaryPayload = {
+  hours: number;
+  generatedAt?: string;
+  totals: {
+    zones: number;
+    visits: number;
+    openVisits: number;
+    totalDurationSeconds: number;
+    totalDuration: string;
+  };
+  summary: ZoneSummaryRow[];
+  activeVisits: VisitRow[];
+  recentVisits: VisitRow[];
 };
 
 type EventRow = {
@@ -315,6 +355,16 @@ function waypointSourceTag(value?: string) {
 function activeTag(value?: boolean) {
   if (value === false) return <Tag color="red">Av</Tag>;
   return <Tag color="green">Aktiv</Tag>;
+}
+
+function waypointSourceLabel(value?: string) {
+  if (value === "server-manual") return "Lokal";
+  if (value === "server-suggestion") return "Forslag";
+  return "Telefon";
+}
+
+function durationOrDash(value?: string | null) {
+  return value && value !== "-" ? value : "-";
 }
 
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -630,13 +680,16 @@ export default function App() {
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [moduleData, setModuleData] = useState<ModulePayload | null>(null);
   const [mapData, setMapData] = useState<MapPayload | null>(null);
+  const [zoneSummary, setZoneSummary] = useState<ZoneSummaryPayload | null>(null);
   const [suggestions, setSuggestions] = useState<WaypointSuggestionRow[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionHours, setSuggestionHours] = useState("720");
   const [suggestionMinMinutes, setSuggestionMinMinutes] = useState(10);
   const [suggestionRadiusM, setSuggestionRadiusM] = useState(80);
   const [waypointModalOpen, setWaypointModalOpen] = useState(false);
+  const [editingWaypoint, setEditingWaypoint] = useState<WaypointRow | null>(null);
   const [waypointSaving, setWaypointSaving] = useState(false);
+  const [waypointMutatingId, setWaypointMutatingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
@@ -646,14 +699,16 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [nextHealth, nextModule, nextMap] = await Promise.all([
+      const [nextHealth, nextModule, nextMap, nextZoneSummary] = await Promise.all([
         fetchJson<HealthPayload>("/owntracks/health"),
         fetchJson<ModulePayload>("/owntracks/api/module"),
         fetchJson<MapPayload>("/owntracks/api/map", { hours, limit: 5000 }),
+        fetchJson<ZoneSummaryPayload>("/owntracks/api/zone-summary", { hours, limit: 100 }),
       ]);
       setHealth(nextHealth);
       setModuleData(nextModule);
       setMapData(nextMap);
+      setZoneSummary(nextZoneSummary);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ukjent feil ved lasting");
     } finally {
@@ -707,36 +762,60 @@ export default function App() {
     if (view === "suggestions") void loadSuggestions();
   }, [loadSuggestions, view]);
 
-  function openWaypointModal(suggestion?: WaypointSuggestionRow) {
+  function openWaypointModal(suggestion?: WaypointSuggestionRow, waypoint?: WaypointRow) {
+    setEditingWaypoint(waypoint || null);
     waypointForm.setFieldsValue({
-      topic: suggestion?.topic || topicOptions[0]?.value,
-      name: suggestion?.suggestedName || "",
-      lat: suggestion?.lat,
-      lon: suggestion?.lon,
-      radiusM: suggestion?.radiusM || 100,
-      address: suggestion?.address || "",
-      notes: "",
+      topic: waypoint?.topic || suggestion?.topic || topicOptions[0]?.value,
+      name: waypoint?.waypointName || suggestion?.suggestedName || "",
+      lat: waypoint?.lat ?? suggestion?.lat,
+      lon: waypoint?.lon ?? suggestion?.lon,
+      radiusM: waypoint?.radiusM || suggestion?.radiusM || 100,
+      address: waypoint?.address || suggestion?.address || "",
+      notes: waypoint?.notes || "",
     });
     setWaypointModalOpen(true);
+  }
+
+  function closeWaypointModal() {
+    setWaypointModalOpen(false);
+    setEditingWaypoint(null);
   }
 
   async function saveWaypoint() {
     const values = await waypointForm.validateFields();
     setWaypointSaving(true);
     try {
-      const result = await fetchJson<{ locationsProcessed: number }>("/owntracks/api/waypoints", {}, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...values, rebuildHistory: true }),
-      });
-      message.success(`Waypoint opprettet. ${result.locationsProcessed || 0} posisjoner ble beregnet på nytt.`);
-      setWaypointModalOpen(false);
+      const result = await fetchJson<{ locationsProcessed: number }>(
+        editingWaypoint ? `/owntracks/api/waypoints/${editingWaypoint.id}` : "/owntracks/api/waypoints",
+        {},
+        {
+          method: editingWaypoint ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...values, rebuildHistory: true }),
+        },
+      );
+      message.success(`Waypoint ${editingWaypoint ? "oppdatert" : "opprettet"}. ${result.locationsProcessed || 0} posisjoner ble beregnet paa nytt.`);
+      closeWaypointModal();
       await load();
       if (view === "suggestions") await loadSuggestions();
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Kunne ikke lagre waypoint");
     } finally {
       setWaypointSaving(false);
+    }
+  }
+
+  async function disableWaypoint(row: WaypointRow) {
+    setWaypointMutatingId(row.id);
+    try {
+      const result = await fetchJson<{ locationsProcessed: number }>(`/owntracks/api/waypoints/${row.id}`, {}, { method: "DELETE" });
+      message.success(`Waypoint deaktivert. ${result.locationsProcessed || 0} posisjoner ble beregnet paa nytt.`);
+      await load();
+      if (view === "suggestions") await loadSuggestions();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Kunne ikke deaktivere waypoint");
+    } finally {
+      setWaypointMutatingId(null);
     }
   }
 
@@ -758,6 +837,10 @@ export default function App() {
   const locations = mapData?.locations || [];
   const events = (moduleData?.tables.find((table) => table.title === "Waypoint-hendelser")?.rows || []) as EventRow[];
   const buildRows = moduleData?.metadata.buildLog.rows || [];
+  const zoneRows = zoneSummary?.summary || [];
+  const activeZoneNames = (zoneSummary?.activeVisits || []).map((row) => row.waypointName).join(", ") || "Ingen aktive";
+  const topZone = zoneRows[0];
+  const latestLocation = locations[locations.length - 1];
 
   const visitColumns: ColumnsType<VisitRow> = [
     { title: "Sone", dataIndex: "waypointName", fixed: "left" },
@@ -770,6 +853,17 @@ export default function App() {
     { title: "Treff", dataIndex: "confidence", render: (value?: number) => formatNumber(value, 3) },
   ];
 
+  const zoneSummaryColumns: ColumnsType<ZoneSummaryRow> = [
+    { title: "Sone", dataIndex: "waypointName", fixed: "left" },
+    { title: "Besok", dataIndex: "visits", width: 90 },
+    { title: "Apen", dataIndex: "openVisits", width: 90 },
+    { title: "Total tid", dataIndex: "totalDuration", width: 120, render: durationOrDash },
+    { title: "Snitt", dataIndex: "avgDuration", width: 120, render: durationOrDash },
+    { title: "Sist", dataIndex: "lastSeenAt", width: 160, render: formatDateTime },
+    { title: "Status", dataIndex: "lastStatus", width: 110, render: statusTag },
+    { title: "Kilder", dataIndex: "enterSources", render: (values?: string[]) => (values || []).join(", ") || "-" },
+  ];
+
   const waypointColumns: ColumnsType<WaypointRow> = [
     { title: "Navn", dataIndex: "waypointName", fixed: "left" },
     { title: "Kilde", dataIndex: "source", render: waypointSourceTag },
@@ -780,6 +874,26 @@ export default function App() {
     { title: "Radius", dataIndex: "radiusM", render: (value?: number) => `${formatNumber(value)} m` },
     { title: "Adresse", dataIndex: "address", ellipsis: true },
     { title: "Senter", render: (_, row) => mapLink(row.lat, row.lon) },
+    {
+      title: "",
+      width: 170,
+      fixed: "right",
+      render: (_, row) =>
+        row.source === "server-manual" ? (
+          <Space size={6}>
+            <Button size="small" icon={<EditOutlined />} onClick={() => openWaypointModal(undefined, row)}>
+              Rediger
+            </Button>
+            <Popconfirm title="Deaktiver lokal sone?" okText="Deaktiver" cancelText="Avbryt" onConfirm={() => void disableWaypoint(row)}>
+              <Button size="small" danger icon={<PoweroffOutlined />} loading={waypointMutatingId === row.id}>
+                Av
+              </Button>
+            </Popconfirm>
+          </Space>
+        ) : (
+          <Typography.Text type="secondary">{waypointSourceLabel(row.source)}</Typography.Text>
+        ),
+    },
   ];
 
   const suggestionColumns: ColumnsType<WaypointSuggestionRow> = [
@@ -859,19 +973,19 @@ export default function App() {
             <MetricCard title="Status" value={health?.status || "-"} subtitle={health?.database === "ok" ? "Database OK" : "Database ukjent"} tone="#15803d" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Meldinger" value={health?.counts.locations ?? 0} subtitle={`${health?.state.messagesDuplicate ?? 0} dubletter`} tone="#2563eb" />
+            <MetricCard title="Aktiv sone" value={zoneSummary?.totals.openVisits ?? 0} subtitle={activeZoneNames} tone="#15803d" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Enheter" value={health?.counts.devices ?? 0} subtitle="Telefoner/enheter" tone="#0891b2" />
+            <MetricCard title="Sonetid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={`${zoneSummary?.totals.visits ?? 0} besok i valgt periode`} tone="#7c3aed" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Waypoints" value={health?.counts.waypoints ?? 0} subtitle="Definerte soner" tone="#f59e0b" />
+            <MetricCard title="Mest tid" value={topZone?.waypointName || "-"} subtitle={topZone ? `${topZone.totalDuration} / ${topZone.visits} besok` : "Ingen sonebesok"} tone="#f59e0b" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Sonebesok" value={health?.counts.zoneVisits ?? 0} subtitle="Beregnet og eventstyrt" tone="#15803d" />
+            <MetricCard title="Siste posisjon" value={formatDateTime(latestLocation?.timestamp || latestLocation?.receivedAt)} subtitle={latestLocation?.topic || "Ingen posisjon"} tone="#0891b2" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Build" value={health?.app.build || "-"} subtitle={health?.app.commit || ""} tone="#475569" />
+            <MetricCard title="Waypoints" value={health?.counts.waypoints ?? 0} subtitle={`Build ${health?.app.build || "-"}`} tone="#475569" />
           </Col>
         </Row>
         <Row gutter={[12, 12]}>
@@ -888,7 +1002,7 @@ export default function App() {
         </Row>
       </>
     ),
-    [health, locations.length, mapData, visitColumns, visits],
+    [activeZoneNames, health, latestLocation, locations.length, mapData, topZone, visitColumns, visits, zoneSummary],
   );
 
   let content: React.ReactNode = dashboard;
@@ -904,8 +1018,24 @@ export default function App() {
   } else if (view === "visits") {
     content = (
       <>
-        <SectionHeader title="Sonebesok" subtitle="Beregnede og eventstyrte besok per waypoint" />
-        <DataTable<VisitRow> columns={visitColumns} data={visits} />
+        <SectionHeader title="Sonebesok" subtitle="Oppsummering og siste beregnede/eventstyrte besok per waypoint" />
+        <Row gutter={[12, 12]} className="metric-row">
+          <Col xs={24} md={8}>
+            <MetricCard title="Soner i perioden" value={zoneSummary?.totals.zones ?? 0} subtitle={`${zoneSummary?.totals.visits ?? 0} besok`} tone="#15803d" />
+          </Col>
+          <Col xs={24} md={8}>
+            <MetricCard title="Total sonetid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={`Periode: ${hours === "0" ? "alt" : `${hours} timer`}`} tone="#7c3aed" />
+          </Col>
+          <Col xs={24} md={8}>
+            <MetricCard title="Apen naa" value={zoneSummary?.totals.openVisits ?? 0} subtitle={activeZoneNames} tone="#f59e0b" />
+          </Col>
+        </Row>
+        <Card title="Soneoppsummering" extra={<Typography.Text type="secondary">Sortert paa total tid</Typography.Text>}>
+          <DataTable<ZoneSummaryRow> columns={zoneSummaryColumns} data={zoneRows} rowKey="id" />
+        </Card>
+        <Card title="Siste sonebesok">
+          <DataTable<VisitRow> columns={visitColumns} data={visits} />
+        </Card>
       </>
     );
   } else if (view === "waypoints") {
@@ -1003,9 +1133,9 @@ export default function App() {
       {error ? <Alert className="page-alert" type="error" message={error} showIcon /> : null}
       {content}
       <Modal
-        title="Ny lokal waypoint"
+        title={editingWaypoint ? "Rediger lokal waypoint" : "Ny lokal waypoint"}
         open={waypointModalOpen}
-        onCancel={() => setWaypointModalOpen(false)}
+        onCancel={closeWaypointModal}
         onOk={() => void saveWaypoint()}
         confirmLoading={waypointSaving}
         okText="Lagre"
@@ -1021,7 +1151,7 @@ export default function App() {
             </Col>
             <Col xs={24} md={12}>
               <Form.Item name="topic" label="Enhet">
-                <Select allowClear placeholder="Bruk siste enhet hvis tom" options={topicOptions} />
+                <Select allowClear disabled={Boolean(editingWaypoint)} placeholder="Bruk siste enhet hvis tom" options={topicOptions} />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>

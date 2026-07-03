@@ -332,6 +332,58 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(len(matching), 1)
             self.assertEqual(matching[0]["enterSource"], "computed-position")
 
+    def test_local_waypoint_can_be_patched_and_disabled(self) -> None:
+        topic = "owntracks/local-zone-edit/android"
+        with TestClient(app) as client:
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 62.211, "lon": 11.322, "acc": 5, "tst": 1783091000},
+            )
+            created = client.post(
+                "/api/owntracks/waypoints",
+                json={"topic": topic, "name": "Redigerbar", "lat": 62.211, "lon": 11.322, "radiusM": 90},
+            )
+            self.assertEqual(created.status_code, 200)
+            waypoint_id = created.json()["waypoint"]["id"]
+
+            patched = client.patch(
+                f"/api/owntracks/waypoints/{waypoint_id}",
+                json={"name": "Redigert", "radiusM": 120, "notes": "Test", "rebuildHistory": False},
+            )
+            self.assertEqual(patched.status_code, 200)
+            self.assertEqual(patched.json()["waypoint"]["waypointName"], "Redigert")
+            self.assertEqual(patched.json()["waypoint"]["radiusM"], 120)
+
+            disabled = client.delete(f"/api/owntracks/waypoints/{waypoint_id}?rebuild=false")
+            self.assertEqual(disabled.status_code, 200)
+            rows = client.get("/api/owntracks/waypoints").json()["waypoints"]
+            saved = next(row for row in rows if row["id"] == waypoint_id)
+            self.assertFalse(saved["isActive"])
+
+    def test_zone_summary_returns_grouped_duration(self) -> None:
+        topic = "owntracks/zone-summary/android"
+        with TestClient(app) as client:
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 62.311, "lon": 11.422, "acc": 5, "tst": 1783092000},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 62.311, "lon": 11.422, "acc": 5, "tst": 1783092300},
+            )
+            created = client.post(
+                "/api/owntracks/waypoints",
+                json={"topic": topic, "name": "Oppsummert", "lat": 62.311, "lon": 11.422, "radiusM": 100},
+            )
+            self.assertEqual(created.status_code, 200)
+
+            payload = client.get("/api/owntracks/zone-summary?hours=0").json()
+            rows = [row for row in payload["summary"] if row["topic"] == topic and row["waypointName"] == "Oppsummert"]
+            self.assertEqual(len(rows), 1)
+            self.assertGreaterEqual(rows[0]["visits"], 1)
+            self.assertGreaterEqual(rows[0]["totalDurationSeconds"], 0)
+            self.assertIn("totalDuration", rows[0])
+
     def test_stop_suggestions_find_stationary_cluster_without_geocode(self) -> None:
         topic = "owntracks/stop-suggestion/android"
         with TestClient(app) as client:

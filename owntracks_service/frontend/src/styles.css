@@ -394,6 +394,10 @@ a {
   box-shadow: 0 5px 14px rgba(15, 23, 42, 0.045);
 }
 
+.ant-card + .ant-card {
+  margin-top: 12px;
+}
+
 .ant-card-head {
   min-height: 40px;
 }

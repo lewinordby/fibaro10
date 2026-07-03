@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "7")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "8")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "8",
+        "date": "03.07.2026",
+        "headline": "Soneoppsummering og bedre waypoint-admin",
+        "title": "OwnTracks faar tydeligere kontroll over lokale soner og sonebesok",
+        "description": (
+            "Build 8 legger til et eget API for soneoppsummering, slik at dashboard og Sonebesok-siden kan vise "
+            "aggregert tid, aktive soner og mest brukte soner uten aa tolke raadata i frontend. Lokale server-soner "
+            "kan naa redigeres og deaktiveres direkte i grensesnittet."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: nytt zone-summary API, varighetsberegning for aapne besok og ryddet tallhjelper.",
+            "owntracks_service/frontend/src/App.tsx: rediger/deaktiver lokale soner, nytt dashboardgrunnlag og Sonebesok-oppsummering.",
+            "tests/test_owntracks_service.py: tester for zone-summary, patch og deaktivering av lokale soner.",
+        ],
+        "request": "Gjor en grundig jobb paa aa forbedre OwnTracks.",
+        "work_duration": "ca. 70 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dashboardet viser aktiv sone, total sonetid, mest brukte sone og siste posisjon.",
+            "Sonebesok-siden viser aggregert soneoppsummering foer detaljloggen.",
+            "Lokale waypoints kan redigeres og deaktiveres med historikk-rebuild.",
+        ],
+    },
     {
         "version": "1",
         "build": "7",

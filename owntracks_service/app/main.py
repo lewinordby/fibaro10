@@ -511,7 +511,7 @@ def safe_location_points(rows: Iterable[OwnTracksLocation], max_accuracy_m: floa
     for row in rows:
         if row.lat is None or row.lon is None:
             continue
-        if not Number_is_finite(row.lat) or not Number_is_finite(row.lon):
+        if not number_is_finite(row.lat) or not number_is_finite(row.lon):
             continue
         if row.accuracy_m is not None and float(row.accuracy_m) > max_accuracy_m:
             continue
@@ -520,7 +520,7 @@ def safe_location_points(rows: Iterable[OwnTracksLocation], max_accuracy_m: floa
     return points
 
 
-def Number_is_finite(value: Any) -> bool:
+def number_is_finite(value: Any) -> bool:
     try:
         return math.isfinite(float(value))
     except (TypeError, ValueError):
@@ -1349,6 +1349,47 @@ def row_visit(row: OwnTracksZoneVisit) -> dict[str, Any]:
     }
 
 
+def visit_effective_duration_seconds(row: OwnTracksZoneVisit, now: Optional[datetime] = None) -> int:
+    if row.duration_seconds is not None:
+        return max(0, int(row.duration_seconds))
+    if not row.started_at:
+        return 0
+    end_at = row.ended_at or now or utc_now()
+    return max(0, int((end_at - row.started_at).total_seconds()))
+
+
+def row_zone_summary(topic: str, waypoint_name: str, rows: list[OwnTracksZoneVisit], now: datetime) -> dict[str, Any]:
+    ordered = sorted(rows, key=lambda item: item.started_at or datetime.min)
+    latest = max(ordered, key=lambda item: item.ended_at or item.started_at or datetime.min)
+    total_seconds = sum(visit_effective_duration_seconds(row, now) for row in ordered)
+    open_rows = [row for row in ordered if row.status == "open"]
+    first_started = min((row.started_at for row in ordered if row.started_at), default=None)
+    last_seen = max((row.ended_at or row.started_at for row in ordered if row.ended_at or row.started_at), default=None)
+    enter_sources = sorted({row.enter_source for row in ordered if row.enter_source})
+    return {
+        "id": f"{topic}:{waypoint_name}",
+        "topic": topic,
+        "username": latest.username,
+        "device": latest.device,
+        "waypointName": waypoint_name,
+        "visits": len(ordered),
+        "openVisits": len(open_rows),
+        "totalDurationSeconds": total_seconds,
+        "totalDuration": duration_seconds_label(total_seconds),
+        "avgDurationSeconds": int(total_seconds / len(ordered)) if ordered else 0,
+        "avgDuration": duration_seconds_label(int(total_seconds / len(ordered)) if ordered else 0),
+        "firstSeenAt": iso_dt(first_started),
+        "lastSeenAt": iso_dt(last_seen),
+        "lastStartedAt": iso_dt(latest.started_at),
+        "lastEndedAt": iso_dt(latest.ended_at),
+        "lastDurationSeconds": visit_effective_duration_seconds(latest, now),
+        "lastDuration": duration_seconds_label(visit_effective_duration_seconds(latest, now)),
+        "lastStatus": latest.status,
+        "lastConfidence": latest.confidence,
+        "enterSources": enter_sources,
+    }
+
+
 def row_stop_candidate(candidate: StopCandidate) -> dict[str, Any]:
     return {
         "id": f"{candidate.topic}:{candidate.lat:.5f},{candidate.lon:.5f}",
@@ -2155,7 +2196,7 @@ def api_create_waypoint(payload: WaypointMutation) -> dict[str, Any]:
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Waypoint name is required")
-    if not Number_is_finite(payload.lat) or not Number_is_finite(payload.lon):
+    if not number_is_finite(payload.lat) or not number_is_finite(payload.lon):
         raise HTTPException(status_code=400, detail="Latitude and longitude must be valid numbers")
     with SessionLocal() as session:
         topic = default_topic(session, payload.topic)
@@ -2210,11 +2251,11 @@ def api_patch_waypoint(waypoint_id: int, payload: WaypointPatch) -> dict[str, An
                 raise HTTPException(status_code=409, detail="Waypoint already exists for this topic")
             row.waypoint_name = next_name
         if payload.lat is not None:
-            if not Number_is_finite(payload.lat):
+            if not number_is_finite(payload.lat):
                 raise HTTPException(status_code=400, detail="Latitude must be valid")
             row.lat = float(payload.lat)
         if payload.lon is not None:
-            if not Number_is_finite(payload.lon):
+            if not number_is_finite(payload.lon):
                 raise HTTPException(status_code=400, detail="Longitude must be valid")
             row.lon = float(payload.lon)
         if payload.radiusM is not None:
@@ -2401,6 +2442,60 @@ def owntracks_external_map(
 ) -> dict[str, Any]:
     require_owntracks_admin(request)
     return api_map(hours=hours, limit=limit)
+
+
+@app.get("/api/owntracks/zone-summary")
+def api_zone_summary(hours: int = Query(168, ge=0, le=24 * 365 * 3), limit: int = Query(50, ge=1, le=500)) -> dict[str, Any]:
+    now = utc_now()
+    since = now - timedelta(hours=hours) if hours else None
+    with SessionLocal() as session:
+        visit_stmt = select(OwnTracksZoneVisit)
+        if since is not None:
+            visit_stmt = visit_stmt.where(
+                or_(
+                    OwnTracksZoneVisit.started_at >= since,
+                    OwnTracksZoneVisit.ended_at >= since,
+                    OwnTracksZoneVisit.status == "open",
+                )
+            )
+        visit_rows = list(session.execute(visit_stmt.order_by(OwnTracksZoneVisit.started_at.desc())).scalars())
+
+    grouped: dict[tuple[str, str], list[OwnTracksZoneVisit]] = {}
+    for row in visit_rows:
+        grouped.setdefault((row.topic, row.waypoint_name), []).append(row)
+
+    summary_rows = [
+        row_zone_summary(topic, waypoint_name, rows, now)
+        for (topic, waypoint_name), rows in grouped.items()
+    ]
+    summary_rows.sort(key=lambda row: (row["totalDurationSeconds"], row["lastSeenAt"] or ""), reverse=True)
+    open_visits = [row_visit(row) for row in visit_rows if row.status == "open"]
+    recent_visits = [row_visit(row) for row in visit_rows[:limit]]
+    total_duration_seconds = sum(int(row["totalDurationSeconds"]) for row in summary_rows)
+    return {
+        "hours": hours,
+        "generatedAt": iso_dt(now),
+        "totals": {
+            "zones": len(summary_rows),
+            "visits": len(visit_rows),
+            "openVisits": len(open_visits),
+            "totalDurationSeconds": total_duration_seconds,
+            "totalDuration": duration_seconds_label(total_duration_seconds),
+        },
+        "summary": summary_rows[:limit],
+        "activeVisits": open_visits,
+        "recentVisits": recent_visits,
+    }
+
+
+@app.get("/owntracks/api/zone-summary")
+def owntracks_external_zone_summary(
+    request: Request,
+    hours: int = Query(168, ge=0, le=24 * 365 * 3),
+    limit: int = Query(50, ge=1, le=500),
+) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_zone_summary(hours=hours, limit=limit)
 
 
 @app.get("/api/owntracks/module")
