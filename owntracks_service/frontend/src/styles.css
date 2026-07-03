@@ -330,6 +330,60 @@ a {
   min-height: 560px;
 }
 
+.map-marker {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.22);
+}
+
+.location-marker {
+  background: #2563eb;
+}
+
+.location-marker::after {
+  width: 6px;
+  height: 6px;
+  border-radius: inherit;
+  background: #ffffff;
+  content: "";
+}
+
+.device-marker {
+  width: 24px;
+  height: 24px;
+  color: #ffffff;
+  background: #0891b2;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.waypoint-marker {
+  width: 14px;
+  height: 14px;
+  background: #f59e0b;
+}
+
+.waypoint-marker.inside {
+  background: #15803d;
+}
+
+.maplibregl-popup-content {
+  padding: 9px 11px;
+  color: var(--ink);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  font: 13px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.maplibregl-ctrl-group {
+  border-radius: 8px;
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.12);
+}
+
 .ant-card {
   box-shadow: 0 5px 14px rgba(15, 23, 42, 0.045);
 }

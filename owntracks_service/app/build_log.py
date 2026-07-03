@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "5")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "6")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "6",
+        "date": "03.07.2026",
+        "headline": "Kartet bruker MapLibre GL JS",
+        "title": "OwnTracks-kartet bygges med MapLibre i stedet for Leaflet-CDN",
+        "description": (
+            "Build 6 bytter kartkomponenten i OwnTracks-frontend fra Leaflet lastet via ekstern CDN til MapLibre GL JS "
+            "som npm-avhengighet i React/Vite-builden. Kartet viser fortsatt spor, siste posisjon, enhetsmarkor og "
+            "waypoint-radius, men biblioteket er naa kontrollert av applikasjonsbuilden."
+        ),
+        "applications": [
+            "owntracks_service/frontend: legger til maplibre-gl og bygger kartet som React-komponent.",
+            "owntracks_service/frontend/src/App.tsx: erstatter Leaflet-kode med MapLibre-kart, GeoJSON-lag og markorer.",
+            "owntracks_service/frontend/index.html: fjerner eksterne Leaflet-ressurser.",
+        ],
+        "request": "Kan du skifte ut kartet paa kart siden til denne komponenten: MapLibre GL JS.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kartet er ikke lenger avhengig av global window.L eller Leaflet-CDN.",
+            "Spor tegnes som MapLibre GeoJSON-linje.",
+            "Waypoints tegnes med radiusflater og tydelige sentermarkorer.",
+        ],
+    },
     {
         "version": "1",
         "build": "5",

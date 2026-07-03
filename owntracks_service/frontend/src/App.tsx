@@ -30,16 +30,14 @@ import {
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const { Header, Sider, Content } = Layout;
 const MENU_HIDDEN_STORAGE_KEY = "owntracks:mainMenuHidden";
-
-declare global {
-  interface Window {
-    L?: any;
-  }
-}
+const MAP_LAYER_IDS = ["owntracks-waypoints-fill", "owntracks-waypoints-line", "owntracks-track-line"];
+const MAP_SOURCE_IDS = ["owntracks-waypoints", "owntracks-track"];
 
 type ViewKey = "dashboard" | "map" | "visits" | "waypoints" | "messages" | "events" | "build";
 
@@ -193,6 +191,19 @@ function formatNumber(value?: number | null, decimals = 0) {
   return Number(value).toLocaleString("no-NO", { maximumFractionDigits: decimals, minimumFractionDigits: decimals });
 }
 
+function escapeHtml(value?: string | number | null) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => {
+    const replacements: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return replacements[char] || char;
+  });
+}
+
 function mapLink(lat?: number, lon?: number) {
   if (lat === undefined || lon === undefined || lat === null || lon === null) return "-";
   const label = `${formatNumber(lat, 5)}, ${formatNumber(lon, 5)}`;
@@ -201,6 +212,38 @@ function mapLink(lat?: number, lon?: number) {
       {label}
     </a>
   );
+}
+
+function circlePolygon(lon: number, lat: number, radiusM: number, steps = 64) {
+  const earthRadiusM = 6_371_008.8;
+  const latRad = (lat * Math.PI) / 180;
+  const coordinates: number[][] = [];
+  for (let index = 0; index <= steps; index += 1) {
+    const angle = (index / steps) * Math.PI * 2;
+    const dy = Math.sin(angle) * radiusM;
+    const dx = Math.cos(angle) * radiusM;
+    const pointLat = lat + (dy / earthRadiusM) * (180 / Math.PI);
+    const pointLon = lon + (dx / (earthRadiusM * Math.cos(latRad))) * (180 / Math.PI);
+    coordinates.push([pointLon, pointLat]);
+  }
+  return coordinates;
+}
+
+function createMapMarker(className: string, label?: string) {
+  const element = document.createElement("div");
+  element.className = `map-marker ${className}`;
+  if (label) element.textContent = label;
+  return element;
+}
+
+function clearMapOverlays(map: maplibregl.Map, markers: maplibregl.Marker[]) {
+  markers.forEach((marker) => marker.remove());
+  MAP_LAYER_IDS.forEach((id) => {
+    if (map.getLayer(id)) map.removeLayer(id);
+  });
+  MAP_SOURCE_IDS.forEach((id) => {
+    if (map.getSource(id)) map.removeSource(id);
+  });
 }
 
 function statusTag(status?: string) {
@@ -255,69 +298,170 @@ function DataTable<T extends { id?: number | string }>({ columns, data, rowKey, 
 
 function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large?: boolean }) {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<any>(null);
-  const layerRef = useRef<any[]>([]);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markerRef = useRef<maplibregl.Marker[]>([]);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
-    if (!mapElementRef.current || !window.L) return;
-    if (!mapRef.current) {
-      mapRef.current = window.L.map(mapElementRef.current, { scrollWheelZoom: true });
-      window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap",
-      }).addTo(mapRef.current);
-      mapRef.current.setView([61.115, 10.466], 13);
-    }
-    const map = mapRef.current;
-    setTimeout(() => map.invalidateSize(), 0);
-    layerRef.current.forEach((layer) => map.removeLayer(layer));
-    layerRef.current = [];
-
-    const addLayer = (layer: any) => {
-      layer.addTo(map);
-      layerRef.current.push(layer);
+    if (!mapElementRef.current || mapRef.current) return undefined;
+    const map = new maplibregl.Map({
+      container: mapElementRef.current,
+      center: [10.466, 61.115],
+      zoom: 13,
+      attributionControl: false,
+      style: {
+        version: 8,
+        sources: {
+          "osm-raster": {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: "&copy; OpenStreetMap contributors",
+          },
+        },
+        layers: [
+          {
+            id: "osm-raster",
+            type: "raster",
+            source: "osm-raster",
+          },
+        ],
+      },
+    });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
+    map.on("load", () => setMapReady(true));
+    mapRef.current = map;
+    window.setTimeout(() => map.resize(), 0);
+    return () => {
+      markerRef.current.forEach((marker) => marker.remove());
+      markerRef.current = [];
+      map.remove();
+      mapRef.current = null;
+      setMapReady(false);
     };
+  }, []);
 
-    const bounds: Array<[number, number]> = [];
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    window.setTimeout(() => map.resize(), 0);
+    clearMapOverlays(map, markerRef.current);
+    markerRef.current = [];
+
+    const bounds = new maplibregl.LngLatBounds();
+    let hasBounds = false;
+    const extendBounds = (lon: number, lat: number) => {
+      bounds.extend([lon, lat]);
+      hasBounds = true;
+    };
     const points = (data?.locations || []).filter((row) => Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lon)));
     if (points.length > 1) {
-      addLayer(window.L.polyline(points.map((row) => [row.lat, row.lon]), { color: "#2563eb", weight: 3, opacity: 0.65 }));
+      map.addSource("owntracks-track", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "LineString",
+            coordinates: points.map((row) => [Number(row.lon), Number(row.lat)]),
+          },
+        },
+      });
+      map.addLayer({
+        id: "owntracks-track-line",
+        type: "line",
+        source: "owntracks-track",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#2563eb", "line-opacity": 0.7, "line-width": 3 },
+      });
     }
     points.forEach((row, index) => {
       if (row.lat === undefined || row.lon === undefined) return;
-      bounds.push([row.lat, row.lon]);
+      extendBounds(Number(row.lon), Number(row.lat));
       if (index === points.length - 1) {
-        addLayer(
-          window.L.circleMarker([row.lat, row.lon], { radius: 7, color: "#2563eb", fillColor: "#2563eb", fillOpacity: 0.9 }).bindPopup(
-            `<b>${row.topic}</b><br>${formatDateTime(row.timestamp || row.receivedAt)}<br>${formatNumber(row.accuracyM)} m`,
-          ),
-        );
+        const marker = new maplibregl.Marker({ element: createMapMarker("location-marker"), anchor: "center" })
+          .setLngLat([Number(row.lon), Number(row.lat)])
+          .setPopup(
+            new maplibregl.Popup({ offset: 18 }).setHTML(
+              `<b>${escapeHtml(row.topic)}</b><br>${escapeHtml(formatDateTime(row.timestamp || row.receivedAt))}<br>${escapeHtml(formatNumber(row.accuracyM))} m`,
+            ),
+          )
+          .addTo(map);
+        markerRef.current.push(marker);
       }
     });
     (data?.devices || []).forEach((row) => {
       if (!Number.isFinite(Number(row.lastLat)) || !Number.isFinite(Number(row.lastLon))) return;
-      bounds.push([Number(row.lastLat), Number(row.lastLon)]);
-      addLayer(
-        window.L.marker([row.lastLat, row.lastLon]).bindPopup(
-          `<b>${row.topic}</b><br>Sist sett: ${formatDateTime(row.lastSeenAt)}<br>${formatNumber(row.lastAccuracyM)} m`,
-        ),
-      );
+      extendBounds(Number(row.lastLon), Number(row.lastLat));
+      const marker = new maplibregl.Marker({ element: createMapMarker("device-marker", "D"), anchor: "center" })
+        .setLngLat([Number(row.lastLon), Number(row.lastLat)])
+        .setPopup(
+          new maplibregl.Popup({ offset: 18 }).setHTML(
+            `<b>${escapeHtml(row.topic)}</b><br>Sist sett: ${escapeHtml(formatDateTime(row.lastSeenAt))}<br>${escapeHtml(formatNumber(row.lastAccuracyM))} m`,
+          ),
+        )
+        .addTo(map);
+      markerRef.current.push(marker);
     });
-    (data?.waypoints || []).forEach((row) => {
-      if (!Number.isFinite(Number(row.lat)) || !Number.isFinite(Number(row.lon))) return;
-      bounds.push([Number(row.lat), Number(row.lon)]);
-      addLayer(
-        window.L.circle([row.lat, row.lon], {
-          radius: Number(row.radiusM || 50),
-          color: row.isInside ? "#15803d" : "#f59e0b",
-          fillColor: row.isInside ? "#bbf7d0" : "#fde68a",
-          fillOpacity: 0.22,
-          weight: 2,
-        }).bindPopup(`<b>${row.waypointName}</b><br>${row.isInside ? "Inne" : "Ute"}<br>Radius ${formatNumber(row.radiusM)} m`),
-      );
-    });
-    if (bounds.length) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 16 });
-  }, [data]);
+    const waypointFeatures = (data?.waypoints || [])
+      .filter((row) => Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lon)))
+      .map((row) => {
+        const lat = Number(row.lat);
+        const lon = Number(row.lon);
+        const radiusM = Number(row.radiusM || 50);
+        extendBounds(lon, lat);
+        const marker = new maplibregl.Marker({ element: createMapMarker(row.isInside ? "waypoint-marker inside" : "waypoint-marker"), anchor: "center" })
+          .setLngLat([lon, lat])
+          .setPopup(
+            new maplibregl.Popup({ offset: 18 }).setHTML(
+              `<b>${escapeHtml(row.waypointName)}</b><br>${row.isInside ? "Inne" : "Ute"}<br>Radius ${escapeHtml(formatNumber(row.radiusM))} m`,
+            ),
+          )
+          .addTo(map);
+        markerRef.current.push(marker);
+        return {
+          type: "Feature" as const,
+          properties: {
+            strokeColor: row.isInside ? "#15803d" : "#f59e0b",
+            fillColor: row.isInside ? "#86efac" : "#fde68a",
+          },
+          geometry: {
+            type: "Polygon" as const,
+            coordinates: [circlePolygon(lon, lat, radiusM)],
+          },
+        };
+      });
+    if (waypointFeatures.length) {
+      map.addSource("owntracks-waypoints", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: waypointFeatures,
+        },
+      });
+      map.addLayer({
+        id: "owntracks-waypoints-fill",
+        type: "fill",
+        source: "owntracks-waypoints",
+        paint: {
+          "fill-color": ["get", "fillColor"],
+          "fill-opacity": 0.24,
+        },
+      });
+      map.addLayer({
+        id: "owntracks-waypoints-line",
+        type: "line",
+        source: "owntracks-waypoints",
+        paint: {
+          "line-color": ["get", "strokeColor"],
+          "line-opacity": 0.85,
+          "line-width": 2,
+        },
+      });
+    }
+    if (hasBounds) map.fitBounds(bounds, { padding: 28, maxZoom: 16, duration: 300 });
+  }, [data, mapReady]);
 
   return <div className={large ? "owntracks-map large" : "owntracks-map"} ref={mapElementRef} />;
 }
