@@ -328,7 +328,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1401">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1402">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -360,8 +360,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1401">
-  <script src="/assets/maintenance-mobile.js?v=1401" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1402">
+  <script src="/assets/maintenance-mobile.js?v=1402" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -395,17 +395,22 @@ INDEX_HTML = """<!doctype html>
     <section id="entryScreen" class="screen is-hidden">
       <section class="entry-head">
         <button id="backButton" class="back-button" type="button">Tilbake</button>
-        <div>
+        <div class="entry-title-block">
           <p id="taskCategory" class="eyebrow">Oppgave</p>
           <h1 id="taskTitle">Vedlikehold</h1>
           <p id="taskSubtitle" class="muted"></p>
+          <p id="entryUserLine" class="entry-user-line"></p>
         </div>
+        <button id="timeButton" class="time-button" type="button" aria-expanded="false">
+          <span>Tidspunkt</span>
+          <strong id="timeButtonLabel">Nå</strong>
+        </button>
       </section>
 
       <form id="maintenanceForm" class="entry-card">
-        <div class="form-row two">
+        <input id="performed_by" name="performed_by" type="hidden">
+        <div id="timeField" class="time-field is-hidden">
           <label>Tidspunkt<input id="performed_at" name="performed_at" type="datetime-local" required></label>
-          <label>Utført av<input id="performed_by" name="performed_by" placeholder="Bruker eller navn"></label>
         </div>
 
         <label id="roomField" class="is-hidden">Seng / rom<select id="room_id" name="room_id"></select></label>

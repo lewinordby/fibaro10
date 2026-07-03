@@ -138,6 +138,24 @@ function formatStamp(value) {
   }).format(parsed);
 }
 
+function formatTimeButton(value) {
+  if (!value) return "Nå";
+  const parsed = new Date(String(value).replace(" ", "T"));
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  const today = new Date();
+  const sameDate = parsed.toDateString() === today.toDateString();
+  const time = new Intl.DateTimeFormat("no-NO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+  if (sameDate) return `I dag ${time}`;
+  const date = new Intl.DateTimeFormat("no-NO", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(parsed);
+  return `${date} ${time}`;
+}
+
 function localDateTimeValue(value) {
   if (value) return String(value).slice(0, 16);
   const now = new Date();
@@ -223,11 +241,24 @@ function setFollowUpVisible() {
   $("#followUpField")?.classList.toggle("is-hidden", !checked);
 }
 
+function setTimeFieldVisible(visible) {
+  $("#timeField")?.classList.toggle("is-hidden", !visible);
+  $("#timeButton")?.setAttribute("aria-expanded", visible ? "true" : "false");
+}
+
+function updateTimeButton() {
+  const label = $("#timeButtonLabel");
+  if (label) label.textContent = formatTimeButton($("#performed_at")?.value);
+}
+
 function setTaskDefaults(task) {
   const defaults = state.bootstrap?.defaults || {};
   const user = safeText(state.bootstrap?.user?.username);
   $("#performed_at").value = localDateTimeValue(defaults.performed_at);
   $("#performed_by").value = user;
+  $("#entryUserLine").textContent = user ? `Registreres av ${user}` : "";
+  setTimeFieldVisible(false);
+  updateTimeButton();
   fillSelect("room_id", optionList("room_id"), "", true);
   $("#roomField").classList.toggle("is-hidden", !task.requiresRoom);
   $("#summary").value = task.summary || task.title;
@@ -306,9 +337,10 @@ function formPayload() {
   const statusValue = followUpNeeded
     ? "Må følges opp"
     : (task.status === "Må følges opp" ? "Utført" : (task.status || "Utført"));
+  const user = safeText($("#performed_by")?.value, safeText(state.bootstrap?.user?.username));
   return {
     performed_at: $("#performed_at").value,
-    performed_by: $("#performed_by").value,
+    performed_by: user,
     presence_type: validOption("presence_type", task.presenceType || "Tilstede Sun2", "Tilstede Sun2"),
     target_type: validOption("target_type", task.targetType || "Generelt", "Generelt"),
     room_id: task.requiresRoom ? ($("#room_id").value || null) : null,
@@ -365,6 +397,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   $("#refreshButton")?.addEventListener("click", () => loadBootstrap().catch((error) => setMessage(error.message, true)));
   $("#follow_up_needed")?.addEventListener("change", setFollowUpVisible);
+  $("#timeButton")?.addEventListener("click", () => {
+    const field = $("#timeField");
+    const visible = field?.classList.contains("is-hidden");
+    setTimeFieldVisible(Boolean(visible));
+    if (visible) setTimeout(() => $("#performed_at")?.focus(), 40);
+  });
+  $("#performed_at")?.addEventListener("change", updateTimeButton);
   try {
     await loadBootstrap();
     showScreen("tasks");

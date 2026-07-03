@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1401")
+APP_BUILD = os.getenv("APP_BUILD", "1402")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1402",
+        "date": "03.07.2026",
+        "headline": "Vedlikehold mobil får enklere registrering",
+        "title": "Utført av fjernes som felt og tidspunkt flyttes til toppknapp",
+        "description": (
+            "Build 1402 gjør registreringsskjermen i mobilappen mer effektiv. Utført av fylles nå automatisk fra innlogget "
+            "Fibaro10-bruker og vises bare som liten metadata. Tidspunkt ligger som en knapp i toppen og åpner redigering "
+            "bare når tidspunktet faktisk må korrigeres."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: flytter tidspunktkontroll til toppfeltet og gjør utført av til skjult automatisk verdi.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: oppdaterer tidspunktknapp, automatisk brukerlinje og payload for vedlikeholdslogg.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: strammer toppfelt og skjuler tidsfeltet til det trengs.",
+        ],
+        "request": (
+            "Utført av er unødvendig som eget felt og kan ligge som liten tekst. Dato/tid bør flyttes inn på en knapp "
+            "i øverste felt siden det sjelden må endres i appen."
+        ),
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Registreringsskjemaet har ikke lenger synlig felt for utført av.",
+            "Innlogget bruker sendes fortsatt med ved lagring og vises som liten tekst under oppgaven.",
+            "Tidspunkt vises som kompakt knapp i toppen.",
+            "Trykk på tidspunktknappen åpner datetime-feltet for korrigering.",
+            "Asset-versjon er oppdatert slik at mobilnettlesere henter ny JS/CSS.",
+        ],
+    },
     {
         "version": "1",
         "build": "1401",
