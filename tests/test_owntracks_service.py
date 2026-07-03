@@ -236,6 +236,68 @@ class OwnTracksServiceTests(unittest.TestCase):
             ]
             self.assertEqual(len(matching_visits), 1)
 
+    def test_transition_does_not_move_waypoint_or_reopen_computed_visit(self) -> None:
+        topic = "owntracks/transition-zone/android"
+        with TestClient(app) as client:
+            waypoint = client.post(
+                "/pub",
+                json={
+                    "_type": "waypoint",
+                    "topic": f"{topic}/waypoint",
+                    "desc": "Hjem",
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "rad": 30,
+                    "tst": 1783082000,
+                },
+            )
+            self.assertEqual(waypoint.status_code, 200)
+
+            inside = client.post(
+                "/pub",
+                json={
+                    "_type": "location",
+                    "topic": topic,
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "acc": 5,
+                    "inregions": ["Hjem"],
+                    "tst": 1783082060,
+                },
+            )
+            self.assertEqual(inside.status_code, 200)
+
+            leave = client.post(
+                "/pub",
+                json={
+                    "_type": "transition",
+                    "topic": f"{topic}/event",
+                    "desc": "Hjem",
+                    "event": "leave",
+                    "lat": 61.1154,
+                    "lon": 10.466,
+                    "acc": 5,
+                    "tst": 1783082120,
+                },
+            )
+            self.assertEqual(leave.status_code, 200)
+
+            map_payload = client.get("/api/owntracks/map?hours=0&limit=0").json()
+            matching_visits = [
+                row
+                for row in map_payload["zoneVisits"]
+                if row["topic"] == topic and row["waypointName"] == "Hjem"
+            ]
+            self.assertEqual(len(matching_visits), 1)
+            self.assertEqual(matching_visits[0]["status"], "closed")
+            self.assertEqual(matching_visits[0]["enterSource"], "inregions")
+            self.assertEqual(matching_visits[0]["leaveSource"], "transition")
+
+            waypoints = client.get("/api/owntracks/waypoints").json()["waypoints"]
+            saved = next(row for row in waypoints if row["topic"] == topic and row["waypointName"] == "Hjem")
+            self.assertEqual(saved["lat"], 61.115)
+            self.assertEqual(saved["lon"], 10.466)
+
 
 if __name__ == "__main__":
     unittest.main()

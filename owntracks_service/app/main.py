@@ -662,7 +662,7 @@ def close_zone_visit(
 def materialize_zone_visits_for_location(session: Session, location: OwnTracksLocation) -> None:
     if location.lat is None or location.lon is None:
         return
-    if location.message_type in {"waypoint", "waypoints", "status"}:
+    if location.message_type in {"waypoint", "waypoints", "status", "transition"}:
         return
     waypoints = session.execute(
         select(OwnTracksWaypointState)
@@ -730,9 +730,6 @@ def materialize_waypoints(session: Session, location: OwnTracksLocation, payload
                     location,
                     name,
                     event_type,
-                    lat=location.lat,
-                    lon=location.lon,
-                    radius_m=radius_m,
                     accuracy_m=location.accuracy_m,
                 )
                 if event_type == "enter":

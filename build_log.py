@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1417")
+APP_BUILD = os.getenv("APP_BUILD", "1418")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1418",
+        "date": "03.07.2026",
+        "headline": "OwnTracks beregnede sonebesok ryddes",
+        "title": "Transition-meldinger lager ikke ekstra korte computed-position-besok",
+        "description": (
+            "Build 1418 retter neste OwnTracks-funn etter testtur. Waypoint-listen kunne se riktig ut, men "
+            "transition enter/leave ble behandlet baade som eksplisitt hendelse og som vanlig posisjon i "
+            "serverens radiusberegning. Dette kunne gi to og to sonebesok. Transition-meldinger holdes naa "
+            "utenfor computed-position og faar ikke overskrive waypointets faste koordinater."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: hopper over radiusberegning for transition og lar transition bare oppdatere status/hendelse.",
+            "owntracks_service/app/build_log.py: registrerer OwnTracks build 4.",
+            "docker-compose.qnap.yml og .env.qnap.example: oppdaterer OwnTracks build default til 4.",
+            "tests/test_owntracks_service.py: legger regresjonstest for leave-transition uten ekstra beregnet besok.",
+        ],
+        "request": "Det ser jo riktig ut under waypoints, men vaare egne beregnede blir doble.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Transition enter/leave lager ikke lenger en ekstra computed-position-rad.",
+            "Waypoint-koordinater beholdes fra Publish Waypoints og flyttes ikke av transition-posisjon.",
+            "Ny test dekker at ett faktisk besok lukkes uten at et nytt aapnes fra samme leave-melding.",
+        ],
+    },
     {
         "version": "1",
         "build": "1417",

@@ -5,10 +5,34 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "3")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "4")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "4",
+        "date": "03.07.2026",
+        "headline": "Transition lager ikke ekstra beregnede besok",
+        "title": "OwnTracks enter/leave holdes adskilt fra radiusberegning",
+        "description": (
+            "Build 4 retter at transition-meldinger kunne gi korte ekstra sonebesok. Telefonens enter/leave "
+            "brukes naa som eksplisitt sonehendelse, mens serverens radiusberegning bare kjoeres paa vanlige "
+            "posisjonsmeldinger. Transition-meldinger oppdaterer heller ikke waypointets faste koordinater."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: stopper computed-position paa transition og bevarer waypoint-koordinater.",
+            "tests/test_owntracks_service.py: dekker leave-transition uten ekstra beregnet sonebesok.",
+        ],
+        "request": "Det ser riktig ut under waypoints, men vaare egne beregnede blir doble.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Transition enter/leave flytter ikke lenger waypoint-senteret.",
+            "Transition-meldinger trigget ikke lenger serverens egen radiusberegning.",
+            "Korte dobbeltbesok etter leave/enter unngaas.",
+        ],
+    },
     {
         "version": "1",
         "build": "3",
