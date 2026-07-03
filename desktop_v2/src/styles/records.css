@@ -2,6 +2,64 @@
   margin-top: 12px;
 }
 
+.module-edit-modal-split .ant-modal-body {
+  padding-top: 10px;
+}
+
+.edit-form-split-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.4fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.edit-form-section {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+}
+
+.edit-form-section-main {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 3%, var(--surface)), var(--surface) 42%),
+    var(--surface);
+}
+
+.edit-form-section-title {
+  margin-bottom: 10px;
+  color: var(--text-label);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.edit-form-split .ant-form-item {
+  margin-bottom: 10px;
+}
+
+.edit-form-split .ant-form-item-label {
+  padding-bottom: 3px;
+}
+
+.edit-form-split .ant-input,
+.edit-form-split .ant-input-number,
+.edit-form-split .ant-select-selector {
+  border-radius: 7px;
+}
+
+.edit-form-section-main textarea.ant-input {
+  min-height: 128px;
+  resize: vertical;
+}
+
+@media (max-width: 780px) {
+  .edit-form-split-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .edit-number {
   width: 100%;
 }

@@ -199,6 +199,19 @@ export default function ModulePage({ module }: { module: string }) {
       : data.tables;
   const showModuleActions = Boolean(data.actions?.length && !hideModuleChrome && !(module === "koble" && safeView !== "jobb"));
   const showModuleCards = Boolean(data.cards.length && !hideModuleChrome && !(module === "koble" && safeView !== "oversikt"));
+  const editFields = editState ? (editState.create ? editState.edit.createFields ?? editState.edit.fields : editState.edit.fields) : [];
+  const splitEdit = editState?.edit.layout === "split";
+  const renderEditField = (field: (typeof editFields)[number]) => (
+    <Form.Item
+      key={field.key}
+      name={field.key}
+      label={field.type === "boolean" ? undefined : field.label}
+      valuePropName={field.type === "boolean" ? "checked" : "value"}
+      rules={field.required ? [{ required: true, message: `${field.label} må fylles ut` }] : undefined}
+    >
+      {fieldInput(field)}
+    </Form.Item>
+  );
 
   return (
     <Space direction="vertical" size={18} className="page-stack">
@@ -295,23 +308,28 @@ export default function ModulePage({ module }: { module: string }) {
         okText="Lagre"
         cancelText="Avbryt"
         confirmLoading={savingEdit}
+        width={editState?.edit.width ?? (splitEdit ? 960 : undefined)}
+        className={splitEdit ? "module-edit-modal module-edit-modal-split" : "module-edit-modal"}
         onOk={saveEdit}
         onCancel={() => setEditState(null)}
         destroyOnHidden
       >
         {editState ? (
-          <Form form={form} layout="vertical" className="edit-form">
-            {(editState.create ? editState.edit.createFields ?? editState.edit.fields : editState.edit.fields).map((field) => (
-              <Form.Item
-                key={field.key}
-                name={field.key}
-                label={field.type === "boolean" ? undefined : field.label}
-                valuePropName={field.type === "boolean" ? "checked" : "value"}
-                rules={field.required ? [{ required: true, message: `${field.label} må fylles ut` }] : undefined}
-              >
-                {fieldInput(field)}
-              </Form.Item>
-            ))}
+          <Form form={form} layout="vertical" className={splitEdit ? "edit-form edit-form-split" : "edit-form"}>
+            {splitEdit ? (
+              <div className="edit-form-split-grid">
+                <div className="edit-form-section edit-form-section-meta">
+                  <div className="edit-form-section-title">Detaljer</div>
+                  {editFields.filter((field) => field.section !== "main").map(renderEditField)}
+                </div>
+                <div className="edit-form-section edit-form-section-main">
+                  <div className="edit-form-section-title">Notat og oppfølging</div>
+                  {editFields.filter((field) => field.section === "main").map(renderEditField)}
+                </div>
+              </div>
+            ) : (
+              editFields.map(renderEditField)
+            )}
           </Form>
         ) : null}
       </Modal>

@@ -579,6 +579,8 @@ export type ModuleEditField = {
   required?: boolean;
   placeholder?: string;
   defaultValue?: unknown;
+  section?: "meta" | "main";
+  rows?: number;
   options?: Array<{ label: string; value: string | number | boolean }>;
 };
 
@@ -589,6 +591,8 @@ export type ModuleEditConfig = {
   endpoint: string;
   method?: "PATCH" | "POST";
   createEndpoint?: string;
+  layout?: "default" | "split";
+  width?: number;
   fields: ModuleEditField[];
   createFields?: ModuleEditField[];
 };

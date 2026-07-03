@@ -1572,6 +1572,11 @@ class MaintenanceLogEntry(Base):
     performed_at = Column(DateTime, default=local_now_naive, nullable=False, index=True)
     performed_by = Column(String, nullable=True, index=True)
     presence_type = Column(String, nullable=True, index=True)
+    target_type = Column(String, nullable=True, index=True)
+    room_id = Column(String, nullable=True, index=True)
+    target_name = Column(String, nullable=True, index=True)
+    action_type = Column(String, nullable=True, index=True)
+    priority = Column(String, nullable=True, index=True)
     summary = Column(Text, nullable=False)
     tags = Column(JSON, nullable=True)
     status = Column(String, default="Utført", nullable=False, index=True)
@@ -2074,6 +2079,11 @@ class MaintenanceLogInput(BaseModel):
     performed_at: Optional[str] = None
     performed_by: Optional[str] = None
     presence_type: Optional[str] = None
+    target_type: Optional[str] = None
+    room_id: Optional[str] = None
+    target_name: Optional[str] = None
+    action_type: Optional[str] = None
+    priority: Optional[str] = None
     summary: str = Field(..., min_length=1, max_length=4000)
     tags: Optional[Any] = None
     status: Optional[str] = None
@@ -3314,6 +3324,13 @@ STARTUP_COLUMNS = {
         ("key_plaintext", "VARCHAR"),
         ("role", "VARCHAR"),
         ("last_notified_at", "TIMESTAMP"),
+    ],
+    "maintenance_log_entries": [
+        ("target_type", "VARCHAR"),
+        ("room_id", "VARCHAR"),
+        ("target_name", "VARCHAR"),
+        ("action_type", "VARCHAR"),
+        ("priority", "VARCHAR"),
     ],
     "parking_sun_link_job_state": [
         ("enabled", "BOOLEAN DEFAULT FALSE"),
@@ -17949,6 +17966,30 @@ MAINTENANCE_TAG_OPTIONS = [
 ]
 MAINTENANCE_STATUS_OPTIONS = ["Utført", "Må følges opp", "Planlagt", "Lukket"]
 MAINTENANCE_PRESENCE_OPTIONS = ["Tilstede Sun2", "Fjernarbeid", "Telefon/leverandør"]
+MAINTENANCE_TARGET_OPTIONS = [
+    "Generelt",
+    "Seng",
+    "Rom",
+    "Ventilasjon",
+    "Lys",
+    "Energi",
+    "Parkering",
+    "Renhold",
+    "Utstyr",
+    "Leverandør",
+]
+MAINTENANCE_ACTION_OPTIONS = [
+    "Kontroll",
+    "Vedlikehold",
+    "Rengjøring",
+    "Reparasjon",
+    "Bytte",
+    "Justering",
+    "Påfyll",
+    "Bestilling",
+    "Observasjon",
+]
+MAINTENANCE_PRIORITY_OPTIONS = ["Normal", "Lav", "Høy", "Kritisk"]
 
 
 def normalize_maintenance_tags(value: Any) -> list[str]:
@@ -17979,6 +18020,26 @@ def maintenance_datetime_value(value: Optional[str]) -> datetime:
     return parsed or local_now_naive().replace(second=0, microsecond=0)
 
 
+def clean_maintenance_option(value: Any, options: list[str], default: str = "") -> Optional[str]:
+    text = str(value or default or "").strip()
+    return text if text in options else (default or None)
+
+
+def maintenance_room_value(value: Any) -> Optional[str]:
+    return normalize_room_id(value)
+
+
+def maintenance_target_name(target_type: Optional[str], room_id: Optional[str], value: Any) -> Optional[str]:
+    text = str(value or "").strip()
+    if text:
+        return text[:160]
+    if target_type == "Seng" and room_id:
+        return f"Seng {sun2_room_label(room_id)}"
+    if target_type == "Rom" and room_id:
+        return sun2_room_label(room_id)
+    return None
+
+
 def maintenance_log_row(row: MaintenanceLogEntry) -> Dict[str, Any]:
     tags = normalize_maintenance_tags(row.tags)
     return {
@@ -17986,6 +18047,11 @@ def maintenance_log_row(row: MaintenanceLogEntry) -> Dict[str, Any]:
         "performed_at": row.performed_at.isoformat(timespec="minutes") if row.performed_at else None,
         "performed_by": row.performed_by,
         "presence_type": row.presence_type,
+        "target_type": row.target_type,
+        "room_id": row.room_id,
+        "target_name": row.target_name,
+        "action_type": row.action_type,
+        "priority": row.priority,
         "summary": row.summary,
         "tags": ", ".join(tags),
         "status": row.status,
@@ -18001,6 +18067,10 @@ def api_maintenance_log_edit(default_performed_at: datetime) -> Dict[str, Any]:
     tag_options = [{"label": label, "value": label} for label in MAINTENANCE_TAG_OPTIONS]
     status_options = [{"label": label, "value": label} for label in MAINTENANCE_STATUS_OPTIONS]
     presence_options = [{"label": label, "value": label} for label in MAINTENANCE_PRESENCE_OPTIONS]
+    target_options = [{"label": label, "value": label} for label in MAINTENANCE_TARGET_OPTIONS]
+    action_options = [{"label": label, "value": label} for label in MAINTENANCE_ACTION_OPTIONS]
+    priority_options = [{"label": label, "value": label} for label in MAINTENANCE_PRIORITY_OPTIONS]
+    room_options = [{"label": option["label"], "value": option["value"]} for option in SUN2_ROOM_OPTIONS]
     fields = [
         {
             "key": "performed_at",
@@ -18008,19 +18078,27 @@ def api_maintenance_log_edit(default_performed_at: datetime) -> Dict[str, Any]:
             "type": "datetime",
             "required": True,
             "defaultValue": default_performed_at.isoformat(timespec="minutes"),
+            "section": "meta",
         },
-        {"key": "performed_by", "label": "Utført av", "type": "text", "placeholder": "Navn eller bruker"},
-        {"key": "presence_type", "label": "Type", "type": "select", "options": presence_options, "defaultValue": "Tilstede Sun2"},
-        {"key": "summary", "label": "Hva ble gjort", "type": "textarea", "required": True},
-        {"key": "tags", "label": "Tagger", "type": "tags", "options": tag_options, "placeholder": "Velg eller skriv tagger"},
-        {"key": "status", "label": "Status", "type": "select", "options": status_options, "defaultValue": "Utført"},
-        {"key": "duration_minutes", "label": "Varighet min", "type": "number"},
-        {"key": "follow_up_needed", "label": "Må følges opp", "type": "boolean"},
-        {"key": "follow_up_text", "label": "Oppfølging", "type": "textarea"},
+        {"key": "performed_by", "label": "Utført av", "type": "text", "placeholder": "Navn eller bruker", "section": "meta"},
+        {"key": "presence_type", "label": "Type", "type": "select", "options": presence_options, "defaultValue": "Tilstede Sun2", "section": "meta"},
+        {"key": "target_type", "label": "Objekt", "type": "select", "options": target_options, "defaultValue": "Seng", "section": "meta"},
+        {"key": "room_id", "label": "Seng / rom", "type": "select", "options": room_options, "placeholder": "Velg rom ved seng/rom", "section": "meta"},
+        {"key": "target_name", "label": "Objektnavn", "type": "text", "placeholder": "Blankt gir f.eks. Seng Rom 12", "section": "meta"},
+        {"key": "action_type", "label": "Tiltak", "type": "select", "options": action_options, "defaultValue": "Kontroll", "section": "meta"},
+        {"key": "priority", "label": "Prioritet", "type": "select", "options": priority_options, "defaultValue": "Normal", "section": "meta"},
+        {"key": "status", "label": "Status", "type": "select", "options": status_options, "defaultValue": "Utført", "section": "meta"},
+        {"key": "duration_minutes", "label": "Varighet min", "type": "number", "section": "meta"},
+        {"key": "summary", "label": "Hva ble gjort", "type": "textarea", "required": True, "rows": 8, "section": "main"},
+        {"key": "tags", "label": "Tagger", "type": "tags", "options": tag_options, "placeholder": "Velg eller skriv tagger", "section": "main"},
+        {"key": "follow_up_needed", "label": "Må følges opp", "type": "boolean", "section": "main"},
+        {"key": "follow_up_text", "label": "Oppfølging", "type": "textarea", "rows": 4, "section": "main"},
     ]
     return {
         "kind": "maintenance-log",
         "title": "vedlikeholdslogg",
+        "layout": "split",
+        "width": 980,
         "idField": "id",
         "endpoint": "/api/maintenance/logs/{id}",
         "method": "PATCH",
@@ -23932,6 +24010,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 for row in logs
                 if row.follow_up_needed and (row.status or "").strip().casefold() != "lukket"
             ]
+            sunbed_month_count = sum(
+                1
+                for row in logs
+                if (row.target_type or "").strip().casefold() == "seng"
+                and row.performed_at
+                and month_start_dt <= row.performed_at < tomorrow_start
+            )
             tag_stats: Dict[str, Dict[str, Any]] = {}
             for row in logs:
                 for tag in normalize_maintenance_tags(row.tags):
@@ -23955,14 +24040,27 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "subtitle": "Logg for arbeid og observasjoner hver gang du er tilstede på Sun2.",
                 "cards": [
                     api_card("I dag", today_count, "stk", "Registrerte aktiviteter", "status", href="/vedlikehold/oversikt"),
-                    api_card("Denne måneden", month_count, "stk", "Utført arbeid og kontroller", "status", href="/vedlikehold/oversikt"),
+                    api_card("Denne måneden", month_count, "stk", f"{sunbed_month_count} på senger", "status", href="/vedlikehold/oversikt"),
                     api_card("Oppfølging", len(follow_up_logs), "stk", "Åpne punkter", "status", href="/vedlikehold/oversikt"),
                     api_card("Sist logget", format_source_datetime_short(latest.performed_at) if latest else "-", "", latest.summary[:80] if latest and latest.summary else "", "status", href="/vedlikehold/oversikt"),
                 ],
                 "tables": [
                     api_table(
                         "Vedlikeholdslogg",
-                        ["performed_at", "performed_by", "presence_type", "summary", "tags", "status", "duration_minutes", "follow_up_needed", "follow_up_text"],
+                        [
+                            "performed_at",
+                            "target_type",
+                            "target_name",
+                            "action_type",
+                            "priority",
+                            "status",
+                            "summary",
+                            "tags",
+                            "performed_by",
+                            "duration_minutes",
+                            "follow_up_needed",
+                            "follow_up_text",
+                        ],
                         [maintenance_log_row(row) for row in logs],
                         edit=edit_config,
                     ),
@@ -25420,11 +25518,19 @@ async def api_v2_maintenance_log_create(request: Request, data: MaintenanceLogIn
     status = str(values.get("status") or "Utført").strip() or "Utført"
     if status not in MAINTENANCE_STATUS_OPTIONS:
         status = "Utført"
+    target_type = clean_maintenance_option(values.get("target_type"), MAINTENANCE_TARGET_OPTIONS, "Seng")
+    room_id = maintenance_room_value(values.get("room_id"))
+    target_name = maintenance_target_name(target_type, room_id, values.get("target_name"))
     performed_by = str(values.get("performed_by") or getattr(request.state, "access_key_name", "") or "").strip() or None
     row = MaintenanceLogEntry(
         performed_at=maintenance_datetime_value(values.get("performed_at")),
         performed_by=performed_by,
         presence_type=str(values.get("presence_type") or "Tilstede Sun2").strip() or None,
+        target_type=target_type,
+        room_id=room_id,
+        target_name=target_name,
+        action_type=clean_maintenance_option(values.get("action_type"), MAINTENANCE_ACTION_OPTIONS, "Kontroll"),
+        priority=clean_maintenance_option(values.get("priority"), MAINTENANCE_PRIORITY_OPTIONS, "Normal"),
         summary=summary,
         tags=normalize_maintenance_tags(values.get("tags")),
         status=status,
@@ -25456,6 +25562,16 @@ async def api_v2_maintenance_log_update(request: Request, log_id: int, data: Mai
             row.performed_by = str(values.get("performed_by") or "").strip() or None
         if "presence_type" in values:
             row.presence_type = str(values.get("presence_type") or "").strip() or None
+        if "target_type" in values:
+            row.target_type = clean_maintenance_option(values.get("target_type"), MAINTENANCE_TARGET_OPTIONS, row.target_type or "Generelt")
+        if "room_id" in values:
+            row.room_id = maintenance_room_value(values.get("room_id"))
+        if "target_name" in values:
+            row.target_name = maintenance_target_name(row.target_type, row.room_id, values.get("target_name"))
+        if "action_type" in values:
+            row.action_type = clean_maintenance_option(values.get("action_type"), MAINTENANCE_ACTION_OPTIONS, row.action_type or "Kontroll")
+        if "priority" in values:
+            row.priority = clean_maintenance_option(values.get("priority"), MAINTENANCE_PRIORITY_OPTIONS, row.priority or "Normal")
         if "summary" in values:
             summary = str(values.get("summary") or "").strip()
             if not summary:

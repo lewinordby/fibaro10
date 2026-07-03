@@ -126,7 +126,7 @@ function labelize(column: string): string {
     source_scope: "Grunnlag",
     control_basis: "Kontroll",
     physical_room_number: "Rom",
-    room_id: "Rom-ID",
+    room_id: "Rom",
     bed_model: "Sengemodell",
     current_price_per_min: "Kr/min",
     lamp_status: "Lampe",
@@ -241,6 +241,10 @@ function labelize(column: string): string {
     performed_at: "Utført",
     performed_by: "Utført av",
     presence_type: "Type",
+    target_type: "Objekt",
+    target_name: "Objektnavn",
+    action_type: "Tiltak",
+    priority: "Prioritet",
     summary: "Notat",
     tags: "Tagger",
     follow_up_needed: "Oppfølging",
@@ -542,7 +546,7 @@ export function filterRows(rows: ModuleRow[], columns: string[], query: string) 
 }
 
 export function fieldInput(field: ModuleEditField) {
-  if (field.type === "textarea") return <Input.TextArea rows={3} placeholder={field.placeholder} />;
+  if (field.type === "textarea") return <Input.TextArea rows={field.rows ?? 3} placeholder={field.placeholder} />;
   if (field.type === "number") return <InputNumber className="edit-number" />;
   if (field.type === "boolean") return <Checkbox>{field.label}</Checkbox>;
   if (field.type === "select") return <Select options={field.options} />;

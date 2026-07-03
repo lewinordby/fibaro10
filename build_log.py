@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1398")
+APP_BUILD = os.getenv("APP_BUILD", "1399")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1399",
+        "date": "03.07.2026",
+        "headline": "Vedlikehold får objekt og bedre skjema",
+        "title": "Vedlikeholdslogg kan knyttes til seng, rom og tiltak",
+        "description": (
+            "Build 1399 gjør Vedlikehold mer praktisk for fysisk drift av Sun2. Nye loggposter kan knyttes til objekt, "
+            "seng/rom, tiltakstype og prioritet. Opprett/rediger-skjemaet er gjort bredere og delt i metadata til venstre "
+            "og notat/oppfølging til høyre."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): utvider maintenance_log_entries med objekt, rom/seng, tiltakstype og prioritet.",
+            "Fibaro10 backend (main.py): legger til valgsett og automatisk objektnavn for seng/rom basert på Sun2-romkartet.",
+            "Desktop V2 skjema (api.ts, ModulePage.tsx, moduleTableUtils.tsx): legger til split-layout, feltseksjoner og textarea-rader i generisk modalskjema.",
+            "Desktop V2 design (records.css): bredere og mer kompakt delt modal for vedlikeholdsregistrering.",
+            "Buildlogg (build_log.py): registrerer build 1399.",
+        ],
+        "request": (
+            "Gjør Vedlikehold mer gjennomarbeidet, blant annet med mulighet for å vedlikeholde en seng, "
+            "og lag et bredere/lavere skjermbilde for ny post med metadata til venstre og skrivefelt til høyre."
+        ),
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny post starter med objekt=Seng, tiltak=Kontroll og prioritet=Normal.",
+            "Seng/rom kan velges fra Sun2-romlisten.",
+            "Hvis objektnavn står tomt for seng/rom, settes et ryddig navn automatisk.",
+            "Vedlikeholdstabellen viser objekt, objektnavn, tiltak, prioritet og status før notat.",
+            "Vedlikeholdsmodalen er delt i Detaljer og Notat/oppfølging.",
+        ],
+    },
     {
         "version": "1",
         "build": "1398",
