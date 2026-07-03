@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1402")
+APP_BUILD = os.getenv("APP_BUILD", "1403")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1403",
+        "date": "03.07.2026",
+        "headline": "Vedlikehold mobil blir raskere i bruk",
+        "title": "Registrering krever færre trykk og mindre tasting",
+        "description": (
+            "Build 1403 optimaliserer mobilflaten for praktisk bruk på stedet. Oppgaver åpner ikke lenger tastaturet "
+            "automatisk, notatfeltet er skjult til det trengs, og seng/rom kan velges med store hurtigknapper. "
+            "Lagreknappen blir tydeligere og ligger lett tilgjengelig nederst mens man fyller ut."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: legger til hurtigvalg for rom/seng, sammenleggbar notatseksjon og melding etter lagring.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: styrer romknapper, notatvisning, lagretilstand og standardtekst for summary.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: gjør romvalg, notatknapp, lagremelding og sticky lagreknapp mobilvennlig.",
+        ],
+        "request": "Forbedre vedlikeholdsappen slik at den blir mest mulig effektiv og brukervennlig i bruk.",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Tastaturet åpnes ikke automatisk når en oppgave velges.",
+            "Notat ligger bak en knapp og bruker oppgavens standardtekst hvis feltet ikke fylles ut.",
+            "Seng/rom velges med store hurtigknapper for oppgaver som krever rom.",
+            "Lagreknappen deaktiveres til nødvendig seng/rom er valgt.",
+            "Etter lagring returnerer appen til oppgavevalg og viser en kompakt lagret-melding.",
+        ],
+    },
     {
         "version": "1",
         "build": "1402",

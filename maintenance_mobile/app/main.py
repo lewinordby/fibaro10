@@ -328,7 +328,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1402">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1403">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -360,8 +360,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1402">
-  <script src="/assets/maintenance-mobile.js?v=1402" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1403">
+  <script src="/assets/maintenance-mobile.js?v=1403" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -390,6 +390,7 @@ INDEX_HTML = """<!doctype html>
       </section>
 
       <section id="taskGrid" class="task-grid" aria-label="Vedlikeholdsoppgaver"></section>
+      <p id="taskMessage" class="task-message" role="status"></p>
     </section>
 
     <section id="entryScreen" class="screen is-hidden">
@@ -413,9 +414,19 @@ INDEX_HTML = """<!doctype html>
           <label>Tidspunkt<input id="performed_at" name="performed_at" type="datetime-local" required></label>
         </div>
 
-        <label id="roomField" class="is-hidden">Seng / rom<select id="room_id" name="room_id"></select></label>
+        <section id="roomField" class="room-field is-hidden">
+          <p class="field-label">Seng / rom</p>
+          <select id="room_id" name="room_id" class="room-select"></select>
+          <div id="roomQuickGrid" class="room-quick-grid" aria-label="Velg seng eller rom"></div>
+        </section>
 
-        <label>Notat<textarea id="summary" name="summary" rows="5" placeholder="Skriv eventuelt kort hva som ble gjort eller avvik du fant." required></textarea></label>
+        <section class="note-panel">
+          <button id="noteButton" class="note-button" type="button" aria-expanded="false">
+            <span>Notat</span>
+            <strong id="notePreview">Standardtekst</strong>
+          </button>
+          <label id="noteField" class="note-field is-hidden">Notat<textarea id="summary" name="summary" rows="4" placeholder="Skriv eventuelt kort hva som ble gjort eller avvik du fant."></textarea></label>
+        </section>
 
         <div class="form-row follow-row">
           <label class="toggle-line"><input id="follow_up_needed" name="follow_up_needed" type="checkbox"> Må følges opp</label>

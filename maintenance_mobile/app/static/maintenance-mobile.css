@@ -186,6 +186,28 @@ h2 {
   font-weight: 780;
 }
 
+.task-message {
+  min-height: 0;
+  margin: -0.18rem 0 0;
+  padding: 0.7rem 0.82rem;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 0.95rem;
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+  font-size: 0.86rem;
+  font-weight: 760;
+}
+
+.task-message:empty {
+  display: none;
+}
+
+.task-message.is-error {
+  border-color: #efc7bf;
+  background: #fff0ed;
+  color: var(--red);
+}
+
 .task-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -341,6 +363,89 @@ h2 {
   background: rgba(231, 245, 242, 0.45);
 }
 
+.field-label {
+  margin: 0;
+  color: var(--navy);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.room-field {
+  display: grid;
+  gap: 0.52rem;
+}
+
+.room-select {
+  display: none;
+}
+
+.room-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.48rem;
+}
+
+.room-chip {
+  min-height: 2.72rem;
+  padding: 0 0.5rem;
+  border: 1px solid rgba(49, 94, 231, 0.18);
+  border-radius: 0.86rem;
+  background: #fff;
+  color: var(--navy);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.room-chip.is-active {
+  border-color: rgba(49, 94, 231, 0.6);
+  background: var(--blue-soft);
+  color: var(--blue);
+  box-shadow: inset 0 0 0 1px rgba(49, 94, 231, 0.2);
+}
+
+.note-panel {
+  display: grid;
+  gap: 0.52rem;
+}
+
+.note-button {
+  display: grid;
+  min-height: 3rem;
+  gap: 0.1rem;
+  padding: 0.58rem 0.72rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: #fff;
+  color: var(--navy);
+  text-align: left;
+}
+
+.note-button span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 820;
+  letter-spacing: 0.07em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.note-button strong {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: 0.9rem;
+  font-weight: 760;
+  line-height: 1.22;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-field {
+  padding: 0.72rem;
+  border: 1px solid rgba(223, 231, 239, 0.9);
+  border-radius: 0.95rem;
+  background: #fbfcfe;
+}
+
 label {
   display: grid;
   min-width: 0;
@@ -414,6 +519,9 @@ textarea:focus {
 }
 
 .primary-button {
+  position: sticky;
+  bottom: max(0.72rem, env(safe-area-inset-bottom));
+  z-index: 3;
   min-height: 3rem;
   border: 1px solid var(--teal-dark);
   border-radius: 0.95rem;

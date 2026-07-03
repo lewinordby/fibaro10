@@ -116,6 +116,7 @@ const state = {
   bootstrap: null,
   selectedTask: null,
   busy: false,
+  lastSavedTitle: "",
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -175,6 +176,12 @@ function validOption(key, value, fallback) {
   return hasOption(key, value) ? value : fallback;
 }
 
+function shortText(value, maxLength = 46) {
+  const text = safeText(value);
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1)}…`;
+}
+
 function fillSelect(id, options, selectedValue, includeBlank = false) {
   const element = document.getElementById(id);
   if (!element) return;
@@ -198,6 +205,7 @@ function showScreen(screenName) {
   $("#taskScreen")?.classList.toggle("is-hidden", screenName !== "tasks");
   $("#entryScreen")?.classList.toggle("is-hidden", screenName !== "entry");
   setMessage("");
+  if (screenName === "entry") setTaskMessage("");
 }
 
 function renderTasks() {
@@ -218,6 +226,29 @@ function renderTasks() {
 function roomLabel(value) {
   const match = optionList("room_id").find((option) => option.value === value);
   return safeText(match?.label, value);
+}
+
+function renderRoomChoices() {
+  const container = $("#roomQuickGrid");
+  if (!container) return;
+  const selected = $("#room_id")?.value || "";
+  const rooms = optionList("room_id");
+  container.innerHTML = rooms.map((room) => `
+    <button class="room-chip ${room.value === selected ? "is-active" : ""}" type="button" data-room-id="${room.value}">
+      ${safeText(room.label, room.value)}
+    </button>
+  `).join("");
+  container.querySelectorAll("[data-room-id]").forEach((button) => {
+    button.addEventListener("click", () => selectRoom(button.dataset.roomId || ""));
+  });
+}
+
+function selectRoom(value) {
+  const element = $("#room_id");
+  if (!element) return;
+  element.value = value || "";
+  renderRoomChoices();
+  updateSubmitState();
 }
 
 function automaticTags(task) {
@@ -251,6 +282,32 @@ function updateTimeButton() {
   if (label) label.textContent = formatTimeButton($("#performed_at")?.value);
 }
 
+function setNoteFieldVisible(visible, focus = false) {
+  $("#noteField")?.classList.toggle("is-hidden", !visible);
+  $("#noteButton")?.setAttribute("aria-expanded", visible ? "true" : "false");
+  if (visible && focus) setTimeout(() => $("#summary")?.focus(), 40);
+}
+
+function updateNotePreview() {
+  const preview = $("#notePreview");
+  if (preview) preview.textContent = shortText($("#summary")?.value || state.selectedTask?.summary || "Standardtekst");
+}
+
+function updateSubmitState() {
+  const button = $("#submitButton");
+  if (!button) return;
+  const needsRoom = Boolean(state.selectedTask?.requiresRoom);
+  const missingRoom = needsRoom && !$("#room_id")?.value;
+  button.disabled = state.busy || missingRoom;
+  if (state.busy) {
+    button.textContent = "Lagrer...";
+  } else if (missingRoom) {
+    button.textContent = "Velg seng / rom";
+  } else {
+    button.textContent = `Lagre ${state.selectedTask?.title || ""}`.trim();
+  }
+}
+
 function setTaskDefaults(task) {
   const defaults = state.bootstrap?.defaults || {};
   const user = safeText(state.bootstrap?.user?.username);
@@ -260,12 +317,16 @@ function setTaskDefaults(task) {
   setTimeFieldVisible(false);
   updateTimeButton();
   fillSelect("room_id", optionList("room_id"), "", true);
+  renderRoomChoices();
   $("#roomField").classList.toggle("is-hidden", !task.requiresRoom);
   $("#summary").value = task.summary || task.title;
+  setNoteFieldVisible(false);
+  updateNotePreview();
   $("#duration_minutes").value = task.durationMinutes ? String(task.durationMinutes) : "";
   $("#follow_up_needed").checked = Boolean(task.followUpNeeded);
   $("#follow_up_text").value = "";
   setFollowUpVisible();
+  updateSubmitState();
 }
 
 function openTask(taskKey) {
@@ -277,7 +338,6 @@ function openTask(taskKey) {
   $("#taskSubtitle").textContent = task.requiresRoom ? "Velg seng/rom og lagre posten." : "Fyll eventuelt inn notat og lagre posten.";
   setTaskDefaults(task);
   showScreen("entry");
-  setTimeout(() => $("#summary")?.focus(), 80);
 }
 
 function renderRecent() {
@@ -348,7 +408,7 @@ function formPayload() {
     action_type: validOption("action_type", task.actionType || "Kontroll", "Kontroll"),
     priority: validOption("priority", task.priority || "Normal", "Normal"),
     status: validOption("status", statusValue, "Utført"),
-    summary: $("#summary").value,
+    summary: safeText($("#summary").value, task.summary || task.title),
     tags: automaticTags(task),
     duration_minutes: $("#duration_minutes").value ? Number($("#duration_minutes").value) : null,
     follow_up_needed: followUpNeeded,
@@ -363,11 +423,25 @@ function setMessage(message, isError = false) {
   element.classList.toggle("is-error", Boolean(isError));
 }
 
+function setTaskMessage(message, isError = false) {
+  const element = $("#taskMessage");
+  if (!element) return;
+  element.textContent = message || "";
+  element.classList.toggle("is-error", Boolean(isError));
+  element.classList.toggle("is-hidden", !message);
+}
+
 async function submitForm(event) {
   event.preventDefault();
   if (state.busy) return;
+  if (state.selectedTask?.requiresRoom && !$("#room_id")?.value) {
+    setMessage("Velg seng / rom før du lagrer.", true);
+    updateSubmitState();
+    return;
+  }
+  const savedTitle = state.selectedTask?.title || "Vedlikehold";
   state.busy = true;
-  $("#submitButton").disabled = true;
+  updateSubmitState();
   setMessage("Lagrer...");
   try {
     const response = await fetch("/api/maintenance/logs", {
@@ -379,13 +453,15 @@ async function submitForm(event) {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || payload.message || "Kunne ikke lagre.");
     await loadBootstrap();
+    state.lastSavedTitle = savedTitle;
     state.selectedTask = null;
     showScreen("tasks");
+    setTaskMessage(`Lagret: ${savedTitle}`);
   } catch (error) {
     setMessage(error.message || String(error), true);
   } finally {
     state.busy = false;
-    $("#submitButton").disabled = false;
+    updateSubmitState();
   }
 }
 
@@ -397,6 +473,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   $("#refreshButton")?.addEventListener("click", () => loadBootstrap().catch((error) => setMessage(error.message, true)));
   $("#follow_up_needed")?.addEventListener("change", setFollowUpVisible);
+  $("#room_id")?.addEventListener("change", () => {
+    renderRoomChoices();
+    updateSubmitState();
+  });
+  $("#noteButton")?.addEventListener("click", () => {
+    const field = $("#noteField");
+    const visible = field?.classList.contains("is-hidden");
+    setNoteFieldVisible(Boolean(visible), Boolean(visible));
+  });
+  $("#summary")?.addEventListener("input", updateNotePreview);
   $("#timeButton")?.addEventListener("click", () => {
     const field = $("#timeField");
     const visible = field?.classList.contains("is-hidden");
