@@ -47,12 +47,14 @@ class OwnTracksServiceTests(unittest.TestCase):
     def test_http_publish_stores_location(self) -> None:
         with TestClient(app) as client:
             response = client.post(
-                "/owntracks/pub?user=tester&device=android",
+                "/pub?user=tester&device=android",
                 json={"_type": "location", "lat": 61.115, "lon": 10.466, "acc": 7, "tst": 1783080000},
             )
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json(), [])
             health = client.get("/health").json()
+            self.assertEqual(health["app"]["build"], owntracks_main.owntracks_build_summary()["build"])
+            self.assertEqual(health["ingest"]["path"], "/pub")
             self.assertGreaterEqual(health["counts"]["locations"], 1)
             self.assertGreaterEqual(health["counts"]["devices"], 1)
 
@@ -63,6 +65,8 @@ class OwnTracksServiceTests(unittest.TestCase):
             with TestClient(app) as client:
                 page = client.get("/owntracks")
                 self.assertEqual(page.status_code, 503)
+                root = client.get("/")
+                self.assertEqual(root.status_code, 503)
         finally:
             owntracks_main.HTTP_TOKEN = original_token
 
@@ -76,6 +80,10 @@ class OwnTracksServiceTests(unittest.TestCase):
                 self.assertEqual(missing.status_code, 401)
                 self.assertIn("WWW-Authenticate", missing.headers)
 
+                root = client.get("/", headers={"Authorization": f"Basic {basic_auth}"})
+                self.assertEqual(root.status_code, 200)
+                self.assertIn("Build", root.text)
+
                 page = client.get("/owntracks", headers={"Authorization": f"Basic {basic_auth}"})
                 self.assertEqual(page.status_code, 200)
                 self.assertIn("OwnTracks", page.text)
@@ -83,6 +91,11 @@ class OwnTracksServiceTests(unittest.TestCase):
                 module = client.get("/owntracks/api/module?token=test-token")
                 self.assertEqual(module.status_code, 200)
                 self.assertIn("tables", module.json())
+                self.assertIn("buildLog", module.json()["metadata"])
+
+                build_log = client.get("/owntracks/api/build-log?token=test-token")
+                self.assertEqual(build_log.status_code, 200)
+                self.assertEqual(build_log.json()["currentBuild"], owntracks_main.owntracks_build_summary()["build"])
         finally:
             owntracks_main.HTTP_TOKEN = original_token
 

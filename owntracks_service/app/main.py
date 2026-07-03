@@ -36,6 +36,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
+from .build_log import owntracks_build_log_payload, owntracks_build_summary
+
 
 load_dotenv()
 
@@ -49,6 +51,8 @@ DATABASE_URL = os.getenv("OWNTRACKS_DATABASE_URL", f"sqlite:///{DATA_DIR / 'ownt
 HTTP_TOKEN = (os.getenv("OWNTRACKS_HTTP_TOKEN") or os.getenv("CAR_INFO_APP_TOKEN") or "").strip()
 DEFAULT_TOPIC_USERNAME = os.getenv("OWNTRACKS_HTTP_DEFAULT_USER", "http").strip() or "http"
 DEFAULT_TOPIC_DEVICE = os.getenv("OWNTRACKS_HTTP_DEFAULT_DEVICE", "phone").strip() or "phone"
+OWNTRACKS_PUBLIC_BASE_URL = os.getenv("OWNTRACKS_PUBLIC_BASE_URL", "https://owntracks.lilletorget.net").rstrip("/")
+OWNTRACKS_LEGACY_PUBLIC_BASE_URL = os.getenv("OWNTRACKS_LEGACY_PUBLIC_BASE_URL", "https://online.lilletorget.net/owntracks").rstrip("/")
 
 ZONE_VISIT_BUFFER_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_BUFFER_M", "25")))
 ZONE_VISIT_ACCURACY_CAP_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M", "100")))
@@ -1113,6 +1117,24 @@ OWNTRACKS_ADMIN_HTML = """
       line-height: 1.1;
       letter-spacing: 0;
     }
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .build-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 12px;
+      font-weight: 750;
+    }
     .brand p {
       margin: 6px 0 0;
       color: var(--muted);
@@ -1294,8 +1316,11 @@ OWNTRACKS_ADMIN_HTML = """
   <main class="shell">
     <section class="topbar">
       <div class="brand">
-        <h1>OwnTracks</h1>
-        <p>HTTP-mottak for posisjoner, waypoints og beregnede sonebesok.</p>
+        <div class="brand-title">
+          <h1>OwnTracks</h1>
+          <span class="build-pill" id="buildLabel">Build -</span>
+        </div>
+        <p id="publicUrl">HTTP-mottak for posisjoner, waypoints og beregnede sonebesok.</p>
       </div>
       <div class="actions">
         <select id="hours">
@@ -1327,6 +1352,7 @@ OWNTRACKS_ADMIN_HTML = """
       <article class="card" id="locationsPanel"></article>
       <article class="card" id="waypointsPanel"></article>
       <article class="card" id="eventsPanel"></article>
+      <article class="card" id="buildPanel"></article>
     </section>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1381,13 +1407,19 @@ OWNTRACKS_ADMIN_HTML = """
     function renderMetrics(health, moduleData) {
       const counts = health.counts || {};
       const stateData = health.state || {};
+      const build = moduleData.metadata?.build || health.app || {};
+      const publicInfo = health.public || {};
       const lastCard = (moduleData.cards || []).find(card => card.title === "Siste melding");
+      document.getElementById("buildLabel").textContent = `Build ${build.build || "-"}`;
+      document.getElementById("publicUrl").textContent = publicInfo.publishUrl
+        ? `Publisering: ${publicInfo.publishUrl}`
+        : "HTTP-mottak for posisjoner, waypoints og beregnede sonebesok.";
       document.getElementById("metrics").innerHTML = [
         metric("Status", health.status || "-", health.ingest?.authTokenEnabled ? "Token aktivt" : "Token mangler"),
+        metric("Build", build.build || "-", build.commit && build.commit !== "unknown" ? build.commit : "Egen OwnTracks-build"),
         metric("Meldinger", counts.locations ?? 0, `Lagret: ${stateData.messagesStored ?? 0}, dublett: ${stateData.messagesDuplicate ?? 0}`),
         metric("Enheter", counts.devices ?? 0, "Telefoner/enheter"),
         metric("Waypoints", counts.waypoints ?? 0, "Definerte soner"),
-        metric("Sonebesok", counts.zoneVisits ?? 0, "Beregnet fra posisjoner"),
         metric("Siste melding", lastCard?.value || "-", lastCard?.subtitle || "")
       ].join("");
     }
@@ -1454,6 +1486,12 @@ OWNTRACKS_ADMIN_HTML = """
         { label: "Kilde", key: "sourceMessageType" },
         { label: "Posisjon", render: row => mapsLink(row.lat, row.lon) },
         { label: "Noyaktighet", render: row => `${fmtNum(row.accuracyM)} m` },
+      ]);
+      tablePanel("buildPanel", "Buildlogg", moduleData.metadata?.buildLog?.rows || [], [
+        { label: "Build", key: "build" },
+        { label: "Dato", key: "date" },
+        { label: "Overskrift", key: "headline" },
+        { label: "Endringer", render: row => (row.changes || []).map(esc).join("<br>") },
       ]);
     }
 
@@ -1580,9 +1618,23 @@ def on_startup() -> None:
     normalize_existing_owntracks_data()
 
 
-@app.get("/")
-def root() -> dict[str, Any]:
-    return {"service": "owntracks_service", "health": "/health", "map": "/api/owntracks/map"}
+@app.get("/", response_class=HTMLResponse)
+def root_admin(request: Request) -> HTMLResponse:
+    require_owntracks_admin(request)
+    return HTMLResponse(OWNTRACKS_ADMIN_HTML)
+
+
+@app.get("/service")
+def service_root() -> dict[str, Any]:
+    return {
+        "service": "owntracks_service",
+        "app": owntracks_build_summary(),
+        "health": "/health",
+        "admin": "/",
+        "publish": "/pub",
+        "legacyPublish": "/owntracks/pub",
+        "map": "/owntracks/api/map",
+    }
 
 
 @app.get("/owntracks", response_class=HTMLResponse)
@@ -1604,8 +1656,16 @@ def health_payload() -> dict[str, Any]:
     return {
         "status": "ok",
         "service": "owntracks_service",
+        "app": owntracks_build_summary(),
         "database": "ok",
-        "ingest": {"mode": "http", "path": "/owntracks/pub", "authTokenEnabled": bool(HTTP_TOKEN)},
+        "ingest": {"mode": "http", "path": "/pub", "legacyPath": "/owntracks/pub", "authTokenEnabled": bool(HTTP_TOKEN)},
+        "public": {
+            "baseUrl": OWNTRACKS_PUBLIC_BASE_URL,
+            "publishUrl": f"{OWNTRACKS_PUBLIC_BASE_URL}/pub",
+            "adminUrl": OWNTRACKS_PUBLIC_BASE_URL,
+            "legacyBaseUrl": OWNTRACKS_LEGACY_PUBLIC_BASE_URL,
+            "legacyPublishUrl": f"{OWNTRACKS_LEGACY_PUBLIC_BASE_URL}/pub",
+        },
         "state": STATE.snapshot(),
         "counts": counts,
         "time": iso_dt(utc_now()),
@@ -1623,6 +1683,7 @@ def owntracks_external_health(request: Request) -> dict[str, Any]:
     return health_payload()
 
 
+@app.post("/pub")
 @app.post("/owntracks/pub")
 async def owntracks_http_publish(request: Request) -> list[Any]:
     require_http_token(request)
@@ -1650,6 +1711,12 @@ def api_rebuild() -> dict[str, Any]:
 def owntracks_external_rebuild(request: Request) -> dict[str, Any]:
     require_owntracks_admin(request)
     return api_rebuild()
+
+
+@app.get("/owntracks/api/build-log")
+def owntracks_external_build_log(request: Request) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return owntracks_build_log_payload()
 
 
 @app.get("/api/owntracks/devices")
@@ -1796,9 +1863,9 @@ def api_module() -> dict[str, Any]:
     state = STATE.snapshot()
     return {
         "title": "OwnTracks",
-        "subtitle": "Standalone posisjonstjeneste. Fibaro10 skal senere hente data via API.",
+        "subtitle": "Standalone posisjonstjeneste. Fibaro10 skal hente relevante data via API.",
         "cards": [
-            module_card("HTTP", "Aktiv", "", "/owntracks/pub"),
+            module_card("HTTP", "Aktiv", "", f"{OWNTRACKS_PUBLIC_BASE_URL}/pub"),
             module_card("Enheter", len(devices), "stk", "Siste kjente enheter"),
             module_card("Waypoints", len(waypoints), "stk", "Definerte soner"),
             module_card("Beregnet besok", len(visits), "stk", "Fra posisjoner og waypoint-radius"),
@@ -1813,7 +1880,7 @@ def api_module() -> dict[str, Any]:
             module_table("Siste meldinger", ["receivedAt", "timestamp", "topic", "messageType", "event", "lat", "lon", "accuracyM", "batteryPercent"], [row_location(row) for row in locations]),
         ],
         "actions": [],
-        "metadata": {"state": state},
+        "metadata": {"state": state, "build": owntracks_build_summary(), "buildLog": owntracks_build_log_payload()},
     }
 
 

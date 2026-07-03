@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1414")
+APP_BUILD = os.getenv("APP_BUILD", "1415")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1415",
+        "date": "03.07.2026",
+        "headline": "OwnTracks skilles ut paa eget domene",
+        "title": "OwnTracks faar owntracks.lilletorget.net, egen buildlogg og egen appflate",
+        "description": (
+            "Build 1415 skiller OwnTracks tydeligere ut fra Fibaro10 uten aa bytte database. Tjenesten faar eget "
+            "Caddy-vhost-oppsett for owntracks.lilletorget.net, egen root-side, /pub-endepunkt, egen buildlogg og "
+            "eksplisitt runtime-konfig. Gammel online.lilletorget.net/owntracks-rute beholdes som overgang."
+        ),
+        "applications": [
+            "Caddyfile: legger til owntracks.lilletorget.net og blokkerer uautorisert eksponering av interne /api/owntracks-ruter.",
+            "docker-compose.qnap.yml og .env.qnap.example: legger inn OwnTracks public URL, legacy URL og eget buildnummer.",
+            "owntracks_service/app/main.py: legger root-admin, /pub-alias, public URL-info, buildstatus og buildlogg inn i tjenesten.",
+            "owntracks_service/app/build_log.py: ny egen buildlogg for OwnTracks.",
+            "docs/owntracks-http.md og system_inventory.py: oppdaterer arkitektur, adresser og driftsinformasjon.",
+            "tests/test_owntracks_service.py: dekker ny root-side, /pub og egen buildlogg.",
+        ],
+        "request": "Kjor paa gjor alt unntatt database naa med en gang. Jeg legger inn domenepeker mot samme IP.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny anbefalt OwnTracks URL er https://owntracks.lilletorget.net/pub?token=<token>.",
+            "Administrasjon ligger paa https://owntracks.lilletorget.net/ med tokenbeskyttelse.",
+            "SQLite-datafilen beholdes uendret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1414",

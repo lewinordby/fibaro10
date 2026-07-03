@@ -45,10 +45,10 @@ SYSTEM_COMPONENTS: list[dict[str, Any]] = [
     {
         "component": "owntracks_service",
         "area": "Lokasjon",
-        "role": "Separat FastAPI-tjeneste for OwnTracks HTTP-inntak, lagring, waypoints og sonebesok",
+        "role": "Separat FastAPI-tjeneste paa owntracks.lilletorget.net for OwnTracks HTTP-inntak, lagring, waypoints og sonebesok",
         "runtime": "Docker",
         "compose_service": "owntracks_service",
-        "health": "/health",
+        "health": "https://owntracks.lilletorget.net/health",
         "status": "Aktiv",
         "criticality": "Normal",
     },

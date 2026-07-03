@@ -1,49 +1,77 @@
 # OwnTracks HTTP
 
-OwnTracks er flyttet ut av Fibaro10 og skal publisere direkte til egen HTTP-tjeneste.
+OwnTracks er en separat HTTP-tjeneste ved siden av Fibaro10. Tjenesten tar imot posisjoner, waypoints og transition-hendelser fra OwnTracks-appen, lagrer raadata i egen SQLite-fil og eksponerer et eget administrasjonsgrensesnitt/API.
 
-## Endepunkt
+Databasebytte er ikke gjort i denne revisjonen. SQLite beholdes til mottak, visning og Fibaro10-integrasjon er stabilt.
 
-- Offentlig URL: `https://online.lilletorget.net/owntracks/pub`
-- Lokal tjeneste: `owntracks_service` på port `8128`
-- Health: `http://192.168.20.218:8128/health`
-- Data lagres i `owntracks_service/data/owntracks.db`
+## Primar URL
 
-## Sikkerhet
+- Administrasjon: `https://owntracks.lilletorget.net/`
+- Publisering fra app: `https://owntracks.lilletorget.net/pub?token=<OWNTRACKS_HTTP_TOKEN>`
+- Health: `https://owntracks.lilletorget.net/health`
+- Lokal tjeneste: `owntracks_service` paa port `8128`
+- Datafil: `owntracks_service/data/owntracks.db`
 
-Sett `OWNTRACKS_HTTP_TOKEN` i `.env` på QNAP før endepunktet brukes aktivt. Hvis den mangler, bruker tjenesten
-`CAR_INFO_APP_TOKEN` som fallback.
+`owntracks.lilletorget.net` maa peke til samme offentlige IP som `online.lilletorget.net`.
 
-Tjenesten godtar token på tre måter:
+## Overgangs-URL
 
-- Header: `Authorization: Bearer <token>`
-- Header: `X-OwnTracks-Token: <token>`
-- Basic Auth: valgfritt brukernavn, passord lik token
-- Query: `?token=<token>`
+Gammel URL beholdes midlertidig slik at telefonen ikke slutter aa publisere foer appinnstillinger er endret:
 
-Query-token er enklest å bruke fra mobilapp, men header er bedre dersom appen støtter det.
+- `https://online.lilletorget.net/owntracks`
+- `https://online.lilletorget.net/owntracks/pub?token=<OWNTRACKS_HTTP_TOKEN>`
+
+Ny konfigurasjon skal bruke `owntracks.lilletorget.net`.
 
 ## OwnTracks Android
 
 Bruk HTTP-modus:
 
 - Mode: `HTTP`
-- URL: `https://online.lilletorget.net/owntracks/pub?token=<OWNTRACKS_HTTP_TOKEN>`
-- Device ID: valgfritt, men bruk et stabilt navn
-- Reporting mode: etter behov, for eksempel significant changes eller manual
+- URL: `https://owntracks.lilletorget.net/pub?token=<OWNTRACKS_HTTP_TOKEN>`
+- Device ID: stabilt navn, for eksempel `Lewi`
+- Reporting mode: etter behov, for eksempel `Move` eller `Significant Changes`
+- Publish Waypoints: kan brukes for aa synkronisere waypoints fra telefonen til serveren
 
-## Visning
+Vellykket publisering svarer med tom JSON-array: `[]`. Dette er formatet OwnTracks Android forventer.
 
-Webgrensesnittet ligger her:
+## Sikkerhet
 
-- `https://online.lilletorget.net/owntracks`
+Sett `OWNTRACKS_HTTP_TOKEN` i `.env` paa QNAP. Hvis den mangler, bruker tjenesten `CAR_INFO_APP_TOKEN` som fallback.
 
-Siden og de eksterne `/owntracks/api/...`-endepunktene krever samme token som HTTP-publisering. Nettleseren kan bruke
-Basic Auth: valgfritt brukernavn og token som passord. Alternativt kan token sendes som querystring:
+Tjenesten godtar token paa disse maaten:
 
-- `https://online.lilletorget.net/owntracks?token=<OWNTRACKS_HTTP_TOKEN>`
+- `Authorization: Bearer <token>`
+- `X-OwnTracks-Token: <token>`
+- Basic Auth med valgfritt brukernavn og token som passord
+- Query: `?token=<token>`
 
-## Videre Fibaro10-integrasjon
+Administrasjonssiden og eksterne `/owntracks/api/...`-endepunkter krever samme token. Nettleser kan bruke Basic Auth eller query-token:
 
-Fibaro10 skal ikke lese OwnTracks direkte nå. Når HTTP-tjenesten er verifisert, lager vi et eksplisitt API i
-`owntracks_service` som Fibaro10 kan konsumere.
+- `https://owntracks.lilletorget.net/?token=<OWNTRACKS_HTTP_TOKEN>`
+
+Direkte interne `/api/owntracks/...`-ruter er ikke eksponert via `owntracks.lilletorget.net` i Caddy. Ekstern visning skal bruke de tokenbeskyttede `/owntracks/api/...`-rutene.
+
+## Buildlogg
+
+OwnTracks har egen buildinfo uavhengig av Fibaro10:
+
+- Build vises i administrasjonsgrensesnittet.
+- JSON-endepunkt: `https://owntracks.lilletorget.net/owntracks/api/build-log?token=<OWNTRACKS_HTTP_TOKEN>`
+- Runtime-build settes med `OWNTRACKS_APP_BUILD`.
+- Commit settes fra deploy via `OWNTRACKS_APP_COMMIT`.
+
+## Fibaro10-integrasjon
+
+Fibaro10 skal ikke eie OwnTracks-data. Riktig modell er:
+
+```text
+OwnTracks app
+  -> owntracks.lilletorget.net
+     -> owntracks_service
+        -> egen SQLite-database naa
+        -> PostgreSQL senere
+        -> API til Fibaro10 ved behov
+```
+
+Fibaro10 skal etter hvert hente bare relevante data via API, for eksempel siste besok, aktive soner eller oppsummerte tidsperioder.

@@ -21,6 +21,26 @@ online.lilletorget.net {
 	}
 }
 
+owntracks.lilletorget.net {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	@internal_api path /api/owntracks /api/owntracks/*
+	respond @internal_api "Not found" 404
+
+	reverse_proxy owntracks_service:8128 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
 vedl.lilletorget.net {
 	encode zstd gzip
 
