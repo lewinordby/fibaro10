@@ -522,6 +522,21 @@ export type OwnTracksMapWaypoint = {
   radiusM?: number | null;
 };
 
+export type OwnTracksMapWaypointDefinition = {
+  id: number;
+  topic: string;
+  username?: string | null;
+  device?: string | null;
+  trackerId?: string | null;
+  name: string;
+  waypointId?: string | null;
+  definedAt?: string | null;
+  receivedAt?: string | null;
+  lat: number;
+  lon: number;
+  radiusM?: number | null;
+};
+
 export type OwnTracksMapResponse = {
   generatedAt: string | null;
   hours: number;
@@ -529,6 +544,7 @@ export type OwnTracksMapResponse = {
   locations: OwnTracksMapLocation[];
   devices: OwnTracksMapDevice[];
   waypoints: OwnTracksMapWaypoint[];
+  waypointDefinitions?: OwnTracksMapWaypointDefinition[];
 };
 
 export type ModuleChartSeries = {

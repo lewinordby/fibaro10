@@ -5,8 +5,44 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1403")
+APP_BUILD = os.getenv("APP_BUILD", "1404")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1404",
+        "date": "03.07.2026",
+        "headline": "OwnTracks viser senterpunkt og sonebesøk tydeligere",
+        "title": "Waypoint-sentre skilles fra telefonposisjon og besøk logges ryddigere",
+        "description": (
+            "Build 1404 gjør OwnTracks-feilsøkingen mer presis. Opprettede waypoint-sentre hentes fra rå "
+            "waypoint-definisjoner og markeres separat i kartet, slik at det er lett å se om koordinatene eller radiusen "
+            "er satt feil. Backend bevarer senterpunktet ved inn/ut-hendelser, reparerer tidligere overskrevne senterpunkt "
+            "ved oppstart, de-dupliserer nye waypoint-hendelser og viser sonebesøk med inn, ut og varighet."
+        ),
+        "applications": [
+            "main.py: bevarer og reparerer OwnTracks waypoint-sentre, legger til server-side geofence-toleranse og lager Sonebesøk-tabell.",
+            "desktop_v2/src/pages/OwnTracksPage.tsx: viser opprettede senterpunkt og radius som egen oransje kartserie.",
+            "desktop_v2/src/api.ts: utvider OwnTracks kartkontrakten med waypointDefinitions.",
+            "desktop_v2/src/styles/owntracks.css: legger til kartforklaring for opprettet senterpunkt.",
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: legger til norske kolonnenavn for sonebesøk.",
+            "tests/test_owntracks_waypoints.py: dekker event-aliaser, varighet og paring av inn/ut-hendelser.",
+            "build_log.py: registrerer build 1404.",
+        ],
+        "request": (
+            "OwnTracks loggingen fanger ikke opp alle waypoints. Lag kartvisning der senterpunktet i hver opprettet "
+            "posisjon markeres, og vurder om koordinater/radius kan være feil."
+        ),
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Opprettede waypoint-sentre markeres separat i OwnTracks-kartet.",
+            "Siste sone-status overskriver ikke lenger senterkoordinatene.",
+            "Tidligere overskrevne senterpunkt repareres fra rå waypoint-definisjoner ved oppstart.",
+            "Nye inn/ut-hendelser de-dupliseres slik at transition-meldinger ikke dobbelregistreres med syntetiske events.",
+            "Sonebesøk vises som egen tabell med kom inn, dro ut, varighet og status.",
+            "Server-side geofence-toleranse fanger opp stasjonære/WiFi-posisjoner der OwnTracks sender inregions tomt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1403",

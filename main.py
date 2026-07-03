@@ -242,6 +242,11 @@ OWNTRACKS_MQTT_CLIENT_ID = os.getenv("OWNTRACKS_MQTT_CLIENT_ID", "fibaro10-owntr
 OWNTRACKS_MQTT_KEEPALIVE_SECONDS = max(15, int(os.getenv("OWNTRACKS_MQTT_KEEPALIVE_SECONDS", "60")))
 OWNTRACKS_MQTT_RECONNECT_SECONDS = max(5, int(os.getenv("OWNTRACKS_MQTT_RECONNECT_SECONDS", "15")))
 OWNTRACKS_MQTT_QUEUE_SIZE = max(10, int(os.getenv("OWNTRACKS_MQTT_QUEUE_SIZE", "500")))
+OWNTRACKS_GEOFENCE_BUFFER_M = max(0.0, env_float("OWNTRACKS_GEOFENCE_BUFFER_M", "75"))
+OWNTRACKS_STATIONARY_GEOFENCE_BUFFER_M = max(
+    OWNTRACKS_GEOFENCE_BUFFER_M,
+    env_float("OWNTRACKS_STATIONARY_GEOFENCE_BUFFER_M", "450"),
+)
 owntracks_mqtt_task: Optional[asyncio.Task] = None
 MOBILE_PREVIEW_REFRESH_SECONDS = max(15, int(os.getenv("MOBILE_PREVIEW_REFRESH_SECONDS", "60")))
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
@@ -8173,8 +8178,19 @@ def owntracks_waypoint_name_from_payload(payload: Dict[str, Any]) -> Optional[st
     return None
 
 
-def owntracks_waypoint_state_for_event(event_type: Optional[str]) -> tuple[Optional[str], Optional[bool]]:
+def owntracks_normalized_event_type(event_type: Optional[str]) -> str:
     event = str(event_type or "").strip().lower()
+    if event in {"enter", "entry", "arrive", "arrival", "in"}:
+        return "enter"
+    if event in {"leave", "exit", "depart", "departure", "out"}:
+        return "leave"
+    if event in {"defined", "waypoint"}:
+        return "defined"
+    return event
+
+
+def owntracks_waypoint_state_for_event(event_type: Optional[str]) -> tuple[Optional[str], Optional[bool]]:
+    event = owntracks_normalized_event_type(event_type)
     if event == "enter":
         return "inside", True
     if event == "leave":
@@ -8183,7 +8199,122 @@ def owntracks_waypoint_state_for_event(event_type: Optional[str]) -> tuple[Optio
         return "defined", None
     if event == "inside":
         return "inside", True
+    if event == "outside":
+        return "outside", False
     return None, None
+
+
+def owntracks_visit_event_kind(event_type: Optional[str]) -> Optional[str]:
+    event = owntracks_normalized_event_type(event_type)
+    if event == "enter":
+        return "enter"
+    if event == "leave":
+        return "leave"
+    return None
+
+
+def owntracks_duration_label(start_at: Optional[datetime], end_at: Optional[datetime]) -> str:
+    if not start_at or not end_at:
+        return "-"
+    total_minutes = max(0, int(round((end_at - start_at).total_seconds() / 60)))
+    hours, minutes = divmod(total_minutes, 60)
+    if hours:
+        return f"{hours} t {minutes:02d} min"
+    return f"{minutes} min"
+
+
+def owntracks_waypoint_visit_rows(
+    event_rows: Iterable[OwnTracksWaypointEvent],
+    now_dt: datetime,
+    *,
+    limit: int = 100,
+) -> list[Dict[str, Any]]:
+    ordered_rows = sorted(
+        event_rows,
+        key=lambda row: (row.timestamp or row.received_at or now_dt, row.id or 0),
+    )
+    open_by_key: Dict[tuple[str, str], OwnTracksWaypointEvent] = {}
+    visits: list[Dict[str, Any]] = []
+
+    def event_time(row: OwnTracksWaypointEvent) -> datetime:
+        return row.timestamp or row.received_at or now_dt
+
+    def append_visit(start_row: OwnTracksWaypointEvent, left_at: Optional[datetime]) -> None:
+        entered_at = event_time(start_row)
+        duration_end = left_at or now_dt
+        visits.append(
+            {
+                "waypoint_name": start_row.waypoint_name,
+                "username": start_row.username,
+                "device": start_row.device,
+                "entered_at": entered_at,
+                "left_at": left_at,
+                "duration": owntracks_duration_label(entered_at, duration_end),
+                "status": "Inne nå" if left_at is None else "Avsluttet",
+                "source_message_type": start_row.source_message_type,
+            }
+        )
+
+    for row in ordered_rows:
+        kind = owntracks_visit_event_kind(row.event_type)
+        if not kind:
+            continue
+        key = (row.topic, row.waypoint_name.casefold())
+        if kind == "enter":
+            if key not in open_by_key:
+                open_by_key[key] = row
+            continue
+        start_row = open_by_key.pop(key, None)
+        if start_row:
+            append_visit(start_row, event_time(row))
+
+    for start_row in open_by_key.values():
+        append_visit(start_row, None)
+
+    visits.sort(key=lambda row: row["entered_at"] or now_dt, reverse=True)
+    return visits[:limit]
+
+
+def owntracks_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius_m = 6371000.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    value = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    return 2 * radius_m * math.asin(math.sqrt(value))
+
+
+async def owntracks_inferred_waypoint_names(session, location: OwnTracksLocation) -> list[str]:
+    if location.lat is None or location.lon is None:
+        return []
+    rows = (
+        await session.execute(
+            select(OwnTracksWaypointState)
+            .where(OwnTracksWaypointState.topic == location.topic)
+            .where(OwnTracksWaypointState.lat.isnot(None))
+            .where(OwnTracksWaypointState.lon.isnot(None))
+        )
+    ).scalars().all()
+    names: list[str] = []
+    seen: set[str] = set()
+    raw = location.raw if isinstance(location.raw, dict) else {}
+    is_stationary = str(raw.get("t") or "").strip().lower() == "p" or str(location.connection or "").strip().lower() == "w"
+    configured_buffer = OWNTRACKS_STATIONARY_GEOFENCE_BUFFER_M if is_stationary else OWNTRACKS_GEOFENCE_BUFFER_M
+    accuracy_buffer = max(configured_buffer, float(location.accuracy_m or 0))
+    for row in rows:
+        if row.lat is None or row.lon is None:
+            continue
+        radius_m = float(row.radius_m or 100)
+        distance_m = owntracks_distance_meters(float(location.lat), float(location.lon), float(row.lat), float(row.lon))
+        if distance_m > radius_m + accuracy_buffer:
+            continue
+        key = row.waypoint_name.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        names.append(row.waypoint_name)
+    return names
 
 
 async def upsert_owntracks_waypoint(
@@ -8198,6 +8329,7 @@ async def upsert_owntracks_waypoint(
     create_event: bool = True,
 ) -> OwnTracksWaypointState:
     now_dt = location.received_at or local_now_naive()
+    event_type = owntracks_normalized_event_type(event_type)
     state_value, is_inside = owntracks_waypoint_state_for_event(event_type)
     radius = optional_float(payload.get("rad") or payload.get("radius"))
     existing = (
@@ -8223,9 +8355,10 @@ async def upsert_owntracks_waypoint(
     if event_type:
         existing.last_event = event_type
         existing.last_event_at = location.timestamp or now_dt
-    if location.lat is not None:
+    should_update_center = event_type == "defined" or existing.lat is None or existing.lon is None
+    if should_update_center and location.lat is not None:
         existing.lat = location.lat
-    if location.lon is not None:
+    if should_update_center and location.lon is not None:
         existing.lon = location.lon
     if location.accuracy_m is not None:
         existing.accuracy_m = location.accuracy_m
@@ -8234,28 +8367,60 @@ async def upsert_owntracks_waypoint(
     existing.raw = payload
     existing.updated_at = now_dt
     if create_event:
-        session.add(
-            OwnTracksWaypointEvent(
-                topic=location.topic,
-                username=location.username,
-                device=location.device,
-                tracker_id=location.tracker_id,
-                waypoint_name=waypoint_name,
-                waypoint_id=waypoint_id,
-                event_type=event_type,
-                source_message_type=location.message_type,
-                is_synthetic=is_synthetic,
-                is_inside=is_inside,
-                timestamp=location.timestamp,
-                received_at=now_dt,
-                location_id=location.id,
-                lat=location.lat,
-                lon=location.lon,
-                accuracy_m=location.accuracy_m,
-                radius_m=radius,
-                raw=payload,
+        event_at = location.timestamp or now_dt
+        window_start = event_at - timedelta(seconds=120)
+        window_end = event_at + timedelta(seconds=120)
+        existing_event = (
+            await session.execute(
+                select(OwnTracksWaypointEvent)
+                .where(OwnTracksWaypointEvent.topic == location.topic)
+                .where(OwnTracksWaypointEvent.waypoint_name == waypoint_name)
+                .where(OwnTracksWaypointEvent.event_type == event_type)
+                .where(OwnTracksWaypointEvent.timestamp >= window_start)
+                .where(OwnTracksWaypointEvent.timestamp <= window_end)
+                .order_by(OwnTracksWaypointEvent.is_synthetic.desc(), OwnTracksWaypointEvent.received_at.desc())
+                .limit(1)
             )
-        )
+        ).scalars().first()
+        if existing_event and existing_event.is_synthetic and not is_synthetic:
+            existing_event.username = location.username
+            existing_event.device = location.device
+            existing_event.tracker_id = location.tracker_id
+            existing_event.waypoint_id = waypoint_id or existing_event.waypoint_id
+            existing_event.source_message_type = location.message_type
+            existing_event.is_synthetic = False
+            existing_event.is_inside = is_inside
+            existing_event.timestamp = location.timestamp
+            existing_event.received_at = now_dt
+            existing_event.location_id = location.id
+            existing_event.lat = location.lat
+            existing_event.lon = location.lon
+            existing_event.accuracy_m = location.accuracy_m
+            existing_event.radius_m = radius
+            existing_event.raw = payload
+        elif not existing_event:
+            session.add(
+                OwnTracksWaypointEvent(
+                    topic=location.topic,
+                    username=location.username,
+                    device=location.device,
+                    tracker_id=location.tracker_id,
+                    waypoint_name=waypoint_name,
+                    waypoint_id=waypoint_id,
+                    event_type=event_type,
+                    source_message_type=location.message_type,
+                    is_synthetic=is_synthetic,
+                    is_inside=is_inside,
+                    timestamp=location.timestamp,
+                    received_at=now_dt,
+                    location_id=location.id,
+                    lat=location.lat,
+                    lon=location.lon,
+                    accuracy_m=location.accuracy_m,
+                    radius_m=radius,
+                    raw=payload,
+                )
+            )
     return existing
 
 
@@ -8299,10 +8464,13 @@ async def materialize_owntracks_waypoints(
             )
         return
 
-    if "inregions" not in payload and "inregion" not in payload:
+    has_explicit_regions = "inregions" in payload or "inregion" in payload
+    current_names = owntracks_waypoint_names(regions)
+    if not current_names and location.lat is not None and location.lon is not None:
+        current_names = await owntracks_inferred_waypoint_names(session, location)
+    if not has_explicit_regions and not current_names:
         return
 
-    current_names = owntracks_waypoint_names(regions)
     current_keys = {name.casefold() for name in current_names}
     for waypoint_name in current_names:
         existing = (
@@ -8372,6 +8540,51 @@ async def backfill_owntracks_waypoints_if_empty(limit: int = 50000) -> int:
             await materialize_owntracks_waypoints(session, row, payload, row.regions)
         await session.commit()
         return len(rows)
+
+
+async def repair_owntracks_waypoint_centers() -> int:
+    async with async_session() as session:
+        definition_rows = (
+            await session.execute(
+                select(OwnTracksLocation)
+                .where(OwnTracksLocation.message_type == "waypoint")
+                .where(OwnTracksLocation.lat.isnot(None))
+                .where(OwnTracksLocation.lon.isnot(None))
+                .order_by(OwnTracksLocation.timestamp.asc().nullslast(), OwnTracksLocation.received_at.asc())
+            )
+        ).scalars().all()
+        repaired = 0
+        for row in definition_rows:
+            payload = row.raw if isinstance(row.raw, dict) else {}
+            waypoint_name = owntracks_waypoint_name_from_payload(payload)
+            if not waypoint_name:
+                continue
+            state_row = (
+                await session.execute(
+                    select(OwnTracksWaypointState)
+                    .where(OwnTracksWaypointState.topic == row.topic)
+                    .where(OwnTracksWaypointState.waypoint_name == waypoint_name)
+                )
+            ).scalars().first()
+            if not state_row:
+                continue
+            radius = optional_float(payload.get("rad") or payload.get("radius"))
+            changed = False
+            if state_row.lat != row.lat:
+                state_row.lat = row.lat
+                changed = True
+            if state_row.lon != row.lon:
+                state_row.lon = row.lon
+                changed = True
+            if radius is not None and state_row.radius_m != radius:
+                state_row.radius_m = radius
+                changed = True
+            if changed:
+                state_row.updated_at = local_now_naive()
+                repaired += 1
+        if repaired:
+            await session.commit()
+        return repaired
 
 
 async def record_owntracks_import_status(ok: bool, message: str, raw: Optional[Dict[str, Any]] = None, records_imported: int = 0):
@@ -11600,6 +11813,7 @@ async def startup():
         await seed_energy_circuits(session)
         await session.commit()
     await backfill_owntracks_waypoints_if_empty()
+    await repair_owntracks_waypoint_centers()
     if SVV_SYNC_ENABLED and SVV_API_KEY and svv_sync_task is None:
         svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
     if SUN2_AXIS_SNAPSHOT_LINK_ENABLED and sun2_axis_snapshot_link_task is None:
@@ -24428,6 +24642,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         .limit(100)
                     )
                 ).scalars().all()
+                owntracks_visits = owntracks_waypoint_visit_rows(owntracks_waypoint_events, local_now_naive(), limit=60)
                 latest_device = owntracks_devices[0] if owntracks_devices else None
                 admin_cards = [
                     api_card("HTTP", "Aktiv", "", "Fibaro10-brukere via /owntracks/pub", "status", href="/admin/owntracks"),
@@ -24437,6 +24652,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_card("Datakilde", owntracks_status.get("status_text") if owntracks_status else "Mangler", "", owntracks_status.get("age") if owntracks_status else "Ingen status", "status", href="/admin/datakilder"),
                 ]
                 tables = [
+                    api_table(
+                        "Sonebesøk",
+                        ["waypoint_name", "username", "device", "entered_at", "left_at", "duration", "status", "source_message_type"],
+                        owntracks_visits,
+                    ),
                     api_table(
                         "Waypoints / soner",
                         ["waypoint_name", "username", "device", "last_state", "is_inside", "last_event", "last_seen_at", "last_event_at", "lat", "lon", "accuracy_m"],
@@ -24699,6 +24919,44 @@ async def api_owntracks_map(hours: int = Query(24, ge=0, le=24 * 365), limit: in
                 .order_by(OwnTracksWaypointState.last_seen_at.desc().nullslast(), OwnTracksWaypointState.updated_at.desc())
             )
         ).scalars().all()
+        waypoint_definition_rows = (
+            await session.execute(
+                select(OwnTracksLocation)
+                .where(OwnTracksLocation.message_type == "waypoint")
+                .where(OwnTracksLocation.lat.isnot(None))
+                .where(OwnTracksLocation.lon.isnot(None))
+                .order_by(OwnTracksLocation.received_at.desc())
+                .limit(500)
+            )
+        ).scalars().all()
+
+    waypoint_definitions = []
+    seen_definitions: set[tuple[str, str]] = set()
+    for row in waypoint_definition_rows:
+        payload = row.raw if isinstance(row.raw, dict) else {}
+        name = owntracks_waypoint_name_from_payload(payload)
+        if not name:
+            continue
+        key = (row.topic, name.casefold())
+        if key in seen_definitions:
+            continue
+        seen_definitions.add(key)
+        waypoint_definitions.append(
+            {
+                "id": row.id,
+                "topic": row.topic,
+                "username": row.username,
+                "device": row.device,
+                "trackerId": row.tracker_id,
+                "name": name,
+                "waypointId": payload.get("_id") or payload.get("rid"),
+                "definedAt": api_local_iso(row.timestamp),
+                "receivedAt": api_local_iso(row.received_at),
+                "lat": row.lat,
+                "lon": row.lon,
+                "radiusM": optional_float(payload.get("rad") or payload.get("radius")),
+            }
+        )
 
     return {
         "generatedAt": api_local_iso(now_dt),
@@ -24767,6 +25025,7 @@ async def api_owntracks_map(hours: int = Query(24, ge=0, le=24 * 365), limit: in
             }
             for row in waypoints
         ],
+        "waypointDefinitions": waypoint_definitions,
     }
 
 

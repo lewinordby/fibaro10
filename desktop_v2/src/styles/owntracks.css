@@ -319,6 +319,11 @@
   background: var(--surface);
 }
 
+.owntracks-map-legend .waypoint-center {
+  border: 2px dashed #f97316;
+  background: #f97316;
+}
+
 @media (max-width: 900px) {
   .owntracks-map-card .ant-card-head {
     align-items: flex-start;

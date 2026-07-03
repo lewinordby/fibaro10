@@ -11,6 +11,7 @@ import {
   type OwnTracksMapLocation,
   type OwnTracksMapResponse,
   type OwnTracksMapWaypoint,
+  type OwnTracksMapWaypointDefinition,
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { TableSearch } from "../components/TableSearch";
@@ -97,6 +98,19 @@ function waypointPopup(waypoint: OwnTracksMapWaypoint) {
   </section>`;
 }
 
+function waypointDefinitionPopup(waypoint: OwnTracksMapWaypointDefinition) {
+  return `<section class="owntracks-popup">
+    <h4>${escapeHtml(waypoint.name)}</h4>
+    ${popupRows([
+      ["Type", "Opprettet senterpunkt"],
+      ["Enhet", displayName(waypoint)],
+      ["Opprettet", shortDateTime(waypoint.definedAt || waypoint.receivedAt)],
+      ["Radius", waypoint.radiusM != null ? `${decimal(waypoint.radiusM, 0)} m` : null],
+      ["Lat/lon", `${decimal(waypoint.lat, 6)}, ${decimal(waypoint.lon, 6)}`],
+    ])}
+  </section>`;
+}
+
 function topicColor(topic: string, index: number) {
   let hash = 0;
   for (const char of topic) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
@@ -163,6 +177,31 @@ function OwnTracksMap({ data }: { data: OwnTracksMapResponse }) {
         marker.addTo(root);
         bounds.extend([point.lat, point.lon]);
       });
+    });
+
+    (data.waypointDefinitions ?? []).forEach((waypoint) => {
+      if (!Number.isFinite(waypoint.lat) || !Number.isFinite(waypoint.lon)) return;
+      const color = "#f97316";
+      if (waypoint.radiusM && waypoint.radiusM > 0) {
+        L.circle([waypoint.lat, waypoint.lon], {
+          radius: waypoint.radiusM,
+          color,
+          dashArray: "5 5",
+          fillColor: color,
+          fillOpacity: 0.04,
+          weight: 1.6,
+        }).addTo(root);
+      }
+      L.circleMarker([waypoint.lat, waypoint.lon], {
+        radius: 5,
+        color,
+        fillColor: color,
+        fillOpacity: 0.95,
+        weight: 2,
+      })
+        .bindPopup(waypointDefinitionPopup(waypoint))
+        .addTo(root);
+      bounds.extend([waypoint.lat, waypoint.lon]);
     });
 
     data.waypoints.forEach((waypoint) => {
@@ -292,7 +331,7 @@ export default function OwnTracksPage() {
       >
         <div className="owntracks-map-meta">
           <Typography.Text type="secondary">
-            {mapQuery.data.locations.length} {positionLabel} · {mapQuery.data.devices.length} enheter · {mapQuery.data.waypoints.length} waypoints
+            {mapQuery.data.locations.length} {positionLabel} · {mapQuery.data.devices.length} enheter · {mapQuery.data.waypoints.length} waypoints · {mapQuery.data.waypointDefinitions?.length ?? 0} senterpunkt
           </Typography.Text>
           <Typography.Text type="secondary">Sist oppdatert {generatedLabel}</Typography.Text>
         </div>
@@ -301,6 +340,7 @@ export default function OwnTracksPage() {
           <span><i className="track" /> Spor og meldinger</span>
           <span><i className="device" /> Siste posisjon</span>
           <span><i className="waypoint" /> Waypoint</span>
+          <span><i className="waypoint-center" /> Opprettet senterpunkt</span>
         </div>
       </Card>
 
