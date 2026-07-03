@@ -128,7 +128,6 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "build", label: "Buildlogg" },
     { key: "datakilder", label: "Datakilder" },
     { key: "systemkart", label: "Systemkart" },
-    { key: "owntracks", label: "OwnTracks" },
     { key: "ai", label: "AI" },
     { key: "teknisk", label: "Teknisk" },
     { key: "brukere", label: "Brukere" },

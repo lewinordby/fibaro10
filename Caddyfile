@@ -12,11 +12,8 @@ online.lilletorget.net {
 		-Server
 	}
 
-	@owntracks_mqtt path /mqtt /mqtt/*
-	reverse_proxy @owntracks_mqtt owntracks_mqtt:9001
-
 	@owntracks_http path /owntracks /owntracks/*
-	reverse_proxy @owntracks_http fibaro10:8110
+	reverse_proxy @owntracks_http owntracks_service:8128
 
 	reverse_proxy online_dashboard:8111 {
 		header_up Host {host}

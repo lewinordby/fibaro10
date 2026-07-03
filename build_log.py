@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1406")
+APP_BUILD = os.getenv("APP_BUILD", "1407")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1407",
+        "date": "03.07.2026",
+        "headline": "OwnTracks flyttes ut av Fibaro10 som ren HTTP-tjeneste",
+        "title": "Egen applikasjonsserver for OwnTracks etableres uten MQTT-broker",
+        "description": (
+            "Build 1407 tar OwnTracks ut av Fibaro10 sin runtime og legger inn en separat FastAPI-tjeneste. "
+            "Den nye tjenesten tar imot HTTP-publisering, lagrer data i egen SQLite-database "
+            "og eksponerer egne API-endepunkter for en senere kontrollert integrasjon tilbake til Fibaro10."
+        ),
+        "applications": [
+            "owntracks_service: ny FastAPI-app med HTTP-inntak, egen lagring, waypoint-tolkning og sonebesok.",
+            "main.py: fjerner OwnTracks-modeller, worker, startup-opprydding, adminvisning og API-ruter fra Fibaro10.",
+            "desktop_v2: fjerner OwnTracks adminside, route, API-typer og CSS fra Fibaro10-grensesnittet.",
+            "docker-compose.qnap.yml og Caddyfile: legger til owntracks_service og ruter /owntracks dit.",
+            "scripts/deploy-qnap.ps1: tar backup av owntracks_service/data, fjerner gammel broker-container og deployer ny tjeneste.",
+        ],
+        "request": "Fjern alt med OwnTracks i Fibaro10. Bygg forst serveren pa utsiden; nar den fungerer lager vi API som Fibaro10 kan hente fra.",
+        "work_duration": "ca. 60 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Fibaro10 abonnerer ikke lenger pa OwnTracks MQTT.",
+            "OwnTracks adminside og API-ruter er fjernet fra Fibaro10.",
+            "Ny standalone tjeneste eier datainntak, lagring og beregning.",
+            "Caddy sender /owntracks til standalone-tjenesten.",
+            "Mosquitto-broker og MQTT-websocket-rute er fjernet fra deploy-oppsettet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1406",

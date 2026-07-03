@@ -8,7 +8,7 @@ def test_system_inventory_contains_core_components():
     assert "fibaro10" in names
     assert "desktop_v2" in names
     assert "online_dashboard" in names
-    assert "owntracks_mqtt" in names
+    assert "owntracks_service" in names
 
 
 def test_system_inventory_summary_counts_rows():

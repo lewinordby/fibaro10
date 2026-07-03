@@ -14,7 +14,6 @@ export const queryKeys = {
   revenueMonth: (month = "") => ["revenue", "month", month] as const,
   statusComparison: (period: string, compare: string, anchor: string, references = "") =>
     ["status", "comparison", period, compare, anchor, references] as const,
-  ownTracksMap: (hours: number, limit: number) => ["owntracks", "map", hours, limit] as const,
   sunYearComparison: (year: string) => ["sun", "year-comparison", year] as const,
   parkingYearComparison: (year: string) => ["parking", "year-comparison", year] as const,
   revenueYearComparison: (year: string) => ["revenue", "year-comparison", year] as const,

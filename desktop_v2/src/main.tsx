@@ -35,7 +35,6 @@ import "./styles/records-settlements.css";
 import "./styles/settlement-detail.css";
 import "./styles/sun-settlements.css";
 import "./styles/mobile-preview.css";
-import "./styles/owntracks.css";
 import "./styles/responsive.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

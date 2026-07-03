@@ -465,119 +465,6 @@ export type ModuleTable = {
   };
 };
 
-export type OwnTracksMapLocation = {
-  id: number;
-  topic: string;
-  username?: string | null;
-  device?: string | null;
-  trackerId?: string | null;
-  messageType?: string | null;
-  event?: string | null;
-  timestamp?: string | null;
-  receivedAt?: string | null;
-  lat: number;
-  lon: number;
-  accuracyM?: number | null;
-  batteryPercent?: number | null;
-  connection?: string | null;
-  velocityKmh?: number | null;
-  altitudeM?: number | null;
-  regions?: unknown;
-};
-
-export type OwnTracksMapDevice = {
-  id: number;
-  topic: string;
-  username?: string | null;
-  device?: string | null;
-  trackerId?: string | null;
-  lastSeenAt?: string | null;
-  lastReceivedAt?: string | null;
-  lastMessageType?: string | null;
-  lastEvent?: string | null;
-  lat: number;
-  lon: number;
-  accuracyM?: number | null;
-  batteryPercent?: number | null;
-  connection?: string | null;
-  regions?: unknown;
-};
-
-export type OwnTracksMapWaypoint = {
-  id: number;
-  topic: string;
-  username?: string | null;
-  device?: string | null;
-  trackerId?: string | null;
-  name: string;
-  waypointId?: string | null;
-  state?: string | null;
-  isInside?: boolean | null;
-  lastEvent?: string | null;
-  lastSeenAt?: string | null;
-  lastEventAt?: string | null;
-  lat: number;
-  lon: number;
-  accuracyM?: number | null;
-  radiusM?: number | null;
-};
-
-export type OwnTracksMapWaypointDefinition = {
-  id: number;
-  topic: string;
-  username?: string | null;
-  device?: string | null;
-  trackerId?: string | null;
-  name: string;
-  waypointId?: string | null;
-  definedAt?: string | null;
-  receivedAt?: string | null;
-  lat: number;
-  lon: number;
-  radiusM?: number | null;
-};
-
-export type OwnTracksMapZoneVisit = {
-  id: number;
-  topic: string;
-  username?: string | null;
-  device?: string | null;
-  trackerId?: string | null;
-  name: string;
-  waypointId?: string | null;
-  status: "open" | "closed" | string;
-  source?: string | null;
-  confidence?: number | null;
-  startedAt?: string | null;
-  endedAt?: string | null;
-  lastInsideAt?: string | null;
-  durationSeconds?: number | null;
-  startLat?: number | null;
-  startLon?: number | null;
-  startAccuracyM?: number | null;
-  startDistanceM?: number | null;
-  endLat?: number | null;
-  endLon?: number | null;
-  endAccuracyM?: number | null;
-  endDistanceM?: number | null;
-  lastLat?: number | null;
-  lastLon?: number | null;
-  lastAccuracyM?: number | null;
-  lastDistanceM?: number | null;
-  radiusM?: number | null;
-};
-
-export type OwnTracksMapResponse = {
-  generatedAt: string | null;
-  hours: number;
-  limit: number;
-  locations: OwnTracksMapLocation[];
-  devices: OwnTracksMapDevice[];
-  waypoints: OwnTracksMapWaypoint[];
-  waypointDefinitions?: OwnTracksMapWaypointDefinition[];
-  zoneVisits?: OwnTracksMapZoneVisit[];
-};
-
 export type ModuleChartSeries = {
   name: string;
   data: Array<number | null | [string, number | null]>;
@@ -1285,11 +1172,6 @@ export function fetchStatusComparison(
   if (references) queryParams.set("references", references);
   const query = queryParams.toString();
   return apiGet<StatusComparisonResponse>(`/api/status/comparison?${query}`);
-}
-
-export function fetchOwnTracksMap(hours = 24, limit = 2000): Promise<OwnTracksMapResponse> {
-  const query = new URLSearchParams({ hours: String(hours), limit: String(limit) }).toString();
-  return apiGet<OwnTracksMapResponse>(`/api/owntracks/map?${query}`);
 }
 
 export function fetchSunYearComparison(year?: string | null): Promise<SunYearComparisonResponse> {

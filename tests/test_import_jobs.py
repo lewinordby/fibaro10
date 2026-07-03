@@ -11,7 +11,6 @@ def test_core_import_jobs_are_defined():
         "hc3_energy_1min",
         "easypark_parking_import",
         "sun2_sessions_import",
-        "owntracks_mqtt",
         "parking_vehicle_svv_sync",
     ):
         definition = IMPORT_JOB_DEFINITIONS[job_name]

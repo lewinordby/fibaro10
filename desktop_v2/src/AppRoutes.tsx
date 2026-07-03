@@ -11,7 +11,6 @@ const OperationsPage = lazy(() => import("./pages/OperationsPage"));
 const DataSourceDetailPage = lazy(() => import("./pages/DataSourceDetailPage"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
-const OwnTracksPage = lazy(() => import("./pages/OwnTracksPage"));
 const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
 const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
@@ -92,7 +91,6 @@ export function AppRoutes() {
         <Route path="/admin/datakilder/:jobName" element={<DataSourceDetailPage />} />
         <Route path="/admin/build" element={<BuildLogPage />} />
         <Route path="/admin/build/:build" element={<BuildDetailPage />} />
-        <Route path="/admin/owntracks" element={<OwnTracksPage />} />
         <Route path="/admin/:view" element={<ModulePage module="admin" />} />
         <Route
           path="*"

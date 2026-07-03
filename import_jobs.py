@@ -41,14 +41,6 @@ IMPORT_JOB_DEFINITIONS = {
         "warning_after_minutes": 30,
         "description": "Robotstatus, planlagte jobber og siste lokale/cloud-data.",
     },
-    "owntracks_mqtt": {
-        "title": "OwnTracks MQTT",
-        "category": "Mobil",
-        "source": "Mosquitto",
-        "expected_interval_minutes": 30,
-        "warning_after_minutes": 120,
-        "description": "Siste posisjonsmelding fra OwnTracks via intern MQTT-broker.",
-    },
     "sun2_daily_download": {
         "title": "Sun2 dagsfil nedlasting",
         "category": "Soling",
@@ -196,10 +188,6 @@ IMPORT_JOB_DETAILS = {
     "roborock_sync": {
         "data_flow": "Roborock-loggeren på QNAP henter robotstatus, jobber, kart og vedlikeholdsdata og poster resultatet til Fibaro10. Fibaro10 lagrer status og viser renholdsdata i drift/admin.",
         "dependencies": ["roborock_logger", "Roborock cloud/lokal robot", "Fibaro10 API", "PostgreSQL"],
-    },
-    "owntracks_mqtt": {
-        "data_flow": "OwnTracks publiserer posisjoner og waypoint-hendelser til Mosquitto. Fibaro10 abonnerer på MQTT-topicene og lagrer både råposisjoner og egne waypoint-tabeller.",
-        "dependencies": ["OwnTracks app", "Mosquitto MQTT", "Fibaro10 MQTT-worker", "PostgreSQL"],
     },
     "sun2_daily_download": {
         "data_flow": "Sun2 backfill/downloader laster ned dagsfil fra Sun2 og legger filgrunnlaget klart for import. Dette er kildefilen for daglige romsummer.",
