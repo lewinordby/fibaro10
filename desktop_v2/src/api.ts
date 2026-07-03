@@ -537,6 +537,36 @@ export type OwnTracksMapWaypointDefinition = {
   radiusM?: number | null;
 };
 
+export type OwnTracksMapZoneVisit = {
+  id: number;
+  topic: string;
+  username?: string | null;
+  device?: string | null;
+  trackerId?: string | null;
+  name: string;
+  waypointId?: string | null;
+  status: "open" | "closed" | string;
+  source?: string | null;
+  confidence?: number | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  lastInsideAt?: string | null;
+  durationSeconds?: number | null;
+  startLat?: number | null;
+  startLon?: number | null;
+  startAccuracyM?: number | null;
+  startDistanceM?: number | null;
+  endLat?: number | null;
+  endLon?: number | null;
+  endAccuracyM?: number | null;
+  endDistanceM?: number | null;
+  lastLat?: number | null;
+  lastLon?: number | null;
+  lastAccuracyM?: number | null;
+  lastDistanceM?: number | null;
+  radiusM?: number | null;
+};
+
 export type OwnTracksMapResponse = {
   generatedAt: string | null;
   hours: number;
@@ -545,6 +575,7 @@ export type OwnTracksMapResponse = {
   devices: OwnTracksMapDevice[];
   waypoints: OwnTracksMapWaypoint[];
   waypointDefinitions?: OwnTracksMapWaypointDefinition[];
+  zoneVisits?: OwnTracksMapZoneVisit[];
 };
 
 export type ModuleChartSeries = {

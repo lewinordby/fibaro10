@@ -12,6 +12,7 @@ import {
   type OwnTracksMapResponse,
   type OwnTracksMapWaypoint,
   type OwnTracksMapWaypointDefinition,
+  type OwnTracksMapZoneVisit,
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { TableSearch } from "../components/TableSearch";
@@ -107,6 +108,32 @@ function waypointDefinitionPopup(waypoint: OwnTracksMapWaypointDefinition) {
       ["Opprettet", shortDateTime(waypoint.definedAt || waypoint.receivedAt)],
       ["Radius", waypoint.radiusM != null ? `${decimal(waypoint.radiusM, 0)} m` : null],
       ["Lat/lon", `${decimal(waypoint.lat, 6)}, ${decimal(waypoint.lon, 6)}`],
+    ])}
+  </section>`;
+}
+
+function durationLabel(seconds?: number | null) {
+  if (seconds == null || !Number.isFinite(seconds)) return null;
+  const minutes = Math.max(0, Math.round(seconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} t ${rest} min` : `${hours} t`;
+}
+
+function zoneVisitPopup(visit: OwnTracksMapZoneVisit, markerKind: "kom" | "gikk" | "spor") {
+  return `<section class="owntracks-popup">
+    <h4>${escapeHtml(visit.name)}</h4>
+    ${popupRows([
+      ["Punkt", markerKind === "kom" ? "Kom inn" : markerKind === "gikk" ? "Gikk ut" : "Beregnet besøk"],
+      ["Status", visit.status === "open" ? "Inne nå" : "Avsluttet"],
+      ["Kom", shortDateTime(visit.startedAt)],
+      ["Gikk", shortDateTime(visit.endedAt)],
+      ["Varighet", durationLabel(visit.durationSeconds)],
+      ["Start avstand", visit.startDistanceM != null ? `${decimal(visit.startDistanceM, 0)} m` : null],
+      ["Slutt avstand", visit.endDistanceM != null ? `${decimal(visit.endDistanceM, 0)} m` : null],
+      ["Tillit", visit.confidence != null ? `${decimal(visit.confidence * 100, 0)}%` : null],
+      ["Kilde", visit.source],
     ])}
   </section>`;
 }
@@ -228,6 +255,51 @@ function OwnTracksMap({ data }: { data: OwnTracksMapResponse }) {
       bounds.extend([waypoint.lat, waypoint.lon]);
     });
 
+    (data.zoneVisits ?? []).forEach((visit) => {
+      const hasStart = Number.isFinite(visit.startLat) && Number.isFinite(visit.startLon);
+      const hasEnd = Number.isFinite(visit.endLat) && Number.isFinite(visit.endLon);
+      const hasLast = Number.isFinite(visit.lastLat) && Number.isFinite(visit.lastLon);
+      const color = visit.status === "open" ? "#16a34a" : "#0f766e";
+      if (hasStart && (hasEnd || hasLast)) {
+        const endLat = hasEnd ? Number(visit.endLat) : Number(visit.lastLat);
+        const endLon = hasEnd ? Number(visit.endLon) : Number(visit.lastLon);
+        L.polyline(
+          [
+            [Number(visit.startLat), Number(visit.startLon)],
+            [endLat, endLon],
+          ],
+          { color, weight: 4, opacity: 0.75, dashArray: visit.status === "open" ? "8 5" : undefined },
+        )
+          .bindPopup(zoneVisitPopup(visit, "spor"))
+          .addTo(root);
+        bounds.extend([endLat, endLon]);
+      }
+      if (hasStart) {
+        L.circleMarker([Number(visit.startLat), Number(visit.startLon)], {
+          radius: 7,
+          color: "#15803d",
+          fillColor: "#dcfce7",
+          fillOpacity: 0.95,
+          weight: 2,
+        })
+          .bindPopup(zoneVisitPopup(visit, "kom"))
+          .addTo(root);
+        bounds.extend([Number(visit.startLat), Number(visit.startLon)]);
+      }
+      if (hasEnd) {
+        L.circleMarker([Number(visit.endLat), Number(visit.endLon)], {
+          radius: 7,
+          color: "#b91c1c",
+          fillColor: "#fee2e2",
+          fillOpacity: 0.95,
+          weight: 2,
+        })
+          .bindPopup(zoneVisitPopup(visit, "gikk"))
+          .addTo(root);
+        bounds.extend([Number(visit.endLat), Number(visit.endLon)]);
+      }
+    });
+
     data.devices.forEach((device, index) => {
       if (!Number.isFinite(device.lat) || !Number.isFinite(device.lon)) return;
       const color = topicColor(device.topic, index);
@@ -333,6 +405,7 @@ export default function OwnTracksPage() {
           <Typography.Text type="secondary">
             {mapQuery.data.locations.length} {positionLabel} · {mapQuery.data.devices.length} enheter · {mapQuery.data.waypoints.length} waypoints · {mapQuery.data.waypointDefinitions?.length ?? 0} senterpunkt
           </Typography.Text>
+          <Typography.Text type="secondary">{mapQuery.data.zoneVisits?.length ?? 0} beregnede besøk</Typography.Text>
           <Typography.Text type="secondary">Sist oppdatert {generatedLabel}</Typography.Text>
         </div>
         <OwnTracksMap data={mapQuery.data} />
@@ -341,6 +414,7 @@ export default function OwnTracksPage() {
           <span><i className="device" /> Siste posisjon</span>
           <span><i className="waypoint" /> Waypoint</span>
           <span><i className="waypoint-center" /> Opprettet senterpunkt</span>
+          <span><i className="zone-visit" /> Beregnet besøk</span>
         </div>
       </Card>
 

@@ -324,6 +324,11 @@
   background: #f97316;
 }
 
+.owntracks-map-legend .zone-visit {
+  border: 2px solid #0f766e;
+  background: #dcfce7;
+}
+
 @media (max-width: 900px) {
   .owntracks-map-card .ant-card-head {
     align-items: flex-start;

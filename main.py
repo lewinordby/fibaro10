@@ -247,6 +247,11 @@ OWNTRACKS_STATIONARY_GEOFENCE_BUFFER_M = max(
     OWNTRACKS_GEOFENCE_BUFFER_M,
     env_float("OWNTRACKS_STATIONARY_GEOFENCE_BUFFER_M", "450"),
 )
+OWNTRACKS_ZONE_VISIT_BUFFER_M = max(0.0, env_float("OWNTRACKS_ZONE_VISIT_BUFFER_M", "25"))
+OWNTRACKS_ZONE_VISIT_STATIONARY_BUFFER_M = max(
+    OWNTRACKS_ZONE_VISIT_BUFFER_M,
+    env_float("OWNTRACKS_ZONE_VISIT_STATIONARY_BUFFER_M", "450"),
+)
 owntracks_mqtt_task: Optional[asyncio.Task] = None
 MOBILE_PREVIEW_REFRESH_SECONDS = max(15, int(os.getenv("MOBILE_PREVIEW_REFRESH_SECONDS", "60")))
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
@@ -734,6 +739,46 @@ class OwnTracksWaypointEvent(Base):
     accuracy_m = Column(Float, nullable=True)
     radius_m = Column(Float, nullable=True)
     raw = Column(JSON, nullable=True)
+
+
+class OwnTracksZoneVisit(Base):
+    __tablename__ = "owntracks_zone_visits"
+    __table_args__ = (
+        UniqueConstraint("topic", "waypoint_name", "started_at", name="uq_owntracks_zone_visits_topic_name_start"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String, index=True, nullable=False)
+    username = Column(String, index=True, nullable=True)
+    device = Column(String, index=True, nullable=True)
+    tracker_id = Column(String, index=True, nullable=True)
+    waypoint_name = Column(String, index=True, nullable=False)
+    waypoint_id = Column(String, index=True, nullable=True)
+    status = Column(String, index=True, nullable=False, default="open")
+    source = Column(String, index=True, nullable=False, default="fibaro10_location")
+    confidence = Column(Float, nullable=True)
+    started_at = Column(DateTime, nullable=False, index=True)
+    ended_at = Column(DateTime, nullable=True, index=True)
+    last_inside_at = Column(DateTime, nullable=True, index=True)
+    duration_seconds = Column(Float, nullable=True)
+    start_location_id = Column(Integer, ForeignKey("owntracks_locations.id", ondelete="SET NULL"), nullable=True, index=True)
+    end_location_id = Column(Integer, ForeignKey("owntracks_locations.id", ondelete="SET NULL"), nullable=True, index=True)
+    last_location_id = Column(Integer, ForeignKey("owntracks_locations.id", ondelete="SET NULL"), nullable=True, index=True)
+    start_lat = Column(Float, nullable=True)
+    start_lon = Column(Float, nullable=True)
+    start_accuracy_m = Column(Float, nullable=True)
+    start_distance_m = Column(Float, nullable=True)
+    end_lat = Column(Float, nullable=True)
+    end_lon = Column(Float, nullable=True)
+    end_accuracy_m = Column(Float, nullable=True)
+    end_distance_m = Column(Float, nullable=True)
+    last_lat = Column(Float, nullable=True)
+    last_lon = Column(Float, nullable=True)
+    last_accuracy_m = Column(Float, nullable=True)
+    last_distance_m = Column(Float, nullable=True)
+    radius_m = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class RoborockRobot(Base):
@@ -3685,6 +3730,21 @@ PERFORMANCE_INDEXES = [
         "ix_owntracks_waypoint_events_name_time",
         "CREATE INDEX IF NOT EXISTS ix_owntracks_waypoint_events_name_time "
         "ON owntracks_waypoint_events (waypoint_name, timestamp DESC)",
+    ),
+    (
+        "ix_owntracks_zone_visits_topic_started",
+        "CREATE INDEX IF NOT EXISTS ix_owntracks_zone_visits_topic_started "
+        "ON owntracks_zone_visits (topic, started_at DESC)",
+    ),
+    (
+        "ix_owntracks_zone_visits_name_started",
+        "CREATE INDEX IF NOT EXISTS ix_owntracks_zone_visits_name_started "
+        "ON owntracks_zone_visits (waypoint_name, started_at DESC)",
+    ),
+    (
+        "ix_owntracks_zone_visits_open",
+        "CREATE INDEX IF NOT EXISTS ix_owntracks_zone_visits_open "
+        "ON owntracks_zone_visits (topic, waypoint_name, status)",
     ),
     (
         "ix_parkering_plate_start",
@@ -8317,6 +8377,195 @@ async def owntracks_inferred_waypoint_names(session, location: OwnTracksLocation
     return names
 
 
+def owntracks_location_event_time(location: OwnTracksLocation) -> datetime:
+    return location.timestamp or location.received_at or local_now_naive()
+
+
+def owntracks_location_is_stationary(location: OwnTracksLocation) -> bool:
+    raw = location.raw if isinstance(location.raw, dict) else {}
+    trigger = str(raw.get("t") or "").strip().lower()
+    connection = str(location.connection or "").strip().lower()
+    return trigger == "p" or connection == "w"
+
+
+def owntracks_zone_visit_match(
+    *,
+    distance_m: float,
+    radius_m: float,
+    accuracy_m: Optional[float],
+    is_stationary: bool,
+) -> tuple[bool, str, float]:
+    if distance_m <= radius_m:
+        return True, "fibaro10_radius", 1.0
+    buffer_m = OWNTRACKS_ZONE_VISIT_STATIONARY_BUFFER_M if is_stationary else OWNTRACKS_ZONE_VISIT_BUFFER_M
+    buffer_m = max(buffer_m, float(accuracy_m or 0))
+    overflow_m = distance_m - radius_m
+    if overflow_m > buffer_m:
+        return False, "outside", 0.0
+    confidence = max(0.35, min(0.95, 1.0 - (overflow_m / max(buffer_m, 1.0)) * 0.55))
+    source = "fibaro10_stationary_buffer" if is_stationary else "fibaro10_accuracy_buffer"
+    return True, source, confidence
+
+
+def owntracks_update_zone_visit_position(
+    visit: OwnTracksZoneVisit,
+    location: OwnTracksLocation,
+    *,
+    distance_m: float,
+    radius_m: float,
+    source: str,
+    confidence: float,
+    prefix: str,
+) -> None:
+    setattr(visit, f"{prefix}_location_id", location.id)
+    setattr(visit, f"{prefix}_lat", location.lat)
+    setattr(visit, f"{prefix}_lon", location.lon)
+    setattr(visit, f"{prefix}_accuracy_m", location.accuracy_m)
+    setattr(visit, f"{prefix}_distance_m", round(distance_m, 2))
+    visit.last_location_id = location.id
+    visit.last_lat = location.lat
+    visit.last_lon = location.lon
+    visit.last_accuracy_m = location.accuracy_m
+    visit.last_distance_m = round(distance_m, 2)
+    visit.radius_m = radius_m
+    visit.source = source
+    visit.confidence = confidence if visit.confidence is None else min(float(visit.confidence), confidence)
+
+
+async def materialize_owntracks_zone_visits_for_location(session, location: OwnTracksLocation) -> None:
+    if location.lat is None or location.lon is None:
+        return
+    message_type = str(location.message_type or "").strip().lower()
+    if message_type in {"waypoint", "waypoints", "status"}:
+        return
+    event_at = owntracks_location_event_time(location)
+    is_stationary = owntracks_location_is_stationary(location)
+    waypoint_rows = (
+        await session.execute(
+            select(OwnTracksWaypointState)
+            .where(OwnTracksWaypointState.topic == location.topic)
+            .where(OwnTracksWaypointState.lat.isnot(None))
+            .where(OwnTracksWaypointState.lon.isnot(None))
+        )
+    ).scalars().all()
+    if not waypoint_rows:
+        return
+    open_rows = (
+        await session.execute(
+            select(OwnTracksZoneVisit)
+            .where(OwnTracksZoneVisit.topic == location.topic)
+            .where(OwnTracksZoneVisit.status == "open")
+        )
+    ).scalars().all()
+    open_by_name = {row.waypoint_name.casefold(): row for row in open_rows}
+
+    seen_waypoints: set[str] = set()
+    for waypoint in waypoint_rows:
+        if waypoint.lat is None or waypoint.lon is None:
+            continue
+        waypoint_key = waypoint.waypoint_name.casefold()
+        if waypoint_key in seen_waypoints:
+            continue
+        seen_waypoints.add(waypoint_key)
+        radius_m = float(waypoint.radius_m or 100)
+        distance_m = owntracks_distance_meters(float(location.lat), float(location.lon), float(waypoint.lat), float(waypoint.lon))
+        inside, source, confidence = owntracks_zone_visit_match(
+            distance_m=distance_m,
+            radius_m=radius_m,
+            accuracy_m=location.accuracy_m,
+            is_stationary=is_stationary,
+        )
+        open_visit = open_by_name.get(waypoint_key)
+        if inside:
+            if not open_visit:
+                existing_visit = (
+                    await session.execute(
+                        select(OwnTracksZoneVisit)
+                        .where(OwnTracksZoneVisit.topic == location.topic)
+                        .where(OwnTracksZoneVisit.waypoint_name == waypoint.waypoint_name)
+                        .where(OwnTracksZoneVisit.started_at == event_at)
+                    )
+                ).scalars().first()
+                open_visit = existing_visit or OwnTracksZoneVisit(
+                    topic=location.topic,
+                    username=location.username,
+                    device=location.device,
+                    tracker_id=location.tracker_id,
+                    waypoint_name=waypoint.waypoint_name,
+                    waypoint_id=waypoint.waypoint_id,
+                    status="open",
+                    started_at=event_at,
+                    last_inside_at=event_at,
+                    confidence=confidence,
+                    source=source,
+                )
+                if not existing_visit:
+                    session.add(open_visit)
+                owntracks_update_zone_visit_position(
+                    open_visit,
+                    location,
+                    distance_m=distance_m,
+                    radius_m=radius_m,
+                    source=source,
+                    confidence=confidence,
+                    prefix="start",
+                )
+            open_visit.username = location.username or open_visit.username
+            open_visit.device = location.device or open_visit.device
+            open_visit.tracker_id = location.tracker_id or open_visit.tracker_id
+            open_visit.waypoint_id = waypoint.waypoint_id or open_visit.waypoint_id
+            open_visit.status = "open"
+            open_visit.ended_at = None
+            open_visit.end_location_id = None
+            open_visit.last_inside_at = event_at
+            open_visit.last_location_id = location.id
+            open_visit.last_lat = location.lat
+            open_visit.last_lon = location.lon
+            open_visit.last_accuracy_m = location.accuracy_m
+            open_visit.last_distance_m = round(distance_m, 2)
+            open_visit.radius_m = radius_m
+            open_visit.confidence = min(float(open_visit.confidence or confidence), confidence)
+            open_visit.updated_at = local_now_naive()
+        elif open_visit:
+            if event_at < open_visit.started_at:
+                continue
+            owntracks_update_zone_visit_position(
+                open_visit,
+                location,
+                distance_m=distance_m,
+                radius_m=radius_m,
+                source=open_visit.source or "fibaro10_location",
+                confidence=float(open_visit.confidence or 0.5),
+                prefix="end",
+            )
+            open_visit.status = "closed"
+            open_visit.ended_at = event_at
+            open_visit.duration_seconds = max(0.0, (event_at - open_visit.started_at).total_seconds())
+            open_visit.updated_at = local_now_naive()
+
+
+async def rebuild_owntracks_zone_visits(topic: Optional[str] = None) -> int:
+    async with async_session() as session:
+        delete_stmt = delete(OwnTracksZoneVisit)
+        if topic:
+            delete_stmt = delete_stmt.where(OwnTracksZoneVisit.topic == topic)
+        await session.execute(delete_stmt)
+        location_stmt = (
+            select(OwnTracksLocation)
+            .where(OwnTracksLocation.lat.isnot(None))
+            .where(OwnTracksLocation.lon.isnot(None))
+            .where(OwnTracksLocation.message_type.notin_(["waypoint", "waypoints", "status"]))
+            .order_by(OwnTracksLocation.timestamp.asc().nullslast(), OwnTracksLocation.received_at.asc())
+        )
+        if topic:
+            location_stmt = location_stmt.where(OwnTracksLocation.topic == topic)
+        rows = (await session.execute(location_stmt)).scalars().all()
+        for row in rows:
+            await materialize_owntracks_zone_visits_for_location(session, row)
+        await session.commit()
+        return len(rows)
+
+
 async def upsert_owntracks_waypoint(
     session,
     location: OwnTracksLocation,
@@ -8708,6 +8957,7 @@ async def store_owntracks_message(topic: str, payload_text: str) -> None:
         session.add(location_row)
         await session.flush()
         await materialize_owntracks_waypoints(session, location_row, payload, regions)
+        await materialize_owntracks_zone_visits_for_location(session, location_row)
         device_row = (
             await session.execute(select(OwnTracksDevice).where(OwnTracksDevice.topic == topic))
         ).scalars().first()
@@ -11867,6 +12117,7 @@ async def startup():
     await backfill_owntracks_waypoints_if_empty()
     await repair_owntracks_waypoint_centers()
     await cleanup_owntracks_waypoint_event_duplicates()
+    await rebuild_owntracks_zone_visits()
     if SVV_SYNC_ENABLED and SVV_API_KEY and svv_sync_task is None:
         svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
     if SUN2_AXIS_SNAPSHOT_LINK_ENABLED and sun2_axis_snapshot_link_task is None:
@@ -24695,16 +24946,46 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         .limit(100)
                     )
                 ).scalars().all()
+                owntracks_zone_visits = (
+                    await session.execute(
+                        select(OwnTracksZoneVisit)
+                        .order_by(OwnTracksZoneVisit.started_at.desc())
+                        .limit(100)
+                    )
+                ).scalars().all()
                 owntracks_visits = owntracks_waypoint_visit_rows(owntracks_waypoint_events, local_now_naive(), limit=60)
                 latest_device = owntracks_devices[0] if owntracks_devices else None
                 admin_cards = [
                     api_card("HTTP", "Aktiv", "", "Fibaro10-brukere via /owntracks/pub", "status", href="/admin/owntracks"),
                     api_card("Enheter", len(owntracks_devices), "stk", "Siste kjente OwnTracks-enheter", "status", href="/admin/owntracks"),
                     api_card("Waypoints", len(owntracks_waypoints), "stk", "Siste kjente soner og status", "status", href="/admin/owntracks"),
+                    api_card("Beregnet besÃ¸k", len(owntracks_zone_visits), "stk", "Fibaro10-beregnet fra presise posisjoner", "status", href="/admin/owntracks"),
                     api_card("Siste melding", format_source_datetime(latest_device.last_seen_at) if latest_device and latest_device.last_seen_at else "-", "", latest_device.topic if latest_device else "Ingen meldinger", "status", href="/admin/owntracks"),
                     api_card("Datakilde", owntracks_status.get("status_text") if owntracks_status else "Mangler", "", owntracks_status.get("age") if owntracks_status else "Ingen status", "status", href="/admin/datakilder"),
                 ]
                 tables = [
+                    api_table(
+                        "Fibaro10-beregnet sonebesøk",
+                        ["waypoint_name", "started_at", "ended_at", "duration", "status", "confidence", "radius_m", "start_distance_m", "end_distance_m", "start_accuracy_m", "end_accuracy_m", "source"],
+                        [
+                            {
+                                "id": row.id,
+                                "waypoint_name": row.waypoint_name,
+                                "started_at": row.started_at,
+                                "ended_at": row.ended_at,
+                                "duration": owntracks_duration_label(row.started_at, row.ended_at or local_now_naive()),
+                                "status": "Inne nå" if row.status == "open" else "Avsluttet",
+                                "confidence": round(float(row.confidence or 0) * 100, 0) if row.confidence is not None else None,
+                                "radius_m": row.radius_m,
+                                "start_distance_m": row.start_distance_m,
+                                "end_distance_m": row.end_distance_m,
+                                "start_accuracy_m": row.start_accuracy_m,
+                                "end_accuracy_m": row.end_accuracy_m,
+                                "source": row.source,
+                            }
+                            for row in owntracks_zone_visits
+                        ],
+                    ),
                     api_table(
                         "Sonebesøk",
                         ["waypoint_name", "username", "device", "entered_at", "left_at", "duration", "status", "source_message_type"],
@@ -24982,6 +25263,20 @@ async def api_owntracks_map(hours: int = Query(24, ge=0, le=24 * 365), limit: in
                 .limit(500)
             )
         ).scalars().all()
+        zone_visit_stmt = (
+            select(OwnTracksZoneVisit)
+            .order_by(OwnTracksZoneVisit.started_at.desc())
+            .limit(500)
+        )
+        if since is not None:
+            zone_visit_stmt = zone_visit_stmt.where(
+                or_(
+                    OwnTracksZoneVisit.started_at >= since,
+                    OwnTracksZoneVisit.ended_at >= since,
+                    OwnTracksZoneVisit.status == "open",
+                )
+            )
+        zone_visits = (await session.execute(zone_visit_stmt)).scalars().all()
 
     waypoint_definitions = []
     seen_definitions: set[tuple[str, str]] = set()
@@ -25079,6 +25374,38 @@ async def api_owntracks_map(hours: int = Query(24, ge=0, le=24 * 365), limit: in
             for row in waypoints
         ],
         "waypointDefinitions": waypoint_definitions,
+        "zoneVisits": [
+            {
+                "id": row.id,
+                "topic": row.topic,
+                "username": row.username,
+                "device": row.device,
+                "trackerId": row.tracker_id,
+                "name": row.waypoint_name,
+                "waypointId": row.waypoint_id,
+                "status": row.status,
+                "source": row.source,
+                "confidence": row.confidence,
+                "startedAt": api_local_iso(row.started_at),
+                "endedAt": api_local_iso(row.ended_at),
+                "lastInsideAt": api_local_iso(row.last_inside_at),
+                "durationSeconds": row.duration_seconds,
+                "startLat": row.start_lat,
+                "startLon": row.start_lon,
+                "startAccuracyM": row.start_accuracy_m,
+                "startDistanceM": row.start_distance_m,
+                "endLat": row.end_lat,
+                "endLon": row.end_lon,
+                "endAccuracyM": row.end_accuracy_m,
+                "endDistanceM": row.end_distance_m,
+                "lastLat": row.last_lat,
+                "lastLon": row.last_lon,
+                "lastAccuracyM": row.last_accuracy_m,
+                "lastDistanceM": row.last_distance_m,
+                "radiusM": row.radius_m,
+            }
+            for row in reversed(zone_visits)
+        ],
     }
 
 

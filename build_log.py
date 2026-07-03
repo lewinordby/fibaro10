@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1405")
+APP_BUILD = os.getenv("APP_BUILD", "1406")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1406",
+        "date": "03.07.2026",
+        "headline": "OwnTracks fÃ¥r Fibaro10-beregnet sonebesÃ¸k",
+        "title": "Presise posisjoner brukes til egne kom/gikk-besÃ¸k",
+        "description": (
+            "Build 1406 legger inn en separat OwnTracks-beregning hvor Fibaro10 bruker definerte waypoints og faktiske "
+            "posisjonsmeldinger til Ã¥ lage egne sonebesÃ¸k. BesÃ¸kene lagres i egen tabell med start, slutt, varighet, "
+            "avstand til senter, nÃ¸yaktighet og tillit. Kartet viser beregnede kom/gikk-punkter i tillegg til rÃ¥spor og "
+            "OwnTracks sine egne waypoint-hendelser."
+        ),
+        "applications": [
+            "main.py: legger til owntracks_zone_visits, materialisering fra posisjonsmeldinger, rebuild ved oppstart og API-data for kart.",
+            "desktop_v2/src/api.ts: utvider OwnTracks kartkontrakten med beregnede sonebesÃ¸k.",
+            "desktop_v2/src/pages/OwnTracksPage.tsx: tegner beregnede kom/gikk-punkter og besÃ¸kslinjer pÃ¥ kartet.",
+            "desktop_v2/src/styles/owntracks.css: legger til forklaring for beregnet besÃ¸k.",
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: legger til kolonnenavn for avstand, nÃ¸yaktighet og tillit.",
+        ],
+        "request": "Lag egen waypoint-side/logikk der Fibaro10 bruker presise OwnTracks-posisjoner og definerte lokasjoner til egne enter/leave-besÃ¸k.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Beregnet sonebesÃ¸k lagres separat fra rÃ¥ OwnTracks-hendelser.",
+            "Nye OwnTracks-meldinger oppdaterer sonebesÃ¸k fortlÃ¸pende.",
+            "Eksisterende historikk bygges opp igjen ved oppstart.",
+            "Kartet viser kom/gikk-punkter med klokkeslett, avstand og tillit.",
+        ],
+    },
     {
         "version": "1",
         "build": "1405",
