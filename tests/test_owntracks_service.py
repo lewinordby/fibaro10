@@ -96,6 +96,40 @@ class OwnTracksServiceTests(unittest.TestCase):
         finally:
             owntracks_main.HTTP_TOKEN = original_token
 
+    def test_publish_waypoints_accepts_plain_list_payload(self) -> None:
+        with TestClient(app) as client:
+            response = client.post(
+                "/owntracks/pub?user=waypoint-list&device=android",
+                json=[
+                    {"desc": "Hjemme", "lat": 61.111, "lon": 10.444, "rad": 125},
+                    {"desc": "Sun2", "lat": 61.222, "lng": 10.555, "radius": 80},
+                ],
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(response.json()["stored"])
+
+            rows = client.get("/api/owntracks/waypoints").json()["waypoints"]
+            by_name = {
+                row["waypointName"]: row
+                for row in rows
+                if row["topic"] == "owntracks/waypoint-list/android"
+            }
+            self.assertEqual(set(by_name), {"Hjemme", "Sun2"})
+            self.assertEqual(by_name["Sun2"]["lon"], 10.555)
+
+    def test_publish_waypoints_accepts_wrapped_payload_without_type(self) -> None:
+        with TestClient(app) as client:
+            response = client.post(
+                "/owntracks/pub?user=waypoint-wrapped&device=android",
+                json={"data": {"a": {"desc": "Kontor", "lat": 61.333, "lon": 10.666, "rad": 70}}},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(response.json()["stored"])
+
+            rows = client.get("/api/owntracks/waypoints").json()["waypoints"]
+            names = {row["waypointName"] for row in rows if row["topic"] == "owntracks/waypoint-wrapped/android"}
+            self.assertIn("Kontor", names)
+
 
 if __name__ == "__main__":
     unittest.main()

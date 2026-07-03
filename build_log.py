@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1409")
+APP_BUILD = os.getenv("APP_BUILD", "1410")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1410",
+        "date": "03.07.2026",
+        "headline": "OwnTracks tar imot Publish Waypoints mer robust",
+        "title": "Waypoint-publisering fra Android kan komme som liste eller innpakket payload",
+        "description": (
+            "Build 1410 retter mottaket for Publish Waypoints i OwnTracks Android. Waypoints skal ikke utledes fra "
+            "vanlige inregions i posisjonsmeldinger; de skal speiles fra faktiske waypoint-publiseringer. "
+            "HTTP-mottaket godtar derfor waypoint-payloads som ren JSON-liste, som innpakket waypoints/data/wps "
+            "eller som enkelt-waypoint uten eksplisitt _type."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: normaliserer Publish Waypoints-format for HTTP-inntak.",
+            "tests/test_owntracks_service.py: dekker ren waypoint-liste og innpakket waypoint-payload.",
+        ],
+        "request": "Waypoints kommer ikke inn selv om jeg legger inn nye i appen. Det finnes et valg som heter Publish Waypoints.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Waypoints-listen fylles bare fra faktiske waypoint-publiseringer.",
+            "Ren JSON-liste fra Publish Waypoints behandles som _type=waypoints.",
+            "Payload med waypoints, wps eller data behandles som _type=waypoints selv om _type mangler.",
+            "Enkelt-waypoint med navn og koordinater behandles som _type=waypoint selv om _type mangler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1409",

@@ -296,6 +296,39 @@ def waypoint_name_from_payload(payload: dict[str, Any]) -> Optional[str]:
     return None
 
 
+def looks_like_waypoint_item(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    has_name = waypoint_name_from_payload(value) is not None
+    has_position = float_value(value.get("lat")) is not None and float_value(value.get("lon") or value.get("lng")) is not None
+    return has_name and has_position
+
+
+def normalize_http_payload(payload: Any) -> dict[str, Any]:
+    if isinstance(payload, list):
+        return {"_type": "waypoints", "waypoints": payload}
+    if not isinstance(payload, dict):
+        raise ValueError("Body must be a JSON object or a waypoint list")
+
+    normalized = dict(payload)
+    message_type = str(normalized.get("_type") or normalized.get("type") or "").strip().lower()
+    if message_type:
+        return normalized
+
+    if any(key in normalized for key in ("waypoints", "wps", "data")):
+        normalized["_type"] = "waypoints"
+        return normalized
+
+    if looks_like_waypoint_item(normalized):
+        normalized["_type"] = "waypoint"
+        return normalized
+
+    if normalized and all(looks_like_waypoint_item(item) for item in normalized.values()):
+        return {"_type": "waypoints", "waypoints": normalized}
+
+    return normalized
+
+
 def waypoint_names(regions: Any) -> list[str]:
     if regions in (None, ""):
         return []
@@ -585,7 +618,7 @@ def materialize_waypoints(session: Session, location: OwnTracksLocation, payload
                 name,
                 "defined",
                 lat=float_value(item.get("lat")),
-                lon=float_value(item.get("lon")),
+                lon=float_value(item.get("lon") or item.get("lng")),
                 radius_m=float_value(item.get("rad") or item.get("radius")),
                 accuracy_m=float_value(item.get("acc")),
                 event_payload=item,
@@ -1469,10 +1502,12 @@ async def owntracks_http_publish(request: Request) -> dict[str, Any]:
         payload = await request.json()
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Body must be JSON") from exc
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=400, detail="Body must be a JSON object")
-    topic = http_topic(request, payload)
-    return store_message(topic, json_string(payload))
+    try:
+        normalized_payload = normalize_http_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    topic = http_topic(request, normalized_payload)
+    return store_message(topic, json_string(normalized_payload))
 
 
 @app.post("/api/owntracks/rebuild")
