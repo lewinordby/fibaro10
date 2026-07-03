@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1413")
+APP_BUILD = os.getenv("APP_BUILD", "1414")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1414",
+        "date": "03.07.2026",
+        "headline": "OwnTracks waypoint-rebuild hindrer duplikate pending rader",
+        "title": "Waypoint-rader caches under normalisering av historiske OwnTracks-meldinger",
+        "description": (
+            "Build 1414 retter enda en oppstartskant i OwnTracks normalisering. Flere historiske meldinger kan "
+            "inneholde samme waypoint-navn på samme base-topic. Rebuild caches nå også waypoint-rader per "
+            "topic/navn slik at samme rad oppdateres i stedet for å forsøkes opprettet flere ganger."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: cacher OwnTracksWaypointState per topic og waypoint-navn under rebuild.",
+            "build_log.py: dokumenterer stabiliseringsrettelsen.",
+        ],
+        "request": "OwnTracks-service restartet videre på unik constraint for waypoint-rader under historisk rebuild.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Hindrer duplikate pending OwnTracksWaypointState-rader i samme database-session.",
+            "Beholder normalisert topic-modell og app-kompatibel HTTP-respons.",
+        ],
+    },
     {
         "version": "1",
         "build": "1413",

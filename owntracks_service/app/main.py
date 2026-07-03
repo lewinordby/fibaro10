@@ -455,11 +455,19 @@ def event_already_exists(
 
 
 def find_waypoint(session: Session, topic: str, waypoint_name: str) -> Optional[OwnTracksWaypointState]:
-    return session.execute(
+    waypoint_cache = session.info.setdefault("owntracks_waypoint_cache", {})
+    cache_key = (topic, waypoint_name)
+    row = waypoint_cache.get(cache_key)
+    if row is not None:
+        return row
+    row = session.execute(
         select(OwnTracksWaypointState)
         .where(OwnTracksWaypointState.topic == topic)
         .where(OwnTracksWaypointState.waypoint_name == waypoint_name)
     ).scalar_one_or_none()
+    if row is not None:
+        waypoint_cache[cache_key] = row
+    return row
 
 
 def record_waypoint_event(
@@ -521,6 +529,7 @@ def upsert_waypoint(
     if row is None:
         row = OwnTracksWaypointState(topic=location.topic, waypoint_name=waypoint_name)
         session.add(row)
+    session.info.setdefault("owntracks_waypoint_cache", {})[(location.topic, waypoint_name)] = row
     row.username = location.username
     row.device = location.device
     row.source_message_type = location.message_type
