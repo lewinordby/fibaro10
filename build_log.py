@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1396")
+APP_BUILD = os.getenv("APP_BUILD", "1397")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1397",
+        "date": "03.07.2026",
+        "headline": "Vedlikeholdslogg og ryddet meny",
+        "title": "Bygg og drift får Vedlikehold, Renhold flyttes riktig og Ideer flyttes til Utvikling",
+        "description": (
+            "Build 1397 rydder venstremenyen slik at Bygg og drift samler fysisk drift av lokalet, mens Ideer ligger under Utvikling. "
+            "Builden legger også til en ny Vedlikehold-side der arbeid på Sun2 kan logges med tidspunkt, utført av, tagger, status, varighet og oppfølging."
+        ),
+        "applications": [
+            "Fibaro10 backend (main.py): ny maintenance_log_entries-tabell, modul-API for Vedlikehold og POST/PATCH-endepunkter for vedlikeholdslogg.",
+            "Desktop V2 navigasjon (appNavigation.tsx, moduleViews.ts, AppRoutes.tsx): Renhold og Vedlikehold under Bygg og drift, Ideer under Utvikling og ny Vedlikehold-route.",
+            "Desktop V2 modultabeller (api.ts, moduleTableUtils.tsx): generisk støtte for datetime-felt, tagg-input og standardverdier i opprettskjema.",
+            "Design tokens og servermetadata (tokens.css, v2_navigation.py): egen vedlikeholdsfarge og serverlabel for Vedlikehold.",
+            "Kvalitetssjekker (smoke-routes.mjs): Vedlikehold lagt inn i route-audit/smoke-grunnlaget.",
+            "Buildlogg (build_log.py): registrerer build 1397.",
+        ],
+        "request": (
+            "Flytt Renhold under Bygg og drift, flytt Ideer under Utvikling, og lag ny hovedmeny Vedlikehold "
+            "for å registrere hva som gjøres hver gang jeg er tilstede på Sun2 med tagger og korrigerbart tidspunkt."
+        ),
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Menygrupperingen er gjort eksplisitt i stedet for slice-basert, slik at nye hovedvalg ikke forskyver grupper.",
+            "Ny Vedlikehold-side viser kort for i dag, måned, åpne oppfølgingspunkter og siste logg.",
+            "Vedlikeholdsloggen kan opprettes og redigeres direkte i tabellen.",
+            "Ny post får dagens dato og klokkeslett automatisk, men tidspunktet kan korrigeres før lagring.",
+            "Tagger kan velges fra foreslåtte verdier eller skrives inn fritt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1396",

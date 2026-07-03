@@ -238,6 +238,13 @@ function labelize(column: string): string {
     fibaro_device_id: "HC3-enhet",
     fibaro_meter_id: "HC3-måler",
     active: "Aktiv",
+    performed_at: "Utført",
+    performed_by: "Utført av",
+    presence_type: "Type",
+    summary: "Notat",
+    tags: "Tagger",
+    follow_up_needed: "Oppfølging",
+    follow_up_text: "Oppfølgingstekst",
     inntak_w: "Inntak W",
     varmepumper_w: "Varmepumper W",
     belysning_w: "Belysning W",
@@ -535,19 +542,35 @@ export function filterRows(rows: ModuleRow[], columns: string[], query: string) 
 }
 
 export function fieldInput(field: ModuleEditField) {
-  if (field.type === "textarea") return <Input.TextArea rows={3} />;
+  if (field.type === "textarea") return <Input.TextArea rows={3} placeholder={field.placeholder} />;
   if (field.type === "number") return <InputNumber className="edit-number" />;
   if (field.type === "boolean") return <Checkbox>{field.label}</Checkbox>;
   if (field.type === "select") return <Select options={field.options} />;
+  if (field.type === "tags") return <Select mode="tags" options={field.options} tokenSeparators={[","]} placeholder={field.placeholder} />;
+  if (field.type === "datetime") return <Input type="datetime-local" />;
   if (field.type === "password") return <Input.Password autoComplete="new-password" />;
-  return <Input />;
+  return <Input placeholder={field.placeholder} />;
 }
 
 export function editInitialValues(edit: ModuleEditConfig, row: ModuleRow, create: boolean) {
   const fields = create ? edit.createFields ?? edit.fields : edit.fields;
   const values: JsonRecord = {};
   for (const field of fields) {
-    values[field.key] = field.type === "boolean" ? Boolean(row[field.key]) : row[field.key] ?? undefined;
+    const rawValue = create && row[field.key] === undefined ? field.defaultValue : row[field.key] ?? field.defaultValue;
+    if (field.type === "boolean") {
+      values[field.key] = Boolean(rawValue);
+    } else if (field.type === "tags") {
+      values[field.key] = Array.isArray(rawValue)
+        ? rawValue
+        : String(rawValue ?? "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
+    } else if (field.type === "datetime") {
+      values[field.key] = String(rawValue ?? "").slice(0, 16) || undefined;
+    } else {
+      values[field.key] = rawValue ?? undefined;
+    }
   }
   return values;
 }

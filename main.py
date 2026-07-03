@@ -1565,6 +1565,25 @@ class AccessLog(Base):
     reason = Column(String, nullable=True)
 
 
+class MaintenanceLogEntry(Base):
+    __tablename__ = "maintenance_log_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    performed_at = Column(DateTime, default=local_now_naive, nullable=False, index=True)
+    performed_by = Column(String, nullable=True, index=True)
+    presence_type = Column(String, nullable=True, index=True)
+    summary = Column(Text, nullable=False)
+    tags = Column(JSON, nullable=True)
+    status = Column(String, default="Utført", nullable=False, index=True)
+    duration_minutes = Column(Integer, nullable=True)
+    follow_up_needed = Column(Boolean, default=False, index=True)
+    follow_up_text = Column(Text, nullable=True)
+    created_by = Column(String, nullable=True)
+    updated_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=local_now_naive, nullable=False, index=True)
+    updated_at = Column(DateTime, default=local_now_naive, nullable=False)
+
+
 class ControlConfig(Base):
     __tablename__ = "control_configs"
 
@@ -2049,6 +2068,18 @@ class V2AccessUserUpdate(BaseModel):
     role: Optional[str] = None
     active: Optional[bool] = None
     password: Optional[str] = Field(None, max_length=240)
+
+
+class MaintenanceLogInput(BaseModel):
+    performed_at: Optional[str] = None
+    performed_by: Optional[str] = None
+    presence_type: Optional[str] = None
+    summary: str = Field(..., min_length=1, max_length=4000)
+    tags: Optional[Any] = None
+    status: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    follow_up_needed: Optional[bool] = None
+    follow_up_text: Optional[str] = None
 
 
 LIGHT_COLUMNS = [
@@ -12478,6 +12509,8 @@ async def api_sun2_session_set_primary_image(
 @app.get("/energi/{path:path}", response_class=HTMLResponse)
 @app.get("/ventilasjon/{path:path}", response_class=HTMLResponse)
 @app.get("/lys/{path:path}", response_class=HTMLResponse)
+@app.get("/vedlikehold", response_class=HTMLResponse)
+@app.get("/vedlikehold/{path:path}", response_class=HTMLResponse)
 @app.get("/ideer", response_class=HTMLResponse)
 @app.get("/ideer/{path:path}", response_class=HTMLResponse)
 @app.get("/mobil", response_class=HTMLResponse)
@@ -17895,6 +17928,104 @@ def api_access_key_row(row: AccessKey) -> Dict[str, Any]:
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "last_seen_at": row.last_seen_at.isoformat() if row.last_seen_at else None,
         "uses_count": row.uses_count,
+    }
+
+
+MAINTENANCE_TAG_OPTIONS = [
+    "Tilstede",
+    "Kontroll",
+    "Renhold",
+    "Teknisk",
+    "Vedlikehold",
+    "Innkjøp",
+    "Leverandør",
+    "Parkering",
+    "Soling",
+    "Energi",
+    "Ventilasjon",
+    "Lys",
+    "Avvik",
+    "Oppfølging",
+]
+MAINTENANCE_STATUS_OPTIONS = ["Utført", "Må følges opp", "Planlagt", "Lukket"]
+MAINTENANCE_PRESENCE_OPTIONS = ["Tilstede Sun2", "Fjernarbeid", "Telefon/leverandør"]
+
+
+def normalize_maintenance_tags(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        items = re.split(r"[,;\n]+", value)
+    elif isinstance(value, list):
+        items = value
+    else:
+        items = [value]
+    tags: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        tag = str(item or "").strip()
+        if not tag:
+            continue
+        normalized = tag.casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        tags.append(tag[:60])
+    return tags[:20]
+
+
+def maintenance_datetime_value(value: Optional[str]) -> datetime:
+    parsed = normalize_local_naive(parse_datetime(value)) if value else None
+    return parsed or local_now_naive().replace(second=0, microsecond=0)
+
+
+def maintenance_log_row(row: MaintenanceLogEntry) -> Dict[str, Any]:
+    tags = normalize_maintenance_tags(row.tags)
+    return {
+        "id": row.id,
+        "performed_at": row.performed_at.isoformat(timespec="minutes") if row.performed_at else None,
+        "performed_by": row.performed_by,
+        "presence_type": row.presence_type,
+        "summary": row.summary,
+        "tags": ", ".join(tags),
+        "status": row.status,
+        "duration_minutes": row.duration_minutes,
+        "follow_up_needed": bool(row.follow_up_needed),
+        "follow_up_text": row.follow_up_text,
+        "created_at": row.created_at.isoformat(timespec="minutes") if row.created_at else None,
+        "updated_at": row.updated_at.isoformat(timespec="minutes") if row.updated_at else None,
+    }
+
+
+def api_maintenance_log_edit(default_performed_at: datetime) -> Dict[str, Any]:
+    tag_options = [{"label": label, "value": label} for label in MAINTENANCE_TAG_OPTIONS]
+    status_options = [{"label": label, "value": label} for label in MAINTENANCE_STATUS_OPTIONS]
+    presence_options = [{"label": label, "value": label} for label in MAINTENANCE_PRESENCE_OPTIONS]
+    fields = [
+        {
+            "key": "performed_at",
+            "label": "Tidspunkt",
+            "type": "datetime",
+            "required": True,
+            "defaultValue": default_performed_at.isoformat(timespec="minutes"),
+        },
+        {"key": "performed_by", "label": "Utført av", "type": "text", "placeholder": "Navn eller bruker"},
+        {"key": "presence_type", "label": "Type", "type": "select", "options": presence_options, "defaultValue": "Tilstede Sun2"},
+        {"key": "summary", "label": "Hva ble gjort", "type": "textarea", "required": True},
+        {"key": "tags", "label": "Tagger", "type": "tags", "options": tag_options, "placeholder": "Velg eller skriv tagger"},
+        {"key": "status", "label": "Status", "type": "select", "options": status_options, "defaultValue": "Utført"},
+        {"key": "duration_minutes", "label": "Varighet min", "type": "number"},
+        {"key": "follow_up_needed", "label": "Må følges opp", "type": "boolean"},
+        {"key": "follow_up_text", "label": "Oppfølging", "type": "textarea"},
+    ]
+    return {
+        "kind": "maintenance-log",
+        "title": "vedlikeholdslogg",
+        "idField": "id",
+        "endpoint": "/api/maintenance/logs/{id}",
+        "method": "PATCH",
+        "createEndpoint": "/api/maintenance/logs",
+        "fields": fields,
     }
 
 
@@ -23786,6 +23917,59 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "tables": tables,
             }
 
+        if module == "vedlikehold":
+            logs = (
+                await session.execute(
+                    select(MaintenanceLogEntry)
+                    .order_by(MaintenanceLogEntry.performed_at.desc(), MaintenanceLogEntry.id.desc())
+                    .limit(300)
+                )
+            ).scalars().all()
+            today_count = sum(1 for row in logs if row.performed_at and today_start <= row.performed_at < tomorrow_start)
+            month_count = sum(1 for row in logs if row.performed_at and month_start_dt <= row.performed_at < tomorrow_start)
+            follow_up_logs = [
+                row
+                for row in logs
+                if row.follow_up_needed and (row.status or "").strip().casefold() != "lukket"
+            ]
+            tag_stats: Dict[str, Dict[str, Any]] = {}
+            for row in logs:
+                for tag in normalize_maintenance_tags(row.tags):
+                    key = tag.casefold()
+                    item = tag_stats.setdefault(key, {"tag": tag, "count": 0, "last_seen": None})
+                    item["count"] += 1
+                    if row.performed_at and (not item["last_seen"] or row.performed_at > item["last_seen"]):
+                        item["last_seen"] = row.performed_at
+            tag_rows = [
+                {
+                    "tag": item["tag"],
+                    "count": item["count"],
+                    "last_seen": item["last_seen"].isoformat(timespec="minutes") if item["last_seen"] else None,
+                }
+                for item in sorted(tag_stats.values(), key=lambda value: (-int(value["count"]), str(value["tag"]).casefold()))
+            ]
+            latest = logs[0] if logs else None
+            edit_config = api_maintenance_log_edit(now_dt.replace(second=0, microsecond=0))
+            return {
+                "title": v2_module_title("vedlikehold", view),
+                "subtitle": "Logg for arbeid og observasjoner hver gang du er tilstede på Sun2.",
+                "cards": [
+                    api_card("I dag", today_count, "stk", "Registrerte aktiviteter", "status", href="/vedlikehold/oversikt"),
+                    api_card("Denne måneden", month_count, "stk", "Utført arbeid og kontroller", "status", href="/vedlikehold/oversikt"),
+                    api_card("Oppfølging", len(follow_up_logs), "stk", "Åpne punkter", "status", href="/vedlikehold/oversikt"),
+                    api_card("Sist logget", format_source_datetime_short(latest.performed_at) if latest else "-", "", latest.summary[:80] if latest and latest.summary else "", "status", href="/vedlikehold/oversikt"),
+                ],
+                "tables": [
+                    api_table(
+                        "Vedlikeholdslogg",
+                        ["performed_at", "performed_by", "presence_type", "summary", "tags", "status", "duration_minutes", "follow_up_needed", "follow_up_text"],
+                        [maintenance_log_row(row) for row in logs],
+                        edit=edit_config,
+                    ),
+                    api_table("Tagger", ["tag", "count", "last_seen"], tag_rows[:80]),
+                ],
+            }
+
         if module == "admin":
             import_rows = await import_status_rows(session)
             import_api_rows = api_import_status_rows(import_rows)
@@ -25224,6 +25408,74 @@ async def api_v2_energy_load_update(request: Request, load_id: int, data: V2Ener
         load.updated_at = datetime.utcnow()
         await session.commit()
     return {"status": "ok", "message": f"Last {load.name} er lagret."}
+
+
+@app.post("/api/maintenance/logs")
+async def api_v2_maintenance_log_create(request: Request, data: MaintenanceLogInput):
+    values = data.dict(exclude_unset=True)
+    summary = str(values.get("summary") or "").strip()
+    if not summary:
+        raise HTTPException(status_code=400, detail="Hva ble gjort må fylles ut.")
+    now_value = local_now_naive().replace(second=0, microsecond=0)
+    status = str(values.get("status") or "Utført").strip() or "Utført"
+    if status not in MAINTENANCE_STATUS_OPTIONS:
+        status = "Utført"
+    performed_by = str(values.get("performed_by") or getattr(request.state, "access_key_name", "") or "").strip() or None
+    row = MaintenanceLogEntry(
+        performed_at=maintenance_datetime_value(values.get("performed_at")),
+        performed_by=performed_by,
+        presence_type=str(values.get("presence_type") or "Tilstede Sun2").strip() or None,
+        summary=summary,
+        tags=normalize_maintenance_tags(values.get("tags")),
+        status=status,
+        duration_minutes=values.get("duration_minutes"),
+        follow_up_needed=bool(values.get("follow_up_needed")),
+        follow_up_text=str(values.get("follow_up_text") or "").strip() or None,
+        created_by=getattr(request.state, "access_key_name", None),
+        updated_by=getattr(request.state, "access_key_name", None),
+        created_at=now_value,
+        updated_at=now_value,
+    )
+    async with async_session() as session:
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+    return {"status": "ok", "message": "Vedlikeholdslogg er opprettet.", "id": row.id}
+
+
+@app.patch("/api/maintenance/logs/{log_id}")
+async def api_v2_maintenance_log_update(request: Request, log_id: int, data: MaintenanceLogInput):
+    values = data.dict(exclude_unset=True)
+    async with async_session() as session:
+        row = await session.get(MaintenanceLogEntry, log_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Vedlikeholdslogg ikke funnet")
+        if "performed_at" in values:
+            row.performed_at = maintenance_datetime_value(values.get("performed_at"))
+        if "performed_by" in values:
+            row.performed_by = str(values.get("performed_by") or "").strip() or None
+        if "presence_type" in values:
+            row.presence_type = str(values.get("presence_type") or "").strip() or None
+        if "summary" in values:
+            summary = str(values.get("summary") or "").strip()
+            if not summary:
+                raise HTTPException(status_code=400, detail="Hva ble gjort må fylles ut.")
+            row.summary = summary
+        if "tags" in values:
+            row.tags = normalize_maintenance_tags(values.get("tags"))
+        if "status" in values:
+            status = str(values.get("status") or "Utført").strip() or "Utført"
+            row.status = status if status in MAINTENANCE_STATUS_OPTIONS else "Utført"
+        if "duration_minutes" in values:
+            row.duration_minutes = values.get("duration_minutes")
+        if "follow_up_needed" in values:
+            row.follow_up_needed = bool(values.get("follow_up_needed"))
+        if "follow_up_text" in values:
+            row.follow_up_text = str(values.get("follow_up_text") or "").strip() or None
+        row.updated_by = getattr(request.state, "access_key_name", None)
+        row.updated_at = local_now_naive().replace(second=0, microsecond=0)
+        await session.commit()
+    return {"status": "ok", "message": "Vedlikeholdslogg er lagret."}
 
 
 @app.post("/api/admin/users")

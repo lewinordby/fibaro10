@@ -50,6 +50,7 @@ export const smokeRoutes = [
   { path: "/lys/lux-logging", name: "Lux-logg" },
   { path: "/lys/hendelser", name: "Lys hendelser" },
   { path: "/lys/innstillinger", name: "Lys innstillinger" },
+  { path: "/vedlikehold/oversikt", name: "Vedlikehold oversikt" },
   { path: "/ideer/oversikt", name: "Ideer oversikt" },
   { path: "/ideer/kontroll", name: "Ideer kontroll" },
   { path: "/ideer/innsikt", name: "Ideer innsikt" },

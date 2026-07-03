@@ -575,8 +575,10 @@ export type ModuleChart = {
 export type ModuleEditField = {
   key: string;
   label: string;
-  type: "text" | "textarea" | "number" | "boolean" | "select" | "password";
+  type: "text" | "textarea" | "number" | "boolean" | "select" | "tags" | "datetime" | "password";
   required?: boolean;
+  placeholder?: string;
+  defaultValue?: unknown;
   options?: Array<{ label: string; value: string | number | boolean }>;
 };
 

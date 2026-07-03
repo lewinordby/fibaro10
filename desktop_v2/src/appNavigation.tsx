@@ -3,6 +3,7 @@ import {
   BulbOutlined,
   CalendarOutlined,
   CarOutlined,
+  CarryOutOutlined,
   DashboardOutlined,
   ExperimentOutlined,
   MobileOutlined,
@@ -29,6 +30,7 @@ const mainModuleIcons: Array<Pick<MainNavigationModule, "module" | "icon">> = [
   { module: "energi", icon: <ThunderboltOutlined /> },
   { module: "ventilasjon", icon: <ExperimentOutlined /> },
   { module: "lys", icon: <BulbOutlined /> },
+  { module: "vedlikehold", icon: <CarryOutOutlined /> },
   { module: "ideer", icon: <BulbOutlined /> },
   { module: "renhold", icon: <ToolOutlined /> },
   { module: "mobil", icon: <MobileOutlined /> },
@@ -41,12 +43,16 @@ const mainModules: MainNavigationModule[] = mainModuleIcons.map((item) => ({
   color: moduleColor(item.module),
 }));
 
+const mainModulesByKey = new Map(mainModules.map((item) => [item.module, item]));
+const modulesForGroup = (modules: string[]) =>
+  modules.map((module) => mainModulesByKey.get(module)).filter(Boolean) as MainNavigationModule[];
+
 export const mainModuleGroups = [
-  { label: "", modules: mainModules.slice(0, 1) },
-  { label: "Økonomi", modules: mainModules.slice(1, 5) },
-  { label: "Bygg og drift", modules: mainModules.slice(5, 9) },
-  { label: "Utvikling", modules: mainModules.slice(9, 10) },
-  { label: "System", modules: mainModules.slice(10) },
+  { label: "", modules: modulesForGroup(["status"]) },
+  { label: "Økonomi", modules: modulesForGroup(["omsetning", "parkering", "soling", "koble"]) },
+  { label: "Bygg og drift", modules: modulesForGroup(["energi", "ventilasjon", "lys", "renhold", "vedlikehold"]) },
+  { label: "Utvikling", modules: modulesForGroup(["ideer"]) },
+  { label: "System", modules: modulesForGroup(["mobil", "admin"]) },
 ];
 
 export function selectedMainModuleKey(pathname: string): string {

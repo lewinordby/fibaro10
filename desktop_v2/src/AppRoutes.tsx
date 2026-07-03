@@ -77,6 +77,8 @@ export function AppRoutes() {
         <Route path="/lys" element={<Navigate to={modulePath("lys")} replace />} />
         <Route path="/lys/dagslogg-lux" element={<LegacyRedirect to={modulePath("lys", "dagslogg")} />} />
         <Route path="/lys/:view" element={<ModulePage module="lys" />} />
+        <Route path="/vedlikehold" element={<Navigate to={modulePath("vedlikehold")} replace />} />
+        <Route path="/vedlikehold/:view" element={<ModulePage module="vedlikehold" />} />
         <Route path="/ideer" element={<Navigate to={modulePath("ideer")} replace />} />
         <Route path="/ideer/:view" element={<IdeasPage />} />
         <Route path="/mobil" element={<Navigate to={modulePath("mobil")} replace />} />

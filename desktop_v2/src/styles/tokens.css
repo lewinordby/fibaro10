@@ -48,6 +48,7 @@
   --domain-vent: #0891b2;
   --domain-weather: #64748b;
   --domain-light: #ca8a04;
+  --domain-maintenance: #0f766e;
   --domain-ideas: #db2777;
   --domain-mobile: #7c3aed;
   --domain-status: #475569;
@@ -111,6 +112,11 @@
   --active-module-color: var(--domain-light);
 }
 
+.domain-vedlikehold,
+.domain-renhold {
+  --active-module-color: var(--domain-maintenance);
+}
+
 .domain-ideer {
   --active-module-color: var(--domain-ideas);
 }
@@ -119,7 +125,6 @@
   --active-module-color: var(--domain-mobile);
 }
 
-.domain-renhold,
 .domain-admin,
 .domain-status {
   --active-module-color: var(--domain-status);
