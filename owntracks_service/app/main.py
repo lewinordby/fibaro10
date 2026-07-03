@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
@@ -11,6 +12,8 @@ import math
 import os
 import threading
 import time
+import urllib.parse
+import urllib.request
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -32,8 +35,10 @@ from sqlalchemy import (
     create_engine,
     delete,
     func,
+    inspect,
     or_,
     select,
+    text,
 )
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
@@ -58,6 +63,14 @@ FRONTEND_INDEX = FRONTEND_DIST / "index.html"
 
 ZONE_VISIT_BUFFER_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_BUFFER_M", "25")))
 ZONE_VISIT_ACCURACY_CAP_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M", "100")))
+DEFAULT_LOCAL_WAYPOINT_RADIUS_M = max(10.0, float(os.getenv("OWNTRACKS_DEFAULT_LOCAL_WAYPOINT_RADIUS_M", "100")))
+STOP_SUGGESTION_MIN_MINUTES = max(1, int(os.getenv("OWNTRACKS_STOP_SUGGESTION_MIN_MINUTES", "10")))
+STOP_SUGGESTION_RADIUS_M = max(15.0, float(os.getenv("OWNTRACKS_STOP_SUGGESTION_RADIUS_M", "80")))
+STOP_SUGGESTION_MAX_ACCURACY_M = max(25.0, float(os.getenv("OWNTRACKS_STOP_SUGGESTION_MAX_ACCURACY_M", "150")))
+STOP_SUGGESTION_MAX_GAP_MINUTES = max(10, int(os.getenv("OWNTRACKS_STOP_SUGGESTION_MAX_GAP_MINUTES", "180")))
+REVERSE_GEOCODE_ENABLED = os.getenv("OWNTRACKS_REVERSE_GEOCODE_ENABLED", "true").strip().lower() not in {"0", "false", "no", "nei"}
+NOMINATIM_REVERSE_URL = os.getenv("OWNTRACKS_NOMINATIM_REVERSE_URL", "https://nominatim.openstreetmap.org/reverse").strip()
+NOMINATIM_USER_AGENT = os.getenv("OWNTRACKS_NOMINATIM_USER_AGENT", "fibaro10-owntracks/1.0").strip() or "fibaro10-owntracks/1.0"
 
 Base = declarative_base()
 engine = create_engine(
@@ -155,6 +168,10 @@ class OwnTracksWaypointState(Base):
     username = Column(String(120), nullable=True, index=True)
     device = Column(String(120), nullable=True, index=True)
     waypoint_name = Column(String(255), nullable=False, index=True)
+    source = Column(String(40), nullable=True, index=True)
+    address = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=True, default=True, index=True)
     lat = Column(Float, nullable=True)
     lon = Column(Float, nullable=True)
     radius_m = Column(Float, nullable=True)
@@ -166,6 +183,21 @@ class OwnTracksWaypointState(Base):
     last_seen_at = Column(DateTime, nullable=True, index=True)
     last_event_at = Column(DateTime, nullable=True)
     last_location_id = Column(Integer, ForeignKey("owntracks_locations.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
+    updated_at = Column(DateTime, nullable=False, default=utc_now)
+
+
+class OwnTracksGeocodeCache(Base):
+    __tablename__ = "owntracks_geocode_cache"
+
+    id = Column(Integer, primary_key=True)
+    cache_key = Column(String(80), unique=True, nullable=False, index=True)
+    lat = Column(Float, nullable=False)
+    lon = Column(Float, nullable=False)
+    name = Column(String(255), nullable=True)
+    display_name = Column(Text, nullable=True)
+    raw = Column(JSON, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
     updated_at = Column(DateTime, nullable=False, default=utc_now)
 
 
@@ -239,6 +271,34 @@ class ServiceState:
 
 
 STATE = ServiceState()
+
+
+def ensure_owntracks_schema() -> None:
+    """Keep the standalone SQLite schema forward-compatible without the main app migrator."""
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    if "owntracks_waypoints" not in table_names:
+        return
+
+    existing = {column["name"] for column in inspector.get_columns("owntracks_waypoints")}
+    waypoint_columns = {
+        "source": "VARCHAR(40)",
+        "address": "TEXT",
+        "notes": "TEXT",
+        "is_active": "BOOLEAN DEFAULT 1",
+        "created_at": "DATETIME",
+    }
+    with engine.begin() as conn:
+        for column_name, column_sql in waypoint_columns.items():
+            if column_name in existing:
+                continue
+            if engine.dialect.name == "sqlite":
+                conn.execute(text(f"ALTER TABLE owntracks_waypoints ADD COLUMN {column_name} {column_sql}"))
+            else:
+                conn.execute(text(f"ALTER TABLE owntracks_waypoints ADD COLUMN IF NOT EXISTS {column_name} {column_sql}"))
+        conn.execute(text("UPDATE owntracks_waypoints SET source = 'phone' WHERE source IS NULL OR source = ''"))
+        conn.execute(text("UPDATE owntracks_waypoints SET is_active = 1 WHERE is_active IS NULL"))
+        conn.execute(text("UPDATE owntracks_waypoints SET created_at = COALESCE(last_seen_at, updated_at) WHERE created_at IS NULL"))
 
 
 def topic_identity(topic: str) -> tuple[Optional[str], Optional[str]]:
@@ -423,6 +483,242 @@ def confidence_for_distance(distance_m: float, threshold_m: float) -> float:
     return round(max(0.1, 1.0 - ratio * 0.7), 3)
 
 
+@dataclass
+class StopCandidate:
+    topic: str
+    username: Optional[str]
+    device: Optional[str]
+    lat: float
+    lon: float
+    sample_count: int
+    visits: int
+    total_duration_seconds: int
+    first_seen_at: datetime
+    last_seen_at: datetime
+    radius_m: float
+    max_accuracy_m: Optional[float] = None
+    suggested_name: Optional[str] = None
+    address: Optional[str] = None
+    confidence: float = 0.0
+
+
+def location_time(row: OwnTracksLocation) -> datetime:
+    return row.timestamp or row.received_at
+
+
+def safe_location_points(rows: Iterable[OwnTracksLocation], max_accuracy_m: float) -> list[OwnTracksLocation]:
+    points: list[OwnTracksLocation] = []
+    for row in rows:
+        if row.lat is None or row.lon is None:
+            continue
+        if not Number_is_finite(row.lat) or not Number_is_finite(row.lon):
+            continue
+        if row.accuracy_m is not None and float(row.accuracy_m) > max_accuracy_m:
+            continue
+        points.append(row)
+    points.sort(key=lambda item: (location_time(item), item.received_at, item.id))
+    return points
+
+
+def Number_is_finite(value: Any) -> bool:
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def close_stop_cluster(cluster: list[OwnTracksLocation], radius_m: float, min_duration_seconds: int) -> Optional[StopCandidate]:
+    if len(cluster) < 2:
+        return None
+    first = location_time(cluster[0])
+    last = location_time(cluster[-1])
+    duration_seconds = int((last - first).total_seconds())
+    if duration_seconds < min_duration_seconds:
+        return None
+    lat = sum(float(row.lat) for row in cluster if row.lat is not None) / len(cluster)
+    lon = sum(float(row.lon) for row in cluster if row.lon is not None) / len(cluster)
+    spread_m = max(distance_meters(lat, lon, float(row.lat), float(row.lon)) for row in cluster if row.lat is not None and row.lon is not None)
+    if spread_m > radius_m * 1.4:
+        return None
+    max_accuracy = max((float(row.accuracy_m) for row in cluster if row.accuracy_m is not None), default=None)
+    return StopCandidate(
+        topic=cluster[0].topic,
+        username=cluster[0].username,
+        device=cluster[0].device,
+        lat=round(lat, 7),
+        lon=round(lon, 7),
+        sample_count=len(cluster),
+        visits=1,
+        total_duration_seconds=duration_seconds,
+        first_seen_at=first,
+        last_seen_at=last,
+        radius_m=max(DEFAULT_LOCAL_WAYPOINT_RADIUS_M, min(250.0, round(max(radius_m, spread_m + 25.0), 1))),
+        max_accuracy_m=max_accuracy,
+        confidence=round(min(0.99, 0.45 + min(duration_seconds / 7200, 0.3) + min(len(cluster) / 20, 0.2) + min(max(0, radius_m - spread_m) / radius_m, 1) * 0.04), 3),
+    )
+
+
+def stop_clusters_from_locations(
+    rows: Iterable[OwnTracksLocation],
+    *,
+    min_duration_minutes: int,
+    radius_m: float,
+    max_accuracy_m: float,
+    max_gap_minutes: int,
+) -> list[StopCandidate]:
+    points = safe_location_points(rows, max_accuracy_m)
+    min_duration_seconds = int(min_duration_minutes * 60)
+    max_gap_seconds = int(max_gap_minutes * 60)
+    clusters: list[StopCandidate] = []
+    current: list[OwnTracksLocation] = []
+    current_lat: Optional[float] = None
+    current_lon: Optional[float] = None
+    last_time: Optional[datetime] = None
+
+    for row in points:
+        row_time = location_time(row)
+        if not current:
+            current = [row]
+            current_lat = float(row.lat)
+            current_lon = float(row.lon)
+            last_time = row_time
+            continue
+        assert current_lat is not None and current_lon is not None and last_time is not None
+        gap_seconds = int((row_time - last_time).total_seconds())
+        distance_m = distance_meters(float(row.lat), float(row.lon), current_lat, current_lon)
+        if gap_seconds <= max_gap_seconds and distance_m <= radius_m:
+            current.append(row)
+            current_lat = sum(float(item.lat) for item in current if item.lat is not None) / len(current)
+            current_lon = sum(float(item.lon) for item in current if item.lon is not None) / len(current)
+        else:
+            candidate = close_stop_cluster(current, radius_m, min_duration_seconds)
+            if candidate:
+                clusters.append(candidate)
+            current = [row]
+            current_lat = float(row.lat)
+            current_lon = float(row.lon)
+        last_time = row_time
+
+    candidate = close_stop_cluster(current, radius_m, min_duration_seconds)
+    if candidate:
+        clusters.append(candidate)
+    return clusters
+
+
+def merge_stop_candidates(candidates: Iterable[StopCandidate], merge_radius_m: float) -> list[StopCandidate]:
+    merged: list[StopCandidate] = []
+    for candidate in sorted(candidates, key=lambda item: item.total_duration_seconds, reverse=True):
+        match = next(
+            (
+                item
+                for item in merged
+                if item.topic == candidate.topic and distance_meters(item.lat, item.lon, candidate.lat, candidate.lon) <= merge_radius_m
+            ),
+            None,
+        )
+        if match is None:
+            merged.append(candidate)
+            continue
+        total_samples = match.sample_count + candidate.sample_count
+        match.lat = round((match.lat * match.sample_count + candidate.lat * candidate.sample_count) / total_samples, 7)
+        match.lon = round((match.lon * match.sample_count + candidate.lon * candidate.sample_count) / total_samples, 7)
+        match.sample_count = total_samples
+        match.visits += candidate.visits
+        match.total_duration_seconds += candidate.total_duration_seconds
+        match.first_seen_at = min(match.first_seen_at, candidate.first_seen_at)
+        match.last_seen_at = max(match.last_seen_at, candidate.last_seen_at)
+        match.radius_m = max(match.radius_m, candidate.radius_m)
+        if candidate.max_accuracy_m is not None:
+            match.max_accuracy_m = max(float(match.max_accuracy_m or 0), candidate.max_accuracy_m)
+        match.confidence = round(min(0.99, max(match.confidence, candidate.confidence) + min(match.visits / 20, 0.08)), 3)
+    merged.sort(key=lambda item: (item.visits, item.total_duration_seconds, item.sample_count), reverse=True)
+    return merged
+
+
+def candidate_is_near_existing_waypoint(candidate: StopCandidate, waypoints: Iterable[OwnTracksWaypointState], radius_m: float) -> bool:
+    for waypoint in waypoints:
+        if waypoint.topic != candidate.topic or waypoint.lat is None or waypoint.lon is None:
+            continue
+        threshold = max(radius_m, float(waypoint.radius_m or 0), DEFAULT_LOCAL_WAYPOINT_RADIUS_M)
+        if distance_meters(candidate.lat, candidate.lon, float(waypoint.lat), float(waypoint.lon)) <= threshold:
+            return True
+    return False
+
+
+def geocode_cache_key(lat: float, lon: float) -> str:
+    return f"{lat:.5f},{lon:.5f}"
+
+
+def name_from_geocode(data: dict[str, Any]) -> Optional[str]:
+    for key in ("name", "amenity", "shop", "building", "leisure", "tourism"):
+        value = data.get(key)
+        if value:
+            return str(value)
+    address = data.get("address") if isinstance(data.get("address"), dict) else {}
+    road = address.get("road") or address.get("pedestrian") or address.get("footway")
+    house_number = address.get("house_number")
+    if road and house_number:
+        return f"{road} {house_number}"
+    if road:
+        return str(road)
+    for key in ("suburb", "neighbourhood", "village", "town", "city"):
+        if address.get(key):
+            return str(address[key])
+    return None
+
+
+def reverse_geocode(session: Session, lat: float, lon: float) -> dict[str, Optional[str]]:
+    if not REVERSE_GEOCODE_ENABLED or not NOMINATIM_REVERSE_URL:
+        return {"name": None, "address": None}
+    key = geocode_cache_key(lat, lon)
+    cached = session.execute(select(OwnTracksGeocodeCache).where(OwnTracksGeocodeCache.cache_key == key)).scalar_one_or_none()
+    if cached:
+        return {"name": cached.name, "address": cached.display_name}
+    params = urllib.parse.urlencode({"format": "jsonv2", "lat": f"{lat:.7f}", "lon": f"{lon:.7f}", "addressdetails": 1, "zoom": 18})
+    request = urllib.request.Request(
+        f"{NOMINATIM_REVERSE_URL}?{params}",
+        headers={"User-Agent": NOMINATIM_USER_AGENT, "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=4) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        logger.info("reverse geocode failed for %s: %s", key, exc)
+        return {"name": None, "address": None}
+    display_name = str(data.get("display_name") or "") or None
+    name = name_from_geocode(data)
+    session.add(
+        OwnTracksGeocodeCache(
+            cache_key=key,
+            lat=lat,
+            lon=lon,
+            name=name,
+            display_name=display_name,
+            raw=data,
+            updated_at=utc_now(),
+        )
+    )
+    return {"name": name, "address": display_name}
+
+
+def default_topic(session: Session, requested_topic: Optional[str] = None) -> str:
+    if requested_topic:
+        return canonical_owntracks_topic(requested_topic)
+    device_topic = session.execute(
+        select(OwnTracksDevice.topic)
+        .order_by(OwnTracksDevice.last_seen_at.desc().nullslast(), OwnTracksDevice.updated_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if device_topic:
+        return canonical_owntracks_topic(device_topic)
+    location_topic = session.execute(
+        select(OwnTracksLocation.topic)
+        .order_by(OwnTracksLocation.received_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    return canonical_owntracks_topic(location_topic or f"owntracks/{DEFAULT_TOPIC_USERNAME}/{DEFAULT_TOPIC_DEVICE}")
+
+
 def waypoint_items_from_plural(payload: dict[str, Any]) -> list[dict[str, Any]]:
     raw = payload.get("waypoints") or payload.get("wps") or payload.get("data") or []
     if isinstance(raw, dict):
@@ -538,6 +834,8 @@ def upsert_waypoint(
     session.info.setdefault("owntracks_waypoint_cache", {})[(location.topic, waypoint_name)] = row
     row.username = location.username
     row.device = location.device
+    row.source = "phone"
+    row.is_active = True
     row.source_message_type = location.message_type
     row.last_seen_at = location.timestamp or location.received_at
     row.updated_at = utc_now()
@@ -672,6 +970,7 @@ def materialize_zone_visits_for_location(session: Session, location: OwnTracksLo
         .where(OwnTracksWaypointState.topic == location.topic)
         .where(OwnTracksWaypointState.lat.isnot(None))
         .where(OwnTracksWaypointState.lon.isnot(None))
+        .where(or_(OwnTracksWaypointState.is_active.is_(True), OwnTracksWaypointState.is_active.is_(None)))
     ).scalars()
     for waypoint in waypoints:
         radius_m = float(waypoint.radius_m or 100.0)
@@ -932,6 +1231,18 @@ def duration_label(start_at: Optional[datetime], end_at: Optional[datetime]) -> 
     return f"{hours} t"
 
 
+def duration_seconds_label(seconds: Optional[int]) -> str:
+    if seconds is None:
+        return "-"
+    minutes = int(round(max(0, seconds) / 60))
+    if minutes < 60:
+        return f"{minutes} min"
+    hours, remainder = divmod(minutes, 60)
+    if remainder:
+        return f"{hours} t {remainder} min"
+    return f"{hours} t"
+
+
 def row_location(row: OwnTracksLocation) -> dict[str, Any]:
     return {
         "id": row.id,
@@ -976,6 +1287,10 @@ def row_waypoint(row: OwnTracksWaypointState) -> dict[str, Any]:
         "username": row.username,
         "device": row.device,
         "waypointName": row.waypoint_name,
+        "source": row.source or "phone",
+        "address": row.address,
+        "notes": row.notes,
+        "isActive": True if row.is_active is None else bool(row.is_active),
         "lat": row.lat,
         "lon": row.lon,
         "radiusM": row.radius_m,
@@ -986,6 +1301,7 @@ def row_waypoint(row: OwnTracksWaypointState) -> dict[str, Any]:
         "lastSeenAt": iso_dt(row.last_seen_at),
         "lastEventAt": iso_dt(row.last_event_at),
         "sourceMessageType": row.source_message_type,
+        "createdAt": iso_dt(row.created_at),
     }
 
 
@@ -1030,6 +1346,28 @@ def row_visit(row: OwnTracksZoneVisit) -> dict[str, Any]:
         "enterSource": row.enter_source,
         "leaveSource": row.leave_source,
         "confidence": row.confidence,
+    }
+
+
+def row_stop_candidate(candidate: StopCandidate) -> dict[str, Any]:
+    return {
+        "id": f"{candidate.topic}:{candidate.lat:.5f},{candidate.lon:.5f}",
+        "topic": candidate.topic,
+        "username": candidate.username,
+        "device": candidate.device,
+        "suggestedName": candidate.suggested_name or f"Sone {candidate.lat:.5f}, {candidate.lon:.5f}",
+        "address": candidate.address,
+        "lat": candidate.lat,
+        "lon": candidate.lon,
+        "radiusM": candidate.radius_m,
+        "sampleCount": candidate.sample_count,
+        "visits": candidate.visits,
+        "totalDurationSeconds": candidate.total_duration_seconds,
+        "totalDuration": duration_seconds_label(candidate.total_duration_seconds),
+        "firstSeenAt": iso_dt(candidate.first_seen_at),
+        "lastSeenAt": iso_dt(candidate.last_seen_at),
+        "maxAccuracyM": candidate.max_accuracy_m,
+        "confidence": candidate.confidence,
     }
 
 
@@ -1628,6 +1966,7 @@ if (FRONTEND_DIST / "assets").exists():
 @app.on_event("startup")
 def on_startup() -> None:
     Base.metadata.create_all(engine)
+    ensure_owntracks_schema()
     normalize_existing_owntracks_data()
 
 
@@ -1693,6 +2032,29 @@ def health() -> dict[str, Any]:
     return health_payload()
 
 
+class WaypointMutation(BaseModel):
+    name: str
+    topic: Optional[str] = None
+    lat: float
+    lon: float
+    radiusM: Optional[float] = None
+    address: Optional[str] = None
+    notes: Optional[str] = None
+    isActive: Optional[bool] = True
+    rebuildHistory: bool = True
+
+
+class WaypointPatch(BaseModel):
+    name: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    radiusM: Optional[float] = None
+    address: Optional[str] = None
+    notes: Optional[str] = None
+    isActive: Optional[bool] = None
+    rebuildHistory: bool = True
+
+
 @app.get("/owntracks/health")
 def owntracks_external_health(request: Request) -> dict[str, Any]:
     require_owntracks_admin(request)
@@ -1752,13 +2114,20 @@ def owntracks_external_devices(request: Request, limit: int = Query(50, ge=1, le
 
 
 @app.get("/api/owntracks/waypoints")
-def api_waypoints(limit: int = Query(100, ge=1, le=1000), events: int = Query(100, ge=0, le=1000)) -> dict[str, Any]:
+def api_waypoints(
+    limit: int = Query(100, ge=1, le=1000),
+    events: int = Query(100, ge=0, le=1000),
+    active_only: bool = Query(False),
+) -> dict[str, Any]:
     with SessionLocal() as session:
-        waypoint_rows = session.execute(
+        waypoint_stmt = (
             select(OwnTracksWaypointState)
             .order_by(OwnTracksWaypointState.last_seen_at.desc().nullslast(), OwnTracksWaypointState.updated_at.desc())
             .limit(limit)
-        ).scalars()
+        )
+        if active_only:
+            waypoint_stmt = waypoint_stmt.where(or_(OwnTracksWaypointState.is_active.is_(True), OwnTracksWaypointState.is_active.is_(None)))
+        waypoint_rows = session.execute(waypoint_stmt).scalars()
         event_rows = session.execute(
             select(OwnTracksWaypointEvent)
             .order_by(OwnTracksWaypointEvent.timestamp.desc().nullslast(), OwnTracksWaypointEvent.received_at.desc())
@@ -1775,9 +2144,201 @@ def owntracks_external_waypoints(
     request: Request,
     limit: int = Query(100, ge=1, le=1000),
     events: int = Query(100, ge=0, le=1000),
+    active_only: bool = Query(False),
 ) -> dict[str, Any]:
     require_owntracks_admin(request)
-    return api_waypoints(limit=limit, events=events)
+    return api_waypoints(limit=limit, events=events, active_only=active_only)
+
+
+@app.post("/api/owntracks/waypoints")
+def api_create_waypoint(payload: WaypointMutation) -> dict[str, Any]:
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Waypoint name is required")
+    if not Number_is_finite(payload.lat) or not Number_is_finite(payload.lon):
+        raise HTTPException(status_code=400, detail="Latitude and longitude must be valid numbers")
+    with SessionLocal() as session:
+        topic = default_topic(session, payload.topic)
+        existing = find_waypoint(session, topic, name)
+        if existing:
+            raise HTTPException(status_code=409, detail="Waypoint already exists for this topic")
+        username, device = topic_identity(topic)
+        row = OwnTracksWaypointState(
+            topic=topic,
+            username=username,
+            device=device,
+            waypoint_name=name,
+            source="server-manual",
+            source_message_type="server-manual",
+            address=(payload.address or "").strip() or None,
+            notes=(payload.notes or "").strip() or None,
+            is_active=True if payload.isActive is None else bool(payload.isActive),
+            lat=float(payload.lat),
+            lon=float(payload.lon),
+            radius_m=float(payload.radiusM or DEFAULT_LOCAL_WAYPOINT_RADIUS_M),
+            last_state="defined",
+            last_event="defined",
+            last_seen_at=utc_now(),
+            last_event_at=utc_now(),
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+        session.add(row)
+        session.commit()
+        result = row_waypoint(row)
+    locations_processed = rebuild_zone_visits() if payload.rebuildHistory else 0
+    return {"ok": True, "waypoint": result, "locationsProcessed": locations_processed}
+
+
+@app.post("/owntracks/api/waypoints")
+def owntracks_external_create_waypoint(request: Request, payload: WaypointMutation) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_create_waypoint(payload)
+
+
+@app.patch("/api/owntracks/waypoints/{waypoint_id}")
+def api_patch_waypoint(waypoint_id: int, payload: WaypointPatch) -> dict[str, Any]:
+    with SessionLocal() as session:
+        row = session.get(OwnTracksWaypointState, waypoint_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Waypoint not found")
+        if payload.name is not None:
+            next_name = payload.name.strip()
+            if not next_name:
+                raise HTTPException(status_code=400, detail="Waypoint name is required")
+            if next_name != row.waypoint_name and find_waypoint(session, row.topic, next_name):
+                raise HTTPException(status_code=409, detail="Waypoint already exists for this topic")
+            row.waypoint_name = next_name
+        if payload.lat is not None:
+            if not Number_is_finite(payload.lat):
+                raise HTTPException(status_code=400, detail="Latitude must be valid")
+            row.lat = float(payload.lat)
+        if payload.lon is not None:
+            if not Number_is_finite(payload.lon):
+                raise HTTPException(status_code=400, detail="Longitude must be valid")
+            row.lon = float(payload.lon)
+        if payload.radiusM is not None:
+            row.radius_m = max(10.0, float(payload.radiusM))
+        if payload.address is not None:
+            row.address = payload.address.strip() or None
+        if payload.notes is not None:
+            row.notes = payload.notes.strip() or None
+        if payload.isActive is not None:
+            row.is_active = bool(payload.isActive)
+        row.updated_at = utc_now()
+        session.commit()
+        result = row_waypoint(row)
+    locations_processed = rebuild_zone_visits() if payload.rebuildHistory else 0
+    return {"ok": True, "waypoint": result, "locationsProcessed": locations_processed}
+
+
+@app.patch("/owntracks/api/waypoints/{waypoint_id}")
+def owntracks_external_patch_waypoint(request: Request, waypoint_id: int, payload: WaypointPatch) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_patch_waypoint(waypoint_id, payload)
+
+
+@app.delete("/api/owntracks/waypoints/{waypoint_id}")
+def api_delete_waypoint(waypoint_id: int, rebuild: bool = Query(True)) -> dict[str, Any]:
+    with SessionLocal() as session:
+        row = session.get(OwnTracksWaypointState, waypoint_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Waypoint not found")
+        row.is_active = False
+        row.updated_at = utc_now()
+        session.commit()
+    locations_processed = rebuild_zone_visits() if rebuild else 0
+    return {"ok": True, "disabled": True, "locationsProcessed": locations_processed}
+
+
+@app.delete("/owntracks/api/waypoints/{waypoint_id}")
+def owntracks_external_delete_waypoint(request: Request, waypoint_id: int, rebuild: bool = Query(True)) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_delete_waypoint(waypoint_id, rebuild=rebuild)
+
+
+@app.get("/api/owntracks/waypoint-suggestions")
+def api_waypoint_suggestions(
+    hours: int = Query(720, ge=0, le=24 * 365 * 3),
+    min_minutes: int = Query(STOP_SUGGESTION_MIN_MINUTES, ge=1, le=24 * 60),
+    radius_m: float = Query(STOP_SUGGESTION_RADIUS_M, ge=15, le=500),
+    max_accuracy_m: float = Query(STOP_SUGGESTION_MAX_ACCURACY_M, ge=10, le=1000),
+    limit: int = Query(20, ge=1, le=100),
+    include_address: bool = Query(True),
+) -> dict[str, Any]:
+    since = utc_now() - timedelta(hours=hours) if hours else None
+    with SessionLocal() as session:
+        location_stmt = (
+            select(OwnTracksLocation)
+            .where(OwnTracksLocation.lat.isnot(None))
+            .where(OwnTracksLocation.lon.isnot(None))
+            .order_by(OwnTracksLocation.timestamp.asc().nullslast(), OwnTracksLocation.received_at.asc())
+        )
+        if since is not None:
+            location_stmt = location_stmt.where(or_(OwnTracksLocation.timestamp >= since, OwnTracksLocation.received_at >= since))
+        locations = list(session.execute(location_stmt).scalars())
+        existing_waypoints = list(
+            session.execute(
+                select(OwnTracksWaypointState)
+                .where(OwnTracksWaypointState.lat.isnot(None))
+                .where(OwnTracksWaypointState.lon.isnot(None))
+                .where(or_(OwnTracksWaypointState.is_active.is_(True), OwnTracksWaypointState.is_active.is_(None)))
+            ).scalars()
+        )
+        clusters = stop_clusters_from_locations(
+            locations,
+            min_duration_minutes=min_minutes,
+            radius_m=radius_m,
+            max_accuracy_m=max_accuracy_m,
+            max_gap_minutes=STOP_SUGGESTION_MAX_GAP_MINUTES,
+        )
+        merged = merge_stop_candidates(clusters, merge_radius_m=max(radius_m, DEFAULT_LOCAL_WAYPOINT_RADIUS_M))
+        suggestions: list[StopCandidate] = []
+        for candidate in merged:
+            if candidate_is_near_existing_waypoint(candidate, existing_waypoints, radius_m=max(radius_m, candidate.radius_m)):
+                continue
+            if include_address:
+                geocode = reverse_geocode(session, candidate.lat, candidate.lon)
+                candidate.suggested_name = geocode.get("name")
+                candidate.address = geocode.get("address")
+            if not candidate.suggested_name:
+                candidate.suggested_name = f"Stopp {candidate.lat:.5f}, {candidate.lon:.5f}"
+            suggestions.append(candidate)
+            if len(suggestions) >= limit:
+                break
+        session.commit()
+        return {
+            "parameters": {
+                "hours": hours,
+                "minMinutes": min_minutes,
+                "radiusM": radius_m,
+                "maxAccuracyM": max_accuracy_m,
+                "limit": limit,
+                "includeAddress": include_address,
+            },
+            "suggestions": [row_stop_candidate(candidate) for candidate in suggestions],
+        }
+
+
+@app.get("/owntracks/api/waypoint-suggestions")
+def owntracks_external_waypoint_suggestions(
+    request: Request,
+    hours: int = Query(720, ge=0, le=24 * 365 * 3),
+    min_minutes: int = Query(STOP_SUGGESTION_MIN_MINUTES, ge=1, le=24 * 60),
+    radius_m: float = Query(STOP_SUGGESTION_RADIUS_M, ge=15, le=500),
+    max_accuracy_m: float = Query(STOP_SUGGESTION_MAX_ACCURACY_M, ge=10, le=1000),
+    limit: int = Query(20, ge=1, le=100),
+    include_address: bool = Query(True),
+) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_waypoint_suggestions(
+        hours=hours,
+        min_minutes=min_minutes,
+        radius_m=radius_m,
+        max_accuracy_m=max_accuracy_m,
+        limit=limit,
+        include_address=include_address,
+    )
 
 
 @app.get("/api/owntracks/map")
@@ -1807,6 +2368,7 @@ def api_map(hours: int = Query(24, ge=0, le=24 * 365), limit: int = Query(2000, 
             select(OwnTracksWaypointState)
             .where(OwnTracksWaypointState.lat.isnot(None))
             .where(OwnTracksWaypointState.lon.isnot(None))
+            .where(or_(OwnTracksWaypointState.is_active.is_(True), OwnTracksWaypointState.is_active.is_(None)))
             .order_by(OwnTracksWaypointState.last_seen_at.desc().nullslast(), OwnTracksWaypointState.updated_at.desc())
         ).scalars()
         visit_stmt = select(OwnTracksZoneVisit).order_by(OwnTracksZoneVisit.started_at.desc()).limit(1000)

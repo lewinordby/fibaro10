@@ -298,6 +298,62 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(saved["lat"], 61.115)
             self.assertEqual(saved["lon"], 10.466)
 
+    def test_local_waypoint_can_be_created_and_rebuilds_visits(self) -> None:
+        topic = "owntracks/local-zone/android"
+        with TestClient(app) as client:
+            first = client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 62.111, "lon": 11.222, "acc": 5, "tst": 1783090000},
+            )
+            second = client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 62.1111, "lon": 11.2221, "acc": 5, "tst": 1783090600},
+            )
+            self.assertEqual(first.status_code, 200)
+            self.assertEqual(second.status_code, 200)
+
+            created = client.post(
+                "/api/owntracks/waypoints",
+                json={
+                    "topic": topic,
+                    "name": "Lokalt teststed",
+                    "lat": 62.111,
+                    "lon": 11.222,
+                    "radiusM": 100,
+                    "address": "Testveien 1",
+                },
+            )
+            self.assertEqual(created.status_code, 200)
+            self.assertEqual(created.json()["waypoint"]["source"], "server-manual")
+            self.assertGreaterEqual(created.json()["locationsProcessed"], 2)
+
+            visits = client.get("/api/owntracks/map?hours=0&limit=0").json()["zoneVisits"]
+            matching = [row for row in visits if row["topic"] == topic and row["waypointName"] == "Lokalt teststed"]
+            self.assertEqual(len(matching), 1)
+            self.assertEqual(matching[0]["enterSource"], "computed-position")
+
+    def test_stop_suggestions_find_stationary_cluster_without_geocode(self) -> None:
+        topic = "owntracks/stop-suggestion/android"
+        with TestClient(app) as client:
+            for offset, lat, lon in (
+                (0, 62.50100, 11.70100),
+                (600, 62.50105, 11.70102),
+                (1200, 62.50108, 11.70101),
+            ):
+                response = client.post(
+                    "/pub",
+                    json={"_type": "location", "topic": topic, "lat": lat, "lon": lon, "acc": 8, "tst": 1783100000 + offset},
+                )
+                self.assertEqual(response.status_code, 200)
+
+            payload = client.get(
+                "/api/owntracks/waypoint-suggestions?hours=0&min_minutes=10&radius_m=120&include_address=false"
+            ).json()
+            suggestions = [row for row in payload["suggestions"] if row["topic"] == topic]
+            self.assertGreaterEqual(len(suggestions), 1)
+            self.assertGreaterEqual(suggestions[0]["totalDurationSeconds"], 600)
+            self.assertEqual(suggestions[0]["visits"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

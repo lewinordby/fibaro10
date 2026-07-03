@@ -371,6 +371,12 @@ a {
   background: #15803d;
 }
 
+.waypoint-marker.local {
+  width: 16px;
+  height: 16px;
+  background: #2563eb;
+}
+
 .maplibregl-popup-content {
   padding: 9px 11px;
   color: var(--ink);
@@ -397,6 +403,18 @@ a {
   border-radius: 8px;
   overflow: hidden;
   background: var(--surface);
+}
+
+.suggestion-control-card {
+  margin-bottom: 12px;
+}
+
+.waypoint-form {
+  padding-top: 8px;
+}
+
+.full-width-control {
+  width: 100%;
 }
 
 @media (max-width: 900px) {

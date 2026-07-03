@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "6")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "7")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "7",
+        "date": "03.07.2026",
+        "headline": "Lokale waypoints og stoppforslag",
+        "title": "OwnTracks kan definere server-soner og foreslaa nye soner fra stoppmonster",
+        "description": (
+            "Build 7 videreutvikler OwnTracks til mer enn et rent mottak. Serveren kan naa ha egne lokale waypoints "
+            "som ikke ligger i telefonappen, og appen kan foreslaa nye soner ut fra steder der posisjonsloggen viser "
+            "at telefonen har staatt stille over tid. Forslag kan faa adresse via reverse geocoding og opprettes direkte."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: lokale waypoints, API for oppretting/endring/deaktivering og stoppforslag.",
+            "owntracks_service/frontend/src/App.tsx: egen Forslag-side, lokal waypoint-modal og forbedret kartzoom.",
+            "owntracks_service/frontend/src/styles.css: markorer og kontrollflater for lokale soner og forslag.",
+        ],
+        "request": "Moderniser OwnTracks med nødvendige funksjoner, lokale waypoints og forslag basert paa stopp med navn/adresse.",
+        "work_duration": "ca. 90 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Lokale server-waypoints kan opprettes uten aa ligge i OwnTracks-appen paa telefonen.",
+            "Forslag beregnes fra posisjoner som har ligget stille over tid og filtreres mot eksisterende soner.",
+            "Kartet zoomer tettere inn og skiller lokale soner visuelt fra telefonsoner.",
+        ],
+    },
     {
         "version": "1",
         "build": "6",

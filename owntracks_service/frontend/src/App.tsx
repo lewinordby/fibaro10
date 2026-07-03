@@ -1,6 +1,7 @@
 import {
   AimOutlined,
   BuildOutlined,
+  BulbOutlined,
   ClockCircleOutlined,
   CompassOutlined,
   DashboardOutlined,
@@ -8,6 +9,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   NodeIndexOutlined,
+  PlusOutlined,
   PushpinOutlined,
   ReloadOutlined,
   ToolOutlined,
@@ -19,7 +21,11 @@ import {
   Card,
   Col,
   Empty,
+  Form,
+  Input,
+  InputNumber,
   Layout,
+  Modal,
   Row,
   Select,
   Space,
@@ -39,7 +45,7 @@ const MENU_HIDDEN_STORAGE_KEY = "owntracks:mainMenuHidden";
 const MAP_LAYER_IDS = ["owntracks-waypoints-fill", "owntracks-waypoints-line", "owntracks-track-line"];
 const MAP_SOURCE_IDS = ["owntracks-waypoints", "owntracks-track"];
 
-type ViewKey = "dashboard" | "map" | "visits" | "waypoints" | "messages" | "events" | "build";
+type ViewKey = "dashboard" | "map" | "visits" | "waypoints" | "suggestions" | "messages" | "events" | "build";
 
 type HealthPayload = {
   status: string;
@@ -108,6 +114,10 @@ type WaypointRow = {
   id: number;
   topic: string;
   waypointName: string;
+  source?: string;
+  address?: string;
+  notes?: string;
+  isActive?: boolean;
   lat?: number;
   lon?: number;
   radiusM?: number;
@@ -115,6 +125,31 @@ type WaypointRow = {
   lastState?: string;
   lastEvent?: string;
   lastSeenAt?: string;
+};
+
+type WaypointSuggestionRow = {
+  id: string;
+  topic: string;
+  username?: string;
+  device?: string;
+  suggestedName: string;
+  address?: string;
+  lat: number;
+  lon: number;
+  radiusM: number;
+  sampleCount: number;
+  visits: number;
+  totalDuration: string;
+  totalDurationSeconds: number;
+  firstSeenAt?: string;
+  lastSeenAt?: string;
+  maxAccuracyM?: number;
+  confidence?: number;
+};
+
+type WaypointSuggestionsPayload = {
+  parameters: Record<string, string | number | boolean>;
+  suggestions: WaypointSuggestionRow[];
 };
 
 type VisitRow = {
@@ -155,6 +190,7 @@ const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: React.ReactNode; col
   { key: "map", label: "Kart", icon: <EnvironmentOutlined />, color: "#0891b2" },
   { key: "visits", label: "Sonebesok", icon: <NodeIndexOutlined />, color: "#15803d" },
   { key: "waypoints", label: "Waypoints", icon: <PushpinOutlined />, color: "#f59e0b" },
+  { key: "suggestions", label: "Forslag", icon: <BulbOutlined />, color: "#d97706" },
   { key: "messages", label: "Meldinger", icon: <UnorderedListOutlined />, color: "#7c3aed" },
   { key: "events", label: "Hendelser", icon: <ClockCircleOutlined />, color: "#db2777" },
   { key: "build", label: "Build", icon: <BuildOutlined />, color: "#475569" },
@@ -265,6 +301,17 @@ function eventTag(value?: string) {
   return <Tag>{value || "-"}</Tag>;
 }
 
+function waypointSourceTag(value?: string) {
+  if (value === "server-manual") return <Tag color="blue">Lokal</Tag>;
+  if (value === "server-suggestion") return <Tag color="gold">Forslag</Tag>;
+  return <Tag>Telefon</Tag>;
+}
+
+function activeTag(value?: boolean) {
+  if (value === false) return <Tag color="red">Av</Tag>;
+  return <Tag color="green">Aktiv</Tag>;
+}
+
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="section-header">
@@ -351,9 +398,13 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
 
     const bounds = new maplibregl.LngLatBounds();
     let hasBounds = false;
+    let boundsPointCount = 0;
+    let lastBoundPoint: [number, number] | null = null;
     const extendBounds = (lon: number, lat: number) => {
       bounds.extend([lon, lat]);
       hasBounds = true;
+      boundsPointCount += 1;
+      lastBoundPoint = [lon, lat];
     };
     const points = (data?.locations || []).filter((row) => Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lon)));
     if (points.length > 1) {
@@ -411,11 +462,12 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
         const lon = Number(row.lon);
         const radiusM = Number(row.radiusM || 50);
         extendBounds(lon, lat);
-        const marker = new maplibregl.Marker({ element: createMapMarker(row.isInside ? "waypoint-marker inside" : "waypoint-marker"), anchor: "center" })
+        const markerClass = row.source === "server-manual" ? "waypoint-marker local" : row.isInside ? "waypoint-marker inside" : "waypoint-marker";
+        const marker = new maplibregl.Marker({ element: createMapMarker(markerClass), anchor: "center" })
           .setLngLat([lon, lat])
           .setPopup(
             new maplibregl.Popup({ offset: 18 }).setHTML(
-              `<b>${escapeHtml(row.waypointName)}</b><br>${row.isInside ? "Inne" : "Ute"}<br>Radius ${escapeHtml(formatNumber(row.radiusM))} m`,
+              `<b>${escapeHtml(row.waypointName)}</b><br>${escapeHtml(row.source === "server-manual" ? "Lokal sone" : "Telefon-sone")}<br>${row.address ? `${escapeHtml(row.address)}<br>` : ""}Radius ${escapeHtml(formatNumber(row.radiusM))} m`,
             ),
           )
           .addTo(map);
@@ -423,8 +475,8 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
         return {
           type: "Feature" as const,
           properties: {
-            strokeColor: row.isInside ? "#15803d" : "#f59e0b",
-            fillColor: row.isInside ? "#86efac" : "#fde68a",
+            strokeColor: row.source === "server-manual" ? "#2563eb" : row.isInside ? "#15803d" : "#f59e0b",
+            fillColor: row.source === "server-manual" ? "#bfdbfe" : row.isInside ? "#86efac" : "#fde68a",
           },
           geometry: {
             type: "Polygon" as const,
@@ -460,7 +512,11 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
         },
       });
     }
-    if (hasBounds) map.fitBounds(bounds, { padding: 28, maxZoom: 16, duration: 300 });
+    if (hasBounds && boundsPointCount === 1 && lastBoundPoint) {
+      map.easeTo({ center: lastBoundPoint, zoom: 18, duration: 300 });
+    } else if (hasBounds) {
+      map.fitBounds(bounds, { padding: 18, maxZoom: 18, duration: 300 });
+    }
   }, [data, mapReady]);
 
   return <div className={large ? "owntracks-map large" : "owntracks-map"} ref={mapElementRef} />;
@@ -569,9 +625,17 @@ export default function App() {
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [moduleData, setModuleData] = useState<ModulePayload | null>(null);
   const [mapData, setMapData] = useState<MapPayload | null>(null);
+  const [suggestions, setSuggestions] = useState<WaypointSuggestionRow[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionHours, setSuggestionHours] = useState("720");
+  const [suggestionMinMinutes, setSuggestionMinMinutes] = useState(10);
+  const [suggestionRadiusM, setSuggestionRadiusM] = useState(80);
+  const [waypointModalOpen, setWaypointModalOpen] = useState(false);
+  const [waypointSaving, setWaypointSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
+  const [waypointForm] = Form.useForm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -601,6 +665,69 @@ export default function App() {
   useEffect(() => {
     window.location.hash = view;
   }, [view]);
+
+  const topicOptions = useMemo(() => {
+    const topics = new Set<string>();
+    (mapData?.devices || []).forEach((row) => row.topic && topics.add(row.topic));
+    (mapData?.waypoints || []).forEach((row) => row.topic && topics.add(row.topic));
+    (mapData?.locations || []).forEach((row) => row.topic && topics.add(row.topic));
+    return Array.from(topics).map((topic) => ({ value: topic, label: topic }));
+  }, [mapData]);
+
+  const loadSuggestions = useCallback(async () => {
+    setSuggestionsLoading(true);
+    try {
+      const payload = await fetchJson<WaypointSuggestionsPayload>("/owntracks/api/waypoint-suggestions", {
+        hours: suggestionHours,
+        min_minutes: suggestionMinMinutes,
+        radius_m: suggestionRadiusM,
+        limit: 30,
+        include_address: 1,
+      });
+      setSuggestions(payload.suggestions || []);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Kunne ikke hente forslag");
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }, [suggestionHours, suggestionMinMinutes, suggestionRadiusM]);
+
+  useEffect(() => {
+    if (view === "suggestions") void loadSuggestions();
+  }, [loadSuggestions, view]);
+
+  function openWaypointModal(suggestion?: WaypointSuggestionRow) {
+    waypointForm.setFieldsValue({
+      topic: suggestion?.topic || topicOptions[0]?.value,
+      name: suggestion?.suggestedName || "",
+      lat: suggestion?.lat,
+      lon: suggestion?.lon,
+      radiusM: suggestion?.radiusM || 100,
+      address: suggestion?.address || "",
+      notes: "",
+    });
+    setWaypointModalOpen(true);
+  }
+
+  async function saveWaypoint() {
+    const values = await waypointForm.validateFields();
+    setWaypointSaving(true);
+    try {
+      const result = await fetchJson<{ locationsProcessed: number }>("/owntracks/api/waypoints", {}, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...values, rebuildHistory: true }),
+      });
+      message.success(`Waypoint opprettet. ${result.locationsProcessed || 0} posisjoner ble beregnet på nytt.`);
+      setWaypointModalOpen(false);
+      await load();
+      if (view === "suggestions") await loadSuggestions();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Kunne ikke lagre waypoint");
+    } finally {
+      setWaypointSaving(false);
+    }
+  }
 
   async function rebuildVisits() {
     setRebuilding(true);
@@ -634,11 +761,35 @@ export default function App() {
 
   const waypointColumns: ColumnsType<WaypointRow> = [
     { title: "Navn", dataIndex: "waypointName", fixed: "left" },
+    { title: "Kilde", dataIndex: "source", render: waypointSourceTag },
+    { title: "Aktiv", dataIndex: "isActive", render: activeTag },
     { title: "Status", dataIndex: "isInside", render: insideTag },
     { title: "Sist sett", dataIndex: "lastSeenAt", render: formatDateTime },
     { title: "Siste hendelse", dataIndex: "lastEvent", render: eventTag },
     { title: "Radius", dataIndex: "radiusM", render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Adresse", dataIndex: "address", ellipsis: true },
     { title: "Senter", render: (_, row) => mapLink(row.lat, row.lon) },
+  ];
+
+  const suggestionColumns: ColumnsType<WaypointSuggestionRow> = [
+    { title: "Forslag", dataIndex: "suggestedName", fixed: "left", width: 220 },
+    { title: "Adresse", dataIndex: "address", ellipsis: true },
+    { title: "Besok", dataIndex: "visits", width: 80 },
+    { title: "Tid", dataIndex: "totalDuration", width: 110 },
+    { title: "Samples", dataIndex: "sampleCount", width: 90 },
+    { title: "Treff", dataIndex: "confidence", width: 90, render: (value?: number) => formatNumber(value, 2) },
+    { title: "Sist", dataIndex: "lastSeenAt", width: 150, render: formatDateTime },
+    { title: "Radius", dataIndex: "radiusM", width: 100, render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Senter", width: 150, render: (_, row) => mapLink(row.lat, row.lon) },
+    {
+      title: "",
+      width: 120,
+      render: (_, row) => (
+        <Button size="small" type="primary" onClick={() => openWaypointModal(row)}>
+          Opprett
+        </Button>
+      ),
+    },
   ];
 
   const locationColumns: ColumnsType<LocationRow> = [
@@ -749,8 +900,60 @@ export default function App() {
   } else if (view === "waypoints") {
     content = (
       <>
-        <SectionHeader title="Waypoints" subtitle="Soner publisert fra OwnTracks-appen" />
-        <DataTable<WaypointRow> columns={waypointColumns} data={waypoints} />
+        <SectionHeader title="Waypoints" subtitle="Telefonsoner og lokale serverdefinerte soner" />
+        <Card
+          title="Soner"
+          extra={
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => openWaypointModal()}>
+              Ny lokal sone
+            </Button>
+          }
+        >
+          <Table<WaypointRow>
+            size="small"
+            columns={waypointColumns}
+            dataSource={waypoints}
+            rowKey="id"
+            pagination={{ pageSize: 20, showSizeChanger: false }}
+            scroll={{ x: true }}
+          />
+        </Card>
+      </>
+    );
+  } else if (view === "suggestions") {
+    content = (
+      <>
+        <SectionHeader title="Forslag" subtitle="Mulige lokale soner basert paa steder der telefonen har staatt stille" />
+        <Card className="suggestion-control-card">
+          <Space wrap>
+            <Select
+              value={suggestionHours}
+              onChange={setSuggestionHours}
+              options={[
+                { value: "168", label: "Siste 7 dager" },
+                { value: "720", label: "Siste 30 dager" },
+                { value: "2160", label: "Siste 90 dager" },
+                { value: "0", label: "Alt" },
+              ]}
+            />
+            <InputNumber addonBefore="Min stopp" addonAfter="min" min={1} max={1440} value={suggestionMinMinutes} onChange={(value) => setSuggestionMinMinutes(Number(value || 10))} />
+            <InputNumber addonBefore="Radius" addonAfter="m" min={15} max={500} value={suggestionRadiusM} onChange={(value) => setSuggestionRadiusM(Number(value || 80))} />
+            <Button type="primary" icon={<ReloadOutlined />} loading={suggestionsLoading} onClick={() => void loadSuggestions()}>
+              Finn forslag
+            </Button>
+          </Space>
+        </Card>
+        <Card title="Stopp som kan bli waypoints" extra={<Typography.Text type="secondary">{suggestions.length} forslag</Typography.Text>}>
+          <Table<WaypointSuggestionRow>
+            size="small"
+            columns={suggestionColumns}
+            dataSource={suggestions}
+            rowKey="id"
+            loading={suggestionsLoading}
+            pagination={{ pageSize: 20, showSizeChanger: false }}
+            scroll={{ x: true }}
+          />
+        </Card>
       </>
     );
   } else if (view === "messages") {
@@ -788,6 +991,56 @@ export default function App() {
       </div>
       {error ? <Alert className="page-alert" type="error" message={error} showIcon /> : null}
       {content}
+      <Modal
+        title="Ny lokal waypoint"
+        open={waypointModalOpen}
+        onCancel={() => setWaypointModalOpen(false)}
+        onOk={() => void saveWaypoint()}
+        confirmLoading={waypointSaving}
+        okText="Lagre"
+        cancelText="Avbryt"
+        width={760}
+      >
+        <Form form={waypointForm} layout="vertical" className="waypoint-form">
+          <Row gutter={12}>
+            <Col xs={24} md={12}>
+              <Form.Item name="name" label="Navn" rules={[{ required: true, message: "Navn mangler" }]}>
+                <Input placeholder="Eks. Hjemme, Lilletorget, Oskar Skoglys veg" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="topic" label="Enhet">
+                <Select allowClear placeholder="Bruk siste enhet hvis tom" options={topicOptions} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="lat" label="Latitude" rules={[{ required: true, message: "Latitude mangler" }]}>
+                <InputNumber precision={7} className="full-width-control" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="lon" label="Longitude" rules={[{ required: true, message: "Longitude mangler" }]}>
+                <InputNumber precision={7} className="full-width-control" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="radiusM" label="Radius">
+                <InputNumber min={10} max={1000} addonAfter="m" className="full-width-control" />
+              </Form.Item>
+            </Col>
+            <Col xs={24}>
+              <Form.Item name="address" label="Adresse">
+                <Input placeholder="Valgfri adresse eller beskrivelse" />
+              </Form.Item>
+            </Col>
+            <Col xs={24}>
+              <Form.Item name="notes" label="Notat">
+                <Input.TextArea rows={3} placeholder="Valgfritt notat om sonen" />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
     </AppShell>
   );
 }
