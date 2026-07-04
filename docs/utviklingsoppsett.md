@@ -138,7 +138,7 @@ QNAP-backup-scriptet ligger i `scripts/qnap-backup.sh` og tar vare paa `.env`, E
 sh /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/scripts/qnap-backup.sh
 ```
 
-Backuper lagres under `/share/CACHEDEV1_DATA/Public/containerdata/backups/fibaro10`, og de 20 nyeste beholdes.
+Backuper lagres under `/share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_backups`, og de 20 nyeste beholdes. Axis snapshot-arkivet er flyttet til eget arkivvolum og tas ikke med i standard backup.
 
 ## Restore-test
 

@@ -1,7 +1,7 @@
 param(
     [string]$QnapAlias = "qnap-fibaro10",
     [string]$RemoteDir = "/share/CACHEDEV1_DATA/Public/containerdata/fibaro10",
-    [string]$BackupRoot = "/share/CACHEDEV1_DATA/Public/containerdata/backups/fibaro10",
+    [string]$BackupRoot = "/share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_backups",
     [string]$Docker = "/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker",
     [string]$PostgresContainer = "postgres-1",
     [string]$PostgresUser = "app",
