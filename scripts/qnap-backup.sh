@@ -15,10 +15,22 @@ mkdir -p "$backup_dir"
 
 cd "$REMOTE_DIR"
 
-set -a
-[ -f .env ] && . ./.env
-[ -f easypark_downloader/.env ] && . ./easypark_downloader/.env
-set +a
+env_value() {
+    file="$1"
+    key="$2"
+    [ -f "$file" ] || return 0
+    line="$(grep -m 1 "^${key}=" "$file" || true)"
+    [ -n "$line" ] || return 0
+    printf '%s' "${line#*=}"
+}
+
+EASYPARK_HOST_DATA_DIR="${EASYPARK_HOST_DATA_DIR:-$(env_value easypark_downloader/.env EASYPARK_HOST_DATA_DIR)}"
+AXIS_HOST_DATA_DIR="${AXIS_HOST_DATA_DIR:-$(env_value .env AXIS_HOST_DATA_DIR)}"
+OWNTRACKS_HOST_DATA_DIR="${OWNTRACKS_HOST_DATA_DIR:-$(env_value .env OWNTRACKS_HOST_DATA_DIR)}"
+CAR_INFO_HOST_DATA_DIR="${CAR_INFO_HOST_DATA_DIR:-$(env_value .env CAR_INFO_HOST_DATA_DIR)}"
+SUN2_SESSION_SCRAPER_HOST_DATA_DIR="${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-$(env_value .env SUN2_SESSION_SCRAPER_HOST_DATA_DIR)}"
+FIBARO10_CADDY_DATA_DIR="${FIBARO10_CADDY_DATA_DIR:-$(env_value .env FIBARO10_CADDY_DATA_DIR)}"
+FIBARO10_CADDY_CONFIG_DIR="${FIBARO10_CADDY_CONFIG_DIR:-$(env_value .env FIBARO10_CADDY_CONFIG_DIR)}"
 
 copy_dir() {
     source_dir="$1"
