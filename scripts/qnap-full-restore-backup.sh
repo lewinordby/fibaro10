@@ -54,6 +54,18 @@ sync_dir_if_exists() {
     rsync -a --delete "$source_dir/" "$target_dir/"
 }
 
+sync_path_if_exists() {
+    source_path="$1"
+    target_path="$2"
+    [ -n "$source_path" ] || return 0
+    [ -e "$source_path" ] || return 0
+    if [ -d "$source_path" ]; then
+        sync_dir_if_exists "$source_path" "$target_path"
+    else
+        copy_file_if_exists "$source_path" "$target_path"
+    fi
+}
+
 remove_backup_subdir() {
     target_dir="$1"
     case "$target_dir" in
@@ -65,6 +77,62 @@ remove_backup_subdir() {
     esac
     [ -e "$target_dir" ] || return 0
     rm -rf "$target_dir"
+}
+
+host_path_backup_target() {
+    source_path="$1"
+    clean_path="$(printf '%s' "$source_path" | sed 's#^/##')"
+    printf '%s/runtime/host-paths/%s' "$BACKUP_DIR" "$clean_path"
+}
+
+backup_docker_mounts() {
+    [ -x "$DOCKER" ] || return 0
+
+    mount_inventory="$BACKUP_DIR/system/docker-mounts.tsv"
+    mount_review="$BACKUP_DIR/system/docker-mounts-review.txt"
+    : > "$mount_inventory"
+    : > "$mount_review"
+
+    "$DOCKER" ps -a --format '{{.Names}}' 2>/dev/null | while read -r container; do
+        [ -n "$container" ] || continue
+        "$DOCKER" inspect --format '{{range .Mounts}}{{.Type}}|{{.Source}}|{{.Destination}}{{println}}{{end}}' "$container" 2>/dev/null | while IFS='|' read -r mount_type source_path dest_path; do
+            [ -n "$source_path" ] || continue
+            decision="review"
+
+            case "$source_path" in
+                "$BACKUP_ROOT"|"$BACKUP_ROOT"/*)
+                    decision="skip:backup-root"
+                    ;;
+                "$REMOTE_DIR"|"$REMOTE_DIR"/*)
+                    decision="covered:repo-working-tree"
+                    ;;
+                /share/Public/pgdata|/share/Public/pgdata/*|*/postgres/pgdata|*/postgres/pgdata/*)
+                    decision="covered:postgres-dump"
+                    ;;
+                */axis_camera_snapshots/snapshots|*/axis_camera_snapshots/snapshots/*)
+                    decision="excluded:raw-axis-snapshot-buffer"
+                    ;;
+                /etc/*|/var/run/docker.sock)
+                    decision="skip:system-bind"
+                    ;;
+                /share/CACHEDEV*_DATA/*|/share/Public/*|/share/homes/*)
+                    decision="copied:host-path"
+                    sync_path_if_exists "$source_path" "$(host_path_backup_target "$source_path")"
+                    ;;
+                */docker/volumes/*|*/container-station*/volumes/*)
+                    decision="copied:docker-volume"
+                    sync_path_if_exists "$source_path" "$(host_path_backup_target "$source_path")"
+                    ;;
+            esac
+
+            printf '%s\t%s\t%s\t%s\t%s\n' "$container" "$mount_type" "$source_path" "$dest_path" "$decision" >> "$mount_inventory"
+            case "$decision" in
+                review)
+                    printf '%s\t%s\t%s\t%s\n' "$container" "$mount_type" "$source_path" "$dest_path" >> "$mount_review"
+                    ;;
+            esac
+        done
+    done
 }
 
 write_section() {
@@ -153,6 +221,9 @@ sync_dir_if_exists "${CAR_INFO_HOST_DATA_DIR:-car_info_lookup/data}" "$BACKUP_DI
 sync_dir_if_exists "${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-sun2_session_scraper/data}" "$BACKUP_DIR/runtime/sun2_session_scraper/data"
 sync_dir_if_exists "${FIBARO10_CADDY_DATA_DIR:-}" "$BACKUP_DIR/runtime/caddy/data"
 sync_dir_if_exists "${FIBARO10_CADDY_CONFIG_DIR:-}" "$BACKUP_DIR/runtime/caddy/config"
+
+log "Discovering and copying Docker host mounts"
+backup_docker_mounts
 
 log "Copying backup archive data from Vol3"
 sync_dir_if_exists "$ARCHIVE_ROOT/fibaro10_deploy_backups" "$BACKUP_DIR/archive/fibaro10_deploy_backups"
@@ -278,6 +349,30 @@ cp -a archive/fibaro10_backups /share/CACHEDEV3_DATA/fibaro10_archive/
 
 Axis-bilder som er knyttet til soltimer ligger i Fibaro10-databasen, i tabellen `sun2_tanning_session_images`, og blir gjenopprettet gjennom PostgreSQL-dumpen. Det historiske Axis snapshot-arkivet tas ikke med.
 
+## Fremtidige tjenester og nye datakataloger
+
+Backupjobben lager et Docker mount-inventar i:
+
+```text
+system/docker-mounts.tsv
+```
+
+Alle Docker host mounts under `/share/CACHEDEV*_DATA`, `/share/Public` og `/share/homes` kopieres automatisk til:
+
+```text
+runtime/host-paths/
+```
+
+Dette gjoer at nye containeriserte apper normalt blir med uten at scriptet maa endres manuelt.
+
+Hvis en fremtidig container bruker en ukjent datasti, blir den listet i:
+
+```text
+system/docker-mounts-review.txt
+```
+
+Denne filen skal vaere tom. Hvis den ikke er tom, maa restore-backupen oppdateres eller ny datasti flyttes inn under en standard runtime/archive-katalog.
+
 ## 6. Start PostgreSQL og restore database
 
 Opprett datamappe paa SSD:
@@ -370,8 +465,11 @@ Backupkatalogens innhold:
 - repo/working-tree/: arbeidskopi av repoet.
 - postgres/: PostgreSQL SQL-dump, custom dump og globals.
 - runtime/: SSD runtime-data for EasyPark, OwnTracks, Axis metadata/konfig, biloppslag, SUN2 scraper og Caddy.
+- runtime/host-paths/: automatisk oppdagede Docker host mounts for nye tjenester.
 - archive/: deploy-backups og Fibaro10 backups. Raa Axis snapshot-buffer er ikke med.
 - system/: Docker inspect, crontab, QNAP-konfig og systemmanifest.
+- system/docker-mounts.tsv: inventar over alle Docker mounts og backupbeslutning.
+- system/docker-mounts-review.txt: skal vaere tom; inneholder nye/ukjente datakilder som maa vurderes.
 
 Arbeidsrekkefolge:
 1. Les RESTORE-INSTRUCTIONS.md i denne katalogen.
@@ -402,6 +500,12 @@ EOF
 
 find "$BACKUP_DIR" -type f -print | sort > "$BACKUP_DIR/MANIFEST.files"
 du -sh "$BACKUP_DIR" > "$BACKUP_DIR/SIZE.txt" 2>/dev/null || true
-printf 'started=%s\nfinished=%s\nstatus=ok\n' "$stamp" "$(date +%Y%m%d-%H%M%S)" > "$status_file"
-log "Full restore backup completed"
+final_status="ok"
+if [ -s "$BACKUP_DIR/system/docker-mounts-review.txt" ]; then
+    final_status="warning"
+    log "Full restore backup completed with mount review warnings"
+else
+    log "Full restore backup completed"
+fi
+printf 'started=%s\nfinished=%s\nstatus=%s\n' "$stamp" "$(date +%Y%m%d-%H%M%S)" "$final_status" > "$status_file"
 echo "$BACKUP_DIR"
