@@ -83,6 +83,12 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(payload["end"], "2026-01-01T11:30:00Z")
             self.assertEqual([row["timestamp"] for row in rows], ["2026-01-01T11:00:00Z"])
 
+            all_payload = client.get("/api/owntracks/map?hours=0&limit=0").json()
+            all_rows = [row for row in all_payload["locations"] if row["topic"] == topic]
+            self.assertIsNone(all_rows[0]["distanceFromPreviousM"])
+            self.assertGreater(all_rows[1]["distanceFromPreviousM"], 12000)
+            self.assertLess(all_rows[1]["distanceFromPreviousM"], 13000)
+
     def test_admin_ui_is_closed_when_token_is_not_configured(self) -> None:
         original_token = owntracks_main.HTTP_TOKEN
         owntracks_main.HTTP_TOKEN = ""

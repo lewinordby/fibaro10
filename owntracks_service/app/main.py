@@ -1263,7 +1263,7 @@ def duration_seconds_label(seconds: Optional[int]) -> str:
     return f"{hours} t"
 
 
-def row_location(row: OwnTracksLocation) -> dict[str, Any]:
+def row_location(row: OwnTracksLocation, distance_from_previous_m: Optional[float] = None) -> dict[str, Any]:
     return {
         "id": row.id,
         "topic": row.topic,
@@ -1277,11 +1277,32 @@ def row_location(row: OwnTracksLocation) -> dict[str, Any]:
         "origin": "phone",
         "lat": row.lat,
         "lon": row.lon,
+        "distanceFromPreviousM": round(distance_from_previous_m, 1) if distance_from_previous_m is not None else None,
         "accuracyM": row.accuracy_m,
         "batteryPercent": row.battery_percent,
         "connection": row.connection,
         "regions": row.regions,
     }
+
+
+def row_locations_with_distances(rows: Iterable[OwnTracksLocation]) -> list[dict[str, Any]]:
+    previous_by_topic: dict[str, OwnTracksLocation] = {}
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        distance: Optional[float] = None
+        previous = previous_by_topic.get(row.topic)
+        if (
+            previous is not None
+            and previous.lat is not None
+            and previous.lon is not None
+            and row.lat is not None
+            and row.lon is not None
+        ):
+            distance = distance_meters(float(previous.lat), float(previous.lon), float(row.lat), float(row.lon))
+        result.append(row_location(row, distance))
+        if row.lat is not None and row.lon is not None:
+            previous_by_topic[row.topic] = row
+    return result
 
 
 def row_device(row: OwnTracksDevice) -> dict[str, Any]:
@@ -2018,6 +2039,7 @@ OWNTRACKS_ADMIN_HTML = """
         { label: "Event", key: "event" },
         { label: "Opprinnelse", render: row => row.isSynthetic ? "Server" : "Telefon" },
         { label: "Posisjon", render: row => mapsLink(row.lat, row.lon) },
+        { label: "Fra forrige", render: row => row.distanceFromPreviousM == null ? "-" : `${fmtNum(row.distanceFromPreviousM)} m` },
         { label: "Noyaktighet", render: row => `${fmtNum(row.accuracyM)} m` },
         { label: "Batteri", render: row => row.batteryPercent == null ? "-" : `${fmtNum(row.batteryPercent)} %` },
       ]);
@@ -2605,7 +2627,7 @@ def api_map(
             "start": iso_dt(since),
             "end": iso_dt(range_end),
             "filterMode": "custom" if range_start is not None or range_end is not None else "relative",
-            "locations": [row_location(row) for row in locations],
+            "locations": row_locations_with_distances(locations),
             "devices": [row_device(row) for row in devices],
             "waypoints": waypoint_list,
             "waypointDefinitions": waypoint_list,
@@ -2898,7 +2920,11 @@ def api_module() -> dict[str, Any]:
             module_table("Waypoints", ["waypointName", "topic", "lastState", "isInside", "lastSeenAt", "lat", "lon", "radiusM"], [row_waypoint(row) for row in waypoints]),
             module_table("Waypoint-hendelser", ["timestamp", "waypointName", "topic", "eventType", "origin", "sourceMessageType", "isSynthetic", "lat", "lon", "accuracyM"], [row_event(row) for row in events]),
             module_table("Enheter", ["topic", "username", "device", "lastSeenAt", "lastLat", "lastLon", "lastAccuracyM", "lastBatteryPercent"], [row_device(row) for row in devices]),
-            module_table("Siste meldinger", ["receivedAt", "timestamp", "topic", "messageType", "event", "origin", "isSynthetic", "lat", "lon", "accuracyM", "batteryPercent"], [row_location(row) for row in locations]),
+            module_table(
+                "Siste meldinger",
+                ["receivedAt", "timestamp", "topic", "messageType", "event", "origin", "isSynthetic", "lat", "lon", "distanceFromPreviousM", "accuracyM", "batteryPercent"],
+                list(reversed(row_locations_with_distances(reversed(locations)))),
+            ),
         ],
         "actions": [],
         "metadata": {"state": state, "build": owntracks_build_summary(), "buildLog": owntracks_build_log_payload()},

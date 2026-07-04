@@ -101,6 +101,7 @@ type LocationRow = {
   isSynthetic?: boolean;
   lat?: number;
   lon?: number;
+  distanceFromPreviousM?: number | null;
   accuracyM?: number;
   batteryPercent?: number;
   staleMinutes?: number;
@@ -1091,6 +1092,7 @@ export default function App() {
     { title: "Event", dataIndex: "event", render: eventTag },
     { title: "Opprinnelse", width: 120, render: (_, row) => originTag(row) },
     { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
+    { title: "Fra forrige", dataIndex: "distanceFromPreviousM", width: 120, render: (value?: number | null) => (value == null ? "-" : `${formatNumber(value, 1)} m`) },
     { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
     { title: "Batteri", dataIndex: "batteryPercent", render: (value?: number) => (value == null ? "-" : `${formatNumber(value)} %`) },
   ];

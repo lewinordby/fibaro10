@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "12")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "13")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "13",
+        "date": "04.07.2026",
+        "headline": "Avstand fra forrige melding",
+        "title": "OwnTracks Meldinger viser meter fra forrige oppdatering",
+        "description": (
+            "Build 13 legger til avstand fra forrige posisjonsoppdatering per enhet/topic i Meldinger-tabellen. "
+            "Dette gjoer det lettere aa se om telefonen faktisk har flyttet seg mellom rapporteringene, og om "
+            "en sonehendelse bygger paa en reell bevegelse eller bare en ny rapport fra samme sted."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: beregner distanceFromPreviousM per topic i kronologisk rekkefolge.",
+            "owntracks_service/frontend/src/App.tsx: Meldinger-tabellen viser Fra forrige i meter.",
+            "tests/test_owntracks_service.py: test dekker at avstanden beregnes mellom to meldinger fra samme enhet.",
+        ],
+        "request": "kan vi legge inn i meldinger tabellen hvor mange meter det er fra forrige oppdatering?",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Foerste melding per enhet viser tom avstand.",
+            "Neste meldinger viser meter fra forrige gyldige posisjon for samme topic.",
+            "Samme felt finnes i kart-API og modul-API.",
+        ],
+    },
     {
         "version": "1",
         "build": "12",
