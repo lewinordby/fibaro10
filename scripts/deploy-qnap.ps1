@@ -8,7 +8,8 @@ param(
     [switch]$SkipPush,
     [switch]$AllowDirty,
     [switch]$SkipSmoke,
-    [switch]$SkipLocalCheck
+    [switch]$SkipLocalCheck,
+    [int]$BackupRetentionCount = 20
 )
 
 $ErrorActionPreference = "Stop"
@@ -75,6 +76,16 @@ backup_root="$RemoteDir/../fibaro10_deploy_backups"
 stamp=`$(date +%Y%m%d-%H%M%S)
 backup_dir="`$backup_root/`$stamp"
 mkdir -p "`$backup_dir"
+if [ "$BackupRetentionCount" -gt 0 ]; then
+    backup_count=`$(find "`$backup_root" -mindepth 1 -maxdepth 1 -type d -name '20[0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]' | wc -l)
+    delete_count=`$((backup_count - $BackupRetentionCount))
+    if [ "`$delete_count" -gt 0 ]; then
+        find "`$backup_root" -mindepth 1 -maxdepth 1 -type d -name '20[0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]' \
+            | sort \
+            | head -n "`$delete_count" \
+            | while IFS= read -r old_backup; do rm -rf -- "`$old_backup"; done
+    fi
+fi
 for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* car_info_lookup/.env car_info_lookup/.env.* sun2_session_scraper/.env sun2_session_scraper/.env.* axis_camera_snapshots/data/config.json axis_camera_snapshots/data/state.json; do
     case "`$file" in .env.example|.env.qnap.example|*/.env.example) continue ;; esac
     [ -f "`$file" ] || continue
