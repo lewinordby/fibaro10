@@ -5,10 +5,34 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "9")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "10")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "10",
+        "date": "04.07.2026",
+        "headline": "Tydelig opprinnelse paa hendelser",
+        "title": "OwnTracks Hendelser skiller telefonrapporterte og servergenererte hendelser",
+        "description": (
+            "Build 10 viser om en waypoint-hendelse kommer fra telefonens OwnTracks-melding eller er syntetisk "
+            "generert av serveren. Dette gjoer det tydeligere aa lese Hendelser opp mot Sonebesok og Meldinger."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: row_event faar origin-felt og module-tabellen inkluderer opprinnelse.",
+            "owntracks_service/frontend/src/App.tsx: Hendelser viser Telefon/Server-kolonne.",
+            "tests/test_owntracks_service.py: test dekker at transition fra telefon blir origin=phone og isSynthetic=false.",
+        ],
+        "request": "Vis om hendelser er synthetic og avklar hva synthetic betyr.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Hendelser-tabellen viser naa opprinnelse eksplisitt.",
+            "Synthetic=true betyr servergenerert, ikke fra telefonappen.",
+            "Telefonbaserte hendelser markeres som Telefon.",
+        ],
+    },
     {
         "version": "1",
         "build": "9",

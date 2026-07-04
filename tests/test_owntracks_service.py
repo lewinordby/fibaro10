@@ -194,9 +194,12 @@ class OwnTracksServiceTests(unittest.TestCase):
 
             payload = client.get("/api/owntracks/waypoints").json()
             state_names = {row["waypointName"] for row in payload["waypoints"] if row["topic"] == "owntracks/transition-only/android"}
-            event_names = {row["waypointName"] for row in payload["events"] if row["topic"] == "owntracks/transition-only/android"}
+            matching_events = [row for row in payload["events"] if row["topic"] == "owntracks/transition-only/android"]
+            event_names = {row["waypointName"] for row in matching_events}
             self.assertNotIn("Udefinert", state_names)
             self.assertIn("Udefinert", event_names)
+            self.assertTrue(all(row["origin"] == "phone" for row in matching_events))
+            self.assertTrue(all(row["isSynthetic"] is False for row in matching_events))
 
     def test_inregions_and_computed_position_do_not_open_duplicate_zone_visit(self) -> None:
         topic = "owntracks/zone-dup/android"

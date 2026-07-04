@@ -1324,6 +1324,7 @@ def row_event(row: OwnTracksWaypointEvent) -> dict[str, Any]:
         "radiusM": row.radius_m,
         "accuracyM": row.accuracy_m,
         "isSynthetic": row.is_synthetic,
+        "origin": "server" if row.is_synthetic else "phone",
     }
 
 
@@ -2012,6 +2013,7 @@ OWNTRACKS_ADMIN_HTML = """
         { label: "Tid", render: row => fmtTime(row.timestamp || row.receivedAt) },
         { label: "Sone", key: "waypointName" },
         { label: "Hendelse", render: row => `<span class="pill ${row.eventType === "enter" ? "ok" : ""}">${esc(row.eventType)}</span>` },
+        { label: "Opprinnelse", render: row => row.isSynthetic ? "Server" : "Telefon" },
         { label: "Kilde", key: "sourceMessageType" },
         { label: "Posisjon", render: row => mapsLink(row.lat, row.lon) },
         { label: "Noyaktighet", render: row => `${fmtNum(row.accuracyM)} m` },
@@ -2807,7 +2809,7 @@ def api_module() -> dict[str, Any]:
         "tables": [
             module_table("Sonebesok", ["startedAt", "endedAt", "duration", "waypointName", "topic", "status", "confidence"], [row_visit(row) for row in visits]),
             module_table("Waypoints", ["waypointName", "topic", "lastState", "isInside", "lastSeenAt", "lat", "lon", "radiusM"], [row_waypoint(row) for row in waypoints]),
-            module_table("Waypoint-hendelser", ["timestamp", "waypointName", "topic", "eventType", "sourceMessageType", "lat", "lon", "accuracyM"], [row_event(row) for row in events]),
+            module_table("Waypoint-hendelser", ["timestamp", "waypointName", "topic", "eventType", "origin", "sourceMessageType", "isSynthetic", "lat", "lon", "accuracyM"], [row_event(row) for row in events]),
             module_table("Enheter", ["topic", "username", "device", "lastSeenAt", "lastLat", "lastLon", "lastAccuracyM", "lastBatteryPercent"], [row_device(row) for row in devices]),
             module_table("Siste meldinger", ["receivedAt", "timestamp", "topic", "messageType", "event", "lat", "lon", "accuracyM", "batteryPercent"], [row_location(row) for row in locations]),
         ],

@@ -214,7 +214,10 @@ type EventRow = {
   waypointName: string;
   eventType?: string;
   sourceMessageType?: string;
+  origin?: "phone" | "server";
+  isSynthetic?: boolean;
   timestamp?: string;
+  receivedAt?: string;
   lat?: number;
   lon?: number;
   accuracyM?: number;
@@ -410,6 +413,11 @@ function eventTag(value?: string) {
   if (value === "leave") return <Tag color="red">Leave</Tag>;
   if (value === "defined") return <Tag color="blue">Definert</Tag>;
   return <Tag>{value || "-"}</Tag>;
+}
+
+function eventOriginTag(row: EventRow) {
+  if (row.isSynthetic || row.origin === "server") return <Tag color="purple">Server</Tag>;
+  return <Tag color="blue">Telefon</Tag>;
 }
 
 function recommendationTag(value?: DiagnosticRecommendation["severity"]) {
@@ -1014,6 +1022,7 @@ export default function App() {
     { title: "Tid", dataIndex: "timestamp", render: formatDateTime },
     { title: "Sone", dataIndex: "waypointName" },
     { title: "Hendelse", dataIndex: "eventType", render: eventTag },
+    { title: "Opprinnelse", width: 120, render: (_, row) => eventOriginTag(row) },
     { title: "Kilde", dataIndex: "sourceMessageType" },
     { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
     { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
