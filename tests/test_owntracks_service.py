@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 import base64
+from datetime import datetime
 
 _tmpdir = tempfile.mkdtemp(prefix="owntracks-service-test-")
 os.environ.setdefault("OWNTRACKS_DATA_DIR", _tmpdir)
@@ -405,6 +406,35 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertGreaterEqual(len(suggestions), 1)
             self.assertGreaterEqual(suggestions[0]["totalDurationSeconds"], 600)
             self.assertEqual(suggestions[0]["visits"], 1)
+
+    def test_diagnostics_flags_stale_positions_and_large_gaps(self) -> None:
+        topic = "owntracks/diagnostics/android"
+        with TestClient(app) as client:
+            for offset, lat in ((0, 62.60100), (60, 62.60200)):
+                response = client.post(
+                    "/pub",
+                    json={"_type": "location", "topic": topic, "lat": lat, "lon": 11.80100, "acc": 8, "tst": 1783105000 + offset},
+                )
+                self.assertEqual(response.status_code, 200)
+
+            with owntracks_main.SessionLocal() as session:
+                rows = (
+                    session.query(owntracks_main.OwnTracksLocation)
+                    .filter(owntracks_main.OwnTracksLocation.topic == topic)
+                    .order_by(owntracks_main.OwnTracksLocation.id.asc())
+                    .all()
+                )
+                self.assertEqual(len(rows), 2)
+                rows[0].timestamp = datetime(2026, 1, 1, 10, 0, 0)
+                rows[0].received_at = datetime(2026, 1, 1, 10, 30, 0)
+                rows[1].timestamp = datetime(2026, 1, 1, 10, 1, 0)
+                rows[1].received_at = datetime(2026, 1, 1, 11, 30, 0)
+                session.commit()
+
+            payload = client.get("/api/owntracks/diagnostics?hours=0&stale_minutes=10&gap_minutes=20").json()
+            self.assertGreaterEqual(payload["counts"]["staleLocations"], 2)
+            self.assertGreaterEqual(payload["counts"]["largeGaps"], 1)
+            self.assertTrue(any(row["severity"] in {"bad", "warning"} for row in payload["recommendations"]))
 
 
 if __name__ == "__main__":

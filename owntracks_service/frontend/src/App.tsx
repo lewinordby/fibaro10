@@ -16,6 +16,7 @@ import {
   ReloadOutlined,
   ToolOutlined,
   UnorderedListOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import {
   Alert,
@@ -48,7 +49,7 @@ const MENU_HIDDEN_STORAGE_KEY = "owntracks:mainMenuHidden";
 const MAP_LAYER_IDS = ["owntracks-waypoints-fill", "owntracks-waypoints-line", "owntracks-track-line"];
 const MAP_SOURCE_IDS = ["owntracks-waypoints", "owntracks-track"];
 
-type ViewKey = "dashboard" | "map" | "visits" | "waypoints" | "suggestions" | "messages" | "events" | "build";
+type ViewKey = "dashboard" | "map" | "visits" | "waypoints" | "suggestions" | "diagnostics" | "messages" | "events" | "build";
 
 type HealthPayload = {
   status: string;
@@ -99,6 +100,8 @@ type LocationRow = {
   lon?: number;
   accuracyM?: number;
   batteryPercent?: number;
+  staleMinutes?: number;
+  gapMinutes?: number;
 };
 
 type DeviceRow = {
@@ -225,12 +228,75 @@ type MapPayload = {
   zoneVisits: VisitRow[];
 };
 
+type DiagnosticRecommendation = {
+  severity: "ok" | "info" | "warning" | "bad";
+  title: string;
+  text: string;
+};
+
+type DiagnosticWaypoint = {
+  id: number;
+  waypointName: string;
+  source?: string;
+  radiusM?: number;
+  insideLocationCount: number;
+  nearLocationCount: number;
+  minDistanceM?: number;
+  lastSeenAt?: string;
+  lastPositionAt?: string;
+  isInside?: boolean;
+};
+
+type DiagnosticGapRow = {
+  from: LocationRow;
+  to: LocationRow;
+  gapMinutes: number;
+};
+
+type DiagnosticsPayload = {
+  hours: number;
+  generatedAt?: string;
+  parameters: {
+    staleMinutes: number;
+    gapMinutes: number;
+    maxAccuracyM: number;
+    minWaypointRadiusM?: number;
+  };
+  counts: {
+    messages: number;
+    locations: number;
+    transitions: number;
+    statusMessages: number;
+    staleLocations: number;
+    duplicateLocations: number;
+    poorAccuracyLocations: number;
+    largeGaps: number;
+  };
+  accuracy: {
+    avgM?: number;
+    p50M?: number;
+    p90M?: number;
+    maxM?: number;
+  };
+  gaps: {
+    avgMinutes?: number;
+    p90Minutes?: number;
+    maxMinutes?: number;
+    rows: DiagnosticGapRow[];
+  };
+  latest?: LocationRow;
+  staleSamples: LocationRow[];
+  waypoints: DiagnosticWaypoint[];
+  recommendations: DiagnosticRecommendation[];
+};
+
 const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: React.ReactNode; color: string }> = [
   { key: "dashboard", label: "Dashboard", icon: <DashboardOutlined />, color: "#2563eb" },
   { key: "map", label: "Kart", icon: <EnvironmentOutlined />, color: "#0891b2" },
   { key: "visits", label: "Sonebesok", icon: <NodeIndexOutlined />, color: "#15803d" },
   { key: "waypoints", label: "Waypoints", icon: <PushpinOutlined />, color: "#f59e0b" },
   { key: "suggestions", label: "Forslag", icon: <BulbOutlined />, color: "#d97706" },
+  { key: "diagnostics", label: "Diagnose", icon: <WarningOutlined />, color: "#dc2626" },
   { key: "messages", label: "Meldinger", icon: <UnorderedListOutlined />, color: "#7c3aed" },
   { key: "events", label: "Hendelser", icon: <ClockCircleOutlined />, color: "#db2777" },
   { key: "build", label: "Build", icon: <BuildOutlined />, color: "#475569" },
@@ -344,6 +410,20 @@ function eventTag(value?: string) {
   if (value === "leave") return <Tag color="red">Leave</Tag>;
   if (value === "defined") return <Tag color="blue">Definert</Tag>;
   return <Tag>{value || "-"}</Tag>;
+}
+
+function recommendationTag(value?: DiagnosticRecommendation["severity"]) {
+  if (value === "bad") return <Tag color="red">Kritisk</Tag>;
+  if (value === "warning") return <Tag color="gold">Sjekk</Tag>;
+  if (value === "ok") return <Tag color="green">OK</Tag>;
+  return <Tag color="blue">Info</Tag>;
+}
+
+function staleTag(value?: number) {
+  if (value == null) return <Tag>Ukjent</Tag>;
+  if (value > 10) return <Tag color="red">{formatNumber(value, 1)} min</Tag>;
+  if (value > 2) return <Tag color="gold">{formatNumber(value, 1)} min</Tag>;
+  return <Tag color="green">{formatNumber(value, 1)} min</Tag>;
 }
 
 function waypointSourceTag(value?: string) {
@@ -681,6 +761,7 @@ export default function App() {
   const [moduleData, setModuleData] = useState<ModulePayload | null>(null);
   const [mapData, setMapData] = useState<MapPayload | null>(null);
   const [zoneSummary, setZoneSummary] = useState<ZoneSummaryPayload | null>(null);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsPayload | null>(null);
   const [suggestions, setSuggestions] = useState<WaypointSuggestionRow[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionHours, setSuggestionHours] = useState("720");
@@ -699,16 +780,18 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const [nextHealth, nextModule, nextMap, nextZoneSummary] = await Promise.all([
+      const [nextHealth, nextModule, nextMap, nextZoneSummary, nextDiagnostics] = await Promise.all([
         fetchJson<HealthPayload>("/owntracks/health"),
         fetchJson<ModulePayload>("/owntracks/api/module"),
         fetchJson<MapPayload>("/owntracks/api/map", { hours, limit: 5000 }),
         fetchJson<ZoneSummaryPayload>("/owntracks/api/zone-summary", { hours, limit: 100 }),
+        fetchJson<DiagnosticsPayload>("/owntracks/api/diagnostics", { hours }),
       ]);
       setHealth(nextHealth);
       setModuleData(nextModule);
       setMapData(nextMap);
       setZoneSummary(nextZoneSummary);
+      setDiagnostics(nextDiagnostics);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ukjent feil ved lasting");
     } finally {
@@ -936,6 +1019,40 @@ export default function App() {
     { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
   ];
 
+  const recommendationColumns: ColumnsType<DiagnosticRecommendation> = [
+    { title: "Status", dataIndex: "severity", width: 100, render: recommendationTag },
+    { title: "Vurdering", dataIndex: "title", width: 240 },
+    { title: "Tiltak", dataIndex: "text" },
+  ];
+
+  const diagnosticWaypointColumns: ColumnsType<DiagnosticWaypoint> = [
+    { title: "Sone", dataIndex: "waypointName", fixed: "left", width: 210 },
+    { title: "Kilde", dataIndex: "source", width: 100, render: waypointSourceTag },
+    { title: "Status", dataIndex: "isInside", width: 100, render: insideTag },
+    { title: "Radius", dataIndex: "radiusM", width: 100, render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Inne", dataIndex: "insideLocationCount", width: 90 },
+    { title: "Naer", dataIndex: "nearLocationCount", width: 90 },
+    { title: "Min avstand", dataIndex: "minDistanceM", width: 120, render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Sist sett", dataIndex: "lastSeenAt", width: 160, render: formatDateTime },
+  ];
+
+  const gapColumns: ColumnsType<DiagnosticGapRow> = [
+    { title: "Fra", dataIndex: ["from", "receivedAt"], render: formatDateTime },
+    { title: "Til", dataIndex: ["to", "receivedAt"], render: formatDateTime },
+    { title: "Hull", dataIndex: "gapMinutes", render: (value?: number) => `${formatNumber(value, 1)} min` },
+    { title: "Fra posisjon", render: (_, row) => mapLink(row.from?.lat, row.from?.lon) },
+    { title: "Til posisjon", render: (_, row) => mapLink(row.to?.lat, row.to?.lon) },
+  ];
+
+  const staleColumns: ColumnsType<LocationRow> = [
+    { title: "Mottatt", dataIndex: "receivedAt", render: formatDateTime },
+    { title: "Posisjonstid", dataIndex: "timestamp", render: formatDateTime },
+    { title: "Alder", dataIndex: "staleMinutes", render: staleTag },
+    { title: "Type", dataIndex: "messageType" },
+    { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
+    { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
+  ];
+
   const buildColumns: ColumnsType<Record<string, any>> = [
     { title: "Build", dataIndex: "build", width: 90 },
     { title: "Dato", dataIndex: "date", width: 130 },
@@ -1092,6 +1209,78 @@ export default function App() {
             rowKey="id"
             loading={suggestionsLoading}
             pagination={{ pageSize: 20, showSizeChanger: false }}
+            scroll={{ x: true }}
+          />
+        </Card>
+      </>
+    );
+  } else if (view === "diagnostics") {
+    const staleRatio = diagnostics?.counts.locations ? Math.round((diagnostics.counts.staleLocations / diagnostics.counts.locations) * 100) : 0;
+    content = (
+      <>
+        <SectionHeader title="Diagnose" subtitle="Datakvalitet, rapporteringshull og grunnlag for sonebesok" />
+        <Row gutter={[12, 12]} className="metric-row">
+          <Col xs={24} md={8} xl={4}>
+            <MetricCard title="Meldinger" value={diagnostics?.counts.messages ?? 0} subtitle={`${diagnostics?.counts.locations ?? 0} med posisjon`} tone="#2563eb" />
+          </Col>
+          <Col xs={24} md={8} xl={4}>
+            <MetricCard title="Gamle posisjoner" value={`${diagnostics?.counts.staleLocations ?? 0}`} subtitle={`${staleRatio}% over ${diagnostics?.parameters.staleMinutes ?? 10} min`} tone={staleRatio > 20 ? "#dc2626" : "#f59e0b"} />
+          </Col>
+          <Col xs={24} md={8} xl={4}>
+            <MetricCard title="Rapporteringshull" value={diagnostics?.counts.largeGaps ?? 0} subtitle={`Maks ${formatNumber(diagnostics?.gaps.maxMinutes, 1)} min`} tone="#d97706" />
+          </Col>
+          <Col xs={24} md={8} xl={4}>
+            <MetricCard title="Noyaktighet p90" value={formatNumber(diagnostics?.accuracy.p90M)} suffix="m" subtitle={`Snitt ${formatNumber(diagnostics?.accuracy.avgM)} m`} tone="#0891b2" />
+          </Col>
+          <Col xs={24} md={8} xl={4}>
+            <MetricCard title="Gjentatte posisjoner" value={diagnostics?.counts.duplicateLocations ?? 0} subtitle="Samme tid og koordinat" tone="#7c3aed" />
+          </Col>
+          <Col xs={24} md={8} xl={4}>
+            <MetricCard title="Transitions" value={diagnostics?.counts.transitions ?? 0} subtitle={`Generert ${formatDateTime(diagnostics?.generatedAt)}`} tone="#15803d" />
+          </Col>
+        </Row>
+        <Card title="Vurdering og tiltak">
+          <Table<DiagnosticRecommendation>
+            size="small"
+            columns={recommendationColumns}
+            dataSource={diagnostics?.recommendations || []}
+            rowKey="title"
+            pagination={false}
+          />
+        </Card>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} xl={12}>
+            <Card title="Sonedekning i valgt periode" extra={<Typography.Text type="secondary">{diagnostics?.waypoints.length ?? 0} soner</Typography.Text>}>
+              <Table<DiagnosticWaypoint>
+                size="small"
+                columns={diagnosticWaypointColumns}
+                dataSource={diagnostics?.waypoints || []}
+                rowKey="id"
+                pagination={{ pageSize: 10, showSizeChanger: false }}
+                scroll={{ x: true }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} xl={12}>
+            <Card title="Rapporteringshull" extra={<Typography.Text type="secondary">Over {diagnostics?.parameters.gapMinutes ?? 20} min</Typography.Text>}>
+              <Table<DiagnosticGapRow>
+                size="small"
+                columns={gapColumns}
+                dataSource={diagnostics?.gaps.rows || []}
+                rowKey={(row) => `${row.from?.id || "x"}-${row.to?.id || "y"}`}
+                pagination={{ pageSize: 10, showSizeChanger: false }}
+                scroll={{ x: true }}
+              />
+            </Card>
+          </Col>
+        </Row>
+        <Card title="Gamle eller gjentatte posisjoner" extra={<Typography.Text type="secondary">Nyeste {diagnostics?.staleSamples.length ?? 0}</Typography.Text>}>
+          <Table<LocationRow>
+            size="small"
+            columns={staleColumns}
+            dataSource={diagnostics?.staleSamples || []}
+            rowKey="id"
+            pagination={{ pageSize: 10, showSizeChanger: false }}
             scroll={{ x: true }}
           />
         </Card>

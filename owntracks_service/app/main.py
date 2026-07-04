@@ -68,6 +68,9 @@ STOP_SUGGESTION_MIN_MINUTES = max(1, int(os.getenv("OWNTRACKS_STOP_SUGGESTION_MI
 STOP_SUGGESTION_RADIUS_M = max(15.0, float(os.getenv("OWNTRACKS_STOP_SUGGESTION_RADIUS_M", "80")))
 STOP_SUGGESTION_MAX_ACCURACY_M = max(25.0, float(os.getenv("OWNTRACKS_STOP_SUGGESTION_MAX_ACCURACY_M", "150")))
 STOP_SUGGESTION_MAX_GAP_MINUTES = max(10, int(os.getenv("OWNTRACKS_STOP_SUGGESTION_MAX_GAP_MINUTES", "180")))
+DATA_QUALITY_STALE_MINUTES = max(1, int(os.getenv("OWNTRACKS_DATA_QUALITY_STALE_MINUTES", "10")))
+DATA_QUALITY_GAP_MINUTES = max(1, int(os.getenv("OWNTRACKS_DATA_QUALITY_GAP_MINUTES", "20")))
+DATA_QUALITY_MAX_ACCURACY_M = max(10.0, float(os.getenv("OWNTRACKS_DATA_QUALITY_MAX_ACCURACY_M", "100")))
 REVERSE_GEOCODE_ENABLED = os.getenv("OWNTRACKS_REVERSE_GEOCODE_ENABLED", "true").strip().lower() not in {"0", "false", "no", "nei"}
 NOMINATIM_REVERSE_URL = os.getenv("OWNTRACKS_NOMINATIM_REVERSE_URL", "https://nominatim.openstreetmap.org/reverse").strip()
 NOMINATIM_USER_AGENT = os.getenv("OWNTRACKS_NOMINATIM_USER_AGENT", "fibaro10-owntracks/1.0").strip() or "fibaro10-owntracks/1.0"
@@ -1412,6 +1415,142 @@ def row_stop_candidate(candidate: StopCandidate) -> dict[str, Any]:
     }
 
 
+def minutes_between(start_at: Optional[datetime], end_at: Optional[datetime]) -> Optional[float]:
+    if not start_at or not end_at:
+        return None
+    return round((end_at - start_at).total_seconds() / 60, 2)
+
+
+def percentile(values: list[float], ratio: float) -> Optional[float]:
+    clean = sorted(value for value in values if number_is_finite(value))
+    if not clean:
+        return None
+    if len(clean) == 1:
+        return round(clean[0], 2)
+    position = max(0.0, min(1.0, ratio)) * (len(clean) - 1)
+    lower = int(math.floor(position))
+    upper = int(math.ceil(position))
+    if lower == upper:
+        return round(clean[lower], 2)
+    fraction = position - lower
+    return round(clean[lower] + (clean[upper] - clean[lower]) * fraction, 2)
+
+
+def row_diagnostic_location(row: OwnTracksLocation, previous: Optional[OwnTracksLocation] = None) -> dict[str, Any]:
+    stale_minutes = minutes_between(row.timestamp, row.received_at)
+    gap_minutes = minutes_between(previous.received_at, row.received_at) if previous else None
+    return {
+        **row_location(row),
+        "staleMinutes": stale_minutes,
+        "gapMinutes": gap_minutes,
+    }
+
+
+def waypoint_diagnostics(rows: list[OwnTracksLocation], waypoints: list[OwnTracksWaypointState]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for waypoint in waypoints:
+        if waypoint.lat is None or waypoint.lon is None:
+            continue
+        radius_m = float(waypoint.radius_m or DEFAULT_LOCAL_WAYPOINT_RADIUS_M)
+        near_rows: list[OwnTracksLocation] = []
+        inside_rows: list[OwnTracksLocation] = []
+        min_distance: Optional[float] = None
+        for row in rows:
+            if row.lat is None or row.lon is None:
+                continue
+            distance = distance_meters(float(row.lat), float(row.lon), float(waypoint.lat), float(waypoint.lon))
+            min_distance = distance if min_distance is None else min(min_distance, distance)
+            if distance <= radius_m:
+                inside_rows.append(row)
+            if distance <= radius_m + ZONE_VISIT_BUFFER_M + DATA_QUALITY_MAX_ACCURACY_M:
+                near_rows.append(row)
+        latest = max(inside_rows or near_rows, key=lambda item: item.received_at, default=None)
+        result.append(
+            {
+                "id": waypoint.id,
+                "waypointName": waypoint.waypoint_name,
+                "source": waypoint.source or "phone",
+                "radiusM": radius_m,
+                "insideLocationCount": len(inside_rows),
+                "nearLocationCount": len(near_rows),
+                "minDistanceM": round(min_distance, 1) if min_distance is not None else None,
+                "lastSeenAt": iso_dt(latest.received_at if latest else None),
+                "lastPositionAt": iso_dt(latest.timestamp if latest else None),
+                "isInside": bool(waypoint.is_inside) if waypoint.is_inside is not None else None,
+            }
+        )
+    result.sort(key=lambda row: (row["insideLocationCount"], row["nearLocationCount"], row["lastSeenAt"] or ""), reverse=True)
+    return result
+
+
+def data_quality_recommendations(
+    *,
+    location_count: int,
+    stale_count: int,
+    duplicate_count: int,
+    gap_count: int,
+    poor_accuracy_count: int,
+    min_waypoint_radius: Optional[float],
+) -> list[dict[str, str]]:
+    recommendations: list[dict[str, str]] = []
+    stale_ratio = stale_count / location_count if location_count else 0.0
+    poor_accuracy_ratio = poor_accuracy_count / location_count if location_count else 0.0
+
+    if location_count < 20:
+        recommendations.append(
+            {
+                "severity": "warning",
+                "title": "For lite posisjonsgrunnlag",
+                "text": "Det er faa posisjoner i perioden. Waypointforslag og oppholdstid blir usikre.",
+            }
+        )
+    if stale_ratio > 0.2:
+        recommendations.append(
+            {
+                "severity": "bad",
+                "title": "Mange gamle posisjoner",
+                "text": "Telefonen sender ofte gammel sist kjente posisjon. Beregninger boer bruke posisjonstidspunkt og filtrere stale meldinger.",
+            }
+        )
+    if duplicate_count > max(5, location_count * 0.15):
+        recommendations.append(
+            {
+                "severity": "warning",
+                "title": "Mange gjentatte posisjoner",
+                "text": "Flere meldinger har samme tidspunkt og koordinat. Dette kan gi falsk oppholdstid hvis mottakstidspunkt brukes ukritisk.",
+            }
+        )
+    if gap_count:
+        recommendations.append(
+            {
+                "severity": "warning",
+                "title": "Store rapporteringshull",
+                "text": "Det finnes lange hull mellom posisjoner. Senk minimal location displacement og vurder Move ved testing.",
+            }
+        )
+    if poor_accuracy_ratio > 0.1:
+        recommendations.append(
+            {
+                "severity": "warning",
+                "title": "Noen posisjoner har svak noyaktighet",
+                "text": "Posisjoner med hoy noyaktighetsverdi boer tones ned i soneberegning og forslag.",
+            }
+        )
+
+    radius = int(min_waypoint_radius or DEFAULT_LOCAL_WAYPOINT_RADIUS_M)
+    suggested_displacement = max(25, min(100, radius))
+    recommendations.append(
+        {
+            "severity": "info",
+            "title": "Anbefalt OwnTracks-oppsett",
+            "text": f"Test minimal location displacement rundt {suggested_displacement} m, locator interval 60-120 sek, Publish Waypoints paa og batterioptimalisering av.",
+        }
+    )
+    if not recommendations:
+        recommendations.append({"severity": "ok", "title": "Datakvalitet OK", "text": "Ingen tydelige datakvalitetsproblemer i valgt periode."})
+    return recommendations
+
+
 def module_table(title: str, columns: list[str], rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {"title": title, "columns": columns, "rows": rows}
 
@@ -2496,6 +2635,127 @@ def owntracks_external_zone_summary(
 ) -> dict[str, Any]:
     require_owntracks_admin(request)
     return api_zone_summary(hours=hours, limit=limit)
+
+
+@app.get("/api/owntracks/diagnostics")
+def api_diagnostics(
+    hours: int = Query(24, ge=0, le=24 * 365 * 3),
+    stale_minutes: int = Query(DATA_QUALITY_STALE_MINUTES, ge=1, le=24 * 60),
+    gap_minutes: int = Query(DATA_QUALITY_GAP_MINUTES, ge=1, le=24 * 60),
+    max_accuracy_m: float = Query(DATA_QUALITY_MAX_ACCURACY_M, ge=10, le=1000),
+) -> dict[str, Any]:
+    since = utc_now() - timedelta(hours=hours) if hours else None
+    with SessionLocal() as session:
+        location_stmt = select(OwnTracksLocation).order_by(OwnTracksLocation.received_at.asc(), OwnTracksLocation.id.asc())
+        if since is not None:
+            location_stmt = location_stmt.where(or_(OwnTracksLocation.timestamp >= since, OwnTracksLocation.received_at >= since))
+        rows = list(session.execute(location_stmt).scalars())
+        coordinate_rows = [row for row in rows if row.lat is not None and row.lon is not None]
+        transition_count = sum(1 for row in rows if row.message_type == "transition")
+        status_count = sum(1 for row in rows if row.message_type == "status")
+        stale_rows = [
+            row
+            for row in coordinate_rows
+            if row.timestamp is not None and row.received_at is not None and (row.received_at - row.timestamp).total_seconds() > stale_minutes * 60
+        ]
+        poor_accuracy_rows = [
+            row
+            for row in coordinate_rows
+            if row.accuracy_m is not None and number_is_finite(row.accuracy_m) and float(row.accuracy_m) > max_accuracy_m
+        ]
+        duplicate_keys: dict[tuple[Any, Any, Any, Any], int] = {}
+        for row in coordinate_rows:
+            key = (row.topic, row.timestamp, round(float(row.lat), 6), round(float(row.lon), 6))
+            duplicate_keys[key] = duplicate_keys.get(key, 0) + 1
+        duplicate_count = sum(count - 1 for count in duplicate_keys.values() if count > 1)
+
+        gap_rows: list[dict[str, Any]] = []
+        previous: Optional[OwnTracksLocation] = None
+        gap_values: list[float] = []
+        for row in coordinate_rows:
+            if previous:
+                gap = minutes_between(previous.received_at, row.received_at)
+                if gap is not None:
+                    gap_values.append(gap)
+                    if gap > gap_minutes:
+                        gap_rows.append(
+                            {
+                                "from": row_diagnostic_location(previous),
+                                "to": row_diagnostic_location(row, previous),
+                                "gapMinutes": gap,
+                            }
+                        )
+            previous = row
+
+        accuracy_values = [float(row.accuracy_m) for row in coordinate_rows if row.accuracy_m is not None and number_is_finite(row.accuracy_m)]
+        waypoints = list(
+            session.execute(
+                select(OwnTracksWaypointState)
+                .where(OwnTracksWaypointState.lat.isnot(None))
+                .where(OwnTracksWaypointState.lon.isnot(None))
+                .where(or_(OwnTracksWaypointState.is_active.is_(True), OwnTracksWaypointState.is_active.is_(None)))
+            ).scalars()
+        )
+        min_waypoint_radius = min((float(row.radius_m) for row in waypoints if row.radius_m), default=None)
+
+    latest = max(rows, key=lambda item: item.received_at, default=None)
+    stale_samples = sorted(stale_rows, key=lambda item: item.received_at, reverse=True)[:20]
+    recommendations = data_quality_recommendations(
+        location_count=len(coordinate_rows),
+        stale_count=len(stale_rows),
+        duplicate_count=duplicate_count,
+        gap_count=len(gap_rows),
+        poor_accuracy_count=len(poor_accuracy_rows),
+        min_waypoint_radius=min_waypoint_radius,
+    )
+    return {
+        "hours": hours,
+        "generatedAt": iso_dt(utc_now()),
+        "parameters": {
+            "staleMinutes": stale_minutes,
+            "gapMinutes": gap_minutes,
+            "maxAccuracyM": max_accuracy_m,
+            "minWaypointRadiusM": min_waypoint_radius,
+        },
+        "counts": {
+            "messages": len(rows),
+            "locations": len(coordinate_rows),
+            "transitions": transition_count,
+            "statusMessages": status_count,
+            "staleLocations": len(stale_rows),
+            "duplicateLocations": duplicate_count,
+            "poorAccuracyLocations": len(poor_accuracy_rows),
+            "largeGaps": len(gap_rows),
+        },
+        "accuracy": {
+            "avgM": round(sum(accuracy_values) / len(accuracy_values), 2) if accuracy_values else None,
+            "p50M": percentile(accuracy_values, 0.5),
+            "p90M": percentile(accuracy_values, 0.9),
+            "maxM": round(max(accuracy_values), 2) if accuracy_values else None,
+        },
+        "gaps": {
+            "avgMinutes": round(sum(gap_values) / len(gap_values), 2) if gap_values else None,
+            "p90Minutes": percentile(gap_values, 0.9),
+            "maxMinutes": round(max(gap_values), 2) if gap_values else None,
+            "rows": gap_rows[-20:],
+        },
+        "latest": row_diagnostic_location(latest) if latest else None,
+        "staleSamples": [row_diagnostic_location(row) for row in stale_samples],
+        "waypoints": waypoint_diagnostics(coordinate_rows, waypoints),
+        "recommendations": recommendations,
+    }
+
+
+@app.get("/owntracks/api/diagnostics")
+def owntracks_external_diagnostics(
+    request: Request,
+    hours: int = Query(24, ge=0, le=24 * 365 * 3),
+    stale_minutes: int = Query(DATA_QUALITY_STALE_MINUTES, ge=1, le=24 * 60),
+    gap_minutes: int = Query(DATA_QUALITY_GAP_MINUTES, ge=1, le=24 * 60),
+    max_accuracy_m: float = Query(DATA_QUALITY_MAX_ACCURACY_M, ge=10, le=1000),
+) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_diagnostics(hours=hours, stale_minutes=stale_minutes, gap_minutes=gap_minutes, max_accuracy_m=max_accuracy_m)
 
 
 @app.get("/api/owntracks/module")

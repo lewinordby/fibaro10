@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "8")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "9")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "9",
+        "date": "04.07.2026",
+        "headline": "Diagnose for datakvalitet",
+        "title": "OwnTracks viser stale posisjoner, rapporteringshull og sonegrunnlag",
+        "description": (
+            "Build 9 legger til en egen Diagnose-side og API for datakvalitet. Den viser hvor mange posisjoner "
+            "som er gamle naar de mottas, om telefonen sender gjentatte posisjoner, hvor store hull det er mellom "
+            "rapporteringene, og hvor godt hvert waypoint faktisk dekkes av posisjonsdata."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: nytt diagnostics-API med stale/gap/accuracy/waypoint-analyse.",
+            "owntracks_service/frontend/src/App.tsx: ny Diagnose-side med kort, anbefalinger og tabeller.",
+            "tests/test_owntracks_service.py: test som dekker stale posisjoner og store rapporteringshull.",
+        ],
+        "request": "Kan du forbedre owntracks appen min med mer funksjoner.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Diagnose-siden viser om datagrunnlaget er godt nok til sonebesok og waypointforslag.",
+            "Appen anbefaler OwnTracks-innstillinger ut fra minste waypoint-radius.",
+            "Stale meldinger og store rapporteringshull er synlige uten aa lese raaloggen.",
+        ],
+    },
     {
         "version": "1",
         "build": "8",
