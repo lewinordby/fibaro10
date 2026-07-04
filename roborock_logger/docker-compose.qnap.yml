@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      LOCAL_TIMEZONE: Europe/Oslo
     ports:
       - "8095:8095"
     volumes:

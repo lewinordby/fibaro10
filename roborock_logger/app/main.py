@@ -14,6 +14,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Query, status as http_status
@@ -31,6 +32,8 @@ QUEUE_FILE = DATA_DIR / "pending_batches.jsonl"
 ROBOROCK_EMAIL = os.getenv("ROBOROCK_EMAIL", "roborock.sun2@gmail.com")
 ROBOROCK_SUBNET = os.getenv("ROBOROCK_SUBNET", "192.168.2.")
 COLLECTOR_ID = os.getenv("COLLECTOR_ID", "roborock_logger")
+LOCAL_TIMEZONE = os.getenv("LOCAL_TIMEZONE", "Europe/Oslo")
+LOCAL_TZ = ZoneInfo(LOCAL_TIMEZONE)
 FIBARO10_API_BASE_URL = os.getenv("FIBARO10_API_BASE_URL", "http://fibaro10:8110").rstrip("/")
 FIBARO10_API_USERNAME = os.getenv("FIBARO10_API_USERNAME", "")
 FIBARO10_API_PASSWORD = os.getenv("FIBARO10_API_PASSWORD", "")
@@ -50,8 +53,16 @@ async def favicon():
     return Response(status_code=204)
 
 
-def utc_now() -> dt.datetime:
-    return dt.datetime.utcnow().replace(microsecond=0)
+def local_now() -> dt.datetime:
+    return dt.datetime.now(LOCAL_TZ).replace(microsecond=0)
+
+
+def local_now_iso() -> str:
+    return local_now().isoformat()
+
+
+def local_now_naive_iso() -> str:
+    return local_now().replace(tzinfo=None).isoformat()
 
 
 def jsonable(value: Any) -> Any:
@@ -495,14 +506,14 @@ async def collect_once(include_maps: bool = False, force_home_refresh: bool = Fa
             "name": robot.get("name"),
             "model": robot.get("model"),
             "local_ip": robot.get("local_ip"),
-            "last_status": utc_now().isoformat(),
+            "last_status": local_now_iso(),
             "online": robot.get("online"),
             "last_error": robot.get("last_error"),
         }
     batch = {
         "source": "Roborock_logger",
         "collector_id": COLLECTOR_ID,
-        "timestamp": utc_now().isoformat(),
+        "timestamp": local_now_naive_iso(),
         "ok": True,
         "robots": robots,
         "extra": {"home_id": home.get("id"), "host_candidates": candidates, "home_cache": home.get("_cache")},
@@ -510,7 +521,7 @@ async def collect_once(include_maps: bool = False, force_home_refresh: bool = Fa
     try:
         resend_queue()
         post_to_fibaro10(batch)
-        state["last_sync"] = utc_now().isoformat()
+        state["last_sync"] = local_now_iso()
         state["last_error"] = None
         post_import_status(True, f"{len(robots)} roboter synkronisert", len(robots), {"home_cache": home.get("_cache")})
     except Exception as exc:
@@ -638,6 +649,7 @@ async def health():
     return {
         "ok": not bool(state.get("last_error")),
         "last_sync": state.get("last_sync"),
+        "timezone": LOCAL_TIMEZONE,
         "pending_batches": state.get("pending_batches", 0),
         "robots": len(state.get("robots") or {}),
     }
