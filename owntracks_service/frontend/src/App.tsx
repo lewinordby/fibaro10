@@ -31,6 +31,7 @@ import {
   Modal,
   Popconfirm,
   Row,
+  Segmented,
   Select,
   Space,
   Statistic,
@@ -106,6 +107,22 @@ type LocationRow = {
   batteryPercent?: number;
   staleMinutes?: number;
   gapMinutes?: number;
+};
+
+type MessageGroupRow = {
+  id: string;
+  topic: string;
+  timestamp?: string;
+  firstReceivedAt?: string;
+  lastReceivedAt?: string;
+  count: number;
+  messageTypes: string[];
+  events: string[];
+  lat?: number;
+  lon?: number;
+  distanceFromPreviousM?: number | null;
+  accuracyM?: number;
+  batteryPercent?: number;
 };
 
 type DeviceRow = {
@@ -368,6 +385,71 @@ function relativePeriodLabel(hours: string) {
   if (hours === "720") return "Siste 30 dager";
   if (hours === "0") return "Alt";
   return `Siste ${hours} timer`;
+}
+
+function coordinateKey(value?: number | null) {
+  return value === undefined || value === null ? "" : Number(value).toFixed(7);
+}
+
+function addSetValue(target: Set<string>, value?: string | null) {
+  if (value) target.add(value);
+}
+
+type MessageGroupAccumulator = Omit<MessageGroupRow, "messageTypes" | "events"> & {
+  messageTypeSet: Set<string>;
+  eventSet: Set<string>;
+  firstReceivedMs?: number;
+  lastReceivedMs?: number;
+};
+
+function compactMessageRows(rows: LocationRow[]) {
+  const groups = new Map<string, MessageGroupAccumulator>();
+  rows.forEach((row) => {
+    const key = [row.topic, row.timestamp || "", coordinateKey(row.lat), coordinateKey(row.lon)].join("|");
+    const receivedMs = timestampMs(row.receivedAt || row.timestamp);
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        id: key,
+        topic: row.topic,
+        timestamp: row.timestamp,
+        firstReceivedAt: row.receivedAt,
+        lastReceivedAt: row.receivedAt,
+        count: 0,
+        messageTypeSet: new Set<string>(),
+        eventSet: new Set<string>(),
+        lat: row.lat,
+        lon: row.lon,
+        distanceFromPreviousM: row.distanceFromPreviousM,
+        accuracyM: row.accuracyM,
+        batteryPercent: row.batteryPercent,
+        firstReceivedMs: receivedMs,
+        lastReceivedMs: receivedMs,
+      };
+      groups.set(key, group);
+    }
+    group.count += 1;
+    addSetValue(group.messageTypeSet, row.messageType);
+    addSetValue(group.eventSet, row.event);
+    if (group.distanceFromPreviousM == null && row.distanceFromPreviousM != null) group.distanceFromPreviousM = row.distanceFromPreviousM;
+    if (receivedMs !== undefined && (group.firstReceivedMs === undefined || receivedMs < group.firstReceivedMs)) {
+      group.firstReceivedMs = receivedMs;
+      group.firstReceivedAt = row.receivedAt;
+    }
+    if (receivedMs !== undefined && (group.lastReceivedMs === undefined || receivedMs >= group.lastReceivedMs)) {
+      group.lastReceivedMs = receivedMs;
+      group.lastReceivedAt = row.receivedAt;
+      group.accuracyM = row.accuracyM;
+      group.batteryPercent = row.batteryPercent;
+    }
+  });
+  return Array.from(groups.values())
+    .map(({ messageTypeSet, eventSet, firstReceivedMs, lastReceivedMs, ...row }) => ({
+      ...row,
+      messageTypes: Array.from(messageTypeSet),
+      events: Array.from(eventSet),
+    }))
+    .sort((left, right) => (timestampMs(right.lastReceivedAt || right.timestamp) || 0) - (timestampMs(left.lastReceivedAt || left.timestamp) || 0));
 }
 
 function formatNumber(value?: number | null, decimals = 0) {
@@ -814,6 +896,7 @@ export default function App() {
   const [timeFilterMode, setTimeFilterMode] = useState<TimeFilterMode>("relative");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [messageView, setMessageView] = useState<"grouped" | "raw">("grouped");
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [moduleData, setModuleData] = useState<ModulePayload | null>(null);
   const [mapData, setMapData] = useState<MapPayload | null>(null);
@@ -992,6 +1075,7 @@ export default function App() {
   const visits = mapData?.zoneVisits || [];
   const waypoints = mapData?.waypoints || [];
   const locations = mapData?.locations || [];
+  const groupedMessages = useMemo(() => compactMessageRows(locations), [locations]);
   const events = (moduleData?.tables.find((table) => table.title === "Waypoint-hendelser")?.rows || []) as EventRow[];
   const filteredEvents = events.filter((row) => {
     const rowMs = timestampMs(row.timestamp || row.receivedAt);
@@ -1086,7 +1170,8 @@ export default function App() {
   ];
 
   const locationColumns: ColumnsType<LocationRow> = [
-    { title: "Tid", dataIndex: "timestamp", render: formatDateTime },
+    { title: "Posisjonstid", dataIndex: "timestamp", render: formatDateTime },
+    { title: "Mottatt", dataIndex: "receivedAt", render: formatDateTime },
     { title: "Enhet", dataIndex: "topic" },
     { title: "Type", dataIndex: "messageType" },
     { title: "Event", dataIndex: "event", render: eventTag },
@@ -1095,6 +1180,28 @@ export default function App() {
     { title: "Fra forrige", dataIndex: "distanceFromPreviousM", width: 120, render: (value?: number | null) => (value == null ? "-" : `${formatNumber(value, 1)} m`) },
     { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
     { title: "Batteri", dataIndex: "batteryPercent", render: (value?: number) => (value == null ? "-" : `${formatNumber(value)} %`) },
+  ];
+
+  const groupedMessageColumns: ColumnsType<MessageGroupRow> = [
+    { title: "Antall", dataIndex: "count", width: 80 },
+    { title: "Posisjonstid", dataIndex: "timestamp", render: formatDateTime },
+    { title: "Forst mottatt", dataIndex: "firstReceivedAt", render: formatDateTime },
+    { title: "Sist mottatt", dataIndex: "lastReceivedAt", render: formatDateTime },
+    { title: "Enhet", dataIndex: "topic" },
+    {
+      title: "Typer",
+      dataIndex: "messageTypes",
+      render: (values?: string[]) => (values?.length ? <Space size={4} wrap>{values.map((value) => <Tag key={value}>{value}</Tag>)}</Space> : "-"),
+    },
+    {
+      title: "Event",
+      dataIndex: "events",
+      render: (values?: string[]) => (values?.length ? <Space size={4} wrap>{values.map((value) => <span key={value}>{eventTag(value)}</span>)}</Space> : "-"),
+    },
+    { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
+    { title: "Fra forrige", dataIndex: "distanceFromPreviousM", width: 120, render: (value?: number | null) => (value == null ? "-" : `${formatNumber(value, 1)} m`) },
+    { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Batteri sist", dataIndex: "batteryPercent", render: (value?: number) => (value == null ? "-" : `${formatNumber(value)} %`) },
   ];
 
   const eventColumns: ColumnsType<EventRow> = [
@@ -1400,8 +1507,30 @@ export default function App() {
   } else if (view === "messages") {
     content = (
       <>
-        <SectionHeader title="Meldinger" subtitle={`Alle posisjonsmeldinger i valgt periode: ${timeFilterLabel}`} />
-        <DataTable<LocationRow> columns={locationColumns} data={[...locations].reverse()} />
+        <SectionHeader
+          title="Meldinger"
+          subtitle={`${locations.length} raameldinger / ${groupedMessages.length} posisjoner i valgt periode: ${timeFilterLabel}`}
+        />
+        <div className="message-view-toolbar">
+          <Segmented
+            value={messageView}
+            onChange={(value) => setMessageView(value as "grouped" | "raw")}
+            options={[
+              { label: "Komprimert", value: "grouped" },
+              { label: "Raadata", value: "raw" },
+            ]}
+          />
+          <Typography.Text type="secondary">
+            {messageView === "grouped"
+              ? "Samler like posisjonstidspunkt og koordinater per enhet."
+              : "Viser hver melding slik den er mottatt fra OwnTracks."}
+          </Typography.Text>
+        </div>
+        {messageView === "grouped" ? (
+          <DataTable<MessageGroupRow> columns={groupedMessageColumns} data={groupedMessages} />
+        ) : (
+          <DataTable<LocationRow> columns={locationColumns} data={[...locations].reverse()} />
+        )}
       </>
     );
   } else if (view === "events") {

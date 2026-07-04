@@ -328,6 +328,14 @@ a {
   width: 190px;
 }
 
+.message-view-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: -2px 0 12px;
+}
+
 .owntracks-map {
   width: 100%;
   height: 520px;

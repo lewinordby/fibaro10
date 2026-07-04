@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "13")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "14")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "14",
+        "date": "04.07.2026",
+        "headline": "Ryddigere meldingsvisning",
+        "title": "OwnTracks Meldinger skiller posisjonstid, mottatt tid og gjentatte GPS-fix",
+        "description": (
+            "Build 14 gjoer Meldinger-siden mer forklarlig. Raavisningen viser naa baade posisjonstid fra "
+            "telefonen og mottatt-tid paa serveren. Standardvisningen komprimerer like posisjonstidspunkt og "
+            "koordinater per enhet, slik at gjentatte OwnTracks-meldinger fra samme GPS-fix vises som en samlet rad."
+        ),
+        "applications": [
+            "owntracks_service/frontend/src/App.tsx: ny komprimert/raw meldingsvisning og tydeligere kolonnenavn.",
+            "owntracks_service/frontend/src/styles.css: toolbar for meldingsvisning.",
+            "owntracks_service/app/build_log.py: buildlogg oppdatert for endringen.",
+        ],
+        "request": "gjoer det",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Meldinger viser Posisjonstid og Mottatt i raavisning.",
+            "Komprimert visning er standard og samler like punkt per enhet.",
+            "Komprimert rad viser antall meldinger, foerst mottatt og sist mottatt.",
+        ],
+    },
     {
         "version": "1",
         "build": "13",
