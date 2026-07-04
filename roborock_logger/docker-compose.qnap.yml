@@ -1,0 +1,23 @@
+services:
+  roborock_logger:
+    build: .
+    container_name: roborock_logger
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8095:8095"
+    volumes:
+      - roborock_logger_data:/data
+    networks:
+      - fibaro10_default
+
+volumes:
+  roborock_logger_data:
+    external: true
+    name: roborock_logger_roborock_logger_data
+
+networks:
+  fibaro10_default:
+    external: true
+    name: fibaro10_default

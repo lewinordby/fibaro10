@@ -74,9 +74,18 @@ def jsonable(value: Any) -> Any:
 
 def load_state() -> dict[str, Any]:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    defaults = {"robots": {}, "last_sync": None, "last_error": None, "pending_batches": 0}
     if STATE_FILE.exists():
-        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-    return {"robots": {}, "last_sync": None, "last_error": None, "pending_batches": 0}
+        try:
+            state = json.loads(STATE_FILE.read_text(encoding="utf-8") or "{}")
+        except json.JSONDecodeError:
+            state = {}
+        if not isinstance(state, dict):
+            state = {}
+        for key, value in defaults.items():
+            state.setdefault(key, value)
+        return state
+    return defaults.copy()
 
 
 def save_state(state: dict[str, Any]) -> None:
@@ -616,6 +625,22 @@ async def sync_now(maps: bool = False, refresh: bool = False):
 @app.get("/api/status")
 async def status():
     return load_state()
+
+
+@app.get("/status")
+async def status_alias():
+    return load_state()
+
+
+@app.get("/health")
+async def health():
+    state = load_state()
+    return {
+        "ok": not bool(state.get("last_error")),
+        "last_sync": state.get("last_sync"),
+        "pending_batches": state.get("pending_batches", 0),
+        "robots": len(state.get("robots") or {}),
+    }
 
 
 if sys.platform == "win32":
