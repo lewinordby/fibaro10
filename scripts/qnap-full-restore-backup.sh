@@ -54,6 +54,19 @@ sync_dir_if_exists() {
     rsync -a --delete "$source_dir/" "$target_dir/"
 }
 
+remove_backup_subdir() {
+    target_dir="$1"
+    case "$target_dir" in
+        "$BACKUP_ROOT"/*) ;;
+        *)
+            echo "Refusing to remove path outside backup root: $target_dir" >&2
+            exit 1
+            ;;
+    esac
+    [ -e "$target_dir" ] || return 0
+    rm -rf "$target_dir"
+}
+
 write_section() {
     title="$1"
     shift
@@ -68,7 +81,6 @@ cd "$REMOTE_DIR"
 
 EASYPARK_HOST_DATA_DIR="${EASYPARK_HOST_DATA_DIR:-$(env_value easypark_downloader/.env EASYPARK_HOST_DATA_DIR)}"
 AXIS_HOST_DATA_DIR="${AXIS_HOST_DATA_DIR:-$(env_value .env AXIS_HOST_DATA_DIR)}"
-AXIS_HOST_SNAPSHOT_DIR="${AXIS_HOST_SNAPSHOT_DIR:-$(env_value .env AXIS_HOST_SNAPSHOT_DIR)}"
 OWNTRACKS_HOST_DATA_DIR="${OWNTRACKS_HOST_DATA_DIR:-$(env_value .env OWNTRACKS_HOST_DATA_DIR)}"
 CAR_INFO_HOST_DATA_DIR="${CAR_INFO_HOST_DATA_DIR:-$(env_value .env CAR_INFO_HOST_DATA_DIR)}"
 SUN2_SESSION_SCRAPER_HOST_DATA_DIR="${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-$(env_value .env SUN2_SESSION_SCRAPER_HOST_DATA_DIR)}"
@@ -85,6 +97,9 @@ mkdir -p \
     "$BACKUP_DIR/runtime" \
     "$BACKUP_DIR/archive" \
     "$BACKUP_DIR/system"
+
+log "Removing raw Axis snapshot archive from restore backup scope"
+remove_backup_subdir "$BACKUP_DIR/archive/axis_camera_snapshots"
 
 log "Copying secrets and config files"
 for file in \
@@ -139,8 +154,7 @@ sync_dir_if_exists "${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-sun2_session_scraper/d
 sync_dir_if_exists "${FIBARO10_CADDY_DATA_DIR:-}" "$BACKUP_DIR/runtime/caddy/data"
 sync_dir_if_exists "${FIBARO10_CADDY_CONFIG_DIR:-}" "$BACKUP_DIR/runtime/caddy/config"
 
-log "Copying archive data from Vol3"
-sync_dir_if_exists "${AXIS_HOST_SNAPSHOT_DIR:-$ARCHIVE_ROOT/axis_camera_snapshots/snapshots}" "$BACKUP_DIR/archive/axis_camera_snapshots/snapshots"
+log "Copying backup archive data from Vol3"
 sync_dir_if_exists "$ARCHIVE_ROOT/fibaro10_deploy_backups" "$BACKUP_DIR/archive/fibaro10_deploy_backups"
 sync_dir_if_exists "$ARCHIVE_ROOT/fibaro10_backups" "$BACKUP_DIR/archive/fibaro10_backups"
 
@@ -182,7 +196,7 @@ Opprett helst samme logiske struktur:
 
 - Vol1 / `CACHEDEV1_DATA`: Container Station og repo.
 - Vol2 / `CACHEDEV2_DATA`: SSD RAID1 for runtime-data.
-- Vol3 / `CACHEDEV3_DATA`: arkiv, Axis-bilder og backups.
+- Vol3 / `CACHEDEV3_DATA`: arkiv og backups. Raa Axis snapshot-buffer kopieres ikke; soltimebilder ligger i PostgreSQL-dumpen.
 
 Hvis volum-idene blir annerledes paa ny QNAP maa stiene i `.env` justeres for:
 
@@ -252,14 +266,17 @@ cp -a runtime/sun2_session_scraper /share/CACHEDEV2_DATA/fibaro10_runtime/
 cp -a runtime/caddy /share/CACHEDEV2_DATA/fibaro10_runtime/
 ```
 
+`runtime/axis_camera_snapshots` inneholder metadata/konfig for Axis-jobben. Selve raa snapshot-bufferen er med vilje ikke med i denne backupen.
+
 ## 5. Legg tilbake arkivdata
 
 ```sh
 mkdir -p /share/CACHEDEV3_DATA/fibaro10_archive
-cp -a archive/axis_camera_snapshots /share/CACHEDEV3_DATA/fibaro10_archive/
 cp -a archive/fibaro10_deploy_backups /share/CACHEDEV3_DATA/fibaro10_archive/
 cp -a archive/fibaro10_backups /share/CACHEDEV3_DATA/fibaro10_archive/
 ```
+
+Axis-bilder som er knyttet til soltimer ligger i Fibaro10-databasen, i tabellen `sun2_tanning_session_images`, og blir gjenopprettet gjennom PostgreSQL-dumpen. Det historiske Axis snapshot-arkivet tas ikke med.
 
 ## 6. Start PostgreSQL og restore database
 
@@ -341,7 +358,7 @@ Du jobber paa en ny QNAP/ny installasjon og skal gjenopprette Fibaro10 fra denne
 
 Maal:
 - Sett opp Fibaro10, online dashboard, vedlikeholdsapp, OwnTracks, EasyPark downloader, Axis snapshot-service, nordisk biloppslag, SUN2 scraper og koblingsmotor.
-- Bruk alle hemmeligheter, passord, tokens, .env-filer, Caddy-data, runtime-data, Axis-bilder og database-dump fra backupen.
+- Bruk alle hemmeligheter, passord, tokens, .env-filer, Caddy-data, runtime-data og database-dump fra backupen. Axis-bilder som er knyttet til soltimer ligger i database-dumpen.
 - Ikke utelat noe. Ikke regenerer hemmeligheter hvis de finnes i backupen.
 - Ikke skriv hemmeligheter i chatten; bruk filene direkte.
 - Dokumenter eventuelle lokale stiendringer hvis ny QNAP bruker andre volum-id-er enn CACHEDEV1_DATA, CACHEDEV2_DATA og CACHEDEV3_DATA.
@@ -352,8 +369,8 @@ Backupkatalogens innhold:
 - repo/fibaro10.bundle: Git bundle med repo/historikk.
 - repo/working-tree/: arbeidskopi av repoet.
 - postgres/: PostgreSQL SQL-dump, custom dump og globals.
-- runtime/: SSD runtime-data for EasyPark, OwnTracks, Axis metadata, biloppslag, SUN2 scraper og Caddy.
-- archive/: Axis snapshots, deploy-backups og Fibaro10 backups.
+- runtime/: SSD runtime-data for EasyPark, OwnTracks, Axis metadata/konfig, biloppslag, SUN2 scraper og Caddy.
+- archive/: deploy-backups og Fibaro10 backups. Raa Axis snapshot-buffer er ikke med.
 - system/: Docker inspect, crontab, QNAP-konfig og systemmanifest.
 
 Arbeidsrekkefolge:
@@ -368,7 +385,7 @@ Arbeidsrekkefolge:
 6. Gjenopprett repo fra repo/fibaro10.bundle eller repo/working-tree/.
 7. Kopier secrets/ tilbake til repoet.
 8. Kopier runtime/ til SSD runtime-root.
-9. Kopier archive/ til arkivroot.
+9. Kopier archive/ til arkivroot. Ikke forvent historisk Axis snapshot-buffer; soltimebilder kommer fra PostgreSQL.
 10. Opprett/start postgres-1 og restore postgres/fibaro10_local.sql eller postgres/fibaro10_local.dump.
 11. Start alle Docker Compose-tjenester.
 12. Legg tilbake cron-jobber for qnap-backup.sh og qnap-full-restore-backup.sh.
