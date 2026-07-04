@@ -9,7 +9,7 @@ services:
     ports:
       - "192.168.20.218:8128:8128"
     volumes:
-      - ./owntracks_service/data:/data
+      - ${OWNTRACKS_HOST_DATA_DIR:-./owntracks_service/data}:/data
     environment:
       OWNTRACKS_DATA_DIR: /data
       OWNTRACKS_PUBLIC_BASE_URL: ${OWNTRACKS_PUBLIC_BASE_URL:-https://owntracks.lilletorget.net}
@@ -90,7 +90,7 @@ services:
     ports:
       - "192.168.20.218:8125:8125"
     volumes:
-      - ./axis_camera_snapshots/data:/data
+      - ${AXIS_HOST_DATA_DIR:-./axis_camera_snapshots/data}:/data
       - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/snapshots
     environment:
       AXIS_DATA_DIR: /data
@@ -119,7 +119,7 @@ services:
     ports:
       - "192.168.20.218:8126:8126"
     volumes:
-      - ./car_info_lookup/data:/data
+      - ${CAR_INFO_HOST_DATA_DIR:-./car_info_lookup/data}:/data
     environment:
       FIBARO10_BASE_URL: http://fibaro10:8110
       CAR_INFO_DATA_DIR: /data
@@ -154,7 +154,7 @@ services:
     ports:
       - "192.168.20.218:8099:8098"
     volumes:
-      - ./sun2_session_scraper/data:/data
+      - ${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-./sun2_session_scraper/data}:/data
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8098/json', timeout=5).read()\""]
       interval: 30s
@@ -197,8 +197,8 @@ services:
       - "8443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - fibaro10_caddy_data:/data
-      - fibaro10_caddy_config:/config
+      - ${FIBARO10_CADDY_DATA_DIR:-fibaro10_caddy_data}:/data
+      - ${FIBARO10_CADDY_CONFIG_DIR:-fibaro10_caddy_config}:/config
 
 volumes:
   fibaro10_caddy_data:
