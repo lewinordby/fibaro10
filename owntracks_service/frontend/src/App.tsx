@@ -50,6 +50,7 @@ const MAP_LAYER_IDS = ["owntracks-waypoints-fill", "owntracks-waypoints-line", "
 const MAP_SOURCE_IDS = ["owntracks-waypoints", "owntracks-track"];
 
 type ViewKey = "dashboard" | "map" | "visits" | "waypoints" | "suggestions" | "diagnostics" | "messages" | "events" | "build";
+type TimeFilterMode = "relative" | "custom";
 
 type HealthPayload = {
   status: string;
@@ -227,6 +228,9 @@ type EventRow = {
 
 type MapPayload = {
   hours: number;
+  start?: string;
+  end?: string;
+  filterMode?: TimeFilterMode;
   locations: LocationRow[];
   devices: DeviceRow[];
   waypoints: WaypointRow[];
@@ -336,6 +340,33 @@ function formatDateTime(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("no-NO", { dateStyle: "short", timeStyle: "medium" });
+}
+
+function formatDateTimeLocalInput(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function localInputToIso(value?: string) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+}
+
+function timestampMs(value?: string | null) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.getTime();
+}
+
+function relativePeriodLabel(hours: string) {
+  if (hours === "24") return "Siste 24 timer";
+  if (hours === "168") return "Siste 7 dager";
+  if (hours === "720") return "Siste 30 dager";
+  if (hours === "0") return "Alt";
+  return `Siste ${hours} timer`;
 }
 
 function formatNumber(value?: number | null, decimals = 0) {
@@ -508,6 +539,7 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
             type: "raster",
             tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
             tileSize: 256,
+            maxzoom: 19,
             attribution: "&copy; OpenStreetMap contributors",
           },
         },
@@ -541,15 +573,21 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
     clearMapOverlays(map, markerRef.current);
     markerRef.current = [];
 
-    const bounds = new maplibregl.LngLatBounds();
-    let hasBounds = false;
-    let boundsPointCount = 0;
-    let lastBoundPoint: [number, number] | null = null;
-    const extendBounds = (lon: number, lat: number) => {
-      bounds.extend([lon, lat]);
-      hasBounds = true;
-      boundsPointCount += 1;
-      lastBoundPoint = [lon, lat];
+    const primaryBounds = new maplibregl.LngLatBounds();
+    const fallbackBounds = new maplibregl.LngLatBounds();
+    let primaryPointCount = 0;
+    let fallbackPointCount = 0;
+    let lastPrimaryPoint: [number, number] | null = null;
+    let lastFallbackPoint: [number, number] | null = null;
+    const extendPrimaryBounds = (lon: number, lat: number) => {
+      primaryBounds.extend([lon, lat]);
+      primaryPointCount += 1;
+      lastPrimaryPoint = [lon, lat];
+    };
+    const extendFallbackBounds = (lon: number, lat: number) => {
+      fallbackBounds.extend([lon, lat]);
+      fallbackPointCount += 1;
+      lastFallbackPoint = [lon, lat];
     };
     const points = (data?.locations || []).filter((row) => Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lon)));
     if (points.length > 1) {
@@ -574,7 +612,7 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
     }
     points.forEach((row, index) => {
       if (row.lat === undefined || row.lon === undefined) return;
-      extendBounds(Number(row.lon), Number(row.lat));
+      extendPrimaryBounds(Number(row.lon), Number(row.lat));
       if (index === points.length - 1) {
         const marker = new maplibregl.Marker({ element: createMapMarker("location-marker"), anchor: "center" })
           .setLngLat([Number(row.lon), Number(row.lat)])
@@ -589,7 +627,7 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
     });
     (data?.devices || []).forEach((row) => {
       if (!Number.isFinite(Number(row.lastLat)) || !Number.isFinite(Number(row.lastLon))) return;
-      extendBounds(Number(row.lastLon), Number(row.lastLat));
+      extendFallbackBounds(Number(row.lastLon), Number(row.lastLat));
       const marker = new maplibregl.Marker({ element: createMapMarker("device-marker", "D"), anchor: "center" })
         .setLngLat([Number(row.lastLon), Number(row.lastLat)])
         .setPopup(
@@ -606,7 +644,7 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
         const lat = Number(row.lat);
         const lon = Number(row.lon);
         const radiusM = Number(row.radiusM || 50);
-        extendBounds(lon, lat);
+        extendFallbackBounds(lon, lat);
         const markerClass = row.source === "server-manual" ? "waypoint-marker local" : row.isInside ? "waypoint-marker inside" : "waypoint-marker";
         const marker = new maplibregl.Marker({ element: createMapMarker(markerClass), anchor: "center" })
           .setLngLat([lon, lat])
@@ -657,12 +695,17 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
         },
       });
     }
-    if (hasBounds && boundsPointCount === 1 && lastBoundPoint) {
-      map.easeTo({ center: lastBoundPoint, zoom: 18, duration: 300 });
-    } else if (hasBounds) {
-      map.fitBounds(bounds, { padding: 18, maxZoom: 18, duration: 300 });
+    const fitPadding = large ? 44 : 30;
+    if (primaryPointCount === 1 && lastPrimaryPoint) {
+      map.easeTo({ center: lastPrimaryPoint, zoom: 19, duration: 300 });
+    } else if (primaryPointCount > 1) {
+      map.fitBounds(primaryBounds, { padding: fitPadding, maxZoom: 19, duration: 300 });
+    } else if (fallbackPointCount === 1 && lastFallbackPoint) {
+      map.easeTo({ center: lastFallbackPoint, zoom: 17, duration: 300 });
+    } else if (fallbackPointCount > 1) {
+      map.fitBounds(fallbackBounds, { padding: fitPadding, maxZoom: 17, duration: 300 });
     }
-  }, [data, mapReady]);
+  }, [data, large, mapReady]);
 
   return <div className={large ? "owntracks-map large" : "owntracks-map"} ref={mapElementRef} />;
 }
@@ -767,6 +810,9 @@ function AppShell({
 export default function App() {
   const [view, setView] = useState<ViewKey>(() => viewFromHash());
   const [hours, setHours] = useState("24");
+  const [timeFilterMode, setTimeFilterMode] = useState<TimeFilterMode>("relative");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [moduleData, setModuleData] = useState<ModulePayload | null>(null);
   const [mapData, setMapData] = useState<MapPayload | null>(null);
@@ -786,6 +832,23 @@ export default function App() {
   const [rebuilding, setRebuilding] = useState(false);
   const [waypointForm] = Form.useForm();
 
+  const timeParams = useMemo(() => {
+    if (timeFilterMode !== "custom") return { hours };
+    const params: Record<string, string | number> = { hours: 0 };
+    const startIso = localInputToIso(customStart);
+    const endIso = localInputToIso(customEnd);
+    if (startIso) params.start = startIso;
+    if (endIso) params.end = endIso;
+    return params;
+  }, [customEnd, customStart, hours, timeFilterMode]);
+
+  const timeFilterLabel = useMemo(() => {
+    if (timeFilterMode !== "custom") return relativePeriodLabel(hours);
+    const fromLabel = customStart ? formatDateTime(localInputToIso(customStart)) : "start";
+    const toLabel = customEnd ? formatDateTime(localInputToIso(customEnd)) : "naa";
+    return `${fromLabel} - ${toLabel}`;
+  }, [customEnd, customStart, hours, timeFilterMode]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -793,9 +856,9 @@ export default function App() {
       const [nextHealth, nextModule, nextMap, nextZoneSummary, nextDiagnostics] = await Promise.all([
         fetchJson<HealthPayload>("/owntracks/health"),
         fetchJson<ModulePayload>("/owntracks/api/module"),
-        fetchJson<MapPayload>("/owntracks/api/map", { hours, limit: 5000 }),
-        fetchJson<ZoneSummaryPayload>("/owntracks/api/zone-summary", { hours, limit: 100 }),
-        fetchJson<DiagnosticsPayload>("/owntracks/api/diagnostics", { hours }),
+        fetchJson<MapPayload>("/owntracks/api/map", { ...timeParams, limit: 5000 }),
+        fetchJson<ZoneSummaryPayload>("/owntracks/api/zone-summary", { ...timeParams, limit: 100 }),
+        fetchJson<DiagnosticsPayload>("/owntracks/api/diagnostics", timeParams),
       ]);
       setHealth(nextHealth);
       setModuleData(nextModule);
@@ -807,7 +870,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [hours]);
+  }, [timeParams]);
 
   useEffect(() => {
     void load();
@@ -929,6 +992,17 @@ export default function App() {
   const waypoints = mapData?.waypoints || [];
   const locations = mapData?.locations || [];
   const events = (moduleData?.tables.find((table) => table.title === "Waypoint-hendelser")?.rows || []) as EventRow[];
+  const filteredEvents = events.filter((row) => {
+    const rowMs = timestampMs(row.timestamp || row.receivedAt);
+    if (rowMs === undefined) return true;
+    if (timeFilterMode === "custom") {
+      const startMs = timestampMs(localInputToIso(customStart));
+      const endMs = timestampMs(localInputToIso(customEnd));
+      return (startMs === undefined || rowMs >= startMs) && (endMs === undefined || rowMs <= endMs);
+    }
+    if (hours === "0") return true;
+    return rowMs >= Date.now() - Number(hours) * 60 * 60 * 1000;
+  });
   const buildRows = moduleData?.metadata.buildLog.rows || [];
   const zoneRows = zoneSummary?.summary || [];
   const activeZoneNames = (zoneSummary?.activeVisits || []).map((row) => row.waypointName).join(", ") || "Ingen aktive";
@@ -1072,18 +1146,41 @@ export default function App() {
     { title: "Endringer", dataIndex: "changes", render: (changes?: string[]) => (changes || []).map((change) => <div key={change}>{change}</div>) },
   ];
 
+  function handleTimePresetChange(value: string) {
+    if (value === "custom") {
+      setTimeFilterMode("custom");
+      if (!customStart || !customEnd) {
+        const end = new Date();
+        const start = new Date(end.getTime() - 2 * 60 * 60 * 1000);
+        setCustomStart(formatDateTimeLocalInput(start));
+        setCustomEnd(formatDateTimeLocalInput(end));
+      }
+      return;
+    }
+    setTimeFilterMode("relative");
+    setHours(value);
+  }
+
   const controls = (
-    <Space wrap>
+    <Space wrap className="time-filter-controls">
       <Select
-        value={hours}
-        onChange={setHours}
+        value={timeFilterMode === "custom" ? "custom" : hours}
+        onChange={handleTimePresetChange}
+        className="time-filter-select"
         options={[
           { value: "24", label: "Siste 24 timer" },
           { value: "168", label: "Siste 7 dager" },
           { value: "720", label: "Siste 30 dager" },
           { value: "0", label: "Alt" },
+          { value: "custom", label: "Egendefinert" },
         ]}
       />
+      {timeFilterMode === "custom" ? (
+        <Space.Compact className="time-range-inputs">
+          <Input aria-label="Fra tidspunkt" type="datetime-local" value={customStart} onChange={(event) => setCustomStart(event.target.value)} />
+          <Input aria-label="Til tidspunkt" type="datetime-local" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} />
+        </Space.Compact>
+      ) : null}
       <Button icon={<ToolOutlined />} loading={rebuilding} onClick={rebuildVisits}>
         Bygg sonebesok
       </Button>
@@ -1105,7 +1202,7 @@ export default function App() {
             <MetricCard title="Aktiv sone" value={zoneSummary?.totals.openVisits ?? 0} subtitle={activeZoneNames} tone="#15803d" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Sonetid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={`${zoneSummary?.totals.visits ?? 0} besok i valgt periode`} tone="#7c3aed" />
+            <MetricCard title="Sonetid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={`${zoneSummary?.totals.visits ?? 0} besok, ${timeFilterLabel}`} tone="#7c3aed" />
           </Col>
           <Col xs={24} md={8} xl={4}>
             <MetricCard title="Mest tid" value={topZone?.waypointName || "-"} subtitle={topZone ? `${topZone.totalDuration} / ${topZone.visits} besok` : "Ingen sonebesok"} tone="#f59e0b" />
@@ -1131,14 +1228,14 @@ export default function App() {
         </Row>
       </>
     ),
-    [activeZoneNames, health, latestLocation, locations.length, mapData, topZone, visitColumns, visits, zoneSummary],
+    [activeZoneNames, health, latestLocation, locations.length, mapData, timeFilterLabel, topZone, visitColumns, visits, zoneSummary],
   );
 
   let content: React.ReactNode = dashboard;
   if (view === "map") {
     content = (
       <>
-        <SectionHeader title="Kart" subtitle={`${locations.length} posisjoner, ${waypoints.length} waypoints`} />
+        <SectionHeader title="Kart" subtitle={`${locations.length} posisjoner, ${waypoints.length} waypoints - ${timeFilterLabel}`} />
         <Card title="Spor og soner">
           <OwnTracksMap data={mapData} large />
         </Card>
@@ -1153,7 +1250,7 @@ export default function App() {
             <MetricCard title="Soner i perioden" value={zoneSummary?.totals.zones ?? 0} subtitle={`${zoneSummary?.totals.visits ?? 0} besok`} tone="#15803d" />
           </Col>
           <Col xs={24} md={8}>
-            <MetricCard title="Total sonetid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={`Periode: ${hours === "0" ? "alt" : `${hours} timer`}`} tone="#7c3aed" />
+            <MetricCard title="Total sonetid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={timeFilterLabel} tone="#7c3aed" />
           </Col>
           <Col xs={24} md={8}>
             <MetricCard title="Apen naa" value={zoneSummary?.totals.openVisits ?? 0} subtitle={activeZoneNames} tone="#f59e0b" />
@@ -1301,15 +1398,15 @@ export default function App() {
   } else if (view === "messages") {
     content = (
       <>
-        <SectionHeader title="Meldinger" subtitle="Alle posisjonsmeldinger i valgt periode" />
+        <SectionHeader title="Meldinger" subtitle={`Alle posisjonsmeldinger i valgt periode: ${timeFilterLabel}`} />
         <DataTable<LocationRow> columns={locationColumns} data={[...locations].reverse()} />
       </>
     );
   } else if (view === "events") {
     content = (
       <>
-        <SectionHeader title="Hendelser" subtitle="Waypoint-definisjoner, enter og leave" />
-        <DataTable<EventRow> columns={eventColumns} data={events} />
+        <SectionHeader title="Hendelser" subtitle={`Waypoint-definisjoner, enter og leave. Periode: ${timeFilterLabel}`} />
+        <DataTable<EventRow> columns={eventColumns} data={filteredEvents} />
       </>
     );
   } else if (view === "build") {

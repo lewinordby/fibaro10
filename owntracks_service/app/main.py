@@ -378,6 +378,23 @@ def payload_timestamp(payload: dict[str, Any], fallback: datetime) -> datetime:
     return fallback
 
 
+def parse_query_datetime(value: Optional[str], label: str) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Ugyldig tidspunkt for {label}") from exc
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed.replace(microsecond=0)
+
+
+def validate_time_range(start_at: Optional[datetime], end_at: Optional[datetime]) -> None:
+    if start_at is not None and end_at is not None and start_at > end_at:
+        raise HTTPException(status_code=400, detail="Fra-tidspunkt maa vaere foer til-tidspunkt")
+
+
 def waypoint_name_from_payload(payload: dict[str, Any]) -> Optional[str]:
     for key in ("desc", "description", "name", "rid"):
         value = payload.get(key)
@@ -2527,9 +2544,20 @@ def owntracks_external_waypoint_suggestions(
 
 
 @app.get("/api/owntracks/map")
-def api_map(hours: int = Query(24, ge=0, le=24 * 365), limit: int = Query(2000, ge=0, le=20000)) -> dict[str, Any]:
-    since = utc_now() - timedelta(hours=hours) if hours else None
+def api_map(
+    hours: int = Query(24, ge=0, le=24 * 365),
+    limit: int = Query(2000, ge=0, le=20000),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
+) -> dict[str, Any]:
+    range_start = parse_query_datetime(start or from_time, "start")
+    range_end = parse_query_datetime(end or to_time, "end")
+    validate_time_range(range_start, range_end)
+    since = range_start or (utc_now() - timedelta(hours=hours) if hours else None)
     with SessionLocal() as session:
+        location_time_expr = func.coalesce(OwnTracksLocation.timestamp, OwnTracksLocation.received_at)
         location_stmt = (
             select(OwnTracksLocation)
             .where(OwnTracksLocation.lat.isnot(None))
@@ -2537,7 +2565,9 @@ def api_map(hours: int = Query(24, ge=0, le=24 * 365), limit: int = Query(2000, 
             .order_by(OwnTracksLocation.timestamp.desc().nullslast(), OwnTracksLocation.received_at.desc())
         )
         if since is not None:
-            location_stmt = location_stmt.where(or_(OwnTracksLocation.timestamp >= since, OwnTracksLocation.received_at >= since))
+            location_stmt = location_stmt.where(location_time_expr >= since)
+        if range_end is not None:
+            location_stmt = location_stmt.where(location_time_expr <= range_end)
         if limit:
             location_stmt = location_stmt.limit(limit)
         locations = list(session.execute(location_stmt).scalars())
@@ -2565,11 +2595,16 @@ def api_map(hours: int = Query(24, ge=0, le=24 * 365), limit: int = Query(2000, 
                     OwnTracksZoneVisit.status == "open",
                 )
             )
+        if range_end is not None:
+            visit_stmt = visit_stmt.where(or_(OwnTracksZoneVisit.started_at <= range_end, OwnTracksZoneVisit.started_at.is_(None)))
         visits = session.execute(visit_stmt).scalars()
         waypoint_list = [row_waypoint(row) for row in waypoints]
         return {
             "hours": hours,
             "limit": limit,
+            "start": iso_dt(since),
+            "end": iso_dt(range_end),
+            "filterMode": "custom" if range_start is not None or range_end is not None else "relative",
             "locations": [row_location(row) for row in locations],
             "devices": [row_device(row) for row in devices],
             "waypoints": waypoint_list,
@@ -2583,15 +2618,29 @@ def owntracks_external_map(
     request: Request,
     hours: int = Query(24, ge=0, le=24 * 365),
     limit: int = Query(2000, ge=0, le=20000),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
 ) -> dict[str, Any]:
     require_owntracks_admin(request)
-    return api_map(hours=hours, limit=limit)
+    return api_map(hours=hours, limit=limit, start=start, end=end, from_time=from_time, to_time=to_time)
 
 
 @app.get("/api/owntracks/zone-summary")
-def api_zone_summary(hours: int = Query(168, ge=0, le=24 * 365 * 3), limit: int = Query(50, ge=1, le=500)) -> dict[str, Any]:
+def api_zone_summary(
+    hours: int = Query(168, ge=0, le=24 * 365 * 3),
+    limit: int = Query(50, ge=1, le=500),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
+) -> dict[str, Any]:
     now = utc_now()
-    since = now - timedelta(hours=hours) if hours else None
+    range_start = parse_query_datetime(start or from_time, "start")
+    range_end = parse_query_datetime(end or to_time, "end")
+    validate_time_range(range_start, range_end)
+    since = range_start or (now - timedelta(hours=hours) if hours else None)
     with SessionLocal() as session:
         visit_stmt = select(OwnTracksZoneVisit)
         if since is not None:
@@ -2602,6 +2651,8 @@ def api_zone_summary(hours: int = Query(168, ge=0, le=24 * 365 * 3), limit: int 
                     OwnTracksZoneVisit.status == "open",
                 )
             )
+        if range_end is not None:
+            visit_stmt = visit_stmt.where(or_(OwnTracksZoneVisit.started_at <= range_end, OwnTracksZoneVisit.started_at.is_(None)))
         visit_rows = list(session.execute(visit_stmt.order_by(OwnTracksZoneVisit.started_at.desc())).scalars())
 
     grouped: dict[tuple[str, str], list[OwnTracksZoneVisit]] = {}
@@ -2618,6 +2669,9 @@ def api_zone_summary(hours: int = Query(168, ge=0, le=24 * 365 * 3), limit: int 
     total_duration_seconds = sum(int(row["totalDurationSeconds"]) for row in summary_rows)
     return {
         "hours": hours,
+        "start": iso_dt(since),
+        "end": iso_dt(range_end),
+        "filterMode": "custom" if range_start is not None or range_end is not None else "relative",
         "generatedAt": iso_dt(now),
         "totals": {
             "zones": len(summary_rows),
@@ -2637,9 +2691,13 @@ def owntracks_external_zone_summary(
     request: Request,
     hours: int = Query(168, ge=0, le=24 * 365 * 3),
     limit: int = Query(50, ge=1, le=500),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
 ) -> dict[str, Any]:
     require_owntracks_admin(request)
-    return api_zone_summary(hours=hours, limit=limit)
+    return api_zone_summary(hours=hours, limit=limit, start=start, end=end, from_time=from_time, to_time=to_time)
 
 
 @app.get("/api/owntracks/diagnostics")
@@ -2648,12 +2706,22 @@ def api_diagnostics(
     stale_minutes: int = Query(DATA_QUALITY_STALE_MINUTES, ge=1, le=24 * 60),
     gap_minutes: int = Query(DATA_QUALITY_GAP_MINUTES, ge=1, le=24 * 60),
     max_accuracy_m: float = Query(DATA_QUALITY_MAX_ACCURACY_M, ge=10, le=1000),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
 ) -> dict[str, Any]:
-    since = utc_now() - timedelta(hours=hours) if hours else None
+    range_start = parse_query_datetime(start or from_time, "start")
+    range_end = parse_query_datetime(end or to_time, "end")
+    validate_time_range(range_start, range_end)
+    since = range_start or (utc_now() - timedelta(hours=hours) if hours else None)
     with SessionLocal() as session:
+        location_time_expr = func.coalesce(OwnTracksLocation.timestamp, OwnTracksLocation.received_at)
         location_stmt = select(OwnTracksLocation).order_by(OwnTracksLocation.received_at.asc(), OwnTracksLocation.id.asc())
         if since is not None:
-            location_stmt = location_stmt.where(or_(OwnTracksLocation.timestamp >= since, OwnTracksLocation.received_at >= since))
+            location_stmt = location_stmt.where(location_time_expr >= since)
+        if range_end is not None:
+            location_stmt = location_stmt.where(location_time_expr <= range_end)
         rows = list(session.execute(location_stmt).scalars())
         coordinate_rows = [row for row in rows if row.lat is not None and row.lon is not None]
         transition_count = sum(1 for row in rows if row.message_type == "transition")
@@ -2715,6 +2783,9 @@ def api_diagnostics(
     )
     return {
         "hours": hours,
+        "start": iso_dt(since),
+        "end": iso_dt(range_end),
+        "filterMode": "custom" if range_start is not None or range_end is not None else "relative",
         "generatedAt": iso_dt(utc_now()),
         "parameters": {
             "staleMinutes": stale_minutes,
@@ -2758,9 +2829,22 @@ def owntracks_external_diagnostics(
     stale_minutes: int = Query(DATA_QUALITY_STALE_MINUTES, ge=1, le=24 * 60),
     gap_minutes: int = Query(DATA_QUALITY_GAP_MINUTES, ge=1, le=24 * 60),
     max_accuracy_m: float = Query(DATA_QUALITY_MAX_ACCURACY_M, ge=10, le=1000),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
 ) -> dict[str, Any]:
     require_owntracks_admin(request)
-    return api_diagnostics(hours=hours, stale_minutes=stale_minutes, gap_minutes=gap_minutes, max_accuracy_m=max_accuracy_m)
+    return api_diagnostics(
+        hours=hours,
+        stale_minutes=stale_minutes,
+        gap_minutes=gap_minutes,
+        max_accuracy_m=max_accuracy_m,
+        start=start,
+        end=end,
+        from_time=from_time,
+        to_time=to_time,
+    )
 
 
 @app.get("/api/owntracks/module")

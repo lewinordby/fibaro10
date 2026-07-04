@@ -63,6 +63,26 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(stored["origin"], "phone")
             self.assertFalse(stored["isSynthetic"])
 
+    def test_map_api_filters_specific_time_range(self) -> None:
+        topic = "owntracks/time-filter/android"
+        with TestClient(app) as client:
+            for lat, created_at in [
+                (61.111, "2026-01-01T10:00:00Z"),
+                (61.222, "2026-01-01T11:00:00Z"),
+            ]:
+                response = client.post(
+                    "/pub",
+                    json={"_type": "location", "topic": topic, "lat": lat, "lon": 10.466, "acc": 7, "created_at": created_at},
+                )
+                self.assertEqual(response.status_code, 200)
+
+            payload = client.get("/api/owntracks/map?hours=0&start=2026-01-01T10:30:00Z&end=2026-01-01T11:30:00Z").json()
+            rows = [row for row in payload["locations"] if row["topic"] == topic]
+            self.assertEqual(payload["filterMode"], "custom")
+            self.assertEqual(payload["start"], "2026-01-01T10:30:00Z")
+            self.assertEqual(payload["end"], "2026-01-01T11:30:00Z")
+            self.assertEqual([row["timestamp"] for row in rows], ["2026-01-01T11:00:00Z"])
+
     def test_admin_ui_is_closed_when_token_is_not_configured(self) -> None:
         original_token = owntracks_main.HTTP_TOKEN
         owntracks_main.HTTP_TOKEN = ""

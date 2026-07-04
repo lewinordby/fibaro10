@@ -5,10 +5,36 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "11")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "12")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "12",
+        "date": "04.07.2026",
+        "headline": "Bedre kartzoom og tidsfilter",
+        "title": "OwnTracks-kartet zoomer tettere inn og kan filtreres paa konkret tidsrom",
+        "description": (
+            "Build 12 legger til egendefinert fra/til-filter for OwnTracks-data og forbedrer MapLibre-zoom. "
+            "Kartet bruker posisjonssporet som primaert zoomgrunnlag, slik at waypoints og siste enhet ikke "
+            "trekker utsnittet unodvendig langt ut naar man analyserer en bestemt periode."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: kart, soneoppsummering og diagnose aksepterer start/end-filter.",
+            "owntracks_service/frontend/src/App.tsx: ny tidsvelger og tettere MapLibre fitBounds-logikk.",
+            "owntracks_service/frontend/src/styles.css: ryddig layout for tidsfilter.",
+            "tests/test_owntracks_service.py: test dekker eksakt tidsfilter paa kart-API.",
+        ],
+        "request": "jeg oensker bedre zoom mulighet paa kartet og bedre filtrering paa tid.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kartet zoomer naa inn paa punktene i valgt tidsrom saa tett som praktisk mulig.",
+            "Egendefinert fra/til-filter sender lokal tid korrekt til API-et.",
+            "Meldinger, sonebesok og diagnose bruker samme periodevalg.",
+        ],
+    },
     {
         "version": "1",
         "build": "11",
