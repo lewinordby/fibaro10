@@ -380,6 +380,8 @@ function timestampMs(value?: string | null) {
 }
 
 function relativePeriodLabel(hours: string) {
+  if (hours === "6") return "Siste 6 timer";
+  if (hours === "12") return "Siste 12 timer";
   if (hours === "24") return "Siste 24 timer";
   if (hours === "168") return "Siste 7 dager";
   if (hours === "720") return "Siste 30 dager";
@@ -1277,6 +1279,8 @@ export default function App() {
         onChange={handleTimePresetChange}
         className="time-filter-select"
         options={[
+          { value: "6", label: "Siste 6 timer" },
+          { value: "12", label: "Siste 12 timer" },
           { value: "24", label: "Siste 24 timer" },
           { value: "168", label: "Siste 7 dager" },
           { value: "720", label: "Siste 30 dager" },
@@ -1406,6 +1410,8 @@ export default function App() {
               value={suggestionHours}
               onChange={setSuggestionHours}
               options={[
+                { value: "6", label: "Siste 6 timer" },
+                { value: "12", label: "Siste 12 timer" },
                 { value: "168", label: "Siste 7 dager" },
                 { value: "720", label: "Siste 30 dager" },
                 { value: "2160", label: "Siste 90 dager" },

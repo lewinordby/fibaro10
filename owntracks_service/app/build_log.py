@@ -5,10 +5,33 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "14")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "15")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "15",
+        "date": "04.07.2026",
+        "headline": "Flere korte tidsvalg",
+        "title": "OwnTracks faar hurtigvalg for siste 6 og 12 timer",
+        "description": (
+            "Build 15 legger til kortere hurtigvalg i tidsfilteret. Dette gjoer det enklere aa analysere dagens "
+            "nylige posisjoner og sonehendelser uten aa hente et helt doegn naar man bare trenger de siste timene."
+        ),
+        "applications": [
+            "owntracks_service/frontend/src/App.tsx: tidsfilter og forslag-filter faar Siste 6 timer og Siste 12 timer.",
+            "owntracks_service/app/build_log.py: buildlogg oppdatert.",
+        ],
+        "request": "kan vi legge inn siste 12 og siste 6 timer ogsaa som hurtigvalg",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Siste 6 timer er lagt inn som hurtigvalg.",
+            "Siste 12 timer er lagt inn som hurtigvalg.",
+            "Periodeetikettene viser riktig tekst for de nye valgene.",
+        ],
+    },
     {
         "version": "1",
         "build": "14",
