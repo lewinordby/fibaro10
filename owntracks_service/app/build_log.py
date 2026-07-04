@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "10")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "11")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "11",
+        "date": "04.07.2026",
+        "headline": "Opprinnelse ogsaa paa meldinger",
+        "title": "OwnTracks Meldinger viser om raadata kommer fra telefon eller server",
+        "description": (
+            "Build 11 legger samme opprinnelsesmerking inn paa Meldinger som allerede finnes paa Hendelser. "
+            "Raameldinger fra OwnTracks-telefonen vises som Telefon og isSynthetic=false, slik at Meldinger, "
+            "Hendelser og Diagnose kan leses med samme begrepsbruk."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: row_location returnerer origin og isSynthetic, og module-tabellen inkluderer feltene.",
+            "owntracks_service/frontend/src/App.tsx: Meldinger-tabellen viser Opprinnelse.",
+            "tests/test_owntracks_service.py: test dekker at publiserte meldinger merkes som Telefon og ikke syntetiske.",
+        ],
+        "request": "du la inn det bare paa hendelser ikke paa meldinger",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Meldinger viser naa Telefon/Server paa samme maate som Hendelser.",
+            "Raameldinger fra telefonen er eksplisitt satt til isSynthetic=false.",
+            "Fallback-HTML viser samme opprinnelsesfelt.",
+        ],
+    },
     {
         "version": "1",
         "build": "10",

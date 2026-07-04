@@ -58,6 +58,10 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(health["ingest"]["path"], "/pub")
             self.assertGreaterEqual(health["counts"]["locations"], 1)
             self.assertGreaterEqual(health["counts"]["devices"], 1)
+            locations = client.get("/api/owntracks/map?hours=0&limit=10").json()["locations"]
+            stored = next(row for row in locations if row["topic"] == "owntracks/tester/android")
+            self.assertEqual(stored["origin"], "phone")
+            self.assertFalse(stored["isSynthetic"])
 
     def test_admin_ui_is_closed_when_token_is_not_configured(self) -> None:
         original_token = owntracks_main.HTTP_TOKEN

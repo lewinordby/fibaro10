@@ -96,6 +96,8 @@ type LocationRow = {
   timestamp?: string;
   messageType?: string;
   event?: string;
+  origin?: "phone" | "server";
+  isSynthetic?: boolean;
   lat?: number;
   lon?: number;
   accuracyM?: number;
@@ -415,7 +417,7 @@ function eventTag(value?: string) {
   return <Tag>{value || "-"}</Tag>;
 }
 
-function eventOriginTag(row: EventRow) {
+function originTag(row: { origin?: "phone" | "server"; isSynthetic?: boolean }) {
   if (row.isSynthetic || row.origin === "server") return <Tag color="purple">Server</Tag>;
   return <Tag color="blue">Telefon</Tag>;
 }
@@ -1013,6 +1015,7 @@ export default function App() {
     { title: "Enhet", dataIndex: "topic" },
     { title: "Type", dataIndex: "messageType" },
     { title: "Event", dataIndex: "event", render: eventTag },
+    { title: "Opprinnelse", width: 120, render: (_, row) => originTag(row) },
     { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
     { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
     { title: "Batteri", dataIndex: "batteryPercent", render: (value?: number) => (value == null ? "-" : `${formatNumber(value)} %`) },
@@ -1022,7 +1025,7 @@ export default function App() {
     { title: "Tid", dataIndex: "timestamp", render: formatDateTime },
     { title: "Sone", dataIndex: "waypointName" },
     { title: "Hendelse", dataIndex: "eventType", render: eventTag },
-    { title: "Opprinnelse", width: 120, render: (_, row) => eventOriginTag(row) },
+    { title: "Opprinnelse", width: 120, render: (_, row) => originTag(row) },
     { title: "Kilde", dataIndex: "sourceMessageType" },
     { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
     { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
