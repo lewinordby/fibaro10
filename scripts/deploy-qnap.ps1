@@ -4,6 +4,7 @@ param(
     [string]$Git = "",
     [string]$Branch = "main",
     [string]$RemoteDir = "/share/CACHEDEV1_DATA/Public/containerdata/fibaro10",
+    [string]$RemoteBackupRoot = "/share/CACHEDEV3_DATA/fibaro10_archive/fibaro10_deploy_backups",
     [string]$Docker = "/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker",
     [switch]$SkipPush,
     [switch]$AllowDirty,
@@ -72,7 +73,7 @@ $remote = @"
 set -e
 source /opt/etc/profile 2>/dev/null || true
 cd "$RemoteDir"
-backup_root="$RemoteDir/../fibaro10_deploy_backups"
+backup_root="$RemoteBackupRoot"
 stamp=`$(date +%Y%m%d-%H%M%S)
 backup_dir="`$backup_root/`$stamp"
 mkdir -p "`$backup_dir"

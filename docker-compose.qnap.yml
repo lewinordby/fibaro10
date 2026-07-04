@@ -34,7 +34,7 @@ services:
     ports:
       - "192.168.20.218:8110:8110"
     volumes:
-      - ./axis_camera_snapshots/snapshots:/axis_snapshots:ro
+      - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/axis_snapshots:ro
     environment:
       SUN2_AXIS_SNAPSHOT_ROOT: /axis_snapshots
       CAR_INFO_LOOKUP_URL: http://car_info_lookup:8126
@@ -91,7 +91,7 @@ services:
       - "192.168.20.218:8125:8125"
     volumes:
       - ./axis_camera_snapshots/data:/data
-      - ./axis_camera_snapshots/snapshots:/snapshots
+      - ${AXIS_HOST_SNAPSHOT_DIR:-./axis_camera_snapshots/snapshots}:/snapshots
     environment:
       AXIS_DATA_DIR: /data
       AXIS_SNAPSHOT_DIR: /snapshots
