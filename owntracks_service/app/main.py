@@ -173,6 +173,7 @@ class OwnTracksWaypointState(Base):
     device = Column(String(120), nullable=True, index=True)
     waypoint_name = Column(String(255), nullable=False, index=True)
     source = Column(String(40), nullable=True, index=True)
+    category = Column(String(120), nullable=True, index=True)
     address = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=True, default=True, index=True)
@@ -287,6 +288,7 @@ def ensure_owntracks_schema() -> None:
     existing = {column["name"] for column in inspector.get_columns("owntracks_waypoints")}
     waypoint_columns = {
         "source": "VARCHAR(40)",
+        "category": "VARCHAR(120)",
         "address": "TEXT",
         "notes": "TEXT",
         "is_active": "BOOLEAN DEFAULT 1",
@@ -1382,6 +1384,7 @@ def row_waypoint(row: OwnTracksWaypointState) -> dict[str, Any]:
         "device": row.device,
         "waypointName": row.waypoint_name,
         "source": row.source or "phone",
+        "category": row.category,
         "address": row.address,
         "notes": row.notes,
         "isActive": True if row.is_active is None else bool(row.is_active),
@@ -2131,6 +2134,7 @@ OWNTRACKS_ADMIN_HTML = """
       ]);
       tablePanel("waypointsPanel", "Waypoints", mapData.waypoints || [], [
         { label: "Navn", key: "waypointName" },
+        { label: "Kategori", key: "category" },
         { label: "Status", render: row => pill(row.isInside) },
         { label: "Sist sett", render: row => fmtTime(row.lastSeenAt) },
         { label: "Radius", render: row => `${fmtNum(row.radiusM)} m` },
@@ -2355,6 +2359,7 @@ class WaypointMutation(BaseModel):
     lat: float
     lon: float
     radiusM: Optional[float] = None
+    category: Optional[str] = None
     address: Optional[str] = None
     notes: Optional[str] = None
     isActive: Optional[bool] = True
@@ -2366,6 +2371,7 @@ class WaypointPatch(BaseModel):
     lat: Optional[float] = None
     lon: Optional[float] = None
     radiusM: Optional[float] = None
+    category: Optional[str] = None
     address: Optional[str] = None
     notes: Optional[str] = None
     isActive: Optional[bool] = None
@@ -2487,6 +2493,7 @@ def api_create_waypoint(payload: WaypointMutation) -> dict[str, Any]:
             waypoint_name=name,
             source="server-manual",
             source_message_type="server-manual",
+            category=(payload.category or "").strip() or None,
             address=(payload.address or "").strip() or None,
             notes=(payload.notes or "").strip() or None,
             is_active=True if payload.isActive is None else bool(payload.isActive),
@@ -2536,6 +2543,8 @@ def api_patch_waypoint(waypoint_id: int, payload: WaypointPatch) -> dict[str, An
             row.lon = float(payload.lon)
         if payload.radiusM is not None:
             row.radius_m = max(10.0, float(payload.radiusM))
+        if payload.category is not None:
+            row.category = payload.category.strip() or None
         if payload.address is not None:
             row.address = payload.address.strip() or None
         if payload.notes is not None:
@@ -3079,7 +3088,7 @@ def api_module() -> dict[str, Any]:
         "charts": [],
         "tables": [
             module_table("Sonebesok", ["startedAt", "endedAt", "duration", "waypointName", "topic", "status", "confidence"], [row_visit(row) for row in visits]),
-            module_table("Waypoints", ["waypointName", "topic", "lastState", "isInside", "lastSeenAt", "lat", "lon", "radiusM"], [row_waypoint(row) for row in waypoints]),
+            module_table("Waypoints", ["waypointName", "category", "topic", "lastState", "isInside", "lastSeenAt", "lat", "lon", "radiusM"], [row_waypoint(row) for row in waypoints]),
             module_table("Waypoint-hendelser", ["timestamp", "waypointName", "topic", "eventType", "origin", "sourceMessageType", "ignoredForState", "ignoredReason", "isSynthetic", "lat", "lon", "accuracyM"], [row_event(row) for row in events]),
             module_table("Enheter", ["topic", "username", "device", "lastSeenAt", "lastLat", "lastLon", "lastAccuracyM", "lastBatteryPercent"], [row_device(row) for row in devices]),
             module_table(

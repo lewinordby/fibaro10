@@ -47,15 +47,18 @@ Enter/leave-hendelser behandles etter samme prinsipp:
 
 Soneberegningen bruker hysterese. Et besok aapnes naar et presist punkt er innenfor soneradius, men lukkes foerst naar et presist punkt er tydelig utenfor `radius + buffer`. Dette hindrer at et kjent sted faar flere korte besok fordi telefonen hopper litt rundt sonegrensen.
 
-Siden `Kjente steder` viser dette som en praktisk oversikt:
+Siden `Kjente steder` viser dette som en praktisk oversikt i en todelt arbeidsflate:
 
-- en boks per aktivt waypoint
+- tabell over alle steder til venstre
+- valgt sted med status, kategori, noekkeltall, kart og besoksliste til hoyre
 - aktivt besok og hvor lenge det har vart
 - siste relevante enter og leave
 - total tid i valgt globalt tidsfilter
 - tydelig tekst om at upresise hendelser beholdes, men ikke styrer status
 
-Klikk paa `Totalt i periode` paa et kjent sted for aa aapne detaljsiden. Den viser et lite kart og en besoksliste med `Kom`, `Dro` og `Hvor lenge`. Hvis besoket fortsatt er aktivt, vises `Pagaende` i dro-feltet, og varigheten beregnes frem til naa.
+Klikk paa et sted i venstre tabell for aa vise detaljene. Detaljpanelet viser et lite kart og en besoksliste med `Kom`, `Dro` og `Hvor lenge`. Hvis besoket fortsatt er aktivt, vises `Pagaende` i dro-feltet, og varigheten beregnes frem til naa.
+
+Waypoints kan kategoriseres direkte i waypoint-dialogen. Kategorien lagres paa waypointet og vises i listen, detaljpanelet og API-et. Dette brukes forelopig bare som struktur i grensesnittet, men kan senere brukes til filtrering eller rapporter.
 
 Grensen kan overstyres mer detaljert hvis det trengs:
 

@@ -336,85 +336,46 @@ a {
   margin: -2px 0 12px;
 }
 
-.known-place-grid {
+.places-outlook-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: minmax(360px, 1fr) minmax(0, 2fr);
+  align-items: start;
   gap: 12px;
 }
 
-.known-place-card {
-  border-top: 3px solid #cbd5e1;
+.places-list-pane,
+.places-detail-pane {
+  min-width: 0;
 }
 
-.known-place-card.active {
-  border-top-color: #15803d;
-  background: linear-gradient(180deg, rgba(21, 128, 61, 0.04), #ffffff 42%);
-}
-
-.known-place-main {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.known-place-main > div,
-.known-place-stat-button,
-.known-place-timeline {
-  padding: 10px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-soft);
-}
-
-.known-place-stat-button {
-  display: block;
-  width: 100%;
-  color: inherit;
-  text-align: left;
+.place-list-row {
   cursor: pointer;
-  font: inherit;
 }
 
-.known-place-stat-button:hover {
-  border-color: color-mix(in srgb, #2563eb 28%, var(--border-control));
-  background: color-mix(in srgb, #2563eb 5%, var(--surface));
+.place-list-row.selected > td {
+  background: color-mix(in srgb, #2563eb 8%, #ffffff) !important;
+  box-shadow: inset 3px 0 0 #2563eb;
 }
 
-.known-place-main strong {
+.place-list-name {
+  min-width: 0;
+}
+
+.place-list-name strong,
+.place-list-name span {
   display: block;
-  margin-top: 3px;
-  color: var(--ink);
-  font-size: 20px;
-  line-height: 1.15;
 }
 
-.known-place-main span,
-.known-place-timeline span {
-  display: block;
-  margin-top: 4px;
+.place-list-name span {
+  overflow: hidden;
   color: var(--muted);
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.known-place-timeline {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
-  background: #ffffff;
-}
-
-.known-place-timeline strong {
-  display: block;
-  margin-top: 3px;
-  color: var(--ink);
-  font-size: 13px;
-}
-
-.known-place-note {
-  display: block;
-  margin-top: 9px;
-  font-size: 12px;
+.place-detail-header-card {
+  margin-bottom: 12px;
 }
 
 .place-detail-map .owntracks-map {
@@ -530,6 +491,10 @@ a {
 @media (max-width: 900px) {
   .app-header > .ant-typography {
     display: none;
+  }
+
+  .places-outlook-layout {
+    grid-template-columns: 1fr;
   }
 
   .content-toolbar {

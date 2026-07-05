@@ -5,10 +5,37 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "18")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "19")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "19",
+        "date": "05.07.2026",
+        "headline": "Outlook-visning for kjente steder",
+        "title": "Kjente steder faar liste til venstre, detaljer til hoyre og kategorier paa waypoints",
+        "description": (
+            "Build 19 endrer Kjente steder fra kortlayout til en Outlook-lignende arbeidsflate. Listen over steder "
+            "ligger til venstre og valgt sted vises med noekkeltall, kart og besoksliste til hoyre. Waypoints kan "
+            "naa kategoriseres, og kategorien lagres i databasen, vises i API-et og kan endres fra grensesnittet."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: waypoint-modellen og API-et faar kategori med automatisk schema-migrering.",
+            "owntracks_service/frontend/src/App.tsx: Kjente steder bygges om til liste/detalj-layout og waypoint-modal faar kategori.",
+            "owntracks_service/frontend/src/styles.css: ny to-panel-layout for kjente steder.",
+            "tests/test_owntracks_service.py: test dekker lagring og endring av waypoint-kategori.",
+            "docs/owntracks-http.md: dokumenterer ny sonevisning og kategorisering.",
+        ],
+        "request": "Prøv et mer Outlook-design med tabell over steder, detaljer til hoyre og kategorisering av waypoints.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kjente steder viser tabell over alle steder i venstre tredjedel og valgt sted i resten av skjermen.",
+            "Detaljpanelet viser status, kategori, total tid, aktivt besok, kart og besoksliste uten sideskift.",
+            "Waypoints kan merkes med en kategori som gjenbrukes i lister, detaljvisning og API.",
+        ],
+    },
     {
         "version": "1",
         "build": "18",

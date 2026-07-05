@@ -527,17 +527,19 @@ class OwnTracksServiceTests(unittest.TestCase):
             )
             created = client.post(
                 "/api/owntracks/waypoints",
-                json={"topic": topic, "name": "Redigerbar", "lat": 62.211, "lon": 11.322, "radiusM": 90},
+                json={"topic": topic, "name": "Redigerbar", "category": "Testkategori", "lat": 62.211, "lon": 11.322, "radiusM": 90},
             )
             self.assertEqual(created.status_code, 200)
             waypoint_id = created.json()["waypoint"]["id"]
+            self.assertEqual(created.json()["waypoint"]["category"], "Testkategori")
 
             patched = client.patch(
                 f"/api/owntracks/waypoints/{waypoint_id}",
-                json={"name": "Redigert", "radiusM": 120, "notes": "Test", "rebuildHistory": False},
+                json={"name": "Redigert", "category": "Oppdatert", "radiusM": 120, "notes": "Test", "rebuildHistory": False},
             )
             self.assertEqual(patched.status_code, 200)
             self.assertEqual(patched.json()["waypoint"]["waypointName"], "Redigert")
+            self.assertEqual(patched.json()["waypoint"]["category"], "Oppdatert")
             self.assertEqual(patched.json()["waypoint"]["radiusM"], 120)
 
             disabled = client.delete(f"/api/owntracks/waypoints/{waypoint_id}?rebuild=false")

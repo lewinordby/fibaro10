@@ -50,7 +50,7 @@ const MENU_HIDDEN_STORAGE_KEY = "owntracks:mainMenuHidden";
 const MAP_LAYER_IDS = ["owntracks-waypoints-fill", "owntracks-waypoints-line", "owntracks-track-line"];
 const MAP_SOURCE_IDS = ["owntracks-waypoints", "owntracks-track"];
 
-type ViewKey = "dashboard" | "places" | "placeDetail" | "map" | "visits" | "waypoints" | "suggestions" | "diagnostics" | "messages" | "events" | "build";
+type ViewKey = "dashboard" | "places" | "map" | "visits" | "waypoints" | "suggestions" | "diagnostics" | "messages" | "events" | "build";
 type TimeFilterMode = "relative" | "custom";
 
 type HealthPayload = {
@@ -152,6 +152,7 @@ type WaypointRow = {
   topic: string;
   waypointName: string;
   source?: string;
+  category?: string;
   address?: string;
   notes?: string;
   isActive?: boolean;
@@ -368,16 +369,12 @@ const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: React.ReactNode; col
 
 function viewFromHash(): ViewKey {
   const hash = window.location.hash.replace("#", "");
-  if (hash.startsWith("place:")) return "placeDetail";
+  if (hash.startsWith("place:")) return "places";
   return NAV_ITEMS.some((item) => item.key === hash) ? (hash as ViewKey) : "dashboard";
 }
 
 function placeKey(topic?: string, waypointName?: string) {
   return JSON.stringify([topic || "", waypointName || ""]);
-}
-
-function placeHash(key: string) {
-  return `place:${encodeURIComponent(key)}`;
 }
 
 function placeKeyFromHash() {
@@ -645,10 +642,8 @@ function activeTag(value?: boolean) {
   return <Tag color="green">Aktiv</Tag>;
 }
 
-function waypointSourceLabel(value?: string) {
-  if (value === "server-manual") return "Lokal";
-  if (value === "server-suggestion") return "Forslag";
-  return "Telefon";
+function categoryTag(value?: string) {
+  return value ? <Tag color="blue">{value}</Tag> : <Typography.Text type="secondary">Uten kategori</Typography.Text>;
 }
 
 function durationOrDash(value?: string | null) {
@@ -1067,15 +1062,15 @@ export default function App() {
   }, [load]);
 
   useEffect(() => {
-    window.location.hash = view === "placeDetail" && selectedPlaceId ? placeHash(selectedPlaceId) : view;
-  }, [selectedPlaceId, view]);
+    window.location.hash = view;
+  }, [view]);
 
   useEffect(() => {
     const onHashChange = () => {
       const nextPlaceId = placeKeyFromHash();
       if (nextPlaceId) {
         setSelectedPlaceId(nextPlaceId);
-        setView("placeDetail");
+        setView("places");
         return;
       }
       setSelectedPlaceId(null);
@@ -1133,6 +1128,7 @@ export default function App() {
       lat: waypoint?.lat ?? suggestion?.lat,
       lon: waypoint?.lon ?? suggestion?.lon,
       radiusM: waypoint?.radiusM || suggestion?.radiusM || 100,
+      category: waypoint?.category ? [waypoint.category] : [],
       address: waypoint?.address || suggestion?.address || "",
       notes: waypoint?.notes || "",
     });
@@ -1146,6 +1142,11 @@ export default function App() {
 
   async function saveWaypoint() {
     const values = await waypointForm.validateFields();
+    const payload = {
+      ...values,
+      category: Array.isArray(values.category) ? values.category[0] || "" : values.category || "",
+      rebuildHistory: true,
+    };
     setWaypointSaving(true);
     try {
       const result = await fetchJson<{ locationsProcessed: number }>(
@@ -1154,7 +1155,7 @@ export default function App() {
         {
           method: editingWaypoint ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...values, rebuildHistory: true }),
+          body: JSON.stringify(payload),
         },
       );
       message.success(`Waypoint ${editingWaypoint ? "oppdatert" : "opprettet"}. ${result.locationsProcessed || 0} posisjoner ble beregnet paa nytt.`);
@@ -1211,13 +1212,20 @@ export default function App() {
   const buildRows = moduleData?.metadata.buildLog.rows || [];
   const zoneRows = zoneSummary?.summary || [];
   const placeRows = zoneSummary?.places || zoneRows;
+  const categoryOptions = useMemo(() => {
+    const categories = new Set<string>();
+    waypoints.forEach((row) => row.category && categories.add(row.category));
+    placeRows.forEach((row) => row.waypoint?.category && categories.add(row.waypoint.category));
+    return Array.from(categories).sort((left, right) => left.localeCompare(right, "no")).map((value) => ({ value, label: value }));
+  }, [placeRows, waypoints]);
   const selectedPlace = selectedPlaceId ? placeRows.find((row) => placeKey(row.topic, row.waypointName) === selectedPlaceId) || null : null;
-  const selectedPlaceVisits = selectedPlace
+  const activePlace = selectedPlace || placeRows[0] || null;
+  const selectedPlaceVisits = activePlace
     ? visits
-        .filter((row) => row.topic === selectedPlace.topic && row.waypointName === selectedPlace.waypointName)
+        .filter((row) => row.topic === activePlace.topic && row.waypointName === activePlace.waypointName)
         .sort((left, right) => (timestampMs(right.startedAt) || 0) - (timestampMs(left.startedAt) || 0))
     : [];
-  const selectedPlaceMapData = selectedPlace
+  const selectedPlaceMapData = activePlace
     ? ({
         hours: mapData?.hours ?? Number(hours),
         locations: [],
@@ -1255,7 +1263,7 @@ export default function App() {
           return rows;
         }),
         devices: [],
-        waypoints: selectedPlace.waypoint ? [selectedPlace.waypoint] : waypoints.filter((row) => row.topic === selectedPlace.topic && row.waypointName === selectedPlace.waypointName),
+        waypoints: activePlace.waypoint ? [activePlace.waypoint] : waypoints.filter((row) => row.topic === activePlace.topic && row.waypointName === activePlace.waypointName),
         zoneVisits: selectedPlaceVisits,
       } satisfies MapPayload)
     : null;
@@ -1286,6 +1294,35 @@ export default function App() {
     { title: "Ut", width: 150, render: (_, row) => (row.status === "open" ? "-" : row.leaveSource || "-") },
   ];
 
+  const placeListColumns: ColumnsType<ZoneSummaryRow> = [
+    {
+      title: "Sted",
+      dataIndex: "waypointName",
+      render: (value: string, row) => (
+        <div className="place-list-name">
+          <strong>{value}</strong>
+          <span>{row.waypoint?.address || row.topic}</span>
+        </div>
+      ),
+    },
+    {
+      title: "Kategori",
+      width: 120,
+      render: (_, row) => categoryTag(row.waypoint?.category),
+    },
+    {
+      title: "Status",
+      width: 110,
+      render: (_, row) => placeStatusTag(row),
+    },
+    {
+      title: "Tid",
+      dataIndex: "totalDuration",
+      width: 110,
+      render: durationOrDash,
+    },
+  ];
+
   const zoneSummaryColumns: ColumnsType<ZoneSummaryRow> = [
     { title: "Sone", dataIndex: "waypointName", fixed: "left" },
     { title: "Besok", dataIndex: "visits", width: 90 },
@@ -1299,6 +1336,7 @@ export default function App() {
 
   const waypointColumns: ColumnsType<WaypointRow> = [
     { title: "Navn", dataIndex: "waypointName", fixed: "left" },
+    { title: "Kategori", dataIndex: "category", render: categoryTag },
     { title: "Kilde", dataIndex: "source", render: waypointSourceTag },
     { title: "Aktiv", dataIndex: "isActive", render: activeTag },
     { title: "Status", dataIndex: "isInside", render: insideTag },
@@ -1311,21 +1349,18 @@ export default function App() {
       title: "",
       width: 170,
       fixed: "right",
-      render: (_, row) =>
-        row.source === "server-manual" ? (
-          <Space size={6}>
-            <Button size="small" icon={<EditOutlined />} onClick={() => openWaypointModal(undefined, row)}>
-              Rediger
+      render: (_, row) => (
+        <Space size={6}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openWaypointModal(undefined, row)}>
+            Rediger
+          </Button>
+          <Popconfirm title="Deaktiver sone?" okText="Deaktiver" cancelText="Avbryt" onConfirm={() => void disableWaypoint(row)}>
+            <Button size="small" danger icon={<PoweroffOutlined />} loading={waypointMutatingId === row.id}>
+              Av
             </Button>
-            <Popconfirm title="Deaktiver lokal sone?" okText="Deaktiver" cancelText="Avbryt" onConfirm={() => void disableWaypoint(row)}>
-              <Button size="small" danger icon={<PoweroffOutlined />} loading={waypointMutatingId === row.id}>
-                Av
-              </Button>
-            </Popconfirm>
-          </Space>
-        ) : (
-          <Typography.Text type="secondary">{waypointSourceLabel(row.source)}</Typography.Text>
-        ),
+          </Popconfirm>
+        </Space>
+      ),
     },
   ];
 
@@ -1496,51 +1531,6 @@ export default function App() {
 
   function openPlaceDetail(row: ZoneSummaryRow) {
     setSelectedPlaceId(placeKey(row.topic, row.waypointName));
-    setView("placeDetail");
-  }
-
-  function renderPlaceCard(row: ZoneSummaryRow) {
-    const isOpen = row.openVisits > 0 || row.lastStatus === "open";
-    const radius = row.waypoint?.radiusM || undefined;
-    return (
-      <Card
-        key={row.id}
-        className={`known-place-card ${isOpen ? "active" : ""}`}
-        title={
-          <Space>
-            <span>{row.waypointName}</span>
-            {placeStatusTag(row)}
-          </Space>
-        }
-        extra={radius ? <Typography.Text type="secondary">{formatNumber(radius)} m</Typography.Text> : null}
-      >
-        <div className="known-place-main">
-          <div>
-            <Typography.Text type="secondary">Aktivt besok</Typography.Text>
-            <strong>{isOpen ? row.currentDuration || row.lastDuration || "-" : "-"}</strong>
-            <span>{isOpen ? `Fra ${formatDateTime(row.currentStartedAt || row.lastStartedAt)}` : "Ingen aktiv sone"}</span>
-          </div>
-          <button type="button" className="known-place-stat-button" onClick={() => openPlaceDetail(row)}>
-            <Typography.Text type="secondary">Totalt i periode</Typography.Text>
-            <strong>{row.totalDuration || "-"}</strong>
-            <span>{row.visits} besok</span>
-          </button>
-        </div>
-        <div className="known-place-timeline">
-          <div>
-            <span>Siste relevante enter</span>
-            <strong>{formatDateTime(row.lastEnterAt || row.lastStartedAt)}</strong>
-          </div>
-          <div>
-            <span>Siste relevante leave</span>
-            <strong>{formatDateTime(row.lastLeaveAt || row.lastEndedAt)}</strong>
-          </div>
-        </div>
-        <Typography.Text type="secondary" className="known-place-note">
-          Lavpresisjons-enter/leave lagres som hendelser, men endrer ikke dette oppholdet.
-        </Typography.Text>
-      </Card>
-    );
   }
 
   const dashboard = useMemo(
@@ -1594,70 +1584,84 @@ export default function App() {
           subtitle={`Opphold beregnet fra presise punkter. Periode: ${timeFilterLabel}`}
         />
         <Alert className="page-alert" type="info" showIcon message="Tydelig sonehistorikk" description={precisionPolicyText} />
-        <Row gutter={[12, 12]} className="metric-row">
-          <Col xs={24} md={8}>
-            <MetricCard title="Kjente steder" value={placeRows.length} subtitle={`${zoneSummary?.totals.openVisits ?? 0} aktiv akkurat naa`} tone="#15803d" />
-          </Col>
-          <Col xs={24} md={8}>
-            <MetricCard title="Total tid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={timeFilterLabel} tone="#7c3aed" />
-          </Col>
-          <Col xs={24} md={8}>
-            <MetricCard title="Besok" value={zoneSummary?.totals.visits ?? 0} subtitle="Relevante enter/leave" tone="#0891b2" />
-          </Col>
-        </Row>
-        <div className="known-place-grid">
-          {placeRows.length ? placeRows.map((row) => renderPlaceCard(row)) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Ingen kjente steder enda" />}
-        </div>
-      </>
-    );
-  } else if (view === "placeDetail") {
-    content = selectedPlace ? (
-      <>
-        <div className="section-header">
-          <div>
-            <Typography.Title level={2}>{selectedPlace.waypointName}</Typography.Title>
-            <Typography.Text type="secondary">Besok paa kjent sted i valgt periode: {timeFilterLabel}</Typography.Text>
+        <div className="places-outlook-layout">
+          <Card
+            className="places-list-pane"
+            title="Steder"
+            extra={<Typography.Text type="secondary">{placeRows.length} stk</Typography.Text>}
+          >
+            <Table<ZoneSummaryRow>
+              size="small"
+              columns={placeListColumns}
+              dataSource={placeRows}
+              rowKey="id"
+              pagination={false}
+              scroll={{ y: "calc(100vh - 310px)", x: true }}
+              rowClassName={(row) => (activePlace && placeKey(row.topic, row.waypointName) === placeKey(activePlace.topic, activePlace.waypointName) ? "place-list-row selected" : "place-list-row")}
+              onRow={(row) => ({
+                onClick: () => openPlaceDetail(row),
+              })}
+            />
+          </Card>
+          <div className="places-detail-pane">
+            {activePlace ? (
+              <>
+                <Card
+                  className="place-detail-header-card"
+                  title={
+                    <Space wrap>
+                      <span>{activePlace.waypointName}</span>
+                      {placeStatusTag(activePlace)}
+                      {categoryTag(activePlace.waypoint?.category)}
+                    </Space>
+                  }
+                  extra={
+                    activePlace.waypoint ? (
+                      <Button size="small" icon={<EditOutlined />} onClick={() => openWaypointModal(undefined, activePlace.waypoint)}>
+                        Rediger waypoint
+                      </Button>
+                    ) : null
+                  }
+                >
+                  <Row gutter={[10, 10]}>
+                    <Col xs={24} md={8}>
+                      <MetricCard title="Total tid" value={activePlace.totalDuration || "-"} subtitle={`${activePlace.visits} besok i perioden`} tone="#15803d" />
+                    </Col>
+                    <Col xs={24} md={8}>
+                      <MetricCard title="Aktivt besok" value={activePlace.openVisits > 0 ? activePlace.currentDuration || "-" : "-"} subtitle={activePlace.openVisits > 0 ? `Fra ${formatDateTime(activePlace.currentStartedAt || activePlace.lastStartedAt)}` : "Ingen aktiv sone"} tone="#7c3aed" />
+                    </Col>
+                    <Col xs={24} md={8}>
+                      <MetricCard title="Siste relevante leave" value={formatDateTime(activePlace.lastLeaveAt || activePlace.lastEndedAt)} subtitle={`Siste enter ${formatDateTime(activePlace.lastEnterAt || activePlace.lastStartedAt)}`} tone="#0891b2" />
+                    </Col>
+                  </Row>
+                </Card>
+                <Row gutter={[12, 12]}>
+                  <Col xs={24} xl={10}>
+                    <Card title="Kart" className="place-detail-map">
+                      <OwnTracksMap data={selectedPlaceMapData} />
+                    </Card>
+                  </Col>
+                  <Col xs={24} xl={14}>
+                    <Card title="Besok" extra={<Typography.Text type="secondary">{selectedPlaceVisits.length} i valgt periode</Typography.Text>}>
+                      <Table<VisitRow>
+                        size="small"
+                        columns={placeVisitColumns}
+                        dataSource={selectedPlaceVisits}
+                        rowKey="id"
+                        pagination={{ pageSize: 20, showSizeChanger: false }}
+                        scroll={{ x: true }}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+              </>
+            ) : (
+              <Card>
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Ingen kjente steder enda" />
+              </Card>
+            )}
           </div>
-          <Button onClick={() => setView("places")}>Tilbake</Button>
         </div>
-        <Row gutter={[12, 12]} className="metric-row">
-          <Col xs={24} md={8}>
-            <MetricCard title="Total tid i periode" value={selectedPlace.totalDuration || "-"} subtitle={`${selectedPlace.visits} besok`} tone="#15803d" />
-          </Col>
-          <Col xs={24} md={8}>
-            <MetricCard title="Aktivt besok" value={selectedPlace.openVisits > 0 ? selectedPlace.currentDuration || "-" : "-"} subtitle={selectedPlace.openVisits > 0 ? `Fra ${formatDateTime(selectedPlace.currentStartedAt || selectedPlace.lastStartedAt)}` : "Ingen aktiv sone"} tone="#7c3aed" />
-          </Col>
-          <Col xs={24} md={8}>
-            <MetricCard title="Siste relevante leave" value={formatDateTime(selectedPlace.lastLeaveAt || selectedPlace.lastEndedAt)} subtitle={`Siste enter ${formatDateTime(selectedPlace.lastEnterAt || selectedPlace.lastStartedAt)}`} tone="#0891b2" />
-          </Col>
-        </Row>
-        <Row gutter={[12, 12]}>
-          <Col xs={24} xl={9}>
-            <Card title="Kart" className="place-detail-map">
-              <OwnTracksMap data={selectedPlaceMapData} />
-            </Card>
-          </Col>
-          <Col xs={24} xl={15}>
-            <Card title="Besok" extra={<Typography.Text type="secondary">{selectedPlaceVisits.length} i valgt periode</Typography.Text>}>
-              <Table<VisitRow>
-                size="small"
-                columns={placeVisitColumns}
-                dataSource={selectedPlaceVisits}
-                rowKey="id"
-                pagination={{ pageSize: 20, showSizeChanger: false }}
-                scroll={{ x: true }}
-              />
-            </Card>
-          </Col>
-        </Row>
-      </>
-    ) : (
-      <>
-        <SectionHeader title="Kjent sted" subtitle="Fant ikke stedet i valgt datagrunnlag" />
-        <Card>
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Stedet finnes ikke lenger eller er ikke lastet inn" />
-          <Button onClick={() => setView("places")}>Tilbake til kjente steder</Button>
-        </Card>
       </>
     );
   } else if (view === "map") {
@@ -1875,7 +1879,7 @@ export default function App() {
   }
 
   return (
-    <AppShell active={view === "placeDetail" ? "places" : view} onViewChange={setView} build={health?.app.build}>
+    <AppShell active={view} onViewChange={setView} build={health?.app.build}>
       <div className="content-toolbar">
         <div className="status-block">
           <Tag color={health?.status === "ok" ? "green" : "red"}>{health?.status || "laster"}</Tag>
@@ -1923,7 +1927,17 @@ export default function App() {
                 <InputNumber min={10} max={1000} addonAfter="m" className="full-width-control" />
               </Form.Item>
             </Col>
-            <Col xs={24}>
+            <Col xs={24} md={12}>
+              <Form.Item name="category" label="Kategori">
+                <Select
+                  allowClear
+                  mode="tags"
+                  placeholder="Eks. Hjem, Arbeid, Kunde, Familie"
+                  options={categoryOptions}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
               <Form.Item name="address" label="Adresse">
                 <Input placeholder="Valgfri adresse eller beskrivelse" />
               </Form.Item>
