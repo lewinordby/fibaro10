@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "21")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "22")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "22",
+        "date": "05.07.2026",
+        "headline": "Konsoliderte sonebesok",
+        "title": "Transition og beregnede posisjoner flettes til samme opphold",
+        "description": (
+            "Build 22 rydder sonebesoklogikken. Telefonens transition enter/leave beholdes som egen hendelseslogg, "
+            "men oversiktene viser ett samlet opphold naar transition og serverberegnet posisjon dekker samme besok. "
+            "Forsinkede leave-hendelser fra telefonen flettes ogsaa inn i nylig lukkede beregnede opphold."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: fletter overlappende transition- og computed-position-besok.",
+            "tests/test_owntracks_service.py: tester transition enter mot aapent beregnet besok og forsinket leave mot lukket beregnet besok.",
+            "docker-compose.qnap.yml: OwnTracks buildnummer oppdatert.",
+        ],
+        "request": "Ikke ta med egne beregninger som egne opphold naar de overlapper med transition enter/leave.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Raadata og waypoint-hendelser vises fortsatt separat.",
+            "Sonebesok/Opphold viser konsolidert fasit uten dobbeltforing.",
+            "Kildefelt kan vise kombinasjoner som transition+computed-position naar begge kilder stotter samme opphold.",
+        ],
+    },
     {
         "version": "1",
         "build": "21",

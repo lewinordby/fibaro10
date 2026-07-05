@@ -543,6 +543,73 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(saved["lat"], 61.115)
             self.assertEqual(saved["lon"], 10.466)
 
+    def test_transition_enter_is_merged_into_computed_visit(self) -> None:
+        topic = "owntracks/transition-enter-merge/android"
+        with TestClient(app) as client:
+            client.post(
+                "/pub",
+                json={"_type": "waypoint", "topic": f"{topic}/waypoint", "desc": "Arbeid", "lat": 61.115, "lon": 10.466, "rad": 30, "tst": 1783102000},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.466, "acc": 5, "tst": 1783102060},
+            )
+            client.post(
+                "/pub",
+                json={
+                    "_type": "transition",
+                    "topic": f"{topic}/event",
+                    "desc": "Arbeid",
+                    "event": "enter",
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "acc": 5,
+                    "tst": 1783102090,
+                },
+            )
+
+            visits = client.get("/api/owntracks/map?hours=0&limit=0").json()["zoneVisits"]
+            matching = [row for row in visits if row["topic"] == topic and row["waypointName"] == "Arbeid"]
+            self.assertEqual(len(matching), 1)
+            self.assertEqual(matching[0]["status"], "open")
+            self.assertEqual(matching[0]["enterSource"], "transition+computed-position")
+
+    def test_late_transition_leave_is_merged_into_closed_computed_visit(self) -> None:
+        topic = "owntracks/transition-leave-merge/android"
+        with TestClient(app) as client:
+            client.post(
+                "/pub",
+                json={"_type": "waypoint", "topic": f"{topic}/waypoint", "desc": "Butikk", "lat": 61.115, "lon": 10.466, "rad": 30, "tst": 1783103000},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.466, "acc": 5, "tst": 1783103060},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.116, "lon": 10.466, "acc": 5, "tst": 1783103180},
+            )
+            client.post(
+                "/pub",
+                json={
+                    "_type": "transition",
+                    "topic": f"{topic}/event",
+                    "desc": "Butikk",
+                    "event": "leave",
+                    "lat": 61.116,
+                    "lon": 10.466,
+                    "acc": 5,
+                    "tst": 1783103160,
+                },
+            )
+
+            visits = client.get("/api/owntracks/map?hours=0&limit=0").json()["zoneVisits"]
+            matching = [row for row in visits if row["topic"] == topic and row["waypointName"] == "Butikk"]
+            self.assertEqual(len(matching), 1)
+            self.assertEqual(matching[0]["status"], "closed")
+            self.assertEqual(matching[0]["leaveSource"], "transition+computed-position")
+            self.assertEqual(matching[0]["durationSeconds"], 100)
+
     def test_local_waypoint_can_be_created_and_rebuilds_visits(self) -> None:
         topic = "owntracks/local-zone/android"
         with TestClient(app) as client:

@@ -72,10 +72,12 @@ STOP_SUGGESTION_MAX_GAP_MINUTES = max(10, int(os.getenv("OWNTRACKS_STOP_SUGGESTI
 DATA_QUALITY_STALE_MINUTES = max(1, int(os.getenv("OWNTRACKS_DATA_QUALITY_STALE_MINUTES", "10")))
 DATA_QUALITY_GAP_MINUTES = max(1, int(os.getenv("OWNTRACKS_DATA_QUALITY_GAP_MINUTES", "20")))
 DATA_QUALITY_MAX_ACCURACY_M = max(1.0, float(os.getenv("OWNTRACKS_DATA_QUALITY_MAX_ACCURACY_M", str(MAX_CALCULATION_ACCURACY_M))))
+TRANSITION_VISIT_MERGE_WINDOW_MINUTES = max(1, int(os.getenv("OWNTRACKS_TRANSITION_VISIT_MERGE_WINDOW_MINUTES", "30")))
 REVERSE_GEOCODE_ENABLED = os.getenv("OWNTRACKS_REVERSE_GEOCODE_ENABLED", "true").strip().lower() not in {"0", "false", "no", "nei"}
 NOMINATIM_REVERSE_URL = os.getenv("OWNTRACKS_NOMINATIM_REVERSE_URL", "https://nominatim.openstreetmap.org/reverse").strip()
 NOMINATIM_USER_AGENT = os.getenv("OWNTRACKS_NOMINATIM_USER_AGENT", "fibaro10-owntracks/1.0").strip() or "fibaro10-owntracks/1.0"
 POSITION_MESSAGE_TYPES = {"", "location", "transition"}
+SOURCE_ORDER = {"transition": 0, "inregions": 1, "computed-position": 2}
 
 Base = declarative_base()
 engine = create_engine(
@@ -937,6 +939,13 @@ def update_zone_visit_position(visit: OwnTracksZoneVisit, location: OwnTracksLoc
     visit.updated_at = utc_now()
 
 
+def merged_visit_source(existing: Optional[str], new_source: str) -> str:
+    parts = {part.strip() for part in (existing or "").split("+") if part.strip()}
+    if new_source:
+        parts.add(new_source)
+    return "+".join(sorted(parts, key=lambda item: (SOURCE_ORDER.get(item, 99), item)))
+
+
 def find_open_zone_visit(session: Session, topic: str, waypoint_name: str) -> Optional[OwnTracksZoneVisit]:
     visit_cache = session.info.setdefault("owntracks_open_zone_visit_cache", {})
     cache_key = (topic, waypoint_name)
@@ -955,6 +964,67 @@ def find_open_zone_visit(session: Session, topic: str, waypoint_name: str) -> Op
     return visit
 
 
+def find_transition_merge_visit(
+    session: Session,
+    location: OwnTracksLocation,
+    waypoint_name: str,
+    event_type: str,
+) -> Optional[OwnTracksZoneVisit]:
+    event_at = location.timestamp or location.received_at
+    window = timedelta(minutes=TRANSITION_VISIT_MERGE_WINDOW_MINUTES)
+    rows = list(
+        session.execute(
+            select(OwnTracksZoneVisit)
+            .where(OwnTracksZoneVisit.topic == location.topic)
+            .where(OwnTracksZoneVisit.waypoint_name == waypoint_name)
+            .where(OwnTracksZoneVisit.started_at <= event_at + window)
+            .order_by(OwnTracksZoneVisit.started_at.desc())
+            .limit(20)
+        ).scalars()
+    )
+    candidates: list[tuple[float, OwnTracksZoneVisit]] = []
+    for row in rows:
+        started_at = row.started_at
+        ended_at = row.ended_at
+        if not started_at:
+            continue
+        if event_type == "enter":
+            if ended_at is not None and event_at > ended_at:
+                continue
+            if event_at < started_at - window:
+                continue
+            score = abs((event_at - started_at).total_seconds())
+        else:
+            if event_at < started_at:
+                continue
+            if ended_at is not None and event_at > ended_at + window:
+                continue
+            score = abs((event_at - (ended_at or event_at)).total_seconds())
+        candidates.append((score, row))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0])
+    return candidates[0][1]
+
+
+def mark_zone_visit_enter(
+    visit: OwnTracksZoneVisit,
+    location: OwnTracksLocation,
+    source: str,
+    confidence: float,
+) -> None:
+    event_at = location.timestamp or location.received_at
+    if source == "transition":
+        visit.started_at = event_at
+        visit.start_lat = location.lat
+        visit.start_lon = location.lon
+        visit.start_location_id = location.id
+    visit.enter_source = merged_visit_source(visit.enter_source, source)
+    update_zone_visit_position(visit, location, confidence)
+    if visit.status == "closed" and visit.ended_at is not None:
+        visit.duration_seconds = max(0, int((visit.ended_at - visit.started_at).total_seconds()))
+
+
 def open_zone_visit(
     session: Session,
     location: OwnTracksLocation,
@@ -967,8 +1037,12 @@ def open_zone_visit(
     visit_cache = session.info.setdefault("owntracks_open_zone_visit_cache", {})
     cache_key = (location.topic, waypoint.waypoint_name)
     existing = find_open_zone_visit(session, location.topic, waypoint.waypoint_name)
+    if existing is None and source == "transition":
+        existing = find_transition_merge_visit(session, location, waypoint.waypoint_name, "enter")
     if existing:
-        update_zone_visit_position(existing, location, confidence)
+        mark_zone_visit_enter(existing, location, source, confidence)
+        if existing.status == "open":
+            visit_cache[cache_key] = existing
         return existing
     visit = OwnTracksZoneVisit(
         topic=location.topic,
@@ -992,6 +1066,26 @@ def open_zone_visit(
     return visit
 
 
+def mark_zone_visit_leave(
+    visit: OwnTracksZoneVisit,
+    location: OwnTracksLocation,
+    source: str,
+) -> None:
+    event_at = location.timestamp or location.received_at
+    if source == "transition" or "transition" not in (visit.leave_source or ""):
+        visit.ended_at = event_at
+        visit.end_lat = location.lat
+        visit.end_lon = location.lon
+        visit.end_location_id = location.id
+    visit.status = "closed"
+    visit.last_lat = location.lat
+    visit.last_lon = location.lon
+    visit.last_location_id = location.id
+    visit.leave_source = merged_visit_source(visit.leave_source, source)
+    visit.duration_seconds = max(0, int(((visit.ended_at or event_at) - visit.started_at).total_seconds()))
+    visit.updated_at = utc_now()
+
+
 def close_zone_visit(
     session: Session,
     location: OwnTracksLocation,
@@ -999,23 +1093,14 @@ def close_zone_visit(
     *,
     source: str,
 ) -> Optional[OwnTracksZoneVisit]:
-    event_at = location.timestamp or location.received_at
     visit_cache = session.info.setdefault("owntracks_open_zone_visit_cache", {})
     cache_key = (location.topic, waypoint_name)
     visit = find_open_zone_visit(session, location.topic, waypoint_name)
+    if visit is None and source == "transition":
+        visit = find_transition_merge_visit(session, location, waypoint_name, "leave")
     if not visit:
         return None
-    visit.ended_at = event_at
-    visit.duration_seconds = max(0, int((event_at - visit.started_at).total_seconds()))
-    visit.status = "closed"
-    visit.end_lat = location.lat
-    visit.end_lon = location.lon
-    visit.last_lat = location.lat
-    visit.last_lon = location.lon
-    visit.end_location_id = location.id
-    visit.last_location_id = location.id
-    visit.leave_source = source
-    visit.updated_at = utc_now()
+    mark_zone_visit_leave(visit, location, source)
     visit_cache.pop(cache_key, None)
     return visit
 
