@@ -5,10 +5,37 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "25")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "26")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "26",
+        "date": "06.07.2026",
+        "headline": "Konsistent aktivt sted og health etter restart",
+        "title": "Soneoppsummering og helsesjekk viser riktig status etter restart",
+        "description": (
+            "Build 26 retter en presentasjonsinkonsistens i OwnTracks. Naar et aktivt opphold er beregnet fra "
+            "inregions, viser places-API-et naa waypointstatus som inne i samme respons selv om telefonens siste "
+            "lagrede transition-status fortsatt er outside. Helsesjekken bruker naa siste lagrede melding fra databasen "
+            "som fallback etter restart, slik at overvaking ikke viser null selv om historikken finnes."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: places-API speiler aktivt sonebesok i waypointstatusen i responsen.",
+            "owntracks_service/app/main.py: /health viser siste lagrede melding fra databasen etter restart.",
+            "tests/test_owntracks_service.py: regresjonstester for aktivt inregions-opphold og health-fallback.",
+        ],
+        "request": "Kjor en ny kvalitetssjekk av OwnTrack.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Aktivt sted vises konsekvent som inne i Kjent steder/Fibaro-sammendrag.",
+            "Health viser siste lagrede OwnTracks-melding og kilde for tidspunktet.",
+            "Radata og lagret telefonstatus endres ikke.",
+            "Testdekning fanger mismatch mellom aktivt opphold og waypointstatus.",
+        ],
+    },
     {
         "version": "1",
         "build": "25",

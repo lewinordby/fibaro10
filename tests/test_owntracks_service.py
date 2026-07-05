@@ -63,6 +63,30 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(stored["origin"], "phone")
             self.assertFalse(stored["isSynthetic"])
 
+    def test_health_uses_latest_stored_message_after_restart_state_reset(self) -> None:
+        previous_last_message_at = owntracks_main.STATE.last_message_at
+        with TestClient(app) as client:
+            response = client.post(
+                "/pub",
+                json={
+                    "_type": "location",
+                    "topic": "owntracks/health-fallback/android",
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "acc": 7,
+                    "tst": 1783080200,
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            try:
+                owntracks_main.STATE.last_message_at = None
+                health = client.get("/health").json()
+                self.assertIsNotNone(health["state"]["lastMessageAt"])
+                self.assertEqual(health["state"]["lastMessageAt"], health["state"]["lastStoredMessageAt"])
+                self.assertEqual(health["state"]["lastMessageAtSource"], "database")
+            finally:
+                owntracks_main.STATE.last_message_at = previous_last_message_at
+
     def test_map_api_filters_specific_time_range(self) -> None:
         topic = "owntracks/time-filter/android"
         with TestClient(app) as client:
@@ -763,6 +787,47 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertGreaterEqual(rows[0]["visits"], 1)
             self.assertGreaterEqual(rows[0]["totalDurationSeconds"], 0)
             self.assertIn("totalDuration", rows[0])
+
+    def test_zone_summary_place_waypoint_uses_active_visit_state(self) -> None:
+        topic = "owntracks/zone-summary-active/android"
+        with TestClient(app) as client:
+            created = client.post(
+                "/api/owntracks/waypoints",
+                json={"topic": topic, "name": "Aktivt sted", "lat": 62.391, "lon": 11.611, "radiusM": 80},
+            )
+            self.assertEqual(created.status_code, 200)
+            client.post(
+                "/pub",
+                json={
+                    "_type": "transition",
+                    "topic": topic,
+                    "desc": "Aktivt sted",
+                    "event": "leave",
+                    "lat": 62.392,
+                    "lon": 11.612,
+                    "acc": 5,
+                    "tst": 1783093000,
+                },
+            )
+            client.post(
+                "/pub",
+                json={
+                    "_type": "location",
+                    "topic": topic,
+                    "lat": 62.391,
+                    "lon": 11.611,
+                    "acc": 5,
+                    "inregions": ["Aktivt sted"],
+                    "tst": 1783093060,
+                },
+            )
+
+            payload = client.get("/api/owntracks/zone-summary?hours=0").json()
+            place = next(row for row in payload["places"] if row["topic"] == topic and row["waypointName"] == "Aktivt sted")
+            self.assertEqual(place["openVisits"], 1)
+            self.assertEqual(place["lastStatus"], "open")
+            self.assertTrue(place["waypoint"]["isInside"])
+            self.assertEqual(place["waypoint"]["lastState"], "inside")
 
     def test_fibaro_summary_returns_compact_active_place_and_quality(self) -> None:
         topic = "owntracks/fibaro-summary/android"

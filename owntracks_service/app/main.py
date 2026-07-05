@@ -1502,6 +1502,17 @@ def row_waypoint(row: OwnTracksWaypointState) -> dict[str, Any]:
     }
 
 
+def row_waypoint_for_place(row: OwnTracksWaypointState, summary: dict[str, Any]) -> dict[str, Any]:
+    payload = row_waypoint(row)
+    if int(summary.get("openVisits") or 0) > 0:
+        payload["isInside"] = True
+        payload["lastState"] = "inside"
+        payload["lastEvent"] = "enter"
+        payload["lastSeenAt"] = summary.get("currentLastSeenAt") or summary.get("lastSeenAt") or payload.get("lastSeenAt")
+        payload["lastEventAt"] = summary.get("currentStartedAt") or payload.get("lastEventAt")
+    return payload
+
+
 def row_event(row: OwnTracksWaypointEvent) -> dict[str, Any]:
     payload = row.payload if isinstance(row.payload, dict) else {}
     server_payload = payload.get("_server") if isinstance(payload.get("_server"), dict) else {}
@@ -2435,6 +2446,15 @@ def health_payload() -> dict[str, Any]:
             "events": db_count(session, OwnTracksWaypointEvent),
             "zoneVisits": db_count(session, OwnTracksZoneVisit),
         }
+        latest_stored_message_at = session.execute(select(func.max(OwnTracksLocation.received_at))).scalar_one_or_none()
+    state = STATE.snapshot()
+    if latest_stored_message_at is not None:
+        state["lastStoredMessageAt"] = iso_dt(latest_stored_message_at)
+        if state.get("lastMessageAt") is None:
+            state["lastMessageAt"] = iso_dt(latest_stored_message_at)
+            state["lastMessageAtSource"] = "database"
+        else:
+            state["lastMessageAtSource"] = "memory"
     return {
         "status": "ok",
         "service": "owntracks_service",
@@ -2452,7 +2472,7 @@ def health_payload() -> dict[str, Any]:
             "rawDataRetained": True,
             "appliesTo": ["kartspor", "sonebesok", "waypointforslag"],
         },
-        "state": STATE.snapshot(),
+        "state": state,
         "counts": counts,
         "time": iso_dt(utc_now()),
     }
@@ -3029,7 +3049,7 @@ def api_zone_summary(
         key = (waypoint.topic, waypoint.waypoint_name)
         summary = summary_by_key.get(key)
         if summary:
-            places.append({**summary, "waypoint": row_waypoint(waypoint)})
+            places.append({**summary, "waypoint": row_waypoint_for_place(waypoint, summary)})
         else:
             places.append(
                 {
