@@ -5,10 +5,36 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "22")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "23")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "23",
+        "date": "05.07.2026",
+        "headline": "Korte opphold skjules",
+        "title": "Oversikter filtrerer bort lukkede sonebesok under ett minutt",
+        "description": (
+            "Build 23 filtrerer bort korte lukkede opphold fra Sonebesok/Opphold og total tid. Raadata og selve "
+            "sonebesok-radene slettes ikke, og aktive opphold vises fortsatt selv om de forelopig er korte."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: konfigurerbar minimumsgrense for opphold i oversikter.",
+            "owntracks_service/frontend/src/App.tsx: policytekst viser at korte opphold skjules.",
+            "owntracks_service/frontend/src/types.ts: typer for skjulte korte opphold.",
+            "tests/test_owntracks_service.py: test dekker at korte lukkede opphold skjules fra oversikter.",
+            "docker-compose.qnap.yml: OwnTracks buildnummer oppdatert.",
+        ],
+        "request": "Skjul opphold under 1 minutt fra oversiktene.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Lukkede opphold under 60 sekunder teller ikke i total tid eller oppholdslister.",
+            "Aktive opphold vises uansett alder.",
+            "API-et rapporterer hvor mange korte opphold som er skjult i valgt periode.",
+        ],
+    },
     {
         "version": "1",
         "build": "22",

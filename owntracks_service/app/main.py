@@ -73,6 +73,7 @@ DATA_QUALITY_STALE_MINUTES = max(1, int(os.getenv("OWNTRACKS_DATA_QUALITY_STALE_
 DATA_QUALITY_GAP_MINUTES = max(1, int(os.getenv("OWNTRACKS_DATA_QUALITY_GAP_MINUTES", "20")))
 DATA_QUALITY_MAX_ACCURACY_M = max(1.0, float(os.getenv("OWNTRACKS_DATA_QUALITY_MAX_ACCURACY_M", str(MAX_CALCULATION_ACCURACY_M))))
 TRANSITION_VISIT_MERGE_WINDOW_MINUTES = max(1, int(os.getenv("OWNTRACKS_TRANSITION_VISIT_MERGE_WINDOW_MINUTES", "30")))
+MIN_OVERVIEW_VISIT_SECONDS = max(0, int(os.getenv("OWNTRACKS_MIN_OVERVIEW_VISIT_SECONDS", "60")))
 REVERSE_GEOCODE_ENABLED = os.getenv("OWNTRACKS_REVERSE_GEOCODE_ENABLED", "true").strip().lower() not in {"0", "false", "no", "nei"}
 NOMINATIM_REVERSE_URL = os.getenv("OWNTRACKS_NOMINATIM_REVERSE_URL", "https://nominatim.openstreetmap.org/reverse").strip()
 NOMINATIM_USER_AGENT = os.getenv("OWNTRACKS_NOMINATIM_USER_AGENT", "fibaro10-owntracks/1.0").strip() or "fibaro10-owntracks/1.0"
@@ -1560,6 +1561,14 @@ def visit_effective_duration_seconds(row: OwnTracksZoneVisit, now: Optional[date
     return max(0, int((end_at - row.started_at).total_seconds()))
 
 
+def visit_is_visible_in_overview(row: OwnTracksZoneVisit, now: Optional[datetime] = None) -> bool:
+    if row.status == "open":
+        return True
+    if MIN_OVERVIEW_VISIT_SECONDS <= 0:
+        return True
+    return visit_effective_duration_seconds(row, now) >= MIN_OVERVIEW_VISIT_SECONDS
+
+
 def visit_overlap_duration_seconds(
     row: OwnTracksZoneVisit,
     period_start: Optional[datetime],
@@ -2439,6 +2448,7 @@ def health_payload() -> dict[str, Any]:
         },
         "qualityPolicy": {
             "maxCalculationAccuracyM": MAX_CALCULATION_ACCURACY_M,
+            "minOverviewVisitSeconds": MIN_OVERVIEW_VISIT_SECONDS,
             "rawDataRetained": True,
             "appliesTo": ["kartspor", "sonebesok", "waypointforslag"],
         },
@@ -2831,7 +2841,9 @@ def api_map(
             )
         if range_end is not None:
             visit_stmt = visit_stmt.where(or_(OwnTracksZoneVisit.started_at <= range_end, OwnTracksZoneVisit.started_at.is_(None)))
-        visits = session.execute(visit_stmt).scalars()
+        raw_visits = list(session.execute(visit_stmt).scalars())
+        visits = [row for row in raw_visits if visit_is_visible_in_overview(row)]
+        hidden_short_visits = len(raw_visits) - len(visits)
         waypoint_list = [row_waypoint(row) for row in waypoints]
         return {
             "hours": hours,
@@ -2850,6 +2862,10 @@ def api_map(
                 "rawLocations": len(locations),
                 "mapLocations": len(map_locations),
                 "ignoredForAccuracy": ignored_for_accuracy,
+                "minOverviewVisitSeconds": MIN_OVERVIEW_VISIT_SECONDS,
+                "rawZoneVisits": len(raw_visits),
+                "zoneVisits": len(visits),
+                "hiddenShortVisits": hidden_short_visits,
                 "rawDataRetained": True,
             },
         }
@@ -2895,7 +2911,9 @@ def api_zone_summary(
             )
         if range_end is not None:
             visit_stmt = visit_stmt.where(or_(OwnTracksZoneVisit.started_at <= range_end, OwnTracksZoneVisit.started_at.is_(None)))
-        visit_rows = list(session.execute(visit_stmt.order_by(OwnTracksZoneVisit.started_at.desc())).scalars())
+        raw_visit_rows = list(session.execute(visit_stmt.order_by(OwnTracksZoneVisit.started_at.desc())).scalars())
+        visit_rows = [row for row in raw_visit_rows if visit_is_visible_in_overview(row, now)]
+        hidden_short_visits = len(raw_visit_rows) - len(visit_rows)
         waypoint_rows = list(
             session.execute(
                 select(OwnTracksWaypointState)
@@ -2965,6 +2983,9 @@ def api_zone_summary(
         "totals": {
             "zones": len(summary_rows),
             "visits": len(visit_rows),
+            "rawVisits": len(raw_visit_rows),
+            "hiddenShortVisits": hidden_short_visits,
+            "minOverviewVisitSeconds": MIN_OVERVIEW_VISIT_SECONDS,
             "openVisits": len(open_visits),
             "totalDurationSeconds": total_duration_seconds,
             "totalDuration": duration_seconds_label(total_duration_seconds),

@@ -300,6 +300,33 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(matching_closed[0]["status"], "closed")
             self.assertEqual(matching_closed[0]["leaveSource"], "computed-position")
 
+    def test_closed_zone_visits_under_one_minute_are_hidden_from_overviews(self) -> None:
+        topic = "owntracks/short-visit/android"
+        with TestClient(app) as client:
+            client.post(
+                "/pub",
+                json={"_type": "waypoint", "topic": f"{topic}/waypoint", "desc": "Kort stopp", "lat": 61.115, "lon": 10.466, "rad": 30, "tst": 1783081100},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.466, "acc": 5, "tst": 1783081110},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.116, "lon": 10.466, "acc": 5, "tst": 1783081140},
+            )
+
+            map_payload = client.get("/api/owntracks/map?hours=0&limit=0").json()
+            matching_visits = [row for row in map_payload["zoneVisits"] if row["topic"] == topic and row["waypointName"] == "Kort stopp"]
+            self.assertEqual(matching_visits, [])
+            self.assertGreaterEqual(map_payload["qualityPolicy"]["hiddenShortVisits"], 1)
+            self.assertEqual(map_payload["qualityPolicy"]["minOverviewVisitSeconds"], owntracks_main.MIN_OVERVIEW_VISIT_SECONDS)
+
+            summary = client.get("/api/owntracks/zone-summary?hours=0&limit=100").json()
+            matching_summary = [row for row in summary["summary"] if row["topic"] == topic and row["waypointName"] == "Kort stopp"]
+            self.assertEqual(matching_summary, [])
+            self.assertGreaterEqual(summary["totals"]["hiddenShortVisits"], 1)
+
     def test_admin_ui_is_closed_when_token_is_not_configured(self) -> None:
         original_token = owntracks_main.HTTP_TOKEN
         owntracks_main.HTTP_TOKEN = ""

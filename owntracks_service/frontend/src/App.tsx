@@ -832,8 +832,10 @@ export default function App() {
   const mapLocations = mapData?.mapLocations || locations.filter((row) => row.usableForCalculation !== false);
   const qualityPolicy = mapData?.qualityPolicy || health?.qualityPolicy;
   const maxCalculationAccuracyM = qualityPolicy?.maxCalculationAccuracyM ?? 30;
+  const minOverviewVisitSeconds = qualityPolicy?.minOverviewVisitSeconds ?? 60;
   const ignoredForAccuracy = mapData?.qualityPolicy?.ignoredForAccuracy ?? locations.filter((row) => row.usableForCalculation === false).length;
-  const precisionPolicyText = `Raadata lagres alltid. Kartspor, sonebesok og waypointforslag bruker punkter med presisjon maks ${formatNumber(maxCalculationAccuracyM)} m.`;
+  const hiddenShortVisits = mapData?.qualityPolicy?.hiddenShortVisits ?? zoneSummary?.totals.hiddenShortVisits ?? 0;
+  const precisionPolicyText = `Raadata lagres alltid. Kartspor, sonebesok og waypointforslag bruker punkter med presisjon maks ${formatNumber(maxCalculationAccuracyM)} m. Lukkede opphold under ${formatNumber(minOverviewVisitSeconds)} sek skjules fra oversikter (${formatNumber(hiddenShortVisits)} skjult i valgt periode).`;
 
   const loadSuggestions = useCallback(async () => {
     setSuggestionsLoading(true);

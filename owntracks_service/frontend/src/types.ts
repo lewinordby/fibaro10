@@ -10,6 +10,7 @@ export type HealthPayload = {
   public: { baseUrl: string; publishUrl: string; adminUrl: string };
   qualityPolicy?: {
     maxCalculationAccuracyM: number;
+    minOverviewVisitSeconds?: number;
     rawDataRetained: boolean;
     appliesTo: string[];
   };
@@ -202,6 +203,9 @@ export type ZoneSummaryPayload = {
   totals: {
     zones: number;
     visits: number;
+    rawVisits?: number;
+    hiddenShortVisits?: number;
+    minOverviewVisitSeconds?: number;
     openVisits: number;
     totalDurationSeconds: number;
     totalDuration: string;
@@ -244,6 +248,10 @@ export type MapPayload = {
     rawLocations: number;
     mapLocations: number;
     ignoredForAccuracy: number;
+    minOverviewVisitSeconds?: number;
+    rawZoneVisits?: number;
+    zoneVisits?: number;
+    hiddenShortVisits?: number;
     rawDataRetained: boolean;
   };
 };
