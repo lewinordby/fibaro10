@@ -279,14 +279,14 @@ STATE = ServiceState()
 
 
 def ensure_owntracks_schema() -> None:
-    """Keep the standalone SQLite schema forward-compatible without the main app migrator."""
+    """Keep the standalone OwnTracks schema forward-compatible without the main app migrator."""
     inspector = inspect(engine)
     table_names = set(inspector.get_table_names())
     if "owntracks_waypoints" not in table_names:
         return
 
     existing = {column["name"] for column in inspector.get_columns("owntracks_waypoints")}
-    waypoint_columns = {
+    sqlite_waypoint_columns = {
         "source": "VARCHAR(40)",
         "category": "VARCHAR(120)",
         "address": "TEXT",
@@ -294,6 +294,12 @@ def ensure_owntracks_schema() -> None:
         "is_active": "BOOLEAN DEFAULT 1",
         "created_at": "DATETIME",
     }
+    postgres_waypoint_columns = {
+        **sqlite_waypoint_columns,
+        "is_active": "BOOLEAN DEFAULT true",
+        "created_at": "TIMESTAMP",
+    }
+    waypoint_columns = sqlite_waypoint_columns if engine.dialect.name == "sqlite" else postgres_waypoint_columns
     with engine.begin() as conn:
         for column_name, column_sql in waypoint_columns.items():
             if column_name in existing:
@@ -303,7 +309,7 @@ def ensure_owntracks_schema() -> None:
             else:
                 conn.execute(text(f"ALTER TABLE owntracks_waypoints ADD COLUMN IF NOT EXISTS {column_name} {column_sql}"))
         conn.execute(text("UPDATE owntracks_waypoints SET source = 'phone' WHERE source IS NULL OR source = ''"))
-        conn.execute(text("UPDATE owntracks_waypoints SET is_active = 1 WHERE is_active IS NULL"))
+        conn.execute(text("UPDATE owntracks_waypoints SET is_active = true WHERE is_active IS NULL") if engine.dialect.name == "postgresql" else text("UPDATE owntracks_waypoints SET is_active = 1 WHERE is_active IS NULL"))
         conn.execute(text("UPDATE owntracks_waypoints SET created_at = COALESCE(last_seen_at, updated_at) WHERE created_at IS NULL"))
 
 
