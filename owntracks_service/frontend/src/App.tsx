@@ -50,7 +50,7 @@ const MENU_HIDDEN_STORAGE_KEY = "owntracks:mainMenuHidden";
 const MAP_LAYER_IDS = ["owntracks-waypoints-fill", "owntracks-waypoints-line", "owntracks-track-line"];
 const MAP_SOURCE_IDS = ["owntracks-waypoints", "owntracks-track"];
 
-type ViewKey = "dashboard" | "places" | "map" | "visits" | "waypoints" | "suggestions" | "diagnostics" | "messages" | "events" | "build";
+type ViewKey = "dashboard" | "places" | "placeDetail" | "map" | "visits" | "waypoints" | "suggestions" | "diagnostics" | "messages" | "events" | "build";
 type TimeFilterMode = "relative" | "custom";
 
 type HealthPayload = {
@@ -195,8 +195,15 @@ type VisitRow = {
   waypointName: string;
   startedAt?: string;
   endedAt?: string;
+  durationSeconds?: number;
   duration?: string;
   status?: string;
+  startLat?: number;
+  startLon?: number;
+  endLat?: number;
+  endLon?: number;
+  lastLat?: number;
+  lastLon?: number;
   enterSource?: string;
   leaveSource?: string;
   confidence?: number;
@@ -361,7 +368,26 @@ const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: React.ReactNode; col
 
 function viewFromHash(): ViewKey {
   const hash = window.location.hash.replace("#", "");
+  if (hash.startsWith("place:")) return "placeDetail";
   return NAV_ITEMS.some((item) => item.key === hash) ? (hash as ViewKey) : "dashboard";
+}
+
+function placeKey(topic?: string, waypointName?: string) {
+  return JSON.stringify([topic || "", waypointName || ""]);
+}
+
+function placeHash(key: string) {
+  return `place:${encodeURIComponent(key)}`;
+}
+
+function placeKeyFromHash() {
+  const hash = window.location.hash.replace("#", "");
+  if (!hash.startsWith("place:")) return null;
+  try {
+    return decodeURIComponent(hash.slice("place:".length));
+  } catch {
+    return null;
+  }
 }
 
 function tokenFromUrl() {
@@ -627,6 +653,24 @@ function waypointSourceLabel(value?: string) {
 
 function durationOrDash(value?: string | null) {
   return value && value !== "-" ? value : "-";
+}
+
+function durationSecondsLabel(seconds?: number | null) {
+  const totalSeconds = Math.max(0, Math.round(Number(seconds || 0)));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (days > 0) return `${days} d ${hours} t`;
+  if (hours > 0) return `${hours} t ${minutes} min`;
+  return `${minutes} min`;
+}
+
+function visitDuration(row: VisitRow) {
+  if (row.status === "open" && row.startedAt) {
+    const startMs = timestampMs(row.startedAt);
+    if (startMs !== undefined) return durationSecondsLabel((Date.now() - startMs) / 1000);
+  }
+  return row.duration || durationSecondsLabel(row.durationSeconds);
 }
 
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -951,6 +995,7 @@ function AppShell({
 
 export default function App() {
   const [view, setView] = useState<ViewKey>(() => viewFromHash());
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(() => placeKeyFromHash());
   const [hours, setHours] = useState("24");
   const [timeFilterMode, setTimeFilterMode] = useState<TimeFilterMode>("relative");
   const [customStart, setCustomStart] = useState("");
@@ -1022,11 +1067,20 @@ export default function App() {
   }, [load]);
 
   useEffect(() => {
-    window.location.hash = view;
-  }, [view]);
+    window.location.hash = view === "placeDetail" && selectedPlaceId ? placeHash(selectedPlaceId) : view;
+  }, [selectedPlaceId, view]);
 
   useEffect(() => {
-    const onHashChange = () => setView(viewFromHash());
+    const onHashChange = () => {
+      const nextPlaceId = placeKeyFromHash();
+      if (nextPlaceId) {
+        setSelectedPlaceId(nextPlaceId);
+        setView("placeDetail");
+        return;
+      }
+      setSelectedPlaceId(null);
+      setView(viewFromHash());
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
@@ -1157,6 +1211,54 @@ export default function App() {
   const buildRows = moduleData?.metadata.buildLog.rows || [];
   const zoneRows = zoneSummary?.summary || [];
   const placeRows = zoneSummary?.places || zoneRows;
+  const selectedPlace = selectedPlaceId ? placeRows.find((row) => placeKey(row.topic, row.waypointName) === selectedPlaceId) || null : null;
+  const selectedPlaceVisits = selectedPlace
+    ? visits
+        .filter((row) => row.topic === selectedPlace.topic && row.waypointName === selectedPlace.waypointName)
+        .sort((left, right) => (timestampMs(right.startedAt) || 0) - (timestampMs(left.startedAt) || 0))
+    : [];
+  const selectedPlaceMapData = selectedPlace
+    ? ({
+        hours: mapData?.hours ?? Number(hours),
+        locations: [],
+        mapLocations: selectedPlaceVisits.flatMap((visit, index) => {
+          const rows: LocationRow[] = [];
+          if (visit.startLat !== undefined && visit.startLon !== undefined) {
+            rows.push({
+              id: -1_000_000 - index * 3,
+              topic: visit.topic,
+              timestamp: visit.startedAt,
+              lat: visit.startLat,
+              lon: visit.startLon,
+              usableForCalculation: true,
+            });
+          }
+          if (visit.endedAt && visit.endLat !== undefined && visit.endLon !== undefined) {
+            rows.push({
+              id: -1_000_001 - index * 3,
+              topic: visit.topic,
+              timestamp: visit.endedAt,
+              lat: visit.endLat,
+              lon: visit.endLon,
+              usableForCalculation: true,
+            });
+          } else if (visit.lastLat !== undefined && visit.lastLon !== undefined) {
+            rows.push({
+              id: -1_000_002 - index * 3,
+              topic: visit.topic,
+              timestamp: visit.startedAt,
+              lat: visit.lastLat,
+              lon: visit.lastLon,
+              usableForCalculation: true,
+            });
+          }
+          return rows;
+        }),
+        devices: [],
+        waypoints: selectedPlace.waypoint ? [selectedPlace.waypoint] : waypoints.filter((row) => row.topic === selectedPlace.topic && row.waypointName === selectedPlace.waypointName),
+        zoneVisits: selectedPlaceVisits,
+      } satisfies MapPayload)
+    : null;
   const activeZoneNames = (zoneSummary?.activeVisits || []).map((row) => row.waypointName).join(", ") || "Ingen aktive";
   const latestUsableLocation = mapLocations[mapLocations.length - 1];
 
@@ -1169,6 +1271,19 @@ export default function App() {
     { title: "Kilde inn", dataIndex: "enterSource" },
     { title: "Kilde ut", dataIndex: "leaveSource" },
     { title: "Treff", dataIndex: "confidence", render: (value?: number) => formatNumber(value, 3) },
+  ];
+
+  const placeVisitColumns: ColumnsType<VisitRow> = [
+    { title: "Kom", dataIndex: "startedAt", width: 190, render: formatDateTime },
+    {
+      title: "Dro",
+      dataIndex: "endedAt",
+      width: 190,
+      render: (value?: string, row?: VisitRow) => (row?.status === "open" ? <Tag color="green">Pagaende</Tag> : formatDateTime(value)),
+    },
+    { title: "Hvor lenge", width: 140, render: (_, row) => visitDuration(row) },
+    { title: "Inn", dataIndex: "enterSource", width: 150 },
+    { title: "Ut", width: 150, render: (_, row) => (row.status === "open" ? "-" : row.leaveSource || "-") },
   ];
 
   const zoneSummaryColumns: ColumnsType<ZoneSummaryRow> = [
@@ -1379,6 +1494,11 @@ export default function App() {
     return <Tag color="gold">Ukjent</Tag>;
   }
 
+  function openPlaceDetail(row: ZoneSummaryRow) {
+    setSelectedPlaceId(placeKey(row.topic, row.waypointName));
+    setView("placeDetail");
+  }
+
   function renderPlaceCard(row: ZoneSummaryRow) {
     const isOpen = row.openVisits > 0 || row.lastStatus === "open";
     const radius = row.waypoint?.radiusM || undefined;
@@ -1400,11 +1520,11 @@ export default function App() {
             <strong>{isOpen ? row.currentDuration || row.lastDuration || "-" : "-"}</strong>
             <span>{isOpen ? `Fra ${formatDateTime(row.currentStartedAt || row.lastStartedAt)}` : "Ingen aktiv sone"}</span>
           </div>
-          <div>
+          <button type="button" className="known-place-stat-button" onClick={() => openPlaceDetail(row)}>
             <Typography.Text type="secondary">Totalt i periode</Typography.Text>
             <strong>{row.totalDuration || "-"}</strong>
             <span>{row.visits} besok</span>
-          </div>
+          </button>
         </div>
         <div className="known-place-timeline">
           <div>
@@ -1488,6 +1608,56 @@ export default function App() {
         <div className="known-place-grid">
           {placeRows.length ? placeRows.map((row) => renderPlaceCard(row)) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Ingen kjente steder enda" />}
         </div>
+      </>
+    );
+  } else if (view === "placeDetail") {
+    content = selectedPlace ? (
+      <>
+        <div className="section-header">
+          <div>
+            <Typography.Title level={2}>{selectedPlace.waypointName}</Typography.Title>
+            <Typography.Text type="secondary">Besok paa kjent sted i valgt periode: {timeFilterLabel}</Typography.Text>
+          </div>
+          <Button onClick={() => setView("places")}>Tilbake</Button>
+        </div>
+        <Row gutter={[12, 12]} className="metric-row">
+          <Col xs={24} md={8}>
+            <MetricCard title="Total tid i periode" value={selectedPlace.totalDuration || "-"} subtitle={`${selectedPlace.visits} besok`} tone="#15803d" />
+          </Col>
+          <Col xs={24} md={8}>
+            <MetricCard title="Aktivt besok" value={selectedPlace.openVisits > 0 ? selectedPlace.currentDuration || "-" : "-"} subtitle={selectedPlace.openVisits > 0 ? `Fra ${formatDateTime(selectedPlace.currentStartedAt || selectedPlace.lastStartedAt)}` : "Ingen aktiv sone"} tone="#7c3aed" />
+          </Col>
+          <Col xs={24} md={8}>
+            <MetricCard title="Siste relevante leave" value={formatDateTime(selectedPlace.lastLeaveAt || selectedPlace.lastEndedAt)} subtitle={`Siste enter ${formatDateTime(selectedPlace.lastEnterAt || selectedPlace.lastStartedAt)}`} tone="#0891b2" />
+          </Col>
+        </Row>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} xl={9}>
+            <Card title="Kart" className="place-detail-map">
+              <OwnTracksMap data={selectedPlaceMapData} />
+            </Card>
+          </Col>
+          <Col xs={24} xl={15}>
+            <Card title="Besok" extra={<Typography.Text type="secondary">{selectedPlaceVisits.length} i valgt periode</Typography.Text>}>
+              <Table<VisitRow>
+                size="small"
+                columns={placeVisitColumns}
+                dataSource={selectedPlaceVisits}
+                rowKey="id"
+                pagination={{ pageSize: 20, showSizeChanger: false }}
+                scroll={{ x: true }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      </>
+    ) : (
+      <>
+        <SectionHeader title="Kjent sted" subtitle="Fant ikke stedet i valgt datagrunnlag" />
+        <Card>
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Stedet finnes ikke lenger eller er ikke lastet inn" />
+          <Button onClick={() => setView("places")}>Tilbake til kjente steder</Button>
+        </Card>
       </>
     );
   } else if (view === "map") {
@@ -1705,7 +1875,7 @@ export default function App() {
   }
 
   return (
-    <AppShell active={view} onViewChange={setView} build={health?.app.build}>
+    <AppShell active={view === "placeDetail" ? "places" : view} onViewChange={setView} build={health?.app.build}>
       <div className="content-toolbar">
         <div className="status-block">
           <Tag color={health?.status === "ok" ? "green" : "red"}>{health?.status || "laster"}</Tag>

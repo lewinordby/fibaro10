@@ -358,11 +358,26 @@ a {
 }
 
 .known-place-main > div,
+.known-place-stat-button,
 .known-place-timeline {
   padding: 10px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
   background: var(--surface-soft);
+}
+
+.known-place-stat-button {
+  display: block;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.known-place-stat-button:hover {
+  border-color: color-mix(in srgb, #2563eb 28%, var(--border-control));
+  background: color-mix(in srgb, #2563eb 5%, var(--surface));
 }
 
 .known-place-main strong {
@@ -400,6 +415,11 @@ a {
   display: block;
   margin-top: 9px;
   font-size: 12px;
+}
+
+.place-detail-map .owntracks-map {
+  height: 340px;
+  min-height: 0;
 }
 
 .owntracks-map {

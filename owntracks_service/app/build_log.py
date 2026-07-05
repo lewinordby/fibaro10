@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "17")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "18")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "18",
+        "date": "05.07.2026",
+        "headline": "Detaljside for kjent sted",
+        "title": "Kjente steder kan aapnes med kart og komplett besoksliste",
+        "description": (
+            "Build 18 legger drilldown paa Kjente steder. Klikk paa Totalt i periode aapner en egen side for stedet "
+            "med et kompakt kart, noekkeltall og en ryddig liste over besok med kom-tid, dro-tid og varighet. "
+            "Aktive besok viser Pagaende i dro-feltet og beregner varighet frem til naa."
+        ),
+        "applications": [
+            "owntracks_service/frontend/src/App.tsx: ny detaljrute for kjent sted, kartgrunnlag og besokstabell.",
+            "owntracks_service/frontend/src/styles.css: klikkbart totalfelt og kompakt detaljkart.",
+            "owntracks_service/app/build_log.py: buildlogg oppdatert.",
+        ],
+        "request": "Naar man klikker paa totalt i perioden skal siden skifte til egen side for stedet med kart og besoksliste.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Totalt i periode paa et kjent sted er klikkbart.",
+            "Detaljsiden viser kart, total tid, aktivt besok og siste relevante enter/leave.",
+            "Besok listes med kom, dro og varighet. Aktivt besok viser Pagaende og live-varighet.",
+        ],
+    },
     {
         "version": "1",
         "build": "17",

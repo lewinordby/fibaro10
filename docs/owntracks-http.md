@@ -55,6 +55,8 @@ Siden `Kjente steder` viser dette som en praktisk oversikt:
 - total tid i valgt globalt tidsfilter
 - tydelig tekst om at upresise hendelser beholdes, men ikke styrer status
 
+Klikk paa `Totalt i periode` paa et kjent sted for aa aapne detaljsiden. Den viser et lite kart og en besoksliste med `Kom`, `Dro` og `Hvor lenge`. Hvis besoket fortsatt er aktivt, vises `Pagaende` i dro-feltet, og varigheten beregnes frem til naa.
+
 Grensen kan overstyres mer detaljert hvis det trengs:
 
 - `OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M`: egen grense for sonebesok.
