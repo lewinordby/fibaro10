@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "20")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "21")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "21",
+        "date": "05.07.2026",
+        "headline": "Waypoint utenfor kartspor",
+        "title": "Waypoint-definisjoner lagres, men tegnes ikke som posisjonsspor",
+        "description": (
+            "Build 21 retter en logisk feil der publisering av et nytt waypoint kunne bli behandlet som en vanlig "
+            "posisjon i kartsporet. Waypoint-meldingen beholdes som raadata og oppdaterer waypoint-listen, men den "
+            "flytter ikke siste enhetsposisjon og deltar ikke i kartlinje, avstandsberegning eller soneberegning."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: skiller faktiske posisjonsmeldinger fra waypoint-definisjoner.",
+            "tests/test_owntracks_service.py: tester at waypoint ikke havner i mapLocations eller flytter device-posisjon.",
+            "docker-compose.qnap.yml: OwnTracks buildnummer oppdatert.",
+        ],
+        "request": "Nytt waypoint tegnet en linje paa kartet fra waypointet til hjem.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kartsporet bruker kun location/transition-meldinger med god nok presisjon.",
+            "Waypoint- og waypoints-meldinger beholdes i raalogg og waypoint-tabell.",
+            "Siste posisjon paa en enhet flyttes ikke naar telefonen publiserer waypoint-definisjoner.",
+        ],
+    },
     {
         "version": "1",
         "build": "20",

@@ -107,6 +107,65 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(raw_rows[0]["accuracyLimitM"], owntracks_main.MAX_CALCULATION_ACCURACY_M)
             self.assertGreaterEqual(payload["qualityPolicy"]["ignoredForAccuracy"], 1)
 
+    def test_map_keeps_waypoint_definitions_out_of_track_line(self) -> None:
+        topic = "owntracks/waypoint-not-track/android"
+        with TestClient(app) as client:
+            location = client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.466, "acc": 5, "tst": 1783080450},
+            )
+            self.assertEqual(location.status_code, 200)
+
+            waypoint = client.post(
+                "/pub",
+                json={
+                    "_type": "waypoint",
+                    "topic": f"{topic}/waypoint",
+                    "desc": "Nytt sted",
+                    "lat": 60.391,
+                    "lon": 5.322,
+                    "rad": 100,
+                    "tst": 1783080460,
+                },
+            )
+            self.assertEqual(waypoint.status_code, 200)
+
+            payload = client.get("/api/owntracks/map?hours=0&limit=0").json()
+            raw_rows = [row for row in payload["locations"] if row["topic"] == topic]
+            map_rows = [row for row in payload["mapLocations"] if row["topic"] == topic]
+            self.assertEqual([row["messageType"] for row in map_rows], ["location"])
+            self.assertEqual(len([row for row in raw_rows if row["messageType"] == "waypoint"]), 1)
+            raw_waypoint = next(row for row in raw_rows if row["messageType"] == "waypoint")
+            self.assertFalse(raw_waypoint["usableForCalculation"])
+
+    def test_waypoint_definition_does_not_move_device_last_position(self) -> None:
+        topic = "owntracks/device-waypoint/android"
+        with TestClient(app) as client:
+            response = client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.466, "acc": 5, "tst": 1783080470},
+            )
+            self.assertEqual(response.status_code, 200)
+
+            waypoint = client.post(
+                "/pub",
+                json={
+                    "_type": "waypoint",
+                    "topic": f"{topic}/waypoint",
+                    "desc": "Ikke siste posisjon",
+                    "lat": 60.391,
+                    "lon": 5.322,
+                    "rad": 100,
+                    "tst": 1783080480,
+                },
+            )
+            self.assertEqual(waypoint.status_code, 200)
+
+            devices = client.get("/api/owntracks/devices").json()["devices"]
+            device = next(row for row in devices if row["topic"] == topic)
+            self.assertEqual(device["lastLat"], 61.115)
+            self.assertEqual(device["lastLon"], 10.466)
+
     def test_poor_accuracy_location_does_not_open_zone_visit(self) -> None:
         topic = "owntracks/poor-zone/android"
         with TestClient(app) as client:

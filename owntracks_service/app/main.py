@@ -75,6 +75,7 @@ DATA_QUALITY_MAX_ACCURACY_M = max(1.0, float(os.getenv("OWNTRACKS_DATA_QUALITY_M
 REVERSE_GEOCODE_ENABLED = os.getenv("OWNTRACKS_REVERSE_GEOCODE_ENABLED", "true").strip().lower() not in {"0", "false", "no", "nei"}
 NOMINATIM_REVERSE_URL = os.getenv("OWNTRACKS_NOMINATIM_REVERSE_URL", "https://nominatim.openstreetmap.org/reverse").strip()
 NOMINATIM_USER_AGENT = os.getenv("OWNTRACKS_NOMINATIM_USER_AGENT", "fibaro10-owntracks/1.0").strip() or "fibaro10-owntracks/1.0"
+POSITION_MESSAGE_TYPES = {"", "location", "transition"}
 
 Base = declarative_base()
 engine = create_engine(
@@ -541,7 +542,13 @@ def location_has_usable_accuracy(row: OwnTracksLocation, max_accuracy_m: float =
     return number_is_finite(row.accuracy_m) and float(row.accuracy_m) <= max_accuracy_m
 
 
+def location_has_position_semantics(row: OwnTracksLocation) -> bool:
+    return (row.message_type or "").lower() in POSITION_MESSAGE_TYPES
+
+
 def location_is_usable_for_calculation(row: OwnTracksLocation, max_accuracy_m: float = MAX_CALCULATION_ACCURACY_M) -> bool:
+    if not location_has_position_semantics(row):
+        return False
     if row.lat is None or row.lon is None:
         return False
     if not number_is_finite(row.lat) or not number_is_finite(row.lon):
@@ -1209,14 +1216,15 @@ def update_device_from_location(session: Session, location: OwnTracksLocation) -
     device_row.username = location.username
     device_row.device = location.device
     device_row.tracker_id = location.tracker_id or device_row.tracker_id
-    device_row.last_seen_at = location.timestamp or device_row.last_seen_at
     device_row.last_received_at = location.received_at
-    if location.lat is not None:
-        device_row.last_lat = location.lat
-    if location.lon is not None:
-        device_row.last_lon = location.lon
-    if location.accuracy_m is not None:
-        device_row.last_accuracy_m = location.accuracy_m
+    if location_has_position_semantics(location):
+        device_row.last_seen_at = location.timestamp or device_row.last_seen_at
+        if location.lat is not None:
+            device_row.last_lat = location.lat
+        if location.lon is not None:
+            device_row.last_lon = location.lon
+        if location.accuracy_m is not None:
+            device_row.last_accuracy_m = location.accuracy_m
     if location.battery_percent is not None:
         device_row.last_battery_percent = location.battery_percent
     device_row.last_connection = location.connection or device_row.last_connection
