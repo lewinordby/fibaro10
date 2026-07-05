@@ -151,6 +151,9 @@ EASYPARK_HOST_DATA_DIR="${EASYPARK_HOST_DATA_DIR:-$(env_value easypark_downloade
 AXIS_HOST_DATA_DIR="${AXIS_HOST_DATA_DIR:-$(env_value .env AXIS_HOST_DATA_DIR)}"
 OWNTRACKS_HOST_DATA_DIR="${OWNTRACKS_HOST_DATA_DIR:-$(env_value .env OWNTRACKS_HOST_DATA_DIR)}"
 CAR_INFO_HOST_DATA_DIR="${CAR_INFO_HOST_DATA_DIR:-$(env_value .env CAR_INFO_HOST_DATA_DIR)}"
+SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value .env SUN2_DAILY_DATA_DIR)}"
+SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value sun2_backfill_downloader/.env SUN2_DAILY_DATA_DIR)}"
+SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value sun2_importer/.env SUN2_DAILY_DATA_DIR)}"
 SUN2_SESSION_SCRAPER_HOST_DATA_DIR="${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-$(env_value .env SUN2_SESSION_SCRAPER_HOST_DATA_DIR)}"
 FIBARO10_CADDY_DATA_DIR="${FIBARO10_CADDY_DATA_DIR:-$(env_value .env FIBARO10_CADDY_DATA_DIR)}"
 FIBARO10_CADDY_CONFIG_DIR="${FIBARO10_CADDY_CONFIG_DIR:-$(env_value .env FIBARO10_CADDY_CONFIG_DIR)}"
@@ -174,6 +177,8 @@ for file in \
     .env .env.* \
     easypark_downloader/.env easypark_downloader/.env.* \
     car_info_lookup/.env car_info_lookup/.env.* \
+    sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* \
+    sun2_importer/.env sun2_importer/.env.* \
     sun2_session_scraper/.env sun2_session_scraper/.env.* \
     axis_camera_snapshots/data/config.json \
     axis_camera_snapshots/data/state.json \
@@ -218,6 +223,7 @@ sync_dir_if_exists "${EASYPARK_HOST_DATA_DIR:-easypark_downloader/data}" "$BACKU
 sync_dir_if_exists "${AXIS_HOST_DATA_DIR:-axis_camera_snapshots/data}" "$BACKUP_DIR/runtime/axis_camera_snapshots/data"
 sync_dir_if_exists "${OWNTRACKS_HOST_DATA_DIR:-owntracks_service/data}" "$BACKUP_DIR/runtime/owntracks_service/data"
 sync_dir_if_exists "${CAR_INFO_HOST_DATA_DIR:-car_info_lookup/data}" "$BACKUP_DIR/runtime/car_info_lookup/data"
+sync_dir_if_exists "${SUN2_DAILY_DATA_DIR:-sun2_daily_data}" "$BACKUP_DIR/runtime/sun2_daily_data"
 sync_dir_if_exists "${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-sun2_session_scraper/data}" "$BACKUP_DIR/runtime/sun2_session_scraper/data"
 sync_dir_if_exists "${FIBARO10_CADDY_DATA_DIR:-}" "$BACKUP_DIR/runtime/caddy/data"
 sync_dir_if_exists "${FIBARO10_CADDY_CONFIG_DIR:-}" "$BACKUP_DIR/runtime/caddy/config"
@@ -250,7 +256,7 @@ write_section "Docker images" "$DOCKER" images
 write_section "Docker networks" "$DOCKER" network ls
 write_section "Docker system df" "$DOCKER" system df
 
-for container in postgres-1 easypark_downloader fibaro10 owntracks_service axis_camera_snapshots car_info_lookup sun2_session_scraper parking_sun_linker fibaro10_proxy online_dashboard maintenance_mobile; do
+for container in postgres-1 easypark_downloader fibaro10 owntracks_service axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker fibaro10_proxy online_dashboard maintenance_mobile; do
     "$DOCKER" inspect "$container" > "$BACKUP_DIR/system/docker-inspect-$container.json" 2>/dev/null || true
 done
 ("$DOCKER" network inspect fibaro10_default > "$BACKUP_DIR/system/docker-network-fibaro10_default.json" 2>/dev/null) || true
@@ -276,6 +282,7 @@ Hvis volum-idene blir annerledes paa ny QNAP maa stiene i `.env` justeres for:
 - `AXIS_HOST_DATA_DIR`
 - `AXIS_HOST_SNAPSHOT_DIR`
 - `CAR_INFO_HOST_DATA_DIR`
+- `SUN2_DAILY_DATA_DIR`
 - `SUN2_SESSION_SCRAPER_HOST_DATA_DIR`
 - `FIBARO10_CADDY_DATA_DIR`
 - `FIBARO10_CADDY_CONFIG_DIR`
@@ -320,6 +327,8 @@ Eksempler:
 ```sh
 cp -a secrets/.env /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/.env
 cp -a secrets/easypark_downloader/.env /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/easypark_downloader/.env
+cp -a secrets/sun2_backfill_downloader/.env /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/sun2_backfill_downloader/.env
+cp -a secrets/sun2_importer/.env /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/sun2_importer/.env
 cp -a secrets/sun2_session_scraper/.env /share/CACHEDEV1_DATA/Public/containerdata/fibaro10/sun2_session_scraper/.env
 ```
 
@@ -335,9 +344,10 @@ cp -a runtime/axis_camera_snapshots /share/CACHEDEV2_DATA/fibaro10_runtime/
 cp -a runtime/car_info_lookup /share/CACHEDEV2_DATA/fibaro10_runtime/
 cp -a runtime/sun2_session_scraper /share/CACHEDEV2_DATA/fibaro10_runtime/
 cp -a runtime/caddy /share/CACHEDEV2_DATA/fibaro10_runtime/
+cp -a runtime/sun2_daily_data /share/CACHEDEV1_DATA/Public/containerdata/
 ```
 
-`runtime/axis_camera_snapshots` inneholder metadata/konfig for Axis-jobben. Selve raa snapshot-bufferen er med vilje ikke med i denne backupen.
+`runtime/axis_camera_snapshots` inneholder metadata/konfig for Axis-jobben. `runtime/sun2_daily_data` inneholder daglige Sun2-romstatistikkfiler for downloader/importer-flyten. Selve raa Axis snapshot-bufferen er med vilje ikke med i denne backupen.
 
 ## 5. Legg tilbake arkivdata
 
@@ -464,7 +474,7 @@ Backupkatalogens innhold:
 - repo/fibaro10.bundle: Git bundle med repo/historikk.
 - repo/working-tree/: arbeidskopi av repoet.
 - postgres/: PostgreSQL SQL-dump, custom dump og globals.
-- runtime/: SSD runtime-data for EasyPark, OwnTracks, Axis metadata/konfig, biloppslag, SUN2 scraper og Caddy.
+- runtime/: runtime-data for EasyPark, OwnTracks, Axis metadata/konfig, biloppslag, SUN2 dagsfiler, SUN2 scraper og Caddy.
 - runtime/host-paths/: automatisk oppdagede Docker host mounts for nye tjenester.
 - archive/: deploy-backups og Fibaro10 backups. Raa Axis snapshot-buffer er ikke med.
 - system/: Docker inspect, crontab, QNAP-konfig og systemmanifest.

@@ -28,6 +28,9 @@ EASYPARK_HOST_DATA_DIR="${EASYPARK_HOST_DATA_DIR:-$(env_value easypark_downloade
 AXIS_HOST_DATA_DIR="${AXIS_HOST_DATA_DIR:-$(env_value .env AXIS_HOST_DATA_DIR)}"
 OWNTRACKS_HOST_DATA_DIR="${OWNTRACKS_HOST_DATA_DIR:-$(env_value .env OWNTRACKS_HOST_DATA_DIR)}"
 CAR_INFO_HOST_DATA_DIR="${CAR_INFO_HOST_DATA_DIR:-$(env_value .env CAR_INFO_HOST_DATA_DIR)}"
+SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value .env SUN2_DAILY_DATA_DIR)}"
+SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value sun2_backfill_downloader/.env SUN2_DAILY_DATA_DIR)}"
+SUN2_DAILY_DATA_DIR="${SUN2_DAILY_DATA_DIR:-$(env_value sun2_importer/.env SUN2_DAILY_DATA_DIR)}"
 SUN2_SESSION_SCRAPER_HOST_DATA_DIR="${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-$(env_value .env SUN2_SESSION_SCRAPER_HOST_DATA_DIR)}"
 FIBARO10_CADDY_DATA_DIR="${FIBARO10_CADDY_DATA_DIR:-$(env_value .env FIBARO10_CADDY_DATA_DIR)}"
 FIBARO10_CADDY_CONFIG_DIR="${FIBARO10_CADDY_CONFIG_DIR:-$(env_value .env FIBARO10_CADDY_CONFIG_DIR)}"
@@ -41,7 +44,7 @@ copy_dir() {
     cp -a "$source_dir" "$target_dir"
 }
 
-for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.*; do
+for file in .env .env.* easypark_downloader/.env easypark_downloader/.env.* sun2_backfill_downloader/.env sun2_backfill_downloader/.env.* sun2_importer/.env sun2_importer/.env.*; do
     [ -f "$file" ] || continue
     target="$backup_dir/$file"
     mkdir -p "$(dirname "$target")"
@@ -52,6 +55,7 @@ copy_dir "${EASYPARK_HOST_DATA_DIR:-easypark_downloader/data}" "$backup_dir/easy
 copy_dir "${AXIS_HOST_DATA_DIR:-axis_camera_snapshots/data}" "$backup_dir/axis_camera_snapshots/data"
 copy_dir "${OWNTRACKS_HOST_DATA_DIR:-owntracks_service/data}" "$backup_dir/owntracks_service/data"
 copy_dir "${CAR_INFO_HOST_DATA_DIR:-car_info_lookup/data}" "$backup_dir/car_info_lookup/data"
+copy_dir "${SUN2_DAILY_DATA_DIR:-sun2_daily_data}" "$backup_dir/sun2_daily_data"
 copy_dir "${SUN2_SESSION_SCRAPER_HOST_DATA_DIR:-sun2_session_scraper/data}" "$backup_dir/sun2_session_scraper/data"
 copy_dir "${FIBARO10_CADDY_DATA_DIR:-}" "$backup_dir/caddy/data"
 copy_dir "${FIBARO10_CADDY_CONFIG_DIR:-}" "$backup_dir/caddy/config"

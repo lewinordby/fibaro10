@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1421")
+APP_BUILD = os.getenv("APP_BUILD", "1422")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1422",
+        "date": "05.07.2026",
+        "headline": "Sun2 dagsfilflyt inn i QNAP-oppsett",
+        "title": "Manglende Sun2 downloader/importer tas inn i standard compose og backup",
+        "description": (
+            "Build 1422 retter et funn fra systemgjennomgangen: Sun2 dagsfilnedlasting og romimport sto som "
+            "aktive datakilder, men tjenestene var ikke med i hoved-QNAP-compose. De er naa lagt inn sammen med "
+            "backup/restore-stotte for miljofiler og delt sun2_daily_data-katalog."
+        ),
+        "applications": [
+            "docker-compose.qnap.yml: legger inn sun2_backfill_downloader og sun2_importer som faste tjenester.",
+            ".env.qnap.example: dokumenterer SUN2_DAILY_DATA_DIR.",
+            "scripts/qnap-backup.sh og scripts/qnap-full-restore-backup.sh: tar med Sun2 dagsfiler og .env-filer.",
+        ],
+        "request": "Gaa noye over og sjekk at alt fungerer og er logisk og godt designet.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Sun2 dagsfilnedlasting og romimport starter sammen med resten av Fibaro10-oppsettet.",
+            "Datakildewarningene for Sun2 dagsfilflyt kan forsvinne etter neste vellykkede kjøring/import.",
+            "Restore-backupen inneholder naa grunnlaget som trengs for aa sette opp flyten paa ny QNAP.",
+        ],
+    },
     {
         "version": "1",
         "build": "1421",
