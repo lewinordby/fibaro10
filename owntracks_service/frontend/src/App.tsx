@@ -50,7 +50,7 @@ const MENU_HIDDEN_STORAGE_KEY = "owntracks:mainMenuHidden";
 const MAP_LAYER_IDS = ["owntracks-waypoints-fill", "owntracks-waypoints-line", "owntracks-track-line"];
 const MAP_SOURCE_IDS = ["owntracks-waypoints", "owntracks-track"];
 
-type ViewKey = "dashboard" | "map" | "visits" | "waypoints" | "suggestions" | "diagnostics" | "messages" | "events" | "build";
+type ViewKey = "dashboard" | "places" | "map" | "visits" | "waypoints" | "suggestions" | "diagnostics" | "messages" | "events" | "build";
 type TimeFilterMode = "relative" | "custom";
 
 type HealthPayload = {
@@ -219,9 +219,16 @@ type ZoneSummaryRow = {
   lastStartedAt?: string;
   lastEndedAt?: string;
   lastDuration?: string;
+  currentStartedAt?: string;
+  currentLastSeenAt?: string;
+  currentDurationSeconds?: number;
+  currentDuration?: string;
+  lastEnterAt?: string;
+  lastLeaveAt?: string;
   lastStatus?: string;
   lastConfidence?: number;
   enterSources?: string[];
+  waypoint?: WaypointRow;
 };
 
 type ZoneSummaryPayload = {
@@ -235,6 +242,7 @@ type ZoneSummaryPayload = {
     totalDuration: string;
   };
   summary: ZoneSummaryRow[];
+  places?: ZoneSummaryRow[];
   activeVisits: VisitRow[];
   recentVisits: VisitRow[];
 };
@@ -252,6 +260,8 @@ type EventRow = {
   lat?: number;
   lon?: number;
   accuracyM?: number;
+  ignoredForState?: boolean;
+  ignoredReason?: string;
 };
 
 type MapPayload = {
@@ -338,6 +348,7 @@ type DiagnosticsPayload = {
 
 const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: React.ReactNode; color: string }> = [
   { key: "dashboard", label: "Dashboard", icon: <DashboardOutlined />, color: "#2563eb" },
+  { key: "places", label: "Kjente steder", icon: <AimOutlined />, color: "#15803d" },
   { key: "map", label: "Kart", icon: <EnvironmentOutlined />, color: "#0891b2" },
   { key: "visits", label: "Sonebesok", icon: <NodeIndexOutlined />, color: "#15803d" },
   { key: "waypoints", label: "Waypoints", icon: <PushpinOutlined />, color: "#f59e0b" },
@@ -559,6 +570,17 @@ function eventTag(value?: string) {
 function originTag(row: { origin?: "phone" | "server"; isSynthetic?: boolean }) {
   if (row.isSynthetic || row.origin === "server") return <Tag color="purple">Server</Tag>;
   return <Tag color="blue">Telefon</Tag>;
+}
+
+function stateUseTag(row: { ignoredForState?: boolean; ignoredReason?: string }) {
+  if (row.ignoredForState) {
+    return (
+      <Tag color="gold" title={row.ignoredReason || "Lagret som raadata, men brukt ikke i inne/ute-status."}>
+        Raadata
+      </Tag>
+    );
+  }
+  return <Tag color="green">Styrer status</Tag>;
 }
 
 function recommendationTag(value?: DiagnosticRecommendation["severity"]) {
@@ -1134,6 +1156,7 @@ export default function App() {
   });
   const buildRows = moduleData?.metadata.buildLog.rows || [];
   const zoneRows = zoneSummary?.summary || [];
+  const placeRows = zoneSummary?.places || zoneRows;
   const activeZoneNames = (zoneSummary?.activeVisits || []).map((row) => row.waypointName).join(", ") || "Ingen aktive";
   const latestUsableLocation = mapLocations[mapLocations.length - 1];
 
@@ -1254,9 +1277,11 @@ export default function App() {
     { title: "Sone", dataIndex: "waypointName" },
     { title: "Hendelse", dataIndex: "eventType", render: eventTag },
     { title: "Opprinnelse", width: 120, render: (_, row) => originTag(row) },
+    { title: "Statusbruk", width: 130, render: (_, row) => stateUseTag(row) },
     { title: "Kilde", dataIndex: "sourceMessageType" },
     { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
     { title: "Presisjon", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Forklaring", dataIndex: "ignoredReason", ellipsis: true },
   ];
 
   const recommendationColumns: ColumnsType<DiagnosticRecommendation> = [
@@ -1347,6 +1372,57 @@ export default function App() {
     </Space>
   );
 
+  function placeStatusTag(row: ZoneSummaryRow) {
+    if (row.openVisits > 0 || row.lastStatus === "open") return <Tag color="green">Paa stedet</Tag>;
+    if (row.lastStatus === "inside") return <Tag color="blue">Sist inne</Tag>;
+    if (row.lastStatus === "closed" || row.lastStatus === "outside") return <Tag>Ute</Tag>;
+    return <Tag color="gold">Ukjent</Tag>;
+  }
+
+  function renderPlaceCard(row: ZoneSummaryRow) {
+    const isOpen = row.openVisits > 0 || row.lastStatus === "open";
+    const radius = row.waypoint?.radiusM || undefined;
+    return (
+      <Card
+        key={row.id}
+        className={`known-place-card ${isOpen ? "active" : ""}`}
+        title={
+          <Space>
+            <span>{row.waypointName}</span>
+            {placeStatusTag(row)}
+          </Space>
+        }
+        extra={radius ? <Typography.Text type="secondary">{formatNumber(radius)} m</Typography.Text> : null}
+      >
+        <div className="known-place-main">
+          <div>
+            <Typography.Text type="secondary">Aktivt besok</Typography.Text>
+            <strong>{isOpen ? row.currentDuration || row.lastDuration || "-" : "-"}</strong>
+            <span>{isOpen ? `Fra ${formatDateTime(row.currentStartedAt || row.lastStartedAt)}` : "Ingen aktiv sone"}</span>
+          </div>
+          <div>
+            <Typography.Text type="secondary">Totalt i periode</Typography.Text>
+            <strong>{row.totalDuration || "-"}</strong>
+            <span>{row.visits} besok</span>
+          </div>
+        </div>
+        <div className="known-place-timeline">
+          <div>
+            <span>Siste relevante enter</span>
+            <strong>{formatDateTime(row.lastEnterAt || row.lastStartedAt)}</strong>
+          </div>
+          <div>
+            <span>Siste relevante leave</span>
+            <strong>{formatDateTime(row.lastLeaveAt || row.lastEndedAt)}</strong>
+          </div>
+        </div>
+        <Typography.Text type="secondary" className="known-place-note">
+          Lavpresisjons-enter/leave lagres som hendelser, men endrer ikke dette oppholdet.
+        </Typography.Text>
+      </Card>
+    );
+  }
+
   const dashboard = useMemo(
     () => (
       <>
@@ -1390,7 +1466,31 @@ export default function App() {
   );
 
   let content: React.ReactNode = dashboard;
-  if (view === "map") {
+  if (view === "places") {
+    content = (
+      <>
+        <SectionHeader
+          title="Kjente steder"
+          subtitle={`Opphold beregnet fra presise punkter. Periode: ${timeFilterLabel}`}
+        />
+        <Alert className="page-alert" type="info" showIcon message="Tydelig sonehistorikk" description={precisionPolicyText} />
+        <Row gutter={[12, 12]} className="metric-row">
+          <Col xs={24} md={8}>
+            <MetricCard title="Kjente steder" value={placeRows.length} subtitle={`${zoneSummary?.totals.openVisits ?? 0} aktiv akkurat naa`} tone="#15803d" />
+          </Col>
+          <Col xs={24} md={8}>
+            <MetricCard title="Total tid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={timeFilterLabel} tone="#7c3aed" />
+          </Col>
+          <Col xs={24} md={8}>
+            <MetricCard title="Besok" value={zoneSummary?.totals.visits ?? 0} subtitle="Relevante enter/leave" tone="#0891b2" />
+          </Col>
+        </Row>
+        <div className="known-place-grid">
+          {placeRows.length ? placeRows.map((row) => renderPlaceCard(row)) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Ingen kjente steder enda" />}
+        </div>
+      </>
+    );
+  } else if (view === "map") {
     content = (
       <>
         <SectionHeader

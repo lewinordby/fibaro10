@@ -336,6 +336,72 @@ a {
   margin: -2px 0 12px;
 }
 
+.known-place-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 12px;
+}
+
+.known-place-card {
+  border-top: 3px solid #cbd5e1;
+}
+
+.known-place-card.active {
+  border-top-color: #15803d;
+  background: linear-gradient(180deg, rgba(21, 128, 61, 0.04), #ffffff 42%);
+}
+
+.known-place-main {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.known-place-main > div,
+.known-place-timeline {
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+}
+
+.known-place-main strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.known-place-main span,
+.known-place-timeline span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.known-place-timeline {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  background: #ffffff;
+}
+
+.known-place-timeline strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.known-place-note {
+  display: block;
+  margin-top: 9px;
+  font-size: 12px;
+}
+
 .owntracks-map {
   width: 100%;
   height: 520px;

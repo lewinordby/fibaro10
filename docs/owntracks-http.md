@@ -39,6 +39,22 @@ Standardgrensen styres av:
 
 Dette betyr at et punkt med for eksempel `acc=95` fortsatt er synlig som raadata, men det brukes ikke til aa tegne spor, aapne/lukke sonebesok eller foreslaa nye waypoints. UI viser dette med `Brukes` eller `Lav presisjon` i meldingstabellene, og dashboard/kart viser hvor mange punkt som er filtrert bort.
 
+Enter/leave-hendelser behandles etter samme prinsipp:
+
+- Presis `Enter`: kan sette waypoint til inne og aapne/oppdatere sonebesok.
+- Presis `Leave`: kan sette waypoint til ute og lukke sonebesok.
+- Upresis `Enter` eller `Leave`: lagres som hendelse/raadata, men endrer ikke inne/ute-status.
+
+Soneberegningen bruker hysterese. Et besok aapnes naar et presist punkt er innenfor soneradius, men lukkes foerst naar et presist punkt er tydelig utenfor `radius + buffer`. Dette hindrer at et kjent sted faar flere korte besok fordi telefonen hopper litt rundt sonegrensen.
+
+Siden `Kjente steder` viser dette som en praktisk oversikt:
+
+- en boks per aktivt waypoint
+- aktivt besok og hvor lenge det har vart
+- siste relevante enter og leave
+- total tid i valgt globalt tidsfilter
+- tydelig tekst om at upresise hendelser beholdes, men ikke styrer status
+
 Grensen kan overstyres mer detaljert hvis det trengs:
 
 - `OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M`: egen grense for sonebesok.

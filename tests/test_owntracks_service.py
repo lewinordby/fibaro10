@@ -146,6 +146,101 @@ class OwnTracksServiceTests(unittest.TestCase):
             ]
             self.assertEqual(matching_visits, [])
 
+    def test_poor_accuracy_leave_is_raw_event_but_does_not_close_visit(self) -> None:
+        topic = "owntracks/poor-leave/android"
+        with TestClient(app) as client:
+            client.post(
+                "/pub",
+                json={
+                    "_type": "waypoint",
+                    "topic": f"{topic}/waypoint",
+                    "desc": "Hjemme",
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "rad": 100,
+                    "tst": 1783080600,
+                },
+            )
+            inside = client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.466, "acc": 5, "inregions": ["Hjemme"], "tst": 1783080660},
+            )
+            self.assertEqual(inside.status_code, 200)
+
+            poor_leave = client.post(
+                "/pub",
+                json={
+                    "_type": "transition",
+                    "topic": f"{topic}/event",
+                    "desc": "Hjemme",
+                    "event": "leave",
+                    "lat": 61.116,
+                    "lon": 10.466,
+                    "acc": 95,
+                    "tst": 1783080720,
+                },
+            )
+            self.assertEqual(poor_leave.status_code, 200)
+
+            good_enter = client.post(
+                "/pub",
+                json={
+                    "_type": "transition",
+                    "topic": f"{topic}/event",
+                    "desc": "Hjemme",
+                    "event": "enter",
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "acc": 5,
+                    "tst": 1783080780,
+                },
+            )
+            self.assertEqual(good_enter.status_code, 200)
+
+            payload = client.get("/api/owntracks/map?hours=0&limit=0").json()
+            matching_visits = [row for row in payload["zoneVisits"] if row["topic"] == topic and row["waypointName"] == "Hjemme"]
+            self.assertEqual(len(matching_visits), 1)
+            self.assertEqual(matching_visits[0]["status"], "open")
+
+            waypoints = client.get("/api/owntracks/waypoints").json()
+            waypoint = next(row for row in waypoints["waypoints"] if row["topic"] == topic and row["waypointName"] == "Hjemme")
+            self.assertTrue(waypoint["isInside"])
+            ignored_leave = next(row for row in waypoints["events"] if row["topic"] == topic and row["eventType"] == "leave")
+            self.assertTrue(ignored_leave["ignoredForState"])
+            self.assertIn("Lav presisjon", ignored_leave["ignoredReason"])
+
+    def test_zone_visit_uses_hysteresis_before_closing(self) -> None:
+        topic = "owntracks/hysteresis/android"
+        with TestClient(app) as client:
+            client.post(
+                "/pub",
+                json={"_type": "waypoint", "topic": f"{topic}/waypoint", "desc": "Kontor", "lat": 61.115, "lon": 10.466, "rad": 100, "tst": 1783080800},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.466, "acc": 5, "tst": 1783080860},
+            )
+            # About 117 m east at this latitude: outside enter radius, but inside radius + buffer.
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.4682, "acc": 5, "tst": 1783080920},
+            )
+            still_open = client.get("/api/owntracks/map?hours=0&limit=0").json()["zoneVisits"]
+            matching_open = [row for row in still_open if row["topic"] == topic and row["waypointName"] == "Kontor"]
+            self.assertEqual(len(matching_open), 1)
+            self.assertEqual(matching_open[0]["status"], "open")
+
+            # Clearly outside radius + buffer.
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.4694, "acc": 5, "tst": 1783080980},
+            )
+            closed = client.get("/api/owntracks/map?hours=0&limit=0").json()["zoneVisits"]
+            matching_closed = [row for row in closed if row["topic"] == topic and row["waypointName"] == "Kontor"]
+            self.assertEqual(len(matching_closed), 1)
+            self.assertEqual(matching_closed[0]["status"], "closed")
+            self.assertEqual(matching_closed[0]["leaveSource"], "computed-position")
+
     def test_admin_ui_is_closed_when_token_is_not_configured(self) -> None:
         original_token = owntracks_main.HTTP_TOKEN
         owntracks_main.HTTP_TOKEN = ""

@@ -541,6 +541,20 @@ def location_is_usable_for_calculation(row: OwnTracksLocation, max_accuracy_m: f
     return location_has_usable_accuracy(row, max_accuracy_m)
 
 
+def state_ignored_event_payload(location: OwnTracksLocation, reason: str) -> dict[str, Any]:
+    payload = dict(location.payload or {}) if isinstance(location.payload, dict) else {}
+    server_payload = dict(payload.get("_server") or {}) if isinstance(payload.get("_server"), dict) else {}
+    server_payload.update(
+        {
+            "ignoredForState": True,
+            "ignoredReason": reason,
+            "accuracyLimitM": MAX_CALCULATION_ACCURACY_M,
+        }
+    )
+    payload["_server"] = server_payload
+    return payload
+
+
 def safe_location_points(rows: Iterable[OwnTracksLocation], max_accuracy_m: float) -> list[OwnTracksLocation]:
     points: list[OwnTracksLocation] = []
     for row in rows:
@@ -908,6 +922,24 @@ def update_zone_visit_position(visit: OwnTracksZoneVisit, location: OwnTracksLoc
     visit.updated_at = utc_now()
 
 
+def find_open_zone_visit(session: Session, topic: str, waypoint_name: str) -> Optional[OwnTracksZoneVisit]:
+    visit_cache = session.info.setdefault("owntracks_open_zone_visit_cache", {})
+    cache_key = (topic, waypoint_name)
+    visit = visit_cache.get(cache_key)
+    if visit is not None:
+        return visit
+    visit = session.execute(
+        select(OwnTracksZoneVisit)
+        .where(OwnTracksZoneVisit.topic == topic)
+        .where(OwnTracksZoneVisit.waypoint_name == waypoint_name)
+        .where(OwnTracksZoneVisit.status == "open")
+        .limit(1)
+    ).scalar_one_or_none()
+    if visit is not None:
+        visit_cache[cache_key] = visit
+    return visit
+
+
 def open_zone_visit(
     session: Session,
     location: OwnTracksLocation,
@@ -919,17 +951,7 @@ def open_zone_visit(
     event_at = location.timestamp or location.received_at
     visit_cache = session.info.setdefault("owntracks_open_zone_visit_cache", {})
     cache_key = (location.topic, waypoint.waypoint_name)
-    existing = visit_cache.get(cache_key)
-    if existing is None:
-        existing = session.execute(
-            select(OwnTracksZoneVisit)
-            .where(OwnTracksZoneVisit.topic == location.topic)
-            .where(OwnTracksZoneVisit.waypoint_name == waypoint.waypoint_name)
-            .where(OwnTracksZoneVisit.status == "open")
-            .limit(1)
-        ).scalar_one_or_none()
-        if existing is not None:
-            visit_cache[cache_key] = existing
+    existing = find_open_zone_visit(session, location.topic, waypoint.waypoint_name)
     if existing:
         update_zone_visit_position(existing, location, confidence)
         return existing
@@ -965,15 +987,7 @@ def close_zone_visit(
     event_at = location.timestamp or location.received_at
     visit_cache = session.info.setdefault("owntracks_open_zone_visit_cache", {})
     cache_key = (location.topic, waypoint_name)
-    visit = visit_cache.get(cache_key)
-    if visit is None:
-        visit = session.execute(
-            select(OwnTracksZoneVisit)
-            .where(OwnTracksZoneVisit.topic == location.topic)
-            .where(OwnTracksZoneVisit.waypoint_name == waypoint_name)
-            .where(OwnTracksZoneVisit.status == "open")
-            .limit(1)
-        ).scalar_one_or_none()
+    visit = find_open_zone_visit(session, location.topic, waypoint_name)
     if not visit:
         return None
     visit.ended_at = event_at
@@ -1006,14 +1020,20 @@ def materialize_zone_visits_for_location(session: Session, location: OwnTracksLo
     for waypoint in waypoints:
         radius_m = float(waypoint.radius_m or 100.0)
         accuracy_extra = min(float(location.accuracy_m or 0.0), ZONE_VISIT_ACCURACY_CAP_M)
-        threshold_m = radius_m + ZONE_VISIT_BUFFER_M + accuracy_extra
+        enter_threshold_m = radius_m + accuracy_extra
+        leave_threshold_m = radius_m + ZONE_VISIT_BUFFER_M + accuracy_extra
         distance_m = distance_meters(float(location.lat), float(location.lon), float(waypoint.lat), float(waypoint.lon))
-        inside = distance_m <= threshold_m
-        confidence = confidence_for_distance(distance_m, threshold_m)
-        if inside:
+        open_visit = find_open_zone_visit(session, location.topic, waypoint.waypoint_name)
+        if open_visit:
+            confidence = confidence_for_distance(distance_m, leave_threshold_m)
+            if distance_m <= leave_threshold_m:
+                update_zone_visit_position(open_visit, location, confidence)
+            else:
+                close_zone_visit(session, location, waypoint.waypoint_name, source="computed-position")
+            continue
+        confidence = confidence_for_distance(distance_m, enter_threshold_m)
+        if distance_m <= enter_threshold_m:
             open_zone_visit(session, location, waypoint, source="computed-position", confidence=confidence)
-        else:
-            close_zone_visit(session, location, waypoint.waypoint_name, source="computed-position")
 
 
 def materialize_waypoints(session: Session, location: OwnTracksLocation, payload: dict[str, Any]) -> None:
@@ -1058,16 +1078,30 @@ def materialize_waypoints(session: Session, location: OwnTracksLocation, payload
             waypoint = find_waypoint(session, location.topic, name)
             radius_m = float_value(payload.get("rad") or payload.get("radius"))
             if waypoint:
-                waypoint = upsert_waypoint(
-                    session,
-                    location,
-                    name,
-                    event_type,
-                    accuracy_m=location.accuracy_m,
-                )
-                if event_type == "enter" and location_is_usable_for_calculation(location):
+                usable_for_state = location_is_usable_for_calculation(location)
+                if usable_for_state:
+                    waypoint = upsert_waypoint(
+                        session,
+                        location,
+                        name,
+                        event_type,
+                        accuracy_m=location.accuracy_m,
+                    )
+                else:
+                    record_waypoint_event(
+                        session,
+                        location,
+                        name,
+                        event_type,
+                        lat=location.lat,
+                        lon=location.lon,
+                        radius_m=radius_m,
+                        accuracy_m=location.accuracy_m,
+                        event_payload=state_ignored_event_payload(location, "Lav presisjon. Hendelsen er lagret, men endrer ikke inne/ute-status."),
+                    )
+                if event_type == "enter" and usable_for_state:
                     open_zone_visit(session, location, waypoint, source="transition", confidence=1.0)
-                elif event_type == "leave" and location_is_usable_for_calculation(location):
+                elif event_type == "leave" and usable_for_state:
                     close_zone_visit(session, location, name, source="transition")
             else:
                 record_waypoint_event(
@@ -1079,6 +1113,7 @@ def materialize_waypoints(session: Session, location: OwnTracksLocation, payload
                     lon=location.lon,
                     radius_m=radius_m,
                     accuracy_m=location.accuracy_m,
+                    event_payload=state_ignored_event_payload(location, "Ukjent waypoint. Hendelsen er lagret, men kan ikke endre sonebesok."),
                 )
         return
 
@@ -1365,6 +1400,9 @@ def row_waypoint(row: OwnTracksWaypointState) -> dict[str, Any]:
 
 
 def row_event(row: OwnTracksWaypointEvent) -> dict[str, Any]:
+    payload = row.payload if isinstance(row.payload, dict) else {}
+    server_payload = payload.get("_server") if isinstance(payload.get("_server"), dict) else {}
+    ignored_for_state = bool(server_payload.get("ignoredForState"))
     return {
         "id": row.id,
         "topic": row.topic,
@@ -1381,6 +1419,8 @@ def row_event(row: OwnTracksWaypointEvent) -> dict[str, Any]:
         "accuracyM": row.accuracy_m,
         "isSynthetic": row.is_synthetic,
         "origin": "server" if row.is_synthetic else "phone",
+        "ignoredForState": ignored_for_state,
+        "ignoredReason": server_payload.get("ignoredReason") if ignored_for_state else None,
     }
 
 
@@ -1418,11 +1458,35 @@ def visit_effective_duration_seconds(row: OwnTracksZoneVisit, now: Optional[date
     return max(0, int((end_at - row.started_at).total_seconds()))
 
 
-def row_zone_summary(topic: str, waypoint_name: str, rows: list[OwnTracksZoneVisit], now: datetime) -> dict[str, Any]:
+def visit_overlap_duration_seconds(
+    row: OwnTracksZoneVisit,
+    period_start: Optional[datetime],
+    period_end: Optional[datetime],
+    now: Optional[datetime] = None,
+) -> int:
+    if not row.started_at:
+        return 0
+    actual_end = row.ended_at or now or utc_now()
+    overlap_start = max(row.started_at, period_start) if period_start else row.started_at
+    overlap_end = min(actual_end, period_end) if period_end else actual_end
+    if overlap_end <= overlap_start:
+        return 0
+    return max(0, int((overlap_end - overlap_start).total_seconds()))
+
+
+def row_zone_summary(
+    topic: str,
+    waypoint_name: str,
+    rows: list[OwnTracksZoneVisit],
+    now: datetime,
+    period_start: Optional[datetime] = None,
+    period_end: Optional[datetime] = None,
+) -> dict[str, Any]:
     ordered = sorted(rows, key=lambda item: item.started_at or datetime.min)
     latest = max(ordered, key=lambda item: item.ended_at or item.started_at or datetime.min)
-    total_seconds = sum(visit_effective_duration_seconds(row, now) for row in ordered)
+    total_seconds = sum(visit_overlap_duration_seconds(row, period_start, period_end, now) for row in ordered)
     open_rows = [row for row in ordered if row.status == "open"]
+    current = max(open_rows, key=lambda item: item.started_at or datetime.min) if open_rows else None
     first_started = min((row.started_at for row in ordered if row.started_at), default=None)
     last_seen = max((row.ended_at or row.started_at for row in ordered if row.ended_at or row.started_at), default=None)
     enter_sources = sorted({row.enter_source for row in ordered if row.enter_source})
@@ -1444,6 +1508,12 @@ def row_zone_summary(topic: str, waypoint_name: str, rows: list[OwnTracksZoneVis
         "lastEndedAt": iso_dt(latest.ended_at),
         "lastDurationSeconds": visit_effective_duration_seconds(latest, now),
         "lastDuration": duration_seconds_label(visit_effective_duration_seconds(latest, now)),
+        "currentStartedAt": iso_dt(current.started_at if current else None),
+        "currentLastSeenAt": iso_dt(current.updated_at if current else None),
+        "currentDurationSeconds": visit_effective_duration_seconds(current, now) if current else 0,
+        "currentDuration": duration_seconds_label(visit_effective_duration_seconds(current, now)) if current else "-",
+        "lastEnterAt": iso_dt(max((row.started_at for row in ordered if row.started_at), default=None)),
+        "lastLeaveAt": iso_dt(max((row.ended_at for row in ordered if row.ended_at), default=None)),
         "lastStatus": latest.status,
         "lastConfidence": latest.confidence,
         "enterSources": enter_sources,
@@ -2072,9 +2142,11 @@ OWNTRACKS_ADMIN_HTML = """
         { label: "Sone", key: "waypointName" },
         { label: "Hendelse", render: row => `<span class="pill ${row.eventType === "enter" ? "ok" : ""}">${esc(row.eventType)}</span>` },
         { label: "Opprinnelse", render: row => row.isSynthetic ? "Server" : "Telefon" },
+        { label: "Statusbruk", render: row => row.ignoredForState ? "Raadata" : "Styrer status" },
         { label: "Kilde", key: "sourceMessageType" },
         { label: "Posisjon", render: row => mapsLink(row.lat, row.lon) },
         { label: "Noyaktighet", render: row => `${fmtNum(row.accuracyM)} m` },
+        { label: "Forklaring", key: "ignoredReason" },
       ]);
       tablePanel("buildPanel", "Buildlogg", moduleData.metadata?.buildLog?.rows || [], [
         { label: "Build", key: "build" },
@@ -2715,16 +2787,63 @@ def api_zone_summary(
         if range_end is not None:
             visit_stmt = visit_stmt.where(or_(OwnTracksZoneVisit.started_at <= range_end, OwnTracksZoneVisit.started_at.is_(None)))
         visit_rows = list(session.execute(visit_stmt.order_by(OwnTracksZoneVisit.started_at.desc())).scalars())
+        waypoint_rows = list(
+            session.execute(
+                select(OwnTracksWaypointState)
+                .where(or_(OwnTracksWaypointState.is_active.is_(True), OwnTracksWaypointState.is_active.is_(None)))
+                .order_by(OwnTracksWaypointState.waypoint_name.asc())
+            ).scalars()
+        )
 
     grouped: dict[tuple[str, str], list[OwnTracksZoneVisit]] = {}
     for row in visit_rows:
         grouped.setdefault((row.topic, row.waypoint_name), []).append(row)
 
     summary_rows = [
-        row_zone_summary(topic, waypoint_name, rows, now)
+        row_zone_summary(topic, waypoint_name, rows, now, since, range_end)
         for (topic, waypoint_name), rows in grouped.items()
     ]
     summary_rows.sort(key=lambda row: (row["totalDurationSeconds"], row["lastSeenAt"] or ""), reverse=True)
+    summary_by_key = {(row["topic"], row["waypointName"]): row for row in summary_rows}
+    places = []
+    for waypoint in waypoint_rows:
+        key = (waypoint.topic, waypoint.waypoint_name)
+        summary = summary_by_key.get(key)
+        if summary:
+            places.append({**summary, "waypoint": row_waypoint(waypoint)})
+        else:
+            places.append(
+                {
+                    "id": f"{waypoint.topic}:{waypoint.waypoint_name}",
+                    "topic": waypoint.topic,
+                    "username": waypoint.username,
+                    "device": waypoint.device,
+                    "waypointName": waypoint.waypoint_name,
+                    "visits": 0,
+                    "openVisits": 0,
+                    "totalDurationSeconds": 0,
+                    "totalDuration": "-",
+                    "avgDurationSeconds": 0,
+                    "avgDuration": "-",
+                    "firstSeenAt": None,
+                    "lastSeenAt": iso_dt(waypoint.last_seen_at),
+                    "lastStartedAt": None,
+                    "lastEndedAt": None,
+                    "lastDurationSeconds": 0,
+                    "lastDuration": "-",
+                    "currentStartedAt": None,
+                    "currentLastSeenAt": None,
+                    "currentDurationSeconds": 0,
+                    "currentDuration": "-",
+                    "lastEnterAt": None,
+                    "lastLeaveAt": None,
+                    "lastStatus": "outside" if waypoint.is_inside is False else "inside" if waypoint.is_inside else "unknown",
+                    "lastConfidence": None,
+                    "enterSources": [],
+                    "waypoint": row_waypoint(waypoint),
+                }
+            )
+    places.sort(key=lambda row: (row["openVisits"], row["totalDurationSeconds"], row["lastSeenAt"] or ""), reverse=True)
     open_visits = [row_visit(row) for row in visit_rows if row.status == "open"]
     recent_visits = [row_visit(row) for row in visit_rows[:limit]]
     total_duration_seconds = sum(int(row["totalDurationSeconds"]) for row in summary_rows)
@@ -2742,6 +2861,7 @@ def api_zone_summary(
             "totalDuration": duration_seconds_label(total_duration_seconds),
         },
         "summary": summary_rows[:limit],
+        "places": places,
         "activeVisits": open_visits,
         "recentVisits": recent_visits,
     }
@@ -2960,7 +3080,7 @@ def api_module() -> dict[str, Any]:
         "tables": [
             module_table("Sonebesok", ["startedAt", "endedAt", "duration", "waypointName", "topic", "status", "confidence"], [row_visit(row) for row in visits]),
             module_table("Waypoints", ["waypointName", "topic", "lastState", "isInside", "lastSeenAt", "lat", "lon", "radiusM"], [row_waypoint(row) for row in waypoints]),
-            module_table("Waypoint-hendelser", ["timestamp", "waypointName", "topic", "eventType", "origin", "sourceMessageType", "isSynthetic", "lat", "lon", "accuracyM"], [row_event(row) for row in events]),
+            module_table("Waypoint-hendelser", ["timestamp", "waypointName", "topic", "eventType", "origin", "sourceMessageType", "ignoredForState", "ignoredReason", "isSynthetic", "lat", "lon", "accuracyM"], [row_event(row) for row in events]),
             module_table("Enheter", ["topic", "username", "device", "lastSeenAt", "lastLat", "lastLon", "lastAccuracyM", "lastBatteryPercent"], [row_device(row) for row in devices]),
             module_table(
                 "Siste meldinger",

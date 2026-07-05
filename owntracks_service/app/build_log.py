@@ -5,10 +5,38 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "16")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "17")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "17",
+        "date": "05.07.2026",
+        "headline": "Kjente steder og trygg sonehistorikk",
+        "title": "OwnTracks viser opphold per kjent sted og lar ikke lav presisjon endre status",
+        "description": (
+            "Build 17 gjoer sonehistorikken tydeligere og tryggere. Enter/leave med lav presisjon lagres fortsatt "
+            "som raadata, men endrer ikke waypoint-status og aapner/lukker ikke sonebesok. Soneberegningen bruker "
+            "hysterese, slik at et aktivt besok ikke lukkes foer et presist punkt er tydelig utenfor sonen. "
+            "Ny side Kjente steder viser aktivt besok, siste relevante enter/leave og total tid i valgt periode."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: lavpresisjons-hendelser merkes som raadata og soneberegning faar hysterese.",
+            "owntracks_service/frontend/src/App.tsx: ny hovedside Kjente steder og tydelig statusbruk paa hendelser.",
+            "owntracks_service/frontend/src/styles.css: kortlayout for kjente steder.",
+            "tests/test_owntracks_service.py: tester for ignorert lavpresisjons-leave og hysterese rundt sonegrense.",
+            "docs/owntracks-http.md: dokumenterer sone- og presisjonslogikken.",
+        ],
+        "request": "Gjoer det tydelig og noeye. Jeg vil ikke miste data, men vil ha en egen visning for kjente steder.",
+        "work_duration": "ca. 60 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Daarlig GPS-presisjon kan ikke lenger sette et kjent sted til ute eller inne.",
+            "Aktive besok beholdes gjennom usikre leave-hendelser og oppdateres av neste presise punkt.",
+            "Kjente steder viser en boks per waypoint med siste relevante enter/leave og total tid i valgt periode.",
+        ],
+    },
     {
         "version": "1",
         "build": "16",
