@@ -350,12 +350,21 @@ class OwnTracksServiceTests(unittest.TestCase):
                 "/pub",
                 json={"_type": "location", "topic": topic, "lat": 61.216, "lon": 10.566, "acc": 5, "tst": 1783083180},
             )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.215, "lon": 10.566, "acc": 5, "tst": 1783084000},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.216, "lon": 10.566, "acc": 5, "tst": 1783084020},
+            )
 
-            payload = client.get("/api/owntracks/visits?hours=0&waypointName=Lilletorget%20test&limit=50").json()
+            payload = client.get("/api/owntracks/visits?hours=0&waypointName=Lilletorget%20test&limit=1").json()
             rows = [row for row in payload["visits"] if row["topic"] == topic and row["waypointName"] == "Lilletorget test"]
             self.assertEqual(len(rows), 1)
             self.assertGreaterEqual(rows[0]["durationSeconds"], 60)
-            self.assertGreaterEqual(payload["totals"]["hiddenShortVisits"], 1)
+            self.assertGreaterEqual(payload["totals"]["matchingVisits"], 1)
+            self.assertGreaterEqual(payload["totals"]["hiddenShortVisits"], 2)
 
     def test_admin_ui_is_closed_when_token_is_not_configured(self) -> None:
         original_token = owntracks_main.HTTP_TOKEN

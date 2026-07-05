@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1420")
+APP_BUILD = os.getenv("APP_BUILD", "1421")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1421",
+        "date": "05.07.2026",
+        "headline": "OwnTracks-besok faar datakildestatus",
+        "title": "Vedlikeholdsbesok synkes mer robust og vises som egen datakilde",
+        "description": (
+            "Build 1421 rydder i OwnTracks/Fibaro10-koblingen etter gjennomgang. Synkjobben rapporterer naa "
+            "egen datakildestatus selv naar det ikke finnes Lilletorget-besok i perioden, og feil blir synlige "
+            "i Admin/datakilder. Vedlikehold/Besok viser dermed bedre om grunnlaget faktisk er ferskt."
+        ),
+        "applications": [
+            "main.py: OwnTracks-besokssynk logger suksess og feil til import_job_status.",
+            "main.py: Vedlikehold/Besok henter synkstatus fra datakildestatus og finner koblede eldre besok.",
+            "import_jobs.py: OwnTracks Lilletorget-besok er registrert som egen datakilde med forklaring.",
+        ],
+        "request": "Gaa noye over og sjekk at alt fungerer og er logisk og godt designet.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Datakildestatus viser naar Fibaro10 sist hentet OwnTracks-besok.",
+            "Feil i synkjobben registreres som feilet datakilde i stedet for bare containerlogg.",
+            "Koblede vedlikeholdslogger beholder korrekt besokslabel ogsaa naar besoket er eldre enn standardlisten.",
+        ],
+    },
     {
         "version": "1",
         "build": "1420",

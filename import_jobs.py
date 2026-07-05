@@ -161,6 +161,14 @@ IMPORT_JOB_DEFINITIONS = {
         "warning_after_minutes": 30,
         "description": "Sideapp som finner sannsynlige koblinger mellom parkering og soltimer.",
     },
+    "owntracks_site_visits": {
+        "title": "OwnTracks Lilletorget-besøk",
+        "category": "Vedlikehold",
+        "source": "OwnTracks",
+        "expected_interval_minutes": 2,
+        "warning_after_minutes": 10,
+        "description": "Fibaro10 henter Lilletorget-besøk fra OwnTracks og kobler vedlikeholdsoppgaver til oppholdene.",
+    },
 }
 
 IMPORT_JOB_NUMBER_BY_NAME = {
@@ -248,6 +256,10 @@ IMPORT_JOB_DETAILS = {
     "parking_sun_link_worker": {
         "data_flow": "parking_sun_linker kjører som egen QNAP-container. Den henter parametere fra Fibaro10, leser parkeringer og soltimer direkte fra PostgreSQL, og rapporterer behandlet status, treffgrunnlag og kandidater tilbake til Fibaro10. Bruker bekrefter eller avviser koblingene i Koble-siden.",
         "dependencies": ["parking_sun_linker", "Fibaro10 worker-API", "PostgreSQL", "Parkering", "Sun2 enkelttimer"],
+    },
+    "owntracks_site_visits": {
+        "data_flow": "Fibaro10 poller OwnTracks sitt interne visits-API for waypoint Lilletorget 3 og lagrer resultatet i site_visits. Vedlikeholdslogger kobles automatisk til riktig besøk basert på tidspunkt.",
+        "dependencies": ["owntracks_service", "OwnTracks PostgreSQL", "Fibaro10 backend", "PostgreSQL"],
     },
 }
 

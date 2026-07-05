@@ -5,10 +5,33 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "24")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "25")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "25",
+        "date": "05.07.2026",
+        "headline": "Besok-API filtrerer for limit",
+        "title": "OwnTracks returnerer gyldige besok selv om nyere korte opphold finnes",
+        "description": (
+            "Build 25 forbedrer visits-API-et som Fibaro10 bruker. Korte opphold filtreres naa bort foer limit "
+            "brukes, slik at et nytt kort opphold ikke skjuler et eldre gyldig Lilletorget-besok."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: visits-API filtrerer korte opphold foer limit.",
+            "tests/test_owntracks_service.py: regresjonstest for korte nyere opphold foran gyldig besok.",
+        ],
+        "request": "Gaa noye over og sjekk at alt fungerer og er logisk og godt designet.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Limit brukes etter filtrering av korte opphold.",
+            "Tallet for skjulte korte opphold teller ikke lenger rader som bare er skjult av limit.",
+            "Fibaro10 faar mer stabilt grunnlag fra OwnTracks visits-API.",
+        ],
+    },
     {
         "version": "1",
         "build": "24",

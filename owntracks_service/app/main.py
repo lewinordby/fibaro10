@@ -2921,9 +2921,10 @@ def api_visits(
             visit_stmt = visit_stmt.where(OwnTracksZoneVisit.waypoint_name == waypoint_filter)
         if topic_filter:
             visit_stmt = visit_stmt.where(OwnTracksZoneVisit.topic == topic_filter)
-        raw_rows = list(session.execute(visit_stmt.order_by(OwnTracksZoneVisit.started_at.desc()).limit(limit)).scalars())
+        raw_rows = list(session.execute(visit_stmt.order_by(OwnTracksZoneVisit.started_at.desc())).scalars())
 
-    rows = raw_rows if include_short else [row for row in raw_rows if visit_is_visible_in_overview(row, now)]
+    filtered_rows = raw_rows if include_short else [row for row in raw_rows if visit_is_visible_in_overview(row, now)]
+    rows = filtered_rows[:limit]
     return {
         "hours": hours,
         "limit": limit,
@@ -2939,7 +2940,8 @@ def api_visits(
         "totals": {
             "rawVisits": len(raw_rows),
             "visits": len(rows),
-            "hiddenShortVisits": len(raw_rows) - len(rows),
+            "matchingVisits": len(filtered_rows),
+            "hiddenShortVisits": len(raw_rows) - len(filtered_rows),
             "minOverviewVisitSeconds": MIN_OVERVIEW_VISIT_SECONDS,
         },
         "visits": [row_visit(row) for row in rows],

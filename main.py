@@ -17658,7 +17658,8 @@ async def link_unassigned_maintenance_logs_to_site_visits(session, since: Option
 
 async def sync_owntracks_site_visits_once(reason: str = "manual") -> Dict[str, Any]:
     if not OWNTRACKS_VISIT_SYNC_ENABLED:
-        return {"status": "disabled", "message": "OwnTracks-besokssynk er deaktivert."}
+        return {"status": "disabled", "message": "OwnTracks-besøkssynk er deaktivert."}
+    job_started_at = local_now_naive().replace(microsecond=0)
     visits = await fetch_owntracks_lilletorget_visits()
     now_value = local_now_naive().replace(microsecond=0)
     created = 0
@@ -17667,8 +17668,8 @@ async def sync_owntracks_site_visits_once(reason: str = "manual") -> Dict[str, A
     async with async_session() as session:
         for raw in visits:
             source_visit_id = str(raw.get("id") or "").strip()
-            started_at = owntracks_iso_to_local_naive(raw.get("startedAt"))
-            if not source_visit_id or not started_at:
+            visit_started_at = owntracks_iso_to_local_naive(raw.get("startedAt"))
+            if not source_visit_id or not visit_started_at:
                 skipped += 1
                 continue
             existing = (
@@ -17691,7 +17692,7 @@ async def sync_owntracks_site_visits_once(reason: str = "manual") -> Dict[str, A
             row.topic = str(raw.get("topic") or "").strip() or None
             row.username = str(raw.get("username") or "").strip() or None
             row.device = str(raw.get("device") or "").strip() or None
-            row.started_at = started_at
+            row.started_at = visit_started_at
             row.ended_at = owntracks_iso_to_local_naive(raw.get("endedAt"))
             row.duration_seconds = int(raw.get("durationSeconds")) if raw.get("durationSeconds") is not None else None
             row.status = "open" if str(raw.get("status") or "").strip().lower() == "open" else "closed"
@@ -17703,6 +17704,25 @@ async def sync_owntracks_site_visits_once(reason: str = "manual") -> Dict[str, A
             row.updated_at = now_value
         since = now_value - timedelta(hours=OWNTRACKS_VISIT_SYNC_LOOKBACK_HOURS + 24)
         linked = await link_unassigned_maintenance_logs_to_site_visits(session, since=since)
+        await record_import_job(
+            session,
+            "owntracks_site_visits",
+            ok=True,
+            started_at=job_started_at,
+            finished_at=now_value,
+            records_imported=created + updated,
+            records_total=len(visits),
+            duration_seconds=max(0.0, (now_value - job_started_at).total_seconds()),
+            message=f"Hentet {len(visits)} Lilletorget-besøk fra OwnTracks. Opprettet {created}, oppdatert {updated}, koblet {linked} vedlikehold.",
+            raw={
+                "reason": reason,
+                "created": created,
+                "updated": updated,
+                "skipped": skipped,
+                "maintenanceLinked": linked,
+                "waypoints": OWNTRACKS_LILLETORGET_WAYPOINTS,
+            },
+        )
         await session.commit()
     return {
         "status": "ok",
@@ -17717,6 +17737,30 @@ async def sync_owntracks_site_visits_once(reason: str = "manual") -> Dict[str, A
     }
 
 
+async def record_owntracks_site_visit_sync_failure(message: str) -> None:
+    try:
+        now_value = local_now_naive().replace(microsecond=0)
+        async with async_session() as session:
+            await record_import_job(
+                session,
+                "owntracks_site_visits",
+                ok=False,
+                started_at=now_value,
+                finished_at=now_value,
+                records_imported=0,
+                records_total=0,
+                duration_seconds=0,
+                message=message[:1000],
+                raw={
+                    "error": message[:4000],
+                    "waypoints": OWNTRACKS_LILLETORGET_WAYPOINTS,
+                },
+            )
+            await session.commit()
+    except Exception as exc:
+        logger.warning("Could not record OwnTracks site visit sync failure: %s", exc, exc_info=True)
+
+
 async def run_owntracks_site_visit_sync(reason: str = "manual") -> Dict[str, Any]:
     global owntracks_visit_sync_lock
     if owntracks_visit_sync_lock is None:
@@ -17724,7 +17768,11 @@ async def run_owntracks_site_visit_sync(reason: str = "manual") -> Dict[str, Any
     if owntracks_visit_sync_lock.locked():
         return {"status": "busy", "message": "OwnTracks-besøkssynk kjører allerede."}
     async with owntracks_visit_sync_lock:
-        return await sync_owntracks_site_visits_once(reason=reason)
+        try:
+            return await sync_owntracks_site_visits_once(reason=reason)
+        except Exception as exc:
+            await record_owntracks_site_visit_sync_failure(str(exc))
+            raise
 
 
 async def owntracks_site_visit_sync_worker() -> None:
@@ -23713,6 +23761,13 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .limit(200)
                 )
             ).scalars().all()
+            site_visit_import_status = (
+                await session.execute(
+                    select(ImportJobStatus)
+                    .where(ImportJobStatus.job_name == "owntracks_site_visits")
+                    .limit(1)
+                )
+            ).scalars().first()
             site_visit_counts = {
                 int(row.visit_id): int(row.tasks_count)
                 for row in (
@@ -23725,6 +23780,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 if row.visit_id is not None
             }
             site_visit_by_id = {int(row.id): row for row in site_visits if row.id}
+            linked_visit_ids = {int(row.site_visit_id) for row in logs if row.site_visit_id}
+            missing_visit_ids = sorted(linked_visit_ids - set(site_visit_by_id))
+            if missing_visit_ids:
+                extra_visits = (
+                    await session.execute(
+                        select(SiteVisit).where(SiteVisit.id.in_(missing_visit_ids))
+                    )
+                ).scalars().all()
+                site_visit_by_id.update({int(row.id): row for row in extra_visits if row.id})
             today_count = sum(1 for row in logs if row.performed_at and today_start <= row.performed_at < tomorrow_start)
             month_count = sum(1 for row in logs if row.performed_at and month_start_dt <= row.performed_at < tomorrow_start)
             today_visit_count = sum(1 for row in site_visits if row.started_at and today_start <= row.started_at < tomorrow_start)
@@ -23759,7 +23823,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 for item in sorted(tag_stats.values(), key=lambda value: (-int(value["count"]), str(value["tag"]).casefold()))
             ]
             latest = logs[0] if logs else None
-            latest_visit_sync = max((row.last_synced_at for row in site_visits if row.last_synced_at), default=None)
+            latest_visit_sync = (
+                site_visit_import_status.last_success_at
+                if site_visit_import_status and site_visit_import_status.last_success_at
+                else max((row.last_synced_at for row in site_visits if row.last_synced_at), default=None)
+            )
+            site_visit_sync_detail = (
+                site_visit_import_status.message
+                if site_visit_import_status and site_visit_import_status.message
+                else "Fra OwnTracks API"
+            )
             edit_config = api_maintenance_log_edit(now_dt.replace(second=0, microsecond=0))
             visit_rows = [site_visit_row(row, site_visit_counts.get(int(row.id or 0), 0)) for row in site_visits]
             log_rows = [maintenance_log_row(row, site_visit_by_id.get(int(row.site_visit_id or 0))) for row in logs]
@@ -23770,7 +23843,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "cards": [
                         api_card("Besøk i dag", today_visit_count, "stk", f"{linked_log_count} oppgaver koblet i listen", "status", href="/vedlikehold/besok"),
                         api_card("Aktivt besøk", "Ja" if active_visit else "Nei", "", site_visit_label(active_visit) or "Ingen aktivt registrert", "status", href="/vedlikehold/besok"),
-                        api_card("Sist synket", format_source_datetime_short(latest_visit_sync) if latest_visit_sync else "-", "", "Fra OwnTracks API", "status", href="/vedlikehold/besok"),
+                        api_card("Sist synket", format_source_datetime_short(latest_visit_sync) if latest_visit_sync else "-", "", site_visit_sync_detail[:120], "status", href="/vedlikehold/besok"),
                         api_card("Vedlikehold i dag", today_count, "stk", "Logget arbeid/observasjoner", "status", href="/vedlikehold/oversikt"),
                     ],
                     "tables": [
