@@ -26,6 +26,27 @@ Bruk HTTP-modus:
 
 Vellykket publisering svarer med tom JSON-array: `[]`. Dette er formatet OwnTracks Android forventer.
 
+## Presisjon og databruk
+
+OwnTracks-data deles i to nivaa:
+
+- Raadata: alle meldinger lagres uendret i databasen og vises under Meldinger.
+- Beregningsdata: kartspor, sonebesok og waypointforslag bruker bare posisjoner med presisjon maks `30 m`.
+
+Standardgrensen styres av:
+
+- `OWNTRACKS_MAX_CALCULATION_ACCURACY_M=30`
+
+Dette betyr at et punkt med for eksempel `acc=95` fortsatt er synlig som raadata, men det brukes ikke til aa tegne spor, aapne/lukke sonebesok eller foreslaa nye waypoints. UI viser dette med `Brukes` eller `Lav presisjon` i meldingstabellene, og dashboard/kart viser hvor mange punkt som er filtrert bort.
+
+Grensen kan overstyres mer detaljert hvis det trengs:
+
+- `OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M`: egen grense for sonebesok.
+- `OWNTRACKS_STOP_SUGGESTION_MAX_ACCURACY_M`: egen grense for waypointforslag.
+- `OWNTRACKS_DATA_QUALITY_MAX_ACCURACY_M`: egen grense for diagnose/advarsler.
+
+Anbefalt drift er aa la disse staa lik hovedgrensen, slik at grensesnitt, diagnose og beregninger forklarer samme virkelighet.
+
 ## Sikkerhet
 
 Sett `OWNTRACKS_HTTP_TOKEN` i `.env` paa QNAP. Hvis den mangler, bruker tjenesten `CAR_INFO_APP_TOKEN` som fallback.

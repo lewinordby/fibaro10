@@ -89,6 +89,63 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertGreater(all_rows[1]["distanceFromPreviousM"], 12000)
             self.assertLess(all_rows[1]["distanceFromPreviousM"], 13000)
 
+    def test_map_keeps_raw_poor_accuracy_but_excludes_it_from_calculations(self) -> None:
+        topic = "owntracks/poor-accuracy/android"
+        with TestClient(app) as client:
+            response = client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.115, "lon": 10.466, "acc": 90, "tst": 1783080400},
+            )
+            self.assertEqual(response.status_code, 200)
+
+            payload = client.get("/api/owntracks/map?hours=0&limit=0").json()
+            raw_rows = [row for row in payload["locations"] if row["topic"] == topic]
+            map_rows = [row for row in payload["mapLocations"] if row["topic"] == topic]
+            self.assertEqual(len(raw_rows), 1)
+            self.assertEqual(map_rows, [])
+            self.assertFalse(raw_rows[0]["usableForCalculation"])
+            self.assertEqual(raw_rows[0]["accuracyLimitM"], owntracks_main.MAX_CALCULATION_ACCURACY_M)
+            self.assertGreaterEqual(payload["qualityPolicy"]["ignoredForAccuracy"], 1)
+
+    def test_poor_accuracy_location_does_not_open_zone_visit(self) -> None:
+        topic = "owntracks/poor-zone/android"
+        with TestClient(app) as client:
+            waypoint = client.post(
+                "/pub",
+                json={
+                    "_type": "waypoint",
+                    "topic": f"{topic}/waypoint",
+                    "desc": "Presisjonstest",
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "rad": 100,
+                    "tst": 1783080500,
+                },
+            )
+            self.assertEqual(waypoint.status_code, 200)
+
+            location = client.post(
+                "/pub",
+                json={
+                    "_type": "location",
+                    "topic": topic,
+                    "lat": 61.115,
+                    "lon": 10.466,
+                    "acc": 90,
+                    "inregions": ["Presisjonstest"],
+                    "tst": 1783080560,
+                },
+            )
+            self.assertEqual(location.status_code, 200)
+
+            visits = client.get("/api/owntracks/map?hours=0&limit=0").json()["zoneVisits"]
+            matching_visits = [
+                row
+                for row in visits
+                if row["topic"] == topic and row["waypointName"] == "Presisjonstest"
+            ]
+            self.assertEqual(matching_visits, [])
+
     def test_admin_ui_is_closed_when_token_is_not_configured(self) -> None:
         original_token = owntracks_main.HTTP_TOKEN
         owntracks_main.HTTP_TOKEN = ""

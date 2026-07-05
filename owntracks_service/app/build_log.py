@@ -5,10 +5,36 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "15")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "16")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "16",
+        "date": "05.07.2026",
+        "headline": "Presisjonsfilter for beregninger",
+        "title": "OwnTracks beholder raadata, men bruker bare presise punkter i kartspor og soner",
+        "description": (
+            "Build 16 innfoerer en tydelig presisjonspolicy. Alle OwnTracks-meldinger lagres fortsatt som raadata, "
+            "men kartspor, sonebesok og waypointforslag bruker bare posisjoner med GPS-presisjon innenfor "
+            "OWNTRACKS_MAX_CALCULATION_ACCURACY_M, som er 30 meter som standard."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: felles presisjonsgrense for beregninger, kartgrunnlag og diagnose.",
+            "owntracks_service/frontend/src/App.tsx: UI viser hvilke meldinger som brukes og hvilke som har lav presisjon.",
+            "tests/test_owntracks_service.py: tester at svake GPS-punkter beholdes som raadata, men ikke aapner soner.",
+            "docs/owntracks-http.md: dokumenterer presisjonspolicy og relevante miljoevariabler.",
+        ],
+        "request": "Gjoer det slik du anbefaler og gjoer det tydelig i baade dokumentasjon og grensesnitt.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Raadata beholdes uendret i meldingsloggen.",
+            "Kartspor, sonebesok og waypointforslag filtrerer bort punkter med presisjon over 30 m.",
+            "Meldinger og dashboard viser tydelig om punktet brukes i beregninger.",
+        ],
+    },
     {
         "version": "1",
         "build": "15",

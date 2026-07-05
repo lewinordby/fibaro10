@@ -13,8 +13,9 @@ services:
     environment:
       OWNTRACKS_DATA_DIR: /data
       OWNTRACKS_PUBLIC_BASE_URL: ${OWNTRACKS_PUBLIC_BASE_URL:-https://owntracks.lilletorget.net}
-      OWNTRACKS_APP_BUILD: ${OWNTRACKS_APP_BUILD:-15}
+      OWNTRACKS_APP_BUILD: ${OWNTRACKS_APP_BUILD:-16}
       OWNTRACKS_APP_COMMIT: ${APP_COMMIT:-unknown}
+      OWNTRACKS_MAX_CALCULATION_ACCURACY_M: ${OWNTRACKS_MAX_CALCULATION_ACCURACY_M:-30}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8128/health', timeout=5).read()\""]
       interval: 30s

@@ -61,16 +61,17 @@ OWNTRACKS_PUBLIC_BASE_URL = os.getenv("OWNTRACKS_PUBLIC_BASE_URL", "https://ownt
 FRONTEND_DIST = Path(__file__).resolve().parent / "frontend_dist"
 FRONTEND_INDEX = FRONTEND_DIST / "index.html"
 
+MAX_CALCULATION_ACCURACY_M = max(1.0, float(os.getenv("OWNTRACKS_MAX_CALCULATION_ACCURACY_M", "30")))
 ZONE_VISIT_BUFFER_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_BUFFER_M", "25")))
-ZONE_VISIT_ACCURACY_CAP_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M", "100")))
+ZONE_VISIT_ACCURACY_CAP_M = max(0.0, float(os.getenv("OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M", str(MAX_CALCULATION_ACCURACY_M))))
 DEFAULT_LOCAL_WAYPOINT_RADIUS_M = max(10.0, float(os.getenv("OWNTRACKS_DEFAULT_LOCAL_WAYPOINT_RADIUS_M", "100")))
 STOP_SUGGESTION_MIN_MINUTES = max(1, int(os.getenv("OWNTRACKS_STOP_SUGGESTION_MIN_MINUTES", "10")))
 STOP_SUGGESTION_RADIUS_M = max(15.0, float(os.getenv("OWNTRACKS_STOP_SUGGESTION_RADIUS_M", "80")))
-STOP_SUGGESTION_MAX_ACCURACY_M = max(25.0, float(os.getenv("OWNTRACKS_STOP_SUGGESTION_MAX_ACCURACY_M", "150")))
+STOP_SUGGESTION_MAX_ACCURACY_M = max(1.0, float(os.getenv("OWNTRACKS_STOP_SUGGESTION_MAX_ACCURACY_M", str(MAX_CALCULATION_ACCURACY_M))))
 STOP_SUGGESTION_MAX_GAP_MINUTES = max(10, int(os.getenv("OWNTRACKS_STOP_SUGGESTION_MAX_GAP_MINUTES", "180")))
 DATA_QUALITY_STALE_MINUTES = max(1, int(os.getenv("OWNTRACKS_DATA_QUALITY_STALE_MINUTES", "10")))
 DATA_QUALITY_GAP_MINUTES = max(1, int(os.getenv("OWNTRACKS_DATA_QUALITY_GAP_MINUTES", "20")))
-DATA_QUALITY_MAX_ACCURACY_M = max(10.0, float(os.getenv("OWNTRACKS_DATA_QUALITY_MAX_ACCURACY_M", "100")))
+DATA_QUALITY_MAX_ACCURACY_M = max(1.0, float(os.getenv("OWNTRACKS_DATA_QUALITY_MAX_ACCURACY_M", str(MAX_CALCULATION_ACCURACY_M))))
 REVERSE_GEOCODE_ENABLED = os.getenv("OWNTRACKS_REVERSE_GEOCODE_ENABLED", "true").strip().lower() not in {"0", "false", "no", "nei"}
 NOMINATIM_REVERSE_URL = os.getenv("OWNTRACKS_NOMINATIM_REVERSE_URL", "https://nominatim.openstreetmap.org/reverse").strip()
 NOMINATIM_USER_AGENT = os.getenv("OWNTRACKS_NOMINATIM_USER_AGENT", "fibaro10-owntracks/1.0").strip() or "fibaro10-owntracks/1.0"
@@ -526,14 +527,24 @@ def location_time(row: OwnTracksLocation) -> datetime:
     return row.timestamp or row.received_at
 
 
+def location_has_usable_accuracy(row: OwnTracksLocation, max_accuracy_m: float = MAX_CALCULATION_ACCURACY_M) -> bool:
+    if row.accuracy_m is None:
+        return True
+    return number_is_finite(row.accuracy_m) and float(row.accuracy_m) <= max_accuracy_m
+
+
+def location_is_usable_for_calculation(row: OwnTracksLocation, max_accuracy_m: float = MAX_CALCULATION_ACCURACY_M) -> bool:
+    if row.lat is None or row.lon is None:
+        return False
+    if not number_is_finite(row.lat) or not number_is_finite(row.lon):
+        return False
+    return location_has_usable_accuracy(row, max_accuracy_m)
+
+
 def safe_location_points(rows: Iterable[OwnTracksLocation], max_accuracy_m: float) -> list[OwnTracksLocation]:
     points: list[OwnTracksLocation] = []
     for row in rows:
-        if row.lat is None or row.lon is None:
-            continue
-        if not number_is_finite(row.lat) or not number_is_finite(row.lon):
-            continue
-        if row.accuracy_m is not None and float(row.accuracy_m) > max_accuracy_m:
+        if not location_is_usable_for_calculation(row, max_accuracy_m):
             continue
         points.append(row)
     points.sort(key=lambda item: (location_time(item), item.received_at, item.id))
@@ -981,7 +992,7 @@ def close_zone_visit(
 
 
 def materialize_zone_visits_for_location(session: Session, location: OwnTracksLocation) -> None:
-    if location.lat is None or location.lon is None:
+    if not location_is_usable_for_calculation(location):
         return
     if location.message_type in {"waypoint", "waypoints", "status", "transition"}:
         return
@@ -1054,9 +1065,9 @@ def materialize_waypoints(session: Session, location: OwnTracksLocation, payload
                     event_type,
                     accuracy_m=location.accuracy_m,
                 )
-                if event_type == "enter":
+                if event_type == "enter" and location_is_usable_for_calculation(location):
                     open_zone_visit(session, location, waypoint, source="transition", confidence=1.0)
-                elif event_type == "leave":
+                elif event_type == "leave" and location_is_usable_for_calculation(location):
                     close_zone_visit(session, location, name, source="transition")
             else:
                 record_waypoint_event(
@@ -1072,7 +1083,7 @@ def materialize_waypoints(session: Session, location: OwnTracksLocation, payload
         return
 
     current_names = waypoint_names(payload.get("inregions") or payload.get("regions"))
-    if current_names:
+    if current_names and location_is_usable_for_calculation(location):
         for name in current_names:
             waypoint = find_waypoint(session, location.topic, name)
             if waypoint:
@@ -1279,6 +1290,8 @@ def row_location(row: OwnTracksLocation, distance_from_previous_m: Optional[floa
         "lon": row.lon,
         "distanceFromPreviousM": round(distance_from_previous_m, 1) if distance_from_previous_m is not None else None,
         "accuracyM": row.accuracy_m,
+        "usableForCalculation": location_is_usable_for_calculation(row),
+        "accuracyLimitM": MAX_CALCULATION_ACCURACY_M,
         "batteryPercent": row.battery_percent,
         "connection": row.connection,
         "regions": row.regions,
@@ -1316,6 +1329,9 @@ def row_device(row: OwnTracksDevice) -> dict[str, Any]:
         "lastLat": row.last_lat,
         "lastLon": row.last_lon,
         "lastAccuracyM": row.last_accuracy_m,
+        "lastUsableForCalculation": row.last_accuracy_m is None or (
+            number_is_finite(row.last_accuracy_m) and float(row.last_accuracy_m) <= MAX_CALCULATION_ACCURACY_M
+        ),
         "lastBatteryPercent": row.last_battery_percent,
         "lastConnection": row.last_connection,
         "lastEvent": row.last_event,
@@ -1573,8 +1589,8 @@ def data_quality_recommendations(
         recommendations.append(
             {
                 "severity": "warning",
-                "title": "Noen posisjoner har svak noyaktighet",
-                "text": "Posisjoner med hoy noyaktighetsverdi boer tones ned i soneberegning og forslag.",
+                "title": "Noen posisjoner ignoreres i beregninger",
+                "text": f"Posisjoner med noyaktighet over {DATA_QUALITY_MAX_ACCURACY_M:g} m beholdes som raadata, men brukes ikke i kartspor, sonebesok eller waypointforslag.",
             }
         )
 
@@ -2245,6 +2261,11 @@ def health_payload() -> dict[str, Any]:
             "publishUrl": f"{OWNTRACKS_PUBLIC_BASE_URL}/pub",
             "adminUrl": OWNTRACKS_PUBLIC_BASE_URL,
         },
+        "qualityPolicy": {
+            "maxCalculationAccuracyM": MAX_CALCULATION_ACCURACY_M,
+            "rawDataRetained": True,
+            "appliesTo": ["kartspor", "sonebesok", "waypointforslag"],
+        },
         "state": STATE.snapshot(),
         "counts": counts,
         "time": iso_dt(utc_now()),
@@ -2594,6 +2615,16 @@ def api_map(
             location_stmt = location_stmt.limit(limit)
         locations = list(session.execute(location_stmt).scalars())
         locations.reverse()
+        map_locations = [row for row in locations if location_is_usable_for_calculation(row)]
+        ignored_for_accuracy = sum(
+            1
+            for row in locations
+            if row.lat is not None
+            and row.lon is not None
+            and row.accuracy_m is not None
+            and number_is_finite(row.accuracy_m)
+            and float(row.accuracy_m) > MAX_CALCULATION_ACCURACY_M
+        )
 
         devices = session.execute(
             select(OwnTracksDevice)
@@ -2628,10 +2659,18 @@ def api_map(
             "end": iso_dt(range_end),
             "filterMode": "custom" if range_start is not None or range_end is not None else "relative",
             "locations": row_locations_with_distances(locations),
+            "mapLocations": row_locations_with_distances(map_locations),
             "devices": [row_device(row) for row in devices],
             "waypoints": waypoint_list,
             "waypointDefinitions": waypoint_list,
             "zoneVisits": [row_visit(row) for row in visits],
+            "qualityPolicy": {
+                "maxCalculationAccuracyM": MAX_CALCULATION_ACCURACY_M,
+                "rawLocations": len(locations),
+                "mapLocations": len(map_locations),
+                "ignoredForAccuracy": ignored_for_accuracy,
+                "rawDataRetained": True,
+            },
         }
 
 
@@ -2746,6 +2785,7 @@ def api_diagnostics(
             location_stmt = location_stmt.where(location_time_expr <= range_end)
         rows = list(session.execute(location_stmt).scalars())
         coordinate_rows = [row for row in rows if row.lat is not None and row.lon is not None]
+        usable_coordinate_rows = safe_location_points(coordinate_rows, max_accuracy_m)
         transition_count = sum(1 for row in rows if row.message_type == "transition")
         status_count = sum(1 for row in rows if row.message_type == "status")
         stale_rows = [
@@ -2767,7 +2807,7 @@ def api_diagnostics(
         gap_rows: list[dict[str, Any]] = []
         previous: Optional[OwnTracksLocation] = None
         gap_values: list[float] = []
-        for row in coordinate_rows:
+        for row in usable_coordinate_rows:
             if previous:
                 gap = minutes_between(previous.received_at, row.received_at)
                 if gap is not None:
@@ -2818,6 +2858,7 @@ def api_diagnostics(
         "counts": {
             "messages": len(rows),
             "locations": len(coordinate_rows),
+            "usableLocations": len(usable_coordinate_rows),
             "transitions": transition_count,
             "statusMessages": status_count,
             "staleLocations": len(stale_rows),
@@ -2839,7 +2880,7 @@ def api_diagnostics(
         },
         "latest": row_diagnostic_location(latest) if latest else None,
         "staleSamples": [row_diagnostic_location(row) for row in stale_samples],
-        "waypoints": waypoint_diagnostics(coordinate_rows, waypoints),
+        "waypoints": waypoint_diagnostics(usable_coordinate_rows, waypoints),
         "recommendations": recommendations,
     }
 
@@ -2912,6 +2953,7 @@ def api_module() -> dict[str, Any]:
             module_card("Enheter", len(devices), "stk", "Siste kjente enheter"),
             module_card("Waypoints", len(waypoints), "stk", "Definerte soner"),
             module_card("Beregnet besok", len(visits), "stk", "Fra posisjoner og waypoint-radius"),
+            module_card("Presisjonsfilter", f"{MAX_CALCULATION_ACCURACY_M:g}", "m", "Gjelder kartspor, sonebesok og forslag"),
             module_card("Siste melding", iso_dt(latest.last_seen_at) if latest else "-", "", latest.topic if latest else "Ingen meldinger"),
         ],
         "charts": [],
@@ -2922,7 +2964,7 @@ def api_module() -> dict[str, Any]:
             module_table("Enheter", ["topic", "username", "device", "lastSeenAt", "lastLat", "lastLon", "lastAccuracyM", "lastBatteryPercent"], [row_device(row) for row in devices]),
             module_table(
                 "Siste meldinger",
-                ["receivedAt", "timestamp", "topic", "messageType", "event", "origin", "isSynthetic", "lat", "lon", "distanceFromPreviousM", "accuracyM", "batteryPercent"],
+                ["receivedAt", "timestamp", "topic", "messageType", "event", "origin", "isSynthetic", "lat", "lon", "distanceFromPreviousM", "accuracyM", "usableForCalculation", "batteryPercent"],
                 list(reversed(row_locations_with_distances(reversed(locations)))),
             ),
         ],

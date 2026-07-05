@@ -60,6 +60,11 @@ type HealthPayload = {
   database: string;
   ingest: { mode: string; path: string; authTokenEnabled: boolean };
   public: { baseUrl: string; publishUrl: string; adminUrl: string };
+  qualityPolicy?: {
+    maxCalculationAccuracyM: number;
+    rawDataRetained: boolean;
+    appliesTo: string[];
+  };
   state: {
     lastMessageAt: string | null;
     lastStoreError: string | null;
@@ -104,6 +109,8 @@ type LocationRow = {
   lon?: number;
   distanceFromPreviousM?: number | null;
   accuracyM?: number;
+  usableForCalculation?: boolean;
+  accuracyLimitM?: number;
   batteryPercent?: number;
   staleMinutes?: number;
   gapMinutes?: number;
@@ -122,6 +129,8 @@ type MessageGroupRow = {
   lon?: number;
   distanceFromPreviousM?: number | null;
   accuracyM?: number;
+  usableForCalculation?: boolean;
+  accuracyLimitM?: number;
   batteryPercent?: number;
 };
 
@@ -134,6 +143,7 @@ type DeviceRow = {
   lastLat?: number;
   lastLon?: number;
   lastAccuracyM?: number;
+  lastUsableForCalculation?: boolean;
   lastBatteryPercent?: number;
 };
 
@@ -250,9 +260,17 @@ type MapPayload = {
   end?: string;
   filterMode?: TimeFilterMode;
   locations: LocationRow[];
+  mapLocations?: LocationRow[];
   devices: DeviceRow[];
   waypoints: WaypointRow[];
   zoneVisits: VisitRow[];
+  qualityPolicy?: {
+    maxCalculationAccuracyM: number;
+    rawLocations: number;
+    mapLocations: number;
+    ignoredForAccuracy: number;
+    rawDataRetained: boolean;
+  };
 };
 
 type DiagnosticRecommendation = {
@@ -292,6 +310,7 @@ type DiagnosticsPayload = {
   counts: {
     messages: number;
     locations: number;
+    usableLocations?: number;
     transitions: number;
     statusMessages: number;
     staleLocations: number;
@@ -424,6 +443,8 @@ function compactMessageRows(rows: LocationRow[]) {
         lon: row.lon,
         distanceFromPreviousM: row.distanceFromPreviousM,
         accuracyM: row.accuracyM,
+        usableForCalculation: row.usableForCalculation,
+        accuracyLimitM: row.accuracyLimitM,
         batteryPercent: row.batteryPercent,
         firstReceivedMs: receivedMs,
         lastReceivedMs: receivedMs,
@@ -442,6 +463,8 @@ function compactMessageRows(rows: LocationRow[]) {
       group.lastReceivedMs = receivedMs;
       group.lastReceivedAt = row.receivedAt;
       group.accuracyM = row.accuracyM;
+      group.usableForCalculation = row.usableForCalculation;
+      group.accuracyLimitM = row.accuracyLimitM;
       group.batteryPercent = row.batteryPercent;
     }
   });
@@ -550,6 +573,17 @@ function staleTag(value?: number) {
   if (value > 10) return <Tag color="red">{formatNumber(value, 1)} min</Tag>;
   if (value > 2) return <Tag color="gold">{formatNumber(value, 1)} min</Tag>;
   return <Tag color="green">{formatNumber(value, 1)} min</Tag>;
+}
+
+function calculationUseTag(row: { usableForCalculation?: boolean; accuracyM?: number; accuracyLimitM?: number }) {
+  if (row.usableForCalculation === false) {
+    return (
+      <Tag color="gold" title={`Ignoreres i beregninger${row.accuracyLimitM ? ` over ${formatNumber(row.accuracyLimitM)} m` : ""}`}>
+        Lav presisjon
+      </Tag>
+    );
+  }
+  return <Tag color="green">Brukes</Tag>;
 }
 
 function waypointSourceTag(value?: string) {
@@ -674,7 +708,7 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
       fallbackPointCount += 1;
       lastFallbackPoint = [lon, lat];
     };
-    const points = (data?.locations || []).filter((row) => Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lon)));
+    const points = (data?.mapLocations || []).filter((row) => Number.isFinite(Number(row.lat)) && Number.isFinite(Number(row.lon)));
     if (points.length > 1) {
       map.addSource("owntracks-track", {
         type: "geojson",
@@ -711,6 +745,7 @@ function OwnTracksMap({ data, large = false }: { data?: MapPayload | null; large
       }
     });
     (data?.devices || []).forEach((row) => {
+      if (row.lastUsableForCalculation === false) return;
       if (!Number.isFinite(Number(row.lastLat)) || !Number.isFinite(Number(row.lastLon))) return;
       extendFallbackBounds(Number(row.lastLon), Number(row.lastLat));
       const marker = new maplibregl.Marker({ element: createMapMarker("device-marker", "D"), anchor: "center" })
@@ -982,6 +1017,15 @@ export default function App() {
     return Array.from(topics).map((topic) => ({ value: topic, label: topic }));
   }, [mapData]);
 
+  const visits = mapData?.zoneVisits || [];
+  const waypoints = mapData?.waypoints || [];
+  const locations = mapData?.locations || [];
+  const mapLocations = mapData?.mapLocations || locations.filter((row) => row.usableForCalculation !== false);
+  const qualityPolicy = mapData?.qualityPolicy || health?.qualityPolicy;
+  const maxCalculationAccuracyM = qualityPolicy?.maxCalculationAccuracyM ?? 30;
+  const ignoredForAccuracy = mapData?.qualityPolicy?.ignoredForAccuracy ?? locations.filter((row) => row.usableForCalculation === false).length;
+  const precisionPolicyText = `Raadata lagres alltid. Kartspor, sonebesok og waypointforslag bruker punkter med presisjon maks ${formatNumber(maxCalculationAccuracyM)} m.`;
+
   const loadSuggestions = useCallback(async () => {
     setSuggestionsLoading(true);
     try {
@@ -989,6 +1033,7 @@ export default function App() {
         hours: suggestionHours,
         min_minutes: suggestionMinMinutes,
         radius_m: suggestionRadiusM,
+        max_accuracy_m: maxCalculationAccuracyM,
         limit: 30,
         include_address: 1,
       });
@@ -998,7 +1043,7 @@ export default function App() {
     } finally {
       setSuggestionsLoading(false);
     }
-  }, [suggestionHours, suggestionMinMinutes, suggestionRadiusM]);
+  }, [maxCalculationAccuracyM, suggestionHours, suggestionMinMinutes, suggestionRadiusM]);
 
   useEffect(() => {
     if (view === "suggestions") void loadSuggestions();
@@ -1074,9 +1119,6 @@ export default function App() {
     }
   }
 
-  const visits = mapData?.zoneVisits || [];
-  const waypoints = mapData?.waypoints || [];
-  const locations = mapData?.locations || [];
   const groupedMessages = useMemo(() => compactMessageRows(locations), [locations]);
   const events = (moduleData?.tables.find((table) => table.title === "Waypoint-hendelser")?.rows || []) as EventRow[];
   const filteredEvents = events.filter((row) => {
@@ -1093,8 +1135,7 @@ export default function App() {
   const buildRows = moduleData?.metadata.buildLog.rows || [];
   const zoneRows = zoneSummary?.summary || [];
   const activeZoneNames = (zoneSummary?.activeVisits || []).map((row) => row.waypointName).join(", ") || "Ingen aktive";
-  const topZone = zoneRows[0];
-  const latestLocation = locations[locations.length - 1];
+  const latestUsableLocation = mapLocations[mapLocations.length - 1];
 
   const visitColumns: ColumnsType<VisitRow> = [
     { title: "Sone", dataIndex: "waypointName", fixed: "left" },
@@ -1178,9 +1219,10 @@ export default function App() {
     { title: "Type", dataIndex: "messageType" },
     { title: "Event", dataIndex: "event", render: eventTag },
     { title: "Opprinnelse", width: 120, render: (_, row) => originTag(row) },
+    { title: "Beregning", width: 120, render: (_, row) => calculationUseTag(row) },
     { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
     { title: "Fra forrige", dataIndex: "distanceFromPreviousM", width: 120, render: (value?: number | null) => (value == null ? "-" : `${formatNumber(value, 1)} m`) },
-    { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Presisjon", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
     { title: "Batteri", dataIndex: "batteryPercent", render: (value?: number) => (value == null ? "-" : `${formatNumber(value)} %`) },
   ];
 
@@ -1202,7 +1244,8 @@ export default function App() {
     },
     { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
     { title: "Fra forrige", dataIndex: "distanceFromPreviousM", width: 120, render: (value?: number | null) => (value == null ? "-" : `${formatNumber(value, 1)} m`) },
-    { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Beregning", width: 120, render: (_, row) => calculationUseTag(row) },
+    { title: "Presisjon", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
     { title: "Batteri sist", dataIndex: "batteryPercent", render: (value?: number) => (value == null ? "-" : `${formatNumber(value)} %`) },
   ];
 
@@ -1213,7 +1256,7 @@ export default function App() {
     { title: "Opprinnelse", width: 120, render: (_, row) => originTag(row) },
     { title: "Kilde", dataIndex: "sourceMessageType" },
     { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
-    { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Presisjon", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
   ];
 
   const recommendationColumns: ColumnsType<DiagnosticRecommendation> = [
@@ -1247,7 +1290,8 @@ export default function App() {
     { title: "Alder", dataIndex: "staleMinutes", render: staleTag },
     { title: "Type", dataIndex: "messageType" },
     { title: "Posisjon", render: (_, row) => mapLink(row.lat, row.lon) },
-    { title: "Noyaktighet", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
+    { title: "Beregning", width: 120, render: (_, row) => calculationUseTag(row) },
+    { title: "Presisjon", dataIndex: "accuracyM", render: (value?: number) => `${formatNumber(value)} m` },
   ];
 
   const buildColumns: ColumnsType<Record<string, any>> = [
@@ -1307,6 +1351,7 @@ export default function App() {
     () => (
       <>
         <SectionHeader title="Dashboard" subtitle={health?.public.publishUrl || "OwnTracks HTTP-mottak"} />
+        <Alert className="page-alert" type="info" showIcon message="Presisjonsfilter" description={precisionPolicyText} />
         <Row gutter={[12, 12]} className="metric-row">
           <Col xs={24} md={8} xl={4}>
             <MetricCard title="Status" value={health?.status || "-"} subtitle={health?.database === "ok" ? "Database OK" : "Database ukjent"} tone="#15803d" />
@@ -1318,18 +1363,18 @@ export default function App() {
             <MetricCard title="Sonetid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={`${zoneSummary?.totals.visits ?? 0} besok, ${timeFilterLabel}`} tone="#7c3aed" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Mest tid" value={topZone?.waypointName || "-"} subtitle={topZone ? `${topZone.totalDuration} / ${topZone.visits} besok` : "Ingen sonebesok"} tone="#f59e0b" />
+            <MetricCard title="Kartpunkter" value={mapLocations.length} subtitle={`${ignoredForAccuracy} ignorert i beregning`} tone="#0891b2" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Siste posisjon" value={formatDateTime(latestLocation?.timestamp || latestLocation?.receivedAt)} subtitle={latestLocation?.topic || "Ingen posisjon"} tone="#0891b2" />
+            <MetricCard title="Siste brukte posisjon" value={formatDateTime(latestUsableLocation?.timestamp || latestUsableLocation?.receivedAt)} subtitle={latestUsableLocation?.topic || "Ingen posisjon"} tone="#0891b2" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Waypoints" value={health?.counts.waypoints ?? 0} subtitle={`Build ${health?.app.build || "-"}`} tone="#475569" />
+            <MetricCard title="Presisjonsfilter" value={`${formatNumber(maxCalculationAccuracyM)} m`} subtitle={`Raadata beholdt: ${locations.length}`} tone="#475569" />
           </Col>
         </Row>
         <Row gutter={[12, 12]}>
           <Col xs={24} xl={15}>
-            <Card title="Kart og siste spor" extra={<Typography.Text type="secondary">{locations.length} posisjoner</Typography.Text>}>
+            <Card title="Kart og siste spor" extra={<Typography.Text type="secondary">{mapLocations.length} av {locations.length} posisjoner brukes</Typography.Text>}>
               <OwnTracksMap data={mapData} />
             </Card>
           </Col>
@@ -1341,14 +1386,17 @@ export default function App() {
         </Row>
       </>
     ),
-    [activeZoneNames, health, latestLocation, locations.length, mapData, timeFilterLabel, topZone, visitColumns, visits, zoneSummary],
+    [activeZoneNames, health, ignoredForAccuracy, latestUsableLocation, locations.length, mapData, mapLocations.length, maxCalculationAccuracyM, precisionPolicyText, timeFilterLabel, visitColumns, visits, zoneSummary],
   );
 
   let content: React.ReactNode = dashboard;
   if (view === "map") {
     content = (
       <>
-        <SectionHeader title="Kart" subtitle={`${locations.length} posisjoner, ${waypoints.length} waypoints - ${timeFilterLabel}`} />
+        <SectionHeader
+          title="Kart"
+          subtitle={`${mapLocations.length} kartpunkter av ${locations.length} raapunkter, ${ignoredForAccuracy} ignorert over ${formatNumber(maxCalculationAccuracyM)} m - ${timeFilterLabel}`}
+        />
         <Card title="Spor og soner">
           <OwnTracksMap data={mapData} large />
         </Card>
@@ -1403,7 +1451,7 @@ export default function App() {
   } else if (view === "suggestions") {
     content = (
       <>
-        <SectionHeader title="Forslag" subtitle="Mulige lokale soner basert paa steder der telefonen har staatt stille" />
+        <SectionHeader title="Forslag" subtitle={`Mulige lokale soner basert paa stopp med presisjon maks ${formatNumber(maxCalculationAccuracyM)} m`} />
         <Card className="suggestion-control-card">
           <Space wrap>
             <Select
@@ -1420,6 +1468,7 @@ export default function App() {
             />
             <InputNumber addonBefore="Min stopp" addonAfter="min" min={1} max={1440} value={suggestionMinMinutes} onChange={(value) => setSuggestionMinMinutes(Number(value || 10))} />
             <InputNumber addonBefore="Radius" addonAfter="m" min={15} max={500} value={suggestionRadiusM} onChange={(value) => setSuggestionRadiusM(Number(value || 80))} />
+            <Tag color="blue">Presisjon maks {formatNumber(maxCalculationAccuracyM)} m</Tag>
             <Button type="primary" icon={<ReloadOutlined />} loading={suggestionsLoading} onClick={() => void loadSuggestions()}>
               Finn forslag
             </Button>
@@ -1442,7 +1491,7 @@ export default function App() {
     const staleRatio = diagnostics?.counts.locations ? Math.round((diagnostics.counts.staleLocations / diagnostics.counts.locations) * 100) : 0;
     content = (
       <>
-        <SectionHeader title="Diagnose" subtitle="Datakvalitet, rapporteringshull og grunnlag for sonebesok" />
+        <SectionHeader title="Diagnose" subtitle={`Datakvalitet, rapporteringshull og beregningsgrunnlag. ${precisionPolicyText}`} />
         <Row gutter={[12, 12]} className="metric-row">
           <Col xs={24} md={8} xl={4}>
             <MetricCard title="Meldinger" value={diagnostics?.counts.messages ?? 0} subtitle={`${diagnostics?.counts.locations ?? 0} med posisjon`} tone="#2563eb" />
@@ -1454,10 +1503,10 @@ export default function App() {
             <MetricCard title="Rapporteringshull" value={diagnostics?.counts.largeGaps ?? 0} subtitle={`Maks ${formatNumber(diagnostics?.gaps.maxMinutes, 1)} min`} tone="#d97706" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Noyaktighet p90" value={formatNumber(diagnostics?.accuracy.p90M)} suffix="m" subtitle={`Snitt ${formatNumber(diagnostics?.accuracy.avgM)} m`} tone="#0891b2" />
+            <MetricCard title="Presisjon p90" value={formatNumber(diagnostics?.accuracy.p90M)} suffix="m" subtitle={`Grense ${formatNumber(maxCalculationAccuracyM)} m`} tone="#0891b2" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Gjentatte posisjoner" value={diagnostics?.counts.duplicateLocations ?? 0} subtitle="Samme tid og koordinat" tone="#7c3aed" />
+            <MetricCard title="Brukbare posisjoner" value={diagnostics?.counts.usableLocations ?? mapLocations.length} subtitle={`${ignoredForAccuracy} filtrert bort`} tone="#7c3aed" />
           </Col>
           <Col xs={24} md={8} xl={4}>
             <MetricCard title="Transitions" value={diagnostics?.counts.transitions ?? 0} subtitle={`Generert ${formatDateTime(diagnostics?.generatedAt)}`} tone="#15803d" />
@@ -1515,7 +1564,7 @@ export default function App() {
       <>
         <SectionHeader
           title="Meldinger"
-          subtitle={`${locations.length} raameldinger / ${groupedMessages.length} posisjoner i valgt periode: ${timeFilterLabel}`}
+          subtitle={`${locations.length} raameldinger / ${groupedMessages.length} posisjoner. ${ignoredForAccuracy} markert lav presisjon. Periode: ${timeFilterLabel}`}
         />
         <div className="message-view-toolbar">
           <Segmented
