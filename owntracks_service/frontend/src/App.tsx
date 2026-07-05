@@ -44,319 +44,40 @@ import type { ColumnsType } from "antd/es/table";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  DeviceRow,
+  DiagnosticGapRow,
+  DiagnosticRecommendation,
+  DiagnosticsPayload,
+  DiagnosticWaypoint,
+  EventRow,
+  HealthPayload,
+  LocationRow,
+  MapPayload,
+  MessageGroupRow,
+  ModulePayload,
+  TimeFilterMode,
+  ViewKey,
+  VisitDisplayRow,
+  VisitRow,
+  WaypointRow,
+  WaypointSuggestionRow,
+  WaypointSuggestionsPayload,
+  ZoneSummaryPayload,
+  ZoneSummaryRow,
+} from "./types";
 
 const { Header, Sider, Content } = Layout;
 const MENU_HIDDEN_STORAGE_KEY = "owntracks:mainMenuHidden";
 const MAP_LAYER_IDS = ["owntracks-waypoints-fill", "owntracks-waypoints-line", "owntracks-track-line"];
 const MAP_SOURCE_IDS = ["owntracks-waypoints", "owntracks-track"];
-
-type ViewKey = "dashboard" | "places" | "map" | "visits" | "waypoints" | "suggestions" | "diagnostics" | "messages" | "events" | "build";
-type TimeFilterMode = "relative" | "custom";
-
-type HealthPayload = {
-  status: string;
-  service: string;
-  app: { name: string; version: string; build: string; commit: string };
-  database: string;
-  ingest: { mode: string; path: string; authTokenEnabled: boolean };
-  public: { baseUrl: string; publishUrl: string; adminUrl: string };
-  qualityPolicy?: {
-    maxCalculationAccuracyM: number;
-    rawDataRetained: boolean;
-    appliesTo: string[];
-  };
-  state: {
-    lastMessageAt: string | null;
-    lastStoreError: string | null;
-    messagesReceived: number;
-    messagesStored: number;
-    messagesDuplicate: number;
-  };
-  counts: {
-    devices: number;
-    locations: number;
-    waypoints: number;
-    events: number;
-    zoneVisits: number;
-  };
-  time: string;
-};
-
-type ModulePayload = {
-  title: string;
-  subtitle: string;
-  cards: Array<{ title: string; value: string | number; unit?: string; subtitle?: string }>;
-  tables: Array<{ title: string; columns: string[]; rows: Array<Record<string, any>> }>;
-  metadata: {
-    state: HealthPayload["state"];
-    build: HealthPayload["app"];
-    buildLog: { currentBuild: string; rows: Array<Record<string, any>> };
-  };
-};
-
-type LocationRow = {
-  id: number;
-  topic: string;
-  username?: string;
-  device?: string;
-  receivedAt?: string;
-  timestamp?: string;
-  messageType?: string;
-  event?: string;
-  origin?: "phone" | "server";
-  isSynthetic?: boolean;
-  lat?: number;
-  lon?: number;
-  distanceFromPreviousM?: number | null;
-  accuracyM?: number;
-  usableForCalculation?: boolean;
-  accuracyLimitM?: number;
-  batteryPercent?: number;
-  staleMinutes?: number;
-  gapMinutes?: number;
-};
-
-type MessageGroupRow = {
-  id: string;
-  topic: string;
-  timestamp?: string;
-  firstReceivedAt?: string;
-  lastReceivedAt?: string;
-  count: number;
-  messageTypes: string[];
-  events: string[];
-  lat?: number;
-  lon?: number;
-  distanceFromPreviousM?: number | null;
-  accuracyM?: number;
-  usableForCalculation?: boolean;
-  accuracyLimitM?: number;
-  batteryPercent?: number;
-};
-
-type DeviceRow = {
-  id: number;
-  topic: string;
-  username?: string;
-  device?: string;
-  lastSeenAt?: string;
-  lastLat?: number;
-  lastLon?: number;
-  lastAccuracyM?: number;
-  lastUsableForCalculation?: boolean;
-  lastBatteryPercent?: number;
-};
-
-type WaypointRow = {
-  id: number;
-  topic: string;
-  waypointName: string;
-  source?: string;
-  category?: string;
-  address?: string;
-  notes?: string;
-  isActive?: boolean;
-  lat?: number;
-  lon?: number;
-  radiusM?: number;
-  isInside?: boolean;
-  lastState?: string;
-  lastEvent?: string;
-  lastSeenAt?: string;
-};
-
-type WaypointSuggestionRow = {
-  id: string;
-  topic: string;
-  username?: string;
-  device?: string;
-  suggestedName: string;
-  address?: string;
-  lat: number;
-  lon: number;
-  radiusM: number;
-  sampleCount: number;
-  visits: number;
-  totalDuration: string;
-  totalDurationSeconds: number;
-  firstSeenAt?: string;
-  lastSeenAt?: string;
-  maxAccuracyM?: number;
-  confidence?: number;
-};
-
-type WaypointSuggestionsPayload = {
-  parameters: Record<string, string | number | boolean>;
-  suggestions: WaypointSuggestionRow[];
-};
-
-type VisitRow = {
-  id: number;
-  topic: string;
-  waypointName: string;
-  startedAt?: string;
-  endedAt?: string;
-  durationSeconds?: number;
-  duration?: string;
-  status?: string;
-  startLat?: number;
-  startLon?: number;
-  endLat?: number;
-  endLon?: number;
-  lastLat?: number;
-  lastLon?: number;
-  enterSource?: string;
-  leaveSource?: string;
-  confidence?: number;
-};
-
-type ZoneSummaryRow = {
-  id: string;
-  topic: string;
-  username?: string;
-  device?: string;
-  waypointName: string;
-  visits: number;
-  openVisits: number;
-  totalDuration: string;
-  totalDurationSeconds: number;
-  avgDuration: string;
-  avgDurationSeconds: number;
-  firstSeenAt?: string;
-  lastSeenAt?: string;
-  lastStartedAt?: string;
-  lastEndedAt?: string;
-  lastDuration?: string;
-  currentStartedAt?: string;
-  currentLastSeenAt?: string;
-  currentDurationSeconds?: number;
-  currentDuration?: string;
-  lastEnterAt?: string;
-  lastLeaveAt?: string;
-  lastStatus?: string;
-  lastConfidence?: number;
-  enterSources?: string[];
-  waypoint?: WaypointRow;
-};
-
-type ZoneSummaryPayload = {
-  hours: number;
-  generatedAt?: string;
-  totals: {
-    zones: number;
-    visits: number;
-    openVisits: number;
-    totalDurationSeconds: number;
-    totalDuration: string;
-  };
-  summary: ZoneSummaryRow[];
-  places?: ZoneSummaryRow[];
-  activeVisits: VisitRow[];
-  recentVisits: VisitRow[];
-};
-
-type EventRow = {
-  id: number;
-  topic: string;
-  waypointName: string;
-  eventType?: string;
-  sourceMessageType?: string;
-  origin?: "phone" | "server";
-  isSynthetic?: boolean;
-  timestamp?: string;
-  receivedAt?: string;
-  lat?: number;
-  lon?: number;
-  accuracyM?: number;
-  ignoredForState?: boolean;
-  ignoredReason?: string;
-};
-
-type MapPayload = {
-  hours: number;
-  start?: string;
-  end?: string;
-  filterMode?: TimeFilterMode;
-  locations: LocationRow[];
-  mapLocations?: LocationRow[];
-  devices: DeviceRow[];
-  waypoints: WaypointRow[];
-  zoneVisits: VisitRow[];
-  qualityPolicy?: {
-    maxCalculationAccuracyM: number;
-    rawLocations: number;
-    mapLocations: number;
-    ignoredForAccuracy: number;
-    rawDataRetained: boolean;
-  };
-};
-
-type DiagnosticRecommendation = {
-  severity: "ok" | "info" | "warning" | "bad";
-  title: string;
-  text: string;
-};
-
-type DiagnosticWaypoint = {
-  id: number;
-  waypointName: string;
-  source?: string;
-  radiusM?: number;
-  insideLocationCount: number;
-  nearLocationCount: number;
-  minDistanceM?: number;
-  lastSeenAt?: string;
-  lastPositionAt?: string;
-  isInside?: boolean;
-};
-
-type DiagnosticGapRow = {
-  from: LocationRow;
-  to: LocationRow;
-  gapMinutes: number;
-};
-
-type DiagnosticsPayload = {
-  hours: number;
-  generatedAt?: string;
-  parameters: {
-    staleMinutes: number;
-    gapMinutes: number;
-    maxAccuracyM: number;
-    minWaypointRadiusM?: number;
-  };
-  counts: {
-    messages: number;
-    locations: number;
-    usableLocations?: number;
-    transitions: number;
-    statusMessages: number;
-    staleLocations: number;
-    duplicateLocations: number;
-    poorAccuracyLocations: number;
-    largeGaps: number;
-  };
-  accuracy: {
-    avgM?: number;
-    p50M?: number;
-    p90M?: number;
-    maxM?: number;
-  };
-  gaps: {
-    avgMinutes?: number;
-    p90Minutes?: number;
-    maxMinutes?: number;
-    rows: DiagnosticGapRow[];
-  };
-  latest?: LocationRow;
-  staleSamples: LocationRow[];
-  waypoints: DiagnosticWaypoint[];
-  recommendations: DiagnosticRecommendation[];
-};
+const CATEGORY_ALL = "__all__";
+const CATEGORY_NONE = "__none__";
 
 const NAV_ITEMS: Array<{ key: ViewKey; label: string; icon: React.ReactNode; color: string }> = [
   { key: "dashboard", label: "Dashboard", icon: <DashboardOutlined />, color: "#2563eb" },
   { key: "places", label: "Kjente steder", icon: <AimOutlined />, color: "#15803d" },
+  { key: "occupancy", label: "Opphold", icon: <ClockCircleOutlined />, color: "#7c3aed" },
   { key: "map", label: "Kart", icon: <EnvironmentOutlined />, color: "#0891b2" },
   { key: "visits", label: "Sonebesok", icon: <NodeIndexOutlined />, color: "#15803d" },
   { key: "waypoints", label: "Waypoints", icon: <PushpinOutlined />, color: "#f59e0b" },
@@ -646,6 +367,14 @@ function categoryTag(value?: string) {
   return value ? <Tag color="blue">{value}</Tag> : <Typography.Text type="secondary">Uten kategori</Typography.Text>;
 }
 
+function categoryFilterValue(value?: string | null) {
+  return value ? value : CATEGORY_NONE;
+}
+
+function categoryMatches(value: string | undefined | null, selected: string) {
+  return selected === CATEGORY_ALL || categoryFilterValue(value) === selected;
+}
+
 function durationOrDash(value?: string | null) {
   return value && value !== "-" ? value : "-";
 }
@@ -658,6 +387,14 @@ function durationSecondsLabel(seconds?: number | null) {
   if (days > 0) return `${days} d ${hours} t`;
   if (hours > 0) return `${hours} t ${minutes} min`;
   return `${minutes} min`;
+}
+
+function visitEffectiveSeconds(row: VisitRow) {
+  if (typeof row.durationSeconds === "number") return Math.max(0, row.durationSeconds);
+  const startMs = timestampMs(row.startedAt);
+  if (startMs === undefined) return 0;
+  const endMs = timestampMs(row.endedAt) || Date.now();
+  return Math.max(0, Math.round((endMs - startMs) / 1000));
 }
 
 function visitDuration(row: VisitRow) {
@@ -995,6 +732,7 @@ export default function App() {
   const [timeFilterMode, setTimeFilterMode] = useState<TimeFilterMode>("relative");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState(CATEGORY_ALL);
   const [messageView, setMessageView] = useState<"grouped" | "raw">("grouped");
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [moduleData, setModuleData] = useState<ModulePayload | null>(null);
@@ -1211,17 +949,64 @@ export default function App() {
   });
   const buildRows = moduleData?.metadata.buildLog.rows || [];
   const zoneRows = zoneSummary?.summary || [];
-  const placeRows = zoneSummary?.places || zoneRows;
+  const rawPlaceRows = zoneSummary?.places || zoneRows;
+  const waypointByPlace = useMemo(() => {
+    const result = new Map<string, WaypointRow>();
+    waypoints.forEach((row) => result.set(placeKey(row.topic, row.waypointName), row));
+    rawPlaceRows.forEach((row) => row.waypoint && result.set(placeKey(row.topic, row.waypointName), row.waypoint));
+    return result;
+  }, [rawPlaceRows, waypoints]);
   const categoryOptions = useMemo(() => {
     const categories = new Set<string>();
     waypoints.forEach((row) => row.category && categories.add(row.category));
-    placeRows.forEach((row) => row.waypoint?.category && categories.add(row.waypoint.category));
+    rawPlaceRows.forEach((row) => row.waypoint?.category && categories.add(row.waypoint.category));
     return Array.from(categories).sort((left, right) => left.localeCompare(right, "no")).map((value) => ({ value, label: value }));
-  }, [placeRows, waypoints]);
+  }, [rawPlaceRows, waypoints]);
+  const categoryFilterOptions = useMemo(
+    () => [
+      { value: CATEGORY_ALL, label: "Alle kategorier" },
+      { value: CATEGORY_NONE, label: "Uten kategori" },
+      ...categoryOptions,
+    ],
+    [categoryOptions],
+  );
+  const placeRows = useMemo(
+    () => rawPlaceRows.filter((row) => categoryMatches(row.waypoint?.category, categoryFilter)),
+    [categoryFilter, rawPlaceRows],
+  );
+  const filteredWaypoints = useMemo(
+    () => waypoints.filter((row) => categoryMatches(row.category, categoryFilter)),
+    [categoryFilter, waypoints],
+  );
+  const visitsWithPlace = useMemo<VisitDisplayRow[]>(
+    () =>
+      visits.map((row) => {
+        const waypoint = waypointByPlace.get(placeKey(row.topic, row.waypointName));
+        return {
+          ...row,
+          category: waypoint?.category,
+          address: waypoint?.address,
+          totalDurationSeconds: row.durationSeconds ?? visitEffectiveSeconds(row),
+        };
+      }),
+    [visits, waypointByPlace],
+  );
+  const filteredVisits = useMemo(
+    () => visitsWithPlace.filter((row) => categoryMatches(row.category, categoryFilter)),
+    [categoryFilter, visitsWithPlace],
+  );
+  const filteredMapData = useMemo<MapPayload | null>(() => {
+    if (!mapData || categoryFilter === CATEGORY_ALL) return mapData;
+    return {
+      ...mapData,
+      waypoints: filteredWaypoints,
+      zoneVisits: filteredVisits,
+    };
+  }, [categoryFilter, filteredVisits, filteredWaypoints, mapData]);
   const selectedPlace = selectedPlaceId ? placeRows.find((row) => placeKey(row.topic, row.waypointName) === selectedPlaceId) || null : null;
   const activePlace = selectedPlace || placeRows[0] || null;
   const selectedPlaceVisits = activePlace
-    ? visits
+    ? filteredVisits
         .filter((row) => row.topic === activePlace.topic && row.waypointName === activePlace.waypointName)
         .sort((left, right) => (timestampMs(right.startedAt) || 0) - (timestampMs(left.startedAt) || 0))
     : [];
@@ -1263,12 +1048,46 @@ export default function App() {
           return rows;
         }),
         devices: [],
-        waypoints: activePlace.waypoint ? [activePlace.waypoint] : waypoints.filter((row) => row.topic === activePlace.topic && row.waypointName === activePlace.waypointName),
+        waypoints: activePlace.waypoint ? [activePlace.waypoint] : filteredWaypoints.filter((row) => row.topic === activePlace.topic && row.waypointName === activePlace.waypointName),
         zoneVisits: selectedPlaceVisits,
       } satisfies MapPayload)
     : null;
-  const activeZoneNames = (zoneSummary?.activeVisits || []).map((row) => row.waypointName).join(", ") || "Ingen aktive";
+  const filteredActiveVisits = useMemo(
+    () =>
+      (zoneSummary?.activeVisits || []).filter((row) => {
+        const waypoint = waypointByPlace.get(placeKey(row.topic, row.waypointName));
+        return categoryMatches(waypoint?.category, categoryFilter);
+      }),
+    [categoryFilter, waypointByPlace, zoneSummary],
+  );
+  const activeZoneNames = filteredActiveVisits.map((row) => row.waypointName).join(", ") || "Ingen aktive";
   const latestUsableLocation = mapLocations[mapLocations.length - 1];
+  const occupancyRows = useMemo(
+    () => [...filteredVisits].sort((left, right) => (timestampMs(right.startedAt) || 0) - (timestampMs(left.startedAt) || 0)),
+    [filteredVisits],
+  );
+  const occupancyTotalSeconds = useMemo(
+    () => occupancyRows.reduce((sum, row) => sum + visitEffectiveSeconds(row), 0),
+    [occupancyRows],
+  );
+  const occupancyCategoryRows = useMemo(() => {
+    const grouped = new Map<string, { id: string; category: string; visits: number; totalDurationSeconds: number; openVisits: number }>();
+    occupancyRows.forEach((row) => {
+      const id = categoryFilterValue(row.category);
+      const current = grouped.get(id) || {
+        id,
+        category: row.category || "Uten kategori",
+        visits: 0,
+        totalDurationSeconds: 0,
+        openVisits: 0,
+      };
+      current.visits += 1;
+      current.totalDurationSeconds += visitEffectiveSeconds(row);
+      if (row.status === "open") current.openVisits += 1;
+      grouped.set(id, current);
+    });
+    return Array.from(grouped.values()).sort((left, right) => right.totalDurationSeconds - left.totalDurationSeconds);
+  }, [occupancyRows]);
 
   const visitColumns: ColumnsType<VisitRow> = [
     { title: "Sone", dataIndex: "waypointName", fixed: "left" },
@@ -1292,6 +1111,29 @@ export default function App() {
     { title: "Hvor lenge", width: 140, render: (_, row) => visitDuration(row) },
     { title: "Inn", dataIndex: "enterSource", width: 150 },
     { title: "Ut", width: 150, render: (_, row) => (row.status === "open" ? "-" : row.leaveSource || "-") },
+  ];
+
+  const occupancyColumns: ColumnsType<VisitDisplayRow> = [
+    { title: "Sted", dataIndex: "waypointName", fixed: "left", width: 210 },
+    { title: "Kategori", dataIndex: "category", width: 130, render: categoryTag },
+    { title: "Kom", dataIndex: "startedAt", width: 190, render: formatDateTime },
+    {
+      title: "Dro",
+      dataIndex: "endedAt",
+      width: 190,
+      render: (value?: string, row?: VisitDisplayRow) => (row?.status === "open" ? <Tag color="green">Pagaende</Tag> : formatDateTime(value)),
+    },
+    { title: "Hvor lenge", width: 130, render: (_, row) => visitDuration(row) },
+    { title: "Status", dataIndex: "status", width: 110, render: statusTag },
+    { title: "Adresse", dataIndex: "address", ellipsis: true },
+    { title: "Kilder", width: 180, render: (_, row) => [row.enterSource, row.leaveSource].filter(Boolean).join(" / ") || "-" },
+  ];
+
+  const occupancyCategoryColumns: ColumnsType<{ id: string; category: string; visits: number; totalDurationSeconds: number; openVisits: number }> = [
+    { title: "Kategori", dataIndex: "category" },
+    { title: "Besok", dataIndex: "visits", width: 90 },
+    { title: "Aktiv", dataIndex: "openVisits", width: 90 },
+    { title: "Total tid", dataIndex: "totalDurationSeconds", width: 130, render: durationSecondsLabel },
   ];
 
   const placeListColumns: ColumnsType<ZoneSummaryRow> = [
@@ -1513,6 +1355,12 @@ export default function App() {
           <Input aria-label="Til tidspunkt" type="datetime-local" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} />
         </Space.Compact>
       ) : null}
+      <Select
+        value={categoryFilter}
+        onChange={setCategoryFilter}
+        className="category-filter-select"
+        options={categoryFilterOptions}
+      />
       <Button icon={<ToolOutlined />} loading={rebuilding} onClick={rebuildVisits}>
         Bygg sonebesok
       </Button>
@@ -1543,10 +1391,10 @@ export default function App() {
             <MetricCard title="Status" value={health?.status || "-"} subtitle={health?.database === "ok" ? "Database OK" : "Database ukjent"} tone="#15803d" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Aktiv sone" value={zoneSummary?.totals.openVisits ?? 0} subtitle={activeZoneNames} tone="#15803d" />
+            <MetricCard title="Aktiv sone" value={filteredActiveVisits.length} subtitle={activeZoneNames} tone="#15803d" />
           </Col>
           <Col xs={24} md={8} xl={4}>
-            <MetricCard title="Sonetid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={`${zoneSummary?.totals.visits ?? 0} besok, ${timeFilterLabel}`} tone="#7c3aed" />
+            <MetricCard title="Sonetid" value={durationSecondsLabel(occupancyTotalSeconds)} subtitle={`${filteredVisits.length} besok, ${timeFilterLabel}`} tone="#7c3aed" />
           </Col>
           <Col xs={24} md={8} xl={4}>
             <MetricCard title="Kartpunkter" value={mapLocations.length} subtitle={`${ignoredForAccuracy} ignorert i beregning`} tone="#0891b2" />
@@ -1561,18 +1409,18 @@ export default function App() {
         <Row gutter={[12, 12]}>
           <Col xs={24} xl={15}>
             <Card title="Kart og siste spor" extra={<Typography.Text type="secondary">{mapLocations.length} av {locations.length} posisjoner brukes</Typography.Text>}>
-              <OwnTracksMap data={mapData} />
+              <OwnTracksMap data={filteredMapData} />
             </Card>
           </Col>
           <Col xs={24} xl={9}>
             <Card title="Siste sonebesok">
-              <DataTable<VisitRow> columns={visitColumns.slice(0, 5)} data={visits.slice(0, 8)} />
+              <DataTable<VisitDisplayRow> columns={visitColumns.slice(0, 5) as ColumnsType<VisitDisplayRow>} data={occupancyRows.slice(0, 8)} />
             </Card>
           </Col>
         </Row>
       </>
     ),
-    [activeZoneNames, health, ignoredForAccuracy, latestUsableLocation, locations.length, mapData, mapLocations.length, maxCalculationAccuracyM, precisionPolicyText, timeFilterLabel, visitColumns, visits, zoneSummary],
+    [activeZoneNames, filteredActiveVisits.length, filteredMapData, filteredVisits.length, health, ignoredForAccuracy, latestUsableLocation, locations.length, mapLocations.length, maxCalculationAccuracyM, occupancyRows, occupancyTotalSeconds, precisionPolicyText, timeFilterLabel, visitColumns],
   );
 
   let content: React.ReactNode = dashboard;
@@ -1664,6 +1512,51 @@ export default function App() {
         </div>
       </>
     );
+  } else if (view === "occupancy") {
+    content = (
+      <>
+        <SectionHeader
+          title="Opphold"
+          subtitle={`Praktisk oversikt over hvor lenge du har vaert paa kjente steder. Periode: ${timeFilterLabel}`}
+        />
+        <Row gutter={[12, 12]} className="metric-row">
+          <Col xs={24} md={8}>
+            <MetricCard title="Total tid" value={durationSecondsLabel(occupancyTotalSeconds)} subtitle={`${occupancyRows.length} besok i valgt filter`} tone="#7c3aed" />
+          </Col>
+          <Col xs={24} md={8}>
+            <MetricCard title="Aktive opphold" value={filteredActiveVisits.length} subtitle={activeZoneNames} tone="#15803d" />
+          </Col>
+          <Col xs={24} md={8}>
+            <MetricCard title="Steder" value={placeRows.length} subtitle={categoryFilter === CATEGORY_ALL ? "Alle kategorier" : categoryFilter === CATEGORY_NONE ? "Uten kategori" : categoryFilter} tone="#0891b2" />
+          </Col>
+        </Row>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} xl={8}>
+            <Card title="Tid per kategori">
+              <Table
+                size="small"
+                columns={occupancyCategoryColumns}
+                dataSource={occupancyCategoryRows}
+                rowKey="id"
+                pagination={false}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} xl={16}>
+            <Card title="Opphold i perioden" extra={<Typography.Text type="secondary">{occupancyRows.length} rader</Typography.Text>}>
+              <Table<VisitDisplayRow>
+                size="small"
+                columns={occupancyColumns}
+                dataSource={occupancyRows}
+                rowKey="id"
+                pagination={{ pageSize: 25, showSizeChanger: false }}
+                scroll={{ x: true }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      </>
+    );
   } else if (view === "map") {
     content = (
       <>
@@ -1672,7 +1565,7 @@ export default function App() {
           subtitle={`${mapLocations.length} kartpunkter av ${locations.length} raapunkter, ${ignoredForAccuracy} ignorert over ${formatNumber(maxCalculationAccuracyM)} m - ${timeFilterLabel}`}
         />
         <Card title="Spor og soner">
-          <OwnTracksMap data={mapData} large />
+          <OwnTracksMap data={filteredMapData} large />
         </Card>
       </>
     );
@@ -1682,20 +1575,20 @@ export default function App() {
         <SectionHeader title="Sonebesok" subtitle="Oppsummering og siste beregnede/eventstyrte besok per waypoint" />
         <Row gutter={[12, 12]} className="metric-row">
           <Col xs={24} md={8}>
-            <MetricCard title="Soner i perioden" value={zoneSummary?.totals.zones ?? 0} subtitle={`${zoneSummary?.totals.visits ?? 0} besok`} tone="#15803d" />
+            <MetricCard title="Soner i perioden" value={placeRows.length} subtitle={`${filteredVisits.length} besok`} tone="#15803d" />
           </Col>
           <Col xs={24} md={8}>
-            <MetricCard title="Total sonetid" value={zoneSummary?.totals.totalDuration || "-"} subtitle={timeFilterLabel} tone="#7c3aed" />
+            <MetricCard title="Total sonetid" value={durationSecondsLabel(occupancyTotalSeconds)} subtitle={timeFilterLabel} tone="#7c3aed" />
           </Col>
           <Col xs={24} md={8}>
-            <MetricCard title="Apen naa" value={zoneSummary?.totals.openVisits ?? 0} subtitle={activeZoneNames} tone="#f59e0b" />
+            <MetricCard title="Apen naa" value={filteredActiveVisits.length} subtitle={activeZoneNames} tone="#f59e0b" />
           </Col>
         </Row>
         <Card title="Soneoppsummering" extra={<Typography.Text type="secondary">Sortert paa total tid</Typography.Text>}>
-          <DataTable<ZoneSummaryRow> columns={zoneSummaryColumns} data={zoneRows} rowKey="id" />
+          <DataTable<ZoneSummaryRow> columns={zoneSummaryColumns} data={placeRows} rowKey="id" />
         </Card>
         <Card title="Siste sonebesok">
-          <DataTable<VisitRow> columns={visitColumns} data={visits} />
+          <DataTable<VisitDisplayRow> columns={visitColumns as ColumnsType<VisitDisplayRow>} data={occupancyRows} />
         </Card>
       </>
     );
@@ -1714,7 +1607,7 @@ export default function App() {
           <Table<WaypointRow>
             size="small"
             columns={waypointColumns}
-            dataSource={waypoints}
+            dataSource={filteredWaypoints}
             rowKey="id"
             pagination={{ pageSize: 20, showSizeChanger: false }}
             scroll={{ x: true }}

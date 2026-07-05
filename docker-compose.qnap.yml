@@ -1,4 +1,21 @@
 services:
+  owntracks_postgres:
+    image: postgres:17
+    container_name: owntracks_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${OWNTRACKS_POSTGRES_DB:-owntracks}
+      POSTGRES_USER: ${OWNTRACKS_POSTGRES_USER:-owntracks}
+      POSTGRES_PASSWORD: ${OWNTRACKS_POSTGRES_PASSWORD:-owntracks}
+    volumes:
+      - ${OWNTRACKS_POSTGRES_DATA_DIR:-./owntracks_service/postgres_data}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${OWNTRACKS_POSTGRES_USER:-owntracks} -d ${OWNTRACKS_POSTGRES_DB:-owntracks}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   owntracks_service:
     build:
       context: ./owntracks_service
@@ -6,14 +23,18 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    depends_on:
+      owntracks_postgres:
+        condition: service_healthy
     ports:
       - "192.168.20.218:8128:8128"
     volumes:
       - ${OWNTRACKS_HOST_DATA_DIR:-./owntracks_service/data}:/data
     environment:
       OWNTRACKS_DATA_DIR: /data
+      OWNTRACKS_DATABASE_URL: ${OWNTRACKS_DATABASE_URL:-postgresql+psycopg://owntracks:owntracks@owntracks_postgres:5432/owntracks}
       OWNTRACKS_PUBLIC_BASE_URL: ${OWNTRACKS_PUBLIC_BASE_URL:-https://owntracks.lilletorget.net}
-      OWNTRACKS_APP_BUILD: ${OWNTRACKS_APP_BUILD:-19}
+      OWNTRACKS_APP_BUILD: ${OWNTRACKS_APP_BUILD:-20}
       OWNTRACKS_APP_COMMIT: ${APP_COMMIT:-unknown}
       OWNTRACKS_MAX_CALCULATION_ACCURACY_M: ${OWNTRACKS_MAX_CALCULATION_ACCURACY_M:-30}
     healthcheck:

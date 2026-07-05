@@ -5,7 +5,7 @@ export default defineConfig({
   base: "/",
   plugins: [react()],
   build: {
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -13,6 +13,9 @@ export default defineConfig({
           if (!normalized.includes("/node_modules/")) return undefined;
           if (normalized.includes("/antd/") || normalized.includes("/@ant-design/icons/") || normalized.includes("/rc-")) {
             return "antd-core";
+          }
+          if (normalized.includes("/maplibre-gl/")) {
+            return "maplibre";
           }
           if (normalized.includes("/react/") || normalized.includes("/react-dom/")) {
             return "react";

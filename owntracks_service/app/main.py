@@ -2307,6 +2307,7 @@ def service_root() -> dict[str, Any]:
         "admin": "/",
         "publish": "/pub",
         "map": "/owntracks/api/map",
+        "fibaroSummary": "/api/owntracks/fibaro-summary",
     }
 
 
@@ -2888,6 +2889,96 @@ def owntracks_external_zone_summary(
 ) -> dict[str, Any]:
     require_owntracks_admin(request)
     return api_zone_summary(hours=hours, limit=limit, start=start, end=end, from_time=from_time, to_time=to_time)
+
+
+def compact_place_summary(row: dict[str, Any]) -> dict[str, Any]:
+    waypoint = row.get("waypoint") if isinstance(row.get("waypoint"), dict) else {}
+    return {
+        "id": row.get("id"),
+        "topic": row.get("topic"),
+        "waypointName": row.get("waypointName"),
+        "category": waypoint.get("category"),
+        "address": waypoint.get("address"),
+        "isInside": waypoint.get("isInside"),
+        "status": row.get("lastStatus"),
+        "visits": row.get("visits") or 0,
+        "openVisits": row.get("openVisits") or 0,
+        "totalDurationSeconds": row.get("totalDurationSeconds") or 0,
+        "totalDuration": row.get("totalDuration") or "-",
+        "currentStartedAt": row.get("currentStartedAt"),
+        "currentDurationSeconds": row.get("currentDurationSeconds") or 0,
+        "currentDuration": row.get("currentDuration") or "-",
+        "lastEnterAt": row.get("lastEnterAt"),
+        "lastLeaveAt": row.get("lastLeaveAt"),
+        "lastSeenAt": row.get("lastSeenAt"),
+        "lat": waypoint.get("lat"),
+        "lon": waypoint.get("lon"),
+        "radiusM": waypoint.get("radiusM"),
+    }
+
+
+@app.get("/api/owntracks/fibaro-summary")
+def api_fibaro_summary(
+    hours: int = Query(24, ge=0, le=24 * 365 * 3),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
+) -> dict[str, Any]:
+    zone_payload = api_zone_summary(hours=hours, limit=250, start=start, end=end, from_time=from_time, to_time=to_time)
+    diagnostics = api_diagnostics(
+        hours=hours,
+        stale_minutes=DATA_QUALITY_STALE_MINUTES,
+        gap_minutes=DATA_QUALITY_GAP_MINUTES,
+        max_accuracy_m=DATA_QUALITY_MAX_ACCURACY_M,
+        start=start,
+        end=end,
+        from_time=from_time,
+        to_time=to_time,
+    )
+    places = [compact_place_summary(row) for row in zone_payload.get("places", [])]
+    active_places = [row for row in places if int(row.get("openVisits") or 0) > 0]
+    active_places.sort(key=lambda row: (row.get("currentStartedAt") or row.get("lastSeenAt") or ""), reverse=True)
+    return {
+        "ok": True,
+        "service": "owntracks_service",
+        "app": owntracks_build_summary(),
+        "generatedAt": iso_dt(utc_now()),
+        "period": {
+            "hours": zone_payload.get("hours"),
+            "start": zone_payload.get("start"),
+            "end": zone_payload.get("end"),
+            "filterMode": zone_payload.get("filterMode"),
+        },
+        "activePlace": active_places[0] if active_places else None,
+        "activePlaces": active_places,
+        "places": places,
+        "totals": zone_payload.get("totals", {}),
+        "latestLocation": diagnostics.get("latest"),
+        "quality": {
+            "maxCalculationAccuracyM": MAX_CALCULATION_ACCURACY_M,
+            "messages": diagnostics.get("counts", {}).get("messages", 0),
+            "locations": diagnostics.get("counts", {}).get("locations", 0),
+            "usableLocations": diagnostics.get("counts", {}).get("usableLocations", 0),
+            "poorAccuracyLocations": diagnostics.get("counts", {}).get("poorAccuracyLocations", 0),
+            "largeGaps": diagnostics.get("counts", {}).get("largeGaps", 0),
+            "accuracy": diagnostics.get("accuracy", {}),
+            "recommendationCount": len(diagnostics.get("recommendations", [])),
+        },
+    }
+
+
+@app.get("/owntracks/api/fibaro-summary")
+def owntracks_external_fibaro_summary(
+    request: Request,
+    hours: int = Query(24, ge=0, le=24 * 365 * 3),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
+) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_fibaro_summary(hours=hours, start=start, end=end, from_time=from_time, to_time=to_time)
 
 
 @app.get("/api/owntracks/diagnostics")

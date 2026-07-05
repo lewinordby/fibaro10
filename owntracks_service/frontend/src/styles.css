@@ -324,6 +324,10 @@ a {
   min-width: 150px;
 }
 
+.category-filter-select {
+  min-width: 170px;
+}
+
 .time-range-inputs .ant-input {
   width: 190px;
 }

@@ -1,8 +1,8 @@
 # OwnTracks HTTP
 
-OwnTracks er en separat HTTP-tjeneste ved siden av Fibaro10. Tjenesten tar imot posisjoner, waypoints og transition-hendelser fra OwnTracks-appen, lagrer raadata i egen SQLite-fil og eksponerer et eget administrasjonsgrensesnitt/API.
+OwnTracks er en separat HTTP-tjeneste ved siden av Fibaro10. Tjenesten tar imot posisjoner, waypoints og transition-hendelser fra OwnTracks-appen, lagrer raadata i egen database og eksponerer et eget administrasjonsgrensesnitt/API.
 
-Databasebytte er ikke gjort i denne revisjonen. SQLite beholdes til mottak, visning og Fibaro10-integrasjon er stabilt.
+QNAP-oppsettet bruker PostgreSQL via `owntracks_postgres`. Den gamle SQLite-filen beholdes som migrerings- og rollback-kilde, men normal drift skal bruke `OWNTRACKS_DATABASE_URL`.
 
 ## Primar URL
 
@@ -10,7 +10,9 @@ Databasebytte er ikke gjort i denne revisjonen. SQLite beholdes til mottak, visn
 - Publisering fra app: `https://owntracks.lilletorget.net/pub?token=<OWNTRACKS_HTTP_TOKEN>`
 - Health: `https://owntracks.lilletorget.net/health`
 - Lokal tjeneste: `owntracks_service` paa port `8128`
-- Datafil: `owntracks_service/data/owntracks.db`
+- Runtime-database: PostgreSQL-service `owntracks_postgres`
+- Gammel SQLite-kilde/rollback: `owntracks_service/data/owntracks.db`
+- Migrering: `python -m app.migrate_sqlite_to_postgres --source sqlite:////data/owntracks.db --target "$OWNTRACKS_DATABASE_URL"`
 
 `owntracks.lilletorget.net` maa peke til samme offentlige IP som `online.lilletorget.net`.
 
@@ -60,6 +62,10 @@ Klikk paa et sted i venstre tabell for aa vise detaljene. Detaljpanelet viser et
 
 Waypoints kan kategoriseres direkte i waypoint-dialogen. Kategorien lagres paa waypointet og vises i listen, detaljpanelet og API-et. Dette brukes forelopig bare som struktur i grensesnittet, men kan senere brukes til filtrering eller rapporter.
 
+Kategorifilteret i toppfeltet brukes aktivt paa `Kjente steder`, `Opphold`, `Kart`, `Sonebesok` og `Waypoints`.
+
+Siden `Opphold` er den praktiske rapporten for hvor man har vaert. Den viser total tid, aktive opphold, tid per kategori og en detaljliste over hvert besok i valgt tidsfilter.
+
 Grensen kan overstyres mer detaljert hvis det trengs:
 
 - `OWNTRACKS_ZONE_VISIT_ACCURACY_CAP_M`: egen grense for sonebesok.
@@ -94,6 +100,15 @@ OwnTracks har egen buildinfo uavhengig av Fibaro10:
 - Runtime-build settes med `OWNTRACKS_APP_BUILD`.
 - Commit settes fra deploy via `OWNTRACKS_APP_COMMIT`.
 
+## Fibaro10 API
+
+Fibaro10 skal hente ferdig tolket status fra:
+
+- Internt: `http://owntracks_service:8128/api/owntracks/fibaro-summary`
+- Eksternt/tokenbeskyttet: `https://owntracks.lilletorget.net/owntracks/api/fibaro-summary?token=<OWNTRACKS_HTTP_TOKEN>`
+
+Payloaden inneholder `activePlace`, `activePlaces`, `places`, `totals`, `latestLocation` og `quality`. Dette skal brukes fremfor at Fibaro10 tolker raadata selv.
+
 ## Fibaro10-integrasjon
 
 Fibaro10 skal ikke eie OwnTracks-data. Riktig modell er:
@@ -102,8 +117,8 @@ Fibaro10 skal ikke eie OwnTracks-data. Riktig modell er:
 OwnTracks app
   -> owntracks.lilletorget.net
      -> owntracks_service
-        -> egen SQLite-database naa
-        -> PostgreSQL senere
+        -> PostgreSQL
+        -> SQLite beholdt som migrerings-/rollback-kilde
         -> API til Fibaro10 ved behov
 ```
 

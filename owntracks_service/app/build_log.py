@@ -5,10 +5,41 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "19")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "20")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "20",
+        "date": "05.07.2026",
+        "headline": "Opphold, kategori og PostgreSQL-klargjoring",
+        "title": "OwnTracks faar aktiv kategorifiltrering, praktisk Opphold-side og Postgres-migrering",
+        "description": (
+            "Build 20 gjoer kategorier praktisk brukbare i grensesnittet, legger til en egen Opphold-side for "
+            "besok og tid per kjent sted, eksponerer et kompakt Fibaro10-summary-API og klargjoer databasebytte "
+            "fra SQLite til PostgreSQL med eksplisitt migreringsscript og egen Postgres-service."
+        ),
+        "applications": [
+            "owntracks_service/frontend/src/App.tsx: kategori-filter, ny Opphold-side og filtrerte kart/soner.",
+            "owntracks_service/frontend/src/types.ts: delte frontend-typer flyttet ut fra App.tsx.",
+            "owntracks_service/frontend/vite.config.ts: MapLibre legges i egen vendor-chunk.",
+            "owntracks_service/app/main.py: nytt /api/owntracks/fibaro-summary endpoint.",
+            "owntracks_service/app/migrate_sqlite_to_postgres.py: migrering fra SQLite til PostgreSQL.",
+            "docker-compose.qnap.yml: egen owntracks_postgres-service og Postgres database-URL.",
+            "tests/test_owntracks_service.py: test for Fibaro-summary.",
+            "docs/owntracks-http.md: oppdatert drift og databaseoppsett.",
+        ],
+        "request": "Gjoer de foreslaatte forbedringene trinn for trinn.",
+        "work_duration": "ca. 2 t",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Kategorier styrer naa steder, waypoints, sonebesok og kartvisning.",
+            "Ny Opphold-side viser hvor lenge du har vaert paa kjente steder i valgt periode.",
+            "Fibaro10 kan hente ferdig OwnTracks-status fra /api/owntracks/fibaro-summary.",
+            "PostgreSQL er klargjort med migrering uten aa slette eksisterende SQLite-fil.",
+        ],
+    },
     {
         "version": "1",
         "build": "19",

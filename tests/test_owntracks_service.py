@@ -572,6 +572,26 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertGreaterEqual(rows[0]["totalDurationSeconds"], 0)
             self.assertIn("totalDuration", rows[0])
 
+    def test_fibaro_summary_returns_compact_active_place_and_quality(self) -> None:
+        topic = "owntracks/fibaro-summary/android"
+        with TestClient(app) as client:
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 62.411, "lon": 11.522, "acc": 5, "tst": 1783094000},
+            )
+            created = client.post(
+                "/api/owntracks/waypoints",
+                json={"topic": topic, "name": "Fibaro teststed", "category": "Test", "lat": 62.411, "lon": 11.522, "radiusM": 100},
+            )
+            self.assertEqual(created.status_code, 200)
+
+            payload = client.get("/api/owntracks/fibaro-summary?hours=0").json()
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["activePlace"]["waypointName"], "Fibaro teststed")
+            self.assertEqual(payload["activePlace"]["category"], "Test")
+            self.assertIn("quality", payload)
+            self.assertGreaterEqual(payload["quality"]["usableLocations"], 1)
+
     def test_stop_suggestions_find_stationary_cluster_without_geocode(self) -> None:
         topic = "owntracks/stop-suggestion/android"
         with TestClient(app) as client:
