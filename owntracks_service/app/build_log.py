@@ -5,10 +5,35 @@ from typing import Any
 
 
 OWNTRACKS_APP_VERSION = os.getenv("OWNTRACKS_APP_VERSION", "1")
-OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "23")
+OWNTRACKS_APP_BUILD = os.getenv("OWNTRACKS_APP_BUILD", "24")
 OWNTRACKS_APP_COMMIT = os.getenv("OWNTRACKS_APP_COMMIT", "unknown")
 
 OWNTRACKS_BUILD_LOG: list[dict[str, Any]] = [
+    {
+        "version": "1",
+        "build": "24",
+        "date": "05.07.2026",
+        "headline": "Besok-API for Fibaro10",
+        "title": "OwnTracks eksponerer sonebesok som lett API for Fibaro10",
+        "description": (
+            "Build 24 legger til et lett /api/owntracks/visits-endepunkt som returnerer filtrerte sonebesok uten "
+            "kartdata, posisjonslister eller tunge diagnosefelt. Fibaro10 kan dermed hente Lilletorget-besok raskt "
+            "og eie videre kobling mot vedlikehold selv."
+        ),
+        "applications": [
+            "owntracks_service/app/main.py: nytt internt og tokenbeskyttet visits-endepunkt.",
+            "tests/test_owntracks_service.py: test for waypointfilter og filtrering av korte opphold.",
+            "docker-compose.qnap.yml: OwnTracks buildnummer oppdatert.",
+        ],
+        "request": "Gjor OwnTracks klart som kilde for Fibaro10-besok uten direkte databasekobling.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "API-et kan filtrere paa waypoint, topic og tidsperiode.",
+            "Korte lukkede opphold filtreres bort med samme policy som i oversiktene.",
+            "Ekstern variant krever samme OwnTracks-admin-token som ovrige eksterne API-er.",
+        ],
+    },
     {
         "version": "1",
         "build": "23",

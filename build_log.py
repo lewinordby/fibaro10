@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1419")
+APP_BUILD = os.getenv("APP_BUILD", "1420")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1420",
+        "date": "05.07.2026",
+        "headline": "OwnTracks-besok kobles til vedlikehold",
+        "title": "Fibaro10 synker Lilletorget-besok og kobler vedlikeholdsoppgaver automatisk",
+        "description": (
+            "Build 1420 gjor OwnTracks til kilde for opphold, mens Fibaro10 eier forretningshendelsen. "
+            "Fibaro10 henter Lilletorget-besok fra OwnTracks API, lagrer dem i egen site_visits-tabell og "
+            "kobler vedlikeholdslogg automatisk basert paa tidspunkt. Vedlikehold har naa en egen Besok-side."
+        ),
+        "applications": [
+            "main.py: ny site_visits-modell, oppstartsindekser, OwnTracks-synkjobb og manuell synk-API.",
+            "main.py: vedlikeholdslogg kobles automatisk til relevant Lilletorget-besok ved oppretting og redigering.",
+            "main.py: Vedlikehold/Besok viser opphold, aktivt besok og koblede oppgaver.",
+            "desktop_v2/src/moduleViews.ts: nytt Vedlikehold/Besok-menyvalg.",
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: tabellnavn for besok og koblede oppgaver.",
+            ".env.qnap.example og docs/owntracks-http.md: dokumenterer OwnTracks visits-API og Fibaro10-synk.",
+        ],
+        "request": "Gjor alt klart slik at Fibaro10 kan opprette hendelse for hvert besok paa Lilletorget og koble oppgavene som blir gjort der.",
+        "work_duration": "ca. 90 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "OwnTracks skriver ikke direkte i Fibaro10-basen; Fibaro10 poller API og eier egne besoksrader.",
+            "Vedlikeholdsposter faar site_visit_id naar tidspunktet matcher et Lilletorget-besok.",
+            "Synkjobben gaar i bakgrunnen og kan trigges manuelt fra API.",
+        ],
+    },
     {
         "version": "1",
         "build": "1419",

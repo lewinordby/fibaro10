@@ -327,6 +327,36 @@ class OwnTracksServiceTests(unittest.TestCase):
             self.assertEqual(matching_summary, [])
             self.assertGreaterEqual(summary["totals"]["hiddenShortVisits"], 1)
 
+    def test_visits_api_filters_waypoint_and_hides_short_visits(self) -> None:
+        topic = "owntracks/visits-api/android"
+        with TestClient(app) as client:
+            client.post(
+                "/pub",
+                json={"_type": "waypoint", "topic": f"{topic}/waypoint", "desc": "Lilletorget test", "lat": 61.215, "lon": 10.566, "rad": 30, "tst": 1783082000},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.215, "lon": 10.566, "acc": 5, "tst": 1783082010},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.216, "lon": 10.566, "acc": 5, "tst": 1783082030},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.215, "lon": 10.566, "acc": 5, "tst": 1783083000},
+            )
+            client.post(
+                "/pub",
+                json={"_type": "location", "topic": topic, "lat": 61.216, "lon": 10.566, "acc": 5, "tst": 1783083180},
+            )
+
+            payload = client.get("/api/owntracks/visits?hours=0&waypointName=Lilletorget%20test&limit=50").json()
+            rows = [row for row in payload["visits"] if row["topic"] == topic and row["waypointName"] == "Lilletorget test"]
+            self.assertEqual(len(rows), 1)
+            self.assertGreaterEqual(rows[0]["durationSeconds"], 60)
+            self.assertGreaterEqual(payload["totals"]["hiddenShortVisits"], 1)
+
     def test_admin_ui_is_closed_when_token_is_not_configured(self) -> None:
         original_token = owntracks_main.HTTP_TOKEN
         owntracks_main.HTTP_TOKEN = ""

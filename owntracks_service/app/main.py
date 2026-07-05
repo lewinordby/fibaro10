@@ -2885,6 +2885,96 @@ def owntracks_external_map(
     return api_map(hours=hours, limit=limit, start=start, end=end, from_time=from_time, to_time=to_time)
 
 
+@app.get("/api/owntracks/visits")
+def api_visits(
+    hours: int = Query(168, ge=0, le=24 * 365 * 3),
+    limit: int = Query(500, ge=1, le=5000),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
+    waypoint: Optional[str] = Query(None),
+    waypoint_name: Optional[str] = Query(None, alias="waypointName"),
+    topic: Optional[str] = Query(None),
+    include_short: bool = Query(False),
+) -> dict[str, Any]:
+    now = utc_now()
+    range_start = parse_query_datetime(start or from_time, "start")
+    range_end = parse_query_datetime(end or to_time, "end")
+    validate_time_range(range_start, range_end)
+    since = range_start or (now - timedelta(hours=hours) if hours else None)
+    waypoint_filter = str(waypoint_name or waypoint or "").strip()
+    topic_filter = canonical_owntracks_topic(topic) if topic else ""
+    with SessionLocal() as session:
+        visit_stmt = select(OwnTracksZoneVisit)
+        if since is not None:
+            visit_stmt = visit_stmt.where(
+                or_(
+                    OwnTracksZoneVisit.started_at >= since,
+                    OwnTracksZoneVisit.ended_at >= since,
+                    OwnTracksZoneVisit.status == "open",
+                )
+            )
+        if range_end is not None:
+            visit_stmt = visit_stmt.where(or_(OwnTracksZoneVisit.started_at <= range_end, OwnTracksZoneVisit.started_at.is_(None)))
+        if waypoint_filter:
+            visit_stmt = visit_stmt.where(OwnTracksZoneVisit.waypoint_name == waypoint_filter)
+        if topic_filter:
+            visit_stmt = visit_stmt.where(OwnTracksZoneVisit.topic == topic_filter)
+        raw_rows = list(session.execute(visit_stmt.order_by(OwnTracksZoneVisit.started_at.desc()).limit(limit)).scalars())
+
+    rows = raw_rows if include_short else [row for row in raw_rows if visit_is_visible_in_overview(row, now)]
+    return {
+        "hours": hours,
+        "limit": limit,
+        "start": iso_dt(since),
+        "end": iso_dt(range_end),
+        "filterMode": "custom" if range_start is not None or range_end is not None else "relative",
+        "generatedAt": iso_dt(now),
+        "filters": {
+            "waypointName": waypoint_filter or None,
+            "topic": topic_filter or None,
+            "includeShort": include_short,
+        },
+        "totals": {
+            "rawVisits": len(raw_rows),
+            "visits": len(rows),
+            "hiddenShortVisits": len(raw_rows) - len(rows),
+            "minOverviewVisitSeconds": MIN_OVERVIEW_VISIT_SECONDS,
+        },
+        "visits": [row_visit(row) for row in rows],
+    }
+
+
+@app.get("/owntracks/api/visits")
+def owntracks_external_visits(
+    request: Request,
+    hours: int = Query(168, ge=0, le=24 * 365 * 3),
+    limit: int = Query(500, ge=1, le=5000),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    from_time: Optional[str] = Query(None, alias="from"),
+    to_time: Optional[str] = Query(None, alias="to"),
+    waypoint: Optional[str] = Query(None),
+    waypoint_name: Optional[str] = Query(None, alias="waypointName"),
+    topic: Optional[str] = Query(None),
+    include_short: bool = Query(False),
+) -> dict[str, Any]:
+    require_owntracks_admin(request)
+    return api_visits(
+        hours=hours,
+        limit=limit,
+        start=start,
+        end=end,
+        from_time=from_time,
+        to_time=to_time,
+        waypoint=waypoint,
+        waypoint_name=waypoint_name,
+        topic=topic,
+        include_short=include_short,
+    )
+
+
 @app.get("/api/owntracks/zone-summary")
 def api_zone_summary(
     hours: int = Query(168, ge=0, le=24 * 365 * 3),

@@ -106,8 +106,12 @@ Fibaro10 skal hente ferdig tolket status fra:
 
 - Internt: `http://owntracks_service:8128/api/owntracks/fibaro-summary`
 - Eksternt/tokenbeskyttet: `https://owntracks.lilletorget.net/owntracks/api/fibaro-summary?token=<OWNTRACKS_HTTP_TOKEN>`
+- Internt, besoksliste: `http://owntracks_service:8128/api/owntracks/visits?waypointName=Lilletorget%203`
+- Eksternt/tokenbeskyttet, besoksliste: `https://owntracks.lilletorget.net/owntracks/api/visits?waypointName=Lilletorget%203&token=<OWNTRACKS_HTTP_TOKEN>`
 
 Payloaden inneholder `activePlace`, `activePlaces`, `places`, `totals`, `latestLocation` og `quality`. Dette skal brukes fremfor at Fibaro10 tolker raadata selv.
+
+`/api/owntracks/visits` er laget for Fibaro10-synk og returnerer bare sonebesok. Det kan filtreres med `hours`, `start`, `end`, `topic`, `waypointName` og `include_short`. Korte lukkede opphold skjules som standard med samme policy som i OwnTracks-oversiktene.
 
 ## Fibaro10-integrasjon
 
@@ -122,4 +126,4 @@ OwnTracks app
         -> API til Fibaro10 ved behov
 ```
 
-Fibaro10 skal etter hvert hente bare relevante data via API, for eksempel siste besok, aktive soner eller oppsummerte tidsperioder.
+Fibaro10 henter Lilletorget-besok via visits-API-et, lagrer dem i egen `site_visits`-tabell og kobler vedlikeholdsoppgaver med `site_visit_id`. OwnTracks skriver ikke direkte i Fibaro10-databasen.
