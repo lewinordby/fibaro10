@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1426")
+APP_BUILD = os.getenv("APP_BUILD", "1427")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1427",
+        "date": "06.07.2026",
+        "headline": "Polert vedlikeholdsvisning",
+        "title": "Vedlikehold/Besok faar smalere besoksliste og ryddigere arbeidsflate",
+        "description": (
+            "Build 1427 strammer opp Vedlikehold/Besok visuelt. Besokslisten bruker omtrent en fjerdedel av bredden, "
+            "valgt besok vises tydeligere, notatet ligger i egen skriveflate og oppgavene faar mer plass."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/module/MaintenanceVisitsPanel.tsx: rydder strukturen for valgt besok, notat og oppgaver.",
+            "desktop_v2/src/styles/module-content.css: ny 1/4 + 3/4 layout, bedre listekort, aktivmarkering og kompakt notatflate.",
+            "build_log.py: ny buildloggpost for vedlikeholdsoppryddingen.",
+        ],
+        "request": "Rydd opp og fikse grensesnittet slik at vedlikehold blir polert og bra, kanskje med 1/4 til besokslisten.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Besokslisten er smalere og mer kompakt.",
+            "Valgt besok har tydelig toppfelt og handlinger.",
+            "Notatfeltet er flyttet til egen flate ved siden av nokkeldata.",
+            "Oppgaver for valgt besok faar mer horisontal plass.",
+        ],
+    },
     {
         "version": "1",
         "build": "1426",

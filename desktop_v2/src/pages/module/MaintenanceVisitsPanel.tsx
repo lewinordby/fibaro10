@@ -136,11 +136,14 @@ export function MaintenanceVisitsPanel({
                   type="button"
                   onClick={() => setSelectedVisitId(rowId(visit))}
                 >
-                  <span>
+                  <span className="maintenance-visit-row-main">
                     <strong>{displayValue(visit.started_at)}</strong>
-                    <small>{displayValue(visit.duration)} · {displayValue(visit.tasks_count)} oppgaver</small>
+                    <small>{displayValue(visit.duration)}</small>
                   </span>
-                  <Tag color={visitStatusColor(visit)}>{displayValue(visit.status)}</Tag>
+                  <span className="maintenance-visit-row-meta">
+                    <Tag color={visitStatusColor(visit)}>{displayValue(visit.status)}</Tag>
+                    <em>{displayValue(visit.tasks_count)} oppg.</em>
+                  </span>
                 </button>
               );
             })
@@ -151,76 +154,82 @@ export function MaintenanceVisitsPanel({
       </Card>
 
       <Space direction="vertical" size={12} className="maintenance-visit-detail-column">
-        <Card
-          className="work-card maintenance-selected-visit-card"
-          title={selectedVisit ? `Valgt besøk ${displayValue(selectedVisit.started_at)}` : "Velg besøk"}
-          extra={
-            selectedVisit ? (
-              <Space size={8}>
-                <Link to={visitPath(selectedVisit)}>
-                  <Button icon={<FileTextOutlined />} size="small">
-                    Detaljer
-                  </Button>
-                </Link>
-                <Button
-                  disabled={!tasksTable?.edit?.createEndpoint}
-                  icon={<PlusOutlined />}
-                  size="small"
-                  type="primary"
-                  onClick={createTaskForSelectedVisit}
-                >
-                  Ny oppgave
-                </Button>
-              </Space>
-            ) : null
-          }
-        >
+        <Card className="work-card maintenance-selected-visit-card">
           {selectedVisit ? (
-            <div className="maintenance-selected-visit-summary">
-              <div>
-                <span>Kom</span>
-                <strong>{displayValue(selectedVisit.started_at)}</strong>
-              </div>
-              <div>
-                <span>Dro</span>
-                <strong>{displayValue(selectedVisit.ended_at)}</strong>
-              </div>
-              <div>
-                <span>Varighet</span>
-                <strong>{displayValue(selectedVisit.duration)}</strong>
-              </div>
-              <div>
-                <span>Oppgaver</span>
-                <strong>{displayValue(selectedVisit.tasks_count)}</strong>
-              </div>
-              <div className="wide">
-                <div className="maintenance-note-head">
-                  <span>Notat</span>
+            <Space direction="vertical" size={12} className="maintenance-selected-visit-stack">
+              <div className="maintenance-selected-visit-head">
+                <div>
+                  <span>Valgt besøk</span>
+                  <strong>{displayValue(selectedVisit.started_at)}</strong>
+                </div>
+                <Space size={8}>
+                  <Link to={visitPath(selectedVisit)}>
+                    <Button icon={<FileTextOutlined />} size="small">
+                      Detaljer
+                    </Button>
+                  </Link>
                   <Button
-                    disabled={noteText === (typeof selectedVisit.notes === "string" ? selectedVisit.notes : "")}
-                    icon={<SaveOutlined />}
-                    loading={savingNote}
+                    disabled={!tasksTable?.edit?.createEndpoint}
+                    icon={<PlusOutlined />}
                     size="small"
                     type="primary"
-                    onClick={saveVisitNote}
+                    onClick={createTaskForSelectedVisit}
                   >
-                    Lagre
+                    Ny oppgave
                   </Button>
-                </div>
-                <Input.TextArea
-                  value={noteText}
-                  autoSize={{ minRows: 3, maxRows: 7 }}
-                  placeholder="Skriv notat for besoket."
-                  onChange={(event) => setNoteText(event.target.value)}
-                />
+                </Space>
               </div>
-            </div>
+              <div className="maintenance-selected-visit-content">
+                <div className="maintenance-selected-visit-summary">
+                  <div>
+                    <span>Kom</span>
+                    <strong>{displayValue(selectedVisit.started_at)}</strong>
+                  </div>
+                  <div>
+                    <span>Dro</span>
+                    <strong>{displayValue(selectedVisit.ended_at)}</strong>
+                  </div>
+                  <div>
+                    <span>Varighet</span>
+                    <strong>{displayValue(selectedVisit.duration)}</strong>
+                  </div>
+                  <div>
+                    <span>Oppgaver</span>
+                    <strong>{displayValue(selectedVisit.tasks_count)}</strong>
+                  </div>
+                </div>
+                <div className="maintenance-note-panel">
+                  <div className="maintenance-note-head">
+                    <span>Notat</span>
+                    <Button
+                      disabled={noteText === (typeof selectedVisit.notes === "string" ? selectedVisit.notes : "")}
+                      icon={<SaveOutlined />}
+                      loading={savingNote}
+                      size="small"
+                      type="primary"
+                      onClick={saveVisitNote}
+                    >
+                      Lagre
+                    </Button>
+                  </div>
+                  <Input.TextArea
+                    value={noteText}
+                    autoSize={{ minRows: 4, maxRows: 8 }}
+                    placeholder="Skriv notat for besøket."
+                    onChange={(event) => setNoteText(event.target.value)}
+                  />
+                </div>
+              </div>
+            </Space>
           ) : (
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Velg et besøk i listen" />
           )}
         </Card>
 
-        <Card className="table-card module-table-card" title={selectedVisit ? "Oppgaver for valgt besøk" : "Oppgaver"}>
+        <Card
+          className="table-card module-table-card maintenance-tasks-card"
+          title={selectedVisit ? `Oppgaver (${selectedTasks.length})` : "Oppgaver"}
+        >
           {selectedTaskTable ? (
             <ModuleTablePane table={selectedTaskTable} query="" onEdit={onEdit} />
           ) : (

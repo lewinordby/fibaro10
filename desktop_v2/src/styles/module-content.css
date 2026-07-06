@@ -87,21 +87,26 @@
 
 .maintenance-visits-master-detail {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(560px, 2fr);
-  gap: 14px;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
+  gap: 12px;
   align-items: start;
   width: 100%;
 }
 
+.maintenance-visit-list-card {
+  position: sticky;
+  top: 76px;
+}
+
 .maintenance-visit-list-card .ant-card-body {
-  padding: 8px;
+  padding: 7px;
 }
 
 .maintenance-visit-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: calc(100vh - 270px);
+  gap: 5px;
+  max-height: calc(100vh - 238px);
   overflow: auto;
   padding-right: 2px;
 }
@@ -110,15 +115,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 9px 10px;
+  min-height: 52px;
+  padding: 8px 9px;
   color: var(--text-body);
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
   cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .maintenance-visit-row:hover,
@@ -127,20 +137,54 @@
   border-color: color-mix(in srgb, var(--domain-maintenance) 35%, var(--line));
 }
 
+.maintenance-visit-row.active {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--domain-maintenance) 72%, var(--green));
+}
+
+.maintenance-visit-row-main,
+.maintenance-visit-row-meta {
+  min-width: 0;
+}
+
 .maintenance-visit-row strong,
 .maintenance-visit-row small {
   display: block;
 }
 
 .maintenance-visit-row strong {
-  font-size: 12.5px;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
   font-weight: 780;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .maintenance-visit-row small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
+}
+
+.maintenance-visit-row-meta {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.maintenance-visit-row-meta .ant-tag {
+  margin: 0;
+  font-size: 10px;
+  line-height: 18px;
+}
+
+.maintenance-visit-row-meta em {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-style: normal;
 }
 
 .maintenance-visit-detail-column {
@@ -148,22 +192,58 @@
   min-width: 0;
 }
 
+.maintenance-selected-visit-card .ant-card-body {
+  padding: 12px;
+}
+
+.maintenance-selected-visit-stack {
+  width: 100%;
+}
+
+.maintenance-selected-visit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line-muted);
+}
+
+.maintenance-selected-visit-head span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.maintenance-selected-visit-head strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.maintenance-selected-visit-content {
+  display: grid;
+  grid-template-columns: minmax(330px, 0.9fr) minmax(420px, 1.1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
 .maintenance-selected-visit-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .maintenance-selected-visit-summary > div {
-  min-height: 54px;
-  padding: 8px 9px;
+  min-height: 58px;
+  padding: 9px 10px;
   background: var(--surface-muted);
   border: 1px solid var(--line-muted);
   border-radius: var(--radius-md);
-}
-
-.maintenance-selected-visit-summary .wide {
-  grid-column: 1 / -1;
 }
 
 .maintenance-selected-visit-summary span {
@@ -178,8 +258,15 @@
   display: block;
   margin-top: 3px;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 760;
+}
+
+.maintenance-note-panel {
+  padding: 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line-muted);
+  border-radius: var(--radius-md);
 }
 
 .maintenance-note-head {
@@ -200,6 +287,14 @@
 
 .maintenance-selected-visit-summary .ant-input {
   font-size: 12px;
+}
+
+.maintenance-note-panel .ant-input {
+  resize: vertical;
+}
+
+.maintenance-tasks-card .ant-card-head-title {
+  font-size: 12.5px;
 }
 
 .table-pane {
@@ -273,13 +368,29 @@
   font-size: 10px;
 }
 
+@media (max-width: 1180px) {
+  .maintenance-selected-visit-content {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 980px) {
   .maintenance-visits-master-detail,
-  .maintenance-selected-visit-summary {
+  .maintenance-selected-visit-summary,
+  .maintenance-selected-visit-content {
     grid-template-columns: 1fr;
+  }
+
+  .maintenance-visit-list-card {
+    position: static;
   }
 
   .maintenance-visit-list {
     max-height: none;
+  }
+
+  .maintenance-selected-visit-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
