@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1428")
+APP_BUILD = os.getenv("APP_BUILD", "1429")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1429",
+        "date": "06.07.2026",
+        "headline": "Kompakt oppgaveredigering",
+        "title": "Vedlikehold/Besok faar ryddigere og mer kompakt oppgavedetalj",
+        "description": (
+            "Build 1429 strammer opp detaljvisningen for vedlikeholdsoppgaver. Metadatafeltene ligger naa i en "
+            "kompakt grid, tekstfeltene bruker mindre hoyde og modaloppsettet er smalere og mer effektivt."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/module/MaintenanceVisitsPanel.tsx: komprimerer oppgaveformular og reduserer tekstfelthoyder.",
+            "desktop_v2/src/styles/module-content.css: tettere modal, mindre marger og grid for metadatafeltene.",
+            "build_log.py: ny buildloggpost for endringen.",
+        ],
+        "request": "Rydd og komprimer detaljvisningen av oppgave.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppgave-modal er redusert i bredde.",
+            "Metadata vises i to kolonner der det passer.",
+            "Notat og oppfolging bruker kortere standardhoyde.",
+            "Marger og labelstorrelser er strammet opp.",
+        ],
+    },
     {
         "version": "1",
         "build": "1428",

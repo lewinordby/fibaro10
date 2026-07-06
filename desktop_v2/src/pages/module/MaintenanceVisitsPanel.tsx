@@ -144,15 +144,22 @@ export function MaintenanceVisitsPanel({
   }
 
   function renderTaskEditField(field: (typeof taskEditFields)[number]) {
+    const compactRows: Record<string, number> = {
+      summary: 5,
+      follow_up_text: 3,
+    };
+    const inputField = field.type === "textarea" && compactRows[field.key] ? { ...field, rows: compactRows[field.key] } : field;
+    const wideField = field.type === "textarea" || field.type === "tags" || field.key === "target_name";
     return (
       <Form.Item
+        className={wideField ? "maintenance-task-edit-field-wide" : undefined}
         key={field.key}
         name={field.key}
         label={field.type === "boolean" ? undefined : field.label}
         valuePropName={field.type === "boolean" ? "checked" : "value"}
         rules={field.required ? [{ required: true, message: `${field.label} må fylles ut` }] : undefined}
       >
-        {fieldInput(field)}
+        {fieldInput(inputField)}
       </Form.Item>
     );
   }
@@ -333,7 +340,7 @@ export function MaintenanceVisitsPanel({
         okText="Lagre"
         cancelText="Avbryt"
         confirmLoading={savingTask}
-        width={980}
+        width={900}
         destroyOnHidden
         onCancel={() => setTaskEditState(null)}
         onOk={saveTask}
@@ -341,9 +348,11 @@ export function MaintenanceVisitsPanel({
         {taskEditState && taskEdit ? (
           <Form form={taskForm} layout="vertical" className="maintenance-task-edit-form">
             <div className="maintenance-task-edit-grid">
-              <div className="maintenance-task-edit-section">
+              <div className="maintenance-task-edit-section maintenance-task-edit-section-meta">
                 <Typography.Text className="maintenance-task-edit-title">Detaljer</Typography.Text>
-                {taskEditFields.filter((field) => field.section !== "main").map(renderTaskEditField)}
+                <div className="maintenance-task-edit-meta-grid">
+                  {taskEditFields.filter((field) => field.section !== "main").map(renderTaskEditField)}
+                </div>
               </div>
               <div className="maintenance-task-edit-section maintenance-task-edit-section-main">
                 <Typography.Text className="maintenance-task-edit-title">Notat og oppfølging</Typography.Text>
