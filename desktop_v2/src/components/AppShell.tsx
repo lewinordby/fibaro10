@@ -1,4 +1,5 @@
 ﻿import {
+  BgColorsOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -17,7 +18,19 @@ import { queryKeys } from "../queryKeys";
 
 const { Header, Sider, Content } = Layout;
 const MENU_HIDDEN_STORAGE_KEY = "fibaro10:mainMenuHidden";
+const SCREEN_THEME_STORAGE_KEY = "fibaro10:screenTheme";
 const BRAND_ASSET_VERSION = "20260626-shell";
+type ScreenTheme = "standard" | "sunlight";
+
+function defaultScreenTheme(): ScreenTheme {
+  const stored = window.localStorage.getItem(SCREEN_THEME_STORAGE_KEY);
+  if (stored === "standard" || stored === "sunlight") return stored;
+  const tabletLike =
+    window.matchMedia("(pointer: coarse) and (min-width: 740px)").matches ||
+    window.matchMedia("(hover: none) and (min-width: 740px)").matches ||
+    window.matchMedia("(prefers-contrast: more)").matches;
+  return tabletLike ? "sunlight" : "standard";
+}
 
 function userInitial(user?: AuthUser | null): string {
   const name = user?.username?.trim();
@@ -133,6 +146,7 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
   const location = useLocation();
   const navigate = useNavigate();
   const [menuHidden, setMenuHidden] = useState(() => window.localStorage.getItem(MENU_HIDDEN_STORAGE_KEY) === "1");
+  const [screenTheme, setScreenTheme] = useState<ScreenTheme>(defaultScreenTheme);
   const { data: user = null } = useQuery<AuthUser | null>({
     queryKey: queryKeys.auth.currentUser(),
     queryFn: fetchCurrentUser,
@@ -145,8 +159,12 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
     window.localStorage.setItem(MENU_HIDDEN_STORAGE_KEY, menuHidden ? "1" : "0");
   }, [menuHidden]);
 
+  useEffect(() => {
+    window.localStorage.setItem(SCREEN_THEME_STORAGE_KEY, screenTheme);
+  }, [screenTheme]);
+
   return (
-    <Layout className={`app-shell domain-${module ?? "status"} ${menuHidden ? "main-menu-hidden" : ""}`}>
+    <Layout className={`app-shell domain-${module ?? "status"} theme-${screenTheme} ${menuHidden ? "main-menu-hidden" : ""}`}>
       <Sider width={218} collapsedWidth={0} collapsed={menuHidden} trigger={null} className="app-sider">
         <BrandHome className="sider-brand" />
         <SideNavigation activeKey={activeMenuKey} />
@@ -174,6 +192,16 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
               />
             ) : null}
           </div>
+          <Button
+            className={`screen-theme-toggle ${screenTheme === "sunlight" ? "active" : ""}`}
+            type="text"
+            icon={<BgColorsOutlined />}
+            onClick={() => setScreenTheme((value) => (value === "sunlight" ? "standard" : "sunlight"))}
+            aria-label={screenTheme === "sunlight" ? "Bruk standard tema" : "Bruk motlystema"}
+            title={screenTheme === "sunlight" ? "Standard tema" : "Motlystema"}
+          >
+            <span>{screenTheme === "sunlight" ? "Motlys" : "Standard"}</span>
+          </Button>
           <UserProfileMenu user={user} onAccount={() => navigate(modulePath("admin", "brukere"))} />
         </Header>
         <Content className="app-content">{children}</Content>

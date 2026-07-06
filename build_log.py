@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1430")
+APP_BUILD = os.getenv("APP_BUILD", "1431")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1431",
+        "date": "06.07.2026",
+        "headline": "Nytt motlystema",
+        "title": "Fibaro10 faar et helt nytt motlystema med mork app-ramme og manuell temabryter",
+        "description": (
+            "Build 1431 erstatter den forsiktige tablet-kontrastjusteringen med et tydeligere motlystema. "
+            "Temaet bruker mork topp- og sidemeny, mattere arbeidsbakgrunn, tydeligere kort og mer markante aktive farger. "
+            "Det aktiveres automatisk paa iPad/tablet, men kan slas av og paa fra toppfeltet."
+        ),
+        "applications": [
+            "desktop_v2/src/components/AppShell.tsx: legger til motlys/standard temabryter og lagrer valget lokalt.",
+            "desktop_v2/src/styles/tablet-contrast.css: bygger nytt eksplisitt motlystema med mork app-ramme og roligere innholdsflate.",
+            "build_log.py: ny buildloggpost for ny temaretning.",
+        ],
+        "request": "Forrige iPad-tema var litt bedre, men ikke bra. Tenk helt nytt.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Motlystema starter automatisk paa tablet-lignende skjermer.",
+            "Toppfelt og venstremeny er gjort morkere for aa redusere stor lysflate.",
+            "Innholdsflaten er matt blagraa med tydeligere kort, linjer og fargeankre.",
+            "Temabryter i toppfeltet lar deg veksle mellom Standard og Motlys.",
+        ],
+    },
     {
         "version": "1",
         "build": "1430",
