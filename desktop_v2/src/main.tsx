@@ -36,6 +36,7 @@ import "./styles/settlement-detail.css";
 import "./styles/sun-settlements.css";
 import "./styles/mobile-preview.css";
 import "./styles/responsive.css";
+import "./styles/tablet-contrast.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

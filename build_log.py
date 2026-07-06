@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1429")
+APP_BUILD = os.getenv("APP_BUILD", "1430")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1430",
+        "date": "06.07.2026",
+        "headline": "Bedre iPad-kontrast",
+        "title": "Fibaro10 faar egen tablet-kontrastprofil for bedre lesbarhet i motlys",
+        "description": (
+            "Build 1430 legger inn en egen CSS-profil for iPad/tablet og hoy-kontrastinnstillinger. Profilen demper "
+            "de lyseste bakgrunnene, gjor tekst, linjer, kort, meny og toppfelt tydeligere, og bruker mer mettet "
+            "farge paa aktive elementer."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/tablet-contrast.css: ny tablet-kontrastprofil med sterkere tekst, linjer, flater og menytilstand.",
+            "desktop_v2/src/main.tsx: importerer kontrastprofilen sist slik at den overstyrer ordinart lyst tema.",
+            "build_log.py: ny buildloggpost for temaendringen.",
+        ],
+        "request": "Tema paa Fibaro10 er for lyst og har for lite kontrast/farger paa iPad, spesielt i motlys.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "iPad/tablet faar morkere sidebakgrunn og mindre blendende kortflater.",
+            "Tekst, tabellhoder, kantlinjer og inputfelt faar mer kontrast.",
+            "Venstremeny, toppmeny og aktiv modulmarkering faar tydeligere fargebruk.",
+            "Desktop-temaet beholdes i hovedsak uendret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1429",
