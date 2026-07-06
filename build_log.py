@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1424")
+APP_BUILD = os.getenv("APP_BUILD", "1425")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1425",
+        "date": "06.07.2026",
+        "headline": "Besok med oppgaver i todelt visning",
+        "title": "Vedlikehold/Besok viser besoksliste til venstre og oppgaver for valgt besok til hoyre",
+        "description": (
+            "Build 1425 gjor Vedlikehold/Besok til en master/detail-flate. Besokene ligger i en venstre kolonne "
+            "paa omtrent en tredel av bredden, mens resten av flaten viser valgt besok og oppgavene som er koblet til det."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/module/MaintenanceVisitsPanel.tsx: ny todelt besoks- og oppgavevisning.",
+            "desktop_v2/src/pages/ModulePage.tsx: Vedlikehold/Besok bruker spesialvisningen i stedet for standard tabellseksjoner.",
+            "desktop_v2/src/styles/module-content.css: layout for 1/3 besoksliste og 2/3 oppgaveflate.",
+        ],
+        "request": "Besok skal ha en liste over besokene paa 1/3 av plassen, og resten skal vise oppgaver tilknyttet markert besok.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Valgt besok styrer oppgavetabellen til hoyre.",
+            "Ny oppgave fra denne flaten forhaandsutfylles med valgt besok.",
+            "Detaljknapp til eksisterende besoksside beholdes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1424",

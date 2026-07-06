@@ -20,6 +20,7 @@ import { ModuleDayNavigationBar } from "./module/ModuleDayNavigationBar";
 import { ModuleFilterBar } from "./module/ModuleFilterBar";
 import { ModuleMetric } from "./module/ModuleMetric";
 import { ModuleTablePane, tabLabel, tableSearchPlaceholder } from "./module/ModuleTablePane";
+import { MaintenanceVisitsPanel } from "./module/MaintenanceVisitsPanel";
 import { ParkingTimelinePanel } from "./module/ParkingTimelinePanel";
 import { SunTimelinePanel } from "./module/SunTimelinePanel";
 import { SunSessionsPanel } from "./module/SunSessionsPanel";
@@ -197,7 +198,14 @@ export default function ModulePage({ module }: { module: string }) {
     module === "koble"
       ? data.tables.filter((table) => (kobleTableTitlesByView[safeView] ?? []).includes(table.title))
       : data.tables;
+  const isMaintenanceVisitsView = module === "vedlikehold" && safeView === "besok";
   const showStackedTables = module === "vedlikehold";
+  const maintenanceVisitsTable = isMaintenanceVisitsView
+    ? visibleTables.find((table) => table.title.toLowerCase().includes("lilletorget"))
+    : undefined;
+  const maintenanceTasksTable = isMaintenanceVisitsView
+    ? visibleTables.find((table) => table.title.toLowerCase().includes("oppgaver"))
+    : undefined;
   const showModuleActions = Boolean(data.actions?.length && !hideModuleChrome && !(module === "koble" && safeView !== "jobb"));
   const showModuleCards = Boolean(data.cards.length && !hideModuleChrome && !(module === "koble" && safeView !== "oversikt"));
   const editFields = editState ? (editState.create ? editState.edit.createFields ?? editState.edit.fields : editState.edit.fields) : [];
@@ -277,7 +285,25 @@ export default function ModulePage({ module }: { module: string }) {
           {data.charts?.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} onDayChange={setTimelineDay} />)}
 
       {visibleTables.length ? (
-        showStackedTables ? (
+        isMaintenanceVisitsView && maintenanceVisitsTable ? (
+          <Space direction="vertical" size={12} className="module-stacked-table-area">
+            <Card className="table-card module-table-card module-table-search-card">
+              <TableSearch
+                placeholder="Søk i besøk og oppgaver"
+                value={draftQuery}
+                onValueChange={setDraftQuery}
+                onClear={clearSearch}
+                onSearch={runSearch}
+              />
+            </Card>
+            <MaintenanceVisitsPanel
+              visitsTable={maintenanceVisitsTable}
+              tasksTable={maintenanceTasksTable}
+              query={query}
+              onEdit={openEdit}
+            />
+          </Space>
+        ) : showStackedTables ? (
           <Space direction="vertical" size={12} className="module-stacked-table-area">
             <Card className="table-card module-table-card module-table-search-card">
               <TableSearch
