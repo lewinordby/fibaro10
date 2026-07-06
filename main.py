@@ -1491,6 +1491,7 @@ class SiteVisit(Base):
     confidence = Column(Float, nullable=True)
     enter_source = Column(String, nullable=True)
     leave_source = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
     raw = Column(JSON, nullable=True)
     last_synced_at = Column(DateTime, default=local_now_naive, nullable=False, index=True)
     created_at = Column(DateTime, default=local_now_naive, nullable=False, index=True)
@@ -2024,6 +2025,10 @@ class MaintenanceLogInput(BaseModel):
     duration_minutes: Optional[int] = None
     follow_up_needed: Optional[bool] = None
     follow_up_text: Optional[str] = None
+
+
+class MaintenanceSiteVisitInput(BaseModel):
+    notes: Optional[str] = None
 
 
 LIGHT_COLUMNS = [
@@ -3274,6 +3279,7 @@ STARTUP_COLUMNS = {
         ("confidence", "DOUBLE PRECISION"),
         ("enter_source", "VARCHAR"),
         ("leave_source", "VARCHAR"),
+        ("notes", "TEXT"),
         ("raw", "JSON"),
         ("last_synced_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
         ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
@@ -17581,8 +17587,11 @@ def site_visit_label(row: Optional[SiteVisit]) -> Optional[str]:
 
 
 def site_visit_row(row: SiteVisit, tasks_count: int = 0) -> Dict[str, Any]:
+    path = f"/vedlikehold/besok/{row.id}" if row.id else None
     return {
         "id": row.id,
+        "path": path,
+        "started_at_url": path,
         "source": row.source,
         "source_visit_id": row.source_visit_id,
         "location_key": row.location_key,
@@ -17599,7 +17608,10 @@ def site_visit_row(row: SiteVisit, tasks_count: int = 0) -> Dict[str, Any]:
         "confidence": row.confidence,
         "enter_source": row.enter_source,
         "leave_source": row.leave_source,
+        "notes": row.notes,
         "last_synced_at": row.last_synced_at.isoformat(timespec="minutes") if row.last_synced_at else None,
+        "created_at": row.created_at.isoformat(timespec="minutes") if row.created_at else None,
+        "updated_at": row.updated_at.isoformat(timespec="minutes") if row.updated_at else None,
     }
 
 
@@ -25157,6 +25169,99 @@ async def api_v2_maintenance_log_update(request: Request, log_id: int, data: Mai
         row.updated_at = local_now_naive().replace(second=0, microsecond=0)
         await session.commit()
     return {"status": "ok", "message": "Vedlikeholdslogg er lagret."}
+
+
+@app.get("/api/maintenance/site-visits/{visit_id:int}")
+async def api_v2_maintenance_site_visit_detail(visit_id: int):
+    async with async_session() as session:
+        visit = await session.get(SiteVisit, visit_id)
+        if not visit or visit.location_key != OWNTRACKS_SITE_VISIT_LOCATION_KEY:
+            raise HTTPException(status_code=404, detail="Besok ikke funnet")
+        task_rows = (
+            await session.execute(
+                select(MaintenanceLogEntry)
+                .where(MaintenanceLogEntry.site_visit_id == visit.id)
+                .order_by(MaintenanceLogEntry.performed_at.desc(), MaintenanceLogEntry.id.desc())
+            )
+        ).scalars().all()
+    task_edit = api_maintenance_log_edit((visit.started_at or local_now_naive()).replace(second=0, microsecond=0))
+    for field in task_edit.get("fields", []):
+        if field.get("key") == "site_visit_id":
+            field["defaultValue"] = visit.id
+        elif field.get("key") == "presence_type":
+            field["defaultValue"] = "Tilstede Sun2"
+    visit_row = site_visit_row(visit, len(task_rows))
+    task_api_rows = [maintenance_log_row(row, visit) for row in task_rows]
+    title_time = format_source_datetime_short(visit.started_at) if visit.started_at else f"#{visit.id}"
+    return {
+        "status": "ok",
+        "title": f"Lilletorget-besok {title_time}",
+        "subtitle": site_visit_label(visit) or "OwnTracks-besok",
+        "visit": visit_row,
+        "cards": [
+            api_card("Start", format_source_datetime_short(visit.started_at) if visit.started_at else "-", "", "Kom inn", "status"),
+            api_card("Slutt", format_source_datetime_short(visit.ended_at) if visit.ended_at else "Pagaende", "", "Dro ut", "status"),
+            api_card("Varighet", site_visit_duration_label(visit.duration_seconds, visit.started_at, visit.ended_at), "", site_visit_status_label(visit), "status"),
+            api_card("Oppgaver", len(task_rows), "stk", "Koblet til dette besoket", "status"),
+        ],
+        "fields": [
+            {"label": "Sted", "value": visit.location_name},
+            {"label": "Status", "value": site_visit_status_label(visit)},
+            {"label": "Kilde", "value": visit.source},
+            {"label": "OwnTracks-ID", "value": visit.source_visit_id},
+            {"label": "Topic", "value": visit.topic},
+            {"label": "Bruker", "value": visit.username},
+            {"label": "Enhet", "value": visit.device},
+            {"label": "Tillit", "value": visit.confidence},
+            {"label": "Kom-kilde", "value": visit.enter_source},
+            {"label": "Dro-kilde", "value": visit.leave_source},
+            {"label": "Sist synket", "value": visit.last_synced_at.isoformat(timespec="minutes") if visit.last_synced_at else None},
+            {"label": "Oppdatert", "value": visit.updated_at.isoformat(timespec="minutes") if visit.updated_at else None},
+        ],
+        "taskTable": api_table(
+            "Oppgaver",
+            [
+                "performed_at",
+                "target_type",
+                "target_name",
+                "action_type",
+                "priority",
+                "status",
+                "summary",
+                "tags",
+                "follow_up_needed",
+                "follow_up_text",
+            ],
+            task_api_rows,
+            edit=task_edit,
+        ),
+        "taskEdit": task_edit,
+        "visitEdit": {
+            "kind": "site-visit-note",
+            "title": "besoksnotat",
+            "idField": "id",
+            "endpoint": "/api/maintenance/site-visits/{id}",
+            "method": "PATCH",
+            "fields": [
+                {"key": "notes", "label": "Notat for besoket", "type": "textarea", "rows": 8},
+            ],
+        },
+        "raw": visit.raw or {},
+    }
+
+
+@app.patch("/api/maintenance/site-visits/{visit_id:int}")
+async def api_v2_maintenance_site_visit_update(visit_id: int, data: MaintenanceSiteVisitInput):
+    values = data.dict(exclude_unset=True)
+    async with async_session() as session:
+        visit = await session.get(SiteVisit, visit_id)
+        if not visit or visit.location_key != OWNTRACKS_SITE_VISIT_LOCATION_KEY:
+            raise HTTPException(status_code=404, detail="Besok ikke funnet")
+        if "notes" in values:
+            visit.notes = str(values.get("notes") or "").strip() or None
+        visit.updated_at = local_now_naive().replace(second=0, microsecond=0)
+        await session.commit()
+    return {"status": "ok", "message": "Besoksnotat er lagret."}
 
 
 @app.get("/api/maintenance/site-visits")

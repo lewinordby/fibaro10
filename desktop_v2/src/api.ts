@@ -1094,6 +1094,24 @@ export type ParkingVehicleDetailResponse = {
   actions?: ModuleAction[];
 };
 
+export type MaintenanceSiteVisitField = {
+  label: string;
+  value: unknown;
+};
+
+export type MaintenanceSiteVisitDetailResponse = {
+  status: string;
+  title: string;
+  subtitle: string;
+  visit: ModuleRow;
+  cards: ModuleCard[];
+  fields: MaintenanceSiteVisitField[];
+  taskTable: ModuleTable;
+  taskEdit: ModuleEditConfig;
+  visitEdit: ModuleEditConfig;
+  raw: JsonRecord;
+};
+
 export type SettlementField = {
   label: string;
   field: string;
@@ -1241,6 +1259,10 @@ export function fetchModule(
 
 export function fetchParkingVehicleDetail(plate: string): Promise<ParkingVehicleDetailResponse> {
   return apiGet<ParkingVehicleDetailResponse>(`/api/parking/vehicles/${encodeURIComponent(plate)}`);
+}
+
+export function fetchMaintenanceSiteVisitDetail(visitId: string | number): Promise<MaintenanceSiteVisitDetailResponse> {
+  return apiGet<MaintenanceSiteVisitDetailResponse>(`/api/maintenance/site-visits/${encodeURIComponent(visitId)}`);
 }
 
 export function fetchSettlementDetail(settlementId: string): Promise<SettlementDetailResponse> {

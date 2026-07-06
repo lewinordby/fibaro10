@@ -242,6 +242,7 @@ function labelize(column: string): string {
     breaker_type: "Type",
     is_sunbed: "Solseng",
     note: "Notat",
+    notes: "Notat",
     name: "Navn",
     load_type: "Lasttype",
     area: "Område",
@@ -465,6 +466,12 @@ export function moduleColumns(
       }
       if (column === "end_time" && typeof row.unifi_end_url === "string") {
         return renderTimeWithVideo(value, row, "unifi_end_url", "Åpne slutt i UniFi Protect");
+      }
+      const cellUrl = row[`${column}_url`];
+      if (typeof cellUrl === "string" && cellUrl) {
+        const internalPath = appPath(cellUrl);
+        if (internalPath) return <Link to={internalPath}>{displayValue(value)}</Link>;
+        return <a href={cellUrl}>{displayValue(value)}</a>;
       }
       if ((column === "plate" || column === "car_license_number") && typeof value === "string" && typeof row.path === "string") {
         const internalPath = appPath(row.path);

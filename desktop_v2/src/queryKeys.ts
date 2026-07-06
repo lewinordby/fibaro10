@@ -10,6 +10,7 @@ export const queryKeys = {
   mobileScreens: () => ["mobile", "screens"] as const,
   module: (module: string, view: string, serverQuery = "", timelineDay = "", params = "") =>
     ["module", module, view, serverQuery, timelineDay, params] as const,
+  maintenanceSiteVisit: (visitId: string) => ["maintenance", "site-visit", visitId] as const,
   parkingVehicle: (plate: string) => ["parking", "vehicle", plate] as const,
   revenueMonth: (month = "") => ["revenue", "month", month] as const,
   statusComparison: (period: string, compare: string, anchor: string, references = "") =>

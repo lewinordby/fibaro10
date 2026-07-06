@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1422")
+APP_BUILD = os.getenv("APP_BUILD", "1423")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1423",
+        "date": "06.07.2026",
+        "headline": "Klikkbare Lilletorget-besok",
+        "title": "Vedlikeholdsbesok har egen detaljside med notat og oppgaver",
+        "description": (
+            "Build 1423 gjor siste Lilletorget-besok klikkbare fra Vedlikehold. Hvert besok har naa en egen "
+            "detaljside med nokkeldata, notatfelt, radedata fra OwnTracks og redigerbare vedlikeholdsoppgaver."
+        ),
+        "applications": [
+            "main.py: legger notatfelt paa site_visits, detalj-API for besok og lagring av besoksnotat.",
+            "desktop_v2/src/pages/MaintenanceVisitDetailPage.tsx: ny detaljside for Lilletorget-besok.",
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: tabellceller kan lenke via skjulte *_url-felter.",
+            "desktop_v2/src/styles/records.css: kompakt layout for besoksdetaljer.",
+        ],
+        "request": "Siste besok Lilletorget bor vaere klikkbare og faa en underside som viser besoket med relevante data, notat og endring av oppgaver.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Starttidspunkt i besokstabeller lenker til egen detaljside.",
+            "Besok har eget notatfelt som lagres i Fibaro10.",
+            "Koblede vedlikeholdsoppgaver kan opprettes og redigeres fra besokssiden.",
+            "Detaljsiden viser sentrale OwnTracks-felt og radedata for kontroll.",
+        ],
+    },
     {
         "version": "1",
         "build": "1422",

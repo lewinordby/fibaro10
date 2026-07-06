@@ -181,6 +181,93 @@
   line-height: 1.25;
 }
 
+.maintenance-visit-detail .back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  color: var(--text-label);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.visit-detail-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.visit-detail-top h2.ant-typography {
+  margin: 2px 0;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.visit-detail-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.visit-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(520px, 1.6fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.visit-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.visit-card-head h4.ant-typography,
+.visit-detail-layout h4.ant-typography {
+  margin: 0;
+  font-size: 15px;
+}
+
+.visit-detail-note-card textarea.ant-input {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.visit-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.visit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 58px;
+  padding: 8px 9px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line-muted);
+  border-radius: var(--radius-md);
+}
+
+.visit-field span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.visit-field strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.25;
+}
+
 .module-table-card .ant-table {
   font-size: 12px;
 }
@@ -270,4 +357,21 @@
   border-color: var(--border-control);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
+}
+
+@media (max-width: 1040px) {
+  .visit-detail-layout,
+  .visit-detail-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .visit-detail-top {
+    flex-direction: column;
+  }
+
+  .visit-field-grid {
+    grid-template-columns: 1fr;
+  }
 }
