@@ -182,6 +182,26 @@
   font-weight: 760;
 }
 
+.maintenance-note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.maintenance-note-head span {
+  margin: 0;
+}
+
+.maintenance-note-head .ant-btn {
+  min-width: 78px;
+}
+
+.maintenance-selected-visit-summary .ant-input {
+  font-size: 12px;
+}
+
 .table-pane {
   width: 100%;
 }

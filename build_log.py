@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1425")
+APP_BUILD = os.getenv("APP_BUILD", "1426")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1426",
+        "date": "06.07.2026",
+        "headline": "Skrivbart besoksnotat",
+        "title": "Vedlikehold/Besok kan skrive og lagre notat direkte paa valgt besok",
+        "description": (
+            "Build 1426 gjor besoksnotatet redigerbart direkte i master/detail-visningen paa Vedlikehold/Besok. "
+            "Notatet lagres mot samme besoks-API som detaljsiden bruker, og moduldata oppdateres etter lagring."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/module/MaintenanceVisitsPanel.tsx: legger inn skrivbart notatfelt og lagreknapp for valgt besok.",
+            "desktop_v2/src/styles/module-content.css: kompakt styling for notatfeltet i besoksdetaljene.",
+            "build_log.py: ny buildloggpost for endringen.",
+        ],
+        "request": "Notat paa besok maa vaere mulig aa skrive.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Valgt besok viser et redigerbart notatfelt.",
+            "Lagreknappen er deaktivert naar notatet ikke er endret.",
+            "Etter lagring oppdateres baade Vedlikehold-modulen og eventuell besoksdetalj-cache.",
+        ],
+    },
     {
         "version": "1",
         "build": "1425",

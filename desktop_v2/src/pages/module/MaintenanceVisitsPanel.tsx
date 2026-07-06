@@ -1,9 +1,10 @@
-import { FileTextOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Card, Empty, Space, Tag, Typography } from "antd";
+import { FileTextOutlined, PlusOutlined, SaveOutlined } from "@ant-design/icons";
+import { useQueryClient } from "@tanstack/react-query";
+import { App as AntApp, Button, Card, Empty, Input, Space, Tag } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import type { ModuleEditConfig, ModuleRow, ModuleTable } from "../../api";
+import { submitModuleEdit, type ModuleEditConfig, type ModuleRow, type ModuleTable } from "../../api";
 import { displayValue, filterRows } from "./moduleTableUtils";
 import { ModuleTablePane } from "./ModuleTablePane";
 
@@ -34,6 +35,15 @@ function taskTableForVisit(table: ModuleTable, rows: ModuleRow[]): ModuleTable {
   return { ...table, rows, edit };
 }
 
+const visitNoteEdit: ModuleEditConfig = {
+  kind: "site-visit-note",
+  title: "besoksnotat",
+  idField: "id",
+  endpoint: "/api/maintenance/site-visits/{id}",
+  method: "PATCH",
+  fields: [{ key: "notes", label: "Notat for besoket", type: "textarea", rows: 5 }],
+};
+
 export function MaintenanceVisitsPanel({
   visitsTable,
   tasksTable,
@@ -45,6 +55,10 @@ export function MaintenanceVisitsPanel({
   query: string;
   onEdit: (edit: ModuleEditConfig, row: ModuleRow, create?: boolean) => void;
 }) {
+  const queryClient = useQueryClient();
+  const { message } = AntApp.useApp();
+  const [noteText, setNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
   const matchingTaskVisitIds = useMemo(() => {
     if (!query.trim() || !tasksTable) return new Set<string>();
     return new Set(filterRows(tasksTable.rows, tasksTable.columns, query).map((row) => String(row.site_visit_id ?? "")));
@@ -76,6 +90,10 @@ export function MaintenanceVisitsPanel({
     }
   }, [selectedVisitId, visits]);
 
+  useEffect(() => {
+    setNoteText(typeof selectedVisit?.notes === "string" ? selectedVisit.notes : "");
+  }, [selectedVisit]);
+
   function createTaskForSelectedVisit() {
     if (!selectedVisit || !tasksTable?.edit?.createEndpoint) return;
     onEdit(
@@ -87,6 +105,21 @@ export function MaintenanceVisitsPanel({
       },
       true,
     );
+  }
+
+  async function saveVisitNote() {
+    if (!selectedVisit || savingNote) return;
+    setSavingNote(true);
+    try {
+      const result = await submitModuleEdit(visitNoteEdit, selectedVisit, { notes: noteText });
+      message.success(String(result.message || "Lagret"));
+      queryClient.invalidateQueries({ queryKey: ["module", "vedlikehold"] });
+      queryClient.invalidateQueries({ queryKey: ["maintenance", "site-visit", rowId(selectedVisit)] });
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Lagring feilet");
+    } finally {
+      setSavingNote(false);
+    }
   }
 
   return (
@@ -161,8 +194,25 @@ export function MaintenanceVisitsPanel({
                 <strong>{displayValue(selectedVisit.tasks_count)}</strong>
               </div>
               <div className="wide">
-                <span>Notat</span>
-                <Typography.Text>{displayValue(selectedVisit.notes)}</Typography.Text>
+                <div className="maintenance-note-head">
+                  <span>Notat</span>
+                  <Button
+                    disabled={noteText === (typeof selectedVisit.notes === "string" ? selectedVisit.notes : "")}
+                    icon={<SaveOutlined />}
+                    loading={savingNote}
+                    size="small"
+                    type="primary"
+                    onClick={saveVisitNote}
+                  >
+                    Lagre
+                  </Button>
+                </div>
+                <Input.TextArea
+                  value={noteText}
+                  autoSize={{ minRows: 3, maxRows: 7 }}
+                  placeholder="Skriv notat for besoket."
+                  onChange={(event) => setNoteText(event.target.value)}
+                />
               </div>
             </div>
           ) : (
