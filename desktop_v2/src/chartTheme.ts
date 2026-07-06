@@ -1,14 +1,39 @@
 import { domainColors } from "./domainColors";
+import { isDarkScreenTheme } from "./designTokens";
 
-export const chartColors = {
+const lightChartColors = {
   tooltipBackground: "rgba(255,255,255,0.96)",
   tooltipBorder: "#dbe3ee",
-  text: domainColors.ink,
   mutedText: "#475569",
   axisText: "#64748b",
   axisLine: "#cbd5e1",
   grid: "#e8edf4",
-  gridSoft: domainColors.gridSoft,
+  gridSoft: "#eef2f7",
+} as const;
+
+const darkChartColors = {
+  tooltipBackground: "rgba(18,26,39,0.98)",
+  tooltipBorder: "#445771",
+  mutedText: "#b7c3d3",
+  axisText: "#8998ac",
+  axisLine: "#52647d",
+  grid: "#314057",
+  gridSoft: "#27364d",
+} as const;
+
+function activeChartColors() {
+  return isDarkScreenTheme() ? darkChartColors : lightChartColors;
+}
+
+export const chartColors = {
+  get tooltipBackground() { return activeChartColors().tooltipBackground; },
+  get tooltipBorder() { return activeChartColors().tooltipBorder; },
+  get text() { return domainColors.ink; },
+  get mutedText() { return activeChartColors().mutedText; },
+  get axisText() { return activeChartColors().axisText; },
+  get axisLine() { return activeChartColors().axisLine; },
+  get grid() { return activeChartColors().grid; },
+  get gridSoft() { return activeChartColors().gridSoft; },
 } as const;
 
 export function chartTooltip() {
@@ -18,7 +43,9 @@ export function chartTooltip() {
     borderColor: chartColors.tooltipBorder,
     borderWidth: 1,
     textStyle: { color: chartColors.text, fontSize: 12 },
-    extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
+    extraCssText: isDarkScreenTheme()
+      ? "box-shadow:0 18px 38px rgba(0,0,0,.38);border-radius:8px;"
+      : "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
   };
 }
 

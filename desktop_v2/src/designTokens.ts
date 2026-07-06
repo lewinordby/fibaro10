@@ -11,7 +11,14 @@ export const semanticColors = {
   cyan: "#0891b2",
 } as const;
 
-export const domainColors = {
+export function isDarkScreenTheme(): boolean {
+  if (typeof window === "undefined") return false;
+  const stored = window.localStorage.getItem("fibaro10:screenTheme");
+  if (stored === "dark" || stored === "sunlight") return true;
+  return Boolean(window.document.querySelector(".app-shell.theme-dark"));
+}
+
+const lightDomainColors = {
   revenue: semanticColors.red,
   parking: semanticColors.blue,
   sun2: semanticColors.amber,
@@ -24,6 +31,40 @@ export const domainColors = {
   ink: semanticColors.ink,
   grid: "#e5e7eb",
   gridSoft: "#eef2f7",
+} as const;
+
+const darkDomainColors = {
+  revenue: "#e58a92",
+  parking: "#7aa7e8",
+  sun2: "#e6b85c",
+  energy: "#69c99b",
+  vent: "#68c7d8",
+  weather: "#a3afc0",
+  light: "#d8c260",
+  status: "#9ba8ba",
+  comparison: "#8998ac",
+  ink: "#eef3fb",
+  grid: "#34445b",
+  gridSoft: "#27364d",
+} as const;
+
+function activeDomainColors() {
+  return isDarkScreenTheme() ? darkDomainColors : lightDomainColors;
+}
+
+export const domainColors = {
+  get revenue() { return activeDomainColors().revenue; },
+  get parking() { return activeDomainColors().parking; },
+  get sun2() { return activeDomainColors().sun2; },
+  get energy() { return activeDomainColors().energy; },
+  get vent() { return activeDomainColors().vent; },
+  get weather() { return activeDomainColors().weather; },
+  get light() { return activeDomainColors().light; },
+  get status() { return activeDomainColors().status; },
+  get comparison() { return activeDomainColors().comparison; },
+  get ink() { return activeDomainColors().ink; },
+  get grid() { return activeDomainColors().grid; },
+  get gridSoft() { return activeDomainColors().gridSoft; },
 } as const;
 
 export const domainLabels = {

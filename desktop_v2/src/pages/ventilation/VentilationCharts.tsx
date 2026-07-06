@@ -2,7 +2,9 @@ import { Button, Card, Input, Segmented, Tooltip } from "antd";
 import { useMemo } from "react";
 
 import type { ModuleTable, VentilationData } from "../../api";
+import { chartAxisLabel, chartAxisLine, chartLegend, chartSplitLine, chartTooltip } from "../../chartTheme";
 import { AppChart } from "../../components/AppChart";
+import { isDarkScreenTheme } from "../../designTokens";
 import { PeriodNavigator } from "../../components/PeriodNavigator";
 import { fanRunSegments, fanSampleRunSegments, formatDayChartTooltip, minuteFromEventX, minuteFromTime, minuteLabel, numberText, percentFromEventX, seriesFocus, type DayChartSample, type DayChartTooltipParam, type VentChartFocus } from "./ventilationHelpers";
 export function DayChart({
@@ -22,6 +24,7 @@ export function DayChart({
   const defaultVisible = Object.fromEntries(focusSeries.map((series) => [series.label, series.key === defaultKey]));
   const yAxisName = focus === "humidity" ? "%" : "C";
   const tooltipUnit = focus === "humidity" ? "%" : " C";
+  const offEventFill = isDarkScreenTheme() ? "#151d2a" : "#ffffff";
   const chartSamples: DayChartSample[] = day.samples
     .map((sample) => ({ sample, minute: minuteFromTime(sample.time) }))
     .filter((item): item is DayChartSample => item.minute !== null)
@@ -44,22 +47,15 @@ export function DayChart({
 
   const option = {
     tooltip: {
-      trigger: "axis",
-      backgroundColor: "rgba(255,255,255,0.96)",
-      borderColor: "#dbe3ee",
-      borderWidth: 1,
-      textStyle: { color: "#111827", fontSize: 12 },
-      extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
+      ...chartTooltip(),
       formatter: (params: DayChartTooltipParam | DayChartTooltipParam[]) => formatDayChartTooltip(params, tooltipUnit),
     },
     legend: {
-      top: 0,
+      ...chartLegend(),
       data: focusSeries.map((series) => series.label),
       selected: defaultVisible,
-      icon: "roundRect",
       itemWidth: 16,
       itemHeight: 8,
-      textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
     },
     grid: { top: 48, left: 12, right: 18, bottom: 34, containLabel: true },
     xAxis: {
@@ -68,17 +64,17 @@ export function DayChart({
       max: 1440,
       interval: 120,
       axisTick: { show: false },
-      axisLine: { lineStyle: { color: "#cbd5e1" } },
-      axisLabel: { formatter: minuteLabel, color: "#64748b", fontSize: 11 },
+      axisLine: chartAxisLine(),
+      axisLabel: chartAxisLabel({ formatter: minuteLabel }),
       axisPointer: { label: { formatter: (params: { value?: number | string }) => minuteLabel(params.value) } },
-      splitLine: { lineStyle: { color: "#edf2f7" } },
+      splitLine: chartSplitLine(),
     },
     yAxis: {
       type: "value",
       name: yAxisName,
-      nameTextStyle: { color: "#64748b", fontSize: 11 },
-      axisLabel: { color: "#64748b", fontSize: 11 },
-      splitLine: { lineStyle: { color: "#e8edf4" } },
+      nameTextStyle: chartAxisLabel(),
+      axisLabel: chartAxisLabel(),
+      splitLine: chartSplitLine(),
     },
     series: [
       ...focusSeries.map((series) => ({
@@ -186,7 +182,7 @@ export function DayChart({
                       className={`vent-fan-event ${event.class}`}
                       style={{
                         left: `${percentFromEventX(event.x)}%`,
-                        backgroundColor: event.class === "on" ? event.color : "#ffffff",
+                        backgroundColor: event.class === "on" ? event.color : offEventFill,
                         borderColor: event.color,
                       }}
                       aria-label={`${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`}
@@ -212,33 +208,24 @@ export function WeatherChart({ table }: { table?: ModuleTable }) {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
   });
   const option = {
-    tooltip: {
-      trigger: "axis",
-      backgroundColor: "rgba(255,255,255,0.96)",
-      borderColor: "#dbe3ee",
-      borderWidth: 1,
-      textStyle: { color: "#111827", fontSize: 12 },
-      extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
-    },
+    tooltip: chartTooltip(),
     legend: {
-      top: 0,
-      icon: "roundRect",
+      ...chartLegend(),
       itemWidth: 16,
       itemHeight: 8,
-      textStyle: { color: "#475569", fontSize: 12, fontWeight: 650 },
     },
     grid: { top: 50, left: 12, right: 18, bottom: 32, containLabel: true },
     xAxis: {
       type: "category",
       data: x,
       axisTick: { show: false },
-      axisLine: { lineStyle: { color: "#cbd5e1" } },
-      axisLabel: { hideOverlap: true, color: "#64748b", fontSize: 11 },
+      axisLine: chartAxisLine(),
+      axisLabel: chartAxisLabel({ hideOverlap: true }),
     },
     yAxis: {
       type: "value",
-      axisLabel: { color: "#64748b", fontSize: 11 },
-      splitLine: { lineStyle: { color: "#e8edf4" } },
+      axisLabel: chartAxisLabel(),
+      splitLine: chartSplitLine(),
     },
     series: [
       { name: "Temp", type: "line", data: rows.map((row) => row.air_temperature), showSymbol: false, smooth: true, emphasis: { focus: "series" } },

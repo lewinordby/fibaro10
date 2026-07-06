@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1432")
+APP_BUILD = os.getenv("APP_BUILD", "1433")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1433",
+        "date": "06.07.2026",
+        "headline": "Polert morkt tema",
+        "title": "Fibaro10 faar en grundig forbedret og mer balansert mork palett",
+        "description": (
+            "Build 1433 strammer opp det morke temaet med roligere domenefarger, mindre neonpreg og bredere dekning "
+            "av spesialflater. Statuskort, oppgjor, tidslinjer, ventilasjon, ideer, energi, bildevisning, AntD-tags og "
+            "diagramtema er tilpasset samme morke designsystem."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/dark-theme.css: ny balansert mork palett og flere modulspesifikke dark-overrides.",
+            "desktop_v2/src/designTokens.ts: dynamiske domenefarger for morkt tema.",
+            "desktop_v2/src/chartTheme.ts: morke chartfarger for tooltip, akser, grid og legend.",
+            "desktop_v2/src/pages/ventilation/VentilationCharts.tsx: bruker felles charttema og mork off-markering.",
+            "desktop_v2/src/pages/EnergySunbedsPage.tsx: bruker felles charttema og domenefarge for solsenggraf.",
+            "build_log.py: ny buildloggpost for temaoppryddingen.",
+        ],
+        "request": "Gjor grundig forbedring av det morke temaet. Flere av fargene som er brukt er en utfordring.",
+        "work_duration": "ca. 75 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Morkt tema bruker naa dempede, profesjonelle domenefarger i stedet for neonpreg.",
+            "Aktive menyer og toppkontroller er tonet ned slik at de ikke blir hvite felter i mork flate.",
+            "Status, oppgjor, tidslinjer, ventilasjon, ideer, energi og bildevisning har egne morke flater.",
+            "Diagrammer bruker mork tooltip, akser, grid og legend der charttemaet benyttes.",
+            "AntD-tags, alerts, checkbox, radio, switch, dropdowns og modaler er samordnet med mork palett.",
+        ],
+    },
     {
         "version": "1",
         "build": "1432",

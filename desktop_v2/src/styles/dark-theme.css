@@ -23,56 +23,63 @@
 }
 
 .app-shell.theme-dark {
-  --ink: #eef5ff;
-  --ink-soft: #d9e7f8;
-  --muted: #9fb0c6;
-  --muted-soft: #72839a;
-  --line: #2d3b50;
-  --line-soft: #223044;
-  --line-strong: #455b77;
-  --border-control: #3c506b;
-  --border-panel: #2f4057;
-  --border-panel-soft: #26364b;
-  --surface-page: #0b111d;
-  --surface: #141d2b;
-  --surface-soft: #111827;
-  --surface-raised: #1a2535;
-  --surface-muted: #101827;
-  --surface-hover: #1f2d41;
-  --surface-panel-end: #111a28;
-  --panel-header-bg: linear-gradient(180deg, #1a2535, #131c2b);
-  --line-muted: #223146;
-  --text-strong: #f3f8ff;
-  --text-body: #d5e1f0;
-  --text-neutral: #c7d3e4;
-  --text-compact-strong: #eef5ff;
-  --text-panel-strong: #edf5ff;
-  --text-label: #bccbe0;
-  --text-subtle: #8fa0b7;
+  --ink: #eef3fb;
+  --ink-soft: #d8e2ef;
+  --muted: #98a7ba;
+  --muted-soft: #718094;
+  --line: #314057;
+  --line-soft: #243148;
+  --line-strong: #52647d;
+  --border-control: #445771;
+  --border-panel: #324158;
+  --border-panel-soft: #26364d;
+  --surface-page: #0c111b;
+  --surface: #151d2a;
+  --surface-soft: #101722;
+  --surface-raised: #1c2635;
+  --surface-muted: #111a28;
+  --surface-hover: #243149;
+  --surface-panel-end: #121a27;
+  --panel-header-bg: linear-gradient(180deg, #1b2636, #141d2b);
+  --line-muted: #27364d;
+  --text-strong: #f4f7fc;
+  --text-body: #d6deea;
+  --text-neutral: #c6d0de;
+  --text-compact-strong: #edf3fb;
+  --text-panel-strong: #edf3fb;
+  --text-label: #b7c3d3;
+  --text-subtle: #8998ac;
   --shadow-ink-faint-color: rgba(0, 0, 0, 0.28);
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.22);
   --shadow-sm: 0 10px 26px rgba(0, 0, 0, 0.28);
   --shadow-md: 0 22px 54px rgba(0, 0, 0, 0.36);
-  --blue: #60a5fa;
-  --red: #fb7185;
-  --green: #34d399;
-  --amber: #fbbf24;
-  --cyan: #22d3ee;
-  --domain-revenue: #fb7185;
-  --domain-parking: #60a5fa;
-  --domain-sun2: #fbbf24;
-  --domain-energy: #34d399;
-  --domain-vent: #22d3ee;
-  --domain-weather: #a7b2c4;
-  --domain-light: #facc15;
-  --domain-maintenance: #2dd4bf;
-  --domain-ideas: #f472b6;
-  --domain-mobile: #a78bfa;
-  --domain-status: #94a3b8;
+  --blue: #7aa7e8;
+  --red: #e58a92;
+  --green: #69c99b;
+  --amber: #e6b85c;
+  --cyan: #68c7d8;
+  --domain-revenue: #e58a92;
+  --domain-parking: #7aa7e8;
+  --domain-sun2: #e6b85c;
+  --domain-energy: #69c99b;
+  --domain-vent: #68c7d8;
+  --domain-weather: #a3afc0;
+  --domain-light: #d8c260;
+  --domain-maintenance: #5cc8ba;
+  --domain-ideas: #d991bd;
+  --domain-mobile: #b3a0df;
+  --domain-status: #9ba8ba;
+  --dark-ok: #69c99b;
+  --dark-warn: #e6b85c;
+  --dark-bad: #e58a92;
+  --dark-blue-bg: #182844;
+  --dark-green-bg: #173125;
+  --dark-amber-bg: #332817;
+  --dark-red-bg: #3a1d25;
   color: var(--text-body);
   background:
-    radial-gradient(circle at 82% -10%, color-mix(in srgb, var(--active-module-color) 18%, transparent), transparent 320px),
-    linear-gradient(180deg, #080d16 0, #0d1421 260px, var(--surface-page));
+    radial-gradient(circle at 82% -10%, color-mix(in srgb, var(--active-module-color) 10%, transparent), transparent 340px),
+    linear-gradient(180deg, #080c14 0, #0d1420 260px, var(--surface-page));
 }
 
 .app-shell.theme-dark .ant-layout {
@@ -100,7 +107,7 @@
 
 .app-shell.theme-dark .app-header {
   background:
-    linear-gradient(90deg, #080d16, #0e1624 48%, color-mix(in srgb, var(--active-module-color) 16%, #0e1624));
+    linear-gradient(90deg, #080c14, #0f1724 48%, color-mix(in srgb, var(--active-module-color) 12%, #0f1724));
   border-bottom-color: rgba(255, 255, 255, 0.09);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
   backdrop-filter: none;
@@ -109,7 +116,7 @@
 .app-shell.theme-dark .app-header::before {
   height: 3px;
   opacity: 1;
-  background: linear-gradient(90deg, var(--domain-sun2), var(--active-module-color), var(--domain-parking));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--domain-sun2) 82%, #ffffff), var(--active-module-color), color-mix(in srgb, var(--domain-parking) 82%, #ffffff));
 }
 
 .app-shell.theme-dark .main-menu-toggle,
@@ -129,14 +136,14 @@
 }
 
 .app-shell.theme-dark .screen-theme-toggle.active {
-  color: #07111f;
-  background: #f8fafc;
-  border-color: #f8fafc;
+  color: #f4f7fc;
+  background: color-mix(in srgb, var(--active-module-color) 20%, #1c2635);
+  border-color: color-mix(in srgb, var(--active-module-color) 42%, #445771);
 }
 
 .app-shell.theme-dark .profile-avatar {
-  color: #07111f;
-  background: #f8fafc;
+  color: #0c111b;
+  background: color-mix(in srgb, var(--active-module-color) 72%, #ffffff);
 }
 
 .app-shell.theme-dark .module-view-switcher {
@@ -154,16 +161,16 @@
 }
 
 .app-shell.theme-dark .module-view-switcher .ant-segmented-item-selected {
-  color: #07111f;
-  background: #f8fafc;
+  color: #0c111b;
+  background: color-mix(in srgb, var(--active-module-color) 74%, #ffffff);
   box-shadow: 0 5px 18px rgba(0, 0, 0, 0.26);
 }
 
 .app-shell.theme-dark .app-sider {
   color: #dbe7f5;
   background:
-    radial-gradient(circle at 20px 20px, color-mix(in srgb, var(--active-module-color) 18%, transparent), transparent 150px),
-    linear-gradient(180deg, #0a101b, #0e1624 180px, #0a111d) !important;
+    radial-gradient(circle at 20px 20px, color-mix(in srgb, var(--active-module-color) 11%, transparent), transparent 160px),
+    linear-gradient(180deg, #090e17, #0f1724 180px, #0a101a) !important;
   border-right-color: rgba(255, 255, 255, 0.09);
   box-shadow: 12px 0 28px rgba(0, 0, 0, 0.28);
 }
@@ -212,9 +219,9 @@
 }
 
 .app-shell.theme-dark .sider-nav-item.active .sider-nav-icon {
-  color: #07111f;
-  background: #ffffff;
-  border-color: #ffffff;
+  color: #0c111b;
+  background: color-mix(in srgb, var(--menu-item-color) 70%, #ffffff);
+  border-color: color-mix(in srgb, var(--menu-item-color) 70%, #ffffff);
 }
 
 .app-shell.theme-dark .sider-build-link {
@@ -268,7 +275,7 @@
 
 .app-shell.theme-dark .metric-card {
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 10%, var(--surface-raised)), var(--surface)) !important;
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 7%, var(--surface-raised)), var(--surface)) !important;
 }
 
 .app-shell.theme-dark .metric-card::before {
@@ -329,7 +336,7 @@
 
 .app-shell.theme-dark .ant-table-wrapper .ant-table-thead > tr > th {
   color: var(--text-label);
-  background: #172234 !important;
+  background: #192334 !important;
   border-bottom-color: var(--line);
 }
 
@@ -340,7 +347,7 @@
 }
 
 .app-shell.theme-dark .ant-table-wrapper .ant-table-tbody > tr:hover > td {
-  background: #1c2a3d !important;
+  background: #202d42 !important;
 }
 
 .app-shell.theme-dark .ant-table-wrapper .ant-table-row-selected > td {
@@ -378,8 +385,530 @@
   border-color: var(--line);
 }
 
+.app-shell.theme-dark .status-dashboard-page {
+  --dashboard-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.01));
+  --dashboard-panel-border: color-mix(in srgb, var(--tone-color) 13%, var(--border-panel));
+  --dashboard-card-border: color-mix(in srgb, var(--tone-color) 11%, var(--border-panel));
+  --dashboard-card-border-hover: color-mix(in srgb, var(--tone-color) 34%, var(--line-strong));
+  --dashboard-tint: color-mix(in srgb, var(--tone-color) 11%, var(--surface));
+  --dashboard-muted-tint: color-mix(in srgb, var(--tone-color) 6%, var(--surface-muted));
+}
+
+.app-shell.theme-dark .status-section,
+.app-shell.theme-dark .status-command-card,
+.app-shell.theme-dark .status-info-card,
+.app-shell.theme-dark .dashboard-action,
+.app-shell.theme-dark .status-support-item,
+.app-shell.theme-dark .status-period-card,
+.app-shell.theme-dark .status-period-card.revenue-period-card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--active-module-color)) 3%, rgba(255, 255, 255, 0.035)), transparent 72px),
+    var(--surface) !important;
+  border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 13%, var(--border-panel)) !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+}
+
+.app-shell.theme-dark .dashboard-action:hover,
+.app-shell.theme-dark .status-support-link:hover .status-support-item,
+.app-shell.theme-dark .status-dashboard-page .status-period-card:hover {
+  border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 34%, var(--line-strong)) !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.3);
+}
+
+.app-shell.theme-dark .status-overview-page .status-info-card .ant-card-head,
+.app-shell.theme-dark .sun-timeline-card .ant-card-head,
+.app-shell.theme-dark .parking-timeline-card .ant-card-head,
+.app-shell.theme-dark .vent-zone-card .ant-card-head {
+  background: var(--panel-header-bg);
+  border-bottom-color: var(--line);
+}
+
+.app-shell.theme-dark .status-summary,
+.app-shell.theme-dark .status-command-card .status-summary,
+.app-shell.theme-dark .status-overview-page .status-command-card .status-strip-stack,
+.app-shell.theme-dark .status-overview-page .status-command-card .status-strip,
+.app-shell.theme-dark .revenue-driver-head,
+.app-shell.theme-dark .revenue-driver-row,
+.app-shell.theme-dark .vent-state-head,
+.app-shell.theme-dark .vent-compact-fans {
+  border-color: var(--line-soft);
+}
+
+.app-shell.theme-dark .status-summary-source-pill,
+.app-shell.theme-dark .status-summary-source-pill.ok,
+.app-shell.theme-dark .status-summary-source-pill.warn,
+.app-shell.theme-dark .status-summary-source-pill.bad {
+  background: var(--surface-raised);
+  border-color: var(--border-control);
+}
+
+.app-shell.theme-dark .status-summary-source-pill.ok strong,
+.app-shell.theme-dark .status-ok,
+.app-shell.theme-dark .positive,
+.app-shell.theme-dark .revenue-period-direction.positive,
+.app-shell.theme-dark .revenue-period-delta.positive,
+.app-shell.theme-dark .revenue-period-full-item em.positive,
+.app-shell.theme-dark .settlement-control-metric.tone-ok strong,
+.app-shell.theme-dark .settlement-ledger-payout small.ok {
+  color: var(--dark-ok) !important;
+}
+
+.app-shell.theme-dark .status-summary-source-pill.warn strong,
+.app-shell.theme-dark .status-warn {
+  color: var(--dark-warn) !important;
+}
+
+.app-shell.theme-dark .status-summary-source-pill.bad strong,
+.app-shell.theme-dark .status-bad,
+.app-shell.theme-dark .negative,
+.app-shell.theme-dark .revenue-period-direction.negative,
+.app-shell.theme-dark .revenue-period-delta.negative,
+.app-shell.theme-dark .revenue-period-full-item em.negative,
+.app-shell.theme-dark .settlement-control-metric.tone-warn strong,
+.app-shell.theme-dark .settlement-ledger-payout small.warn {
+  color: var(--dark-bad) !important;
+}
+
+.app-shell.theme-dark .revenue-period-card {
+  --period-surface: linear-gradient(180deg, var(--surface-raised), var(--surface));
+  --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--surface));
+  --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 6%, var(--surface));
+  --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 18%, var(--surface));
+}
+
+.app-shell.theme-dark .revenue-period-compare-pill,
+.app-shell.theme-dark .revenue-driver-table,
+.app-shell.theme-dark .revenue-period-full-card {
+  background: var(--surface-raised);
+  border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 16%, var(--border-panel));
+}
+
+.app-shell.theme-dark .revenue-period-compare-pill:hover {
+  background: var(--surface-hover);
+}
+
+.app-shell.theme-dark .revenue-period-full-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.app-shell.theme-dark .revenue-period-rank,
+.app-shell.theme-dark .revenue-driver-icon,
+.app-shell.theme-dark .revenue-period-full-icon {
+  background: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 15%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 26%, var(--border-control));
+}
+
+.app-shell.theme-dark .revenue-driver-row::before,
+.app-shell.theme-dark .status-period-card.revenue-period-card::before,
+.app-shell.theme-dark .status-dashboard-page .status-period-card:not(.revenue-period-card)::before {
+  opacity: 0.82;
+}
+
+.app-shell.theme-dark .status-support-head span {
+  color: var(--ink-soft);
+}
+
+.app-shell.theme-dark .status-support-head em,
+.app-shell.theme-dark .status-source-list .status-source-number {
+  color: var(--text-label);
+  background: var(--surface-raised);
+  border-color: var(--border-control);
+}
+
+.app-shell.theme-dark .settlement-ledger-row,
+.app-shell.theme-dark .settlement-source-check,
+.app-shell.theme-dark .settlement-source-check.ok,
+.app-shell.theme-dark .settlement-source-check.warn,
+.app-shell.theme-dark .settlement-control-metric {
+  background: var(--surface-raised);
+  border-color: var(--border-panel);
+}
+
+.app-shell.theme-dark .settlement-ledger-row:hover {
+  border-color: color-mix(in srgb, var(--domain-parking) 32%, var(--line-strong));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+}
+
+.app-shell.theme-dark .settlement-parse-status.ok {
+  color: var(--dark-ok);
+  background: var(--dark-green-bg);
+}
+
+.app-shell.theme-dark .settlement-parse-status.warn {
+  color: var(--dark-warn);
+  background: var(--dark-amber-bg);
+}
+
+.app-shell.theme-dark .settlement-parse-status.error {
+  color: var(--dark-bad);
+  background: var(--dark-red-bg);
+}
+
+.app-shell.theme-dark .sun-room-line,
+.app-shell.theme-dark .sun-aggregate-line,
+.app-shell.theme-dark .sun-energy-line,
+.app-shell.theme-dark .parking-space-line,
+.app-shell.theme-dark .parking-space-line.overflow,
+.app-shell.theme-dark .parking-occupancy-line,
+.app-shell.theme-dark .vent-fan-track {
+  border-color: var(--border-control);
+  background:
+    linear-gradient(90deg, rgba(127, 148, 176, 0.22) 1px, transparent 1px),
+    linear-gradient(180deg, #151f2e, #111827) !important;
+  background-size: calc(100% / 24) 100%, 100% 100% !important;
+}
+
+.app-shell.theme-dark .sun-aggregate-line {
+  border-color: color-mix(in srgb, var(--domain-sun2) 34%, var(--border-control));
+}
+
+.app-shell.theme-dark .sun-energy-line {
+  border-color: color-mix(in srgb, var(--domain-energy) 30%, var(--border-control));
+}
+
+.app-shell.theme-dark .parking-space-line.overflow {
+  border-color: color-mix(in srgb, var(--domain-revenue) 36%, var(--border-control));
+}
+
+.app-shell.theme-dark .parking-occupancy-line {
+  border-color: color-mix(in srgb, var(--domain-parking) 34%, var(--border-control));
+}
+
+.app-shell.theme-dark .parking-timeline-summary div,
+.app-shell.theme-dark .vent-reading,
+.app-shell.theme-dark .vent-compact-reading,
+.app-shell.theme-dark .vent-compact-sample,
+.app-shell.theme-dark .vent-compact-weather,
+.app-shell.theme-dark .vent-fan-pill,
+.app-shell.theme-dark .vent-event-row,
+.app-shell.theme-dark .sun-timeline-empty,
+.app-shell.theme-dark .parking-timeline-empty {
+  background: var(--surface-raised);
+  border-color: var(--border-panel);
+}
+
+.app-shell.theme-dark .parking-row-heading::after {
+  background: var(--line);
+}
+
+.app-shell.theme-dark .sun-session-block,
+.app-shell.theme-dark .sun-aggregate-block,
+.app-shell.theme-dark .parking-session-block,
+.app-shell.theme-dark .parking-occupancy-stack,
+.app-shell.theme-dark .vent-fan-event {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+}
+
+.app-shell.theme-dark .sun-aggregate-block {
+  mix-blend-mode: screen;
+  opacity: 0.38;
+}
+
+.app-shell.theme-dark .sun-session-block:hover,
+.app-shell.theme-dark .sun-aggregate-block:hover,
+.app-shell.theme-dark .parking-session-block:hover {
+  filter: brightness(1.08);
+  outline-color: color-mix(in srgb, var(--active-module-color) 34%, transparent);
+}
+
+.app-shell.theme-dark .sun-now-marker,
+.app-shell.theme-dark .parking-now-marker {
+  background: #eef3fb;
+}
+
+.app-shell.theme-dark .sun-now-marker::after,
+.app-shell.theme-dark .parking-now-marker::after {
+  color: #eef3fb;
+}
+
+.app-shell.theme-dark .vent-mode-chip {
+  color: var(--text-label);
+  background: var(--surface-raised);
+  border-color: var(--border-control);
+}
+
+.app-shell.theme-dark .vent-day-focus {
+  border-color: var(--border-panel);
+}
+
+.app-shell.theme-dark .vent-fan-run {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.app-shell.theme-dark .vent-fan-event {
+  border-color: var(--surface);
+}
+
+.app-shell.theme-dark .ideas-next-card,
+.app-shell.theme-dark .ideas-summary-card,
+.app-shell.theme-dark .idea-card,
+.app-shell.theme-dark .ideas-next-row,
+.app-shell.theme-dark .idea-target,
+.app-shell.theme-dark .edit-form-section,
+.app-shell.theme-dark .vehicle-detail-card,
+.app-shell.theme-dark .vehicle-field,
+.app-shell.theme-dark .visit-field,
+.app-shell.theme-dark .empty-state,
+.app-shell.theme-dark .loading-block,
+.app-shell.theme-dark .status-comparison-summary-card,
+.app-shell.theme-dark .status-comparison-chart-card,
+.app-shell.theme-dark .status-comparison-summary-split div,
+.app-shell.theme-dark .status-comparison-year-picker,
+.app-shell.theme-dark .status-comparison-chart-stack > div,
+.app-shell.theme-dark .energy-sunbeds-method,
+.app-shell.theme-dark .sun-session-image-frame,
+.app-shell.theme-dark .sun-session-image-tools,
+.app-shell.theme-dark .sun-settlement-card,
+.app-shell.theme-dark .settlement-register-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 48px),
+    var(--surface) !important;
+  border-color: var(--border-panel) !important;
+}
+
+.app-shell.theme-dark .ideas-next-row,
+.app-shell.theme-dark .idea-target,
+.app-shell.theme-dark .edit-form-section,
+.app-shell.theme-dark .vehicle-field,
+.app-shell.theme-dark .visit-field,
+.app-shell.theme-dark .status-comparison-summary-split div,
+.app-shell.theme-dark .status-comparison-year-picker,
+.app-shell.theme-dark .status-comparison-chart-stack > div {
+  background: var(--surface-raised) !important;
+}
+
+.app-shell.theme-dark .idea-icon,
+.app-shell.theme-dark .ideas-next-rank,
+.app-shell.theme-dark .ideas-next-symbol {
+  color: #0c111b;
+  background: color-mix(in srgb, var(--idea-card-color, var(--domain-ideas)) 68%, #ffffff);
+  border-color: color-mix(in srgb, var(--idea-card-color, var(--domain-ideas)) 44%, var(--border-control));
+  box-shadow: none;
+}
+
+.app-shell.theme-dark .ideas-lab-tag,
+.app-shell.theme-dark .idea-impact,
+.app-shell.theme-dark .idea-status {
+  color: color-mix(in srgb, var(--idea-card-color, var(--domain-ideas)) 68%, #ffffff);
+  background: color-mix(in srgb, var(--idea-card-color, var(--domain-ideas)) 13%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--idea-card-color, var(--domain-ideas)) 30%, var(--border-control));
+}
+
+.app-shell.theme-dark .idea-impact.high,
+.app-shell.theme-dark .idea-status.experiment {
+  color: var(--dark-bad);
+  background: var(--dark-red-bg);
+  border-color: color-mix(in srgb, var(--dark-bad) 32%, var(--border-control));
+}
+
+.app-shell.theme-dark .idea-impact.medium {
+  color: var(--dark-warn);
+  background: var(--dark-amber-bg);
+  border-color: color-mix(in srgb, var(--dark-warn) 32%, var(--border-control));
+}
+
+.app-shell.theme-dark .idea-status.ready {
+  color: var(--dark-ok);
+  background: var(--dark-green-bg);
+  border-color: color-mix(in srgb, var(--dark-ok) 32%, var(--border-control));
+}
+
+.app-shell.theme-dark .idea-status.review {
+  color: var(--domain-parking);
+  background: var(--dark-blue-bg);
+  border-color: color-mix(in srgb, var(--domain-parking) 32%, var(--border-control));
+}
+
+.app-shell.theme-dark .idea-status.data {
+  color: var(--domain-mobile);
+  background: color-mix(in srgb, var(--domain-mobile) 15%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--domain-mobile) 32%, var(--border-control));
+}
+
+.app-shell.theme-dark .module-table-card .ant-table-thead > tr > th,
+.app-shell.theme-dark .row-today td,
+.app-shell.theme-dark .status-comparison-chart-tools .ant-segmented {
+  background: var(--surface-raised) !important;
+}
+
+.app-shell.theme-dark .row-weekend td {
+  color: var(--text-subtle);
+}
+
+.app-shell.theme-dark .today-cell {
+  color: var(--domain-parking);
+}
+
+.app-shell.theme-dark .status-comparison-chart-stack > div:first-child,
+.app-shell.theme-dark .status-comparison-chart-stack > div:last-child {
+  background: var(--surface-raised) !important;
+}
+
+.app-shell.theme-dark .status-comparison-card-delta.positive,
+.app-shell.theme-dark .status-comparison-summary-split small.positive {
+  color: var(--dark-ok);
+}
+
+.app-shell.theme-dark .status-comparison-card-delta.negative,
+.app-shell.theme-dark .status-comparison-summary-split small.negative {
+  color: var(--dark-bad);
+}
+
+.app-shell.theme-dark .energy-sunbeds-method,
+.app-shell.theme-dark .energy-sunbeds-chart,
+.app-shell.theme-dark .energy-sunbeds-table,
+.app-shell.theme-dark .elvia-summary-tile,
+.app-shell.theme-dark .elvia-upload-card,
+.app-shell.theme-dark .elvia-import-card,
+.app-shell.theme-dark .elvia-table-card {
+  border-color: color-mix(in srgb, var(--domain-energy) 14%, var(--border-panel)) !important;
+}
+
+.app-shell.theme-dark .elvia-import-metrics span,
+.app-shell.theme-dark .sunbed-method-facts span,
+.app-shell.theme-dark .elvia-upload-row input[type="file"] {
+  color: var(--text-body);
+  background: var(--surface-raised);
+  border-color: var(--border-panel);
+}
+
+.app-shell.theme-dark .elvia-import-card small {
+  color: var(--dark-warn);
+}
+
+.app-shell.theme-dark .sunbed-power-track {
+  background: var(--surface-muted);
+  border-color: var(--border-panel);
+}
+
+.app-shell.theme-dark .sunbed-power-fill {
+  background: linear-gradient(90deg, var(--domain-sun2), color-mix(in srgb, var(--domain-energy) 82%, var(--domain-sun2)));
+}
+
+.app-shell.theme-dark .sun-session-item,
+.app-shell.theme-dark .sun-session-field,
+.app-shell.theme-dark .sun-session-member-field,
+.app-shell.theme-dark .sun-session-image-panel,
+.app-shell.theme-dark .sun-session-empty-image,
+.app-shell.theme-dark .sun-image-browser-meta div,
+.app-shell.theme-dark .sun-image-browser-loading,
+.app-shell.theme-dark .sun-image-browser-empty,
+.app-shell.theme-dark .settlement-voucher,
+.app-shell.theme-dark .sun-settlement-payout {
+  background: var(--surface-raised);
+  border-color: var(--border-panel);
+}
+
+.app-shell.theme-dark .sun-session-summary:hover {
+  background: var(--surface-hover);
+}
+
+.app-shell.theme-dark .sun-session-member-field {
+  border-color: color-mix(in srgb, var(--domain-sun2) 34%, var(--border-control));
+  background: color-mix(in srgb, var(--domain-sun2) 10%, var(--surface-raised));
+}
+
+.app-shell.theme-dark .sun-session-image-panel img,
+.app-shell.theme-dark .sun-session-inline-browser img,
+.app-shell.theme-dark .sun-image-browser-image {
+  background: #070b12;
+  border-color: var(--border-panel);
+}
+
+.app-shell.theme-dark .sun-session-inline-busy,
+.app-shell.theme-dark .sun-image-browser-busy {
+  color: var(--text-body);
+  background: rgba(21, 29, 42, 0.94);
+  border-color: var(--border-panel);
+  box-shadow: var(--shadow-md);
+}
+
+.app-shell.theme-dark .settlement-voucher-totals,
+.app-shell.theme-dark .settlement-voucher-footer,
+.app-shell.theme-dark .settlement-voucher-line.payout {
+  border-color: var(--line);
+}
+
+.app-shell.theme-dark .ant-alert {
+  color: var(--text-body);
+  background: var(--surface-raised);
+  border-color: var(--border-panel);
+}
+
+.app-shell.theme-dark .ant-alert-warning {
+  background: var(--dark-amber-bg);
+  border-color: color-mix(in srgb, var(--dark-warn) 34%, var(--border-control));
+}
+
+.app-shell.theme-dark .ant-alert-error {
+  background: var(--dark-red-bg);
+  border-color: color-mix(in srgb, var(--dark-bad) 34%, var(--border-control));
+}
+
+.app-shell.theme-dark .ant-alert-success {
+  background: var(--dark-green-bg);
+  border-color: color-mix(in srgb, var(--dark-ok) 34%, var(--border-control));
+}
+
+.app-shell.theme-dark .ant-checkbox-wrapper,
+.app-shell.theme-dark .ant-radio-wrapper,
+.app-shell.theme-dark .ant-form-item-label > label {
+  color: var(--text-body);
+}
+
+.app-shell.theme-dark .ant-checkbox-inner,
+.app-shell.theme-dark .ant-radio-inner {
+  background: var(--surface-raised);
+  border-color: var(--border-control);
+}
+
+.app-shell.theme-dark .ant-checkbox-checked .ant-checkbox-inner,
+.app-shell.theme-dark .ant-radio-checked .ant-radio-inner {
+  background: color-mix(in srgb, var(--active-module-color) 78%, #ffffff);
+  border-color: color-mix(in srgb, var(--active-module-color) 78%, #ffffff);
+}
+
+.app-shell.theme-dark .ant-switch {
+  background: #334155;
+}
+
+.app-shell.theme-dark .ant-switch.ant-switch-checked {
+  background: color-mix(in srgb, var(--active-module-color) 72%, #334155);
+}
+
+.app-shell.theme-dark :is(.ant-tag-green, .ant-tag-success) {
+  color: var(--dark-ok);
+  background: var(--dark-green-bg);
+  border-color: color-mix(in srgb, var(--dark-ok) 30%, var(--border-control));
+}
+
+.app-shell.theme-dark :is(.ant-tag-red, .ant-tag-error, .ant-tag-volcano) {
+  color: var(--dark-bad);
+  background: var(--dark-red-bg);
+  border-color: color-mix(in srgb, var(--dark-bad) 30%, var(--border-control));
+}
+
+.app-shell.theme-dark :is(.ant-tag-gold, .ant-tag-warning) {
+  color: var(--dark-warn);
+  background: var(--dark-amber-bg);
+  border-color: color-mix(in srgb, var(--dark-warn) 30%, var(--border-control));
+}
+
+.app-shell.theme-dark :is(.ant-tag-blue, .ant-tag-processing) {
+  color: var(--domain-parking);
+  background: var(--dark-blue-bg);
+  border-color: color-mix(in srgb, var(--domain-parking) 30%, var(--border-control));
+}
+
+.app-shell.theme-dark .ant-tag-default,
+.app-shell.theme-dark .ant-tag:not([class*="ant-tag-"]) {
+  color: var(--text-label);
+  background: var(--surface-raised);
+  border-color: var(--border-control);
+}
+
 .app-shell.theme-dark :is(.recharts-cartesian-grid line, .recharts-reference-line line) {
-  stroke: #304057;
+  stroke: #34445b;
 }
 
 .app-shell.theme-dark :is(.recharts-text, .recharts-label, .recharts-legend-item-text) {
@@ -399,44 +928,61 @@
 }
 
 body:has(.app-shell.theme-dark) {
-  --ink: #eef5ff;
-  --text-body: #d5e1f0;
-  --text-label: #bccbe0;
-  --text-subtle: #8fa0b7;
-  --line: #2d3b50;
-  --line-strong: #455b77;
-  --surface: #141d2b;
-  --surface-raised: #1a2535;
-  --surface-hover: #1f2d41;
-  background: #0b111d;
+  --ink: #eef3fb;
+  --text-body: #d6deea;
+  --text-label: #b7c3d3;
+  --text-subtle: #8998ac;
+  --line: #314057;
+  --line-strong: #52647d;
+  --surface: #151d2a;
+  --surface-raised: #1c2635;
+  --surface-hover: #243149;
+  background: #0c111b;
 }
 
 body:has(.app-shell.theme-dark) :is(.ant-dropdown-menu, .ant-select-dropdown, .ant-picker-dropdown .ant-picker-panel-container, .ant-modal-content) {
-  color: #d5e1f0;
-  background: #141d2b !important;
-  border: 1px solid #2d3b50;
+  color: #d6deea;
+  background: #151d2a !important;
+  border: 1px solid #314057;
   box-shadow: 0 22px 54px rgba(0, 0, 0, 0.42);
 }
 
 body:has(.app-shell.theme-dark) :is(.ant-dropdown-menu-item, .ant-select-item, .ant-picker-cell, .ant-picker-header, .ant-modal-title, .ant-modal-close) {
-  color: #d5e1f0 !important;
+  color: #d6deea !important;
 }
 
 body:has(.app-shell.theme-dark) :is(.ant-dropdown-menu-item:hover, .ant-select-item-option-active, .ant-select-item-option-selected) {
-  background: #1f2d41 !important;
+  background: #243149 !important;
+}
+
+body:has(.app-shell.theme-dark) :is(input, textarea, .ant-input)::placeholder {
+  color: #718094 !important;
+  opacity: 1 !important;
+}
+
+body:has(.app-shell.theme-dark) :is(.ant-input, .ant-input-affix-wrapper, .ant-input-number, .ant-select-selector, .ant-picker) {
+  color: #eef3fb !important;
+  background: #1c2635 !important;
+  border-color: #445771 !important;
+}
+
+body:has(.app-shell.theme-dark) :is(.ant-input-search-button, .ant-btn-primary) {
+  color: #0c111b !important;
+  background: color-mix(in srgb, var(--active-module-color, #7aa7e8) 72%, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--active-module-color, #7aa7e8) 72%, #ffffff) !important;
 }
 
 body:has(.app-shell.theme-dark) .ant-picker-cell-in-view {
-  color: #d5e1f0;
+  color: #d6deea;
 }
 
 body:has(.app-shell.theme-dark) .ant-picker-cell-disabled {
-  color: #526174;
+  color: #718094;
 }
 
 body:has(.app-shell.theme-dark) .ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner {
-  color: #07111f;
-  background: #f8fafc;
+  color: #0c111b;
+  background: color-mix(in srgb, var(--active-module-color) 72%, #ffffff);
 }
 
 @media (max-width: 900px) {

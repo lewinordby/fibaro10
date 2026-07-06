@@ -1,7 +1,9 @@
 import { Alert, Card, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { EnergySunbedObservation, EnergySunbedRoom, ModuleResponse } from "../api";
+import { chartAxisLabel, chartAxisLine, chartColors, chartSplitLine, chartTooltip } from "../chartTheme";
 import { AppChart } from "../components/AppChart";
+import { domainColors } from "../domainColors";
 import { decimal } from "../format";
 import { ModuleMetric } from "./module/ModuleMetric";
 
@@ -35,35 +37,28 @@ function confidenceColor(value: string) {
 
 function effectChartOption(rooms: EnergySunbedRoom[]) {
   return {
-    tooltip: {
-      trigger: "axis",
-      backgroundColor: "rgba(255,255,255,0.96)",
-      borderColor: "#dbe3ee",
-      borderWidth: 1,
-      textStyle: { color: "#111827", fontSize: 12 },
-      extraCssText: "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
-    },
+    tooltip: chartTooltip(),
     grid: { top: 28, left: 54, right: 18, bottom: 42 },
     xAxis: {
       type: "category",
       data: rooms.map((room) => room.label),
       axisTick: { show: false },
-      axisLabel: { color: "#64748b", fontSize: 11 },
-      axisLine: { lineStyle: { color: "#cbd5e1" } },
+      axisLabel: chartAxisLabel(),
+      axisLine: chartAxisLine(),
     },
     yAxis: {
       type: "value",
       name: "W",
-      nameTextStyle: { color: "#64748b", fontSize: 11 },
-      axisLabel: { color: "#64748b", fontSize: 11 },
-      splitLine: { lineStyle: { color: "#e8edf4" } },
+      nameTextStyle: { color: chartColors.axisText, fontSize: 11 },
+      axisLabel: chartAxisLabel(),
+      splitLine: chartSplitLine(),
     },
     series: [
       {
         name: "Estimert W",
         type: "bar",
         barMaxWidth: 38,
-        itemStyle: { color: "#f59e0b", borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: domainColors.sun2, borderRadius: [4, 4, 0, 0] },
         data: rooms.map((room) => Math.round(Number(room.estimate_w ?? 0))),
       },
     ],
