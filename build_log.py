@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1431")
+APP_BUILD = os.getenv("APP_BUILD", "1432")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1432",
+        "date": "06.07.2026",
+        "headline": "Morkt tema",
+        "title": "Fibaro10 erstatter motlys med et reelt morkt tema",
+        "description": (
+            "Build 1432 endrer temabryteren fra Motlys til Morkt og gjor temaet gjennomfort morkt. "
+            "Innholdsflate, kort, tabeller, skjema, menyer og portaler faar egne morke flater, tydeligere kontrast "
+            "og beholdte domenefarger for omsetning, parkering, soling og energi."
+        ),
+        "applications": [
+            "desktop_v2/src/components/AppShell.tsx: endrer tema-id til dark, migrerer gammelt sunlight-valg og viser Morkt i toppfeltet.",
+            "desktop_v2/src/styles/dark-theme.css: nytt gjennomfort morkt tema for shell, kort, tabeller, skjema, dropdowns og diagramflater.",
+            "desktop_v2/src/main.tsx: importerer dark-theme.css i stedet for tablet-contrast.css.",
+            "build_log.py: ny buildloggpost for morkt tema.",
+        ],
+        "request": "Endre navnet til morkt og sorge for at det blir et bra morkt tema.",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Temaknappen heter naa Morkt/Standard.",
+            "Tidligere Motlys-valg paa enheten blir automatisk tolket som Morkt.",
+            "Kort, tabeller, inputfelt, dropdowns og modalflater har morke kontrasttilpassede farger.",
+            "Domenefargene er justert for mork bakgrunn slik at parkering, soling, energi og omsetning fortsatt er tydelige.",
+        ],
+    },
     {
         "version": "1",
         "build": "1431",

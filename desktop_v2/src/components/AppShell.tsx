@@ -20,16 +20,17 @@ const { Header, Sider, Content } = Layout;
 const MENU_HIDDEN_STORAGE_KEY = "fibaro10:mainMenuHidden";
 const SCREEN_THEME_STORAGE_KEY = "fibaro10:screenTheme";
 const BRAND_ASSET_VERSION = "20260626-shell";
-type ScreenTheme = "standard" | "sunlight";
+type ScreenTheme = "standard" | "dark";
 
 function defaultScreenTheme(): ScreenTheme {
   const stored = window.localStorage.getItem(SCREEN_THEME_STORAGE_KEY);
-  if (stored === "standard" || stored === "sunlight") return stored;
+  if (stored === "standard" || stored === "dark") return stored;
+  if (stored === "sunlight") return "dark";
   const tabletLike =
     window.matchMedia("(pointer: coarse) and (min-width: 740px)").matches ||
     window.matchMedia("(hover: none) and (min-width: 740px)").matches ||
     window.matchMedia("(prefers-contrast: more)").matches;
-  return tabletLike ? "sunlight" : "standard";
+  return tabletLike ? "dark" : "standard";
 }
 
 function userInitial(user?: AuthUser | null): string {
@@ -193,14 +194,14 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
             ) : null}
           </div>
           <Button
-            className={`screen-theme-toggle ${screenTheme === "sunlight" ? "active" : ""}`}
+            className={`screen-theme-toggle ${screenTheme === "dark" ? "active" : ""}`}
             type="text"
             icon={<BgColorsOutlined />}
-            onClick={() => setScreenTheme((value) => (value === "sunlight" ? "standard" : "sunlight"))}
-            aria-label={screenTheme === "sunlight" ? "Bruk standard tema" : "Bruk motlystema"}
-            title={screenTheme === "sunlight" ? "Standard tema" : "Motlystema"}
+            onClick={() => setScreenTheme((value) => (value === "dark" ? "standard" : "dark"))}
+            aria-label={screenTheme === "dark" ? "Bruk standard tema" : "Bruk mørkt tema"}
+            title={screenTheme === "dark" ? "Standard tema" : "Mørkt tema"}
           >
-            <span>{screenTheme === "sunlight" ? "Motlys" : "Standard"}</span>
+            <span>{screenTheme === "dark" ? "Mørkt" : "Standard"}</span>
           </Button>
           <UserProfileMenu user={user} onAccount={() => navigate(modulePath("admin", "brukere"))} />
         </Header>
