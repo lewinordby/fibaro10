@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1423")
+APP_BUILD = os.getenv("APP_BUILD", "1424")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1424",
+        "date": "06.07.2026",
+        "headline": "Ryddigere vedlikeholdsmeny",
+        "title": "Vedlikehold bruker toppmenyen som navigasjon og tabeller som seksjoner",
+        "description": (
+            "Build 1424 rydder overlappet i Vedlikehold mellom toppvelgeren og tab-fanen inne i tabellkortet. "
+            "Vedlikehold beholder Oversikt/Besok i toppmenyen, mens tabellene vises som egne seksjoner under hverandre."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/ModulePage.tsx: Vedlikeholdstabeller rendres som stablede seksjoner i stedet for tab-faner.",
+            "desktop_v2/src/styles/module-content.css: legger kompakt styling for søk og stablede tabellseksjoner.",
+        ],
+        "request": "Se paa overlapp i menyene paa Fibaro10 Vedlikehold, mellom horisontal toppmeny og undermeny.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Fjerner ekstra tab-nivaa paa Vedlikehold.",
+            "Beholder toppmenyen som eneste navigasjon mellom Oversikt og Besok.",
+            "Viser Vedlikeholdslogg, Siste Lilletorget-besok og Tagger som tydelige seksjoner.",
+        ],
+    },
     {
         "version": "1",
         "build": "1423",

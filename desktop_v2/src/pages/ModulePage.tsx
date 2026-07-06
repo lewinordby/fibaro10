@@ -197,6 +197,7 @@ export default function ModulePage({ module }: { module: string }) {
     module === "koble"
       ? data.tables.filter((table) => (kobleTableTitlesByView[safeView] ?? []).includes(table.title))
       : data.tables;
+  const showStackedTables = module === "vedlikehold";
   const showModuleActions = Boolean(data.actions?.length && !hideModuleChrome && !(module === "koble" && safeView !== "jobb"));
   const showModuleCards = Boolean(data.cards.length && !hideModuleChrome && !(module === "koble" && safeView !== "oversikt"));
   const editFields = editState ? (editState.create ? editState.edit.createFields ?? editState.edit.fields : editState.edit.fields) : [];
@@ -276,22 +277,41 @@ export default function ModulePage({ module }: { module: string }) {
           {data.charts?.map((chart) => <ModuleChartPanel chart={chart} key={chart.title} onDayChange={setTimelineDay} />)}
 
       {visibleTables.length ? (
-      <Card className="table-card module-table-card">
-        <TableSearch
-          placeholder={tableSearchPlaceholder(module, safeView)}
-          value={draftQuery}
-          onValueChange={setDraftQuery}
-          onClear={clearSearch}
-          onSearch={runSearch}
-        />
-        <Tabs
-          items={visibleTables.map((table) => ({
-            key: table.title,
-            label: tabLabel(table, query),
-            children: <ModuleTablePane table={table} query={query} onEdit={openEdit} onServerPageChange={setServerPage} />,
-          }))}
-        />
-      </Card>
+        showStackedTables ? (
+          <Space direction="vertical" size={12} className="module-stacked-table-area">
+            <Card className="table-card module-table-card module-table-search-card">
+              <TableSearch
+                placeholder={tableSearchPlaceholder(module, safeView)}
+                value={draftQuery}
+                onValueChange={setDraftQuery}
+                onClear={clearSearch}
+                onSearch={runSearch}
+              />
+            </Card>
+            {visibleTables.map((table) => (
+              <Card className="table-card module-table-card" key={table.title} title={tabLabel(table, query)}>
+                <ModuleTablePane table={table} query={query} onEdit={openEdit} onServerPageChange={setServerPage} />
+              </Card>
+            ))}
+          </Space>
+        ) : (
+          <Card className="table-card module-table-card">
+            <TableSearch
+              placeholder={tableSearchPlaceholder(module, safeView)}
+              value={draftQuery}
+              onValueChange={setDraftQuery}
+              onClear={clearSearch}
+              onSearch={runSearch}
+            />
+            <Tabs
+              items={visibleTables.map((table) => ({
+                key: table.title,
+                label: tabLabel(table, query),
+                children: <ModuleTablePane table={table} query={query} onEdit={openEdit} onServerPageChange={setServerPage} />,
+              }))}
+            />
+          </Card>
+        )
       ) : null}
         </>
       )}

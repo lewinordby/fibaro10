@@ -69,6 +69,22 @@
   max-width: 360px;
 }
 
+.module-stacked-table-area {
+  width: 100%;
+}
+
+.module-table-search-card .ant-card-body {
+  padding: 10px 12px;
+}
+
+.module-table-search-card .table-toolbar {
+  margin-bottom: 0;
+}
+
+.module-stacked-table-area > .module-table-card .ant-card-head {
+  min-height: 38px;
+}
+
 .table-pane {
   width: 100%;
 }
