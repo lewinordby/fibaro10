@@ -300,7 +300,6 @@ export default function ModulePage({ module }: { module: string }) {
               visitsTable={maintenanceVisitsTable}
               tasksTable={maintenanceTasksTable}
               query={query}
-              onEdit={openEdit}
             />
           </Space>
         ) : showStackedTables ? (

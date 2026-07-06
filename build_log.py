@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1427")
+APP_BUILD = os.getenv("APP_BUILD", "1428")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1428",
+        "date": "06.07.2026",
+        "headline": "Besok som arbeidsflate",
+        "title": "Vedlikehold/Besok faar egen oppgavevisning med klikkbare oppgaver og redigering",
+        "description": (
+            "Build 1428 bygger om Vedlikehold/Besok fra tabellorientert visning til en mer komplett arbeidsflate. "
+            "Besok vises som en kompakt liste, valgt besok har tydeligere detaljer og oppgaver vises som egne klikkbare kort "
+            "som kan aapnes og redigeres i en tilpasset modal."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/module/MaintenanceVisitsPanel.tsx: egen oppgaveflyt med kortliste og lokal redigeringsmodal.",
+            "desktop_v2/src/pages/ModulePage.tsx: fjerner standard edit-prop fra spesialvisningen for Vedlikehold/Besok.",
+            "desktop_v2/src/styles/module-content.css: ny styling for oppgavekort, oppgaveheader og modaloppsett.",
+            "build_log.py: ny buildloggpost for endringen.",
+        ],
+        "request": "Gjor hele Besok-menyen bedre: liste, detaljer, oppgaver og mulighet for aa aapne/redigere oppgaver en og en.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppgaver vises som klikkbare arbeidskort i stedet for standard tabell.",
+            "Klikk paa en oppgave aapner en egen todelt redigeringsmodal.",
+            "Ny oppgave bruker samme modal og forhaandsutfylles med valgt besok.",
+            "Besokslisten og valgt-besok-flaten er beholdt, men oppgaveflyten er ryddet opp.",
+        ],
+    },
     {
         "version": "1",
         "build": "1427",
