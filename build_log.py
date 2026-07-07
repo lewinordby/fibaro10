@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1443")
+APP_BUILD = os.getenv("APP_BUILD", "1444")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1444",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil far strammere toppfelt",
+        "title": "Logo og appnavn justeres uten hoyere toppbar",
+        "description": (
+            "Build 1444 justerer toppfeltet i vedlikeholdsappen. Logoen er gjort litt storre, teksten er samlet "
+            "pa en linje som Lilletorget, vedlikehold, og toppbaren beholder samme kompakte hoyde."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: samler appnavnet pa en linje og oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: oker logoen og sentrerer teksten uten a oke toppbarens hoyde.",
+            "build_log.py: registrerer build 1444.",
+        ],
+        "request": "Gjor logoen i toppen litt storre uten a oke hoyden pa feltet. Lilletorget, vedlikehold skal sta pa en linje sentrert horisontalt i forhold til logo.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Logoen i mobilappens toppfelt er gjort storre.",
+            "Teksten er samlet til Lilletorget, vedlikehold pa en linje.",
+            "Toppfeltet er gjort mer kompakt for a unnga okning i hoyde.",
+        ],
+    },
     {
         "version": "1",
         "build": "1443",
