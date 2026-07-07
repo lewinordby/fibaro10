@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1439")
+APP_BUILD = os.getenv("APP_BUILD", "1440")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1440",
+        "date": "07.07.2026",
+        "headline": "Egne vedlikeholdsposter kan redigeres på mobil",
+        "title": "Vedlikeholdsappen åpner egne registreringer for redigering",
+        "description": (
+            "Build 1440 gjør historikken i vedlikeholdsappen mer praktisk. Poster som er registrert av innlogget "
+            "bruker kan trykkes på og åpnes i samme registreringsskjema for redigering. Lagre bruker PATCH mot "
+            "eksisterende post i stedet for å opprette en ny. Mobilserveren sjekker også eierskap før endringen "
+            "sendes videre til Fibaro10."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: legger PATCH-proxy for vedlikeholdsposter og sjekker at posten er brukerens egen.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: åpner egne historikkposter i redigeringsmodus og lagrer med PATCH.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: gjør egne historikkposter tydelige som trykkbare rader.",
+            "build_log.py: ny buildloggpost for mobilredigering.",
+        ],
+        "request": "Det må være mulig å trykke på en allerede registrert oppgave, og hvis det er din egen skal den åpnes for redigering.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Egne historikkrader blir trykkbare i mobilappen.",
+            "Skjemaet fylles med eksisterende tidspunkt, notat, rom, varighet og oppfølging.",
+            "Lagreknappen bruker PATCH når en eksisterende post redigeres.",
+            "Mobilserveren avviser forsøk på å redigere poster registrert av andre brukere.",
+        ],
+    },
     {
         "version": "1",
         "build": "1439",

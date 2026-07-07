@@ -183,6 +183,17 @@ def maintenance_rows(module_payload: dict[str, Any]) -> list[dict[str, Any]]:
     return []
 
 
+def maintenance_row_by_id(module_payload: dict[str, Any], log_id: int) -> Optional[dict[str, Any]]:
+    for row in maintenance_rows(module_payload):
+        try:
+            row_id = int(row.get("id") or 0)
+        except (TypeError, ValueError):
+            continue
+        if row_id == log_id:
+            return row
+    return None
+
+
 def option_values(field: Optional[dict[str, Any]]) -> list[dict[str, str]]:
     options = (field or {}).get("options") or []
     result = []
@@ -319,6 +330,23 @@ async def api_create_maintenance_log(request: Request):
     return result
 
 
+@app.patch("/api/maintenance/logs/{log_id}")
+async def api_update_maintenance_log(request: Request, log_id: int):
+    username, password = require_session(request)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Ugyldig payload")
+    module_payload = await fibaro_request("/api/modules/vedlikehold", username, password)
+    existing = maintenance_row_by_id(module_payload, log_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Vedlikeholdsposten finnes ikke")
+    if normalize_username(existing.get("performed_by")) != normalize_username(username):
+        raise HTTPException(status_code=403, detail="Du kan bare redigere egne vedlikeholdsposter")
+    payload["performed_by"] = existing.get("performed_by") or username
+    result = await fibaro_request(f"/api/maintenance/logs/{log_id}", username, password, method="PATCH", payload=payload)
+    return result
+
+
 def login_html(error: str = "") -> str:
     error_html = f'<div class="login-error">{escape(error)}</div>' if error else ""
     return f"""<!doctype html>
@@ -328,7 +356,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1439">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1440">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -360,8 +388,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1439">
-  <script src="/assets/maintenance-mobile.js?v=1439" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1440">
+  <script src="/assets/maintenance-mobile.js?v=1440" defer></script>
 </head>
 <body>
   <header class="app-topbar">

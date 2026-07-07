@@ -123,6 +123,7 @@ const TASKS = [
 const state = {
   bootstrap: null,
   selectedTask: null,
+  editingLog: null,
   busy: false,
   lastSavedTitle: "",
 };
@@ -137,6 +138,14 @@ function safeText(value, fallback = "") {
 
 function normalizeToken(value) {
   return safeText(value).toLocaleLowerCase("nb-NO");
+}
+
+function currentUsername() {
+  return safeText(state.bootstrap?.user?.username);
+}
+
+function isOwnLog(row) {
+  return normalizeToken(row?.performed_by) === normalizeToken(currentUsername());
 }
 
 function formatStamp(value) {
@@ -267,13 +276,15 @@ function selectRoom(value) {
 function automaticTags(task) {
   const performedAt = $("#performed_at")?.value || "";
   const datePart = performedAt.slice(0, 10);
-  const tags = [
-    ...(task.tags || []),
-    task.category,
-    task.targetType,
-    task.actionType,
-    "Mobil",
-  ];
+  const tags = state.editingLog
+    ? [...(task.tags || []), "Mobil"]
+    : [
+        ...(task.tags || []),
+        task.category,
+        task.targetType,
+        task.actionType,
+        "Mobil",
+      ];
   if (datePart) tags.push(`Dato ${datePart}`);
   const selectedRoom = $("#room_id")?.value;
   if (selectedRoom) tags.push(roomLabel(selectedRoom));
@@ -355,6 +366,8 @@ function updateSubmitState() {
     button.textContent = "Lagrer...";
   } else if (missingRoom) {
     button.textContent = "Velg seng / rom";
+  } else if (state.editingLog) {
+    button.textContent = "Lagre endring";
   } else {
     button.textContent = `Lagre ${state.selectedTask?.title || ""}`.trim();
   }
@@ -380,10 +393,56 @@ function setTaskDefaults(task) {
   updateSubmitState();
 }
 
+function taskFromLog(row) {
+  const targetType = safeText(row.target_type, "Generelt");
+  const actionType = safeText(row.action_type, "Kontroll");
+  const summary = safeText(row.summary, actionType);
+  const requiresRoom = Boolean(row.room_id);
+  return {
+    key: `edit-${row.id}`,
+    title: summary,
+    detail: "Rediger",
+    category: "Rediger",
+    targetType,
+    targetName: safeText(row.target_name),
+    actionType,
+    priority: safeText(row.priority, "Normal"),
+    status: safeText(row.status, "Utført"),
+    summary,
+    requiresRoom,
+    presenceType: safeText(row.presence_type, "Tilstede Sun2"),
+    tags: rowTags(row),
+    initialFocus: "summary",
+  };
+}
+
+function setFormFromLog(row) {
+  const task = taskFromLog(row);
+  const performedBy = safeText(row.performed_by, currentUsername());
+  state.selectedTask = task;
+  state.editingLog = row;
+  $("#performed_at").value = localDateTimeValue(row.performed_at);
+  $("#performed_by").value = performedBy;
+  $("#entryUserLine").textContent = `Registrert av ${performedBy} - redigerer egen post`;
+  setTimeFieldVisible(false);
+  updateTimeButton();
+  fillSelect("room_id", optionList("room_id"), safeText(row.room_id), true);
+  renderRoomChoices();
+  $("#roomField").classList.toggle("is-hidden", !task.requiresRoom);
+  $("#summary").value = task.summary;
+  setNoteFieldVisible(true);
+  $("#duration_minutes").value = row.duration_minutes === null || row.duration_minutes === undefined ? "" : String(row.duration_minutes);
+  $("#follow_up_needed").checked = Boolean(row.follow_up_needed);
+  $("#follow_up_text").value = safeText(row.follow_up_text);
+  setFollowUpVisible();
+  updateSubmitState();
+}
+
 function openTask(taskKey) {
   const task = TASKS.find((item) => item.key === taskKey);
   if (!task) return;
   state.selectedTask = task;
+  state.editingLog = null;
   const taskCategory = $("#taskCategory");
   if (taskCategory) taskCategory.textContent = task.category || "Oppgave";
   $("#taskTitle").textContent = task.title;
@@ -392,6 +451,24 @@ function openTask(taskKey) {
   showScreen("entry");
   renderRecent();
   focusInitialTaskField(task);
+}
+
+function openLogForEdit(logId) {
+  const row = (state.bootstrap?.recent || []).find((item) => String(item.id) === String(logId));
+  if (!row) {
+    setTaskMessage("Fant ikke vedlikeholdsposten.", true);
+    return;
+  }
+  if (!isOwnLog(row)) {
+    setTaskMessage("Du kan bare redigere egne vedlikeholdsposter.", true);
+    return;
+  }
+  setFormFromLog(row);
+  $("#taskTitle").textContent = safeText(row.summary, "Vedlikehold");
+  $("#taskSubtitle").textContent = "";
+  showScreen("entry");
+  renderRecent();
+  focusAfterScreenChange("#summary", { select: true, scroll: true });
 }
 
 function rowTags(row) {
@@ -453,8 +530,11 @@ function renderRecent() {
       safeText(row.performed_by),
     ].filter(Boolean).join(" - ");
     const statusClass = row.follow_up_needed ? "is-open" : "";
+    const editable = isOwnLog(row);
+    const tagName = editable ? "button" : "article";
+    const actionAttrs = editable ? ` type="button" data-log-id="${row.id}" aria-label="Rediger ${safeText(row.summary, "vedlikeholdspost")}"` : "";
     return `
-      <article class="recent-item">
+      <${tagName} class="recent-item ${editable ? "is-editable" : ""}"${actionAttrs}>
         <div class="recent-main">
           <strong>${safeText(row.summary, "Uten notat")}</strong>
           <span class="recent-meta">${safeText(target, "Generelt")}</span>
@@ -462,9 +542,12 @@ function renderRecent() {
           ${row.tags ? `<span class="recent-tags">${safeText(row.tags)}</span>` : ""}
         </div>
         <span class="recent-status ${statusClass}">${row.follow_up_needed ? "Oppfølging" : safeText(row.status, "Utført")}</span>
-      </article>
+      </${tagName}>
     `;
   }).join("");
+  container.querySelectorAll("[data-log-id]").forEach((button) => {
+    button.addEventListener("click", () => openLogForEdit(button.dataset.logId));
+  });
 }
 
 function updateHeader() {
@@ -535,13 +618,14 @@ async function submitForm(event) {
     updateSubmitState();
     return;
   }
+  const editing = Boolean(state.editingLog?.id);
   const savedTitle = state.selectedTask?.title || "Vedlikehold";
   state.busy = true;
   updateSubmitState();
   setMessage("Lagrer...");
   try {
-    const response = await fetch("/api/maintenance/logs", {
-      method: "POST",
+    const response = await fetch(editing ? `/api/maintenance/logs/${encodeURIComponent(state.editingLog.id)}` : "/api/maintenance/logs", {
+      method: editing ? "PATCH" : "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formPayload()),
@@ -550,9 +634,10 @@ async function submitForm(event) {
     if (!response.ok) throw new Error(payload.detail || payload.message || "Kunne ikke lagre.");
     state.lastSavedTitle = savedTitle;
     state.selectedTask = null;
+    state.editingLog = null;
     await loadBootstrap();
     showScreen("tasks");
-    setTaskMessage(`Lagret: ${savedTitle}`);
+    setTaskMessage(`${editing ? "Endret" : "Lagret"}: ${savedTitle}`);
   } catch (error) {
     setMessage(error.message || String(error), true);
   } finally {
@@ -565,6 +650,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("#maintenanceForm")?.addEventListener("submit", submitForm);
   $("#backButton")?.addEventListener("click", () => {
     state.selectedTask = null;
+    state.editingLog = null;
     showScreen("tasks");
     renderRecent();
   });
