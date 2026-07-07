@@ -6,6 +6,7 @@ import { AppChart } from "../components/AppChart";
 import { domainColors } from "../domainColors";
 import { decimal } from "../format";
 import { ModuleMetric } from "./module/ModuleMetric";
+import "../styles/energy.css";
 
 function numberText(value: number | null | undefined, digits = 0) {
   return decimal(value, digits);

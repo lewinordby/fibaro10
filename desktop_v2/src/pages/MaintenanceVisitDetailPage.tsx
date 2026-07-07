@@ -17,6 +17,7 @@ import { queryKeys } from "../queryKeys";
 import { ModuleMetric } from "./module/ModuleMetric";
 import { ModuleTablePane } from "./module/ModuleTablePane";
 import { displayValue, editInitialValues, fieldInput } from "./module/moduleTableUtils";
+import "../styles/records.css";
 
 export default function MaintenanceVisitDetailPage() {
   const { visitId = "" } = useParams();

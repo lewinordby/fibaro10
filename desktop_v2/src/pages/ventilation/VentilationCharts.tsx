@@ -6,7 +6,7 @@ import { chartAxisLabel, chartAxisLine, chartLegend, chartSplitLine, chartToolti
 import { AppChart } from "../../components/AppChart";
 import { isDarkScreenTheme } from "../../designTokens";
 import { PeriodNavigator } from "../../components/PeriodNavigator";
-import { fanRunSegments, fanSampleRunSegments, formatDayChartTooltip, minuteFromEventX, minuteFromTime, minuteLabel, numberText, percentFromEventX, seriesFocus, type DayChartSample, type DayChartTooltipParam, type VentChartFocus } from "./ventilationHelpers";
+import { fanRunSegments, fanSampleRunSegments, fanTransitionEvents, formatDayChartTooltip, minuteFromEventX, minuteFromTime, minuteLabel, numberText, percentFromEventX, seriesFocus, type DayChartSample, type DayChartTooltipParam, type VentChartFocus } from "./ventilationHelpers";
 export function DayChart({
   ventilation,
   focus,
@@ -29,7 +29,8 @@ export function DayChart({
     .map((sample) => ({ sample, minute: minuteFromTime(sample.time) }))
     .filter((item): item is DayChartSample => item.minute !== null)
     .sort((left, right) => left.minute - right.minute);
-  const fanMarkLines = day.fanEvents
+  const transitionEvents = fanTransitionEvents(day.fanEvents);
+  const fanMarkLines = transitionEvents
     .map((event) => ({
       name: `${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`,
       xAxis: minuteFromEventX(event.x),
@@ -153,6 +154,7 @@ export function DayChart({
       <div className="vent-fan-lanes">
         {day.fans.map((fan) => {
           const events = day.fanEvents.filter((event) => event.fan_key === fan.key);
+          const visibleEvents = transitionEvents.filter((event) => event.fan_key === fan.key);
           const endPercent = day.isToday && typeof day.nowMarker === "number" ? day.nowMarker : 100;
           const fanColor = fan.color || events[0]?.color || "#64748b";
           const fanLabel = fan.short || fan.name;
@@ -176,7 +178,7 @@ export function DayChart({
                     />
                   </Tooltip>
                 ))}
-                {events.map((event, index) => (
+                {visibleEvents.map((event, index) => (
                   <Tooltip key={`${fan.key}-${event.time}-${index}`} title={`${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`}>
                     <i
                       className={`vent-fan-event ${event.class}`}

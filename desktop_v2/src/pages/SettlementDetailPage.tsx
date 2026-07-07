@@ -6,6 +6,8 @@ import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useApiQuery } from "../hooks";
 import { modulePath } from "../moduleViews";
 import { queryKeys } from "../queryKeys";
+import "../styles/settlement-detail.css";
+import "../styles/sun-settlements.css";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "-";

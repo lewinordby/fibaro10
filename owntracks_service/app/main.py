@@ -405,7 +405,7 @@ def parse_query_datetime(value: Optional[str], label: str) -> Optional[datetime]
 
 def validate_time_range(start_at: Optional[datetime], end_at: Optional[datetime]) -> None:
     if start_at is not None and end_at is not None and start_at > end_at:
-        raise HTTPException(status_code=400, detail="Fra-tidspunkt maa vaere foer til-tidspunkt")
+        raise HTTPException(status_code=400, detail="Fra-tidspunkt må være før til-tidspunkt")
 
 
 def waypoint_name_from_payload(payload: dict[str, Any]) -> Optional[str]:
@@ -1792,7 +1792,7 @@ def data_quality_recommendations(
         {
             "severity": "info",
             "title": "Anbefalt OwnTracks-oppsett",
-            "text": f"Test minimal location displacement rundt {suggested_displacement} m, locator interval 60-120 sek, Publish Waypoints paa og batterioptimalisering av.",
+            "text": f"Test minimal location displacement rundt {suggested_displacement} m, locator interval 60-120 sek, Publish Waypoints på og batterioptimalisering av.",
         }
     )
     if not recommendations:
@@ -2205,7 +2205,7 @@ OWNTRACKS_ADMIN_HTML = """
     function tablePanel(id, title, rows, columns) {
       const panel = document.getElementById(id);
       if (!rows || rows.length === 0) {
-        panel.innerHTML = `<div class="panel-head"><h2>${esc(title)}</h2><span>0 rader</span></div><div class="empty">Ingen data enna.</div>`;
+        panel.innerHTML = `<div class="panel-head"><h2>${esc(title)}</h2><span>0 rader</span></div><div class="empty">Ingen data ennå.</div>`;
         return;
       }
       const head = columns.map(col => `<th>${esc(col.label)}</th>`).join("");

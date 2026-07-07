@@ -2,6 +2,7 @@ import { Card, Space, Tag, Typography } from "antd";
 import { Navigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { defaultModuleView, MODULE_VIEWS } from "../moduleViews";
+import "../styles/ideas.css";
 
 type IdeaStatus = "Klar å bygge" | "Bør vurderes" | "Krever datagrunnlag" | "Eksperiment";
 type IdeaImpact = "Høy" | "Middels" | "Lav";

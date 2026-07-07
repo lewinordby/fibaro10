@@ -23,6 +23,7 @@ import {
   signedNok,
   yearMonthLabel as monthLabel,
 } from "../yearComparison";
+import "../styles/status-comparison.css";
 
 function amountValue(value: number) {
   return `${nok(value)} kr`;

@@ -15,6 +15,7 @@ import { fetchModule, runModuleAction, type ModuleAction, type ModuleResponse, t
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
+import "../styles/records-settlements.css";
 
 type SettlementRow = ModuleRow & {
   __rowKey: string;

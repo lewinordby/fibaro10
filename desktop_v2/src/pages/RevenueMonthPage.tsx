@@ -13,6 +13,8 @@ import { domainColors } from "../domainColors";
 import { decimal, nok } from "../format";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
+import "../styles/status.css";
+import "../styles/status-periods.css";
 
 dayjs.locale("nb");
 

@@ -203,7 +203,7 @@ export default function OperationsPage() {
           dataSource={sources}
           pagination={{ pageSize: 25, showSizeChanger: true }}
           scroll={{ x: "max-content" }}
-          locale={{ emptyText: "Ingen datakilder aa vise" }}
+          locale={{ emptyText: "Ingen datakilder å vise" }}
         />
       </Card>
     </Space>

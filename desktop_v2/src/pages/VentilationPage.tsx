@@ -5,6 +5,9 @@ import { DayChart, WeatherChart } from "./ventilation/VentilationCharts";
 import { FilterBar, SettingsView, TableArea } from "./ventilation/VentilationPanels";
 import { CompactSnapshot, Snapshot } from "./ventilation/VentilationSnapshot";
 import { chartFocusFromSearch, type VentChartFocus } from "./ventilation/ventilationHelpers";
+import "../styles/ventilation.css";
+import "../styles/ventilation-charts.css";
+import "../styles/ventilation-settings.css";
 
 type VentilationPageProps = {
   data: ModuleResponse;

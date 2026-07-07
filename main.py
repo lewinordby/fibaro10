@@ -2272,7 +2272,7 @@ AI_DATASETS = {
     "soling_sessions": {
         "table": "sun2_tanning_sessions",
         "title": "Enkelt-solinger",
-        "description": "En rad per soltime/soling hentet fra SUN2 owner, med starttid, rom, bruker, varighet og betalt belop.",
+        "description": "En rad per soltime/soling hentet fra SUN2 owner, med starttid, rom, bruker, varighet og betalt beløp.",
         "columns": SUN2_SESSION_COLUMNS,
         "time_column": "started_at",
     },
@@ -2293,14 +2293,14 @@ AI_DATASETS = {
     "soling_product_sales": {
         "table": "sun2_product_sales",
         "title": "SUN2 produktsalg",
-        "description": "Produktsalg fra SUN2 med salgsdato, produkt, antall og belop inkl./eks. mva. Brukes til dagsfordeling og oppgjorskontroll.",
+        "description": "Produktsalg fra SUN2 med salgsdato, produkt, antall og beløp inkl./eks. mva. Brukes til dagsfordeling og oppgjørskontroll.",
         "columns": SUN2_PRODUCT_SALE_COLUMNS,
         "time_column": "sold_at",
     },
     "soling_finance_settlements": {
         "table": "sun2_finance_settlements",
-        "title": "SUN2 finansoppgjor",
-        "description": "Maanedlige finanslinjer fra SUN2 med soling, uregistrerte solinger og kontrollbelop mot Altera-kreditnota.",
+        "title": "SUN2 finansoppgjør",
+        "description": "Månedlige finanslinjer fra SUN2 med soling, uregistrerte solinger og kontrollbeløp mot Altera-kreditnota.",
         "columns": SUN2_FINANCE_SETTLEMENT_COLUMNS,
         "time_column": "period_start",
     },
@@ -8124,7 +8124,7 @@ async def fallback_car_info_import_status(session, job_name: str) -> Dict[str, A
     ).scalars().all()
     row = next((vehicle for vehicle in rows if car_info_lookup_country_code(vehicle.car_info_data, vehicle.plate) == country_code), None)
     if not row:
-        return {"message": "Ingen oppslag registrert ennaa"}
+        return {"message": "Ingen oppslag registrert ennå"}
     payload = {
         "message": f"{row.plate}: {car_info_status_label(row.car_info_status, row.car_info_data)}",
         "records_total": 1,
@@ -8187,7 +8187,7 @@ async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
             query = query.where(Sun2ProductSale.period_start == Sun2ProductSale.period_end)
         row = (await session.execute(query.order_by(Sun2ProductSale.imported_at.desc()).limit(1))).scalars().first()
         if not row:
-            return {"message": "Ingen produktsalg importert ennaa"}
+            return {"message": "Ingen produktsalg importert ennå"}
         count = (
             await session.execute(
                 select(func.count())
@@ -8207,7 +8207,7 @@ async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
             )
         ).scalars().first()
         if not row:
-            return {"message": "Ingen Sun2 finansoppgjor importert ennaa"}
+            return {"message": "Ingen Sun2 finansoppgjør importert ennå"}
         return {
             "last_success_at": row.imported_at,
             "message": f"Sist funnet i {row.payout_label or row.source_file or row.source_payout_id}",
@@ -14615,7 +14615,7 @@ async def api_v2_sun_settlement_detail(settlement_id: int):
     async with async_session() as session:
         row = await session.get(SettlementImport, settlement_id)
         if not row or row.provider != SUN_SETTLEMENT_PROVIDER:
-            raise HTTPException(status_code=404, detail="Oppgjor ikke funnet")
+            raise HTTPException(status_code=404, detail="Oppgjør ikke funnet")
         return await sun_settlement_detail_payload(session, row)
 
 
@@ -14624,7 +14624,7 @@ async def api_v2_sun_settlement_attachment(settlement_id: int, download: bool = 
     async with async_session() as session:
         row = await session.get(SettlementImport, settlement_id)
         if not row or row.provider != SUN_SETTLEMENT_PROVIDER:
-            raise HTTPException(status_code=404, detail="Oppgjor ikke funnet")
+            raise HTTPException(status_code=404, detail="Oppgjør ikke funnet")
         filename = row.attachment_filename or f"soling-oppgjor-{row.id}"
         content_type = row.attachment_content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
         disposition_type = "attachment" if download else "inline"
@@ -19961,7 +19961,7 @@ def normalize_sun_creditnote_signs(parsed: Dict[str, Any], field_sources: Dict[s
         if normalized == parsed.get(field):
             continue
         parsed[field] = normalized
-        field_sources[field] = f"{field_sources.get(field, 'Maskinlest fra oppgjorsskjema')}; fortegn snudd fordi dokumentet er kreditnota"
+        field_sources[field] = f"{field_sources.get(field, 'Maskinlest fra oppgjørsskjema')}; fortegn snudd fordi dokumentet er kreditnota"
         changed = True
     return changed
 
@@ -20063,7 +20063,7 @@ def parse_sun_settlement_text(extraction: Dict[str, Any]) -> Dict[str, Any]:
             parser_notes.append(f"Sum eks. mva + mva avviker fra Beløp NOK med {diff} kr.")
 
     if not lines:
-        parser_notes.append("Vedlegget har ikke tekstlag. Originalen er lagret, men tall maa kontrolleres manuelt eller OCR-leses senere.")
+        parser_notes.append("Vedlegget har ikke tekstlag. Originalen er lagret, men tall må kontrolleres manuelt eller OCR-leses senere.")
 
     required_fields = [
         "sun_revenue_ex_vat",
@@ -20719,7 +20719,7 @@ def sun_settlement_form_rows(
             settlement_parsed_value(parsed, "sun_revenue_ex_vat"),
             parsed,
             "amount",
-            "Operativt belop fra linjen Solomsetning for perioden.",
+            "Operativt beløp fra linjen Solomsetning for perioden.",
             expected_sun_revenue,
             expected_label="Sun2 månedsomsetning eks. mva",
             expected_source=expected_sun_revenue_source,
@@ -20732,7 +20732,7 @@ def sun_settlement_form_rows(
             settlement_parsed_value(parsed, "product_sales_ex_vat"),
             parsed,
             "amount",
-            "Operativt belop fra linjen Produktsalg for perioden.",
+            "Operativt beløp fra linjen Produktsalg for perioden.",
             expected_product_sales,
             expected_label="Sun2 månedsomsetning eks. mva",
             expected_source="sun2_product_sales",
@@ -20763,7 +20763,7 @@ def sun_settlement_form_rows(
             settlement_parsed_value(parsed, "marketing_sms_fee_ex_vat"),
             parsed,
             "amount",
-            "Eventuelt fratrekk for markedsforing paa SMS.",
+            "Eventuelt fratrekk for markedsføring på SMS.",
         ),
         settlement_form_field(
             "Markedsforing e-post",
@@ -20771,7 +20771,7 @@ def sun_settlement_form_rows(
             settlement_parsed_value(parsed, "marketing_email_fee_ex_vat"),
             parsed,
             "amount",
-            "Eventuelt fratrekk for markedsforing paa e-post.",
+            "Eventuelt fratrekk for markedsføring på e-post.",
         ),
         settlement_form_field(
             "Sum eks. MVA",
@@ -20859,17 +20859,17 @@ SETTLEMENT_PARSED_FIELD_LABELS: list[tuple[str, str, str]] = [
 
 SUN_SETTLEMENT_PARSED_FIELD_LABELS: list[tuple[str, str, str]] = [
     ("Kreditnotanr.", "credit_note_number", "Kreditnotanummer fra Altera."),
-    ("Kreditnotadato", "credit_note_date", "Dato paa kreditnotaen."),
+    ("Kreditnotadato", "credit_note_date", "Dato på kreditnotaen."),
     ("Leveransedato", "delivery_date", "Dato/periodegrunnlag fra skjemaet."),
-    ("Leverandor", "supplier_name", "Leverandor funnet i skjemaet."),
-    ("Leverandor org.nr.", "supplier_org_no", "Organisasjonsnummer funnet i skjemaet."),
+    ("Leverandør", "supplier_name", "Leverandør funnet i skjemaet."),
+    ("Leverandør org.nr.", "supplier_org_no", "Organisasjonsnummer funnet i skjemaet."),
     ("Kunde", "customer_name", "Kundenavn funnet i skjemaet."),
-    ("Solomsetning eks. mva", "sun_revenue_ex_vat", "Belop fra linjen Solomsetning for perioden."),
-    ("Produktsalg eks. mva", "product_sales_ex_vat", "Belop fra linjen Produktsalg for perioden."),
+    ("Solomsetning eks. mva", "sun_revenue_ex_vat", "Beløp fra linjen Solomsetning for perioden."),
+    ("Produktsalg eks. mva", "product_sales_ex_vat", "Beløp fra linjen Produktsalg for perioden."),
     ("Transaksjonskostnad eks. mva", "transaction_fee_ex_vat", "Fratrekk fra linjen Transaksjonskostnad."),
     ("Serviceavtale eks. mva", "service_fee_ex_vat", "Fratrekk fra linjen Serviceavtale."),
-    ("Markedsforing SMS eks. mva", "marketing_sms_fee_ex_vat", "Eventuelt fratrekk for markedsforing paa SMS."),
-    ("Markedsforing e-post eks. mva", "marketing_email_fee_ex_vat", "Eventuelt fratrekk for markedsforing paa e-post."),
+    ("Markedsføring SMS eks. mva", "marketing_sms_fee_ex_vat", "Eventuelt fratrekk for markedsføring på SMS."),
+    ("Markedsføring e-post eks. mva", "marketing_email_fee_ex_vat", "Eventuelt fratrekk for markedsføring på e-post."),
     ("Sum eks. mva", "sum_ex_vat", "Sum eks. mva fra skjemaet."),
     ("25% mva", "vat_25_percent", "Mva-linje fra skjemaet."),
     ("Beløp NOK", "payout_inc_vat", "Sluttsum fra skjemaet."),
@@ -20948,19 +20948,19 @@ async def settlement_detail_payload(session, row: SettlementImport) -> Dict[str,
         diff_easypark = round(easypark_ex_vat - easypark_source_ex_vat, 2) if easypark_ex_vat is not None else None
         control_rows = [
             settlement_field("Kontrollperiode fra", "period_start", row.period_start, "Tolket fra emne/filnavn"),
-            settlement_field("Kontrollperiode til", "period_end", row.period_end, "Beregnet siste dag i tolket maaned"),
+            settlement_field("Kontrollperiode til", "period_end", row.period_end, "Beregnet siste dag i tolket måned"),
             settlement_field("Flowbird parkeringer", "flowbird_source_count", int_or_zero(flowbird_summary.get("count")), "source_system = flowbird-parknordic"),
-            settlement_field("Flowbird i Fibaro10 eks. mva", "flowbird_source_paid_ex_vat", flowbird_ex_vat, "source_system = flowbird-parknordic", "Summeres fra fee_ex_vat for hele oppgjorsmaaneden."),
-            settlement_field("Brutto mynt/kort i skjema eks. mva", "gross_coin_card_ex_vat", gross_coin_card, settlement_field_source(parsed, "gross_coin_card_ex_vat"), "Belop hentet fra oppgjorsskjemaet.", settlement_field_confidence(parsed, "gross_coin_card_ex_vat")),
-            settlement_field("Avvik skjema - Flowbird eks. mva", "flowbird_source_diff_ex_vat", diff_flowbird, "Beregnet kontroll", "Positivt tall betyr at skjemaet har hoyere brutto mynt/kort enn Fibaro10-kilden."),
+            settlement_field("Flowbird i Fibaro10 eks. mva", "flowbird_source_paid_ex_vat", flowbird_ex_vat, "source_system = flowbird-parknordic", "Summeres fra fee_ex_vat for hele oppgjørsmåneden."),
+            settlement_field("Brutto mynt/kort i skjema eks. mva", "gross_coin_card_ex_vat", gross_coin_card, settlement_field_source(parsed, "gross_coin_card_ex_vat"), "Beløp hentet fra oppgjørsskjemaet.", settlement_field_confidence(parsed, "gross_coin_card_ex_vat")),
+            settlement_field("Avvik skjema - Flowbird eks. mva", "flowbird_source_diff_ex_vat", diff_flowbird, "Beregnet kontroll", "Positivt tall betyr at skjemaet har høyere brutto mynt/kort enn Fibaro10-kilden."),
             settlement_field("EasyPark parkeringer", "easypark_source_count", int_or_zero(easypark_summary.get("count")), "source_system = EasyPark"),
-            settlement_field("EasyPark i Fibaro10 eks. mva", "easypark_source_paid_ex_vat", easypark_source_ex_vat, "source_system = EasyPark", "Summeres fra fee_ex_vat for hele oppgjorsmaaneden."),
-            settlement_field("EasyPark i skjema eks. mva", "easypark_ex_vat", easypark_ex_vat, settlement_field_source(parsed, "easypark_ex_vat"), "Belop hentet fra oppgjorsskjemaet.", settlement_field_confidence(parsed, "easypark_ex_vat")),
-            settlement_field("Avvik skjema - EasyPark eks. mva", "easypark_source_diff_ex_vat", diff_easypark, "Beregnet kontroll", "Positivt tall betyr at skjemaet har hoyere EasyPark-belop enn Fibaro10-kilden."),
+            settlement_field("EasyPark i Fibaro10 eks. mva", "easypark_source_paid_ex_vat", easypark_source_ex_vat, "source_system = EasyPark", "Summeres fra fee_ex_vat for hele oppgjørsmåneden."),
+            settlement_field("EasyPark i skjema eks. mva", "easypark_ex_vat", easypark_ex_vat, settlement_field_source(parsed, "easypark_ex_vat"), "Beløp hentet fra oppgjørsskjemaet.", settlement_field_confidence(parsed, "easypark_ex_vat")),
+            settlement_field("Avvik skjema - EasyPark eks. mva", "easypark_source_diff_ex_vat", diff_easypark, "Beregnet kontroll", "Positivt tall betyr at skjemaet har høyere EasyPark-beløp enn Fibaro10-kilden."),
             settlement_field("Andre kildeparkeringer", "other_source_count", int_or_zero(other_summary.get("count")), "Alle andre source_system-verdier"),
             settlement_field("Total parkering i Fibaro10 inkl. mva", "parking_paid", round(paid_value, 2), "Alle parkeringskilder", "Totalverdi for orientering, ikke brukt som EasyPark-kontroll."),
             settlement_field("Snitt per parkering", "average_paid", average_value, "Beregnet fra intern parkeringstelling"),
-            settlement_field("Til utbetaling i skjema", "payout_inc_vat", payout_inc_vat, settlement_field_source(parsed, "payout_inc_vat"), "Oppgjorets sluttsum. Dette er ikke direkte det samme som kundebetaling i Fibaro10.", settlement_field_confidence(parsed, "payout_inc_vat")),
+            settlement_field("Til utbetaling i skjema", "payout_inc_vat", payout_inc_vat, settlement_field_source(parsed, "payout_inc_vat"), "Oppgjørets sluttsum. Dette er ikke direkte det samme som kundebetaling i Fibaro10.", settlement_field_confidence(parsed, "payout_inc_vat")),
         ]
         control_cards = [
             api_card("Flowbird Fibaro10", format_short_number(flowbird_ex_vat, 2), "kr", f"{int_or_zero(flowbird_summary.get('count'))} parkeringer", "parking"),
@@ -21103,7 +21103,7 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
             settlement_field(
                 "Skjemafelter",
                 "parsed",
-                "Ikke maskinlest ennaa",
+                "Ikke maskinlest ennå",
                 "Originalskjemaet er lagret, men dokumentet har ikke tekstlag eller lesbare felter i parseren.",
             )
         ]
@@ -21173,7 +21173,7 @@ async def sun_settlement_detail_payload(session, row: SettlementImport) -> Dict[
                     settlement_field("Råtimer mot system soling eks. mva", "sun_sessions_diff_vs_finance_gross_ex_vat", raw_sessions_gross_diff, "Teknisk kontroll", "Rå enkelttimer minus intern månedsomsetning."),
                 ],
             },
-            {"title": "Nokkeltall fra skjema", "rows": parsed_rows},
+            {"title": "Nøkkeltall fra skjema", "rows": parsed_rows},
             {
                 "title": "Tolket periode",
                 "rows": [
@@ -22404,7 +22404,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 "title": v2_module_title("koble", view),
                 "subtitle": (
                     "Egen bakgrunnsapp gaar gjennom parkeringer fra nyeste og finner mulige koblinger mot SUN2-ID. "
-                    "Koblinger maa bekreftes foer de brukes."
+                    "Koblinger må bekreftes før de brukes."
                 ),
                 "kobleReview": {
                     "generatedAt": api_local_iso(now_dt),
@@ -24699,7 +24699,7 @@ async def api_v2_upload_sun_settlement(request: Request):
         raise HTTPException(status_code=400, detail="Tom fil")
     content_type = getattr(upload, "content_type", None) or mimetypes.guess_type(filename)[0] or "application/octet-stream"
     if not is_settlement_attachment(filename, content_type):
-        raise HTTPException(status_code=400, detail="Filtypen stottes ikke for oppgjor")
+        raise HTTPException(status_code=400, detail="Filtypen støttes ikke for oppgjør")
 
     sha = hashlib.sha256(content).hexdigest()
     parsed = parse_sun_settlement_attachment(filename, content_type, content)
@@ -24868,7 +24868,7 @@ async def api_v2_parking_clear_area_not_found(request: Request):
     clear_summary_cache("parking")
     return {
         "status": "ok",
-        "message": f"{cleared} kjoretoy fikk fjernet omrade 'ikke funnet'.",
+        "message": f"{cleared} kjøretøy fikk fjernet område 'ikke funnet'.",
         "cleared": cleared,
     }
 
@@ -24905,7 +24905,7 @@ async def api_v2_koble_start(request: Request):
         state = await get_parking_sun_link_state(session)
         state.enabled = True
         state.status = "venter"
-        state.status_text = "Koblingsjobben er aktiv og venter paa worker."
+        state.status_text = "Koblingsjobben er aktiv og venter på worker."
         state.last_started_at = local_now_naive()
         state.last_finished_at = None
         state.last_error = None

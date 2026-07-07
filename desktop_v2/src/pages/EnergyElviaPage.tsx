@@ -3,6 +3,7 @@ import { Alert, App as AntApp, Button, Card, Space, Table, Tag, Typography } fro
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { uploadElviaFile, type EnergyElviaData, type EnergyElviaSummaryItem, type ModuleResponse } from "../api";
+import "../styles/energy.css";
 
 type EnergyElviaPageProps = {
   data: ModuleResponse;

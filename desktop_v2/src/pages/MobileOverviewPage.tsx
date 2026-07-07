@@ -6,6 +6,7 @@ import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PageHeader } from "../components/PageHeader";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
+import "../styles/mobile-preview.css";
 
 function frameUrl(baseUrl: string, refreshToken: number): string {
   const separator = baseUrl.includes("?") ? "&" : "?";

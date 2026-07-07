@@ -24,6 +24,11 @@ import { nok } from "../format";
 import { useApiQuery } from "../hooks";
 import { appPath } from "../navigation";
 import { queryKeys } from "../queryKeys";
+import "../styles/status.css";
+import "../styles/status-widgets.css";
+import "../styles/status-periods.css";
+import "../styles/status-refinements.css";
+import "../styles/status-overview.css";
 
 type DashboardView = "omsetning" | "parkering" | "soling" | "drift";
 type StripState = { label: string; state: boolean | null; tooltip?: string };

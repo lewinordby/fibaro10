@@ -15,6 +15,7 @@ import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PageHeader } from "../components/PageHeader";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
+import "../styles/doors.css";
 
 function stateTag(row: Pick<DoorStatusItem | DoorEventItem, "state" | "stateLabel">) {
   if (row.state === "closed") return <Tag color="green">Lukket</Tag>;

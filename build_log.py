@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1457")
+APP_BUILD = os.getenv("APP_BUILD", "1458")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1458",
+        "date": "07.07.2026",
+        "headline": "Nattlig kvalitetssjekk og frontend-opprydding",
+        "title": "CSS-pakken er delt opp og ventilasjonsgrafen er ryddet",
+        "description": (
+            "Build 1458 er en systematisk kontrollrunde av Fibaro10 med fokus på drift, testdekning, "
+            "frontendytelse, CSS og visuelle feil. Hoved-CSS er delt opp slik at V2 laster mindre "
+            "global stilpakke, og ventilasjon/dagslogg viser nå bare faktiske av/på-skifter som "
+            "vertikale markeringer."
+        ),
+        "applications": [
+            "desktop_v2/src/main.tsx og sidekomponenter: flytter sidespesifikk CSS fra global import til lazy-loaded sider.",
+            "desktop_v2/src/pages/ventilation/VentilationCharts.tsx: bruker filtrerte viftetransisjoner i diagram og hendelseslinjer.",
+            "desktop_v2/src/pages/ventilation/ventilationHelpers.tsx: legger til stabil filtrering av reelle fan state transitions.",
+            "main.py, import_jobs.py og owntracks_service/app/main.py: retter synlige norske tekster i oppgjør, Sun2-jobber og OwnTracks.",
+            "desktop_v2/scripts/audit-bundle.mjs, route smoke og live smoke: verifiserer at CSS, routing og liveflater fortsatt er friske.",
+        ],
+        "request": "Ta en grundig gjennomgang av hele løsningen, sjekk funksjon, design og CSS, og fiks alt som trygt kan fikses uten å spørre.",
+        "work_duration": "ca. 3 t",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Hoved-CSS er redusert fra rundt 155 KB til rundt 59 KB ved å flytte modulstiler til relevante lazy-ruter.",
+            "Bundle-audit er grønn igjen uten unntak for stor CSS-fil.",
+            "Ventilasjon/dagslogg viser ikke lenger en stripe av dupliserte viftehendelser.",
+            "Norske tekster rundt oppgjør, Sun2-jobber og OwnTracks er ryddet for synlige ASCII-erstatninger.",
+            "Full lokal test-, build-, route- og smoke-runde er kjørt før deploy.",
+        ],
+    },
     {
         "version": "1",
         "build": "1457",

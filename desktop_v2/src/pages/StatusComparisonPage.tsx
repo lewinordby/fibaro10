@@ -17,6 +17,8 @@ import { domainColors } from "../domainColors";
 import { nok } from "../format";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
+import "../styles/status-comparison.css";
+import "../styles/status-periods.css";
 
 type ComparisonMetric = "count" | "amount";
 type ComparisonChartKind = StatusComparisonLane["kind"] | "total";

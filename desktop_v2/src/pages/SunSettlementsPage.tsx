@@ -13,6 +13,8 @@ import { fetchModule, uploadSettlementFile, type ModuleResponse, type ModuleRow 
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
+import "../styles/records-settlements.css";
+import "../styles/sun-settlements.css";
 
 type SettlementRow = ModuleRow & {
   __rowKey: string;

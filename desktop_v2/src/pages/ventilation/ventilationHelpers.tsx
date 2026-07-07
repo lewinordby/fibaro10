@@ -132,6 +132,27 @@ export type VentFanRunSegment = {
   title: string;
 };
 
+export function fanTransitionEvents(events: VentFanEvent[]): VentFanEvent[] {
+  const sorted = [...events].sort((left, right) => {
+    const fanOrder = String(left.fan_key ?? "").localeCompare(String(right.fan_key ?? ""));
+    if (fanOrder !== 0) return fanOrder;
+    return left.x - right.x;
+  });
+  const lastClassByFan = new Map<string, string>();
+  const transitions: VentFanEvent[] = [];
+
+  for (const event of sorted) {
+    const fanKey = String(event.fan_key ?? "");
+    const eventClass = String(event.class ?? "");
+    if (!fanKey || !eventClass) continue;
+    if (lastClassByFan.get(fanKey) === eventClass) continue;
+    transitions.push(event);
+    lastClassByFan.set(fanKey, eventClass);
+  }
+
+  return transitions.sort((left, right) => left.x - right.x);
+}
+
 function booleanSampleValue(value: unknown): boolean | null {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return Number.isFinite(value) ? value !== 0 : null;
