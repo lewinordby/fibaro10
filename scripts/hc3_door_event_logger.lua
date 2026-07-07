@@ -35,8 +35,13 @@ local function timestamp()
   return os.date("%Y-%m-%dT%H:%M:%S")
 end
 
+local function valueToText(value)
+  if value == nil then return "" end
+  return tostring(value)
+end
+
 local function boolFromRaw(raw)
-  local text = tostring(raw or ""):lower()
+  local text = valueToText(raw):lower()
   if text == "true" or text == "1" or text == "open" or text == "opened" then return true end
   if text == "false" or text == "0" or text == "closed" or text == "close" then return false end
   local numeric = tonumber(raw)
@@ -64,7 +69,7 @@ local function getGlobalVariable(name)
 end
 
 local function setGlobalVariable(name, value)
-  local text = tostring(value or "")
+  local text = valueToText(value)
   local ok, existing = pcall(api.get, "/globalVariables/" .. name)
   if ok and existing and existing.name then
     api.put("/globalVariables/" .. name, { name = name, value = text })
@@ -89,7 +94,7 @@ local function getBatteryLevel(deviceId)
   return nil
 end
 
-local function postPayload(payload)
+local function postPayload(payload, done)
   local http = net.HTTPClient()
   http:request(API_URL, {
     options = {
@@ -106,9 +111,11 @@ local function postPayload(payload)
       else
         warn("Fibaro10 svarte " .. tostring(response.status) .. ": " .. tostring(response.data))
       end
+      if done then done() end
     end,
     error = function(err)
       warn("Feil ved sending: " .. tostring(err))
+      if done then done() end
     end
   })
 end
@@ -121,9 +128,12 @@ local function triggerDeviceId()
   return nil, trigger
 end
 
-local function sendDevice(deviceId, trigger)
+local function sendDevice(deviceId, trigger, done)
   local config = DEVICES[deviceId]
-  if not config then return end
+  if not config then
+    if done then done() end
+    return
+  end
 
   local raw = fibaro.getValue(deviceId, "value")
   local state = boolFromRaw(raw)
@@ -139,7 +149,7 @@ local function sendDevice(deviceId, trigger)
     device_id = deviceId,
     device_name = getDeviceName(deviceId, config.name),
     source = SOURCE,
-    raw_value = tostring(raw or ""),
+    raw_value = valueToText(raw),
     state = state,
     previous_state = previousState,
     battery_level = getBatteryLevel(deviceId),
@@ -149,9 +159,21 @@ local function sendDevice(deviceId, trigger)
     }
   }
 
-  setGlobalVariable(globalName(deviceId), tostring(raw or ""))
+  setGlobalVariable(globalName(deviceId), valueToText(raw))
   log("Sender " .. tostring(payload.device_name) .. " " .. action .. " raw=" .. tostring(raw))
-  postPayload(payload)
+  postPayload(payload, done)
+end
+
+local function sendAllDevices(deviceIds, index, trigger)
+  if index > #deviceIds then
+    log("Manuell statussending ferdig.")
+    return
+  end
+  sendDevice(deviceIds[index], trigger, function()
+    fibaro.setTimeout(250, function()
+      sendAllDevices(deviceIds, index + 1, trigger)
+    end)
+  end)
 end
 
 local triggeredId, trigger = triggerDeviceId()
@@ -159,7 +181,5 @@ if triggeredId then
   sendDevice(triggeredId, trigger)
 else
   log("Ingen spesifikk trigger. Sender status for alle dorer.")
-  for deviceId, _ in pairs(DEVICES) do
-    sendDevice(deviceId, trigger)
-  end
+  sendAllDevices({453, 447, 413}, 1, trigger)
 end
