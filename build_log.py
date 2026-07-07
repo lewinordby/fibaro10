@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1455")
+APP_BUILD = os.getenv("APP_BUILD", "1456")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1456",
+        "date": "07.07.2026",
+        "headline": "HC3 dørhendelser logges i Fibaro10",
+        "title": "Magnetfølere får egen dørhendelseslogg",
+        "description": (
+            "Build 1456 legger inn dedikert logging av magnetfølere fra HC3 til Fibaro10. "
+            "Fibaro10 får egen door_events-tabell, API-endepunkt for HC3, datakildestatus og JSON-uttrekk. "
+            "HC3-scenen logger device 453, 447 og 413 ved åpning/lukking."
+        ),
+        "applications": [
+            "main.py: legger til DoorEvent-modell, DoorEventIn, /api/hc3/door-events og /api/hc3/door-events/json.",
+            "import_jobs.py og observability.py: registrerer dørhendelser som datakilde og lagringstabell.",
+            "scripts/hc3_door_event_logger.lua: ny HC3 Lua-scene for magnetfølere 453, 447 og 413.",
+            "scripts/upsert_hc3_door_event_logger_scene.py: oppretter eller oppdaterer scenen i HC3 via API.",
+            "migrations/versions/20260707_2130_add_hc3_door_events.sql: idempotent databaseskjema for door_events.",
+            "tests/test_hc3_door_events.py: dekker API-rute, datakilde og Lua-scriptets enhetsliste.",
+        ],
+        "request": "Lag script og Fibaro10-støtte for å skrive til databasen hver gang magnetfølere 453, 447 og 413 åpnes/lukkes. Legg Lua-scenen rett inn i HC3.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Dørhendelser lagres i egen tabell med device, action, state, råverdi og batterinivå.",
+            "HC3 kan poste direkte til /api/hc3/door-events uten brukerinnlogging, på samme måte som øvrige interne HC3-ingester.",
+            "Datakilder viser siste mottatte dørhendelse.",
+            "HC3-scenen kan kjøres manuelt for å sende nåværende status for alle tre sensorer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1455",

@@ -31,6 +31,7 @@ Se ogsa `docs/desktop-v2.md` for den primaere React/Ant Design/ECharts-revisjone
 | `scripts/hc3_energy_logger.lua` | Logger HC3 effekt og akkumulert kWh til `/api/energi/fibaro`, inkludert avfukter fra device 449 (`power`/`energy`). |
 | `scripts/hc3_ventilation_runner_scene_363.lua` | Aktiv ventilasjonsrunner for HC3 scene 363. Logger temperatur/fukt for ventilasjonssoner, inkludert Yr-fukt, og styrer/loggfører avfukter 449. |
 | `scripts/hc3_basement_dehumidifier.lua` | Styrer avfukter 449 fra kjellertemperatur 444 og kjellerfukt 445, med terskler fra `/api/config/ventilation`. |
+| `scripts/hc3_door_event_logger.lua` | Logger åpne/lukke-hendelser fra magnetfølere 453, 447 og 413 til `/api/hc3/door-events`. Installeres med `scripts/upsert_hc3_door_event_logger_scene.py`. |
 
 ## Viktige prinsipper
 

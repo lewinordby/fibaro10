@@ -595,6 +595,24 @@ class GenericEvent(Base):
     extra = Column(JSON, nullable=True)
 
 
+class DoorEvent(Base):
+    __tablename__ = "door_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=local_now_naive, index=True)
+    event_type = Column(String, index=True, default="door_change")
+    action = Column(String, index=True, nullable=False)
+    device_key = Column(String, index=True, nullable=True)
+    device_id = Column(Integer, index=True, nullable=True)
+    device_name = Column(String, nullable=True)
+    source = Column(Text, nullable=True)
+    raw_value = Column(String, nullable=True)
+    state = Column(Boolean, index=True, nullable=True)
+    previous_state = Column(Boolean, nullable=True)
+    battery_level = Column(Float, nullable=True)
+    extra = Column(JSON, nullable=True)
+
+
 class ImportJobStatus(Base):
     __tablename__ = "import_job_status"
 
@@ -1633,6 +1651,21 @@ class EventDataIn(BaseModel):
     extra: Dict[str, Any] = Field(default_factory=dict)
 
 
+class DoorEventIn(BaseModel):
+    timestamp: Optional[datetime] = None
+    event_type: str = "door_change"
+    action: Optional[str] = None
+    device_key: Optional[str] = None
+    device_id: Optional[int] = None
+    device_name: Optional[str] = None
+    source: Optional[str] = "HC3"
+    raw_value: Optional[str] = None
+    state: Optional[bool] = None
+    previous_state: Optional[bool] = None
+    battery_level: Optional[float] = None
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
 class EnergyFibaroIn(BaseModel):
     source: str = "HC3 ENERGI"
     timestamp: Optional[datetime] = None
@@ -2057,6 +2090,12 @@ GENERIC_COLUMNS = [
     "device_name", "mode", "reason", "source", "lux", "value", "state", "extra",
 ]
 
+DOOR_EVENT_COLUMNS = [
+    "id", "timestamp", "event_type", "action", "device_key", "device_id",
+    "device_name", "source", "raw_value", "state", "previous_state",
+    "battery_level", "extra",
+]
+
 VENT_SAMPLE_COLUMNS = [
     "id", "timestamp", "bucket_start", "mode", "source", "temp_1etg", "temp_2etg",
     "temp_vip", "temp_ute", "temp_ute_netatmo", "temp_yr", "temp_loft",
@@ -2333,6 +2372,13 @@ AI_DATASETS = {
         "title": "Generelle logghendelser",
         "description": "Eldre og generelle loggposter fra HC3 og scripts.",
         "columns": GENERIC_COLUMNS,
+        "time_column": "timestamp",
+    },
+    "door_events": {
+        "table": "door_events",
+        "title": "Dørhendelser fra HC3",
+        "description": "Åpne/lukke-hendelser fra magnetfølere i HC3.",
+        "columns": DOOR_EVENT_COLUMNS,
         "time_column": "timestamp",
     },
 }
@@ -3228,6 +3274,19 @@ STARTUP_COLUMNS = {
     "event_data": [
         ("device_key", "VARCHAR"),
     ],
+    "door_events": [
+        ("event_type", "VARCHAR DEFAULT 'door_change'"),
+        ("action", "VARCHAR"),
+        ("device_key", "VARCHAR"),
+        ("device_id", "INTEGER"),
+        ("device_name", "VARCHAR"),
+        ("source", "TEXT"),
+        ("raw_value", "VARCHAR"),
+        ("state", "BOOLEAN"),
+        ("previous_state", "BOOLEAN"),
+        ("battery_level", "DOUBLE PRECISION"),
+        ("extra", "JSON"),
+    ],
     "utelys_samples": [
         ("light_spot_glass_275", "BOOLEAN"),
         ("light_spot_glass_299", "BOOLEAN"),
@@ -3608,6 +3667,16 @@ PERFORMANCE_INDEXES = [
         "ON utelys_samples (bucket_start, mode)",
     ),
     (
+        "ix_door_events_device_timestamp",
+        "CREATE INDEX IF NOT EXISTS ix_door_events_device_timestamp "
+        "ON door_events (device_id, timestamp DESC)",
+    ),
+    (
+        "ix_door_events_action_timestamp",
+        "CREATE INDEX IF NOT EXISTS ix_door_events_action_timestamp "
+        "ON door_events (action, timestamp DESC)",
+    ),
+    (
         "ix_import_runs_job_finished",
         "CREATE INDEX IF NOT EXISTS ix_import_runs_job_finished "
         "ON import_job_runs (job_name, finished_at DESC)",
@@ -3941,7 +4010,7 @@ def is_public_request(request: Request) -> bool:
         return True
     if request.method == "GET" and (path == "/api/config" or path.startswith("/api/config/")):
         return True
-    return request.method == "POST" and path in {"/events", "/log", "/api/energi/fibaro", "/api/hc3/measurements/log"}
+    return request.method == "POST" and path in {"/events", "/log", "/api/energi/fibaro", "/api/hc3/measurements/log", "/api/hc3/door-events"}
 
 
 async def parse_form_body(request: Request) -> Dict[str, str]:
@@ -8079,6 +8148,12 @@ async def fallback_import_job_status(session, job_name: str) -> Dict[str, Any]:
             "last_success_at": row.bucket_start if row else None,
             "message": f"Inntak {format_short_number(row.inntak_w)} W" if row and row.inntak_w is not None else "Sist funnet i energiloggen" if row else "",
         }
+    if job_name == "hc3_door_events":
+        row = (await session.execute(select(DoorEvent).order_by(DoorEvent.timestamp.desc()).limit(1))).scalars().first()
+        return {
+            "last_success_at": row.timestamp if row else None,
+            "message": f"{row.device_name or row.device_key or row.device_id}: {row.action}" if row else "",
+        }
     if job_name == "roborock_sync":
         row = (await session.execute(select(RoborockSyncRun).order_by(RoborockSyncRun.timestamp.desc()).limit(1))).scalars().first()
         return {"last_success_at": row.timestamp if row and row.ok is not False else None, "last_failed_at": row.timestamp if row and row.ok is False else None, "message": row.message if row else "", "records_total": row.robots_count if row else None}
@@ -9834,6 +9909,56 @@ def generic_from_payload(data: EventDataIn) -> GenericEvent:
         value=value_from_payload(data, "value"),
         state=value_from_payload(data, "state"),
         extra=merged_extra(data),
+    )
+
+
+def parse_boolish(value: Any) -> Optional[bool]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+    text = str(value).strip().lower()
+    if text in {"true", "1", "yes", "ja", "on", "open", "opened", "åpen", "aapen"}:
+        return True
+    if text in {"false", "0", "no", "nei", "off", "closed", "close", "lukket", "stengt"}:
+        return False
+    return None
+
+
+def door_action_from_state(state: Optional[bool], action: Optional[str], raw_value: Optional[str]) -> str:
+    action_text = (action or "").strip().upper()
+    if action_text in {"OPEN", "OPENED", "APEN", "ÅPEN", "AOPEN", "PAA", "PÅ"}:
+        return "OPEN"
+    if action_text in {"CLOSED", "CLOSE", "LUKKET", "STENGT", "AV"}:
+        return "CLOSED"
+    resolved_state = state if state is not None else parse_boolish(raw_value)
+    if resolved_state is True:
+        return "OPEN"
+    if resolved_state is False:
+        return "CLOSED"
+    return action_text or "UNKNOWN"
+
+
+def door_event_from_payload(data: DoorEventIn) -> DoorEvent:
+    state = data.state if data.state is not None else parse_boolish(data.raw_value)
+    return DoorEvent(
+        timestamp=normalize_local_naive(data.timestamp) or local_now_naive(),
+        event_type=data.event_type or "door_change",
+        action=door_action_from_state(state, data.action, data.raw_value),
+        device_key=data.device_key,
+        device_id=data.device_id,
+        device_name=data.device_name,
+        source=data.source or "HC3",
+        raw_value=str(data.raw_value) if data.raw_value is not None else None,
+        state=state,
+        previous_state=data.previous_state,
+        battery_level=data.battery_level,
+        extra=data.extra or {},
     )
 
 
@@ -25676,6 +25801,33 @@ async def log_event(data: EventDataIn):
     return {"status": "ok", "id": event_id, "table": "event_data"}
 
 
+@app.post("/api/hc3/door-events")
+async def api_hc3_door_event(data: DoorEventIn):
+    row = door_event_from_payload(data)
+    async with async_session() as session:
+        session.add(row)
+        await session.flush()
+        await record_import_job(
+            session,
+            "hc3_door_events",
+            source=data.source or "HC3",
+            records_imported=1,
+            records_total=1,
+            message=f"{row.device_name or row.device_key or row.device_id or 'Dør'} {row.action}",
+            raw={
+                "id": row.id,
+                "device_id": row.device_id,
+                "device_key": row.device_key,
+                "action": row.action,
+                "state": row.state,
+                "raw_value": row.raw_value,
+            },
+        )
+        await session.commit()
+        await session.refresh(row)
+    return {"status": "ok", "id": row.id, "table": "door_events", "action": row.action, "state": row.state}
+
+
 @app.post("/api/import-status/report")
 async def import_status_report(data: ImportStatusReportIn):
     definition = import_job_definition(data.job_name)
@@ -29990,6 +30142,14 @@ async def events_json(limit: int = 1000):
         result = await session.execute(select(GenericEvent).order_by(GenericEvent.timestamp.desc()).limit(limit))
         rows = result.scalars().all()
     return {"count": len(rows), "rows": [row_to_dict(row, GENERIC_COLUMNS) for row in rows]}
+
+
+@app.get("/api/hc3/door-events/json")
+async def api_hc3_door_events_json(limit: int = Query(200, ge=1, le=5000)):
+    async with async_session() as session:
+        result = await session.execute(select(DoorEvent).order_by(DoorEvent.timestamp.desc()).limit(limit))
+        rows = result.scalars().all()
+    return {"count": len(rows), "rows": [row_to_dict(row, DOOR_EVENT_COLUMNS) for row in rows]}
 
 
 @app.get("/classic/parkering/kjoretoy", response_class=HTMLResponse)

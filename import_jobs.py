@@ -169,6 +169,14 @@ IMPORT_JOB_DEFINITIONS = {
         "warning_after_minutes": 10,
         "description": "Fibaro10 henter Lilletorget-besøk fra OwnTracks og kobler vedlikeholdsoppgaver til oppholdene.",
     },
+    "hc3_door_events": {
+        "title": "Dørhendelser fra HC3",
+        "category": "Bygg og drift",
+        "source": "HC3",
+        "expected_interval_minutes": None,
+        "warning_after_minutes": None,
+        "description": "Hendelsesstyrt logging av magnetfølere når dører åpnes og lukkes.",
+    },
 }
 
 IMPORT_JOB_NUMBER_BY_NAME = {
@@ -192,6 +200,10 @@ IMPORT_JOB_DETAILS = {
     "hc3_energy_1min": {
         "data_flow": "HC3 sender realtime effektverdier fra hovedmåler og undermålere til Fibaro10. Systemet bruker realtime målingene som grunnlag for energisider, differanse og akkumulert forbruk.",
         "dependencies": ["HC3", "Fibaro energimåler/QuickApp", "Fibaro10 API", "PostgreSQL"],
+    },
+    "hc3_door_events": {
+        "data_flow": "HC3 Lua-scene trigges av magnetfølerens verdiendring og poster åpne/lukke-hendelsen til Fibaro10. Fibaro10 lagrer hendelsen i egen door_events-tabell og oppdaterer datakildestatus.",
+        "dependencies": ["HC3", "HC3 Lua-scene", "Fibaro10 API", "PostgreSQL"],
     },
     "roborock_sync": {
         "data_flow": "Roborock-loggeren på QNAP henter robotstatus, jobber, kart og vedlikeholdsdata og poster resultatet til Fibaro10. Fibaro10 lagrer status og viser renholdsdata i drift/admin.",

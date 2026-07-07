@@ -5,7 +5,7 @@ from api_types import HealthCheckPayload, HealthPayload, HealthSourcePayload, He
 
 STORAGE_TABLES = [
     "utelys_events", "utelys_samples", "ventilasjon_events", "ventilasjon_samples",
-    "yr_forecast_samples", "control_configs", "control_config_history", "event_data",
+    "yr_forecast_samples", "control_configs", "control_config_history", "event_data", "door_events",
     "roborock_robots", "roborock_status_samples", "roborock_clean_jobs",
     "roborock_schedules", "roborock_consumables", "roborock_maps",
     "import_job_status", "import_job_runs", "owntracks_devices", "owntracks_locations",
