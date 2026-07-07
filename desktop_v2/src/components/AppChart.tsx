@@ -24,6 +24,13 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-export function AppChart({ opts, ...props }: EChartsReactProps) {
-  return <ReactEChartsCore echarts={echarts} opts={{ renderer: "canvas", ...opts }} {...props} />;
+export function AppChart({ opts, replaceMerge, ...props }: EChartsReactProps) {
+  return (
+    <ReactEChartsCore
+      echarts={echarts}
+      opts={{ renderer: "canvas", ...opts }}
+      replaceMerge={replaceMerge ?? ["series"]}
+      {...props}
+    />
+  );
 }

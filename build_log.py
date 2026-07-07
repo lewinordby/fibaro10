@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1460")
+APP_BUILD = os.getenv("APP_BUILD", "1461")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1461",
+        "date": "07.07.2026",
+        "headline": "Grafvalg fjerner skjulte serier",
+        "title": "Ekstra grafer ryddes bort når de slås av",
+        "description": (
+            "Build 1461 retter en ECharts-mergefeil der en ekstra grafserie kunne bli liggende igjen "
+            "visuelt etter at valget ble slått av. Felles chart-wrapper erstatter nå series-listen rent "
+            "ved oppdatering, slik at grafvalg følger avkryssingene konsekvent."
+        ),
+        "applications": [
+            "desktop_v2/src/components/AppChart.tsx: setter replaceMerge for series som standard på alle ECharts-grafer.",
+        ],
+        "request": "Når man klikker på en ekstra graf for å vise den så går den ikke alltid bort igjen når man slår av valget - fiks det.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Gamle ECharts-serier fjernes nå når serie-listen blir kortere.",
+            "Grafvalg som år, sammenligninger og ekstra linjer skal ikke lenger etterlate skjulte restgrafer.",
+            "Endringen er lagt sentralt i AppChart slik at alle ECharts-flater får samme oppførsel.",
+        ],
+    },
     {
         "version": "1",
         "build": "1460",
