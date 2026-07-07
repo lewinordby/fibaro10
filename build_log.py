@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1441")
+APP_BUILD = os.getenv("APP_BUILD", "1442")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1442",
+        "date": "07.07.2026",
+        "headline": "Robotvaskere kan velges enkeltvis eller samlet",
+        "title": "Vedlikehold mobil henter robotnavn fra Roborock og lagrer valgt robotgrunnlag",
+        "description": (
+            "Build 1442 utvider Robotvaskere i vedlikeholdsappen. Mobilappen henter robotnavn fra Fibaro10 sin "
+            "renhold/Roborock-modul og viser dem som flervalg i registreringsskjemaet. Brukeren kan velge én, "
+            "flere eller alle robotvaskere. Valget lagres i target_name, summary og tagger slik at historikken "
+            "viser hvilken robot vedlikeholdet gjaldt."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: henter renhold-modul i bootstrap og eksponerer robotnavn som options. Legger robotfelt i mobilskjemaet.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: legger flervalg, Alle-knapp, validering og payload-mapping for robotvaskere.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: styler robotflervalget med samme mønster som romvalg.",
+            "build_log.py: ny buildloggpost for robotvalg.",
+        ],
+        "request": "Det er 4 robotvaskere. Som med solsenger skal man kunne velge hvem vedlikeholdet gjelder, gjerne flere eller alle, med navn fra roboten selv.",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Robotvaskere åpner et flervalg basert på Roborock-navn fra Fibaro10.",
+            "Alle-knappen velger eller fjerner alle robotene.",
+            "Lagring krever valgt robot når robotnavn finnes.",
+            "Valgte robotnavn lagres i target_name og tagger; standardnotat oppdateres automatisk på nye poster.",
+        ],
+    },
     {
         "version": "1",
         "build": "1441",

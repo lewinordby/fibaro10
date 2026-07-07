@@ -194,6 +194,27 @@ def maintenance_row_by_id(module_payload: dict[str, Any], log_id: int) -> Option
     return None
 
 
+def roborock_options(module_payload: Optional[dict[str, Any]]) -> list[dict[str, str]]:
+    if not isinstance(module_payload, dict):
+        return []
+    for table in module_payload.get("tables") or []:
+        if not isinstance(table, dict) or table.get("title") not in {"Roboter", "Robotdetaljer"}:
+            continue
+        rows = table.get("rows") or []
+        result = []
+        seen: set[str] = set()
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            label = str(row.get("name") or "").strip()
+            if not label or label.casefold() in seen:
+                continue
+            seen.add(label.casefold())
+            result.append({"label": label, "value": label})
+        return result
+    return []
+
+
 def option_values(field: Optional[dict[str, Any]]) -> list[dict[str, str]]:
     options = (field or {}).get("options") or []
     result = []
@@ -207,7 +228,11 @@ def option_values(field: Optional[dict[str, Any]]) -> list[dict[str, str]]:
     return result
 
 
-def bootstrap_payload(module_payload: dict[str, Any], user_payload: dict[str, Any]) -> dict[str, Any]:
+def bootstrap_payload(
+    module_payload: dict[str, Any],
+    user_payload: dict[str, Any],
+    renhold_payload: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
     fields = fields_by_key(module_payload)
     recent_rows = maintenance_rows(module_payload)[:120]
     default_performed_at = (fields.get("performed_at") or {}).get("defaultValue")
@@ -231,6 +256,7 @@ def bootstrap_payload(module_payload: dict[str, Any], user_payload: dict[str, An
             "priority": option_values(fields.get("priority")),
             "status": option_values(fields.get("status")),
             "tags": option_values(fields.get("tags")),
+            "robots": roborock_options(renhold_payload),
         },
     }
 
@@ -317,7 +343,12 @@ async def api_bootstrap(request: Request):
         fibaro_request("/api/auth/me", username, password),
         fibaro_request("/api/modules/vedlikehold", username, password),
     )
-    return bootstrap_payload(module_payload, user_payload)
+    renhold_payload = None
+    try:
+        renhold_payload = await fibaro_request("/api/modules/renhold", username, password)
+    except HTTPException:
+        renhold_payload = None
+    return bootstrap_payload(module_payload, user_payload, renhold_payload)
 
 
 @app.post("/api/maintenance/logs")
@@ -356,7 +387,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1441">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1442">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -388,8 +419,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1441">
-  <script src="/assets/maintenance-mobile.js?v=1441" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1442">
+  <script src="/assets/maintenance-mobile.js?v=1442" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -447,6 +478,14 @@ INDEX_HTML = """<!doctype html>
           <p class="field-label">Seng / rom</p>
           <select id="room_id" name="room_id" class="room-select"></select>
           <div id="roomQuickGrid" class="room-quick-grid" aria-label="Velg seng eller rom"></div>
+        </section>
+
+        <section id="robotField" class="robot-field is-hidden">
+          <div class="field-line">
+            <p class="field-label">Robotvaskere</p>
+            <button id="robotAllButton" class="text-button" type="button">Alle</button>
+          </div>
+          <div id="robotQuickGrid" class="robot-quick-grid" aria-label="Velg robotvaskere"></div>
         </section>
 
         <section class="note-panel">

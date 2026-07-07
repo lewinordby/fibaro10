@@ -388,7 +388,26 @@ body.entry-mode .app-shell {
   font-weight: 800;
 }
 
-.room-field {
+.field-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.text-button {
+  min-height: 2rem;
+  padding: 0 0.68rem;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 999px;
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+  font-size: 0.82rem;
+  font-weight: 820;
+}
+
+.room-field,
+.robot-field {
   display: grid;
   gap: 0.52rem;
 }
@@ -403,7 +422,14 @@ body.entry-mode .app-shell {
   gap: 0.48rem;
 }
 
-.room-chip {
+.robot-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.48rem;
+}
+
+.room-chip,
+.robot-chip {
   min-height: 2.72rem;
   padding: 0 0.5rem;
   border: 1px solid rgba(49, 94, 231, 0.18);
@@ -414,7 +440,8 @@ body.entry-mode .app-shell {
   font-weight: 800;
 }
 
-.room-chip.is-active {
+.room-chip.is-active,
+.robot-chip.is-active {
   border-color: rgba(49, 94, 231, 0.6);
   background: var(--blue-soft);
   color: var(--blue);
@@ -477,6 +504,8 @@ textarea:focus {
 
 .task-button:focus-visible,
 .room-chip:focus-visible,
+.robot-chip:focus-visible,
+.text-button:focus-visible,
 .time-button:focus-visible,
 .back-button:focus-visible,
 .ghost-button:focus-visible,
