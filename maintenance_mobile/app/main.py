@@ -387,7 +387,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1446">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1447">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -419,30 +419,23 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1446">
-  <script src="/assets/maintenance-mobile.js?v=1446" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1447">
+  <script src="/assets/maintenance-mobile.js?v=1447" defer></script>
 </head>
 <body>
   <header class="app-topbar">
-    <div class="brand-lockup">
+    <div class="brand-logo">
       <img src="/static/lilletorget-mark.png" alt="">
-      <div>
-        <strong>Lilletorget, <span>vedlikehold</span></strong>
-      </div>
     </div>
+    <strong class="brand-title">Lilletorget, <span>vedlikehold</span></strong>
     <button id="profileButton" class="user-button" type="button" title="Bruker" aria-label="Åpne brukerprofil">
         <span id="topUserInitial" class="user-initial" aria-hidden="true">?</span>
     </button>
   </header>
   <main class="app-shell">
     <section id="taskScreen" class="screen">
-      <section class="hero-card task-hero">
-        <div>
-          <p class="eyebrow">Vedlikehold</p>
-          <h1>Hva skal registreres?</h1>
-          <p id="userLine" class="muted">Henter bruker...</p>
-        </div>
-        <button id="refreshButton" class="ghost-button" type="button">Oppdater</button>
+      <section class="task-hero">
+        <h1>Hva skal registreres?</h1>
       </section>
 
       <section id="taskGrid" class="task-grid" aria-label="Vedlikeholdsoppgaver"></section>

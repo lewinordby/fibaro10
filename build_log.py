@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1446")
+APP_BUILD = os.getenv("APP_BUILD", "1447")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1447",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil far roligere startflate",
+        "title": "Topptekst sentreres og startoverskrift tas ut av kort",
+        "description": (
+            "Build 1447 rydder startsiden i vedlikeholdsappen. Toppbaren er gjort om til tre faste kolonner slik "
+            "at teksten ligger sentrert mellom logo og brukerinitial, og teksten er flyttet litt ned for bedre "
+            "visuell balanse. Startkortet er fjernet; startsiden viser na bare teksten Hva skal registreres?"
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: splitter toppbaren i logo, tittel og brukerknapp, fjerner startkortets ekstra tekst og oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: gjor userLine-oppdatering valgfri siden feltet er fjernet fra startsiden.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: sentrerer topptittel og styler startoverskriften uten kortbakgrunn.",
+            "build_log.py: registrerer build 1447.",
+        ],
+        "request": "Teksten i toppen kan sentreres mellom logo og initial og flyttes litt ned. Boksen med Vedlikehold / Hva skal registreres skal fjernes, og det skal kun sta Hva skal registreres?",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Topplinjen bruker tre kolonner: logo, sentrert tittel og brukerinitial.",
+            "Topptittelen er flyttet litt ned.",
+            "Startkortet er fjernet fra startsiden.",
+            "Startsiden viser bare Hva skal registreres? over oppgaveknappene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1446",

@@ -779,7 +779,8 @@ function renderRecent() {
 function updateHeader() {
   const user = safeText(state.bootstrap?.user?.username, "ukjent bruker");
   const role = safeText(state.bootstrap?.user?.roleLabel || state.bootstrap?.user?.role, "innlogget");
-  $("#userLine").textContent = `${user} - ${role} - lagres i Fibaro10`;
+  const userLine = $("#userLine");
+  if (userLine) userLine.textContent = `${user} - ${role} - lagres i Fibaro10`;
   const topUserInitial = $("#topUserInitial");
   if (topUserInitial) topUserInitial.textContent = user.slice(0, 1).toUpperCase() || "?";
   renderProfile();
