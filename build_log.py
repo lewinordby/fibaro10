@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1449")
+APP_BUILD = os.getenv("APP_BUILD", "1450")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1450",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil far designopprydding",
+        "title": "CSS, flater og kontroller strammes opp i vedlikeholdsappen",
+        "description": (
+            "Build 1450 er en samlet design- og CSS-opprydding i vedlikeholdsappen. Felles tokens for radius, "
+            "flater og skygger er strammet opp, gamle regler for fjernede elementer er tatt bort, kort og knapper "
+            "har fått roligere uttrykk, og valgchips/skjemafelt bruker en mer konsekvent farge- og størrelseslogikk. "
+            "Inline tidspunkt i undersidetittelen er beholdt, men stylet mer som tekst og ikke som en egen farget knapp."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: oppdaterer asset-versjon og bruker HTML-entity for fallbacktekst på tidspunkt.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: rydder designvariabler, skygger, radius, kort, chips, skjema og toppfelt.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: fjerner gammel refresh-kobling til knapp som ikke lenger finnes.",
+            "build_log.py: registrerer build 1450.",
+        ],
+        "request": "Ta en grundig gjennomgang av CSS og designet på denne appen. Det er en del avvik, stram opp.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Felles radius- og skyggeverdier er innført for mer konsekvent uttrykk.",
+            "Kort, oppgaveknapper og historikk har roligere skygge og mindre tunge rammer.",
+            "Chips og aktive valg bruker samme grønne vedlikeholdsprofil.",
+            "Skjemafelt, tidsfelt og toggles er justert til samme flate- og radiuslogikk.",
+            "Gamle CSS-regler for fjernede elementer er fjernet.",
+            "Gammel JS-lytter for fjernet refresh-knapp er tatt bort.",
+        ],
+    },
     {
         "version": "1",
         "build": "1449",

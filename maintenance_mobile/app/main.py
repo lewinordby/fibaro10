@@ -387,7 +387,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1449">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1450">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -419,8 +419,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1449">
-  <script src="/assets/maintenance-mobile.js?v=1449" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1450">
+  <script src="/assets/maintenance-mobile.js?v=1450" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -448,7 +448,7 @@ INDEX_HTML = """<!doctype html>
           <img src="/static/lilletorget-mark.png" alt="">
         </button>
         <div class="entry-title-block">
-          <h1 class="entry-title-line"><span id="taskTitle">Vedlikehold</span><button id="timeButton" class="time-button" type="button" aria-expanded="false"><span aria-hidden="true">, </span><strong id="timeButtonLabel">NÃ¥</strong></button></h1>
+          <h1 class="entry-title-line"><span id="taskTitle">Vedlikehold</span><button id="timeButton" class="time-button" type="button" aria-expanded="false"><span aria-hidden="true">, </span><strong id="timeButtonLabel">N&aring;</strong></button></h1>
           <p id="taskSubtitle" class="muted"></p>
           <p id="entryUserLine" class="entry-user-line"></p>
         </div>

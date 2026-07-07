@@ -945,7 +945,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     showScreen("tasks");
     renderRecent();
   });
-  $("#refreshButton")?.addEventListener("click", () => loadBootstrap().catch((error) => setMessage(error.message, true)));
   $("#follow_up_needed")?.addEventListener("change", setFollowUpVisible);
   $("#room_id")?.addEventListener("change", () => {
     renderRoomChoices();
