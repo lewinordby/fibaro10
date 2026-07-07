@@ -7,7 +7,17 @@ import {
   type RevenueYearComparisonResponse,
   type RevenueYearComparisonSeries,
 } from "../api";
-import { chartAxisLine, chartLegend, chartSplitLine, chartTitleTextStyle, chartTooltip } from "../chartTheme";
+import {
+  chartAxisLabel,
+  chartAxisLine,
+  chartLegend,
+  chartSeriesColor,
+  chartSeriesLineWidth,
+  chartSplitLine,
+  chartThemeKey,
+  chartTitleTextStyle,
+  chartTooltip,
+} from "../chartTheme";
 import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PeriodLabel, PeriodNavigator } from "../components/PeriodNavigator";
@@ -36,8 +46,9 @@ function chartData(series: RevenueYearComparisonSeries): Array<[number, number]>
 function cumulativeChartOption(data: RevenueYearComparisonResponse, activeYears: number[]) {
   const visibleSeries = data.series.filter((series) => activeYears.includes(series.year));
   const selected = data.selected;
+  const seriesColors = visibleSeries.map((series, index) => chartSeriesColor(series.color, index));
   return {
-    color: visibleSeries.map((series) => series.color),
+    color: seriesColors,
     tooltip: {
       ...chartTooltip(),
       axisPointer: { type: "line" },
@@ -67,23 +78,23 @@ function cumulativeChartOption(data: RevenueYearComparisonResponse, activeYears:
       min: 1,
       max: data.axis.days,
       interval: 31,
-      axisLabel: { formatter: (value: number) => monthLabel(data, value) },
+      axisLabel: chartAxisLabel({ formatter: (value: number) => monthLabel(data, value) }),
       axisTick: { show: false },
       axisLine: chartAxisLine(),
       splitLine: chartSplitLine(domainColors.gridSoft),
     },
     yAxis: {
       type: "value",
-      axisLabel: { formatter: (value: number) => axisAmountValue(value) },
+      axisLabel: chartAxisLabel({ formatter: (value: number) => axisAmountValue(value) }),
       splitLine: chartSplitLine(),
     },
     series: [
-      ...visibleSeries.map((series) => ({
+      ...visibleSeries.map((series, index) => ({
         name: series.label,
         type: "line",
         step: "end",
         symbol: "none",
-        lineStyle: { width: series.year === data.anchorYear ? 3 : 2, type: series.year === data.anchorYear ? "solid" : "dashed" },
+        lineStyle: { width: chartSeriesLineWidth(series.year === data.anchorYear), type: series.year === data.anchorYear ? "solid" : "dashed" },
         areaStyle: series.year === data.anchorYear ? { opacity: 0.08 } : undefined,
         emphasis: { focus: "series" },
         data: chartData(series),
@@ -92,8 +103,8 @@ function cumulativeChartOption(data: RevenueYearComparisonResponse, activeYears:
             ? {
                 symbol: "none",
                 silent: true,
-                lineStyle: { color: series.color, type: "dotted", width: 1.5 },
-                label: { formatter: "Hittil", color: "#991b1b", fontSize: 11 },
+                lineStyle: { color: seriesColors[index], type: "dotted", width: 1.5 },
+                label: { formatter: "Hittil", color: domainColors.revenue, fontSize: 11 },
                 data: [{ xAxis: selected.asOfDay }],
               }
             : undefined,
@@ -158,7 +169,8 @@ export default function RevenueYearComparisonPage() {
   const { data, loading, error } = useApiQuery(queryKeys.revenueYearComparison(year), () => fetchRevenueYearComparison(year));
   const activeYears = useMemo(() => (data ? activeYearsFromParams(data, searchParams.get("years")) : []), [data, searchParams]);
   const activeYearKey = activeYears.join(",");
-  const chartOption = useMemo(() => (data ? cumulativeChartOption(data, activeYears) : null), [data, activeYearKey]);
+  const themeKey = chartThemeKey();
+  const chartOption = useMemo(() => (data ? cumulativeChartOption(data, activeYears) : null), [data, activeYearKey, themeKey]);
 
   if (loading) return <LoadingBlock />;
   if (error || !data || !chartOption) return <ErrorBlock error={error} />;

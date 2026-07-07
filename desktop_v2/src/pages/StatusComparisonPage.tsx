@@ -9,7 +9,17 @@ import {
   type StatusComparisonResponse,
   type StatusComparisonSummary,
 } from "../api";
-import { chartAxisLine, chartLegend, chartSplitLine, chartTitleTextStyle, chartTooltip } from "../chartTheme";
+import {
+  chartAxisLabel,
+  chartAxisLine,
+  chartLegend,
+  chartSeriesColor,
+  chartSeriesLineWidth,
+  chartSplitLine,
+  chartThemeKey,
+  chartTitleTextStyle,
+  chartTooltip,
+} from "../chartTheme";
 import { AppChart } from "../components/AppChart";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PeriodLabel, PeriodNavigator } from "../components/PeriodNavigator";
@@ -119,6 +129,8 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
   const currentLanes = lanesForChart(data.lanes, kind, "current");
   const comparisonLanes = lanesForChart(data.lanes, kind, "comparison");
   const primaryColor = kind === "parking" ? domainColors.parking : kind === "total" ? domainColors.revenue : domainColors.sun2;
+  const comparisonColor = chartSeriesColor(domainColors.comparison, 1);
+  const referenceSeriesColors = references.map((_, index) => chartSeriesColor(referenceColors[index % referenceColors.length], index + 2));
   const title =
     metric === "amount"
       ? kind === "total"
@@ -130,7 +142,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         ? "Akkumulerte solinger"
         : "Akkumulerte parkeringer";
   return {
-    color: [primaryColor, domainColors.comparison, ...references.map((_, index) => referenceColors[index % referenceColors.length])],
+    color: [primaryColor, comparisonColor, ...referenceSeriesColors],
     tooltip: {
       ...chartTooltip(),
       axisPointer: { type: "line" },
@@ -159,7 +171,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
       type: "value",
       min: 0,
       max: 100,
-      axisLabel: { formatter: (value: number) => axisText(data, value) },
+      axisLabel: chartAxisLabel({ formatter: (value: number) => axisText(data, value) }),
       axisTick: { show: false },
       axisLine: chartAxisLine(),
       splitLine: chartSplitLine(domainColors.gridSoft),
@@ -167,7 +179,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
     yAxis: {
       type: "value",
       minInterval: metric === "amount" ? undefined : 1,
-      axisLabel: { formatter: (value: number) => axisValue(value, metric) },
+      axisLabel: chartAxisLabel({ formatter: (value: number) => axisValue(value, metric) }),
       splitLine: chartSplitLine(),
     },
     series: [
@@ -176,7 +188,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         type: "line",
         step: "end",
         symbol: "none",
-        lineStyle: { width: 3 },
+        lineStyle: { width: chartSeriesLineWidth(true) },
         areaStyle: { opacity: 0.06 },
         emphasis: { focus: "series" },
         data: cumulativePoints(currentLanes, metric),
@@ -186,7 +198,7 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         type: "line",
         step: "end",
         symbol: "none",
-        lineStyle: { width: 2, type: "dashed" },
+        lineStyle: { width: chartSeriesLineWidth(), type: "dashed" },
         emphasis: { focus: "series" },
         data: cumulativePoints(comparisonLanes, metric),
       },
@@ -195,10 +207,10 @@ function cumulativeChartOption(data: StatusComparisonResponse, kind: ComparisonC
         type: "line",
         step: "end",
         symbol: "none",
-        lineStyle: { width: 2, type: "dotted" },
+        lineStyle: { width: chartSeriesLineWidth(), type: "dotted" },
         emphasis: { focus: "series" },
         data: cumulativePoints(lanesForChart(reference.lanes, kind, "reference"), metric),
-        itemStyle: { color: referenceColors[index % referenceColors.length] },
+        itemStyle: { color: referenceSeriesColors[index] },
       })),
     ],
     title: {
@@ -264,6 +276,7 @@ export default function StatusComparisonPage() {
   const anchor = searchParams.get("anchor") || "";
   const references = searchParams.get("references") || "";
   const metric: ComparisonMetric = searchParams.get("metric") === "count" ? "count" : "amount";
+  const themeKey = chartThemeKey();
   const { data, loading, error } = useApiQuery(
     queryKeys.statusComparison(period, compare, anchor, references),
     () => fetchStatusComparison(period, compare, anchor, references),
@@ -272,7 +285,7 @@ export default function StatusComparisonPage() {
     if (!data) return [];
     const chartKinds: ComparisonChartKind[] = metric === "amount" ? ["total", "sun", "parking"] : ["sun", "parking"];
     return chartKinds.map((kind) => ({ kind, option: cumulativeChartOption(data, kind, metric) }));
-  }, [data, metric]);
+  }, [data, metric, themeKey]);
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;

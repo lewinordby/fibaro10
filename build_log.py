@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1459")
+APP_BUILD = os.getenv("APP_BUILD", "1460")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1460",
+        "date": "07.07.2026",
+        "headline": "Mørkt tema får tydeligere grafer",
+        "title": "Grafpaletten er strammet for mørkt tema",
+        "description": (
+            "Build 1460 retter fargebruken i mørkt tema, spesielt i ECharts-grafene. Akser, grid, "
+            "tooltips, marklinjer og seriefarger har fått høyere kontrast, og grafer som får farger "
+            "fra API-et normaliseres nå til en mørk palett."
+        ),
+        "applications": [
+            "desktop_v2/src/designTokens.ts: oppdaterer mørke domenefarger for omsetning, parkering, soling, energi, ventilasjon og sammenligning.",
+            "desktop_v2/src/chartTheme.ts: legger inn felles mørk grafpalett, tydeligere grid/akser/tooltips, datazoom-stil og normalisering av API-seriefarger.",
+            "desktop_v2/src/components/AppShell.tsx: sørger for at temabytte oppdaterer grafene umiddelbart.",
+            "desktop_v2/src/pages/*ComparisonPage.tsx og RevenueMonthPage.tsx: bruker felles akse- og seriestiler i sammenligningsgrafene.",
+            "desktop_v2/src/pages/module/ModuleChartPanel.tsx og ventilation/VentilationCharts.tsx: gir generiske modulgrafene og ventilasjonsgrafene bedre kontrast i mørkt tema.",
+            "desktop_v2/src/styles/dark-theme.css: synkroniserer mørke CSS-variabler og Recharts-kontrast med den nye grafpaletten.",
+        ],
+        "request": "Se over fargebruken spesielt på mørkt tema; noen av grafene sliter med å være synlige.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Mørke grafakser, gridlinjer, tooltips og legendetekster er gjort tydeligere.",
+            "Seriefarger fra backend mappes til en lysere mørk-tema-palett når appen står i mørkt tema.",
+            "Års-, måneds-, status-, ventilasjons- og generiske modulgrafene bruker samme kontrastregler.",
+            "Temabytte oppdaterer grafopsjoner uten at siden må lastes manuelt på nytt.",
+            "TypeScript, CSS-parse, produksjonsbuild, bundle-audit og UI smoke er kjørt lokalt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1459",

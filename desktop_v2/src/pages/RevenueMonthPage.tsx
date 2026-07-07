@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/nb";
 import { fetchRevenueMonth, type RevenueDay } from "../api";
-import { chartAxisLabel, chartAxisLine, chartColors, chartLegend, chartSplitLine, chartTooltip } from "../chartTheme";
+import { chartAxisLabel, chartAxisLine, chartColors, chartLegend, chartSplitLine, chartThemeKey, chartTooltip } from "../chartTheme";
 import { AppChart } from "../components/AppChart";
 import { DataTableCard } from "../components/DataTableCard";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
@@ -47,6 +47,7 @@ function tooltipMarker(color: string): string {
 export default function RevenueMonthPage() {
   const [month, setMonth] = useState<string | undefined>(undefined);
   const { data, loading, error } = useApiQuery(queryKeys.revenueMonth(month), () => fetchRevenueMonth(month));
+  const themeKey = chartThemeKey();
 
   const chartOption = useMemo(() => {
     const rows = data?.rows ?? [];
@@ -92,7 +93,7 @@ export default function RevenueMonthPage() {
       },
       yAxis: {
         type: "value",
-        axisLabel: { formatter: (value: number) => `${Math.round(value / 1000)}k` },
+        axisLabel: chartAxisLabel({ formatter: (value: number) => `${Math.round(value / 1000)}k` }),
         splitLine: chartSplitLine(),
       },
       series: [
@@ -116,7 +117,7 @@ export default function RevenueMonthPage() {
         },
       ],
     };
-  }, [data]);
+  }, [data, themeKey]);
 
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;

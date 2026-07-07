@@ -2,7 +2,7 @@ import { Button, Card, Input, Segmented, Tooltip } from "antd";
 import { useMemo } from "react";
 
 import type { ModuleTable, VentilationData } from "../../api";
-import { chartAxisLabel, chartAxisLine, chartLegend, chartSplitLine, chartTooltip } from "../../chartTheme";
+import { chartAxisLabel, chartAxisLine, chartLegend, chartSeriesColor, chartSeriesLineWidth, chartSeriesPalette, chartSplitLine, chartTooltip } from "../../chartTheme";
 import { AppChart } from "../../components/AppChart";
 import { isDarkScreenTheme } from "../../designTokens";
 import { PeriodNavigator } from "../../components/PeriodNavigator";
@@ -31,19 +31,22 @@ export function DayChart({
     .sort((left, right) => left.minute - right.minute);
   const transitionEvents = fanTransitionEvents(day.fanEvents);
   const fanMarkLines = transitionEvents
-    .map((event) => ({
-      name: `${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`,
-      xAxis: minuteFromEventX(event.x),
-      lineStyle: {
-        color: event.color,
-        opacity: event.class === "on" ? 0.58 : 0.42,
-        type: "dashed",
-        width: 1.2,
-      },
-      label: {
-        show: false,
-      },
-    }))
+    .map((event) => {
+      const color = chartSeriesColor(event.color);
+      return {
+        name: `${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`,
+        xAxis: minuteFromEventX(event.x),
+        lineStyle: {
+          color,
+          opacity: event.class === "on" ? 0.72 : 0.5,
+          type: "dashed",
+          width: 1.35,
+        },
+        label: {
+          show: false,
+        },
+      };
+    })
     .sort((left, right) => Number(left.xAxis) - Number(right.xAxis));
 
   const option = {
@@ -78,17 +81,20 @@ export function DayChart({
       splitLine: chartSplitLine(),
     },
     series: [
-      ...focusSeries.map((series) => ({
-        name: series.label,
-        type: "line",
-        data: chartSamples.map(({ sample, minute }) => [minute, typeof sample[series.key] === "number" ? sample[series.key] : null]),
-        smooth: true,
-        connectNulls: false,
-        showSymbol: false,
-        lineStyle: { width: 2, color: series.color },
-        itemStyle: { color: series.color },
-        emphasis: { focus: "series" },
-      })),
+      ...focusSeries.map((series, index) => {
+        const color = chartSeriesColor(series.color, index);
+        return {
+          name: series.label,
+          type: "line",
+          data: chartSamples.map(({ sample, minute }) => [minute, typeof sample[series.key] === "number" ? sample[series.key] : null]),
+          smooth: true,
+          connectNulls: false,
+          showSymbol: false,
+          lineStyle: { width: chartSeriesLineWidth(), color },
+          itemStyle: { color },
+          emphasis: { focus: "series" },
+        };
+      }),
       {
         name: "__fan_events",
         type: "line",
@@ -156,7 +162,7 @@ export function DayChart({
           const events = day.fanEvents.filter((event) => event.fan_key === fan.key);
           const visibleEvents = transitionEvents.filter((event) => event.fan_key === fan.key);
           const endPercent = day.isToday && typeof day.nowMarker === "number" ? day.nowMarker : 100;
-          const fanColor = fan.color || events[0]?.color || "#64748b";
+          const fanColor = chartSeriesColor(fan.color || events[0]?.color || "#64748b");
           const fanLabel = fan.short || fan.name;
           const sampleSegments = fanSampleRunSegments(day.samples, fan.sample_attr, fanColor, fanLabel, endPercent);
           const runSegments = sampleSegments.length ? sampleSegments : fanRunSegments(events, endPercent);
@@ -184,8 +190,8 @@ export function DayChart({
                       className={`vent-fan-event ${event.class}`}
                       style={{
                         left: `${percentFromEventX(event.x)}%`,
-                        backgroundColor: event.class === "on" ? event.color : offEventFill,
-                        borderColor: event.color,
+                        backgroundColor: event.class === "on" ? chartSeriesColor(event.color) : offEventFill,
+                        borderColor: chartSeriesColor(event.color),
                       }}
                       aria-label={`${event.time} ${event.fan_short} ${event.action}${event.detail ? ` - ${event.detail}` : ""}`}
                     />
@@ -210,6 +216,7 @@ export function WeatherChart({ table }: { table?: ModuleTable }) {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
   });
   const option = {
+    color: chartSeriesPalette(),
     tooltip: chartTooltip(),
     legend: {
       ...chartLegend(),

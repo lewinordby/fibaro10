@@ -2,7 +2,18 @@ import { CalendarOutlined } from "@ant-design/icons";
 import { Button, Card, Input, Segmented, Space, Typography } from "antd";
 import { useMemo, useState } from "react";
 import type { ModuleChart } from "../../api";
-import { chartAxisLabel, chartAxisLine, chartLegend, chartSplitLine, chartTooltip } from "../../chartTheme";
+import {
+  chartAxisLabel,
+  chartAxisLine,
+  chartDataZoom,
+  chartLegend,
+  chartSeriesColor,
+  chartSeriesLineWidth,
+  chartSeriesPalette,
+  chartSplitLine,
+  chartThemeKey,
+  chartTooltip,
+} from "../../chartTheme";
 import { AppChart } from "../../components/AppChart";
 import { PeriodNavigator } from "../../components/PeriodNavigator";
 
@@ -24,6 +35,7 @@ export default function ModuleChartPanel({
   const [metricKey, setMetricKey] = useState(defaultMetric);
   const activeMetric = metricOptions.find((metric) => metric.key === metricKey) ?? metricOptions[0];
   const chartSeries = activeMetric?.series ?? chart.series;
+  const themeKey = chartThemeKey();
   const option = useMemo(() => {
     const isTimeAxis = chart.xAxisType === "time";
     const showZoom = !chart.disableZoom && !isTimeAxis && chart.x.length > 80;
@@ -34,13 +46,14 @@ export default function ModuleChartPanel({
       : undefined;
 
     return {
+      color: chartSeriesPalette(),
       tooltip: chartTooltip(),
       legend: chartLegend({ itemWidth: 16, selected: selectedSeries }),
       grid: { top: 50, left: 56, right: 18, bottom: showZoom ? 58 : 32 },
       dataZoom: showZoom
         ? [
             { type: "inside", start: Math.max(0, 100 - Math.round((80 / chart.x.length) * 100)), end: 100 },
-            { type: "slider", height: 18, bottom: 12 },
+            { type: "slider", height: 18, bottom: 12, ...chartDataZoom() },
           ]
         : undefined,
       xAxis: {
@@ -63,23 +76,27 @@ export default function ModuleChartPanel({
         axisLabel: chartAxisLabel({ margin: 12 }),
         splitLine: chartSplitLine(),
       },
-      series: chartSeries.map((series) => ({
-        name: series.name,
-        type: series.type ?? chart.type ?? "line",
-        data: series.data,
-        smooth: series.smooth ?? ((series.type ?? chart.type ?? "line") === "line" && !series.step),
-        step: series.step,
-        connectNulls: false,
-        showSymbol: false,
-        barMaxWidth: 44,
-        barCategoryGap: "36%",
-        itemStyle: series.color ? { color: series.color } : undefined,
-        lineStyle: series.color ? { color: series.color, width: 2 } : undefined,
-        areaStyle: chartSeries.length === 1 && (series.type ?? chart.type ?? "line") === "line" ? { opacity: 0.08 } : undefined,
-        emphasis: { focus: "series" },
-      })),
+      series: chartSeries.map((series, index) => {
+        const type = series.type ?? chart.type ?? "line";
+        const color = chartSeriesColor(series.color, index);
+        return {
+          name: series.name,
+          type,
+          data: series.data,
+          smooth: series.smooth ?? (type === "line" && !series.step),
+          step: series.step,
+          connectNulls: false,
+          showSymbol: false,
+          barMaxWidth: 44,
+          barCategoryGap: "36%",
+          itemStyle: { color },
+          lineStyle: type === "line" ? { color, width: chartSeriesLineWidth() } : undefined,
+          areaStyle: chartSeries.length === 1 && type === "line" ? { opacity: 0.1 } : undefined,
+          emphasis: { focus: "series" },
+        };
+      }),
     };
-  }, [activeMetric?.unit, chart, chartSeries]);
+  }, [activeMetric?.unit, chart, chartSeries, themeKey]);
 
   return (
     <Card className="chart-card module-chart-card" title={chart.title}>

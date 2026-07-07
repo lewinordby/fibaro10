@@ -13,6 +13,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { fetchCurrentUser, logoutUser, type AuthUser } from "../api";
 import { mainModuleGroups, selectedMainModuleKey } from "../appNavigation";
+import { notifyChartThemeChanged } from "../chartTheme";
 import { modulePath, type ModuleView } from "../moduleViews";
 import { queryKeys } from "../queryKeys";
 
@@ -197,7 +198,14 @@ export function AppShell({ activeView, children, module, viewItems }: AppShellPr
             className={`screen-theme-toggle ${screenTheme === "dark" ? "active" : ""}`}
             type="text"
             icon={<BgColorsOutlined />}
-            onClick={() => setScreenTheme((value) => (value === "dark" ? "standard" : "dark"))}
+            onClick={() => {
+              setScreenTheme((value) => {
+                const next = value === "dark" ? "standard" : "dark";
+                window.localStorage.setItem(SCREEN_THEME_STORAGE_KEY, next);
+                notifyChartThemeChanged();
+                return next;
+              });
+            }}
             aria-label={screenTheme === "dark" ? "Bruk standard tema" : "Bruk mørkt tema"}
             title={screenTheme === "dark" ? "Standard tema" : "Mørkt tema"}
           >

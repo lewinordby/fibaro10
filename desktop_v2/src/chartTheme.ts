@@ -12,14 +12,60 @@ const lightChartColors = {
 } as const;
 
 const darkChartColors = {
-  tooltipBackground: "rgba(25,28,34,0.98)",
-  tooltipBorder: "#3b4350",
-  mutedText: "#aeb7c4",
-  axisText: "#7f8895",
-  axisLine: "#454e5d",
-  grid: "#2a303a",
-  gridSoft: "#232933",
+  tooltipBackground: "rgba(15,23,42,0.98)",
+  tooltipBorder: "#64748b",
+  mutedText: "#d7dee8",
+  axisText: "#cbd5e1",
+  axisLine: "#64748b",
+  grid: "rgba(148,163,184,0.3)",
+  gridSoft: "rgba(148,163,184,0.2)",
 } as const;
+
+const lightSeriesPalette = [
+  "#2563eb",
+  "#f59e0b",
+  "#dc2626",
+  "#15803d",
+  "#0891b2",
+  "#7c3aed",
+  "#0f766e",
+  "#ea580c",
+];
+
+const darkSeriesPalette = [
+  "#60a5fa",
+  "#fbbf24",
+  "#fb7185",
+  "#4ade80",
+  "#22d3ee",
+  "#c084fc",
+  "#5eead4",
+  "#fb923c",
+];
+
+const darkColorMap: Record<string, string> = {
+  "#111827": "#f8fafc",
+  "#475569": "#cbd5e1",
+  "#64748b": "#cbd5e1",
+  "#dc2626": "#fb7185",
+  "#b91c1c": "#f87171",
+  "#991b1b": "#f87171",
+  "#2563eb": "#60a5fa",
+  "#1d4ed8": "#93c5fd",
+  "#15803d": "#4ade80",
+  "#166534": "#4ade80",
+  "#0f766e": "#5eead4",
+  "#0891b2": "#22d3ee",
+  "#f59e0b": "#fbbf24",
+  "#ca8a04": "#fde047",
+  "#ea580c": "#fb923c",
+  "#92400e": "#fbbf24",
+  "#7c3aed": "#c084fc",
+  "#6d28d9": "#c084fc",
+  "#be123c": "#fb7185",
+};
+
+const CHART_THEME_EVENT = "fibaro10:chart-theme-change";
 
 function activeChartColors() {
   return isDarkScreenTheme() ? darkChartColors : lightChartColors;
@@ -36,6 +82,30 @@ export const chartColors = {
   get gridSoft() { return activeChartColors().gridSoft; },
 } as const;
 
+export function notifyChartThemeChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(CHART_THEME_EVENT));
+}
+
+export function chartThemeKey() {
+  return isDarkScreenTheme() ? "dark" : "standard";
+}
+
+export function chartSeriesColor(color: string | undefined, index = 0) {
+  if (!color) return chartSeriesPalette()[index % chartSeriesPalette().length];
+  if (!isDarkScreenTheme()) return color;
+  return darkColorMap[color.toLowerCase()] ?? color;
+}
+
+export function chartSeriesPalette() {
+  return isDarkScreenTheme() ? [...darkSeriesPalette] : [...lightSeriesPalette];
+}
+
+export function chartSeriesLineWidth(primary = false) {
+  const base = primary ? 3 : 2;
+  return isDarkScreenTheme() ? base + 0.35 : base;
+}
+
 export function chartTooltip() {
   return {
     trigger: "axis",
@@ -46,6 +116,31 @@ export function chartTooltip() {
     extraCssText: isDarkScreenTheme()
       ? "box-shadow:0 18px 38px rgba(0,0,0,.38);border-radius:8px;"
       : "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
+  };
+}
+
+export function chartDataZoom() {
+  if (!isDarkScreenTheme()) return {};
+  return {
+    borderColor: "rgba(148,163,184,0.24)",
+    backgroundColor: "rgba(15,23,42,0.18)",
+    fillerColor: "rgba(96,165,250,0.18)",
+    dataBackground: {
+      lineStyle: { color: "rgba(148,163,184,0.34)" },
+      areaStyle: { color: "rgba(148,163,184,0.08)" },
+    },
+    selectedDataBackground: {
+      lineStyle: { color: "rgba(226,232,240,0.44)" },
+      areaStyle: { color: "rgba(96,165,250,0.12)" },
+    },
+    handleStyle: {
+      color: "#cbd5e1",
+      borderColor: "#94a3b8",
+    },
+    moveHandleStyle: {
+      color: "#334155",
+    },
+    textStyle: { color: chartColors.axisText },
   };
 }
 
@@ -74,4 +169,14 @@ export function chartSplitLine(color: string = chartColors.grid) {
 
 export function chartTitleTextStyle(extra: Record<string, unknown> = {}) {
   return { color: chartColors.text, fontSize: 13, fontWeight: 760, ...extra };
+}
+
+export function subscribeChartTheme(listener: () => void) {
+  if (typeof window === "undefined") return () => undefined;
+  window.addEventListener(CHART_THEME_EVENT, listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    window.removeEventListener(CHART_THEME_EVENT, listener);
+    window.removeEventListener("storage", listener);
+  };
 }
