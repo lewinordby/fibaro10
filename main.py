@@ -12203,6 +12203,8 @@ async def api_sun2_session_set_primary_image(
 @app.get("/energi/{path:path}", response_class=HTMLResponse)
 @app.get("/ventilasjon/{path:path}", response_class=HTMLResponse)
 @app.get("/lys/{path:path}", response_class=HTMLResponse)
+@app.get("/dorer", response_class=HTMLResponse)
+@app.get("/dorer/{path:path}", response_class=HTMLResponse)
 @app.get("/vedlikehold", response_class=HTMLResponse)
 @app.get("/vedlikehold/{path:path}", response_class=HTMLResponse)
 @app.get("/ideer", response_class=HTMLResponse)
