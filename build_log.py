@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1450")
+APP_BUILD = os.getenv("APP_BUILD", "1451")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1451",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil retter hopp i toppfelt",
+        "title": "Forside og undersider får samme topplinjegeometri",
+        "description": (
+            "Build 1451 retter at logoen flyttet seg vertikalt mellom forsiden og undersidene i vedlikeholdsappen. "
+            "Undersidemodus hadde ekstra topp-padding i app-shell, mens forsiden brukte app-topbar direkte. "
+            "Undersidene bruker nå samme venstremarg, grid og høyde som forsiden, slik at logo og topplinje ikke hopper."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: fjerner ekstra topp-padding på undersider og matcher topplinjehøyden mot forsiden.",
+            "build_log.py: registrerer build 1451.",
+        ],
+        "request": "Toppen er fortsatt forskjellig på forside og underside, logoen hopper ned.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Undersider har ikke lenger ekstra topp-padding over toppfeltet.",
+            "Undersidetoppene bruker samme horisontale margin som hovedtoppen.",
+            "Undersidetoppens minstehøyde matcher hovedtoppen.",
+            "Logoen skal ikke hoppe ned ved navigasjon fra forside til underside.",
+        ],
+    },
     {
         "version": "1",
         "build": "1450",
