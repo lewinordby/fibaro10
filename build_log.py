@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1447")
+APP_BUILD = os.getenv("APP_BUILD", "1448")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1448",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil far lik topp pa undersider",
+        "title": "Registrering og profil bruker samme toppstruktur som startsiden",
+        "description": (
+            "Build 1448 gjor toppfeltet mer konsekvent i vedlikeholdsappen. Registreringssiden og brukersiden "
+            "bruker na samme visuelle struktur som startsiden, med logo til venstre, sentrert tittel og funksjonsfelt "
+            "til hoyre. Eksisterende funksjon er beholdt: logoen gar tilbake, og registreringssiden har fortsatt "
+            "tidspunktknappen."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: merker undersidetopper som sub-topbar, legger spacer pa profilsiden og oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: fjerner kortutseende fra undersidetopper og matcher logo/tittel-strukturen fra startsiden.",
+            "build_log.py: registrerer build 1448.",
+        ],
+        "request": "Toppen skal vaere lik ogsa pa undersidene, men med funksjonalitet som na.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Registreringssiden har samme toppstruktur som startsiden.",
+            "Profilsiden har samme toppstruktur som startsiden.",
+            "Logoen pa undersider beholder tilbakefunksjon.",
+            "Tidspunktknappen pa registreringssiden er beholdt.",
+            "Kortbakgrunn/ramme rundt undersidetoppen er fjernet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1447",

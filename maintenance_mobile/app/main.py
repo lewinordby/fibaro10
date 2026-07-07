@@ -387,7 +387,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1447">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1448">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -419,8 +419,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1447">
-  <script src="/assets/maintenance-mobile.js?v=1447" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1448">
+  <script src="/assets/maintenance-mobile.js?v=1448" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -443,7 +443,7 @@ INDEX_HTML = """<!doctype html>
     </section>
 
     <section id="entryScreen" class="screen is-hidden">
-      <section class="entry-head">
+      <section class="entry-head sub-topbar">
         <button id="backButton" class="back-button" type="button" aria-label="Tilbake">
           <img src="/static/lilletorget-mark.png" alt="">
         </button>
@@ -500,7 +500,7 @@ INDEX_HTML = """<!doctype html>
     </section>
 
     <section id="profileScreen" class="screen is-hidden">
-      <section class="entry-head profile-head">
+      <section class="entry-head sub-topbar profile-head">
         <button id="profileBackButton" class="back-button" type="button" aria-label="Tilbake">
           <img src="/static/lilletorget-mark.png" alt="">
         </button>
@@ -508,6 +508,7 @@ INDEX_HTML = """<!doctype html>
           <h1>Bruker</h1>
           <p class="entry-user-line">Konto og utlogging</p>
         </div>
+        <span class="sub-topbar-spacer" aria-hidden="true"></span>
       </section>
 
       <section class="profile-card">
