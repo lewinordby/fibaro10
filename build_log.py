@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1444")
+APP_BUILD = os.getenv("APP_BUILD", "1445")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1445",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil viser brukerknapp",
+        "title": "Utloggingsknappen erstattes med innlogget bruker",
+        "description": (
+            "Build 1445 rydder toppfeltet i vedlikeholdsappen videre. Den gamle rene logout-knappen er erstattet "
+            "med en kompakt brukerknapp som viser initial og brukernavn. Knappen beholder logout-funksjonen, men "
+            "gjør det tydelig hvem som er innlogget."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: erstatter logout-ikonet med brukerknapp og oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: fyller brukerknappen med innlogget brukernavn og initial.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: styler brukerknappen kompakt i toppfeltet.",
+            "build_log.py: registrerer build 1445.",
+        ],
+        "request": "Bruker kan være en knapp i stedet for logout-knappen.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Topplinjens høyre knapp viser innlogget bruker.",
+            "Knappen viser initial og brukernavn.",
+            "Logout-funksjonen er beholdt på samme knapp.",
+            "Mobilasset-versjon er oppdatert for å bryte cache.",
+        ],
+    },
     {
         "version": "1",
         "build": "1444",

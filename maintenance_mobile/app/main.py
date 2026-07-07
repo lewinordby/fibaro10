@@ -387,7 +387,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1444">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1445">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -419,8 +419,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1444">
-  <script src="/assets/maintenance-mobile.js?v=1444" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1445">
+  <script src="/assets/maintenance-mobile.js?v=1445" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -430,9 +430,10 @@ INDEX_HTML = """<!doctype html>
         <strong>Lilletorget, <span>vedlikehold</span></strong>
       </div>
     </div>
-    <form method="post" action="/konto/logg-ut">
-      <button class="icon-button" type="submit" title="Logg ut" aria-label="Logg ut">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 4v16"/></svg>
+    <form method="post" action="/konto/logg-ut" class="user-form">
+      <button class="user-button" type="submit" title="Logg ut" aria-label="Logg ut">
+        <span id="topUserInitial" class="user-initial" aria-hidden="true">?</span>
+        <span id="topUserLabel" class="user-name">Bruker</span>
       </button>
     </form>
   </header>

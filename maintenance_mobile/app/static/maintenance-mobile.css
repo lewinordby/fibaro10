@@ -139,26 +139,44 @@ body.entry-mode .app-shell {
   font-weight: 760;
 }
 
-.icon-button {
-  display: inline-grid;
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
-  place-items: center;
+.user-form {
+  min-width: 0;
+}
+
+.user-button {
+  display: inline-flex;
+  max-width: 9.5rem;
+  min-height: 2.35rem;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.24rem 0.52rem 0.24rem 0.3rem;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: #fff;
-  color: var(--muted);
+  color: var(--navy);
 }
 
-.icon-button svg {
-  width: 1.18rem;
-  height: 1.18rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2.1;
+.user-initial {
+  display: grid;
+  width: 1.82rem;
+  height: 1.82rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.user-name {
+  overflow: hidden;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 790;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-shell {
@@ -515,6 +533,7 @@ textarea:focus {
 .robot-chip:focus-visible,
 .standard-task-chip:focus-visible,
 .text-button:focus-visible,
+.user-button:focus-visible,
 .time-button:focus-visible,
 .back-button:focus-visible,
 .ghost-button:focus-visible,

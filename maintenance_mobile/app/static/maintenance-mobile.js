@@ -777,6 +777,10 @@ function updateHeader() {
   const user = safeText(state.bootstrap?.user?.username, "ukjent bruker");
   const role = safeText(state.bootstrap?.user?.roleLabel || state.bootstrap?.user?.role, "innlogget");
   $("#userLine").textContent = `${user} - ${role} - lagres i Fibaro10`;
+  const topUserLabel = $("#topUserLabel");
+  const topUserInitial = $("#topUserInitial");
+  if (topUserLabel) topUserLabel.textContent = user;
+  if (topUserInitial) topUserInitial.textContent = user.slice(0, 1).toUpperCase() || "?";
 }
 
 async function loadBootstrap() {
