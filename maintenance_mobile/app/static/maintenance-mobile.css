@@ -487,6 +487,18 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
 }
 
+.task-button:focus-visible,
+.room-chip:focus-visible,
+.note-button:focus-visible,
+.time-button:focus-visible,
+.back-button:focus-visible,
+.ghost-button:focus-visible,
+.primary-button:focus-visible {
+  outline: 0;
+  border-color: rgba(15, 118, 110, 0.72);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.14), var(--shadow);
+}
+
 .form-row {
   display: grid;
   gap: 0.68rem;

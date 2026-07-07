@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1434")
+APP_BUILD = os.getenv("APP_BUILD", "1435")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1435",
+        "date": "07.07.2026",
+        "headline": "Raskere vedlikehold mobil",
+        "title": "Vedlikeholdsappen paa mobil fokuserer riktig felt og viser relevant historikk",
+        "description": (
+            "Build 1435 gjor vedlikeholdsappen mer effektiv paa mobil. Naar en oppgave velges fra startsiden, "
+            "settes fokus direkte til riktig felt: romvalg for sengoppgaver, oppfolging for avvik og notat for ovrige "
+            "oppgaver. Historikken nederst filtreres etter valgt kategori slik at skjermen bare viser relevante poster."
+        ),
+        "applications": [
+            "maintenance_mobile/app/static/maintenance-mobile.js: startfokus per oppgave, kategorifilter for historikk og oppdatert historikkflyt.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: tydelig fokusmarkering paa mobilknapper og romvalg.",
+            "maintenance_mobile/app/main.py: cacheversjon for mobilassets, historikkoverskrift og storre historikkgrunnlag.",
+            "build_log.py: ny buildloggpost for mobilappen.",
+        ],
+        "request": "Mobilgrensesnittet for vedlikehold maa vaere effektivt: markor til riktig felt og bare oppgaver fra valgt kategori nederst.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppgaveknapper sender brukeren rett til relevant felt etter valg.",
+            "Seng- og romoppgaver fokuserer romvalgene.",
+            "Avvik fokuserer oppfolgingsfeltet.",
+            "Ovrige oppgaver aapner notatfeltet og markerer standardteksten for rask overskriving.",
+            "Historikklisten viser bare poster som matcher valgt kategori eller oppgavens tagger.",
+        ],
+    },
     {
         "version": "1",
         "build": "1434",

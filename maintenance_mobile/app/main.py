@@ -198,7 +198,7 @@ def option_values(field: Optional[dict[str, Any]]) -> list[dict[str, str]]:
 
 def bootstrap_payload(module_payload: dict[str, Any], user_payload: dict[str, Any]) -> dict[str, Any]:
     fields = fields_by_key(module_payload)
-    recent_rows = maintenance_rows(module_payload)[:40]
+    recent_rows = maintenance_rows(module_payload)[:120]
     default_performed_at = (fields.get("performed_at") or {}).get("defaultValue")
     return {
         "user": user_payload,
@@ -328,7 +328,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1403">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1435">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -360,8 +360,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1403">
-  <script src="/assets/maintenance-mobile.js?v=1403" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1435">
+  <script src="/assets/maintenance-mobile.js?v=1435" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -444,7 +444,8 @@ INDEX_HTML = """<!doctype html>
       <div class="section-head">
         <div>
           <p class="eyebrow">Historikk</p>
-          <h2>Siste registreringer</h2>
+          <h2 id="recentTitle">Siste registreringer</h2>
+          <p id="recentSubtitle" class="muted">Siste vedlikeholdsposter på tvers av kategorier.</p>
         </div>
       </div>
       <div id="recentList" class="recent-list"></div>

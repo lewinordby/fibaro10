@@ -12,6 +12,7 @@ const TASKS = [
     status: "Utført",
     summary: "Rens støvsugere",
     durationMinutes: 10,
+    initialFocus: "summary",
     tags: ["Renhold", "Støvsugere", "Rens", "Rutine", "Mobil"],
   },
   {
@@ -26,6 +27,7 @@ const TASKS = [
     status: "Utført",
     summary: "Sjekk solseng",
     requiresRoom: true,
+    initialFocus: "room",
     tags: ["Soling", "Seng", "Kontroll", "Mobil"],
   },
   {
@@ -40,6 +42,7 @@ const TASKS = [
     status: "Utført",
     summary: "Rengjør seng",
     requiresRoom: true,
+    initialFocus: "room",
     tags: ["Renhold", "Soling", "Seng", "Mobil"],
   },
   {
@@ -54,6 +57,7 @@ const TASKS = [
     status: "Utført",
     summary: "Bytt rør",
     requiresRoom: true,
+    initialFocus: "room",
     tags: ["Teknisk", "Seng", "Rør", "Bytte", "Mobil"],
   },
   {
@@ -67,6 +71,7 @@ const TASKS = [
     priority: "Normal",
     status: "Utført",
     summary: "Sjekk ventilasjon",
+    initialFocus: "summary",
     tags: ["Ventilasjon", "Kontroll", "Mobil"],
   },
   {
@@ -80,6 +85,7 @@ const TASKS = [
     priority: "Normal",
     status: "Utført",
     summary: "Sjekk lys",
+    initialFocus: "summary",
     tags: ["Lys", "Kontroll", "Mobil"],
   },
   {
@@ -94,6 +100,7 @@ const TASKS = [
     priority: "Normal",
     status: "Utført",
     summary: "Fyll forbruksmateriell",
+    initialFocus: "summary",
     tags: ["Utstyr", "Påfyll", "Innkjøp", "Mobil"],
   },
   {
@@ -108,6 +115,7 @@ const TASKS = [
     status: "Må følges opp",
     summary: "Avvik eller observasjon",
     followUpNeeded: true,
+    initialFocus: "followUp",
     tags: ["Avvik", "Oppfølging", "Mobil"],
   },
 ];
@@ -125,6 +133,10 @@ function safeText(value, fallback = "") {
   if (value === null || value === undefined) return fallback;
   const text = String(value).trim();
   return text || fallback;
+}
+
+function normalizeToken(value) {
+  return safeText(value).toLocaleLowerCase("nb-NO");
 }
 
 function formatStamp(value) {
@@ -288,6 +300,51 @@ function setNoteFieldVisible(visible, focus = false) {
   if (visible && focus) setTimeout(() => $("#summary")?.focus(), 40);
 }
 
+function focusAfterScreenChange(selector, { select = false, scroll = true } = {}) {
+  window.setTimeout(() => {
+    const element = $(selector);
+    if (!element) return;
+    if (scroll && typeof element.scrollIntoView === "function") {
+      element.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    try {
+      element.focus({ preventScroll: true });
+    } catch {
+      element.focus();
+    }
+    if (select && typeof element.select === "function") element.select();
+  }, 120);
+}
+
+function focusInitialTaskField(task) {
+  const target = task.initialFocus || (task.requiresRoom ? "room" : task.followUpNeeded ? "followUp" : "summary");
+  if (target === "room") {
+    focusAfterScreenChange("#roomQuickGrid .room-chip", { scroll: true });
+    return;
+  }
+  if (target === "followUp") {
+    $("#follow_up_needed").checked = true;
+    setFollowUpVisible();
+    focusAfterScreenChange("#follow_up_text", { scroll: true });
+    return;
+  }
+  if (target === "duration") {
+    focusAfterScreenChange("#duration_minutes", { select: true, scroll: true });
+    return;
+  }
+  if (target === "time") {
+    setTimeFieldVisible(true);
+    focusAfterScreenChange("#performed_at", { select: true, scroll: true });
+    return;
+  }
+  if (target === "submit") {
+    focusAfterScreenChange("#submitButton", { scroll: true });
+    return;
+  }
+  setNoteFieldVisible(true, false);
+  focusAfterScreenChange("#summary", { select: true, scroll: true });
+}
+
 function updateNotePreview() {
   const preview = $("#notePreview");
   if (preview) preview.textContent = shortText($("#summary")?.value || state.selectedTask?.summary || "Standardtekst");
@@ -338,14 +395,58 @@ function openTask(taskKey) {
   $("#taskSubtitle").textContent = task.requiresRoom ? "Velg seng/rom og lagre posten." : "Fyll eventuelt inn notat og lagre posten.";
   setTaskDefaults(task);
   showScreen("entry");
+  renderRecent();
+  focusInitialTaskField(task);
+}
+
+function rowTags(row) {
+  return safeText(row.tags)
+    .split(",")
+    .map((tag) => normalizeToken(tag))
+    .filter(Boolean);
+}
+
+function recentRowMatchesTask(row, task) {
+  if (!task) return true;
+  const tags = rowTags(row);
+  const category = normalizeToken(task.category);
+  if (category && tags.includes(category)) return true;
+  if (category && tags.length) return false;
+  const targetType = normalizeToken(row.target_type);
+  const actionType = normalizeToken(row.action_type);
+  const targetName = normalizeToken(row.target_name);
+  const taskTargetType = normalizeToken(task.targetType);
+  const taskActionType = normalizeToken(task.actionType);
+  const taskTargetName = normalizeToken(task.targetName);
+  if (taskTargetType && taskActionType && targetType === taskTargetType && actionType === taskActionType) return true;
+  if (taskTargetName && targetName.includes(taskTargetName)) return true;
+  return false;
+}
+
+function filteredRecentRows() {
+  const rows = state.bootstrap?.recent || [];
+  if (!state.selectedTask) return rows.slice(0, 12);
+  return rows.filter((row) => recentRowMatchesTask(row, state.selectedTask)).slice(0, 12);
 }
 
 function renderRecent() {
   const container = $("#recentList");
   if (!container) return;
-  const rows = state.bootstrap?.recent || [];
+  const rows = filteredRecentRows();
+  const title = $("#recentTitle");
+  const subtitle = $("#recentSubtitle");
+  if (state.selectedTask) {
+    if (title) title.textContent = `Siste ${state.selectedTask.category || state.selectedTask.title}`;
+    if (subtitle) subtitle.textContent = `Viser bare poster som hører til ${state.selectedTask.category || "valgt oppgave"}.`;
+  } else {
+    if (title) title.textContent = "Siste registreringer";
+    if (subtitle) subtitle.textContent = "Siste vedlikeholdsposter på tvers av kategorier.";
+  }
   if (!rows.length) {
-    container.innerHTML = '<p class="muted">Ingen vedlikeholdsposter ennå.</p>';
+    const emptyText = state.selectedTask
+      ? `Ingen tidligere poster i ${state.selectedTask.category || state.selectedTask.title}.`
+      : "Ingen vedlikeholdsposter ennå.";
+    container.innerHTML = `<p class="muted">${emptyText}</p>`;
     return;
   }
   container.innerHTML = rows.map((row) => {
@@ -452,9 +553,9 @@ async function submitForm(event) {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.detail || payload.message || "Kunne ikke lagre.");
-    await loadBootstrap();
     state.lastSavedTitle = savedTitle;
     state.selectedTask = null;
+    await loadBootstrap();
     showScreen("tasks");
     setTaskMessage(`Lagret: ${savedTitle}`);
   } catch (error) {
@@ -470,6 +571,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("#backButton")?.addEventListener("click", () => {
     state.selectedTask = null;
     showScreen("tasks");
+    renderRecent();
   });
   $("#refreshButton")?.addEventListener("click", () => loadBootstrap().catch((error) => setMessage(error.message, true)));
   $("#follow_up_needed")?.addEventListener("change", setFollowUpVisible);
