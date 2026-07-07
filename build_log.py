@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1453")
+APP_BUILD = os.getenv("APP_BUILD", "1454")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1454",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil samler toppfelt",
+        "title": "Forside og undersider faar samme toppfelt med gul logostripe",
+        "description": (
+            "Build 1454 gjoer toppfeltet i vedlikeholdsappen mer konsekvent. Forsiden og undersidene bruker naa "
+            "samme headerbakgrunn, samme gule stripe nederst og samme sentrerte tekstuttrykk. Undersidetitler "
+            "sentreres mellom logo og spacer slik hovedtittelen er sentrert mellom logo og brukerknapp paa forsiden."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: samler toppfeltbakgrunn, legger gul stripe og sentrerer undersidetitler.",
+            "build_log.py: registrerer build 1454.",
+        ],
+        "request": "Legg en tynn gul stripe nederst paa toppfeltet, samme farge som i logoen. Sentrer teksten paa undersidene som paa forsiden og soerg for at alt er helt likt.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Forside og undersider bruker samme toppfeltbakgrunn.",
+            "Begge toppfelt har en tynn gul stripe nederst.",
+            "Undersidetitler er sentrert horisontalt som hovedtittelen.",
+            "Asset-versjon er oppdatert for aa unngaa gammel mobilcache.",
+        ],
+    },
     {
         "version": "1",
         "build": "1453",

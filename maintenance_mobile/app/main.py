@@ -387,7 +387,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1453">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1454">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -419,8 +419,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1453">
-  <script src="/assets/maintenance-mobile.js?v=1453" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1454">
+  <script src="/assets/maintenance-mobile.js?v=1454" defer></script>
 </head>
 <body>
   <header class="app-topbar">

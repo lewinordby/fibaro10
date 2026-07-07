@@ -17,6 +17,7 @@
   --shadow-soft: 0 6px 16px rgba(8, 23, 53, 0.06);
   --shell-x: 0.72rem;
   --topbar-x: 0.9rem;
+  --topbar-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 250, 249, 0.96) 100%);
 }
 
 * {
@@ -102,10 +103,21 @@ h2 {
   gap: 0.62rem;
   min-height: calc(3.5rem + env(safe-area-inset-top));
   padding: max(0.52rem, env(safe-area-inset-top)) var(--topbar-x) 0.52rem;
-  border-bottom: 1px solid rgba(223, 231, 239, 0.78);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 250, 249, 0.96) 100%);
+  border-bottom: 0;
+  background: var(--topbar-bg);
   backdrop-filter: blur(16px);
   box-shadow: 0 2px 12px rgba(8, 23, 53, 0.045);
+}
+
+.app-topbar::after,
+.entry-head::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--gold);
+  content: "";
 }
 
 body.entry-mode .app-topbar,
@@ -283,9 +295,8 @@ body.profile-mode .app-shell {
   margin: 0 calc(-1 * var(--shell-x)) 0.62rem;
   padding: max(0.52rem, env(safe-area-inset-top)) var(--shell-x) 0.54rem;
   border: 0;
-  border-bottom: 1px solid rgba(207, 219, 229, 0.92);
   border-radius: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(240, 248, 246, 0.98) 100%);
+  background: var(--topbar-bg);
   box-shadow: 0 3px 14px rgba(8, 23, 53, 0.055);
   backdrop-filter: blur(16px);
 }
@@ -295,8 +306,8 @@ body.profile-mode .app-shell {
   min-height: 2.72rem;
   align-content: center;
   min-width: 0;
-  padding-top: 0.08rem;
-  text-align: left;
+  padding-top: 0.16rem;
+  text-align: center;
 }
 
 .profile-head {
@@ -328,6 +339,7 @@ body.profile-mode .app-shell {
   display: flex;
   min-width: 0;
   align-items: center;
+  justify-content: center;
 }
 
 .entry-title-line > span:first-child {
