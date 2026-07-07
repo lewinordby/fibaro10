@@ -120,6 +120,14 @@ const LEGACY_TASKS = [
   },
 ];
 
+const HEAT_PUMP_TARGETS = [
+  { value: "1.etg", label: "1.etg" },
+  { value: "2.etg", label: "2.etg" },
+  { value: "VIP", label: "VIP" },
+];
+
+const HEAT_PUMP_STANDARD_TASKS = ["Renset filter", "Endret innstilling"];
+
 const TASKS = [
   {
     key: "robot-cleaners",
@@ -147,7 +155,12 @@ const TASKS = [
     priority: "Normal",
     status: "Utført",
     summary: "Varmepumper",
-    initialFocus: "summary",
+    targetChoices: HEAT_PUMP_TARGETS,
+    targetChoiceLabel: "Varmepumper",
+    allTargetName: "Alle varmepumper",
+    standardTasks: HEAT_PUMP_STANDARD_TASKS,
+    defaultStandardTasks: ["Renset filter"],
+    initialFocus: "targetChoices",
     tags: ["Ventilasjon", "Varmepumper", "Kontroll", "Mobil"],
   },
   {
@@ -195,6 +208,7 @@ const state = {
   selectedTask: null,
   editingLog: null,
   selectedRobots: [],
+  selectedTargetChoices: [],
   selectedStandardTasks: [],
   busy: false,
   lastSavedTitle: "",
@@ -328,6 +342,21 @@ function robotLabel(value) {
   return safeText(match?.label, value);
 }
 
+function targetChoiceOptions(task = state.selectedTask) {
+  return (task?.targetChoices || []).map((option) => {
+    if (typeof option === "string") return { value: option, label: option };
+    return {
+      value: safeText(option.value, safeText(option.label)),
+      label: safeText(option.label, safeText(option.value)),
+    };
+  }).filter((option) => option.value);
+}
+
+function targetChoiceLabel(value) {
+  const match = targetChoiceOptions().find((option) => option.value === value);
+  return safeText(match?.label, value);
+}
+
 function renderRoomChoices() {
   const container = $("#roomQuickGrid");
   if (!container) return;
@@ -371,6 +400,31 @@ function updateRobotAllButton() {
   button.textContent = allSelected ? "Fjern alle" : "Alle";
 }
 
+function renderTargetChoices() {
+  const container = $("#targetChoiceGrid");
+  if (!container) return;
+  const options = targetChoiceOptions();
+  const selected = new Set(state.selectedTargetChoices);
+  $("#targetChoiceLabel").textContent = state.selectedTask?.targetChoiceLabel || "Valg";
+  container.innerHTML = options.map((option) => `
+    <button class="target-choice-chip ${selected.has(option.value) ? "is-active" : ""}" type="button" data-target-choice="${option.value}">
+      ${safeText(option.label, option.value)}
+    </button>
+  `).join("");
+  container.querySelectorAll("[data-target-choice]").forEach((button) => {
+    button.addEventListener("click", () => toggleTargetChoice(button.dataset.targetChoice || ""));
+  });
+  updateTargetChoiceAllButton();
+}
+
+function updateTargetChoiceAllButton() {
+  const button = $("#targetChoiceAllButton");
+  if (!button) return;
+  const options = targetChoiceOptions();
+  const allSelected = options.length > 0 && state.selectedTargetChoices.length === options.length;
+  button.textContent = allSelected ? "Fjern alle" : "Alle";
+}
+
 function selectRoom(value) {
   const element = $("#room_id");
   if (!element) return;
@@ -402,6 +456,35 @@ function toggleAllRobots() {
 
 function selectedRobotLabels() {
   return state.selectedRobots.map(robotLabel).filter(Boolean);
+}
+
+function toggleTargetChoice(value) {
+  if (!value) return;
+  const selected = new Set(state.selectedTargetChoices);
+  if (selected.has(value)) {
+    selected.delete(value);
+  } else {
+    selected.add(value);
+  }
+  state.selectedTargetChoices = [...selected];
+  renderTargetChoices();
+  updateSubmitState();
+}
+
+function toggleAllTargetChoices() {
+  const options = targetChoiceOptions().map((option) => option.value);
+  if (!options.length) return;
+  state.selectedTargetChoices = state.selectedTargetChoices.length === options.length ? [] : options;
+  renderTargetChoices();
+  updateSubmitState();
+}
+
+function selectedTargetChoiceLabels(task = state.selectedTask) {
+  const allowed = new Set(targetChoiceOptions(task).map((item) => normalizeToken(item.value)));
+  return state.selectedTargetChoices
+    .filter((item) => !allowed.size || allowed.has(normalizeToken(item)))
+    .map(targetChoiceLabel)
+    .filter(Boolean);
 }
 
 function renderStandardTaskChoices() {
@@ -450,11 +533,14 @@ function standardTasksFromLog(row, taskList) {
   });
 }
 
-function autoSummaryForTask(task, standardTaskLabels, robotLabels, allRobotsSelected) {
+function autoSummaryForTask(task, standardTaskLabels, robotLabels, allRobotsSelected, targetChoiceLabels, allTargetChoicesSelected) {
   const parts = [];
   if (standardTaskLabels.length) parts.push(standardTaskLabels.join(", "));
   if (task.requiresRobots && robotLabels.length) {
     parts.push(allRobotsSelected ? "alle robotvaskere" : robotLabels.join(", "));
+  }
+  if (targetChoiceLabels.length) {
+    parts.push(allTargetChoicesSelected ? (task.allTargetName || "Alle") : targetChoiceLabels.join(", "));
   }
   return parts.length ? `${task.title}: ${parts.join(" - ")}` : (task.summary || task.title);
 }
@@ -475,6 +561,7 @@ function automaticTags(task) {
   const selectedRoom = $("#room_id")?.value;
   if (selectedRoom) tags.push(roomLabel(selectedRoom));
   for (const robot of selectedRobotLabels()) tags.push(robot);
+  for (const targetChoice of selectedTargetChoiceLabels(task)) tags.push(targetChoice);
   for (const standardTask of selectedStandardTaskLabels()) tags.push(standardTask);
   return [...new Set(tags.filter(Boolean))].slice(0, 20);
 }
@@ -525,6 +612,10 @@ function focusInitialTaskField(task) {
     focusAfterScreenChange("#robotQuickGrid .robot-chip", { scroll: true });
     return;
   }
+  if (target === "targetChoices") {
+    focusAfterScreenChange("#targetChoiceGrid .target-choice-chip", { scroll: true });
+    return;
+  }
   if (target === "followUp") {
     $("#follow_up_needed").checked = true;
     setFollowUpVisible();
@@ -555,15 +646,19 @@ function updateSubmitState() {
   const missingRoom = needsRoom && !$("#room_id")?.value;
   const needsRobots = Boolean(state.selectedTask?.requiresRobots);
   const missingRobots = needsRobots && optionList("robots").length > 0 && state.selectedRobots.length === 0;
+  const needsTargetChoices = targetChoiceOptions(state.selectedTask).length > 0;
+  const missingTargetChoices = needsTargetChoices && state.selectedTargetChoices.length === 0;
   const needsStandardTask = (state.selectedTask?.standardTasks || []).length > 0;
   const missingStandardTask = needsStandardTask && state.selectedStandardTasks.length === 0;
-  button.disabled = state.busy || missingRoom || missingRobots || missingStandardTask;
+  button.disabled = state.busy || missingRoom || missingRobots || missingTargetChoices || missingStandardTask;
   if (state.busy) {
     button.textContent = "Lagrer...";
   } else if (missingRoom) {
     button.textContent = "Velg seng / rom";
   } else if (missingRobots) {
     button.textContent = "Velg robotvasker";
+  } else if (missingTargetChoices) {
+    button.textContent = `Velg ${state.selectedTask?.targetChoiceLabel || "valg"}`;
   } else if (missingStandardTask) {
     button.textContent = "Velg oppgave";
   } else if (state.editingLog) {
@@ -587,6 +682,9 @@ function setTaskDefaults(task) {
   state.selectedRobots = [];
   $("#robotField").classList.toggle("is-hidden", !task.requiresRobots);
   renderRobotChoices();
+  state.selectedTargetChoices = [];
+  $("#targetChoiceField").classList.toggle("is-hidden", !targetChoiceOptions(task).length);
+  renderTargetChoices();
   state.selectedStandardTasks = [...(task.defaultStandardTasks || [])];
   $("#standardTaskField").classList.toggle("is-hidden", !(task.standardTasks || []).length);
   renderStandardTaskChoices();
@@ -611,8 +709,23 @@ function taskFromLog(row) {
     return tags.includes(token) || normalizeToken(row.target_name).includes(token);
   });
   const requiresRobots = selectedRobots.length > 0 || normalizeToken(targetType) === "utstyr" && normalizeToken(row.target_name).includes("robot");
-  const standardTasks = requiresRobots ? ["Rengjort", "Rengjort brett", "Skiftet mopper", "Skiftet valse"] : [];
+  const targetNameToken = normalizeToken(row.target_name);
+  const summaryToken = normalizeToken(summary);
+  const selectedTargetChoices = HEAT_PUMP_TARGETS
+    .filter((option) => {
+      const token = normalizeToken(option.value);
+      return tags.includes(token) || targetNameToken.includes(token) || summaryToken.includes(token);
+    })
+    .map((option) => option.value);
+  const requiresTargetChoices = selectedTargetChoices.length > 0 || tags.includes("varmepumper") || targetNameToken.includes("varmepumpe") || summaryToken.includes("varmepumpe");
+  const targetChoices = requiresTargetChoices ? HEAT_PUMP_TARGETS : [];
+  const standardTasks = requiresRobots
+    ? ["Rengjort", "Rengjort brett", "Skiftet mopper", "Skiftet valse"]
+    : (requiresTargetChoices ? HEAT_PUMP_STANDARD_TASKS : []);
   const selectedStandardTasks = standardTasksFromLog(row, standardTasks);
+  const defaultStandardTasks = selectedStandardTasks.length
+    ? selectedStandardTasks
+    : (requiresRobots ? ["Rengjort"] : (requiresTargetChoices ? ["Renset filter"] : []));
   return {
     key: `edit-${row.id}`,
     title: summary,
@@ -626,12 +739,16 @@ function taskFromLog(row) {
     summary,
     requiresRoom,
     requiresRobots,
+    targetChoices,
+    targetChoiceLabel: requiresTargetChoices ? "Varmepumper" : "",
+    allTargetName: requiresTargetChoices ? "Alle varmepumper" : "",
     standardTasks,
-    defaultStandardTasks: selectedStandardTasks.length ? selectedStandardTasks : (standardTasks.length ? ["Rengjort"] : []),
+    defaultStandardTasks,
     presenceType: safeText(row.presence_type, "Tilstede Sun2"),
     tags,
     selectedRobots,
-    selectedStandardTasks: selectedStandardTasks.length ? selectedStandardTasks : (standardTasks.length ? ["Rengjort"] : []),
+    selectedTargetChoices,
+    selectedStandardTasks: defaultStandardTasks,
     initialFocus: "summary",
   };
 }
@@ -652,6 +769,9 @@ function setFormFromLog(row) {
   state.selectedRobots = [...(task.selectedRobots || [])];
   $("#robotField").classList.toggle("is-hidden", !task.requiresRobots);
   renderRobotChoices();
+  state.selectedTargetChoices = [...(task.selectedTargetChoices || [])];
+  $("#targetChoiceField").classList.toggle("is-hidden", !targetChoiceOptions(task).length);
+  renderTargetChoices();
   state.selectedStandardTasks = [...(task.selectedStandardTasks || task.defaultStandardTasks || [])];
   $("#standardTaskField").classList.toggle("is-hidden", !(task.standardTasks || []).length);
   renderStandardTaskChoices();
@@ -672,7 +792,9 @@ function openTask(taskKey) {
   const taskCategory = $("#taskCategory");
   if (taskCategory) taskCategory.textContent = task.category || "Oppgave";
   $("#taskTitle").textContent = task.title;
-  $("#taskSubtitle").textContent = task.requiresRoom ? "Velg seng/rom og lagre posten." : "Fyll eventuelt inn notat og lagre posten.";
+  $("#taskSubtitle").textContent = task.requiresRoom
+    ? "Velg seng/rom og lagre posten."
+    : (targetChoiceOptions(task).length ? "Velg enhet og oppgave, og lagre posten." : "Fyll eventuelt inn notat og lagre posten.");
   setTaskDefaults(task);
   showScreen("entry");
   renderRecent();
@@ -837,15 +959,20 @@ function formPayload() {
   if (!task) throw new Error("Velg en oppgave først.");
   const followUpNeeded = Boolean($("#follow_up_needed").checked);
   const robotLabels = selectedRobotLabels();
+  const targetChoiceLabels = selectedTargetChoiceLabels(task);
   const standardTaskLabels = selectedStandardTaskLabels();
   const allRobotsSelected = task.requiresRobots && robotLabels.length > 0 && robotLabels.length === optionList("robots").length;
+  const allTargetChoicesSelected = targetChoiceOptions(task).length > 0 && targetChoiceLabels.length === targetChoiceOptions(task).length;
   const robotTargetName = allRobotsSelected
     ? `Alle robotvaskere: ${robotLabels.join(", ")}`
     : robotLabels.join(", ");
+  const targetChoiceName = allTargetChoicesSelected
+    ? `${task.allTargetName || "Alle"}: ${targetChoiceLabels.join(", ")}`
+    : targetChoiceLabels.join(", ");
   const currentSummary = safeText($("#summary").value, task.summary || task.title);
   const defaultSummary = safeText(task.summary || task.title);
   const summary = !state.editingLog && (task.requiresRobots || (task.standardTasks || []).length) && currentSummary === defaultSummary
-    ? autoSummaryForTask(task, standardTaskLabels, robotLabels, allRobotsSelected)
+    ? autoSummaryForTask(task, standardTaskLabels, robotLabels, allRobotsSelected, targetChoiceLabels, allTargetChoicesSelected)
     : currentSummary;
   const statusValue = followUpNeeded
     ? "Må følges opp"
@@ -857,7 +984,9 @@ function formPayload() {
     presence_type: validOption("presence_type", task.presenceType || "Tilstede Sun2", "Tilstede Sun2"),
     target_type: validOption("target_type", task.targetType || "Generelt", "Generelt"),
     room_id: task.requiresRoom ? ($("#room_id").value || null) : null,
-    target_name: task.requiresRobots ? (robotTargetName || task.targetName || "") : (task.targetName || ""),
+    target_name: task.requiresRobots
+      ? (robotTargetName || task.targetName || "")
+      : (targetChoiceName || task.targetName || ""),
     action_type: validOption("action_type", task.actionType || "Kontroll", "Kontroll"),
     priority: validOption("priority", task.priority || "Normal", "Normal"),
     status: validOption("status", statusValue, "Utført"),
@@ -894,6 +1023,11 @@ async function submitForm(event) {
   }
   if (state.selectedTask?.requiresRobots && optionList("robots").length > 0 && state.selectedRobots.length === 0) {
     setMessage("Velg robotvasker før du lagrer.", true);
+    updateSubmitState();
+    return;
+  }
+  if (targetChoiceOptions(state.selectedTask).length > 0 && state.selectedTargetChoices.length === 0) {
+    setMessage(`Velg ${state.selectedTask?.targetChoiceLabel || "valg"} før du lagrer.`, true);
     updateSubmitState();
     return;
   }
@@ -941,6 +1075,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.selectedTask = null;
     state.editingLog = null;
     state.selectedRobots = [];
+    state.selectedTargetChoices = [];
     state.selectedStandardTasks = [];
     showScreen("tasks");
     renderRecent();
@@ -951,6 +1086,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateSubmitState();
   });
   $("#robotAllButton")?.addEventListener("click", toggleAllRobots);
+  $("#targetChoiceAllButton")?.addEventListener("click", toggleAllTargetChoices);
   $("#timeButton")?.addEventListener("click", () => {
     const field = $("#timeField");
     const visible = field?.classList.contains("is-hidden");

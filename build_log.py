@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1454")
+APP_BUILD = os.getenv("APP_BUILD", "1455")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1455",
+        "date": "07.07.2026",
+        "headline": "Varmepumper far egne mobilvalg",
+        "title": "Vedlikehold mobil kan velge varmepumpe og tiltak",
+        "description": (
+            "Build 1455 utvider Varmepumper i vedlikeholdsappen. Registreringen viser naa tre valg for "
+            "1.etg, 2.etg og VIP, med samme flervalgsmønster som robotvaskere. I tillegg kan brukeren "
+            "velge tiltakene Renset filter og Endret innstilling, der Renset filter er valgt som standard."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: legger inn eget felt for generiske enhetsvalg og oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: legger varmepumpevalg, standardoppgaver, validering, tagger og automatisk sammendrag.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: styler varmepumpevalgene med samme chip-system som robotvaskere.",
+            "build_log.py: registrerer build 1455.",
+        ],
+        "request": "Paa undersiden Varmepumpe skal man ha 3 valg som paa robotvaskere: 1.etg, 2.etg og VIP. Valgene i tillegg skal vaere Renset filter og Endret innstilling.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Varmepumper viser flervalg for 1.etg, 2.etg og VIP.",
+            "Varmepumper viser tiltakene Renset filter og Endret innstilling.",
+            "Renset filter er valgt som standard for nye varmepumpeposter.",
+            "Lagring krever valgt varmepumpe og minst ett tiltak.",
+            "Valgte varmepumper og tiltak lagres i target_name, tagger og automatisk sammendrag.",
+        ],
+    },
     {
         "version": "1",
         "build": "1454",

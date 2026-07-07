@@ -528,6 +528,7 @@ body.profile-mode .app-shell {
 
 .room-field,
 .robot-field,
+.target-choice-field,
 .standard-task-field {
   display: grid;
   gap: 0.52rem;
@@ -549,6 +550,12 @@ body.profile-mode .app-shell {
   gap: 0.48rem;
 }
 
+.target-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.48rem;
+}
+
 .standard-task-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -557,6 +564,7 @@ body.profile-mode .app-shell {
 
 .room-chip,
 .robot-chip,
+.target-choice-chip,
 .standard-task-chip {
   min-height: 2.55rem;
   padding: 0 0.46rem;
@@ -570,6 +578,7 @@ body.profile-mode .app-shell {
 
 .room-chip.is-active,
 .robot-chip.is-active,
+.target-choice-chip.is-active,
 .standard-task-chip.is-active {
   border-color: rgba(15, 118, 110, 0.48);
   background: var(--teal-soft);
@@ -634,6 +643,7 @@ textarea:focus {
 .task-button:focus-visible,
 .room-chip:focus-visible,
 .robot-chip:focus-visible,
+.target-choice-chip:focus-visible,
 .standard-task-chip:focus-visible,
 .text-button:focus-visible,
 .user-button:focus-visible,

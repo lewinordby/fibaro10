@@ -387,7 +387,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1454">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1455">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -419,8 +419,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1454">
-  <script src="/assets/maintenance-mobile.js?v=1454" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1455">
+  <script src="/assets/maintenance-mobile.js?v=1455" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -473,6 +473,14 @@ INDEX_HTML = """<!doctype html>
             <button id="robotAllButton" class="text-button" type="button">Alle</button>
           </div>
           <div id="robotQuickGrid" class="robot-quick-grid" aria-label="Velg robotvaskere"></div>
+        </section>
+
+        <section id="targetChoiceField" class="target-choice-field is-hidden">
+          <div class="field-line">
+            <p id="targetChoiceLabel" class="field-label">Valg</p>
+            <button id="targetChoiceAllButton" class="text-button" type="button">Alle</button>
+          </div>
+          <div id="targetChoiceGrid" class="target-choice-grid" aria-label="Velg enheter"></div>
         </section>
 
         <section id="standardTaskField" class="standard-task-field is-hidden">
