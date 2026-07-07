@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1452")
+APP_BUILD = os.getenv("APP_BUILD", "1453")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1453",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil strammer undersidetopp",
+        "title": "Undersider faar eget toppfelt med riktig tekstplassering",
+        "description": (
+            "Build 1453 retter videre paa toppfeltet i vedlikeholdsappen. Undersidene hadde teknisk lik hoeyde, "
+            "men tittelen laa for hoeyt og raden manglet tydelig visuell flate mot resten av siden. Undersidetoppen "
+            "har naa egen lys headerflate, bunnlinje, svak skygge og bedre vertikal sentrering av tittel og tidspunkt."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: gir undersidetopper egen headerflate, sticky plassering, bunnlinje og justert vertikal sentrering.",
+            "build_log.py: registrerer build 1453.",
+        ],
+        "request": "Toppen paa undersidene er fortsatt feil; teksten staar for hoeyt og det er ingen fargeforskjell mellom toppfeltet og resten.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Undersidetoppen har naa synlig bakgrunnsfarge, bunnlinje og svak skygge.",
+            "Tittel og tidspunkt sentreres bedre vertikalt mot logoen.",
+            "Forside og undersider bruker samme horisontale marglogikk og cache-versjon.",
+        ],
+    },
     {
         "version": "1",
         "build": "1452",
