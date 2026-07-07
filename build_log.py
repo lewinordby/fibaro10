@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1440")
+APP_BUILD = os.getenv("APP_BUILD", "1441")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1441",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil får fem enkle startvalg",
+        "title": "Startsiden i vedlikeholdsappen viser lave enlinjeknapper",
+        "description": (
+            "Build 1441 forenkler startsiden i vedlikeholdsappen. Oppgavegridet er erstattet av fem lave "
+            "knapper i én kolonne: Robotvaskere, Varmepumper, Solsenger, Kremautomat og Annet. Knappene viser "
+            "bare én tekstlinje og åpner fortsatt registreringsskjemaet med riktige grunnverdier og tagger."
+        ),
+        "applications": [
+            "maintenance_mobile/app/static/maintenance-mobile.js: erstatter aktiv oppgaveliste med fem hovedvalg og viser bare tittel på knappene.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: endrer startsiden fra 2-kolonne-kort til lav 1-kolonne-liste.",
+            "maintenance_mobile/app/main.py: oppdaterer mobilasset-versjon.",
+            "build_log.py: ny buildloggpost for startmenyen.",
+        ],
+        "request": "Knappene på første siden skal være lavere, én i bredden, begrenset til fem, og nederst skal det være Annet.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Startsiden viser Robotvaskere, Varmepumper, Solsenger, Kremautomat og Annet.",
+            "Alle startknapper er én tekstlinje uten kode eller detaljtekst.",
+            "Knappene ligger én per rad og er lavere enn de gamle kortene.",
+            "Eksisterende registrerings- og redigeringsflyt er beholdt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1440",

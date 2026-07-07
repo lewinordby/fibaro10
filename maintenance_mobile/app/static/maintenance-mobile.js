@@ -1,4 +1,4 @@
-const TASKS = [
+const LEGACY_TASKS = [
   {
     key: "vacuum-clean",
     code: "RV",
@@ -120,6 +120,73 @@ const TASKS = [
   },
 ];
 
+const TASKS = [
+  {
+    key: "robot-cleaners",
+    title: "Robotvaskere",
+    category: "Renhold",
+    targetType: "Utstyr",
+    targetName: "Robotvaskere",
+    actionType: "Vedlikehold",
+    priority: "Normal",
+    status: "Utført",
+    summary: "Robotvaskere",
+    initialFocus: "summary",
+    tags: ["Renhold", "Utstyr", "Robotvaskere", "Mobil"],
+  },
+  {
+    key: "heat-pumps",
+    title: "Varmepumper",
+    category: "Drift",
+    targetType: "Ventilasjon",
+    targetName: "Varmepumper",
+    actionType: "Kontroll",
+    priority: "Normal",
+    status: "Utført",
+    summary: "Varmepumper",
+    initialFocus: "summary",
+    tags: ["Ventilasjon", "Varmepumper", "Kontroll", "Mobil"],
+  },
+  {
+    key: "sunbeds",
+    title: "Solsenger",
+    category: "Soling",
+    targetType: "Seng",
+    actionType: "Vedlikehold",
+    priority: "Normal",
+    status: "Utført",
+    summary: "Solsenger",
+    requiresRoom: true,
+    initialFocus: "room",
+    tags: ["Soling", "Seng", "Vedlikehold", "Mobil"],
+  },
+  {
+    key: "cream-machine",
+    title: "Kremautomat",
+    category: "Drift",
+    targetType: "Utstyr",
+    targetName: "Kremautomat",
+    actionType: "Vedlikehold",
+    priority: "Normal",
+    status: "Utført",
+    summary: "Kremautomat",
+    initialFocus: "summary",
+    tags: ["Utstyr", "Kremautomat", "Vedlikehold", "Mobil"],
+  },
+  {
+    key: "other",
+    title: "Annet",
+    category: "Avvik",
+    targetType: "Generelt",
+    actionType: "Observasjon",
+    priority: "Normal",
+    status: "Utført",
+    summary: "Annet",
+    initialFocus: "summary",
+    tags: ["Avvik", "Observasjon", "Mobil"],
+  },
+];
+
 const state = {
   bootstrap: null,
   selectedTask: null,
@@ -235,9 +302,7 @@ function renderTasks() {
   if (!container) return;
   container.innerHTML = TASKS.map((task) => `
     <button class="task-button" type="button" data-task-key="${task.key}">
-      <span class="task-code">${task.code}</span>
       <span class="task-title">${task.title}</span>
-      <span class="task-detail">${task.detail}</span>
     </button>
   `).join("");
   container.querySelectorAll("[data-task-key]").forEach((button) => {
