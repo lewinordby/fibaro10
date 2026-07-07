@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1448")
+APP_BUILD = os.getenv("APP_BUILD", "1449")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1449",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil finjusterer undersidetopper",
+        "title": "Dato/tid flyttes inn i overskrift og undersider tones likere startsiden",
+        "description": (
+            "Build 1449 finjusterer undersidene i vedlikeholdsappen. Registreringssiden viser tidspunktet som "
+            "klikkbar tekst etter komma i overskriften, i stedet for som en egen farget knapp. Undersidetitlene "
+            "er venstrejustert, og bakgrunnsfargen rundt tidsfeltet er gjort mer nøytral slik at undersidene "
+            "oppleves likere startsiden."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: flytter tidspunktknappen inn i registreringssidens overskrift og oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: venstrejusterer undersidetitler, gjør tidspunktet inline og nøytraliserer tidsfeltbakgrunn.",
+            "build_log.py: registrerer build 1449.",
+        ],
+        "request": "Dato kan være etter komma i overskrift på undersidene, alt kan være venstrejustert, og bakgrunnsfargene bør gjøre undersidene likere hovedsiden.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Tidspunkt/dato vises etter komma i registreringssidens overskrift.",
+            "Tidspunktet er fortsatt klikkbart og åpner samme tidsvelger.",
+            "Undersidetitler er venstrejustert.",
+            "Den fargede tidspunktknappen er fjernet.",
+            "Tidsfeltets bakgrunn er gjort nøytral.",
+        ],
+    },
     {
         "version": "1",
         "build": "1448",
