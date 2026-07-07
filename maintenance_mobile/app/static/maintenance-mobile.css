@@ -407,7 +407,8 @@ body.entry-mode .app-shell {
 }
 
 .room-field,
-.robot-field {
+.robot-field,
+.standard-task-field {
   display: grid;
   gap: 0.52rem;
 }
@@ -428,8 +429,15 @@ body.entry-mode .app-shell {
   gap: 0.48rem;
 }
 
+.standard-task-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.48rem;
+}
+
 .room-chip,
-.robot-chip {
+.robot-chip,
+.standard-task-chip {
   min-height: 2.72rem;
   padding: 0 0.5rem;
   border: 1px solid rgba(49, 94, 231, 0.18);
@@ -441,7 +449,8 @@ body.entry-mode .app-shell {
 }
 
 .room-chip.is-active,
-.robot-chip.is-active {
+.robot-chip.is-active,
+.standard-task-chip.is-active {
   border-color: rgba(49, 94, 231, 0.6);
   background: var(--blue-soft);
   color: var(--blue);
@@ -489,7 +498,7 @@ select {
 }
 
 textarea {
-  min-height: 7.2rem;
+  min-height: 5.2rem;
   padding: 0.78rem;
   line-height: 1.4;
   resize: vertical;
@@ -505,6 +514,7 @@ textarea:focus {
 .task-button:focus-visible,
 .room-chip:focus-visible,
 .robot-chip:focus-visible,
+.standard-task-chip:focus-visible,
 .text-button:focus-visible,
 .time-button:focus-visible,
 .back-button:focus-visible,

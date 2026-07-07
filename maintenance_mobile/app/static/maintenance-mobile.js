@@ -132,6 +132,8 @@ const TASKS = [
     status: "Utført",
     summary: "Robotvaskere",
     requiresRobots: true,
+    standardTasks: ["Rengjort", "Skiftet mopper", "Skiftet valse"],
+    defaultStandardTasks: ["Rengjort"],
     initialFocus: "robots",
     tags: ["Renhold", "Utstyr", "Robotvaskere", "Mobil"],
   },
@@ -193,6 +195,7 @@ const state = {
   selectedTask: null,
   editingLog: null,
   selectedRobots: [],
+  selectedStandardTasks: [],
   busy: false,
   lastSavedTitle: "",
 };
@@ -398,6 +401,61 @@ function selectedRobotLabels() {
   return state.selectedRobots.map(robotLabel).filter(Boolean);
 }
 
+function renderStandardTaskChoices() {
+  const container = $("#standardTaskGrid");
+  if (!container) return;
+  const tasks = state.selectedTask?.standardTasks || [];
+  const selected = new Set(state.selectedStandardTasks);
+  if (!tasks.length) {
+    container.innerHTML = "";
+    return;
+  }
+  container.innerHTML = tasks.map((task) => `
+    <button class="standard-task-chip ${selected.has(task) ? "is-active" : ""}" type="button" data-standard-task="${task}">
+      ${task}
+    </button>
+  `).join("");
+  container.querySelectorAll("[data-standard-task]").forEach((button) => {
+    button.addEventListener("click", () => toggleStandardTask(button.dataset.standardTask || ""));
+  });
+}
+
+function toggleStandardTask(value) {
+  if (!value) return;
+  const selected = new Set(state.selectedStandardTasks);
+  if (selected.has(value)) {
+    selected.delete(value);
+  } else {
+    selected.add(value);
+  }
+  state.selectedStandardTasks = [...selected];
+  renderStandardTaskChoices();
+  updateSubmitState();
+}
+
+function selectedStandardTaskLabels() {
+  const allowed = new Set((state.selectedTask?.standardTasks || []).map((item) => normalizeToken(item)));
+  return state.selectedStandardTasks.filter((item) => !allowed.size || allowed.has(normalizeToken(item)));
+}
+
+function standardTasksFromLog(row, taskList) {
+  const tags = rowTags(row);
+  const summary = normalizeToken(row.summary);
+  return taskList.filter((item) => {
+    const token = normalizeToken(item);
+    return tags.includes(token) || summary.includes(token);
+  });
+}
+
+function autoSummaryForTask(task, standardTaskLabels, robotLabels, allRobotsSelected) {
+  const parts = [];
+  if (standardTaskLabels.length) parts.push(standardTaskLabels.join(", "));
+  if (task.requiresRobots && robotLabels.length) {
+    parts.push(allRobotsSelected ? "alle robotvaskere" : robotLabels.join(", "));
+  }
+  return parts.length ? `${task.title}: ${parts.join(" - ")}` : (task.summary || task.title);
+}
+
 function automaticTags(task) {
   const performedAt = $("#performed_at")?.value || "";
   const datePart = performedAt.slice(0, 10);
@@ -414,6 +472,7 @@ function automaticTags(task) {
   const selectedRoom = $("#room_id")?.value;
   if (selectedRoom) tags.push(roomLabel(selectedRoom));
   for (const robot of selectedRobotLabels()) tags.push(robot);
+  for (const standardTask of selectedStandardTaskLabels()) tags.push(standardTask);
   return [...new Set(tags.filter(Boolean))].slice(0, 20);
 }
 
@@ -493,13 +552,17 @@ function updateSubmitState() {
   const missingRoom = needsRoom && !$("#room_id")?.value;
   const needsRobots = Boolean(state.selectedTask?.requiresRobots);
   const missingRobots = needsRobots && optionList("robots").length > 0 && state.selectedRobots.length === 0;
-  button.disabled = state.busy || missingRoom || missingRobots;
+  const needsStandardTask = (state.selectedTask?.standardTasks || []).length > 0;
+  const missingStandardTask = needsStandardTask && state.selectedStandardTasks.length === 0;
+  button.disabled = state.busy || missingRoom || missingRobots || missingStandardTask;
   if (state.busy) {
     button.textContent = "Lagrer...";
   } else if (missingRoom) {
     button.textContent = "Velg seng / rom";
   } else if (missingRobots) {
     button.textContent = "Velg robotvasker";
+  } else if (missingStandardTask) {
+    button.textContent = "Velg oppgave";
   } else if (state.editingLog) {
     button.textContent = "Lagre endring";
   } else {
@@ -521,6 +584,9 @@ function setTaskDefaults(task) {
   state.selectedRobots = [];
   $("#robotField").classList.toggle("is-hidden", !task.requiresRobots);
   renderRobotChoices();
+  state.selectedStandardTasks = [...(task.defaultStandardTasks || [])];
+  $("#standardTaskField").classList.toggle("is-hidden", !(task.standardTasks || []).length);
+  renderStandardTaskChoices();
   $("#summary").value = task.summary || task.title;
   setNoteFieldVisible(true);
   $("#duration_minutes").value = task.durationMinutes ? String(task.durationMinutes) : "";
@@ -542,6 +608,8 @@ function taskFromLog(row) {
     return tags.includes(token) || normalizeToken(row.target_name).includes(token);
   });
   const requiresRobots = selectedRobots.length > 0 || normalizeToken(targetType) === "utstyr" && normalizeToken(row.target_name).includes("robot");
+  const standardTasks = requiresRobots ? ["Rengjort", "Skiftet mopper", "Skiftet valse"] : [];
+  const selectedStandardTasks = standardTasksFromLog(row, standardTasks);
   return {
     key: `edit-${row.id}`,
     title: summary,
@@ -555,9 +623,12 @@ function taskFromLog(row) {
     summary,
     requiresRoom,
     requiresRobots,
+    standardTasks,
+    defaultStandardTasks: selectedStandardTasks.length ? selectedStandardTasks : (standardTasks.length ? ["Rengjort"] : []),
     presenceType: safeText(row.presence_type, "Tilstede Sun2"),
     tags,
     selectedRobots,
+    selectedStandardTasks: selectedStandardTasks.length ? selectedStandardTasks : (standardTasks.length ? ["Rengjort"] : []),
     initialFocus: "summary",
   };
 }
@@ -578,6 +649,9 @@ function setFormFromLog(row) {
   state.selectedRobots = [...(task.selectedRobots || [])];
   $("#robotField").classList.toggle("is-hidden", !task.requiresRobots);
   renderRobotChoices();
+  state.selectedStandardTasks = [...(task.selectedStandardTasks || task.defaultStandardTasks || [])];
+  $("#standardTaskField").classList.toggle("is-hidden", !(task.standardTasks || []).length);
+  renderStandardTaskChoices();
   $("#summary").value = task.summary;
   setNoteFieldVisible(true);
   $("#duration_minutes").value = row.duration_minutes === null || row.duration_minutes === undefined ? "" : String(row.duration_minutes);
@@ -723,14 +797,15 @@ function formPayload() {
   if (!task) throw new Error("Velg en oppgave først.");
   const followUpNeeded = Boolean($("#follow_up_needed").checked);
   const robotLabels = selectedRobotLabels();
+  const standardTaskLabels = selectedStandardTaskLabels();
   const allRobotsSelected = task.requiresRobots && robotLabels.length > 0 && robotLabels.length === optionList("robots").length;
   const robotTargetName = allRobotsSelected
     ? `Alle robotvaskere: ${robotLabels.join(", ")}`
     : robotLabels.join(", ");
   const currentSummary = safeText($("#summary").value, task.summary || task.title);
   const defaultSummary = safeText(task.summary || task.title);
-  const summary = !state.editingLog && task.requiresRobots && robotLabels.length && currentSummary === defaultSummary
-    ? `${task.title}: ${allRobotsSelected ? "alle" : robotLabels.join(", ")}`
+  const summary = !state.editingLog && (task.requiresRobots || (task.standardTasks || []).length) && currentSummary === defaultSummary
+    ? autoSummaryForTask(task, standardTaskLabels, robotLabels, allRobotsSelected)
     : currentSummary;
   const statusValue = followUpNeeded
     ? "Må følges opp"
@@ -782,6 +857,11 @@ async function submitForm(event) {
     updateSubmitState();
     return;
   }
+  if ((state.selectedTask?.standardTasks || []).length > 0 && state.selectedStandardTasks.length === 0) {
+    setMessage("Velg minst en oppgave før du lagrer.", true);
+    updateSubmitState();
+    return;
+  }
   const editing = Boolean(state.editingLog?.id);
   const savedTitle = state.selectedTask?.title || "Vedlikehold";
   state.busy = true;
@@ -816,6 +896,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     state.selectedTask = null;
     state.editingLog = null;
     state.selectedRobots = [];
+    state.selectedStandardTasks = [];
     showScreen("tasks");
     renderRecent();
   });

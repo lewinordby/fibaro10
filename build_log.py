@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1442")
+APP_BUILD = os.getenv("APP_BUILD", "1443")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1443",
+        "date": "07.07.2026",
+        "headline": "Robotvaskere far standardoppgaver",
+        "title": "Vedlikehold mobil kan merke rengjort, mopper og valse",
+        "description": (
+            "Build 1443 gjor robotvaskerregistrering raskere i vedlikeholdsappen. Skjemaet viser na standardoppgaver "
+            "over notatfeltet, med Rengjort valgt som standard. Brukeren kan velge flere oppgaver, og valgene lagres "
+            "som tagger og tas med i automatisk sammendrag for nye robotposter. Notatfeltet er samtidig gjort lavere "
+            "slik at skjermen bruker mindre plass."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: legger standardoppgavefelt i mobilskjemaet og oppdaterer asset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: legger standardoppgaver, defaultvalg, validering, tagger og automatisk sammendrag.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: styler standardoppgaver og reduserer notatfeltets hoyde.",
+            "build_log.py: registrerer build 1443.",
+        ],
+        "request": "Notatfeltet kan gjores litt lavere, og over det skal det ligge standardoppgaver man kan velge en eller flere av. Default skal Rengjort vaere markert. Valg: Rengjort, skiftet mopper, skiftet valse.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Robotvaskere viser standardoppgavene Rengjort, Skiftet mopper og Skiftet valse over notatfeltet.",
+            "Rengjort er valgt som standard pa nye robotvaskerposter.",
+            "Lagring krever minst en standardoppgave for robotvaskere.",
+            "Valgte standardoppgaver lagres i tagger og automatisk sammendrag.",
+            "Notatfeltet er gjort lavere for raskere mobilregistrering.",
+        ],
+    },
     {
         "version": "1",
         "build": "1442",
