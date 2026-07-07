@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1438")
+APP_BUILD = os.getenv("APP_BUILD", "1439")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1439",
+        "date": "07.07.2026",
+        "headline": "Renere registreringsheader mobil",
+        "title": "Vedlikeholdsregistreringen viser bare oppgave, bruker og logo",
+        "description": (
+            "Build 1439 rydder toppen av registreringsskjermen i vedlikeholdsappen. Tilbakeknappen bruker "
+            "sol/parkering-logoen uten tekst, og kategorioverskriften over oppgaven er fjernet slik at skjermen "
+            "starter direkte med oppgavenavnet og hvem som registrerer."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: bytter tilbakepilen med Lilletorget sol/parkering-logo og fjerner kategorioverskrift.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: tolererer at taskCategory ikke finnes i registreringsheaderen.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: justerer logo-knappen og registreringsheaderen.",
+            "build_log.py: ny buildloggpost for headeroppryddingen.",
+        ],
+        "request": "I toppen av vedlikeholdsregistreringen skal pila byttes med sol/parkering-logo uten tekst, og RENHOLD-overskriften skal bort.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Tilbakehandlingen er fortsatt tilgjengelig, men vises som sol/parkering-logo.",
+            "Kategori/eyebrow over oppgaven er fjernet fra registreringsheaderen.",
+            "Headeren viser oppgavenavn og hvem som registrerer.",
+            "Mobilasset-versjon er oppdatert til 1439.",
+        ],
+    },
     {
         "version": "1",
         "build": "1438",

@@ -328,7 +328,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1438">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1439">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -360,8 +360,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1438">
-  <script src="/assets/maintenance-mobile.js?v=1438" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1439">
+  <script src="/assets/maintenance-mobile.js?v=1439" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -395,9 +395,10 @@ INDEX_HTML = """<!doctype html>
 
     <section id="entryScreen" class="screen is-hidden">
       <section class="entry-head">
-        <button id="backButton" class="back-button" type="button" aria-label="Tilbake">&larr;</button>
+        <button id="backButton" class="back-button" type="button" aria-label="Tilbake">
+          <img src="/static/lilletorget-mark.png" alt="">
+        </button>
         <div class="entry-title-block">
-          <p id="taskCategory" class="eyebrow">Oppgave</p>
           <h1 id="taskTitle">Vedlikehold</h1>
           <p id="taskSubtitle" class="muted"></p>
           <p id="entryUserLine" class="entry-user-line"></p>

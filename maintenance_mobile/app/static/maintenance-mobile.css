@@ -304,7 +304,7 @@ body.entry-mode .app-shell {
 
 .entry-head {
   display: grid;
-  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  grid-template-columns: 2.45rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.48rem;
   padding: 0.48rem;
@@ -324,7 +324,7 @@ body.entry-mode .app-shell {
 .entry-title-block h1 {
   overflow: hidden;
   font-size: 1.08rem;
-  line-height: 1.04;
+  line-height: 1.08;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -343,17 +343,23 @@ body.entry-mode .app-shell {
 
 .back-button {
   display: grid;
-  width: 2.25rem;
-  min-height: 2.25rem;
+  width: 2.45rem;
+  min-height: 2.45rem;
   padding: 0;
   place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 0.78rem;
-  background: #fff;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
   color: var(--navy);
   font-size: 1.2rem;
   font-weight: 850;
   line-height: 1;
+}
+
+.back-button img {
+  width: 2.2rem;
+  height: 2.2rem;
+  object-fit: contain;
 }
 
 .time-button {

@@ -384,7 +384,8 @@ function openTask(taskKey) {
   const task = TASKS.find((item) => item.key === taskKey);
   if (!task) return;
   state.selectedTask = task;
-  $("#taskCategory").textContent = task.category || "Oppgave";
+  const taskCategory = $("#taskCategory");
+  if (taskCategory) taskCategory.textContent = task.category || "Oppgave";
   $("#taskTitle").textContent = task.title;
   $("#taskSubtitle").textContent = task.requiresRoom ? "Velg seng/rom og lagre posten." : "Fyll eventuelt inn notat og lagre posten.";
   setTaskDefaults(task);
