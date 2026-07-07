@@ -216,6 +216,7 @@ function fillSelect(id, options, selectedValue, includeBlank = false) {
 function showScreen(screenName) {
   $("#taskScreen")?.classList.toggle("is-hidden", screenName !== "tasks");
   $("#entryScreen")?.classList.toggle("is-hidden", screenName !== "entry");
+  document.body.classList.toggle("entry-mode", screenName === "entry");
   setMessage("");
   if (screenName === "entry") setTaskMessage("");
 }

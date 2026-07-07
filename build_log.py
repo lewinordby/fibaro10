@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1435")
+APP_BUILD = os.getenv("APP_BUILD", "1436")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1436",
+        "date": "07.07.2026",
+        "headline": "Kompakt registrering i vedlikehold mobil",
+        "title": "Registreringsskjermen i vedlikeholdsappen bruker mindre toppplass",
+        "description": (
+            "Build 1436 strammer inn registreringsskjermen i vedlikeholdsappen. Logo- og toppbanneret skjules "
+            "naar man registrerer en oppgave, tilbakeknappen er redusert til en pil, og tidspunktfeltet ligger "
+            "kompakt paa samme linje som oppgavetittelen."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: oppdaterer mobilasset-versjon og bytter tilbakeknappen til kompakt pil.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: setter entry-mode paa body naar registreringsskjermen vises.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: skjuler toppbanner paa registrering og komprimerer registreringsheaderen.",
+            "build_log.py: ny buildloggpost for endringen.",
+        ],
+        "request": "Toppbanneret med logo trenger ikke vaere der paa registreringssiden, og registreringssiden skal bruke mindre plass paa overskrift, tidspunkt og tilbake.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Toppbanneret vises fortsatt paa startsiden, men skjules paa registreringsskjermen.",
+            "Tilbakehandlingen er en kompakt pil med aria-label.",
+            "Dato/tid beholdes som knapp, men tar mindre plass.",
+            "Mobil-CSS legger ikke lenger tidspunktknappen ned paa egen rad.",
+        ],
+    },
     {
         "version": "1",
         "build": "1435",
