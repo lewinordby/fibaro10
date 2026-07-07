@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1445")
+APP_BUILD = os.getenv("APP_BUILD", "1446")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1446",
+        "date": "07.07.2026",
+        "headline": "Vedlikehold mobil far egen brukerside",
+        "title": "Brukersirkelen apner profilside med utlogging",
+        "description": (
+            "Build 1446 skiller brukerknappen og utloggingen i vedlikeholdsappen. Toppfeltet viser na bare en "
+            "ren sirkel med brukerinitial, pa samme storrelse som logoen. Trykk pa sirkelen apner en egen "
+            "brukerside med brukerinfo og logg-ut-knapp. Logoen pa brukersiden tar brukeren tilbake til startsiden."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: legger egen profilside og flytter logout-knappen dit.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: legger profilnavigasjon og brukerinfo fra bootstrap.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: styler ren brukersirkel og profilside.",
+            "build_log.py: registrerer build 1446.",
+        ],
+        "request": "Brukerknappen skal bare vaere en sirkel med bokstav, like stor som logo og uten knappbakgrunn. Trykk skal apne en side med brukerinfo og logg-ut-knapp, og logoen skal ta tilbake.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Toppfeltet viser bare brukerinitial i en sirkel.",
+            "Direkte logout fra toppfeltet er fjernet.",
+            "Ny brukerside viser brukernavn, rolle og tilgang.",
+            "Logg ut ligger som egen knapp pa brukersiden.",
+            "Logoen pa brukersiden fungerer som tilbakeknapp.",
+        ],
+    },
     {
         "version": "1",
         "build": "1445",

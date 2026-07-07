@@ -387,7 +387,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1445">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1446">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -419,8 +419,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1445">
-  <script src="/assets/maintenance-mobile.js?v=1445" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1446">
+  <script src="/assets/maintenance-mobile.js?v=1446" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -430,12 +430,9 @@ INDEX_HTML = """<!doctype html>
         <strong>Lilletorget, <span>vedlikehold</span></strong>
       </div>
     </div>
-    <form method="post" action="/konto/logg-ut" class="user-form">
-      <button class="user-button" type="submit" title="Logg ut" aria-label="Logg ut">
+    <button id="profileButton" class="user-button" type="button" title="Bruker" aria-label="Åpne brukerprofil">
         <span id="topUserInitial" class="user-initial" aria-hidden="true">?</span>
-        <span id="topUserLabel" class="user-name">Bruker</span>
-      </button>
-    </form>
+    </button>
   </header>
   <main class="app-shell">
     <section id="taskScreen" class="screen">
@@ -509,7 +506,33 @@ INDEX_HTML = """<!doctype html>
       </form>
     </section>
 
-    <section class="recent-card">
+    <section id="profileScreen" class="screen is-hidden">
+      <section class="entry-head profile-head">
+        <button id="profileBackButton" class="back-button" type="button" aria-label="Tilbake">
+          <img src="/static/lilletorget-mark.png" alt="">
+        </button>
+        <div class="entry-title-block">
+          <h1>Bruker</h1>
+          <p class="entry-user-line">Konto og utlogging</p>
+        </div>
+      </section>
+
+      <section class="profile-card">
+        <div class="profile-identity">
+          <span id="profileInitial" class="profile-initial" aria-hidden="true">?</span>
+          <div>
+            <h2 id="profileUserName">Bruker</h2>
+            <p id="profileUserRole" class="muted">Henter bruker...</p>
+          </div>
+        </div>
+        <dl id="profileDetails" class="profile-details"></dl>
+        <form method="post" action="/konto/logg-ut">
+          <button class="primary-button logout-button" type="submit">Logg ut</button>
+        </form>
+      </section>
+    </section>
+
+    <section id="recentCard" class="recent-card">
       <div class="section-head">
         <div>
           <p class="eyebrow">Historikk</p>

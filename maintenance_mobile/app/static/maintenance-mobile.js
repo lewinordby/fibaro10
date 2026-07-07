@@ -297,9 +297,12 @@ function fillSelect(id, options, selectedValue, includeBlank = false) {
 function showScreen(screenName) {
   $("#taskScreen")?.classList.toggle("is-hidden", screenName !== "tasks");
   $("#entryScreen")?.classList.toggle("is-hidden", screenName !== "entry");
+  $("#profileScreen")?.classList.toggle("is-hidden", screenName !== "profile");
+  $("#recentCard")?.classList.toggle("is-hidden", screenName === "profile");
   document.body.classList.toggle("entry-mode", screenName === "entry");
+  document.body.classList.toggle("profile-mode", screenName === "profile");
   setMessage("");
-  if (screenName === "entry") setTaskMessage("");
+  if (screenName === "entry" || screenName === "profile") setTaskMessage("");
 }
 
 function renderTasks() {
@@ -777,10 +780,42 @@ function updateHeader() {
   const user = safeText(state.bootstrap?.user?.username, "ukjent bruker");
   const role = safeText(state.bootstrap?.user?.roleLabel || state.bootstrap?.user?.role, "innlogget");
   $("#userLine").textContent = `${user} - ${role} - lagres i Fibaro10`;
-  const topUserLabel = $("#topUserLabel");
   const topUserInitial = $("#topUserInitial");
-  if (topUserLabel) topUserLabel.textContent = user;
   if (topUserInitial) topUserInitial.textContent = user.slice(0, 1).toUpperCase() || "?";
+  renderProfile();
+}
+
+function renderProfile() {
+  const userPayload = state.bootstrap?.user || {};
+  const username = safeText(userPayload.username || userPayload.user || userPayload.name, "ukjent bruker");
+  const role = safeText(userPayload.roleLabel || userPayload.role, "innlogget");
+  const displayName = safeText(userPayload.displayName || userPayload.fullName || userPayload.name);
+  const initial = username.slice(0, 1).toUpperCase() || "?";
+  const rows = [
+    ["Brukernavn", username],
+    ["Rolle", role],
+    ["Tilgang", "Fibaro10 brukerbase"],
+  ];
+  if (displayName && normalizeToken(displayName) !== normalizeToken(username)) {
+    rows.splice(1, 0, ["Navn", displayName]);
+  }
+
+  const profileInitial = $("#profileInitial");
+  const profileUserName = $("#profileUserName");
+  const profileUserRole = $("#profileUserRole");
+  const profileDetails = $("#profileDetails");
+  if (profileInitial) profileInitial.textContent = initial;
+  if (profileUserName) profileUserName.textContent = displayName || username;
+  if (profileUserRole) profileUserRole.textContent = role;
+  if (!profileDetails) return;
+  profileDetails.innerHTML = "";
+  for (const [label, value] of rows) {
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = label;
+    dd.textContent = value;
+    profileDetails.append(dt, dd);
+  }
 }
 
 async function loadBootstrap() {
@@ -896,6 +931,11 @@ async function submitForm(event) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   $("#maintenanceForm")?.addEventListener("submit", submitForm);
+  $("#profileButton")?.addEventListener("click", () => {
+    renderProfile();
+    showScreen("profile");
+  });
+  $("#profileBackButton")?.addEventListener("click", () => showScreen("tasks"));
   $("#backButton")?.addEventListener("click", () => {
     state.selectedTask = null;
     state.editingLog = null;
