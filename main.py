@@ -9969,7 +9969,7 @@ def door_event_from_payload(data: DoorEventIn) -> DoorEvent:
     )
 
 
-def age_label(value: Optional[datetime], now: Optional[datetime] = None) -> str:
+def door_age_label(value: Optional[datetime], now: Optional[datetime] = None) -> str:
     if not value:
         return "Aldri"
     now = now or local_now_naive()
@@ -10004,7 +10004,7 @@ def door_event_payload(row: DoorEvent, now: Optional[datetime] = None) -> Dict[s
         "id": row.id,
         "timestamp": timestamp.isoformat() if timestamp else None,
         "timeLabel": format_source_datetime_short(timestamp) if timestamp else "-",
-        "ageLabel": age_label(timestamp, now),
+        "ageLabel": door_age_label(timestamp, now),
         "eventType": row.event_type,
         "action": row.action,
         "state": state["state"],
@@ -10034,7 +10034,7 @@ def door_status_payload(config: Dict[str, Any], row: Optional[DoorEvent], now: d
         "tone": state["tone"],
         "lastChangedAt": timestamp.isoformat() if timestamp else None,
         "lastChangedLabel": format_source_datetime_short(timestamp) if timestamp else "-",
-        "ageLabel": age_label(timestamp, now),
+        "ageLabel": door_age_label(timestamp, now),
         "rawValue": row.raw_value if row else None,
         "batteryLevel": row.battery_level if row else None,
         "batteryLabel": f"{row.battery_level:.0f}%" if row and row.battery_level is not None else "-",
@@ -30279,7 +30279,7 @@ async def api_hc3_doors_status(history_limit: int = Query(50, ge=1, le=500)):
             "unknown": len(doors) - len(known),
             "latestAt": newest_at.isoformat() if newest_at else None,
             "latestLabel": format_source_datetime_short(newest_at) if newest_at else "-",
-            "latestAgeLabel": age_label(newest_at, now),
+            "latestAgeLabel": door_age_label(newest_at, now),
             "events": int(total_events or 0),
         },
         "doors": doors,
