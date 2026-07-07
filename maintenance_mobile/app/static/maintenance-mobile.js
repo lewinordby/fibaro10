@@ -132,7 +132,7 @@ const TASKS = [
     status: "Utført",
     summary: "Robotvaskere",
     requiresRobots: true,
-    standardTasks: ["Rengjort", "Skiftet mopper", "Skiftet valse"],
+    standardTasks: ["Rengjort", "Rengjort brett", "Skiftet mopper", "Skiftet valse"],
     defaultStandardTasks: ["Rengjort"],
     initialFocus: "robots",
     tags: ["Renhold", "Utstyr", "Robotvaskere", "Mobil"],
@@ -611,7 +611,7 @@ function taskFromLog(row) {
     return tags.includes(token) || normalizeToken(row.target_name).includes(token);
   });
   const requiresRobots = selectedRobots.length > 0 || normalizeToken(targetType) === "utstyr" && normalizeToken(row.target_name).includes("robot");
-  const standardTasks = requiresRobots ? ["Rengjort", "Skiftet mopper", "Skiftet valse"] : [];
+  const standardTasks = requiresRobots ? ["Rengjort", "Rengjort brett", "Skiftet mopper", "Skiftet valse"] : [];
   const selectedStandardTasks = standardTasksFromLog(row, standardTasks);
   return {
     key: `edit-${row.id}`,

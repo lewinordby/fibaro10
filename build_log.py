@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1451")
+APP_BUILD = os.getenv("APP_BUILD", "1452")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1452",
+        "date": "07.07.2026",
+        "headline": "Robotvaskere far rengjort brett",
+        "title": "Vedlikehold mobil utvider robotstandardoppgaver",
+        "description": (
+            "Build 1452 legger til Rengjort brett som eget standardvalg for Robotvaskere i mobilappen. "
+            "Valget vises sammen med Rengjort, Skiftet mopper og Skiftet valse, og samme valgliste brukes "
+            "naar egne robotposter aapnes for redigering."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: oppdaterer asset-versjon for mobilappen.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: legger Rengjort brett inn i standardoppgaver for robotvaskere og redigering av robotposter.",
+            "build_log.py: registrerer build 1452.",
+        ],
+        "request": "Paa robotvaskerne mangler det et valg for Rengjort brett.",
+        "work_duration": "ca. 5 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Robotvaskere har naa standardvalget Rengjort brett.",
+            "Eksisterende robotposter som redigeres bruker samme standardoppgaveliste.",
+            "Mobilappen peker paa ny asset-versjon slik at endringen ikke stoppes av cache.",
+        ],
+    },
     {
         "version": "1",
         "build": "1451",
