@@ -12,13 +12,13 @@ const lightChartColors = {
 } as const;
 
 const darkChartColors = {
-  tooltipBackground: "rgba(18,26,39,0.98)",
-  tooltipBorder: "#445771",
-  mutedText: "#b7c3d3",
-  axisText: "#8998ac",
-  axisLine: "#52647d",
-  grid: "#314057",
-  gridSoft: "#27364d",
+  tooltipBackground: "rgba(25,28,34,0.98)",
+  tooltipBorder: "#3b4350",
+  mutedText: "#aeb7c4",
+  axisText: "#7f8895",
+  axisLine: "#454e5d",
+  grid: "#2a303a",
+  gridSoft: "#232933",
 } as const;
 
 function activeChartColors() {

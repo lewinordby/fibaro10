@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1433")
+APP_BUILD = os.getenv("APP_BUILD", "1434")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1434",
+        "date": "07.07.2026",
+        "headline": "Grafitt morkt tema",
+        "title": "Fibaro10 faar et roligere og mer profesjonelt morkt tema",
+        "description": (
+            "Build 1434 endrer det morke temaet fra blaa/svart og tung fargebruk til en mer noytral grafittpalett. "
+            "Modulfargene brukes naa som markorer og aksenter i stedet for store fargede flater, slik at meny, toppfelt, "
+            "kort, tabeller, diagrammer og portaler oppleves mer samlet og mindre slitende i bruk."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/dark-theme.css: ny grafittpalett, roligere meny, toppfelt, kort, tabeller, inputs og portalflater.",
+            "desktop_v2/src/designTokens.ts: oppdaterte domenefarger og gridfarger for morkt tema.",
+            "desktop_v2/src/chartTheme.ts: noytrale morke chartfarger for tooltip, akser og grid.",
+            "build_log.py: ny buildloggpost for temaendringen.",
+        ],
+        "request": "Morkt tema er fortsatt ikke godt nok og maa forbedres grundig.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Store fargede aktive flater i toppmeny og venstremeny er erstattet med noytrale flater og tynne fargemarkeringer.",
+            "Bakgrunnen er flyttet til en varmere grafittpalett med mindre blaa preg.",
+            "Kort, tabeller, inputs, dropdowns, modaler og datepicker bruker samme morke flatesystem.",
+            "Diagrammer har roligere grid, akser og tooltip som matcher resten av temaet.",
+            "Status- og dashboardkort er dempet slik at domenefargene markerer innhold uten aa dominere skjermen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1433",

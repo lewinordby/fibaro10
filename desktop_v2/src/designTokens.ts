@@ -34,18 +34,18 @@ const lightDomainColors = {
 } as const;
 
 const darkDomainColors = {
-  revenue: "#e58a92",
-  parking: "#7aa7e8",
-  sun2: "#e6b85c",
-  energy: "#69c99b",
-  vent: "#68c7d8",
-  weather: "#a3afc0",
-  light: "#d8c260",
-  status: "#9ba8ba",
-  comparison: "#8998ac",
-  ink: "#eef3fb",
-  grid: "#34445b",
-  gridSoft: "#27364d",
+  revenue: "#d9828a",
+  parking: "#8fb5e6",
+  sun2: "#d6ad62",
+  energy: "#7fc59a",
+  vent: "#7ac4cd",
+  weather: "#a9b2be",
+  light: "#cbbd69",
+  status: "#a4adba",
+  comparison: "#7f8895",
+  ink: "#e8edf3",
+  grid: "#2a303a",
+  gridSoft: "#232933",
 } as const;
 
 function activeDomainColors() {
