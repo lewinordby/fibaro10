@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import type { ParkingTimeline, ParkingTimelineItem } from "../../api";
 import { PeriodNavigator } from "../../components/PeriodNavigator";
+import "../../styles/parking-timeline.css";
 
 function parkingNumber(value: number, maximumFractionDigits = 0): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits }).format(value || 0);

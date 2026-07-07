@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1458")
+APP_BUILD = os.getenv("APP_BUILD", "1459")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1459",
+        "date": "07.07.2026",
+        "headline": "Manualer, systemkart og underapper er ryddet",
+        "title": "Admin får klikkbare underapp-lenker og strammere CSS-lasting",
+        "description": (
+            "Build 1459 er en ekstra kvalitetsrunde med fokus på manualer, systemkart, CSS-lasting og "
+            "profesjonell driftsoverflate. Systeminventoryen er utvidet til å være felles kilde for "
+            "underapper, webflater, lokale URL-er og health-lenker."
+        ),
+        "applications": [
+            "system_inventory.py: legger inn web_url, local_url, health_url og manglende underapper som vedlikehold mobil, OwnTracks database, proxy og koblingsmotor.",
+            "main.py: oppdaterer Admin/Systemkart og Admin/Manual med klikkbare underapp-lenker og nye V2-ruter.",
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: legger tydelige tabellnavn for drift, URL og systemkolonner.",
+            "desktop_v2/src/pages/module/*.tsx: flytter spesialsider sin CSS til komponentene som faktisk bruker dem.",
+            "templates/*.html: fjerner synlige lenker til gamle konto- og statusruter der V2-ruter finnes.",
+            "tests/test_system_inventory.py: dekker at kjernekomponenter og webgrensesnitt er registrert.",
+        ],
+        "request": "Kjør igjennom en ekstra gang alt med CSS, ytelse og kvalitetsfølelse. Sørg for at manualene fungerer, har gode lenker, og at underappene har klikkbare webgrensesnitt.",
+        "work_duration": "ca. 1 t",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Admin/Systemkart viser nå først underapper med webgrensesnitt, inkludert offentlig URL, lokal URL og health-lenke.",
+            "Admin/Manual har direkte innganger til daglige arbeidsflater og underapper.",
+            "Gamle synlige /konto- og /status/dashboard-lenker er erstattet med V2-ruter.",
+            "Modulsiden laster mindre spesial-CSS på generiske sider ved at timeline-, soltime- og koble-CSS er flyttet til respektive komponenter.",
+        ],
+    },
     {
         "version": "1",
         "build": "1458",

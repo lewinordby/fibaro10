@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import type { KobleQualifiedRow, KobleQualifiedSun2Row, KobleReviewCandidate, KobleReviewData } from "../../api";
 import { updateKobleCandidate } from "../../api";
+import "../../styles/koble.css";
 
 const krFormatter = new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 });
 const numberFormatter = new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 1 });

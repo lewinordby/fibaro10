@@ -44,7 +44,7 @@
 {%- endmacro %}
 <nav class="app-nav {% if is_light %}section-light{% elif is_vent %}section-vent{% elif is_cleaning %}section-cleaning{% elif is_sun2 %}section-sun2{% elif is_energy %}section-energy{% elif is_parking %}section-parking{% elif is_ai %}section-ai{% elif is_account %}section-admin{% else %}section-status{% endif %}" aria-label="Hovedmeny">
     <div class="nav-row nav-main">
-        <a class="button nav-status has-sub {% if is_status %}active{% endif %}" href="/status/dashboard" aria-label="Status" title="Status">
+        <a class="button nav-status has-sub {% if is_status %}active{% endif %}" href="/status/omsetning" aria-label="Status" title="Status">
             <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24">
                 <path d="M4 11.5 12 5l8 6.5"></path><path d="M6.5 10.5V19h4v-5h3v5h4v-8.5"></path>
             </svg>
@@ -52,12 +52,12 @@
             <span class="nav-chevron" aria-hidden="true"></span>
         </a>
         <div class="nav-row nav-sub {% if is_status %}active-section{% endif %}" aria-label="Undermeny for status">
-            {{ sub_button("/status/dashboard", "Dashboard", "dashboard", current_path == "/status/dashboard") }}
+            {{ sub_button("/status/omsetning", "Dashboard", "dashboard", current_path == "/status/omsetning") }}
             {{ sub_button("/status/nokkeltall", "Nokkeltall", "dashboard", current_path == "/status/nokkeltall") }}
             {{ sub_button("/status/omsetning", "Omsetning", "chart", current_path == "/status/omsetning") }}
             {{ sub_button("/status/dagslinje", "Dagslinje", "timeline", current_path == "/status/dagslinje") }}
             {{ sub_button("/status/statistikk", "Statistikk", "chart", current_path == "/status/statistikk") }}
-            {{ sub_button("/status/datakilder", "Datakilder", "list", current_path == "/status/datakilder") }}
+            {{ sub_button("/admin/datakilder", "Datakilder", "list", current_path == "/admin/datakilder") }}
         </div>
 
         <a class="button nav-parking has-sub {% if is_parking %}active{% endif %}" href="/parkering/oversikt" aria-label="Parkering" title="Parkering">
@@ -171,9 +171,9 @@
         </a>
         <div class="nav-row nav-sub {% if is_account %}active-section{% endif %}" aria-label="Undermeny for konto">
             {{ sub_button("/konto/oversikt", "Oversikt", "dashboard", current_path == "/konto/oversikt") }}
-            {{ sub_button("/konto/build", "Build", "list", current_path == "/konto/build") }}
-            {{ sub_button("/konto/teknisk", "Teknisk", "list", current_path == "/konto/teknisk") }}
-            {{ sub_button("/konto/manual", "Manual", "book", current_path == "/konto/manual") }}
+            {{ sub_button("/admin/build", "Build", "list", current_path == "/admin/build") }}
+            {{ sub_button("/admin/teknisk", "Teknisk", "list", current_path == "/admin/teknisk") }}
+            {{ sub_button("/admin/manual", "Manual", "book", current_path == "/admin/manual") }}
             {% if request.state.auth_is_master %}
             {{ sub_button("/konto/brukere-og-tilgang", "Brukere", "users", current_path == "/konto/brukere-og-tilgang") }}
             {% endif %}
@@ -189,6 +189,6 @@
     </div>
     <div class="nav-build-info" aria-label="Versjon og build">
         <span>Versjon {{ app_version }}</span>
-        <a href="/konto/build">Build {{ app_build }}</a>
+        <a href="/admin/build">Build {{ app_build }}</a>
     </div>
 </nav>

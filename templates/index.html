@@ -743,7 +743,7 @@
                         <h2>{% if attention_items %}Bør sjekkes{% else %}Alt ser rolig ut{% endif %}</h2>
                         <p class="sub">{% if attention_items %}Kort liste over ting som kan trenge oppfølging.{% else %}Ingen tydelige dataproblemer eller ukjente statuser akkurat nå.{% endif %}</p>
                     </div>
-                    <a href="/status/datakilder">Datakilder</a>
+                    <a href="/admin/datakilder">Datakilder</a>
                 </div>
                 {% if attention_items %}
                 <div class="attention-list">
@@ -870,7 +870,7 @@
             <section class="section" aria-label="Drift">
                 <div class="section-head">
                     <h2>Drift</h2>
-                    <a href="/status/datakilder">Se datakilder</a>
+                    <a href="/admin/datakilder">Se datakilder</a>
                 </div>
                 <div class="ops-radar">
                     {% for card in ops_cards %}
@@ -992,7 +992,7 @@
         <section class="section" aria-label="Driftsradar">
             <div class="section-head">
                 <h2>Driftsradar</h2>
-                <a href="/status/datakilder">Se datakilder</a>
+                <a href="/admin/datakilder">Se datakilder</a>
             </div>
             <div class="ops-radar">
                 {% for card in ops_cards %}
@@ -1042,7 +1042,7 @@
                 <div><strong>Temperatur</strong><span>Se temperaturer og vifteendringer.</span></div>
                 <i aria-hidden="true">°</i>
             </a>
-            <a class="quick-card manual" href="/konto/manual">
+            <a class="quick-card manual" href="/admin/manual">
                 <div><strong>Manual</strong><span>Åpne sluttbrukerveiledningen.</span></div>
                 <i aria-hidden="true">?</i>
             </a>
@@ -1152,7 +1152,7 @@
         <section class="section">
             <div class="section-head">
                 <h2>Datastatus</h2>
-                <a href="/status/datakilder">Alle datakilder</a>
+                <a href="/admin/datakilder">Alle datakilder</a>
             </div>
             <div class="health-grid">
                 {% for item in freshness_items %}

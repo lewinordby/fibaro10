@@ -26,11 +26,7 @@ import { SunTimelinePanel } from "./module/SunTimelinePanel";
 import { SunSessionsPanel } from "./module/SunSessionsPanel";
 import { KobleReviewPanel } from "./module/KobleReviewPanel";
 import { editInitialValues, fieldInput } from "./module/moduleTableUtils";
-import "../styles/koble.css";
-import "../styles/parking-timeline.css";
 import "../styles/records.css";
-import "../styles/sun-sessions.css";
-import "../styles/sun-timeline.css";
 
 const EnergyElviaPage = lazy(() => import("./EnergyElviaPage"));
 const EnergySunbedsPage = lazy(() => import("./EnergySunbedsPage"));

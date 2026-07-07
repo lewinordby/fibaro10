@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import type { SunTimeline, SunTimelineItem } from "../../api";
 import { PeriodNavigator } from "../../components/PeriodNavigator";
+import "../../styles/sun-timeline.css";
 
 function sunNumber(value: number, maximumFractionDigits = 0): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits }).format(value || 0);

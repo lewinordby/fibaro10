@@ -11,6 +11,7 @@ import {
 } from "../../api";
 import { TableSearch } from "../../components/TableSearch";
 import { countText, displayValue, filterRows, tableRowKey } from "./moduleTableUtils";
+import "../../styles/sun-sessions.css";
 function rowString(row: ModuleRow, key: string): string {
   const value = row[key];
   if (value === null || value === undefined || value === "") return "";

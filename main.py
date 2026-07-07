@@ -129,7 +129,7 @@ from roborock_domain import (
     roborock_water_label,
 )
 from security import apply_security_headers
-from system_inventory import system_component_rows, system_component_summary
+from system_inventory import system_component_rows, system_component_summary, system_web_interface_rows
 from sun2_helpers import (
     SUN2_ROOM_MAP_BY_DISPLAY,
     SUN2_ROOM_OPTIONS,
@@ -7998,7 +7998,7 @@ def energy_hour_has_changed(existing: EnergyHourlyConsumption, row: Dict[str, An
     return False
 
 
-def dashboard_alert(level: str, title: str, detail: str, href: str = "/status/datakilder") -> Dict[str, str]:
+def dashboard_alert(level: str, title: str, detail: str, href: str = "/admin/datakilder") -> Dict[str, str]:
     return {"level": level, "title": title, "detail": detail, "href": href}
 
 
@@ -11386,7 +11386,7 @@ async def login_submit(request: Request):
             {"error": "Ugyldig brukernavn eller passord"},
             status_code=401,
         )
-    response = RedirectResponse("/status/dashboard", status_code=303)
+    response = RedirectResponse("/status/omsetning", status_code=303)
     secure_cookie = should_use_secure_cookie(request)
     response.set_cookie(
         AUTH_USER_COOKIE_NAME,
@@ -12574,7 +12574,7 @@ async def index(request: Request):
                     item["status"],
                     item["name"],
                     f"{item['status_text']} - sist sett {item['age']}.",
-                    "/status/datakilder",
+                    "/admin/datakilder",
                 )
             )
     for row in import_rows:
@@ -12584,7 +12584,7 @@ async def index(request: Request):
                     row["status"],
                     row["title"],
                     f"{row['status_text']} - {row['age']}.",
-                    "/status/datakilder",
+                    "/admin/datakilder",
                 )
             )
     missing_light_status = [item["name"] for item in light_status if item["state"] is None]
@@ -12713,7 +12713,7 @@ async def index(request: Request):
             "value": f"{import_counts['ok']}/{import_counts['total']}",
             "unit": "OK",
             "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel",
-            "href": "/status/datakilder",
+            "href": "/admin/datakilder",
             "tone": "status",
         },
         {
@@ -12991,7 +12991,7 @@ async def status_key_metrics_view(request: Request):
             "value": operating_window(now_dt)["label"],
             "unit": "",
             "detail": operating_window(now_dt)["detail"],
-            "href": "/status/dashboard",
+            "href": "/status/omsetning",
             "tone": "status",
         },
         {
@@ -13000,7 +13000,7 @@ async def status_key_metrics_view(request: Request):
             "value": f"{import_counts['ok']}/{import_counts['total']}",
             "unit": "OK",
             "detail": f"{import_counts['warn']} treg, {import_counts['bad']} feil/gammel",
-            "href": "/status/datakilder",
+            "href": "/admin/datakilder",
             "tone": "status",
         },
         {
@@ -24154,10 +24154,10 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             ).scalars().all()
             admin_tools = [
                 api_tool_row("Buildlogg", "/admin/build", "Klikkbar leveransehistorikk med detaljvisning per build.", len(BUILD_LOG)),
-                api_tool_row("Teknisk", "/konto/teknisk", "Teknisk driftsside.", None),
-                api_tool_row("Manual", "/konto/manual", "Intern manual og driftsnotater.", None),
-                api_tool_row("Brukere og tilgang", "/konto/brukere-og-tilgang", "Administrer brukere, roller og tilgang.", len(access_keys)),
-                api_tool_row("AI-innstillinger", "/ai/innstillinger", "Sett modell og API-nøkkel for analyseassistent.", len(ai_logs)),
+                api_tool_row("Teknisk", "/admin/teknisk", "Teknisk driftsside.", None),
+                api_tool_row("Manual", "/admin/manual", "Intern manual og driftsnotater.", None),
+                api_tool_row("Brukere og tilgang", "/admin/brukere", "Administrer brukere, roller og tilgang.", len(access_keys)),
+                api_tool_row("AI-innstillinger", "/admin/ai", "Sett modell og API-nøkkel for analyseassistent.", len(ai_logs)),
                 api_tool_row("Health", "/health", "Rask serverhelse og lagringsliste.", None),
                 api_tool_row("Events JSON", "/events/json", "Generiske hendelser som JSON.", None),
                 api_tool_row("Events CSV", "/download", "Generiske hendelser som CSV.", None),
@@ -24453,12 +24453,17 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     api_card("Komponenter", inventory["components"], "stk", "Apper, tjenester og verktøy i løsningen", "status", href="/admin/systemkart"),
                     api_card("Aktive", inventory["active"], "stk", "Kjører eller brukes i daglig drift", "status", href="/admin/systemkart"),
                     api_card("Kritiske", inventory["critical"], "stk", "Påvirker drift eller datagrunnlag direkte", "status", href="/admin/systemkart"),
-                    api_card("Områder", inventory["areas"], "stk", "Funksjonelle systemområder", "status", href="/admin/systemkart"),
+                    api_card("Webflater", inventory["web_interfaces"], "stk", "Underapper med klikkbart webgrensesnitt", "status", href="/admin/systemkart"),
                 ]
                 tables = [
                     api_table(
+                        "Underapper med webgrensesnitt",
+                        ["component", "area", "interface", "web_url", "local_url", "health_url", "status"],
+                        system_web_interface_rows(),
+                    ),
+                    api_table(
                         "Systemkomponenter",
-                        ["component", "area", "role", "runtime", "compose_service", "health", "status", "criticality"],
+                        ["component", "area", "role", "runtime", "compose_service", "interface", "web_url", "local_url", "health_url", "health", "status", "criticality"],
                         system_component_rows(),
                     ),
                     api_table("Områder", ["area", "count"], inventory["area_rows"]),
@@ -24510,16 +24515,45 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     ),
                 ]
             elif view == "manual":
+                inventory = system_component_summary()
+                admin_cards = [
+                    api_card("Manual", "V2", "", "Lenker og driftsinnganger samlet", "status", href="/admin/manual"),
+                    api_card("Systemkart", inventory["components"], "stk", "Komponenter og underapper", "status", href="/admin/systemkart"),
+                    api_card("Datakilder", len(import_rows), "stk", "Status og forklaring per kilde", "status", href="/admin/datakilder"),
+                    api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
+                ]
                 tables = [
                     api_table(
                         "Manual og drift",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Manual", "/konto/manual", "Intern manual med driftsrutiner.", None),
-                            api_tool_row("Buildlogg", "/konto/build", "Endringshistorikk for løsningen.", len(BUILD_LOG)),
-                            api_tool_row("Teknisk", "/konto/teknisk", "Teknisk driftsflate.", None),
+                            api_tool_row("Manual", "/admin/manual", "Intern manual med driftsrutiner og lenker til dagens flater.", None),
+                            api_tool_row("Systemkart", "/admin/systemkart", "Oversikt over komponenter, underapper, webflater og health-lenker.", len(system_component_rows())),
+                            api_tool_row("Datakilder", "/admin/datakilder", "Status for importjobber og eksterne datakilder.", len(import_rows)),
+                            api_tool_row("Buildlogg", "/admin/build", "Endringshistorikk for løsningen.", len(BUILD_LOG)),
+                            api_tool_row("Teknisk", "/admin/teknisk", "Teknisk driftsflate.", None),
+                            api_tool_row("Brukere", "/admin/brukere", "Brukere, roller og tilgangslogg.", len(access_keys)),
                         ],
-                    )
+                    ),
+                    api_table(
+                        "Daglige arbeidsflater",
+                        ["tool", "path", "description", "count"],
+                        [
+                            api_tool_row("Dashboard", "/status/omsetning", "Hoveddashboard for omsetning, parkering og soling.", None),
+                            api_tool_row("Omsetning", "/omsetning/oversikt", "Årsoversikt, toppdager og oppgjørskontroll.", None),
+                            api_tool_row("Parkering", "/parkering/oversikt", "Parkeringsstatus, kjøretøydata og importkontroll.", None),
+                            api_tool_row("Soling", "/soling/oversikt", "Soling, enkelttimer, produkter og bildegrunnlag.", None),
+                            api_tool_row("Energi", "/energi/status", "Realtime energi, kurs, laster og Elvia-kontroll.", None),
+                            api_tool_row("Ventilasjon", "/ventilasjon/dagslogg", "Temperatur, fukt, vifter og hendelser.", None),
+                            api_tool_row("Vedlikehold", "/vedlikehold/besok", "Besøk og tilknyttede vedlikeholdsoppgaver.", None),
+                            api_tool_row("Koble", "/koble/oversikt", "Koblingsmotor for parkering mot SUN2.", None),
+                        ],
+                    ),
+                    api_table(
+                        "Underapper med webgrensesnitt",
+                        ["component", "area", "interface", "web_url", "local_url", "health_url", "status"],
+                        system_web_interface_rows(),
+                    ),
                 ]
             elif view == "verktoy":
                 tables = [api_table("Adminverktøy", ["tool", "path", "description", "count"], admin_tools)]
