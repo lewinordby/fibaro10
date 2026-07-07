@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1436")
+APP_BUILD = os.getenv("APP_BUILD", "1437")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1437",
+        "date": "07.07.2026",
+        "headline": "Renere vedlikeholdsregistrering",
+        "title": "Vedlikeholdsappen fjerner unodige rammer og notatgjentakelse",
+        "description": (
+            "Build 1437 forenkler registreringsskjermen i vedlikeholdsappen. Den separate notatknappen er fjernet "
+            "slik at oppgaven ikke gjentas som NOTAT + oppgavenavn, og selve skjemaet er gjort flatere med faerre "
+            "rammer og mindre visuell stoy."
+        ),
+        "applications": [
+            "maintenance_mobile/app/main.py: viser notatfeltet direkte og oppdaterer mobilasset-versjon.",
+            "maintenance_mobile/app/static/maintenance-mobile.js: holder notatfeltet synlig uten ekstra notatknapp.",
+            "maintenance_mobile/app/static/maintenance-mobile.css: fjerner kortstil rundt skjemaet og rydder notatfeltet.",
+            "build_log.py: ny buildloggpost for registreringsoppryddingen.",
+        ],
+        "request": "Registreringssiden har for mange rammer, og det er unodvendig aa gjenta NOTAT + oppgavenavn naar oppgaven allerede staar overst.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Notatfeltet vises direkte uten mellomliggende knapp.",
+            "Oppgavenavnet gjentas ikke lenger i notatfeltets topp.",
+            "Skjemaet har ikke lenger egen kortbakgrunn, border eller skygge.",
+            "Bare faktiske kontroller som tekstfelt, romvalg og lagreknapp har tydelige rammer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1436",

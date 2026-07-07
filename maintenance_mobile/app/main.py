@@ -328,7 +328,7 @@ def login_html(error: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Logg inn · Vedlikehold</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1436">
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1437">
 </head>
 <body class="login-body">
   <main class="login-screen">
@@ -360,8 +360,8 @@ INDEX_HTML = """<!doctype html>
   <title>Lilletorget Vedlikehold</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1436">
-  <script src="/assets/maintenance-mobile.js?v=1436" defer></script>
+  <link rel="stylesheet" href="/assets/maintenance-mobile.css?v=1437">
+  <script src="/assets/maintenance-mobile.js?v=1437" defer></script>
 </head>
 <body>
   <header class="app-topbar">
@@ -421,11 +421,7 @@ INDEX_HTML = """<!doctype html>
         </section>
 
         <section class="note-panel">
-          <button id="noteButton" class="note-button" type="button" aria-expanded="false">
-            <span>Notat</span>
-            <strong id="notePreview">Standardtekst</strong>
-          </button>
-          <label id="noteField" class="note-field is-hidden">Notat<textarea id="summary" name="summary" rows="4" placeholder="Skriv eventuelt kort hva som ble gjort eller avvik du fant."></textarea></label>
+          <label id="noteField" class="note-field"><span class="visually-hidden">Notat</span><textarea id="summary" name="summary" rows="5" placeholder="Skriv eventuelt kort hva som ble gjort eller avvik du fant."></textarea></label>
         </section>
 
         <div class="form-row follow-row">

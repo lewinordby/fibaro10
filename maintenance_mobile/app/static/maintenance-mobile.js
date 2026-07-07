@@ -296,8 +296,7 @@ function updateTimeButton() {
 }
 
 function setNoteFieldVisible(visible, focus = false) {
-  $("#noteField")?.classList.toggle("is-hidden", !visible);
-  $("#noteButton")?.setAttribute("aria-expanded", visible ? "true" : "false");
+  $("#noteField")?.classList.remove("is-hidden");
   if (visible && focus) setTimeout(() => $("#summary")?.focus(), 40);
 }
 
@@ -346,11 +345,6 @@ function focusInitialTaskField(task) {
   focusAfterScreenChange("#summary", { select: true, scroll: true });
 }
 
-function updateNotePreview() {
-  const preview = $("#notePreview");
-  if (preview) preview.textContent = shortText($("#summary")?.value || state.selectedTask?.summary || "Standardtekst");
-}
-
 function updateSubmitState() {
   const button = $("#submitButton");
   if (!button) return;
@@ -378,8 +372,7 @@ function setTaskDefaults(task) {
   renderRoomChoices();
   $("#roomField").classList.toggle("is-hidden", !task.requiresRoom);
   $("#summary").value = task.summary || task.title;
-  setNoteFieldVisible(false);
-  updateNotePreview();
+  setNoteFieldVisible(true);
   $("#duration_minutes").value = task.durationMinutes ? String(task.durationMinutes) : "";
   $("#follow_up_needed").checked = Boolean(task.followUpNeeded);
   $("#follow_up_text").value = "";
@@ -580,12 +573,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderRoomChoices();
     updateSubmitState();
   });
-  $("#noteButton")?.addEventListener("click", () => {
-    const field = $("#noteField");
-    const visible = field?.classList.contains("is-hidden");
-    setNoteFieldVisible(Boolean(visible), Boolean(visible));
-  });
-  $("#summary")?.addEventListener("input", updateNotePreview);
   $("#timeButton")?.addEventListener("click", () => {
     const field = $("#timeField");
     const visible = field?.classList.contains("is-hidden");
