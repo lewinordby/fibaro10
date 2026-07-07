@@ -323,7 +323,7 @@ body.entry-mode .app-shell {
 
 .entry-title-block h1 {
   overflow: hidden;
-  font-size: 1rem;
+  font-size: 1.08rem;
   line-height: 1.04;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -336,7 +336,7 @@ body.entry-mode .app-shell {
 .entry-user-line {
   margin-top: 0.12rem;
   color: var(--muted);
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   font-weight: 650;
   line-height: 1.12;
 }
@@ -371,7 +371,7 @@ body.entry-mode .app-shell {
 }
 
 .time-button span {
-  font-size: 0.5rem;
+  font-size: 0.54rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   line-height: 1;
@@ -380,7 +380,7 @@ body.entry-mode .app-shell {
 
 .time-button strong {
   color: var(--navy);
-  font-size: 0.76rem;
+  font-size: 0.82rem;
   font-weight: 840;
   line-height: 1.1;
   white-space: nowrap;
@@ -411,7 +411,7 @@ body.entry-mode .app-shell {
 .field-label {
   margin: 0;
   color: var(--navy);
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   font-weight: 800;
 }
 
@@ -437,7 +437,7 @@ body.entry-mode .app-shell {
   border-radius: 0.86rem;
   background: #fff;
   color: var(--navy);
-  font-size: 0.86rem;
+  font-size: 0.92rem;
   font-weight: 800;
 }
 
@@ -465,7 +465,7 @@ label {
   min-width: 0;
   gap: 0.34rem;
   color: var(--navy);
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   font-weight: 800;
 }
 
@@ -477,6 +477,7 @@ textarea {
   border-radius: 0.86rem;
   background: #fff;
   color: var(--navy);
+  font-size: 0.96rem;
   outline: none;
   box-shadow: none;
 }
@@ -535,6 +536,7 @@ textarea:focus {
   border: 1px solid var(--line);
   border-radius: 0.9rem;
   background: #fff;
+  font-size: 0.9rem;
 }
 
 .toggle-line input {
@@ -552,7 +554,7 @@ textarea:focus {
   border-radius: 0.95rem;
   background: linear-gradient(135deg, var(--teal), var(--teal-dark));
   color: #fff;
-  font-size: 0.98rem;
+  font-size: 1.04rem;
   font-weight: 850;
   box-shadow: 0 14px 28px rgba(15, 118, 110, 0.22);
 }

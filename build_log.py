@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1437")
+APP_BUILD = os.getenv("APP_BUILD", "1438")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1438",
+        "date": "07.07.2026",
+        "headline": "Litt storre tekst i vedlikehold mobil",
+        "title": "Registreringsskjermen i vedlikeholdsappen faar bedre lesbarhet",
+        "description": (
+            "Build 1438 oker fontstorrelse moderat paa registreringsskjermen i vedlikeholdsappen. "
+            "Oppgavetittel, tidspunkt, romvalg, felttekst, tekstfelt og lagreknapp er gjort litt tydeligere "
+            "uten aa endre hovedlayouten."
+        ),
+        "applications": [
+            "maintenance_mobile/app/static/maintenance-mobile.css: justerer typografi paa registreringsskjermen.",
+            "maintenance_mobile/app/main.py: oppdaterer mobilasset-versjon.",
+            "build_log.py: ny buildloggpost for fontjusteringen.",
+        ],
+        "request": "Vurder om det er plass til aa oke fontstorrelsen noe paa registreringssiden.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Oppgavetittel og brukerlinje er litt storre.",
+            "Tidspunktknappen er mer lesbar.",
+            "Romknapper, labels og tekstfelt har litt storre tekst.",
+            "Lagreknappen og oppfolgingslinjen matcher den nye skalaen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1437",
