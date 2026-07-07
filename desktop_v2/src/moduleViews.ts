@@ -12,6 +12,7 @@ export const MODULE_LABELS: Record<string, string> = {
   energi: "Energi",
   ventilasjon: "Ventilasjon",
   lys: "Lys",
+  dorer: "Dører",
   vedlikehold: "Vedlikehold",
   ideer: "Ideer",
   mobil: "Mobil",
@@ -31,6 +32,7 @@ export const MODULE_COLORS: Record<string, string> = {
   energi: "var(--domain-energy)",
   ventilasjon: "var(--domain-vent)",
   lys: "var(--domain-light)",
+  dorer: "var(--domain-building)",
   vedlikehold: "var(--domain-maintenance)",
   ideer: "var(--domain-ideas)",
   mobil: "var(--domain-mobile)",
@@ -106,6 +108,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "hendelser", label: "Hendelser" },
     { key: "innstillinger", label: "Innstillinger" },
   ],
+  dorer: [{ key: "oversikt", label: "Oversikt" }],
   vedlikehold: [
     { key: "oversikt", label: "Oversikt" },
     { key: "besok", label: "Besøk" },

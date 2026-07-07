@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1456")
+APP_BUILD = os.getenv("APP_BUILD", "1457")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1457",
+        "date": "07.07.2026",
+        "headline": "Dørstatus får egen side i V2",
+        "title": "HC3 magnetfølere vises som dørstatus",
+        "description": (
+            "Build 1457 legger inn en egen Dører-side under Bygg og drift. "
+            "Siden viser nåstatus for magnetfølerne 453, 447 og 413, siste endring, batteri og hendelseshistorikk."
+        ),
+        "applications": [
+            "main.py: legger til /api/hc3/doors/status med nåstatus per dør og siste dørhendelser.",
+            "desktop_v2/src/pages/DoorsPage.tsx: ny V2-side med statuskort og hendelsestabell.",
+            "desktop_v2/src/api.ts og queryKeys.ts: legger til typed fetch for dørstatus.",
+            "desktop_v2/src/moduleViews.ts, appNavigation.tsx og AppRoutes.tsx: legger Dører inn i meny og routing.",
+            "desktop_v2/src/styles/doors.css og tokens.css: legger til kompakt statusdesign og domenefarge.",
+            "desktop_v2/scripts/smoke-routes.mjs og tests/test_hc3_door_events.py: dekker ny rute/API.",
+        ],
+        "request": "Lag en faktisk statusvisning for dørene etter at HC3-magnetfølerne er koblet inn.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny meny: Bygg og drift → Dører.",
+            "Tre statuskort viser Bod/kjøkken, Kjeller luke og Arbeidsrom.",
+            "Åpen/lukket/ukjent vises tydelig med farge, sist endret, alder, batteri og råverdi.",
+            "Siste dørhendelser vises i tabell med lenke videre til datakilden.",
+        ],
+    },
     {
         "version": "1",
         "build": "1456",

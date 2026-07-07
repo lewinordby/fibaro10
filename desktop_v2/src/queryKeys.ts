@@ -8,6 +8,7 @@ export const queryKeys = {
   buildLog: () => ["admin", "build-log"] as const,
   buildLogEntry: (build: string) => ["admin", "build-log", build] as const,
   mobileScreens: () => ["mobile", "screens"] as const,
+  doorStatus: () => ["hc3", "doors", "status"] as const,
   module: (module: string, view: string, serverQuery = "", timelineDay = "", params = "") =>
     ["module", module, view, serverQuery, timelineDay, params] as const,
   maintenanceSiteVisit: (visitId: string) => ["maintenance", "site-visit", visitId] as const,

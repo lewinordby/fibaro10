@@ -2096,6 +2096,13 @@ DOOR_EVENT_COLUMNS = [
     "battery_level", "extra",
 ]
 
+DOOR_SENSOR_CONFIG = [
+    {"device_id": 453, "device_key": "door_453", "title": "Bod/kjøkken", "hc3_name": "96.0 bod/kjokken"},
+    {"device_id": 447, "device_key": "door_447", "title": "Kjeller luke", "hc3_name": "94.0 Kjeller luke"},
+    {"device_id": 413, "device_key": "door_413", "title": "Arbeidsrom", "hc3_name": "86.0 Arbeidsrom"},
+]
+DOOR_SENSOR_IDS = [int(item["device_id"]) for item in DOOR_SENSOR_CONFIG]
+
 VENT_SAMPLE_COLUMNS = [
     "id", "timestamp", "bucket_start", "mode", "source", "temp_1etg", "temp_2etg",
     "temp_vip", "temp_ute", "temp_ute_netatmo", "temp_yr", "temp_loft",
@@ -9960,6 +9967,79 @@ def door_event_from_payload(data: DoorEventIn) -> DoorEvent:
         battery_level=data.battery_level,
         extra=data.extra or {},
     )
+
+
+def age_label(value: Optional[datetime], now: Optional[datetime] = None) -> str:
+    if not value:
+        return "Aldri"
+    now = now or local_now_naive()
+    seconds = max(0, int((now - value).total_seconds()))
+    if seconds < 60:
+        return "Akkurat nå"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} min siden"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours} t siden"
+    days = hours // 24
+    return "1 dag siden" if days == 1 else f"{days} dager siden"
+
+
+def door_state_from_event(row: Optional[DoorEvent]) -> Dict[str, str]:
+    if not row:
+        return {"state": "unknown", "label": "Ukjent", "tone": "unknown"}
+    action = (row.action or "").upper()
+    if row.state is True or action == "OPEN":
+        return {"state": "open", "label": "Åpen", "tone": "warn"}
+    if row.state is False or action == "CLOSED":
+        return {"state": "closed", "label": "Lukket", "tone": "ok"}
+    return {"state": "unknown", "label": "Ukjent", "tone": "unknown"}
+
+
+def door_event_payload(row: DoorEvent, now: Optional[datetime] = None) -> Dict[str, Any]:
+    state = door_state_from_event(row)
+    timestamp = normalize_local_naive(row.timestamp)
+    return {
+        "id": row.id,
+        "timestamp": timestamp.isoformat() if timestamp else None,
+        "timeLabel": format_source_datetime_short(timestamp) if timestamp else "-",
+        "ageLabel": age_label(timestamp, now),
+        "eventType": row.event_type,
+        "action": row.action,
+        "state": state["state"],
+        "stateLabel": state["label"],
+        "tone": state["tone"],
+        "deviceKey": row.device_key,
+        "deviceId": row.device_id,
+        "deviceName": row.device_name,
+        "source": row.source,
+        "rawValue": row.raw_value,
+        "batteryLevel": row.battery_level,
+        "previousState": row.previous_state,
+        "extra": row.extra or {},
+    }
+
+
+def door_status_payload(config: Dict[str, Any], row: Optional[DoorEvent], now: datetime) -> Dict[str, Any]:
+    state = door_state_from_event(row)
+    timestamp = normalize_local_naive(row.timestamp) if row else None
+    return {
+        "deviceId": config["device_id"],
+        "deviceKey": config["device_key"],
+        "title": config["title"],
+        "hc3Name": row.device_name if row and row.device_name else config["hc3_name"],
+        "state": state["state"],
+        "stateLabel": state["label"],
+        "tone": state["tone"],
+        "lastChangedAt": timestamp.isoformat() if timestamp else None,
+        "lastChangedLabel": format_source_datetime_short(timestamp) if timestamp else "-",
+        "ageLabel": age_label(timestamp, now),
+        "rawValue": row.raw_value if row else None,
+        "batteryLevel": row.battery_level if row else None,
+        "batteryLabel": f"{row.battery_level:.0f}%" if row and row.battery_level is not None else "-",
+        "eventId": row.id if row else None,
+    }
 
 
 def apply_common_filters(stmt, model, event_type, action, device_key, device_id, mode, source_contains, from_ts, to_ts):
@@ -30150,6 +30230,59 @@ async def api_hc3_door_events_json(limit: int = Query(200, ge=1, le=5000)):
         result = await session.execute(select(DoorEvent).order_by(DoorEvent.timestamp.desc()).limit(limit))
         rows = result.scalars().all()
     return {"count": len(rows), "rows": [row_to_dict(row, DOOR_EVENT_COLUMNS) for row in rows]}
+
+
+@app.get("/api/hc3/doors/status")
+async def api_hc3_doors_status(history_limit: int = Query(50, ge=1, le=500)):
+    now = local_now_naive()
+    async with async_session() as session:
+        latest_result = await session.execute(
+            select(DoorEvent)
+            .where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS))
+            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
+            .limit(max(history_limit, len(DOOR_SENSOR_IDS)) * 4)
+        )
+        latest_rows = latest_result.scalars().all()
+        latest_by_device: Dict[int, DoorEvent] = {}
+        for row in latest_rows:
+            if row.device_id is None:
+                continue
+            latest_by_device.setdefault(int(row.device_id), row)
+
+        history_result = await session.execute(
+            select(DoorEvent)
+            .where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS))
+            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
+            .limit(history_limit)
+        )
+        history_rows = history_result.scalars().all()
+        total_events = await session.scalar(select(func.count(DoorEvent.id)).where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS)))
+
+    doors = [door_status_payload(config, latest_by_device.get(int(config["device_id"])), now) for config in DOOR_SENSOR_CONFIG]
+    known = [door for door in doors if door["state"] != "unknown"]
+    open_doors = [door for door in doors if door["state"] == "open"]
+    closed_doors = [door for door in doors if door["state"] == "closed"]
+    newest_at = max(
+        (normalize_local_naive(row.timestamp) for row in latest_by_device.values() if row.timestamp),
+        default=None,
+    )
+    return {
+        "generatedAt": now.isoformat(),
+        "datakildePath": "/admin/datakilder/hc3_door_events",
+        "summary": {
+            "total": len(doors),
+            "known": len(known),
+            "open": len(open_doors),
+            "closed": len(closed_doors),
+            "unknown": len(doors) - len(known),
+            "latestAt": newest_at.isoformat() if newest_at else None,
+            "latestLabel": format_source_datetime_short(newest_at) if newest_at else "-",
+            "latestAgeLabel": age_label(newest_at, now),
+            "events": int(total_events or 0),
+        },
+        "doors": doors,
+        "events": [door_event_payload(row, now) for row in history_rows],
+    }
 
 
 @app.get("/classic/parkering/kjoretoy", response_class=HTMLResponse)

@@ -48,6 +48,7 @@
   --domain-vent: #0891b2;
   --domain-weather: #64748b;
   --domain-light: #ca8a04;
+  --domain-building: #0f766e;
   --domain-maintenance: #0f766e;
   --domain-ideas: #db2777;
   --domain-mobile: #7c3aed;
@@ -88,6 +89,18 @@
   --tone-color: var(--domain-status);
 }
 
+.tone-ok {
+  --tone-color: var(--green);
+}
+
+.tone-warn {
+  --tone-color: var(--amber);
+}
+
+.tone-unknown {
+  --tone-color: var(--domain-status);
+}
+
 .domain-omsetning {
   --active-module-color: var(--domain-revenue);
 }
@@ -110,6 +123,10 @@
 
 .domain-lys {
   --active-module-color: var(--domain-light);
+}
+
+.domain-dorer {
+  --active-module-color: var(--domain-building);
 }
 
 .domain-vedlikehold,

@@ -9,6 +9,7 @@ const RevenueMonthPage = lazy(() => import("./pages/RevenueMonthPage"));
 const RevenueYearComparisonPage = lazy(() => import("./pages/RevenueYearComparisonPage"));
 const OperationsPage = lazy(() => import("./pages/OperationsPage"));
 const DataSourceDetailPage = lazy(() => import("./pages/DataSourceDetailPage"));
+const DoorsPage = lazy(() => import("./pages/DoorsPage"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
 const MaintenanceVisitDetailPage = lazy(() => import("./pages/MaintenanceVisitDetailPage"));
@@ -77,6 +78,8 @@ export function AppRoutes() {
         <Route path="/lys" element={<Navigate to={modulePath("lys")} replace />} />
         <Route path="/lys/dagslogg-lux" element={<LegacyRedirect to={modulePath("lys", "dagslogg")} />} />
         <Route path="/lys/:view" element={<ModulePage module="lys" />} />
+        <Route path="/dorer" element={<Navigate to={modulePath("dorer")} replace />} />
+        <Route path="/dorer/:view" element={<DoorsPage />} />
         <Route path="/vedlikehold" element={<Navigate to={modulePath("vedlikehold")} replace />} />
         <Route path="/vedlikehold/besok/:visitId" element={<MaintenanceVisitDetailPage />} />
         <Route path="/vedlikehold/:view" element={<ModulePage module="vedlikehold" />} />

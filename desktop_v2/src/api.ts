@@ -312,6 +312,61 @@ export type MobilePreviewResponse = {
   screens: MobilePreviewScreen[];
 };
 
+export type DoorStatusItem = {
+  deviceId: number;
+  deviceKey: string;
+  title: string;
+  hc3Name: string;
+  state: "open" | "closed" | "unknown";
+  stateLabel: string;
+  tone: "ok" | "warn" | "unknown" | string;
+  lastChangedAt: string | null;
+  lastChangedLabel: string;
+  ageLabel: string;
+  rawValue?: string | null;
+  batteryLevel?: number | null;
+  batteryLabel: string;
+  eventId?: number | null;
+};
+
+export type DoorEventItem = {
+  id: number;
+  timestamp: string | null;
+  timeLabel: string;
+  ageLabel: string;
+  eventType?: string | null;
+  action?: string | null;
+  state: "open" | "closed" | "unknown";
+  stateLabel: string;
+  tone: "ok" | "warn" | "unknown" | string;
+  deviceKey?: string | null;
+  deviceId?: number | null;
+  deviceName?: string | null;
+  source?: string | null;
+  rawValue?: string | null;
+  batteryLevel?: number | null;
+  previousState?: boolean | null;
+  extra?: JsonRecord;
+};
+
+export type DoorStatusResponse = {
+  generatedAt: string;
+  datakildePath: string;
+  summary: {
+    total: number;
+    known: number;
+    open: number;
+    closed: number;
+    unknown: number;
+    latestAt: string | null;
+    latestLabel: string;
+    latestAgeLabel: string;
+    events: number;
+  };
+  doors: DoorStatusItem[];
+  events: DoorEventItem[];
+};
+
 export type BuildLogEntry = {
   version: string;
   build: string;
@@ -1213,6 +1268,10 @@ export function fetchCurrentUser(): Promise<AuthUser> {
 
 export function fetchMobilePreviewScreens(): Promise<MobilePreviewResponse> {
   return apiGet<MobilePreviewResponse>("/api/mobile-preview/screens");
+}
+
+export function fetchDoorStatus(): Promise<DoorStatusResponse> {
+  return apiGet<DoorStatusResponse>("/api/hc3/doors/status");
 }
 
 export function fetchBuildLog(): Promise<BuildLogResponse> {

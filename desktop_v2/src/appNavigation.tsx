@@ -6,6 +6,7 @@ import {
   CarryOutOutlined,
   DashboardOutlined,
   ExperimentOutlined,
+  HomeOutlined,
   MobileOutlined,
   SettingOutlined,
   ToolOutlined,
@@ -30,6 +31,7 @@ const mainModuleIcons: Array<Pick<MainNavigationModule, "module" | "icon">> = [
   { module: "energi", icon: <ThunderboltOutlined /> },
   { module: "ventilasjon", icon: <ExperimentOutlined /> },
   { module: "lys", icon: <BulbOutlined /> },
+  { module: "dorer", icon: <HomeOutlined /> },
   { module: "vedlikehold", icon: <CarryOutOutlined /> },
   { module: "ideer", icon: <BulbOutlined /> },
   { module: "renhold", icon: <ToolOutlined /> },
@@ -50,7 +52,7 @@ const modulesForGroup = (modules: string[]) =>
 export const mainModuleGroups = [
   { label: "", modules: modulesForGroup(["status"]) },
   { label: "Økonomi", modules: modulesForGroup(["omsetning", "parkering", "soling", "koble"]) },
-  { label: "Bygg og drift", modules: modulesForGroup(["energi", "ventilasjon", "lys", "renhold", "vedlikehold"]) },
+  { label: "Bygg og drift", modules: modulesForGroup(["energi", "ventilasjon", "lys", "dorer", "renhold", "vedlikehold"]) },
   { label: "System", modules: modulesForGroup(["ideer", "mobil", "admin"]) },
 ];
 

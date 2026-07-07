@@ -21,6 +21,7 @@ def test_door_event_api_route_is_registered():
 
     assert "/api/hc3/door-events" in routes
     assert "/api/hc3/door-events/json" in routes
+    assert "/api/hc3/doors/status" in routes
 
 
 def test_door_event_datakilde_and_storage_are_registered():
