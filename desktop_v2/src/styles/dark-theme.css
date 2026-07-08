@@ -510,7 +510,7 @@
 .app-shell.theme-dark .revenue-period-compare-pill,
 .app-shell.theme-dark .revenue-driver-table,
 .app-shell.theme-dark .revenue-period-split-meter,
-.app-shell.theme-dark .revenue-period-full-card {
+.app-shell.theme-dark .revenue-period-full-item {
   background: var(--surface-raised);
   border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 12%, var(--border-panel));
 }
@@ -532,13 +532,12 @@
   background: var(--surface-hover);
 }
 
-.app-shell.theme-dark .revenue-period-full-card {
+.app-shell.theme-dark .revenue-period-full-item {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 .app-shell.theme-dark .revenue-period-rank,
-.app-shell.theme-dark .revenue-driver-icon,
-.app-shell.theme-dark .revenue-period-full-icon {
+.app-shell.theme-dark .revenue-driver-icon {
   background: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 10%, var(--surface-raised));
   border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 22%, var(--border-control));
 }

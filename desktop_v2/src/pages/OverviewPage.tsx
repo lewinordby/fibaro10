@@ -1,5 +1,4 @@
 import {
-  AimOutlined,
   ArrowDownOutlined,
   ArrowRightOutlined,
   ArrowUpOutlined,
@@ -496,6 +495,10 @@ function periodShareStyle(sunShare: number) {
   return { "--period-sun-share": `${sunShare}%` } as CSSProperties;
 }
 
+function referenceProgressStyle(current: number, reference: number) {
+  return { "--period-reference-progress": `${boundedPercent(current, reference)}%` } as CSSProperties;
+}
+
 function revenuePeriodLines(period: StatusPeriod): RevenuePeriodLine[] {
   return [
     {
@@ -645,6 +648,22 @@ function RevenueDriverRow({
   );
 }
 
+function RevenueFullReferenceItem({ period, item }: { period: StatusPeriod; item: PeriodComparisonView }) {
+  return (
+    <Link
+      className="revenue-period-full-item"
+      key={item.comparisonKey}
+      style={referenceProgressStyle(period.total, item.fullTotal)}
+      to={item.path}
+    >
+      <span>{periodFullReferenceLabel(period.key, item)}</span>
+      <strong>{nok(item.fullTotal)} kr</strong>
+      <em className={fullReferenceGapClass(period.total, item.fullTotal)}>{fullReferenceGap(period.total, item.fullTotal)}</em>
+      <i aria-hidden="true" />
+    </Link>
+  );
+}
+
 function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPeriod; nextParkingImportText: string }) {
   const comparisons = buildComparisonViews(period);
   const shownComparisons = comparisons.slice(0, 2);
@@ -692,20 +711,10 @@ function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPe
         </div>
       </div>
 
-      <div className="revenue-period-full-card">
-        <span className="revenue-period-full-icon">
-          <AimOutlined />
-        </span>
-        <div>
-          <div className="revenue-period-full-items">
-            {comparisons.map((item) => (
-              <Link className="revenue-period-full-item" key={item.comparisonKey} to={item.path}>
-                <span>{periodFullReferenceLabel(period.key, item)}: {nok(item.fullTotal)} kr</span>
-                <em className={fullReferenceGapClass(period.total, item.fullTotal)}>{fullReferenceGap(period.total, item.fullTotal)}</em>
-              </Link>
-            ))}
-          </div>
-        </div>
+      <div className={`revenue-period-full-card ${comparisons.length < 2 ? "single" : ""}`}>
+        {comparisons.map((item) => (
+          <RevenueFullReferenceItem item={item} key={item.comparisonKey} period={period} />
+        ))}
       </div>
     </Card>
   );
@@ -796,6 +805,35 @@ function ActivityDriverRow({
   );
 }
 
+function ActivityFullReferenceItem({
+  config,
+  count,
+  item,
+  period,
+}: {
+  config: ActivityDashboardConfig;
+  count: number;
+  item: PeriodComparisonView;
+  period: StatusPeriod;
+}) {
+  const fullCount = comparisonAmount(config.fullCount(item.comparison), config.count(item.comparison));
+  const fullAmount = comparisonAmount(config.fullAmount(item.comparison), config.amount(item.comparison));
+  return (
+    <Link
+      className="revenue-period-full-item"
+      key={item.comparisonKey}
+      style={referenceProgressStyle(count, fullCount)}
+      to={item.path}
+    >
+      <span>{periodFullReferenceLabel(period.key, item)}</span>
+      <strong>{Math.round(fullCount)} stk</strong>
+      <small>{nok(fullAmount)} kr</small>
+      <em className={fullReferenceGapClass(count, fullCount)}>{activityFullReferenceGap(count, fullCount)}</em>
+      <i aria-hidden="true" />
+    </Link>
+  );
+}
+
 function ActivityPeriodCard({
   period,
   config,
@@ -852,29 +890,10 @@ function ActivityPeriodCard({
         </div>
       </div>
 
-      <div className="revenue-period-full-card">
-        <span className="revenue-period-full-icon">
-          <AimOutlined />
-        </span>
-        <div>
-          <div className="revenue-period-full-items">
-            {comparisons.map((item) => {
-              const currentCount = count;
-              const fullCount = comparisonAmount(config.fullCount(item.comparison), config.count(item.comparison));
-              const fullAmount = comparisonAmount(config.fullAmount(item.comparison), config.amount(item.comparison));
-              return (
-                <Link className="revenue-period-full-item" key={item.comparisonKey} to={item.path}>
-                  <span>
-                    {periodFullReferenceLabel(period.key, item)}: {Math.round(fullCount)} stk / {nok(fullAmount)} kr
-                  </span>
-                  <em className={fullReferenceGapClass(currentCount, fullCount)}>
-                    {activityFullReferenceGap(currentCount, fullCount)}
-                  </em>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+      <div className={`revenue-period-full-card ${comparisons.length < 2 ? "single" : ""}`}>
+        {comparisons.map((item) => (
+          <ActivityFullReferenceItem config={config} count={count} item={item} key={item.comparisonKey} period={period} />
+        ))}
       </div>
     </Card>
   );

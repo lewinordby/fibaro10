@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1480")
+APP_BUILD = os.getenv("APP_BUILD", "1481")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1481",
+        "date": "08.07.2026",
+        "headline": "Referansefelt på dashboardkort",
+        "title": "Fibaro10 hoveddashboard får iPad-lignende nederste referansefelt",
+        "description": (
+            "Build 1481 gjør nederste del av de fire dashboardkortene mer lik iPad-appen. Referanseperiodene vises "
+            "nå som egne klikkbare felt med total, gjenstår/over og progressindikator, i stedet for en kompakt tekststripe."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/OverviewPage.tsx: splitter full referanseperiode ut i egne komponenter for omsetning og antall.",
+            "desktop_v2/src/styles/status-periods.css: lager to nederste referansefelt med total, avvik og progresslinje.",
+            "desktop_v2/src/styles/dark-theme.css: tilpasser de nye referansefeltene til mørkt tema.",
+            "build_log.py: dokumenterer build 1481.",
+        ],
+        "request": "Du ba om nederste felt på de fire dashboardkortene slik som i iPad-appen.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Hver referanseperiode nederst på kortet er nå et eget klikkbart felt.",
+            "Feltene viser totalen for hele referanseperioden tydeligere.",
+            "Gjenstår/over står høyrejustert og får samme positiv/negativ-logikk som før.",
+            "Progresslinjen gir en rask visuell følelse av hvor langt valgt periode er mot referansen.",
+            "Samme komponentmønster brukes på omsetning, parkering og soling-dashboardene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1480",
