@@ -5,8 +5,30 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1465")
+APP_BUILD = os.getenv("APP_BUILD", "1466")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1466",
+        "date": "08.07.2026",
+        "headline": "Kortere kolonneoverskrifter i parkeringslisten",
+        "title": "Parkering/Parkeringer bruker smalere kolonnenavn for tidligere historikk",
+        "description": (
+            "Build 1466 gjør parkeringslisten smalere ved å forkorte kolonneoverskriftene "
+            "for tidligere parkeringer og tidligere betalt beløp."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: endrer labelene previous_parking_count og previous_paid_total til P før og B før.",
+            "build_log.py: dokumenterer build 1466.",
+        ],
+        "request": "På parkering/parkeringer gjør endre overskriftene Parkeringer før og betalt før i tabellen til p før og b før for å spare plass i bredden.",
+        "work_duration": "ca. 5 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kolonnen Parkeringer før heter nå P før.",
+            "Kolonnen Betalt før heter nå B før.",
+        ],
+    },
     {
         "version": "1",
         "build": "1465",
