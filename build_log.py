@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1463")
+APP_BUILD = os.getenv("APP_BUILD", "1464")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1464",
+        "date": "08.07.2026",
+        "headline": "Kjøretøyfelt får fallback-data",
+        "title": "Kjøretøy vises også når full tittel mangler",
+        "description": (
+            "Build 1464 retter kjøretøyoppsummeringen slik at Kjøretøy-feltet kan bygges av merke, "
+            "modell/type og farge selv om kilden ikke har et ferdig vehicle_title-felt."
+        ),
+        "applications": [
+            "main.py: fyller vehicle_title direkte fra vehicle_make, vehicle_type og vehicle_color når samlet tittel mangler.",
+            "parking_vehicle_helpers.py: bygger kjøretøylabel fra car_info make/model/vehicle_type når ferdig tittel mangler.",
+            "build_log.py: dokumenterer build 1464.",
+        ],
+        "request": "Feltet kjøretøy fylles fortsatt ikke med data på parkering/parkeringer slik det gjør på parkering/kjøretøy siden.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kjøretøyoppsummering faller nå tilbake til merke, modell/type og fargegrunnlag.",
+            "Parkering/Parkeringer får tekst i Kjøretøy-kolonnen også for delvis berikede biler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1463",

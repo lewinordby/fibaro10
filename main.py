@@ -18239,6 +18239,19 @@ def parking_row_api(
     unifi_before_seconds: Optional[int] = None,
 ) -> Dict[str, Any]:
     owner_warning = parking_current_ownership_warning(vehicle, row.start_time)
+    vehicle_make = first_value(details.merke if details else None, car_info_field_value(vehicle.car_info_data if vehicle else None, "make", "brand"))
+    vehicle_type = first_value(
+        details.typebetegnelse if details else None,
+        details.modell if details else None,
+        car_info_field_value(vehicle.car_info_data if vehicle else None, "vehicle_type", "model", "classification"),
+    )
+    vehicle_color = first_value(details.farge if details else None, car_info_field_value(vehicle.car_info_data if vehicle else None, "color"))
+    vehicle_title = parking_vehicle_summary(details, vehicle.car_info_data if vehicle else None)
+    if not vehicle_title:
+        vehicle_parts = [str(part).strip() for part in [vehicle_make, vehicle_type] if str(part or "").strip()]
+        vehicle_title = " ".join(vehicle_parts) or None
+        if vehicle_title and vehicle_color:
+            vehicle_title = f"{vehicle_title} - {vehicle_color}"
     data = {
         "id": row.id,
         "start_time": row.start_time.isoformat() if row.start_time else None,
@@ -18252,6 +18265,7 @@ def parking_row_api(
         "user_interface": row.user_interface,
         "subtype": row.subtype,
         "status": row.status,
+        "vehicle_title": vehicle_title,
         "unifi_start_url": unifi_protect_parking_timelapse_url(row.start_time, unifi_before_seconds),
         "unifi_end_url": unifi_protect_parking_timelapse_url(row.end_time, unifi_before_seconds),
     }
@@ -18273,13 +18287,9 @@ def parking_row_api(
         )
     data.update(
         {
-            "vehicle_make": first_value(details.merke if details else None, car_info_field_value(vehicle.car_info_data if vehicle else None, "make", "brand")),
-            "vehicle_type": first_value(
-                details.typebetegnelse if details else None,
-                details.modell if details else None,
-                car_info_field_value(vehicle.car_info_data if vehicle else None, "vehicle_type", "model", "classification"),
-            ),
-            "vehicle_color": first_value(details.farge if details else None, car_info_field_value(vehicle.car_info_data if vehicle else None, "color")),
+            "vehicle_make": vehicle_make,
+            "vehicle_type": vehicle_type,
+            "vehicle_color": vehicle_color,
         }
     )
     return data

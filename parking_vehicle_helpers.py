@@ -136,6 +136,24 @@ def car_info_vehicle_title(data: Optional[Dict[str, Any]]) -> Optional[str]:
     return first_value(fields.get("vehicle_title"), data.get("vehicle_title"), data.get("title"))
 
 
+def car_info_vehicle_label(data: Optional[Dict[str, Any]]) -> Optional[str]:
+    title = car_info_vehicle_title(data)
+    if title:
+        return title
+    if not isinstance(data, dict):
+        return None
+    parts: list[str] = []
+    for value in [
+        car_info_field_value(data, "make", "brand"),
+        car_info_field_value(data, "model"),
+        car_info_field_value(data, "vehicle_type", "classification"),
+    ]:
+        text = str(value or "").strip()
+        if text and text.lower() not in {part.lower() for part in parts}:
+            parts.append(text)
+    return " ".join(parts) if parts else None
+
+
 def car_info_field_value(data: Optional[Dict[str, Any]], *keys: str) -> Any:
     fields = car_info_fields(data)
     for key in keys:
@@ -367,13 +385,13 @@ def parking_vehicle_display_label(details: Optional[ParkingVehicleDetails], car_
     label = parking_vehicle_label(details)
     if not parking_vehicle_label_is_unknown(label):
         return label
-    return car_info_vehicle_title(car_info_data) or label
+    return car_info_vehicle_label(car_info_data) or label
 
 
 def parking_vehicle_display_source(details: Optional[ParkingVehicleDetails], car_info_data: Optional[Dict[str, Any]] = None) -> str:
     if not parking_vehicle_label_is_unknown(parking_vehicle_label(details)):
         return "Fra SVV"
-    if car_info_vehicle_title(car_info_data):
+    if car_info_vehicle_label(car_info_data):
         return f"Fra {car_info_provider_label(car_info_data)}"
     return ""
 
