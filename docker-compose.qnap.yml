@@ -117,7 +117,7 @@ services:
       FIBARO10_BASE_URL: http://fibaro10:8110
       FIBARO10_APP_URL: ${FIBARO10_APP_URL:-http://192.168.20.218:8110}
       FIBARO10_IPAD_SESSION_SECRET: ${FIBARO10_IPAD_SESSION_SECRET:-}
-      FIBARO10_IPAD_APP_BUILD: ${FIBARO10_IPAD_APP_BUILD:-1474}
+      FIBARO10_IPAD_APP_BUILD: ${FIBARO10_IPAD_APP_BUILD:-1475}
       FIBARO10_IPAD_APP_COMMIT: ${APP_COMMIT:-unknown}
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8113/health', timeout=5).read()\""]

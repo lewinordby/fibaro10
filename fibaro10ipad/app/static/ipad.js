@@ -250,88 +250,30 @@ function latestItem(labelNeedle) {
 function renderHero(periods) {
   const hero = document.getElementById("heroGrid");
   if (!hero) return;
-  const today = periods.find((period) => period.key === "today") || periods[0];
-  if (!today) {
-    hero.innerHTML = `<div class="empty">Ingen hovedtall tilgjengelig.</div>`;
-    return;
-  }
-  const extra = firstExtra(today);
-  const diffYesterday = deltaMoney(today.total, today.previousTotal);
-  const diffWeek = deltaMoney(today.total, extra?.total);
-  const sunShare = percent(today.sol, today.total);
-  const parkingShare = percent(today.parking, today.total);
-  const previousProgress = progressPercent(today.total, today.previousFullTotal || today.previousTotal);
-  const weekProgress = progressPercent(today.total, extra?.fullTotal || extra?.total);
   const latestSun = latestItem("soling");
   const latestParking = latestItem("parkering");
   const services = state.data?.overview?.services || [];
   const counts = datasourceCounts(services);
+  if (!periods.length && !services.length && !latestSun && !latestParking) {
+    hero.innerHTML = "";
+    return;
+  }
   hero.innerHTML = `
-    <article class="hero-card" style="--sun-share:${sunShare}%; --parking-share:${parkingShare}%; --prev-progress:${previousProgress}%; --week-progress:${weekProgress}%">
-      <div class="hero-top">
-        <div>
-          <p class="eyebrow">Omsetning</p>
-          <h2 class="hero-title">Hittil i dag</h2>
-          <p class="hero-subtitle">${escapeHtml(periodMeta(today))}</p>
-        </div>
-        <div class="hero-number-stack">
-          <span>Total nå</span>
-          <p class="hero-total">${formatMoney(today.total)}</p>
-        </div>
-      </div>
-      <div class="hero-split-meter" aria-hidden="true"></div>
-      <div class="hero-drivers">
-        <div class="driver-tile">
-          <span>${driverMark("sun")} Soling</span>
-          <strong>${formatMoney(today.sol)}</strong>
-          <small>${formatCount(today.solCount)} stk · ${wholePercent(sunShare)}</small>
-        </div>
-        <div class="driver-tile">
-          <span>${driverMark("parking")} Parkering</span>
-          <strong>${formatMoney(today.parking)}</strong>
-          <small>${formatCount(today.parkingCount)} stk · ${wholePercent(parkingShare)}</small>
-        </div>
-      </div>
-      <div class="hero-reference">
-        <div class="reference-chip ${diffYesterday.className}">
-          <div>
-            <span>Mot i går samme tidspunkt</span>
-            <strong>${escapeHtml(diffYesterday.value)}</strong>
-            <small>${escapeHtml(diffYesterday.percent)}</small>
-          </div>
-          <em>${deltaIcon(diffYesterday)}</em>
-        </div>
-        <div class="reference-chip ${diffWeek.className}">
-          <div>
-            <span>Mot samme ukedag forrige uke</span>
-            <strong>${escapeHtml(diffWeek.value)}</strong>
-            <small>${escapeHtml(diffWeek.percent)}</small>
-          </div>
-          <em>${deltaIcon(diffWeek)}</em>
-        </div>
-      </div>
-      <div class="hero-progress-row">
-        <span><small>Mot hel gårsdag</small><strong>${wholePercent(previousProgress)}</strong><i></i></span>
-        <span><small>Mot hel forrige uke-dag</small><strong>${wholePercent(weekProgress)}</strong><i></i></span>
-      </div>
+    <article class="overview-quick-card">
+      <span>Datakilder</span>
+      <strong>${counts.ok}/${counts.total} OK</strong>
+      <small>${counts.warn} treg, ${counts.bad} feil, ${counts.unknown} ukjent</small>
     </article>
-    <aside class="hero-side">
-      <div class="side-card">
-        <h3>Datakilder</h3>
-        <strong>${counts.ok}/${counts.total} OK</strong>
-        <small>${counts.warn} treg, ${counts.bad} feil, ${counts.unknown} ukjent</small>
-      </div>
-      <div class="side-card">
-        <h3>Siste soling</h3>
-        <strong>${escapeHtml(safeText(latestSun?.value))}</strong>
-        <small>${escapeHtml(safeText(latestSun?.detail, ""))}</small>
-      </div>
-      <div class="side-card">
-        <h3>Siste parkering</h3>
-        <strong>${escapeHtml(safeText(latestParking?.value))}</strong>
-        <small>${escapeHtml(safeText(latestParking?.detail, ""))}</small>
-      </div>
-    </aside>`;
+    <article class="overview-quick-card">
+      <span>Siste soling</span>
+      <strong>${escapeHtml(safeText(latestSun?.value))}</strong>
+      <small>${escapeHtml(safeText(latestSun?.detail, ""))}</small>
+    </article>
+    <article class="overview-quick-card">
+      <span>Siste parkering</span>
+      <strong>${escapeHtml(safeText(latestParking?.value))}</strong>
+      <small>${escapeHtml(safeText(latestParking?.detail, ""))}</small>
+    </article>`;
 }
 
 function renderOverview() {
@@ -339,10 +281,9 @@ function renderOverview() {
   renderHero(periods);
   const grid = document.getElementById("periodGrid");
   if (!grid) return;
-  const detailPeriods = periods.filter((period) => period?.key !== "today");
-  grid.classList.toggle("period-grid-trio", detailPeriods.length === 3);
-  grid.innerHTML = detailPeriods.length
-    ? detailPeriods.map(renderPeriodCard).join("")
+  grid.classList.remove("period-grid-trio");
+  grid.innerHTML = periods.length
+    ? periods.map(renderPeriodCard).join("")
     : `<div class="empty">Ingen omsetningsperioder tilgjengelig.</div>`;
 }
 

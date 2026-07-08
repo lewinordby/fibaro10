@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1474")
+APP_BUILD = os.getenv("APP_BUILD", "1475")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1475",
+        "date": "08.07.2026",
+        "headline": "iPad-oversikten går tilbake til fire hovedkort",
+        "title": "Fibaro10 iPad fjerner stor omsetningshero og bruker fire periodekort som hovedflate",
+        "description": (
+            "Build 1475 gjør iPad-oversikten mer konsistent etter vurdering av duplisering mellom toppflaten "
+            "og 'I dag'-kortet. Den store sorte omsetningsboksen er fjernet som hovedflate. Oversikten viser "
+            "igjen fire like periodekort for i dag, uke, måned og år, med en lav statusrad over."
+        ),
+        "applications": [
+            "fibaro10ipad/app/static/ipad.js: rendrer alle fire perioder igjen og gjør toppområdet til en kompakt statusrad.",
+            "fibaro10ipad/app/static/ipad.css: erstatter den store hero-layouten med små statuskort og fjerner trio-spesiallayout.",
+            "fibaro10ipad/app/main.py, docker-compose.qnap.yml og .env.qnap.example: oppdaterer iPad-build til 1475.",
+            "build_log.py: dokumenterer build 1475.",
+        ],
+        "request": "Du ønsket heller å beholde de fire kortene under, siden den sorte boksen og I dag-kortet ble dupliserende.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fire periodekort er tilbake i oversikten.",
+            "Den store sorte omsetningsboksen er fjernet fra toppområdet.",
+            "Datakilder, siste soling og siste parkering vises som en lav statusrad.",
+            "Spesiallayouten for tre kort er fjernet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1474",
