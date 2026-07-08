@@ -21,12 +21,20 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
+  min-width: 0;
 }
 
 .module-day-nav-title .ant-typography-secondary {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.module-day-nav-title small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .module-day-nav-actions .ant-btn {

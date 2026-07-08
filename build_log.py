@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1468")
+APP_BUILD = os.getenv("APP_BUILD", "1469")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1469",
+        "date": "08.07.2026",
+        "headline": "Parkeringer har mer kompakt topp og sluttavvik",
+        "title": "Parkering/Parkeringer flytter EasyPark-oppdatering til datolinjen og viser sluttavvik i minutter",
+        "description": (
+            "Build 1469 rydder toppen på Parkering/Parkeringer. Den separate handlingsboksen fjernes, "
+            "EasyPark-oppdateringen flyttes ned til datovelgeren, og venstre statusfelt viser sist vellykkede "
+            "import i stedet for valgt dato. Tabellen får også et sluttavvik i minutter."
+        ),
+        "applications": [
+            "main.py: sender sist oppdatert-import inn i dayNavigation og legger end_delta_min på parkeringsradene.",
+            "desktop_v2/src/pages/module/ModuleDayNavigationBar.tsx: støtter kontekstfelt og handlinger på datolinjen.",
+            "desktop_v2/src/pages/ModulePage.tsx: flytter EasyPark-refresh fra egen handlingsboks til datolinjen for Parkering/Parkeringer.",
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: legger lesbart kolonnenavn for sluttavvik.",
+            "desktop_v2/src/styles/module-content.css: justerer komprimert visning av kontekstfeltet.",
+            "build_log.py: dokumenterer build 1469.",
+        ],
+        "request": "På siden Parkering/Parkeringer ønsket du Oppdater-knappen ned på linjen med datovelger, toppfeltet fjernet, venstre datofelt erstattet med sist oppdatert og et felt for hvor mange minutter bilen dro før/etter forventet slutt.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Separat handlingsfelt over datovelgeren er fjernet på Parkering/Parkeringer.",
+            "Oppdater EasyPark ligger nå på samme linje som dagvelgeren.",
+            "Venstre felt viser sist oppdatert EasyPark-import.",
+            "Tabellen viser Slutt-avvik min, der negativ verdi betyr før forventet slutt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1468",

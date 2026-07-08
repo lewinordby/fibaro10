@@ -191,6 +191,7 @@ export default function ModulePage({ module }: { module: string }) {
   }
   const hideModuleChrome = Boolean(data.parkingTimeline);
   const isSunSessionsView = module === "soling" && safeView === "enkeltimer";
+  const isParkingSessionsView = module === "parkering" && safeView === "parkeringer";
   const kobleTableTitlesByView: Record<string, string[]> = {
     treffgrunnlag: ["Treffgrunnlag"],
     jobb: ["Jobbparametere", "Sist behandlet"],
@@ -207,7 +208,7 @@ export default function ModulePage({ module }: { module: string }) {
   const maintenanceTasksTable = isMaintenanceVisitsView
     ? visibleTables.find((table) => table.title.toLowerCase().includes("oppgaver"))
     : undefined;
-  const showModuleActions = Boolean(data.actions?.length && !hideModuleChrome && !(module === "koble" && safeView !== "jobb"));
+  const showModuleActions = Boolean(data.actions?.length && !hideModuleChrome && !isParkingSessionsView && !(module === "koble" && safeView !== "jobb"));
   const showModuleCards = Boolean(data.cards.length && !hideModuleChrome && !(module === "koble" && safeView !== "oversikt"));
   const editFields = editState ? (editState.create ? editState.edit.createFields ?? editState.edit.fields : editState.edit.fields) : [];
   const splitEdit = editState?.edit.layout === "split";
@@ -244,7 +245,13 @@ export default function ModulePage({ module }: { module: string }) {
       ) : null}
 
       {data.dayNavigation && !hideModuleChrome ? (
-        <ModuleDayNavigationBar navigation={data.dayNavigation} onDayChange={setTimelineDay} />
+        <ModuleDayNavigationBar
+          navigation={data.dayNavigation}
+          actions={isParkingSessionsView ? (data.actions ?? []).filter((action) => action.key === "easypark-refresh") : []}
+          runningAction={runningAction}
+          onAction={handleAction}
+          onDayChange={setTimelineDay}
+        />
       ) : null}
 
       {data.filters?.length ? (

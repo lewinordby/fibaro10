@@ -18366,10 +18366,15 @@ def parking_row_api(
         vehicle_title = " ".join(vehicle_parts) or None
         if vehicle_title and vehicle_color:
             vehicle_title = f"{vehicle_title} - {vehicle_color}"
+    end_delta_minutes = None
+    if row.start_time and row.end_time and row.parking_time_min is not None:
+        expected_end = row.start_time + timedelta(minutes=float_or_zero(row.parking_time_min))
+        end_delta_minutes = round((row.end_time - expected_end).total_seconds() / 60)
     data = {
         "id": row.id,
         "start_time": row.start_time.isoformat() if row.start_time else None,
         "end_time": row.end_time.isoformat() if row.end_time else None,
+        "end_delta_min": end_delta_minutes,
         "parking_time_min": row.parking_time_min,
         "fee_inc_vat": row.fee_inc_vat,
         "car_license_number": row.car_license_number,
@@ -22976,6 +22981,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 selected_parking_start = datetime.combine(selected_parking_day, time.min)
                 selected_parking_end = selected_parking_start + timedelta(days=1)
                 day_navigation = api_day_navigation(selected_parking_day, today)
+                if parking_import_status and parking_import_status.last_success_at:
+                    day_navigation["context"] = {
+                        "label": "Sist oppdatert",
+                        "value": format_source_datetime(parking_import_status.last_success_at),
+                        "detail": import_job_age(parking_import_status),
+                    }
                 plate_value = compact_plate(api_filter_value(params, "plate"))
                 status_value = api_filter_value(params, "status")
                 session_conditions = [
@@ -23010,6 +23021,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "status",
                             "start_time",
                             "end_time",
+                            "end_delta_min",
                             "car_license_number",
                             "vehicle_title",
                             "navn",

@@ -745,6 +745,11 @@ export type ModuleDayNavigation = {
   prevDay: string;
   nextDay: string;
   isToday?: boolean;
+  context?: {
+    label: string;
+    value: string;
+    detail?: string;
+  };
 };
 
 export type SunSessionSnapshot = {
