@@ -18,5 +18,6 @@ check() {
 status=0
 check fibaro10 curl -fsS --max-time 15 http://192.168.20.218:8110/health || status=1
 check online_dashboard curl -fsS --max-time 15 -H "Host: online.lilletorget.net" http://127.0.0.1:8081/health || status=1
+check fibaro10ipad curl -fsS --max-time 15 -H "Host: ipad.lilletorget.net" http://127.0.0.1:8081/health || status=1
 
 exit "$status"

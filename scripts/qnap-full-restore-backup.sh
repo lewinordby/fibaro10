@@ -256,7 +256,7 @@ write_section "Docker images" "$DOCKER" images
 write_section "Docker networks" "$DOCKER" network ls
 write_section "Docker system df" "$DOCKER" system df
 
-for container in postgres-1 easypark_downloader fibaro10 owntracks_service axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker fibaro10_proxy online_dashboard maintenance_mobile; do
+for container in postgres-1 easypark_downloader fibaro10 owntracks_service axis_camera_snapshots car_info_lookup sun2_backfill_downloader sun2_importer sun2_session_scraper parking_sun_linker fibaro10_proxy online_dashboard maintenance_mobile fibaro10ipad; do
     "$DOCKER" inspect "$container" > "$BACKUP_DIR/system/docker-inspect-$container.json" 2>/dev/null || true
 done
 ("$DOCKER" network inspect fibaro10_default > "$BACKUP_DIR/system/docker-network-fibaro10_default.json" 2>/dev/null) || true

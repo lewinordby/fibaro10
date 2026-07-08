@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1470")
+APP_BUILD = os.getenv("APP_BUILD", "1471")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1471",
+        "date": "08.07.2026",
+        "headline": "Eget iPad-grensesnitt for Fibaro10",
+        "title": "Fibaro10 iPad er lagt opp som separat underapp på ipad.lilletorget.net",
+        "description": (
+            "Build 1471 legger til en egen FastAPI-underapp for iPad. Appen bruker samme brukerbase som "
+            "Fibaro10, henter data via hovedappens API og viser en stor berøringsvennlig driftsflate for "
+            "omsetning, parkering, soling og drift."
+        ),
+        "applications": [
+            "fibaro10ipad/: ny separat FastAPI-app med login, PWA-manifest, iPad-tilpasset CSS og dashboard-JavaScript.",
+            "docker-compose.qnap.yml og Caddyfile: legger til fibaro10ipad-container og ruter ipad.lilletorget.net til port 8113.",
+            "scripts/deploy-qnap.ps1, scripts/check-local.ps1 og scripts/qnap-health-watch.sh: tar med iPad-appen i bygg, syntax-sjekk og QNAP health-watch.",
+            "system_inventory.py og docs/utviklingsoppsett.md: dokumenterer ny underapp og klikkbar webflate.",
+            "build_log.py: dokumenterer build 1471.",
+        ],
+        "request": "Du ønsket å lage en ny app ved siden av Fibaro10, kalt fibaro10ipad, med moderne iPad-tilpasset grensesnitt på ipad.lilletorget.net. Du presiserte at primærflaten er en ny 13 tommer iPad Pro.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny egen iPad-app med samme innlogging som Fibaro10.",
+            "Oversikten viser fire store perioder i 2x2-grid på 13 tommer iPad Pro.",
+            "Egne faner for Oversikt, Parkering, Soling og Drift.",
+            "Appen henter data fra Fibaro10 API og kopierer ikke databasen eller forretningslogikken.",
+            "Produksjonsoppsettet inkluderer Caddy-ruting for ipad.lilletorget.net.",
+        ],
+    },
     {
         "version": "1",
         "build": "1470",

@@ -96,6 +96,9 @@ Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compos
 - Appmappe: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10`
 - Intern app: `http://192.168.20.218:8110`
 - Online dashboard: `https://online.lilletorget.net`
+- iPad-grensesnitt: `https://ipad.lilletorget.net`
+- Vedlikehold mobil: `https://vedl.lilletorget.net`
+- OwnTracks: `https://owntracks.lilletorget.net`
 - Docker: `/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker`
 - Git paa QNAP leveres via Entware i `/opt/bin/git`.
 

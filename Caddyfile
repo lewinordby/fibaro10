@@ -54,3 +54,20 @@ vedl.lilletorget.net {
 		header_up X-Forwarded-Proto {scheme}
 	}
 }
+
+ipad.lilletorget.net {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	reverse_proxy fibaro10ipad:8113 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
