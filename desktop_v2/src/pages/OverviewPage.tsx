@@ -9,7 +9,7 @@ import {
   WarningOutlined,
 } from "@ant-design/icons";
 import { Card, List, Space, Tag, Tooltip, Typography } from "antd";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   fetchOverview,
@@ -481,6 +481,21 @@ function periodRankTitle(period: StatusPeriod) {
   return `${period.rank.basis || "Rangert mot historiske dager"}${totalDays}`;
 }
 
+function boundedPercent(part: number, total: number, fallback = 0) {
+  const partNumber = Number(part);
+  const totalNumber = Number(total);
+  if (!Number.isFinite(partNumber) || !Number.isFinite(totalNumber) || totalNumber <= 0) return fallback;
+  return Math.max(0, Math.min(100, (partNumber / totalNumber) * 100));
+}
+
+function shareLabel(part: number, total: number) {
+  return `${Math.round(boundedPercent(part, total))}%`;
+}
+
+function periodShareStyle(sunShare: number) {
+  return { "--period-sun-share": `${sunShare}%` } as CSSProperties;
+}
+
 function revenuePeriodLines(period: StatusPeriod): RevenuePeriodLine[] {
   return [
     {
@@ -542,6 +557,24 @@ function PeriodComparisonPill({ period, item }: { period: StatusPeriod; item: Pe
       <DeltaValue currentAmount={period.total} referenceAmount={item.comparison.total} />
       <DirectionIcon currentAmount={period.total} referenceAmount={item.comparison.total} />
     </Link>
+  );
+}
+
+function RevenuePeriodSplit({ period }: { period: StatusPeriod }) {
+  return (
+    <div className="revenue-period-split" aria-label="Fordeling mellom soling og parkering">
+      <span className="revenue-period-split-meter" aria-hidden="true" />
+      <div className="revenue-period-split-labels">
+        <span>
+          <i className="tone-sun2" />
+          Soling {shareLabel(period.sol, period.total)}
+        </span>
+        <span>
+          <i className="tone-parking" />
+          Parkering {shareLabel(period.parking, period.total)}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -617,9 +650,10 @@ function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPe
   const shownComparisons = comparisons.slice(0, 2);
   const lines = revenuePeriodLines(period);
   const rankLabel = period.key === "today" ? period.rank?.label : "";
+  const cardStyle = periodShareStyle(boundedPercent(period.sol, period.total, 50));
 
   return (
-    <Card className="status-period-card revenue-period-card">
+    <Card className={`status-period-card revenue-period-card period-${period.key}`} style={cardStyle}>
       <div className="revenue-period-head">
         <div>
           <span className="revenue-period-title">{periodDisplayTitle(period)}</span>
@@ -634,6 +668,8 @@ function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPe
           <strong>{nok(period.total)} kr</strong>
         </div>
       </div>
+
+      <RevenuePeriodSplit period={period} />
 
       <div className={`revenue-period-compare-grid ${shownComparisons.length < 2 ? "single" : ""}`} aria-label="Sammenligning mot samme tidspunkt">
         {shownComparisons.map((item) => (
@@ -775,9 +811,10 @@ function ActivityPeriodCard({
   }));
   const count = config.count(period);
   const amount = config.amount(period);
+  const cardStyle = periodShareStyle(config.kind === "sun2" ? 100 : 0);
 
   return (
-    <Card className={`status-period-card revenue-period-card activity-period-card tone-${config.tone}`}>
+    <Card className={`status-period-card revenue-period-card activity-period-card tone-${config.tone} period-${period.key}`} style={cardStyle}>
       <div className="revenue-period-head">
         <div>
           <span className="revenue-period-title">{activityPeriodDisplayTitle(period, config)}</span>

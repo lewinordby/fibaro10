@@ -1,32 +1,38 @@
 .status-period-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
   align-items: stretch;
 }
 
 .status-period-card.revenue-period-card,
 .status-overview-page .status-period-card.revenue-period-card {
+  --period-sun-share: 50%;
+  --period-accent: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--domain-sun2) 88%, var(--surface)) 0 var(--period-sun-share),
+    color-mix(in srgb, var(--domain-parking) 88%, var(--surface)) var(--period-sun-share) 100%
+  );
   --period-border: color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--border-control));
   --period-border-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 20%, var(--line-strong));
   --period-surface: linear-gradient(180deg, var(--surface), var(--surface-panel-end));
   --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 3%, var(--surface));
   --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 5%, var(--surface));
   --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 16%, var(--surface));
-  min-height: 300px;
+  min-height: 316px;
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 9%, var(--border-panel));
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 2.4%, var(--surface)) 0%, var(--surface) 34%, var(--surface-panel-end) 100%);
-  box-shadow: var(--shadow-sm);
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 3.5%, var(--surface)) 0%, var(--surface) 42%, var(--surface-panel-end) 100%);
+  box-shadow: 0 8px 22px var(--shadow-ink-faint-color), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .status-period-card.revenue-period-card .ant-card-body {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
   height: 100%;
-  padding: 12px 14px 11px;
+  padding: 14px 14px 12px;
 }
 
 .revenue-period-card {
@@ -34,17 +40,12 @@
 }
 
 .status-period-card.revenue-period-card::before {
-  height: 2px;
-  background: color-mix(in srgb, var(--tone-color, var(--domain-status)) 86%, var(--surface));
+  height: 4px;
+  background: var(--period-accent);
 }
 
 .status-dashboard-page.tone-revenue .status-period-card.revenue-period-card::before {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--domain-sun2) 82%, var(--surface)),
-    color-mix(in srgb, var(--domain-parking) 82%, var(--surface)),
-    color-mix(in srgb, var(--domain-revenue) 82%, var(--surface))
-  );
+  background: var(--period-accent);
 }
 
 .status-period-card.revenue-period-card.activity-period-card,
@@ -57,6 +58,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 13px;
   align-items: start;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-panel-soft);
 }
 
 .revenue-period-head > div {
@@ -68,8 +71,8 @@
 .revenue-period-title {
   overflow: hidden;
   color: var(--ink);
-  font-size: 15.5px;
-  font-weight: 780;
+  font-size: 15px;
+  font-weight: 800;
   line-height: 1.16;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -115,7 +118,7 @@
   align-items: baseline;
   gap: 5px;
   color: var(--ink);
-  font-size: 26px;
+  font-size: 25px;
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1;
@@ -129,10 +132,58 @@
   font-weight: 680;
 }
 
+.revenue-period-split {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.revenue-period-split-meter {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--border-panel));
+  border-radius: 999px;
+  background: var(--period-accent);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.revenue-period-split-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-label);
+  font-size: 10.5px;
+  font-weight: 680;
+  line-height: 1.1;
+}
+
+.revenue-period-split-labels span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.revenue-period-split-labels i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+
+.revenue-period-split-labels i.tone-sun2 {
+  background: var(--domain-sun2);
+}
+
+.revenue-period-split-labels i.tone-parking {
+  background: var(--domain-parking);
+}
+
 .revenue-period-compare-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
 }
 
 .revenue-period-compare-grid.single {
@@ -148,20 +199,22 @@
   gap: 5px 8px;
   align-items: center;
   min-width: 0;
-  padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--border-panel));
-  border-radius: 7px;
+  min-height: 54px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--border-panel));
+  border-radius: var(--radius-md);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-status)) 2%, var(--surface)), var(--surface));
-  box-shadow: none;
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-status)) 2.4%, var(--surface)), var(--surface));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
   color: inherit;
   text-decoration: none;
-  transition: border-color 0.16s ease, background 0.16s ease;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
 
 .revenue-period-compare-pill:hover {
   border-color: var(--period-border-strong);
   background: var(--period-tint-soft);
+  transform: translateY(-1px);
 }
 
 .revenue-period-compare-pill > span:first-child {
@@ -183,11 +236,11 @@
   display: inline-grid;
   grid-area: icon;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 27px;
+  height: 27px;
   border: 1.5px solid currentColor;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .revenue-period-direction.positive {
@@ -212,7 +265,7 @@
 }
 
 .revenue-period-delta strong {
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 760;
 }
 
@@ -242,7 +295,7 @@
 .revenue-driver-table {
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 7%, var(--border-panel));
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface) 96%, var(--surface-muted));
 }
 
@@ -260,9 +313,11 @@
 }
 
 .revenue-driver-head {
-  padding: 6px 9px;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--border-panel-soft);
-  background: var(--period-tint-soft);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--domain-sun2) 7%, transparent), color-mix(in srgb, var(--domain-parking) 7%, transparent)),
+    var(--period-tint-soft);
 }
 
 .revenue-driver-head span {
@@ -283,7 +338,7 @@
 
 .revenue-driver-row {
   position: relative;
-  padding: 8px 9px;
+  padding: 9px 10px;
   border-bottom: 1px solid var(--border-panel-soft);
 }
 
@@ -294,7 +349,7 @@
 .revenue-driver-row::before {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 2px;
+  width: 3px;
   background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 78%, var(--surface));
   content: "";
 }
@@ -318,9 +373,10 @@
 .revenue-driver-icon {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 14%, var(--border-control));
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 10%, var(--surface));
   color: var(--driver-color, var(--domain-revenue));
   font-size: 15px;
@@ -415,11 +471,12 @@
   gap: 8px;
   align-items: center;
   margin-top: auto;
-  padding: 7px 9px;
+  min-height: 46px;
+  padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 14%, var(--border-control));
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background:
-    linear-gradient(90deg, var(--period-tint-strong) 0 2px, transparent 2px),
+    linear-gradient(90deg, var(--period-tint-strong) 0 3px, transparent 3px),
     linear-gradient(
       180deg,
       var(--period-tint-muted),

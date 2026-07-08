@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1478")
+APP_BUILD = os.getenv("APP_BUILD", "1479")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1479",
+        "date": "08.07.2026",
+        "headline": "Dashboardkortene henter iPad-grep",
+        "title": "Fibaro10 hoveddashboard får tydeligere periodeflater inspirert av iPad-appen",
+        "description": (
+            "Build 1479 viderefører de beste grepene fra iPad-flaten til hovedappens fire dashboardkort. "
+            "Periodene får tydeligere toppaccent, kompakt fordelingsmeter for soling og parkering, mer ryddige "
+            "sammenligningsfelt og strammere tabellrader."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/OverviewPage.tsx: legger inn sol/parkering-fordeling som CSS-variabel og kompakt meter på omsetningskortene.",
+            "desktop_v2/src/styles/status-periods.css: polerer periodekortene med iPad-inspirert accent, spacing, sammenligningsflater og driver-tabell.",
+            "desktop_v2/src/styles/dark-theme.css: gir de nye periodeflatene kontrasttilpasset mørkt tema.",
+            "build_log.py: dokumenterer build 1479.",
+        ],
+        "request": "Du ba om å hente inspirasjon fra iPad-appen på de fire flatene på dashboardet.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "De fire dashboardflatene får et mer markert, men fortsatt kontrollert visuelt hierarki.",
+            "Omsetningskortene viser nå en diskret fordeling mellom soling og parkering slik iPad-appen gjør.",
+            "Sammenligningsboksene er større og enklere å lese uten at datalogikken er endret.",
+            "Soling- og parkeringsdashboardene bruker samme kortsystem og samme accentlogikk.",
+            "Mørkt tema er oppdatert slik at nye meter- og accentflater holder god kontrast.",
+        ],
+    },
     {
         "version": "1",
         "build": "1478",

@@ -500,13 +500,32 @@
   --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 5%, var(--surface));
   --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 4%, var(--surface));
   --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 12%, var(--surface));
+  --period-accent: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--domain-sun2) 78%, #ffffff) 0 var(--period-sun-share),
+    color-mix(in srgb, var(--domain-parking) 78%, #ffffff) var(--period-sun-share) 100%
+  );
 }
 
 .app-shell.theme-dark .revenue-period-compare-pill,
 .app-shell.theme-dark .revenue-driver-table,
+.app-shell.theme-dark .revenue-period-split-meter,
 .app-shell.theme-dark .revenue-period-full-card {
   background: var(--surface-raised);
   border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 12%, var(--border-panel));
+}
+
+.app-shell.theme-dark .revenue-period-head {
+  border-bottom-color: var(--line-soft);
+}
+
+.app-shell.theme-dark .revenue-period-split-meter {
+  background: var(--period-accent);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.34);
+}
+
+.app-shell.theme-dark .revenue-period-split-labels {
+  color: var(--text-label);
 }
 
 .app-shell.theme-dark .revenue-period-compare-pill:hover {
