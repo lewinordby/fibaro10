@@ -39,6 +39,11 @@ function setText(id, value) {
   if (el) el.textContent = value;
 }
 
+function setHtml(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = value;
+}
+
 function setClass(id, classes) {
   const el = document.getElementById(id);
   if (el) el.className = classes;
@@ -247,38 +252,8 @@ function latestItem(labelNeedle) {
   );
 }
 
-function renderHero(periods) {
-  const hero = document.getElementById("heroGrid");
-  if (!hero) return;
-  const latestSun = latestItem("soling");
-  const latestParking = latestItem("parkering");
-  const services = state.data?.overview?.services || [];
-  const counts = datasourceCounts(services);
-  if (!periods.length && !services.length && !latestSun && !latestParking) {
-    hero.innerHTML = "";
-    return;
-  }
-  hero.innerHTML = `
-    <article class="overview-quick-card">
-      <span>Datakilder</span>
-      <strong>${counts.ok}/${counts.total} OK</strong>
-      <small>${counts.warn} treg, ${counts.bad} feil, ${counts.unknown} ukjent</small>
-    </article>
-    <article class="overview-quick-card">
-      <span>Siste soling</span>
-      <strong>${escapeHtml(safeText(latestSun?.value))}</strong>
-      <small>${escapeHtml(safeText(latestSun?.detail, ""))}</small>
-    </article>
-    <article class="overview-quick-card">
-      <span>Siste parkering</span>
-      <strong>${escapeHtml(safeText(latestParking?.value))}</strong>
-      <small>${escapeHtml(safeText(latestParking?.detail, ""))}</small>
-    </article>`;
-}
-
 function renderOverview() {
   const periods = state.data?.overview?.statusPeriods || [];
-  renderHero(periods);
   const grid = document.getElementById("periodGrid");
   if (!grid) return;
   grid.classList.remove("period-grid-trio");
@@ -375,22 +350,35 @@ function renderServices(services) {
     : `<div class="empty">Ingen datakilder tilgjengelig.</div>`;
 }
 
+function topMetricHtml(label, value, detail = "") {
+  return `
+    <span>${escapeHtml(label)}</span>
+    <strong>${escapeHtml(safeText(value))}</strong>
+    <small>${escapeHtml(safeText(detail, ""))}</small>`;
+}
+
 function updateTopStatus() {
   const overview = state.data?.overview || {};
   const operating = overview.operatingWindow || {};
   const services = overview.services || [];
   const counts = datasourceCounts(services);
+  const latestSun = latestItem("soling");
+  const latestParking = latestItem("parkering");
   const datasourceTone = counts.bad > 0 ? "bad" : counts.warn > 0 || counts.unknown > 0 ? "warn" : "ok";
-  setText("topOperatingStatus", `${safeText(operating.label, "Ukjent")} · ${safeText(operating.detail, "")}`);
-  setText("topDatasourceStatus", `Datakilder ${counts.ok}/${counts.total}`);
-  setClass("topOperatingStatus", `top-pill ${operating.open ? "ok" : "warn"}`);
-  setClass("topDatasourceStatus", `top-pill ${datasourceTone}`);
+  setHtml("topOperatingStatus", topMetricHtml("Åpning", safeText(operating.label, "Ukjent"), safeText(operating.detail, "")));
+  setHtml("topDatasourceStatus", topMetricHtml("Datakilder", `${counts.ok}/${counts.total} OK`, `${counts.warn} treg, ${counts.bad} feil`));
+  setHtml("topLatestSun", topMetricHtml("Siste soling", safeText(latestSun?.value), safeText(latestSun?.detail, "")));
+  setHtml("topLatestParking", topMetricHtml("Siste parkering", safeText(latestParking?.value), safeText(latestParking?.detail, "")));
+  setClass("topOperatingStatus", `top-pill top-pill-metric ${operating.open ? "ok" : "warn"}`);
+  setClass("topDatasourceStatus", `top-pill top-pill-metric ${datasourceTone}`);
+  setClass("topLatestSun", "top-pill top-pill-metric");
+  setClass("topLatestParking", "top-pill top-pill-metric");
 }
 
 function renderAll() {
   const overview = state.data?.overview;
   setText("userButton", (state.data?.user?.username || "?").slice(0, 1).toUpperCase());
-  setText("buildBadge", state.data?.app?.build || "1472");
+  setText("buildBadge", state.data?.app?.build || "1476");
   setText("syncStatus", overview?.generatedAt ? `Sist oppdatert ${new Date(overview.generatedAt).toLocaleString("nb-NO")}` : "Ingen data");
   updateTopStatus();
   renderOverview();

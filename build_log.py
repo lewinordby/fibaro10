@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1475")
+APP_BUILD = os.getenv("APP_BUILD", "1476")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1476",
+        "date": "08.07.2026",
+        "headline": "iPad-status flyttes inn i toppbaren",
+        "title": "Fibaro10 iPad samler datakilder, siste soling og siste parkering i første rad",
+        "description": (
+            "Build 1476 fjerner den ekstra statusraden over periodekortene i iPad-appen. Informasjonen fra "
+            "rad 2 er flyttet opp i toppbaren sammen med åpning, slik at oversikten starter direkte med de "
+            "fire hovedkortene for dag, uke, måned og år."
+        ),
+        "applications": [
+            "fibaro10ipad/app/main.py: flytter statusfeltene inn i toppbaren og fjerner heroGrid fra oversikten.",
+            "fibaro10ipad/app/static/ipad.js: rendrer datakilder, siste soling og siste parkering som små toppmålinger.",
+            "fibaro10ipad/app/static/ipad.css: gjør toppbaren bredere og fjerner gammel hero/statusrad-CSS som ikke lenger brukes.",
+            "docker-compose.qnap.yml og .env.qnap.example: oppdaterer iPad-build til 1476.",
+            "build_log.py: dokumenterer build 1476.",
+        ],
+        "request": "Du ønsket å flytte informasjonen fra rad 2 opp i rad 1, slik at hele rad 2 kunne fjernes.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Datakilder, siste soling og siste parkering ligger nå i toppbaren.",
+            "Ekstra statusrad over periodekortene er fjernet fra HTML og JavaScript.",
+            "Oversikten starter nå direkte med de fire periodekortene.",
+            "Død CSS fra tidligere hero/statusrad er ryddet bort.",
+        ],
+    },
     {
         "version": "1",
         "build": "1475",

@@ -24,7 +24,7 @@ load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
 FIBARO10_APP_URL = os.getenv("FIBARO10_APP_URL", "http://192.168.20.218:8110").rstrip("/")
-APP_BUILD = os.getenv("FIBARO10_IPAD_APP_BUILD", os.getenv("APP_BUILD", "1475"))
+APP_BUILD = os.getenv("FIBARO10_IPAD_APP_BUILD", os.getenv("APP_BUILD", "1476"))
 APP_COMMIT = os.getenv("FIBARO10_IPAD_APP_COMMIT", os.getenv("APP_COMMIT", "unknown"))
 ASSET_VERSION = f"{APP_BUILD}-{APP_COMMIT[:7]}"
 
@@ -398,7 +398,7 @@ INDEX_HTML = f"""<!doctype html>
       </nav>
       <div class="rail-status">
         <span>Build</span>
-        <strong id="buildBadge">1475</strong>
+        <strong id="buildBadge">1476</strong>
       </div>
     </aside>
 
@@ -411,6 +411,8 @@ INDEX_HTML = f"""<!doctype html>
       <div class="status-pills" aria-label="Status">
         <span id="topOperatingStatus" class="top-pill">Henter åpning</span>
         <span id="topDatasourceStatus" class="top-pill">Datakilder</span>
+        <span id="topLatestSun" class="top-pill">Siste soling</span>
+        <span id="topLatestParking" class="top-pill">Siste parkering</span>
       </div>
       <div id="syncStatus" class="sync-status">Henter data</div>
       <div class="top-actions">
@@ -422,7 +424,6 @@ INDEX_HTML = f"""<!doctype html>
     </header>
 
     <section id="overviewView" class="view is-active">
-      <section id="heroGrid" class="hero-grid"></section>
       <div id="periodGrid" class="period-grid"></div>
     </section>
 
