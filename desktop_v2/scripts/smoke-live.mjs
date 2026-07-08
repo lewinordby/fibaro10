@@ -115,6 +115,54 @@ async function smokeRoute(page, route) {
   console.log(`Live route OK: ${route}`);
 }
 
+async function waitForPath(page, pathname) {
+  await page.waitForFunction((expectedPath) => window.location.pathname === expectedPath, pathname, { timeout: 10000 });
+}
+
+async function shellHasClass(page, className) {
+  return page.locator(".app-shell").evaluate((element, name) => element.classList.contains(name), className);
+}
+
+async function waitForShellClass(page, className, expected) {
+  await page.waitForFunction(
+    ({ name, expectedValue }) => document.querySelector(".app-shell")?.classList.contains(name) === expectedValue,
+    { name: className, expectedValue: expected },
+    { timeout: 10000 },
+  );
+}
+
+async function smokeShellControls(page) {
+  await page.goto(`${baseUrl}/status/omsetning`, { waitUntil: "load" });
+  await page.locator(".app-shell").waitFor({ timeout: 10000 });
+
+  if (await shellHasClass(page, "main-menu-hidden")) {
+    await page.getByRole("button", { name: /vis hovedmeny/i }).click();
+    await waitForShellClass(page, "main-menu-hidden", false);
+  }
+  await page.getByRole("button", { name: /skjul hovedmeny/i }).click();
+  await waitForShellClass(page, "main-menu-hidden", true);
+  await page.getByRole("button", { name: /vis hovedmeny/i }).click();
+  await waitForShellClass(page, "main-menu-hidden", false);
+
+  const initiallyDark = await shellHasClass(page, "theme-dark");
+  await page.getByRole("button", { name: initiallyDark ? /bruk standard tema/i : /bruk mørkt tema/i }).click();
+  await waitForShellClass(page, initiallyDark ? "theme-standard" : "theme-dark", true);
+  await page.getByRole("button", { name: initiallyDark ? /bruk mørkt tema/i : /bruk standard tema/i }).click();
+  await waitForShellClass(page, initiallyDark ? "theme-dark" : "theme-standard", true);
+
+  await page.getByLabel("Åpne buildlogg").click();
+  await waitForPath(page, "/admin/build");
+
+  await page.getByLabel("Gå til dashboard").click();
+  await waitForPath(page, "/status/omsetning");
+  await page.locator(".top-view-switcher").getByText("Parkering", { exact: true }).click();
+  await waitForPath(page, "/status/parkering");
+  await page.locator(".top-view-switcher").getByText("Omsetning", { exact: true }).click();
+  await waitForPath(page, "/status/omsetning");
+
+  console.log("Live shell controls OK");
+}
+
 async function runAuthenticatedSmoke() {
   const browser = await chromium.launch({ headless: true });
   const errors = [];
@@ -128,6 +176,7 @@ async function runAuthenticatedSmoke() {
     });
 
     await login(page);
+    await smokeShellControls(page);
     for (const route of routeList) {
       await smokeRoute(page, route.path);
     }

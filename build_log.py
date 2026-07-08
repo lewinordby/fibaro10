@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1484")
+APP_BUILD = os.getenv("APP_BUILD", "1485")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1485",
+        "date": "08.07.2026",
+        "headline": "Funksjonskontroll",
+        "title": "Fibaro10 tester appskallet bedre og rydder runtime-data fra Git-status",
+        "description": (
+            "Build 1485 er en systematisk kontrollrunde av funksjoner og drift. Alle automatiske tester, UI-ruter, "
+            "live-ruter, datakilder og containere er kontrollert. Smoke-testene er utvidet slik at de også verifiserer "
+            "meny skjul/vis, temabytter, buildlogg-lenke og toppnavigasjon, ikke bare at sider laster."
+        ),
+        "applications": [
+            "desktop_v2/scripts/smoke-ui.mjs: tester appskall-handlinger lokalt i tillegg til ruter.",
+            "desktop_v2/scripts/smoke-live.mjs: tester samme appskall-handlinger mot live-instansen etter innlogging.",
+            ".gitignore: ignorerer runtime-data både som kataloger og som QNAP-symlinker.",
+            "build_log.py: dokumenterer build 1485.",
+        ],
+        "request": "Du ba om å teste alle funksjoner, vurdere om de er hensiktsmessige og forbedre der det trengs.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Full lokal kvalitetssjekk kjører fortsatt backendtester, typecheck, build, CSS-audit, bundle-audit, route-audit og UI-smoke.",
+            "UI-smoke dekker nå grunnleggende brukerhandlinger i appskallet: hovedmeny, mørkt/standard tema, buildlogg og status-fanenavigasjon.",
+            "Live-smoke gjør den samme appskallkontrollen mot QNAP etter innlogging.",
+            "QNAP-runtime-data som ligger som symlinker blir ignorert eksplisitt, slik at Git-status ikke blir støyete.",
+            "Driftskontroll viste healthy containere og 22 av 22 datakilder OK før endringen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1484",
