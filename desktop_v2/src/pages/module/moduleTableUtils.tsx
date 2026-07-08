@@ -33,7 +33,7 @@ function labelize(column: string): string {
     started_at: "Start",
     begin_at: "Start",
     end_time: "Slutt",
-    end_delta_min: "Slutt-avvik min",
+    end_delta_min: "Slot-avvik min",
     ended_at: "Slutt",
     end_at: "Slutt",
     car_license_number: "Reg.nr",

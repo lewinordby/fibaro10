@@ -55,6 +55,32 @@ class ParkingRowApiTests(unittest.TestCase):
         self.assertEqual(payload["vehicle_type"], "XC60")
         self.assertEqual(payload["vehicle_color"], "Gra")
 
+    def test_parking_row_api_calculates_departure_against_paid_slot(self):
+        row = main.ParkingSession(
+            id=3,
+            start_time=datetime(2026, 6, 26, 12, 0),
+            end_time=datetime(2026, 6, 26, 12, 45),
+            car_license_number="AB12345",
+            status="Ended",
+        )
+
+        payload = main.parking_row_api(row)
+
+        self.assertEqual(payload["end_delta_min"], -15)
+
+    def test_parking_row_api_skips_departure_delta_for_ongoing(self):
+        row = main.ParkingSession(
+            id=4,
+            start_time=datetime(2026, 6, 26, 12, 0),
+            end_time=datetime(2026, 6, 26, 12, 45),
+            car_license_number="AB12345",
+            status="Ongoing",
+        )
+
+        payload = main.parking_row_api(row)
+
+        self.assertIsNone(payload["end_delta_min"])
+
 
 if __name__ == "__main__":
     unittest.main()

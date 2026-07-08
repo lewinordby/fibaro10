@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1469")
+APP_BUILD = os.getenv("APP_BUILD", "1470")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1470",
+        "date": "08.07.2026",
+        "headline": "Parkeringsavvik regnes mot betalt 30-minutters slot",
+        "title": "Parkering/Parkeringer viser avreiseavvik mot neste betalte parkeringsslot",
+        "description": (
+            "Build 1470 korrigerer beregningen av avviket i Parkering/Parkeringer. "
+            "Avviket regnes nå mot betalte 30-minutters slotter, slik at en parkering på 45 minutter "
+            "sammenlignes mot 60 minutter og vises som -15."
+        ),
+        "applications": [
+            "main.py: legger inn parking_departure_slot_delta_minutes og bruker 30-minutters slotter for end_delta_min.",
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: endrer tabelllabelen til Slot-avvik min.",
+            "tests/test_parking_row_api.py: tester at 45 minutter gir -15 og at pågående parkeringer ikke får avreiseavvik.",
+            "build_log.py: dokumenterer build 1470.",
+        ],
+        "request": "Du presiserte at slot-tiden alltid er 30 minutter, og at avviket skal være mellom avreise og siste betalte slot. Eksempel: drar man etter 45 minutter, er avviket -15 minutter.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Avvik beregnes mot 30, 60, 90 osv. minutter.",
+            "45 minutter gir nå -15.",
+            "Pågående parkeringer får blank verdi fordi bilen ikke har reist ennå.",
+            "Kolonnen heter nå Slot-avvik min.",
+        ],
+    },
     {
         "version": "1",
         "build": "1469",

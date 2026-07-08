@@ -6495,6 +6495,19 @@ def parking_year_comparison_delta(current: Dict[str, Any], comparison: Dict[str,
     }
 
 
+def parking_departure_slot_delta_minutes(row: ParkingSession) -> Optional[int]:
+    if not row.start_time or not row.end_time:
+        return None
+    status = (row.status or "").strip().lower()
+    if status in {"ongoing", "active", "aktiv", "pågående"}:
+        return None
+    actual_minutes = (row.end_time - row.start_time).total_seconds() / 60
+    if actual_minutes < 0:
+        return None
+    paid_slot_minutes = math.ceil(actual_minutes / 30) * 30 if actual_minutes else 0
+    return int(round(actual_minutes - paid_slot_minutes))
+
+
 def revenue_daily_by_year(summaries: Dict[str, Any]) -> Dict[int, Dict[int, Dict[str, Any]]]:
     by_year: Dict[int, Dict[int, Dict[str, Any]]] = {}
     for item in summaries.get("daily", []):
@@ -18366,15 +18379,11 @@ def parking_row_api(
         vehicle_title = " ".join(vehicle_parts) or None
         if vehicle_title and vehicle_color:
             vehicle_title = f"{vehicle_title} - {vehicle_color}"
-    end_delta_minutes = None
-    if row.start_time and row.end_time and row.parking_time_min is not None:
-        expected_end = row.start_time + timedelta(minutes=float_or_zero(row.parking_time_min))
-        end_delta_minutes = round((row.end_time - expected_end).total_seconds() / 60)
     data = {
         "id": row.id,
         "start_time": row.start_time.isoformat() if row.start_time else None,
         "end_time": row.end_time.isoformat() if row.end_time else None,
-        "end_delta_min": end_delta_minutes,
+        "end_delta_min": parking_departure_slot_delta_minutes(row),
         "parking_time_min": row.parking_time_min,
         "fee_inc_vat": row.fee_inc_vat,
         "car_license_number": row.car_license_number,
