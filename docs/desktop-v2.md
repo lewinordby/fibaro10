@@ -13,7 +13,7 @@
 
 - Startside: `/status/omsetning`
 - Dashboard: `/status/omsetning`, `/status/parkering`, `/status/soling`, `/status/drift`
-- Parkering: `/parkering/parkeringer`, `/parkering/dagslinje`, `/parkering/kjoretoy`
+- Parkering: `/parkering/oversikt`, `/parkering/parkeringer`, `/parkering/dagslinje`, `/parkering/kjoretoy`
 - Soling: `/soling/dagslinje`, `/soling/enkeltimer`, `/soling/senger`
 - Energi: `/energi/status`, `/energi/kurser`, `/energi/laster`
 - Ventilasjon og lys: `/ventilasjon/dagslogg`, `/lys/dagslogg`

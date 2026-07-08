@@ -24554,7 +24554,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         [
                             api_tool_row("Dashboard", "/status/omsetning", "Hoveddashboard for omsetning, parkering og soling.", None),
                             api_tool_row("Omsetning", "/omsetning/oversikt", "Årsoversikt, toppdager og oppgjørskontroll.", None),
-                            api_tool_row("Parkering", "/parkering/parkeringer", "Dagsliste, status, kamerakoblinger og importkontroll.", None),
+                            api_tool_row("Parkering", "/parkering/oversikt", "Ukesstatistikk, hovedtall og importkontroll.", None),
                             api_tool_row("Soling", "/soling/oversikt", "Soling, enkelttimer, produkter og bildegrunnlag.", None),
                             api_tool_row("Energi", "/energi/status", "Realtime energi, kurs, laster og Elvia-kontroll.", None),
                             api_tool_row("Ventilasjon", "/ventilasjon/dagslogg", "Temperatur, fukt, vifter og hendelser.", None),
@@ -26292,7 +26292,7 @@ async def sun2_room_stats_json_legacy_redirect(request: Request):
 
 @app.get("/parkering")
 async def parking_redirect(request: Request):
-    return redirect_keep_query(request, "/parkering/parkeringer", status_code=307)
+    return redirect_keep_query(request, "/parkering/oversikt", status_code=307)
 
 
 EASYPARK_REQUIRED_COLUMNS = {
@@ -27020,7 +27020,7 @@ async def parking_refresh(request: Request):
         outcome = "error"
     day = request.query_params.get("day")
     suffix = f"?day={quote(day)}&refresh={outcome}" if day else f"?refresh={outcome}"
-    return RedirectResponse(f"/parkering/parkeringer{suffix}", status_code=303)
+    return RedirectResponse(f"/parkering/oversikt{suffix}", status_code=303)
 
 
 @app.get("/parkering/oversikt", response_class=HTMLResponse)

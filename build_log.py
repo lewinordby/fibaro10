@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1466")
+APP_BUILD = os.getenv("APP_BUILD", "1467")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1467",
+        "date": "08.07.2026",
+        "headline": "Parkering oversikt er tilbake som første fane",
+        "title": "Ukesstatistikken under Parkering er gjeninnført som standardflate",
+        "description": (
+            "Build 1467 legger Parkering/Oversikt tilbake som første underside i parkeringsmenyen. "
+            "Parkeringer ligger nå som nummer to, mens Bilstatistikk fortsatt er skjult fra normal meny."
+        ),
+        "applications": [
+            "desktop_v2/src/moduleViews.ts: flytter Oversikt tilbake som første synlige parkeringsfane.",
+            "desktop_v2/src/pages/OverviewPage.tsx og desktop_v2/src/domainModel.ts: gjeninnfører oversikt som første parkeringssnarvei og standardlenke.",
+            "main.py: sender /parkering og EasyPark-refresh tilbake til /parkering/oversikt.",
+            "docs/desktop-v2.md og docs/funksjonsstruktur.md: oppdaterer dokumentert parkeringsstruktur.",
+            "build_log.py: dokumenterer build 1467.",
+        ],
+        "request": "Du mistet ukesstatestikken den som het oversikt under parkering, hadde ikke tenkt å ta bort den. Kan du legge den tilbake og den kan være den første så kan parkeringer være nr 2.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Parkering/Oversikt er igjen første fane og standard for /parkering.",
+            "Parkeringer er andre fane.",
+            "Dashboard-snarveien for parkering peker igjen først til oversikten.",
+        ],
+    },
     {
         "version": "1",
         "build": "1466",
