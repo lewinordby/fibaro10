@@ -780,6 +780,24 @@ function ActivityDriverRow({
   );
 }
 
+function ActivityPeriodSplit({ config, count, amount }: { config: ActivityDashboardConfig; count: number; amount: number }) {
+  return (
+    <div className="revenue-period-split activity-period-split" aria-label={`${config.title} antall og omsetning`}>
+      <span className="revenue-period-split-meter" aria-hidden="true" />
+      <div className="revenue-period-split-labels">
+        <span>
+          <i className={`tone-${config.tone}`} />
+          {config.pluralTitle} {Math.round(count)} stk
+        </span>
+        <span>
+          <i className="tone-revenue" />
+          {nok(amount)} kr · {averageKrPerCount(amount, count)} snitt
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ActivityFullReferenceItem({
   config,
   count,
@@ -818,10 +836,11 @@ function ActivityPeriodCard({
   config: ActivityDashboardConfig;
   nextParkingImportText: string;
 }) {
-  const comparisons = buildComparisonViews(period).slice(0, 2).map((item) => ({
+  const comparisons = buildComparisonViews(period).map((item) => ({
     ...item,
     path: activityComparisonPath(config, period.key, item.comparisonKey),
   }));
+  const shownComparisons = comparisons.slice(0, 2);
   const count = config.count(period);
   const amount = config.amount(period);
   const cardStyle = periodShareStyle(config.kind === "sun2" ? 100 : 0);
@@ -833,14 +852,18 @@ function ActivityPeriodCard({
           <span className="revenue-period-title">{activityPeriodDisplayTitle(period, config)}</span>
           <em>Per {config.kind === "parking" ? appendNextParkingImport(config.asOf(period), nextParkingImportText) : config.asOf(period)}</em>
         </div>
-        <strong>
-          {Math.round(count)}
-          <span>stk</span>
-        </strong>
+        <div className="revenue-period-total">
+          <strong>
+            {Math.round(count)}
+            <span>stk</span>
+          </strong>
+        </div>
       </div>
 
-      <div className={`revenue-period-compare-grid ${comparisons.length < 2 ? "single" : ""}`} aria-label="Antall sammenlignet med referanser">
-        {comparisons.map((item) => {
+      <ActivityPeriodSplit amount={amount} config={config} count={count} />
+
+      <div className={`revenue-period-compare-grid ${shownComparisons.length < 2 ? "single" : ""}`} aria-label="Antall sammenlignet med referanser">
+        {shownComparisons.map((item) => {
           const referenceCount = config.count(item.comparison);
           return (
             <Link className="revenue-period-compare-pill" to={item.path} key={item.comparisonKey}>
@@ -853,15 +876,15 @@ function ActivityPeriodCard({
       </div>
 
       <div className="revenue-drivers" aria-label={`${config.title} fordeling`}>
-        <div className={`revenue-driver-table ${comparisons.length < 2 ? "single" : ""}`}>
+        <div className={`revenue-driver-table ${shownComparisons.length < 2 ? "single" : ""}`}>
           <div className="revenue-driver-head">
             <span>Linje</span>
             <span>{periodCurrentColumnLabel(period)}</span>
-            {comparisons.map((item) => (
+            {shownComparisons.map((item) => (
               <span key={item.comparisonKey}>{periodColumnComparisonLabel(period, item)}</span>
             ))}
           </div>
-          <ActivityDriverRow amount={amount} comparisons={comparisons} config={config} count={count} />
+          <ActivityDriverRow amount={amount} comparisons={shownComparisons} config={config} count={count} />
         </div>
       </div>
 
@@ -1078,31 +1101,20 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
 
   function renderActivityDashboard(kind: ActivityDashboardKind) {
     const config = ACTIVITY_DASHBOARDS[kind];
-    const latestLabels = kind === "parking" ? ["parkering"] : ["soling"];
 
     return (
-      <>
-        <StatusSection title={config.title} hideHeader>
-          <div className="status-period-grid">
-            {overview.statusPeriods.map((period) => (
-              <ActivityPeriodCard
-                period={period}
-                config={config}
-                nextParkingImportText={nextParkingImportText}
-                key={`${config.kind}-${period.key}`}
-              />
-            ))}
-          </div>
-        </StatusSection>
-        <div className="status-info-grid">
-          <OverviewInfoPanel title={`Siste ${config.title.toLowerCase()}`}>
-            <LatestEventList items={latestByLabel(overview.latestItems, latestLabels)} itemTitle={itemTitle} />
-          </OverviewInfoPanel>
-          <OverviewInfoPanel title="Arbeidsflater">
-            <DashboardActionGrid view={kind === "parking" ? "parkering" : "soling"} />
-          </OverviewInfoPanel>
+      <StatusSection title={config.title} hideHeader>
+        <div className="status-period-grid">
+          {overview.statusPeriods.map((period) => (
+            <ActivityPeriodCard
+              period={period}
+              config={config}
+              nextParkingImportText={nextParkingImportText}
+              key={`${config.kind}-${period.key}`}
+            />
+          ))}
         </div>
-      </>
+      </StatusSection>
     );
   }
 

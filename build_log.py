@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1485")
+APP_BUILD = os.getenv("APP_BUILD", "1486")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1486",
+        "date": "08.07.2026",
+        "headline": "Like dashboardkort",
+        "title": "Fibaro10 gjør parkering- og solingdashboard like omsetningsdashboardet",
+        "description": (
+            "Build 1486 gjør dashboardene for parkering og soling mer konsekvente med omsetning. De bruker nå samme "
+            "firekort-struktur, samme interne oppbygning og samme kompakte sammenligningsflate, med antall som hovedtall."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/OverviewPage.tsx: bygger parkering- og solingkortene med samme struktur som omsetningskortene.",
+            "desktop_v2/src/styles/status-periods.css: fjerner lavere spesialhøyde for aktivitetskort og legger til omsetningsmarkør i kortstripen.",
+            "build_log.py: dokumenterer build 1486.",
+        ],
+        "request": "Du ba om å endre dashboard parkering og soling så de blir som omsetning.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Parkering og soling viser nå bare de fire periodekortene, slik omsetningsdashboardet gjør.",
+            "De ekstra boksene med siste hendelse og arbeidsflater er tatt bort fra disse to dashboardene.",
+            "Kortene har samme høyde og rytme som omsetning, inkludert informasjonsstripe under toppfeltet.",
+            "Antall er fortsatt hovedtall, mens omsetning og snitt vises som støtteinformasjon i kortet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1485",

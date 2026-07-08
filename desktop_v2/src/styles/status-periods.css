@@ -49,11 +49,6 @@
   background: var(--period-accent);
 }
 
-.status-period-card.revenue-period-card.activity-period-card,
-.status-overview-page .status-period-card.revenue-period-card.activity-period-card {
-  min-height: 248px;
-}
-
 .revenue-period-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -170,6 +165,10 @@
 
 .revenue-period-split-labels i.tone-parking {
   background: var(--domain-parking);
+}
+
+.revenue-period-split-labels i.tone-revenue {
+  background: var(--domain-revenue);
 }
 
 .revenue-period-compare-grid {
