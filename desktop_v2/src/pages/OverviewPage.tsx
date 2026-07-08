@@ -577,34 +577,18 @@ function RevenuePeriodSplit({ period }: { period: StatusPeriod }) {
   );
 }
 
-function LogoSunIcon() {
-  return (
-    <svg className="revenue-logo-sun" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
-      <circle cx="24" cy="24" r="12.5" />
-      <path d="M24 4.5v8" />
-      <path d="M24 35.5v8" />
-      <path d="M4.5 24h8" />
-      <path d="M35.5 24h8" />
-      <path d="M10.2 10.2l5.6 5.6" />
-      <path d="M32.2 32.2l5.6 5.6" />
-      <path d="M37.8 10.2l-5.6 5.6" />
-      <path d="M15.8 32.2l-5.6 5.6" />
-    </svg>
-  );
-}
-
-function LogoParkingIcon() {
-  return (
-    <svg className="revenue-logo-parking" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
-      <path d="M16 40V8h13.5C36 8 40 12.2 40 18.2S36 28.5 29.5 28.5H23" />
-    </svg>
-  );
+function LogoSymbolIcon({ kind }: { kind: "sun" | "parking" }) {
+  const src =
+    kind === "sun"
+      ? "/static/lilletorget-symbol-sun.png?v=20260708-dashboard-icons"
+      : "/static/lilletorget-symbol-parking.png?v=20260708-dashboard-icons";
+  return <img className={`revenue-logo-symbol revenue-logo-symbol-${kind}`} src={src} alt="" aria-hidden="true" />;
 }
 
 function RevenueLineIcon({ line }: { line: RevenuePeriodLine }) {
   return (
     <span className={`revenue-driver-icon tone-${line.tone}`}>
-      {line.key === "soling" ? <LogoSunIcon /> : <LogoParkingIcon />}
+      {line.key === "soling" ? <LogoSymbolIcon kind="sun" /> : <LogoSymbolIcon kind="parking" />}
     </span>
   );
 }
@@ -775,7 +759,7 @@ function ActivityDriverRow({
     <div className={`revenue-driver-row tone-${config.tone}`}>
       <div className="revenue-driver-line">
         <span className={`revenue-driver-icon tone-${config.tone}`}>
-          {config.kind === "sun2" ? <LogoSunIcon /> : <LogoParkingIcon />}
+          {config.kind === "sun2" ? <LogoSymbolIcon kind="sun" /> : <LogoSymbolIcon kind="parking" />}
         </span>
         <div>
           <strong>{config.lineLabel}</strong>

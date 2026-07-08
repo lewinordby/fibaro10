@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1482")
+APP_BUILD = os.getenv("APP_BUILD", "1483")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1483",
+        "date": "08.07.2026",
+        "headline": "Logoekte kortikoner",
+        "title": "Fibaro10 dashboard bruker sol og P hentet direkte fra Lilletorget-logoen",
+        "description": (
+            "Build 1483 bytter ut de håndtegnede sol- og parkeringsikonene i dashboardkortene med egne symbolassets "
+            "generert direkte fra Lilletorget-logoen. Dermed brukes samme farge, geometri og visuelle uttrykk som i logoen."
+        ),
+        "applications": [
+            "static/lilletorget-symbol-sun.png: nytt solsymbol hentet fra de gyldne pikslene i logoens mark.",
+            "static/lilletorget-symbol-parking.png: nytt P-symbol hentet fra den mørkeblå P-en i logoens mark.",
+            "desktop_v2/src/pages/OverviewPage.tsx: bruker de nye logoavledede symbolene på soling- og parkeringsradene.",
+            "desktop_v2/src/styles/status-periods.css: fjerner gamle SVG-regler og tilpasser størrelsen på de nye symbolene.",
+            "build_log.py: dokumenterer build 1483.",
+        ],
+        "request": "Du ba om at symbolene for soling og parkering på kortene skulle hentes nøyaktig fra logoen.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Solikonet er ikke lenger en egen SVG-tegning, men et asset-uttrekk fra logoens sol.",
+            "P-ikonet er hentet fra logoens P i stedet for å være fontbasert eller tegnet separat.",
+            "De nye ikonene brukes både på omsetningskortene og på antallkortene for soling og parkering.",
+            "Gamle CSS-regler for SVG-stroke er fjernet fra dashboardkortene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1482",

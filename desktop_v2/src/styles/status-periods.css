@@ -382,26 +382,21 @@
   --driver-color: var(--domain-parking);
 }
 
-.revenue-logo-sun {
-  width: 18px;
-  height: 18px;
-  overflow: visible;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 3.4;
+.revenue-logo-symbol {
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
 }
 
-.revenue-logo-parking {
-  width: 17px;
-  height: 18px;
-  overflow: visible;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 4.4;
+.revenue-logo-symbol-sun {
+  width: 22px;
+  height: 20px;
+}
+
+.revenue-logo-symbol-parking {
+  width: 15px;
+  height: 22px;
 }
 
 .revenue-driver-line strong {
