@@ -3,20 +3,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  min-height: 42px;
-  padding: 0 2px 10px;
+  min-height: 52px;
+  padding: 2px 2px 14px;
   border-bottom: 1px solid var(--line);
 }
 
 .status-summary-state {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 9px;
 }
 
 .status-summary-state span,
 .status-summary-updated span {
-  color: var(--muted);
+  color: var(--text-label);
   font-size: 11px;
   font-weight: 760;
   line-height: 1;
@@ -25,7 +25,7 @@
 
 .status-summary-state strong {
   color: var(--ink);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 780;
 }
 
@@ -54,12 +54,14 @@
   display: inline-flex;
   align-items: baseline;
   gap: 7px;
-  padding: 5px 9px;
+  min-height: 32px;
+  padding: 5px 10px;
   color: var(--text-body);
   text-decoration: none;
   border: 1px solid var(--border-control);
   border-radius: 999px;
   background: var(--surface);
+  box-shadow: var(--shadow-xs);
 }
 
 .status-summary-source-pill:hover {
@@ -112,19 +114,19 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  min-height: 38px;
-  padding: 7px 12px;
+  min-height: 42px;
+  padding: 8px 12px;
   background: var(--surface);
-  border: 1px solid var(--border-panel);
-  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--line));
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
 }
 
 .status-strip-title {
   flex: 0 0 110px;
   color: var(--ink-soft);
-  font-size: 13px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .status-strip-items {
@@ -141,12 +143,22 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  color: var(--ink-soft);
+  color: var(--text-label);
   font-size: 11px;
 }
 
 .status-strip-item .ant-tag {
   margin-inline-end: 0;
+}
+
+.status-strip .ant-tag {
+  height: 22px;
+  min-width: 42px;
+  padding-inline: 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 20px;
 }
 
 .status-strip-state-group {
@@ -262,20 +274,21 @@
 }
 
 .status-info-card {
-  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 12%, var(--line));
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
 }
 
 .status-info-card .ant-card-head {
   min-height: 44px;
+  background: var(--panel-header-bg);
   border-bottom-color: var(--border-panel-soft);
 }
 
 .status-info-card .ant-card-head-title {
-  color: var(--ink-soft);
-  font-size: 14px;
-  font-weight: 760;
+  color: var(--text-body);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .status-info-card .ant-card-body {
@@ -284,8 +297,13 @@
 
 .status-event-list .ant-list-item,
 .status-source-list .ant-list-item {
-  padding: 11px 0;
+  padding: 12px 0;
   border-block-end-color: var(--border-panel-soft);
+}
+
+.status-event-list .ant-list-item:hover,
+.status-source-list .ant-list-item:hover {
+  background: linear-gradient(90deg, var(--surface-hover), transparent);
 }
 
 .status-event-list .ant-list-item-meta-title,

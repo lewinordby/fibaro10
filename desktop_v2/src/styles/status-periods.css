@@ -5,8 +5,7 @@
   align-items: stretch;
 }
 
-.status-period-card.revenue-period-card,
-.status-overview-page .status-period-card.revenue-period-card {
+.status-period-card.revenue-period-card {
   --period-sun-share: 50%;
   --period-accent: linear-gradient(
     90deg,
@@ -42,10 +41,6 @@
 
 .status-period-card.revenue-period-card::before {
   height: 4px;
-  background: var(--period-accent);
-}
-
-.status-dashboard-page.tone-revenue .status-period-card.revenue-period-card::before {
   background: var(--period-accent);
 }
 

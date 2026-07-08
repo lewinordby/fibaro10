@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1486")
+APP_BUILD = os.getenv("APP_BUILD", "1487")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1487",
+        "date": "08.07.2026",
+        "headline": "CSS-konsolidering",
+        "title": "Fibaro10 optimaliserer status- og mørktema-CSS",
+        "description": (
+            "Build 1487 rydder CSS etter dashboardendringene. Statusvisningene bruker nå færre separate CSS-lag, "
+            "mørkt tema har mer felles fargetokens, og gamle periodkort-regler som ikke lenger brukes er fjernet."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/OverviewPage.tsx: fjerner import av et separat status-refinement-lag.",
+            "desktop_v2/src/styles/status-widgets.css: tar inn de faktiske status-widget-verdiene direkte.",
+            "desktop_v2/src/styles/status-overview.css: fjerner ubrukte regler for gamle ikke-revenue periodkort.",
+            "desktop_v2/src/styles/status-periods.css: forenkler selectors for dagens felles periodekort.",
+            "desktop_v2/src/styles/dark-theme.css: tokeniserer gjentatte mørktema-farger og fjerner døde periodkort-overstyringer.",
+            "build_log.py: dokumenterer build 1487.",
+        ],
+        "request": "Du ba om å optimalisere CSS på nytt.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Slettet status-refinements.css og flyttet relevante regler inn i status-widgets.css.",
+            "Reduserte antall CSS-filer som OverviewPage laster fra 5 til 4 for statusdelen.",
+            "Fjernet ubrukte selectors for gamle status-periodkort som ikke lenger finnes i dashboardene.",
+            "Reduserte hardkodede CSS-farger i audit fra 282 til 244 ved å bruke felles mørktema-tokens.",
+            "Reduserte status-overview.css fra 422 til 397 linjer og status-periods.css fra 649 til 644 linjer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1486",

@@ -217,31 +217,6 @@
   background: linear-gradient(180deg, var(--surface), var(--dashboard-muted-tint) 78%);
 }
 
-.status-overview-page .status-period-card:not(.revenue-period-card) {
-  min-height: 312px;
-}
-
-.status-dashboard-page .status-period-card:not(.revenue-period-card) {
-  border-color: var(--dashboard-card-border);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2%, var(--surface)) 0%, var(--surface) 36%, var(--surface-panel-end) 100%);
-  box-shadow: var(--shadow-sm);
-}
-
-.status-dashboard-page .status-period-card:not(.revenue-period-card)::before {
-  height: 2px;
-  background: color-mix(in srgb, var(--tone-color) 86%, var(--surface));
-}
-
-.status-dashboard-page.tone-revenue .status-period-card:not(.revenue-period-card)::before {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--domain-sun2) 82%, var(--surface)),
-    color-mix(in srgb, var(--domain-parking) 82%, var(--surface)),
-    color-mix(in srgb, var(--domain-revenue) 82%, var(--surface))
-  );
-}
-
 .status-dashboard-page .status-period-card:hover {
   border-color: var(--dashboard-card-border-hover);
   box-shadow: var(--shadow-md);

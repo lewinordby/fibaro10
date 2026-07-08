@@ -26,7 +26,6 @@ import { queryKeys } from "../queryKeys";
 import "../styles/status.css";
 import "../styles/status-widgets.css";
 import "../styles/status-periods.css";
-import "../styles/status-refinements.css";
 import "../styles/status-overview.css";
 
 type DashboardView = "omsetning" | "parkering" | "soling" | "drift";
