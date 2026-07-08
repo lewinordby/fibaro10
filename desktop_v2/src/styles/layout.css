@@ -19,7 +19,7 @@ body,
 
 body {
   background:
-    linear-gradient(180deg, var(--surface-panel-end) 0%, var(--surface-page) 260px),
+    linear-gradient(180deg, #fbfdff 0%, var(--surface-page) 320px),
     var(--surface-page);
   color: var(--ink);
 }
@@ -41,13 +41,15 @@ a {
 .ant-card {
   border-color: var(--border-panel);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
 }
 
 .ant-card-head {
   min-height: 38px;
   padding: 0 12px;
-  background: var(--panel-header-bg);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), var(--surface-panel-end));
   border-bottom-color: var(--border-panel-soft);
 }
 
@@ -65,6 +67,19 @@ a {
 
 .ant-card-body {
   padding: 12px;
+}
+
+.ant-card-hoverable {
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.ant-card-hoverable:hover {
+  border-color: color-mix(in srgb, var(--active-module-color) 20%, var(--line-strong));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 .ant-btn:not(.ant-btn-text):not(.ant-btn-link) {
@@ -170,12 +185,13 @@ a {
 
 .module-view-switcher {
   max-width: 100%;
-  padding: 3px;
+  padding: 4px;
   overflow-x: auto;
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 3%, var(--surface)), var(--surface-muted));
   border: 1px solid var(--border-panel);
   border-radius: var(--radius-md);
-  box-shadow: 0 3px 12px var(--shadow-ink-faint-color);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
 .module-view-switcher .ant-segmented-group {
@@ -185,15 +201,16 @@ a {
 .module-view-switcher .ant-segmented-item {
   color: var(--text-label);
   font-size: 12px;
-  font-weight: 720;
+  font-weight: 740;
   white-space: nowrap;
 }
 
 .module-view-switcher .ant-segmented-item-selected {
   color: var(--surface);
-  background: color-mix(in srgb, var(--active-module-color) 90%, var(--ink));
-  font-weight: 780;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--active-module-color) 22%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 92%, #ffffff), color-mix(in srgb, var(--active-module-color) 88%, var(--ink)));
+  font-weight: 800;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--active-module-color) 22%, transparent);
 }
 
 .top-view-switcher {
@@ -205,6 +222,8 @@ a {
   font-size: 12px;
   border: 1px solid var(--border-panel-soft);
   border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  font-variant-numeric: tabular-nums;
 }
 
 .ant-table-wrapper .ant-table-thead > tr > th {
@@ -213,7 +232,8 @@ a {
   font-weight: 850;
   letter-spacing: 0;
   text-transform: uppercase;
-  background: var(--surface-muted);
+  background:
+    linear-gradient(180deg, var(--surface-muted), color-mix(in srgb, var(--surface-muted) 70%, var(--surface)));
   border-bottom-color: var(--border-panel);
 }
 
@@ -231,8 +251,12 @@ a {
   border-bottom-color: var(--border-panel-soft);
 }
 
+.ant-table-wrapper .ant-table-tbody > tr:nth-child(even) > td {
+  background: color-mix(in srgb, var(--surface-muted) 34%, var(--surface));
+}
+
 .ant-table-wrapper .ant-table-tbody > tr:hover > td {
-  background: var(--surface-hover);
+  background: color-mix(in srgb, var(--active-module-color) 5%, var(--surface-hover));
 }
 
 .ant-table-wrapper .ant-table-tbody > tr:last-child > td {

@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1476")
+APP_BUILD = os.getenv("APP_BUILD", "1477")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1477",
+        "date": "08.07.2026",
+        "headline": "Hovedappen får visuell opprydding",
+        "title": "Fibaro10 hovedapp strammer opp appskall, kort, tabeller, dashboard og mørkt tema",
+        "description": (
+            "Build 1477 er en kontrollert designopprydding i hovedappen. Endringen gjør appen roligere og mer "
+            "systematisk ved å justere globale tokens, toppmeny, venstremeny, kort, tabeller, dashboardrammer og "
+            "graf-tema. Funksjonslogikk er ikke endret."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/tokens.css: justerer bakgrunnsflate og skyggetokens for et roligere grunnuttrykk.",
+            "desktop_v2/src/styles/layout.css: forbedrer Ant Design-kort, segmenterte menyer og tabeller globalt.",
+            "desktop_v2/src/styles/app-shell.css: strammer opp venstremeny, toppmeny, aktivmarkering, profil og buildfelt.",
+            "desktop_v2/src/styles/module-content.css og module-metrics.css: gir felles kort og nøkkeltall bedre hierarki.",
+            "desktop_v2/src/styles/status-overview.css og status-periods.css: fjerner unødvendig dashboardramme og polerer periodekort.",
+            "desktop_v2/src/styles/dark-theme.css: matcher endringene i mørkt tema og forbedrer kontrast.",
+            "desktop_v2/src/chartTheme.ts: gjør grafaksene og tooltipene mer lesbare, spesielt i mørkt tema.",
+            "build_log.py: dokumenterer build 1477.",
+        ],
+        "request": "Du ba om en gjennomgang av Fibaro10 hovedappen og forbedring av designet.",
+        "work_duration": "ca. 50 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Venstremeny og toppmeny har fått mer konsekvent kontrast, aktivmarkering og dybde.",
+            "Kort og paneler har fått roligere bakgrunn, mindre hard rammestøy og mer konsistent skyggebruk.",
+            "Dashboardets skjulte seksjoner tegner ikke lenger en ekstra ytre ramme rundt periodekortene.",
+            "Tabeller har fått bedre scanbarhet med tabulære tall, diskret zebra og bedre hover.",
+            "Mørkt tema er justert slik at samme komponenter har bedre kontrast og mindre slitasje.",
+            "Graf-temaet har fått bedre akse-/tooltip-lesbarhet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1476",

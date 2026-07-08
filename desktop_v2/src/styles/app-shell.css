@@ -7,13 +7,14 @@
   top: 0;
   height: 100vh;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--active-module-color) 22%, var(--line-strong)) transparent;
   transition: all 0.18s ease;
-  border-right: 1px solid var(--border-panel);
+  border-right: 1px solid color-mix(in srgb, var(--active-module-color) 7%, var(--border-panel));
   background:
-    linear-gradient(180deg, rgba(210, 151, 19, 0.13) 0, rgba(210, 151, 19, 0) 92px),
-    radial-gradient(circle at 24px 20px, rgba(37, 99, 235, 0.08), transparent 130px),
-    linear-gradient(180deg, #fffdf8 0%, var(--surface-muted) 100%) !important;
-  box-shadow: 7px 0 22px rgba(6, 22, 61, 0.045);
+    linear-gradient(180deg, color-mix(in srgb, var(--domain-sun2) 8%, #ffffff) 0, rgba(255, 255, 255, 0) 112px),
+    linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%) !important;
+  box-shadow: 8px 0 24px rgba(15, 23, 42, 0.045);
 }
 
 .main-menu-hidden .app-sider {
@@ -41,10 +42,10 @@
 }
 
 .sider-brand {
-  min-height: 78px;
-  margin: 12px 14px 10px;
-  padding: 4px 0 13px;
-  border-bottom: 1px solid rgba(7, 26, 69, 0.1);
+  min-height: 76px;
+  margin: 12px 12px 9px;
+  padding: 4px 2px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--domain-sun2) 18%, rgba(7, 26, 69, 0.08));
 }
 
 .sider-brand:hover {
@@ -69,7 +70,7 @@
   display: grid;
   align-content: start;
   flex: 1 1 auto;
-  gap: 9px;
+  gap: 10px;
   padding: 7px 8px 10px;
 }
 
@@ -79,10 +80,10 @@
 }
 
 .sider-nav-label {
-  padding: 5px 10px 3px;
+  padding: 6px 10px 3px;
   color: var(--text-subtle);
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 820;
   line-height: 1;
   text-transform: uppercase;
 }
@@ -98,7 +99,7 @@
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
-  min-height: 34px;
+  min-height: 36px;
   padding: 0 9px;
   color: var(--text-body);
   text-decoration: none;
@@ -115,17 +116,18 @@
 
 .sider-nav-item:hover {
   color: var(--ink);
-  background: color-mix(in srgb, var(--menu-item-color) 8%, var(--surface));
-  border-color: color-mix(in srgb, var(--menu-item-color) 16%, transparent);
+  background: color-mix(in srgb, var(--menu-item-color) 7%, #ffffff);
+  border-color: color-mix(in srgb, var(--menu-item-color) 15%, var(--line-soft));
 }
 
 .sider-nav-item.active {
   color: var(--ink);
-  background: color-mix(in srgb, var(--menu-item-color) 13%, var(--surface));
-  border-color: color-mix(in srgb, var(--menu-item-color) 18%, var(--border-panel));
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--menu-item-color) 16%, #ffffff), color-mix(in srgb, var(--menu-item-color) 7%, #ffffff));
+  border-color: color-mix(in srgb, var(--menu-item-color) 22%, var(--border-panel));
   box-shadow:
     inset 3px 0 0 var(--menu-item-color),
-    0 5px 14px rgba(7, 26, 69, 0.055);
+    0 6px 16px rgba(15, 23, 42, 0.07);
   font-weight: 830;
 }
 
@@ -161,9 +163,11 @@
   padding: 10px 11px;
   color: var(--text-body);
   text-decoration: none;
-  border: 1px solid var(--border-panel);
+  border: 1px solid color-mix(in srgb, var(--active-module-color) 9%, var(--border-panel));
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.68);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), color-mix(in srgb, var(--active-module-color) 3%, var(--surface-muted)));
+  box-shadow: var(--shadow-xs);
 }
 
 .sider-build-link:hover {
@@ -193,23 +197,23 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: 54px;
-  padding: 0 16px;
+  height: 56px;
+  padding: 0 17px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--active-module-color) 7%, var(--surface)), rgba(255, 255, 255, 0.94) 30%),
-    rgba(255, 255, 255, 0.92);
-  border-bottom: 1px solid var(--line);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
-  backdrop-filter: blur(14px);
+    linear-gradient(90deg, color-mix(in srgb, var(--active-module-color) 6%, #ffffff), rgba(255, 255, 255, 0.96) 34%),
+    rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid color-mix(in srgb, var(--active-module-color) 8%, var(--line));
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.045);
+  backdrop-filter: blur(18px) saturate(1.08);
 }
 
 .app-header::before {
   position: absolute;
   inset: 0 0 auto;
-  height: 2px;
+  height: 3px;
   content: "";
-  background: linear-gradient(90deg, #d29713, var(--active-module-color), var(--domain-parking));
-  opacity: 0.78;
+  background: linear-gradient(90deg, var(--domain-sun2), var(--active-module-color), var(--domain-parking));
+  opacity: 0.86;
 }
 
 .app-header-left {
@@ -228,12 +232,12 @@
 
 .main-menu-toggle {
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 35px;
+  height: 35px;
   color: color-mix(in srgb, var(--active-module-color) 66%, var(--text-label));
   border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .main-menu-toggle:hover {
@@ -251,11 +255,13 @@
   max-width: 210px;
   padding: 4px 8px 4px 5px;
   color: var(--text-body);
+  border: 1px solid transparent;
   border-radius: 999px;
 }
 
 .profile-button:hover {
   color: var(--ink) !important;
+  border-color: var(--border-control) !important;
   background: var(--surface-soft) !important;
 }
 

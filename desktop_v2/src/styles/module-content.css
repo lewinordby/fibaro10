@@ -503,17 +503,21 @@
 .chart-card,
 .table-card,
 .summary-card {
-  border-color: var(--border-panel);
+  border-color: color-mix(in srgb, var(--active-module-color) 5%, var(--border-panel));
   border-radius: var(--radius-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), var(--surface-panel-end) 180px),
+    var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .work-card .ant-card-head,
 .chart-card .ant-card-head,
 .table-card .ant-card-head {
-  min-height: 44px;
-  background: var(--panel-header-bg);
+  min-height: 42px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 2.5%, var(--surface)), var(--surface-panel-end));
   border-bottom-color: var(--border-panel-soft);
 }
 
@@ -544,7 +548,7 @@
   flex-direction: column;
   gap: 4px;
   min-height: 50px;
-  padding: 7px 9px;
+  padding: 8px 10px;
 }
 
 .summary-card strong {

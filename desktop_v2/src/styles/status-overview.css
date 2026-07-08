@@ -127,11 +127,15 @@
   border: 1px solid var(--dashboard-panel-border);
   border-radius: 10px;
   background: var(--dashboard-panel-bg);
-  box-shadow: 0 5px 18px rgba(15, 23, 42, 0.028);
+  box-shadow: var(--shadow-sm);
 }
 
 .status-section--no-head {
   gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .status-section-head {
@@ -221,7 +225,7 @@
   border-color: var(--dashboard-card-border);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2%, var(--surface)) 0%, var(--surface) 36%, var(--surface-panel-end) 100%);
-  box-shadow: 0 7px 20px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 .status-dashboard-page .status-period-card:not(.revenue-period-card)::before {
@@ -240,7 +244,7 @@
 
 .status-dashboard-page .status-period-card:hover {
   border-color: var(--dashboard-card-border-hover);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
 

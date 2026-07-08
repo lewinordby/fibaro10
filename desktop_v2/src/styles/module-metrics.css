@@ -12,10 +12,11 @@
   position: relative;
   overflow: hidden;
   height: 88px;
-  border: 1px solid var(--border-panel);
+  border: 1px solid color-mix(in srgb, var(--tone-color) 9%, var(--border-panel));
   border-radius: var(--radius-md);
-  background: var(--panel-header-bg);
-  box-shadow: var(--shadow-xs);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 3%, var(--surface)), var(--surface-panel-end));
+  box-shadow: var(--shadow-sm);
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
@@ -26,8 +27,9 @@
 .metric-card::before {
   position: absolute;
   inset: 0 0 auto;
-  height: 2px;
+  height: 3px;
   background: var(--tone-color);
+  opacity: 0.92;
   content: "";
 }
 
@@ -56,7 +58,7 @@
   overflow: hidden;
   color: var(--text-label);
   font-size: 10px;
-  font-weight: 760;
+  font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -86,7 +88,7 @@
   overflow: hidden;
   color: var(--ink);
   font-size: 16.5px;
-  font-weight: 780;
+  font-weight: 800;
   line-height: 1.05;
   letter-spacing: 0;
   text-overflow: ellipsis;

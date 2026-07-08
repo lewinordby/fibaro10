@@ -13,12 +13,12 @@ const lightChartColors = {
 
 const darkChartColors = {
   tooltipBackground: "rgba(15,23,42,0.98)",
-  tooltipBorder: "#64748b",
-  mutedText: "#d7dee8",
-  axisText: "#cbd5e1",
-  axisLine: "#64748b",
-  grid: "rgba(148,163,184,0.3)",
-  gridSoft: "rgba(148,163,184,0.2)",
+  tooltipBorder: "#748196",
+  mutedText: "#dce4ef",
+  axisText: "#d3dce8",
+  axisLine: "#748196",
+  grid: "rgba(148,163,184,0.26)",
+  gridSoft: "rgba(148,163,184,0.17)",
 } as const;
 
 const lightSeriesPalette = [
@@ -114,8 +114,8 @@ export function chartTooltip() {
     borderWidth: 1,
     textStyle: { color: chartColors.text, fontSize: 12 },
     extraCssText: isDarkScreenTheme()
-      ? "box-shadow:0 18px 38px rgba(0,0,0,.38);border-radius:8px;"
-      : "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:8px;",
+      ? "box-shadow:0 18px 38px rgba(0,0,0,.38);border-radius:7px;"
+      : "box-shadow:0 12px 28px rgba(15,23,42,.12);border-radius:7px;",
   };
 }
 
@@ -160,7 +160,7 @@ export function chartAxisLine() {
 }
 
 export function chartAxisLabel(extra: Record<string, unknown> = {}) {
-  return { color: chartColors.axisText, fontSize: 11, ...extra };
+  return { color: chartColors.axisText, fontSize: 11, fontWeight: 560, ...extra };
 }
 
 export function chartSplitLine(color: string = chartColors.grid) {

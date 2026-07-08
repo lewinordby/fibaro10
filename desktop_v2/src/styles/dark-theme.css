@@ -23,7 +23,7 @@
 }
 
 .app-shell.theme-dark {
-  --ink: #e8edf3;
+  --ink: #eef3f8;
   --ink-soft: #d6dde6;
   --muted: #a0a9b5;
   --muted-soft: #7f8895;
@@ -33,12 +33,12 @@
   --border-control: #3b4350;
   --border-panel: #303742;
   --border-panel-soft: #262c36;
-  --surface-page: #101217;
-  --surface: #191c22;
+  --surface-page: #0f1116;
+  --surface: #181c23;
   --surface-soft: #13161b;
-  --surface-raised: #20242b;
-  --surface-muted: #171a20;
-  --surface-hover: #272c35;
+  --surface-raised: #20252d;
+  --surface-muted: #161a21;
+  --surface-hover: #262c35;
   --surface-panel-end: #171a20;
   --panel-header-bg: linear-gradient(180deg, #20242b, #191c22);
   --line-muted: #252b34;
@@ -78,8 +78,7 @@
   --dark-red-bg: #321e22;
   color: var(--text-body);
   background:
-    radial-gradient(circle at 84% -10%, color-mix(in srgb, var(--active-module-color) 6%, transparent), transparent 340px),
-    linear-gradient(180deg, #0d0f13 0, #11141a 260px, var(--surface-page));
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, #0c0e12) 0, #11141a 260px, var(--surface-page));
 }
 
 .app-shell.theme-dark .ant-layout {
@@ -89,7 +88,7 @@
 
 .app-shell.theme-dark .app-content {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.016), transparent 130px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 150px),
     var(--surface-page);
 }
 
@@ -107,9 +106,9 @@
 
 .app-shell.theme-dark .app-header {
   background:
-    linear-gradient(90deg, #0d0f13, #141820 54%, color-mix(in srgb, var(--active-module-color) 6%, #141820));
+    linear-gradient(90deg, #0c0f14, #141820 54%, color-mix(in srgb, var(--active-module-color) 7%, #141820));
   border-bottom-color: rgba(255, 255, 255, 0.07);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
   backdrop-filter: none;
 }
 
@@ -147,9 +146,10 @@
 }
 
 .app-shell.theme-dark .module-view-switcher {
-  background: rgba(255, 255, 255, 0.04);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, rgba(255, 255, 255, 0.045)), rgba(255, 255, 255, 0.028));
   border-color: rgba(255, 255, 255, 0.09);
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .app-shell.theme-dark .module-view-switcher .ant-segmented-item {
@@ -162,7 +162,8 @@
 
 .app-shell.theme-dark .module-view-switcher .ant-segmented-item-selected {
   color: var(--ink);
-  background: color-mix(in srgb, var(--active-module-color) 14%, #242832);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 20%, #2a303a), color-mix(in srgb, var(--active-module-color) 12%, #20242b));
   box-shadow:
     inset 0 -2px 0 color-mix(in srgb, var(--active-module-color) 82%, #ffffff),
     0 5px 14px rgba(0, 0, 0, 0.2);
@@ -361,8 +362,12 @@
   border-bottom-color: var(--line-soft);
 }
 
+.app-shell.theme-dark .ant-table-wrapper .ant-table-tbody > tr:nth-child(even) > td {
+  background: color-mix(in srgb, var(--surface-raised) 36%, var(--surface)) !important;
+}
+
 .app-shell.theme-dark .ant-table-wrapper .ant-table-tbody > tr:hover > td {
-  background: #22262e !important;
+  background: color-mix(in srgb, var(--active-module-color) 7%, var(--surface-hover)) !important;
 }
 
 .app-shell.theme-dark .ant-table-wrapper .ant-table-row-selected > td {
@@ -421,6 +426,12 @@
     var(--surface) !important;
   border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 10%, var(--border-panel)) !important;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.app-shell.theme-dark .status-section--no-head {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .app-shell.theme-dark .dashboard-action:hover,
