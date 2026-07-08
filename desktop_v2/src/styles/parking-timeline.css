@@ -73,7 +73,7 @@
 
 .parking-timeline-legend i.kind-ongoing,
 .parking-session-block.kind-ongoing {
-  background: #1e40af;
+  background: color-mix(in srgb, var(--domain-parking) 76%, var(--ink));
 }
 
 .parking-timeline-legend i.kind-unpaid,
@@ -95,9 +95,9 @@
 .parking-timeline-summary div {
   min-width: 0;
   padding: 8px 10px;
-  border: 1px solid #dbeafe;
-  border-radius: 6px;
-  background: var(--surface-hover);
+  background: var(--surface-muted);
+  border: 1px solid var(--line-muted);
+  border-radius: var(--radius-md);
 }
 
 .parking-timeline-summary span {
@@ -115,6 +115,7 @@
   color: var(--ink);
   font-size: 18px;
   font-weight: 820;
+  letter-spacing: 0;
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -163,7 +164,7 @@
 .parking-row-heading::after {
   flex: 1;
   height: 1px;
-  background: #dbeafe;
+  background: color-mix(in srgb, var(--domain-parking) 13%, var(--line));
   content: "";
 }
 
@@ -201,10 +202,10 @@
 .parking-occupancy-line {
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--border-control);
-  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--domain-parking) 12%, var(--border-control));
+  border-radius: var(--radius-md);
   background:
-    linear-gradient(90deg, rgba(37, 99, 235, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--domain-parking) 14%, transparent) 1px, transparent 1px),
     linear-gradient(180deg, var(--surface), var(--surface-muted));
   background-size: calc(100% / 24) 100%, 100% 100%;
 }
@@ -214,19 +215,19 @@
 }
 
 .parking-space-line.overflow {
-  border-color: #fecaca;
+  border-color: color-mix(in srgb, var(--domain-revenue) 22%, var(--line));
   background:
-    linear-gradient(90deg, rgba(220, 38, 38, 0.12) 1px, transparent 1px),
-    linear-gradient(180deg, #fffafa, #fef2f2);
+    linear-gradient(90deg, color-mix(in srgb, var(--domain-revenue) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--domain-revenue) 6%, var(--surface)));
   background-size: calc(100% / 24) 100%, 100% 100%;
 }
 
 .parking-occupancy-line {
   height: 52px;
-  border-color: #bfdbfe;
+  border-color: color-mix(in srgb, var(--domain-parking) 22%, var(--line));
   background:
-    linear-gradient(90deg, rgba(37, 99, 235, 0.16) 1px, transparent 1px),
-    linear-gradient(180deg, var(--surface-hover), #eff6ff);
+    linear-gradient(90deg, color-mix(in srgb, var(--domain-parking) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(180deg, var(--surface-hover), color-mix(in srgb, var(--domain-parking) 6%, var(--surface)));
   background-size: calc(100% / 24) 100%, 100% 100%;
 }
 
@@ -268,7 +269,7 @@
   border-radius: 999px;
   color: var(--surface);
   text-decoration: none;
-  opacity: 0.86;
+  opacity: 0.9;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
 }
 
@@ -307,27 +308,4 @@
   background: var(--surface-muted);
   border: 1px dashed var(--line-strong);
   border-radius: 6px;
-}
-
-
-
-/* Timeline-specific visual refinements. */
-.parking-timeline-summary div {
-  background: var(--surface-muted);
-  border-color: var(--line-muted);
-  border-radius: var(--radius-md);
-}
-
-.parking-timeline-summary strong {
-  letter-spacing: 0;
-}
-
-.parking-space-line,
-.parking-occupancy-line {
-  border-color: #d8e2ef;
-  border-radius: var(--radius-md);
-}
-
-.parking-session-block {
-  opacity: 0.9;
 }

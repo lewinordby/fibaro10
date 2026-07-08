@@ -153,8 +153,8 @@
   color: var(--muted);
   font-size: 11px;
   background: var(--surface-muted);
-  border: 1px solid var(--line-soft);
-  border-radius: 6px;
+  border: 1px solid var(--line-muted);
+  border-radius: var(--radius-md);
 }
 
 .elvia-import-metrics strong {
@@ -164,7 +164,7 @@
 }
 
 .elvia-import-card small {
-  color: #92400e;
+  color: color-mix(in srgb, var(--amber) 72%, var(--ink));
   font-size: 12px;
   line-height: 1.25;
   overflow-wrap: anywhere;
@@ -186,16 +186,19 @@
 }
 
 .elvia-table-card .ant-table-thead > tr > th {
-  color: var(--text-neutral);
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--text-label);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0;
   text-transform: uppercase;
-  background: #f9fafb;
+  background: var(--surface-muted);
+  border-bottom-color: var(--line);
 }
 
 .elvia-table-card .ant-table-tbody > tr > td {
   padding-top: 7px;
   padding-bottom: 7px;
+  border-bottom-color: var(--line-soft);
 }
 
 .elvia-reload-button {
@@ -220,26 +223,6 @@
   color: var(--text-panel-strong);
   font-size: 13px;
   font-weight: 800;
-}
-
-.elvia-import-metrics span {
-  background: var(--surface-muted);
-  border-color: var(--line-muted);
-  border-radius: var(--radius-md);
-}
-
-.elvia-table-card .ant-table-thead > tr > th {
-  color: var(--text-label);
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: 0;
-  text-transform: uppercase;
-  background: var(--surface-muted);
-  border-bottom-color: var(--line);
-}
-
-.elvia-table-card .ant-table-tbody > tr > td {
-  border-bottom-color: var(--line-soft);
 }
 
 .elvia-table-card .ant-table-tbody > tr:hover > td {
@@ -325,13 +308,13 @@
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: #f1e5cf;
+  background: color-mix(in srgb, var(--domain-sun2) 18%, var(--surface-muted));
 }
 
 .sunbed-power-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--domain-sun2), #b97821);
+  background: linear-gradient(90deg, var(--domain-sun2), color-mix(in srgb, var(--domain-sun2) 72%, var(--ink)));
 }
 
 @media (max-width: 1280px) {

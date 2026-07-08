@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1477")
+APP_BUILD = os.getenv("APP_BUILD", "1478")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1478",
+        "date": "08.07.2026",
+        "headline": "Hovedappens CSS ryddes og optimaliseres",
+        "title": "Fibaro10 hovedapp får mer strukturert CSS, færre overstyringer og mer token-basert styling",
+        "description": (
+            "Build 1478 rydder i CSS-laget i hovedappen etter designrunden. Vedlikeholdsstyling er skilt ut fra "
+            "den globale modulfilen, gamle dublettregler er slått sammen, og flere hardkodede farger er erstattet "
+            "med design-tokens slik at lyst og mørkt tema henger bedre sammen."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/module-content.css: fjerner vedlikeholdsspesifikk styling fra felles modul-CSS.",
+            "desktop_v2/src/styles/maintenance.css: ny egen CSS-fil for vedlikeholdsvisninger.",
+            "desktop_v2/src/main.tsx: importerer maintenance.css før dark-theme.css for riktig override-rekkefølge.",
+            "desktop_v2/src/styles/status.css, energy.css, records.css og status-comparison.css: fjerner reelle dubletter og samler gamle overstyringer.",
+            "desktop_v2/src/styles/parking-timeline.css, sun-timeline.css, status-overview.css og status-periods.css: rydder refinement-regler og bruker tokens for status- og domene-farger.",
+            "build_log.py: dokumenterer build 1478.",
+        ],
+        "request": "Du ba om opprydding og optimalisering av CSS i Fibaro10 hovedappen.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Felles module-content.css er redusert betydelig og inneholder ikke lenger vedlikeholdsflaten.",
+            "Vedlikeholds-CSS ligger nå i egen fil, men lastes før mørkt tema slik at temaoverstyringer fortsatt vinner.",
+            "Gamle dupliserte tabell-, status- og grafregler er slått sammen til én autoritativ regel per komponent.",
+            "Flere hardkodede blå, røde og gule farger er erstattet med eksisterende design-tokens.",
+            "CSS-parseren håndterer nå 32 stilark inkludert den nye vedlikeholdsfilen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1477",

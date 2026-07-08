@@ -312,15 +312,15 @@
 }
 
 .status-overview-page .status-summary-source-pill.ok strong {
-  color: #166534;
+  color: var(--green);
 }
 
 .status-overview-page .status-summary-source-pill.warn strong {
-  color: #92400e;
+  color: var(--amber);
 }
 
 .status-overview-page .status-summary-source-pill.bad strong {
-  color: #991b1b;
+  color: var(--red);
 }
 
 .status-overview-page .status-summary-source-pill strong,

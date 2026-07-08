@@ -195,7 +195,7 @@
 }
 
 .revenue-period-direction.negative {
-  color: #b91c1c;
+  color: var(--red);
 }
 
 .revenue-period-direction.neutral {
@@ -226,7 +226,7 @@
 }
 
 .revenue-period-delta.negative {
-  color: #b91c1c;
+  color: var(--red);
 }
 
 .revenue-period-delta.neutral {
@@ -475,7 +475,7 @@
 }
 
 .revenue-period-full-item em.negative {
-  color: #b91c1c;
+  color: var(--red);
 }
 
 .revenue-period-full-item em.neutral {

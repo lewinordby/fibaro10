@@ -16,13 +16,14 @@
 
 .sun-timeline-card .ant-card-head {
   min-height: 44px;
+  background: linear-gradient(180deg, var(--surface), var(--surface-panel-end));
   border-bottom-color: var(--line-soft);
 }
 
 .sun-timeline-card .ant-card-head-title {
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 760;
+  color: var(--text-panel-strong);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .sun-timeline-card .ant-card-extra {
@@ -289,19 +290,3 @@
   border: 1px dashed var(--line-strong);
   border-radius: 6px;
 }
-
-
-
-/* Timeline-specific visual refinements. */
-.sun-timeline-card .ant-card-head {
-  min-height: 44px;
-  background: linear-gradient(180deg, var(--surface), var(--surface-panel-end));
-  border-bottom-color: var(--line-soft);
-}
-
-.sun-timeline-card .ant-card-head-title {
-  color: var(--text-panel-strong);
-  font-size: 13px;
-  font-weight: 800;
-}
-
