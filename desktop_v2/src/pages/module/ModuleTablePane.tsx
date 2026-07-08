@@ -81,7 +81,7 @@ export function ModuleTablePane({
         size="small"
         columns={columns}
         dataSource={tableRows}
-        pagination={{ pageSize: 25, showSizeChanger: true }}
+        pagination={meta?.disablePagination ? false : { pageSize: 25, showSizeChanger: true }}
         scroll={{ x: "max-content" }}
         locale={{
           emptyText: query.trim() ? "Ingen treff for søket" : "Ingen rader å vise",

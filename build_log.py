@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1462")
+APP_BUILD = os.getenv("APP_BUILD", "1463")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1463",
+        "date": "08.07.2026",
+        "headline": "Parkeringer viser alle rader og kjøretøy",
+        "title": "Kjøretøyfelt og paginering er rettet på parkeringslisten",
+        "description": (
+            "Build 1463 retter Parkering/Parkeringer slik at kjøretøyfeltet faktisk fylles fra "
+            "kjøretøydetaljene, og fjerner tabellpagineringen på akkurat denne dagslisten. "
+            "Siden viser nå alle parkeringer for valgt dag samlet."
+        ),
+        "applications": [
+            "main.py: joiner kjøretøydetaljer på normalisert reg.nr, fjerner dagslimit og sender disablePagination for Parkeringer-tabellen.",
+            "desktop_v2/src/api.ts: utvider tabellmeta med disablePagination.",
+            "desktop_v2/src/pages/module/ModuleTablePane.tsx: respekterer disablePagination per tabell.",
+        ],
+        "request": "Det kom ingen data i feltet kjøretøy. Jeg ønsker også å ta bort pagingen akkurat på den siden da den alltid skal vise alle på en dag.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kjøretøyfeltet på Parkering/Parkeringer bruker nå samme normaliserte reg.nr som resten av parkeringsoppslagene.",
+            "API-et henter alle parkeringer for valgt dag i stedet for å begrense listen med Antall.",
+            "Tabellpagineringen er slått av kun for Parkering/Parkeringer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1462",

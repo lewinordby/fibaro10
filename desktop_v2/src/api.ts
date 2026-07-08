@@ -517,6 +517,7 @@ export type ModuleTable = {
     lastRow?: number;
     hasPrevious?: boolean;
     hasMore?: boolean;
+    disablePagination?: boolean;
   };
 };
 

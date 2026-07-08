@@ -22854,7 +22854,6 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 day_navigation = api_day_navigation(selected_parking_day, today)
                 plate_value = compact_plate(api_filter_value(params, "plate"))
                 status_value = api_filter_value(params, "status")
-                limit_value = api_filter_int(params, "limit", 250, 25, 1000)
                 session_conditions = [
                     ParkingSession.start_time >= selected_parking_start,
                     ParkingSession.start_time < selected_parking_end,
@@ -22866,9 +22865,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 session_stmt = (
                     select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
                     .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
-                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
                     .order_by(ParkingSession.start_time.desc())
-                    .limit(limit_value)
                     .where(*session_conditions)
                 )
                 parking_rows = (await session.execute(session_stmt)).all()
@@ -22879,7 +22877,6 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 filters = [
                     api_filter("plate", "Reg.nr", "text", plate_value, "Hele eller del av reg.nr"),
                     api_filter("status", "Status", "select", status_value, options=status_options),
-                    api_filter("limit", "Antall", "number", limit_value),
                 ]
                 cards = []
                 tables = [
@@ -22901,6 +22898,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             parking_row_api(row, vehicle, details, previous_stats=previous_stats.get(row.id), unifi_before_seconds=60)
                             for row, vehicle, details in parking_rows
                         ],
+                        meta={"disablePagination": True, "totalRows": len(parking_rows)},
                     )
                 ]
             elif view == "kjoretoy":
