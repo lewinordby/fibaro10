@@ -339,8 +339,10 @@ function renderOverview() {
   renderHero(periods);
   const grid = document.getElementById("periodGrid");
   if (!grid) return;
-  grid.innerHTML = periods.length
-    ? periods.map(renderPeriodCard).join("")
+  const detailPeriods = periods.filter((period) => period?.key !== "today");
+  grid.classList.toggle("period-grid-trio", detailPeriods.length === 3);
+  grid.innerHTML = detailPeriods.length
+    ? detailPeriods.map(renderPeriodCard).join("")
     : `<div class="empty">Ingen omsetningsperioder tilgjengelig.</div>`;
 }
 

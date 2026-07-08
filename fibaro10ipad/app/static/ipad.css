@@ -620,6 +620,10 @@ a {
   gap: 14px;
 }
 
+.period-grid.period-grid-trio .period-card:last-child {
+  grid-column: 1 / -1;
+}
+
 .period-card {
   position: relative;
   overflow: hidden;
@@ -1297,6 +1301,10 @@ a {
   .workspace-grid,
   .ops-grid {
     grid-template-columns: 1fr;
+  }
+
+  .period-grid.period-grid-trio .period-card:last-child {
+    grid-column: auto;
   }
 }
 

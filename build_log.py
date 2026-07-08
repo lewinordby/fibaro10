@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1473")
+APP_BUILD = os.getenv("APP_BUILD", "1474")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1474",
+        "date": "08.07.2026",
+        "headline": "iPad-oversikten fjerner dobbelt visning av dagen",
+        "title": "Fibaro10 iPad bruker toppkortet som dagens omsetningsflate og viser uke, måned og år under",
+        "description": (
+            "Build 1474 rydder i iPad-oversikten etter at dagens tall ble vist to ganger. Den sorte "
+            "toppflaten eier nå 'I dag', mens periodekortene under starter på uke, måned og år. "
+            "Dette gir mindre repetisjon og tydeligere informasjonsstruktur."
+        ),
+        "applications": [
+            "fibaro10ipad/app/static/ipad.js: filtrerer bort dagens periode fra detaljkortene etter at hero er rendret.",
+            "fibaro10ipad/app/static/ipad.css: legger inn en trio-layout der årskortet kan bruke full bredde når tre kort vises.",
+            "fibaro10ipad/app/main.py, docker-compose.qnap.yml og .env.qnap.example: oppdaterer iPad-build til 1474.",
+            "build_log.py: dokumenterer build 1474.",
+        ],
+        "request": "Du påpekte at innholdet i den øverste sorte boksen var det samme som boksen under.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Den sorte toppboksen er nå eneste visning av dagens tall.",
+            "Kortrekken under viser ikke lenger et eget 'I dag'-kort.",
+            "Uke, måned og år vises som detaljkort under toppflaten.",
+            "Layouten tilpasses når det bare er tre periodekort.",
+        ],
+    },
     {
         "version": "1",
         "build": "1473",

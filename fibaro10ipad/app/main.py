@@ -24,7 +24,7 @@ load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
 FIBARO10_APP_URL = os.getenv("FIBARO10_APP_URL", "http://192.168.20.218:8110").rstrip("/")
-APP_BUILD = os.getenv("FIBARO10_IPAD_APP_BUILD", os.getenv("APP_BUILD", "1473"))
+APP_BUILD = os.getenv("FIBARO10_IPAD_APP_BUILD", os.getenv("APP_BUILD", "1474"))
 APP_COMMIT = os.getenv("FIBARO10_IPAD_APP_COMMIT", os.getenv("APP_COMMIT", "unknown"))
 ASSET_VERSION = f"{APP_BUILD}-{APP_COMMIT[:7]}"
 
@@ -398,7 +398,7 @@ INDEX_HTML = f"""<!doctype html>
       </nav>
       <div class="rail-status">
         <span>Build</span>
-        <strong id="buildBadge">1473</strong>
+        <strong id="buildBadge">1474</strong>
       </div>
     </aside>
 
