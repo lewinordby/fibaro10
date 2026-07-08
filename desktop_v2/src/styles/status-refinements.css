@@ -1,5 +1,4 @@
-.status-info-card,
-.status-period-card {
+.status-info-card {
   border-color: color-mix(in srgb, var(--tone-color, var(--domain-status)) 12%, var(--line));
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
@@ -67,39 +66,6 @@
   font-size: 11px;
   font-weight: 800;
   line-height: 20px;
-}
-
-.status-period-grid {
-  gap: 12px;
-}
-
-.status-period-card {
-  position: relative;
-  overflow: hidden;
-  min-height: 226px;
-  border-top: 0;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--domain-revenue) 3%, var(--surface)) 0%, var(--surface) 52%, var(--surface-panel-end) 100%);
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
-}
-
-.status-period-card::before {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: linear-gradient(90deg, var(--domain-sun2), var(--domain-parking), var(--domain-revenue));
-  content: "";
-}
-
-.status-period-card:hover {
-  border-color: color-mix(in srgb, var(--domain-revenue) 18%, var(--line));
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07);
-  transform: translateY(-1px);
-}
-
-.status-period-card .ant-card-body {
-  gap: 8px;
-  padding: 11px 12px;
 }
 
 :is(.status-event-list, .status-source-list) .ant-list-item {

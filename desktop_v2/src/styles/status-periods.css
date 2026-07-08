@@ -16,23 +16,24 @@
   --period-border: color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--border-control));
   --period-border-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 20%, var(--line-strong));
   --period-surface: linear-gradient(180deg, var(--surface), var(--surface-panel-end));
-  --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 3%, var(--surface));
-  --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 5%, var(--surface));
-  --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 16%, var(--surface));
-  min-height: 316px;
+  --period-tint-soft: color-mix(in srgb, var(--tone-color, var(--domain-status)) 2.2%, var(--surface));
+  --period-tint-muted: color-mix(in srgb, var(--tone-color, var(--domain-status)) 2.8%, var(--surface));
+  --period-tint-strong: color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--surface));
+  min-height: 308px;
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 9%, var(--border-panel));
   border-radius: var(--radius-md);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-revenue)) 3.5%, var(--surface)) 0%, var(--surface) 42%, var(--surface-panel-end) 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-status)) 1.6%, var(--surface)) 0%, var(--surface) 46%, var(--surface-panel-end) 100%);
   box-shadow: 0 8px 22px var(--shadow-ink-faint-color), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .status-period-card.revenue-period-card .ant-card-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   height: 100%;
-  padding: 14px 14px 12px;
+  padding: 13px 14px 11px;
 }
 
 .revenue-period-card {
@@ -50,7 +51,7 @@
 
 .status-period-card.revenue-period-card.activity-period-card,
 .status-overview-page .status-period-card.revenue-period-card.activity-period-card {
-  min-height: 254px;
+  min-height: 248px;
 }
 
 .revenue-period-head {
@@ -58,7 +59,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 13px;
   align-items: start;
-  padding-bottom: 10px;
+  padding-bottom: 9px;
   border-bottom: 1px solid var(--border-panel-soft);
 }
 
@@ -199,8 +200,8 @@
   gap: 5px 8px;
   align-items: center;
   min-width: 0;
-  min-height: 54px;
-  padding: 9px 10px;
+  min-height: 50px;
+  padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--border-panel));
   border-radius: var(--radius-md);
   background:
@@ -236,8 +237,8 @@
   display: inline-grid;
   grid-area: icon;
   place-items: center;
-  width: 27px;
-  height: 27px;
+  width: 25px;
+  height: 25px;
   border: 1.5px solid currentColor;
   border-radius: 999px;
   font-size: 12.5px;
@@ -294,7 +295,7 @@
 
 .revenue-driver-table {
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 7%, var(--border-panel));
+  border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 6%, var(--border-panel));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface) 96%, var(--surface-muted));
 }
@@ -313,10 +314,10 @@
 }
 
 .revenue-driver-head {
-  padding: 7px 10px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border-panel-soft);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--domain-sun2) 7%, transparent), color-mix(in srgb, var(--domain-parking) 7%, transparent)),
+    linear-gradient(90deg, color-mix(in srgb, var(--domain-sun2) 4%, transparent), color-mix(in srgb, var(--domain-parking) 4%, transparent)),
     var(--period-tint-soft);
 }
 
@@ -338,7 +339,7 @@
 
 .revenue-driver-row {
   position: relative;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--border-panel-soft);
 }
 
@@ -373,8 +374,8 @@
 .revenue-driver-icon {
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border: 1px solid color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 14%, var(--border-control));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--driver-color, var(--domain-revenue)) 10%, var(--surface));
@@ -471,16 +472,16 @@
   gap: 8px;
   align-items: center;
   margin-top: auto;
-  min-height: 46px;
-  padding: 8px 10px;
+  min-height: 42px;
+  padding: 7px 10px;
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 14%, var(--border-control));
   border-radius: var(--radius-md);
   background:
-    linear-gradient(90deg, var(--period-tint-strong) 0 3px, transparent 3px),
+    linear-gradient(90deg, color-mix(in srgb, var(--tone-color, var(--domain-status)) 14%, var(--surface)) 0 3px, transparent 3px),
     linear-gradient(
       180deg,
-      var(--period-tint-muted),
-      color-mix(in srgb, var(--tone-color, var(--domain-status)) 2%, var(--surface-panel-end))
+      color-mix(in srgb, var(--tone-color, var(--domain-status)) 1.6%, var(--surface)),
+      color-mix(in srgb, var(--tone-color, var(--domain-status)) 1%, var(--surface-panel-end))
     );
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
 }

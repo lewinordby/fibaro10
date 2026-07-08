@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1479")
+APP_BUILD = os.getenv("APP_BUILD", "1480")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1480",
+        "date": "08.07.2026",
+        "headline": "Dashboardkortene strammes videre",
+        "title": "Fibaro10 fjerner overlappende periode-CSS og gjør dashboardkortene roligere",
+        "description": (
+            "Build 1480 optimaliserer videre etter iPad-inspirert dashboardrunde. Gamle generelle periodekortregler "
+            "er fjernet fra refinement-laget, og de fire dashboardflatene er gjort litt lavere, mer nøytrale og "
+            "mindre varselpregede uten at datalogikken endres."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/status-refinements.css: fjerner gamle status-period-card-regler som overlappet status-periods.css.",
+            "desktop_v2/src/styles/status-periods.css: strammer kortenes høyde, spacing, sammenligningsfelt og referansefelt.",
+            "build_log.py: dokumenterer build 1480.",
+        ],
+        "request": "Du ba om å optimalisere videre etter dashboardendringen.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Periodekortene har nå én tydelig CSS-kilde i stedet for overlapp mellom status-periods og status-refinements.",
+            "Omsetningskortene bruker mindre rød/rosa flate slik at minus/varsel-farger får tydeligere betydning.",
+            "Sammenligningsboksene og referansefeltet er komprimert litt for bedre 2x2-dashboard på vanlig skjerm.",
+            "Kortene beholder iPad-inspirert accent og fordeling, men uttrykket er roligere og mer presist.",
+        ],
+    },
     {
         "version": "1",
         "build": "1479",
