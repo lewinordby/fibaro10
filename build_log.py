@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1483")
+APP_BUILD = os.getenv("APP_BUILD", "1484")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1484",
+        "date": "08.07.2026",
+        "headline": "CSS-optimalisering",
+        "title": "Fibaro10 rydder status- og mørktema-CSS etter dashboardarbeidet",
+        "description": (
+            "Build 1484 gjør en ny målrettet CSS-opprydding. Statusfarger er flyttet til felles tokens, gamle "
+            "mørktema-regler for utgåtte komponentklasser er fjernet, og status/dashboard-flater bruker nå mer av "
+            "den felles skygge- og tekstskalaen."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/tokens.css: legger inn semantiske tokens for ok, varsel og feil-status.",
+            "desktop_v2/src/styles/status-widgets.css: bruker status-tokens og felles tekst-/skyggetokens.",
+            "desktop_v2/src/styles/status-overview.css: bruker felles skyggeskala på dashboardhandlinger.",
+            "desktop_v2/src/styles/dark-theme.css: fjerner gamle selektorer for utgåtte kortklasser og definerer mørke status-tokens.",
+            "build_log.py: dokumenterer build 1484.",
+        ],
+        "request": "Du ba om å optimalisere CSS på nytt.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Mulige ubrukte CSS-klasser i audit ble redusert ved å fjerne reelt utgåtte mørktema-selektorer.",
+            "Hardkodede statusfarger er samlet i tokens i stedet for å ligge direkte i status-widgetene.",
+            "Dashboard- og statusflater bruker eksisterende skygge- og teksttokens der det tidligere lå lokale verdier.",
+            "Endringen er teknisk rydding uten tilsiktet funksjonsendring.",
+        ],
+    },
     {
         "version": "1",
         "build": "1483",

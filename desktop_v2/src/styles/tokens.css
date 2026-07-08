@@ -41,6 +41,12 @@
   --green: #15803d;
   --amber: #f59e0b;
   --cyan: #0891b2;
+  --status-ok-bg: #f0fdf4;
+  --status-ok-border: #bbf7d0;
+  --status-warn-bg: #fffbeb;
+  --status-warn-border: #fde68a;
+  --status-bad-bg: #fef2f2;
+  --status-bad-border: #fecaca;
   --domain-revenue: #dc2626;
   --domain-parking: #2563eb;
   --domain-sun2: #f59e0b;

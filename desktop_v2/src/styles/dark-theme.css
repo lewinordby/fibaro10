@@ -76,6 +76,12 @@
   --dark-green-bg: #1d2b24;
   --dark-amber-bg: #302816;
   --dark-red-bg: #321e22;
+  --status-ok-bg: var(--dark-green-bg);
+  --status-ok-border: color-mix(in srgb, var(--dark-ok) 32%, var(--border-control));
+  --status-warn-bg: var(--dark-amber-bg);
+  --status-warn-border: color-mix(in srgb, var(--dark-warn) 32%, var(--border-control));
+  --status-bad-bg: var(--dark-red-bg);
+  --status-bad-border: color-mix(in srgb, var(--dark-bad) 32%, var(--border-control));
   color: var(--text-body);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, #0c0e12) 0, #11141a 260px, var(--surface-page));
@@ -96,7 +102,7 @@
   color: var(--ink);
 }
 
-.app-shell.theme-dark :is(.ant-typography-secondary, .ant-card-extra, small, .text-muted) {
+.app-shell.theme-dark :is(.ant-typography-secondary, .ant-card-extra, small) {
   color: var(--text-subtle) !important;
 }
 
@@ -249,9 +255,6 @@
 .app-shell.theme-dark .summary-card,
 .app-shell.theme-dark .metric-card,
 .app-shell.theme-dark .module-actions,
-.app-shell.theme-dark .status-source-card,
-.app-shell.theme-dark .period-summary-card,
-.app-shell.theme-dark .dashboard-revenue-period-card,
 .app-shell.theme-dark .maintenance-visit-row,
 .app-shell.theme-dark .maintenance-selected-visit-card,
 .app-shell.theme-dark .module-day-nav-card {
@@ -704,9 +707,6 @@
 .app-shell.theme-dark .status-comparison-year-picker,
 .app-shell.theme-dark .status-comparison-chart-stack > div,
 .app-shell.theme-dark .energy-sunbeds-method,
-.app-shell.theme-dark .sun-session-image-frame,
-.app-shell.theme-dark .sun-session-image-tools,
-.app-shell.theme-dark .sun-settlement-card,
 .app-shell.theme-dark .settlement-register-card {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 48px),
