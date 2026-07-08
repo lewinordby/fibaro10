@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1472")
+APP_BUILD = os.getenv("APP_BUILD", "1473")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1473",
+        "date": "08.07.2026",
+        "headline": "iPad-tallene blir mer visuelle",
+        "title": "Fibaro10 iPad får sprekere tallkort med fordelingsbarer, deltafelt og fremdriftsmålere",
+        "description": (
+            "Build 1473 videreutvikler iPad-grensesnittet visuelt. Omsetningstallene vises nå mer som en "
+            "driftsflate for iPad, med tydeligere hovedsum, fargekodet fordeling mellom soling og parkering, "
+            "deltaindikatorer mot referanseperioder og små fremdriftsmålere i periodekortene."
+        ),
+        "applications": [
+            "fibaro10ipad/app/static/ipad.js: legger til fordelingsprosent, deltaikoner, fremdriftsberegninger og ny markup for tallkort.",
+            "fibaro10ipad/app/static/ipad.css: legger til visuell tallgrafikk, fordelingsbarer, referansechips og kompaktere periodepresentasjon.",
+            "fibaro10ipad/app/main.py, docker-compose.qnap.yml og .env.qnap.example: oppdaterer iPad-build til 1473.",
+            "build_log.py: dokumenterer build 1473.",
+        ],
+        "request": "Du ønsket en sprekere måte å vise tallene på i iPad-appen.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Dagens omsetning har nå en mer markant totalsum med egen tallstack.",
+            "Soling og parkering vises med fargekodet fordelingsbar og prosentandel.",
+            "Sammenligning mot i går og samme ukedag forrige uke har tydeligere deltafelt.",
+            "Periodekortene viser nå fordeling, totalavvik og fremdrift mot hele referanseperioder.",
+            "Kortene beholder samme datagrunnlag og samme 2x2-struktur på iPad.",
+        ],
+    },
     {
         "version": "1",
         "build": "1472",

@@ -333,7 +333,7 @@ a {
 .hero-card {
   position: relative;
   overflow: hidden;
-  min-height: 284px;
+  min-height: 328px;
   padding: 20px;
   color: #fff;
   background:
@@ -352,10 +352,24 @@ a {
   pointer-events: none;
 }
 
+.hero-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.72), transparent 78%);
+  pointer-events: none;
+}
+
 .hero-top,
 .hero-main,
 .hero-drivers,
-.hero-reference {
+.hero-reference,
+.hero-split-meter,
+.hero-progress-row {
   position: relative;
   z-index: 1;
 }
@@ -379,28 +393,55 @@ a {
   font-weight: 680;
 }
 
+.hero-number-stack {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+}
+
+.hero-number-stack span {
+  color: rgba(255, 255, 255, 0.60);
+  font-size: 0.72rem;
+  font-weight: 830;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .hero-total {
   margin: 0;
-  font-size: clamp(3rem, 6vw, 5.6rem);
-  font-weight: 820;
-  line-height: 0.92;
+  font-size: clamp(3.1rem, 6.4vw, 5.9rem);
+  font-weight: 860;
+  line-height: 0.88;
   text-align: right;
+  text-shadow: 0 14px 36px rgba(0, 0, 0, 0.25);
   white-space: nowrap;
+}
+
+.hero-split-meter {
+  height: 13px;
+  margin-top: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, var(--sun) 0 var(--sun-share), var(--blue) var(--sun-share) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 12px 22px rgba(0, 0, 0, 0.16);
 }
 
 .hero-drivers {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 22px;
+  margin-top: 13px;
 }
 
 .driver-tile {
-  min-height: 88px;
+  min-height: 92px;
   padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
 }
 
 .driver-tile span {
@@ -415,7 +456,7 @@ a {
 .driver-tile strong {
   display: block;
   margin-top: 7px;
-  font-size: 1.58rem;
+  font-size: 1.64rem;
   line-height: 1;
 }
 
@@ -433,9 +474,16 @@ a {
 }
 
 .reference-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 74px;
   padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.055));
 }
 
 .reference-chip span {
@@ -449,6 +497,86 @@ a {
   display: block;
   margin-top: 5px;
   font-size: 1.42rem;
+}
+
+.reference-chip small {
+  display: block;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 760;
+}
+
+.reference-chip em {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  font-size: 1.6rem;
+  font-style: normal;
+  font-weight: 900;
+  border: 2px solid currentColor;
+}
+
+.reference-chip.positive strong,
+.reference-chip.positive em {
+  color: #61e6a2;
+}
+
+.reference-chip.negative strong,
+.reference-chip.negative em {
+  color: #ff8d83;
+}
+
+.hero-progress-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.hero-progress-row span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: rgba(10, 18, 32, 0.28);
+}
+
+.hero-progress-row small {
+  color: rgba(255, 255, 255, 0.64);
+  font-weight: 730;
+}
+
+.hero-progress-row strong {
+  font-size: 1rem;
+}
+
+.hero-progress-row i {
+  grid-column: 1 / -1;
+  height: 7px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hero-progress-row span:first-child i::before,
+.hero-progress-row span:last-child i::before {
+  content: "";
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #61e6a2, #ffd47a);
+}
+
+.hero-progress-row span:first-child i::before {
+  width: min(var(--prev-progress), 100%);
+}
+
+.hero-progress-row span:last-child i::before {
+  width: min(var(--week-progress), 100%);
 }
 
 .hero-side {
@@ -493,8 +621,18 @@ a {
 }
 
 .period-card {
-  min-height: 314px;
+  position: relative;
+  overflow: hidden;
+  min-height: 372px;
   padding: 16px;
+}
+
+.period-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--sun) 0 var(--sun-share), var(--blue) var(--sun-share) 100%);
 }
 
 .period-top {
@@ -529,15 +667,106 @@ a {
   white-space: nowrap;
 }
 
+.period-split {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.split-meter {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: linear-gradient(90deg, var(--sun) 0 var(--sun-share), var(--blue) var(--sun-share) 100%);
+}
+
+.split-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 730;
+}
+
+.split-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.split-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.sun-dot {
+  background: var(--sun);
+}
+
+.parking-dot {
+  background: var(--blue);
+}
+
+.period-delta-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.period-delta-card {
+  min-height: 68px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f8fbff;
+}
+
+.period-delta-card span,
+.period-delta-card small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 770;
+}
+
+.period-delta-card strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 1.06rem;
+  line-height: 1;
+}
+
+.period-delta-card.positive {
+  border-color: rgba(19, 138, 101, 0.20);
+  background: #edf9f3;
+}
+
+.period-delta-card.positive strong {
+  color: #137947;
+}
+
+.period-delta-card.negative {
+  border-color: rgba(180, 35, 24, 0.16);
+  background: #fff4f2;
+}
+
+.period-delta-card.negative strong {
+  color: var(--red);
+}
+
 .driver-table {
   width: 100%;
-  margin-top: 13px;
+  margin-top: 10px;
   border-collapse: collapse;
 }
 
 .driver-table th,
 .driver-table td {
-  padding: 10px 6px;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--line);
   text-align: right;
   vertical-align: middle;
@@ -626,17 +855,48 @@ a {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .period-foot span {
-  padding: 9px 10px;
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px 10px;
   border: 1px solid rgba(50, 104, 246, 0.12);
   border-radius: var(--radius);
   color: #30415e;
   background: #f1f6ff;
   font-size: 0.82rem;
   font-weight: 720;
+}
+
+.period-foot small,
+.period-foot em {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
+.period-foot strong {
+  color: var(--ink-2);
+  font-size: 0.95rem;
+}
+
+.period-foot i {
+  height: 6px;
+  margin-top: 2px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #dfe9fb;
+}
+
+.period-foot i::before {
+  content: "";
+  display: block;
+  width: min(var(--progress), 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--blue), var(--sun));
 }
 
 .workspace-grid,
@@ -1088,6 +1348,8 @@ a {
 
   .hero-drivers,
   .hero-reference,
+  .hero-progress-row,
+  .period-delta-row,
   .period-grid,
   .period-foot,
   .mini-card-grid {

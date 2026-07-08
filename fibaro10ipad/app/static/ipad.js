@@ -63,13 +63,44 @@ function deltaClass(value) {
 }
 
 function deltaMoney(current, reference) {
-  const delta = Number(current || 0) - Number(reference || 0);
-  const pct = Number(reference || 0) ? Math.round((delta / Number(reference)) * 100) : null;
+  const currentNumber = Number(current || 0);
+  const referenceNumber = Number(reference || 0);
+  const delta = currentNumber - referenceNumber;
+  const pct = referenceNumber ? Math.round((delta / referenceNumber) * 100) : null;
   return {
     value: `${delta > 0 ? "+" : ""}${formatMoney(delta)}`,
     percent: pct === null ? "" : `${pct > 0 ? "+" : ""}${pct}%`,
+    raw: delta,
+    current: currentNumber,
+    reference: referenceNumber,
     className: deltaClass(delta),
   };
+}
+
+function clamp(value, min = 0, max = 100) {
+  return Math.min(max, Math.max(min, Number(value || 0)));
+}
+
+function percent(part, total) {
+  const denominator = Number(total || 0);
+  if (!denominator) return 0;
+  return clamp((Number(part || 0) / denominator) * 100);
+}
+
+function progressPercent(current, reference) {
+  const denominator = Number(reference || 0);
+  if (!denominator) return 0;
+  return clamp((Number(current || 0) / denominator) * 100, 0, 130);
+}
+
+function wholePercent(value) {
+  return `${Math.round(Number(value || 0))}%`;
+}
+
+function deltaIcon(diff) {
+  if (Number(diff?.raw || 0) > 0) return "↑";
+  if (Number(diff?.raw || 0) < 0) return "↓";
+  return "→";
 }
 
 function referenceLabel(period) {
@@ -79,9 +110,21 @@ function referenceLabel(period) {
   return `Mot ${new Date().getFullYear() - 1}`;
 }
 
+function yearFromLabel(label) {
+  const match = String(label || "").match(/\b20\d{2}\b/);
+  return match ? match[0] : "";
+}
+
 function extraReferenceLabel(period, extra) {
   if (period?.key === "today") return "Mot forrige uke";
-  return safeText(extra?.label, "Ekstra").replace("Sammenlignet med tilsvarende datatidspunkt i ", "Mot ");
+  const label = safeText(extra?.label, "Ekstra");
+  const year = yearFromLabel(label);
+  if (period?.key === "week" && year) return `Samme uke ${year}`;
+  if (period?.key === "month" && year) return `Samme måned ${year}`;
+  if (period?.key === "year" && year) return `Mot ${year}`;
+  return label
+    .replace("Sammenlignet med tilsvarende datatidspunkt i ", "Mot ")
+    .replace("Sammenlignet med tilsvarende datatidspunkt ", "Mot ");
 }
 
 function driverMark(kind) {
@@ -114,23 +157,56 @@ function driverRow(kind, label, amount, count, reference, extraReference) {
 
 function renderPeriodCard(period) {
   const extra = firstExtra(period);
+  const sunShare = percent(period.sol, period.total);
+  const parkingShare = percent(period.parking, period.total);
+  const reference = deltaMoney(period.total, period.previousTotal);
+  const extraReference = deltaMoney(period.total, extra?.total);
+  const referenceProgress = progressPercent(period.total, period.previousFullTotal || period.previousTotal);
+  const extraProgress = progressPercent(period.total, extra?.fullTotal || extra?.total);
   const fullPieces = [];
   if (period.previousFullLabel && period.previousFullTotal !== undefined) {
-    fullPieces.push(`${period.previousFullLabel}: ${formatMoney(period.previousFullTotal)}`);
-    fullPieces.push(`Gjenstår ${formatMoney(Number(period.previousFullTotal || 0) - Number(period.total || 0))}`);
+    fullPieces.push({
+      label: period.previousFullLabel,
+      total: period.previousFullTotal,
+      remaining: Number(period.previousFullTotal || 0) - Number(period.total || 0),
+      progress: referenceProgress,
+    });
   }
   if (extra?.fullLabel && extra.fullTotal !== undefined) {
-    fullPieces.push(`${extra.fullLabel}: ${formatMoney(extra.fullTotal)}`);
-    fullPieces.push(`Gjenstår ${formatMoney(Number(extra.fullTotal || 0) - Number(period.total || 0))}`);
+    fullPieces.push({
+      label: extra.fullLabel,
+      total: extra.fullTotal,
+      remaining: Number(extra.fullTotal || 0) - Number(period.total || 0),
+      progress: extraProgress,
+    });
   }
   return `
-    <article class="period-card">
+    <article class="period-card period-card-${escapeHtml(safeText(period.key, "period"))}" style="--sun-share:${sunShare}%; --parking-share:${parkingShare}%">
       <div class="period-top">
         <div>
           <h2 class="period-title">${escapeHtml(safeText(period.title))}</h2>
           <p class="period-subtitle">${escapeHtml(periodMeta(period))}</p>
         </div>
         <p class="period-total">${formatMoney(period.total)}</p>
+      </div>
+      <div class="period-split">
+        <div class="split-meter" aria-hidden="true"></div>
+        <div class="split-legend">
+          <span><i class="sun-dot"></i>Soling ${wholePercent(sunShare)}</span>
+          <span><i class="parking-dot"></i>Parkering ${wholePercent(parkingShare)}</span>
+        </div>
+      </div>
+      <div class="period-delta-row">
+        <div class="period-delta-card ${reference.className}">
+          <span>${escapeHtml(referenceLabel(period))}</span>
+          <strong>${escapeHtml(reference.value)}</strong>
+          <small>${escapeHtml(reference.percent)}</small>
+        </div>
+        <div class="period-delta-card ${extraReference.className}">
+          <span>${escapeHtml(extraReferenceLabel(period, extra))}</span>
+          <strong>${escapeHtml(extraReference.value)}</strong>
+          <small>${escapeHtml(extraReference.percent)}</small>
+        </div>
       </div>
       <table class="driver-table">
         <thead>
@@ -146,7 +222,13 @@ function renderPeriodCard(period) {
           ${driverRow("parking", "Parkering", period.parking, period.parkingCount, period.previousParking, extra?.parking)}
         </tbody>
       </table>
-      <div class="period-foot">${fullPieces.length ? fullPieces.map((part) => `<span>${escapeHtml(part)}</span>`).join("") : "<span>Ingen hel referanseperiode</span>"}</div>
+      <div class="period-foot">${fullPieces.length ? fullPieces.map((part) => `
+        <span style="--progress:${part.progress}%">
+          <small>${escapeHtml(part.label)}</small>
+          <strong>${formatMoney(part.total)}</strong>
+          <em>Gjenstår ${formatMoney(part.remaining)}</em>
+          <i></i>
+        </span>`).join("") : "<span>Ingen hel referanseperiode</span>"}</div>
     </article>`;
 }
 
@@ -176,41 +258,61 @@ function renderHero(periods) {
   const extra = firstExtra(today);
   const diffYesterday = deltaMoney(today.total, today.previousTotal);
   const diffWeek = deltaMoney(today.total, extra?.total);
+  const sunShare = percent(today.sol, today.total);
+  const parkingShare = percent(today.parking, today.total);
+  const previousProgress = progressPercent(today.total, today.previousFullTotal || today.previousTotal);
+  const weekProgress = progressPercent(today.total, extra?.fullTotal || extra?.total);
   const latestSun = latestItem("soling");
   const latestParking = latestItem("parkering");
   const services = state.data?.overview?.services || [];
   const counts = datasourceCounts(services);
   hero.innerHTML = `
-    <article class="hero-card">
+    <article class="hero-card" style="--sun-share:${sunShare}%; --parking-share:${parkingShare}%; --prev-progress:${previousProgress}%; --week-progress:${weekProgress}%">
       <div class="hero-top">
         <div>
           <p class="eyebrow">Omsetning</p>
           <h2 class="hero-title">Hittil i dag</h2>
           <p class="hero-subtitle">${escapeHtml(periodMeta(today))}</p>
         </div>
-        <p class="hero-total">${formatMoney(today.total)}</p>
+        <div class="hero-number-stack">
+          <span>Total nå</span>
+          <p class="hero-total">${formatMoney(today.total)}</p>
+        </div>
       </div>
+      <div class="hero-split-meter" aria-hidden="true"></div>
       <div class="hero-drivers">
         <div class="driver-tile">
           <span>${driverMark("sun")} Soling</span>
           <strong>${formatMoney(today.sol)}</strong>
-          <small>${formatCount(today.solCount)} stk</small>
+          <small>${formatCount(today.solCount)} stk · ${wholePercent(sunShare)}</small>
         </div>
         <div class="driver-tile">
           <span>${driverMark("parking")} Parkering</span>
           <strong>${formatMoney(today.parking)}</strong>
-          <small>${formatCount(today.parkingCount)} stk</small>
+          <small>${formatCount(today.parkingCount)} stk · ${wholePercent(parkingShare)}</small>
         </div>
       </div>
       <div class="hero-reference">
-        <div class="reference-chip">
-          <span>Mot i går samme tidspunkt</span>
-          <strong class="${diffYesterday.className}">${escapeHtml(diffYesterday.value)}</strong>
+        <div class="reference-chip ${diffYesterday.className}">
+          <div>
+            <span>Mot i går samme tidspunkt</span>
+            <strong>${escapeHtml(diffYesterday.value)}</strong>
+            <small>${escapeHtml(diffYesterday.percent)}</small>
+          </div>
+          <em>${deltaIcon(diffYesterday)}</em>
         </div>
-        <div class="reference-chip">
-          <span>Mot samme ukedag forrige uke</span>
-          <strong class="${diffWeek.className}">${escapeHtml(diffWeek.value)}</strong>
+        <div class="reference-chip ${diffWeek.className}">
+          <div>
+            <span>Mot samme ukedag forrige uke</span>
+            <strong>${escapeHtml(diffWeek.value)}</strong>
+            <small>${escapeHtml(diffWeek.percent)}</small>
+          </div>
+          <em>${deltaIcon(diffWeek)}</em>
         </div>
+      </div>
+      <div class="hero-progress-row">
+        <span><small>Mot hel gårsdag</small><strong>${wholePercent(previousProgress)}</strong><i></i></span>
+        <span><small>Mot hel forrige uke-dag</small><strong>${wholePercent(weekProgress)}</strong><i></i></span>
       </div>
     </article>
     <aside class="hero-side">
