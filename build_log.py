@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1481")
+APP_BUILD = os.getenv("APP_BUILD", "1482")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1482",
+        "date": "08.07.2026",
+        "headline": "Kortere dashboardtitler",
+        "title": "Fibaro10 hoveddashboard bruker kortere iPad-lignende periodetitler",
+        "description": (
+            "Build 1482 rydder i toppen av dashboardkortene. De fire periodekortene bruker nå de korte "
+            "periodenavnene fra API-et, og rangeringen for dagen er flyttet bort fra hovedtallet slik at "
+            "kortet får et roligere visuelt hierarki."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/OverviewPage.tsx: bruker periodens korte tittel og flytter dagsrangering inn i metadata-linjen.",
+            "desktop_v2/src/styles/status-periods.css: fjerner den gamle rangering-badgen og legger inn en diskret inline-variant.",
+            "desktop_v2/src/styles/dark-theme.css: tilpasser den nye inline-rangeringen til mørkt tema.",
+            "build_log.py: dokumenterer build 1482.",
+        ],
+        "request": "Du ba om kortere overskrifter som i iPad-boksene og en annen løsning for rangeringen på dagens kort.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Omsetning, parkering og soling-dashboardene bruker nå korte titler som I dag, Denne uken, Denne måneden og I år.",
+            "Dagsrangeringen vises ikke lenger som en egen pill ved siden av hovedtallet.",
+            "Rangeringen ligger nå diskret i oppdateringslinjen med tooltip for forklaring.",
+            "Hovedtallet på dagens omsetningskort får dermed samme rene vekt som de andre kortene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1481",

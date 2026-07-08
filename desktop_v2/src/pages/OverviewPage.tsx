@@ -451,11 +451,7 @@ function periodFullReferenceLabel(periodKey: string, item: PeriodComparisonView)
 }
 
 function periodDisplayTitle(period: StatusPeriod) {
-  if (period.key === "today") return "Omsetning hittil i dag";
-  if (period.key === "week") return "Omsetning hittil denne uken";
-  if (period.key === "month") return "Omsetning hittil denne måneden";
-  if (period.key === "year") return "Omsetning hittil i år";
-  return `Omsetning hittil: ${period.title}`;
+  return period.title || "Hittil";
 }
 
 function periodCurrentColumnLabel(period: StatusPeriod) {
@@ -669,6 +665,7 @@ function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPe
   const shownComparisons = comparisons.slice(0, 2);
   const lines = revenuePeriodLines(period);
   const rankLabel = period.key === "today" ? period.rank?.label : "";
+  const rankTitle = rankLabel ? periodRankTitle(period) : "";
   const cardStyle = periodShareStyle(boundedPercent(period.sol, period.total, 50));
 
   return (
@@ -676,14 +673,12 @@ function RevenuePeriodCard({ period, nextParkingImportText }: { period: StatusPe
       <div className="revenue-period-head">
         <div>
           <span className="revenue-period-title">{periodDisplayTitle(period)}</span>
-          <em>{periodDataBasisText(period, nextParkingImportText)}</em>
+          <em title={rankTitle || undefined}>
+            {periodDataBasisText(period, nextParkingImportText)}
+            {rankLabel ? <span className="revenue-period-rank-inline"> · {rankLabel}</span> : null}
+          </em>
         </div>
         <div className="revenue-period-total">
-          {rankLabel ? (
-            <span className="revenue-period-rank" title={periodRankTitle(period)}>
-              {rankLabel}
-            </span>
-          ) : null}
           <strong>{nok(period.total)} kr</strong>
         </div>
       </div>
@@ -731,11 +726,7 @@ function averageKrPerCount(amount: number, count: number) {
 }
 
 function activityPeriodDisplayTitle(period: StatusPeriod, config: ActivityDashboardConfig) {
-  if (period.key === "today") return `${config.periodPrefix} hittil i dag`;
-  if (period.key === "week") return `${config.periodPrefix} hittil denne uken`;
-  if (period.key === "month") return `${config.periodPrefix} hittil denne måneden`;
-  if (period.key === "year") return `${config.periodPrefix} hittil i år`;
-  return `${config.periodPrefix} hittil: ${period.title}`;
+  return period.title || config.periodPrefix;
 }
 
 function activityComparisonPath(config: ActivityDashboardConfig, periodKey: string, comparisonKey: string) {

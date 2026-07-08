@@ -536,10 +536,13 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
-.app-shell.theme-dark .revenue-period-rank,
 .app-shell.theme-dark .revenue-driver-icon {
   background: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 10%, var(--surface-raised));
   border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 22%, var(--border-control));
+}
+
+.app-shell.theme-dark .revenue-period-rank-inline {
+  color: color-mix(in srgb, var(--domain-revenue) 46%, var(--text-label));
 }
 
 .app-shell.theme-dark .revenue-driver-row::before,

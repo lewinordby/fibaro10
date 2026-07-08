@@ -90,6 +90,11 @@
   white-space: nowrap;
 }
 
+.revenue-period-rank-inline {
+  color: color-mix(in srgb, var(--domain-revenue) 54%, var(--text-label));
+  font-weight: 760;
+}
+
 .revenue-period-total {
   display: inline-flex;
   align-items: center;
@@ -97,20 +102,6 @@
   gap: 9px;
   min-width: 0;
   white-space: nowrap;
-}
-
-.revenue-period-rank {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 3px 8px;
-  border: 1px solid color-mix(in srgb, var(--domain-revenue) 22%, var(--border-control));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--domain-revenue) 7%, var(--surface));
-  color: color-mix(in srgb, var(--domain-revenue) 78%, var(--ink));
-  font-size: 11px;
-  font-weight: 760;
-  line-height: 1;
 }
 
 .revenue-period-head > strong,
