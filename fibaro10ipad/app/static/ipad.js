@@ -10,13 +10,23 @@ const viewTitles = {
   ops: "Drift",
 };
 
+const numberFormatter = new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 });
+
 function formatMoney(value) {
-  const number = Number(value || 0);
-  return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(number)} kr`;
+  return `${numberFormatter.format(Number(value || 0))} kr`;
 }
 
 function formatCount(value) {
-  return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(Number(value || 0));
+  return numberFormatter.format(Number(value || 0));
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function safeText(value, fallback = "-") {
@@ -27,6 +37,11 @@ function safeText(value, fallback = "-") {
 function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
+}
+
+function setClass(id, classes) {
+  const el = document.getElementById(id);
+  if (el) el.className = classes;
 }
 
 function periodMeta(period) {
@@ -47,9 +62,9 @@ function deltaClass(value) {
   return "";
 }
 
-function deltaText(current, reference) {
+function deltaMoney(current, reference) {
   const delta = Number(current || 0) - Number(reference || 0);
-  const pct = reference ? Math.round((delta / Number(reference)) * 100) : null;
+  const pct = Number(reference || 0) ? Math.round((delta / Number(reference)) * 100) : null;
   return {
     value: `${delta > 0 ? "+" : ""}${formatMoney(delta)}`,
     percent: pct === null ? "" : `${pct > 0 ? "+" : ""}${pct}%`,
@@ -57,68 +72,63 @@ function deltaText(current, reference) {
   };
 }
 
-function activityDeltaText(current, reference) {
-  const delta = Number(current || 0) - Number(reference || 0);
-  const pct = reference ? Math.round((delta / Number(reference)) * 100) : null;
-  return {
-    value: `${delta > 0 ? "+" : ""}${formatCount(delta)} stk`,
-    percent: pct === null ? "" : `${pct > 0 ? "+" : ""}${pct}%`,
-    className: deltaClass(delta),
-  };
+function referenceLabel(period) {
+  if (period?.key === "today") return "Mot i går";
+  if (period?.key === "week") return "Mot forrige uke";
+  if (period?.key === "month") return "Mot forrige måned";
+  return `Mot ${new Date().getFullYear() - 1}`;
+}
+
+function extraReferenceLabel(period, extra) {
+  if (period?.key === "today") return "Mot forrige uke";
+  return safeText(extra?.label, "Ekstra").replace("Sammenlignet med tilsvarende datatidspunkt i ", "Mot ");
+}
+
+function driverMark(kind) {
+  if (kind === "sun") {
+    return `<span class="driver-mark sun"><img src="/static/lilletorget-mark.png" alt=""></span>`;
+  }
+  return `<span class="driver-mark parking">P</span>`;
 }
 
 function driverRow(kind, label, amount, count, reference, extraReference) {
-  const diff = deltaText(amount, reference);
-  const extra = deltaText(amount, extraReference);
-  const avg = count ? `${formatMoney(Number(amount || 0) / Number(count))} snitt` : "Ingen snitt";
-  const mark =
-    kind === "sun"
-      ? `<span class="driver-mark sun"><img src="/static/lilletorget-mark.png" alt=""></span>`
-      : `<span class="driver-mark parking">P</span>`;
+  const diff = deltaMoney(amount, reference);
+  const extra = deltaMoney(amount, extraReference);
+  const avg = Number(count || 0) ? `${formatMoney(Number(amount || 0) / Number(count))} snitt` : "Ingen snitt";
   return `
     <tr>
       <td>
         <span class="driver-name">
-          ${mark}
+          ${driverMark(kind)}
           <span>
-            <span class="driver-label">${label}</span>
-            <span class="driver-meta">${formatCount(count)} stk · ${avg}</span>
+            <span class="driver-label">${escapeHtml(label)}</span>
+            <span class="driver-meta">${formatCount(count)} stk · ${escapeHtml(avg)}</span>
           </span>
         </span>
       </td>
       <td class="driver-value">${formatMoney(amount)}</td>
-      <td><span class="delta ${diff.className}">${diff.value}<small>${diff.percent}</small></span></td>
-      <td><span class="delta ${extra.className}">${extra.value}<small>${extra.percent}</small></span></td>
+      <td><span class="delta ${diff.className}">${escapeHtml(diff.value)}<small>${escapeHtml(diff.percent)}</small></span></td>
+      <td><span class="delta ${extra.className}">${escapeHtml(extra.value)}<small>${escapeHtml(extra.percent)}</small></span></td>
     </tr>`;
 }
 
 function renderPeriodCard(period) {
   const extra = firstExtra(period);
-  const referenceLabel = period.key === "today"
-    ? "Mot i går"
-    : period.key === "week"
-      ? "Mot forrige uke"
-      : period.key === "month"
-        ? "Mot forrige måned"
-        : `Mot ${new Date().getFullYear() - 1}`;
-  const extraLabel = period.key === "today"
-    ? "Mot forrige uke"
-    : extra?.label?.replace("Sammenlignet med tilsvarende datatidspunkt i ", "Mot ") || "Ekstra";
   const fullPieces = [];
   if (period.previousFullLabel && period.previousFullTotal !== undefined) {
     fullPieces.push(`${period.previousFullLabel}: ${formatMoney(period.previousFullTotal)}`);
-    fullPieces.push(`gjenstår ${formatMoney(Number(period.previousFullTotal || 0) - Number(period.total || 0))}`);
+    fullPieces.push(`Gjenstår ${formatMoney(Number(period.previousFullTotal || 0) - Number(period.total || 0))}`);
   }
   if (extra?.fullLabel && extra.fullTotal !== undefined) {
     fullPieces.push(`${extra.fullLabel}: ${formatMoney(extra.fullTotal)}`);
-    fullPieces.push(`gjenstår ${formatMoney(Number(extra.fullTotal || 0) - Number(period.total || 0))}`);
+    fullPieces.push(`Gjenstår ${formatMoney(Number(extra.fullTotal || 0) - Number(period.total || 0))}`);
   }
   return `
     <article class="period-card">
       <div class="period-top">
         <div>
-          <h2 class="period-title">${safeText(period.title)}</h2>
-          <p class="period-subtitle">${periodMeta(period)}</p>
+          <h2 class="period-title">${escapeHtml(safeText(period.title))}</h2>
+          <p class="period-subtitle">${escapeHtml(periodMeta(period))}</p>
         </div>
         <p class="period-total">${formatMoney(period.total)}</p>
       </div>
@@ -127,8 +137,8 @@ function renderPeriodCard(period) {
           <tr>
             <th>Linje</th>
             <th>Hittil</th>
-            <th>${referenceLabel}</th>
-            <th>${extraLabel}</th>
+            <th>${escapeHtml(referenceLabel(period))}</th>
+            <th>${escapeHtml(extraReferenceLabel(period, extra))}</th>
           </tr>
         </thead>
         <tbody>
@@ -136,15 +146,100 @@ function renderPeriodCard(period) {
           ${driverRow("parking", "Parkering", period.parking, period.parkingCount, period.previousParking, extra?.parking)}
         </tbody>
       </table>
-      <div class="period-foot">${fullPieces.map((part) => `<span>${part}</span>`).join("") || "<span>Ingen hel referanseperiode</span>"}</div>
+      <div class="period-foot">${fullPieces.length ? fullPieces.map((part) => `<span>${escapeHtml(part)}</span>`).join("") : "<span>Ingen hel referanseperiode</span>"}</div>
     </article>`;
+}
+
+function datasourceCounts(services) {
+  const counts = { total: services.length, ok: 0, warn: 0, bad: 0, unknown: 0 };
+  for (const service of services) {
+    const key = ["ok", "warn", "bad"].includes(service?.status) ? service.status : "unknown";
+    counts[key] += 1;
+  }
+  return counts;
+}
+
+function latestItem(labelNeedle) {
+  return (state.data?.overview?.latestItems || []).find((item) =>
+    String(item.label || "").toLowerCase().includes(labelNeedle),
+  );
+}
+
+function renderHero(periods) {
+  const hero = document.getElementById("heroGrid");
+  if (!hero) return;
+  const today = periods.find((period) => period.key === "today") || periods[0];
+  if (!today) {
+    hero.innerHTML = `<div class="empty">Ingen hovedtall tilgjengelig.</div>`;
+    return;
+  }
+  const extra = firstExtra(today);
+  const diffYesterday = deltaMoney(today.total, today.previousTotal);
+  const diffWeek = deltaMoney(today.total, extra?.total);
+  const latestSun = latestItem("soling");
+  const latestParking = latestItem("parkering");
+  const services = state.data?.overview?.services || [];
+  const counts = datasourceCounts(services);
+  hero.innerHTML = `
+    <article class="hero-card">
+      <div class="hero-top">
+        <div>
+          <p class="eyebrow">Omsetning</p>
+          <h2 class="hero-title">Hittil i dag</h2>
+          <p class="hero-subtitle">${escapeHtml(periodMeta(today))}</p>
+        </div>
+        <p class="hero-total">${formatMoney(today.total)}</p>
+      </div>
+      <div class="hero-drivers">
+        <div class="driver-tile">
+          <span>${driverMark("sun")} Soling</span>
+          <strong>${formatMoney(today.sol)}</strong>
+          <small>${formatCount(today.solCount)} stk</small>
+        </div>
+        <div class="driver-tile">
+          <span>${driverMark("parking")} Parkering</span>
+          <strong>${formatMoney(today.parking)}</strong>
+          <small>${formatCount(today.parkingCount)} stk</small>
+        </div>
+      </div>
+      <div class="hero-reference">
+        <div class="reference-chip">
+          <span>Mot i går samme tidspunkt</span>
+          <strong class="${diffYesterday.className}">${escapeHtml(diffYesterday.value)}</strong>
+        </div>
+        <div class="reference-chip">
+          <span>Mot samme ukedag forrige uke</span>
+          <strong class="${diffWeek.className}">${escapeHtml(diffWeek.value)}</strong>
+        </div>
+      </div>
+    </article>
+    <aside class="hero-side">
+      <div class="side-card">
+        <h3>Datakilder</h3>
+        <strong>${counts.ok}/${counts.total} OK</strong>
+        <small>${counts.warn} treg, ${counts.bad} feil, ${counts.unknown} ukjent</small>
+      </div>
+      <div class="side-card">
+        <h3>Siste soling</h3>
+        <strong>${escapeHtml(safeText(latestSun?.value))}</strong>
+        <small>${escapeHtml(safeText(latestSun?.detail, ""))}</small>
+      </div>
+      <div class="side-card">
+        <h3>Siste parkering</h3>
+        <strong>${escapeHtml(safeText(latestParking?.value))}</strong>
+        <small>${escapeHtml(safeText(latestParking?.detail, ""))}</small>
+      </div>
+    </aside>`;
 }
 
 function renderOverview() {
   const periods = state.data?.overview?.statusPeriods || [];
+  renderHero(periods);
   const grid = document.getElementById("periodGrid");
   if (!grid) return;
-  grid.innerHTML = periods.length ? periods.map(renderPeriodCard).join("") : `<div class="empty">Ingen omsetningsperioder tilgjengelig.</div>`;
+  grid.innerHTML = periods.length
+    ? periods.map(renderPeriodCard).join("")
+    : `<div class="empty">Ingen omsetningsperioder tilgjengelig.</div>`;
 }
 
 function overviewCardsByGroup(group) {
@@ -159,11 +254,11 @@ function renderMiniCards(id, cards) {
   const el = document.getElementById(id);
   if (!el) return;
   el.innerHTML = cards.length
-    ? cards.slice(0, 6).map((card) => `
+    ? cards.slice(0, 8).map((card) => `
         <div class="mini-card">
-          <span>${safeText(card.title)}</span>
-          <strong>${safeText(card.value)}${card.unit ? ` ${card.unit}` : ""}</strong>
-          <small>${safeText(card.detail, "")}</small>
+          <span>${escapeHtml(safeText(card.title))}</span>
+          <strong>${escapeHtml(safeText(card.value))}${card.unit ? ` ${escapeHtml(card.unit)}` : ""}</strong>
+          <small>${escapeHtml(safeText(card.detail, ""))}</small>
         </div>`).join("")
     : `<div class="empty">Ingen nøkkeltall tilgjengelig.</div>`;
 }
@@ -172,13 +267,13 @@ function renderEvents(id, items) {
   const el = document.getElementById(id);
   if (!el) return;
   el.innerHTML = items.length
-    ? items.slice(0, 8).map((item) => `
+    ? items.slice(0, 10).map((item) => `
         <div class="event-row">
           <div>
-            <strong>${safeText(item.label)}</strong>
-            <small>${safeText(item.detail, "")}</small>
+            <strong>${escapeHtml(safeText(item.label))}</strong>
+            <small>${escapeHtml(safeText(item.detail, ""))}</small>
           </div>
-          <strong>${safeText(item.value)}</strong>
+          <strong>${escapeHtml(safeText(item.value))}</strong>
         </div>`).join("")
     : `<div class="empty">Ingen siste hendelser tilgjengelig.</div>`;
 }
@@ -198,7 +293,7 @@ function renderOps() {
   const operating = overview.operatingWindow || {};
   const op = document.getElementById("operatingStatus");
   if (op) {
-    op.innerHTML = `<strong>${safeText(operating.label)}</strong><span>${safeText(operating.detail, "")}</span>`;
+    op.innerHTML = `<strong>${escapeHtml(safeText(operating.label))}</strong><span>${escapeHtml(safeText(operating.detail, ""))}</span>`;
   }
   renderStateStrip("lightStrip", overview.lightItems || []);
   renderStateStrip("fanStrip", overview.fanItems || []);
@@ -211,7 +306,7 @@ function renderStateStrip(id, items) {
   el.innerHTML = items.length
     ? items.map((item) => {
         const cls = item.state === true ? "on" : item.state === null ? "unknown" : "";
-        return `<span class="state-pill ${cls}">${safeText(item.label)}</span>`;
+        return `<span class="state-pill ${cls}">${escapeHtml(safeText(item.label))}</span>`;
       }).join("")
     : `<div class="empty">Ingen status tilgjengelig.</div>`;
 }
@@ -224,21 +319,35 @@ function renderServices(services) {
     return (weight[a.status] ?? 2) - (weight[b.status] ?? 2);
   });
   el.innerHTML = sorted.length
-    ? sorted.slice(0, 12).map((service) => `
+    ? sorted.slice(0, 14).map((service) => `
         <div class="service-row">
           <div>
-            <strong>#${safeText(service.sourceNo, "-")} ${safeText(service.label)}</strong>
-            <small>${safeText(service.detail, "")}</small>
+            <strong>#${escapeHtml(safeText(service.sourceNo, "-"))} ${escapeHtml(safeText(service.label))}</strong>
+            <small>${escapeHtml(safeText(service.detail, ""))}</small>
           </div>
-          <span class="service-status ${safeText(service.status, "unknown")}">${safeText(service.status, "?")}</span>
+          <span class="service-status ${escapeHtml(safeText(service.status, "unknown"))}">${escapeHtml(safeText(service.status, "?"))}</span>
         </div>`).join("")
     : `<div class="empty">Ingen datakilder tilgjengelig.</div>`;
+}
+
+function updateTopStatus() {
+  const overview = state.data?.overview || {};
+  const operating = overview.operatingWindow || {};
+  const services = overview.services || [];
+  const counts = datasourceCounts(services);
+  const datasourceTone = counts.bad > 0 ? "bad" : counts.warn > 0 || counts.unknown > 0 ? "warn" : "ok";
+  setText("topOperatingStatus", `${safeText(operating.label, "Ukjent")} · ${safeText(operating.detail, "")}`);
+  setText("topDatasourceStatus", `Datakilder ${counts.ok}/${counts.total}`);
+  setClass("topOperatingStatus", `top-pill ${operating.open ? "ok" : "warn"}`);
+  setClass("topDatasourceStatus", `top-pill ${datasourceTone}`);
 }
 
 function renderAll() {
   const overview = state.data?.overview;
   setText("userButton", (state.data?.user?.username || "?").slice(0, 1).toUpperCase());
+  setText("buildBadge", state.data?.app?.build || "1472");
   setText("syncStatus", overview?.generatedAt ? `Sist oppdatert ${new Date(overview.generatedAt).toLocaleString("nb-NO")}` : "Ingen data");
+  updateTopStatus();
   renderOverview();
   renderParking();
   renderSun();

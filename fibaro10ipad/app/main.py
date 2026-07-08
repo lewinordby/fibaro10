@@ -24,7 +24,7 @@ load_dotenv()
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://fibaro10:8110").rstrip("/")
 FIBARO10_APP_URL = os.getenv("FIBARO10_APP_URL", "http://192.168.20.218:8110").rstrip("/")
-APP_BUILD = os.getenv("FIBARO10_IPAD_APP_BUILD", os.getenv("APP_BUILD", "1471"))
+APP_BUILD = os.getenv("FIBARO10_IPAD_APP_BUILD", os.getenv("APP_BUILD", "1472"))
 APP_COMMIT = os.getenv("FIBARO10_IPAD_APP_COMMIT", os.getenv("APP_COMMIT", "unknown"))
 ASSET_VERSION = f"{APP_BUILD}-{APP_COMMIT[:7]}"
 
@@ -348,17 +348,16 @@ def login_html(error: str = "") -> str:
 </head>
 <body class="login-body">
   <main class="login-screen">
-    <section class="login-brand">
+    <section class="login-brand" aria-label="Lilletorget iPad">
       <img src="/static/lilletorget-mark.png" alt="">
-      <div>
-        <p>Lilletorget</p>
-        <h1>iPad</h1>
-      </div>
+      <p>Lilletorget</p>
+      <h1>iPad</h1>
+      <span>Driftsflate for 13 tommer iPad Pro</span>
     </section>
     <section class="login-panel">
       <p class="eyebrow">Fibaro10</p>
       <h2>Logg inn</h2>
-      <p class="muted">Bruk samme bruker som i hovedappen.</p>
+      <p class="muted">Samme brukerbase som hovedappen. Denne flaten er optimalisert for rask oversikt på iPad.</p>
       {error_html}
       <form method="post" action="/auth/login" class="login-form">
         <label>Brukernavn<input name="username" autocomplete="username" required autofocus></label>
@@ -384,18 +383,36 @@ INDEX_HTML = f"""<!doctype html>
   <script src="/assets/ipad.js?v={ASSET_VERSION}" defer></script>
 </head>
 <body>
-  <main class="ipad-shell">
-    <header class="ipad-topbar">
-      <a class="brand" href="/" aria-label="Lilletorget iPad">
+  <main class="ipad-app">
+    <aside class="app-rail" aria-label="Hovedmeny">
+      <a class="rail-brand" href="/" aria-label="Lilletorget iPad">
         <img src="/static/lilletorget-mark.png" alt="">
         <span>Lilletorget</span>
+        <small>iPad</small>
       </a>
       <nav class="mode-tabs" aria-label="Hovedvisning">
-        <button class="is-active" type="button" data-view="overview">Oversikt</button>
-        <button type="button" data-view="parking">Parkering</button>
-        <button type="button" data-view="sun">Soling</button>
-        <button type="button" data-view="ops">Drift</button>
+        <button class="is-active" type="button" data-view="overview"><span>O</span>Oversikt</button>
+        <button type="button" data-view="parking"><span>P</span>Parkering</button>
+        <button type="button" data-view="sun"><span>S</span>Soling</button>
+        <button type="button" data-view="ops"><span>D</span>Drift</button>
       </nav>
+      <div class="rail-status">
+        <span>Build</span>
+        <strong id="buildBadge">1472</strong>
+      </div>
+    </aside>
+
+    <section class="app-stage">
+    <header class="stage-toolbar">
+      <div class="title-stack">
+        <p class="eyebrow">Lilletorget iPad</p>
+        <h1 id="mainTitle">Oversikt</h1>
+      </div>
+      <div class="status-pills" aria-label="Status">
+        <span id="topOperatingStatus" class="top-pill">Henter åpning</span>
+        <span id="topDatasourceStatus" class="top-pill">Datakilder</span>
+      </div>
+      <div id="syncStatus" class="sync-status">Henter data</div>
       <div class="top-actions">
         <button id="refreshButton" class="icon-button" type="button" aria-label="Oppdater">↻</button>
         <form method="post" action="/konto/logg-ut">
@@ -404,30 +421,29 @@ INDEX_HTML = f"""<!doctype html>
       </div>
     </header>
 
-    <section class="status-line">
-      <div>
-        <p class="eyebrow">Lilletorget iPad</p>
-        <h1 id="mainTitle">Oversikt</h1>
-      </div>
-      <div id="syncStatus" class="sync-status">Henter data</div>
-    </section>
-
     <section id="overviewView" class="view is-active">
+      <section id="heroGrid" class="hero-grid"></section>
       <div id="periodGrid" class="period-grid"></div>
     </section>
 
     <section id="parkingView" class="view">
-      <div class="split-grid">
-        <article class="panel">
+      <div class="workspace-grid">
+        <article class="panel panel-focus">
           <div class="panel-head">
-            <h2>Parkering akkurat nå</h2>
+            <div>
+              <p class="eyebrow">Parkering</p>
+              <h2>Akkurat nå</h2>
+            </div>
             <a class="panel-link" href="/go?path=/parkering/parkeringer">Hovedapp</a>
           </div>
           <div id="parkingCards" class="mini-card-grid"></div>
         </article>
         <article class="panel">
           <div class="panel-head">
-            <h2>Siste parkering</h2>
+            <div>
+              <p class="eyebrow">Historikk</p>
+              <h2>Siste parkering</h2>
+            </div>
             <a class="panel-link" href="/go?path=/parkering/oversikt">Oversikt</a>
           </div>
           <div id="parkingList" class="event-list"></div>
@@ -436,17 +452,23 @@ INDEX_HTML = f"""<!doctype html>
     </section>
 
     <section id="sunView" class="view">
-      <div class="split-grid">
-        <article class="panel">
+      <div class="workspace-grid">
+        <article class="panel panel-focus">
           <div class="panel-head">
-            <h2>Soling</h2>
+            <div>
+              <p class="eyebrow">Soling</p>
+              <h2>Akkurat nå</h2>
+            </div>
             <a class="panel-link" href="/go?path=/soling/enkeltimer">Enkelttimer</a>
           </div>
           <div id="sunCards" class="mini-card-grid"></div>
         </article>
         <article class="panel">
           <div class="panel-head">
-            <h2>Siste soling</h2>
+            <div>
+              <p class="eyebrow">Historikk</p>
+              <h2>Siste soling</h2>
+            </div>
             <a class="panel-link" href="/go?path=/soling/dagslinje">Dagslinje</a>
           </div>
           <div id="sunList" class="event-list"></div>
@@ -458,7 +480,10 @@ INDEX_HTML = f"""<!doctype html>
       <div class="ops-grid">
         <article class="panel command-panel">
           <div class="panel-head">
-            <h2>Status akkurat nå</h2>
+            <div>
+              <p class="eyebrow">Drift</p>
+              <h2>Status akkurat nå</h2>
+            </div>
             <a class="panel-link" href="/go?path=/dashboard/drift">Drift</a>
           </div>
           <div id="operatingStatus" class="operating-status"></div>
@@ -481,6 +506,7 @@ INDEX_HTML = f"""<!doctype html>
           <div id="serviceList" class="service-list"></div>
         </article>
       </div>
+    </section>
     </section>
   </main>
 </body>

@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1471")
+APP_BUILD = os.getenv("APP_BUILD", "1472")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1472",
+        "date": "08.07.2026",
+        "headline": "iPad-grensesnittet får moderne appflate",
+        "title": "Fibaro10 iPad bygges om med venstrerail, hero-dashboard og tydeligere iPad-layout",
+        "description": (
+            "Build 1472 tar iPad-grensesnittet et godt steg videre visuelt. Flaten får en egen appstruktur "
+            "med mørk venstrerail, sticky kontrollinje, stor omsetningshero, mer moderne periodkort og "
+            "bedre fargekodet drift/status for bruk på 13 tommer iPad Pro."
+        ),
+        "applications": [
+            "fibaro10ipad/app/main.py: bygger om HTML-skallet til venstrerail, app-stage, statuspiller og heroområde.",
+            "fibaro10ipad/app/static/ipad.css: erstatter første CSS med et nytt iPad-orientert designsystem.",
+            "fibaro10ipad/app/static/ipad.js: legger inn hero-dashboard, datasource-oppsummering, toppstatus og tryggere HTML-rendering.",
+            "docker-compose.qnap.yml og .env.qnap.example: oppdaterer iPad-build til 1472.",
+            "build_log.py: dokumenterer build 1472.",
+        ],
+        "request": "Du ønsket et mer moderne iPad-grensesnitt og ba om å ta det helt ut.",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "iPad-appen har nå en tydelig app-rail i venstre side i stedet for en enkel toppmeny.",
+            "Oversikt starter med en stor omsetningshero for dagens tall.",
+            "Dagens soling og parkering fremheves med egne driverkort og domene-farger.",
+            "Periodkortene er strammet opp med bedre tabeller og referansefelt.",
+            "Parkering, soling og drift har mer app-aktige paneler og bedre touchflater.",
+        ],
+    },
     {
         "version": "1",
         "build": "1471",
