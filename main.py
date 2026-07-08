@@ -22864,14 +22864,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 if status_value:
                     session_conditions.append(ParkingSession.status == status_value)
                 session_stmt = (
-                    select(ParkingSession, ParkingVehicle)
+                    select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
                     .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
                     .order_by(ParkingSession.start_time.desc())
                     .limit(limit_value)
                     .where(*session_conditions)
                 )
                 parking_rows = (await session.execute(session_stmt)).all()
-                previous_stats = await parking_previous_stats_for_rows(session, [row for row, _ in parking_rows])
+                previous_stats = await parking_previous_stats_for_rows(session, [row for row, _, _ in parking_rows])
                 status_options = api_filter_options(
                     (await session.execute(select(ParkingSession.status).distinct().order_by(ParkingSession.status.asc()))).scalars().all()
                 )
@@ -22889,13 +22890,17 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             "start_time",
                             "end_time",
                             "car_license_number",
+                            "vehicle_title",
                             "navn",
                             "fee_inc_vat",
                             "parking_time_min",
                             "previous_parking_count",
                             "previous_paid_total",
                         ],
-                        [parking_row_api(row, vehicle, previous_stats=previous_stats.get(row.id), unifi_before_seconds=60) for row, vehicle in parking_rows],
+                        [
+                            parking_row_api(row, vehicle, details, previous_stats=previous_stats.get(row.id), unifi_before_seconds=60)
+                            for row, vehicle, details in parking_rows
+                        ],
                     )
                 ]
             elif view == "kjoretoy":

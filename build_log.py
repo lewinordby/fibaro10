@@ -5,8 +5,30 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1461")
+APP_BUILD = os.getenv("APP_BUILD", "1462")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1462",
+        "date": "08.07.2026",
+        "headline": "Parkeringer viser kjøretøy",
+        "title": "Kjøretøyfelt er lagt inn i parkeringslisten",
+        "description": (
+            "Build 1462 legger samlet kjøretøyinformasjon inn i tabellen på Parkering/Parkeringer. "
+            "Listen henter nå også kjøretøydetaljer for hver parkering og viser feltet Kjøretøy etter reg.nr."
+        ),
+        "applications": [
+            "main.py: utvider parkeringer-visningen med ParkingVehicleDetails og kolonnen vehicle_title.",
+        ],
+        "request": "På parkering\\parkeringer i den tabellen ønsker jeg å ha med feltet Kjøretøy.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Parkering/Parkeringer viser nå Kjøretøy som egen kolonne etter reg.nr.",
+            "Kjøretøyverdien kommer fra samme oppsummeringslogikk som brukes på kjøretøysidene.",
+            "Parkeringer uten registrerte kjøretøydetaljer faller tilbake til tom/verdi mangler uten å stoppe tabellen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1461",
