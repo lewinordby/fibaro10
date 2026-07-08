@@ -86,10 +86,10 @@ const DASHBOARD_ACTIONS: Record<DashboardView, DashboardAction[]> = {
     { label: "Månedsoversikt", detail: "Dag for dag inneværende måned", href: "/omsetning/manedsoversikt", tone: "revenue" },
   ],
   parkering: [
-    { label: "Parkering oversikt", detail: "Hovedtall og siste parkeringer", href: "/parkering/oversikt", tone: "parking" },
-    { label: "Parkeringer", detail: "Dagsliste og kamerakoblinger", href: "/parkering/parkeringer", tone: "parking" },
+    { label: "Parkeringer", detail: "Dagsliste, status og kamerakoblinger", href: "/parkering/parkeringer", tone: "parking" },
+    { label: "Dagslinje", detail: "Visuelt belegg gjennom dagen", href: "/parkering/dagslinje", tone: "parking" },
     { label: "Kjøretøy", detail: "Biler, eiere og oppslag", href: "/parkering/kjoretoy", tone: "parking" },
-    { label: "Område", detail: "Områdevalg og manglende område", href: "/parkering/omrade", tone: "parking" },
+    { label: "Områder", detail: "Områdevalg og manglende område", href: "/parkering/omrade", tone: "parking" },
   ],
   soling: [
     { label: "Soling oversikt", detail: "Årstall, utvikling og nøkkeltall", href: "/soling/oversikt", tone: "sun2" },

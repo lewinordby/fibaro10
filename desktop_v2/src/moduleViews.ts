@@ -1,6 +1,7 @@
 export type ModuleView = {
   key: string;
   label: string;
+  hidden?: boolean;
 };
 
 export const MODULE_LABELS: Record<string, string> = {
@@ -54,16 +55,16 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "manedsoversikt", label: "Månedsoversikt" },
   ],
   parkering: [
-    { key: "oversikt", label: "Oversikt" },
-    { key: "sammenligning", label: "Årssammenligning" },
-    { key: "dagslinje", label: "Dagslinje" },
     { key: "parkeringer", label: "Parkeringer" },
-    { key: "oppgjor", label: "Oppgjør" },
-    { key: "prognose", label: "Prognose" },
+    { key: "dagslinje", label: "Dagslinje" },
     { key: "kjoretoy", label: "Kjøretøy" },
-    { key: "omrade", label: "Område" },
-    { key: "oppslag", label: "Oppslag" },
-    { key: "bilstatistikk", label: "Bilstatistikk" },
+    { key: "omrade", label: "Områder" },
+    { key: "prognose", label: "Prognose" },
+    { key: "sammenligning", label: "Årssammenligning" },
+    { key: "oppgjor", label: "Oppgjør" },
+    { key: "oppslag", label: "Datakvalitet" },
+    { key: "oversikt", label: "Oversikt", hidden: true },
+    { key: "bilstatistikk", label: "Bilstatistikk", hidden: true },
   ],
   soling: [
     { key: "oversikt", label: "Oversikt" },
@@ -143,7 +144,11 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
 };
 
 export function defaultModuleView(module: string): string {
-  return MODULE_VIEWS[module]?.[0]?.key ?? "oversikt";
+  return visibleModuleViews(module)[0]?.key ?? MODULE_VIEWS[module]?.[0]?.key ?? "oversikt";
+}
+
+export function visibleModuleViews(module: string): ModuleView[] {
+  return (MODULE_VIEWS[module] ?? []).filter((item) => !item.hidden);
 }
 
 export function moduleLabel(module: string): string {

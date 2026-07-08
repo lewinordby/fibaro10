@@ -12630,7 +12630,7 @@ async def index(request: Request):
             "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions),
             "unit": "stk",
             "detail": f"{dashboard_money_compare(today_parking.paid, yesterday_parking.paid)} - {active_parking or 0} aktive naa",
-            "href": f"/parkering/oversikt?day={today.isoformat()}",
+            "href": f"/parkering/parkeringer?day={today.isoformat()}",
             "tone": "parking",
             "compare": True,
         },
@@ -12648,7 +12648,7 @@ async def index(request: Request):
             "value": dashboard_compare_value(week_parking.sessions, previous_week_parking.sessions),
             "unit": "stk",
             "detail": f"{dashboard_money_compare(week_parking.paid, previous_week_parking.paid)} - {active_parking or 0} aktive naa",
-            "href": f"/parkering/oversikt?day={today.isoformat()}",
+            "href": f"/parkering/parkeringer?day={today.isoformat()}",
             "tone": "parking",
             "compare": True,
         },
@@ -12666,7 +12666,7 @@ async def index(request: Request):
             "value": dashboard_compare_value(month_parking.sessions, previous_month_parking.sessions),
             "unit": "stk",
             "detail": f"{format_short_number(month_parking.paid)} kr hittil denne måneden",
-            "href": f"/parkering/oversikt?day={today.isoformat()}",
+            "href": f"/parkering/parkeringer?day={today.isoformat()}",
             "tone": "parking",
             "compare": True,
         },
@@ -12683,7 +12683,7 @@ async def index(request: Request):
             "value": format_short_number(year_parking.sessions),
             "unit": "stk",
             "detail": f"{format_short_number(year_parking.paid)} kr hittil i år",
-            "href": "/parkering/statistikk",
+            "href": "/parkering/sammenligning",
             "tone": "parking",
         },
     ]
@@ -13108,7 +13108,7 @@ async def status_key_metrics_view(request: Request):
             "value": dashboard_compare_value(today_parking.sessions, yesterday_parking.sessions),
             "unit": "stk",
             "detail": f"{format_short_number(today_parking.paid)} kr til {cutoff_label(parking_today_cutoff, today)} - {active_parking or 0} aktive na",
-            "href": f"/parkering/oversikt?day={today.isoformat()}",
+            "href": f"/parkering/parkeringer?day={today.isoformat()}",
             "tone": "parking",
         },
         {
@@ -13117,7 +13117,7 @@ async def status_key_metrics_view(request: Request):
             "value": format_short_number(same_time_parking.sessions),
             "unit": "stk",
             "detail": f"{format_short_number(same_time_parking.paid)} kr til {cutoff_label(parking_last_week_same_cutoff, today)}",
-            "href": "/parkering/oversikt",
+            "href": "/parkering/parkeringer",
             "tone": "parking",
         },
         {
@@ -13126,7 +13126,7 @@ async def status_key_metrics_view(request: Request):
             "value": format_short_number(last_week_parking.sessions),
             "unit": "stk",
             "detail": f"{format_short_number(last_week_parking.paid)} kr",
-            "href": "/parkering/statistikk",
+            "href": "/parkering/sammenligning",
             "tone": "parking",
         },
         {
@@ -13135,7 +13135,7 @@ async def status_key_metrics_view(request: Request):
             "value": format_short_number(two_weeks_parking.sessions),
             "unit": "stk",
             "detail": f"{format_short_number(two_weeks_parking.paid)} kr",
-            "href": "/parkering/statistikk",
+            "href": "/parkering/sammenligning",
             "tone": "parking",
         },
         {
@@ -13144,7 +13144,7 @@ async def status_key_metrics_view(request: Request):
             "value": dashboard_compare_value(week_parking.sessions, previous_week_parking.sessions),
             "unit": "stk",
             "detail": f"{dashboard_money_compare(week_parking.paid, previous_week_parking.paid)} denne / forrige",
-            "href": "/parkering/statistikk",
+            "href": "/parkering/sammenligning",
             "tone": "parking",
         },
         {
@@ -13153,7 +13153,7 @@ async def status_key_metrics_view(request: Request):
             "value": dashboard_compare_value(month_parking.sessions, previous_month_parking.sessions),
             "unit": "stk",
             "detail": f"{dashboard_money_compare(month_parking.paid, previous_month_parking.paid)} denne / forrige",
-            "href": "/parkering/statistikk",
+            "href": "/parkering/sammenligning",
             "tone": "parking",
         },
         {
@@ -13285,7 +13285,7 @@ async def status_key_metrics_view(request: Request):
             "label": "Siste parkering",
             "value": latest_parking.start_time.strftime("%H:%M") if latest_parking and latest_parking.start_time else "-",
             "detail": latest_parking.car_license_number if latest_parking and latest_parking.car_license_number else "",
-            "href": "/parkering/oversikt",
+            "href": "/parkering/parkeringer",
         },
         {
             "label": "Energi sist lest",
@@ -22180,7 +22180,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "kr",
                     f"{format_short_number(year_parking_count)} parkeringer",
                     "parking",
-                    href="/parkering/oversikt",
+                    href="/parkering/sammenligning",
                 ),
             ]
 
@@ -24401,7 +24401,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "",
                         f"r={strongest_parking['correlation']} · {strongest_parking['direction']}" if strongest_parking else "For lite data",
                         "parking",
-                        href="/parkering/oversikt",
+                        href="/parkering/sammenligning",
                     ),
                     api_card(
                         "Omsetning",
@@ -24554,7 +24554,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         [
                             api_tool_row("Dashboard", "/status/omsetning", "Hoveddashboard for omsetning, parkering og soling.", None),
                             api_tool_row("Omsetning", "/omsetning/oversikt", "Årsoversikt, toppdager og oppgjørskontroll.", None),
-                            api_tool_row("Parkering", "/parkering/oversikt", "Parkeringsstatus, kjøretøydata og importkontroll.", None),
+                            api_tool_row("Parkering", "/parkering/parkeringer", "Dagsliste, status, kamerakoblinger og importkontroll.", None),
                             api_tool_row("Soling", "/soling/oversikt", "Soling, enkelttimer, produkter og bildegrunnlag.", None),
                             api_tool_row("Energi", "/energi/status", "Realtime energi, kurs, laster og Elvia-kontroll.", None),
                             api_tool_row("Ventilasjon", "/ventilasjon/dagslogg", "Temperatur, fukt, vifter og hendelser.", None),
@@ -26292,7 +26292,7 @@ async def sun2_room_stats_json_legacy_redirect(request: Request):
 
 @app.get("/parkering")
 async def parking_redirect(request: Request):
-    return redirect_keep_query(request, "/parkering/oversikt", status_code=307)
+    return redirect_keep_query(request, "/parkering/parkeringer", status_code=307)
 
 
 EASYPARK_REQUIRED_COLUMNS = {
@@ -27020,7 +27020,7 @@ async def parking_refresh(request: Request):
         outcome = "error"
     day = request.query_params.get("day")
     suffix = f"?day={quote(day)}&refresh={outcome}" if day else f"?refresh={outcome}"
-    return RedirectResponse(f"/parkering/oversikt{suffix}", status_code=303)
+    return RedirectResponse(f"/parkering/parkeringer{suffix}", status_code=303)
 
 
 @app.get("/parkering/oversikt", response_class=HTMLResponse)

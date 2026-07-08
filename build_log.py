@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1464")
+APP_BUILD = os.getenv("APP_BUILD", "1465")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1465",
+        "date": "08.07.2026",
+        "headline": "Parkering har ryddigere menystruktur",
+        "title": "Parkeringer er standardflaten, og overlappende undersider er skjult fra menyen",
+        "description": (
+            "Build 1465 rydder parkeringsområdet i V2. Parkeringer er nå første og naturlige side, "
+            "synlige undersider er sortert etter arbeidsflyt, og gamle overlappende flater er skjult "
+            "fra fanemenyen uten at underliggende ruter fjernes."
+        ),
+        "applications": [
+            "desktop_v2/src/moduleViews.ts: gjør Parkeringer til standardvisning og skjuler Oversikt/Bilstatistikk fra normal meny.",
+            "desktop_v2/src/App.tsx: skiller mellom kjente ruter og synlige faner slik at skjulte ruter ikke forstyrrer vanlig meny.",
+            "desktop_v2/src/pages/OverviewPage.tsx og desktop_v2/src/domainModel.ts: oppdaterer snarveier til nye parkeringsflater.",
+            "main.py: flytter operative parkeringslenker og redirect etter EasyPark-oppdatering til Parkeringer.",
+            "docs/desktop-v2.md og docs/funksjonsstruktur.md: dokumenterer ny struktur.",
+        ],
+        "request": "Kan du gjøre en grundig opprydding på menystruktur og undersider på parkering. Det er en del overlapp og parkeringer burde ant være default side.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Parkering åpner nå på /parkering/parkeringer.",
+            "Fanemenyen for parkering viser Parkeringer, Dagslinje, Kjøretøy, Områder, Prognose, Årssammenligning, Oppgjør og Datakvalitet.",
+            "Gammel Oversikt og Bilstatistikk er skjult fra normal meny for å redusere overlapp.",
+            "Dashboard, manual og backend-kort peker til de nye operative parkeringssidene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1464",

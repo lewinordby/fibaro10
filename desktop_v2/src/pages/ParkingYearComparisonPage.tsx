@@ -235,7 +235,7 @@ export default function ParkingYearComparisonPage() {
           middle={<PeriodLabel>{data.navigation.label}</PeriodLabel>}
           extra={
           <Button icon={<ArrowLeftOutlined />}>
-            <Link to="/parkering/oversikt">Oversikt</Link>
+            <Link to="/parkering/parkeringer">Parkeringer</Link>
           </Button>
           }
         />

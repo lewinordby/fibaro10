@@ -9,7 +9,7 @@ Hver side skal ha én hovedrolle:
 | Rolle | Formål | Eksempler |
 | --- | --- | --- |
 | Dashboard | Rask status og utvikling | Dashboard omsetning, parkering, soling, drift |
-| Oversikt | Analyse og hovedtall for et domene | Omsetning oversikt, Parkering oversikt, Soling oversikt |
+| Oversikt | Analyse og hovedtall for et domene | Omsetning oversikt, Soling oversikt |
 | Arbeidsflate | Daglig arbeid med konkrete rader | Parkeringer, Kjøretøy, Enkeltimer, Produkter |
 | Kontroll | Avstemming mot eksterne kilder | Oppgjør, Elvia-kontroll, Datakvalitet |
 | Teknisk drift | Jobber, datakilder, system og verktøy | Datakilder, Systemkart, Buildlogg, OwnTracks |
@@ -31,18 +31,19 @@ Unngå at oppgjør og avstemming ligger direkte under Omsetning. Det hører bedr
 
 Behold:
 
-- `Oversikt`
-- `Årssammenligning`
+- `Parkeringer` som standard arbeidsflate
 - `Dagslinje`
-- `Parkeringer`
 - `Kjøretøy`
-- `Område`
+- `Områder`
+- `Prognose`
+- `Årssammenligning`
 - `Oppgjør`
+- `Datakvalitet`
 
-Vurder sammenslåing:
+Skjult/utfaset fra meny:
 
-- `Bilstatistikk` kan bli en seksjon under `Kjøretøy`.
-- `Oppslag` kan bli en arbeidsseksjon under `Kjøretøy` eller `Datakvalitet`.
+- `Oversikt` er bevart som rute, men skal ikke være hovedinngang fordi den overlapper med dashboard, parkeringer og kjøretøy.
+- `Bilstatistikk` er bevart som rute, men skal løftes inn i `Kjøretøy` når tallene trengs.
 
 ### Soling
 
