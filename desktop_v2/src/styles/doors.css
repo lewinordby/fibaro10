@@ -155,20 +155,36 @@
 .door-event-time strong,
 .door-event-time span,
 .door-event-name strong,
-.door-event-name span {
+.door-event-name span,
+.door-period-time strong,
+.door-period-time span,
+.door-period-door strong,
+.door-period-door span,
+.door-period-duration strong,
+.door-period-duration span {
   display: block;
 }
 
 .door-event-time strong,
-.door-event-name strong {
+.door-event-name strong,
+.door-period-time strong,
+.door-period-door strong,
+.door-period-duration strong {
   color: var(--ink);
   font-weight: 760;
 }
 
 .door-event-time span,
-.door-event-name span {
+.door-event-name span,
+.door-period-time span,
+.door-period-door span,
+.door-period-duration span {
   color: var(--muted);
   font-size: 11px;
+}
+
+.door-period-duration strong {
+  font-variant-numeric: tabular-nums;
 }
 
 .doors-note-card {

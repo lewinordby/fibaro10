@@ -10042,6 +10042,120 @@ def door_status_payload(config: Dict[str, Any], row: Optional[DoorEvent], now: d
     }
 
 
+def door_event_state_bool(row: Optional[DoorEvent]) -> Optional[bool]:
+    if not row:
+        return None
+    state = door_state_from_event(row)
+    if state["state"] == "open":
+        return True
+    if state["state"] == "closed":
+        return False
+    return None
+
+
+def door_event_device_key(row: DoorEvent) -> str:
+    if row.device_id is not None:
+        return f"id:{int(row.device_id)}"
+    return f"key:{row.device_key or 'unknown'}"
+
+
+def door_change_rows(rows_ascending: list[DoorEvent]) -> list[DoorEvent]:
+    changes: list[DoorEvent] = []
+    last_state_by_device: Dict[str, bool] = {}
+    for row in rows_ascending:
+        state = door_event_state_bool(row)
+        if state is None:
+            continue
+        key = door_event_device_key(row)
+        if key not in last_state_by_device or last_state_by_device[key] != state:
+            changes.append(row)
+            last_state_by_device[key] = state
+    return changes
+
+
+def door_duration_label(seconds: Optional[int]) -> str:
+    if seconds is None:
+        return "-"
+    seconds = max(0, int(seconds))
+    if seconds < 60:
+        return f"{seconds} sek"
+    minutes = seconds // 60
+    if minutes < 60:
+        return "1 min" if minutes == 1 else f"{minutes} min"
+    hours = minutes // 60
+    rest_minutes = minutes % 60
+    if hours < 24:
+        if rest_minutes:
+            return f"{hours} t {rest_minutes} min"
+        return "1 t" if hours == 1 else f"{hours} t"
+    days = hours // 24
+    rest_hours = hours % 24
+    if rest_hours:
+        return f"{days} d {rest_hours} t"
+    return "1 dag" if days == 1 else f"{days} dager"
+
+
+def door_title_for_row(row: DoorEvent) -> str:
+    if row.device_id is not None:
+        for config in DOOR_SENSOR_CONFIG:
+            if int(config["device_id"]) == int(row.device_id):
+                return str(config["title"])
+    return row.device_name or row.device_key or "Ukjent dør"
+
+
+def door_period_payload(open_row: DoorEvent, close_row: Optional[DoorEvent], now: datetime) -> Dict[str, Any]:
+    opened_at = normalize_local_naive(open_row.timestamp)
+    closed_at = normalize_local_naive(close_row.timestamp) if close_row else None
+    duration_end = closed_at or now
+    duration_seconds = int((duration_end - opened_at).total_seconds()) if opened_at else None
+    state = "open" if close_row is None else "closed"
+    return {
+        "id": f"{open_row.device_id or open_row.device_key or 'door'}-{open_row.id}",
+        "deviceId": open_row.device_id,
+        "deviceKey": open_row.device_key,
+        "deviceName": open_row.device_name,
+        "title": door_title_for_row(open_row),
+        "state": state,
+        "stateLabel": "Åpen nå" if state == "open" else "Lukket",
+        "tone": "warn" if state == "open" else "ok",
+        "openedAt": opened_at.isoformat() if opened_at else None,
+        "openedLabel": format_source_datetime_short(opened_at) if opened_at else "-",
+        "openedAgeLabel": door_age_label(opened_at, now),
+        "closedAt": closed_at.isoformat() if closed_at else None,
+        "closedLabel": format_source_datetime_short(closed_at) if closed_at else "Åpen nå",
+        "closedAgeLabel": door_age_label(closed_at, now) if closed_at else "",
+        "durationSeconds": duration_seconds,
+        "durationLabel": door_duration_label(duration_seconds),
+        "openedEventId": open_row.id,
+        "closedEventId": close_row.id if close_row else None,
+    }
+
+
+def door_open_periods(change_rows_ascending: list[DoorEvent], now: datetime) -> list[Dict[str, Any]]:
+    open_by_device: Dict[str, DoorEvent] = {}
+    periods: list[Dict[str, Any]] = []
+    for row in change_rows_ascending:
+        state = door_event_state_bool(row)
+        key = door_event_device_key(row)
+        if state is True:
+            open_by_device[key] = row
+        elif state is False:
+            open_row = open_by_device.pop(key, None)
+            if open_row:
+                periods.append(door_period_payload(open_row, row, now))
+    for open_row in open_by_device.values():
+        periods.append(door_period_payload(open_row, None, now))
+    return sorted(periods, key=lambda item: item.get("openedAt") or "", reverse=True)
+
+
+def door_change_text(row: Optional[DoorEvent]) -> str:
+    if not row:
+        return "Ingen endringer registrert"
+    state = door_state_from_event(row)
+    action_text = "Åpnet" if state["state"] == "open" else "Lukket" if state["state"] == "closed" else "Ukjent status"
+    return f"{door_title_for_row(row)} {action_text.lower()}"
+
+
 def apply_common_filters(stmt, model, event_type, action, device_key, device_id, mode, source_contains, from_ts, to_ts):
     if event_type:
         stmt = stmt.where(model.event_type == event_type)
@@ -30282,39 +30396,42 @@ async def api_hc3_door_events_json(limit: int = Query(200, ge=1, le=5000)):
 
 
 @app.get("/api/hc3/doors/status")
-async def api_hc3_doors_status(history_limit: int = Query(50, ge=1, le=500)):
+async def api_hc3_doors_status(
+    history_limit: int = Query(50, ge=1, le=500),
+    period_limit: int = Query(80, ge=1, le=500),
+):
     now = local_now_naive()
+    raw_limit = max(history_limit * 20, period_limit * 20, 1000)
     async with async_session() as session:
-        latest_result = await session.execute(
-            select(DoorEvent)
-            .where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS))
-            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-            .limit(max(history_limit, len(DOOR_SENSOR_IDS)) * 4)
-        )
-        latest_rows = latest_result.scalars().all()
-        latest_by_device: Dict[int, DoorEvent] = {}
-        for row in latest_rows:
-            if row.device_id is None:
-                continue
-            latest_by_device.setdefault(int(row.device_id), row)
-
         history_result = await session.execute(
             select(DoorEvent)
             .where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS))
             .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
-            .limit(history_limit)
+            .limit(raw_limit)
         )
-        history_rows = history_result.scalars().all()
+        raw_rows = history_result.scalars().all()
         total_events = await session.scalar(select(func.count(DoorEvent.id)).where(DoorEvent.device_id.in_(DOOR_SENSOR_IDS)))
 
-    doors = [door_status_payload(config, latest_by_device.get(int(config["device_id"])), now) for config in DOOR_SENSOR_CONFIG]
+    change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
+    latest_change_by_device: Dict[int, DoorEvent] = {}
+    for row in reversed(change_rows_ascending):
+        if row.device_id is None:
+            continue
+        latest_change_by_device.setdefault(int(row.device_id), row)
+    newest_change = max(
+        change_rows_ascending,
+        key=lambda row: (normalize_local_naive(row.timestamp) or datetime.min, row.id or 0),
+        default=None,
+    )
+    newest_at = normalize_local_naive(newest_change.timestamp) if newest_change else None
+    periods = door_open_periods(change_rows_ascending, now)
+    raw_history_rows = raw_rows[:history_limit]
+    change_history_rows = list(reversed(change_rows_ascending))[:history_limit]
+
+    doors = [door_status_payload(config, latest_change_by_device.get(int(config["device_id"])), now) for config in DOOR_SENSOR_CONFIG]
     known = [door for door in doors if door["state"] != "unknown"]
     open_doors = [door for door in doors if door["state"] == "open"]
     closed_doors = [door for door in doors if door["state"] == "closed"]
-    newest_at = max(
-        (normalize_local_naive(row.timestamp) for row in latest_by_device.values() if row.timestamp),
-        default=None,
-    )
     return {
         "generatedAt": now.isoformat(),
         "datakildePath": "/admin/datakilder/hc3_door_events",
@@ -30327,10 +30444,16 @@ async def api_hc3_doors_status(history_limit: int = Query(50, ge=1, le=500)):
             "latestAt": newest_at.isoformat() if newest_at else None,
             "latestLabel": format_source_datetime_short(newest_at) if newest_at else "-",
             "latestAgeLabel": door_age_label(newest_at, now),
+            "latestChangeText": door_change_text(newest_change),
             "events": int(total_events or 0),
+            "changes": len(change_rows_ascending),
+            "periods": len(periods),
+            "activePeriods": len([period for period in periods if period.get("state") == "open"]),
         },
         "doors": doors,
-        "events": [door_event_payload(row, now) for row in history_rows],
+        "changes": [door_event_payload(row, now) for row in change_history_rows],
+        "events": [door_event_payload(row, now) for row in raw_history_rows],
+        "periods": periods[:period_limit],
     }
 
 

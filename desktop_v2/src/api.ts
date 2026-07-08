@@ -349,6 +349,27 @@ export type DoorEventItem = {
   extra?: JsonRecord;
 };
 
+export type DoorPeriodItem = {
+  id: string;
+  deviceId?: number | null;
+  deviceKey?: string | null;
+  deviceName?: string | null;
+  title: string;
+  state: "open" | "closed" | "unknown";
+  stateLabel: string;
+  tone: "ok" | "warn" | "unknown" | string;
+  openedAt: string | null;
+  openedLabel: string;
+  openedAgeLabel: string;
+  closedAt: string | null;
+  closedLabel: string;
+  closedAgeLabel: string;
+  durationSeconds: number | null;
+  durationLabel: string;
+  openedEventId?: number | null;
+  closedEventId?: number | null;
+};
+
 export type DoorStatusResponse = {
   generatedAt: string;
   datakildePath: string;
@@ -361,10 +382,16 @@ export type DoorStatusResponse = {
     latestAt: string | null;
     latestLabel: string;
     latestAgeLabel: string;
+    latestChangeText: string;
     events: number;
+    changes: number;
+    periods: number;
+    activePeriods: number;
   };
   doors: DoorStatusItem[];
+  changes: DoorEventItem[];
   events: DoorEventItem[];
+  periods: DoorPeriodItem[];
 };
 
 export type BuildLogEntry = {

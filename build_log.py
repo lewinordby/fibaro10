@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1467")
+APP_BUILD = os.getenv("APP_BUILD", "1468")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1468",
+        "date": "08.07.2026",
+        "headline": "Dører har ryddig oversikt og egen rådataside",
+        "title": "Dørmenyen viser åpneperioder med varighet og flytter HC3-rådata til egen fane",
+        "description": (
+            "Build 1468 gjør Dører/Oversikt til en faktisk arbeidsflate. Den viser bare reelle "
+            "statusendringer, beregner hvor lenge dørene har vært åpne, og lar råmeldinger fra HC3 "
+            "ligge på en egen Rådata-side for kontroll og feilsøking."
+        ),
+        "applications": [
+            "main.py: beregner statusendringer, åpneperioder, varighet og siste faktiske dørendring i /api/hc3/doors/status.",
+            "desktop_v2/src/api.ts: utvider dørtypene med perioder, endringer og siste endringstekst.",
+            "desktop_v2/src/pages/DoorsPage.tsx: deler Dører i Oversikt og Rådata, og viser åpnet/lukket/varighet i en ryddig tabell.",
+            "desktop_v2/src/moduleViews.ts og desktop_v2/scripts/smoke-routes.mjs: legger Rådata inn som egen verifisert underside.",
+            "desktop_v2/src/styles/doors.css: strammer visningen av dørperioder og statusfelt.",
+            "build_log.py: dokumenterer build 1468.",
+        ],
+        "request": "På menyen Dører ønsket du rådata på egen side, og en første side Oversikt som viser når en dør går opp og igjen, bare statusendringer og hvor lenge døren var åpen.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Dører/Oversikt viser nå døråpninger med åpnet, lukket og varighet.",
+            "Toppen viser sist faktiske statusendring og hva som skjedde.",
+            "Rå HC3-hendelser ligger på Dører/Rådata.",
+            "Ruteaudit dekker nå begge dørsidene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1467",
