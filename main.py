@@ -129,6 +129,7 @@ from roborock_domain import (
     roborock_water_label,
 )
 from security import apply_security_headers
+from solar_position import solar_elevation_degrees
 from system_inventory import system_component_rows, system_component_summary, system_web_interface_rows
 from sun2_helpers import (
     SUN2_ROOM_MAP_BY_DISPLAY,
@@ -8899,6 +8900,23 @@ async def fetch_yr_cloud_samples(day_start: datetime, day_end: datetime):
                 "weather_text": row.weather_text or "",
             }
         )
+    return samples
+
+
+def build_solar_elevation_samples(day_start: datetime, day_end: datetime, interval_minutes: int = 10):
+    samples = []
+    cursor = day_start
+    interval = timedelta(minutes=max(1, interval_minutes))
+    while cursor <= day_end:
+        elevation = solar_elevation_degrees(cursor, MET_LAT, MET_LON, LOCAL_TZ)
+        samples.append(
+            {
+                "time_dt": cursor,
+                "time": cursor.strftime("%H:%M"),
+                "solar_elevation": round(max(0.0, elevation), 1),
+            }
+        )
+        cursor += interval
     return samples
 
 
@@ -24098,6 +24116,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             selected_timeline_end = min(now_dt, selected_day_end) if selected_day == today else selected_day_end
             lux_day = await build_lux_day(selected_day_start, selected_day_end, selected_timeline_end)
             cloud_samples = await fetch_yr_cloud_samples(selected_day_start, selected_day_end)
+            solar_samples = build_solar_elevation_samples(selected_day_start, selected_day_end)
             lux_series = [
                 {
                     "name": "Lux",
@@ -24116,15 +24135,25 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "smooth": True,
                 }
             ]
+            solar_series = [
+                {
+                    "name": "Solhøyde",
+                    "data": [[api_local_iso(row["time_dt"]), row["solar_elevation"]] for row in solar_samples if row.get("time_dt")],
+                    "color": "#ea580c",
+                    "unit": "grader",
+                    "yAxisIndex": 1,
+                    "smooth": True,
+                }
+            ]
             charts = [
                 api_chart(
                     "Dagslogg lys",
                     [],
-                    lux_series + cloud_series,
-                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Slå Lux og Skydekke av/på i grafen.",
+                    lux_series + cloud_series + solar_series,
+                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Slå Lux, Skydekke og Solhøyde av/på i grafen.",
                     "line",
                     340,
-                    default_visible_series=["Lux", "Skydekke"],
+                    default_visible_series=["Lux", "Skydekke", "Solhøyde"],
                     x_axis_type="time",
                     x_axis_min=api_local_iso(selected_day_start),
                     x_axis_max=api_local_iso(selected_day_end),

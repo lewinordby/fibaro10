@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1497")
+APP_BUILD = os.getenv("APP_BUILD", "1498")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1498",
+        "date": "09.07.2026",
+        "headline": "Solhøyde i lysgraf",
+        "title": "Lys/dagslogg viser solhøyde sammen med lux og skydekke",
+        "description": (
+            "Build 1498 legger inn beregnet solhøyde for Lilletorget i Dagslogg lys. Grafen starter nå med Lux, "
+            "Skydekke og Solhøyde aktivert, slik at lux-nivå kan vurderes mot både skydekke og hvor høyt solen står."
+        ),
+        "applications": [
+            "solar_position.py: ny isolert beregning av solhøyde basert på tidspunkt og koordinater.",
+            "main.py: legger Solhøyde inn som egen serie i Lys/dagslogg.",
+            "desktop_v2/src/pages/module/ModuleChartPanel.tsx: gjør høyre akse korrekt når blandede enheter vises.",
+            "tests/test_solar_position.py: tester solhøyde for Lillehammer sommer, vinter og natt.",
+            "build_log.py: dokumenterer build 1498.",
+        ],
+        "request": "Du ønsket en graf som viser hvor høyt solen står på himmelen sammen med lysdataene.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Solhøyde beregnes for valgt døgn med 10-minutters punkter.",
+            "Solhøyde vises i grader og klippes til 0 når solen er under horisonten.",
+            "Lux, Skydekke og Solhøyde er alle aktivert som standard på Lys/dagslogg.",
+            "Høyre akse viser nøytral Vær / sol-etikett når prosent og grader ligger på samme akse.",
+        ],
+    },
     {
         "version": "1",
         "build": "1497",

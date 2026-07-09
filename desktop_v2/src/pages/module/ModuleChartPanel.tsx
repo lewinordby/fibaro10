@@ -39,13 +39,15 @@ export default function ModuleChartPanel({
   const option = useMemo(() => {
     const isTimeAxis = chart.xAxisType === "time";
     const showZoom = !chart.disableZoom && !isTimeAxis && chart.x.length > 80;
-    const secondarySeries = chartSeries.find((series) => series.yAxisIndex === 1);
-    const hasSecondaryAxis = Boolean(secondarySeries);
+    const secondarySeries = chartSeries.filter((series) => series.yAxisIndex === 1);
+    const hasSecondaryAxis = secondarySeries.length > 0;
     const primaryUnit =
       activeMetric?.unit ??
       chartSeries.find((series) => (series.yAxisIndex ?? 0) === 0)?.unit ??
       "";
-    const secondaryUnit = secondarySeries?.unit ?? "%";
+    const secondaryUnits = Array.from(new Set(secondarySeries.map((series) => series.unit).filter((unit): unit is string => Boolean(unit))));
+    const secondaryUnit = secondaryUnits.length === 1 ? secondaryUnits[0] : "Vær / sol";
+    const secondaryFormatter = secondaryUnits.length === 1 && secondaryUnits[0] === "%" ? "{value}%" : undefined;
     const requestedVisible = new Set(chart.defaultVisibleSeries ?? []);
     const applyDefaultVisibility = requestedVisible.size > 0 && chartSeries.some((series) => requestedVisible.has(series.name));
     const selectedSeries: Record<string, boolean> | undefined = applyDefaultVisibility
@@ -92,7 +94,7 @@ export default function ModuleChartPanel({
               max: 100,
               position: "right",
               nameTextStyle: chartAxisLabel(),
-              axisLabel: chartAxisLabel({ margin: 10, formatter: "{value}%" }),
+              axisLabel: chartAxisLabel({ margin: 10, formatter: secondaryFormatter }),
               splitLine: { show: false },
             },
           ]
