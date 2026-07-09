@@ -313,10 +313,18 @@ export type MobilePreviewResponse = {
 };
 
 export type DoorStatusItem = {
-  deviceId: number;
+  deviceId: number | null;
   deviceKey: string;
   title: string;
   hc3Name: string;
+  groupKey: string;
+  groupTitle: string;
+  sectionKey: string;
+  sectionTitle: string;
+  sortOrder: number;
+  normalState: "open" | "closed" | string;
+  normalStateLabel: string;
+  isConfigured: boolean;
   state: "open" | "closed" | "unknown";
   stateLabel: string;
   tone: "ok" | "warn" | "unknown" | string;
@@ -376,6 +384,8 @@ export type DoorStatusResponse = {
   datakildePath: string;
   summary: {
     total: number;
+    configured: number;
+    planned: number;
     known: number;
     open: number;
     closed: number;

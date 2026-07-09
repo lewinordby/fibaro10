@@ -2097,11 +2097,107 @@ DOOR_EVENT_COLUMNS = [
 ]
 
 DOOR_SENSOR_CONFIG = [
-    {"device_id": 453, "device_key": "door_453", "title": "Bod/kjøkken", "hc3_name": "96.0 bod/kjokken"},
-    {"device_id": 447, "device_key": "door_447", "title": "Kjeller luke", "hc3_name": "94.0 Kjeller luke"},
-    {"device_id": 413, "device_key": "door_413", "title": "Arbeidsrom", "hc3_name": "86.0 Arbeidsrom"},
+    *[
+        {
+            "device_id": None,
+            "device_key": f"door_solrom_{index:02d}",
+            "title": f"Solrom {index}",
+            "hc3_name": "Ikke koblet i HC3",
+            "group_key": "solrom",
+            "group_title": "Solrom",
+            "section_key": "1etg" if index in {1, 2, 3, 9} else "vip" if index in {10, 11, 12} else "2etg",
+            "section_title": "1.etg" if index in {1, 2, 3, 9} else "VIP" if index in {10, 11, 12} else "2.etg",
+            "sort_order": index,
+            "normal_state": "closed",
+        }
+        for index in range(1, 13)
+    ],
+    {
+        "device_id": 453,
+        "device_key": "door_453",
+        "title": "Bod/kjøkken",
+        "hc3_name": "96.0 bod/kjokken",
+        "group_key": "andre",
+        "group_title": "Andre dører",
+        "section_key": "bygg",
+        "section_title": "Bygg",
+        "sort_order": 101,
+        "normal_state": "closed",
+    },
+    {
+        "device_id": 447,
+        "device_key": "door_447",
+        "title": "Kjeller luke",
+        "hc3_name": "94.0 Kjeller luke",
+        "group_key": "andre",
+        "group_title": "Andre dører",
+        "section_key": "bygg",
+        "section_title": "Bygg",
+        "sort_order": 102,
+        "normal_state": "closed",
+    },
+    {
+        "device_id": 413,
+        "device_key": "door_413",
+        "title": "Arbeidsrom",
+        "hc3_name": "86.0 Arbeidsrom",
+        "group_key": "andre",
+        "group_title": "Andre dører",
+        "section_key": "bygg",
+        "section_title": "Bygg",
+        "sort_order": 103,
+        "normal_state": "closed",
+    },
+    {
+        "device_id": None,
+        "device_key": "door_inngang",
+        "title": "Inngang",
+        "hc3_name": "Ikke koblet i HC3",
+        "group_key": "andre",
+        "group_title": "Andre dører",
+        "section_key": "bygg",
+        "section_title": "Bygg",
+        "sort_order": 104,
+        "normal_state": "closed",
+    },
+    {
+        "device_id": None,
+        "device_key": "door_massasjestudio",
+        "title": "Massasjestudio",
+        "hc3_name": "Ikke koblet i HC3",
+        "group_key": "andre",
+        "group_title": "Andre dører",
+        "section_key": "bygg",
+        "section_title": "Bygg",
+        "sort_order": 105,
+        "normal_state": "closed",
+    },
+    {
+        "device_id": None,
+        "device_key": "door_vaskerom",
+        "title": "Vaskerom",
+        "hc3_name": "Ikke koblet i HC3",
+        "group_key": "andre",
+        "group_title": "Andre dører",
+        "section_key": "bygg",
+        "section_title": "Bygg",
+        "sort_order": 106,
+        "normal_state": "closed",
+    },
+    {
+        "device_id": None,
+        "device_key": "door_papirlager",
+        "title": "Papirlager",
+        "hc3_name": "Ikke koblet i HC3",
+        "group_key": "andre",
+        "group_title": "Andre dører",
+        "section_key": "bygg",
+        "section_title": "Bygg",
+        "sort_order": 107,
+        "normal_state": "closed",
+    },
 ]
-DOOR_SENSOR_IDS = [int(item["device_id"]) for item in DOOR_SENSOR_CONFIG]
+DOOR_SENSOR_IDS = [int(item["device_id"]) for item in DOOR_SENSOR_CONFIG if item.get("device_id") is not None]
 
 VENT_SAMPLE_COLUMNS = [
     "id", "timestamp", "bucket_start", "mode", "source", "temp_1etg", "temp_2etg",
@@ -10037,13 +10133,23 @@ def door_event_payload(row: DoorEvent, now: Optional[datetime] = None) -> Dict[s
 def door_status_payload(config: Dict[str, Any], row: Optional[DoorEvent], now: datetime) -> Dict[str, Any]:
     state = door_state_from_event(row)
     timestamp = normalize_local_naive(row.timestamp) if row else None
+    device_id = config.get("device_id")
+    normal_state = str(config.get("normal_state") or "closed")
     return {
-        "deviceId": config["device_id"],
+        "deviceId": device_id,
         "deviceKey": config["device_key"],
         "title": config["title"],
-        "hc3Name": row.device_name if row and row.device_name else config["hc3_name"],
+        "hc3Name": row.device_name if row and row.device_name else config.get("hc3_name", ""),
+        "groupKey": config.get("group_key", "andre"),
+        "groupTitle": config.get("group_title", "Andre dører"),
+        "sectionKey": config.get("section_key", config.get("group_key", "andre")),
+        "sectionTitle": config.get("section_title", config.get("group_title", "Andre dører")),
+        "sortOrder": int(config.get("sort_order") or 0),
+        "normalState": normal_state,
+        "normalStateLabel": "Normalt åpen" if normal_state == "open" else "Normalt lukket",
+        "isConfigured": device_id is not None,
         "state": state["state"],
-        "stateLabel": state["label"],
+        "stateLabel": state["label"] if device_id is not None else "Klargjort",
         "tone": state["tone"],
         "lastChangedAt": timestamp.isoformat() if timestamp else None,
         "lastChangedLabel": format_source_datetime_short(timestamp) if timestamp else "-",
@@ -10073,6 +10179,8 @@ def door_event_device_key(row: DoorEvent) -> str:
 
 
 def door_config_device_key(config: Dict[str, Any]) -> str:
+    if config.get("device_id") is None:
+        return f"key:{config.get('device_key') or 'unknown'}"
     return f"id:{int(config['device_id'])}"
 
 
@@ -10125,7 +10233,7 @@ def door_duration_label(seconds: Optional[int]) -> str:
 def door_title_for_row(row: DoorEvent) -> str:
     if row.device_id is not None:
         for config in DOOR_SENSOR_CONFIG:
-            if int(config["device_id"]) == int(row.device_id):
+            if config.get("device_id") is not None and int(config["device_id"]) == int(row.device_id):
                 return str(config["title"])
     return row.device_name or row.device_key or "Ukjent dør"
 
@@ -30468,17 +30576,23 @@ async def api_hc3_doors_status(
 
     doors = []
     for config in DOOR_SENSOR_CONFIG:
-        door = door_status_payload(config, latest_change_by_device.get(int(config["device_id"])), now)
+        device_id = config.get("device_id")
+        latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
+        door = door_status_payload(config, latest_row, now)
         door["recentPeriods"] = recent_periods_by_device.get(door_config_device_key(config), [])[:2]
         doors.append(door)
+    doors = sorted(doors, key=lambda item: (str(item.get("groupKey") or ""), int(item.get("sortOrder") or 0), str(item.get("title") or "")))
     known = [door for door in doors if door["state"] != "unknown"]
     open_doors = [door for door in doors if door["state"] == "open"]
     closed_doors = [door for door in doors if door["state"] == "closed"]
+    configured_doors = [door for door in doors if door["isConfigured"]]
     return {
         "generatedAt": now.isoformat(),
         "datakildePath": "/admin/datakilder/hc3_door_events",
         "summary": {
             "total": len(doors),
+            "configured": len(configured_doors),
+            "planned": len(doors) - len(configured_doors),
             "known": len(known),
             "open": len(open_doors),
             "closed": len(closed_doors),

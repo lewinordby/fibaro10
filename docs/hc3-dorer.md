@@ -21,6 +21,29 @@ Dette gir riktig oppforsel hvis to dorer endrer status samtidig. Da starter to u
 | 447 | `door_447` | Kjeller luke |
 | 413 | `door_413` | Arbeidsrom |
 
+## Klargjorte dorer uten HC3-id
+
+Disse ligger i Fibaro10 som planlagte sensorer og vises som `Klargjort` frem til faktisk HC3 device-id legges inn.
+
+| Nkkel | Navn | Gruppe | Avdeling |
+| --- | --- | --- | --- |
+| `door_solrom_01` | Solrom 1 | Solrom | 1.etg |
+| `door_solrom_02` | Solrom 2 | Solrom | 1.etg |
+| `door_solrom_03` | Solrom 3 | Solrom | 1.etg |
+| `door_solrom_04` | Solrom 4 | Solrom | 2.etg |
+| `door_solrom_05` | Solrom 5 | Solrom | 2.etg |
+| `door_solrom_06` | Solrom 6 | Solrom | 2.etg |
+| `door_solrom_07` | Solrom 7 | Solrom | 2.etg |
+| `door_solrom_08` | Solrom 8 | Solrom | 2.etg |
+| `door_solrom_09` | Solrom 9 | Solrom | 1.etg |
+| `door_solrom_10` | Solrom 10 | Solrom | VIP |
+| `door_solrom_11` | Solrom 11 | Solrom | VIP |
+| `door_solrom_12` | Solrom 12 | Solrom | VIP |
+| `door_inngang` | Inngang | Andre dorer | Bygg |
+| `door_massasjestudio` | Massasjestudio | Andre dorer | Bygg |
+| `door_vaskerom` | Vaskerom | Andre dorer | Bygg |
+| `door_papirlager` | Papirlager | Andre dorer | Bygg |
+
 ## Installer HC3-scener
 
 Kjor denne fra repoet nar HC3-credentials er tilgjengelig i miljovariabler:

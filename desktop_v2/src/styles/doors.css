@@ -39,6 +39,11 @@
   gap: 12px;
 }
 
+.doors-status-grid.is-compact {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 9px;
+}
+
 .door-status-card {
   position: relative;
   overflow: hidden;
@@ -58,11 +63,24 @@
   border-top-color: var(--domain-status);
 }
 
+.door-status-card.is-planned {
+  background: color-mix(in srgb, var(--surface-muted) 74%, var(--surface));
+  border-style: dashed;
+  border-top-style: solid;
+  border-top-color: color-mix(in srgb, var(--domain-building) 42%, var(--line-strong));
+}
+
 .door-status-card .ant-card-body {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 10px 12px;
   padding: 13px;
+}
+
+.doors-status-grid.is-compact .door-status-card .ant-card-body {
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px 10px;
+  padding: 10px;
 }
 
 .door-status-icon {
@@ -76,12 +94,24 @@
   border-radius: 50%;
 }
 
+.doors-status-grid.is-compact .door-status-icon {
+  width: 34px;
+  height: 34px;
+  font-size: 15px;
+}
+
 .door-status-card.is-closed .door-status-icon {
   background: var(--green);
 }
 
 .door-status-card.is-open .door-status-icon {
   background: var(--amber);
+}
+
+.door-status-card.is-planned .door-status-icon {
+  color: var(--text-subtle);
+  background: var(--surface-muted);
+  border: 1px solid var(--line-soft);
 }
 
 .door-status-main {
@@ -118,13 +148,19 @@
 .door-status-card dl {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   margin: 4px 0 0;
   padding: 9px;
   background: var(--surface-muted);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
+}
+
+.doors-status-grid.is-compact .door-status-card dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+  padding: 8px;
 }
 
 .door-status-card dl div {
@@ -246,6 +282,77 @@
   background: var(--surface-muted);
   border: 1px dashed var(--line-soft);
   border-radius: var(--radius-sm);
+}
+
+.door-status-planned {
+  grid-column: 1 / -1;
+  padding: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  background: color-mix(in srgb, var(--domain-building) 5%, var(--surface));
+  border: 1px dashed var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.doors-group-card .ant-card-body {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+}
+
+.doors-group-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.doors-group-header h3.ant-typography {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 780;
+}
+
+.doors-group-header span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.doors-section-stack {
+  display: grid;
+  gap: 13px;
+}
+
+.doors-section {
+  display: grid;
+  gap: 8px;
+}
+
+.doors-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 1px;
+}
+
+.doors-section-title strong {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.doors-section-title span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 720;
 }
 
 .door-event-time strong,

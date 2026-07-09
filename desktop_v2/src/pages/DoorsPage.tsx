@@ -32,6 +32,11 @@ type SummaryCard = {
   tone: "ok" | "warn" | "unknown" | "status";
 };
 
+type DoorView = "oversikt" | "solrom" | "andre" | "radata";
+
+const DOOR_VIEWS: DoorView[] = ["oversikt", "solrom", "andre", "radata"];
+const SECTION_ORDER = ["1etg", "2etg", "vip", "bygg"];
+
 function stateTag(row: DoorStateRow) {
   if (row.state === "closed") return <Tag color="green">{row.stateLabel || "Lukket"}</Tag>;
   if (row.state === "open") return <Tag color="gold">{row.stateLabel || "Åpen"}</Tag>;
@@ -69,16 +74,16 @@ function buildSummaryCards(summary: DoorStatusResponse["summary"]): SummaryCard[
       tone: "ok",
     },
     {
+      title: "Koblet",
+      value: summary.configured,
+      detail: `${summary.planned} klargjort uten HC3-id`,
+      tone: summary.planned ? "unknown" : "ok",
+    },
+    {
       title: "Siste endring",
       value: summary.latestAgeLabel,
       detail: summary.latestChangeText,
       tone: "status",
-    },
-    {
-      title: "Åpninger",
-      value: summary.periods,
-      detail: `${summary.changes} statusendringer, ${summary.events} råhendelser`,
-      tone: summary.unknown ? "unknown" : "status",
     },
   ];
 }
@@ -225,18 +230,18 @@ function DoorRecentPeriods({ periods = [] }: { periods?: DoorPeriodItem[] }) {
   );
 }
 
-function DoorStatusCards({ doors }: { doors: DoorStatusItem[] }) {
+function DoorStatusCards({ doors, compact = false }: { doors: DoorStatusItem[]; compact?: boolean }) {
   return (
-    <div className="doors-status-grid">
+    <div className={`doors-status-grid ${compact ? "is-compact" : ""}`}>
       {doors.map((door) => (
-        <Card className={`door-status-card is-${door.state}`} key={door.deviceKey}>
+        <Card className={`door-status-card is-${door.state} ${door.isConfigured ? "" : "is-planned"}`} key={door.deviceKey}>
           <div className="door-status-icon">{stateIcon(door.state)}</div>
           <div className="door-status-main">
             <div className="door-status-title">
               <strong>{door.title}</strong>
-              {stateTag(door)}
+              {door.isConfigured ? stateTag(door) : <Tag>Klargjort</Tag>}
             </div>
-            <span>{door.hc3Name}</span>
+            <span>{door.isConfigured ? door.hc3Name : "Venter på HC3 device-id"}</span>
           </div>
           <dl>
             <div>
@@ -252,14 +257,89 @@ function DoorStatusCards({ doors }: { doors: DoorStatusItem[] }) {
               <dd>{door.batteryLabel}</dd>
             </div>
             <div>
+              <dt>Normal</dt>
+              <dd>{door.normalStateLabel}</dd>
+            </div>
+            <div>
               <dt>Sensor</dt>
-              <dd>{door.deviceId ? `HC3 ${door.deviceId}` : door.deviceKey}</dd>
+              <dd>{door.deviceId ? `HC3 ${door.deviceId}` : "Ikke koblet"}</dd>
             </div>
           </dl>
-          <DoorRecentPeriods periods={door.recentPeriods} />
+          {door.isConfigured || door.recentPeriods.length ? (
+            <DoorRecentPeriods periods={door.recentPeriods} />
+          ) : (
+            <div className="door-status-planned">Klar i Fibaro10. Legg inn HC3-id når sensoren er montert.</div>
+          )}
         </Card>
       ))}
     </div>
+  );
+}
+
+function sortDoors(doors: DoorStatusItem[]) {
+  return [...doors].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title, "nb"));
+}
+
+function groupStats(doors: DoorStatusItem[]) {
+  const configured = doors.filter((door) => door.isConfigured).length;
+  const open = doors.filter((door) => door.state === "open").length;
+  const unknown = doors.filter((door) => door.state === "unknown").length;
+  return { configured, open, unknown };
+}
+
+function groupBySection(doors: DoorStatusItem[]) {
+  const groups = new Map<string, { key: string; title: string; doors: DoorStatusItem[] }>();
+  sortDoors(doors).forEach((door) => {
+    const key = door.sectionKey || door.groupKey || "andre";
+    const current = groups.get(key) ?? { key, title: door.sectionTitle || door.groupTitle || "Dører", doors: [] };
+    current.doors.push(door);
+    groups.set(key, current);
+  });
+  return [...groups.values()].sort((a, b) => {
+    const aIndex = SECTION_ORDER.indexOf(a.key);
+    const bIndex = SECTION_ORDER.indexOf(b.key);
+    const aSort = aIndex === -1 ? 99 : aIndex;
+    const bSort = bIndex === -1 ? 99 : bIndex;
+    return aSort - bSort || a.title.localeCompare(b.title, "nb");
+  });
+}
+
+function DoorGroupSection({
+  title,
+  doors,
+  splitBySection = false,
+}: {
+  title: string;
+  doors: DoorStatusItem[];
+  splitBySection?: boolean;
+}) {
+  const stats = groupStats(doors);
+  const sections = splitBySection ? groupBySection(doors) : [{ key: "all", title, doors: sortDoors(doors) }];
+
+  return (
+    <Card className="work-card doors-group-card">
+      <div className="doors-group-header">
+        <div>
+          <Typography.Title level={3}>{title}</Typography.Title>
+          <span>
+            {doors.length} dører · {stats.configured} koblet · {stats.open} åpne · {stats.unknown} ukjent/klargjort
+          </span>
+        </div>
+      </div>
+      <div className="doors-section-stack">
+        {sections.map((section) => (
+          <section className="doors-section" key={section.key}>
+            {splitBySection ? (
+              <div className="doors-section-title">
+                <strong>{section.title}</strong>
+                <span>{section.doors.length} rom</span>
+              </div>
+            ) : null}
+            <DoorStatusCards doors={section.doors} compact={splitBySection} />
+          </section>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -269,21 +349,39 @@ export default function DoorsPage() {
     refetchInterval: 30_000,
   });
 
-  if (view !== "oversikt" && view !== "radata") return <Navigate to="/dorer/oversikt" replace />;
+  if (!DOOR_VIEWS.includes(view as DoorView)) return <Navigate to="/dorer/oversikt" replace />;
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
-  const isRawView = view === "radata";
+  const activeView = view as DoorView;
+  const isRawView = activeView === "radata";
+  const solromDoors = data.doors.filter((door) => door.groupKey === "solrom");
+  const otherDoors = data.doors.filter((door) => door.groupKey !== "solrom");
+  const visibleDoors =
+    activeView === "solrom" ? solromDoors : activeView === "andre" ? otherDoors : data.doors;
+  const visibleDeviceIds = new Set(visibleDoors.map((door) => door.deviceId).filter((id): id is number => id !== null));
+  const visiblePeriods =
+    activeView === "oversikt" || isRawView
+      ? data.periods
+      : data.periods.filter((period) => period.deviceId !== null && period.deviceId !== undefined && visibleDeviceIds.has(period.deviceId));
+  const title =
+    activeView === "solrom"
+      ? "Dører · solrom"
+      : activeView === "andre"
+        ? "Dører · andre dører"
+        : isRawView
+          ? "Dører · rådata"
+          : "Dører";
 
   return (
     <Space direction="vertical" size={14} className="page-stack doors-page">
       <PageHeader
         eyebrow="Bygg og drift"
-        title={isRawView ? "Dører · rådata" : "Dører"}
+        title={title}
         description={
           isRawView
             ? "Alle mottatte HC3-rader for feilsøking og kontroll av dørscenene."
-            : "Åpne- og lukkeperioder fra magnetfølerne, med varighet per åpning."
+            : "Åpne- og lukkeperioder fra magnetfølerne, med klargjorte plasser for de nye sensorene."
         }
         meta={
           <Space size={8}>
@@ -299,7 +397,16 @@ export default function DoorsPage() {
 
       <div className="doors-summary-grid">{buildSummaryCards(data.summary).map(statusSummary)}</div>
 
-      <DoorStatusCards doors={data.doors} />
+      {!isRawView && activeView === "oversikt" ? (
+        <>
+          <DoorGroupSection title="Solrom" doors={solromDoors} splitBySection />
+          <DoorGroupSection title="Andre dører" doors={otherDoors} />
+        </>
+      ) : null}
+
+      {!isRawView && activeView === "solrom" ? <DoorGroupSection title="Solrom" doors={solromDoors} splitBySection /> : null}
+
+      {!isRawView && activeView === "andre" ? <DoorGroupSection title="Andre dører" doors={otherDoors} /> : null}
 
       {isRawView ? (
         <Card
@@ -342,7 +449,7 @@ export default function DoorsPage() {
               rowKey="id"
               size="small"
               columns={periodColumns}
-              dataSource={data.periods}
+              dataSource={visiblePeriods}
               pagination={{ pageSize: 20, showSizeChanger: true }}
               scroll={{ x: "max-content" }}
               locale={{ emptyText: "Ingen døråpninger logget ennå" }}

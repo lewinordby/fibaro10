@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1489")
+APP_BUILD = os.getenv("APP_BUILD", "1490")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1490",
+        "date": "09.07.2026",
+        "headline": "Dører klargjort",
+        "title": "Fibaro10 klargjør solrom og øvrige dører før nye HC3-sensorer monteres",
+        "description": (
+            "Build 1490 legger inn alle planlagte dører i Fibaro10 før sensorene har fått HC3-id. Solrommene er "
+            "samlet som egen visning og delt i 1.etg, 2.etg og VIP, mens øvrige dører ligger samlet under Andre dører."
+        ),
+        "applications": [
+            "main.py: utvider dørkonfigurasjonen med 12 solrom og fire planlagte bygningsdører uten HC3-id.",
+            "main.py: gjør dørstatus-API-et robust for planlagte sensorer og eksponerer gruppe, avdeling og normaltilstand.",
+            "desktop_v2/src/pages/DoorsPage.tsx: legger inn egne visninger for Oversikt, Solrom, Andre dører og Rådata.",
+            "desktop_v2/src/styles/doors.css: kompakterer dørkort og markerer planlagte sensorer tydelig.",
+            "desktop_v2/src/api.ts og desktop_v2/src/moduleViews.ts: oppdaterer frontend-kontrakt og undermeny.",
+            "build_log.py: dokumenterer build 1490.",
+        ],
+        "request": (
+            "Du ønsket å forberede dørgrensesnittet for 12 solrom, de tre eksisterende dørene og Inngang, "
+            "Massasjestudio, Vaskerom og Papirlager. Du presiserte også avdelingene for solrom 1-12."
+        ),
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Solrom 1, 2, 3 og 9 ligger under 1.etg.",
+            "Solrom 4, 5, 6, 7 og 8 ligger under 2.etg.",
+            "Solrom 10, 11 og 12 ligger under VIP.",
+            "Nye sensorer uten HC3-id vises som Klargjort i Fibaro10.",
+            "Når du gir HC3 device-id senere, trenger vi bare å koble id-en mot eksisterende nøkkel og kjøre HC3-installer på nytt.",
+        ],
+    },
     {
         "version": "1",
         "build": "1489",
