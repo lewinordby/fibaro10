@@ -12,9 +12,9 @@
   transition: all 0.18s ease;
   border-right: 1px solid color-mix(in srgb, var(--active-module-color) 7%, var(--border-panel));
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--domain-sun2) 8%, #ffffff) 0, rgba(255, 255, 255, 0) 112px),
-    linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%) !important;
-  box-shadow: 8px 0 24px rgba(15, 23, 42, 0.045);
+    linear-gradient(180deg, color-mix(in srgb, var(--domain-sun2) 8%, var(--surface)) 0, var(--surface-clear) 112px),
+    linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%) !important;
+  box-shadow: var(--shadow-faint);
 }
 
 .main-menu-hidden .app-sider {
@@ -116,18 +116,18 @@
 
 .sider-nav-item:hover {
   color: var(--ink);
-  background: color-mix(in srgb, var(--menu-item-color) 7%, #ffffff);
+  background: color-mix(in srgb, var(--menu-item-color) 7%, var(--surface));
   border-color: color-mix(in srgb, var(--menu-item-color) 15%, var(--line-soft));
 }
 
 .sider-nav-item.active {
   color: var(--ink);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--menu-item-color) 16%, #ffffff), color-mix(in srgb, var(--menu-item-color) 7%, #ffffff));
+    linear-gradient(90deg, color-mix(in srgb, var(--menu-item-color) 16%, var(--surface)), color-mix(in srgb, var(--menu-item-color) 7%, var(--surface)));
   border-color: color-mix(in srgb, var(--menu-item-color) 22%, var(--border-panel));
   box-shadow:
     inset 3px 0 0 var(--menu-item-color),
-    0 6px 16px rgba(15, 23, 42, 0.07);
+    var(--shadow-sm);
   font-weight: 830;
 }
 
@@ -166,7 +166,7 @@
   border: 1px solid color-mix(in srgb, var(--active-module-color) 9%, var(--border-panel));
   border-radius: var(--radius-md);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.84), color-mix(in srgb, var(--active-module-color) 3%, var(--surface-muted)));
+    linear-gradient(180deg, var(--surface-glass), color-mix(in srgb, var(--active-module-color) 3%, var(--surface-muted)));
   box-shadow: var(--shadow-xs);
 }
 
@@ -200,10 +200,10 @@
   height: 56px;
   padding: 0 17px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--active-module-color) 6%, #ffffff), rgba(255, 255, 255, 0.96) 34%),
-    rgba(255, 255, 255, 0.94);
+    linear-gradient(90deg, color-mix(in srgb, var(--active-module-color) 6%, var(--surface)), color-mix(in srgb, var(--surface) 96%, transparent) 34%),
+    color-mix(in srgb, var(--surface) 94%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--active-module-color) 8%, var(--line));
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.045);
+  box-shadow: var(--shadow-faint);
   backdrop-filter: blur(18px) saturate(1.08);
 }
 
@@ -237,7 +237,7 @@
   color: color-mix(in srgb, var(--active-module-color) 66%, var(--text-label));
   border: 1px solid var(--border-control);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--surface-glass);
 }
 
 .main-menu-toggle:hover {

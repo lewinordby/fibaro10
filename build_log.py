@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1499")
+APP_BUILD = os.getenv("APP_BUILD", "1500")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1500",
+        "date": "09.07.2026",
+        "headline": "CSS-opprydding",
+        "title": "Hovedappen får strammere tokens og mer konsistent mørkt tema",
+        "description": (
+            "Build 1500 rydder i CSS-laget i hovedappen. Gjentatte overflate-, skygge- og statusfarger er flyttet "
+            "til felles tokens, og aktive flater som dashboard, oppgjør, tidslinjer, ventilasjon og bildemodaler bruker "
+            "samme stilgrunnlag i lys og mørk visning."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/tokens.css: utvider designsystemet med tokens for glassflater, svake linjer, highlights, skygger og statusfarger.",
+            "desktop_v2/src/styles/dark-theme.css: kobler mørkt tema til samme tokens og reduserer gjentatte lokale alpha-farger.",
+            "desktop_v2/src/styles/layout.css og app-shell.css: normaliserer AntD-kort, knapper, tabeller, toppfelt og venstremeny mot tokens.",
+            "desktop_v2/src/styles/status-periods.css og status-overview.css: samler dashboardkort og sammenligningsfarger rundt status- og flate-tokens.",
+            "desktop_v2/src/styles/records-settlements.css, sun-settlements.css og settlement-detail.css: rydder oppgjørsflater og dokumentkort.",
+            "desktop_v2/src/styles/sun-timeline.css, parking-timeline.css og ventilation-charts.css: normaliserer tidslinje- og markørskygger.",
+            "build_log.py: dokumenterer build 1500.",
+        ],
+        "request": "Du ønsket en grundig gjennomgang av CSS.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Hardkodede farger i CSS-auditen ble redusert fra 249 til 166 uten å endre hovedlayout.",
+            "Mørkt tema bruker nå samme status- og overflate-tokens som lys variant.",
+            "Dashboard, oppgjør, tidslinjer, ventilasjonsmarkører og bildemodaler har mer konsistent skygge- og panelbruk.",
+            "CSS parse, CSS audit og produksjonsbuild er kontrollert etter oppryddingen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1499",

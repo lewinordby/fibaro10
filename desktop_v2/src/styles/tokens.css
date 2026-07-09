@@ -1,4 +1,5 @@
 :root {
+  --white: #ffffff;
   --ink: #111827;
   --ink-soft: #243041;
   --muted: #64748b;
@@ -6,17 +7,24 @@
   --line: #e2e8f0;
   --line-soft: #edf2f7;
   --line-strong: #cbd5e1;
+  --line-quiet: #e5ebf4;
   --border-control: #dbe3ee;
   --border-panel: var(--line);
   --border-panel-soft: var(--line-soft);
   --surface-page: #f3f6fa;
-  --surface: #ffffff;
+  --surface: var(--white);
   --surface-soft: #f6f8fb;
-  --surface-raised: #ffffff;
+  --surface-raised: var(--white);
   --surface-muted: #f8fafc;
   --surface-hover: #f8fbff;
   --surface-panel-end: #fafcff;
-  --panel-header-bg: linear-gradient(180deg, #ffffff, var(--surface-panel-end));
+  --surface-glass-strong: rgba(255, 255, 255, 0.92);
+  --surface-glass: rgba(255, 255, 255, 0.82);
+  --surface-glass-soft: rgba(255, 255, 255, 0.72);
+  --surface-glass-faint: rgba(255, 255, 255, 0.35);
+  --surface-clear: rgba(255, 255, 255, 0);
+  --panel-header-bg: linear-gradient(180deg, var(--white), var(--surface-panel-end));
+  --panel-inset-highlight: rgba(255, 255, 255, 0.72);
   --line-muted: #e8edf4;
   --text-strong: var(--ink);
   --text-body: #334155;
@@ -29,6 +37,7 @@
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.035);
   --shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.055);
   --shadow-md: 0 14px 34px rgba(15, 23, 42, 0.085);
+  --shadow-faint: 0 8px 22px rgba(15, 23, 42, 0.045);
   --shadow-soft: var(--shadow-sm);
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -43,10 +52,13 @@
   --cyan: #0891b2;
   --status-ok-bg: #f0fdf4;
   --status-ok-border: #bbf7d0;
+  --status-ok-text: var(--green);
   --status-warn-bg: #fffbeb;
   --status-warn-border: #fde68a;
+  --status-warn-text: var(--amber);
   --status-bad-bg: #fef2f2;
   --status-bad-border: #fecaca;
+  --status-bad-text: var(--red);
   --domain-revenue: #dc2626;
   --domain-parking: #2563eb;
   --domain-sun2: #f59e0b;

@@ -3,7 +3,7 @@
 }
 
 .status-dashboard-page {
-  --dashboard-panel-bg: linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2.5%, var(--surface)), rgba(255, 255, 255, 0.82));
+  --dashboard-panel-bg: linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2.5%, var(--surface)), var(--surface-glass));
   --dashboard-panel-border: color-mix(in srgb, var(--tone-color) 7%, var(--line));
   --dashboard-card-border: color-mix(in srgb, var(--tone-color) 6%, var(--line));
   --dashboard-card-border-hover: color-mix(in srgb, var(--tone-color) 18%, var(--line-strong));
@@ -287,15 +287,15 @@
 }
 
 .status-overview-page .status-summary-source-pill.ok strong {
-  color: var(--green);
+  color: var(--status-ok-text);
 }
 
 .status-overview-page .status-summary-source-pill.warn strong {
-  color: var(--amber);
+  color: var(--status-warn-text);
 }
 
 .status-overview-page .status-summary-source-pill.bad strong {
-  color: var(--red);
+  color: var(--status-bad-text);
 }
 
 .status-overview-page .status-summary-source-pill strong,

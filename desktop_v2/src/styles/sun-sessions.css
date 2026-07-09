@@ -211,7 +211,7 @@
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--surface-glass-strong);
   color: var(--muted);
   font-size: 12px;
   box-shadow: var(--shadow-soft);
@@ -246,7 +246,7 @@
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--surface-glass-strong);
   color: var(--muted);
   font-size: 12px;
   box-shadow: var(--shadow-soft);

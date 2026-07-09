@@ -17,9 +17,9 @@
 .settlement-voucher {
   width: min(500px, 100%);
   padding: 8px 10px;
-  border: 1px solid #e5ebf4;
+  border: 1px solid var(--line-quiet);
   border-radius: 6px;
-  background: #fbfdff;
+  background: var(--surface-hover);
   color: var(--text-label);
 }
 
@@ -164,7 +164,7 @@
 
 .sun-settlement-payout {
   padding: 6px 8px;
-  border: 1px solid #e5ebf4;
+  border: 1px solid var(--line-quiet);
   border-radius: 6px;
   background: var(--surface);
 }

@@ -270,13 +270,13 @@
   color: var(--surface);
   text-decoration: none;
   opacity: 0.9;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .parking-session-block:hover {
   z-index: 7;
   filter: brightness(0.94);
-  outline: 2px solid rgba(37, 99, 235, 0.2);
+  outline: 2px solid color-mix(in srgb, var(--domain-parking) 20%, transparent);
 }
 
 .parking-now-marker {

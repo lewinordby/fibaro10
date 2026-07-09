@@ -105,7 +105,7 @@
   padding: 9px 10px;
   border: 1px solid color-mix(in srgb, var(--domain-ideas) 12%, var(--border-panel));
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--surface-glass);
 }
 
 .ideas-next-rank {
@@ -227,14 +227,14 @@
 }
 
 .idea-status.ready {
-  color: #166534;
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+  color: var(--status-ok-text);
+  background: var(--status-ok-bg);
+  border-color: var(--status-ok-border);
 }
 
 .idea-status.review {
-  color: #1d4ed8;
-  background: #eff6ff;
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 8%, var(--surface));
   border-color: #bfdbfe;
 }
 

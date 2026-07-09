@@ -26,6 +26,7 @@
   --dark-white: #ffffff;
   --dark-on-accent: #101217;
   --dark-accent-fill: #f4f7fb;
+  --white: #ffffff;
   --ink: #eef3f8;
   --ink-soft: #d6dde6;
   --muted: #a0a9b5;
@@ -33,6 +34,7 @@
   --line: #2f3642;
   --line-soft: #242a34;
   --line-strong: #454e5d;
+  --line-quiet: var(--line-soft);
   --border-control: #3b4350;
   --border-panel: #303742;
   --border-panel-soft: #262c36;
@@ -43,7 +45,13 @@
   --surface-muted: #161a21;
   --surface-hover: #262c35;
   --surface-panel-end: #171a20;
+  --surface-glass-strong: rgba(255, 255, 255, 0.09);
+  --surface-glass: rgba(255, 255, 255, 0.045);
+  --surface-glass-soft: rgba(255, 255, 255, 0.032);
+  --surface-glass-faint: rgba(255, 255, 255, 0.08);
+  --surface-clear: transparent;
   --panel-header-bg: linear-gradient(180deg, #20242b, #191c22);
+  --panel-inset-highlight: rgba(255, 255, 255, 0.045);
   --line-muted: #252b34;
   --text-strong: #f0f3f7;
   --text-body: #c9d1dc;
@@ -56,6 +64,7 @@
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.24);
   --shadow-sm: 0 10px 24px rgba(0, 0, 0, 0.26);
   --shadow-md: 0 22px 54px rgba(0, 0, 0, 0.34);
+  --shadow-faint: 0 10px 24px rgba(0, 0, 0, 0.22);
   --blue: #60a5fa;
   --red: #fb7185;
   --green: #4ade80;
@@ -81,10 +90,13 @@
   --dark-red-bg: #321e22;
   --status-ok-bg: var(--dark-green-bg);
   --status-ok-border: color-mix(in srgb, var(--dark-ok) 32%, var(--border-control));
+  --status-ok-text: var(--dark-ok);
   --status-warn-bg: var(--dark-amber-bg);
   --status-warn-border: color-mix(in srgb, var(--dark-warn) 32%, var(--border-control));
+  --status-warn-text: var(--dark-warn);
   --status-bad-bg: var(--dark-red-bg);
   --status-bad-border: color-mix(in srgb, var(--dark-bad) 32%, var(--border-control));
+  --status-bad-text: var(--dark-bad);
   color: var(--text-body);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, #0c0e12) 0, #11141a 260px, var(--surface-page));
@@ -131,7 +143,7 @@
 .app-shell.theme-dark .screen-theme-toggle,
 .app-shell.theme-dark .profile-button {
   color: var(--text-body);
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--surface-glass);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -139,7 +151,7 @@
 .app-shell.theme-dark .screen-theme-toggle:hover,
 .app-shell.theme-dark .profile-button:hover {
   color: var(--dark-white) !important;
-  background: rgba(255, 255, 255, 0.09) !important;
+  background: var(--surface-glass-strong) !important;
   border-color: rgba(255, 255, 255, 0.18) !important;
 }
 
@@ -156,8 +168,8 @@
 
 .app-shell.theme-dark .module-view-switcher {
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, rgba(255, 255, 255, 0.045)), rgba(255, 255, 255, 0.028));
-  border-color: rgba(255, 255, 255, 0.09);
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, var(--surface-glass)), var(--surface-glass-soft));
+  border-color: var(--surface-glass-strong);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -184,7 +196,7 @@
     radial-gradient(circle at 20px 20px, color-mix(in srgb, var(--active-module-color) 7%, transparent), transparent 160px),
     linear-gradient(180deg, #0d0f13, #11141a 180px, #0d0f13) !important;
   border-right-color: rgba(255, 255, 255, 0.07);
-  box-shadow: 12px 0 26px rgba(0, 0, 0, 0.24);
+  box-shadow: 12px 0 26px var(--shadow-ink-faint-color);
 }
 
 .app-shell.theme-dark .brand-home-link {
@@ -217,17 +229,17 @@
 .app-shell.theme-dark .sider-nav-item.active {
   color: var(--ink);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--menu-item-color) 13%, rgba(255, 255, 255, 0.06)), rgba(255, 255, 255, 0.045));
+    linear-gradient(90deg, color-mix(in srgb, var(--menu-item-color) 13%, var(--surface-glass)), var(--surface-glass));
   border-color: color-mix(in srgb, var(--menu-item-color) 28%, rgba(255, 255, 255, 0.1));
   box-shadow:
     inset 3px 0 0 var(--menu-item-color),
-    0 8px 18px rgba(0, 0, 0, 0.22);
+    var(--shadow-faint);
 }
 
 .app-shell.theme-dark .sider-nav-icon {
   color: var(--text-label);
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: var(--surface-glass);
+  border-color: var(--surface-glass-faint);
 }
 
 .app-shell.theme-dark .sider-nav-item.active .sider-nav-icon {
@@ -238,13 +250,13 @@
 
 .app-shell.theme-dark .sider-build-link {
   color: var(--text-body);
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(255, 255, 255, 0.09);
+  background: var(--surface-glass);
+  border-color: var(--surface-glass-strong);
 }
 
 .app-shell.theme-dark .sider-build-link:hover {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-glass-faint);
 }
 
 .app-shell.theme-dark .sider-build-link span {
@@ -263,7 +275,7 @@
 .app-shell.theme-dark .module-day-nav-card {
   color: var(--text-body);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.026), transparent 42px),
+    linear-gradient(180deg, var(--surface-glass-soft), transparent 42px),
     var(--surface) !important;
   border-color: var(--border-panel) !important;
   box-shadow: var(--shadow-sm);
@@ -274,7 +286,7 @@
 .app-shell.theme-dark .chart-card .ant-card-head,
 .app-shell.theme-dark .table-card .ant-card-head {
   color: var(--ink);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.026), transparent);
+  background: linear-gradient(180deg, var(--surface-glass-soft), transparent);
   border-bottom-color: var(--line-soft);
 }
 
@@ -427,10 +439,10 @@
 .app-shell.theme-dark .status-support-item,
 .app-shell.theme-dark .status-period-card {
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--active-module-color)) 2%, rgba(255, 255, 255, 0.026)), transparent 72px),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--active-module-color)) 2%, var(--surface-glass-soft)), transparent 72px),
     var(--surface) !important;
   border-color: color-mix(in srgb, var(--tone-color, var(--active-module-color)) 10%, var(--border-panel)) !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-faint);
 }
 
 .app-shell.theme-dark .status-section--no-head {
@@ -450,7 +462,7 @@
 .app-shell.theme-dark .sun-timeline-card .ant-card-head,
 .app-shell.theme-dark .parking-timeline-card .ant-card-head,
 .app-shell.theme-dark .vent-zone-card .ant-card-head {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.026), transparent);
+  background: linear-gradient(180deg, var(--surface-glass-soft), transparent);
   border-bottom-color: var(--line-soft);
 }
 
@@ -538,7 +550,7 @@
 }
 
 .app-shell.theme-dark .revenue-period-full-item {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 var(--panel-inset-highlight);
 }
 
 .app-shell.theme-dark .revenue-driver-icon {
@@ -581,10 +593,10 @@
 .app-shell.theme-dark .door-status-card,
 .app-shell.theme-dark .door-compact-card {
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--door-tone, var(--door-card-tone, var(--domain-building))) 2%, rgba(255, 255, 255, 0.026)), transparent 72px),
+    linear-gradient(180deg, color-mix(in srgb, var(--door-tone, var(--door-card-tone, var(--domain-building))) 2%, var(--surface-glass-soft)), transparent 72px),
     var(--surface) !important;
   border-color: color-mix(in srgb, var(--door-tone, var(--door-card-tone, var(--domain-building))) 12%, var(--border-panel)) !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-faint);
 }
 
 .app-shell.theme-dark .door-summary-card:hover,
@@ -716,7 +728,7 @@
 .app-shell.theme-dark .parking-session-block,
 .app-shell.theme-dark .parking-occupancy-stack,
 .app-shell.theme-dark .vent-fan-event {
-  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 3px 9px var(--shadow-ink-faint-color);
 }
 
 .app-shell.theme-dark .sun-aggregate-block {
@@ -752,7 +764,7 @@
 }
 
 .app-shell.theme-dark .vent-fan-run {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px var(--surface-glass-faint);
 }
 
 .app-shell.theme-dark .vent-fan-event {
@@ -1029,13 +1041,13 @@
 }
 
 .app-shell.theme-dark :is(.recharts-text, .recharts-label, .recharts-legend-item-text) {
-  fill: #cbd5e1 !important;
-  color: #cbd5e1 !important;
+  fill: var(--domain-weather) !important;
+  color: var(--domain-weather) !important;
 }
 
 .app-shell.theme-dark .recharts-tooltip-wrapper .recharts-default-tooltip {
   color: var(--text-body) !important;
-  background: #191c22 !important;
+  background: var(--surface) !important;
   border-color: var(--line-strong) !important;
   box-shadow: var(--shadow-md);
 }

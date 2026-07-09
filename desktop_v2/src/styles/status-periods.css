@@ -23,7 +23,7 @@
   border-radius: var(--radius-md);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-status)) 1.6%, var(--surface)) 0%, var(--surface) 46%, var(--surface-panel-end) 100%);
-  box-shadow: 0 8px 22px var(--shadow-ink-faint-color), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  box-shadow: 0 8px 22px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
@@ -127,7 +127,7 @@
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--border-panel));
   border-radius: 999px;
   background: var(--period-accent);
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1px 2px var(--shadow-ink-faint-color);
 }
 
 .revenue-period-split-labels {
@@ -191,7 +191,7 @@
   border-radius: var(--radius-md);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--tone-color, var(--domain-status)) 2.4%, var(--surface)), var(--surface));
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+  box-shadow: inset 0 1px 0 var(--panel-inset-highlight);
   color: inherit;
   text-decoration: none;
   transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
@@ -230,11 +230,11 @@
 }
 
 .revenue-period-direction.positive {
-  color: var(--green);
+  color: var(--status-ok-text);
 }
 
 .revenue-period-direction.negative {
-  color: var(--red);
+  color: var(--status-bad-text);
 }
 
 .revenue-period-direction.neutral {
@@ -261,11 +261,11 @@
 }
 
 .revenue-period-delta.positive {
-  color: var(--green);
+  color: var(--status-ok-text);
 }
 
 .revenue-period-delta.negative {
-  color: var(--red);
+  color: var(--status-bad-text);
 }
 
 .revenue-period-delta.neutral {
@@ -481,7 +481,7 @@
       color-mix(in srgb, var(--tone-color, var(--domain-status)) 1.5%, var(--surface)),
       color-mix(in srgb, var(--tone-color, var(--domain-status)) 0.8%, var(--surface-panel-end))
     );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 1px 0 var(--panel-inset-highlight);
   font-variant-numeric: tabular-nums;
   text-decoration: none;
   transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
@@ -564,11 +564,11 @@
 }
 
 .revenue-period-full-item em.positive {
-  color: var(--green);
+  color: var(--status-ok-text);
 }
 
 .revenue-period-full-item em.negative {
-  color: var(--red);
+  color: var(--status-bad-text);
 }
 
 .revenue-period-full-item em.neutral {
