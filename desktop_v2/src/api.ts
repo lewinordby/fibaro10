@@ -286,6 +286,65 @@ export type SunYearComparisonResponse = {
 export type ParkingYearComparisonPoint = SunYearComparisonPoint;
 export type ParkingYearComparisonSeries = SunYearComparisonSeries;
 export type ParkingYearComparisonResponse = SunYearComparisonResponse;
+
+export type ParkingTimePeriodOption = {
+  key: string;
+  label: string;
+};
+
+export type ParkingTimeCell = {
+  weekdayIndex: number;
+  weekday: string;
+  hour: number;
+  hourLabel: string;
+  sessions: number;
+  paid: number;
+  minutes: number;
+  hours: number;
+  avgPaidPerSession: number;
+  avgMinutesPerSession: number;
+  avgPaidPerDay: number;
+  avgSessionsPerDay: number;
+  avgMinutesPerDay: number;
+};
+
+export type ParkingTimeWeekday = Omit<ParkingTimeCell, "hours"> & {
+  days: number;
+  hours: ParkingTimeCell[];
+};
+
+export type ParkingTimeDistributionResponse = {
+  generatedAt: string | null;
+  period: {
+    key: string;
+    label: string;
+    dateFrom: string;
+    dateTo: string;
+    daysCount: number;
+    detail: string;
+    options: ParkingTimePeriodOption[];
+  };
+  summary: {
+    sessions: number;
+    paid: number;
+    minutes: number;
+    hours: number;
+    avgPaidPerSession: number;
+    avgMinutesPerSession: number;
+    avgPaidPerDay: number;
+    avgSessionsPerDay: number;
+  };
+  max: {
+    paid: number;
+    minutes: number;
+    sessions: number;
+    avgPaidPerDay: number;
+    avgMinutesPerDay: number;
+  };
+  weekdays: ParkingTimeWeekday[];
+  hours: ParkingTimeCell[];
+  topSlots: ParkingTimeCell[];
+};
 export type RevenueYearComparisonPoint = SunYearComparisonPoint;
 export type RevenueYearComparisonSeries = SunYearComparisonSeries;
 export type RevenueYearComparisonResponse = SunYearComparisonResponse;
@@ -1338,6 +1397,11 @@ export function fetchSunYearComparison(year?: string | null): Promise<SunYearCom
 export function fetchParkingYearComparison(year?: string | null): Promise<ParkingYearComparisonResponse> {
   const query = year ? `?year=${encodeURIComponent(year)}` : "";
   return apiGet<ParkingYearComparisonResponse>(`/api/parkering/year-comparison${query}`);
+}
+
+export function fetchParkingTimeDistribution(filters?: URLSearchParams): Promise<ParkingTimeDistributionResponse> {
+  const query = filters?.toString() ? `?${filters.toString()}` : "";
+  return apiGet<ParkingTimeDistributionResponse>(`/api/parkering/time-distribution${query}`);
 }
 
 export function fetchRevenueYearComparison(year?: string | null): Promise<RevenueYearComparisonResponse> {

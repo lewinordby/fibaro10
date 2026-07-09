@@ -17,6 +17,7 @@ const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
 const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
 const ParkingSettlementsPage = lazy(() => import("./pages/ParkingSettlementsPage"));
+const ParkingTimeDistributionPage = lazy(() => import("./pages/ParkingTimeDistributionPage"));
 const ParkingVehicleDetailPage = lazy(() => import("./pages/ParkingVehicleDetailPage"));
 const ParkingYearComparisonPage = lazy(() => import("./pages/ParkingYearComparisonPage"));
 const SettlementDetailPage = lazy(() => import("./pages/SettlementDetailPage"));
@@ -56,6 +57,7 @@ export function AppRoutes() {
         <Route path="/parkering/navn-oppslag" element={<LegacyRedirect to={modulePath("parkering", "oppslag")} />} />
         <Route path="/parkering/omrade-oppslag" element={<LegacyRedirect to={modulePath("parkering", "oppslag")} />} />
         <Route path="/parkering/sammenligning" element={<ParkingYearComparisonPage />} />
+        <Route path="/parkering/tidspunkt" element={<ParkingTimeDistributionPage />} />
         <Route path="/parkering/kjoretoy/:plate" element={<ParkingVehicleDetailPage />} />
         <Route path="/parkering/oppgjor" element={<ParkingSettlementsPage />} />
         <Route path="/parkering/oppgjor/:settlementId" element={<SettlementDetailPage />} />

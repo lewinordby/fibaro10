@@ -14,6 +14,7 @@ export const queryKeys = {
   maintenanceSiteVisit: (visitId: string) => ["maintenance", "site-visit", visitId] as const,
   parkingVehicle: (plate: string) => ["parking", "vehicle", plate] as const,
   revenueMonth: (month = "") => ["revenue", "month", month] as const,
+  parkingTimeDistribution: (params = "") => ["parking", "time-distribution", params] as const,
   statusComparison: (period: string, compare: string, anchor: string, references = "") =>
     ["status", "comparison", period, compare, anchor, references] as const,
   sunYearComparison: (year: string) => ["sun", "year-comparison", year] as const,

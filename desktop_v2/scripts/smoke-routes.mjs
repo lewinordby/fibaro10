@@ -10,6 +10,7 @@ export const smokeRoutes = [
   { path: "/parkering/oversikt", name: "Parkering oversikt" },
   { path: "/parkering/sammenligning", name: "Parkering arssammenligning" },
   { path: "/parkering/dagslinje", name: "Parkering dagslinje" },
+  { path: "/parkering/tidspunkt", name: "Parkering tidspunkt" },
   { path: "/parkering/parkeringer", name: "Parkeringer" },
   { path: "/parkering/kjoretoy", name: "Kjoretoy" },
   { path: "/parkering/prognose", name: "Parkering prognose" },

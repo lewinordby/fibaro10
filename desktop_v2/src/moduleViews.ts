@@ -58,6 +58,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "oversikt", label: "Oversikt" },
     { key: "parkeringer", label: "Parkeringer" },
     { key: "dagslinje", label: "Dagslinje" },
+    { key: "tidspunkt", label: "Tidspunkt" },
     { key: "kjoretoy", label: "Kjøretøy" },
     { key: "omrade", label: "Områder" },
     { key: "prognose", label: "Prognose" },

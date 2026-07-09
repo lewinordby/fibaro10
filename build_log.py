@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1507")
+APP_BUILD = os.getenv("APP_BUILD", "1508")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1508",
+        "date": "10.07.2026",
+        "headline": "Parkering tidspunktanalyse",
+        "title": "Ny parkeringsanalyse viser omsetning og parkeringstid per ukedag og starttidspunkt",
+        "description": (
+            "Build 1508 legger til en egen side under Parkering for tidsfordeling. Siden viser heatmap for "
+            "ukedag og time, timeprofil, topp tidspunkt og snittberegninger for valgt periode."
+        ),
+        "applications": [
+            "main.py: nytt API for parkeringsfordeling etter starttidspunkt, med periodevalg og snitt per dag/parkering.",
+            "desktop_v2/src/pages/ParkingTimeDistributionPage.tsx: ny analyseflate for heatmap, nøkkeltall, timeprofil og tabeller.",
+            "desktop_v2/src/api.ts og queryKeys.ts: frontend-kontrakter og henting for den nye siden.",
+            "desktop_v2/src/moduleViews.ts og AppRoutes.tsx: nytt menyvalg og rute under Parkering.",
+            "desktop_v2/src/styles/parking-time-distribution.css: kompakt design tilpasset eksisterende parkeringsprofil og mørkt tema.",
+            "desktop_v2/scripts/smoke-routes.mjs og smoke-ui.mjs: ny side tatt inn i smoke-testgrunnlaget.",
+            "build_log.py: dokumenterer build 1508.",
+        ],
+        "request": (
+            "Jeg ønsker også på parkering å ha en side som viser parkeringstid og omsetningen fordelt på "
+            "tidspunkt pr ukedag, med mulighet for å velge tidsperiode, denne mnd, dette året osv.. og utregning av snitt."
+        ),
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Parkering får ny underside Tidspunkt.",
+            "Perioder støtter denne måneden, dette året, siste 90 dager, forrige måned, i fjor og egendefinert datointervall.",
+            "Heatmap viser 7 ukedager x 24 timer med valg mellom omsetning, parkeringstid, antall og snitt.",
+            "Siden beregner totaler, snitt per dag, snitt per parkering, ukedagstabell og topp tidspunkt.",
+            "Fordelingen er basert på starttidspunktet for parkeringen slik at salgsmønsteret blir tydelig.",
+        ],
+    },
     {
         "version": "1",
         "build": "1507",

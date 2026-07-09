@@ -1,0 +1,222 @@
+.parking-time-page {
+  --active-module-color: var(--domain-parking);
+}
+
+.parking-time-top,
+.parking-time-filter-row,
+.parking-time-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.parking-time-top {
+  padding: 2px 2px 0;
+}
+
+.parking-time-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.parking-time-title strong {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 780;
+  line-height: 1.15;
+}
+
+.parking-time-title span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.parking-time-filter-card .ant-card-body {
+  padding: 10px 12px;
+}
+
+.parking-time-filter-row {
+  flex-wrap: wrap;
+}
+
+.parking-time-date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.parking-time-date-range .ant-input {
+  width: 142px;
+  border-color: var(--border-control);
+  font-size: 12px;
+}
+
+.parking-time-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.parking-time-summary-grid .summary-card .ant-card-body {
+  min-height: 54px;
+}
+
+.parking-time-heatmap-card .ant-card-body {
+  padding: 11px 12px 12px;
+}
+
+.parking-time-toolbar {
+  min-height: 34px;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-panel-soft);
+  border-radius: var(--radius-md);
+  background: var(--panel-muted-bg);
+}
+
+.parking-time-toolbar .ant-typography {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.parking-time-heatmap {
+  display: grid;
+  grid-template-columns: 112px repeat(var(--parking-time-columns), minmax(34px, 1fr));
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.parking-time-row {
+  display: contents;
+}
+
+.parking-time-corner,
+.parking-time-hour-head,
+.parking-time-weekday,
+.parking-time-cell {
+  min-height: 34px;
+  border: 1px solid var(--border-panel-soft);
+  border-radius: 6px;
+}
+
+.parking-time-hour-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 780;
+  background: var(--surface-hover);
+}
+
+.parking-time-weekday {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 9px;
+  background: var(--surface);
+}
+
+.parking-time-weekday strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.1;
+}
+
+.parking-time-weekday span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.parking-time-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  overflow: hidden;
+  color: var(--text-body);
+  background: var(--surface);
+}
+
+.parking-time-cell::before {
+  position: absolute;
+  inset: 0;
+  background: var(--domain-parking);
+  opacity: calc(var(--heat-level, 0) * 0.76);
+  content: "";
+}
+
+.parking-time-cell span {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  padding: 0 2px;
+  color: color-mix(in srgb, var(--ink) 90%, var(--surface));
+  font-size: 9.5px;
+  font-weight: 820;
+  line-height: 1;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parking-time-hour-card .ant-card-body {
+  padding: 9px 12px 7px;
+}
+
+.parking-time-table-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.parking-time-table-grid .ant-card-body {
+  padding: 0;
+}
+
+.parking-time-table-grid .ant-table-thead > tr > th {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.parking-time-table-grid .ant-table-tbody > tr > td {
+  color: var(--text-body);
+  font-size: 12px;
+}
+
+@media (max-width: 1200px) {
+  .parking-time-summary-grid,
+  .parking-time-table-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .parking-time-summary-grid,
+  .parking-time-table-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .parking-time-top,
+  .parking-time-filter-row,
+  .parking-time-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .parking-time-date-range .ant-input {
+    width: 100%;
+  }
+}

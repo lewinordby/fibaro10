@@ -14185,6 +14185,13 @@ async def api_v2_parking_year_comparison(year: Optional[str] = Query(None)):
     }
 
 
+@app.get("/api/parkering/time-distribution")
+async def api_v2_parking_time_distribution(request: Request):
+    now_dt = local_now_naive()
+    async with async_session() as session:
+        return await api_parking_time_distribution(session, request.query_params, now_dt)
+
+
 @app.get("/api/omsetning/year-comparison")
 async def api_v2_revenue_year_comparison(year: Optional[str] = Query(None)):
     now_dt = local_now_naive()
@@ -16495,6 +16502,209 @@ PARKING_TIMELINE_ROWS = [
 ]
 PARKING_TIMELINE_CAPACITY = sum(row["count"] for row in PARKING_TIMELINE_ROWS)
 PARKING_OCCUPANCY_SCALE_MAX = 25
+PARKING_TIME_WEEKDAYS = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"]
+PARKING_TIME_PERIOD_OPTIONS = [
+    {"key": "this_month", "label": "Denne måneden"},
+    {"key": "this_year", "label": "Dette året"},
+    {"key": "last_90_days", "label": "Siste 90 dager"},
+    {"key": "previous_month", "label": "Forrige måned"},
+    {"key": "last_year", "label": "I fjor"},
+    {"key": "custom", "label": "Egendefinert"},
+]
+
+
+def parse_optional_date(value: Optional[str]) -> Optional[date]:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value).strip())
+    except ValueError:
+        return None
+
+
+def parking_time_distribution_period(params: Any, today: date) -> Dict[str, Any]:
+    requested = api_filter_value(params, "period", "this_month")
+    valid_periods = {item["key"] for item in PARKING_TIME_PERIOD_OPTIONS}
+    period_key = requested if requested in valid_periods else "this_month"
+    custom_from = parse_optional_date(api_filter_value(params, "date_from"))
+    custom_to = parse_optional_date(api_filter_value(params, "date_to"))
+
+    if period_key == "this_year":
+        start_day = date(today.year, 1, 1)
+        end_day = today
+        label = f"{today.year}"
+    elif period_key == "last_90_days":
+        start_day = today - timedelta(days=89)
+        end_day = today
+        label = "Siste 90 dager"
+    elif period_key == "previous_month":
+        start_day = add_months(today.replace(day=1), -1)
+        end_day = today.replace(day=1) - timedelta(days=1)
+        label = month_label(start_day)
+    elif period_key == "last_year":
+        start_day = date(today.year - 1, 1, 1)
+        end_day = date(today.year - 1, 12, 31)
+        label = str(today.year - 1)
+    elif period_key == "custom" and custom_from and custom_to:
+        start_day, end_day = sorted([custom_from, custom_to])
+        label = f"{start_day:%d.%m.%Y} - {end_day:%d.%m.%Y}"
+    else:
+        period_key = "this_month" if period_key == "custom" else period_key
+        start_day = today.replace(day=1)
+        end_day = today
+        label = month_label(start_day)
+
+    end_exclusive = end_day + timedelta(days=1)
+    days_count = max(0, (end_day - start_day).days + 1)
+    return {
+        "key": period_key,
+        "label": label,
+        "dateFrom": start_day.isoformat(),
+        "dateTo": end_day.isoformat(),
+        "start": datetime.combine(start_day, time.min),
+        "end": datetime.combine(end_exclusive, time.min),
+        "daysCount": days_count,
+        "options": PARKING_TIME_PERIOD_OPTIONS,
+    }
+
+
+def parking_time_weekday_day_counts(start_day: date, end_day: date) -> list[int]:
+    counts = [0 for _ in PARKING_TIME_WEEKDAYS]
+    cursor = start_day
+    while cursor <= end_day:
+        counts[cursor.weekday()] += 1
+        cursor += timedelta(days=1)
+    return counts
+
+
+async def api_parking_time_distribution(session, params: Any, now_dt: datetime) -> Dict[str, Any]:
+    period = parking_time_distribution_period(params, now_dt.date())
+    start_day = date.fromisoformat(period["dateFrom"])
+    end_day = date.fromisoformat(period["dateTo"])
+    weekday_day_counts = parking_time_weekday_day_counts(start_day, end_day)
+    rows = (
+        await session.execute(
+            select(
+                ParkingSession.start_time,
+                ParkingSession.end_time,
+                ParkingSession.parking_time_min,
+                ParkingSession.fee_inc_vat,
+            )
+            .where(ParkingSession.start_time >= period["start"])
+            .where(ParkingSession.start_time < period["end"])
+            .order_by(ParkingSession.start_time.asc())
+        )
+    ).all()
+
+    buckets = [
+        [
+            {
+                "weekdayIndex": weekday_index,
+                "weekday": PARKING_TIME_WEEKDAYS[weekday_index],
+                "hour": hour,
+                "hourLabel": f"{hour:02d}:00",
+                "sessions": 0,
+                "paid": 0.0,
+                "minutes": 0.0,
+            }
+            for hour in range(24)
+        ]
+        for weekday_index in range(7)
+    ]
+    weekday_totals = [
+        {
+            "weekdayIndex": weekday_index,
+            "weekday": PARKING_TIME_WEEKDAYS[weekday_index],
+            "days": weekday_day_counts[weekday_index],
+            "sessions": 0,
+            "paid": 0.0,
+            "minutes": 0.0,
+        }
+        for weekday_index in range(7)
+    ]
+    hour_totals = [
+        {
+            "hour": hour,
+            "hourLabel": f"{hour:02d}:00",
+            "sessions": 0,
+            "paid": 0.0,
+            "minutes": 0.0,
+        }
+        for hour in range(24)
+    ]
+
+    for start_time, end_time, parking_time_min, fee_inc_vat in rows:
+        start_at = normalize_local_naive(start_time)
+        if not start_at:
+            continue
+        paid = float_or_zero(fee_inc_vat)
+        minutes = float_or_zero(parking_time_min)
+        if minutes <= 0:
+            end_at = normalize_local_naive(end_time)
+            if end_at and end_at > start_at:
+                minutes = (end_at - start_at).total_seconds() / 60
+        weekday_index = start_at.weekday()
+        hour = start_at.hour
+        for target in (buckets[weekday_index][hour], weekday_totals[weekday_index], hour_totals[hour]):
+            target["sessions"] += 1
+            target["paid"] += paid
+            target["minutes"] += minutes
+
+    def finalize_bucket(item: Dict[str, Any], days: int = 0) -> Dict[str, Any]:
+        sessions = int_or_zero(item.get("sessions"))
+        paid = round(float_or_zero(item.get("paid")), 2)
+        minutes = round(float_or_zero(item.get("minutes")), 1)
+        item["sessions"] = sessions
+        item["paid"] = paid
+        item["minutes"] = minutes
+        item["hours"] = round(minutes / 60, 2)
+        item["avgPaidPerSession"] = round(paid / sessions, 2) if sessions else 0.0
+        item["avgMinutesPerSession"] = round(minutes / sessions, 1) if sessions else 0.0
+        item["avgPaidPerDay"] = round(paid / days, 2) if days else 0.0
+        item["avgSessionsPerDay"] = round(sessions / days, 2) if days else 0.0
+        item["avgMinutesPerDay"] = round(minutes / days, 1) if days else 0.0
+        return item
+
+    finalized_weekdays = []
+    finalized_cells = []
+    for weekday_index, weekday in enumerate(PARKING_TIME_WEEKDAYS):
+        days = weekday_day_counts[weekday_index]
+        hours = [finalize_bucket(item, days) for item in buckets[weekday_index]]
+        finalized_cells.extend(hours)
+        finalized_weekdays.append({**finalize_bucket(weekday_totals[weekday_index], days), "hours": hours})
+    finalized_hours = [finalize_bucket(item, max(1, period["daysCount"])) for item in hour_totals]
+    total_sessions = sum(item["sessions"] for item in finalized_weekdays)
+    total_paid = round(sum(item["paid"] for item in finalized_weekdays), 2)
+    total_minutes = round(sum(item["minutes"] for item in finalized_weekdays), 1)
+    max_values = {
+        "paid": max([item["paid"] for item in finalized_cells] + [1.0]),
+        "minutes": max([item["minutes"] for item in finalized_cells] + [1.0]),
+        "sessions": max([item["sessions"] for item in finalized_cells] + [1]),
+        "avgPaidPerDay": max([item["avgPaidPerDay"] for item in finalized_cells] + [1.0]),
+        "avgMinutesPerDay": max([item["avgMinutesPerDay"] for item in finalized_cells] + [1.0]),
+    }
+    top_slots = sorted(finalized_cells, key=lambda item: (item["paid"], item["sessions"], item["minutes"]), reverse=True)[:20]
+    return {
+        "generatedAt": api_local_iso(now_dt),
+        "period": {
+            **{key: value for key, value in period.items() if key not in {"start", "end"}},
+            "detail": f"{period['daysCount']} dager - fordelt etter starttidspunkt",
+        },
+        "summary": {
+            "sessions": total_sessions,
+            "paid": total_paid,
+            "minutes": total_minutes,
+            "hours": round(total_minutes / 60, 2),
+            "avgPaidPerSession": round(total_paid / total_sessions, 2) if total_sessions else 0.0,
+            "avgMinutesPerSession": round(total_minutes / total_sessions, 1) if total_sessions else 0.0,
+            "avgPaidPerDay": round(total_paid / max(1, period["daysCount"]), 2),
+            "avgSessionsPerDay": round(total_sessions / max(1, period["daysCount"]), 2),
+        },
+        "max": max_values,
+        "weekdays": finalized_weekdays,
+        "hours": finalized_hours,
+        "topSlots": top_slots,
+    }
 
 
 def parking_timeline_end(row: ParkingSession, timeline_end: datetime) -> datetime:

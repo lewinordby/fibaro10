@@ -268,6 +268,121 @@ function yearComparisonPayload(title) {
   };
 }
 
+function parkingTimeDistributionPayload() {
+  const weekdays = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"].map((weekday, weekdayIndex) => {
+    const hours = Array.from({ length: 24 }, (_, hour) => {
+      const active = hour >= 8 && hour <= 20;
+      const sessions = active ? Math.max(0, Math.round(((weekdayIndex + 1) * ((hour % 5) + 1)) / 2)) : 0;
+      const paid = sessions * (62 + weekdayIndex * 7);
+      const minutes = sessions * (30 + (hour % 4) * 10);
+      return {
+        weekdayIndex,
+        weekday,
+        hour,
+        hourLabel: `${String(hour).padStart(2, "0")}:00`,
+        sessions,
+        paid,
+        minutes,
+        hours: minutes / 60,
+        avgPaidPerSession: sessions ? paid / sessions : 0,
+        avgMinutesPerSession: sessions ? minutes / sessions : 0,
+        avgPaidPerDay: paid / 4,
+        avgSessionsPerDay: sessions / 4,
+        avgMinutesPerDay: minutes / 4,
+      };
+    });
+    const total = hours.reduce(
+      (acc, row) => ({
+        sessions: acc.sessions + row.sessions,
+        paid: acc.paid + row.paid,
+        minutes: acc.minutes + row.minutes,
+      }),
+      { sessions: 0, paid: 0, minutes: 0 },
+    );
+    return {
+      weekdayIndex,
+      weekday,
+      days: 4,
+      sessions: total.sessions,
+      paid: total.paid,
+      minutes: total.minutes,
+      avgPaidPerSession: total.sessions ? total.paid / total.sessions : 0,
+      avgMinutesPerSession: total.sessions ? total.minutes / total.sessions : 0,
+      avgPaidPerDay: total.paid / 4,
+      avgSessionsPerDay: total.sessions / 4,
+      avgMinutesPerDay: total.minutes / 4,
+      hours,
+    };
+  });
+  const cells = weekdays.flatMap((row) => row.hours);
+  const hours = Array.from({ length: 24 }, (_, hour) => {
+    const source = cells.filter((row) => row.hour === hour);
+    const sessions = source.reduce((sum, row) => sum + row.sessions, 0);
+    const paid = source.reduce((sum, row) => sum + row.paid, 0);
+    const minutes = source.reduce((sum, row) => sum + row.minutes, 0);
+    return {
+      weekdayIndex: 0,
+      weekday: "Alle",
+      hour,
+      hourLabel: `${String(hour).padStart(2, "0")}:00`,
+      sessions,
+      paid,
+      minutes,
+      hours: minutes / 60,
+      avgPaidPerSession: sessions ? paid / sessions : 0,
+      avgMinutesPerSession: sessions ? minutes / sessions : 0,
+      avgPaidPerDay: paid / 28,
+      avgSessionsPerDay: sessions / 28,
+      avgMinutesPerDay: minutes / 28,
+    };
+  });
+  const summary = weekdays.reduce(
+    (acc, row) => ({
+      sessions: acc.sessions + row.sessions,
+      paid: acc.paid + row.paid,
+      minutes: acc.minutes + row.minutes,
+    }),
+    { sessions: 0, paid: 0, minutes: 0 },
+  );
+  return {
+    generatedAt: "2026-06-10T12:00:00",
+    period: {
+      key: "this_month",
+      label: "Juni 2026",
+      dateFrom: "2026-06-01",
+      dateTo: "2026-06-10",
+      daysCount: 10,
+      detail: "10 dager - fordelt etter starttidspunkt",
+      options: [
+        { key: "this_month", label: "Denne måneden" },
+        { key: "this_year", label: "Dette året" },
+        { key: "last_90_days", label: "Siste 90 dager" },
+        { key: "previous_month", label: "Forrige måned" },
+        { key: "last_year", label: "I fjor" },
+        { key: "custom", label: "Egendefinert" },
+      ],
+    },
+    summary: {
+      ...summary,
+      hours: summary.minutes / 60,
+      avgPaidPerSession: summary.sessions ? summary.paid / summary.sessions : 0,
+      avgMinutesPerSession: summary.sessions ? summary.minutes / summary.sessions : 0,
+      avgPaidPerDay: summary.paid / 10,
+      avgSessionsPerDay: summary.sessions / 10,
+    },
+    max: {
+      paid: Math.max(...cells.map((row) => row.paid), 1),
+      minutes: Math.max(...cells.map((row) => row.minutes), 1),
+      sessions: Math.max(...cells.map((row) => row.sessions), 1),
+      avgPaidPerDay: Math.max(...cells.map((row) => row.avgPaidPerDay), 1),
+      avgMinutesPerDay: Math.max(...cells.map((row) => row.avgMinutesPerDay), 1),
+    },
+    weekdays,
+    hours,
+    topSlots: [...cells].sort((a, b) => b.paid - a.paid).slice(0, 20),
+  };
+}
+
 function statusComparisonPayload() {
   const event = (id, kind, source, left, amount) => ({
     id,
@@ -351,6 +466,7 @@ const server = http.createServer((request, response) => {
   if (url.pathname === "/api/status/comparison") return sendJson(response, statusComparisonPayload());
   if (url.pathname === "/api/soling/year-comparison") return sendJson(response, yearComparisonPayload("Soling arssammenligning"));
   if (url.pathname === "/api/parkering/year-comparison") return sendJson(response, yearComparisonPayload("Parkering arssammenligning"));
+  if (url.pathname === "/api/parkering/time-distribution") return sendJson(response, parkingTimeDistributionPayload());
   if (url.pathname === "/api/omsetning/year-comparison") return sendJson(response, yearComparisonPayload("Omsetning arssammenligning"));
   if (url.pathname === "/api/mobile-preview/screens") return sendJson(response, mobileScreensPayload());
   if (url.pathname === "/api/overview") {
