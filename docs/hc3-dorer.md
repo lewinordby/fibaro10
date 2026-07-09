@@ -6,7 +6,7 @@ Fibaro10 logger magnetfolere fra HC3 i tabellen `door_events`.
 
 For mange dorer skal ikke en endring lese alle dorer. Modellen er:
 
-1. En HC3 block scene per dor.
+1. En HC3 block scene per dor med OR for apnet/lukket.
 2. En liten HC3 Lua scene per dor.
 3. Block-scenen starter bare Lua-scenen for samme dor.
 4. Lua-scenen leser `value` for sin egen `DEVICE_ID` og poster en konkret hendelse til Fibaro10.
@@ -21,7 +21,7 @@ Dette gir riktig oppforsel hvis to dorer endrer status samtidig. Da starter to u
 | 447 | `door_447` | Kjeller luke |
 | 413 | `door_413` | Arbeidsrom |
 
-## Installer Lua-scener
+## Installer HC3-scener
 
 Kjor denne fra repoet nar HC3-credentials er tilgjengelig i miljovariabler:
 
@@ -32,7 +32,7 @@ $env:HC3_PASS = "<hc3-passord>"
 python scripts/upsert_hc3_single_door_logger_scenes.py
 ```
 
-Scriptet oppretter eller oppdaterer disse scenene:
+Scriptet oppretter eller oppdaterer disse Lua-scenene:
 
 - `Dorlogger 453 - Bod/kjokken`
 - `Dorlogger 447 - Kjeller luke`
@@ -40,12 +40,13 @@ Scriptet oppretter eller oppdaterer disse scenene:
 
 Det skriver ogsa en scene-map til `outputs/hc3_inventory/door_single_scene_map_*.json`.
 
-## Block-scene per dor
+Scriptet oppretter eller oppdaterer ogsa en block-trigger-scene per dor:
 
-I HC3 lager du en block scene per dor:
+- `Dortrigger <device> - <navn>`
 
 ```text
-IF <dorens sensor> value changes
+IF <dorens sensor> value == true
+OR <dorens sensor> value == false
 THEN run scene <Dorlogger ...>
 ```
 

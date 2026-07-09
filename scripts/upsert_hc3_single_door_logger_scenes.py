@@ -13,6 +13,13 @@ PASS = os.environ.get("HC3_PASS", "")
 ROOM_ID = int(os.environ.get("HC3_DOOR_SCENE_ROOM_ID", os.environ.get("HC3_SCENE_ROOM_ID", "224")))
 SCENE_PREFIX = os.environ.get("HC3_DOOR_SINGLE_SCENE_PREFIX", "Dorlogger")
 EXECUTE_AFTER_UPSERT = os.environ.get("HC3_DOOR_SINGLE_EXECUTE", "false").strip().lower() in {"1", "true", "yes", "ja"}
+DISABLE_LEGACY_TRIGGERS = os.environ.get("HC3_DOOR_DISABLE_LEGACY", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "ja",
+}
+LEGACY_TRIGGER_NAMES = {"registrere dor aapnes", "registrere dor lukkes"}
 
 DOORS = [
     {"device_id": 453, "device_key": "door_453", "name": "96.0 bod/kjokken", "title": "Bod/kjokken"},
@@ -190,7 +197,11 @@ def scene_name(door: dict) -> str:
     return f"{SCENE_PREFIX} {int(door['device_id'])} - {door['title']}"
 
 
-def scene_payload(door: dict) -> dict:
+def block_scene_name(door: dict) -> str:
+    return f"Dortrigger {int(door['device_id'])} - {door['title']}"
+
+
+def lua_scene_payload(door: dict) -> dict:
     name = scene_name(door)
     return {
         "name": name,
@@ -212,6 +223,99 @@ def scene_payload(door: dict) -> dict:
     }
 
 
+def block_scene_payload(door: dict, logger_scene_id: int) -> dict:
+    device_id = int(door["device_id"])
+    content = [
+        {
+            "conditions": {
+                "operator": "any",
+                "conditions": [
+                    {
+                        "group": "device",
+                        "type": "single",
+                        "isTrigger": True,
+                        "id": device_id,
+                        "property": "value",
+                        "operator": "==",
+                        "value": True,
+                    },
+                    {
+                        "group": "device",
+                        "type": "single",
+                        "isTrigger": True,
+                        "id": device_id,
+                        "property": "value",
+                        "operator": "==",
+                        "value": False,
+                    },
+                ],
+            },
+            "actions": [
+                {
+                    "group": "scene",
+                    "type": "scene",
+                    "action": "execute",
+                    "args": [[int(logger_scene_id)]],
+                }
+            ],
+        }
+    ]
+    return {
+        "name": block_scene_name(door),
+        "description": (
+            f"Trigger for HC3 dor {device_id}. Starter Lua-scene {logger_scene_id} ved apning og lukking."
+        ),
+        "type": "json",
+        "mode": "automatic",
+        "enabled": True,
+        "hidden": False,
+        "roomId": ROOM_ID,
+        "categories": [1],
+        "icon": "scene_block",
+        "iconExtension": "png",
+        "protectedByPin": False,
+        "maxRunningInstances": 3,
+        "restart": True,
+        "content": json.dumps(content, ensure_ascii=False),
+    }
+
+
+def upsert_scene(scenes: list[dict], name: str, payload: dict, backup_dir: pathlib.Path, stamp: str, backup_suffix: str):
+    existing = next((scene for scene in scenes if scene.get("name") == name), None)
+    if existing:
+        scene_id = existing["id"]
+        _, current = request(f"/api/scenes/{scene_id}")
+        (backup_dir / f"scene_{scene_id}_before_{backup_suffix}_{stamp}.json").write_text(
+            json.dumps(current, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        status, _ = request(f"/api/scenes/{scene_id}", method="PUT", body=payload)
+        return "updated", status, scene_id
+
+    status, created = request("/api/scenes", method="POST", body=payload)
+    return "created", status, created.get("id")
+
+
+def disable_legacy_triggers(scenes: list[dict], backup_dir: pathlib.Path, stamp: str) -> list[dict]:
+    results = []
+    if not DISABLE_LEGACY_TRIGGERS:
+        return results
+    for scene in scenes:
+        name = str(scene.get("name") or "")
+        if name not in LEGACY_TRIGGER_NAMES or not scene.get("enabled"):
+            continue
+        scene_id = int(scene["id"])
+        _, current = request(f"/api/scenes/{scene_id}")
+        (backup_dir / f"scene_{scene_id}_before_disable_legacy_door_{stamp}.json").write_text(
+            json.dumps(current, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        current["enabled"] = False
+        status, _ = request(f"/api/scenes/{scene_id}", method="PUT", body=current)
+        results.append({"scene_id": scene_id, "scene_name": name, "action": "disabled", "status": status})
+    return results
+
+
 def main():
     root = pathlib.Path(__file__).resolve().parents[1]
     backup_dir = root / "outputs" / "hc3_inventory" / "backups"
@@ -220,23 +324,18 @@ def main():
 
     _, scenes = request("/api/scenes")
     results = []
+    block_results = []
     for door in DOORS:
         name = scene_name(door)
-        existing = next((scene for scene in scenes if scene.get("name") == name), None)
-        payload = scene_payload(door)
-        if existing:
-            scene_id = existing["id"]
-            _, current = request(f"/api/scenes/{scene_id}")
-            (backup_dir / f"scene_{scene_id}_before_single_door_{door['device_id']}_{stamp}.json").write_text(
-                json.dumps(current, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-            status, _ = request(f"/api/scenes/{scene_id}", method="PUT", body=payload)
-            action = "updated"
-        else:
-            status, created = request("/api/scenes", method="POST", body=payload)
-            scene_id = created.get("id")
-            action = "created"
+        payload = lua_scene_payload(door)
+        action, status, scene_id = upsert_scene(
+            scenes,
+            name,
+            payload,
+            backup_dir,
+            stamp,
+            f"single_door_{door['device_id']}",
+        )
 
         result = {
             "action": action,
@@ -257,12 +356,39 @@ def main():
                 result["execute_status"] = exc.code
                 result["execute_error"] = exc.read().decode("utf-8", errors="replace")
 
+        block_payload = block_scene_payload(door, int(scene_id))
+        _, latest_scenes = request("/api/scenes")
+        block_action, block_status, block_scene_id = upsert_scene(
+            latest_scenes,
+            block_payload["name"],
+            block_payload,
+            backup_dir,
+            stamp,
+            f"door_trigger_{door['device_id']}",
+        )
+        block_results.append(
+            {
+                "action": block_action,
+                "status": block_status,
+                "scene_id": block_scene_id,
+                "scene_name": block_payload["name"],
+                "device_id": int(door["device_id"]),
+                "logger_scene_id": int(scene_id),
+                "trigger": "value == true OR value == false",
+            }
+        )
+
+    _, latest_scenes = request("/api/scenes")
+    legacy_results = disable_legacy_triggers(latest_scenes, backup_dir, stamp)
+
     output = {
         "status": "ok",
         "hc3": BASE_URL,
         "room_id": ROOM_ID,
-        "scenes": results,
-        "next_step": "Create one HC3 block scene per door: when the door sensor value changes, run the listed logger scene.",
+        "lua_scenes": results,
+        "block_scenes": block_results,
+        "legacy_triggers": legacy_results,
+        "next_step": "Test each door once open/closed and verify that only one Fibaro10 event is written per state change.",
     }
     out_path = root / "outputs" / "hc3_inventory" / f"door_single_scene_map_{stamp}.json"
     out_path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
