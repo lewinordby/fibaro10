@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1488")
+APP_BUILD = os.getenv("APP_BUILD", "1489")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1489",
+        "date": "09.07.2026",
+        "headline": "Tynne dørloggere",
+        "title": "Fibaro10 forbereder en dørlogger per HC3-sensor",
+        "description": (
+            "Build 1489 legger grunnlaget for å erstatte modellen der én dørendring leser alle dører. Det er laget "
+            "et HC3-installasjonsscript som oppretter én liten Lua-logger per eksisterende dør. Disse er beregnet "
+            "for å startes fra hver sin HC3 block scene, slik at hver hendelse sender bare aktuell dør til Fibaro10."
+        ),
+        "applications": [
+            "scripts/upsert_hc3_single_door_logger_scenes.py: nytt installer-script for tynne Lua-logger-scener per dør.",
+            "docs/hc3-dorer.md: dokumenterer anbefalt modell med én block scene og én logger per dør.",
+            "docs/README.md: lenker inn ny dørdokumentasjon og installer-script.",
+            "scripts/check-local.ps1: tar med det nye HC3-scriptet i Python syntakssjekk.",
+            "build_log.py: dokumenterer build 1489.",
+        ],
+        "request": (
+            "Du ba om å bygge om oppsettet for de tre eksisterende dørene først, slik at vi kan teste stabilitet før "
+            "de 16 nye dørene legges inn."
+        ),
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny installer kan opprette scenene Dorlogger 453, Dorlogger 447 og Dorlogger 413 i HC3.",
+            "Hver genererte Lua-scene har hardkodet device_id, device_key og navn, og poster bare sin egen sensor.",
+            "Payloaden merkes med trigger_model=block_scene_per_door for enklere feilsøking i rådata.",
+            "Scriptet skriver scene-map med hvilke logger-scener block-scenene skal starte.",
+            "Den gamle felles dørloggeren beholdes som manuell sync/test, ikke som ønsket fast trigger ved 19 dører.",
+        ],
+    },
     {
         "version": "1",
         "build": "1488",

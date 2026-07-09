@@ -22,6 +22,7 @@ Se ogsa `docs/desktop-v2.md` for den primaere React/Ant Design/ECharts-revisjone
 | `docs/roborock-logger.md` | Drift av lokal Roborock_logger på QNAP/Docker. |
 | `docs/roborock-datakilder.md` | Hvilke Roborock-data som kan hentes fra cloud og lokal LAN. |
 | `docs/roborock.md` | Historisk testnotat for Roborock-integrasjonen. |
+| `docs/hc3-dorer.md` | Oppsett for magnetfolere med en block scene og en tynn Lua logger per dor. |
 | `docs/gjennomgang_2026-05-23.md` | Tidligere gjennomgang, nå oppdatert med dagens status. |
 
 ## HC3-scener i repoet
@@ -32,6 +33,8 @@ Se ogsa `docs/desktop-v2.md` for den primaere React/Ant Design/ECharts-revisjone
 | `scripts/hc3_ventilation_runner_scene_363.lua` | Aktiv ventilasjonsrunner for HC3 scene 363. Logger temperatur/fukt for ventilasjonssoner, inkludert Yr-fukt, og styrer/loggfører avfukter 449. |
 | `scripts/hc3_basement_dehumidifier.lua` | Styrer avfukter 449 fra kjellertemperatur 444 og kjellerfukt 445, med terskler fra `/api/config/ventilation`. |
 | `scripts/hc3_door_event_logger.lua` | Logger åpne/lukke-hendelser fra magnetfølere 453, 447 og 413 til `/api/hc3/door-events`. Installeres med `scripts/upsert_hc3_door_event_logger_scene.py`. |
+
+| `scripts/upsert_hc3_single_door_logger_scenes.py` | Oppretter tynne Lua-logger-scener per dor, beregnet for aa startes fra en egen HC3 block scene per sensor. |
 
 ## Viktige prinsipper
 

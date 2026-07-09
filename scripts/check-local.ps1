@@ -22,7 +22,7 @@ $owntracksFrontendDir = Join-Path $repoRoot "owntracks_service/frontend"
 $npm = if ($env:OS -eq "Windows_NT") { "npm.cmd" } else { "npm" }
 
 Write-Host "Python syntax check"
-Run "python" @("-m", "py_compile", "main.py", "build_log.py", "api_contracts.py", "api_types.py", "energy_helpers.py", "migration_runner.py", "observability.py", "security.py", "roborock_domain.py", "sun2_helpers.py", "time_formatting.py", "value_parsing.py", "car_info_lookup/app/main.py", "car_info_lookup/app/parsing.py", "parking_sun_linker/app/main.py", "maintenance_mobile/app/main.py", "fibaro10ipad/app/main.py", "owntracks_service/app/main.py", "v1_reference/app/main.py", "scripts/run-migrations.py") $repoRoot
+Run "python" @("-m", "py_compile", "main.py", "build_log.py", "api_contracts.py", "api_types.py", "energy_helpers.py", "migration_runner.py", "observability.py", "security.py", "roborock_domain.py", "sun2_helpers.py", "time_formatting.py", "value_parsing.py", "car_info_lookup/app/main.py", "car_info_lookup/app/parsing.py", "parking_sun_linker/app/main.py", "maintenance_mobile/app/main.py", "fibaro10ipad/app/main.py", "owntracks_service/app/main.py", "v1_reference/app/main.py", "scripts/run-migrations.py", "scripts/upsert_hc3_single_door_logger_scenes.py") $repoRoot
 
 Write-Host "Python unit tests"
 Run "python" @("-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py") $repoRoot
