@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1490")
+APP_BUILD = os.getenv("APP_BUILD", "1491")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1491",
+        "date": "09.07.2026",
+        "headline": "Dørkort ryddet",
+        "title": "Dørkortene får mer hensiktsmessig statusinformasjon",
+        "description": (
+            "Build 1491 rydder opp i dørkortene. Den gamle raden med likeverdige felter for siste endring, siden, "
+            "batteri, normal og sensor er erstattet med en tydelig sist-endret-blokk og kompakte metadatachips."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: erstatter dørkortets tekniske feltgrid med DoorStatusFacts.",
+            "desktop_v2/src/styles/doors.css: ny kompakt layout for sist endret, batteri, normaltilstand og HC3-id.",
+            "build_log.py: dokumenterer build 1491.",
+        ],
+        "request": (
+            "Du pekte på at feltene siste endring, siden, batteri, normal og sensor på dørkortene var lite "
+            "hensiktsmessig designet."
+        ),
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Sist endret vises nå som primær informasjon med tidspunkt og alder samlet.",
+            "Batteri, normaltilstand og HC3-id vises som kompakte chips.",
+            "Klargjorte sensorer uten HC3-id har egen enkel oppsettflate.",
+        ],
+    },
     {
         "version": "1",
         "build": "1490",

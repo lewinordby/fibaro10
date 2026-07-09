@@ -145,47 +145,102 @@
   font-size: 11.5px;
 }
 
-.door-status-card dl {
+.door-status-facts,
+.door-status-setup {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   margin: 4px 0 0;
-  padding: 9px;
+  padding: 10px;
   background: var(--surface-muted);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
 }
 
-.doors-status-grid.is-compact .door-status-card dl {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 8px;
+.door-status-facts {
+  grid-template-columns: minmax(118px, 0.85fr) minmax(0, 1.4fr);
+  align-items: center;
+}
+
+.doors-status-grid.is-compact .door-status-facts,
+.doors-status-grid.is-compact .door-status-setup {
+  gap: 7px;
   padding: 8px;
 }
 
-.door-status-card dl div {
+.doors-status-grid.is-compact .door-status-facts {
+  grid-template-columns: 1fr;
+}
+
+.door-status-last-change,
+.door-status-setup > div:first-child {
   min-width: 0;
 }
 
-.door-status-card dt,
-.door-status-card dd {
-  margin: 0;
-}
-
-.door-status-card dt {
+.door-status-last-change span,
+.door-status-setup span:first-child {
+  display: block;
   color: var(--text-subtle);
   font-size: 10px;
   font-weight: 820;
   text-transform: uppercase;
 }
 
-.door-status-card dd {
+.door-status-last-change strong,
+.door-status-setup strong {
+  display: block;
   overflow: hidden;
-  color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 720;
+  margin-top: 1px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 780;
+  line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.door-status-last-change small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.door-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.doors-status-grid.is-compact .door-status-chips,
+.door-status-setup .door-status-chips {
+  justify-content: flex-start;
+}
+
+.door-status-chips span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 100%;
+  padding: 3px 8px;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 720;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+}
+
+.door-status-setup {
+  background: color-mix(in srgb, var(--domain-building) 4%, var(--surface-muted));
+  border-style: dashed;
 }
 
 .door-status-history {

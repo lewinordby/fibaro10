@@ -230,6 +230,38 @@ function DoorRecentPeriods({ periods = [] }: { periods?: DoorPeriodItem[] }) {
   );
 }
 
+function DoorStatusFacts({ door }: { door: DoorStatusItem }) {
+  if (!door.isConfigured) {
+    return (
+      <div className="door-status-setup">
+        <div>
+          <span>Klargjort</span>
+          <strong>Venter på HC3-id</strong>
+        </div>
+        <div className="door-status-chips">
+          <span>{door.normalStateLabel}</span>
+          <span>Sensor ikke koblet</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="door-status-facts">
+      <div className="door-status-last-change">
+        <span>Sist endret</span>
+        <strong>{door.lastChangedLabel}</strong>
+        <small>{door.ageLabel}</small>
+      </div>
+      <div className="door-status-chips">
+        <span>{door.batteryLabel === "-" ? "Batteri ukjent" : `Batteri ${door.batteryLabel}`}</span>
+        <span>{door.normalStateLabel}</span>
+        <span>{door.deviceId ? `HC3 ${door.deviceId}` : "Ikke koblet"}</span>
+      </div>
+    </div>
+  );
+}
+
 function DoorStatusCards({ doors, compact = false }: { doors: DoorStatusItem[]; compact?: boolean }) {
   return (
     <div className={`doors-status-grid ${compact ? "is-compact" : ""}`}>
@@ -243,32 +275,11 @@ function DoorStatusCards({ doors, compact = false }: { doors: DoorStatusItem[]; 
             </div>
             <span>{door.isConfigured ? door.hc3Name : "Venter på HC3 device-id"}</span>
           </div>
-          <dl>
-            <div>
-              <dt>Siste endring</dt>
-              <dd>{door.lastChangedLabel}</dd>
-            </div>
-            <div>
-              <dt>Siden</dt>
-              <dd>{door.ageLabel}</dd>
-            </div>
-            <div>
-              <dt>Batteri</dt>
-              <dd>{door.batteryLabel}</dd>
-            </div>
-            <div>
-              <dt>Normal</dt>
-              <dd>{door.normalStateLabel}</dd>
-            </div>
-            <div>
-              <dt>Sensor</dt>
-              <dd>{door.deviceId ? `HC3 ${door.deviceId}` : "Ikke koblet"}</dd>
-            </div>
-          </dl>
+          <DoorStatusFacts door={door} />
           {door.isConfigured || door.recentPeriods.length ? (
             <DoorRecentPeriods periods={door.recentPeriods} />
           ) : (
-            <div className="door-status-planned">Klar i Fibaro10. Legg inn HC3-id når sensoren er montert.</div>
+            <div className="door-status-planned">Legg inn HC3 device-id når sensoren er montert.</div>
           )}
         </Card>
       ))}
