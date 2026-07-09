@@ -138,6 +138,10 @@ async def post_status(config: dict[str, Any], status: str, status_text: str, las
     }
     try:
         await fibaro_post("/api/koble/worker/status", payload)
+        if last_error:
+            set_state(last_error=last_error)
+        else:
+            set_state(last_success_at=utcnow_iso(), last_error=None)
     except Exception as exc:
         set_state(last_error=f"Statusrapport feilet: {exc}")
 

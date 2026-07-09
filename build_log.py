@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1506")
+APP_BUILD = os.getenv("APP_BUILD", "1507")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1507",
+        "date": "10.07.2026",
+        "headline": "Koble-worker health",
+        "title": "Koble-worker friskmelder seg etter forbigående oppstartsfeil",
+        "description": (
+            "Build 1507 retter en health-feil som ble synlig i etterkontroll av dokumentasjonsdeployen. "
+            "Hvis Koble-worker startet før Fibaro10 var klar, ble oppstartsfeilen liggende i workerens egen "
+            "health-status selv etter at den senere rapporterte ajour til Fibaro10."
+        ),
+        "applications": [
+            "parking_sun_linker/app/main.py: vellykket statusrapport nullstiller stale last_error og setter last_success_at.",
+            "tests/test_parking_sun_linker.py: legger regresjonstest for oppstartsfeil som ryddes ved senere ajour-status.",
+            "build_log.py: dokumenterer build 1507.",
+        ],
+        "request": "Etter deploy-kontroll viste Koble-worker ok=false selv om Fibaro10 var frisk. Dette ble rettet før avslutning.",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Koble-worker health blir nå grønn igjen når worker faktisk får rapportert en vellykket status.",
+            "Forbigående connection refused ved containeroppstart blir ikke hengende som permanent feil.",
+            "Regresjonstest dekker at en gammel last_error fjernes når statusrapporten lykkes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1506",
