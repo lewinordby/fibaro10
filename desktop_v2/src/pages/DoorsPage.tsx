@@ -467,7 +467,7 @@ function DoorGroupSection({
   const sections = splitBySection ? groupBySection(doors) : [{ key: "all", title, doors: sortDoors(doors) }];
 
   return (
-    <Card className="work-card doors-group-card">
+    <Card className="work-card doors-group-card doors-panel-card">
       <div className="doors-group-header">
         <div>
           <Typography.Title level={3}>{title}</Typography.Title>
@@ -559,7 +559,7 @@ export default function DoorsPage() {
 
       {isRawView ? (
         <Card
-          className="work-card doors-table-card"
+          className="work-card doors-table-card doors-panel-card"
           title="Råhendelser fra HC3"
           extra={
             <Link to={data.datakildePath}>
@@ -583,7 +583,7 @@ export default function DoorsPage() {
       ) : activeView !== "oversikt" ? (
         <>
           <Card
-            className="work-card doors-table-card"
+            className="work-card doors-table-card doors-panel-card"
             title="Døråpninger"
             extra={
               <Link to="/dorer/radata">

@@ -1,17 +1,35 @@
+.doors-page {
+  --tone-color: var(--domain-building);
+  --door-panel-bg: linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2.5%, var(--surface)), var(--surface-panel-end));
+  --door-panel-border: color-mix(in srgb, var(--tone-color) 8%, var(--border-panel));
+  --door-card-border: color-mix(in srgb, var(--tone-color) 7%, var(--border-control));
+  --door-card-border-hover: color-mix(in srgb, var(--tone-color) 22%, var(--line-strong));
+  --door-muted-tint: color-mix(in srgb, var(--tone-color) 3%, var(--surface));
+  gap: 16px;
+}
+
 .doors-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .door-summary-card {
-  border-top: 3px solid color-mix(in srgb, var(--tone-color) 72%, var(--surface));
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--door-card-border);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 12%, var(--surface)) 0 4px, transparent 4px),
+    linear-gradient(180deg, var(--surface), var(--door-muted-tint));
+  box-shadow: var(--shadow-xs);
 }
 
 .door-summary-card .ant-card-body {
   display: grid;
-  gap: 3px;
-  padding: 10px 12px;
+  gap: 4px;
+  min-height: 74px;
+  padding: 11px 13px 10px 15px;
 }
 
 .door-summary-card span {
@@ -23,7 +41,7 @@
 
 .door-summary-card strong {
   color: var(--ink);
-  font-size: 24px;
+  font-size: 23px;
   font-weight: 800;
   line-height: 1.08;
 }
@@ -35,46 +53,64 @@
 
 .doors-status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 12px;
 }
 
 .doors-status-grid.is-compact {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px;
 }
 
 .door-status-card {
+  --door-card-tone: var(--domain-status);
   position: relative;
   overflow: hidden;
-  border-top: 3px solid var(--line-strong);
+  border: 1px solid var(--door-card-border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--door-card-tone) 2.5%, var(--surface-panel-end)));
+  box-shadow: 0 7px 20px var(--shadow-ink-faint-color);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.door-status-card:hover {
+  border-color: color-mix(in srgb, var(--door-card-tone) 24%, var(--line-strong));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.door-status-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: color-mix(in srgb, var(--door-card-tone) 78%, var(--surface));
+  content: "";
 }
 
 .door-status-card.is-closed {
-  border-top-color: var(--green);
+  --door-card-tone: var(--green);
 }
 
 .door-status-card.is-open {
-  border-top-color: var(--amber);
-  background: color-mix(in srgb, var(--amber) 5%, var(--surface));
+  --door-card-tone: var(--amber);
+  background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--amber) 4%, var(--surface-panel-end)));
 }
 
 .door-status-card.is-unknown {
-  border-top-color: var(--domain-status);
+  --door-card-tone: var(--domain-status);
 }
 
 .door-status-card.is-planned {
+  --door-card-tone: var(--domain-building);
   background: color-mix(in srgb, var(--surface-muted) 74%, var(--surface));
   border-style: dashed;
-  border-top-style: solid;
-  border-top-color: color-mix(in srgb, var(--domain-building) 42%, var(--line-strong));
 }
 
 .door-status-card .ant-card-body {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
-  gap: 10px 12px;
-  padding: 13px;
+  gap: 10px 13px;
+  padding: 15px 14px 13px;
 }
 
 .doors-status-grid.is-compact .door-status-card .ant-card-body {
@@ -88,10 +124,11 @@
   place-items: center;
   width: 42px;
   height: 42px;
-  color: var(--surface);
+  color: var(--door-card-tone);
   font-size: 18px;
-  background: var(--domain-status);
-  border-radius: 50%;
+  background: color-mix(in srgb, var(--door-card-tone) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--door-card-tone) 18%, var(--border-control));
+  border-radius: var(--radius-md);
 }
 
 .doors-status-grid.is-compact .door-status-icon {
@@ -101,11 +138,11 @@
 }
 
 .door-status-card.is-closed .door-status-icon {
-  background: var(--green);
+  color: var(--green);
 }
 
 .door-status-card.is-open .door-status-icon {
-  background: var(--amber);
+  color: var(--amber);
 }
 
 .door-status-card.is-planned .door-status-icon {
@@ -129,13 +166,16 @@
   overflow: hidden;
   color: var(--ink);
   font-size: 15px;
-  font-weight: 820;
+  font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .door-status-title .ant-tag {
   margin: 0;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 760;
 }
 
 .door-status-main > span {
@@ -150,10 +190,11 @@
   display: grid;
   grid-column: 1 / -1;
   gap: 8px;
-  margin: 4px 0 0;
-  padding: 10px;
-  background: var(--surface-muted);
-  border: 1px solid var(--line-soft);
+  margin: 3px 0 0;
+  padding: 9px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--door-card-tone) 2.4%, var(--surface)), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--door-card-tone) 8%, var(--line-soft));
   border-radius: var(--radius-md);
 }
 
@@ -233,8 +274,8 @@
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--door-card-tone) 3%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--door-card-tone) 9%, var(--line-soft));
   border-radius: 999px;
 }
 
@@ -247,6 +288,7 @@
   display: grid;
   grid-column: 1 / -1;
   gap: 7px;
+  padding-top: 1px;
 }
 
 .door-status-history-head {
@@ -272,10 +314,10 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
-  padding: 7px 8px;
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
-  border-left: 3px solid var(--green);
+  padding: 8px 9px;
+  background: linear-gradient(180deg, var(--surface), var(--door-muted-tint));
+  border: 1px solid color-mix(in srgb, var(--green) 8%, var(--line-soft));
+  border-left: 3px solid color-mix(in srgb, var(--green) 80%, var(--surface));
   border-radius: var(--radius-sm);
 }
 
@@ -352,17 +394,26 @@
 
 .doors-compact-board {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .doors-compact-panel {
+  --door-panel-tone: var(--domain-building);
   display: grid;
-  gap: 11px;
-  padding: 13px;
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  gap: 12px;
+  padding: 14px;
+  background: var(--door-panel-bg);
+  border: 1px solid color-mix(in srgb, var(--door-panel-tone) 8%, var(--border-panel));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.doors-compact-panel.is-solrom {
+  --door-panel-tone: var(--domain-sun2);
+}
+
+.doors-compact-panel.is-other {
+  --door-panel-tone: var(--domain-building);
 }
 
 .doors-compact-header {
@@ -370,15 +421,16 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 9px;
-  border-bottom: 1px solid var(--line-soft);
+  min-height: 28px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid var(--border-panel-soft);
 }
 
 .doors-compact-header h3.ant-typography {
   margin: 0;
   color: var(--ink);
-  font-size: 15px;
-  font-weight: 780;
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .doors-compact-header span,
@@ -394,7 +446,11 @@
 }
 
 .doors-compact-header small {
-  padding-top: 2px;
+  padding: 3px 8px;
+  color: color-mix(in srgb, var(--door-panel-tone) 58%, var(--text-label));
+  background: color-mix(in srgb, var(--door-panel-tone) 7%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--door-panel-tone) 13%, var(--line-soft));
+  border-radius: 999px;
   white-space: nowrap;
 }
 
@@ -429,29 +485,39 @@
 
 .doors-compact-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
 }
 
 .door-compact-card {
+  --door-tone: var(--domain-status);
   position: relative;
   display: grid;
-  min-height: 84px;
-  gap: 3px;
-  padding: 9px 11px 8px 12px;
+  min-height: 92px;
+  gap: 4px;
+  padding: 10px 12px 9px 13px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--surface-muted) 58%, var(--surface));
-  border: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--door-tone) 3%, var(--surface-panel-end)));
+  border: 1px solid color-mix(in srgb, var(--door-tone) 10%, var(--border-control));
   border-left: 4px solid var(--line-strong);
   border-radius: var(--radius-md);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .door-compact-card::before {
   position: absolute;
-  inset: 0;
+  inset: 0 0 auto;
   z-index: 0;
+  height: 3px;
   content: "";
-  background: linear-gradient(135deg, color-mix(in srgb, var(--door-tone) 10%, transparent), transparent 58%);
+  background: color-mix(in srgb, var(--door-tone) 78%, var(--surface));
+}
+
+.door-compact-card:hover {
+  border-color: color-mix(in srgb, var(--door-tone) 24%, var(--line-strong));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 .door-compact-card > * {
@@ -526,7 +592,7 @@
 .door-compact-state b {
   overflow: hidden;
   color: var(--ink);
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 1.05;
   text-overflow: ellipsis;
@@ -551,10 +617,30 @@
   font-size: 10.5px;
 }
 
+.doors-panel-card {
+  overflow: hidden;
+  border: 1px solid var(--door-panel-border);
+  border-radius: var(--radius-md);
+  background: var(--door-panel-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.doors-panel-card .ant-card-head {
+  min-height: 40px;
+  border-bottom-color: var(--border-panel-soft);
+  background: linear-gradient(180deg, var(--surface), var(--door-muted-tint));
+}
+
+.doors-panel-card .ant-card-head-title {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 780;
+}
+
 .doors-group-card .ant-card-body {
   display: grid;
-  gap: 12px;
-  padding: 13px;
+  gap: 13px;
+  padding: 14px;
 }
 
 .doors-group-header {
@@ -562,15 +648,15 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line-soft);
+  padding: 0 2px 10px;
+  border-bottom: 1px solid var(--border-panel-soft);
 }
 
 .doors-group-header h3.ant-typography {
   margin: 0;
   color: var(--ink);
   font-size: 16px;
-  font-weight: 780;
+  font-weight: 800;
 }
 
 .doors-group-header span {
@@ -583,12 +669,12 @@
 
 .doors-section-stack {
   display: grid;
-  gap: 13px;
+  gap: 14px;
 }
 
 .doors-section {
   display: grid;
-  gap: 8px;
+  gap: 9px;
 }
 
 .doors-section-title {
@@ -596,13 +682,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 0 1px;
+  padding: 0 2px;
 }
 
 .doors-section-title strong {
   color: var(--ink-soft);
   font-size: 13px;
-  font-weight: 780;
+  font-weight: 800;
 }
 
 .doors-section-title span {
@@ -646,8 +732,39 @@
   font-variant-numeric: tabular-nums;
 }
 
+.doors-table-card .ant-card-body {
+  padding: 0;
+}
+
+.doors-table-card .ant-table-wrapper {
+  padding: 0 12px 12px;
+}
+
+.doors-table-card .ant-table {
+  background: transparent;
+}
+
+.doors-table-card .ant-table-thead > tr > th {
+  color: var(--text-subtle);
+  font-size: 10.5px;
+  font-weight: 780;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--tone-color) 3%, var(--surface-muted));
+  border-bottom-color: var(--border-panel-soft);
+}
+
+.doors-table-card .ant-table-tbody > tr > td {
+  border-bottom-color: var(--border-panel-soft);
+}
+
+.doors-table-card .ant-table-tbody > tr:hover > td {
+  background: color-mix(in srgb, var(--tone-color) 3.5%, var(--surface-hover));
+}
+
 .doors-note-card {
   color: var(--text-body);
+  border-color: color-mix(in srgb, var(--domain-building) 8%, var(--line-soft));
   background: color-mix(in srgb, var(--domain-building) 4%, var(--surface));
 }
 

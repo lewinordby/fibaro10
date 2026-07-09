@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1493")
+APP_BUILD = os.getenv("APP_BUILD", "1494")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1494",
+        "date": "09.07.2026",
+        "headline": "Dører visuelt løftet",
+        "title": "Dørseksjonen får et mer helhetlig dashboard-inspirert design",
+        "description": (
+            "Build 1494 oppfrisker alle Dører-sidene med samme visuelle prinsipper som hoveddashboardet: "
+            "roligere paneler, tydeligere statusstripe, mer presise kortflater, bedre tabeller og mørkt-tema-dekning."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: gir gruppe- og tabellkort felles panelklasse.",
+            "desktop_v2/src/styles/doors.css: oppgraderer kort, paneler, statusruter, historikk og tabeller.",
+            "desktop_v2/src/styles/dark-theme.css: legger inn mørkt-tema-støtte for det nye dørdesignet.",
+            "build_log.py: dokumenterer build 1494.",
+        ],
+        "request": (
+            "Du ønsket å oppfriske designet på alle Dører-sidene og pekte på at uttrykket på hoveddashboardet "
+            "hadde blitt ganske bra."
+        ),
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Dører/Oversikt, Solrom, Andre dører og Rådata bruker nå et mer konsistent paneluttrykk.",
+            "Statuskortene har fått dashboard-inspirert toppstripe, lettere flater og bedre hover.",
+            "Tabellene for døråpninger og rådata har fått strammere hoder og roligere radmarkering.",
+            "Mørkt tema har fått egne overstyringer for dørpaneler og dørkort.",
+        ],
+    },
     {
         "version": "1",
         "build": "1493",

@@ -567,6 +567,56 @@
   border-color: var(--border-control);
 }
 
+.app-shell.theme-dark .doors-page {
+  --door-panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.014), rgba(255, 255, 255, 0.006));
+  --door-panel-border: color-mix(in srgb, var(--domain-building) 12%, var(--border-panel));
+  --door-card-border: color-mix(in srgb, var(--domain-building) 10%, var(--border-panel));
+  --door-card-border-hover: color-mix(in srgb, var(--domain-building) 26%, var(--line-strong));
+  --door-muted-tint: color-mix(in srgb, var(--domain-building) 4%, var(--surface));
+}
+
+.app-shell.theme-dark .door-summary-card,
+.app-shell.theme-dark .doors-compact-panel,
+.app-shell.theme-dark .doors-panel-card,
+.app-shell.theme-dark .door-status-card,
+.app-shell.theme-dark .door-compact-card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--door-tone, var(--door-card-tone, var(--domain-building))) 2%, rgba(255, 255, 255, 0.026)), transparent 72px),
+    var(--surface) !important;
+  border-color: color-mix(in srgb, var(--door-tone, var(--door-card-tone, var(--domain-building))) 12%, var(--border-panel)) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.app-shell.theme-dark .door-summary-card:hover,
+.app-shell.theme-dark .door-status-card:hover,
+.app-shell.theme-dark .door-compact-card:hover {
+  border-color: color-mix(in srgb, var(--door-tone, var(--door-card-tone, var(--domain-building))) 28%, var(--line-strong)) !important;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.27);
+}
+
+.app-shell.theme-dark .doors-panel-card .ant-card-head,
+.app-shell.theme-dark .doors-table-card .ant-table-thead > tr > th,
+.app-shell.theme-dark .door-status-facts,
+.app-shell.theme-dark .door-status-setup,
+.app-shell.theme-dark .door-status-history-row,
+.app-shell.theme-dark .door-status-chips span,
+.app-shell.theme-dark .doors-compact-header small,
+.app-shell.theme-dark .door-compact-top span {
+  background: var(--surface-raised);
+  border-color: color-mix(in srgb, var(--door-tone, var(--door-card-tone, var(--domain-building))) 13%, var(--border-panel));
+}
+
+.app-shell.theme-dark .doors-compact-header,
+.app-shell.theme-dark .doors-group-header,
+.app-shell.theme-dark .doors-table-card .ant-table-thead > tr > th,
+.app-shell.theme-dark .doors-table-card .ant-table-tbody > tr > td {
+  border-color: var(--line-soft);
+}
+
+.app-shell.theme-dark .doors-table-card .ant-table-tbody > tr:hover > td {
+  background: color-mix(in srgb, var(--domain-building) 8%, var(--surface-hover));
+}
+
 .app-shell.theme-dark .settlement-ledger-row,
 .app-shell.theme-dark .settlement-source-check,
 .app-shell.theme-dark .settlement-source-check.ok,
