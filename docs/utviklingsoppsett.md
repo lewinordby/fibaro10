@@ -1,5 +1,7 @@
 # Utviklingsoppsett
 
+Oppdatert 10.07.2026.
+
 Dette repoet er satt opp for rask lokal utvikling paa Windows og direkte idriftsetting paa QNAP.
 
 ## Daglig arbeidsflyt
@@ -18,7 +20,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev-check.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 ```
 
-Deploy-scriptet pusher `main` til GitHub, logger inn paa QNAP via SSH, henter `origin/main`, tar backup av runtimefiler, bygger `fibaro10` og `online_dashboard`, og kjorer health/smoke checks.
+Deploy-scriptet pusher `main` til GitHub, logger inn paa QNAP via SSH, henter `origin/main`, tar backup av runtimefiler, bygger/restarter relevante containere og kjorer health/smoke checks.
+
+Per 10.07.2026 bygges/restartes blant annet:
+
+- `owntracks_service`
+- `fibaro10_proxy`
+- `fibaro10`
+- `online_dashboard`
+- `maintenance_mobile`
+- `fibaro10ipad`
+- `axis_camera_snapshots`
+- `car_info_lookup`
+- `sun2_session_scraper`
+- `parking_sun_linker`
+- `easypark_downloader`
 
 For innlogget live-smoke maa det finnes en lokal `.env.live-smoke` med en dedikert testbruker. Opprett eller roter denne slik:
 
@@ -70,8 +86,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-qnap.ps1
 
 ## V1-referanse
 
-V1 paa port `8111` er naa en frakoblet referansevisning, ikke en gammel live-app mot produksjonsdatabasen.
-V2 paa port `8110` er daglig drift og skal behandles som produksjon. V1-referansen skal bare brukes for aa sammenligne gamle funksjoner mot V2.
+V1 er en valgfri frakoblet referansevisning, ikke en gammel live-app mot produksjonsdatabasen.
+V2 paa port `8110` er daglig drift og skal behandles som produksjon. V1-referansen skal bare brukes for aa sammenligne gamle funksjoner mot V2, og den trenger ikke kjoere til daglig.
 
 - Adresse: `http://192.168.20.218:8111`
 - Container: `fibaro10_v1`
@@ -80,6 +96,8 @@ V2 paa port `8110` er daglig drift og skal behandles som produksjon. V1-referans
 - Kildecommit for meny/funksjoner: `487044d`
 
 Referansen viser V1-menyen og forklarer hva de gamle sidene gjorde. Den bruker ikke `.env`, database, HC3, EasyPark, Sun2, Yr, Roborock eller andre datakilder. Dette er valgt fordi den gamle V1-appen kunne henge seg paa tunge lesesider, og fordi formaalet naa bare er aa sammenligne funksjonalitet.
+
+Merk: `online_dashboard` bruker ogsaa intern port `8111` inne i containeren, men er ikke eksponert direkte paa host-port 8111 i hoved-compose. V1-referansen bruker host-port `192.168.20.218:8111` bare naar den startes med egen compose-fil.
 
 Deploy/oppdater referansen slik:
 
@@ -99,6 +117,8 @@ Dette scriptet er isolert: det laster bare opp `v1_reference/` og `docker-compos
 - iPad-grensesnitt: `https://ipad.lilletorget.net`
 - Vedlikehold mobil: `https://vedl.lilletorget.net`
 - OwnTracks: `https://owntracks.lilletorget.net`
+- Systemkart i appen: `http://192.168.20.218:8110/admin/systemkart`
+- Datakilder i appen: `http://192.168.20.218:8110/admin/datakilder`
 - Docker: `/share/CACHEDEV1_DATA/.qpkg/container-station/usr/bin/.libs/docker`
 - Git paa QNAP leveres via Entware i `/opt/bin/git`.
 

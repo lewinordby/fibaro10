@@ -1,6 +1,8 @@
 # Funksjonsstruktur for Fibaro10 V2
 
-Dette dokumentet beskriver ønsket funksjonsdeling i V2. Målet er å unngå overlapp mellom sider og gjøre videre utvikling mer forutsigbar.
+Oppdatert 10.07.2026.
+
+Dette dokumentet beskriver dagens funksjonsdeling i V2. Målet er å unngå overlapp mellom sider og gjøre videre utvikling mer forutsigbar.
 
 ## Prinsipp
 
@@ -8,98 +10,140 @@ Hver side skal ha én hovedrolle:
 
 | Rolle | Formål | Eksempler |
 | --- | --- | --- |
-| Dashboard | Rask status og utvikling | Dashboard omsetning, parkering, soling, drift |
-| Oversikt | Analyse og hovedtall for et domene | Omsetning oversikt, Parkering oversikt, Soling oversikt |
-| Arbeidsflate | Daglig arbeid med konkrete rader | Parkeringer, Kjøretøy, Enkeltimer, Produkter |
+| Dashboard | Rask status og utvikling | Dashboard omsetning, parkering, soling og drift |
+| Oversikt/analyse | Hovedtall, trender og nøkkeltabeller | Omsetning oversikt, Parkering oversikt, Soling oversikt |
+| Arbeidsflate | Daglig arbeid med konkrete rader | Parkeringer, Kjøretøy, Enkeltimer, Besøk |
 | Kontroll | Avstemming mot eksterne kilder | Oppgjør, Elvia-kontroll, Datakvalitet |
-| Teknisk drift | Jobber, datakilder, system og verktøy | Datakilder, Systemkart, Buildlogg, OwnTracks |
+| Teknisk drift | Jobber, datakilder, system og verktøy | Datakilder, Systemkart, Buildlogg, Koble jobb |
 
-## Anbefalt menyopprydding
+Hvis en side får flere roller samtidig, skal den enten deles eller flyttes inn som seksjon på en eksisterende side.
+
+## Hovedgrupper
+
+| Gruppe | Innhold | Rolle |
+| --- | --- | --- |
+| Dashboard | Status | Operativt overblikk. |
+| Økonomi | Omsetning, Parkering, Soling, Koble | Tall, aktivitet, oppgjør og kobling mellom betaling/bruk. |
+| Bygg og drift | Energi, Ventilasjon, Lys, Dører, Renhold, Vedlikehold | Teknisk drift og fysisk anlegg. |
+| System | Ideer, Mobil, Admin | Systemoversikt, utvikling, manualer og kontrollflater. |
+
+## Modulstruktur
+
+### Dashboard
+
+- `Omsetning`: viktigste økonomiske status, sammenligninger og oppdatertgrunnlag.
+- `Parkering`: antall, aktivitet, kjøretøy og parkeringsstatus.
+- `Soling`: antall, aktivitet, senger og solingsstatus.
+- `Drift`: datakilder, energi, klima og operativ helsetilstand.
+
+Dashboard skal vise nok til å ta raske valg, men ikke bli en komplett arbeidsflate.
 
 ### Omsetning
 
-Behold:
+- `Oversikt`: års-/periodeoversikt, topp dager/måneder og samlet økonomi.
+- `Periodesammenligning`: akkumulert sammenligning for dag/uke/måned.
+- `Årssammenligning`: akkumulert årskurve for omsetning.
+- `Månedsoversikt`: månedsgraf og månedstabeller.
 
-- `Oversikt`
-- `Månedsoversikt`
-- `Årssammenligning`
-- `Periodesammenligning`
-
-Unngå at oppgjør og avstemming ligger direkte under Omsetning. Det hører bedre hjemme på domenene Parkering og Soling, mens totalsammenstilling kan vises som tabell på omsetningsoversikten.
+Oppgjør ligger under Parkering og Soling fordi kontrollen eies av hvert fagdomene. Omsetning kan vise totalsammenstilling, men skal ikke overta detaljkontroll.
 
 ### Parkering
 
-Behold:
+- `Oversikt`: analyseflate med ukesstatistikk og siste parkeringer.
+- `Parkeringer`: daglig arbeidsflate med dagsvalg, EasyPark-oppdatering og radliste.
+- `Dagslinje`: visuell kapasitets-/beleggsflate.
+- `Kjøretøy`: søk, eier/kjøretøydata og historikk per bil.
+- `Områder`: områdeanalyse med dato/tidsrom.
+- `Prognose`: parkeringsprognoser etter import.
+- `Årssammenligning`: akkumulert årssammenligning for parkering.
+- `Oppgjør`: Park Nordic/EasyPark-oppgjør og kontroll mot interne kilder.
+- `Datakvalitet`: SVV, Sverige/Danmark, område og kjøretøydata.
 
-- `Oversikt` som standard analyseflate med ukesstatistikk
-- `Parkeringer` som daglig arbeidsflate
-- `Dagslinje`
-- `Kjøretøy`
-- `Områder`
-- `Prognose`
-- `Årssammenligning`
-- `Oppgjør`
-- `Datakvalitet`
-
-Skjult/utfaset fra meny:
-
-- `Bilstatistikk` er bevart som rute, men skal løftes inn i `Kjøretøy` når tallene trengs.
+`Bilstatistikk` finnes som skjult rute og bør ikke utvides før innholdet har en tydelig rolle.
 
 ### Soling
 
-Behold:
+- `Oversikt`: analyseflate for soling.
+- `Årssammenligning`: akkumulert årssammenligning for soling.
+- `Dagslinje`: daglig aktivitetslinje per seng/rom.
+- `Enkeltimer`: arbeidsflate for soltimer, bilder, SUN2-id og manuell kontroll.
+- `Oppgjør`: solingsoppgjør/kreditnota og kontroll mot SUN2.
+- `Prognose`: solingsprognoser hvis operativ verdi.
+- `Produkter`: produktsalg fra SUN2.
+- `Senger`: rom/sengmetadata.
+- `Medlemmer`: SUN2-medlemmer.
+- `Statistikk` og `Detaljer`: beholdes, men bør ikke få ny funksjonalitet uten klar avgrensning mot Oversikt.
 
-- `Oversikt`
-- `Årssammenligning`
-- `Dagslinje`
-- `Enkeltimer`
-- `Senger`
-- `Medlemmer`
-- `Produkter`
-- `Oppgjør`
+### Koble
 
-Vurder sammenslåing:
+Koble er et eget domene fordi det binder parkering og soling sammen.
 
-- `Statistikk` og `Detaljer` bør enten få klart ulike formål eller samles i `Oversikt`.
-- `Prognose` bør beholdes bare hvis den faktisk brukes operativt.
+- `Oversikt`: status, nøkkeltall og jobbstyring.
+- `SUN2-kontroll`: grupperer biltreff etter SUN2-id.
+- `Biltreff`: biler med gjentatte soltreff.
+- `Kandidater`: manuell bekreftelse/avvisning.
+- `Treffgrunnlag`: rågrunnlag for parkerings-/soltreff.
+- `Jobb`: worker-status og parametere.
+
+Koble skal ikke skrive endelig sannhet uten manuell bekreftelse.
 
 ### Energi
 
-Behold:
+- `Status`: overblikk over forbruk og differanse.
+- `Elvia-kontroll`: kontroll mellom Elvia-import og HC3-målinger.
+- `Kurser`: kursoversikt.
+- `Laster`: definerte laster.
+- `Forbruk per seng`: beregnet forbruk per solseng.
+- `Elvia`: opplasting og månedsdata.
+- `Verktøy`: teknisk energiverktøy.
 
-- `Status`
-- `Elvia`
-- `Forbruk per seng`
-- `Kurser`
-- `Laster`
+### Ventilasjon og lys
 
-Vurder sammenslåing:
+- Ventilasjon: `Dagslogg`, `Temperatur og fukt`, `Yr-logg`, `Hendelser`, `Innstillinger`.
+- Lys: `Dagslogg`, `Lux-logg`, `Hendelser`, `Innstillinger`.
 
-- `Elvia-kontroll` kan bli en fane/seksjon under `Elvia`.
-- `Verktøy` kan flyttes til Admin hvis den bare er teknisk.
+Regel: Dagslogg er visuell tidsserie. Innstillinger er styringsregler. Hendelser er rå/operativ logg.
 
-### Admin
+### Dører
 
-Admin bør være teknisk og operativt, ikke for vanlig analyse.
+- `Oversikt`: kompakt status for solrom og andre dører.
+- `Solrom`: dørstatus og bruk/ledig-logikk for solrom.
+- `Andre dører`: byggdører som normalt skal vurderes annerledes enn solrom.
+- `Rådata`: alle dørhendelser fra HC3.
 
-Behold:
+Solrom bruker motsatt semantikk av byggdører: åpen dør betyr normalt ledig, lukket dør betyr normalt i bruk.
 
-- `Oppgaver`
-- `Kontroll`
-- `Datakvalitet`
-- `Datakilder`
-- `Systemkart`
-- `OwnTracks`
-- `Buildlogg`
-- `Brukere`
-- `AI`
+### Vedlikehold og renhold
 
-Vurder sammenslåing:
+- `Vedlikehold/Oversikt`: vedlikeholdslogger, oppgaver og oppfølging.
+- `Vedlikehold/Besøk`: OwnTracks-besøk på Lilletorget koblet til oppgaver.
+- `Renhold/Oversikt`: renholdsstatus.
+- `Renhold/Roboter`: Roborock-status og robotdata.
 
-- `Drift`, `Teknisk`, `Manual` og `Verktøy` bør etter hvert samles i én tydelig driftsside eller fjernes hvis innholdet er duplikat.
+Mobil vedlikeholdsregistrering ligger i egen app på `vedl.lilletorget.net`, men skriver til samme datagrunnlag.
 
-`Kontroll` er inngangen til avstemminger som bruker eksterne kilder mot Fibaro10-data. Selve fagflatene ligger fortsatt under riktig domene, for eksempel parkering/oppgjør, soling/oppgjør og energi/Elvia.
+### System
 
-## Neste oppryddingsregel
+- `Ideer`: midlertidig vurderingsområde for nye funksjoner.
+- `Mobil`: speiling av mobilskjermer i rutenett.
+- `Admin/Oppgaver`: systemoppgaver og forbedringspunkter.
+- `Admin/Kontroll`: avstemminger og kontrollinnganger.
+- `Admin/Datakvalitet`: dataproblemer på tvers.
+- `Admin/Analyse`: tekniske analyser.
+- `Admin/Drift`: driftsstatus.
+- `Admin/Buildlogg`: leveransehistorikk.
+- `Admin/Datakilder`: importstatus og datakildeforklaring.
+- `Admin/Systemkart`: komponenter, underapper og URL-er.
+- `Admin/AI`: AI-innstillinger.
+- `Admin/Teknisk`: teknisk drift.
+- `Admin/Brukere`: brukeradministrasjon.
+- `Admin/Manual`: intern manual og lenker.
+- `Admin/Verktøy`: tekniske verktøy.
 
-Når en ny side legges til, skal den plasseres i én av rollene over. Hvis siden passer i flere roller, er det normalt et tegn på at den bør deles eller at eksisterende side bør utvides i stedet.
+## Regel for nye sider
+
+1. Plasser siden i eksisterende hovedgruppe.
+2. Definer om siden er dashboard, oversikt, arbeidsflate, kontroll eller teknisk drift.
+3. Ikke lag en ny side hvis en eksisterende side kan få en tydelig seksjon uten overlapp.
+4. Store datasett skal ha eksplisitt begrensning, filter eller egen detaljside.
+5. Dokumenter ny side i `docs/desktop-v2.md`, og legg den inn i route-audit/smoke hvis den skal være fast menyvalg.

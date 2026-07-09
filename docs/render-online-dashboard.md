@@ -1,6 +1,10 @@
 # Render-basert online dashboard
 
+Oppdatert 10.07.2026.
+
 Maalet er at QNAP ikke trenger inngaaende internettrafikk for mobilgrensesnittet. QNAP/Fibaro10 er datakilde internt og pusher et begrenset snapshot ut til Render. Render viser bare siste publiserte tall fra egen Postgres-database.
+
+Status per nå: dagens `online_dashboard` kjører på QNAP og eksponeres via `online.lilletorget.net`. Dette dokumentet beskriver Render-cutover-modellen hvis mobilflaten senere skal flyttes helt ut av QNAP.
 
 ## Arkitektur
 

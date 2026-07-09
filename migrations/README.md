@@ -1,5 +1,7 @@
 # Database migrations
 
+Oppdatert 10.07.2026.
+
 This folder is the source-controlled home for schema and data migrations.
 
 ## Practice

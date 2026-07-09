@@ -1,5 +1,7 @@
 # EasyPark downloader
 
+Oppdatert 10.07.2026.
+
 Liten QNAP-container som logger inn i EasyPark, laster ned CSV-rapport og sender filen til Fibaro10.
 
 ## Drift

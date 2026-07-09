@@ -1,5 +1,7 @@
 # HC3 vedlikehold
 
+Oppdatert 10.07.2026.
+
 Lokal vedlikeholdsapp for Fibaro HC3. Appen er laget for å kjøre på QNAP/Docker i samme nett som HC3.
 
 ## Hva appen gjør

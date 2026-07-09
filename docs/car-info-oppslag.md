@@ -1,5 +1,7 @@
 # Nordisk biloppslag for utenlandske biler
 
+Oppdatert 10.07.2026.
+
 `car_info_lookup` er en separat QNAP-app som beriker parkering/kjoretoy med utenlandske biler som SVV ikke finner. Svenske skilt slas opp hos Biluppgifter.se. Danske skilt slas opp hos Tjekbil. `car_info_lookup`-navnet beholdes som teknisk kompatibilitet.
 
 ## Flyt

@@ -1,6 +1,6 @@
 # Roborock datakilder
 
-Oppdatert 25.05.2026.
+Oppdatert 10.07.2026.
 
 Dette dokumentet beskriver hvilke data som kan hentes fra Roborock, og hvordan de bør brukes i Lilletorget drift.
 
@@ -72,7 +72,7 @@ Hvis vi vil ha kart etter hver rengjøring fremover, bør loggeren hente kart re
 
 ## Feilsøking
 
-1. Sjekk Status -> Datakilder -> Roborock logger.
+1. Sjekk Admin -> Datakilder -> Roborock logger.
 2. Sjekk Roborock_logger sin webflate på QNAP.
 3. Sjekk at roboten er online i Roborock.
 4. Sjekk om lokal IP har endret seg.

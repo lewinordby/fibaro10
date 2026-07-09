@@ -1,5 +1,7 @@
 # OwnTracks HTTP
 
+Oppdatert 10.07.2026.
+
 OwnTracks er en separat HTTP-tjeneste ved siden av Fibaro10. Tjenesten tar imot posisjoner, waypoints og transition-hendelser fra OwnTracks-appen, lagrer raadata i egen database og eksponerer et eget administrasjonsgrensesnitt/API.
 
 QNAP-oppsettet bruker PostgreSQL via `owntracks_postgres`. Den gamle SQLite-filen beholdes som migrerings- og rollback-kilde, men normal drift skal bruke `OWNTRACKS_DATABASE_URL`.

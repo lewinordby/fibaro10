@@ -1,5 +1,7 @@
 # Axis camera snapshots
 
+Oppdatert 10.07.2026.
+
 `axis_camera_snapshots` er en liten tilleggsapp som henter JPEG-bilder fra et Axis-kamera og lagrer dem på disk.
 
 ## QNAP
@@ -8,14 +10,16 @@ Appen kjører som egen Docker-container sammen med Fibaro10:
 
 - Container: `axis_camera_snapshots`
 - Lokal webflate: `http://192.168.20.218:8125`
-- Snapshot-mappe på QNAP: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10/axis_camera_snapshots/snapshots`
-- Config/state: `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10/axis_camera_snapshots/data`
+- Snapshot-mappe på QNAP styres av `AXIS_HOST_SNAPSHOT_DIR`. Produksjon skal peke til arkivvolumet, typisk `/share/CACHEDEV3_DATA/fibaro10_archive/axis_camera_snapshots/snapshots`.
+- Config/state styres av `AXIS_HOST_DATA_DIR`, typisk `/share/CACHEDEV1_DATA/Public/containerdata/fibaro10/axis_camera_snapshots/data`.
 
 ## Miljøvariabler
 
 Legg dette i QNAP `.env` eller endre verdiene i appens webflate:
 
 ```env
+AXIS_HOST_DATA_DIR=/share/CACHEDEV1_DATA/Public/containerdata/fibaro10/axis_camera_snapshots/data
+AXIS_HOST_SNAPSHOT_DIR=/share/CACHEDEV3_DATA/fibaro10_archive/axis_camera_snapshots/snapshots
 AXIS_SNAPSHOT_ENABLED=true
 AXIS_CAMERA_IP=192.168.101.65
 AXIS_USERNAME=root

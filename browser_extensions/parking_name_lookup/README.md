@@ -1,5 +1,7 @@
 # Fibaro10 parkering områdeoppslag
 
+Oppdatert 10.07.2026.
+
 Chrome/Edge-extension for å lese `Område` fra Vegvesen-siden du allerede er innlogget på, og skrive dette tilbake til Fibaro10.
 
 Extensionen lagrer ikke eiernavn. Den lagrer bare grovt område, for eksempel `Lillehammer`.

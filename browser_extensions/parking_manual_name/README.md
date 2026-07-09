@@ -1,5 +1,7 @@
 # Fibaro10 parkering navneoppslag
 
+Oppdatert 10.07.2026.
+
 Chrome/Edge-extension for manuell registrering av navn på biler i Fibaro10.
 
 Denne extensionen gjør ikke automatisk uthenting av navn. Den henter en liste over biler som mangler navn, lar deg åpne oppslagssiden for aktivt registreringsnummer, og lagrer navnet du selv skriver inn.

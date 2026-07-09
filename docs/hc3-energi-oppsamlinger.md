@@ -1,5 +1,7 @@
 # HC3 energioppsamlinger
 
+Dokumentasjonsstruktur gjennomgått 10.07.2026.
+
 Sist kontrollert og oppdatert: 08.06.2026.
 
 Denne oversikten dokumenterer hvilke HC3 QuickApps som summerer realtime effekt og akkumulert energi for Fibaro10.

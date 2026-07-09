@@ -1,5 +1,7 @@
 # Sun2_importer
 
+Oppdatert 10.07.2026.
+
 `Sun2_importer` erstatter den gamle `sol_import`-flyten.
 
 Den poller katalogen der `sun2_backfill_downloader` legger nattlige CSV-filer, parser romstatistikk og sender resultatet til Fibaro10:

@@ -1,5 +1,7 @@
 # Roborock_logger
 
+Oppdatert 10.07.2026.
+
 `Roborock_logger` er en liten lokal app som skal kjøre på QNAP/Docker i samme nett som Roborock-robotene.
 
 Den gjør tre ting:
@@ -38,7 +40,7 @@ docker compose up -d --build
 Åpne:
 
 ```text
-http://QNAP-IP:8095
+http://192.168.20.218:8095
 ```
 
 Første gang:

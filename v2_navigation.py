@@ -2,6 +2,7 @@ from typing import Dict
 
 
 V2_MODULE_LABELS: Dict[str, str] = {
+    "status": "Dashboard",
     "omsetning": "Omsetning",
     "parkering": "Parkering",
     "soling": "Soling",
@@ -9,14 +10,23 @@ V2_MODULE_LABELS: Dict[str, str] = {
     "energi": "Energi",
     "ventilasjon": "Ventilasjon",
     "lys": "Lys",
+    "dorer": "Dører",
     "vedlikehold": "Vedlikehold",
     "ideer": "Ideer",
+    "mobil": "Mobil",
     "renhold": "Renhold",
     "admin": "Admin",
 }
 
 
 V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
+    "status": {
+        "omsetning": "Omsetning",
+        "parkering": "Parkering",
+        "soling": "Soling",
+        "drift": "Drift",
+        "sammenligning": "Sammenligning",
+    },
     "omsetning": {
         "oversikt": "Oversikt",
         "sammenligning": "Periodesammenligning",
@@ -78,8 +88,15 @@ V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
         "hendelser": "Hendelser",
         "innstillinger": "Innstillinger",
     },
+    "dorer": {
+        "oversikt": "Oversikt",
+        "solrom": "Solrom",
+        "andre": "Andre dører",
+        "radata": "Rådata",
+    },
     "vedlikehold": {
         "oversikt": "Oversikt",
+        "besok": "Besøk",
     },
     "ideer": {
         "oversikt": "Oversikt",
@@ -91,6 +108,9 @@ V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
     "renhold": {
         "oversikt": "Oversikt",
         "roboter": "Roboter",
+    },
+    "mobil": {
+        "oversikt": "Oversikt",
     },
     "admin": {
         "oppgaver": "Oppgaver",

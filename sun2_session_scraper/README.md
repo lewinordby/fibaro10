@@ -1,5 +1,7 @@
 # Sun2_session_scraper
 
+Oppdatert 10.07.2026.
+
 Skraper listen over enkelt-solinger fra SUN2 Owner og lager en importfil per måned:
 
 ```text

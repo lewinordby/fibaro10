@@ -5,8 +5,44 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1505")
+APP_BUILD = os.getenv("APP_BUILD", "1506")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1506",
+        "date": "10.07.2026",
+        "headline": "Dokumentasjon ajourført",
+        "title": "Dokumentasjon, systemkart og utviklingsoppsett er synket mot faktisk drift",
+        "description": (
+            "Build 1506 er en helhetlig dokumentasjonsrunde. Repo-dokumentene, den levende manualstrukturen og "
+            "systemkartet er kontrollert mot dagens Docker-compose, Caddy-oppsett, importjobber, hovedmeny og "
+            "underapper."
+        ),
+        "applications": [
+            "docs/README.md: oppdatert dokumentasjonsindeks og levende dokumentasjon i appen.",
+            "docs/systemoversikt.md: ny samlet systemoversikt for komponenter, webflater, proxy, datakilder, backup og kvalitetssjekk.",
+            "docs/desktop-v2.md og docs/funksjonsstruktur.md: dokumenterer faktisk V2-meny, ruter og funksjonsdeling.",
+            "docs/api-kontrakter.md: dokumenterer sentrale backend/frontend-kontrakter og buildlogg-splitt.",
+            "docs/utviklingsoppsett.md og docs/gjennomgang_2026-05-23.md: oppdatert mot dagens deploy-, backup- og adminstruktur.",
+            "docs/owntracks-http.md, docs/axis-camera-snapshots.md, docs/car-info-oppslag.md, docs/roborock*.md, docs/hc3-*.md og docs/sun2-enkeltimer.md: oppdatert dato og driftsdetaljer.",
+            "maintenance_mobile/README.md og parking_sun_linker/README.md: dokumenterer underappene som kjører ved siden av Fibaro10.",
+            "system_inventory.py: korrigerer runtime/URL for online dashboard, EasyPark og SUN2-importverktøy.",
+            "v2_navigation.py: kompletterer backendtitler for Dashboard, Dører, Mobil og Vedlikehold/Besøk.",
+            "build_log.py: dokumenterer build 1506.",
+        ],
+        "request": "Du ba om en helhetlig sjekk av alt slik at all dokumentasjon er oppdatert.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Dokumentasjonsindeksen peker nå til dagens Admin -> Manual, Systemkart, Datakilder, Buildlogg og Teknisk.",
+            "Systemoversikten viser dagens QNAP-tjenester, Caddy-domener, lokale webflater og alle 22 datakilder.",
+            "Desktop-dokumentasjonen beskriver dagens menystruktur uten gamle V1/V2-prefix-antakelser.",
+            "Utviklingsoppsettet dokumenterer dagens deployløp, live-smoke, backup, restore-test og V1-referanse som isolert historikk.",
+            "Axis-dokumentasjonen peker nå på arkivvolum via AXIS_HOST_SNAPSHOT_DIR, og Roborock er dokumentert som egen webflate.",
+            "Underappene vedlikehold mobil og Koble worker har nå egne README-er med formål, drift og avhengigheter.",
+            "Admin/Systemkart får mer presis informasjon om hvilke tjenester som faktisk kjører som containere.",
+        ],
+    },
     {
         "version": "1",
         "build": "1505",

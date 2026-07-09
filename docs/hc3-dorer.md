@@ -1,5 +1,7 @@
 # HC3 dorer
 
+Oppdatert 10.07.2026.
+
 Fibaro10 logger magnetfolere fra HC3 i tabellen `door_events`.
 
 ## Anbefalt modell for mange dorer

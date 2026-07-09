@@ -1,6 +1,6 @@
 # Gjennomgang av Fibaro10 / Lilletorget drift
 
-Oppdatert 25.05.2026.
+Oppdatert 10.07.2026.
 
 Dette dokumentet oppsummerer status etter de siste rundene med design, ytelse, datakilder, energi og dokumentasjon.
 
@@ -15,17 +15,17 @@ Appen er nå et samlet driftspanel for Lilletorget:
 - Soling / SUN2
 - Energi / HC3 og Elvia
 - AI-søk når OpenAI-kvote er tilgjengelig
-- Konto, tilgang, manual og teknisk oversikt
+- Admin, tilgang, manual, systemkart og teknisk oversikt
 
 ## Viktigste endringer siden første gjennomgang
 
-- PDF-manualen er erstattet av en levende onepager under Konto -> Manual.
-- Teknisk dokumentasjon ligger under Konto -> Teknisk.
-- Menyen er redesignet med Lilletorget-branding. Sol/P-symbolet åpner/lukker meny, tekstlogo går til Status.
-- Navigasjons-CSS er ryddet kraftig ned og flyttet tydelig til `static/owner-nav.css`.
+- PDF-manualen er erstattet av levende dokumentasjon under `Admin -> Manual`.
+- Teknisk dokumentasjon og systemkart ligger under `Admin -> Teknisk` og `Admin -> Systemkart`.
+- Menyen er redesignet som V2 React/Ant Design-flate med hovedgruppene Dashboard, Økonomi, Bygg og drift og System.
+- Navigasjons- og designsystemet ligger i `desktop_v2/src/styles/`.
 - SUN2 enkelttimer kjøres nå løpende omtrent hvert 5. minutt, ikke bare nattlig.
-- Status -> Datakilder viser nå riktig forventet intervall for SUN2 enkelttimer.
-- Energi har fått HC3 minuttlogging, Elvia-import og Forbruk/seng.
+- `Admin -> Datakilder` viser nå riktig forventet intervall og forklaring for alle datakilder.
+- Energi har fått HC3 logging hvert 30. sekund, Elvia-import og Forbruk per seng.
 - Tidssoner er ryddet: SUN2 og Elvia vises som kildetid, mens HC3/Yr vises i Europe/Oslo.
 - Favicon og Lilletorget-logo er satt i appen.
 
@@ -51,8 +51,9 @@ Sist testet:
 Daglig kontroll bør starte her:
 
 ```text
-Status -> Dashboard
-Status -> Datakilder
+Dashboard -> Omsetning
+Admin -> Datakilder
+Admin -> Systemkart
 ```
 
 Datakilder er spesielt viktig fordi det viser om lokale loggere og HC3 faktisk sender data.

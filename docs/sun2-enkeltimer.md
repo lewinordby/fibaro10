@@ -1,5 +1,7 @@
 # SUN2 enkelttimer
 
+Oppdatert 10.07.2026.
+
 Dette dokumentet beskriver flyten for å hente enkelt-solinger fra SUN2 Owner og vise dem i Lilletorget drift.
 
 ## Formål
@@ -31,7 +33,7 @@ Skraperen kjøres løpende, omtrent hvert 5. minutt. Den henter nyere enkelttime
 Datakildestatus vises i:
 
 ```text
-Status -> Datakilder -> Sun2 enkelttimer
+Admin -> Datakilder -> Sun2 enkelttimer
 ```
 
 Forventet rytme i Fibaro10 er nå:
@@ -50,7 +52,7 @@ SUN2-navn har endret seg over tid. Appen bruker derfor egen fysisk rom-id:
 
 ## Samspill med energi
 
-Energi -> Forbruk/seng bruker enkelttimer sammen med HC3 differanseforbruk. En soling brukes bare i beregningen når:
+Energi -> Forbruk per seng bruker enkelttimer sammen med HC3 differanseforbruk. En soling brukes bare i beregningen når:
 
 - nøyaktig én seng er i bruk
 - alle andre senger har vært stoppet i minst 3 minutter
@@ -64,7 +66,7 @@ Dette reduserer risikoen for at kjølevifter eller overlappende solinger gir fei
 
 Hvis enkelttimer ikke oppdateres:
 
-1. Sjekk Status -> Datakilder.
+1. Sjekk Admin -> Datakilder.
 2. Sjekk webflaten til `sun2_session_scraper` på QNAP.
 3. Se etter feilfiler i scraperens `data/session_errors`.
 4. Kontroller at Fibaro10-brukeren loggeren bruker fortsatt har tilgang.

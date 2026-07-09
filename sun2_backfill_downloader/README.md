@@ -1,5 +1,7 @@
 # Sun2_backfill_downloader
 
+Oppdatert 10.07.2026.
+
 Nedlasting av SUN2 romstatistikk.
 
 Appen har to bruksomrader:

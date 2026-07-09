@@ -1,6 +1,6 @@
 # Roborock-integrasjon
 
-Oppdatert 25.05.2026.
+Oppdatert 10.07.2026.
 
 Dette er test- og bakgrunnsnotatet for Roborock-integrasjonen. Løpende drift er nå beskrevet i `docs/roborock-logger.md`.
 
@@ -16,7 +16,7 @@ Renhold -> Robot
 Datakildestatus vises under:
 
 ```text
-Status -> Datakilder -> Roborock logger
+Admin -> Datakilder -> Roborock logger
 ```
 
 Hovedappen henter ikke Roborock-data direkte ved sidevisning. `Roborock_logger` kjører lokalt på QNAP/Docker, henter cloud/LAN-data og poster strukturerte batcher til Fibaro10.
@@ -28,8 +28,8 @@ Login fungerer med egen delt Roborock-bruker. Roborock binder e-postkode til `he
 Lokale filer som ikke skal inn i Git:
 
 ```text
-C:\Users\mrnor\.fibaro10\roborock_client_ids.json
-C:\Users\mrnor\.fibaro10\roborock_user_data.pickle
+%USERPROFILE%\.fibaro10\roborock_client_ids.json
+%USERPROFILE%\.fibaro10\roborock_user_data.pickle
 ```
 
 ## Nyttige testkommandoer

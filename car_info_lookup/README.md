@@ -1,5 +1,7 @@
 # Fibaro10 nordisk biloppslag
 
+Oppdatert 10.07.2026.
+
 Egen app for sakte og kontrollert fallback-oppslag av utenlandske registreringsnummer. Svenske skilt hentes fra Biluppgifter.se. Danske skilt hentes fra Tjekbil sitt DMR-API.
 
 ## Formaal

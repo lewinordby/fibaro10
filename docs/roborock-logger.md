@@ -1,5 +1,7 @@
 # Roborock_logger og Renhold
 
+Oppdatert 10.07.2026.
+
 `Roborock_logger` er den lokale innlesingsappen for robotstøvsugere. Den kjører på QNAP/Docker i samme nett som robotene og sender ferdig strukturerte data til Fibaro10.
 
 ## Hvorfor lokal logger
@@ -56,7 +58,7 @@ docker compose up -d --build
 Webflate:
 
 ```text
-http://QNAP-IP:8095
+http://192.168.20.218:8095
 ```
 
 Hvis Fibaro10 senere flyttes til en annen host eller port, endres bare API-base i loggerens miljø:
@@ -76,7 +78,7 @@ FIBARO10_API_BASE_URL=http://192.168.20.x:8000
 Normal sync skjer periodisk fra loggeren. Status for siste vellykkede Roborock-sync vises i:
 
 ```text
-Status -> Datakilder -> Roborock logger
+Admin -> Datakilder -> Roborock logger
 ```
 
 I hovedappen vises robotene under:
@@ -91,7 +93,7 @@ Derfra kan man åpne hver robot og se status, teknisk identitet, siste jobber, p
 
 Hvis Renhold viser gamle data:
 
-1. Sjekk Status -> Datakilder.
+1. Sjekk Admin -> Datakilder.
 2. Åpne Roborock_logger på QNAP og se om den har feilmelding.
 3. Kontroller at robotene er online i Roborock.
 4. Kontroller at logger-brukeren i Fibaro10 fortsatt virker.
