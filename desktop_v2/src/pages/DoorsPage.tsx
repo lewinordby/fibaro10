@@ -184,6 +184,47 @@ const eventColumns: ColumnsType<DoorEventItem> = [
   },
 ];
 
+function DoorRecentPeriods({ periods = [] }: { periods?: DoorPeriodItem[] }) {
+  const visiblePeriods = periods.slice(0, 2);
+  if (!visiblePeriods.length) {
+    return (
+      <div className="door-status-history">
+        <div className="door-status-history-head">
+          <span>Siste åpninger</span>
+        </div>
+        <div className="door-status-history-empty">Ingen åpne/lukkeperioder registrert</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="door-status-history">
+      <div className="door-status-history-head">
+        <span>Siste åpninger</span>
+        <small>{visiblePeriods.length} siste</small>
+      </div>
+      {visiblePeriods.map((period) => (
+        <div className={`door-status-history-row is-${period.state}`} key={period.id}>
+          <div className="door-status-history-times">
+            <span>
+              <UnlockOutlined />
+              Åpnet {period.openedLabel}
+            </span>
+            <span>
+              <LockOutlined />
+              Lukket {period.closedLabel}
+            </span>
+          </div>
+          <div className="door-status-history-duration">
+            <strong>{period.durationLabel}</strong>
+            <small>{period.state === "open" ? "pågår" : "åpen tid"}</small>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DoorStatusCards({ doors }: { doors: DoorStatusItem[] }) {
   return (
     <div className="doors-status-grid">
@@ -215,6 +256,7 @@ function DoorStatusCards({ doors }: { doors: DoorStatusItem[] }) {
               <dd>{door.deviceId ? `HC3 ${door.deviceId}` : door.deviceKey}</dd>
             </div>
           </dl>
+          <DoorRecentPeriods periods={door.recentPeriods} />
         </Card>
       ))}
     </div>

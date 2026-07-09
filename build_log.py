@@ -5,8 +5,42 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1487")
+APP_BUILD = os.getenv("APP_BUILD", "1488")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1488",
+        "date": "09.07.2026",
+        "headline": "Dørhistorikk i kort",
+        "title": "Fibaro10 viser siste åpninger direkte på dørkortene",
+        "description": (
+            "Build 1488 gjør Dører/Oversikt mer nyttig når flere magnetfølere legges inn. Hvert dørkort viser nå "
+            "de to siste åpne/lukke-periodene med åpnet tidspunkt, lukket tidspunkt og hvor lenge døren stod åpen. "
+            "HC3-scriptet er samtidig gjort enklere å utvide, slik at manuell statussync bruker den samme "
+            "dørlisten som de automatiske triggerne."
+        ),
+        "applications": [
+            "main.py: grupperer de siste åpne/lukke-periodene per dør og sender recentPeriods i status-API-et.",
+            "desktop_v2/src/api.ts: utvider dørkontrakten med recentPeriods.",
+            "desktop_v2/src/pages/DoorsPage.tsx: viser siste to åpninger inne i hvert dørkort.",
+            "desktop_v2/src/styles/doors.css: gjør dørkortene mer skalerbare og legger til kompakt historikkstyling.",
+            "scripts/hc3_door_event_logger.lua: bruker konfigurert enhetsliste også ved manuell statussync.",
+            "build_log.py: dokumenterer build 1488.",
+        ],
+        "request": (
+            "Du ba om at dørboksene viser de to siste hendelsene, både åpnet og lukket samt hvor lenge døren var "
+            "åpen, og om vurdering av hvordan 16 nye dører bør trigge HC3-scriptet."
+        ),
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Hvert dørkort viser nå siste to åpne/lukke-perioder i en kompakt historikkdel.",
+            "Pågående åpninger vises med lukket-status 'Åpen nå' og løpende varighet.",
+            "Status-API-et henter et større rågrunnlag når flere dører finnes, slik at historikken ikke forsvinner for stille sensorer.",
+            "Dørkort-gridet bruker automatisk kolonnebredde og tåler flere dører bedre.",
+            "HC3 Lua-scenen krever fortsatt bare én felles scene; automatisk trigger sender bare endret sensor.",
+        ],
+    },
     {
         "version": "1",
         "build": "1487",

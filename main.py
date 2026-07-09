@@ -10072,6 +10072,20 @@ def door_event_device_key(row: DoorEvent) -> str:
     return f"key:{row.device_key or 'unknown'}"
 
 
+def door_config_device_key(config: Dict[str, Any]) -> str:
+    return f"id:{int(config['device_id'])}"
+
+
+def door_period_device_key(period: Dict[str, Any]) -> str:
+    device_id = period.get("deviceId")
+    if device_id is not None:
+        try:
+            return f"id:{int(device_id)}"
+        except (TypeError, ValueError):
+            pass
+    return f"key:{period.get('deviceKey') or 'unknown'}"
+
+
 def door_change_rows(rows_ascending: list[DoorEvent]) -> list[DoorEvent]:
     changes: list[DoorEvent] = []
     last_state_by_device: Dict[str, bool] = {}
@@ -30422,7 +30436,7 @@ async def api_hc3_doors_status(
     period_limit: int = Query(80, ge=1, le=500),
 ):
     now = local_now_naive()
-    raw_limit = max(history_limit * 20, period_limit * 20, 1000)
+    raw_limit = max(history_limit * 20, period_limit * 20, len(DOOR_SENSOR_IDS) * 150, 1000)
     async with async_session() as session:
         history_result = await session.execute(
             select(DoorEvent)
@@ -30446,10 +30460,17 @@ async def api_hc3_doors_status(
     )
     newest_at = normalize_local_naive(newest_change.timestamp) if newest_change else None
     periods = door_open_periods(change_rows_ascending, now)
+    recent_periods_by_device: Dict[str, list[Dict[str, Any]]] = {}
+    for period in periods:
+        recent_periods_by_device.setdefault(door_period_device_key(period), []).append(period)
     raw_history_rows = raw_rows[:history_limit]
     change_history_rows = list(reversed(change_rows_ascending))[:history_limit]
 
-    doors = [door_status_payload(config, latest_change_by_device.get(int(config["device_id"])), now) for config in DOOR_SENSOR_CONFIG]
+    doors = []
+    for config in DOOR_SENSOR_CONFIG:
+        door = door_status_payload(config, latest_change_by_device.get(int(config["device_id"])), now)
+        door["recentPeriods"] = recent_periods_by_device.get(door_config_device_key(config), [])[:2]
+        doors.append(door)
     known = [door for door in doors if door["state"] != "unknown"]
     open_doors = [door for door in doors if door["state"] == "open"]
     closed_doors = [door for door in doors if door["state"] == "closed"]

@@ -327,6 +327,7 @@ export type DoorStatusItem = {
   batteryLevel?: number | null;
   batteryLabel: string;
   eventId?: number | null;
+  recentPeriods: DoorPeriodItem[];
 };
 
 export type DoorEventItem = {

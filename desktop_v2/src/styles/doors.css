@@ -35,7 +35,7 @@
 
 .doors-status-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 12px;
 }
 
@@ -150,6 +150,102 @@
   font-weight: 720;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.door-status-history {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 7px;
+}
+
+.door-status-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-label);
+  font-size: 10px;
+  font-weight: 820;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.door-status-history-head small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.door-status-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--green);
+  border-radius: var(--radius-sm);
+}
+
+.door-status-history-row.is-open {
+  background: color-mix(in srgb, var(--amber) 7%, var(--surface));
+  border-left-color: var(--amber);
+}
+
+.door-status-history-times {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.door-status-history-times span {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--text-body);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-status-history-times .anticon {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.door-status-history-duration {
+  display: grid;
+  justify-items: end;
+  min-width: 70px;
+  font-variant-numeric: tabular-nums;
+}
+
+.door-status-history-duration strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 780;
+  line-height: 1.1;
+}
+
+.door-status-history-duration small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.door-status-history-empty {
+  padding: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  background: var(--surface-muted);
+  border: 1px dashed var(--line-soft);
+  border-radius: var(--radius-sm);
 }
 
 .door-event-time strong,

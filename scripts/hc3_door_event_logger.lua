@@ -128,6 +128,15 @@ local function triggerDeviceId()
   return nil, trigger
 end
 
+local function orderedDeviceIds()
+  local ids = {}
+  for deviceId, _ in pairs(DEVICES) do
+    ids[#ids + 1] = deviceId
+  end
+  table.sort(ids)
+  return ids
+end
+
 local function sendDevice(deviceId, trigger, done)
   local config = DEVICES[deviceId]
   if not config then
@@ -181,5 +190,5 @@ if triggeredId then
   sendDevice(triggeredId, trigger)
 else
   log("Ingen spesifikk trigger. Sender status for alle dorer.")
-  sendAllDevices({453, 447, 413}, 1, trigger)
+  sendAllDevices(orderedDeviceIds(), 1, trigger)
 end
