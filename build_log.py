@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1504")
+APP_BUILD = os.getenv("APP_BUILD", "1505")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1505",
+        "date": "09.07.2026",
+        "headline": "Koble-totaler raskere",
+        "title": "Koble beregner soltreff-totaler med database-join i stedet for stor IN-liste",
+        "description": (
+            "Build 1505 fortsetter ytelsesrunden fra 1504. Koble-oversikt og Koble-undersider beregner naa "
+            "parkert ved soltreff direkte i databasen, uten aa hente eller sende hele listen med kvalifiserte par "
+            "inn i totalberegningen."
+        ),
+        "applications": [
+            "main.py: legger til join-basert totalberegning for kvalifisert parkering ved soltreff.",
+            "main.py: fjerner gammel ubrukt Koble-totalfunksjon med stor IN-liste.",
+            "build_log.py: dokumenterer build 1505.",
+        ],
+        "request": "Du ba om aa sorge for at ytelsen er saa bra som mulig.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Koble-totalen for parkert ved soltreff regnes naa via join mellom kandidater og treff.",
+            "API-et slipper aa bygge stor liste med alle kvalifiserte bil/SUN2-par for totalberegning.",
+            "Synlige Koble-rader henter fortsatt parvise belop for de radene som faktisk vises.",
+        ],
+    },
     {
         "version": "1",
         "build": "1504",
