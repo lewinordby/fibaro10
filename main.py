@@ -24098,19 +24098,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             selected_timeline_end = min(now_dt, selected_day_end) if selected_day == today else selected_day_end
             lux_day = await build_lux_day(selected_day_start, selected_day_end, selected_timeline_end)
             cloud_samples = await fetch_yr_cloud_samples(selected_day_start, selected_day_end)
-            light_chart_items = [
-                ("lyslist", "Lyslist", "#df705d"),
-                ("reklame", "Reklame", "#f2b84b"),
-                ("spot_glass_275", "Spot glass", "#3f7fbd"),
-                ("spot_glass_299", "Spot massasje", "#2f8fa3"),
-                ("spot_inngang", "Inngang", "#726189"),
-                ("parkering", "Parkering", "#2563eb"),
-            ]
             lux_series = [
                 {
                     "name": "Lux",
                     "data": [[api_local_iso(row["time_dt"]), row["lux"]] for row in lux_day["points"] if row.get("time_dt")],
                     "color": "#ca8a04",
+                    "unit": "lux",
                 }
             ]
             cloud_series = [
@@ -24123,38 +24116,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "smooth": True,
                 }
             ]
-            light_status_series = [
-                {
-                    "name": label,
-                    "data": [
-                        [
-                            api_local_iso(row["time_dt"]),
-                            1 if (row.get("light_states") or {}).get(key) is True else 0 if (row.get("light_states") or {}).get(key) is False else None,
-                        ]
-                        for row in lux_day["points"]
-                        if row.get("time_dt")
-                    ],
-                    "color": color,
-                    "step": "end",
-                    "smooth": False,
-                }
-                for key, label, color in light_chart_items
-            ]
             charts = [
                 api_chart(
                     "Dagslogg lys",
                     [],
-                    lux_series,
-                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Velg lux, lux med skydekke eller lysstatus.",
+                    lux_series + cloud_series,
+                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Slå Lux og Skydekke av/på i grafen.",
                     "line",
                     340,
-                    metrics=[
-                        {"key": "lux", "label": "Lux", "unit": "lux", "series": lux_series},
-                        {"key": "lux_cloud", "label": "Lux + skydekke", "unit": "lux", "series": lux_series + cloud_series},
-                        {"key": "status", "label": "Lysstatus", "unit": "på/av", "series": light_status_series},
-                    ],
-                    default_metric="lux",
-                    default_visible_series=["Lux"],
+                    default_visible_series=["Lux", "Skydekke"],
                     x_axis_type="time",
                     x_axis_min=api_local_iso(selected_day_start),
                     x_axis_max=api_local_iso(selected_day_end),

@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1496")
+APP_BUILD = os.getenv("APP_BUILD", "1497")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1497",
+        "date": "09.07.2026",
+        "headline": "Luxgraf forenklet",
+        "title": "Lys/dagslogg starter med Lux og Skydekke direkte i grafen",
+        "description": (
+            "Build 1497 fjerner segmentvalgene ved datovelgeren på Lys/dagslogg. Grafen viser nå Lux og Skydekke "
+            "som ordinære serier med begge aktivert som standard, slik at av/på styres fra grafens egen forklaring."
+        ),
+        "applications": [
+            "main.py: forenkler Dagslogg lys til Lux og Skydekke som standardserier.",
+            "build_log.py: dokumenterer build 1497.",
+        ],
+        "request": (
+            "Du ønsket å fjerne valgene på linjen med datovelgeren, la Lux og Skydekke styres fra grafen, "
+            "og starte med begge aktivert."
+        ),
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Segmentknappene på grafverktøylinjen for Lys/dagslogg fjernes.",
+            "Lux og Skydekke vises samtidig som standard.",
+            "Skydekke beholder høyre prosentakse.",
+        ],
+    },
     {
         "version": "1",
         "build": "1496",
