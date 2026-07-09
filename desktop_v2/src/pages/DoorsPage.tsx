@@ -287,6 +287,145 @@ function DoorStatusCards({ doors, compact = false }: { doors: DoorStatusItem[]; 
   );
 }
 
+type CompactDoorTone = "free" | "busy" | "normal" | "alert" | "unknown";
+
+type CompactDoorDisplay = {
+  tone: CompactDoorTone;
+  headline: string;
+  badge: string;
+  detail: string;
+  changed: string;
+};
+
+function compactDoorDisplay(door: DoorStatusItem): CompactDoorDisplay {
+  const changed =
+    door.lastChangedLabel && door.lastChangedLabel !== "-"
+      ? `${door.lastChangedLabel}${door.ageLabel && door.ageLabel !== "-" ? ` · ${door.ageLabel}` : ""}`
+      : "Ingen endring";
+
+  if (!door.isConfigured) {
+    return {
+      tone: "unknown",
+      headline: "Klargjort",
+      badge: "Planlagt",
+      detail: "Venter på sensor",
+      changed,
+    };
+  }
+
+  if (door.state === "unknown") {
+    return {
+      tone: "unknown",
+      headline: "Ukjent",
+      badge: "Ukjent",
+      detail: "Ingen sikker status",
+      changed,
+    };
+  }
+
+  if (door.groupKey === "solrom") {
+    const inUse = door.state === "closed";
+    return {
+      tone: inUse ? "busy" : "free",
+      headline: inUse ? "I bruk" : "Ledig",
+      badge: door.stateLabel || (inUse ? "Lukket" : "Åpen"),
+      detail: inUse ? "Dør lukket" : "Dør åpen",
+      changed,
+    };
+  }
+
+  const isNormal = door.state === door.normalState;
+  return {
+    tone: isNormal ? "normal" : "alert",
+    headline: door.stateLabel || (door.state === "closed" ? "Lukket" : "Åpen"),
+    badge: isNormal ? "Normal" : "Avvik",
+    detail: isNormal ? "Som forventet" : `Forventet ${door.normalStateLabel.toLowerCase()}`,
+    changed,
+  };
+}
+
+function compactStats(doors: DoorStatusItem[], mode: "solrom" | "other") {
+  if (mode === "solrom") {
+    const busy = doors.filter((door) => door.isConfigured && door.state === "closed").length;
+    const free = doors.filter((door) => door.isConfigured && door.state === "open").length;
+    const unknown = doors.length - busy - free;
+    return `${busy} i bruk · ${free} ledige${unknown ? ` · ${unknown} ukjent/klargjort` : ""}`;
+  }
+
+  const normal = doors.filter((door) => door.isConfigured && door.state !== "unknown" && door.state === door.normalState).length;
+  const alert = doors.filter((door) => door.isConfigured && door.state !== "unknown" && door.state !== door.normalState).length;
+  const unknown = doors.length - normal - alert;
+  return `${normal} normal · ${alert} avvik${unknown ? ` · ${unknown} ukjent/klargjort` : ""}`;
+}
+
+function CompactDoorCard({ door }: { door: DoorStatusItem }) {
+  const display = compactDoorDisplay(door);
+  return (
+    <div className={`door-compact-card tone-${display.tone}`} title={`${door.title}: ${display.headline}`}>
+      <div className="door-compact-top">
+        <strong>{door.title}</strong>
+        <span>{display.badge}</span>
+      </div>
+      <div className="door-compact-state">
+        <span className="door-compact-dot" />
+        <b>{display.headline}</b>
+      </div>
+      <small>{display.detail}</small>
+      <em>Sist {display.changed}</em>
+    </div>
+  );
+}
+
+function DoorCompactSection({
+  title,
+  doors,
+  mode,
+}: {
+  title: string;
+  doors: DoorStatusItem[];
+  mode: "solrom" | "other";
+}) {
+  const sections = mode === "solrom" ? groupBySection(doors) : [{ key: "other", title: "Andre dører", doors: sortDoors(doors) }];
+
+  return (
+    <section className={`doors-compact-panel is-${mode}`}>
+      <div className="doors-compact-header">
+        <div>
+          <Typography.Title level={3}>{title}</Typography.Title>
+          <span>{compactStats(doors, mode)}</span>
+        </div>
+        {mode === "solrom" ? <small>Lukket = i bruk · Åpen = ledig</small> : <small>Grønn = normal · Rød = avvik</small>}
+      </div>
+      <div className="doors-compact-sections">
+        {sections.map((section) => (
+          <div className="doors-compact-section" key={section.key}>
+            {mode === "solrom" ? (
+              <div className="doors-compact-section-title">
+                <strong>{section.title}</strong>
+                <span>{compactStats(section.doors, mode)}</span>
+              </div>
+            ) : null}
+            <div className="doors-compact-grid">
+              {section.doors.map((door) => (
+                <CompactDoorCard door={door} key={door.deviceKey} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DoorOverviewBoard({ solromDoors, otherDoors }: { solromDoors: DoorStatusItem[]; otherDoors: DoorStatusItem[] }) {
+  return (
+    <div className="doors-compact-board">
+      <DoorCompactSection title="Solrom" doors={solromDoors} mode="solrom" />
+      <DoorCompactSection title="Andre dører" doors={otherDoors} mode="other" />
+    </div>
+  );
+}
+
 function sortDoors(doors: DoorStatusItem[]) {
   return [...doors].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title, "nb"));
 }
@@ -406,13 +545,12 @@ export default function DoorsPage() {
         }
       />
 
-      <div className="doors-summary-grid">{buildSummaryCards(data.summary).map(statusSummary)}</div>
+      {activeView === "oversikt" ? null : (
+        <div className="doors-summary-grid">{buildSummaryCards(data.summary).map(statusSummary)}</div>
+      )}
 
       {!isRawView && activeView === "oversikt" ? (
-        <>
-          <DoorGroupSection title="Solrom" doors={solromDoors} splitBySection />
-          <DoorGroupSection title="Andre dører" doors={otherDoors} />
-        </>
+        <DoorOverviewBoard solromDoors={solromDoors} otherDoors={otherDoors} />
       ) : null}
 
       {!isRawView && activeView === "solrom" ? <DoorGroupSection title="Solrom" doors={solromDoors} splitBySection /> : null}

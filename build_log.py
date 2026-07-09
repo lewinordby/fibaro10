@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1491")
+APP_BUILD = os.getenv("APP_BUILD", "1492")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1492",
+        "date": "09.07.2026",
+        "headline": "Døroversikt komprimert",
+        "title": "Dører/Oversikt blir en kompakt statusflate for solrom og øvrige dører",
+        "description": (
+            "Build 1492 gjør Dører/Oversikt om til en rask statusflate. Solrom tolkes operativt som ledig eller "
+            "i bruk basert på om døren er åpen eller lukket, mens øvrige dører farges etter normaltilstand eller avvik."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: legger til egen kompakt oversiktskomponent for dører.",
+            "desktop_v2/src/styles/doors.css: legger til tett statusgrid med kontekststyrte farger.",
+            "build_log.py: dokumenterer build 1492.",
+        ],
+        "request": (
+            "Du ønsket en mye mer kompakt Dører/Oversikt der man raskt ser om døren er åpen eller lukket, "
+            "med rød lukket/grønn åpen for solrom og motsatt eller normalbasert visning for andre dører."
+        ),
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Dører/Oversikt viser nå små statusruter i stedet for store detaljkort.",
+            "Solrom viser I bruk når døren er lukket og Ledig når døren er åpen.",
+            "Andre dører viser grønt ved normaltilstand og rødt ved avvik.",
+            "Sist endret ligger fortsatt synlig, men som kompakt sekundærinformasjon.",
+        ],
+    },
     {
         "version": "1",
         "build": "1491",
