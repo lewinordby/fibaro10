@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1494")
+APP_BUILD = os.getenv("APP_BUILD", "1495")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1495",
+        "date": "09.07.2026",
+        "headline": "Dørikoner ryddet",
+        "title": "Dørstatus får egne semantiske symboler uten overlapp",
+        "description": (
+            "Build 1495 legger inn egne SVG-symboler for dørstatus. Solrom viser tydelig ledig eller i bruk, "
+            "mens øvrige dører viser normaltilstand eller avvik. Ikonene er bygget uten tekst inne i symbolet, "
+            "og kortene har fått fast ikonkolonne slik at lange navn og statustekster ikke skriver oppå hverandre."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: erstatter generiske låsikoner med semantiske dørikoner.",
+            "desktop_v2/src/styles/doors.css: legger fast ikonlayout og SVG-styling for lys visning.",
+            "desktop_v2/src/styles/dark-theme.css: gir ikonene riktig kontrast i mørkt tema.",
+            "build_log.py: dokumenterer build 1495.",
+        ],
+        "request": (
+            "Du likte retningen på forslag C, men ville at det skulle bygges riktig uten at tekst eller symboler "
+            "skriver oppå hverandre."
+        ),
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Solrom får egne symboler for ledig og i bruk.",
+            "Andre dører får egne symboler for normaltilstand og avvik.",
+            "Kompakte dørkort bruker nå fast ikonkolonne og separat tekstkolonne.",
+            "Symbolene følger både lyst og mørkt tema uten ekstra bildefiler.",
+        ],
+    },
     {
         "version": "1",
         "build": "1494",

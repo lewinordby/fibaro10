@@ -617,6 +617,24 @@
   background: color-mix(in srgb, var(--domain-building) 8%, var(--surface-hover));
 }
 
+.app-shell.theme-dark .door-semantic-icon {
+  background: color-mix(in srgb, var(--door-icon-color) 13%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--door-icon-color) 28%, var(--border-control));
+}
+
+.app-shell.theme-dark .door-semantic-icon .door-panel,
+.app-shell.theme-dark .door-semantic-icon .badge-lock-body {
+  fill: color-mix(in srgb, var(--door-icon-color) 12%, var(--surface-raised));
+}
+
+.app-shell.theme-dark .door-semantic-icon .badge-bg {
+  fill: var(--surface);
+}
+
+.app-shell.theme-dark .door-semantic-icon .door-badge-alert .badge-bg {
+  fill: color-mix(in srgb, var(--door-icon-color) 14%, var(--surface-raised));
+}
+
 .app-shell.theme-dark .settlement-ledger-row,
 .app-shell.theme-dark .settlement-source-check,
 .app-shell.theme-dark .settlement-source-check.ok,

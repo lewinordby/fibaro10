@@ -1,7 +1,6 @@
 import {
   CheckCircleOutlined,
   DatabaseOutlined,
-  ExclamationCircleOutlined,
   LockOutlined,
   ReloadOutlined,
   UnlockOutlined,
@@ -43,10 +42,66 @@ function stateTag(row: DoorStateRow) {
   return <Tag>{row.stateLabel || "Ukjent"}</Tag>;
 }
 
-function stateIcon(state: DoorStatusItem["state"]) {
-  if (state === "closed") return <LockOutlined />;
-  if (state === "open") return <UnlockOutlined />;
-  return <ExclamationCircleOutlined />;
+type DoorSemanticIconVariant = "solrom-free" | "solrom-busy" | "other-ok" | "other-alert" | "unknown";
+type DoorSemanticBadge = "check" | "lock" | "alert" | "unknown";
+
+function doorSemanticIconVariant(door: DoorStatusItem): DoorSemanticIconVariant {
+  if (!door.isConfigured || door.state === "unknown") return "unknown";
+  if (door.groupKey === "solrom") return door.state === "closed" ? "solrom-busy" : "solrom-free";
+  return door.state === door.normalState ? "other-ok" : "other-alert";
+}
+
+function DoorSemanticIcon({ door, compact = false }: { door: DoorStatusItem; compact?: boolean }) {
+  const variant = doorSemanticIconVariant(door);
+  const badge: DoorSemanticBadge =
+    variant === "solrom-free" || variant === "other-ok"
+      ? "check"
+      : variant === "solrom-busy"
+        ? "lock"
+        : variant === "other-alert"
+          ? "alert"
+          : "unknown";
+  const isOpen = door.state === "open";
+
+  return (
+    <span className={`door-semantic-icon variant-${variant} ${compact ? "is-compact" : ""}`} aria-hidden="true">
+      <svg viewBox="0 0 72 72" focusable="false">
+        <path className="door-shadow" d="M17 61h34" />
+        {isOpen ? (
+          <g className="door-open-shape">
+            <path className="door-frame" d="M18 58V14h30v44" />
+            <path className="door-panel" d="M22 56V16l27 7v39z" />
+            <path className="door-edge" d="M49 23v39" />
+            <circle className="door-knob" cx="39" cy="38" r="2.2" />
+          </g>
+        ) : (
+          <g className="door-closed-shape">
+            <path className="door-panel" d="M18 58V14h32v44z" />
+            <path className="door-frame" d="M18 14h32v44H18z" />
+            <path className="door-edge" d="M26 14v44" />
+            <circle className="door-knob" cx="41" cy="36" r="2.2" />
+          </g>
+        )}
+        <g className={`door-badge door-badge-${badge}`}>
+          <circle className="badge-bg" cx="55" cy="18" r="12" />
+          {badge === "check" ? <path className="badge-mark" d="m49.5 18.5 4.3 4.3 8.8-9.2" /> : null}
+          {badge === "lock" ? (
+            <>
+              <path className="badge-lock-body" d="M48.6 18.7h12.8v8.4H48.6z" />
+              <path className="badge-mark" d="M51.2 18.7v-3.4a3.8 3.8 0 0 1 7.6 0v3.4" />
+            </>
+          ) : null}
+          {badge === "alert" ? (
+            <>
+              <path className="badge-mark" d="M55 10.8v9.5" />
+              <circle className="badge-dot" cx="55" cy="24.6" r="1.7" />
+            </>
+          ) : null}
+          {badge === "unknown" ? <path className="badge-mark" d="M50 18h10" /> : null}
+        </g>
+      </svg>
+    </span>
+  );
 }
 
 function statusSummary(data: SummaryCard) {
@@ -267,7 +322,7 @@ function DoorStatusCards({ doors, compact = false }: { doors: DoorStatusItem[]; 
     <div className={`doors-status-grid ${compact ? "is-compact" : ""}`}>
       {doors.map((door) => (
         <Card className={`door-status-card is-${door.state} ${door.isConfigured ? "" : "is-planned"}`} key={door.deviceKey}>
-          <div className="door-status-icon">{stateIcon(door.state)}</div>
+          <DoorSemanticIcon door={door} />
           <div className="door-status-main">
             <div className="door-status-title">
               <strong>{door.title}</strong>
@@ -362,16 +417,18 @@ function CompactDoorCard({ door }: { door: DoorStatusItem }) {
   const display = compactDoorDisplay(door);
   return (
     <div className={`door-compact-card tone-${display.tone}`} title={`${door.title}: ${display.headline}`}>
-      <div className="door-compact-top">
-        <strong>{door.title}</strong>
-        <span>{display.badge}</span>
+      <DoorSemanticIcon door={door} compact />
+      <div className="door-compact-content">
+        <div className="door-compact-top">
+          <strong>{door.title}</strong>
+          <span>{display.badge}</span>
+        </div>
+        <div className="door-compact-state">
+          <b>{display.headline}</b>
+        </div>
+        <small>{display.detail}</small>
+        <em>Sist {display.changed}</em>
       </div>
-      <div className="door-compact-state">
-        <span className="door-compact-dot" />
-        <b>{display.headline}</b>
-      </div>
-      <small>{display.detail}</small>
-      <em>Sist {display.changed}</em>
     </div>
   );
 }

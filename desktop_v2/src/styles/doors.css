@@ -119,36 +119,115 @@
   padding: 10px;
 }
 
-.door-status-icon {
+.door-semantic-icon {
+  --door-icon-color: var(--door-card-tone, var(--door-tone, var(--domain-status)));
   display: grid;
   place-items: center;
   width: 42px;
   height: 42px;
-  color: var(--door-card-tone);
-  font-size: 18px;
-  background: color-mix(in srgb, var(--door-card-tone) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--door-card-tone) 18%, var(--border-control));
+  color: var(--door-icon-color);
+  background: color-mix(in srgb, var(--door-icon-color) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--door-icon-color) 20%, var(--border-control));
   border-radius: var(--radius-md);
 }
 
-.doors-status-grid.is-compact .door-status-icon {
+.doors-status-grid.is-compact .door-semantic-icon {
   width: 34px;
   height: 34px;
-  font-size: 15px;
 }
 
-.door-status-card.is-closed .door-status-icon {
-  color: var(--green);
+.door-semantic-icon.is-compact {
+  width: 42px;
+  height: 42px;
+  align-self: center;
 }
 
-.door-status-card.is-open .door-status-icon {
-  color: var(--amber);
+.door-semantic-icon.variant-solrom-free,
+.door-semantic-icon.variant-other-ok {
+  --door-icon-color: var(--green);
 }
 
-.door-status-card.is-planned .door-status-icon {
-  color: var(--text-subtle);
+.door-semantic-icon.variant-solrom-busy,
+.door-semantic-icon.variant-other-alert {
+  --door-icon-color: var(--red);
+}
+
+.door-semantic-icon.variant-unknown {
+  --door-icon-color: var(--text-subtle);
   background: var(--surface-muted);
-  border: 1px solid var(--line-soft);
+  border-color: var(--line-soft);
+}
+
+.door-semantic-icon svg {
+  width: 36px;
+  height: 36px;
+  overflow: visible;
+}
+
+.doors-status-grid.is-compact .door-semantic-icon svg {
+  width: 29px;
+  height: 29px;
+}
+
+.door-semantic-icon.is-compact svg {
+  width: 36px;
+  height: 36px;
+}
+
+.door-semantic-icon .door-panel {
+  fill: color-mix(in srgb, var(--door-icon-color) 8%, var(--surface));
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.door-semantic-icon .door-frame,
+.door-semantic-icon .door-edge,
+.door-semantic-icon .door-shadow {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.door-semantic-icon .door-frame,
+.door-semantic-icon .door-edge {
+  stroke-width: 3;
+}
+
+.door-semantic-icon .door-shadow {
+  opacity: 0.24;
+  stroke-width: 3;
+}
+
+.door-semantic-icon .door-knob,
+.door-semantic-icon .badge-dot {
+  fill: currentColor;
+}
+
+.door-semantic-icon .badge-bg {
+  fill: var(--surface);
+  stroke: currentColor;
+  stroke-width: 2.4;
+}
+
+.door-semantic-icon .badge-mark {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3.1;
+}
+
+.door-semantic-icon .badge-lock-body {
+  fill: color-mix(in srgb, var(--door-icon-color) 11%, var(--surface));
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 2.3;
+}
+
+.door-semantic-icon .door-badge-alert .badge-bg {
+  fill: color-mix(in srgb, var(--door-icon-color) 9%, var(--surface));
 }
 
 .door-status-main {
@@ -493,9 +572,11 @@
   --door-tone: var(--domain-status);
   position: relative;
   display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
   min-height: 92px;
-  gap: 4px;
-  padding: 10px 12px 9px 13px;
+  gap: 0 10px;
+  padding: 10px 12px 9px 11px;
   overflow: hidden;
   background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--door-tone) 3%, var(--surface-panel-end)));
   border: 1px solid color-mix(in srgb, var(--door-tone) 10%, var(--border-control));
@@ -523,6 +604,12 @@
 .door-compact-card > * {
   position: relative;
   z-index: 1;
+}
+
+.door-compact-content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .door-compact-card.tone-free,
@@ -576,23 +663,13 @@
 .door-compact-state {
   display: flex;
   align-items: center;
-  gap: 6px;
   min-width: 0;
-}
-
-.door-compact-dot {
-  flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
-  background: var(--door-tone);
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--door-tone) 16%, transparent);
 }
 
 .door-compact-state b {
   overflow: hidden;
   color: var(--ink);
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 800;
   line-height: 1.05;
   text-overflow: ellipsis;
