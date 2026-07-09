@@ -1045,6 +1045,36 @@ export type VentilationData = {
   settings?: VentilationSettings;
 };
 
+export type ControlSettingField = {
+  key: string;
+  label: string;
+  type: "time" | "int" | "float" | "bool" | "text";
+  unit?: string;
+  help?: string;
+  value: string | number | boolean | null;
+};
+
+export type ControlSettingGroup = {
+  title: string;
+  description?: string;
+  fields: ControlSettingField[];
+};
+
+export type ControlSettings = {
+  system: string;
+  title: string;
+  subtitle?: string;
+  version: number;
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  groups: ControlSettingGroup[];
+  rules: string[];
+  summaryRows: JsonRecord[];
+  notes: Array<{ title: string; text: string }>;
+  history: JsonRecord[];
+  updateEndpoint: string;
+};
+
 export type EnergyElviaSummaryItem = {
   period?: string | null;
   period_label?: string | null;
@@ -1171,6 +1201,7 @@ export type ModuleResponse = {
   parkingTimeline?: ParkingTimeline | null;
   kobleReview?: KobleReviewData | null;
   ventilation?: VentilationData;
+  controlSettings?: ControlSettings | null;
   energyElvia?: EnergyElviaData | null;
   energySunbeds?: EnergySunbedsData | null;
   uploadEndpoint?: string;

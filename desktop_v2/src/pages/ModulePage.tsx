@@ -20,6 +20,7 @@ import { ModuleDayNavigationBar } from "./module/ModuleDayNavigationBar";
 import { ModuleFilterBar } from "./module/ModuleFilterBar";
 import { ModuleMetric } from "./module/ModuleMetric";
 import { ModuleTablePane, tabLabel, tableSearchPlaceholder } from "./module/ModuleTablePane";
+import { ControlSettingsPanel } from "./module/ControlSettingsPanel";
 import { MaintenanceVisitsPanel } from "./module/MaintenanceVisitsPanel";
 import { ParkingTimelinePanel } from "./module/ParkingTimelinePanel";
 import { SunTimelinePanel } from "./module/SunTimelinePanel";
@@ -190,6 +191,7 @@ export default function ModulePage({ module }: { module: string }) {
     );
   }
   const hideModuleChrome = Boolean(data.parkingTimeline);
+  const hasControlSettings = Boolean(data.controlSettings);
   const isSunSessionsView = module === "soling" && safeView === "enkeltimer";
   const isParkingSessionsView = module === "parkering" && safeView === "parkeringer";
   const kobleTableTitlesByView: Record<string, string[]> = {
@@ -209,7 +211,7 @@ export default function ModulePage({ module }: { module: string }) {
     ? visibleTables.find((table) => table.title.toLowerCase().includes("oppgaver"))
     : undefined;
   const showModuleActions = Boolean(data.actions?.length && !hideModuleChrome && !isParkingSessionsView && !(module === "koble" && safeView !== "jobb"));
-  const showModuleCards = Boolean(data.cards.length && !hideModuleChrome && !(module === "koble" && safeView !== "oversikt"));
+  const showModuleCards = Boolean(data.cards.length && !hideModuleChrome && !hasControlSettings && !(module === "koble" && safeView !== "oversikt"));
   const editFields = editState ? (editState.create ? editState.edit.createFields ?? editState.edit.fields : editState.edit.fields) : [];
   const splitEdit = editState?.edit.layout === "split";
   const renderEditField = (field: (typeof editFields)[number]) => (
@@ -275,6 +277,10 @@ export default function ModulePage({ module }: { module: string }) {
         />
       ) : (
         <>
+      {data.controlSettings ? (
+        <ControlSettingsPanel settings={data.controlSettings} onReload={reloadModule} />
+      ) : null}
+
       {showModuleCards ? (
         <div className="metric-grid primary-grid">
           {data.cards.map((card) => (

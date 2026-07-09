@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1498")
+APP_BUILD = os.getenv("APP_BUILD", "1499")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1499",
+        "date": "09.07.2026",
+        "headline": "Lysinnstillinger i V2",
+        "title": "Lys/innstillinger får direkte redigering av regler og grenser",
+        "description": (
+            "Build 1499 løfter lysstyringens gamle regel- og innstillingsskjema inn i V2. "
+            "Siden viser nå aktiv versjon, oppsummering av gjeldende regler, redigerbare luxgrenser, driftstider, "
+            "lagrenotat, forklaring og historikk uten å gå via klassisk skjema."
+        ),
+        "applications": [
+            "main.py: eksponerer controlSettings for Lys/innstillinger og gjør siden til en ren innstillingsflate.",
+            "desktop_v2/src/api.ts: legger til typekontrakt for generiske styringsinnstillinger.",
+            "desktop_v2/src/pages/module/ControlSettingsPanel.tsx: ny redigeringsflate for config-grupper, regler og historikk.",
+            "desktop_v2/src/pages/ModulePage.tsx: viser controlSettings-panelet på relevante modulsider.",
+            "desktop_v2/src/styles/module-content.css: styling for den nye innstillingsflaten.",
+            "build_log.py: dokumenterer build 1499.",
+        ],
+        "request": (
+            "Du fant ikke grensesnittet for å endre regler og settinger under Lys/innstillinger og ønsket dette tilbake."
+        ),
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Lys/innstillinger viser nå redigerbare felt for driftstid, bekreftelsestid og luxgrenser.",
+            "Aktive lysregler vises som en ryddig tabell før skjemaet.",
+            "Endringer lagres mot samme /api/config/lights som HC3-runneren leser.",
+            "Dagsgraf og gamle klassiske verktøyrader er tatt bort fra innstillingssiden.",
+        ],
+    },
     {
         "version": "1",
         "build": "1498",

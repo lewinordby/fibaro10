@@ -15823,12 +15823,13 @@ def empty_ventilation_day_payload(selected_day: date, is_today: bool, now_marker
     }
 
 
-def ventilation_settings_payload(
+def control_settings_payload(
+    config_key: str,
     config: ControlConfig,
     values: Dict[str, Any],
     history: list[ControlConfigHistory],
 ) -> Dict[str, Any]:
-    definition = config_definition("ventilation") or {}
+    definition = config_definition(config_key) or {}
     groups = []
     for group in definition.get("groups", []):
         groups.append(
@@ -15849,16 +15850,27 @@ def ventilation_settings_payload(
             }
         )
     return {
+        "system": config_key,
+        "title": definition.get("title", config_key),
+        "subtitle": definition.get("subtitle", ""),
         "version": config.version,
         "updatedAt": api_local_iso(config.updated_at),
         "updatedBy": config.updated_by,
         "groups": groups,
-        "rules": config_rules("ventilation", values),
-        "summaryRows": config_summary_rows("ventilation", values),
-        "notes": config_operational_notes("ventilation", values),
+        "rules": config_rules(config_key, values),
+        "summaryRows": config_summary_rows(config_key, values),
+        "notes": config_operational_notes(config_key, values),
         "history": api_config_history_rows(history),
-        "updateEndpoint": "/api/config/ventilation",
+        "updateEndpoint": f"/api/config/{config_key}",
     }
+
+
+def ventilation_settings_payload(
+    config: ControlConfig,
+    values: Dict[str, Any],
+    history: list[ControlConfigHistory],
+) -> Dict[str, Any]:
+    return control_settings_payload("ventilation", config, values, history)
 
 
 def api_chart(
@@ -24093,6 +24105,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             }
 
         if module == "lys":
+            control_settings = None
             log_from_value = api_filter_value(params, "from")
             log_to_value = api_filter_value(params, "to")
             log_mode_value = api_filter_value(params, "mode")
@@ -24180,19 +24193,9 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         .limit(25)
                     )
                 ).scalars().all()
-                tables = [
-                    api_table(
-                        "Lysverktøy",
-                        ["tool", "path", "description", "count"],
-                        [
-                            api_tool_row("Rediger innstillinger", "/classic/lys/innstillinger", "Klassisk skjema for endring av luxgrenser og driftstid.", config.version if config else None),
-                            api_tool_row("Konfig API", "/api/config/lights", "JSON som HC3-runneren henter.", config.version if config else None),
-                        ],
-                    ),
-                    api_table("Aktive regler", ["rule", "description"], api_rule_rows(config_rules("lights", values))),
-                    api_table("Grenseverdier", ["group", "label", "value", "unit", "help"], api_config_field_rows("lights", values)),
-                    api_table("Endringshistorikk", ["config_key", "version", "changed_at", "changed_by", "reason"], api_config_history_rows(history)),
-                ]
+                control_settings = control_settings_payload("lights", config, values, history) if config else None
+                charts = []
+                tables = []
             return {
                 "title": v2_module_title("lys", view),
                 "subtitle": "Utelys, lux, modus og hendelser.",
@@ -24212,6 +24215,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ]
                 if view in {"lux-logging", "hendelser"}
                 else [],
+                "controlSettings": control_settings,
             }
 
         if module == "renhold":
