@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1500")
+APP_BUILD = os.getenv("APP_BUILD", "1501")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1501",
+        "date": "09.07.2026",
+        "headline": "Mørke inputfelt",
+        "title": "Mørkt tema får lesbare AntD-felt i innstillingsskjema",
+        "description": (
+            "Build 1501 retter en kontrastfeil som ble synlig i visuell kontroll av CSS-oppryddingen. "
+            "Indre AntD-felt for tall, tid og valg får nå eksplisitt tekstfarge i mørkt tema, også i dropdowns og portaler."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/dark-theme.css: setter tekstfarge for InputNumber, Date/TimePicker og Select sine indre felt i mørkt tema.",
+            "build_log.py: dokumenterer build 1501.",
+        ],
+        "request": "Oppfølgende visuell kvalitetssjekk etter CSS-gjennomgangen avdekket for mørke feltverdier i mørkt tema.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tall- og tidsfelt i mørkt tema er gjort lesbare.",
+            "Select- og picker-verdier følger samme teksttoken som øvrig mørkt tema.",
+            "CSS parse og frontend-produksjonsbuild er kontrollert etter rettingen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1500",

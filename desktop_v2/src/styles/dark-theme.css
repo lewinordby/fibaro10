@@ -318,6 +318,14 @@
   border-color: var(--border-control) !important;
 }
 
+.app-shell.theme-dark :is(.ant-input-number-input, .ant-picker-input > input, .ant-select-selection-item, .ant-select-selection-search-input) {
+  color: var(--ink) !important;
+}
+
+.app-shell.theme-dark :is(.ant-picker-suffix, .ant-select-arrow, .ant-input-number-handler-wrap) {
+  color: var(--text-label);
+}
+
 .app-shell.theme-dark :is(.ant-input::placeholder, .ant-input-number-input::placeholder) {
   color: var(--muted-soft) !important;
 }
@@ -1097,6 +1105,10 @@ body:has(.app-shell.theme-dark) :is(.ant-input, .ant-input-affix-wrapper, .ant-i
   color: var(--ink) !important;
   background: var(--surface-raised) !important;
   border-color: var(--border-control) !important;
+}
+
+body:has(.app-shell.theme-dark) :is(.ant-input-number-input, .ant-picker-input > input, .ant-select-selection-item, .ant-select-selection-search-input) {
+  color: var(--ink) !important;
 }
 
 body:has(.app-shell.theme-dark) :is(.ant-input-search-button, .ant-btn-primary) {
