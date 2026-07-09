@@ -39,6 +39,13 @@ export default function ModuleChartPanel({
   const option = useMemo(() => {
     const isTimeAxis = chart.xAxisType === "time";
     const showZoom = !chart.disableZoom && !isTimeAxis && chart.x.length > 80;
+    const secondarySeries = chartSeries.find((series) => series.yAxisIndex === 1);
+    const hasSecondaryAxis = Boolean(secondarySeries);
+    const primaryUnit =
+      activeMetric?.unit ??
+      chartSeries.find((series) => (series.yAxisIndex ?? 0) === 0)?.unit ??
+      "";
+    const secondaryUnit = secondarySeries?.unit ?? "%";
     const requestedVisible = new Set(chart.defaultVisibleSeries ?? []);
     const applyDefaultVisibility = requestedVisible.size > 0 && chartSeries.some((series) => requestedVisible.has(series.name));
     const selectedSeries: Record<string, boolean> | undefined = applyDefaultVisibility
@@ -49,7 +56,7 @@ export default function ModuleChartPanel({
       color: chartSeriesPalette(),
       tooltip: chartTooltip(),
       legend: chartLegend({ itemWidth: 16, selected: selectedSeries }),
-      grid: { top: 50, left: 56, right: 18, bottom: showZoom ? 58 : 32 },
+      grid: { top: 50, left: 56, right: hasSecondaryAxis ? 58 : 18, bottom: showZoom ? 58 : 32 },
       dataZoom: showZoom
         ? [
             { type: "inside", start: Math.max(0, 100 - Math.round((80 / chart.x.length) * 100)), end: 100 },
@@ -69,13 +76,33 @@ export default function ModuleChartPanel({
           formatter: isTimeAxis ? timeAxisLabel : undefined,
         }),
       },
-      yAxis: {
-        type: "value",
-        name: activeMetric?.unit,
-        nameTextStyle: chartAxisLabel(),
-        axisLabel: chartAxisLabel({ margin: 12 }),
-        splitLine: chartSplitLine(),
-      },
+      yAxis: hasSecondaryAxis
+        ? [
+            {
+              type: "value",
+              name: primaryUnit,
+              nameTextStyle: chartAxisLabel(),
+              axisLabel: chartAxisLabel({ margin: 12 }),
+              splitLine: chartSplitLine(),
+            },
+            {
+              type: "value",
+              name: secondaryUnit,
+              min: 0,
+              max: 100,
+              position: "right",
+              nameTextStyle: chartAxisLabel(),
+              axisLabel: chartAxisLabel({ margin: 10, formatter: "{value}%" }),
+              splitLine: { show: false },
+            },
+          ]
+        : {
+            type: "value",
+            name: activeMetric?.unit,
+            nameTextStyle: chartAxisLabel(),
+            axisLabel: chartAxisLabel({ margin: 12 }),
+            splitLine: chartSplitLine(),
+          },
       series: chartSeries.map((series, index) => {
         const type = series.type ?? chart.type ?? "line";
         const color = chartSeriesColor(series.color, index);
@@ -86,6 +113,7 @@ export default function ModuleChartPanel({
           smooth: series.smooth ?? (type === "line" && !series.step),
           step: series.step,
           connectNulls: false,
+          yAxisIndex: series.yAxisIndex,
           showSymbol: false,
           barMaxWidth: 44,
           barCategoryGap: "36%",

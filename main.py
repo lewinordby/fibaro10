@@ -8875,6 +8875,33 @@ async def fetch_lux_samples(day_start: datetime, timeline_end: datetime):
     return samples, lux_values
 
 
+async def fetch_yr_cloud_samples(day_start: datetime, day_end: datetime):
+    async with async_session() as session:
+        sample_result = await session.execute(
+            select(YrForecastSample)
+            .where(YrForecastSample.bucket_start >= day_start)
+            .where(YrForecastSample.bucket_start < day_end)
+            .order_by(YrForecastSample.bucket_start.asc(), YrForecastSample.timestamp.asc())
+        )
+        sample_rows = dedupe_samples_by_bucket(sample_result.scalars().all())
+
+    samples = []
+    for row in sample_rows:
+        sample_time = row.bucket_start or row.timestamp
+        cloud_value = row.cloud_area_fraction
+        if sample_time is None or cloud_value is None:
+            continue
+        samples.append(
+            {
+                "time_dt": sample_time,
+                "time": sample_time.strftime("%H:%M"),
+                "cloud_area_fraction": round(float(cloud_value), 1),
+                "weather_text": row.weather_text or "",
+            }
+        )
+    return samples
+
+
 async def build_lux_day(day_start: datetime, day_end: datetime, timeline_end: datetime, scale_values: Optional[list] = None):
     samples, lux_values = await fetch_lux_samples(day_start, timeline_end)
 
@@ -24070,6 +24097,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             light_on = sum(1 for device in LIGHT_TIMELINE_DEVICES if latest and light_sample_state(latest, device) is True)
             selected_timeline_end = min(now_dt, selected_day_end) if selected_day == today else selected_day_end
             lux_day = await build_lux_day(selected_day_start, selected_day_end, selected_timeline_end)
+            cloud_samples = await fetch_yr_cloud_samples(selected_day_start, selected_day_end)
             light_chart_items = [
                 ("lyslist", "Lyslist", "#df705d"),
                 ("reklame", "Reklame", "#f2b84b"),
@@ -24083,6 +24111,16 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "name": "Lux",
                     "data": [[api_local_iso(row["time_dt"]), row["lux"]] for row in lux_day["points"] if row.get("time_dt")],
                     "color": "#ca8a04",
+                }
+            ]
+            cloud_series = [
+                {
+                    "name": "Skydekke",
+                    "data": [[api_local_iso(row["time_dt"]), row["cloud_area_fraction"]] for row in cloud_samples if row.get("time_dt")],
+                    "color": "#64748b",
+                    "unit": "%",
+                    "yAxisIndex": 1,
+                    "smooth": True,
                 }
             ]
             light_status_series = [
@@ -24107,11 +24145,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "Dagslogg lys",
                     [],
                     lux_series,
-                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Velg lux eller lysstatus.",
+                    f"{selected_day.strftime('%d.%m.%Y')} vises som helt døgn. Velg lux, lux med skydekke eller lysstatus.",
                     "line",
                     340,
                     metrics=[
                         {"key": "lux", "label": "Lux", "unit": "lux", "series": lux_series},
+                        {"key": "lux_cloud", "label": "Lux + skydekke", "unit": "lux", "series": lux_series + cloud_series},
                         {"key": "status", "label": "Lysstatus", "unit": "på/av", "series": light_status_series},
                     ],
                     default_metric="lux",

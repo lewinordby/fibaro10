@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1495")
+APP_BUILD = os.getenv("APP_BUILD", "1496")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1496",
+        "date": "09.07.2026",
+        "headline": "Skydekke i luxgraf",
+        "title": "Lys/dagslogg kan vise Yr-skydekke sammen med lux",
+        "description": (
+            "Build 1496 legger skydekke fra Yr-loggen inn som et tilleggsvalg på Lys/dagslogg. "
+            "Grafen kan nå vise lux og skydekke samtidig med separat høyre prosentakse, slik at sammenhengen "
+            "mellom dagslys/lux og skydekke kan vurderes direkte."
+        ),
+        "applications": [
+            "main.py: henter skydekke fra yr_forecast_samples og legger til grafvalget Lux + skydekke.",
+            "desktop_v2/src/pages/module/ModuleChartPanel.tsx: støtter sekundær Y-akse for prosentserier.",
+            "build_log.py: dokumenterer build 1496.",
+        ],
+        "request": (
+            "Du ønsket skydekke-data fra Ventilasjon/Yr-logg som tilleggsvalg på Lys/dagslogg, slik at dette "
+            "kan vises sammen med lux-grafen."
+        ),
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Nytt grafvalg: Lux + skydekke.",
+            "Skydekke hentes fra Yr-samples for valgt dag.",
+            "Lux vises på venstre akse og skydekke på høyre akse i prosent.",
+        ],
+    },
     {
         "version": "1",
         "build": "1495",
