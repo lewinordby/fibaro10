@@ -170,7 +170,8 @@ async function runAuthenticatedSmoke() {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("response", (response) => {
-      if (response.url().startsWith(baseUrl) && response.status() >= 500) {
+      const url = response.url();
+      if (url.startsWith(baseUrl) && response.status() >= 400 && !url.endsWith("/favicon.ico")) {
         errors.push(`${response.status()} ${response.url()}`);
       }
     });

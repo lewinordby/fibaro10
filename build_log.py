@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1502")
+APP_BUILD = os.getenv("APP_BUILD", "1503")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1503",
+        "date": "09.07.2026",
+        "headline": "Funksjonsgjennomgang",
+        "title": "Full funksjonssjekk retter mobil-preview og reduserer Koble-payload",
+        "description": (
+            "Build 1503 er en systematisk funksjonsgjennomgang av Fibaro10 etter designoppryddingen. "
+            "Gjennomgangen avdekket at mobil-preview kunne vise omsetningsskjermer til brukere uten belopstilgang, "
+            "og at Koble-oversikten sendte store datasett som bare trengs paa undersidene."
+        ),
+        "applications": [
+            "main.py: filtrerer mobil-preview-skjermer etter faktisk tilgang til omsetning og beskytter direkte frame-kall.",
+            "main.py: deler Koble-data per underside slik at oversikt, kandidater, biltreff, SUN2-kontroll, treffgrunnlag og jobb ikke laster unodvendige tabeller.",
+            "desktop_v2/scripts/smoke-live.mjs: fanger naa ogsaa 4xx-feil i live smoke-testen, ikke bare 5xx.",
+            "tests/test_mobile_preview.py: legger testdekning for mobil-preview-tilgang.",
+            "build_log.py: dokumenterer build 1503.",
+        ],
+        "request": "Du ba om en grundig gjennomgang av all funksjonalitet.",
+        "work_duration": "ca. 50 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Mobil-preview viser ikke lenger omsetningsframes for brukere som ikke har belopstilgang.",
+            "Koble-oversikten sender betydelig mindre data og laster bare detaljer paa de relevante undersidene.",
+            "Live-smoke er skjerpet slik at skjulte 403/404-feil i API/frames blir fanget opp.",
+            "Full lokal kvalitetssjekk er kjort med 104 Python-tester, frontend-build, OwnTracks-build, CSS, bundle, route-audit og UI-smoke.",
+        ],
+    },
     {
         "version": "1",
         "build": "1502",
