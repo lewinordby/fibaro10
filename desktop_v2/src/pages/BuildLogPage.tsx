@@ -1,7 +1,7 @@
 import { Card, Space, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Link, useNavigate } from "react-router-dom";
-import { fetchBuildLog, type BuildLogEntry } from "../api";
+import { fetchBuildLog, type BuildLogListEntry } from "../api";
 import { DataTableCard } from "../components/DataTableCard";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { useApiQuery } from "../hooks";
@@ -16,7 +16,7 @@ export default function BuildLogPage() {
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
-  const columns: ColumnsType<BuildLogEntry> = [
+  const columns: ColumnsType<BuildLogListEntry> = [
     {
       title: "Dato",
       dataIndex: "date",
@@ -64,7 +64,7 @@ export default function BuildLogPage() {
         </div>
       </Card>
 
-      <DataTableCard<BuildLogEntry>
+      <DataTableCard<BuildLogListEntry>
         cardTitle="Buildoversikt"
         className="module-table-card"
         rowKey="build"

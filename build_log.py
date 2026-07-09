@@ -1,12 +1,40 @@
 import os
 from typing import Any, Dict, Optional
 
-from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
+from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1503")
+APP_BUILD = os.getenv("APP_BUILD", "1504")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1504",
+        "date": "09.07.2026",
+        "headline": "Ytelsesoptimalisering",
+        "title": "API-payloads trimmes for raskere admin og Koble-visninger",
+        "description": (
+            "Build 1504 er en maalrettet ytelsesrunde etter live maaling av API-storrelser og svartider. "
+            "Endringen reduserer unodvendig data i buildloggen og lar Koble-tabeller respektere valgt antall rader, "
+            "samtidig som totaler fortsatt beregnes paa komplett grunnlag."
+        ),
+        "applications": [
+            "api_contracts.py og build_log.py: bruker en lett buildliste for /api/admin/builds og beholder full detalj paa enkeltbuild.",
+            "api_types.py og desktop_v2/src/api.ts: skiller mellom buildliste og builddetalj i kontraktene.",
+            "desktop_v2/src/pages/BuildLogPage.tsx: bruker den smalere buildliste-typen.",
+            "main.py: begrenser Koble-detaljrader etter valgt Antall uten aa endre totalberegningene.",
+            "build_log.py: dokumenterer build 1504.",
+        ],
+        "request": "Du ba om aa sorge for at ytelsen er saa bra som mulig.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Buildlogg-listen sender naa bare dato, build, overskrift, path og aktiv-markering.",
+            "Builddetaljer hentes fortsatt separat med hele bestillingen, endringslisten og applikasjonslisten.",
+            "Koble/treffgrunnlag sender ikke lenger flere rader enn valgt Antall.",
+            "Koble/biltreff og Koble/SUN2 sender bare viste detaljrader, mens korttotaler fortsatt regnes paa hele kvalifiserte grunnlaget.",
+        ],
+    },
     {
         "version": "1",
         "build": "1503",
@@ -12234,6 +12262,17 @@ def normalized_build_log_entry(row: Dict[str, Any]) -> BuildLogEntryPayload:
         "request": str(row.get("request") or ""),
         "workDuration": str(row.get("work_duration") or row.get("workDuration") or "Ikke registrert"),
         "creditsUsed": str(row.get("credits_used") or row.get("creditsUsed") or "Ikke registrert"),
+        "path": f"/admin/build/{build}",
+        "isCurrent": build == str(APP_BUILD),
+    }
+
+
+def build_log_list_row(row: Dict[str, Any]) -> BuildLogListRowPayload:
+    build = str(row.get("build", ""))
+    return {
+        "build": build,
+        "date": str(row.get("date", "")),
+        "headline": str(row.get("headline") or row.get("title") or f"Build {build}"),
         "path": f"/admin/build/{build}",
         "isCurrent": build == str(APP_BUILD),
     }

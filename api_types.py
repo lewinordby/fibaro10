@@ -20,9 +20,17 @@ class BuildLogEntryPayload(TypedDict):
     isCurrent: bool
 
 
+class BuildLogListRowPayload(TypedDict):
+    build: str
+    date: str
+    headline: str
+    path: str
+    isCurrent: bool
+
+
 class BuildLogResponsePayload(TypedDict):
     currentBuild: str
-    rows: List[BuildLogEntryPayload]
+    rows: List[BuildLogListRowPayload]
 
 
 class BuildLogTableRowPayload(TypedDict):

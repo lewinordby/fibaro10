@@ -421,9 +421,17 @@ export type BuildLogEntry = {
   isCurrent: boolean;
 };
 
+export type BuildLogListEntry = {
+  build: string;
+  date: string;
+  headline: string;
+  path: string;
+  isCurrent: boolean;
+};
+
 export type BuildLogResponse = {
   currentBuild: string;
-  rows: BuildLogEntry[];
+  rows: BuildLogListEntry[];
 };
 
 export type HealthStatus = "ok" | "warn" | "bad";

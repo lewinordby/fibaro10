@@ -22557,7 +22557,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         select(ParkingSunLinkMatch)
                         .where(ParkingSunLinkMatch.generation == generation)
                         .order_by(ParkingSunLinkMatch.parking_start_at.desc(), ParkingSunLinkMatch.sun_started_at.desc())
-                        .limit(max(250, min(1000, limit_value * 5)))
+                        .limit(limit_value)
                     )
                 ).scalars().all()
             review_pairs = [(row.plate, row.sun2_id) for row in candidates if row.plate and row.sun2_id]
@@ -22625,21 +22625,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             )
             qualified_candidate_rows: list[Dict[str, Any]] = []
             qualified_pairs: list[tuple[str, str]] = []
-            if needs_qualified_rows:
-                qualified_candidates = (
-                    await session.execute(
-                        select(ParkingSunLinkCandidate)
-                        .where(*qualified_filter)
-                        .order_by(
-                            ParkingSunLinkCandidate.matches_count.desc(),
-                            ParkingSunLinkCandidate.parking_match_count.desc(),
-                            ParkingSunLinkCandidate.last_match_at.desc(),
-                        )
-                    )
-                ).scalars().all()
-                qualified_candidate_rows = [api_parking_sun_link_candidate_row(row) for row in qualified_candidates]
-                qualified_pairs = [(row["plate"], row["sun2_id"]) for row in qualified_candidate_rows if row.get("plate") and row.get("sun2_id")]
-            elif needs_qualified_totals:
+            qualified_visible_pairs: list[tuple[str, str]] = []
+            if needs_qualified_totals:
                 qualified_pairs = [
                     (str(row.plate or "").strip(), str(row.sun2_id or "").strip())
                     for row in (
@@ -22650,7 +22637,26 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     ).all()
                     if row.plate and row.sun2_id
                 ]
-            qualified_matched_paid_by_pair = await parking_sun_link_matched_paid_totals(session, generation, qualified_pairs) if qualified_candidate_rows and qualified_pairs else {}
+            if needs_qualified_rows:
+                qualified_candidates = (
+                    await session.execute(
+                        select(ParkingSunLinkCandidate)
+                        .where(*qualified_filter)
+                        .order_by(
+                            ParkingSunLinkCandidate.matches_count.desc(),
+                            ParkingSunLinkCandidate.parking_match_count.desc(),
+                            ParkingSunLinkCandidate.last_match_at.desc(),
+                        )
+                        .limit(limit_value)
+                    )
+                ).scalars().all()
+                qualified_candidate_rows = [api_parking_sun_link_candidate_row(row) for row in qualified_candidates]
+                qualified_visible_pairs = [(row["plate"], row["sun2_id"]) for row in qualified_candidate_rows if row.get("plate") and row.get("sun2_id")]
+            qualified_matched_paid_by_pair = (
+                await parking_sun_link_matched_paid_totals(session, generation, qualified_visible_pairs)
+                if qualified_candidate_rows and qualified_visible_pairs
+                else {}
+            )
             for row in qualified_candidate_rows:
                 pair_key = (str(row.get("plate") or "").strip(), str(row.get("sun2_id") or "").strip())
                 row["matched_paid_total"] = round(qualified_matched_paid_by_pair.get(pair_key, float_or_zero(row.get("matched_paid_total"))), 2)
@@ -22662,11 +22668,20 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             qualified_sun2_group_counts: Dict[str, int] = {}
             qualified_sun2_rows = []
             if koble_view == "sun2":
-                for row in qualified_candidate_rows:
-                    sun2_key = str(row.get("sun2_id") or "").strip()
-                    if not sun2_key:
-                        continue
-                    qualified_sun2_group_counts[sun2_key] = qualified_sun2_group_counts.get(sun2_key, 0) + 1
+                qualified_sun2_group_counts = {
+                    str(row.sun2_id or "").strip(): int_or_zero(row.vehicle_count)
+                    for row in (
+                        await session.execute(
+                            select(
+                                ParkingSunLinkCandidate.sun2_id.label("sun2_id"),
+                                func.count(ParkingSunLinkCandidate.id).label("vehicle_count"),
+                            )
+                            .where(*qualified_filter)
+                            .group_by(ParkingSunLinkCandidate.sun2_id)
+                        )
+                    ).all()
+                    if row.sun2_id
+                }
                 for row in qualified_candidate_rows:
                     parking_count = int_or_zero(row.get("parking_count"))
                     parking_match_count = int_or_zero(row.get("parking_match_count"))
