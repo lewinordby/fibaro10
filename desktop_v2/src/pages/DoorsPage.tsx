@@ -580,7 +580,7 @@ export default function DoorsPage() {
             locale={{ emptyText: "Ingen dørhendelser logget ennå" }}
           />
         </Card>
-      ) : (
+      ) : activeView !== "oversikt" ? (
         <>
           <Card
             className="work-card doors-table-card"
@@ -615,7 +615,7 @@ export default function DoorsPage() {
             </Space>
           </Card>
         </>
-      )}
+      ) : null}
     </Space>
   );
 }

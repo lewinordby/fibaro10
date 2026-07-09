@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1492")
+APP_BUILD = os.getenv("APP_BUILD", "1493")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1493",
+        "date": "09.07.2026",
+        "headline": "Døroversikt strammet",
+        "title": "Dører/Oversikt får bredere statusruter og fjerner detaljtabellen",
+        "description": (
+            "Build 1493 justerer den kompakte dørstatusen etter praktisk bruk. Statusrutene på oversikten er gjort "
+            "bredere slik at innholdet får bedre plass, og tabellen Døråpninger er fjernet fra oversikten."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: skjuler Døråpninger-tabellen på Dører/Oversikt.",
+            "desktop_v2/src/styles/doors.css: øker minimumsbredden på kompakte dørkort.",
+            "build_log.py: dokumenterer build 1493.",
+        ],
+        "request": (
+            "Du ønsket bredere kort på Dører/Oversikt og foreslo å fjerne feltet nederst med Døråpninger, "
+            "siden detaljene kan ses via Solrom eller Andre dører."
+        ),
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Statusrutene på oversikten bruker nå bredere gridkolonner.",
+            "Døråpninger vises ikke lenger på Dører/Oversikt.",
+            "Døråpninger beholdes på Solrom og Andre dører for detaljkontroll.",
+        ],
+    },
     {
         "version": "1",
         "build": "1492",
