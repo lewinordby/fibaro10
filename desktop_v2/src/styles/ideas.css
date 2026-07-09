@@ -17,17 +17,19 @@
 }
 
 .ideas-summary-card {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 58px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-panel);
+  min-height: 54px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--domain-ideas) 10%, var(--border-panel));
   border-radius: var(--radius-md);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--domain-ideas) 3%, var(--surface)), var(--surface)),
-    var(--surface);
-  box-shadow: var(--shadow-xs);
+    linear-gradient(90deg, color-mix(in srgb, var(--domain-ideas) 12%, var(--surface)) 0 3px, transparent 3px),
+    var(--panel-surface);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
 }
 
 .ideas-summary-card span {
@@ -39,7 +41,7 @@
 
 .ideas-summary-card strong {
   color: var(--ink);
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 820;
   letter-spacing: 0;
 }
@@ -48,7 +50,7 @@
   border-color: color-mix(in srgb, var(--domain-ideas) 14%, var(--border-panel));
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--domain-ideas) 7%, var(--surface)), var(--surface) 48%),
-    var(--surface);
+    var(--panel-surface);
 }
 
 .ideas-next-card .ant-card-body {
@@ -105,7 +107,7 @@
   padding: 9px 10px;
   border: 1px solid color-mix(in srgb, var(--domain-ideas) 12%, var(--border-panel));
   border-radius: var(--radius-md);
-  background: var(--surface-glass);
+  background: var(--panel-muted-bg);
 }
 
 .ideas-next-rank {
@@ -150,7 +152,8 @@
   --idea-card-color: var(--domain-ideas);
   height: 100%;
   border-color: color-mix(in srgb, var(--idea-card-color) 16%, var(--border-panel));
-  box-shadow: var(--shadow-xs);
+  background: var(--panel-surface);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
 }
 
 .idea-card .ant-card-body {

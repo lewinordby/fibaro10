@@ -20,10 +20,11 @@
 }
 
 .elvia-summary-tile {
-  min-height: 108px;
-  border-color: var(--line);
+  min-height: 94px;
+  border-color: var(--panel-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
+  background: var(--panel-surface);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
 }
 
 .elvia-summary-tile .ant-card-body {
@@ -31,7 +32,7 @@
   flex-direction: column;
   gap: 5px;
   height: 100%;
-  padding: 10px 12px;
+  padding: 9px 11px;
 }
 
 .elvia-summary-tile span {
@@ -44,7 +45,7 @@
 .elvia-summary-tile strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 780;
   letter-spacing: 0;
   line-height: 1.12;
@@ -93,7 +94,7 @@
   color: var(--text-neutral);
   font-size: 12px;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-control);
   border-radius: 6px;
 }
 
@@ -152,8 +153,8 @@
   padding: 7px 8px;
   color: var(--muted);
   font-size: 11px;
-  background: var(--surface-muted);
-  border: 1px solid var(--line-muted);
+  background: var(--panel-muted-bg);
+  border: 1px solid var(--border-panel-soft);
   border-radius: var(--radius-md);
 }
 
@@ -191,14 +192,14 @@
   font-weight: 850;
   letter-spacing: 0;
   text-transform: uppercase;
-  background: var(--surface-muted);
-  border-bottom-color: var(--line);
+  background: var(--table-header-bg);
+  border-bottom-color: var(--border-panel);
 }
 
 .elvia-table-card .ant-table-tbody > tr > td {
   padding-top: 7px;
   padding-bottom: 7px;
-  border-bottom-color: var(--line-soft);
+  border-bottom-color: var(--border-panel-soft);
 }
 
 .elvia-reload-button {
@@ -208,15 +209,16 @@
 /* Energy-specific visual refinements. */
 .elvia-upload-card,
 .elvia-import-card {
-  border-color: var(--line);
+  border-color: var(--panel-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
+  background: var(--panel-surface);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
 }
 
 .elvia-upload-card .ant-card-head {
-  min-height: 44px;
-  background: linear-gradient(180deg, var(--surface), var(--surface-panel-end));
-  border-bottom-color: var(--line-soft);
+  min-height: 39px;
+  background: var(--panel-header-bg);
+  border-bottom-color: var(--border-panel-soft);
 }
 
 .elvia-upload-card .ant-card-head-title {

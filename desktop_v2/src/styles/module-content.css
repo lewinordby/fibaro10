@@ -6,7 +6,11 @@
 }
 
 .module-actions .ant-card-body {
-  padding: 12px 14px;
+  padding: 9px 12px;
+}
+
+.module-actions .ant-space {
+  gap: 8px !important;
 }
 
 .module-day-nav-card .ant-card-body {
@@ -14,7 +18,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 9px 12px;
 }
 
 .module-day-nav-title {
@@ -32,7 +36,7 @@
 
 .module-day-nav-title small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -109,21 +113,29 @@
 .chart-card,
 .table-card,
 .summary-card {
-  border-color: color-mix(in srgb, var(--active-module-color) 5%, var(--border-panel));
+  position: relative;
+  border-color: var(--panel-border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background:
-    linear-gradient(180deg, var(--surface-glass-strong), var(--surface-panel-end) 180px),
-    var(--surface);
-  box-shadow: var(--shadow-sm);
+  background: var(--panel-surface);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
+}
+
+:is(.work-card, .chart-card, .table-card, .summary-card)::before {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 3px;
+  background: var(--panel-accent);
+  content: "";
+  pointer-events: none;
 }
 
 .work-card .ant-card-head,
 .chart-card .ant-card-head,
 .table-card .ant-card-head {
-  min-height: 42px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 2.5%, var(--surface)), var(--surface-panel-end));
+  min-height: 39px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 2%, var(--surface)), var(--surface-panel-end));
   border-bottom-color: var(--border-panel-soft);
 }
 
@@ -140,7 +152,7 @@
 }
 
 .summary-card .ant-card-head {
-  min-height: 28px;
+  min-height: 27px;
 }
 
 .summary-card .ant-card-head-title {
@@ -152,14 +164,14 @@
 .summary-card .ant-card-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-height: 50px;
-  padding: 8px 10px;
+  gap: 3px;
+  min-height: 48px;
+  padding: 7px 9px;
 }
 
 .summary-card strong {
   color: var(--ink);
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.1;
 }
 
@@ -185,7 +197,7 @@
 }
 
 .control-setting-card .ant-card-body {
-  padding: 12px 14px 4px;
+  padding: 11px 13px 5px;
 }
 
 .control-setting-card .ant-typography {
@@ -251,7 +263,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0;
-  background: var(--surface-muted);
+  background: var(--panel-muted-bg);
 }
 
 .control-info-grid {
@@ -281,7 +293,7 @@
   padding: 9px 10px;
   border: 1px solid var(--border-panel-soft);
   border-radius: var(--radius-sm);
-  background: var(--surface-muted);
+  background: var(--panel-muted-bg);
 }
 
 .control-note strong {

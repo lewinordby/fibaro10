@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogTableRowPayload
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1501")
+APP_BUILD = os.getenv("APP_BUILD", "1502")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1502",
+        "date": "09.07.2026",
+        "headline": "Helhetlig appdesign",
+        "title": "Hovedappen får dashboard-inspirert designsystem på tvers av modulene",
+        "description": (
+            "Build 1502 viderefører uttrykket fra dashboardkortene til resten av Fibaro10. "
+            "Felles panel-, tabell-, filter-, chart-, modal- og nøkkeltallsflater bruker nå samme tokens for "
+            "dybde, aksent, borders, hover og mørkt tema."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/tokens.css og dark-theme.css: utvider designsystemet med generiske panel-, tabell- og portal-tokens.",
+            "desktop_v2/src/styles/layout.css: strammer globale AntD-kort, tabeller, tabs, pagination, alerts og modaler.",
+            "desktop_v2/src/styles/module-content.css, module-metrics.css, module-filters.css og module-charts.css: gir modulsider samme kort-, filter- og chartuttrykk som dashboard.",
+            "desktop_v2/src/styles/records.css, status-comparison.css, doors.css, energy.css, maintenance.css og ideas.css: harmoniserer lokale detalj-, tabell- og summary-flater.",
+            "build_log.py: dokumenterer build 1502.",
+        ],
+        "request": "Du ønsket en grundig forbedring av design i hele appen med utgangspunkt i designet på dashboard.",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Felles kort og modulkort har nå samme dashboard-inspirerte flate, aksent og skyggenivå.",
+            "Tabeller, filterlinjer, chartverktøylinjer og tomtilstander er gjort mer kompakte og konsekvente.",
+            "Dører, energi, vedlikehold, ideer og sammenligningssider er harmonisert mot samme designsystem.",
+            "Mørkt tema og portaler/modaler bruker samme paneltokens som resten av appen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1501",

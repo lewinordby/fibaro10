@@ -44,6 +44,7 @@
   --surface-raised: #20252d;
   --surface-muted: #161a21;
   --surface-hover: #262c35;
+  --surface-panel: #181c23;
   --surface-panel-end: #171a20;
   --surface-glass-strong: rgba(255, 255, 255, 0.09);
   --surface-glass: rgba(255, 255, 255, 0.045);
@@ -52,6 +53,29 @@
   --surface-clear: transparent;
   --panel-header-bg: linear-gradient(180deg, #20242b, #191c22);
   --panel-inset-highlight: rgba(255, 255, 255, 0.045);
+  --panel-surface: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--active-module-color) 3.4%, var(--surface-raised)) 0%,
+      var(--surface) 48%,
+      var(--surface-panel-end) 100%
+    );
+  --panel-surface-soft: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--active-module-color) 2.6%, var(--surface-raised)),
+      color-mix(in srgb, var(--active-module-color) 1.4%, var(--surface))
+    );
+  --panel-muted-bg: color-mix(in srgb, var(--active-module-color) 4.5%, var(--surface-muted));
+  --panel-border: color-mix(in srgb, var(--active-module-color) 9%, var(--border-panel));
+  --panel-border-strong: color-mix(in srgb, var(--active-module-color) 26%, var(--line-strong));
+  --panel-accent: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--active-module-color) 72%, var(--dark-white)) 0,
+      color-mix(in srgb, var(--active-module-color) 34%, transparent) 68%,
+      transparent 100%
+    );
+  --table-header-bg: linear-gradient(180deg, color-mix(in srgb, var(--surface-raised) 78%, var(--surface)), var(--surface-muted));
+  --table-row-alt-bg: color-mix(in srgb, var(--surface-raised) 30%, var(--surface));
+  --table-row-hover-bg: color-mix(in srgb, var(--active-module-color) 8%, var(--surface-hover));
   --line-muted: #252b34;
   --text-strong: #f0f3f7;
   --text-body: #c9d1dc;
@@ -274,10 +298,8 @@
 .app-shell.theme-dark .maintenance-selected-visit-card,
 .app-shell.theme-dark .module-day-nav-card {
   color: var(--text-body);
-  background:
-    linear-gradient(180deg, var(--surface-glass-soft), transparent 42px),
-    var(--surface) !important;
-  border-color: var(--border-panel) !important;
+  background: var(--panel-surface) !important;
+  border-color: var(--panel-border) !important;
   box-shadow: var(--shadow-sm);
 }
 
@@ -296,7 +318,8 @@
 
 .app-shell.theme-dark .metric-card {
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 4%, var(--surface-raised)), var(--surface)) !important;
+    linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 13%, var(--surface)) 0 3px, transparent 3px),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 5%, var(--surface-raised)), var(--surface)) !important;
 }
 
 .app-shell.theme-dark .metric-card::before {
@@ -1076,16 +1099,26 @@ body:has(.app-shell.theme-dark) {
   --surface-page: #101217;
   --surface: #191c22;
   --surface-raised: #20242b;
+  --surface-panel-end: #171a20;
   --surface-hover: #272c35;
+  --panel-header-bg: linear-gradient(180deg, #20242b, #191c22);
+  --panel-inset-highlight: rgba(255, 255, 255, 0.045);
+  --panel-surface: linear-gradient(180deg, color-mix(in srgb, var(--active-module-color, #8fb5e6) 3.4%, var(--surface-raised)), var(--surface));
+  --panel-border: color-mix(in srgb, var(--active-module-color, #8fb5e6) 9%, var(--line));
   --border-control: #3b4350;
   background: var(--surface-page);
 }
 
 body:has(.app-shell.theme-dark) :is(.ant-dropdown-menu, .ant-select-dropdown, .ant-picker-dropdown .ant-picker-panel-container, .ant-modal-content) {
   color: var(--text-body);
-  background: var(--surface) !important;
-  border: 1px solid var(--line);
+  background: var(--panel-surface) !important;
+  border: 1px solid var(--panel-border);
   box-shadow: 0 22px 54px rgba(0, 0, 0, 0.4);
+}
+
+body:has(.app-shell.theme-dark) .ant-modal-header {
+  background: var(--panel-header-bg) !important;
+  border-bottom-color: var(--line);
 }
 
 body:has(.app-shell.theme-dark) :is(.ant-dropdown-menu-item, .ant-select-item, .ant-picker-cell, .ant-picker-header, .ant-modal-title, .ant-modal-close) {

@@ -4,7 +4,7 @@
 
 .module-chart-card .ant-card-body,
 .chart-card .ant-card-body {
-  padding: 10px 12px 8px;
+  padding: 10px 12px 9px;
 }
 
 .module-chart-toolbar {
@@ -12,10 +12,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 32px;
-  margin-bottom: 6px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid var(--border-panel-soft);
+  min-height: 34px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-panel-soft);
+  border-radius: var(--radius-md);
+  background: var(--panel-muted-bg);
 }
 
 .module-chart-toolbar .ant-typography {
@@ -25,6 +27,7 @@
 .module-chart-toolbar .ant-segmented {
   border: 1px solid var(--border-panel);
   border-radius: var(--radius-md);
+  background: var(--surface);
 }
 
 .module-chart-controls {

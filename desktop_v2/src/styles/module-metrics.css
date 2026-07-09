@@ -4,31 +4,32 @@
 }
 
 .primary-grid {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
   gap: 10px;
 }
 
 .metric-card {
   position: relative;
   overflow: hidden;
-  height: 88px;
-  border: 1px solid color-mix(in srgb, var(--tone-color) 9%, var(--border-panel));
+  height: 82px;
+  border: 1px solid color-mix(in srgb, var(--tone-color) 10%, var(--border-panel));
   border-radius: var(--radius-md);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 3%, var(--surface)), var(--surface-panel-end));
-  box-shadow: var(--shadow-sm);
+    linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 12%, var(--surface)) 0 3px, transparent 3px),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 2.4%, var(--surface)), var(--surface-panel-end));
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .module-metric {
-  height: 78px;
+  height: 76px;
 }
 
 .metric-card::before {
   position: absolute;
   inset: 0 0 auto;
   height: 3px;
-  background: var(--tone-color);
+  background: linear-gradient(90deg, var(--tone-color), color-mix(in srgb, var(--tone-color) 28%, transparent));
   opacity: 0.92;
   content: "";
 }
@@ -43,7 +44,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 7px 9px;
+  padding: 7px 9px 8px 10px;
 }
 
 .metric-card-top {
@@ -70,7 +71,7 @@
   color: color-mix(in srgb, var(--tone-color) 82%, var(--ink));
   font-size: 9px;
   font-weight: 680;
-  line-height: 17px;
+  line-height: 16px;
   background: color-mix(in srgb, var(--tone-color) 11%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--tone-color) 18%, var(--line));
   border-radius: 999px;
@@ -87,7 +88,7 @@
 .metric-value {
   overflow: hidden;
   color: var(--ink);
-  font-size: 16.5px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: 0;
@@ -106,8 +107,10 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 5px;
-  min-height: 18px;
+  min-height: 17px;
   margin-top: auto;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--tone-color) 5%, var(--border-panel-soft));
   color: var(--muted);
   font-size: 10px;
   line-height: 1.12;
@@ -130,7 +133,7 @@
 }
 
 .metric-card.module-metric .ant-card-body {
-  padding: 8px 10px;
+  padding: 7px 10px 8px;
 }
 
 .module-metric .metric-title {
@@ -143,11 +146,11 @@
 }
 
 .module-metric .metric-value-row {
-  margin-top: 6px;
+  margin-top: 5px;
 }
 
 .module-metric .metric-value {
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.05;
 }
 
@@ -157,7 +160,7 @@
 }
 
 .module-metric .metric-detail {
-  min-height: 24px;
+  min-height: 21px;
   gap: 6px;
   line-height: 1.2;
 }

@@ -3,7 +3,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 14px;
-  padding: 10px 12px;
+  padding: 9px 12px;
 }
 
 .module-filter-grid {
@@ -16,14 +16,14 @@
 .module-filter-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
 .module-filter-field > span {
-  color: var(--muted);
+  color: var(--text-label);
   font-size: 10px;
-  font-weight: 760;
+  font-weight: 800;
   text-transform: uppercase;
 }
 

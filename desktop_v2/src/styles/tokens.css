@@ -17,6 +17,7 @@
   --surface-raised: var(--white);
   --surface-muted: #f8fafc;
   --surface-hover: #f8fbff;
+  --surface-panel: var(--white);
   --surface-panel-end: #fafcff;
   --surface-glass-strong: rgba(255, 255, 255, 0.92);
   --surface-glass: rgba(255, 255, 255, 0.82);
@@ -25,6 +26,29 @@
   --surface-clear: rgba(255, 255, 255, 0);
   --panel-header-bg: linear-gradient(180deg, var(--white), var(--surface-panel-end));
   --panel-inset-highlight: rgba(255, 255, 255, 0.72);
+  --panel-surface: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--active-module-color) 1.8%, var(--surface)) 0%,
+      var(--surface) 46%,
+      var(--surface-panel-end) 100%
+    );
+  --panel-surface-soft: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--active-module-color) 1.2%, var(--surface)),
+      color-mix(in srgb, var(--active-module-color) 0.7%, var(--surface-panel-end))
+    );
+  --panel-muted-bg: color-mix(in srgb, var(--active-module-color) 2.8%, var(--surface-muted));
+  --panel-border: color-mix(in srgb, var(--active-module-color) 6%, var(--border-panel));
+  --panel-border-strong: color-mix(in srgb, var(--active-module-color) 18%, var(--line-strong));
+  --panel-accent: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--active-module-color) 82%, var(--surface)) 0,
+      color-mix(in srgb, var(--active-module-color) 38%, transparent) 68%,
+      transparent 100%
+    );
+  --table-header-bg: linear-gradient(180deg, var(--surface-muted), color-mix(in srgb, var(--surface-muted) 72%, var(--surface)));
+  --table-row-alt-bg: color-mix(in srgb, var(--surface-muted) 34%, var(--surface));
+  --table-row-hover-bg: color-mix(in srgb, var(--active-module-color) 5%, var(--surface-hover));
   --line-muted: #e8edf4;
   --text-strong: var(--ink);
   --text-body: #334155;

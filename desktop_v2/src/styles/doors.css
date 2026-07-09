@@ -21,15 +21,15 @@
   border-radius: var(--radius-md);
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 12%, var(--surface)) 0 4px, transparent 4px),
-    linear-gradient(180deg, var(--surface), var(--door-muted-tint));
-  box-shadow: var(--shadow-xs);
+    var(--panel-surface);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
 }
 
 .door-summary-card .ant-card-body {
   display: grid;
-  gap: 4px;
-  min-height: 74px;
-  padding: 11px 13px 10px 15px;
+  gap: 3px;
+  min-height: 68px;
+  padding: 10px 12px 9px 15px;
 }
 
 .door-summary-card span {
@@ -41,7 +41,7 @@
 
 .door-summary-card strong {
   color: var(--ink);
-  font-size: 23px;
+  font-size: 21px;
   font-weight: 800;
   line-height: 1.08;
 }
@@ -68,8 +68,8 @@
   overflow: hidden;
   border: 1px solid var(--door-card-border);
   border-radius: var(--radius-md);
-  background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--door-card-tone) 2.5%, var(--surface-panel-end)));
-  box-shadow: 0 7px 20px var(--shadow-ink-faint-color);
+  background: var(--panel-surface);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
@@ -93,7 +93,7 @@
 
 .door-status-card.is-open {
   --door-card-tone: var(--amber);
-  background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--amber) 4%, var(--surface-panel-end)));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--amber) 4%, var(--surface)), var(--surface-panel-end));
 }
 
 .door-status-card.is-unknown {
@@ -126,7 +126,7 @@
   width: 42px;
   height: 42px;
   color: var(--door-icon-color);
-  background: color-mix(in srgb, var(--door-icon-color) 10%, var(--surface));
+  background: color-mix(in srgb, var(--door-icon-color) 9%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--door-icon-color) 20%, var(--border-control));
   border-radius: var(--radius-md);
 }

@@ -3,9 +3,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 48px;
-  padding: 0 2px 12px;
-  border-bottom: 1px solid var(--line);
+  min-height: 42px;
+  padding: 0 2px 9px;
+  border-bottom: 1px solid var(--border-panel-soft);
 }
 
 .status-comparison-title {
@@ -33,9 +33,23 @@
 
 .status-comparison-summary-card,
 .status-comparison-chart-card {
-  border: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  background: var(--panel-surface);
+  box-shadow: 0 5px 16px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
+}
+
+.status-comparison-summary-card::before,
+.status-comparison-chart-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 3px;
+  background: var(--panel-accent);
+  content: "";
+  pointer-events: none;
 }
 
 .status-comparison-summary-card .ant-card-body {
@@ -107,8 +121,8 @@
 
 .status-comparison-summary-split div {
   padding: 5px 7px;
-  background: var(--surface-muted);
-  border: 1px solid var(--line-muted);
+  background: var(--panel-muted-bg);
+  border: 1px solid var(--border-panel-soft);
   border-radius: var(--radius-md);
 }
 
@@ -138,9 +152,9 @@
 }
 
 .status-comparison-chart-card .ant-card-head {
-  min-height: 44px;
-  background: linear-gradient(180deg, var(--surface), var(--surface-panel-end));
-  border-bottom-color: var(--line-soft);
+  min-height: 39px;
+  background: var(--panel-header-bg);
+  border-bottom-color: var(--border-panel-soft);
 }
 
 .status-comparison-chart-card .ant-card-head-title {
@@ -181,8 +195,8 @@
   gap: 12px;
   margin: 8px 0 10px;
   padding: 7px 9px;
-  background: var(--surface-muted);
-  border: 1px solid var(--line-soft);
+  background: var(--panel-muted-bg);
+  border: 1px solid var(--border-panel-soft);
   border-radius: var(--radius-md);
 }
 
@@ -206,7 +220,7 @@
 
 .status-comparison-chart-stack > div {
   padding-top: 2px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--border-panel-soft);
   border-radius: var(--radius-md);
 }
 
