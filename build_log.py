@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1509")
+APP_BUILD = os.getenv("APP_BUILD", "1510")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1510",
+        "date": "10.07.2026",
+        "headline": "Masterpassord i brukeradministrasjon",
+        "title": "Master kan sette nytt masterpassord fra brukeradministrasjonen",
+        "description": (
+            "Build 1510 gjør masterbrukeren redigerbar i Admin/Brukere for passordbytte. Eksisterende "
+            "masterpassord vises ikke, fordi master er lagret som hash. Når masterpassordet endres, oppdateres "
+            "innloggingscookien i samme svar slik at aktiv masterøkt fortsetter å fungere."
+        ),
+        "applications": [
+            "main.py: legger felles hash-hjelpere for master og vanlige brukere.",
+            "main.py: API-et /api/admin/users/{id} tillater passordbytte for master, men låser navn, rolle og aktiv-status.",
+            "main.py: brukertabellen viser passordstatus i stedet for hemmelige verdier.",
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: masterraden kan åpnes i redigeringsdialogen.",
+            "tests/test_access_keys.py: tester masterhash, vanlig brukerhash og at masterpassord ikke eksponeres.",
+            "build_log.py: dokumenterer build 1510.",
+        ],
+        "request": "Legg inn slik at master kan endre passord eller se passord på masterbrukeren når man er logget inn som master.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Masterpassord kan settes på nytt via Admin -> Brukere.",
+            "Eksisterende masterpassord vises ikke, siden det er lagret som hash og ikke kan leses tilbake.",
+            "Etter passordbytte blir master fortsatt innlogget fordi cookien oppdateres med nytt passord.",
+            "Vanlige brukere beholder eksisterende passordlogikk.",
+        ],
+    },
     {
         "version": "1",
         "build": "1509",

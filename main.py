@@ -4075,6 +4075,18 @@ def credential_prefix(username: str, password: str) -> str:
     return "key_" + credential_hash(username, password)[:8]
 
 
+def access_password_hash(username: str, password: str, *, is_master: bool = False) -> str:
+    if is_master or normalize_username(username) == "master":
+        return hash_access_key(password)
+    return credential_hash(username, password)
+
+
+def access_key_prefix(username: str, password: str, *, is_master: bool = False) -> str:
+    if is_master or normalize_username(username) == "master":
+        return "sun2_master"
+    return credential_prefix(username, password)
+
+
 def client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
@@ -4201,10 +4213,7 @@ async def find_access_key(username: Optional[str], password: Optional[str]) -> O
     if not username or not password:
         return None
     normalized_username = normalize_username(username)
-    if normalized_username == "master":
-        hashed = hash_access_key(password)
-    else:
-        hashed = credential_hash(normalized_username, password)
+    hashed = access_password_hash(normalized_username, password, is_master=normalized_username == "master")
     async with async_session() as session:
         result = await session.execute(
             select(AccessKey)
@@ -11564,8 +11573,8 @@ async def startup():
                 key.role = "viewer"
             if username and password:
                 key.name = username
-                key.key_hash = credential_hash(username, password)
-                key.key_prefix = credential_prefix(username, password)
+                key.key_hash = access_password_hash(username, password, is_master=False)
+                key.key_prefix = access_key_prefix(username, password, is_master=False)
         await session.commit()
     async with async_session() as session:
         for config_key in CONFIG_DEFINITIONS:
@@ -11991,7 +12000,7 @@ async def keys_create(request: Request):
             },
             status_code=400,
         )
-    existing_hash = credential_hash(username, password)
+    existing_hash = access_password_hash(username, password, is_master=False)
     async with async_session() as session:
         existing = (
             await session.execute(select(AccessKey).where(AccessKey.key_hash == existing_hash))
@@ -12014,7 +12023,7 @@ async def keys_create(request: Request):
         record = AccessKey(
             name=username,
             key_hash=existing_hash,
-            key_prefix=credential_prefix(username, password),
+            key_prefix=access_key_prefix(username, password, is_master=False),
             key_plaintext=password,
             role=role,
             is_master=False,
@@ -18183,6 +18192,7 @@ def api_access_key_row(row: AccessKey) -> Dict[str, Any]:
         "active": bool(row.active),
         "is_master": bool(row.is_master),
         "key_prefix": row.key_prefix,
+        "password_status": "Kan settes på nytt, kan ikke vises" if row.is_master else "Kan endres",
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "last_seen_at": row.last_seen_at.isoformat() if row.last_seen_at else None,
         "uses_count": row.uses_count,
@@ -18703,7 +18713,7 @@ def api_access_key_edit() -> Dict[str, Any]:
         "fields": [
             {"key": "role", "label": "Rolle", "type": "select", "options": role_options, "required": True},
             {"key": "active", "label": "Aktiv", "type": "boolean"},
-            {"key": "password", "label": "Nytt passord", "type": "password"},
+            {"key": "password", "label": "Nytt passord", "type": "password", "placeholder": "Fyll ut bare hvis passord skal endres"},
         ],
         "createFields": [
             {"key": "username", "label": "Brukernavn", "type": "text", "required": True},
@@ -25121,11 +25131,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 admin_cards = [
                     api_card("Brukere", len(access_keys), "stk", f"{active_user_count} aktive", "status", href="/admin/brukere"),
                     api_card("Vanlige brukere", max(0, len(access_keys) - master_user_count), "stk", "Kan administreres her", "status", href="/admin/brukere"),
-                    api_card("Master", master_user_count, "stk", "Låst og ikke redigerbar i V2", "status", href="/admin/brukere"),
+                    api_card("Master", master_user_count, "stk", "Passord kan settes på nytt av master", "status", href="/admin/brukere"),
                     api_card("Tilgangslogg", len(access_logs), "rader", "Siste innlogginger og API-kall", "status", href="/admin/brukere"),
                 ]
                 tables = [
-                    api_table("Brukere", ["name", "role", "active", "is_master", "key_prefix", "created_at", "last_seen_at", "uses_count"], [api_access_key_row(row) for row in access_keys], edit=api_access_key_edit()),
+                    api_table("Brukere", ["name", "role", "active", "is_master", "key_prefix", "password_status", "created_at", "last_seen_at", "uses_count"], [api_access_key_row(row) for row in access_keys], edit=api_access_key_edit()),
                     api_table("Siste tilgangslogg", ["timestamp", "key_name", "path", "method", "success", "reason"], [row_to_dict(row, ["timestamp", "key_name", "path", "method", "success", "reason"]) for row in access_logs]),
                     api_table(
                         "Brukerverktøy",
@@ -26182,7 +26192,7 @@ async def api_v2_admin_user_create(request: Request, data: V2AccessUserCreate):
         raise HTTPException(status_code=400, detail="Brukernavnet master er reservert.")
     if len(password) < 5:
         raise HTTPException(status_code=400, detail="Passordet må være minst 5 tegn.")
-    existing_hash = credential_hash(username, password)
+    existing_hash = access_password_hash(username, password, is_master=False)
     async with async_session() as session:
         existing = (
             await session.execute(select(AccessKey).where(AccessKey.name == username))
@@ -26192,7 +26202,7 @@ async def api_v2_admin_user_create(request: Request, data: V2AccessUserCreate):
         record = AccessKey(
             name=username,
             key_hash=existing_hash,
-            key_prefix=credential_prefix(username, password),
+            key_prefix=access_key_prefix(username, password, is_master=False),
             key_plaintext=password,
             role=role,
             is_master=False,
@@ -26215,7 +26225,38 @@ async def api_v2_admin_user_update(request: Request, key_id: int, data: V2Access
         if not row:
             raise HTTPException(status_code=404, detail="Bruker ikke funnet")
         if row.is_master:
-            raise HTTPException(status_code=400, detail="Masterbrukeren kan ikke endres her.")
+            password = str(values.get("password") or "").strip()
+            if not password:
+                raise HTTPException(status_code=400, detail="Nytt passord må fylles ut for å endre masterbrukeren.")
+            if len(password) < 5:
+                raise HTTPException(status_code=400, detail="Passordet må være minst 5 tegn.")
+            row.name = "master"
+            row.role = "master"
+            row.active = True
+            row.is_master = True
+            row.key_hash = access_password_hash("master", password, is_master=True)
+            row.key_prefix = access_key_prefix("master", password, is_master=True)
+            row.key_plaintext = None
+            await session.commit()
+            response = JSONResponse({"status": "ok", "message": "Masterpassordet er oppdatert."})
+            secure_cookie = should_use_secure_cookie(request)
+            response.set_cookie(
+                AUTH_USER_COOKIE_NAME,
+                "master",
+                max_age=60 * 60 * 24 * 365,
+                httponly=True,
+                secure=secure_cookie,
+                samesite="lax",
+            )
+            response.set_cookie(
+                AUTH_COOKIE_NAME,
+                password,
+                max_age=60 * 60 * 24 * 365,
+                httponly=True,
+                secure=secure_cookie,
+                samesite="lax",
+            )
+            return response
         if "role" in values:
             role = (values.get("role") or "viewer").strip().lower()
             if role not in ["viewer", "settings"]:
@@ -26228,8 +26269,8 @@ async def api_v2_admin_user_update(request: Request, key_id: int, data: V2Access
             if password:
                 if len(password) < 5:
                     raise HTTPException(status_code=400, detail="Passordet må være minst 5 tegn.")
-                row.key_hash = credential_hash(row.name, password)
-                row.key_prefix = credential_prefix(row.name, password)
+                row.key_hash = access_password_hash(row.name, password, is_master=False)
+                row.key_prefix = access_key_prefix(row.name, password, is_master=False)
                 row.key_plaintext = password
         await session.commit()
     return {"status": "ok", "message": f"Bruker {row.name} er lagret."}
