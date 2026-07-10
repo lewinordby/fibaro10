@@ -58,11 +58,12 @@ function statusColor(status: string): string {
   return "gold";
 }
 
-function candidateFlags(candidate: KobleReviewCandidate): string[] {
+function candidateFlags(candidate: KobleReviewCandidate, minMatches: number): string[] {
   const flags: string[] = [];
-  if (candidate.plateCandidateCount > 1) flags.push(`${candidate.plateCandidateCount} SUN2-alternativer for bilen`);
-  if (candidate.sun2CandidateCount > 1) flags.push(`${candidate.sun2CandidateCount} biler mot samme SUN2`);
-  if (candidate.competitorMatchesCount > 0) flags.push(`beste konkurrent har ${candidate.competitorMatchesCount} treff`);
+  if (candidate.parkingMatchCount < minMatches) flags.push(`Ikke kandidat før ${minMatches} ulike parkeringer`);
+  if (candidate.plateCandidateCount > 1) flags.push(`${candidate.plateCandidateCount} kvalifiserte SUN2-alternativer for bilen`);
+  if (candidate.sun2CandidateCount > 1) flags.push(`${candidate.sun2CandidateCount} kvalifiserte biler mot samme SUN2`);
+  if (candidate.competitorMatchesCount >= minMatches) flags.push(`beste kvalifiserte konkurrent har ${candidate.competitorMatchesCount} parkeringer`);
   if (!flags.length && candidate.confidence >= 85) flags.push("Ingen tydelig konkurranse");
   return flags;
 }
@@ -152,25 +153,25 @@ export function KobleReviewPanel({
           <Typography.Text className="koble-review-eyebrow">Koblingsmotor</Typography.Text>
           <Typography.Title level={3}>Parkering mot SUN2</Typography.Title>
           <Typography.Text type="secondary">
-            Bruk undersidene til SUN2-kontroll, biltreff, kandidater, treffgrunnlag og jobbstatus.
+            Kandidat betyr samme bil og samme SUN2-ID på minst {review.minMatches} ulike parkeringer, der soltime starter innen {review.maxMinutes} minutter etter ankomst.
           </Typography.Text>
         </div>
         <div className="koble-review-intro-stats">
-          <span>
-            <strong>{review.strongCandidateCount}</strong>
-            sterke
-          </span>
           <span>
             <strong>{review.candidateCount}</strong>
             kandidater
           </span>
           <span>
-            <strong>{review.processedCount}</strong>
-            behandlet
+            <strong>{review.strongCandidateCount}</strong>
+            sterke
           </span>
           <span>
-            <strong>{review.generation}</strong>
-            generasjon
+            <strong>{review.rawOneOffPairCount ?? 0}</strong>
+            enkelttreff
+          </span>
+          <span>
+            <strong>{review.processedCount}</strong>
+            behandlet
           </span>
         </div>
       </Card>
@@ -182,16 +183,16 @@ export function KobleReviewPanel({
           <div>
             <Typography.Text className="koble-review-eyebrow">Bilnummer med gjentatte treff</Typography.Text>
             <Typography.Title level={4}>
-              {numberFormatter.format(Number(review.qualifiedPlateCount || 0))} bilnr har 2+ parkeringer med soltreff mot samme SUN2-bruker
+              {numberFormatter.format(Number(review.qualifiedPlateCount || 0))} bilnr har minst {review.minMatches} parkeringer med soltreff mot samme SUN2-bruker
             </Typography.Title>
             <Typography.Text type="secondary">
-              Sortert etter flest ulike parkeringer med soltreff innen {review.maxMinutes} minutter etter parkering.
+              Kun bil/SUN2-par der samme SUN2-ID starter soltime innen {review.maxMinutes} minutter etter ankomst på minst {review.minMatches} ulike parkeringer.
             </Typography.Text>
           </div>
           <div className="koble-qualified-summary-grid">
             <div className="koble-qualified-summary">
               <strong>{numberFormatter.format(Number(review.qualifiedPairCount || 0))}</strong>
-              <span>kandidatkoblinger med 2+ parkeringer</span>
+              <span>kvalifiserte bil/SUN2-par</span>
             </div>
             <div className="koble-qualified-summary">
               <strong>{formatKr(review.qualifiedMatchedPaidTotal)}</strong>
@@ -247,7 +248,7 @@ export function KobleReviewPanel({
             ))}
           </div>
         ) : (
-          <Empty description="Ingen bilnummer har to eller flere parkeringer med soltreff ennå" />
+          <Empty description={`Ingen bilnummer har minst ${review.minMatches} parkeringer med soltreff ennå`} />
         )}
 
       </Card>
@@ -258,13 +259,13 @@ export function KobleReviewPanel({
         <div className="koble-sun2-head">
           <div>
             <Typography.Text className="koble-review-eyebrow">SUN2-basert kontroll</Typography.Text>
-            <Typography.Title level={4}>Biler med 2+ parkeringer mot samme SUN2-ID</Typography.Title>
+            <Typography.Title level={4}>Biler med minst {review.minMatches} parkeringer mot samme SUN2-ID</Typography.Title>
             <Typography.Text type="secondary">
               Viser {numberFormatter.format(qualifiedSun2Rows.length)} bil/SUN2-rader fordelt på {numberFormatter.format(qualifiedSun2Count)} SUN2-ID-er.
             </Typography.Text>
           </div>
           <Typography.Text type="secondary">
-            Tabellen viser bare bil/SUN2-koblinger der minst to ulike parkeringer fikk soltime innen {review.maxMinutes} min.
+            Tabellen viser bare bil/SUN2-koblinger der minst {review.minMatches} ulike parkeringer fikk soltime innen {review.maxMinutes} min.
           </Typography.Text>
         </div>
 
@@ -320,7 +321,7 @@ export function KobleReviewPanel({
             })}
           </div>
         ) : (
-          <Empty description="Ingen SUN2-ID-er har biler med to eller flere parkeringer med soltreff ennå" />
+          <Empty description={`Ingen SUN2-ID-er har biler med minst ${review.minMatches} parkeringer med soltreff ennå`} />
         )}
       </Card>
       ) : null}
@@ -330,7 +331,7 @@ export function KobleReviewPanel({
         <div className="koble-review-grid">
           {visibleCandidates.map((candidate) => {
             const tone = confidenceTone(candidate);
-            const flags = candidateFlags(candidate);
+            const flags = candidateFlags(candidate, review.minMatches);
             return (
               <Card className={`work-card koble-candidate-card is-${tone}`} key={candidate.id}>
                 <div className="koble-candidate-head">
@@ -379,7 +380,7 @@ export function KobleReviewPanel({
                 <div className="koble-evidence-strip">
                   <div>
                     <strong>{candidate.parkingMatchCount}</strong>
-                    <span>unike parkeringer</span>
+                    <span>kvalifiserende parkeringer</span>
                   </div>
                   <div>
                     <strong>{candidate.matchDaysCount}</strong>
@@ -467,7 +468,7 @@ export function KobleReviewPanel({
         </div>
       ) : (
         <Card className="work-card">
-          <Empty description="Ingen kandidater å kontrollere" />
+          <Empty description={`Ingen kvalifiserte kandidater. Enkelttreff ligger i Treffgrunnlag, men blir ikke kandidat før minst ${review.minMatches} ulike parkeringer.`} />
         </Card>
       )
       ) : null}

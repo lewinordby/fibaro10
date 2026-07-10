@@ -806,6 +806,8 @@ export type KobleReviewData = {
   visibleCandidateCount: number;
   candidateCount: number;
   strongCandidateCount: number;
+  rawPairCount?: number;
+  rawOneOffPairCount?: number;
   processedCount: number;
   matchedCount: number;
   qualifiedPlateCount?: number;

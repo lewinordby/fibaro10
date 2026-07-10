@@ -15082,12 +15082,14 @@ async def parking_sun_link_candidates(
         .where(*match_conditions)
     )
     count_expr = func.count(func.distinct(Sun2TanningSession.id)).label("matches_count")
+    parking_match_count_expr = func.count(func.distinct(ParkingSession.id)).label("parking_match_count")
     latest_parking_expr = func.max(ParkingSession.start_time)
     candidate_stmt = (
         base_from.with_only_columns(
             parking_plate.label("plate"),
             session_sun2_id.label("sun2_id"),
             count_expr,
+            parking_match_count_expr,
             func.min(ParkingSession.start_time).label("first_match_at"),
             latest_parking_expr.label("last_match_at"),
             func.avg(delta_seconds / 60.0).label("avg_delta_minutes"),
@@ -15098,7 +15100,7 @@ async def parking_sun_link_candidates(
             func.max(ParkingVehicle.paid_total).label("paid_total"),
         )
         .group_by(parking_plate, session_sun2_id)
-        .having(func.count(func.distinct(Sun2TanningSession.id)) >= min_matches)
+        .having(func.count(func.distinct(ParkingSession.id)) >= min_matches)
         .order_by(count_expr.desc(), latest_parking_expr.desc())
         .limit(limit)
     )
@@ -15171,6 +15173,7 @@ async def parking_sun_link_candidates(
                 "plate": plate,
                 "sun2_id": row.sun2_id,
                 "matches_count": int_or_zero(row.matches_count),
+                "parking_match_count": int_or_zero(row.parking_match_count),
                 "first_match_at": api_local_iso(row.first_match_at),
                 "last_match_at": api_local_iso(row.last_match_at),
                 "avg_delta_minutes": round(float_or_zero(row.avg_delta_minutes), 2),
@@ -15540,6 +15543,7 @@ async def refresh_parking_sun_link_candidate_pairs(
     pairs: Optional[Iterable[tuple[str, str]]] = None,
     min_matches: int = 2,
 ) -> None:
+    required_matches = max(1, int_or_zero(min_matches) or 2)
     clean_pairs = sorted({(str(plate or "").strip(), str(sun2_id or "").strip()) for plate, sun2_id in (pairs or []) if plate and sun2_id})
     pair_count_rows = (
         await session.execute(
@@ -15553,17 +15557,19 @@ async def refresh_parking_sun_link_candidate_pairs(
         )
     ).all()
     pair_counts: Dict[tuple[str, str], int] = {}
-    plate_options: Dict[str, set[str]] = {}
-    sun2_options: Dict[str, set[str]] = {}
+    qualified_plate_options: Dict[str, set[str]] = {}
+    qualified_sun2_options: Dict[str, set[str]] = {}
     for pair_row in pair_count_rows:
         plate_key = str(pair_row.plate or "").strip()
         sun2_key = str(pair_row.sun2_id or "").strip()
         if not plate_key or not sun2_key:
             continue
         pair_key = (plate_key, sun2_key)
-        pair_counts[pair_key] = int_or_zero(pair_row.parking_match_count)
-        plate_options.setdefault(plate_key, set()).add(sun2_key)
-        sun2_options.setdefault(sun2_key, set()).add(plate_key)
+        pair_count = int_or_zero(pair_row.parking_match_count)
+        pair_counts[pair_key] = pair_count
+        if pair_count >= required_matches:
+            qualified_plate_options.setdefault(plate_key, set()).add(sun2_key)
+            qualified_sun2_options.setdefault(sun2_key, set()).add(plate_key)
 
     matched_parking_amounts = (
         select(
@@ -15625,12 +15631,17 @@ async def refresh_parking_sun_link_candidate_pairs(
         pair_key = (plate_key, sun2_key)
         parking_match_count = int_or_zero(row.parking_match_count)
         match_days_count = int_or_zero(row.match_days_count)
-        plate_candidate_count = len(plate_options.get(plate_key, set())) or 1
-        sun2_candidate_count = len(sun2_options.get(sun2_key, set())) or 1
+        is_qualified_pair = parking_match_count >= required_matches
+        plate_candidate_count = len(qualified_plate_options.get(plate_key, set())) if is_qualified_pair else 1
+        sun2_candidate_count = len(qualified_sun2_options.get(sun2_key, set())) if is_qualified_pair else 1
+        plate_candidate_count = max(1, plate_candidate_count)
+        sun2_candidate_count = max(1, sun2_candidate_count)
         competitor_matches_count = 0
         for other_key, other_count in pair_counts.items():
             other_plate, other_sun2 = other_key
             if other_key == pair_key:
+                continue
+            if int_or_zero(other_count) < required_matches:
                 continue
             if other_plate == plate_key or other_sun2 == sun2_key:
                 competitor_matches_count = max(competitor_matches_count, int_or_zero(other_count))
@@ -15669,7 +15680,7 @@ async def refresh_parking_sun_link_candidate_pairs(
         candidate.confidence = 100.0 if candidate.status == PARKING_SUN_LINK_CONFIRMED else parking_sun_link_probability(
             candidate.matches_count,
             candidate.avg_delta_minutes,
-            min_matches=min_matches,
+            min_matches=required_matches,
             parking_match_count=parking_match_count,
             match_days_count=match_days_count,
             plate_candidate_count=plate_candidate_count,
@@ -15679,7 +15690,7 @@ async def refresh_parking_sun_link_candidate_pairs(
         candidate.assessment = parking_sun_link_assessment(
             candidate.status,
             candidate.confidence,
-            min_matches=min_matches,
+            min_matches=required_matches,
             parking_match_count=parking_match_count,
             plate_candidate_count=plate_candidate_count,
             sun2_candidate_count=sun2_candidate_count,
@@ -15690,6 +15701,7 @@ async def refresh_parking_sun_link_candidate_pairs(
 
 async def refresh_parking_sun_link_state_counts(session: Any, state: ParkingSunLinkJobState) -> None:
     generation = int_or_zero(state.generation)
+    required_matches = max(1, int_or_zero(state.min_matches) or 2)
     state.processed_count = int_or_zero(
         (await session.execute(select(func.count(ParkingSunLinkProcessed.id)).where(ParkingSunLinkProcessed.generation == generation))).scalar_one_or_none()
     )
@@ -15697,13 +15709,20 @@ async def refresh_parking_sun_link_state_counts(session: Any, state: ParkingSunL
         (await session.execute(select(func.count(ParkingSunLinkMatch.id)).where(ParkingSunLinkMatch.generation == generation))).scalar_one_or_none()
     )
     state.candidate_count = int_or_zero(
-        (await session.execute(select(func.count(ParkingSunLinkCandidate.id)).where(ParkingSunLinkCandidate.generation == generation))).scalar_one_or_none()
+        (
+            await session.execute(
+                select(func.count(ParkingSunLinkCandidate.id))
+                .where(ParkingSunLinkCandidate.generation == generation)
+                .where(ParkingSunLinkCandidate.parking_match_count >= required_matches)
+            )
+        ).scalar_one_or_none()
     )
     state.strong_candidate_count = int_or_zero(
         (
             await session.execute(
                 select(func.count(ParkingSunLinkCandidate.id))
                 .where(ParkingSunLinkCandidate.generation == generation)
+                .where(ParkingSunLinkCandidate.parking_match_count >= required_matches)
                 .where(ParkingSunLinkCandidate.status == PARKING_SUN_LINK_PENDING)
                 .where(ParkingSunLinkCandidate.confidence >= 70)
             )
@@ -22746,6 +22765,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             needs_qualified_totals = koble_view in {"oversikt", "biltreff", "sun2"}
             state = await get_parking_sun_link_state(session)
             generation = int_or_zero(state.generation)
+            min_required_matches = max(1, int_or_zero(state.min_matches) or 2)
             await refresh_parking_sun_link_state_counts(session, state)
             candidates: list[ParkingSunLinkCandidate] = []
             if needs_review_candidates:
@@ -22753,6 +22773,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     await session.execute(
                         select(ParkingSunLinkCandidate)
                         .where(ParkingSunLinkCandidate.generation == generation)
+                        .where(ParkingSunLinkCandidate.parking_match_count >= min_required_matches)
                         .order_by(
                             case(
                                 (ParkingSunLinkCandidate.status == PARKING_SUN_LINK_PENDING, 0),
@@ -22805,8 +22826,24 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ).scalars().all()
             qualified_filter = [
                 ParkingSunLinkCandidate.generation == generation,
-                ParkingSunLinkCandidate.parking_match_count >= 2,
+                ParkingSunLinkCandidate.parking_match_count >= min_required_matches,
             ]
+            raw_pair_count = int_or_zero(
+                (
+                    await session.execute(
+                        select(func.count(ParkingSunLinkCandidate.id)).where(ParkingSunLinkCandidate.generation == generation)
+                    )
+                ).scalar_one_or_none()
+            )
+            raw_one_off_pair_count = int_or_zero(
+                (
+                    await session.execute(
+                        select(func.count(ParkingSunLinkCandidate.id))
+                        .where(ParkingSunLinkCandidate.generation == generation)
+                        .where(ParkingSunLinkCandidate.parking_match_count < min_required_matches)
+                    )
+                ).scalar_one_or_none()
+            )
             qualified_plate_count = int_or_zero(
                 (
                     await session.execute(
@@ -22865,7 +22902,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 pair_key = (str(row.get("plate") or "").strip(), str(row.get("sun2_id") or "").strip())
                 row["matched_paid_total"] = round(qualified_matched_paid_by_pair.get(pair_key, float_or_zero(row.get("matched_paid_total"))), 2)
             qualified_matched_paid_total = (
-                await parking_sun_link_qualified_distinct_matched_paid_total(session, generation, 2)
+                await parking_sun_link_qualified_distinct_matched_paid_total(session, generation, min_required_matches)
                 if needs_qualified_totals
                 else 0.0
             )
@@ -22991,17 +23028,19 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             return {
                 "title": v2_module_title("koble", view),
                 "subtitle": (
-                    "Egen bakgrunnsapp gaar gjennom parkeringer fra nyeste og finner mulige koblinger mot SUN2-ID. "
-                    "Koblinger må bekreftes før de brukes."
+                    "Egen bakgrunnsapp gaar gjennom parkeringer fra nyeste. Kandidat krever samme bil og samme SUN2-ID "
+                    f"paa minst {min_required_matches} ulike parkeringer, med solstart innen {int_or_zero(state.max_minutes)} min etter ankomst."
                 ),
                 "kobleReview": {
                     "generatedAt": api_local_iso(now_dt),
                     "generation": generation,
-                    "minMatches": int_or_zero(state.min_matches),
+                    "minMatches": min_required_matches,
                     "maxMinutes": int_or_zero(state.max_minutes),
                     "visibleCandidateCount": len(review_candidates),
                     "candidateCount": int_or_zero(state.candidate_count),
                     "strongCandidateCount": int_or_zero(state.strong_candidate_count),
+                    "rawPairCount": raw_pair_count,
+                    "rawOneOffPairCount": raw_one_off_pair_count,
                     "processedCount": int_or_zero(state.processed_count),
                     "matchedCount": int_or_zero(state.matched_count),
                     "qualifiedPlateCount": qualified_plate_count,
@@ -23048,20 +23087,20 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Sterke kandidater",
                         format_short_number(state.strong_candidate_count),
                         "",
-                        "Avventer med minst 70 % sannsynlighet",
+                        f"Avventer, minst {min_required_matches} parkeringer og 70 % sannsynlighet",
                         "parking",
                         href="/koble/kandidater",
                     ),
                     api_card(
-                        "Alle kandidater",
+                        "Kvalifiserte kandidater",
                         format_short_number(state.candidate_count),
                         "",
-                        "Inkluderer enkeltfunn med lavere sannsynlighet",
+                        f"Samme bil og SUN2-ID paa minst {min_required_matches} parkeringer",
                         "sun2",
                         href="/koble/kandidater",
                     ),
                     api_card(
-                        "Bilnr 2+ parkeringer",
+                        f"Bilnr {min_required_matches}+ parkeringer",
                         format_short_number(qualified_plate_count),
                         "",
                         f"{format_short_number(qualified_pair_count)} SUN2-koblinger med soltreff innen {int_or_zero(state.max_minutes)} min",
@@ -23142,7 +23181,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         edit=parking_sun_link_settings_edit(),
                     ),
                     api_table(
-                        "Sannsynlige koblinger",
+                        "Kvalifiserte koblinger",
                         [
                             "status",
                             "confidence",
@@ -23191,7 +23230,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         [],
                     ),
                     api_table(
-                        "Bilnr med 2+ parkeringer",
+                        f"Bilnr med {min_required_matches}+ parkeringer",
                         [
                             "status",
                             "plate",

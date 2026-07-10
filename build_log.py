@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1508")
+APP_BUILD = os.getenv("APP_BUILD", "1509")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1509",
+        "date": "10.07.2026",
+        "headline": "Koble-kandidater strammet inn",
+        "title": "Koble viser bare kandidater når samme bil og SUN2-ID har minst to ulike parkeringer",
+        "description": (
+            "Build 1509 rydder definisjonen av kandidat i Koble. Et enkelt sammenfall mellom en bil og en SUN2-ID "
+            "innen tidsvinduet vises fortsatt som råtreff, men blir ikke kandidat eller konkurrerende alternativ før "
+            "samme par har minst min_matches ulike parkeringer."
+        ),
+        "applications": [
+            "main.py: kandidatfilter, kandidat-tellinger, kvalifiserte totaler og konkurranseberegning krever nå min_matches ulike parkeringer.",
+            "main.py: historisk Koble-helper teller ulike parkeringer i stedet for bare antall soltimer.",
+            "desktop_v2/src/pages/module/KobleReviewPanel.tsx: Koble-grensesnittet forklarer kandidatregelen og skiller enkelttreff fra kandidater.",
+            "desktop_v2/src/api.ts: Koble-kontrakt utvidet med råtall for par/enkelttreff.",
+            "tests/test_parking_sun_link_logic.py: regresjonstester for at ett parkeringstreff ikke blir kandidat.",
+            "build_log.py: dokumenterer build 1509.",
+        ],
+        "request": (
+            "Koble skal kreve sammenfall mellom at en bestemt bil kommer og at samme SUN2-ID starter soltime innen "
+            "3 minutter etter ankomst minst to ganger. Ett treff skal ikke være kandidat."
+        ),
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kandidater, sterke kandidater, Biltreff og SUN2-kontroll filtreres på minst min_matches ulike parkeringer.",
+            "Enkelttreff påvirker ikke lenger alternativtelling eller konkurrerende kandidat.",
+            "Koble-oversikten viser nå enkelttreff som rågrunnlag, ikke som kandidater.",
+            "Kandidatkort viser kvalifiserende parkeringer tydeligere.",
+        ],
+    },
     {
         "version": "1",
         "build": "1508",
