@@ -448,6 +448,356 @@ function mobileScreensPayload() {
   };
 }
 
+function doorPeriod(id, deviceId, title, openedLabel, closedLabel, durationLabel) {
+  return {
+    id,
+    deviceId,
+    deviceKey: `door-${deviceId}`,
+    deviceName: title,
+    title,
+    state: "closed",
+    stateLabel: "Lukket",
+    tone: "ok",
+    openedAt: "2026-06-10T10:30:00",
+    openedLabel,
+    openedAgeLabel: "1 t siden",
+    closedAt: "2026-06-10T10:52:00",
+    closedLabel,
+    closedAgeLabel: "42 min siden",
+    durationSeconds: 1320,
+    durationLabel,
+    openedEventId: id * 10,
+    closedEventId: id * 10 + 1,
+  };
+}
+
+function doorStatusPayload() {
+  const period = doorPeriod(1, 453, "Solrom 1", "10:52:00", "10:30:00", "22 min");
+  const doors = [
+    {
+      deviceId: 453,
+      deviceKey: "sunroom-1",
+      title: "Solrom 1",
+      hc3Name: "Solrom 1 dør",
+      groupKey: "solrom",
+      groupTitle: "Solrom",
+      sectionKey: "1etg",
+      sectionTitle: "1.etg",
+      sortOrder: 1,
+      normalState: "open",
+      normalStateLabel: "Normalt åpen",
+      isConfigured: true,
+      state: "closed",
+      stateLabel: "Lukket",
+      tone: "warn",
+      lastChangedAt: "2026-06-10T10:30:00",
+      lastChangedLabel: "10:30:00",
+      ageLabel: "22 min",
+      rawValue: "false",
+      batteryLevel: 94,
+      batteryLabel: "94%",
+      eventId: 11,
+      recentPeriods: [period],
+    },
+    {
+      deviceId: 447,
+      deviceKey: "entrance",
+      title: "Inngang",
+      hc3Name: "Inngangsdør",
+      groupKey: "andre",
+      groupTitle: "Andre dører",
+      sectionKey: "bygg",
+      sectionTitle: "Bygg",
+      sortOrder: 20,
+      normalState: "closed",
+      normalStateLabel: "Normalt lukket",
+      isConfigured: true,
+      state: "closed",
+      stateLabel: "Lukket",
+      tone: "ok",
+      lastChangedAt: "2026-06-10T08:00:00",
+      lastChangedLabel: "08:00:00",
+      ageLabel: "3 t",
+      rawValue: "false",
+      batteryLevel: 88,
+      batteryLabel: "88%",
+      eventId: 22,
+      recentPeriods: [],
+    },
+  ];
+  return {
+    generatedAt: "2026-06-10T12:00:00",
+    datakildePath: "/admin/datakilder/hc3_door_events",
+    summary: {
+      total: doors.length,
+      configured: doors.length,
+      planned: 0,
+      known: doors.length,
+      open: 0,
+      closed: doors.length,
+      unknown: 0,
+      latestAt: "2026-06-10T10:30:00",
+      latestLabel: "10:30:00",
+      latestAgeLabel: "22 min siden",
+      latestChangeText: "Solrom 1 lukket",
+      events: 2,
+      changes: 2,
+      periods: 1,
+      activePeriods: 1,
+    },
+    doors,
+    changes: [
+      {
+        id: 11,
+        timestamp: "2026-06-10T10:30:00",
+        timeLabel: "10:30:00",
+        ageLabel: "22 min siden",
+        eventType: "state",
+        action: "closed",
+        state: "closed",
+        stateLabel: "Lukket",
+        tone: "warn",
+        deviceKey: "sunroom-1",
+        deviceId: 453,
+        deviceName: "Solrom 1",
+        source: "HC3",
+        rawValue: "false",
+        batteryLevel: 94,
+      },
+    ],
+    events: [],
+    periods: [period],
+  };
+}
+
+function sunroomSession(id, roomId, startedLabel, amount = 210) {
+  return {
+    id,
+    sourceSessionId: `sun2-${id}`,
+    roomId,
+    roomLabel: `Solrom ${roomId}`,
+    startedAt: "2026-06-10T10:31:00",
+    startedLabel,
+    sunStartAt: "2026-06-10T10:34:00",
+    sunStartLabel: "10:34:00",
+    endedAt: "2026-06-10T10:49:00",
+    endedLabel: "10:49:00",
+    expectedExitAt: "2026-06-10T10:52:00",
+    expectedExitLabel: "10:52:00",
+    sun2UserId: "1001",
+    sun2BedId: roomId,
+    userName: "Smoke kunde",
+    sourceRoomName: `Rom ${roomId}`,
+    durationMinutes: 15,
+    paidAmountKr: amount,
+    status: "Ferdig",
+    href: `/soling/enkeltimer?session=${id}`,
+  };
+}
+
+function sunroomEnergyEvidence() {
+  return {
+    quality: "clean",
+    qualityLabel: "Ren måling",
+    status: "confirmed",
+    statusLabel: "Strøm OK",
+    detail: "Effektøkning funnet omtrent ved forventet solstart.",
+    samplesCount: 12,
+    baselineSamples: 4,
+    overlapCount: 0,
+    edgeConflict: false,
+    baselineW: 120,
+    baselineLabel: "120 W",
+    activeMedianW: 3120,
+    activeMedianLabel: "3 120 W",
+    estimatedNetW: 3000,
+    estimatedNetLabel: "3 000 W",
+    startDeltaW: 2800,
+    startDeltaLabel: "2 800 W",
+    expectedDelaySeconds: 180,
+    expectedDelayLabel: "3 min",
+    firstRiseAt: "2026-06-10T10:34:04",
+    firstRiseLabel: "10:34:04",
+    startDelaySeconds: 184,
+    startDelayLabel: "3 min 4 sek",
+    delayDeviationSeconds: 4,
+    delayDeviationLabel: "4 sek",
+  };
+}
+
+function sunroomPeriod(id, roomId, closedLabel, openedLabel, isActive = false) {
+  const session = sunroomSession(id, roomId, "10:31:00");
+  return {
+    id: `period-${id}`,
+    state: isActive ? "active" : "closed",
+    isActive,
+    closedAt: "2026-06-10T10:30:00",
+    closedLabel,
+    closedAgeLabel: "22 min siden",
+    openedAt: isActive ? null : "2026-06-10T10:52:00",
+    openedLabel,
+    openedAgeLabel: isActive ? "" : "1 min siden",
+    durationSeconds: isActive ? null : 1320,
+    durationLabel: isActive ? "Pågår" : "22 min",
+    closedEventId: id * 10,
+    openedEventId: isActive ? null : id * 10 + 1,
+    session,
+    energy: sunroomEnergyEvidence(),
+    severity: isActive ? "active" : "ok",
+    status: isActive ? "I bruk" : "OK",
+    detail: isActive ? "Kunde er på rommet." : "Dørperiode og soltime henger sammen.",
+    missingSession: false,
+    expectedExitAt: session.expectedExitAt,
+    expectedExitLabel: session.expectedExitLabel,
+    remainingSeconds: isActive ? 180 : null,
+    remainingLabel: isActive ? "3 min igjen" : "",
+    overstaySeconds: null,
+    overstayLabel: "",
+  };
+}
+
+function sunroomStatus(roomId, displayRoomNumber, isOccupied) {
+  const session = sunroomSession(displayRoomNumber, roomId, "10:31:00");
+  return {
+    deviceId: 450 + displayRoomNumber,
+    deviceKey: `sunroom-${displayRoomNumber}`,
+    title: `Solrom ${displayRoomNumber}`,
+    sectionKey: displayRoomNumber <= 3 ? "1etg" : "2etg",
+    sectionTitle: displayRoomNumber <= 3 ? "1.etg" : "2.etg",
+    sortOrder: displayRoomNumber,
+    roomId,
+    roomLabel: `Solrom ${displayRoomNumber}`,
+    doorState: isOccupied ? "closed" : "open",
+    doorStateLabel: isOccupied ? "Lukket" : "Åpen",
+    doorChangedAt: "2026-06-10T10:30:00",
+    doorChangedLabel: "10:30:00",
+    doorAgeLabel: "22 min",
+    isOccupied,
+    occupiedSince: isOccupied ? "2026-06-10T10:30:00" : null,
+    occupiedSinceLabel: isOccupied ? "10:30:00" : "",
+    occupiedDurationSeconds: isOccupied ? 1320 : null,
+    occupiedDurationLabel: isOccupied ? "22 min" : "",
+    severity: isOccupied ? "active" : "free",
+    status: isOccupied ? "I bruk" : "Ledig",
+    detail: isOccupied ? "Soltime funnet." : "Dør åpen.",
+    missingSession: false,
+    session: isOccupied ? session : null,
+    expectedExitAt: isOccupied ? session.expectedExitAt : null,
+    expectedExitLabel: isOccupied ? session.expectedExitLabel : "",
+    remainingSeconds: isOccupied ? 180 : null,
+    remainingLabel: isOccupied ? "3 min igjen" : "",
+    overstaySeconds: null,
+    overstayLabel: "",
+  };
+}
+
+function sunroomOverviewPayload() {
+  const activePeriod = sunroomPeriod(1, "1", "10:30:00", "", true);
+  const historyPeriod = sunroomPeriod(2, "1", "09:10:00", "09:32:00", false);
+  const activeSession = activePeriod.session;
+  return {
+    generatedAt: "2026-06-10T12:00:00",
+    days: 2,
+    rules: {
+      paymentDelayMinutes: 3,
+      exitGraceMinutes: 3,
+      fanAfterRunMinutes: 3,
+      warnAfterEndMinutes: 5,
+      alertAfterEndMinutes: 10,
+    },
+    summary: {
+      rooms: 2,
+      active: 1,
+      warnings: 0,
+      alerts: 0,
+      sessions: 2,
+      doorMatches: 2,
+      sessionsWithoutDoor: 0,
+      energyConfirmed: 1,
+      energySamples: 12,
+    },
+    rooms: [
+      {
+        displayRoomNumber: 1,
+        title: "Solrom 1",
+        sectionKey: "1etg",
+        sectionTitle: "1.etg",
+        deviceId: 453,
+        deviceKey: "sunroom-1",
+        roomId: "1",
+        roomLabel: "Solrom 1",
+        status: sunroomStatus("1", 1, true),
+        latestPeriod: activePeriod,
+        periods: [activePeriod, historyPeriod],
+        recentSessions: [{ ...activeSession, energy: sunroomEnergyEvidence(), hasDoorMatch: true }],
+        sessionsWithoutDoor: [],
+        summary: {
+          periods: 2,
+          sessions: 2,
+          matched: 2,
+          withoutDoor: 0,
+          warnings: 0,
+          alerts: 0,
+          energyConfirmed: 1,
+          energyOverlap: 0,
+        },
+      },
+      {
+        displayRoomNumber: 2,
+        title: "Solrom 2",
+        sectionKey: "1etg",
+        sectionTitle: "1.etg",
+        deviceId: 454,
+        deviceKey: "sunroom-2",
+        roomId: "2",
+        roomLabel: "Solrom 2",
+        status: sunroomStatus("2", 2, false),
+        latestPeriod: null,
+        periods: [],
+        recentSessions: [],
+        sessionsWithoutDoor: [],
+        summary: {
+          periods: 0,
+          sessions: 0,
+          matched: 0,
+          withoutDoor: 0,
+          warnings: 0,
+          alerts: 0,
+          energyConfirmed: 0,
+          energyOverlap: 0,
+        },
+      },
+    ],
+  };
+}
+
+function sunroomSessionsPayload() {
+  return {
+    generatedAt: "2026-06-10T12:00:00",
+    ntfyDoorsSubscribeUrl: "ntfy://doors",
+    ntfyDoorsWebUrl: "https://ntfy.sh/doors",
+    rules: {
+      paymentDelayMinutes: 3,
+      fanAfterRunMinutes: 3,
+      exitGraceMinutes: 3,
+      sessionGraceMinutes: 5,
+      warnAfterEndMinutes: 5,
+      alertAfterEndMinutes: 10,
+      monitorIntervalSeconds: 30,
+    },
+    summary: {
+      rooms: 2,
+      active: 1,
+      waiting: 0,
+      warning: 0,
+      alert: 0,
+      missingSession: 0,
+      ok: 1,
+    },
+    rooms: [sunroomStatus("1", 1, true), sunroomStatus("2", 2, false)],
+  };
+}
+
 const server = http.createServer((request, response) => {
   const url = new URL(request.url || "/", baseUrl);
   if (url.pathname === "/health") return sendJson(response, healthPayload);
@@ -469,6 +819,20 @@ const server = http.createServer((request, response) => {
   if (url.pathname === "/api/parkering/time-distribution") return sendJson(response, parkingTimeDistributionPayload());
   if (url.pathname === "/api/omsetning/year-comparison") return sendJson(response, yearComparisonPayload("Omsetning arssammenligning"));
   if (url.pathname === "/api/mobile-preview/screens") return sendJson(response, mobileScreensPayload());
+  if (url.pathname === "/api/hc3/doors/status") return sendJson(response, doorStatusPayload());
+  if (url.pathname === "/api/hc3/doors/sunroom-overview") return sendJson(response, sunroomOverviewPayload());
+  if (url.pathname === "/api/hc3/doors/sunroom-sessions") return sendJson(response, sunroomSessionsPayload());
+  if (url.pathname.startsWith("/api/hc3/doors/sunroom-sessions/")) {
+    return sendJson(response, {
+      generatedAt: "2026-06-10T12:00:00",
+      days: 2,
+      room: sunroomStatus("1", 1, true),
+      summary: { periods: 2, active: 1, warnings: 0, alerts: 0, missingSession: 0, sessions: 2, sessionsWithoutDoor: 0 },
+      currentPeriod: sunroomPeriod(1, "1", "10:30:00", "", true),
+      periods: [sunroomPeriod(1, "1", "10:30:00", "", true), sunroomPeriod(2, "1", "09:10:00", "09:32:00", false)],
+      sessionsWithoutDoor: [],
+    });
+  }
   if (url.pathname === "/api/overview") {
     return sendJson(response, {
       generatedAt: "2026-06-10T12:00:00",
@@ -597,7 +961,7 @@ async function run() {
     await smokeShellControls(page);
     await smokeRoute(page, "/admin/build", ["Smoke-test build", "Build"]);
     for (const route of routeList) {
-      await smokeRoute(page, route.path);
+      await smokeRoute(page, route.path, route.expectedTexts);
       console.log(`UI route OK: ${route.path}`);
     }
 

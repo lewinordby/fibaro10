@@ -95,7 +95,11 @@ async function login(page) {
   console.log(`Live login OK: ${auth.body?.username || "ukjent bruker"}`);
 }
 
-async function smokeRoute(page, route) {
+async function expectVisible(page, text) {
+  await page.getByText(text, { exact: false }).first().waitFor({ timeout: 10000 });
+}
+
+async function smokeRoute(page, route, expectedTexts) {
   const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "load" });
   if (response && response.status() >= 400) {
     throw new Error(`${route} svarte HTTP ${response.status()}`);
@@ -111,6 +115,9 @@ async function smokeRoute(page, route) {
   }
   if (/ugyldig brukernavn|application error|internal server error/i.test(bodyText)) {
     throw new Error(`${route} viste feilmelding`);
+  }
+  for (const text of expectedTexts || []) {
+    await expectVisible(page, text);
   }
   console.log(`Live route OK: ${route}`);
 }
@@ -179,7 +186,7 @@ async function runAuthenticatedSmoke() {
     await login(page);
     await smokeShellControls(page);
     for (const route of routeList) {
-      await smokeRoute(page, route.path);
+      await smokeRoute(page, route.path, route.expectedTexts);
     }
     if (errors.length) {
       throw new Error(`Live smoke fant browser/API-feil:\n${errors.join("\n")}`);

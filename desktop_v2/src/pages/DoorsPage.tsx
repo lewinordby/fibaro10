@@ -1440,7 +1440,9 @@ export default function DoorsPage() {
   const { data, loading, error, fetching, refetch } = useApiQuery(queryKeys.doorStatus(), fetchDoorStatus, {
     refetchInterval: 30_000,
   });
+  const selectedSunroomRoomId = view === "soltimer" ? searchParams.get("room") || "" : "";
   const sunroomQuery = useApiQuery(queryKeys.doorSunroomSessions(), fetchDoorSunroomSessions, {
+    enabled: view === "soltimer" && !selectedSunroomRoomId,
     refetchInterval: 30_000,
   });
   const requestedControlDays = Number(searchParams.get("days") || "2");
@@ -1453,7 +1455,6 @@ export default function DoorsPage() {
       refetchInterval: 30_000,
     },
   );
-  const selectedSunroomRoomId = view === "soltimer" ? searchParams.get("room") || "" : "";
   const sunroomDetailQuery = useApiQuery(
     queryKeys.doorSunroomRoom(selectedSunroomRoomId),
     () => fetchDoorSunroomRoomDetail(selectedSunroomRoomId),

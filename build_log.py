@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1520")
+APP_BUILD = os.getenv("APP_BUILD", "1521")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1521",
+        "date": "11.07.2026",
+        "headline": "Kvalitetspass og sterkere Romkontroll-test",
+        "title": "Reduserer unødvendige dørkall og gjør smoke-testen mer innholdsnær",
+        "description": (
+            "Build 1521 er en kvalitetspass etter gjennomgang av løsning, drift og tester. Dører-siden gjør nå færre "
+            "unødvendige API-kall, og både lokal og live smoke-test kontrollerer at Romkontroll faktisk viser sentrale "
+            "romdata i stedet for bare å sjekke at ruten laster."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: henter bare Sun2-romlisten når Dør og soltime-listen faktisk vises.",
+            "desktop_v2/scripts/smoke-routes.mjs: legger inn forventet innhold for /dorer/romkontroll.",
+            "desktop_v2/scripts/smoke-ui.mjs: legger til realistiske mockdata for dørstatus, solrom, energivurdering og romkontroll.",
+            "desktop_v2/scripts/smoke-live.mjs: bruker samme forventede innhold i live-smoke.",
+            "build_log.py: dokumenterer build 1521.",
+        ],
+        "request": "Ta en runde på hele løsningen, bruk logisk sans og forbedre det som kan forbedres.",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Romkontroll slipper nå ekstra kall til /api/hc3/doors/sunroom-sessions når siden bare trenger samlet romoversikt.",
+            "Lokal smoke-test har nå egne dør- og romkontrollmockdata i stedet for generisk modulsvar.",
+            "Smoke-testen kontrollerer at Romkontroll viser Rom 1, Forventet ut og Strøm OK.",
+            "Live smoke ble kjørt med strengere innholdssjekk mot eksisterende produksjon før deploy.",
+            "QNAP-status ble kontrollert; relevante containere og health-watch rapporterte OK.",
+        ],
+    },
     {
         "version": "1",
         "build": "1520",
