@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1519")
+APP_BUILD = os.getenv("APP_BUILD", "1520")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1520",
+        "date": "11.07.2026",
+        "headline": "Tydeligere romkontroll",
+        "title": "Gjør Romkontroll bredere, mer lesbar og mer komplett for solrom 1-12",
+        "description": (
+            "Build 1520 forbedrer Dører/Romkontroll visuelt. Rommene vises i to brede kolonner der kortene har mer "
+            "plass til dørstatus, romstatus, valgt periode, tidslinje for dør og soltime, energivurdering "
+            "og siste historikk."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: deler romkortene opp i tydelige metrikker, tidslinje, Sun2-time, energiblokk og siste historikk.",
+            "desktop_v2/src/styles/doors.css: endrer Romkontroll til to brede kolonner, rydder gamle regler og strammer responsive regler.",
+            "build_log.py: dokumenterer build 1520.",
+        ],
+        "request": (
+            "Gjør en enda bedre oversikt over rommene, gjerne bare 2 i bredden, og bruk god nok plass slik at alle "
+            "data kan komme tydelig frem på Romkontroll-siden."
+        ),
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Romkontroll viser nå normalt to brede kort i bredden i stedet for tre smale kort.",
+            "Hvert romkort viser Dør nå, Romstatus og Valgt periode som egne tydelige felt.",
+            "Tidslinjen viser Dør igjen, Betalt, Solstart, Sol slutt, Forventet ut og Dør opp i samme visuelle rad.",
+            "Sun2-time og energivurdering er gjort mer lesbar med startavvik, netto effekt og samplegrunnlag.",
+            "Siste historikk viser de to siste periodene direkte på kortet, slik at man slipper å åpne detaljsiden for rask kontroll.",
+        ],
+    },
     {
         "version": "1",
         "build": "1519",
