@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1525")
+APP_BUILD = os.getenv("APP_BUILD", "1526")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1526",
+        "date": "12.07.2026",
+        "headline": "Kort operativ manual",
+        "title": "Gir Admin -> Manual et ryddig overblikk over hele losningen",
+        "description": (
+            "Build 1526 rydder opp i manualflaten. Admin -> Manual viser na en kort operativ oversikt over hvor man "
+            "starter, hva hvert hovedomrade brukes til, hva man kan se og gjore, og hvor man feilsoker vanlige avvik. "
+            "Samme oversikt er lagt inn i docs slik at den folger git og backup."
+        ),
+        "applications": [
+            "main.py: legger ny API-helper for kort manualinnhold og kobler Admin -> Manual til den.",
+            "desktop_v2/src/pages/module/moduleTableUtils.tsx: gir manualtabellen bedre kolonneetikett for forste sjekk.",
+            "docs/kort-brukermanual.md: ny kort brukermanual i repoet.",
+            "docs/README.md: peker til den nye korte manualen.",
+            "build_log.py: dokumenterer build 1526 og setter APP_BUILD til 1526.",
+        ],
+        "request": "Rydd opp og lag en ny god kortfattet manual som gir et overblikk over alt du kan se/gjore med losningen.",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Admin -> Manual starter na med konkrete lenker til Dashboard, Datakilder, Systemkart, Buildlogg og Brukere.",
+            "Manualen viser alle hovedomrader med hva du kan se, hva du kan gjore og nar siden brukes.",
+            "Manualen har en egen feilsokingsdel for gamle data, parkering, soling, energi, lys/ventilasjon og underapper.",
+            "Underapper med webgrensesnitt ligger fortsatt med klikkbare URL-er og health-lenker.",
+            "Repoet har faatt docs/kort-brukermanual.md som kort tekstversjon av manualen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1525",

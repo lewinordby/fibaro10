@@ -17168,6 +17168,180 @@ def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = 
     }
 
 
+def api_admin_manual_payload(import_rows: list[Dict[str, Any]], access_keys: list[Any]) -> tuple[list[ModuleCardPayload], list[ModuleTablePayload]]:
+    inventory = system_component_summary()
+    cards = [
+        api_card("Manual", "Kort", "", "Overblikk over hva du kan se og gjøre", "status", href="/admin/manual"),
+        api_card("Systemkart", inventory["components"], "stk", "Apper, tjenester og webflater", "status", href="/admin/systemkart"),
+        api_card("Datakilder", len(import_rows), "stk", "Ferskhet og feilsøking", "status", href="/admin/datakilder"),
+        api_card("Build", APP_BUILD, "", "Siste endringspakke", "status", href="/admin/build"),
+    ]
+    tables = [
+        api_table(
+            "Start her",
+            ["area", "path", "role", "recommended_action"],
+            [
+                {
+                    "area": "Daglig drift",
+                    "path": "/status/omsetning",
+                    "role": "Dashboard for omsetning, parkering, soling og drift akkurat nå.",
+                    "recommended_action": "Start her når du vil vite om dagen ligger foran eller bak.",
+                },
+                {
+                    "area": "Datagrunnlag",
+                    "path": "/admin/datakilder",
+                    "role": "Viser om importjobber, HC3, SUN2, EasyPark, Yr og underapper er ferske.",
+                    "recommended_action": "Sjekk denne først når tall mangler eller virker feil.",
+                },
+                {
+                    "area": "System",
+                    "path": "/admin/systemkart",
+                    "role": "Klikkbar oversikt over apper, underapper, porter, URL-er og health-lenker.",
+                    "recommended_action": "Brukes når du skal finne hvor en tjeneste bor.",
+                },
+                {
+                    "area": "Endringer",
+                    "path": "/admin/build",
+                    "role": "Buildlogg med bestilling, endringer, berørte applikasjoner og tester.",
+                    "recommended_action": "Brukes når du lurer på hva som sist ble endret.",
+                },
+                {
+                    "area": "Tilgang",
+                    "path": "/admin/brukere",
+                    "role": "Brukere, roller, master-funksjoner og tilgangslogg.",
+                    "recommended_action": "Brukes for passord, aktive brukere og innloggingskontroll.",
+                },
+            ],
+        ),
+        api_table(
+            "Hva du kan se og gjøre",
+            ["area", "path", "role", "recommended_action"],
+            [
+                {
+                    "area": "Omsetning",
+                    "path": "/omsetning/oversikt",
+                    "role": "År, måned, dag, toppdager, toppmåneder og samlet kontroll mot oppgjør.",
+                    "recommended_action": "Brukes for økonomisk oversikt og avvik.",
+                },
+                {
+                    "area": "Parkering",
+                    "path": "/parkering/parkeringer",
+                    "role": "Dagens parkeringer, kjøretøy, eier, bilinfo, områder, kamera og oppgjør.",
+                    "recommended_action": "Brukes for daglig kontroll av EasyPark og biler.",
+                },
+                {
+                    "area": "Soling",
+                    "path": "/soling/dagslinje",
+                    "role": "Soltimer, rom, senger, medlemmer, produkter, bilder, prognoser og oppgjør.",
+                    "recommended_action": "Brukes for å kontrollere soltimer og bildegrunnlag.",
+                },
+                {
+                    "area": "Koble",
+                    "path": "/koble/oversikt",
+                    "role": "Finner sannsynlige koblinger mellom bilnummer og SUN2-ID basert på tidstreff.",
+                    "recommended_action": "Brukes for visuell kontroll og bekreftelse av kandidater.",
+                },
+                {
+                    "area": "Energi",
+                    "path": "/energi/status",
+                    "role": "Realtime HC3-forbruk, kurser, laster, Elvia-kontroll og forbruk per seng.",
+                    "recommended_action": "Brukes for strømavvik, solsengforbruk og målerkontroll.",
+                },
+                {
+                    "area": "Ventilasjon",
+                    "path": "/ventilasjon/dagslogg",
+                    "role": "Temperatur, fuktighet, Yr, viftehendelser og ventilasjonsinnstillinger.",
+                    "recommended_action": "Brukes for å forstå kjøling, lufting og avfukter.",
+                },
+                {
+                    "area": "Lys",
+                    "path": "/lys/dagslogg",
+                    "role": "Lux, skydekke, solhøyde, lysstatus, hendelser og styringsregler.",
+                    "recommended_action": "Brukes når lys virker feil eller terskler skal vurderes.",
+                },
+                {
+                    "area": "Dører",
+                    "path": "/dorer/romkontroll",
+                    "role": "Solrom, andre dører, åpne/lukke-historikk, romstatus og soltimekobling.",
+                    "recommended_action": "Brukes for romkontroll og varsel ved for lenge lukket/opptatt rom.",
+                },
+                {
+                    "area": "Vedlikehold",
+                    "path": "/vedlikehold/besok",
+                    "role": "Besøk på Lilletorget og oppgaver utført under hvert besøk.",
+                    "recommended_action": "Brukes for notater, historikk og oppfølging.",
+                },
+                {
+                    "area": "Renhold",
+                    "path": "/renhold/oversikt",
+                    "role": "Roborock-status, siste jobber, robotdetaljer og loggerstatus.",
+                    "recommended_action": "Brukes når robotvaskere må sjekkes.",
+                },
+                {
+                    "area": "Mobil og iPad",
+                    "path": "/mobil/oversikt",
+                    "role": "Samlet visning av mobilkortene og inngang til egne mobil/iPad-flater.",
+                    "recommended_action": "Brukes for å kontrollere hva de lette grensesnittene viser.",
+                },
+                {
+                    "area": "Ideer",
+                    "path": "/ideer/oversikt",
+                    "role": "Forslag, analyseideer og mulige forbedringer før de flyttes inn i fagområder.",
+                    "recommended_action": "Brukes som venteliste for nye funksjoner.",
+                },
+            ],
+        ),
+        api_table(
+            "Når noe ser feil ut",
+            ["problem", "path", "first_check", "recommended_action"],
+            [
+                {
+                    "problem": "Tall mangler eller virker gamle",
+                    "path": "/admin/datakilder",
+                    "first_check": "Se sist OK, alder, melding og neste planlagte jobb.",
+                    "recommended_action": "Feilsøk kilden før du vurderer selve grafen.",
+                },
+                {
+                    "problem": "Parkering stemmer ikke",
+                    "path": "/parkering/parkeringer",
+                    "first_check": "Sist EasyPark-import, dagens liste og kilde EasyPark/flowbird-parknordic.",
+                    "recommended_action": "Trigger import hvis den er gammel, og sjekk oppgjør ved månedsavvik.",
+                },
+                {
+                    "problem": "Soling stemmer ikke",
+                    "path": "/soling/enkeltimer",
+                    "first_check": "Enkelttimer, dagslinje, produkter og bildearkiv.",
+                    "recommended_action": "Sjekk SUN2-scraper og om bildetidspunkt/romkobling er riktig.",
+                },
+                {
+                    "problem": "Strøm eller forbruk avviker",
+                    "path": "/energi/elvia-kontroll",
+                    "first_check": "HC3 realtime, Elvia-import og om målere har hull/nullstilling.",
+                    "recommended_action": "Bruk Elvia som kontroll og HC3 som løpende datagrunnlag.",
+                },
+                {
+                    "problem": "Lys eller ventilasjon oppfører seg uventet",
+                    "path": "/lys/dagslogg",
+                    "first_check": "Lux, skydekke, solhøyde, temperatur, fukt og hendelser samme dag.",
+                    "recommended_action": "Sjekk innstillinger etter at datagrunnlaget er bekreftet ferskt.",
+                },
+                {
+                    "problem": "En underapp svarer ikke",
+                    "path": "/admin/systemkart",
+                    "first_check": "Health-lenke, lokal URL og compose-service.",
+                    "recommended_action": "Bruk QNAP-status/deploy-script hvis tjenesten ikke er healthy.",
+                },
+            ],
+        ),
+        api_table(
+            "Underapper med webgrensesnitt",
+            ["component", "area", "interface", "web_url", "local_url", "health_url", "status"],
+            system_web_interface_rows(),
+        ),
+    ]
+    return cards, tables
+
+
 def api_sun2_summary_row(item: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "period": item.get("period"),
@@ -26346,6 +26520,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         system_web_interface_rows(),
                     ),
                 ]
+                admin_cards, tables = api_admin_manual_payload(import_rows, access_keys)
             elif view == "verktoy":
                 tables = [api_table("Adminverktøy", ["tool", "path", "description", "count"], admin_tools)]
             return {

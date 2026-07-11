@@ -383,6 +383,7 @@ function labelize(column: string): string {
     domain: "Fagområde",
     item: "Gjelder",
     problem: "Problem",
+    first_check: "Sjekk først",
     detail: "Detalj",
     metric: "Målepunkt",
     target: "Mål",
