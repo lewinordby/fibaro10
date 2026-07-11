@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1511")
+APP_BUILD = os.getenv("APP_BUILD", "1512")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1512",
+        "date": "11.07.2026",
+        "headline": "Ryddigere dÃ¸roversikt",
+        "title": "Forenkler DÃ¸rer/Oversikt med tydelig status, siste endring og varighet",
+        "description": (
+            "Build 1512 rydder DÃ¸rer/Oversikt slik at hvert kort har samme faste struktur: dÃ¸rnavn, operativ "
+            "status, hvor lenge dÃ¸ren har stÃ¥tt slik, tidspunkt for siste endring og sekundÃ¦r HC3-/batteriinfo. "
+            "Dette gjÃ¸r oversikten raskere Ã¥ lese nÃ¥r mange solrom og byggdÃ¸rer er montert."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: forenkler kortdata og markup for kompakt dÃ¸roversikt.",
+            "desktop_v2/src/styles/doors.css: strammer opp kortlayout, tidspunktsfelter og metadatafelter.",
+            "desktop_v2/src/styles/dark-theme.css: gir de nye status- og tidsfeltene riktig mÃ¸rk-tema-kontrast.",
+            "build_log.py: dokumenterer build 1512.",
+        ],
+        "request": (
+            "DÃ¸roversikten skal vÃ¦re ryddigere og enklere Ã¥ lese, med tydelig visning av nÃ¥r status pÃ¥ en dÃ¸r "
+            "ble endret og hvor lenge den har stÃ¥tt i den posisjonen."
+        ),
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjÃ¸ring",
+        "changes": [
+            "Kortene pÃ¥ DÃ¸rer/Oversikt viser nÃ¥ status, stÃ¥tt-slik-varighet og siste endring i faste felt.",
+            "Solrom og andre dÃ¸rer beholder hver sin semantikk, men presenteres med samme leserytme.",
+            "HC3-id og batteri er flyttet ned som sekundÃ¦re metadata slik at hovedstatusen blir tydeligere.",
+            "MÃ¸rkt tema er oppdatert for de nye feltene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1511",

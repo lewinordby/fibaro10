@@ -346,35 +346,40 @@ type CompactDoorTone = "free" | "busy" | "normal" | "alert" | "unknown";
 
 type CompactDoorDisplay = {
   tone: CompactDoorTone;
-  headline: string;
-  badge: string;
+  status: string;
   detail: string;
-  changed: string;
+  since: string;
+  changedAt: string;
+  meta: string[];
 };
 
 function compactDoorDisplay(door: DoorStatusItem): CompactDoorDisplay {
-  const changed =
-    door.lastChangedLabel && door.lastChangedLabel !== "-"
-      ? `${door.lastChangedLabel}${door.ageLabel && door.ageLabel !== "-" ? ` · ${door.ageLabel}` : ""}`
-      : "Ingen endring";
+  const changedAt = door.lastChangedLabel && door.lastChangedLabel !== "-" ? door.lastChangedLabel : "-";
+  const since = door.ageLabel && door.ageLabel !== "-" ? door.ageLabel : "Ikke registrert";
+  const meta = [
+    door.deviceId ? `HC3 ${door.deviceId}` : "Mangler HC3-id",
+    door.batteryLabel && door.batteryLabel !== "-" ? `Batteri ${door.batteryLabel}` : "Batteri ukjent",
+  ];
 
   if (!door.isConfigured) {
     return {
       tone: "unknown",
-      headline: "Klargjort",
-      badge: "Planlagt",
+      status: "Klargjort",
       detail: "Venter på sensor",
-      changed,
+      since: "Ikke i drift",
+      changedAt: "-",
+      meta,
     };
   }
 
   if (door.state === "unknown") {
     return {
       tone: "unknown",
-      headline: "Ukjent",
-      badge: "Ukjent",
+      status: "Ukjent",
       detail: "Ingen sikker status",
-      changed,
+      since,
+      changedAt,
+      meta,
     };
   }
 
@@ -382,20 +387,22 @@ function compactDoorDisplay(door: DoorStatusItem): CompactDoorDisplay {
     const inUse = door.state === "closed";
     return {
       tone: inUse ? "busy" : "free",
-      headline: inUse ? "I bruk" : "Ledig",
-      badge: door.stateLabel || (inUse ? "Lukket" : "Åpen"),
+      status: inUse ? "I bruk" : "Ledig",
       detail: inUse ? "Dør lukket" : "Dør åpen",
-      changed,
+      since,
+      changedAt,
+      meta,
     };
   }
 
   const isNormal = door.state === door.normalState;
   return {
     tone: isNormal ? "normal" : "alert",
-    headline: door.stateLabel || (door.state === "closed" ? "Lukket" : "Åpen"),
-    badge: isNormal ? "Normal" : "Avvik",
+    status: door.stateLabel || (door.state === "closed" ? "Lukket" : "Åpen"),
     detail: isNormal ? "Som forventet" : `Forventet ${door.normalStateLabel.toLowerCase()}`,
-    changed,
+    since,
+    changedAt,
+    meta,
   };
 }
 
@@ -416,18 +423,29 @@ function compactStats(doors: DoorStatusItem[], mode: "solrom" | "other") {
 function CompactDoorCard({ door }: { door: DoorStatusItem }) {
   const display = compactDoorDisplay(door);
   return (
-    <div className={`door-compact-card tone-${display.tone}`} title={`${door.title}: ${display.headline}`}>
-      <DoorSemanticIcon door={door} compact />
-      <div className="door-compact-content">
-        <div className="door-compact-top">
+    <div className={`door-compact-card tone-${display.tone}`} title={`${door.title}: ${display.status}`}>
+      <div className="door-compact-main">
+        <DoorSemanticIcon door={door} compact />
+        <div className="door-compact-name">
           <strong>{door.title}</strong>
-          <span>{display.badge}</span>
+          <span>{display.detail}</span>
         </div>
-        <div className="door-compact-state">
-          <b>{display.headline}</b>
+        <strong className="door-compact-status">{display.status}</strong>
+      </div>
+      <div className="door-compact-timegrid">
+        <div>
+          <span>Stått slik</span>
+          <strong>{display.since}</strong>
         </div>
-        <small>{display.detail}</small>
-        <em>Sist {display.changed}</em>
+        <div>
+          <span>Endret</span>
+          <strong>{display.changedAt}</strong>
+        </div>
+      </div>
+      <div className="door-compact-meta">
+        {display.meta.map((item) => (
+          <span key={item}>{item}</span>
+        ))}
       </div>
     </div>
   );

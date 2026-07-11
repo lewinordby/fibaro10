@@ -606,12 +606,6 @@
   z-index: 1;
 }
 
-.door-compact-content {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
 .door-compact-card.tone-free,
 .door-compact-card.tone-normal {
   --door-tone: var(--green);
@@ -630,68 +624,176 @@
   opacity: .82;
 }
 
-.door-compact-top {
-  display: flex;
+.doors-compact-panel {
+  gap: 10px;
+  padding: 12px;
+  box-shadow: 0 8px 22px var(--shadow-ink-faint-color), inset 0 1px 0 var(--panel-inset-highlight);
+}
+
+.doors-compact-header {
   align-items: center;
-  justify-content: space-between;
-  gap: 7px;
+  min-height: 0;
+  padding: 0 0 8px;
+}
+
+.doors-compact-header h3.ant-typography {
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.doors-compact-header span,
+.doors-compact-header small {
+  font-size: 11px;
+}
+
+.doors-compact-header small {
+  padding: 2px 7px;
+}
+
+.doors-compact-sections {
+  gap: 9px;
+}
+
+.doors-compact-section-title {
+  padding: 0 1px;
+}
+
+.doors-compact-grid {
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 8px;
+}
+
+.door-compact-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 112px;
+  gap: 8px;
+  padding: 10px 11px 9px;
+  border-left-width: 5px;
+  box-shadow: 0 4px 13px var(--shadow-ink-faint-color);
+}
+
+.door-compact-card::before {
+  display: none;
+}
+
+.door-compact-card:hover {
+  transform: none;
+}
+
+.door-compact-main {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
   min-width: 0;
 }
 
-.door-compact-top strong {
+.door-compact-main .door-semantic-icon.is-compact {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
+
+.door-compact-main .door-semantic-icon.is-compact svg {
+  width: 31px;
+  height: 31px;
+}
+
+.door-compact-name {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.door-compact-name strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 13px;
-  font-weight: 780;
-  line-height: 1.12;
+  font-size: 13.5px;
+  font-weight: 790;
+  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.door-compact-top span {
-  flex: 0 0 auto;
-  padding: 2px 6px;
-  color: color-mix(in srgb, var(--door-tone) 76%, var(--ink));
-  font-size: 10.5px;
-  font-weight: 780;
-  line-height: 1.15;
-  background: color-mix(in srgb, var(--door-tone) 11%, var(--surface));
+.door-compact-name span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-compact-status {
+  justify-self: end;
+  min-width: 70px;
+  padding: 5px 8px;
+  color: color-mix(in srgb, var(--door-tone) 78%, var(--ink));
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 1;
+  text-align: center;
+  background: color-mix(in srgb, var(--door-tone) 10%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--door-tone) 24%, var(--line-soft));
   border-radius: 999px;
 }
 
-.door-compact-state {
+.door-compact-timegrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(82px, auto);
+  gap: 7px;
+}
+
+.door-compact-timegrid > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--door-tone) 3.5%, var(--surface-muted));
+  border: 1px solid color-mix(in srgb, var(--door-tone) 8%, var(--line-soft));
+  border-radius: var(--radius-sm);
+}
+
+.door-compact-timegrid span {
+  color: var(--text-subtle);
+  font-size: 9.5px;
+  font-weight: 820;
+  letter-spacing: .015em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.door-compact-timegrid strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 780;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-compact-meta {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
   min-width: 0;
 }
 
-.door-compact-state b {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 17px;
-  font-weight: 800;
-  line-height: 1.05;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.door-compact-card small,
-.door-compact-card em {
-  display: block;
-  overflow: hidden;
+.door-compact-meta span {
+  min-height: 20px;
+  padding: 3px 6px;
   color: var(--muted);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 650;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.door-compact-card em {
-  color: var(--text-subtle);
   font-size: 10.5px;
+  font-weight: 680;
+  line-height: 1.1;
+  background: color-mix(in srgb, var(--door-tone) 2.5%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--door-tone) 7%, var(--line-soft));
+  border-radius: 999px;
 }
 
 .doors-panel-card {

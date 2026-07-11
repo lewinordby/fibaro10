@@ -644,7 +644,9 @@
 .app-shell.theme-dark .door-status-history-row,
 .app-shell.theme-dark .door-status-chips span,
 .app-shell.theme-dark .doors-compact-header small,
-.app-shell.theme-dark .door-compact-top span {
+.app-shell.theme-dark .door-compact-status,
+.app-shell.theme-dark .door-compact-timegrid > div,
+.app-shell.theme-dark .door-compact-meta span {
   background: var(--surface-raised);
   border-color: color-mix(in srgb, var(--door-tone, var(--door-card-tone, var(--domain-building))) 13%, var(--border-panel));
 }
