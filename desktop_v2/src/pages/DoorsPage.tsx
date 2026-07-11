@@ -579,8 +579,10 @@ function DoorBoardSection({
   );
 }
 
-function DoorChangeFeed({ changes }: { changes: DoorEventItem[] }) {
+function DoorChangeFeed({ changes, doors }: { changes: DoorEventItem[]; doors: DoorStatusItem[] }) {
   const visibleChanges = changes.slice(0, 10);
+  const titleByDeviceId = new Map(doors.filter((door) => door.deviceId !== null).map((door) => [door.deviceId, door.title]));
+  const titleByDeviceKey = new Map(doors.map((door) => [door.deviceKey, door.title]));
   return (
     <aside className="door-change-feed">
       <div className="door-change-feed-head">
@@ -592,7 +594,13 @@ function DoorChangeFeed({ changes }: { changes: DoorEventItem[] }) {
           {visibleChanges.map((change) => (
             <div className={`door-change-item is-${change.state}`} key={change.id}>
               <div>
-                <strong>{change.deviceName || change.deviceKey || "Ukjent dør"}</strong>
+                <strong>
+                  {(change.deviceId !== null && change.deviceId !== undefined ? titleByDeviceId.get(change.deviceId) : null) ||
+                    (change.deviceKey ? titleByDeviceKey.get(change.deviceKey) : null) ||
+                    change.deviceName ||
+                    change.deviceKey ||
+                    "Ukjent dør"}
+                </strong>
                 <span>{change.stateLabel || change.action || "-"}</span>
               </div>
               <time>{change.timeLabel || "-"}</time>
@@ -643,7 +651,7 @@ function DoorNewOverviewBoard({
           ))}
           <DoorBoardSection title="Andre dører" doors={otherDoors} mode="other" />
         </div>
-        <DoorChangeFeed changes={changes} />
+        <DoorChangeFeed changes={changes} doors={doors} />
       </div>
     </div>
   );

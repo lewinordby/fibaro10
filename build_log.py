@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1514")
+APP_BUILD = os.getenv("APP_BUILD", "1515")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1515",
+        "date": "11.07.2026",
+        "headline": "Polert ny døroversikt",
+        "title": "Viser Fibaro10-navn i siste-endringer-listen på Oversikt - ny",
+        "description": (
+            "Build 1515 polerer den nye døroversikten ved å bruke de ryddige Fibaro10-navnene i listen over "
+            "siste dørendringer. Dermed vises Solrom 4, Inngang og andre kjente dørtitler i stedet for tekniske "
+            "HC3-navn der dette kan slås opp."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: slår opp dørnavn for siste-endringer-listen på Oversikt - ny.",
+            "build_log.py: dokumenterer build 1515.",
+        ],
+        "request": "Polering av den nye Dører/Oversikt - ny før ferdigstilling.",
+        "work_duration": "ca. 5 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Siste-endringer-listen viser nå Fibaro10-tittel når dør-id finnes i konfigurasjonen.",
+            "Tekniske HC3-navn brukes bare som fallback dersom døren ikke kan matches.",
+        ],
+    },
     {
         "version": "1",
         "build": "1514",
