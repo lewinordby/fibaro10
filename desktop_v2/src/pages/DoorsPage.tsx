@@ -14,11 +14,16 @@ import type { ColumnsType } from "antd/es/table";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 
 import {
+  fetchDoorSunroomOverview,
   fetchDoorSunroomRoomDetail,
   fetchDoorSunroomSessions,
   fetchDoorStatus,
   type DoorEventItem,
   type DoorPeriodItem,
+  type DoorSunroomEnergyEvidence,
+  type DoorSunroomOverviewResponse,
+  type DoorSunroomOverviewRoom,
+  type DoorSunroomOverviewSession,
   type DoorSunroomRoomDetailResponse,
   type DoorSunroomRoomPeriod,
   type DoorSunroomSessionItem,
@@ -41,9 +46,9 @@ type SummaryCard = {
   tone: "ok" | "warn" | "unknown" | "status";
 };
 
-type DoorView = "oversikt" | "oversikt-ny" | "soltimer" | "solrom" | "andre" | "radata";
+type DoorView = "oversikt" | "oversikt-ny" | "romkontroll" | "soltimer" | "solrom" | "andre" | "radata";
 
-const DOOR_VIEWS: DoorView[] = ["oversikt", "oversikt-ny", "soltimer", "solrom", "andre", "radata"];
+const DOOR_VIEWS: DoorView[] = ["oversikt", "oversikt-ny", "romkontroll", "soltimer", "solrom", "andre", "radata"];
 const SECTION_ORDER = ["1etg", "2etg", "vip", "bygg"];
 
 function stateTag(row: DoorStateRow) {
@@ -977,6 +982,209 @@ function DoorSunroomRoomDetail({
   );
 }
 
+function energyEvidenceTag(energy?: DoorSunroomEnergyEvidence | null) {
+  if (!energy) return <Tag>Ingen måling</Tag>;
+  if (energy.status === "confirmed") return <Tag color="green">{energy.statusLabel}</Tag>;
+  if (energy.status === "deviation") return <Tag color="orange">{energy.statusLabel}</Tag>;
+  if (energy.quality === "overlap") return <Tag color="blue">{energy.qualityLabel}</Tag>;
+  if (energy.status === "power_seen") return <Tag color="gold">{energy.statusLabel}</Tag>;
+  return <Tag>{energy.statusLabel || energy.qualityLabel || "Ikke vurdert"}</Tag>;
+}
+
+function SunroomControlSession({ session }: { session: DoorSunroomOverviewSession }) {
+  const energy = session.energy;
+  return (
+    <div className={`door-room-control-session energy-${energy?.status || energy?.quality || "missing"}`}>
+      <div className="door-room-control-session-head">
+        <Link to={session.href}>Betalt {session.startedLabel}</Link>
+        {session.hasDoorMatch ? <Tag color="green">Dørmatch</Tag> : <Tag color="orange">Uten dørmatch</Tag>}
+      </div>
+      <div className="door-room-control-facts">
+        <span>Solstart {session.sunStartLabel}</span>
+        <span>Slutt {session.endedLabel}</span>
+        <span>{session.durationMinutes || "-"} min</span>
+        <span>{sunroomMoney(session.paidAmountKr)}</span>
+      </div>
+      <div className="door-room-control-energy">
+        {energyEvidenceTag(energy)}
+        <span>
+          {energy
+            ? `Start ${energy.startDelayLabel || "-"} · netto ${energy.estimatedNetLabel || "-"} · ${energy.samplesCount || 0} samples`
+            : "Ingen energivurdering"}
+        </span>
+      </div>
+      {session.userName || session.sun2UserId ? (
+        <small>
+          {session.userName || "Ukjent medlem"}
+          {session.sun2UserId ? ` · ${session.sun2UserId}` : ""}
+          {session.sun2BedId ? ` · seng ${session.sun2BedId}` : ""}
+        </small>
+      ) : null}
+    </div>
+  );
+}
+
+function SunroomControlRoomCard({ room }: { room: DoorSunroomOverviewRoom }) {
+  const status = room.status;
+  const latest = room.latestPeriod;
+  const session = latest?.session as DoorSunroomOverviewSession | null | undefined;
+  const energy = latest?.energy;
+  const detailHref = room.roomId ? `/dorer/soltimer?room=${encodeURIComponent(room.roomId)}` : "/dorer/soltimer";
+  const tone =
+    status.severity === "alert"
+      ? "alert"
+      : status.severity === "warning"
+        ? "warning"
+        : status.isOccupied
+          ? "active"
+          : status.doorState === "open"
+            ? "free"
+            : "unknown";
+
+  return (
+    <article className={`door-room-control-card tone-${tone}`}>
+      <div className="door-room-control-head">
+        <div>
+          <strong>Rom {room.displayRoomNumber}</strong>
+          <span>{room.sectionTitle} · {room.roomLabel}</span>
+        </div>
+        {sunroomSeverityTag(status)}
+      </div>
+
+      <div className="door-room-control-state">
+        <div>
+          <span>Dør</span>
+          <strong>{status.doorStateLabel}</strong>
+          <small>{status.doorAgeLabel}</small>
+        </div>
+        <div>
+          <span>Rom</span>
+          <strong>{status.status}</strong>
+          <small>{status.isOccupied ? status.occupiedDurationLabel : "Ledig"}</small>
+        </div>
+      </div>
+
+      <div className="door-room-control-period">
+        <div>
+          <span>Dør igjen</span>
+          <strong>{latest?.closedLabel || "-"}</strong>
+        </div>
+        <div>
+          <span>Dør opp</span>
+          <strong>{latest?.openedLabel || "-"}</strong>
+        </div>
+        <div>
+          <span>Forventet ut</span>
+          <strong>{latest?.expectedExitLabel || status.expectedExitLabel || "-"}</strong>
+        </div>
+      </div>
+
+      {session ? (
+        <SunroomControlSession session={{ ...session, energy: energy || undefined, hasDoorMatch: true }} />
+      ) : latest ? (
+        <div className="door-room-control-empty">
+          <strong>{latest.status}</strong>
+          <span>{latest.detail}</span>
+        </div>
+      ) : room.recentSessions[0] ? (
+        <SunroomControlSession session={room.recentSessions[0]} />
+      ) : (
+        <div className="door-room-control-empty">
+          <strong>Ingen nylig aktivitet</strong>
+          <span>Ingen dørperiode eller soltime i valgt periode.</span>
+        </div>
+      )}
+
+      <div className="door-room-control-foot">
+        <span>
+          {room.summary.sessions} soltimer · {room.summary.matched} dørmatch · {room.summary.energyConfirmed} strøm OK
+        </span>
+        <Link to={detailHref}>Detaljer</Link>
+      </div>
+    </article>
+  );
+}
+
+function DoorSunroomRoomControlBoard({
+  data,
+  loading,
+  error,
+  fetching,
+  refetch,
+  days,
+  onDaysChange,
+}: {
+  data?: DoorSunroomOverviewResponse | null;
+  loading: boolean;
+  error: unknown;
+  fetching: boolean;
+  refetch: () => void;
+  days: number;
+  onDaysChange: (days: number) => void;
+}) {
+  if (loading) return <LoadingBlock />;
+  if (error || !data) return <ErrorBlock error={error} />;
+
+  return (
+    <div className="door-room-control-board">
+      <section className="door-room-control-command">
+        <div>
+          <Typography.Title level={3}>Romkontroll</Typography.Title>
+          <span>
+            Rom 1-12 samlet med dør igjen/opp, Sun2-time, forventet ut og energikontroll. Strømstatus er sterkest når
+            bare én seng er aktiv eller når start/slutt ikke kolliderer med andre senger.
+          </span>
+        </div>
+        <div className="door-room-control-actions">
+          <Space.Compact>
+            {[1, 2, 7, 14].map((value) => (
+              <Button key={value} size="small" type={value === days ? "primary" : "default"} onClick={() => onDaysChange(value)}>
+                {value === 1 ? "24 t" : `${value} d`}
+              </Button>
+            ))}
+          </Space.Compact>
+          <Button size="small" icon={<ReloadOutlined spin={fetching} />} onClick={() => refetch()}>
+            Oppdater
+          </Button>
+        </div>
+      </section>
+
+      <div className="door-room-control-summary">
+        <div>
+          <span>I bruk</span>
+          <strong>{data.summary.active}</strong>
+        </div>
+        <div>
+          <span>Soltimer</span>
+          <strong>{data.summary.sessions}</strong>
+        </div>
+        <div>
+          <span>Dørmatch</span>
+          <strong>{data.summary.doorMatches}</strong>
+        </div>
+        <div>
+          <span>Strøm OK</span>
+          <strong>{data.summary.energyConfirmed}</strong>
+        </div>
+        <div>
+          <span>Uten dør</span>
+          <strong>{data.summary.sessionsWithoutDoor}</strong>
+        </div>
+        <div>
+          <span>Energisamples</span>
+          <strong>{data.summary.energySamples}</strong>
+        </div>
+      </div>
+
+      <div className="door-room-control-grid">
+        {data.rooms.map((room) => (
+          <SunroomControlRoomCard room={room} key={room.deviceKey} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SunroomSection({ title, rooms }: { title: string; rooms: DoorSunroomSessionItem[] }) {
   return (
     <section className="door-sunroom-section">
@@ -1173,6 +1381,16 @@ export default function DoorsPage() {
   const sunroomQuery = useApiQuery(queryKeys.doorSunroomSessions(), fetchDoorSunroomSessions, {
     refetchInterval: 30_000,
   });
+  const requestedControlDays = Number(searchParams.get("days") || "2");
+  const controlDays = [1, 2, 7, 14].includes(requestedControlDays) ? requestedControlDays : 2;
+  const sunroomOverviewQuery = useApiQuery(
+    queryKeys.doorSunroomOverview(controlDays),
+    () => fetchDoorSunroomOverview(controlDays),
+    {
+      enabled: view === "romkontroll",
+      refetchInterval: 30_000,
+    },
+  );
   const selectedSunroomRoomId = view === "soltimer" ? searchParams.get("room") || "" : "";
   const sunroomDetailQuery = useApiQuery(
     queryKeys.doorSunroomRoom(selectedSunroomRoomId),
@@ -1201,6 +1419,8 @@ export default function DoorsPage() {
   const title =
     activeView === "solrom"
       ? "Dører · solrom"
+      : activeView === "romkontroll"
+        ? "Dører · romkontroll"
       : activeView === "soltimer"
         ? "Dører · dør og soltime"
       : activeView === "andre"
@@ -1219,6 +1439,8 @@ export default function DoorsPage() {
         description={
           isRawView
             ? "Alle mottatte HC3-rader for feilsøking og kontroll av dørscenene."
+            : activeView === "romkontroll"
+              ? "Samlet kontrollflate for rom 1-12 med dør, Sun2-time, forventet ut-tid og strømindikasjon."
             : activeView === "soltimer"
               ? "Kobler solromdør mot Sun2-enkelttime og varsler når kunden er vesentlig over forventet ut-tid."
             : "Åpne- og lukkeperioder fra magnetfølerne, med klargjorte plasser for de nye sensorene."
@@ -1235,7 +1457,7 @@ export default function DoorsPage() {
         }
       />
 
-      {activeView === "oversikt" || activeView === "oversikt-ny" || activeView === "soltimer" ? null : (
+      {activeView === "oversikt" || activeView === "oversikt-ny" || activeView === "soltimer" || activeView === "romkontroll" ? null : (
         <div className="doors-summary-grid">{buildSummaryCards(data.summary).map(statusSummary)}</div>
       )}
 
@@ -1245,6 +1467,22 @@ export default function DoorsPage() {
 
       {!isRawView && activeView === "oversikt-ny" ? (
         <DoorNewOverviewBoard doors={data.doors} solromDoors={solromDoors} otherDoors={otherDoors} changes={data.changes} />
+      ) : null}
+
+      {!isRawView && activeView === "romkontroll" ? (
+        <DoorSunroomRoomControlBoard
+          data={sunroomOverviewQuery.data}
+          loading={sunroomOverviewQuery.loading}
+          error={sunroomOverviewQuery.error}
+          fetching={sunroomOverviewQuery.fetching}
+          refetch={sunroomOverviewQuery.refetch}
+          days={controlDays}
+          onDaysChange={(nextDays) => {
+            const next = new URLSearchParams(searchParams);
+            next.set("days", String(nextDays));
+            setSearchParams(next, { replace: true });
+          }}
+        />
       ) : null}
 
       {!isRawView && activeView === "soltimer" ? (
@@ -1299,7 +1537,7 @@ export default function DoorsPage() {
             locale={{ emptyText: "Ingen dørhendelser logget ennå" }}
           />
         </Card>
-      ) : activeView !== "oversikt" && activeView !== "oversikt-ny" && activeView !== "soltimer" ? (
+      ) : activeView !== "oversikt" && activeView !== "oversikt-ny" && activeView !== "soltimer" && activeView !== "romkontroll" ? (
         <>
           <Card
             className="work-card doors-table-card doors-panel-card"

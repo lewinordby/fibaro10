@@ -11,6 +11,7 @@ export const queryKeys = {
   doorStatus: () => ["hc3", "doors", "status"] as const,
   doorSunroomSessions: () => ["hc3", "doors", "sunroom-sessions"] as const,
   doorSunroomRoom: (roomId: string) => ["hc3", "doors", "sunroom-sessions", roomId] as const,
+  doorSunroomOverview: (days: number) => ["hc3", "doors", "sunroom-overview", days] as const,
   module: (module: string, view: string, serverQuery = "", timelineDay = "", params = "") =>
     ["module", module, view, serverQuery, timelineDay, params] as const,
   maintenanceSiteVisit: (visitId: string) => ["maintenance", "site-visit", visitId] as const,

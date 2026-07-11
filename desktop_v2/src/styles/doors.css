@@ -1785,10 +1785,276 @@
   padding: 10px 12px;
 }
 
+.door-room-control-board {
+  display: grid;
+  gap: 12px;
+}
+
+.door-room-control-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--domain-building) 8%, var(--surface)), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--domain-building) 12%, var(--line-soft));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.door-room-control-command h3.ant-typography {
+  margin: 0 0 3px;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 820;
+}
+
+.door-room-control-command span {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.door-room-control-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.door-room-control-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.door-room-control-summary > div {
+  min-height: 58px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.door-room-control-summary span,
+.door-room-control-summary strong {
+  display: block;
+}
+
+.door-room-control-summary span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.door-room-control-summary strong {
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 840;
+  font-variant-numeric: tabular-nums;
+}
+
+.door-room-control-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(330px, 1fr));
+  gap: 12px;
+}
+
+.door-room-control-card {
+  --room-tone: var(--domain-building);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--room-tone) 13%, var(--line-soft));
+  border-top: 4px solid var(--room-tone);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.door-room-control-card.tone-free {
+  --room-tone: var(--green);
+}
+
+.door-room-control-card.tone-active {
+  --room-tone: var(--amber);
+}
+
+.door-room-control-card.tone-warning {
+  --room-tone: var(--orange);
+}
+
+.door-room-control-card.tone-alert {
+  --room-tone: var(--red);
+}
+
+.door-room-control-head,
+.door-room-control-session-head,
+.door-room-control-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.door-room-control-head > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.door-room-control-head strong {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 830;
+}
+
+.door-room-control-head span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 680;
+}
+
+.door-room-control-state,
+.door-room-control-period {
+  display: grid;
+  gap: 7px;
+}
+
+.door-room-control-state {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.door-room-control-period {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 8px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-panel-soft);
+  border-radius: var(--radius-md);
+}
+
+.door-room-control-state > div,
+.door-room-control-period > div {
+  min-width: 0;
+}
+
+.door-room-control-state span,
+.door-room-control-period span,
+.door-room-control-facts span,
+.door-room-control-energy span,
+.door-room-control-empty span,
+.door-room-control-session small,
+.door-room-control-foot span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 680;
+}
+
+.door-room-control-state strong,
+.door-room-control-period strong,
+.door-room-control-empty strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-room-control-state small {
+  display: block;
+  color: var(--text-label);
+  font-size: 10.5px;
+  font-weight: 680;
+}
+
+.door-room-control-session {
+  display: grid;
+  gap: 6px;
+  padding: 9px;
+  background: color-mix(in srgb, var(--room-tone) 4%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--room-tone) 10%, var(--line-soft));
+  border-radius: var(--radius-md);
+}
+
+.door-room-control-session-head a {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 820;
+}
+
+.door-room-control-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.door-room-control-facts span {
+  overflow: hidden;
+  padding: 5px 7px;
+  background: var(--surface);
+  border: 1px solid var(--border-panel-soft);
+  border-radius: var(--radius-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-room-control-energy {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.door-room-control-energy > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-room-control-empty {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  background: var(--surface-muted);
+  border: 1px dashed var(--line-soft);
+  border-radius: var(--radius-md);
+}
+
+.door-room-control-foot {
+  padding-top: 2px;
+}
+
+.door-room-control-foot a {
+  color: var(--domain-building);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+@media (max-width: 1380px) {
+  .door-room-control-grid {
+    grid-template-columns: repeat(2, minmax(330px, 1fr));
+  }
+
+  .door-room-control-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1180px) {
   .door-board-command,
-  .door-board-layout {
+  .door-board-layout,
+  .door-room-control-command {
     grid-template-columns: 1fr;
+  }
+
+  .door-room-control-actions {
+    justify-content: flex-start;
   }
 
   .door-board-summary {
@@ -1806,6 +2072,14 @@
   }
 
   .door-board-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .door-room-control-grid,
+  .door-room-control-summary,
+  .door-room-control-state,
+  .door-room-control-period,
+  .door-room-control-facts {
     grid-template-columns: 1fr;
   }
 }

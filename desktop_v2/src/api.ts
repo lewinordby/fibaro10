@@ -478,6 +478,9 @@ export type DoorSunroomSession = {
   expectedExitAt?: string | null;
   expectedExitLabel: string;
   sun2UserId?: string | null;
+  sun2BedId?: string | null;
+  userName?: string | null;
+  sourceRoomName?: string | null;
   durationMinutes?: number | null;
   paidAmountKr?: number | null;
   status?: string | null;
@@ -584,6 +587,93 @@ export type DoorSunroomRoomDetailResponse = {
   currentPeriod?: DoorSunroomRoomPeriod | null;
   periods: DoorSunroomRoomPeriod[];
   sessionsWithoutDoor: DoorSunroomSession[];
+};
+
+export type DoorSunroomEnergyEvidence = {
+  quality: "clean" | "separable" | "overlap" | "missing" | string;
+  qualityLabel: string;
+  status: "confirmed" | "deviation" | "power_seen" | "overlap" | "unknown" | string;
+  statusLabel: string;
+  detail: string;
+  samplesCount?: number | null;
+  baselineSamples?: number | null;
+  overlapCount?: number | null;
+  edgeConflict?: boolean | null;
+  baselineW?: number | null;
+  baselineLabel?: string | null;
+  activeMedianW?: number | null;
+  activeMedianLabel?: string | null;
+  estimatedNetW?: number | null;
+  estimatedNetLabel?: string | null;
+  startDeltaW?: number | null;
+  startDeltaLabel?: string | null;
+  expectedDelaySeconds?: number | null;
+  expectedDelayLabel?: string | null;
+  firstRiseAt?: string | null;
+  firstRiseLabel?: string | null;
+  startDelaySeconds?: number | null;
+  startDelayLabel?: string | null;
+  delayDeviationSeconds?: number | null;
+  delayDeviationLabel?: string | null;
+};
+
+export type DoorSunroomOverviewPeriod = DoorSunroomRoomPeriod & {
+  energy?: DoorSunroomEnergyEvidence | null;
+};
+
+export type DoorSunroomOverviewSession = DoorSunroomSession & {
+  energy?: DoorSunroomEnergyEvidence | null;
+  hasDoorMatch?: boolean;
+};
+
+export type DoorSunroomOverviewRoom = {
+  displayRoomNumber: number;
+  title: string;
+  sectionKey: string;
+  sectionTitle: string;
+  deviceId?: number | null;
+  deviceKey: string;
+  roomId?: string | null;
+  roomLabel: string;
+  status: DoorSunroomSessionItem;
+  latestPeriod?: DoorSunroomOverviewPeriod | null;
+  periods: DoorSunroomOverviewPeriod[];
+  recentSessions: DoorSunroomOverviewSession[];
+  sessionsWithoutDoor: DoorSunroomOverviewSession[];
+  summary: {
+    periods: number;
+    sessions: number;
+    matched: number;
+    withoutDoor: number;
+    warnings: number;
+    alerts: number;
+    energyConfirmed: number;
+    energyOverlap: number;
+  };
+};
+
+export type DoorSunroomOverviewResponse = {
+  generatedAt: string;
+  days: number;
+  rules: {
+    paymentDelayMinutes: number;
+    exitGraceMinutes: number;
+    fanAfterRunMinutes: number;
+    warnAfterEndMinutes: number;
+    alertAfterEndMinutes: number;
+  };
+  summary: {
+    rooms: number;
+    active: number;
+    warnings: number;
+    alerts: number;
+    sessions: number;
+    doorMatches: number;
+    sessionsWithoutDoor: number;
+    energyConfirmed: number;
+    energySamples: number;
+  };
+  rooms: DoorSunroomOverviewRoom[];
 };
 
 export type BuildLogEntry = {
@@ -1551,6 +1641,10 @@ export function fetchDoorSunroomSessions(): Promise<DoorSunroomSessionsResponse>
 
 export function fetchDoorSunroomRoomDetail(roomId: string): Promise<DoorSunroomRoomDetailResponse> {
   return apiGet<DoorSunroomRoomDetailResponse>(`/api/hc3/doors/sunroom-sessions/${encodeURIComponent(roomId)}`);
+}
+
+export function fetchDoorSunroomOverview(days = 2): Promise<DoorSunroomOverviewResponse> {
+  return apiGet<DoorSunroomOverviewResponse>(`/api/hc3/doors/sunroom-overview?days=${encodeURIComponent(String(days))}`);
 }
 
 export function fetchBuildLog(): Promise<BuildLogResponse> {

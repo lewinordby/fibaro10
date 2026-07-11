@@ -5,8 +5,42 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1518")
+APP_BUILD = os.getenv("APP_BUILD", "1519")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1519",
+        "date": "11.07.2026",
+        "headline": "Romkontroll for solrom",
+        "title": "Legger til samlet oversikt for rom 1-12 med dør, Sun2-time og strømindikasjon",
+        "description": (
+            "Build 1519 legger til Dører/Romkontroll. Siden viser rom 1-12 samlet med når døren gikk igjen og opp, "
+            "koblet Sun2-time, forventet ut-tid og en energivurdering som forsøker å bekrefte at solsengen faktisk "
+            "starter omtrent tre minutter etter betaling."
+        ),
+        "applications": [
+            "main.py: legger til API for samlet romkontroll og energivurdering per Sun2-time.",
+            "desktop_v2/src/api.ts: legger til typedata og klientkall for romkontroll.",
+            "desktop_v2/src/queryKeys.ts: legger til cache-nøkkel for romkontroll.",
+            "desktop_v2/src/moduleViews.ts: legger Romkontroll inn i Dører-menyen.",
+            "desktop_v2/src/pages/DoorsPage.tsx: bygger ny romoversikt for rom 1-12.",
+            "desktop_v2/src/styles/doors.css: styler kompakte romkort, status og energiblokk.",
+            "tests/test_hc3_door_events.py: tester forventet ut-tid og energibekreftet 3-minutters start.",
+            "build_log.py: dokumenterer build 1519.",
+        ],
+        "request": (
+            "Lag en egen oversikt over rom 1-12 med data for når dør går igjen og opp, hvilken soltime som hører til, "
+            "forventede tider og strømvurdering for å se om solen starter omtrent tre minutter etter betaling."
+        ),
+        "work_duration": "ca. 1 t 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny side /dorer/romkontroll med alle 12 solrom samlet.",
+            "Romkort viser dørstatus, siste dørperiode, koblet soltime og forventet ut-tid.",
+            "Energibloggen markerer ren måling, overlapp, startavvik eller bekreftet start.",
+            "Periodevalg for siste 24 timer, 2 dager, 7 dager og 14 dager.",
+        ],
+    },
     {
         "version": "1",
         "build": "1518",

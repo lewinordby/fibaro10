@@ -115,3 +115,24 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(self.main.sunroom_session_sun_start_at(row), datetime(2026, 7, 11, 12, 3))
         self.assertEqual(self.main.sunroom_session_end_at(row), datetime(2026, 7, 11, 12, 15))
         self.assertEqual(self.main.sunroom_expected_exit_at(row), datetime(2026, 7, 11, 12, 18))
+
+    def test_energy_evidence_confirms_expected_three_minute_start(self):
+        row = self.main.Sun2TanningSession(
+            id=1,
+            room_id="rom-04",
+            started_at=datetime(2026, 7, 11, 12, 0),
+            duration_minutes=12,
+        )
+        samples = [
+            {"time": datetime(2026, 7, 11, 11, 55), "diff_w": 800},
+            {"time": datetime(2026, 7, 11, 11, 58), "diff_w": 850},
+            {"time": datetime(2026, 7, 11, 12, 3), "diff_w": 7200},
+            {"time": datetime(2026, 7, 11, 12, 6), "diff_w": 7350},
+            {"time": datetime(2026, 7, 11, 12, 9), "diff_w": 7300},
+        ]
+
+        evidence = self.main.sunroom_session_energy_evidence(row, samples, [row])
+
+        self.assertEqual(evidence["quality"], "clean")
+        self.assertEqual(evidence["status"], "confirmed")
+        self.assertEqual(evidence["startDelaySeconds"], 180)

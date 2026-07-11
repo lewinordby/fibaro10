@@ -10516,10 +10516,179 @@ def sunroom_session_payload(row: Sun2TanningSession) -> Dict[str, Any]:
         "expectedExitAt": expected_exit_at.isoformat() if expected_exit_at else None,
         "expectedExitLabel": format_source_datetime(expected_exit_at) if expected_exit_at else "-",
         "sun2UserId": row.sun2_user_id,
+        "sun2BedId": row.sun2_bed_id,
+        "userName": row.user_name,
+        "sourceRoomName": row.source_room_name,
         "durationMinutes": row.duration_minutes,
         "paidAmountKr": row.paid_amount_kr,
         "status": row.status,
         "href": f"/soling/enkeltimer?{urlencode(href_params)}" if href_params else "/soling/enkeltimer",
+    }
+
+
+def sunroom_session_energy_window(row: Sun2TanningSession) -> Optional[tuple[datetime, datetime]]:
+    sun_start_at = sunroom_session_sun_start_at(row)
+    end_at = sunroom_session_end_at(row)
+    if not sun_start_at or not end_at or end_at <= sun_start_at:
+        return None
+    return sun_start_at, end_at
+
+
+def sunroom_median_float(values: list[float]) -> Optional[float]:
+    return float(median(values)) if values else None
+
+
+def sunroom_watt_label(value: Optional[float]) -> str:
+    if value is None:
+        return "-"
+    return f"{round(float(value)):,}".replace(",", " ") + " W"
+
+
+def sunroom_energy_sample_items(samples: list[Any]) -> list[Dict[str, Any]]:
+    items: list[Dict[str, Any]] = []
+    for sample in samples:
+        sample_time = sample.get("bucket_start") if isinstance(sample, dict) else getattr(sample, "bucket_start", None)
+        sample_time = normalize_local_naive(sample_time)
+        value = sample.get("differanse_beregnet_w") if isinstance(sample, dict) else getattr(sample, "differanse_beregnet_w", None)
+        try:
+            diff_w = float(value)
+        except (TypeError, ValueError):
+            continue
+        if sample_time:
+            items.append({"time": sample_time, "diff_w": diff_w})
+    return sorted(items, key=lambda item: item["time"])
+
+
+def sunroom_session_energy_evidence(
+    row: Sun2TanningSession,
+    samples: list[Dict[str, Any]],
+    all_sessions: list[Sun2TanningSession],
+) -> Dict[str, Any]:
+    payment_at = normalize_local_naive(row.started_at)
+    window = sunroom_session_energy_window(row)
+    if not payment_at or not window:
+        return {
+            "quality": "missing",
+            "qualityLabel": "Mangler tid",
+            "status": "unknown",
+            "statusLabel": "Ikke vurdert",
+            "detail": "Sun2-timen mangler start, varighet eller sluttid.",
+            "samplesCount": 0,
+        }
+
+    sun_start_at, end_at = window
+    measure_start = sun_start_at + timedelta(minutes=2)
+    measure_end = end_at - timedelta(minutes=1)
+    baseline_start = payment_at - timedelta(minutes=10)
+    baseline_end = payment_at
+    start_check_end = sun_start_at + timedelta(minutes=6)
+    expected_delay_seconds = int((sun_start_at - payment_at).total_seconds())
+
+    baseline_values = [item["diff_w"] for item in samples if baseline_start <= item["time"] < baseline_end]
+    active_values = [item["diff_w"] for item in samples if measure_start <= item["time"] < measure_end]
+    start_values = [item for item in samples if payment_at - timedelta(minutes=1) <= item["time"] <= start_check_end]
+    baseline_w = sunroom_median_float(baseline_values)
+    active_w = sunroom_median_float(active_values)
+    net_w = active_w - baseline_w if active_w is not None and baseline_w is not None else None
+
+    overlap_count = 0
+    edge_conflict = False
+    own_id = row.id
+    for other in all_sessions:
+        if other.id == own_id:
+            continue
+        other_window = sunroom_session_energy_window(other)
+        if not other_window:
+            continue
+        other_start, other_end = other_window
+        other_occupied_end = other_end + timedelta(minutes=SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES)
+        if other_start < measure_end and other_occupied_end > measure_start:
+            overlap_count += 1
+            for other_edge in (other_start, other_end):
+                if abs((other_edge - sun_start_at).total_seconds()) <= 180 or abs((other_edge - end_at).total_seconds()) <= 180:
+                    edge_conflict = True
+
+    first_rise_at: Optional[datetime] = None
+    start_delta_w: Optional[float] = None
+    if baseline_w is not None:
+        threshold = baseline_w + 1000
+        for item in start_values:
+            if item["time"] < sun_start_at - timedelta(minutes=1):
+                continue
+            if item["diff_w"] >= threshold:
+                first_rise_at = item["time"]
+                start_delta_w = item["diff_w"] - baseline_w
+                break
+    start_delay_seconds = int((first_rise_at - payment_at).total_seconds()) if first_rise_at else None
+    delay_deviation_seconds = start_delay_seconds - expected_delay_seconds if start_delay_seconds is not None else None
+
+    if not samples:
+        quality = "missing"
+        quality_label = "Mangler energidata"
+    elif overlap_count == 0:
+        quality = "clean"
+        quality_label = "Ren måling"
+    elif not edge_conflict:
+        quality = "separable"
+        quality_label = "Kan vurderes"
+    else:
+        quality = "overlap"
+        quality_label = "Overlapp"
+
+    if first_rise_at and delay_deviation_seconds is not None and abs(delay_deviation_seconds) <= 90:
+        status = "confirmed"
+        status_label = "Starter som forventet"
+    elif first_rise_at:
+        status = "deviation"
+        status_label = "Startavvik"
+    elif baseline_w is not None and active_w is not None and (net_w or 0) > 1500:
+        status = "power_seen"
+        status_label = "Effekt sett"
+    elif quality == "overlap":
+        status = "overlap"
+        status_label = "Overlapp"
+    else:
+        status = "unknown"
+        status_label = "Ikke nok grunnlag"
+
+    if status == "confirmed":
+        detail = f"Første tydelige effektøkning kom {door_duration_label(start_delay_seconds)} etter betaling."
+    elif status == "deviation":
+        direction = "sent" if (delay_deviation_seconds or 0) > 0 else "tidlig"
+        detail = f"Effektøkningen kom {door_duration_label(abs(delay_deviation_seconds or 0))} {direction} mot forventet 3 min."
+    elif status == "power_seen":
+        detail = "Målt effekt i solperioden, men startøyeblikket er ikke tydelig nok."
+    elif status == "overlap":
+        detail = "Andre senger overlapper start eller slutt, så energien kan ikke fordeles sikkert."
+    else:
+        detail = "Ikke nok ren energidata til å kontrollere start."
+
+    return {
+        "quality": quality,
+        "qualityLabel": quality_label,
+        "status": status,
+        "statusLabel": status_label,
+        "detail": detail,
+        "samplesCount": len(active_values),
+        "baselineSamples": len(baseline_values),
+        "overlapCount": overlap_count,
+        "edgeConflict": edge_conflict,
+        "baselineW": round(baseline_w, 1) if baseline_w is not None else None,
+        "baselineLabel": sunroom_watt_label(baseline_w),
+        "activeMedianW": round(active_w, 1) if active_w is not None else None,
+        "activeMedianLabel": sunroom_watt_label(active_w),
+        "estimatedNetW": round(net_w, 1) if net_w is not None else None,
+        "estimatedNetLabel": sunroom_watt_label(net_w),
+        "startDeltaW": round(start_delta_w, 1) if start_delta_w is not None else None,
+        "startDeltaLabel": sunroom_watt_label(start_delta_w),
+        "expectedDelaySeconds": expected_delay_seconds,
+        "expectedDelayLabel": door_duration_label(expected_delay_seconds),
+        "firstRiseAt": first_rise_at.isoformat() if first_rise_at else None,
+        "firstRiseLabel": format_source_datetime(first_rise_at) if first_rise_at else "-",
+        "startDelaySeconds": start_delay_seconds,
+        "startDelayLabel": door_duration_label(start_delay_seconds) if start_delay_seconds is not None else "-",
+        "delayDeviationSeconds": delay_deviation_seconds,
+        "delayDeviationLabel": door_duration_label(abs(delay_deviation_seconds)) if delay_deviation_seconds is not None else "-",
     }
 
 
@@ -10997,6 +11166,184 @@ async def sunroom_room_detail_payload(session, room_id: str, days: int = 14, lim
         "currentPeriod": current_period,
         "periods": periods,
         "sessionsWithoutDoor": sessions_without_door,
+    }
+
+
+async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any]:
+    now = local_now_naive()
+    days = max(1, min(days, 30))
+    start_cutoff = now - timedelta(days=days)
+    configs = [config for config in DOOR_SENSOR_CONFIG if config.get("group_key") == "solrom"]
+    configs.sort(key=lambda config: int(config.get("sort_order") or 0))
+    device_ids = [int(config["device_id"]) for config in configs if config.get("device_id") is not None]
+    room_ids = [room_id for room_id in (sunroom_room_id_for_config(config) for config in configs) if room_id]
+
+    raw_rows: list[DoorEvent] = []
+    if device_ids:
+        raw_rows = (
+            await session.execute(
+                select(DoorEvent)
+                .where(DoorEvent.device_id.in_(device_ids))
+                .where(DoorEvent.timestamp >= start_cutoff - timedelta(hours=12))
+                .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
+                .limit(max(len(device_ids) * 500, 4000))
+            )
+        ).scalars().all()
+
+    session_rows = (
+        await session.execute(
+            select(Sun2TanningSession)
+            .where(Sun2TanningSession.room_id.in_(room_ids))
+            .where(Sun2TanningSession.started_at >= start_cutoff - timedelta(hours=2))
+            .where(Sun2TanningSession.started_at <= now + timedelta(hours=2))
+            .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
+        )
+    ).scalars().all()
+
+    energy_rows = (
+        await session.execute(
+            select(
+                EnergyFibaroSample.bucket_start.label("bucket_start"),
+                EnergyFibaroSample.differanse_beregnet_w.label("differanse_beregnet_w"),
+            )
+            .where(EnergyFibaroSample.bucket_start >= start_cutoff - timedelta(minutes=30))
+            .where(EnergyFibaroSample.bucket_start <= now + timedelta(hours=2))
+            .order_by(EnergyFibaroSample.bucket_start.asc())
+        )
+    ).mappings().all()
+    energy_samples = sunroom_energy_sample_items([dict(row) for row in energy_rows])
+    energy_by_session_id = {
+        int(row.id): sunroom_session_energy_evidence(row, energy_samples, session_rows)
+        for row in session_rows
+        if row.id is not None
+    }
+
+    change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
+    latest_change_by_device: Dict[int, DoorEvent] = {}
+    for row in reversed(change_rows_ascending):
+        if row.device_id is None:
+            continue
+        latest_change_by_device.setdefault(int(row.device_id), row)
+
+    all_closed_periods = door_closed_periods(change_rows_ascending, now)
+    periods_by_device: Dict[str, list[Dict[str, Any]]] = {}
+    for period in all_closed_periods:
+        closed_at = period.get("closedAt")
+        opened_at = period.get("openedAt")
+        if opened_at and opened_at < start_cutoff and (not closed_at or closed_at < start_cutoff):
+            continue
+        periods_by_device.setdefault(door_period_device_key(period), []).append(period)
+
+    sessions_by_room: Dict[str, list[Sun2TanningSession]] = {room_id: [] for room_id in room_ids}
+    for row in session_rows:
+        normalized = normalize_room_id(row.room_id)
+        if normalized:
+            sessions_by_room.setdefault(normalized, []).append(row)
+
+    rooms = []
+    all_matched_ids: set[int] = set()
+    for config in configs:
+        display_number = sunroom_display_number(config)
+        room_id = sunroom_room_id_for_config(config)
+        device_id = config.get("device_id")
+        latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
+        room_sessions = sessions_by_room.get(room_id or "", [])
+        status_item = sunroom_status_item(config, latest_row, {room_id or "": room_sessions}, now)
+        device_periods = periods_by_device.get(door_config_device_key(config), [])
+
+        periods = []
+        matched_ids: set[int] = set()
+        for period in device_periods[:12]:
+            matched_session = sunroom_match_session_for_period(room_sessions, period.get("closedAt"), period.get("openedAt"), now)
+            if matched_session and matched_session.id is not None:
+                matched_ids.add(int(matched_session.id))
+                all_matched_ids.add(int(matched_session.id))
+            payload = sunroom_period_payload(period, matched_session, now)
+            if matched_session and matched_session.id is not None:
+                payload["energy"] = energy_by_session_id.get(int(matched_session.id))
+            else:
+                payload["energy"] = None
+            periods.append(payload)
+
+        recent_sessions = [
+            {
+                **sunroom_session_payload(row),
+                "energy": energy_by_session_id.get(int(row.id)) if row.id is not None else None,
+                "hasDoorMatch": row.id is not None and int(row.id) in matched_ids,
+            }
+            for row in room_sessions
+            if normalize_local_naive(row.started_at) and normalize_local_naive(row.started_at) >= start_cutoff
+        ][:8]
+
+        sessions_without_door = [item for item in recent_sessions if not item.get("hasDoorMatch")]
+        alerts = [period for period in periods if period.get("severity") == "alert"]
+        warnings = [period for period in periods if period.get("severity") == "warning"]
+        energy_confirmed = [
+            item
+            for item in recent_sessions
+            if (item.get("energy") or {}).get("status") == "confirmed"
+        ]
+        energy_overlap = [
+            item
+            for item in recent_sessions
+            if (item.get("energy") or {}).get("quality") == "overlap"
+        ]
+
+        rooms.append(
+            {
+                "displayRoomNumber": display_number,
+                "title": config.get("title") or f"Solrom {display_number}",
+                "sectionKey": config.get("section_key"),
+                "sectionTitle": config.get("section_title"),
+                "deviceId": device_id,
+                "deviceKey": config.get("device_key"),
+                "roomId": room_id,
+                "roomLabel": sun2_room_label(room_id, None),
+                "status": status_item,
+                "latestPeriod": periods[0] if periods else None,
+                "periods": periods,
+                "recentSessions": recent_sessions,
+                "sessionsWithoutDoor": sessions_without_door,
+                "summary": {
+                    "periods": len(periods),
+                    "sessions": len(recent_sessions),
+                    "matched": len([item for item in recent_sessions if item.get("hasDoorMatch")]),
+                    "withoutDoor": len(sessions_without_door),
+                    "warnings": len(warnings),
+                    "alerts": len(alerts),
+                    "energyConfirmed": len(energy_confirmed),
+                    "energyOverlap": len(energy_overlap),
+                },
+            }
+        )
+
+    active_rooms = [room for room in rooms if (room.get("status") or {}).get("isOccupied")]
+    warning_rooms = [room for room in rooms if (room.get("status") or {}).get("severity") == "warning"]
+    alert_rooms = [room for room in rooms if (room.get("status") or {}).get("severity") == "alert"]
+    sessions_without_door_count = sum(int((room.get("summary") or {}).get("withoutDoor") or 0) for room in rooms)
+    energy_confirmed_count = sum(int((room.get("summary") or {}).get("energyConfirmed") or 0) for room in rooms)
+    return {
+        "generatedAt": now.isoformat(),
+        "days": days,
+        "rules": {
+            "paymentDelayMinutes": SUNROOM_DOOR_PAYMENT_DELAY_MINUTES,
+            "exitGraceMinutes": SUNROOM_DOOR_EXIT_GRACE_MINUTES,
+            "fanAfterRunMinutes": SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES,
+            "warnAfterEndMinutes": SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
+            "alertAfterEndMinutes": SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,
+        },
+        "summary": {
+            "rooms": len(rooms),
+            "active": len(active_rooms),
+            "warnings": len(warning_rooms),
+            "alerts": len(alert_rooms),
+            "sessions": len([row for row in session_rows if normalize_local_naive(row.started_at) >= start_cutoff]),
+            "doorMatches": len(all_matched_ids),
+            "sessionsWithoutDoor": sessions_without_door_count,
+            "energyConfirmed": energy_confirmed_count,
+            "energySamples": len(energy_samples),
+        },
+        "rooms": rooms,
     }
 
 
@@ -31685,6 +32032,12 @@ async def api_hc3_doors_status(
 async def api_hc3_doors_sunroom_sessions():
     async with async_session() as session:
         return await sunroom_door_session_payload(session, notify=True)
+
+
+@app.get("/api/hc3/doors/sunroom-overview")
+async def api_hc3_doors_sunroom_overview(days: int = Query(2, ge=1, le=30)):
+    async with async_session() as session:
+        return await sunroom_room_overview_payload(session, days=days)
 
 
 @app.get("/api/hc3/doors/sunroom-sessions/{room_id}")
