@@ -2,7 +2,7 @@
 
 Dokumentasjonsstruktur gjennomgått 10.07.2026.
 
-Sist kontrollert og oppdatert: 08.06.2026.
+Sist kontrollert og oppdatert: 11.07.2026.
 
 Denne oversikten dokumenterer hvilke HC3 QuickApps som summerer realtime effekt og akkumulert energi for Fibaro10.
 
@@ -44,6 +44,40 @@ Fibaro10 logger fortsatt avfukter separat som `avfukter_w` og `avfukter_kwh`, me
 QuickApp 331 `Differanse R` og 334 `Differanse A` finnes i HC3, men sendes ikke lenger til Fibaro10. Differanse har ingen hensikt aa logge separat fordi Fibaro10 beregner den fra realtime-verdiene.
 
 Forbruksdelta og dagsforbruk i Fibaro10 beregnes fra realtime W-samples hvert 30. sekund. Fibaro10 lagrer energisamples i 30-sekunders bucket, slik at to samples i samme minutt ikke overskriver hverandre. Akkumulerte kWh-verdier fra HC3 logges som kontrollverdier, men brukes ikke som grunnlag for dagsforbruket. Dette er valgt fordi reset i en akkumulerende undermaler kan skjules i en samlet QuickApp-verdi.
+
+## HC3 energilogger og watchdog
+
+HC3 scene `365` (`Energi - Logging - 1min`) kjører en langvarig Lua-loop som poster realtime effekt til:
+
+```text
+http://192.168.20.218:8110/api/energi/fibaro
+```
+
+Scenen sender hvert 30. sekund og Fibaro10 registrerer dette som datakilde `hc3_energy_1min` (`Energi fra HC3`). En HC3-restart stopper denne typen langvarig scene. Derfor ligger det også en QNAP-watchdog:
+
+```text
+scripts/hc3-energy-watchdog.sh
+```
+
+Watchdogen kjøres hvert minutt fra QNAP cron. Den leser `http://127.0.0.1:8110/health?details=true` inne i Fibaro10-containeren og starter HC3 scene `365` via HC3 API hvis `hc3_energy_1min` er eldre enn 5 minutter. HC3-tilgang ligger lokalt på QNAP i:
+
+```text
+/share/CACHEDEV1_DATA/Public/containerdata/fibaro10/.env.hc3-watchdog
+```
+
+Cron-linjen på QNAP:
+
+```text
+* * * * * cd /share/CACHEDEV1_DATA/Public/containerdata/fibaro10 && sh scripts/hc3-energy-watchdog.sh >/dev/null 2>&1
+```
+
+Logg:
+
+```text
+/share/CACHEDEV3_DATA/fibaro10_archive/logs/hc3-energy-watchdog.log
+```
+
+Hvis HC3 er avskrudd eller rebootet, kan Fibaro10 ikke backfylle realtime effekt for perioden HC3 ikke sendte. Watchdogen begrenser derfor nedetiden etter at HC3 er tilbake, men kan ikke gjenskape manglende 30-sekunders samples historisk.
 
 ## Rapporteringsfrekvens
 
