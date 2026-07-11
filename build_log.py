@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1510")
+APP_BUILD = os.getenv("APP_BUILD", "1511")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1511",
+        "date": "11.07.2026",
+        "headline": "HC3-dører koblet til Fibaro10",
+        "title": "Kobler monterte HC3-dørsensorer til Fibaro10 og klargjør per-dør-triggerne",
+        "description": (
+            "Build 1511 kobler de monterte magnetfølerne i HC3 til Dører-modulen i Fibaro10. Solrom 1 og "
+            "Solrom 4-12, byggdørene og de tre eksisterende sensorene har nå faste device-id-er. Solrom 2 og "
+            "Solrom 3 står fortsatt som klargjort fordi HC3 ikke rapporterer monterte doorSensor-enheter for dem."
+        ),
+        "applications": [
+            "main.py: oppdaterer DOOR_SENSOR_CONFIG med faktiske HC3 device-id-er og legger inn Toalett/Vaktmesterlager som byggdører.",
+            "scripts/upsert_hc3_single_door_logger_scenes.py: oppretter/oppdaterer en Lua-logger og en block-trigger per montert dør.",
+            "scripts/hc3_door_event_logger.lua: utvider den manuelle statussyncen med alle monterte dørsensorer.",
+            "docs/hc3-dorer.md: dokumenterer endelig dørkart, manglende Solrom 2/3 og installasjonsmodell.",
+            "tests/test_hc3_door_events.py: tester at de monterte HC3-id-ene finnes i logger-script og upsert-script.",
+            "build_log.py: dokumenterer build 1511.",
+        ],
+        "request": "Nå er sensorene for dørene montert, kan du fikse slik at det fungerer?",
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fibaro10 viser monterte sensorer som koblet i stedet for klargjort der HC3-id finnes.",
+            "HC3-oppsettet bruker én trigger-scene og én tynn logger-scene per dør, slik at en dørendring ikke leser alle dører.",
+            "Solrom 2 og Solrom 3 blir stående som planlagte til HC3 får faktiske sensor-id-er.",
+            "Toalett og Vaktmesterlager er tatt med fordi HC3 rapporterer dem som monterte doorSensor-enheter.",
+        ],
+    },
     {
         "version": "1",
         "build": "1510",

@@ -1,8 +1,24 @@
 --[[
 %% properties
+459 value
+465 value
+463 value
+469 value
+471 value
+473 value
+475 value
+477 value
+479 value
+491 value
 453 value
 447 value
 413 value
+499 value
+483 value
+489 value
+487 value
+493 value
+495 value
 %% events
 %% globals
 --]]
@@ -18,9 +34,25 @@ local API_URL = "http://192.168.20.218:8110/api/hc3/door-events"
 local SOURCE = "HC3 DOOR LOGGER"
 
 local DEVICES = {
+  [459] = { key = "door_solrom_01", name = "98.0 Rom 1" },
+  [465] = { key = "door_solrom_04", name = "101.0 Rom 4" },
+  [463] = { key = "door_solrom_05", name = "100.0 Rom 5" },
+  [469] = { key = "door_solrom_06", name = "104.0 Rom 6" },
+  [471] = { key = "door_solrom_07", name = "105.0 Rom 7" },
+  [473] = { key = "door_solrom_08", name = "106.0 Rom 8" },
+  [475] = { key = "door_solrom_09", name = "107.0 Rom 9" },
+  [477] = { key = "door_solrom_10", name = "108.0 Rom 10" },
+  [479] = { key = "door_solrom_11", name = "109.0 Rom 11" },
+  [491] = { key = "door_solrom_12", name = "116.0 Rom 12" },
   [453] = { key = "door_453", name = "96.0 bod/kjokken" },
   [447] = { key = "door_447", name = "94.0 Kjeller luke" },
-  [413] = { key = "door_413", name = "86.0 Arbeidsrom" }
+  [413] = { key = "door_413", name = "86.0 Arbeidsrom" },
+  [499] = { key = "door_inngang", name = "120.0 Inngang" },
+  [483] = { key = "door_massasjestudio", name = "112.0 Massasje" },
+  [489] = { key = "door_vaskerom", name = "115.0 Vaskerom" },
+  [487] = { key = "door_papirlager", name = "114.0 Papirlager" },
+  [493] = { key = "door_vaktmesterlager", name = "117.0 Vaktmesterlager" },
+  [495] = { key = "door_toalett", name = "118.0 Toalett" }
 }
 
 local function log(message)

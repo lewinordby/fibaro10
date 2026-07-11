@@ -35,8 +35,60 @@ def test_door_event_datakilde_and_storage_are_registered():
 def test_hc3_door_lua_contains_expected_devices_and_endpoint():
     lua = Path("scripts/hc3_door_event_logger.lua").read_text(encoding="utf-8")
 
-    for device_id in ("453", "447", "413"):
+    expected_device_ids = (
+        "459",
+        "465",
+        "463",
+        "469",
+        "471",
+        "473",
+        "475",
+        "477",
+        "479",
+        "491",
+        "453",
+        "447",
+        "413",
+        "499",
+        "483",
+        "489",
+        "487",
+        "493",
+        "495",
+    )
+
+    for device_id in expected_device_ids:
         assert f"{device_id} value" in lua
         assert f"[{device_id}]" in lua
 
     assert "/api/hc3/door-events" in lua
+
+
+def test_hc3_single_door_scene_script_contains_configured_devices():
+    script = Path("scripts/upsert_hc3_single_door_logger_scenes.py").read_text(encoding="utf-8")
+
+    for device_id in (
+        "459",
+        "465",
+        "463",
+        "469",
+        "471",
+        "473",
+        "475",
+        "477",
+        "479",
+        "491",
+        "453",
+        "447",
+        "413",
+        "499",
+        "483",
+        "489",
+        "487",
+        "493",
+        "495",
+    ):
+        assert f'"device_id": {device_id}' in script
+
+    assert "door_solrom_02" not in script
+    assert "door_solrom_03" not in script
