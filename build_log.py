@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1512")
+APP_BUILD = os.getenv("APP_BUILD", "1513")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1513",
+        "date": "11.07.2026",
+        "headline": "Sekunder på dørhendelser",
+        "title": "Viser døråpninger og dørstatus med sekundpresisjon",
+        "description": (
+            "Build 1513 gjør dør-API-et mer presist ved å sende full dato og klokkeslett med sekunder for "
+            "råhendelser, siste statusendring og åpne/lukkeperioder. Oversikten kan dermed vise nøyaktig når "
+            "en dør åpnet eller lukket, samtidig som varigheten fortsatt beregnes som før."
+        ),
+        "applications": [
+            "main.py: bruker format_source_datetime for dørhendelser, siste endring og åpne/lukkeperioder.",
+            "build_log.py: dokumenterer build 1513.",
+        ],
+        "request": "Er det mulig å få med sekunder for når dørene åpnes og lukkes?",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Dører/Oversikt viser siste statusendring med sekunder.",
+            "Dører/Solrom og Dører/Andre dører viser åpnet/lukket-tidspunkt med sekunder.",
+            "Dører/Rådata viser hendelsestidspunkt med sekunder.",
+        ],
+    },
     {
         "version": "1",
         "build": "1512",
