@@ -1859,19 +1859,19 @@
 
 .door-room-control-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(330px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(520px, 1fr));
+  gap: 14px;
 }
 
 .door-room-control-card {
   --room-tone: var(--domain-building);
   display: grid;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  padding: 13px;
+  padding: 14px 16px;
   background: var(--surface);
   border: 1px solid color-mix(in srgb, var(--room-tone) 13%, var(--line-soft));
-  border-top: 4px solid var(--room-tone);
+  border-left: 5px solid var(--room-tone);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
 }
@@ -1893,10 +1893,9 @@
 }
 
 .door-room-control-head,
-.door-room-control-session-head,
-.door-room-control-foot {
+.door-room-control-session-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
@@ -1919,67 +1918,124 @@
   font-weight: 680;
 }
 
-.door-room-control-state,
-.door-room-control-period {
+.door-room-control-head-status {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.door-room-control-head-status a {
+  color: var(--domain-building);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.door-room-control-now,
+.door-room-control-timeline {
   display: grid;
   gap: 7px;
 }
 
-.door-room-control-state {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.door-room-control-now {
+  grid-template-columns: 1.05fr 1.25fr 1fr;
 }
 
-.door-room-control-period {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 8px;
-  background: var(--surface-muted);
-  border: 1px solid var(--border-panel-soft);
+.door-room-control-timeline {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  padding: 9px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--room-tone) 12%, transparent), transparent 22%),
+    var(--surface-muted);
+  border: 1px solid color-mix(in srgb, var(--room-tone) 10%, var(--border-panel-soft));
   border-radius: var(--radius-md);
 }
 
-.door-room-control-state > div,
-.door-room-control-period > div {
+.door-room-control-metric {
+  min-width: 0;
+  padding: 8px 9px;
+  background: color-mix(in srgb, var(--room-tone) 3%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--room-tone) 8%, var(--border-panel-soft));
+  border-radius: var(--radius-sm);
+}
+
+.door-room-control-metric.tone-ok {
+  background: color-mix(in srgb, var(--green) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--green) 20%, var(--border-panel-soft));
+}
+
+.door-room-control-metric.tone-warn {
+  background: color-mix(in srgb, var(--amber) 9%, var(--surface));
+  border-color: color-mix(in srgb, var(--amber) 28%, var(--border-panel-soft));
+}
+
+.door-room-control-metric.tone-alert {
+  background: color-mix(in srgb, var(--red) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--red) 28%, var(--border-panel-soft));
+}
+
+.door-room-control-metric.tone-muted {
+  background: var(--surface-muted);
+}
+
+.door-room-control-metric span,
+.door-room-control-metric strong,
+.door-room-control-metric small {
+  display: block;
   min-width: 0;
 }
 
-.door-room-control-state span,
-.door-room-control-period span,
-.door-room-control-facts span,
+.door-room-control-metric span,
 .door-room-control-energy span,
 .door-room-control-empty span,
-.door-room-control-session small,
-.door-room-control-foot span {
+.door-room-control-session small {
   color: var(--muted);
   font-size: 10.5px;
   font-weight: 680;
 }
 
-.door-room-control-state strong,
-.door-room-control-period strong,
+.door-room-control-metric strong,
 .door-room-control-empty strong {
   display: block;
   overflow: hidden;
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.door-room-control-state small {
+.door-room-control-metric small {
   display: block;
+  overflow: hidden;
+  margin-top: 2px;
   color: var(--text-label);
   font-size: 10.5px;
   font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .door-room-control-session {
   display: grid;
-  gap: 6px;
-  padding: 9px;
+  gap: 8px;
+  padding: 10px;
   background: color-mix(in srgb, var(--room-tone) 4%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--room-tone) 10%, var(--line-soft));
   border-radius: var(--radius-md);
+}
+
+.door-room-control-session-head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.door-room-control-session-head span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 760;
+  text-transform: uppercase;
 }
 
 .door-room-control-session-head a {
@@ -1994,14 +2050,9 @@
   gap: 6px;
 }
 
-.door-room-control-facts span {
-  overflow: hidden;
-  padding: 5px 7px;
+.door-room-control-facts .door-room-control-metric {
+  padding: 7px 8px;
   background: var(--surface);
-  border: 1px solid var(--border-panel-soft);
-  border-radius: var(--radius-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .door-room-control-energy {
@@ -2011,8 +2062,17 @@
   align-items: center;
 }
 
-.door-room-control-energy > span:last-child {
+.door-room-control-energy > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.door-room-control-energy strong {
   overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2026,19 +2086,55 @@
   border-radius: var(--radius-md);
 }
 
-.door-room-control-foot {
-  padding-top: 2px;
+.door-room-control-history {
+  display: grid;
+  gap: 7px;
+  padding: 9px 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-panel-soft);
+  border-radius: var(--radius-md);
 }
 
-.door-room-control-foot a {
-  color: var(--domain-building);
-  font-size: 11px;
-  font-weight: 800;
+.door-room-control-history-head,
+.door-room-control-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.7fr) minmax(0, 1.05fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.door-room-control-history-head span,
+.door-room-control-history-head strong,
+.door-room-control-history-row span,
+.door-room-control-history-row strong,
+.door-room-control-history-row small,
+.door-room-control-history-empty {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-room-control-history-head span {
+  text-transform: uppercase;
+}
+
+.door-room-control-history-head strong,
+.door-room-control-history-row strong {
+  color: var(--ink);
+  font-weight: 820;
+}
+
+.door-room-control-history-row {
+  padding-top: 6px;
+  border-top: 1px solid var(--border-panel-soft);
 }
 
 @media (max-width: 1380px) {
   .door-room-control-grid {
-    grid-template-columns: repeat(2, minmax(330px, 1fr));
+    grid-template-columns: repeat(2, minmax(430px, 1fr));
   }
 
   .door-room-control-summary {
@@ -2049,7 +2145,8 @@
 @media (max-width: 1180px) {
   .door-board-command,
   .door-board-layout,
-  .door-room-control-command {
+  .door-room-control-command,
+  .door-room-control-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2077,9 +2174,11 @@
 
   .door-room-control-grid,
   .door-room-control-summary,
-  .door-room-control-state,
-  .door-room-control-period,
-  .door-room-control-facts {
+  .door-room-control-now,
+  .door-room-control-timeline,
+  .door-room-control-facts,
+  .door-room-control-history-head,
+  .door-room-control-history-row {
     grid-template-columns: 1fr;
   }
 }
