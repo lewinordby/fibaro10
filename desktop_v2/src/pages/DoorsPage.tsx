@@ -818,7 +818,10 @@ const sunroomPeriodColumns: ColumnsType<DoorSunroomRoomPeriod> = [
     render: (_, row) =>
       row.session ? (
         <div className="door-room-session-cell">
-          <Link to={row.session.href}>{row.session.startedLabel}</Link>
+          <Link to={row.session.href}>Betalt {row.session.startedLabel}</Link>
+          <span>
+            Solstart {row.session.sunStartLabel} · slutt {row.session.endedLabel}
+          </span>
           <span>
             {row.session.durationMinutes ? `${row.session.durationMinutes} min` : "-"} · {sunroomMoney(row.session.paidAmountKr)}
           </span>
@@ -921,7 +924,11 @@ function DoorSunroomRoomDetail({
             <div>
               <span>Soltime</span>
               <strong>{current.session?.startedLabel || "Ikke funnet"}</strong>
-              <small>{current.session ? `${current.session.durationMinutes || "-"} min · ${sunroomMoney(current.session.paidAmountKr)}` : current.detail}</small>
+              <small>
+                {current.session
+                  ? `Solstart ${current.session.sunStartLabel} · slutt ${current.session.endedLabel} · ${current.session.durationMinutes || "-"} min`
+                  : current.detail}
+              </small>
             </div>
             <div>
               <span>Forventet ut</span>
@@ -958,7 +965,8 @@ function DoorSunroomRoomDetail({
               <Link to={session.href} key={session.id}>
                 <strong>{session.startedLabel}</strong>
                 <span>
-                  {session.durationMinutes || "-"} min · {sunroomMoney(session.paidAmountKr)} · forventet ut {session.expectedExitLabel}
+                  Solstart {session.sunStartLabel} · slutt {session.endedLabel} · {session.durationMinutes || "-"} min · forventet ut{" "}
+                  {session.expectedExitLabel}
                 </span>
               </Link>
             ))}
@@ -1022,8 +1030,9 @@ function DoorSunroomSessionsBoard({
         <div>
           <Typography.Title level={3}>Dør og soltime</Typography.Title>
           <span>
-            Lukket solrom kobles mot siste Sun2-time i samme rom. Oransje etter {data.rules.warnAfterEndMinutes} min,
-            rødt etter {data.rules.alertAfterEndMinutes} min fra forventet ut-tid.
+            Lukket solrom kobles mot siste Sun2-time i samme rom. Forventet ut er betaling + oppstart + soltid
+            + normal utgangstid. Oransje etter {data.rules.warnAfterEndMinutes} min, rødt etter{" "}
+            {data.rules.alertAfterEndMinutes} min fra solslutt.
           </span>
         </div>
         <div className="door-sunroom-actions">
@@ -1062,6 +1071,7 @@ function DoorSunroomSessionsBoard({
 
       <div className="door-sunroom-rules">
         <span>Solstart +{data.rules.paymentDelayMinutes} min</span>
+        <span>Forventet ut +{data.rules.exitGraceMinutes} min</span>
         <span>Vifte +{data.rules.fanAfterRunMinutes} min</span>
         <span>Sun2-frist {data.rules.sessionGraceMinutes} min</span>
         <span>Monitor hvert {Math.round(data.rules.monitorIntervalSeconds / 60)} min</span>

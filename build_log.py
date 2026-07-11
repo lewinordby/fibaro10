@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1517")
+APP_BUILD = os.getenv("APP_BUILD", "1518")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1518",
+        "date": "11.07.2026",
+        "headline": "Riktig forventet ut-tid for solrom",
+        "title": "Skiller betalingstid, solstart, solslutt og forventet ut-tid i dør/soltime-visningen",
+        "description": (
+            "Build 1518 korrigerer forventet ut-tid på Dører/Dør og soltime. Sun2-start behandles som betalingstid, "
+            "sengen starter etter tre minutter, betalt soltid løper derfra, og forventet ut-tid beregnes med normal "
+            "utgangstid etter solslutt."
+        ),
+        "applications": [
+            "main.py: beregner solstart, solslutt og forventet ut-tid separat for solromdører.",
+            "desktop_v2/src/api.ts: eksponerer ny regel for normal utgangstid.",
+            "desktop_v2/src/pages/DoorsPage.tsx: viser betaling, solstart, solslutt og forventet ut tydeligere.",
+            "tests/test_hc3_door_events.py: legger test for beregningen betaling + oppstart + soltid + utgangstid.",
+            "build_log.py: dokumenterer build 1518.",
+        ],
+        "request": (
+            "Historikk på rom 4 viste rar forventning. En soltime-start er når timen betales, sengen starter tre "
+            "minutter etter, betalt tid løper derfra, og kunden bruker normalt 1-3 minutter på å komme ut."
+        ),
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Forventet ut er nå betalingstid + 3 min oppstart + betalt soltid + 3 min normal utgangstid.",
+            "Oransje og rød grense vurderes mot solslutt, ikke mot teknisk vifteettergang.",
+            "Historikken viser nå Betalt, Solstart og Slutt i soltimekolonnen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1517",

@@ -1,4 +1,7 @@
 import ast
+import os
+import unittest
+from datetime import datetime
 from pathlib import Path
 
 from import_jobs import IMPORT_JOB_DEFINITIONS
@@ -92,3 +95,23 @@ def test_hc3_single_door_scene_script_contains_configured_devices():
 
     assert "door_solrom_02" not in script
     assert "door_solrom_03" not in script
+
+
+class SunroomDoorTimingTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://example:example@127.0.0.1:5432/example")
+        import main
+
+        cls.main = main
+
+    def test_expected_exit_uses_payment_delay_sun_time_and_exit_grace(self):
+        row = self.main.Sun2TanningSession(
+            started_at=datetime(2026, 7, 11, 12, 0),
+            ended_at=datetime(2026, 7, 11, 12, 12),
+            duration_minutes=12,
+        )
+
+        self.assertEqual(self.main.sunroom_session_sun_start_at(row), datetime(2026, 7, 11, 12, 3))
+        self.assertEqual(self.main.sunroom_session_end_at(row), datetime(2026, 7, 11, 12, 15))
+        self.assertEqual(self.main.sunroom_expected_exit_at(row), datetime(2026, 7, 11, 12, 18))

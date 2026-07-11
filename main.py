@@ -238,6 +238,7 @@ SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_
 SUNROOM_DOOR_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "5")
 SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = env_float("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3")
 SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES = env_float("SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES", "3")
+SUNROOM_DOOR_EXIT_GRACE_MINUTES = env_float("SUNROOM_DOOR_EXIT_GRACE_MINUTES", "3")
 SUNROOM_DOOR_WARN_AFTER_END_MINUTES = env_float("SUNROOM_DOOR_WARN_AFTER_END_MINUTES", "5")
 SUNROOM_DOOR_ALERT_AFTER_END_MINUTES = env_float("SUNROOM_DOOR_ALERT_AFTER_END_MINUTES", "10")
 SUNROOM_DOOR_SESSION_LOOKBACK_HOURS = max(2, int(os.getenv("SUNROOM_DOOR_SESSION_LOOKBACK_HOURS", "12")))
@@ -10466,31 +10467,35 @@ def sunroom_config_for_room_id(room_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def sunroom_session_end_at(row: Sun2TanningSession) -> Optional[datetime]:
-    end_at = normalize_local_naive(row.ended_at)
-    if end_at:
-        return end_at
+def sunroom_session_sun_start_at(row: Sun2TanningSession) -> Optional[datetime]:
     start_at = normalize_local_naive(row.started_at)
-    if start_at and row.duration_minutes is not None:
+    if not start_at:
+        return None
+    return start_at + timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES)
+
+
+def sunroom_session_end_at(row: Sun2TanningSession) -> Optional[datetime]:
+    sun_start_at = sunroom_session_sun_start_at(row)
+    if sun_start_at and row.duration_minutes is not None:
         try:
-            return start_at + timedelta(minutes=float(row.duration_minutes))
+            return sun_start_at + timedelta(minutes=float(row.duration_minutes))
         except (TypeError, ValueError):
             return None
-    return None
+    return normalize_local_naive(row.ended_at)
 
 
 def sunroom_expected_exit_at(row: Sun2TanningSession) -> Optional[datetime]:
     end_at = sunroom_session_end_at(row)
     if not end_at:
         return None
-    return end_at + timedelta(minutes=SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES)
+    return end_at + timedelta(minutes=SUNROOM_DOOR_EXIT_GRACE_MINUTES)
 
 
 def sunroom_session_payload(row: Sun2TanningSession) -> Dict[str, Any]:
     start_at = normalize_local_naive(row.started_at)
     end_at = sunroom_session_end_at(row)
     expected_exit_at = sunroom_expected_exit_at(row)
-    sun_start_at = start_at + timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES) if start_at else None
+    sun_start_at = sunroom_session_sun_start_at(row)
     href_params = {}
     if start_at:
         href_params["date_from"] = start_at.date().isoformat()
@@ -10618,21 +10623,23 @@ def sunroom_period_status(
         status = "Mangler soltime" if missing_session else "Avventer Sun2"
         detail = "Ingen Sun2-time er funnet for denne dørperioden." if missing_session else "Kort dørperiode uten sikker Sun2-kobling."
     elif expected_exit_at:
+        session_end_at = sunroom_session_end_at(matched_session)
         compare_at = opened_at or now
         remaining_seconds = int((expected_exit_at - compare_at).total_seconds())
         overstay_seconds = max(0, -remaining_seconds)
-        if overstay_seconds >= int(SUNROOM_DOOR_ALERT_AFTER_END_MINUTES * 60):
+        alert_seconds = int((compare_at - session_end_at).total_seconds()) if session_end_at else overstay_seconds
+        if alert_seconds >= int(SUNROOM_DOOR_ALERT_AFTER_END_MINUTES * 60):
             severity = "alert"
             status = "Overtid"
-            detail = "Døren ble ikke åpnet før rød grense."
-        elif overstay_seconds >= int(SUNROOM_DOOR_WARN_AFTER_END_MINUTES * 60):
+            detail = "Døren ble ikke åpnet før rød grense etter solslutt."
+        elif alert_seconds >= int(SUNROOM_DOOR_WARN_AFTER_END_MINUTES * 60):
             severity = "warning"
             status = "Overtid"
-            detail = "Døren ble ikke åpnet før oransje grense."
+            detail = "Døren ble ikke åpnet før oransje grense etter solslutt."
         elif is_active:
             severity = "active"
             status = "Pågår"
-            detail = "Soltime pågår eller vifteettergang er innenfor forventet tid."
+            detail = "Soltime pågår eller kunden er innenfor normal utgangstid."
         else:
             severity = "ok"
             status = "OK"
@@ -10738,18 +10745,20 @@ def sunroom_status_item(
         elif expected_exit_at:
             remaining_seconds = int((expected_exit_at - now).total_seconds())
             overstay_seconds = max(0, -remaining_seconds)
-            if overstay_seconds >= int(SUNROOM_DOOR_ALERT_AFTER_END_MINUTES * 60):
+            session_end_at = sunroom_session_end_at(matched_session)
+            alert_seconds = int((now - session_end_at).total_seconds()) if session_end_at else overstay_seconds
+            if alert_seconds >= int(SUNROOM_DOOR_ALERT_AFTER_END_MINUTES * 60):
                 severity = "alert"
                 status = "Overtid"
-                detail = f"Kunden er fortsatt inne mer enn {SUNROOM_DOOR_ALERT_AFTER_END_MINUTES:g} min etter forventet ut-tid."
-            elif overstay_seconds >= int(SUNROOM_DOOR_WARN_AFTER_END_MINUTES * 60):
+                detail = f"Kunden er fortsatt inne mer enn {SUNROOM_DOOR_ALERT_AFTER_END_MINUTES:g} min etter solslutt."
+            elif alert_seconds >= int(SUNROOM_DOOR_WARN_AFTER_END_MINUTES * 60):
                 severity = "warning"
                 status = "Overtid"
-                detail = f"Kunden er fortsatt inne mer enn {SUNROOM_DOOR_WARN_AFTER_END_MINUTES:g} min etter forventet ut-tid."
+                detail = f"Kunden er fortsatt inne mer enn {SUNROOM_DOOR_WARN_AFTER_END_MINUTES:g} min etter solslutt."
             else:
                 severity = "active"
                 status = "I bruk"
-                detail = "Soltime funnet. Forventet ut-tid er beregnet fra slutt + vifteettergang."
+                detail = "Soltime funnet. Forventet ut-tid er beregnet fra betaling + oppstart + soltid + normal utgangstid."
         else:
             severity = "active"
             status = "I bruk"
@@ -10882,6 +10891,7 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
         "rules": {
             "paymentDelayMinutes": SUNROOM_DOOR_PAYMENT_DELAY_MINUTES,
             "fanAfterRunMinutes": SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES,
+            "exitGraceMinutes": SUNROOM_DOOR_EXIT_GRACE_MINUTES,
             "sessionGraceMinutes": SUNROOM_DOOR_SESSION_GRACE_MINUTES,
             "warnAfterEndMinutes": SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
             "alertAfterEndMinutes": SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,

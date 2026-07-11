@@ -523,6 +523,7 @@ export type DoorSunroomSessionsResponse = {
   rules: {
     paymentDelayMinutes: number;
     fanAfterRunMinutes: number;
+    exitGraceMinutes: number;
     sessionGraceMinutes: number;
     warnAfterEndMinutes: number;
     alertAfterEndMinutes: number;
