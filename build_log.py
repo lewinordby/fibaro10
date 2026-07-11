@@ -16,11 +16,13 @@ BUILD_LOG = [
         "description": (
             "Build 1525 er en ytelsesrunde for Fibaro10. Store og historiske visninger faar mer presis React Query-cache, "
             "parameterbytter beholder forrige datasett mens ny henting pagar, server-side paginerte tabeller filtreres ikke "
-            "ekstra i browseren, gzip bruker lavere komprimeringsnivaa, og databasen faar indekser som matcher faktisk "
-            "sporringsmonster for parkering og kjoretoy."
+            "ekstra i browseren, parkering/kjoretoy og parkering/parkeringer hopper over unodvendig oversiktsbygging, "
+            "gzip bruker lavere komprimeringsnivaa, og databasen faar indekser som matcher faktisk sporringsmonster "
+            "for parkering og kjoretoy."
         ),
         "applications": [
             "main.py: setter GZipMiddleware compresslevel til 5 og legger til indekser for kompakt parkeringsskilt/starttid og kjoretoy last_seen/plate.",
+            "main.py: gir parkering/kjoretoy og parkering/parkeringer tidlig retur og samler kjoretoy-counts i en database-sporring.",
             "desktop_v2/src/hooks.ts og queryClient.ts: beholder forrige query-data ved parameterbytte og lar cache leve lenger mellom navigeringer.",
             "desktop_v2/src/pages/ModulePage.tsx: gir tunge historikk-, oppgjor-, analyse- og registervisninger egne staleTime-verdier.",
             "desktop_v2/src/pages/module/ModuleTablePane.tsx: unngar dobbel klientfiltrering for server-side paginerte tabeller.",
@@ -37,6 +39,7 @@ BUILD_LOG = [
             "Server-side paginerte tabeller bruker backend-resultatet direkte og slipper ekstra filterpass i browseren.",
             "Gzip-komprimering bruker lavere CPU-kost, bedre egnet for store JSON-svar paa QNAP.",
             "Nye databaseindekser gir bedre grunnlag for parkeringshistorikk per bil og kjoretoylisten sortert paa sist sett.",
+            "Kjoretoy- og parkeringer-view bygger ikke lenger oversiktskort, ukegraf og siste-parkeringer-grunnlag forst.",
             "Full lokal kvalitetssjekk er kjort gront, inkludert Python-tester, desktop-build, OwnTracks-build, CSS-audit, bundle-audit, route-audit og UI-smoke.",
         ],
     },

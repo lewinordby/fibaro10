@@ -24325,8 +24325,148 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
         if module == "parkering":
             if view == "oppgjor":
                 return await parking_settlement_module_payload(session)
-            parking_summaries = await get_parking_summaries(session)
             normalized_session_plate = func.upper(func.replace(ParkingSession.car_license_number, " ", ""))
+            if view == "parkeringer":
+                selected_parking_day = parse_day(api_filter_value(params, "day"))
+                selected_parking_start = datetime.combine(selected_parking_day, time.min)
+                selected_parking_end = selected_parking_start + timedelta(days=1)
+                day_navigation = api_day_navigation(selected_parking_day, today)
+                parking_import_status = (
+                    await session.execute(
+                        select(ImportJobStatus).where(ImportJobStatus.job_name == "easypark_parking_import")
+                    )
+                ).scalars().first()
+                if parking_import_status and parking_import_status.last_success_at:
+                    day_navigation["context"] = {
+                        "label": "Sist oppdatert",
+                        "value": format_source_datetime(parking_import_status.last_success_at),
+                        "detail": import_job_age(parking_import_status),
+                    }
+                plate_value = compact_plate(api_filter_value(params, "plate"))
+                status_value = api_filter_value(params, "status")
+                session_conditions = [
+                    ParkingSession.start_time >= selected_parking_start,
+                    ParkingSession.start_time < selected_parking_end,
+                ]
+                if plate_value:
+                    session_conditions.append(func.upper(func.replace(ParkingSession.car_license_number, " ", "")).like(f"%{plate_value.upper()}%"))
+                if status_value:
+                    session_conditions.append(ParkingSession.status == status_value)
+                session_stmt = (
+                    select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
+                    .outerjoin(ParkingVehicle, ParkingVehicle.plate == normalized_session_plate)
+                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == normalized_session_plate)
+                    .order_by(ParkingSession.start_time.desc())
+                    .where(*session_conditions)
+                )
+                parking_rows = (await session.execute(session_stmt)).all()
+                previous_stats = await parking_previous_stats_for_rows(session, [row for row, _, _ in parking_rows])
+                status_options = api_filter_options(
+                    (await session.execute(select(ParkingSession.status).distinct().order_by(ParkingSession.status.asc()))).scalars().all()
+                )
+                return {
+                    "title": v2_module_title("parkering", view),
+                    "subtitle": "EasyPark, aktive parkeringer og kj\u00f8ret\u00f8ygrunnlag.",
+                    "cards": [],
+                    "charts": [],
+                    "tables": [
+                        api_table(
+                            "Parkeringer",
+                            [
+                                "status",
+                                "start_time",
+                                "end_time",
+                                "end_delta_min",
+                                "car_license_number",
+                                "vehicle_title",
+                                "navn",
+                                "fee_inc_vat",
+                                "parking_time_min",
+                                "previous_parking_count",
+                                "previous_paid_total",
+                            ],
+                            [
+                                parking_row_api(row, vehicle, details, previous_stats=previous_stats.get(row.id), unifi_before_seconds=60)
+                                for row, vehicle, details in parking_rows
+                            ],
+                            meta={"disablePagination": True, "totalRows": len(parking_rows)},
+                        )
+                    ],
+                    "actions": api_parking_default_actions(),
+                    "filters": [
+                        api_filter("plate", "Reg.nr", "text", plate_value, "Hele eller del av reg.nr"),
+                        api_filter("status", "Status", "select", status_value, options=status_options),
+                    ],
+                    "dayNavigation": day_navigation,
+                    "parkingTimeline": None,
+                }
+            if view == "kjoretoy":
+                q_value = q or api_filter_value(params, "q")
+                limit_value = api_filter_int(params, "limit", 500, 25, 1000)
+                page_value = api_filter_int(params, "page", 1, 1, 100000)
+                offset_value = (page_value - 1) * limit_value
+                vehicle_search = parking_vehicle_search_condition(q_value)
+                vehicle_stmt = (
+                    select(ParkingVehicle, ParkingVehicleDetails)
+                    .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                    .order_by(ParkingVehicle.last_seen.desc().nullslast(), ParkingVehicle.plate.asc())
+                    .offset(offset_value)
+                    .limit(limit_value)
+                )
+                vehicle_count_stmt = select(func.count(ParkingVehicle.plate)).outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
+                if vehicle_search is not None:
+                    vehicle_stmt = vehicle_stmt.where(vehicle_search)
+                    vehicle_count_stmt = vehicle_count_stmt.where(vehicle_search)
+                vehicle_detail_rows = (await session.execute(vehicle_stmt)).all()
+                vehicle_filtered_count = (await session.execute(vehicle_count_stmt)).scalar_one()
+                vehicle_stats = await parking_vehicle_count_stats(session)
+                actions = api_parking_default_actions()
+                if int_or_zero(vehicle_stats["vehicle_area_not_found_count"]) > 0:
+                    actions.append(api_parking_clear_area_not_found_action(vehicle_stats["vehicle_area_not_found_count"]))
+                return {
+                    "title": v2_module_title("parkering", view),
+                    "subtitle": "EasyPark, aktive parkeringer og kj\u00f8ret\u00f8ygrunnlag.",
+                    "cards": [
+                        api_card("Treff", vehicle_filtered_count, "stk", f"Viser {offset_value + 1 if vehicle_detail_rows else 0}-{min(offset_value + len(vehicle_detail_rows), vehicle_filtered_count)}", "parking", href="/parkering/kjoretoy"),
+                        api_card("Kj\u00f8ret\u00f8y totalt", vehicle_stats["vehicle_count"], "stk", "Registrert i kj\u00f8ret\u00f8ytabellen", "status", href="/parkering/kjoretoy"),
+                        api_card(
+                            "Mangler navn",
+                            vehicle_stats["vehicle_missing_name_count"],
+                            "stk",
+                            f"{format_short_number(vehicle_stats['vehicle_blank_name_count'])} blanke / {format_short_number(vehicle_stats['vehicle_name_not_found_count'])} ikke funnet",
+                            "status",
+                            href="/parkering/oppslag",
+                        ),
+                        api_card("Ikke funnet navn", vehicle_stats["vehicle_name_not_found_count"], "stk", "Inng\u00e5r i mangler navn", "status", href="/parkering/oppslag"),
+                        api_card(
+                            "Mangler omr\u00e5de",
+                            vehicle_stats["vehicle_missing_area_count"],
+                            "stk",
+                            f"{format_short_number(vehicle_stats['vehicle_blank_area_count'])} blanke / {format_short_number(vehicle_stats['vehicle_area_not_found_count'])} ikke funnet",
+                            "status",
+                            href="/parkering/oppslag?filter=mangler-omrade",
+                        ),
+                        api_card("Ikke funnet omr\u00e5de", vehicle_stats["vehicle_area_not_found_count"], "stk", "Inng\u00e5r i mangler omr\u00e5de", "status", href="/parkering/oppslag?filter=mangler-omrade"),
+                    ],
+                    "charts": [],
+                    "tables": [
+                        api_table(
+                            "Kj\u00f8ret\u00f8y",
+                            ["plate", "vehicle_title", "navn", "omrade", "parkering_count"],
+                            [parking_vehicle_row_api(vehicle, details) for vehicle, details in vehicle_detail_rows],
+                            meta=api_table_meta(vehicle_filtered_count, page_value, limit_value, len(vehicle_detail_rows)),
+                        )
+                    ],
+                    "actions": actions,
+                    "filters": [
+                        api_filter("q", "S\u00f8k", "text", q_value, "Reg.nr, bil, eier eller omr\u00e5de"),
+                        api_filter("page", "Side", "number", page_value),
+                        api_filter("limit", "Antall", "number", limit_value),
+                    ],
+                    "dayNavigation": None,
+                    "parkingTimeline": None,
+                }
+            parking_summaries = await get_parking_summaries(session)
             latest_rows = (
                 await session.execute(
                     select(ParkingSession, ParkingVehicle, ParkingVehicleDetails)
@@ -24355,7 +24495,8 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     )
                 )
             ).scalar_one()
-            vehicle_count = (await session.execute(select(func.count()).select_from(ParkingVehicle))).scalar_one()
+            vehicle_stats = await parking_vehicle_count_stats(session)
+            vehicle_count = vehicle_stats["vehicle_count"]
             new_vehicle_month_count = (
                 await session.execute(
                     select(func.count(ParkingVehicle.plate))
@@ -24377,28 +24518,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .where(ParkingVehicle.first_seen < tomorrow_start)
                 )
             ).scalar_one()
-            vehicle_blank_name_count = (
-                await session.execute(
-                    select(func.count(ParkingVehicle.plate)).where(vehicle_blank_name_condition())
-                )
-            ).scalar_one()
-            vehicle_name_not_found_count = (
-                await session.execute(
-                    select(func.count(ParkingVehicle.plate)).where(vehicle_name_not_found_condition())
-                )
-            ).scalar_one()
-            vehicle_missing_name_count = int_or_zero(vehicle_blank_name_count) + int_or_zero(vehicle_name_not_found_count)
-            vehicle_blank_area_count = (
-                await session.execute(
-                    select(func.count(ParkingVehicle.plate)).where(vehicle_blank_area_condition())
-                )
-            ).scalar_one()
-            vehicle_area_not_found_count = (
-                await session.execute(
-                    select(func.count(ParkingVehicle.plate)).where(vehicle_area_not_found_condition())
-                )
-            ).scalar_one()
-            vehicle_missing_area_count = int_or_zero(vehicle_blank_area_count) + int_or_zero(vehicle_area_not_found_count)
+            vehicle_blank_name_count = vehicle_stats["vehicle_blank_name_count"]
+            vehicle_name_not_found_count = vehicle_stats["vehicle_name_not_found_count"]
+            vehicle_missing_name_count = vehicle_stats["vehicle_missing_name_count"]
+            vehicle_blank_area_count = vehicle_stats["vehicle_blank_area_count"]
+            vehicle_area_not_found_count = vehicle_stats["vehicle_area_not_found_count"]
+            vehicle_missing_area_count = vehicle_stats["vehicle_missing_area_count"]
             vehicle_rows = (
                 await session.execute(
                     select(ParkingVehicle)
@@ -29172,6 +29297,68 @@ def vehicle_area_not_found_condition():
 
 def vehicle_missing_area_condition():
     return or_(vehicle_blank_area_condition(), vehicle_area_not_found_condition())
+
+
+async def parking_vehicle_count_stats(session) -> Dict[str, int]:
+    row = (
+        await session.execute(
+            select(
+                func.count(ParkingVehicle.plate).label("vehicle_count"),
+                func.coalesce(func.sum(case((vehicle_blank_name_condition(), 1), else_=0)), 0).label("blank_name"),
+                func.coalesce(func.sum(case((vehicle_name_not_found_condition(), 1), else_=0)), 0).label("name_not_found"),
+                func.coalesce(func.sum(case((vehicle_blank_area_condition(), 1), else_=0)), 0).label("blank_area"),
+                func.coalesce(func.sum(case((vehicle_area_not_found_condition(), 1), else_=0)), 0).label("area_not_found"),
+            )
+        )
+    ).mappings().one()
+    blank_name = int_or_zero(row["blank_name"])
+    name_not_found = int_or_zero(row["name_not_found"])
+    blank_area = int_or_zero(row["blank_area"])
+    area_not_found = int_or_zero(row["area_not_found"])
+    return {
+        "vehicle_count": int_or_zero(row["vehicle_count"]),
+        "vehicle_blank_name_count": blank_name,
+        "vehicle_name_not_found_count": name_not_found,
+        "vehicle_missing_name_count": blank_name + name_not_found,
+        "vehicle_blank_area_count": blank_area,
+        "vehicle_area_not_found_count": area_not_found,
+        "vehicle_missing_area_count": blank_area + area_not_found,
+    }
+
+
+def api_parking_default_actions() -> list[Dict[str, Any]]:
+    return [
+        {
+            "key": "easypark-refresh",
+            "label": "Oppdater EasyPark",
+            "method": "POST",
+            "path": "/api/actions/parkering/refresh",
+            "confirm": "Starte EasyPark-oppdatering for siste periode?",
+            "tone": "primary",
+        },
+        {
+            "key": "svv-sync",
+            "label": "Kj\u00f8r SVV-sync",
+            "method": "POST",
+            "path": "/api/actions/parkering/svv-sync",
+            "confirm": "Starte SVV-synk for kj\u00f8ret\u00f8y?",
+            "tone": "default",
+        },
+    ]
+
+
+def api_parking_clear_area_not_found_action(vehicle_area_not_found_count: int) -> Dict[str, Any]:
+    return {
+        "key": "clear-area-not-found",
+        "label": "Fjern omr\u00e5de 'ikke funnet'",
+        "method": "POST",
+        "path": "/api/actions/parkering/clear-area-not-found",
+        "confirm": (
+            f"Nullstille omr\u00e5de p\u00e5 {format_short_number(vehicle_area_not_found_count)} kj\u00f8ret\u00f8y "
+            "der omr\u00e5de er satt til 'ikke funnet'? De blir liggende som blanke og kan sl\u00e5s opp p\u00e5 nytt."
+        ),
+        "tone": "default",
+    }
 
 
 def vehicle_car_info_due_condition():
