@@ -616,12 +616,15 @@
   --door-card-border: color-mix(in srgb, var(--domain-building) 10%, var(--border-panel));
   --door-card-border-hover: color-mix(in srgb, var(--domain-building) 26%, var(--line-strong));
   --door-muted-tint: color-mix(in srgb, var(--domain-building) 4%, var(--surface));
+  --door-orange: #fb923c;
 }
 
 .app-shell.theme-dark .door-summary-card,
 .app-shell.theme-dark .door-board-command,
 .app-shell.theme-dark .door-board-section,
 .app-shell.theme-dark .door-change-feed,
+.app-shell.theme-dark .door-sunroom-command,
+.app-shell.theme-dark .door-sunroom-card,
 .app-shell.theme-dark .doors-compact-panel,
 .app-shell.theme-dark .doors-panel-card,
 .app-shell.theme-dark .door-status-card,
@@ -648,6 +651,9 @@
 .app-shell.theme-dark .door-status-history-row,
 .app-shell.theme-dark .door-status-chips span,
 .app-shell.theme-dark .door-board-summary-item,
+.app-shell.theme-dark .door-sunroom-summary > div,
+.app-shell.theme-dark .door-sunroom-state-row > div,
+.app-shell.theme-dark .door-sunroom-rules span,
 .app-shell.theme-dark .door-board-cell-head span,
 .app-shell.theme-dark .door-board-cell-times span,
 .app-shell.theme-dark .door-change-item,
@@ -661,6 +667,8 @@
 
 .app-shell.theme-dark .doors-compact-header,
 .app-shell.theme-dark .door-board-section-head,
+.app-shell.theme-dark .door-sunroom-section-head,
+.app-shell.theme-dark .door-sunroom-card-foot,
 .app-shell.theme-dark .door-change-feed-head,
 .app-shell.theme-dark .doors-group-header,
 .app-shell.theme-dark .doors-table-card .ant-table-thead > tr > th,
@@ -688,6 +696,18 @@
 
 .app-shell.theme-dark .door-semantic-icon .door-badge-alert .badge-bg {
   fill: color-mix(in srgb, var(--door-icon-color) 14%, var(--surface-raised));
+}
+
+.app-shell.theme-dark .door-sunroom-empty-session,
+.app-shell.theme-dark .door-sunroom-alert-note {
+  background: color-mix(in srgb, var(--room-severity, var(--red)) 8%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--room-severity, var(--red)) 22%, var(--border-panel));
+}
+
+.app-shell.theme-dark .door-sunroom-ntfy-link {
+  background: color-mix(in srgb, var(--domain-building) 12%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--domain-building) 24%, var(--border-panel));
+  color: var(--ink);
 }
 
 .app-shell.theme-dark .settlement-ledger-row,

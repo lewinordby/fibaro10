@@ -5,8 +5,42 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1515")
+APP_BUILD = os.getenv("APP_BUILD", "1516")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1516",
+        "date": "11.07.2026",
+        "headline": "Dør koblet mot soltime",
+        "title": "Legger til egen solromvisning med Sun2-kobling, forventet ut-tid og dørvarsler",
+        "description": (
+            "Build 1516 kobler solromdører mot Sun2-enkelttimer. Visningen beregner forventet ut-tid fra "
+            "soltime slutt pluss tre minutters vifteettergang, viser venter-/varselstatus når Sun2-data mangler "
+            "eller kunden blir sittende etter timen, og publiserer røde dørvarsler på et samlet ntfy-tema."
+        ),
+        "applications": [
+            "main.py: legger til API, beregning og bakgrunnsmonitor for solromdør mot Sun2-time.",
+            "desktop_v2/src/api.ts: legger til typedata og klientkall for ny solromstatus.",
+            "desktop_v2/src/pages/DoorsPage.tsx: legger til Dører/Dør og soltime med romkort, regler og varslingslenke.",
+            "desktop_v2/src/styles/doors.css: styler ny solromvisning.",
+            "desktop_v2/src/styles/dark-theme.css: gir ny visning mørk-tema-kontrast.",
+            "desktop_v2/src/moduleViews.ts: legger ny underside inn i Dører-menyen.",
+            "desktop_v2/scripts/smoke-routes.mjs: legger ny side inn i smoke-test.",
+            "build_log.py: dokumenterer build 1516.",
+        ],
+        "request": (
+            "Koble dør og enkelttime i en egen visning, ta hensyn til 3 min forsinket solstart og 3 min vifteettergang, "
+            "vis forventet tidspunkt for å gå ut og varsle samlet når kunde er mer enn 10 min over."
+        ),
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny underside /dorer/soltimer viser alle solrom med dørstatus, koblet Sun2-time og forventet ut-tid.",
+            "Et rom venter inntil 5 minutter på Sun2-data før manglende soltime markeres.",
+            "Oransje status brukes etter 5 minutter over forventet ut-tid, rød etter 10 minutter.",
+            "Røde statusrom publiseres som samlet dørvarsel via ntfy med nedkjøling for å unngå varslingsspam.",
+        ],
+    },
     {
         "version": "1",
         "build": "1515",

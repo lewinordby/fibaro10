@@ -5,6 +5,7 @@
   --door-card-border: color-mix(in srgb, var(--tone-color) 7%, var(--border-control));
   --door-card-border-hover: color-mix(in srgb, var(--tone-color) 22%, var(--line-strong));
   --door-muted-tint: color-mix(in srgb, var(--tone-color) 3%, var(--surface));
+  --door-orange: #ea580c;
   gap: 16px;
 }
 
@@ -217,6 +218,308 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 3.1;
+}
+
+.door-sunroom-board {
+  display: grid;
+  gap: 14px;
+}
+
+.door-sunroom-command {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--door-panel-border);
+  border-radius: var(--radius-lg);
+  background: var(--panel-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.door-sunroom-command h3.ant-typography {
+  margin: 0 0 3px;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.12;
+}
+
+.door-sunroom-command span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.door-sunroom-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+.door-sunroom-ntfy-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--domain-building) 22%, var(--border-control));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--domain-building) 7%, var(--surface));
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 760;
+}
+
+.door-sunroom-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.door-sunroom-summary > div {
+  --summary-tone: var(--domain-building);
+  display: grid;
+  gap: 3px;
+  min-height: 62px;
+  padding: 10px 13px;
+  border: 1px solid color-mix(in srgb, var(--summary-tone) 20%, var(--border-control));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--summary-tone) 75%, var(--surface)) 0 4px, transparent 4px),
+    var(--panel-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.door-sunroom-summary .tone-active {
+  --summary-tone: var(--amber);
+}
+
+.door-sunroom-summary .tone-waiting {
+  --summary-tone: var(--blue);
+}
+
+.door-sunroom-summary .tone-warning {
+  --summary-tone: var(--door-orange);
+}
+
+.door-sunroom-summary .tone-alert {
+  --summary-tone: var(--red);
+}
+
+.door-sunroom-summary .tone-missing {
+  --summary-tone: var(--domain-building);
+}
+
+.door-sunroom-summary span {
+  color: var(--text-label);
+  font-size: 10.5px;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.door-sunroom-summary strong {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 780;
+  line-height: 1;
+}
+
+.door-sunroom-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.door-sunroom-rules span {
+  padding: 5px 9px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.door-sunroom-sections {
+  display: grid;
+  gap: 14px;
+}
+
+.door-sunroom-section {
+  display: grid;
+  gap: 10px;
+}
+
+.door-sunroom-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.door-sunroom-section-head strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.door-sunroom-section-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.door-sunroom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(295px, 1fr));
+  gap: 10px;
+}
+
+.door-sunroom-card {
+  --room-severity: var(--green);
+  display: grid;
+  gap: 11px;
+  min-height: 188px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--room-severity) 18%, var(--border-control));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--room-severity) 82%, var(--surface)) 0 4px, transparent 4px),
+    var(--panel-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.door-sunroom-card.severity-active {
+  --room-severity: var(--amber);
+}
+
+.door-sunroom-card.severity-waiting {
+  --room-severity: var(--blue);
+}
+
+.door-sunroom-card.severity-warning {
+  --room-severity: var(--door-orange);
+}
+
+.door-sunroom-card.severity-alert {
+  --room-severity: var(--red);
+}
+
+.door-sunroom-card.severity-unknown {
+  --room-severity: var(--text-subtle);
+}
+
+.door-sunroom-card-head,
+.door-sunroom-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.door-sunroom-card-head > div {
+  display: grid;
+  gap: 1px;
+}
+
+.door-sunroom-card-head strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 820;
+}
+
+.door-sunroom-card-head span,
+.door-sunroom-state-row span,
+.door-sunroom-session-facts span,
+.door-sunroom-empty-session span {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.door-sunroom-state-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.door-sunroom-state-row > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-muted) 68%, var(--surface));
+}
+
+.door-sunroom-state-row strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.door-sunroom-state-row small {
+  color: var(--text-subtle);
+  font-size: 11px;
+}
+
+.door-sunroom-session-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.door-sunroom-session-facts > div {
+  display: grid;
+  gap: 1px;
+}
+
+.door-sunroom-session-facts strong {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 780;
+}
+
+.door-sunroom-empty-session {
+  display: grid;
+  gap: 4px;
+  min-height: 56px;
+  padding: 9px 10px;
+  border: 1px dashed color-mix(in srgb, var(--room-severity) 25%, var(--border-control));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--room-severity) 5%, var(--surface));
+}
+
+.door-sunroom-empty-session strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.door-sunroom-card-foot {
+  padding-top: 4px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.door-sunroom-card-foot > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.door-sunroom-card-foot a {
+  color: var(--domain-building);
+  font-weight: 760;
+}
+
+.door-sunroom-alert-note {
+  border-color: color-mix(in srgb, var(--red) 24%, var(--border-control));
+  background: color-mix(in srgb, var(--red) 5%, var(--surface));
+}
+
+.door-sunroom-alert-note .anticon {
+  color: var(--red);
 }
 
 .door-semantic-icon .badge-lock-body {

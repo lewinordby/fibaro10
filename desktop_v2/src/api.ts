@@ -464,6 +464,82 @@ export type DoorStatusResponse = {
   periods: DoorPeriodItem[];
 };
 
+export type DoorSunroomSession = {
+  id: number;
+  sourceSessionId?: string | null;
+  roomId?: string | null;
+  roomLabel: string;
+  startedAt?: string | null;
+  startedLabel: string;
+  sunStartAt?: string | null;
+  sunStartLabel: string;
+  endedAt?: string | null;
+  endedLabel: string;
+  expectedExitAt?: string | null;
+  expectedExitLabel: string;
+  sun2UserId?: string | null;
+  durationMinutes?: number | null;
+  paidAmountKr?: number | null;
+  status?: string | null;
+  href: string;
+};
+
+export type DoorSunroomSessionItem = {
+  deviceId: number | null;
+  deviceKey: string;
+  title: string;
+  sectionKey: string;
+  sectionTitle: string;
+  sortOrder: number;
+  roomId?: string | null;
+  roomLabel: string;
+  doorState: "open" | "closed" | "unknown";
+  doorStateLabel: string;
+  doorChangedAt?: string | null;
+  doorChangedLabel: string;
+  doorAgeLabel: string;
+  isOccupied: boolean;
+  occupiedSince?: string | null;
+  occupiedSinceLabel: string;
+  occupiedDurationSeconds?: number | null;
+  occupiedDurationLabel: string;
+  severity: "free" | "active" | "waiting" | "warning" | "alert" | "unknown" | string;
+  status: string;
+  detail: string;
+  missingSession: boolean;
+  session?: DoorSunroomSession | null;
+  expectedExitAt?: string | null;
+  expectedExitLabel: string;
+  remainingSeconds?: number | null;
+  remainingLabel: string;
+  overstaySeconds?: number | null;
+  overstayLabel: string;
+};
+
+export type DoorSunroomSessionsResponse = {
+  generatedAt: string;
+  ntfyDoorsSubscribeUrl: string;
+  ntfyDoorsWebUrl: string;
+  rules: {
+    paymentDelayMinutes: number;
+    fanAfterRunMinutes: number;
+    sessionGraceMinutes: number;
+    warnAfterEndMinutes: number;
+    alertAfterEndMinutes: number;
+    monitorIntervalSeconds: number;
+  };
+  summary: {
+    rooms: number;
+    active: number;
+    waiting: number;
+    warning: number;
+    alert: number;
+    missingSession: number;
+    ok: number;
+  };
+  rooms: DoorSunroomSessionItem[];
+};
+
 export type BuildLogEntry = {
   version: string;
   build: string;
@@ -1421,6 +1497,10 @@ export function fetchMobilePreviewScreens(): Promise<MobilePreviewResponse> {
 
 export function fetchDoorStatus(): Promise<DoorStatusResponse> {
   return apiGet<DoorStatusResponse>("/api/hc3/doors/status");
+}
+
+export function fetchDoorSunroomSessions(): Promise<DoorSunroomSessionsResponse> {
+  return apiGet<DoorSunroomSessionsResponse>("/api/hc3/doors/sunroom-sessions");
 }
 
 export function fetchBuildLog(): Promise<BuildLogResponse> {

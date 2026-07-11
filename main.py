@@ -204,6 +204,7 @@ NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
 NTFY_LIGHTS_TOPIC = os.getenv("NTFY_LIGHTS_TOPIC", f"sun2-lys-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_VENTILATION_TOPIC = os.getenv("NTFY_VENTILATION_TOPIC", f"sun2-ventilasjon-{MASTER_ACCESS_KEY_HASH[:12]}")
 NTFY_ACCESS_TOPIC = os.getenv("NTFY_ACCESS_TOPIC", f"sun2-tilgang-{MASTER_ACCESS_KEY_HASH[:12]}")
+NTFY_DOORS_TOPIC = os.getenv("NTFY_DOORS_TOPIC", f"sun2-dorer-{MASTER_ACCESS_KEY_HASH[:12]}")
 SVV_API_KEY = os.getenv("SVV_API_KEY", "").strip()
 SVV_API_URL = os.getenv(
     "SVV_API_URL",
@@ -231,6 +232,16 @@ CAR_INFO_AUTO_TRIGGER_MAX_PER_SVV_RUN = max(0, min(5, int(os.getenv("CAR_INFO_AU
 MOBILE_PREVIEW_REFRESH_SECONDS = max(15, int(os.getenv("MOBILE_PREVIEW_REFRESH_SECONDS", "60")))
 NTFY_TIMEOUT_SECONDS = env_float("NTFY_TIMEOUT_SECONDS", "4")
 NTFY_ACCESS_COOLDOWN_MINUTES = env_float("NTFY_ACCESS_COOLDOWN_MINUTES", "30")
+SUNROOM_DOOR_MONITOR_ENABLED = os.getenv("SUNROOM_DOOR_MONITOR_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS = max(30, int(os.getenv("SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS", "60")))
+SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS", "20")))
+SUNROOM_DOOR_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "5")
+SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = env_float("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3")
+SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES = env_float("SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES", "3")
+SUNROOM_DOOR_WARN_AFTER_END_MINUTES = env_float("SUNROOM_DOOR_WARN_AFTER_END_MINUTES", "5")
+SUNROOM_DOOR_ALERT_AFTER_END_MINUTES = env_float("SUNROOM_DOOR_ALERT_AFTER_END_MINUTES", "10")
+SUNROOM_DOOR_SESSION_LOOKBACK_HOURS = max(2, int(os.getenv("SUNROOM_DOOR_SESSION_LOOKBACK_HOURS", "12")))
+SUNROOM_DOOR_NTFY_COOLDOWN_MINUTES = env_float("SUNROOM_DOOR_NTFY_COOLDOWN_MINUTES", "15")
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 SUN2_AXIS_SNAPSHOT_ROOT = Path(
     os.getenv("SUN2_AXIS_SNAPSHOT_ROOT", os.getenv("AXIS_SNAPSHOT_DIR", "/axis_snapshots"))
@@ -252,6 +263,8 @@ SUN2_AXIS_SNAPSHOT_DAY_CACHE_ARCHIVE_SECONDS = max(60, int(os.getenv("SUN2_AXIS_
 sun2_axis_snapshot_link_task: Optional[asyncio.Task] = None
 sun2_axis_snapshot_link_lock: Optional[asyncio.Lock] = None
 axis_snapshot_day_cache: Dict[tuple[str, str], Dict[str, Any]] = {}
+sunroom_door_monitor_task: Optional[asyncio.Task] = None
+sunroom_door_alert_last_sent: Dict[str, datetime] = {}
 OWNTRACKS_SERVICE_URL = os.getenv("OWNTRACKS_SERVICE_URL", "http://owntracks_service:8128").rstrip("/")
 OWNTRACKS_VISIT_SYNC_ENABLED = os.getenv("OWNTRACKS_VISIT_SYNC_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
 OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS = max(30, int(os.getenv("OWNTRACKS_VISIT_SYNC_INTERVAL_SECONDS", "60")))
@@ -5450,6 +5463,22 @@ async def publish_ventilation_ntfy(event: VentilationEvent) -> bool:
         return False
 
 
+async def publish_door_ntfy(title: str, message: str, priority: str = "4", tags: str = "door,warning") -> bool:
+    try:
+        await asyncio.to_thread(
+            publish_ntfy_message,
+            NTFY_DOORS_TOPIC,
+            title,
+            message,
+            tags,
+            priority,
+        )
+        return True
+    except Exception as exc:
+        logger.warning("Kunne ikke sende NTFY-varsel for dorer: %s", exc, exc_info=True)
+        return False
+
+
 def state_from_event(row):
     if row.action == "PAA":
         return True
@@ -10375,6 +10404,328 @@ def door_open_periods(change_rows_ascending: list[DoorEvent], now: datetime) -> 
     return sorted(periods, key=lambda item: item.get("openedAt") or "", reverse=True)
 
 
+def sunroom_display_number(config: Dict[str, Any]) -> Optional[int]:
+    try:
+        return int(config.get("sort_order") or 0)
+    except (TypeError, ValueError):
+        return None
+
+
+def sunroom_room_id_for_config(config: Dict[str, Any]) -> Optional[str]:
+    display_number = sunroom_display_number(config)
+    if display_number is None:
+        return None
+    mapped = SUN2_ROOM_MAP_BY_DISPLAY.get(display_number) or {}
+    return mapped.get("room_id") or normalize_room_id(f"rom-{display_number:02d}")
+
+
+def sunroom_session_end_at(row: Sun2TanningSession) -> Optional[datetime]:
+    end_at = normalize_local_naive(row.ended_at)
+    if end_at:
+        return end_at
+    start_at = normalize_local_naive(row.started_at)
+    if start_at and row.duration_minutes is not None:
+        try:
+            return start_at + timedelta(minutes=float(row.duration_minutes))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def sunroom_expected_exit_at(row: Sun2TanningSession) -> Optional[datetime]:
+    end_at = sunroom_session_end_at(row)
+    if not end_at:
+        return None
+    return end_at + timedelta(minutes=SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES)
+
+
+def sunroom_session_payload(row: Sun2TanningSession) -> Dict[str, Any]:
+    start_at = normalize_local_naive(row.started_at)
+    end_at = sunroom_session_end_at(row)
+    expected_exit_at = sunroom_expected_exit_at(row)
+    sun_start_at = start_at + timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES) if start_at else None
+    href_params = {}
+    if start_at:
+        href_params["date_from"] = start_at.date().isoformat()
+        href_params["date_to"] = start_at.date().isoformat()
+    if row.room_id:
+        href_params["room_id"] = row.room_id
+    return {
+        "id": row.id,
+        "sourceSessionId": row.source_session_id,
+        "roomId": row.room_id,
+        "roomLabel": sun2_room_label(row.room_id, row.room or row.source_room_name),
+        "startedAt": start_at.isoformat() if start_at else None,
+        "startedLabel": format_source_datetime(start_at) if start_at else "-",
+        "sunStartAt": sun_start_at.isoformat() if sun_start_at else None,
+        "sunStartLabel": format_source_datetime(sun_start_at) if sun_start_at else "-",
+        "endedAt": end_at.isoformat() if end_at else None,
+        "endedLabel": format_source_datetime(end_at) if end_at else "-",
+        "expectedExitAt": expected_exit_at.isoformat() if expected_exit_at else None,
+        "expectedExitLabel": format_source_datetime(expected_exit_at) if expected_exit_at else "-",
+        "sun2UserId": row.sun2_user_id,
+        "durationMinutes": row.duration_minutes,
+        "paidAmountKr": row.paid_amount_kr,
+        "status": row.status,
+        "href": f"/soling/enkeltimer?{urlencode(href_params)}" if href_params else "/soling/enkeltimer",
+    }
+
+
+def sunroom_session_matches_closed_period(row: Sun2TanningSession, closed_since: Optional[datetime], now: datetime) -> bool:
+    start_at = normalize_local_naive(row.started_at)
+    expected_exit_at = sunroom_expected_exit_at(row)
+    if not start_at or not closed_since:
+        return False
+    if start_at > now + timedelta(minutes=SUNROOM_DOOR_SESSION_GRACE_MINUTES):
+        return False
+    if expected_exit_at and expected_exit_at >= closed_since - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2):
+        return True
+    return closed_since - timedelta(minutes=30) <= start_at <= closed_since + timedelta(hours=2)
+
+
+def sunroom_best_session_for_door(
+    sessions: list[Sun2TanningSession],
+    is_occupied: bool,
+    changed_at: Optional[datetime],
+    now: datetime,
+) -> Optional[Sun2TanningSession]:
+    if not sessions:
+        return None
+    if not is_occupied:
+        return sessions[0]
+    for row in sessions:
+        if sunroom_session_matches_closed_period(row, changed_at, now):
+            return row
+    return None
+
+
+def sunroom_duration_label(seconds: Optional[int]) -> str:
+    if seconds is None:
+        return "-"
+    if seconds > 0:
+        return f"om {door_duration_label(seconds)}"
+    return door_duration_label(abs(seconds))
+
+
+def sunroom_status_item(
+    config: Dict[str, Any],
+    latest_row: Optional[DoorEvent],
+    sessions_by_room: Dict[str, list[Sun2TanningSession]],
+    now: datetime,
+) -> Dict[str, Any]:
+    door = door_status_payload(config, latest_row, now)
+    room_id = sunroom_room_id_for_config(config)
+    sessions = sessions_by_room.get(room_id or "", [])
+    door_state = door.get("state")
+    is_occupied = door_state == "closed"
+    changed_at = normalize_local_naive(latest_row.timestamp) if latest_row else None
+    closed_since = changed_at if is_occupied else None
+    occupied_seconds = int((now - closed_since).total_seconds()) if closed_since else None
+    matched_session = sunroom_best_session_for_door(sessions, is_occupied, changed_at, now)
+    expected_exit_at = sunroom_expected_exit_at(matched_session) if matched_session else None
+
+    severity = "free"
+    status = "Ledig"
+    detail = "Døren er åpen."
+    overstay_seconds: Optional[int] = None
+    remaining_seconds: Optional[int] = None
+    missing_session = False
+
+    if not door.get("isConfigured"):
+        severity = "unknown"
+        status = "Ikke koblet"
+        detail = "Sensor mangler HC3-id."
+    elif door_state == "unknown":
+        severity = "unknown"
+        status = "Ukjent"
+        detail = "Ingen sikker dørstatus."
+    elif is_occupied:
+        if not matched_session:
+            missing_session = bool(occupied_seconds is not None and occupied_seconds >= int(SUNROOM_DOOR_SESSION_GRACE_MINUTES * 60))
+            if missing_session:
+                severity = "warning"
+                status = "Mangler soltime"
+                detail = f"Dør lukket i mer enn {SUNROOM_DOOR_SESSION_GRACE_MINUTES:g} min uten funnet Sun2-time."
+            else:
+                severity = "waiting"
+                status = "Venter på soltime"
+                detail = f"Avventer Sun2-data inntil {SUNROOM_DOOR_SESSION_GRACE_MINUTES:g} min etter at døren ble lukket."
+        elif expected_exit_at:
+            remaining_seconds = int((expected_exit_at - now).total_seconds())
+            overstay_seconds = max(0, -remaining_seconds)
+            if overstay_seconds >= int(SUNROOM_DOOR_ALERT_AFTER_END_MINUTES * 60):
+                severity = "alert"
+                status = "Overtid"
+                detail = f"Kunden er fortsatt inne mer enn {SUNROOM_DOOR_ALERT_AFTER_END_MINUTES:g} min etter forventet ut-tid."
+            elif overstay_seconds >= int(SUNROOM_DOOR_WARN_AFTER_END_MINUTES * 60):
+                severity = "warning"
+                status = "Overtid"
+                detail = f"Kunden er fortsatt inne mer enn {SUNROOM_DOOR_WARN_AFTER_END_MINUTES:g} min etter forventet ut-tid."
+            else:
+                severity = "active"
+                status = "I bruk"
+                detail = "Soltime funnet. Forventet ut-tid er beregnet fra slutt + vifteettergang."
+        else:
+            severity = "active"
+            status = "I bruk"
+            detail = "Soltime funnet, men sluttid mangler."
+
+    return {
+        "deviceId": door.get("deviceId"),
+        "deviceKey": door.get("deviceKey"),
+        "title": door.get("title"),
+        "sectionKey": door.get("sectionKey"),
+        "sectionTitle": door.get("sectionTitle"),
+        "sortOrder": door.get("sortOrder"),
+        "roomId": room_id,
+        "roomLabel": sun2_room_label(room_id, None),
+        "doorState": door_state,
+        "doorStateLabel": door.get("stateLabel"),
+        "doorChangedAt": changed_at.isoformat() if changed_at else None,
+        "doorChangedLabel": format_source_datetime(changed_at) if changed_at else "-",
+        "doorAgeLabel": door.get("ageLabel"),
+        "isOccupied": is_occupied,
+        "occupiedSince": closed_since.isoformat() if closed_since else None,
+        "occupiedSinceLabel": format_source_datetime(closed_since) if closed_since else "-",
+        "occupiedDurationSeconds": occupied_seconds,
+        "occupiedDurationLabel": door_duration_label(occupied_seconds),
+        "severity": severity,
+        "status": status,
+        "detail": detail,
+        "missingSession": missing_session,
+        "session": sunroom_session_payload(matched_session) if matched_session else None,
+        "expectedExitAt": expected_exit_at.isoformat() if expected_exit_at else None,
+        "expectedExitLabel": format_source_datetime(expected_exit_at) if expected_exit_at else "-",
+        "remainingSeconds": remaining_seconds,
+        "remainingLabel": sunroom_duration_label(remaining_seconds) if remaining_seconds is not None else "-",
+        "overstaySeconds": overstay_seconds,
+        "overstayLabel": door_duration_label(overstay_seconds) if overstay_seconds else "",
+    }
+
+
+def sunroom_alert_key(item: Dict[str, Any]) -> str:
+    session = item.get("session") or {}
+    return "|".join(
+        [
+            str(item.get("deviceKey") or item.get("roomId") or "unknown"),
+            str(session.get("id") or "missing"),
+            str(item.get("expectedExitAt") or item.get("doorChangedAt") or ""),
+            str(item.get("severity") or ""),
+        ]
+    )
+
+
+async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime) -> int:
+    sent_count = 0
+    cutoff = now - timedelta(minutes=SUNROOM_DOOR_NTFY_COOLDOWN_MINUTES)
+    for key, last_sent_at in list(sunroom_door_alert_last_sent.items()):
+        if last_sent_at < cutoff - timedelta(hours=6):
+            sunroom_door_alert_last_sent.pop(key, None)
+
+    for item in items:
+        if item.get("severity") != "alert" or not item.get("isOccupied"):
+            continue
+        key = sunroom_alert_key(item)
+        last_sent_at = sunroom_door_alert_last_sent.get(key)
+        if last_sent_at and last_sent_at >= cutoff:
+            continue
+        message = (
+            f"{item.get('title') or item.get('roomLabel')}: dør fortsatt lukket. "
+            f"Forventet ut {item.get('expectedExitLabel') or '-'}. "
+            f"Overtid {item.get('overstayLabel') or '-'}."
+        )
+        if await publish_door_ntfy("SUN2 dørvarsel", message, priority="4", tags="door,rotating_light"):
+            sunroom_door_alert_last_sent[key] = now
+            sent_count += 1
+    return sent_count
+
+
+async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[str, Any]:
+    now = local_now_naive()
+    solroom_configs = [config for config in DOOR_SENSOR_CONFIG if config.get("group_key") == "solrom"]
+    solroom_device_ids = [int(config["device_id"]) for config in solroom_configs if config.get("device_id") is not None]
+    raw_limit = max(len(solroom_device_ids) * 180, 1000)
+    raw_rows: list[DoorEvent] = []
+    if solroom_device_ids:
+        result = await session.execute(
+            select(DoorEvent)
+            .where(DoorEvent.device_id.in_(solroom_device_ids))
+            .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
+            .limit(raw_limit)
+        )
+        raw_rows = result.scalars().all()
+    change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
+    latest_change_by_device: Dict[int, DoorEvent] = {}
+    for row in reversed(change_rows_ascending):
+        if row.device_id is None:
+            continue
+        latest_change_by_device.setdefault(int(row.device_id), row)
+
+    room_ids = sorted({room_id for room_id in (sunroom_room_id_for_config(config) for config in solroom_configs) if room_id})
+    sessions_by_room: Dict[str, list[Sun2TanningSession]] = {room_id: [] for room_id in room_ids}
+    if room_ids:
+        start_cutoff = now - timedelta(hours=SUNROOM_DOOR_SESSION_LOOKBACK_HOURS)
+        session_rows = (
+            await session.execute(
+                select(Sun2TanningSession)
+                .where(Sun2TanningSession.room_id.in_(room_ids))
+                .where(Sun2TanningSession.started_at >= start_cutoff)
+                .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
+            )
+        ).scalars().all()
+        for row in session_rows:
+            room_id = normalize_room_id(row.room_id)
+            if room_id:
+                sessions_by_room.setdefault(room_id, []).append(row)
+
+    rooms = []
+    for config in solroom_configs:
+        device_id = config.get("device_id")
+        latest_row = latest_change_by_device.get(int(device_id)) if device_id is not None else None
+        rooms.append(sunroom_status_item(config, latest_row, sessions_by_room, now))
+    rooms.sort(key=lambda item: (str(item.get("sectionKey") or ""), int(item.get("sortOrder") or 0)))
+    if notify:
+        await publish_sunroom_door_alerts(rooms, now)
+    active_rooms = [item for item in rooms if item.get("isOccupied")]
+    warning_rooms = [item for item in rooms if item.get("severity") == "warning"]
+    alert_rooms = [item for item in rooms if item.get("severity") == "alert"]
+    missing_session_rooms = [item for item in rooms if item.get("missingSession")]
+    return {
+        "generatedAt": now.isoformat(),
+        "ntfyDoorsSubscribeUrl": ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"),
+        "ntfyDoorsWebUrl": ntfy_topic_url(NTFY_DOORS_TOPIC),
+        "rules": {
+            "paymentDelayMinutes": SUNROOM_DOOR_PAYMENT_DELAY_MINUTES,
+            "fanAfterRunMinutes": SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES,
+            "sessionGraceMinutes": SUNROOM_DOOR_SESSION_GRACE_MINUTES,
+            "warnAfterEndMinutes": SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
+            "alertAfterEndMinutes": SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,
+            "monitorIntervalSeconds": SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS,
+        },
+        "summary": {
+            "rooms": len(rooms),
+            "active": len(active_rooms),
+            "waiting": len([item for item in rooms if item.get("severity") == "waiting"]),
+            "warning": len(warning_rooms),
+            "alert": len(alert_rooms),
+            "missingSession": len(missing_session_rooms),
+            "ok": len([item for item in rooms if item.get("severity") in {"free", "active"}]),
+        },
+        "rooms": rooms,
+    }
+
+
+async def sunroom_door_monitor_worker():
+    await asyncio.sleep(SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS)
+    while True:
+        try:
+            async with async_session() as session:
+                await sunroom_door_session_payload(session, notify=True)
+        except Exception as exc:
+            logger.warning("Sunroom door monitor feilet: %s", exc, exc_info=True)
+        await asyncio.sleep(SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS)
+
+
 def door_change_text(row: Optional[DoorEvent]) -> str:
     if not row:
         return "Ingen endringer registrert"
@@ -11542,7 +11893,7 @@ async def recent_ai_logs(limit: int = 10) -> list[AiQueryLog]:
 
 @app.on_event("startup")
 async def startup():
-    global svv_sync_task, sun2_axis_snapshot_link_task, owntracks_visit_sync_task
+    global svv_sync_task, sun2_axis_snapshot_link_task, sunroom_door_monitor_task, owntracks_visit_sync_task
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         for table_name, columns in STARTUP_COLUMNS.items():
@@ -11622,6 +11973,8 @@ async def startup():
         svv_sync_task = asyncio.create_task(parking_vehicle_svv_worker())
     if SUN2_AXIS_SNAPSHOT_LINK_ENABLED and sun2_axis_snapshot_link_task is None:
         sun2_axis_snapshot_link_task = asyncio.create_task(sun2_axis_snapshot_link_worker())
+    if SUNROOM_DOOR_MONITOR_ENABLED and sunroom_door_monitor_task is None:
+        sunroom_door_monitor_task = asyncio.create_task(sunroom_door_monitor_worker())
     if OWNTRACKS_VISIT_SYNC_ENABLED and owntracks_visit_sync_task is None:
         owntracks_visit_sync_task = asyncio.create_task(owntracks_site_visit_sync_worker())
 
@@ -31041,6 +31394,12 @@ async def api_hc3_doors_status(
         "events": [door_event_payload(row, now) for row in raw_history_rows],
         "periods": periods[:period_limit],
     }
+
+
+@app.get("/api/hc3/doors/sunroom-sessions")
+async def api_hc3_doors_sunroom_sessions():
+    async with async_session() as session:
+        return await sunroom_door_session_payload(session, notify=True)
 
 
 @app.get("/classic/parkering/kjoretoy", response_class=HTMLResponse)
