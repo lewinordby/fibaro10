@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1513")
+APP_BUILD = os.getenv("APP_BUILD", "1514")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1514",
+        "date": "11.07.2026",
+        "headline": "Alternativ døroversikt",
+        "title": "Legger til Dører/Oversikt - ny med statusmatrise og siste endringer",
+        "description": (
+            "Build 1514 legger inn en alternativ døroversikt ved siden av dagens visning. Den nye siden viser "
+            "dørene som en driftsmatrise gruppert etter soner, med korte statusbrikker, stått-slik-varighet, "
+            "siste endring med sekunder og en egen liste over siste statusendringer."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: legger til visningen oversikt-ny og ny statusmatrise for dører.",
+            "desktop_v2/src/styles/doors.css: styler statusmatrise, oppsummering og siste-endringer-listen.",
+            "desktop_v2/src/styles/dark-theme.css: gir den nye døroversikten mørk-tema-kontrast.",
+            "desktop_v2/src/moduleViews.ts: legger Oversikt - ny inn i dørmenyen.",
+            "desktop_v2/scripts/smoke-routes.mjs: legger ny dørside inn i smoke-testen.",
+            "build_log.py: dokumenterer build 1514.",
+        ],
+        "request": "Er det andre måter å vise oversikten over dører på? Lag et annet forslag og kall siden Oversikt - ny.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny underside /dorer/oversikt-ny viser dørene som en kompakt statusmatrise.",
+            "Solrom grupperes etter avdeling, mens andre dører ligger i egen seksjon.",
+            "Hver dør viser status, hvor lenge den har stått slik og eksakt tidspunkt for siste endring.",
+            "Siste statusendringer vises i egen høyrekolonne for rask kontroll.",
+        ],
+    },
     {
         "version": "1",
         "build": "1513",

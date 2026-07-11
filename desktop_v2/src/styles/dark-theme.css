@@ -619,9 +619,13 @@
 }
 
 .app-shell.theme-dark .door-summary-card,
+.app-shell.theme-dark .door-board-command,
+.app-shell.theme-dark .door-board-section,
+.app-shell.theme-dark .door-change-feed,
 .app-shell.theme-dark .doors-compact-panel,
 .app-shell.theme-dark .doors-panel-card,
 .app-shell.theme-dark .door-status-card,
+.app-shell.theme-dark .door-board-cell,
 .app-shell.theme-dark .door-compact-card {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--door-tone, var(--door-card-tone, var(--domain-building))) 2%, var(--surface-glass-soft)), transparent 72px),
@@ -643,6 +647,10 @@
 .app-shell.theme-dark .door-status-setup,
 .app-shell.theme-dark .door-status-history-row,
 .app-shell.theme-dark .door-status-chips span,
+.app-shell.theme-dark .door-board-summary-item,
+.app-shell.theme-dark .door-board-cell-head span,
+.app-shell.theme-dark .door-board-cell-times span,
+.app-shell.theme-dark .door-change-item,
 .app-shell.theme-dark .doors-compact-header small,
 .app-shell.theme-dark .door-compact-status,
 .app-shell.theme-dark .door-compact-timegrid > div,
@@ -652,6 +660,8 @@
 }
 
 .app-shell.theme-dark .doors-compact-header,
+.app-shell.theme-dark .door-board-section-head,
+.app-shell.theme-dark .door-change-feed-head,
 .app-shell.theme-dark .doors-group-header,
 .app-shell.theme-dark .doors-table-card .ant-table-thead > tr > th,
 .app-shell.theme-dark .doors-table-card .ant-table-tbody > tr > td {

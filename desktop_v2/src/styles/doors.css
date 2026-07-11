@@ -796,6 +796,357 @@
   border-radius: 999px;
 }
 
+.doors-new-overview {
+  display: grid;
+  gap: 12px;
+}
+
+.door-board-command {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 12px 14px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--domain-building) 7%, transparent), transparent 44%),
+    var(--surface);
+  border: 1px solid color-mix(in srgb, var(--domain-building) 10%, var(--border-panel));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.door-board-command h3.ant-typography {
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 820;
+}
+
+.door-board-command > div:first-child > span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.door-board-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(96px, 1fr));
+  gap: 8px;
+  min-width: min(560px, 100%);
+}
+
+.door-board-summary-item {
+  --door-summary-tone: var(--domain-building);
+  display: grid;
+  gap: 1px;
+  min-height: 54px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--door-summary-tone) 5%, var(--surface-muted));
+  border: 1px solid color-mix(in srgb, var(--door-summary-tone) 12%, var(--line-soft));
+  border-radius: var(--radius-sm);
+}
+
+.door-board-summary-item.tone-free,
+.door-board-summary-item.tone-normal {
+  --door-summary-tone: var(--green);
+}
+
+.door-board-summary-item.tone-busy,
+.door-board-summary-item.tone-alert {
+  --door-summary-tone: var(--red);
+}
+
+.door-board-summary-item.tone-unknown {
+  --door-summary-tone: var(--domain-status);
+}
+
+.door-board-summary-item span {
+  color: var(--text-label);
+  font-size: 10px;
+  font-weight: 820;
+  letter-spacing: .018em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.door-board-summary-item strong {
+  color: var(--ink);
+  font-size: 21px;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+
+.door-board-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(270px, 320px);
+  gap: 12px;
+  align-items: start;
+}
+
+.door-board-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.door-board-section {
+  --door-section-tone: var(--domain-building);
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--door-section-tone) 9%, var(--border-panel));
+  border-radius: var(--radius-md);
+  box-shadow: 0 5px 18px var(--shadow-ink-faint-color);
+}
+
+.door-board-section.is-solrom {
+  --door-section-tone: var(--domain-sun2);
+}
+
+.door-board-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-panel-soft);
+}
+
+.door-board-section-head strong {
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 820;
+}
+
+.door-board-section-head span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 690;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
+  gap: 7px;
+}
+
+.door-board-cell {
+  --door-tone: var(--domain-status);
+  display: grid;
+  gap: 7px;
+  min-height: 102px;
+  padding: 9px 10px 8px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--door-tone) 5%, var(--surface)), var(--surface-panel-end));
+  border: 1px solid color-mix(in srgb, var(--door-tone) 12%, var(--border-control));
+  border-left: 5px solid var(--door-tone);
+  border-radius: var(--radius-sm);
+}
+
+.door-board-cell.tone-free,
+.door-board-cell.tone-normal {
+  --door-tone: var(--green);
+}
+
+.door-board-cell.tone-busy,
+.door-board-cell.tone-alert {
+  --door-tone: var(--red);
+}
+
+.door-board-cell.tone-unknown {
+  --door-tone: var(--domain-status);
+  opacity: .82;
+}
+
+.door-board-cell-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.door-board-cell-head strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-board-cell-head span {
+  min-width: 58px;
+  padding: 4px 7px;
+  color: color-mix(in srgb, var(--door-tone) 78%, var(--ink));
+  font-size: 11px;
+  font-weight: 820;
+  line-height: 1;
+  text-align: center;
+  background: color-mix(in srgb, var(--door-tone) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--door-tone) 20%, var(--line-soft));
+  border-radius: 999px;
+}
+
+.door-board-cell-state {
+  overflow: hidden;
+  color: var(--text-label);
+  font-size: 11.5px;
+  font-weight: 680;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-board-cell-times {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, auto);
+  gap: 6px;
+}
+
+.door-board-cell-times span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 7px;
+  background: color-mix(in srgb, var(--door-tone) 3%, var(--surface-muted));
+  border: 1px solid color-mix(in srgb, var(--door-tone) 8%, var(--line-soft));
+  border-radius: var(--radius-sm);
+}
+
+.door-board-cell-times small {
+  color: var(--text-subtle);
+  font-size: 9px;
+  font-weight: 820;
+  letter-spacing: .015em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.door-board-cell-times strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 780;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-change-feed {
+  position: sticky;
+  top: 72px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--domain-building) 10%, var(--border-panel));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.door-change-feed-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-panel-soft);
+}
+
+.door-change-feed-head strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.door-change-feed-head span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.door-change-list {
+  display: grid;
+  gap: 6px;
+}
+
+.door-change-item {
+  --door-change-tone: var(--domain-status);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 47px;
+  padding: 8px 9px;
+  background: color-mix(in srgb, var(--door-change-tone) 3.5%, var(--surface-muted));
+  border: 1px solid color-mix(in srgb, var(--door-change-tone) 8%, var(--line-soft));
+  border-left: 4px solid var(--door-change-tone);
+  border-radius: var(--radius-sm);
+}
+
+.door-change-item.is-open {
+  --door-change-tone: var(--amber);
+}
+
+.door-change-item.is-closed {
+  --door-change-tone: var(--green);
+}
+
+.door-change-item > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.door-change-item strong,
+.door-change-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-change-item strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.door-change-item span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 680;
+}
+
+.door-change-item time {
+  color: var(--text-label);
+  font-size: 10.5px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.door-change-empty {
+  padding: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  background: var(--surface-muted);
+  border: 1px dashed var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
 .doors-panel-card {
   overflow: hidden;
   border: 1px solid var(--door-panel-border);
@@ -949,4 +1300,29 @@
 
 .doors-note-card .ant-card-body {
   padding: 10px 12px;
+}
+
+@media (max-width: 1180px) {
+  .door-board-command,
+  .door-board-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .door-board-summary {
+    min-width: 0;
+  }
+
+  .door-change-feed {
+    position: static;
+  }
+}
+
+@media (max-width: 760px) {
+  .door-board-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .door-board-grid {
+    grid-template-columns: 1fr;
+  }
 }

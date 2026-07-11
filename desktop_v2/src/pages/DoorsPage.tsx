@@ -31,9 +31,9 @@ type SummaryCard = {
   tone: "ok" | "warn" | "unknown" | "status";
 };
 
-type DoorView = "oversikt" | "solrom" | "andre" | "radata";
+type DoorView = "oversikt" | "oversikt-ny" | "solrom" | "andre" | "radata";
 
-const DOOR_VIEWS: DoorView[] = ["oversikt", "solrom", "andre", "radata"];
+const DOOR_VIEWS: DoorView[] = ["oversikt", "oversikt-ny", "solrom", "andre", "radata"];
 const SECTION_ORDER = ["1etg", "2etg", "vip", "bygg"];
 
 function stateTag(row: DoorStateRow) {
@@ -501,6 +501,154 @@ function DoorOverviewBoard({ solromDoors, otherDoors }: { solromDoors: DoorStatu
   );
 }
 
+function newOverviewSummary(doors: DoorStatusItem[], solromDoors: DoorStatusItem[], otherDoors: DoorStatusItem[]) {
+  const connected = doors.filter((door) => door.isConfigured).length;
+  const solromBusy = solromDoors.filter((door) => door.isConfigured && door.state === "closed").length;
+  const solromFree = solromDoors.filter((door) => door.isConfigured && door.state === "open").length;
+  const otherAlerts = otherDoors.filter(
+    (door) => door.isConfigured && door.state !== "unknown" && door.state !== door.normalState,
+  ).length;
+  const unknown = doors.filter((door) => !door.isConfigured || door.state === "unknown").length;
+  return [
+    { label: "Solrom i bruk", value: solromBusy, tone: solromBusy ? "busy" : "neutral" },
+    { label: "Solrom ledige", value: solromFree, tone: "free" },
+    { label: "Avvik andre dører", value: otherAlerts, tone: otherAlerts ? "alert" : "normal" },
+    { label: "Koblet", value: `${connected}/${doors.length}`, tone: unknown ? "unknown" : "normal" },
+  ];
+}
+
+function doorBoardStatusText(door: DoorStatusItem, display: CompactDoorDisplay) {
+  if (!door.isConfigured) return "Klargjort";
+  if (door.state === "unknown") return "Ukjent";
+  if (door.groupKey === "solrom") return display.status;
+  return door.state === door.normalState ? "Normal" : "Avvik";
+}
+
+function DoorBoardCell({ door }: { door: DoorStatusItem }) {
+  const display = compactDoorDisplay(door);
+  const boardStatus = doorBoardStatusText(door, display);
+  const stateLabel =
+    door.groupKey === "solrom"
+      ? display.detail
+      : door.state === "unknown"
+        ? "Ingen sikker status"
+        : `${door.stateLabel} · ${display.detail}`;
+  return (
+    <div className={`door-board-cell tone-${display.tone}`} title={`${door.title}: ${boardStatus} · ${display.changedAt}`}>
+      <div className="door-board-cell-head">
+        <strong>{door.title}</strong>
+        <span>{boardStatus}</span>
+      </div>
+      <div className="door-board-cell-state">{stateLabel}</div>
+      <div className="door-board-cell-times">
+        <span>
+          <small>Stått slik</small>
+          <strong>{display.since}</strong>
+        </span>
+        <span>
+          <small>Endret</small>
+          <strong>{display.changedAt}</strong>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DoorBoardSection({
+  title,
+  doors,
+  mode,
+}: {
+  title: string;
+  doors: DoorStatusItem[];
+  mode: "solrom" | "other";
+}) {
+  const stats = mode === "solrom" ? compactStats(doors, mode) : compactStats(doors, "other");
+  return (
+    <section className={`door-board-section is-${mode}`}>
+      <div className="door-board-section-head">
+        <strong>{title}</strong>
+        <span>{stats}</span>
+      </div>
+      <div className="door-board-grid">
+        {sortDoors(doors).map((door) => (
+          <DoorBoardCell door={door} key={door.deviceKey} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DoorChangeFeed({ changes }: { changes: DoorEventItem[] }) {
+  const visibleChanges = changes.slice(0, 10);
+  return (
+    <aside className="door-change-feed">
+      <div className="door-change-feed-head">
+        <strong>Siste endringer</strong>
+        <span>{visibleChanges.length} siste</span>
+      </div>
+      {visibleChanges.length ? (
+        <div className="door-change-list">
+          {visibleChanges.map((change) => (
+            <div className={`door-change-item is-${change.state}`} key={change.id}>
+              <div>
+                <strong>{change.deviceName || change.deviceKey || "Ukjent dør"}</strong>
+                <span>{change.stateLabel || change.action || "-"}</span>
+              </div>
+              <time>{change.timeLabel || "-"}</time>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="door-change-empty">Ingen statusendringer registrert ennå.</div>
+      )}
+    </aside>
+  );
+}
+
+function DoorNewOverviewBoard({
+  doors,
+  solromDoors,
+  otherDoors,
+  changes,
+}: {
+  doors: DoorStatusItem[];
+  solromDoors: DoorStatusItem[];
+  otherDoors: DoorStatusItem[];
+  changes: DoorEventItem[];
+}) {
+  const solromSections = groupBySection(solromDoors);
+  const summary = newOverviewSummary(doors, solromDoors, otherDoors);
+  return (
+    <div className="doors-new-overview">
+      <section className="door-board-command">
+        <div>
+          <Typography.Title level={3}>Dørstatus</Typography.Title>
+          <span>Lukket solrom betyr i bruk. Andre dører varsler når de avviker fra normalposisjon.</span>
+        </div>
+        <div className="door-board-summary">
+          {summary.map((item) => (
+            <div className={`door-board-summary-item tone-${item.tone}`} key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="door-board-layout">
+        <div className="door-board-main">
+          {solromSections.map((section) => (
+            <DoorBoardSection title={section.title} doors={section.doors} mode="solrom" key={section.key} />
+          ))}
+          <DoorBoardSection title="Andre dører" doors={otherDoors} mode="other" />
+        </div>
+        <DoorChangeFeed changes={changes} />
+      </div>
+    </div>
+  );
+}
+
 function sortDoors(doors: DoorStatusItem[]) {
   return [...doors].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title, "nb"));
 }
@@ -586,7 +734,7 @@ export default function DoorsPage() {
     activeView === "solrom" ? solromDoors : activeView === "andre" ? otherDoors : data.doors;
   const visibleDeviceIds = new Set(visibleDoors.map((door) => door.deviceId).filter((id): id is number => id !== null));
   const visiblePeriods =
-    activeView === "oversikt" || isRawView
+    activeView === "oversikt" || activeView === "oversikt-ny" || isRawView
       ? data.periods
       : data.periods.filter((period) => period.deviceId !== null && period.deviceId !== undefined && visibleDeviceIds.has(period.deviceId));
   const title =
@@ -596,6 +744,8 @@ export default function DoorsPage() {
         ? "Dører · andre dører"
         : isRawView
           ? "Dører · rådata"
+          : activeView === "oversikt-ny"
+            ? "Dører · oversikt - ny"
           : "Dører";
 
   return (
@@ -620,12 +770,16 @@ export default function DoorsPage() {
         }
       />
 
-      {activeView === "oversikt" ? null : (
+      {activeView === "oversikt" || activeView === "oversikt-ny" ? null : (
         <div className="doors-summary-grid">{buildSummaryCards(data.summary).map(statusSummary)}</div>
       )}
 
       {!isRawView && activeView === "oversikt" ? (
         <DoorOverviewBoard solromDoors={solromDoors} otherDoors={otherDoors} />
+      ) : null}
+
+      {!isRawView && activeView === "oversikt-ny" ? (
+        <DoorNewOverviewBoard doors={data.doors} solromDoors={solromDoors} otherDoors={otherDoors} changes={data.changes} />
       ) : null}
 
       {!isRawView && activeView === "solrom" ? <DoorGroupSection title="Solrom" doors={solromDoors} splitBySection /> : null}
@@ -655,7 +809,7 @@ export default function DoorsPage() {
             locale={{ emptyText: "Ingen dørhendelser logget ennå" }}
           />
         </Card>
-      ) : activeView !== "oversikt" ? (
+      ) : activeView !== "oversikt" && activeView !== "oversikt-ny" ? (
         <>
           <Card
             className="work-card doors-table-card doors-panel-card"
