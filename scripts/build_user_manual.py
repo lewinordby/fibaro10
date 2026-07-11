@@ -375,7 +375,6 @@ def build_manual():
                 ["Innluft VIP", "Gir frisk luft til VIP-sonen.", "Forholder seg mest til VIP-temperatur og om uteluft er egnet."],
                 ["Innluft 2.etg", "Gir frisk luft mot 1.etg/2.etg.", "Forholder seg mer til temperatur i 1.etg og 2.etg."],
                 ["Avtrekk tak/loft", "Trekker varm luft ut fra loftet.", "Skal normalt ikke gå hvis det er for kaldt ute eller hvis vi vil spare varme."],
-                ["Loft > 1.etg", "Planlagt varmegjenvinning.", "Foreløpig dummyflis til viften er ferdig installert."],
             ],
             [3.6 * cm, 6.2 * cm, 6.4 * cm],
         ),

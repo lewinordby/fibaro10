@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1521")
+APP_BUILD = os.getenv("APP_BUILD", "1522")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1522",
+        "date": "11.07.2026",
+        "headline": "Kontroll av funksjonalitet og manual",
+        "title": "Verifiserer live-systemet og rydder bort utdatert ventilasjonstekst i manualen",
+        "description": (
+            "Build 1522 er en kontrollbuild. Lokal kvalitetssjekk, live smoke, QNAP-status og live health ble kontrollert. "
+            "Alle ruter laster, alle automatiserte tester er gronne, og 22 av 22 datakilder rapporterer OK. "
+            "Driftsmanualen er samtidig oppdatert slik at den ikke lenger omtaler en gammel planlagt ventilasjonsflis."
+        ),
+        "applications": [
+            "scripts/build_user_manual.py: fjerner utdatert Loft > 1.etg-linje fra ventilasjonsdelen.",
+            "static/manualer/sun2_driftsmanual.pdf: regenerert driftsmanual uten utdatert dummytekst.",
+            "build_log.py: dokumenterer build 1522 og setter APP_BUILD til 1522.",
+        ],
+        "request": "Ta en runde og kontroller at all funksjonalitet er pa plass.",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Full lokal kvalitetssjekk er kjort og bestatt etter endringen.",
+            "Live health er kontrollert med database OK og 22/22 datakilder OK.",
+            "QNAP-containere og live smoke er kontrollert som OK.",
+            "Driftsmanualen viser ikke lenger den gamle dummyflis-teksten.",
+        ],
+    },
     {
         "version": "1",
         "build": "1521",
