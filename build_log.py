@@ -32,7 +32,7 @@ BUILD_LOG = [
         "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
         "changes": [
             "CSS-parseren er gronn etter endringene.",
-            "Hardkodede farger i CSS-audit er redusert fra 175 til 55.",
+            "Hardkodede farger i CSS-audit er redusert fra 175 til 24.",
             "Felles --radius-lg og --radius-pill er definert og tatt i bruk pa tvers av kort, piller og tidslinjer.",
             "Morkt tema har na en tydeligere samlet tokenpalett for tekst, flater, grenser, skygger og statusfarger.",
             "Dorer-siden bruker ikke lenger en udefinert --orange-variabel for warning-tone.",
