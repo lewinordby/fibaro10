@@ -10404,6 +10404,43 @@ def door_open_periods(change_rows_ascending: list[DoorEvent], now: datetime) -> 
     return sorted(periods, key=lambda item: item.get("openedAt") or "", reverse=True)
 
 
+def door_closed_period_payload(close_row: DoorEvent, open_row: Optional[DoorEvent], now: datetime) -> Dict[str, Any]:
+    closed_at = normalize_local_naive(close_row.timestamp)
+    opened_at = normalize_local_naive(open_row.timestamp) if open_row else None
+    duration_end = opened_at or now
+    duration_seconds = int((duration_end - closed_at).total_seconds()) if closed_at else None
+    state = "active" if open_row is None else "closed"
+    return {
+        "id": f"{close_row.device_id or close_row.device_key or 'door'}-{close_row.id}",
+        "deviceId": close_row.device_id,
+        "deviceKey": close_row.device_key,
+        "title": door_title_for_row(close_row),
+        "state": state,
+        "closedAt": closed_at,
+        "openedAt": opened_at,
+        "closedEventId": close_row.id,
+        "openedEventId": open_row.id if open_row else None,
+        "durationSeconds": duration_seconds,
+    }
+
+
+def door_closed_periods(change_rows_ascending: list[DoorEvent], now: datetime) -> list[Dict[str, Any]]:
+    closed_by_device: Dict[str, DoorEvent] = {}
+    periods: list[Dict[str, Any]] = []
+    for row in change_rows_ascending:
+        state = door_event_state_bool(row)
+        key = door_event_device_key(row)
+        if state is False:
+            closed_by_device[key] = row
+        elif state is True:
+            close_row = closed_by_device.pop(key, None)
+            if close_row:
+                periods.append(door_closed_period_payload(close_row, row, now))
+    for close_row in closed_by_device.values():
+        periods.append(door_closed_period_payload(close_row, None, now))
+    return sorted(periods, key=lambda item: item.get("closedAt") or datetime.min, reverse=True)
+
+
 def sunroom_display_number(config: Dict[str, Any]) -> Optional[int]:
     try:
         return int(config.get("sort_order") or 0)
@@ -10417,6 +10454,16 @@ def sunroom_room_id_for_config(config: Dict[str, Any]) -> Optional[str]:
         return None
     mapped = SUN2_ROOM_MAP_BY_DISPLAY.get(display_number) or {}
     return mapped.get("room_id") or normalize_room_id(f"rom-{display_number:02d}")
+
+
+def sunroom_config_for_room_id(room_id: str) -> Optional[Dict[str, Any]]:
+    normalized = normalize_room_id(room_id)
+    if not normalized:
+        return None
+    for config in DOOR_SENSOR_CONFIG:
+        if config.get("group_key") == "solrom" and sunroom_room_id_for_config(config) == normalized:
+            return config
+    return None
 
 
 def sunroom_session_end_at(row: Sun2TanningSession) -> Optional[datetime]:
@@ -10483,6 +10530,48 @@ def sunroom_session_matches_closed_period(row: Sun2TanningSession, closed_since:
     return closed_since - timedelta(minutes=30) <= start_at <= closed_since + timedelta(hours=2)
 
 
+def sunroom_session_matches_period(row: Sun2TanningSession, closed_at: Optional[datetime], opened_at: Optional[datetime], now: datetime) -> bool:
+    start_at = normalize_local_naive(row.started_at)
+    expected_exit_at = sunroom_expected_exit_at(row)
+    if not start_at or not closed_at:
+        return False
+    period_end = opened_at or now
+    if closed_at - timedelta(minutes=15) <= start_at <= period_end + timedelta(minutes=15):
+        return True
+    if expected_exit_at and expected_exit_at >= closed_at - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2) and start_at <= period_end + timedelta(minutes=15):
+        return True
+    return False
+
+
+def sunroom_session_period_score(row: Sun2TanningSession, closed_at: datetime, opened_at: Optional[datetime], now: datetime) -> float:
+    start_at = normalize_local_naive(row.started_at) or datetime.max
+    expected_exit_at = sunroom_expected_exit_at(row)
+    period_end = opened_at or now
+    start_score = abs((start_at - closed_at).total_seconds())
+    if expected_exit_at:
+        exit_score = abs((expected_exit_at - period_end).total_seconds())
+        return min(start_score, exit_score + 60)
+    return start_score
+
+
+def sunroom_match_session_for_period(
+    sessions: list[Sun2TanningSession],
+    closed_at: Optional[datetime],
+    opened_at: Optional[datetime],
+    now: datetime,
+) -> Optional[Sun2TanningSession]:
+    if not closed_at:
+        return None
+    candidates = [
+        row
+        for row in sessions
+        if sunroom_session_matches_period(row, closed_at, opened_at, now)
+    ]
+    if not candidates:
+        return None
+    return sorted(candidates, key=lambda row: sunroom_session_period_score(row, closed_at, opened_at, now))[0]
+
+
 def sunroom_best_session_for_door(
     sessions: list[Sun2TanningSession],
     is_occupied: bool,
@@ -10505,6 +10594,102 @@ def sunroom_duration_label(seconds: Optional[int]) -> str:
     if seconds > 0:
         return f"om {door_duration_label(seconds)}"
     return door_duration_label(abs(seconds))
+
+
+def sunroom_period_status(
+    matched_session: Optional[Sun2TanningSession],
+    closed_at: Optional[datetime],
+    opened_at: Optional[datetime],
+    now: datetime,
+) -> Dict[str, Any]:
+    duration_seconds = int(((opened_at or now) - closed_at).total_seconds()) if closed_at else None
+    expected_exit_at = sunroom_expected_exit_at(matched_session) if matched_session else None
+    is_active = opened_at is None
+    severity = "ok"
+    status = "Ferdig"
+    detail = "Dørperiode ferdig."
+    overstay_seconds: Optional[int] = None
+    remaining_seconds: Optional[int] = None
+    missing_session = False
+
+    if not matched_session:
+        missing_session = bool(duration_seconds is not None and duration_seconds >= int(SUNROOM_DOOR_SESSION_GRACE_MINUTES * 60))
+        severity = "warning" if missing_session else "waiting"
+        status = "Mangler soltime" if missing_session else "Avventer Sun2"
+        detail = "Ingen Sun2-time er funnet for denne dørperioden." if missing_session else "Kort dørperiode uten sikker Sun2-kobling."
+    elif expected_exit_at:
+        compare_at = opened_at or now
+        remaining_seconds = int((expected_exit_at - compare_at).total_seconds())
+        overstay_seconds = max(0, -remaining_seconds)
+        if overstay_seconds >= int(SUNROOM_DOOR_ALERT_AFTER_END_MINUTES * 60):
+            severity = "alert"
+            status = "Overtid"
+            detail = "Døren ble ikke åpnet før rød grense."
+        elif overstay_seconds >= int(SUNROOM_DOOR_WARN_AFTER_END_MINUTES * 60):
+            severity = "warning"
+            status = "Overtid"
+            detail = "Døren ble ikke åpnet før oransje grense."
+        elif is_active:
+            severity = "active"
+            status = "Pågår"
+            detail = "Soltime pågår eller vifteettergang er innenfor forventet tid."
+        else:
+            severity = "ok"
+            status = "OK"
+            detail = "Døren ble åpnet innenfor forventet tid."
+    elif matched_session and is_active:
+        severity = "active"
+        status = "Pågår"
+        detail = "Soltime funnet, men sluttid mangler."
+
+    return {
+        "severity": severity,
+        "status": status,
+        "detail": detail,
+        "missingSession": missing_session,
+        "expectedExitAt": expected_exit_at,
+        "remainingSeconds": remaining_seconds,
+        "overstaySeconds": overstay_seconds,
+    }
+
+
+def sunroom_period_payload(
+    period: Dict[str, Any],
+    matched_session: Optional[Sun2TanningSession],
+    now: datetime,
+) -> Dict[str, Any]:
+    closed_at = period.get("closedAt")
+    opened_at = period.get("openedAt")
+    status = sunroom_period_status(matched_session, closed_at, opened_at, now)
+    expected_exit_at = status.get("expectedExitAt")
+    remaining_seconds = status.get("remainingSeconds")
+    overstay_seconds = status.get("overstaySeconds")
+    return {
+        "id": period.get("id"),
+        "state": period.get("state"),
+        "isActive": opened_at is None,
+        "closedAt": closed_at.isoformat() if closed_at else None,
+        "closedLabel": format_source_datetime(closed_at) if closed_at else "-",
+        "closedAgeLabel": door_age_label(closed_at, now),
+        "openedAt": opened_at.isoformat() if opened_at else None,
+        "openedLabel": format_source_datetime(opened_at) if opened_at else "Pågår",
+        "openedAgeLabel": door_age_label(opened_at, now) if opened_at else "",
+        "durationSeconds": period.get("durationSeconds"),
+        "durationLabel": door_duration_label(period.get("durationSeconds")),
+        "closedEventId": period.get("closedEventId"),
+        "openedEventId": period.get("openedEventId"),
+        "session": sunroom_session_payload(matched_session) if matched_session else None,
+        "severity": status.get("severity"),
+        "status": status.get("status"),
+        "detail": status.get("detail"),
+        "missingSession": status.get("missingSession"),
+        "expectedExitAt": expected_exit_at.isoformat() if expected_exit_at else None,
+        "expectedExitLabel": format_source_datetime(expected_exit_at) if expected_exit_at else "-",
+        "remainingSeconds": remaining_seconds,
+        "remainingLabel": sunroom_duration_label(remaining_seconds) if remaining_seconds is not None else "-",
+        "overstaySeconds": overstay_seconds,
+        "overstayLabel": door_duration_label(overstay_seconds) if overstay_seconds else "",
+    }
 
 
 def sunroom_status_item(
@@ -10712,6 +10897,96 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
             "ok": len([item for item in rooms if item.get("severity") in {"free", "active"}]),
         },
         "rooms": rooms,
+    }
+
+
+async def sunroom_room_detail_payload(session, room_id: str, days: int = 14, limit: int = 120) -> Dict[str, Any]:
+    now = local_now_naive()
+    normalized_room_id = normalize_room_id(room_id)
+    config = sunroom_config_for_room_id(room_id)
+    if not normalized_room_id or not config:
+        raise HTTPException(status_code=404, detail="Ukjent solrom")
+
+    days = max(1, min(days, 90))
+    limit = max(10, min(limit, 500))
+    start_cutoff = now - timedelta(days=days)
+    device_id = config.get("device_id")
+    latest_row: Optional[DoorEvent] = None
+    raw_rows: list[DoorEvent] = []
+
+    if device_id is not None:
+        latest_row = (
+            await session.execute(
+                select(DoorEvent)
+                .where(DoorEvent.device_id == int(device_id))
+                .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        raw_rows = (
+            await session.execute(
+                select(DoorEvent)
+                .where(DoorEvent.device_id == int(device_id))
+                .where(DoorEvent.timestamp >= start_cutoff - timedelta(hours=12))
+                .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
+                .limit(max(limit * 25, 1500))
+            )
+        ).scalars().all()
+
+    session_rows = (
+        await session.execute(
+            select(Sun2TanningSession)
+            .where(Sun2TanningSession.room_id == normalized_room_id)
+            .where(Sun2TanningSession.started_at >= start_cutoff - timedelta(hours=2))
+            .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
+            .limit(max(limit * 3, 300))
+        )
+    ).scalars().all()
+
+    change_rows_ascending = door_change_rows(list(reversed(raw_rows)))
+    closed_period_rows = [
+        period
+        for period in door_closed_periods(change_rows_ascending, now)
+        if (period.get("openedAt") is None)
+        or (period.get("openedAt") and period["openedAt"] >= start_cutoff)
+        or (period.get("closedAt") and period["closedAt"] >= start_cutoff)
+    ][:limit]
+
+    periods = []
+    matched_session_ids: set[int] = set()
+    for period in closed_period_rows:
+        matched_session = sunroom_match_session_for_period(session_rows, period.get("closedAt"), period.get("openedAt"), now)
+        if matched_session and matched_session.id is not None:
+            matched_session_ids.add(int(matched_session.id))
+        periods.append(sunroom_period_payload(period, matched_session, now))
+
+    current_period = next((period for period in periods if period.get("isActive")), None)
+    sessions_without_door = [
+        sunroom_session_payload(row)
+        for row in session_rows
+        if row.id is not None and int(row.id) not in matched_session_ids and normalize_local_naive(row.started_at) >= start_cutoff
+    ][:25]
+    current = sunroom_status_item(config, latest_row, {normalized_room_id: session_rows}, now)
+    alerts = [period for period in periods if period.get("severity") == "alert"]
+    warnings = [period for period in periods if period.get("severity") == "warning"]
+    missing = [period for period in periods if period.get("missingSession")]
+
+    return {
+        "generatedAt": now.isoformat(),
+        "days": days,
+        "room": current,
+        "summary": {
+            "periods": len(periods),
+            "active": 1 if current_period else 0,
+            "warnings": len(warnings),
+            "alerts": len(alerts),
+            "missingSession": len(missing),
+            "sessions": len([row for row in session_rows if normalize_local_naive(row.started_at) >= start_cutoff]),
+            "sessionsWithoutDoor": len(sessions_without_door),
+        },
+        "currentPeriod": current_period,
+        "periods": periods,
+        "sessionsWithoutDoor": sessions_without_door,
     }
 
 
@@ -31400,6 +31675,16 @@ async def api_hc3_doors_status(
 async def api_hc3_doors_sunroom_sessions():
     async with async_session() as session:
         return await sunroom_door_session_payload(session, notify=True)
+
+
+@app.get("/api/hc3/doors/sunroom-sessions/{room_id}")
+async def api_hc3_doors_sunroom_room_detail(
+    room_id: str,
+    days: int = Query(14, ge=1, le=90),
+    limit: int = Query(120, ge=10, le=500),
+):
+    async with async_session() as session:
+        return await sunroom_room_detail_payload(session, room_id, days=days, limit=limit)
 
 
 @app.get("/classic/parkering/kjoretoy", response_class=HTMLResponse)

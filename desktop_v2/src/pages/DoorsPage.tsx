@@ -1,4 +1,5 @@
 import {
+  ArrowLeftOutlined,
   BellOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -10,13 +11,16 @@ import {
 } from "@ant-design/icons";
 import { Button, Card, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 
 import {
+  fetchDoorSunroomRoomDetail,
   fetchDoorSunroomSessions,
   fetchDoorStatus,
   type DoorEventItem,
   type DoorPeriodItem,
+  type DoorSunroomRoomDetailResponse,
+  type DoorSunroomRoomPeriod,
   type DoorSunroomSessionItem,
   type DoorSunroomSessionsResponse,
   type DoorStatusItem,
@@ -716,8 +720,9 @@ function SunroomSessionFacts({ item }: { item: DoorSunroomSessionItem }) {
 }
 
 function SunroomCard({ item }: { item: DoorSunroomSessionItem }) {
+  const detailHref = `/dorer/soltimer?room=${encodeURIComponent(item.roomId || item.deviceKey)}`;
   return (
-    <article className={`door-sunroom-card severity-${item.severity}`}>
+    <Link className={`door-sunroom-card severity-${item.severity}`} to={detailHref} aria-label={`Åpne detaljer for ${item.title}`}>
       <div className="door-sunroom-card-head">
         <div>
           <strong>{item.title}</strong>
@@ -752,9 +757,215 @@ function SunroomCard({ item }: { item: DoorSunroomSessionItem }) {
                 : item.doorChangedLabel}
           </span>
         </div>
-        {item.session ? <Link to={item.session.href}>Åpne soltime</Link> : <span>{sunroomSeverityLabel(item.severity)}</span>}
+        <span>Detaljer</span>
       </div>
-    </article>
+    </Link>
+  );
+}
+
+function sunroomMoney(value: number | null | undefined) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "-";
+  return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(numeric)} kr`;
+}
+
+function PeriodStatus({ severity, status }: { severity: string; status: string }) {
+  const color =
+    severity === "alert"
+      ? "red"
+      : severity === "warning"
+        ? "orange"
+        : severity === "active"
+          ? "gold"
+          : severity === "waiting"
+            ? "blue"
+            : "green";
+  return <Tag color={color}>{status}</Tag>;
+}
+
+const sunroomPeriodColumns: ColumnsType<DoorSunroomRoomPeriod> = [
+  {
+    title: "Dør lukket",
+    dataIndex: "closedLabel",
+    width: 170,
+    render: (value, row) => (
+      <div className="door-room-time-cell">
+        <strong>{value || "-"}</strong>
+        <span>{row.closedAgeLabel}</span>
+      </div>
+    ),
+  },
+  {
+    title: "Dør åpnet",
+    dataIndex: "openedLabel",
+    width: 170,
+    render: (value, row) => (
+      <div className="door-room-time-cell">
+        <strong>{value || "-"}</strong>
+        <span>{row.isActive ? "Pågår" : row.openedAgeLabel}</span>
+      </div>
+    ),
+  },
+  {
+    title: "Varighet",
+    dataIndex: "durationLabel",
+    width: 110,
+    render: (value) => <strong>{value || "-"}</strong>,
+  },
+  {
+    title: "Soltime",
+    key: "session",
+    render: (_, row) =>
+      row.session ? (
+        <div className="door-room-session-cell">
+          <Link to={row.session.href}>{row.session.startedLabel}</Link>
+          <span>
+            {row.session.durationMinutes ? `${row.session.durationMinutes} min` : "-"} · {sunroomMoney(row.session.paidAmountKr)}
+          </span>
+        </div>
+      ) : (
+        <span className="door-room-muted">Ingen koblet soltime</span>
+      ),
+  },
+  {
+    title: "Forventet ut",
+    dataIndex: "expectedExitLabel",
+    width: 170,
+    render: (value, row) => (
+      <div className="door-room-time-cell">
+        <strong>{value || "-"}</strong>
+        <span>{row.overstayLabel ? `Overtid ${row.overstayLabel}` : row.remainingLabel}</span>
+      </div>
+    ),
+  },
+  {
+    title: "Status",
+    key: "status",
+    width: 130,
+    render: (_, row) => <PeriodStatus severity={row.severity} status={row.status} />,
+  },
+];
+
+function DoorSunroomRoomDetail({
+  data,
+  loading,
+  error,
+  fetching,
+  refetch,
+  onBack,
+}: {
+  data?: DoorSunroomRoomDetailResponse | null;
+  loading: boolean;
+  error: unknown;
+  fetching: boolean;
+  refetch: () => void;
+  onBack: () => void;
+}) {
+  if (loading) return <LoadingBlock />;
+  if (error || !data) return <ErrorBlock error={error} />;
+
+  const current = data.currentPeriod;
+  const history = data.periods.filter((period) => !period.isActive);
+
+  return (
+    <div className="door-room-detail">
+      <section className={`door-room-hero severity-${data.room.severity}`}>
+        <Button size="small" icon={<ArrowLeftOutlined />} onClick={onBack}>
+          Til oversikt
+        </Button>
+        <div className="door-room-hero-main">
+          <div>
+            <Typography.Title level={3}>{data.room.title}</Typography.Title>
+            <span>
+              {data.room.sectionTitle} · {data.room.roomLabel} · dør {data.room.doorStateLabel.toLowerCase()}
+            </span>
+          </div>
+          <div className="door-room-hero-status">
+            {sunroomSeverityTag(data.room)}
+            <strong>{data.room.status}</strong>
+            <span>{data.room.detail}</span>
+          </div>
+        </div>
+        <Button size="small" icon={<ReloadOutlined spin={fetching} />} onClick={() => refetch()}>
+          Oppdater
+        </Button>
+      </section>
+
+      <div className="door-room-summary-grid">
+        <div>
+          <span>Perioder</span>
+          <strong>{data.summary.periods}</strong>
+        </div>
+        <div>
+          <span>Soltimer</span>
+          <strong>{data.summary.sessions}</strong>
+        </div>
+        <div>
+          <span>Varsler</span>
+          <strong>{data.summary.warnings + data.summary.alerts}</strong>
+        </div>
+        <div>
+          <span>Uten dørmatch</span>
+          <strong>{data.summary.sessionsWithoutDoor}</strong>
+        </div>
+      </div>
+
+      <Card className="work-card door-room-current-card" title="Pågående">
+        {current ? (
+          <div className="door-room-current">
+            <div>
+              <span>Dør lukket</span>
+              <strong>{current.closedLabel}</strong>
+              <small>{current.durationLabel}</small>
+            </div>
+            <div>
+              <span>Soltime</span>
+              <strong>{current.session?.startedLabel || "Ikke funnet"}</strong>
+              <small>{current.session ? `${current.session.durationMinutes || "-"} min · ${sunroomMoney(current.session.paidAmountKr)}` : current.detail}</small>
+            </div>
+            <div>
+              <span>Forventet ut</span>
+              <strong>{current.expectedExitLabel}</strong>
+              <small>{current.overstayLabel ? `Overtid ${current.overstayLabel}` : current.remainingLabel}</small>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>{current.status}</strong>
+              <small>{current.detail}</small>
+            </div>
+          </div>
+        ) : (
+          <div className="door-room-empty-current">Ingen pågående lukket-periode for dette rommet.</div>
+        )}
+      </Card>
+
+      <Card className="work-card door-room-history-card" title={`Historikk siste ${data.days} dager`}>
+        <Table<DoorSunroomRoomPeriod>
+          rowKey="id"
+          size="small"
+          columns={sunroomPeriodColumns}
+          dataSource={history}
+          pagination={{ pageSize: 20, showSizeChanger: true }}
+          scroll={{ x: "max-content" }}
+          locale={{ emptyText: "Ingen historiske dørperioder for valgt periode" }}
+        />
+      </Card>
+
+      {data.sessionsWithoutDoor.length ? (
+        <Card className="work-card door-room-unmatched-card" title="Soltimer uten matchende dørperiode">
+          <div className="door-room-unmatched-list">
+            {data.sessionsWithoutDoor.map((session) => (
+              <Link to={session.href} key={session.id}>
+                <strong>{session.startedLabel}</strong>
+                <span>
+                  {session.durationMinutes || "-"} min · {sunroomMoney(session.paidAmountKr)} · forventet ut {session.expectedExitLabel}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+    </div>
   );
 }
 
@@ -945,12 +1156,22 @@ function DoorGroupSection({
 
 export default function DoorsPage() {
   const { view = "oversikt" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data, loading, error, fetching, refetch } = useApiQuery(queryKeys.doorStatus(), fetchDoorStatus, {
     refetchInterval: 30_000,
   });
   const sunroomQuery = useApiQuery(queryKeys.doorSunroomSessions(), fetchDoorSunroomSessions, {
     refetchInterval: 30_000,
   });
+  const selectedSunroomRoomId = view === "soltimer" ? searchParams.get("room") || "" : "";
+  const sunroomDetailQuery = useApiQuery(
+    queryKeys.doorSunroomRoom(selectedSunroomRoomId),
+    () => fetchDoorSunroomRoomDetail(selectedSunroomRoomId),
+    {
+      enabled: view === "soltimer" && Boolean(selectedSunroomRoomId),
+      refetchInterval: 30_000,
+    },
+  );
 
   if (!DOOR_VIEWS.includes(view as DoorView)) return <Navigate to="/dorer/oversikt" replace />;
   if (loading) return <LoadingBlock />;
@@ -1017,13 +1238,28 @@ export default function DoorsPage() {
       ) : null}
 
       {!isRawView && activeView === "soltimer" ? (
-        <DoorSunroomSessionsBoard
-          data={sunroomQuery.data}
-          loading={sunroomQuery.loading}
-          error={sunroomQuery.error}
-          fetching={sunroomQuery.fetching}
-          refetch={sunroomQuery.refetch}
-        />
+        selectedSunroomRoomId ? (
+          <DoorSunroomRoomDetail
+            data={sunroomDetailQuery.data}
+            loading={sunroomDetailQuery.loading}
+            error={sunroomDetailQuery.error}
+            fetching={sunroomDetailQuery.fetching}
+            refetch={sunroomDetailQuery.refetch}
+            onBack={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("room");
+              setSearchParams(next, { replace: true });
+            }}
+          />
+        ) : (
+          <DoorSunroomSessionsBoard
+            data={sunroomQuery.data}
+            loading={sunroomQuery.loading}
+            error={sunroomQuery.error}
+            fetching={sunroomQuery.fetching}
+            refetch={sunroomQuery.refetch}
+          />
+        )
       ) : null}
 
       {!isRawView && activeView === "solrom" ? <DoorGroupSection title="Solrom" doors={solromDoors} splitBySection /> : null}

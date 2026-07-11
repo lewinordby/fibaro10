@@ -540,6 +540,51 @@ export type DoorSunroomSessionsResponse = {
   rooms: DoorSunroomSessionItem[];
 };
 
+export type DoorSunroomRoomPeriod = {
+  id: string;
+  state: "active" | "closed" | string;
+  isActive: boolean;
+  closedAt?: string | null;
+  closedLabel: string;
+  closedAgeLabel: string;
+  openedAt?: string | null;
+  openedLabel: string;
+  openedAgeLabel: string;
+  durationSeconds?: number | null;
+  durationLabel: string;
+  closedEventId?: number | null;
+  openedEventId?: number | null;
+  session?: DoorSunroomSession | null;
+  severity: "ok" | "active" | "waiting" | "warning" | "alert" | "unknown" | string;
+  status: string;
+  detail: string;
+  missingSession: boolean;
+  expectedExitAt?: string | null;
+  expectedExitLabel: string;
+  remainingSeconds?: number | null;
+  remainingLabel: string;
+  overstaySeconds?: number | null;
+  overstayLabel: string;
+};
+
+export type DoorSunroomRoomDetailResponse = {
+  generatedAt: string;
+  days: number;
+  room: DoorSunroomSessionItem;
+  summary: {
+    periods: number;
+    active: number;
+    warnings: number;
+    alerts: number;
+    missingSession: number;
+    sessions: number;
+    sessionsWithoutDoor: number;
+  };
+  currentPeriod?: DoorSunroomRoomPeriod | null;
+  periods: DoorSunroomRoomPeriod[];
+  sessionsWithoutDoor: DoorSunroomSession[];
+};
+
 export type BuildLogEntry = {
   version: string;
   build: string;
@@ -1501,6 +1546,10 @@ export function fetchDoorStatus(): Promise<DoorStatusResponse> {
 
 export function fetchDoorSunroomSessions(): Promise<DoorSunroomSessionsResponse> {
   return apiGet<DoorSunroomSessionsResponse>("/api/hc3/doors/sunroom-sessions");
+}
+
+export function fetchDoorSunroomRoomDetail(roomId: string): Promise<DoorSunroomRoomDetailResponse> {
+  return apiGet<DoorSunroomRoomDetailResponse>(`/api/hc3/doors/sunroom-sessions/${encodeURIComponent(roomId)}`);
 }
 
 export function fetchBuildLog(): Promise<BuildLogResponse> {

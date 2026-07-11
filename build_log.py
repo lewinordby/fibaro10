@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1516")
+APP_BUILD = os.getenv("APP_BUILD", "1517")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1517",
+        "date": "11.07.2026",
+        "headline": "Romdetalj for dør og soltime",
+        "title": "Gjør solromkort klikkbare og viser dørperioder mot Sun2-timer per rom",
+        "description": (
+            "Build 1517 gjør kortene i Dører/Dør og soltime klikkbare. Hvert solrom får en egen detaljvisning "
+            "med pågående dørperiode, historiske lukke-/åpneperioder, koblet Sun2-time, forventet ut-tid og "
+            "eventuelle soltimer som ikke har matchende dørperiode."
+        ),
+        "applications": [
+            "main.py: legger til API for romhistorikk med dørperioder, Sun2-match og forventede tider.",
+            "desktop_v2/src/api.ts: legger til typedata og klientkall for romdetalj.",
+            "desktop_v2/src/queryKeys.ts: legger til cache-nøkkel for romdetalj.",
+            "desktop_v2/src/pages/DoorsPage.tsx: gjør romkort klikkbare og viser pågående/historisk romdetalj.",
+            "desktop_v2/src/styles/doors.css: styler romdetalj, nøkkeltall, pågående-rad og historikktabell.",
+            "desktop_v2/src/styles/dark-theme.css: legger mørk-tema-støtte for romdetaljen.",
+            "build_log.py: dokumenterer build 1517.",
+        ],
+        "request": (
+            "Gjør kortene på oversiktssiden klikkbare. Når man går inn på et rom skal man se åpne/lukke-tidspunkter, "
+            "soltimer og forventede tider ryddig, både pågående og historisk."
+        ),
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Romkortene i /dorer/soltimer åpner nå /dorer/soltimer?room=rom-xx.",
+            "Detaljvisningen viser pågående periode med dør lukket, koblet soltime og forventet ut-tid.",
+            "Historikken viser dør lukket, dør åpnet, varighet, soltime, forventet ut og status.",
+            "Soltimer uten matchende dørperiode listes separat for enklere feilsøking.",
+        ],
+    },
     {
         "version": "1",
         "build": "1516",
