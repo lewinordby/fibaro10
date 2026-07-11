@@ -5,8 +5,13 @@ import type { ReactNode } from "react";
 import type { ModuleEditConfig, ModuleRow, ModuleTable } from "../../api";
 import { countText, filterRows, moduleColumns, tableRowKey } from "./moduleTableUtils";
 
+function hasServerPaging(table: ModuleTable) {
+  return Boolean(table.meta?.pageSize && typeof table.meta?.totalRows === "number");
+}
+
 export function tabLabel(table: ModuleTable, query: string): ReactNode {
-  const filteredCount = filterRows(table.rows, table.columns, query).length;
+  const serverPaged = hasServerPaging(table);
+  const filteredCount = serverPaged ? table.rows.length : filterRows(table.rows, table.columns, query).length;
   const totalRows = table.meta?.totalRows;
   return (
     <span>
@@ -40,7 +45,11 @@ export function ModuleTablePane({
   onServerPageChange?: (page: number) => void;
 }) {
   const columns = useMemo(() => moduleColumns(table, onEdit), [onEdit, table]);
-  const filteredRows = useMemo(() => filterRows(table.rows, table.columns, query), [query, table.columns, table.rows]);
+  const serverPaged = hasServerPaging(table);
+  const filteredRows = useMemo(
+    () => (serverPaged ? table.rows : filterRows(table.rows, table.columns, query)),
+    [query, serverPaged, table.columns, table.rows],
+  );
   const tableRows = useMemo(
     () =>
       filteredRows.map((row, index) => ({

@@ -291,7 +291,9 @@ export default function SunSettlementsPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const settlementsQueryKey = queryKeys.module("soling", "oppgjor");
-  const { data, loading, error } = useApiQuery(settlementsQueryKey, () => fetchModule("soling", "oppgjor"));
+  const { data, loading, error } = useApiQuery(settlementsQueryKey, () => fetchModule("soling", "oppgjor"), {
+    staleTime: 5 * 60_000,
+  });
 
   const rows = useMemo(() => (data ? settlementRows(data) : []), [data]);
   const years = useMemo(() => settlementYearOptions(rows), [rows]);

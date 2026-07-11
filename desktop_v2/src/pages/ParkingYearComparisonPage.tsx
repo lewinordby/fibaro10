@@ -185,7 +185,9 @@ export default function ParkingYearComparisonPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const year = searchParams.get("year") || "";
   const metric: ParkingYearMetric = searchParams.get("metric") === "count" ? "count" : "amount";
-  const { data, loading, error } = useApiQuery(queryKeys.parkingYearComparison(year), () => fetchParkingYearComparison(year));
+  const { data, loading, error } = useApiQuery(queryKeys.parkingYearComparison(year), () => fetchParkingYearComparison(year), {
+    staleTime: 5 * 60_000,
+  });
   const activeYears = useMemo(() => (data ? activeYearsFromParams(data, searchParams.get("years")) : []), [data, searchParams]);
   const activeYearKey = activeYears.join(",");
   const themeKey = chartThemeKey();

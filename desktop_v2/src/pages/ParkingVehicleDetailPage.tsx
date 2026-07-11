@@ -89,6 +89,7 @@ export default function ParkingVehicleDetailPage() {
   const vehicleQueryKey = queryKeys.parkingVehicle(plate);
   const { data, loading, error } = useApiQuery(vehicleQueryKey, () => fetchParkingVehicleDetail(plate), {
     enabled: Boolean(plate),
+    staleTime: 2 * 60_000,
   });
 
   async function handleAction(action: ModuleAction) {

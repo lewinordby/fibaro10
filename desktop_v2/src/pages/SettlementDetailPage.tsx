@@ -118,7 +118,7 @@ export default function SettlementDetailPage({ domain = "parkering" }: { domain?
   const { data, loading, error } = useApiQuery(
     queryKeys.settlement(domain === "soling" ? "sun" : "parking", settlementId),
     () => fetcher(settlementId),
-    { enabled: Boolean(settlementId) },
+    { enabled: Boolean(settlementId), staleTime: 5 * 60_000 },
   );
 
   if (loading) return <LoadingBlock />;

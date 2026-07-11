@@ -31,6 +31,7 @@ export default function MaintenanceVisitDetailPage() {
   const queryKey = queryKeys.maintenanceSiteVisit(visitId);
   const { data, loading, error } = useApiQuery(queryKey, () => fetchMaintenanceSiteVisitDetail(visitId), {
     enabled: Boolean(visitId),
+    staleTime: 60_000,
   });
 
   useEffect(() => {

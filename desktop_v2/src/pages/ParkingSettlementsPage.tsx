@@ -262,7 +262,9 @@ export default function ParkingSettlementsPage() {
   const [query, setQuery] = useState("");
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const settlementsQueryKey = queryKeys.module("parkering", "oppgjor");
-  const { data, loading, error } = useApiQuery(settlementsQueryKey, () => fetchModule("parkering", "oppgjor"));
+  const { data, loading, error } = useApiQuery(settlementsQueryKey, () => fetchModule("parkering", "oppgjor"), {
+    staleTime: 5 * 60_000,
+  });
 
   const rows = useMemo(() => (data ? settlementRows(data) : []), [data]);
   const controls = useMemo(() => (data ? controlRows(data) : []), [data]);

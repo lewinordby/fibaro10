@@ -34,6 +34,44 @@ const EnergySunbedsPage = lazy(() => import("./EnergySunbedsPage"));
 const ModuleChartPanel = lazy(() => import("./module/ModuleChartPanel"));
 const VentilationPage = lazy(() => import("./VentilationPage"));
 
+const MINUTE = 60_000;
+const MODULE_STALE_TIME: Record<string, number> = {
+  "admin:build": 5 * MINUTE,
+  "admin:datakilder": MINUTE,
+  "admin:system": 5 * MINUTE,
+  "energi:elvia": 5 * MINUTE,
+  "energi:forbruk-per-seng": 5 * MINUTE,
+  "energi:kurser": 5 * MINUTE,
+  "energi:laster": 5 * MINUTE,
+  "energi:status": 20_000,
+  "energi:verktoy": 5 * MINUTE,
+  "lys:hendelser": 2 * MINUTE,
+  "lys:innstillinger": 5 * MINUTE,
+  "omsetning:oppgjor": 5 * MINUTE,
+  "omsetning:oversikt": 2 * MINUTE,
+  "parkering:bilstatistikk": 5 * MINUTE,
+  "parkering:kjoretoy": 5 * MINUTE,
+  "parkering:omrade": 2 * MINUTE,
+  "parkering:oppgjor": 5 * MINUTE,
+  "parkering:oppslag": 2 * MINUTE,
+  "renhold:roboter": MINUTE,
+  "soling:enkeltimer": MINUTE,
+  "soling:kunder": 5 * MINUTE,
+  "soling:oppgjor": 5 * MINUTE,
+  "soling:produkter": 5 * MINUTE,
+  "soling:rom": 5 * MINUTE,
+  "soling:statistikk": 5 * MINUTE,
+  "vedlikehold:oversikt": MINUTE,
+  "ventilasjon:hendelser": 2 * MINUTE,
+  "ventilasjon:innstillinger": 5 * MINUTE,
+  "ventilasjon:temp-logg": 2 * MINUTE,
+  "ventilasjon:yr-logg": 5 * MINUTE,
+};
+
+function moduleStaleTime(module: string, view: string) {
+  return MODULE_STALE_TIME[`${module}:${view}`] ?? 30_000;
+}
+
 export default function ModulePage({ module }: { module: string }) {
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -61,6 +99,7 @@ export default function ModulePage({ module }: { module: string }) {
   const { data, loading, error } = useApiQuery(
     moduleQueryKey,
     () => fetchModule(module, safeView, serverQuery, timelineDay || undefined, searchParams),
+    { staleTime: moduleStaleTime(module, safeView) },
   );
 
   if (!isKnownView) return <Navigate to={modulePath(module)} replace />;

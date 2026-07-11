@@ -127,6 +127,7 @@ export default function ParkingTimeDistributionPage() {
   const { data, loading, error } = useApiQuery(
     queryKeys.parkingTimeDistribution(filterKey),
     () => fetchParkingTimeDistribution(searchParams),
+    { staleTime: 5 * 60_000 },
   );
   const themeKey = chartThemeKey();
   const chartOption = useMemo(() => (data ? hourChartOption(data.hours, metric) : null), [data, metric, themeKey]);

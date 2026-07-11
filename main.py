@@ -303,7 +303,7 @@ MOBILE_PREVIEW_MONEY_KEYS = {"omsetning", "omsetning-uke"}
 
 
 app = FastAPI(title="Fibaro10")
-app.add_middleware(GZipMiddleware, minimum_size=1024)
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 DESKTOP_V2_DIST = Path(__file__).parent / "desktop_v2" / "dist"
 if (DESKTOP_V2_DIST / "assets").exists():
@@ -3843,9 +3843,19 @@ PERFORMANCE_INDEXES = [
         "ON parkering (upper(car_license_number), start_time DESC)",
     ),
     (
+        "ix_parkering_compact_plate_start",
+        "CREATE INDEX IF NOT EXISTS ix_parkering_compact_plate_start "
+        "ON parkering (upper(replace(car_license_number, ' ', '')), start_time DESC)",
+    ),
+    (
         "ix_parkering_start_status",
         "CREATE INDEX IF NOT EXISTS ix_parkering_start_status "
         "ON parkering (start_time DESC, status)",
+    ),
+    (
+        "ix_kjoretoy_last_seen_plate",
+        "CREATE INDEX IF NOT EXISTS ix_kjoretoy_last_seen_plate "
+        "ON kjoretoy (last_seen DESC, plate)",
     ),
     (
         "ix_kjoretoy_merke_modell",

@@ -1,4 +1,4 @@
-import { useQuery, type QueryKey, type UseQueryOptions } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, type QueryKey, type UseQueryOptions } from "@tanstack/react-query";
 
 export function useApiQuery<T>(
   queryKey: QueryKey,
@@ -8,6 +8,7 @@ export function useApiQuery<T>(
   const query = useQuery<T, Error, T, QueryKey>({
     queryKey,
     queryFn: loader,
+    placeholderData: keepPreviousData,
     ...options,
   });
 

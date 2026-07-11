@@ -283,6 +283,7 @@ export default function StatusComparisonPage() {
   const { data, loading, error } = useApiQuery(
     queryKeys.statusComparison(period, compare, anchor, references),
     () => fetchStatusComparison(period, compare, anchor, references),
+    { staleTime: 60_000 },
   );
   const chartOptions = useMemo(() => {
     if (!data) return [];

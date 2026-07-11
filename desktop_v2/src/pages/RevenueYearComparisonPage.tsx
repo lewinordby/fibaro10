@@ -168,7 +168,9 @@ function YearSummaryCard({
 export default function RevenueYearComparisonPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const year = searchParams.get("year") || "";
-  const { data, loading, error } = useApiQuery(queryKeys.revenueYearComparison(year), () => fetchRevenueYearComparison(year));
+  const { data, loading, error } = useApiQuery(queryKeys.revenueYearComparison(year), () => fetchRevenueYearComparison(year), {
+    staleTime: 5 * 60_000,
+  });
   const activeYears = useMemo(() => (data ? activeYearsFromParams(data, searchParams.get("years")) : []), [data, searchParams]);
   const activeYearKey = activeYears.join(",");
   const themeKey = chartThemeKey();

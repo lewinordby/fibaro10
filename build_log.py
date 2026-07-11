@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1524")
+APP_BUILD = os.getenv("APP_BUILD", "1525")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1525",
+        "date": "11.07.2026",
+        "headline": "Ytelsesoptimalisering i hovedlosningen",
+        "title": "Reduserer unodvendig henting, CPU-bruk og treg tabellbehandling",
+        "description": (
+            "Build 1525 er en ytelsesrunde for Fibaro10. Store og historiske visninger faar mer presis React Query-cache, "
+            "parameterbytter beholder forrige datasett mens ny henting pagar, server-side paginerte tabeller filtreres ikke "
+            "ekstra i browseren, gzip bruker lavere komprimeringsnivaa, og databasen faar indekser som matcher faktisk "
+            "sporringsmonster for parkering og kjoretoy."
+        ),
+        "applications": [
+            "main.py: setter GZipMiddleware compresslevel til 5 og legger til indekser for kompakt parkeringsskilt/starttid og kjoretoy last_seen/plate.",
+            "desktop_v2/src/hooks.ts og queryClient.ts: beholder forrige query-data ved parameterbytte og lar cache leve lenger mellom navigeringer.",
+            "desktop_v2/src/pages/ModulePage.tsx: gir tunge historikk-, oppgjor-, analyse- og registervisninger egne staleTime-verdier.",
+            "desktop_v2/src/pages/module/ModuleTablePane.tsx: unngar dobbel klientfiltrering for server-side paginerte tabeller.",
+            "desktop_v2/src/pages/*Comparison*, RevenueMonthPage, ParkingTimeDistributionPage, oppgjors- og detaljsider: lengre cache paa tunge analyse- og detaljvisninger.",
+            "build_log.py: dokumenterer build 1525 og setter APP_BUILD til 1525.",
+        ],
+        "request": "Optimaliser ytelse i hele losningen.",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Store historikk- og analysevisninger gjenbrukes i cache i 1-5 minutter der data ikke ma vaere sekundferske.",
+            "Live-nare visninger som energi/status beholder kortere staleTime.",
+            "React Query viser forrige datasett under ny lasting i stedet for a blinke til tom lasteskjerm ved periode- og filterbytte.",
+            "Server-side paginerte tabeller bruker backend-resultatet direkte og slipper ekstra filterpass i browseren.",
+            "Gzip-komprimering bruker lavere CPU-kost, bedre egnet for store JSON-svar paa QNAP.",
+            "Nye databaseindekser gir bedre grunnlag for parkeringshistorikk per bil og kjoretoylisten sortert paa sist sett.",
+            "Full lokal kvalitetssjekk er kjort gront, inkludert Python-tester, desktop-build, OwnTracks-build, CSS-audit, bundle-audit, route-audit og UI-smoke.",
+        ],
+    },
     {
         "version": "1",
         "build": "1524",

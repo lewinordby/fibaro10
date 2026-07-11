@@ -46,7 +46,9 @@ function tooltipMarker(color: string): string {
 
 export default function RevenueMonthPage() {
   const [month, setMonth] = useState<string | undefined>(undefined);
-  const { data, loading, error } = useApiQuery(queryKeys.revenueMonth(month), () => fetchRevenueMonth(month));
+  const { data, loading, error } = useApiQuery(queryKeys.revenueMonth(month), () => fetchRevenueMonth(month), {
+    staleTime: 2 * 60_000,
+  });
   const themeKey = chartThemeKey();
 
   const chartOption = useMemo(() => {
