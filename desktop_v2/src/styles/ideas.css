@@ -75,7 +75,7 @@
   font-size: 13px;
   font-weight: 850;
   background: color-mix(in srgb, var(--domain-ideas) 88%, var(--ink));
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 18px color-mix(in srgb, var(--domain-ideas) 22%, transparent);
 }
 
@@ -119,7 +119,7 @@
   font-size: 13px;
   font-weight: 820;
   background: color-mix(in srgb, var(--domain-ideas) 80%, var(--ink));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .ideas-next-row strong,
@@ -179,7 +179,7 @@
   color: color-mix(in srgb, var(--idea-card-color) 86%, var(--ink));
   background: color-mix(in srgb, var(--idea-card-color) 10%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--idea-card-color) 18%, var(--border-panel));
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   font-size: 12px;
   font-weight: 850;
   letter-spacing: 0;
@@ -212,19 +212,19 @@
 }
 
 .idea-impact.high {
-  color: #991b1b;
-  background: #fef2f2;
-  border-color: #fecaca;
+  color: var(--status-bad-text);
+  background: var(--status-bad-bg);
+  border-color: var(--status-bad-border);
 }
 
 .idea-impact.medium {
-  color: #92400e;
-  background: #fffbeb;
-  border-color: #fde68a;
+  color: var(--status-warn-text);
+  background: var(--status-warn-bg);
+  border-color: var(--status-warn-border);
 }
 
 .idea-impact.low {
-  color: #334155;
+  color: var(--text-body);
   background: var(--surface-muted);
   border-color: var(--border-control);
 }
@@ -238,19 +238,19 @@
 .idea-status.review {
   color: var(--blue);
   background: color-mix(in srgb, var(--blue) 8%, var(--surface));
-  border-color: #bfdbfe;
+  border-color: color-mix(in srgb, var(--blue) 24%, var(--border-control));
 }
 
 .idea-status.data {
-  color: #6b21a8;
-  background: #faf5ff;
-  border-color: #e9d5ff;
+  color: var(--domain-mobile);
+  background: color-mix(in srgb, var(--domain-mobile) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--domain-mobile) 22%, var(--border-control));
 }
 
 .idea-status.experiment {
-  color: #9d174d;
-  background: #fdf2f8;
-  border-color: #fbcfe8;
+  color: var(--domain-ideas);
+  background: color-mix(in srgb, var(--domain-ideas) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--domain-ideas) 22%, var(--border-control));
 }
 
 .idea-summary {

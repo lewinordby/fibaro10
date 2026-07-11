@@ -125,7 +125,7 @@
   height: 8px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--tone-color, var(--domain-status)) 10%, var(--border-panel));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--period-accent);
   box-shadow: inset 0 1px 2px var(--shadow-ink-faint-color);
 }
@@ -151,7 +151,7 @@
 .revenue-period-split-labels i {
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .revenue-period-split-labels i.tone-sun2 {
@@ -225,7 +225,7 @@
   width: 25px;
   height: 25px;
   border: 1.5px solid currentColor;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 12.5px;
 }
 
@@ -550,7 +550,7 @@
   height: 5px;
   margin-top: 2px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--tone-color, var(--domain-status)) 8%, var(--surface-muted));
 }
 

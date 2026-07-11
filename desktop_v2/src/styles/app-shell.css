@@ -34,7 +34,7 @@
   color: var(--ink);
   text-decoration: none;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .brand-home-link:hover {
@@ -45,7 +45,7 @@
   min-height: 76px;
   margin: 12px 12px 9px;
   padding: 4px 2px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--domain-sun2) 18%, rgba(7, 26, 69, 0.08));
+  border-bottom: 1px solid color-mix(in srgb, var(--domain-sun2) 18%, var(--line-quiet));
 }
 
 .sider-brand:hover {
@@ -256,7 +256,7 @@
   padding: 4px 8px 4px 5px;
   color: var(--text-body);
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .profile-button:hover {
@@ -301,4 +301,3 @@
   color: var(--muted);
   font-size: 12px;
 }
-

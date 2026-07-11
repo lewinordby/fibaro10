@@ -309,7 +309,7 @@
 .sunbed-power-track {
   height: 6px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--domain-sun2) 18%, var(--surface-muted));
 }
 

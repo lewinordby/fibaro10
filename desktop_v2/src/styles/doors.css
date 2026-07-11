@@ -5,7 +5,7 @@
   --door-card-border: color-mix(in srgb, var(--tone-color) 7%, var(--border-control));
   --door-card-border-hover: color-mix(in srgb, var(--tone-color) 22%, var(--line-strong));
   --door-muted-tint: color-mix(in srgb, var(--tone-color) 3%, var(--surface));
-  --door-orange: #ea580c;
+  --door-orange: var(--orange);
   gap: 16px;
 }
 
@@ -735,7 +735,7 @@
 
 .door-status-title .ant-tag {
   margin: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 10.5px;
   font-weight: 760;
 }
@@ -838,7 +838,7 @@
   white-space: nowrap;
   background: color-mix(in srgb, var(--door-card-tone) 3%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--door-card-tone) 9%, var(--line-soft));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .door-status-setup {
@@ -1012,7 +1012,7 @@
   color: color-mix(in srgb, var(--door-panel-tone) 58%, var(--text-label));
   background: color-mix(in srgb, var(--door-panel-tone) 7%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--door-panel-tone) 13%, var(--line-soft));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 
@@ -1221,7 +1221,7 @@
   text-align: center;
   background: color-mix(in srgb, var(--door-tone) 10%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--door-tone) 24%, var(--line-soft));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .door-compact-timegrid {
@@ -1276,7 +1276,7 @@
   line-height: 1.1;
   background: color-mix(in srgb, var(--door-tone) 2.5%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--door-tone) 7%, var(--line-soft));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .doors-new-overview {
@@ -1478,7 +1478,7 @@
   text-align: center;
   background: color-mix(in srgb, var(--door-tone) 9%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--door-tone) 20%, var(--line-soft));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .door-board-cell-state {
@@ -1885,7 +1885,7 @@
 }
 
 .door-room-control-card.tone-warning {
-  --room-tone: var(--orange);
+  --room-tone: var(--door-orange);
 }
 
 .door-room-control-card.tone-alert {

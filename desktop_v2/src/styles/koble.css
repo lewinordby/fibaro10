@@ -382,7 +382,7 @@
   overflow: hidden;
   height: 7px;
   background: var(--line-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .koble-confidence-bar span {
@@ -548,7 +548,7 @@
   font-weight: 800;
   background: color-mix(in srgb, var(--blue) 9%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--blue) 18%, var(--line));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .koble-match-empty {

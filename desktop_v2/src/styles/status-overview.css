@@ -125,7 +125,7 @@
   gap: 12px;
   padding: 13px;
   border: 1px solid var(--dashboard-panel-border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--dashboard-panel-bg);
   box-shadow: var(--shadow-sm);
 }
@@ -162,7 +162,7 @@
   width: 18px;
   height: 2px;
   background: var(--tone-color);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   content: "";
 }
 

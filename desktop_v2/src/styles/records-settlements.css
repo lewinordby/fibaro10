@@ -89,8 +89,8 @@
 
 .settlement-ledger-row:hover {
   color: inherit;
-  border-color: rgba(37, 99, 235, 0.32);
-  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.08);
+  border-color: color-mix(in srgb, var(--domain-parking) 32%, var(--border-control));
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--domain-parking) 8%, transparent);
   transform: translateY(-1px);
 }
 
@@ -144,7 +144,7 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 13px;
 }
 
@@ -309,4 +309,3 @@
   color: var(--muted-soft);
   font-size: 11px;
 }
-

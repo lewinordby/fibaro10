@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1522")
+APP_BUILD = os.getenv("APP_BUILD", "1523")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1523",
+        "date": "11.07.2026",
+        "headline": "CSS-opprydding og bedre tema-tokens",
+        "title": "Rydder fargebruk, radius og morkt tema i hovedgrensesnittet",
+        "description": (
+            "Build 1523 er en CSS-kvalitetsrunde. Felles radiusverdier og flere fargetokens er lagt inn, "
+            "morkt tema bruker en samlet palett, og flere hardkodede farger i soling, parkering, ventilasjon, "
+            "ideer og app-skall er flyttet over til tokens eller domenefarger. CSS-audit viser betydelig lavere "
+            "antall hardkodede farger, og produksjonsbuilden bygger gront."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/tokens.css: legger til felles radius-tokens, orange-token og en samlet mork-tema-palett.",
+            "desktop_v2/src/styles/dark-theme.css: bruker mork-paletten konsekvent for flater, tekst, grafer og Ant Design-overstyringer.",
+            "desktop_v2/src/styles/doors.css: retter udefinert var(--orange)-bruk og bruker felles radius/fargevariabler.",
+            "desktop_v2/src/styles/sun-timeline.css, ventilation.css og ventilation-charts.css: flytter graf- og tidslinjefarger over til tokens/color-mix.",
+            "desktop_v2/src/styles/ideas.css, app-shell.css, layout.css, parking-timeline.css og records-settlements.css: rydder hardkodede flater, piller og skygger.",
+            "build_log.py: dokumenterer build 1523 og setter APP_BUILD til 1523.",
+        ],
+        "request": "Ta en gjennomgang av CSS, gjor det sa bra som mulig.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "CSS-parseren er gronn etter endringene.",
+            "Hardkodede farger i CSS-audit er redusert fra 175 til 55.",
+            "Felles --radius-lg og --radius-pill er definert og tatt i bruk pa tvers av kort, piller og tidslinjer.",
+            "Morkt tema har na en tydeligere samlet tokenpalett for tekst, flater, grenser, skygger og statusfarger.",
+            "Dorer-siden bruker ikke lenger en udefinert --orange-variabel for warning-tone.",
+        ],
+    },
     {
         "version": "1",
         "build": "1522",

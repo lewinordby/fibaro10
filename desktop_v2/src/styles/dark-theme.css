@@ -17,42 +17,39 @@
 }
 
 .screen-theme-toggle.active {
-  color: #07111f;
-  background: #e5edf7;
-  border-color: #e5edf7;
+  color: var(--dark-on-accent);
+  background: var(--dark-accent-fill);
+  border-color: var(--dark-accent-fill);
 }
 
 .app-shell.theme-dark {
-  --dark-white: #ffffff;
-  --dark-on-accent: #101217;
-  --dark-accent-fill: #f4f7fb;
-  --white: #ffffff;
-  --ink: #eef3f8;
-  --ink-soft: #d6dde6;
-  --muted: #a0a9b5;
-  --muted-soft: #7f8895;
-  --line: #2f3642;
-  --line-soft: #242a34;
-  --line-strong: #454e5d;
+  --dark-white: var(--white);
+  --ink: var(--dark-text-primary);
+  --ink-soft: var(--dark-ink-soft);
+  --muted: var(--dark-text-muted);
+  --muted-soft: var(--dark-text-subtle);
+  --line: var(--dark-line);
+  --line-soft: var(--dark-line-soft);
+  --line-strong: var(--dark-line-strong);
   --line-quiet: var(--line-soft);
-  --border-control: #3b4350;
-  --border-panel: #303742;
-  --border-panel-soft: #262c36;
-  --surface-page: #0f1116;
-  --surface: #181c23;
-  --surface-soft: #13161b;
-  --surface-raised: #20252d;
-  --surface-muted: #161a21;
-  --surface-hover: #262c35;
-  --surface-panel: #181c23;
-  --surface-panel-end: #171a20;
-  --surface-glass-strong: rgba(255, 255, 255, 0.09);
-  --surface-glass: rgba(255, 255, 255, 0.045);
-  --surface-glass-soft: rgba(255, 255, 255, 0.032);
-  --surface-glass-faint: rgba(255, 255, 255, 0.08);
+  --border-control: var(--dark-border-control);
+  --border-panel: var(--dark-border-panel);
+  --border-panel-soft: var(--dark-border-panel-soft);
+  --surface-page: var(--dark-bg-page);
+  --surface: var(--dark-bg-surface);
+  --surface-soft: var(--dark-bg-surface-soft);
+  --surface-raised: var(--dark-bg-surface-raised);
+  --surface-muted: var(--dark-bg-surface-muted);
+  --surface-hover: var(--dark-bg-surface-hover);
+  --surface-panel: var(--dark-bg-surface);
+  --surface-panel-end: var(--dark-bg-panel-end);
+  --surface-glass-strong: var(--dark-overlay-strong);
+  --surface-glass: var(--dark-panel-inset-highlight);
+  --surface-glass-soft: var(--dark-overlay-soft);
+  --surface-glass-faint: var(--dark-overlay-faint);
   --surface-clear: transparent;
-  --panel-header-bg: linear-gradient(180deg, #20242b, #191c22);
-  --panel-inset-highlight: rgba(255, 255, 255, 0.045);
+  --panel-header-bg: var(--dark-panel-header-bg);
+  --panel-inset-highlight: var(--dark-panel-inset-highlight);
   --panel-surface: linear-gradient(
       180deg,
       color-mix(in srgb, var(--active-module-color) 3.4%, var(--surface-raised)) 0%,
@@ -76,42 +73,35 @@
   --table-header-bg: linear-gradient(180deg, color-mix(in srgb, var(--surface-raised) 78%, var(--surface)), var(--surface-muted));
   --table-row-alt-bg: color-mix(in srgb, var(--surface-raised) 30%, var(--surface));
   --table-row-hover-bg: color-mix(in srgb, var(--active-module-color) 8%, var(--surface-hover));
-  --line-muted: #252b34;
-  --text-strong: #f0f3f7;
-  --text-body: #c9d1dc;
-  --text-neutral: #bac3cf;
-  --text-compact-strong: #e8edf3;
-  --text-panel-strong: #e8edf3;
-  --text-label: #aeb7c4;
-  --text-subtle: #7f8895;
-  --shadow-ink-faint-color: rgba(0, 0, 0, 0.28);
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.24);
-  --shadow-sm: 0 10px 24px rgba(0, 0, 0, 0.26);
-  --shadow-md: 0 22px 54px rgba(0, 0, 0, 0.34);
-  --shadow-faint: 0 10px 24px rgba(0, 0, 0, 0.22);
-  --blue: #60a5fa;
-  --red: #fb7185;
-  --green: #4ade80;
-  --amber: #fbbf24;
-  --cyan: #22d3ee;
-  --domain-revenue: #fb7185;
-  --domain-parking: #60a5fa;
-  --domain-sun2: #fbbf24;
-  --domain-energy: #4ade80;
-  --domain-vent: #22d3ee;
-  --domain-weather: #cbd5e1;
-  --domain-light: #fde047;
-  --domain-maintenance: #76bfb3;
-  --domain-ideas: #c98fb0;
-  --domain-mobile: #aa9bd8;
-  --domain-status: #e2e8f0;
-  --dark-ok: #4ade80;
-  --dark-warn: #fbbf24;
-  --dark-bad: #fb7185;
-  --dark-blue-bg: #1d2938;
-  --dark-green-bg: #1d2b24;
-  --dark-amber-bg: #302816;
-  --dark-red-bg: #321e22;
+  --line-muted: var(--dark-line-muted);
+  --text-strong: var(--dark-text-emphasis);
+  --text-body: var(--dark-text-body);
+  --text-neutral: var(--dark-text-neutral);
+  --text-compact-strong: var(--dark-text-strong);
+  --text-panel-strong: var(--dark-text-strong);
+  --text-label: var(--dark-text-label);
+  --text-subtle: var(--dark-text-subtle);
+  --shadow-ink-faint-color: var(--dark-shadow-faint-color);
+  --shadow-xs: var(--dark-shadow-xs);
+  --shadow-sm: var(--dark-shadow-sm);
+  --shadow-md: var(--dark-shadow-md);
+  --shadow-faint: var(--dark-shadow-faint);
+  --blue: var(--dark-blue);
+  --red: var(--dark-bad);
+  --green: var(--dark-ok);
+  --amber: var(--dark-warn);
+  --cyan: var(--dark-cyan);
+  --domain-revenue: var(--dark-bad);
+  --domain-parking: var(--dark-blue);
+  --domain-sun2: var(--dark-warn);
+  --domain-energy: var(--dark-ok);
+  --domain-vent: var(--dark-cyan);
+  --domain-weather: var(--dark-weather);
+  --domain-light: var(--dark-light);
+  --domain-maintenance: var(--dark-maintenance);
+  --domain-ideas: var(--dark-ideas);
+  --domain-mobile: var(--dark-mobile);
+  --domain-status: var(--dark-status);
   --status-ok-bg: var(--dark-green-bg);
   --status-ok-border: color-mix(in srgb, var(--dark-ok) 32%, var(--border-control));
   --status-ok-text: var(--dark-ok);
@@ -123,7 +113,7 @@
   --status-bad-text: var(--dark-bad);
   color: var(--text-body);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, #0c0e12) 0, #11141a 260px, var(--surface-page));
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, var(--dark-bg-base)) 0, var(--dark-bg-page-start) 260px, var(--surface-page));
 }
 
 .app-shell.theme-dark .ant-layout {
@@ -133,7 +123,7 @@
 
 .app-shell.theme-dark .app-content {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 150px),
+    linear-gradient(180deg, var(--dark-overlay-weak), transparent 150px),
     var(--surface-page);
 }
 
@@ -151,7 +141,7 @@
 
 .app-shell.theme-dark .app-header {
   background:
-    linear-gradient(90deg, #0c0f14, #141820 54%, color-mix(in srgb, var(--active-module-color) 7%, #141820));
+    linear-gradient(90deg, var(--dark-bg-header-start), var(--dark-bg-header-end) 54%, color-mix(in srgb, var(--active-module-color) 7%, var(--dark-bg-header-end)));
   border-bottom-color: rgba(255, 255, 255, 0.07);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
   backdrop-filter: none;
@@ -218,7 +208,7 @@
   color: var(--text-body);
   background:
     radial-gradient(circle at 20px 20px, color-mix(in srgb, var(--active-module-color) 7%, transparent), transparent 160px),
-    linear-gradient(180deg, #0d0f13, #11141a 180px, #0d0f13) !important;
+    linear-gradient(180deg, var(--dark-bg-sider), var(--dark-bg-page-start) 180px, var(--dark-bg-sider)) !important;
   border-right-color: rgba(255, 255, 255, 0.07);
   box-shadow: 12px 0 26px var(--shadow-ink-faint-color);
 }
@@ -401,7 +391,7 @@
 
 .app-shell.theme-dark .ant-table-wrapper .ant-table-thead > tr > th {
   color: var(--text-label);
-  background: #1d2027 !important;
+  background: var(--dark-bg-table-head) !important;
   border-bottom-color: var(--line);
 }
 
@@ -616,7 +606,7 @@
   --door-card-border: color-mix(in srgb, var(--domain-building) 10%, var(--border-panel));
   --door-card-border-hover: color-mix(in srgb, var(--domain-building) 26%, var(--line-strong));
   --door-muted-tint: color-mix(in srgb, var(--domain-building) 4%, var(--surface));
-  --door-orange: #fb923c;
+  --door-orange: var(--dark-orange);
 }
 
 .app-shell.theme-dark .door-summary-card,
@@ -753,8 +743,8 @@
 .app-shell.theme-dark .vent-fan-track {
   border-color: var(--border-control);
   background:
-    linear-gradient(90deg, rgba(142, 153, 167, 0.16) 1px, transparent 1px),
-    linear-gradient(180deg, #1a1e25, #14171d) !important;
+    linear-gradient(90deg, var(--dark-overlay-grid) 1px, transparent 1px),
+    linear-gradient(180deg, var(--dark-bg-timeline-start), var(--dark-bg-timeline-end)) !important;
   background-size: calc(100% / 24) 100%, 100% 100% !important;
 }
 
@@ -1008,14 +998,14 @@
 .app-shell.theme-dark .sun-session-image-panel img,
 .app-shell.theme-dark .sun-session-inline-browser img,
 .app-shell.theme-dark .sun-image-browser-image {
-  background: #0b0d11;
+  background: var(--dark-bg-image);
   border-color: var(--border-panel);
 }
 
 .app-shell.theme-dark .sun-session-inline-busy,
 .app-shell.theme-dark .sun-image-browser-busy {
   color: var(--text-body);
-  background: rgba(25, 28, 34, 0.94);
+  background: var(--dark-overlay-panel);
   border-color: var(--border-panel);
   box-shadow: var(--shadow-md);
 }
@@ -1066,11 +1056,11 @@
 }
 
 .app-shell.theme-dark .ant-switch {
-  background: #3a414d;
+  background: var(--dark-bg-switch);
 }
 
 .app-shell.theme-dark .ant-switch.ant-switch-checked {
-  background: color-mix(in srgb, var(--active-module-color) 52%, #3a414d);
+  background: color-mix(in srgb, var(--active-module-color) 52%, var(--dark-bg-switch));
 }
 
 .app-shell.theme-dark :is(.ant-tag-green, .ant-tag-success) {
@@ -1125,24 +1115,22 @@
 }
 
 body:has(.app-shell.theme-dark) {
-  --dark-on-accent: #101217;
-  --dark-accent-fill: #f4f7fb;
-  --ink: #e8edf3;
-  --text-body: #c9d1dc;
-  --text-label: #aeb7c4;
-  --text-subtle: #7f8895;
-  --line: #2f3642;
-  --line-strong: #454e5d;
-  --surface-page: #101217;
-  --surface: #191c22;
-  --surface-raised: #20242b;
-  --surface-panel-end: #171a20;
-  --surface-hover: #272c35;
-  --panel-header-bg: linear-gradient(180deg, #20242b, #191c22);
-  --panel-inset-highlight: rgba(255, 255, 255, 0.045);
-  --panel-surface: linear-gradient(180deg, color-mix(in srgb, var(--active-module-color, #8fb5e6) 3.4%, var(--surface-raised)), var(--surface));
-  --panel-border: color-mix(in srgb, var(--active-module-color, #8fb5e6) 9%, var(--line));
-  --border-control: #3b4350;
+  --ink: var(--dark-text-strong);
+  --text-body: var(--dark-text-body);
+  --text-label: var(--dark-text-label);
+  --text-subtle: var(--dark-text-subtle);
+  --line: var(--dark-line);
+  --line-strong: var(--dark-line-strong);
+  --surface-page: var(--dark-bg-page);
+  --surface: var(--dark-bg-surface);
+  --surface-raised: var(--dark-bg-surface-raised);
+  --surface-panel-end: var(--dark-bg-panel-end);
+  --surface-hover: var(--dark-bg-surface-hover);
+  --panel-header-bg: var(--dark-panel-header-bg);
+  --panel-inset-highlight: var(--dark-panel-inset-highlight);
+  --panel-surface: linear-gradient(180deg, color-mix(in srgb, var(--active-module-color, var(--dark-accent-fallback)) 3.4%, var(--surface-raised)), var(--surface));
+  --panel-border: color-mix(in srgb, var(--active-module-color, var(--dark-accent-fallback)) 9%, var(--line));
+  --border-control: var(--dark-border-control);
   background: var(--surface-page);
 }
 
@@ -1150,7 +1138,7 @@ body:has(.app-shell.theme-dark) :is(.ant-dropdown-menu, .ant-select-dropdown, .a
   color: var(--text-body);
   background: var(--panel-surface) !important;
   border: 1px solid var(--panel-border);
-  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 22px 54px var(--dark-shadow-strong);
 }
 
 body:has(.app-shell.theme-dark) .ant-modal-header {
@@ -1183,8 +1171,8 @@ body:has(.app-shell.theme-dark) :is(.ant-input-number-input, .ant-picker-input >
 
 body:has(.app-shell.theme-dark) :is(.ant-input-search-button, .ant-btn-primary) {
   color: var(--dark-on-accent) !important;
-  background: color-mix(in srgb, var(--active-module-color, #8fb5e6) 60%, var(--dark-accent-fill)) !important;
-  border-color: color-mix(in srgb, var(--active-module-color, #8fb5e6) 54%, var(--dark-accent-fill)) !important;
+  background: color-mix(in srgb, var(--active-module-color, var(--dark-accent-fallback)) 60%, var(--dark-accent-fill)) !important;
+  border-color: color-mix(in srgb, var(--active-module-color, var(--dark-accent-fallback)) 54%, var(--dark-accent-fill)) !important;
 }
 
 body:has(.app-shell.theme-dark) .ant-picker-cell-in-view {
