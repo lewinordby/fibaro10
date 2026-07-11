@@ -22,7 +22,7 @@ BUILD_LOG = [
         ),
         "applications": [
             "main.py: setter GZipMiddleware compresslevel til 5 og legger til indekser for kompakt parkeringsskilt/starttid og kjoretoy last_seen/plate.",
-            "main.py: gir parkering/kjoretoy og parkering/parkeringer tidlig retur og samler kjoretoy-counts i en database-sporring.",
+            "main.py: gir parkering/kjoretoy og parkering/parkeringer tidlig retur, lavere standardbatch og samler kjoretoy-counts i en database-sporring.",
             "desktop_v2/src/hooks.ts og queryClient.ts: beholder forrige query-data ved parameterbytte og lar cache leve lenger mellom navigeringer.",
             "desktop_v2/src/pages/ModulePage.tsx: gir tunge historikk-, oppgjor-, analyse- og registervisninger egne staleTime-verdier.",
             "desktop_v2/src/pages/module/ModuleTablePane.tsx: unngar dobbel klientfiltrering for server-side paginerte tabeller.",
@@ -40,6 +40,7 @@ BUILD_LOG = [
             "Gzip-komprimering bruker lavere CPU-kost, bedre egnet for store JSON-svar paa QNAP.",
             "Nye databaseindekser gir bedre grunnlag for parkeringshistorikk per bil og kjoretoylisten sortert paa sist sett.",
             "Kjoretoy- og parkeringer-view bygger ikke lenger oversiktskort, ukegraf og siste-parkeringer-grunnlag forst.",
+            "Kjoretoy-listen henter 250 rader som standard og gjenbruker samlet count-statistikk naar det ikke er aktivt sok.",
             "Full lokal kvalitetssjekk er kjort gront, inkludert Python-tester, desktop-build, OwnTracks-build, CSS-audit, bundle-audit, route-audit og UI-smoke.",
         ],
     },

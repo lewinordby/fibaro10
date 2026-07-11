@@ -24402,10 +24402,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 }
             if view == "kjoretoy":
                 q_value = q or api_filter_value(params, "q")
-                limit_value = api_filter_int(params, "limit", 500, 25, 1000)
+                limit_value = api_filter_int(params, "limit", 250, 25, 1000)
                 page_value = api_filter_int(params, "page", 1, 1, 100000)
                 offset_value = (page_value - 1) * limit_value
                 vehicle_search = parking_vehicle_search_condition(q_value)
+                vehicle_stats = await parking_vehicle_count_stats(session)
                 vehicle_stmt = (
                     select(ParkingVehicle, ParkingVehicleDetails)
                     .outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
@@ -24413,13 +24414,14 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     .offset(offset_value)
                     .limit(limit_value)
                 )
-                vehicle_count_stmt = select(func.count(ParkingVehicle.plate)).outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
                 if vehicle_search is not None:
                     vehicle_stmt = vehicle_stmt.where(vehicle_search)
+                    vehicle_count_stmt = select(func.count(ParkingVehicle.plate)).outerjoin(ParkingVehicleDetails, ParkingVehicleDetails.plate == ParkingVehicle.plate)
                     vehicle_count_stmt = vehicle_count_stmt.where(vehicle_search)
+                    vehicle_filtered_count = (await session.execute(vehicle_count_stmt)).scalar_one()
+                else:
+                    vehicle_filtered_count = vehicle_stats["vehicle_count"]
                 vehicle_detail_rows = (await session.execute(vehicle_stmt)).all()
-                vehicle_filtered_count = (await session.execute(vehicle_count_stmt)).scalar_one()
-                vehicle_stats = await parking_vehicle_count_stats(session)
                 actions = api_parking_default_actions()
                 if int_or_zero(vehicle_stats["vehicle_area_not_found_count"]) > 0:
                     actions.append(api_parking_clear_area_not_found_action(vehicle_stats["vehicle_area_not_found_count"]))
@@ -24704,7 +24706,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 ]
             elif view == "kjoretoy":
                 q_value = q or api_filter_value(params, "q")
-                limit_value = api_filter_int(params, "limit", 500, 25, 1000)
+                limit_value = api_filter_int(params, "limit", 250, 25, 1000)
                 page_value = api_filter_int(params, "page", 1, 1, 100000)
                 offset_value = (page_value - 1) * limit_value
                 vehicle_search = parking_vehicle_search_condition(q_value)
