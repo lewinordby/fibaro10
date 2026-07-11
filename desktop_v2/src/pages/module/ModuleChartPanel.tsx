@@ -5,6 +5,7 @@ import type { ModuleChart } from "../../api";
 import {
   chartAxisLabel,
   chartAxisLine,
+  chartAreaOpacity,
   chartDataZoom,
   chartLegend,
   chartSeriesColor,
@@ -121,7 +122,7 @@ export default function ModuleChartPanel({
           barCategoryGap: "36%",
           itemStyle: { color },
           lineStyle: type === "line" ? { color, width: chartSeriesLineWidth() } : undefined,
-          areaStyle: chartSeries.length === 1 && type === "line" ? { opacity: 0.1 } : undefined,
+          areaStyle: chartSeries.length === 1 && type === "line" ? { color, opacity: chartAreaOpacity(true) } : undefined,
           emphasis: { focus: "series" },
         };
       }),

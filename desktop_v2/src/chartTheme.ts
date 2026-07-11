@@ -45,24 +45,49 @@ const darkSeriesPalette = [
 
 const darkColorMap: Record<string, string> = {
   "#111827": "#f8fafc",
+  "#334155": "#cbd5e1",
   "#475569": "#cbd5e1",
   "#64748b": "#cbd5e1",
+  "#94a3b8": "#dbeafe",
   "#dc2626": "#fb7185",
   "#b91c1c": "#f87171",
   "#991b1b": "#f87171",
+  "#ef4444": "#fb7185",
+  "#df705d": "#fb8f7f",
+  "#be123c": "#fb7185",
   "#2563eb": "#60a5fa",
   "#1d4ed8": "#93c5fd",
+  "#3f7fbd": "#93c5fd",
+  "#4b7fbb": "#93c5fd",
+  "#071943": "#bfdbfe",
+  "#0ea5e9": "#38bdf8",
+  "#38bdf8": "#7dd3fc",
   "#15803d": "#4ade80",
   "#166534": "#4ade80",
+  "#16a34a": "#4ade80",
+  "#22c55e": "#86efac",
+  "#52a464": "#86efac",
+  "#84cc16": "#bef264",
   "#0f766e": "#5eead4",
+  "#0d9488": "#5eead4",
+  "#14b8a6": "#5eead4",
   "#0891b2": "#22d3ee",
+  "#06b6d4": "#67e8f9",
+  "#2f8fa3": "#67e8f9",
+  "#4e8793": "#67e8f9",
   "#f59e0b": "#fbbf24",
   "#ca8a04": "#fde047",
+  "#d59a18": "#fbbf24",
+  "#d97706": "#fb923c",
+  "#f2b84b": "#fde68a",
+  "#9a660f": "#facc15",
   "#ea580c": "#fb923c",
   "#92400e": "#fbbf24",
   "#7c3aed": "#c084fc",
   "#6d28d9": "#c084fc",
-  "#be123c": "#fb7185",
+  "#8b5cf6": "#c084fc",
+  "#726189": "#c4b5fd",
+  "#5b6b84": "#cbd5e1",
 };
 
 const CHART_THEME_EVENT = "fibaro10:chart-theme-change";
@@ -94,7 +119,8 @@ export function chartThemeKey() {
 export function chartSeriesColor(color: string | undefined, index = 0) {
   if (!color) return chartSeriesPalette()[index % chartSeriesPalette().length];
   if (!isDarkScreenTheme()) return color;
-  return darkColorMap[color.toLowerCase()] ?? color;
+  const normalized = color.trim().toLowerCase();
+  return darkColorMap[normalized] ?? color;
 }
 
 export function chartSeriesPalette() {
@@ -104,6 +130,11 @@ export function chartSeriesPalette() {
 export function chartSeriesLineWidth(primary = false) {
   const base = primary ? 3 : 2;
   return isDarkScreenTheme() ? base + 0.35 : base;
+}
+
+export function chartAreaOpacity(primary = false) {
+  if (isDarkScreenTheme()) return primary ? 0.16 : 0.11;
+  return primary ? 0.08 : 0.06;
 }
 
 export function chartTooltip() {
@@ -120,25 +151,47 @@ export function chartTooltip() {
 }
 
 export function chartDataZoom() {
-  if (!isDarkScreenTheme()) return {};
+  if (!isDarkScreenTheme()) {
+    return {
+      borderColor: "#dbe3ee",
+      backgroundColor: "rgba(248,250,252,0.86)",
+      fillerColor: "rgba(37,99,235,0.12)",
+      dataBackground: {
+        lineStyle: { color: "#cbd5e1" },
+        areaStyle: { color: "rgba(148,163,184,0.12)" },
+      },
+      selectedDataBackground: {
+        lineStyle: { color: "#64748b" },
+        areaStyle: { color: "rgba(37,99,235,0.10)" },
+      },
+      handleStyle: {
+        color: "#ffffff",
+        borderColor: "#94a3b8",
+      },
+      moveHandleStyle: {
+        color: "#64748b",
+      },
+      textStyle: { color: chartColors.axisText },
+    };
+  }
   return {
-    borderColor: "rgba(148,163,184,0.24)",
-    backgroundColor: "rgba(15,23,42,0.18)",
-    fillerColor: "rgba(96,165,250,0.18)",
+    borderColor: "rgba(148,163,184,0.34)",
+    backgroundColor: "rgba(15,23,42,0.30)",
+    fillerColor: "rgba(96,165,250,0.24)",
     dataBackground: {
-      lineStyle: { color: "rgba(148,163,184,0.34)" },
-      areaStyle: { color: "rgba(148,163,184,0.08)" },
+      lineStyle: { color: "rgba(148,163,184,0.46)" },
+      areaStyle: { color: "rgba(148,163,184,0.12)" },
     },
     selectedDataBackground: {
-      lineStyle: { color: "rgba(226,232,240,0.44)" },
-      areaStyle: { color: "rgba(96,165,250,0.12)" },
+      lineStyle: { color: "rgba(226,232,240,0.58)" },
+      areaStyle: { color: "rgba(96,165,250,0.16)" },
     },
     handleStyle: {
-      color: "#cbd5e1",
-      borderColor: "#94a3b8",
+      color: "#e2e8f0",
+      borderColor: "#cbd5e1",
     },
     moveHandleStyle: {
-      color: "#334155",
+      color: "#64748b",
     },
     textStyle: { color: chartColors.axisText },
   };
@@ -150,6 +203,7 @@ export function chartLegend(extra: Record<string, unknown> = {}) {
     icon: "roundRect",
     itemWidth: 18,
     itemHeight: 8,
+    inactiveColor: isDarkScreenTheme() ? "rgba(203,213,225,0.42)" : "#94a3b8",
     textStyle: { color: chartColors.mutedText, fontSize: 12, fontWeight: 650 },
     ...extra,
   };

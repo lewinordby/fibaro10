@@ -82,6 +82,23 @@
   box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 16%, transparent);
 }
 
+.app-shell.theme-dark .vent-fan-track {
+  background:
+    linear-gradient(90deg, rgba(203, 213, 225, 0.2) 1px, transparent 1px),
+    linear-gradient(180deg, var(--surface-raised), var(--surface-muted));
+  border-color: var(--line-strong);
+}
+
+.app-shell.theme-dark .vent-fan-run {
+  opacity: 0.66;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.app-shell.theme-dark .vent-fan-event {
+  border-color: var(--surface-raised);
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.36);
+}
+
 .vent-event-list {
   display: grid;
   gap: 6px;

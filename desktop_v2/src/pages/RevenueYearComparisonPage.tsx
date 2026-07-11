@@ -10,6 +10,7 @@ import {
 import {
   chartAxisLabel,
   chartAxisLine,
+  chartAreaOpacity,
   chartLegend,
   chartSeriesColor,
   chartSeriesLineWidth,
@@ -94,8 +95,9 @@ function cumulativeChartOption(data: RevenueYearComparisonResponse, activeYears:
         type: "line",
         step: "end",
         symbol: "none",
-        lineStyle: { width: chartSeriesLineWidth(series.year === data.anchorYear), type: series.year === data.anchorYear ? "solid" : "dashed" },
-        areaStyle: series.year === data.anchorYear ? { opacity: 0.08 } : undefined,
+        itemStyle: { color: seriesColors[index] },
+        lineStyle: { color: seriesColors[index], width: chartSeriesLineWidth(series.year === data.anchorYear), type: series.year === data.anchorYear ? "solid" : "dashed" },
+        areaStyle: series.year === data.anchorYear ? { color: seriesColors[index], opacity: chartAreaOpacity(true) } : undefined,
         emphasis: { focus: "series" },
         data: chartData(series),
         markLine:

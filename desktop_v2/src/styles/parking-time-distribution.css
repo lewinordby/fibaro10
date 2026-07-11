@@ -170,6 +170,19 @@
   white-space: nowrap;
 }
 
+.app-shell.theme-dark .parking-time-cell {
+  background: var(--surface-raised);
+}
+
+.app-shell.theme-dark .parking-time-cell::before {
+  opacity: calc(var(--heat-level, 0) * 0.88);
+}
+
+.app-shell.theme-dark .parking-time-cell span {
+  color: var(--dark-text-emphasis);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.36);
+}
+
 .parking-time-hour-card .ant-card-body {
   padding: 9px 12px 7px;
 }

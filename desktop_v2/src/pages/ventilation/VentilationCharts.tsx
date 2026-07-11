@@ -2,7 +2,7 @@ import { Button, Card, Input, Segmented, Tooltip } from "antd";
 import { useMemo } from "react";
 
 import type { ModuleTable, VentilationData } from "../../api";
-import { chartAxisLabel, chartAxisLine, chartLegend, chartSeriesColor, chartSeriesLineWidth, chartSeriesPalette, chartSplitLine, chartTooltip } from "../../chartTheme";
+import { chartAxisLabel, chartAxisLine, chartLegend, chartSeriesColor, chartSeriesLineWidth, chartSplitLine, chartTooltip } from "../../chartTheme";
 import { AppChart } from "../../components/AppChart";
 import { isDarkScreenTheme } from "../../designTokens";
 import { PeriodNavigator } from "../../components/PeriodNavigator";
@@ -24,7 +24,8 @@ export function DayChart({
   const defaultVisible = Object.fromEntries(focusSeries.map((series) => [series.label, series.key === defaultKey]));
   const yAxisName = focus === "humidity" ? "%" : "C";
   const tooltipUnit = focus === "humidity" ? "%" : " C";
-  const offEventFill = isDarkScreenTheme() ? "#151d2a" : "#ffffff";
+  const darkTheme = isDarkScreenTheme();
+  const offEventFill = darkTheme ? "#151d2a" : "#ffffff";
   const chartSamples: DayChartSample[] = day.samples
     .map((sample) => ({ sample, minute: minuteFromTime(sample.time) }))
     .filter((item): item is DayChartSample => item.minute !== null)
@@ -38,9 +39,9 @@ export function DayChart({
         xAxis: minuteFromEventX(event.x),
         lineStyle: {
           color,
-          opacity: event.class === "on" ? 0.72 : 0.5,
+          opacity: event.class === "on" ? (darkTheme ? 0.9 : 0.72) : (darkTheme ? 0.68 : 0.5),
           type: "dashed",
-          width: 1.35,
+          width: darkTheme ? 1.55 : 1.35,
         },
         label: {
           show: false,
@@ -215,8 +216,13 @@ export function WeatherChart({ table }: { table?: ModuleTable }) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
   });
+  const tempColor = chartSeriesColor("#0ea5e9", 0);
+  const humidityColor = chartSeriesColor("#0f766e", 1);
+  const windColor = chartSeriesColor("#14b8a6", 2);
+  const cloudColor = chartSeriesColor("#64748b", 3);
+  const precipitationColor = chartSeriesColor("#2563eb", 4);
   const option = {
-    color: chartSeriesPalette(),
+    color: [tempColor, humidityColor, windColor, cloudColor, precipitationColor],
     tooltip: chartTooltip(),
     legend: {
       ...chartLegend(),
@@ -237,11 +243,11 @@ export function WeatherChart({ table }: { table?: ModuleTable }) {
       splitLine: chartSplitLine(),
     },
     series: [
-      { name: "Temp", type: "line", data: rows.map((row) => row.air_temperature), showSymbol: false, smooth: true, emphasis: { focus: "series" } },
-      { name: "Fukt", type: "line", data: rows.map((row) => row.relative_humidity), showSymbol: false, smooth: true, emphasis: { focus: "series" } },
-      { name: "Vind", type: "line", data: rows.map((row) => row.wind_speed), showSymbol: false, smooth: true, emphasis: { focus: "series" } },
-      { name: "Skydekke", type: "line", data: rows.map((row) => row.cloud_area_fraction), showSymbol: false, smooth: true, emphasis: { focus: "series" } },
-      { name: "Nedbør", type: "bar", data: rows.map((row) => row.precipitation_next_1h) },
+      { name: "Temp", type: "line", data: rows.map((row) => row.air_temperature), showSymbol: false, smooth: true, itemStyle: { color: tempColor }, lineStyle: { color: tempColor, width: chartSeriesLineWidth() }, emphasis: { focus: "series" } },
+      { name: "Fukt", type: "line", data: rows.map((row) => row.relative_humidity), showSymbol: false, smooth: true, itemStyle: { color: humidityColor }, lineStyle: { color: humidityColor, width: chartSeriesLineWidth() }, emphasis: { focus: "series" } },
+      { name: "Vind", type: "line", data: rows.map((row) => row.wind_speed), showSymbol: false, smooth: true, itemStyle: { color: windColor }, lineStyle: { color: windColor, width: chartSeriesLineWidth() }, emphasis: { focus: "series" } },
+      { name: "Skydekke", type: "line", data: rows.map((row) => row.cloud_area_fraction), showSymbol: false, smooth: true, itemStyle: { color: cloudColor }, lineStyle: { color: cloudColor, width: chartSeriesLineWidth() }, emphasis: { focus: "series" } },
+      { name: "Nedbør", type: "bar", data: rows.map((row) => row.precipitation_next_1h), itemStyle: { color: precipitationColor, borderRadius: [4, 4, 0, 0] } },
     ],
   };
   return (

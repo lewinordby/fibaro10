@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1523")
+APP_BUILD = os.getenv("APP_BUILD", "1524")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1524",
+        "date": "11.07.2026",
+        "headline": "Lesbare grafer i lyst og morkt tema",
+        "title": "Strammer opp grafpalett, backend-fargemapping og mork-tema-kontrast",
+        "description": (
+            "Build 1524 er en graf- og fargekvalitetsrunde. Backend-farger som tidligere kunne bli for morke "
+            "i morkt tema, blir na oversatt sentralt i chartTheme. Akkumulerte grafer setter linjefarge, "
+            "markorer og flater eksplisitt, datazoom og legend har bedre kontrast, og ventilasjon/Yr/heatmap "
+            "har tydeligere lesbarhet i morkt tema."
+        ),
+        "applications": [
+            "desktop_v2/src/chartTheme.ts: utvider mork-tema-mapping for gamle backend-paletter, legger til chartAreaOpacity og bedre legend/datazoom-kontrast.",
+            "desktop_v2/src/pages/StatusComparisonPage.tsx, RevenueYearComparisonPage.tsx, SunYearComparisonPage.tsx og ParkingYearComparisonPage.tsx: setter serie-, linje- og flatefarger eksplisitt.",
+            "desktop_v2/src/pages/module/ModuleChartPanel.tsx: bruker felles flate-opacity og eksplisitt farge pa enlinje-grafer.",
+            "desktop_v2/src/pages/ventilation/VentilationCharts.tsx: gjor viftehendelser og Yr-serier tydeligere, spesielt i morkt tema.",
+            "desktop_v2/src/styles/parking-time-distribution.css og ventilation-charts.css: styrker lesbarhet i heatmap og viftebaner i morkt tema.",
+            "build_log.py: dokumenterer build 1524 og setter APP_BUILD til 1524.",
+        ],
+        "request": "Ta en gjennomgang spesielt med hensyn til fargebruk pa grafer. Sjekk ogsa dette pa morkt tema, slik at alt er leselig.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Morke backend-farger som #071943, gamle ventilasjonsfarger og eldre ukes-/prognosepaletter mappes na til lesbare mork-tema-varianter.",
+            "Akkumulerte omsetnings-, soling- og parkeringsgrafer bruker na samme farge eksplisitt pa linje, markor og flate.",
+            "Yr-grafen bruker stabile semantiske farger for temperatur, fukt, vind, skydekke og nedbor.",
+            "Ventilasjonsdagslogg har tydeligere stiplete hendelseslinjer og viftebaner i morkt tema.",
+            "Parkeringstid-heatmap har bedre tekstkontrast i morkt tema.",
+            "Lokal frontend-build, CSS-parser, CSS-audit og graf-rute-smoke er kjort gront.",
+        ],
+    },
     {
         "version": "1",
         "build": "1523",
