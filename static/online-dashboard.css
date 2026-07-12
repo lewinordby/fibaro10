@@ -886,6 +886,13 @@ h2 { font-size: 1.05rem; }
 .other-doors-block {
     border-left: .26rem solid var(--navy);
 }
+.solroom-doors-block {
+    border-left: .26rem solid var(--gold);
+}
+.solroom-doors-block .door-summary-pill {
+    border-color: rgba(201, 145, 26, .28);
+    background: rgba(201, 145, 26, .09);
+}
 .door-summary-pill {
     flex: 0 0 auto;
     padding: .34rem .58rem;
@@ -951,6 +958,14 @@ h2 { font-size: 1.05rem; }
 .door-event-row.is-closed {
     border-left-color: var(--green);
 }
+.door-mini-card.is-solrom.is-open,
+.other-door-card.is-solrom.is-open {
+    border-left-color: var(--green);
+}
+.door-mini-card.is-solrom.is-closed,
+.other-door-card.is-solrom.is-closed {
+    border-left-color: var(--red);
+}
 .other-door-grid {
     margin-top: .7rem;
 }
@@ -996,6 +1011,14 @@ h2 { font-size: 1.05rem; }
 .other-door-card.is-closed em {
     color: #32663c;
     background: rgba(102, 151, 106, .14);
+}
+.other-door-card.is-solrom.is-open em {
+    color: #32663c;
+    background: rgba(102, 151, 106, .14);
+}
+.other-door-card.is-solrom.is-closed em {
+    color: #9b3e2e;
+    background: rgba(200, 106, 85, .14);
 }
 .other-door-card small {
     grid-column: 1 / -1;

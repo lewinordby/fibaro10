@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1548")
+APP_BUILD = os.getenv("APP_BUILD", "1549")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1549",
+        "date": "12.07.2026",
+        "headline": "Solrom i mobilappen",
+        "title": "Legger solrom inn i mobilappen med status og hendelser",
+        "description": (
+            "Build 1549 utvider mobilappen med samme dørvisning for solrom som ble laget for andre dører. "
+            "Forsiden får en Solrom-blokk, /solrom viser alle rom med status og sist endret, og hvert rom kan "
+            "åpnes for siste dørhendelser sortert nyeste først. Solrom bruker operativ status der åpen dør betyr "
+            "ledig og lukket dør betyr i bruk."
+        ),
+        "applications": [
+            "online_dashboard/app/main.py: legger inn solromkonfig, /solrom og /solrom/{door}, samt felles dør-rendering for mobil.",
+            "static/online-dashboard.css: legger til egen solrommarkering og reversert statusfarge for ledig/i bruk.",
+            "build_log.py: dokumenterer build 1549 og setter APP_BUILD til 1549.",
+        ],
+        "request": "gjør det samme for solrom",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Mobilforsiden får en klikkbar Solrom-blokk.",
+            "Ny /solrom-side viser alle 12 solrom med status, avdeling og sist endret.",
+            "Hvert solrom har detaljside med siste reelle dørhendelser nyeste øverst.",
+            "Solromstatus vises som Ledig ved åpen dør og I bruk ved lukket dør.",
+        ],
+    },
     {
         "version": "1",
         "build": "1548",

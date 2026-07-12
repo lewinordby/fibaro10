@@ -53,6 +53,25 @@ PUBLIC_DASHBOARD_SYNC_TOKEN = os.getenv("PUBLIC_DASHBOARD_SYNC_TOKEN", "")
 PUBLIC_DASHBOARD_SYNC_INTERVAL_SECONDS = max(5, int(os.getenv("PUBLIC_DASHBOARD_SYNC_INTERVAL_SECONDS", "15")))
 PUBLIC_DASHBOARD_SYNC_TIMEOUT_SECONDS = max(3, int(os.getenv("PUBLIC_DASHBOARD_SYNC_TIMEOUT_SECONDS", "12")))
 PUBLIC_DASHBOARD_SNAPSHOT_NAME = os.getenv("PUBLIC_DASHBOARD_SNAPSHOT_NAME", "current").strip() or "current"
+
+SOLROOM_DOOR_CONFIG = [
+    {"device_id": 459, "device_key": "door_solrom_01", "title": "Solrom 1", "section_title": "1.etg", "group_key": "solrom", "sort_order": 1},
+    {"device_id": None, "device_key": "door_solrom_02", "title": "Solrom 2", "section_title": "1.etg", "group_key": "solrom", "sort_order": 2},
+    {"device_id": None, "device_key": "door_solrom_03", "title": "Solrom 3", "section_title": "1.etg", "group_key": "solrom", "sort_order": 3},
+    {"device_id": 465, "device_key": "door_solrom_04", "title": "Solrom 4", "section_title": "2.etg", "group_key": "solrom", "sort_order": 4},
+    {"device_id": 463, "device_key": "door_solrom_05", "title": "Solrom 5", "section_title": "2.etg", "group_key": "solrom", "sort_order": 5},
+    {"device_id": 469, "device_key": "door_solrom_06", "title": "Solrom 6", "section_title": "2.etg", "group_key": "solrom", "sort_order": 6},
+    {"device_id": 471, "device_key": "door_solrom_07", "title": "Solrom 7", "section_title": "2.etg", "group_key": "solrom", "sort_order": 7},
+    {"device_id": 473, "device_key": "door_solrom_08", "title": "Solrom 8", "section_title": "2.etg", "group_key": "solrom", "sort_order": 8},
+    {"device_id": 475, "device_key": "door_solrom_09", "title": "Solrom 9", "section_title": "1.etg", "group_key": "solrom", "sort_order": 9},
+    {"device_id": 477, "device_key": "door_solrom_10", "title": "Solrom 10", "section_title": "VIP", "group_key": "solrom", "sort_order": 10},
+    {"device_id": 479, "device_key": "door_solrom_11", "title": "Solrom 11", "section_title": "VIP", "group_key": "solrom", "sort_order": 11},
+    {"device_id": 491, "device_key": "door_solrom_12", "title": "Solrom 12", "section_title": "VIP", "group_key": "solrom", "sort_order": 12},
+]
+SOLROOM_DOOR_DEVICE_IDS = [int(item["device_id"]) for item in SOLROOM_DOOR_CONFIG if item.get("device_id") is not None]
+SOLROOM_DOOR_KEYS = [str(item["device_key"]) for item in SOLROOM_DOOR_CONFIG if item.get("device_key")]
+SOLROOM_DOOR_BY_KEY = {str(item["device_key"]): item for item in SOLROOM_DOOR_CONFIG}
+
 OTHER_DOOR_CONFIG = [
     {"device_id": 453, "device_key": "door_453", "title": "Bod/kjøkken", "sort_order": 101},
     {"device_id": 447, "device_key": "door_447", "title": "Kjeller luke", "sort_order": 102},
@@ -767,12 +786,20 @@ def relative_time_label(value: Any, now: Optional[datetime] = None) -> str:
 def door_status_payload(config: dict[str, Any], row: Optional[dict[str, Any]], now: datetime) -> dict[str, Any]:
     state = door_state_info(row)
     timestamp = row.get("timestamp") if row else None
+    state_label = state["label"]
+    if config.get("group_key") == "solrom":
+        if state["state"] == "open":
+            state_label = "Ledig"
+        elif state["state"] == "closed":
+            state_label = "I bruk"
     return {
         "device_id": config.get("device_id"),
         "device_key": config["device_key"],
         "title": config["title"],
+        "section_title": config.get("section_title", ""),
+        "group_key": config.get("group_key", ""),
         "state": state["state"],
-        "state_label": state["label"],
+        "state_label": state_label,
         "tone": state["tone"],
         "timestamp": timestamp,
         "last_changed": display_stamp(timestamp),
@@ -796,7 +823,11 @@ def door_change_rows(rows_desc: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(reversed(changes))
 
 
-async def other_door_statuses() -> list[dict[str, Any]]:
+async def door_statuses_for(
+    configs: list[dict[str, Any]],
+    device_ids: list[int],
+    device_keys: list[str],
+) -> list[dict[str, Any]]:
     now = local_now()
     if not SOURCE_MODE:
         return []
@@ -809,17 +840,17 @@ async def other_door_statuses() -> list[dict[str, Any]]:
         order by timestamp desc, id desc
         limit 600
         """,
-        {"device_ids": OTHER_DOOR_DEVICE_IDS, "device_keys": OTHER_DOOR_KEYS},
+        {"device_ids": device_ids, "device_keys": device_keys},
     )
     statuses = []
-    for config in sorted(OTHER_DOOR_CONFIG, key=lambda item: int(item.get("sort_order") or 0)):
+    for config in sorted(configs, key=lambda item: int(item.get("sort_order") or 0)):
         latest_row = next((row for row in rows if door_config_match(row, config)), None)
         statuses.append(door_status_payload(config, latest_row, now))
     return statuses
 
 
-async def other_door_events(device_key: str, limit: int = 80) -> list[dict[str, Any]]:
-    config = OTHER_DOOR_BY_KEY.get(device_key)
+async def door_events_for(device_key: str, configs_by_key: dict[str, dict[str, Any]], limit: int = 80) -> list[dict[str, Any]]:
+    config = configs_by_key.get(device_key)
     if not config or not SOURCE_MODE:
         return []
     rows = await many_mappings(
@@ -838,6 +869,22 @@ async def other_door_events(device_key: str, limit: int = 80) -> list[dict[str, 
         },
     )
     return door_change_rows(rows)[:limit]
+
+
+async def solroom_door_statuses() -> list[dict[str, Any]]:
+    return await door_statuses_for(SOLROOM_DOOR_CONFIG, SOLROOM_DOOR_DEVICE_IDS, SOLROOM_DOOR_KEYS)
+
+
+async def solroom_door_events(device_key: str, limit: int = 80) -> list[dict[str, Any]]:
+    return await door_events_for(device_key, SOLROOM_DOOR_BY_KEY, limit)
+
+
+async def other_door_statuses() -> list[dict[str, Any]]:
+    return await door_statuses_for(OTHER_DOOR_CONFIG, OTHER_DOOR_DEVICE_IDS, OTHER_DOOR_KEYS)
+
+
+async def other_door_events(device_key: str, limit: int = 80) -> list[dict[str, Any]]:
+    return await door_events_for(device_key, OTHER_DOOR_BY_KEY, limit)
 
 
 def amount_sum(*values: Any) -> float:
@@ -1256,6 +1303,7 @@ async def source_dashboard_data() -> dict[str, Any]:
         """,
         {"start": start, "end": end},
     )
+    solroom_doors = await solroom_door_statuses()
     other_doors = await other_door_statuses()
 
     inside_values = [vent.get("temp_1etg"), vent.get("temp_2etg"), vent.get("temp_vip")]
@@ -1314,6 +1362,7 @@ async def source_dashboard_data() -> dict[str, Any]:
             ("Tak/loft", vent.get("fan_tak")),
             ("Avfukter", vent.get("fan_avfukter")),
         ],
+        "solroom_doors": solroom_doors,
         "other_doors": other_doors,
     }
     data["revenue"] = {
@@ -1395,6 +1444,7 @@ async def latest_snapshot_payload() -> dict[str, Any]:
             "innluft": None,
             "light_items": [],
             "fan_items": [],
+            "solroom_doors": [],
             "other_doors": [],
             "revenue": {},
             "revenue_updated_at": None,
@@ -1744,8 +1794,10 @@ async def dashboard(request: Request):
         html = html.replace(key, value)
     html = html.replace("{{ light_cards }}", render_state_cards(data["light_items"], "light"))
     html = html.replace("{{ fan_cards }}", render_state_cards(data["fan_items"], "fan"))
+    html = html.replace("{{ solroom_door_summary }}", render_solroom_door_summary(data.get("solroom_doors") or []))
+    html = html.replace("{{ solroom_door_cards }}", render_door_dashboard_cards(data.get("solroom_doors") or []))
     html = html.replace("{{ other_door_summary }}", render_other_door_summary(data.get("other_doors") or []))
-    html = html.replace("{{ other_door_cards }}", render_other_door_dashboard(data.get("other_doors") or []))
+    html = html.replace("{{ other_door_cards }}", render_door_dashboard_cards(data.get("other_doors") or []))
     return HTMLResponse(html)
 
 
@@ -2150,6 +2202,59 @@ async def ventilation_detail(request: Request):
     return render_detail_page("Ventilasjon", "Status og siste hendelser.", body)
 
 
+@app.get("/solrom", response_class=HTMLResponse)
+async def solroom_doors_detail(request: Request):
+    data = await dashboard_data()
+    statuses = list(data.get("solroom_doors") or [])
+    latest = max(
+        (
+            item.get("timestamp")
+            for item in statuses
+            if isinstance(item.get("timestamp"), datetime)
+        ),
+        default=None,
+    )
+    body = detail_stats(
+        [
+            ("Ledige", fmt_int(sum(1 for item in statuses if item.get("state") == "open")), "dør åpen"),
+            ("I bruk", fmt_int(sum(1 for item in statuses if item.get("state") == "closed")), "dør lukket"),
+            ("Ukjent", fmt_int(sum(1 for item in statuses if item.get("state") == "unknown")), "mangler siste status"),
+            ("Sist endret", fmt_clock(latest), fmt_date(latest)),
+        ]
+    )
+    body += render_door_overview(statuses, "/solrom")
+    return render_detail_page("Solrom", "Status og siste endring per solrom.", body, icon="door")
+
+
+@app.get("/solrom/{device_key}", response_class=HTMLResponse)
+async def solroom_door_detail(device_key: str, request: Request):
+    config = SOLROOM_DOOR_BY_KEY.get(device_key)
+    if not config:
+        raise HTTPException(status_code=404, detail="Ukjent solrom")
+    data = await dashboard_data()
+    statuses = list(data.get("solroom_doors") or [])
+    status = next((item for item in statuses if item.get("device_key") == device_key), None)
+    if not status:
+        status = door_status_payload(config, None, local_now())
+    events = await solroom_door_events(device_key, 80) if SOURCE_MODE else []
+    body = detail_stats(
+        [
+            ("Status", str(status.get("state_label") or "Ukjent"), str(status.get("age_label") or "-")),
+            ("Sist endret", str(status.get("last_changed") or "-"), str(status.get("section_title") or "")),
+            (
+                "Batteri",
+                f"{float(status['battery_level']):.0f}%" if status.get("battery_level") is not None else "-",
+                "sensor",
+            ),
+            ("Hendelser", fmt_int(len(events)), "nyeste øverst"),
+        ]
+    )
+    if SNAPSHOT_MODE:
+        body += '<p class="notice">Detaljert hendelseshistorikk er bare tilgjengelig når mobilappen leser direkte fra Fibaro10-databasen.</p>'
+    body += render_door_event_list(events, "Siste dørhendelser")
+    return render_detail_page(str(config.get("title") or "Solrom"), "Siste statusendringer for valgt solrom.", body, icon="door")
+
+
 @app.get("/dorer", response_class=HTMLResponse)
 async def other_doors_detail(request: Request):
     data = await dashboard_data()
@@ -2170,7 +2275,7 @@ async def other_doors_detail(request: Request):
             ("Sist endret", fmt_clock(latest), fmt_date(latest)),
         ]
     )
-    body += render_other_door_overview(statuses)
+    body += render_door_overview(statuses, "/dorer")
     return render_detail_page("Andre dører", "Status og siste endring per dør.", body, icon="door")
 
 
@@ -2291,7 +2396,19 @@ def render_other_door_summary(statuses: list[dict[str, Any]]) -> str:
     return " · ".join(parts)
 
 
-def render_other_door_dashboard(statuses: list[dict[str, Any]]) -> str:
+def render_solroom_door_summary(statuses: list[dict[str, Any]]) -> str:
+    if not statuses:
+        return "Ingen romdata"
+    available_count = sum(1 for item in statuses if item.get("state") == "open")
+    busy_count = sum(1 for item in statuses if item.get("state") == "closed")
+    unknown_count = sum(1 for item in statuses if item.get("state") == "unknown")
+    parts = [f"{available_count} ledige", f"{busy_count} i bruk"]
+    if unknown_count:
+        parts.append(f"{unknown_count} ukjent")
+    return " · ".join(parts)
+
+
+def render_door_dashboard_cards(statuses: list[dict[str, Any]]) -> str:
     if not statuses:
         return '<p class="empty-list">Ingen dørdata akkurat nå.</p>'
     newest = sorted(
@@ -2301,9 +2418,10 @@ def render_other_door_dashboard(statuses: list[dict[str, Any]]) -> str:
     )[:4]
     cards = []
     for item in newest:
+        group_class = f" is-{escape(str(item.get('group_key') or 'door'))}"
         cards.append(
             f"""
-            <article class="door-mini-card is-{escape(str(item.get("state") or "unknown"))}">
+            <article class="door-mini-card is-{escape(str(item.get("state") or "unknown"))}{group_class}">
                 <strong>{escape(str(item.get("title") or ""))}</strong>
                 <span>{escape(str(item.get("state_label") or "Ukjent"))}</span>
                 <small>{escape(str(item.get("age_label") or "-"))}</small>
@@ -2313,7 +2431,7 @@ def render_other_door_dashboard(statuses: list[dict[str, Any]]) -> str:
     return f'<div class="door-mini-grid">{"".join(cards)}</div>'
 
 
-def render_other_door_overview(statuses: list[dict[str, Any]]) -> str:
+def render_door_overview(statuses: list[dict[str, Any]], base_path: str) -> str:
     if not statuses:
         return '<section class="section-block"><p class="empty-list">Ingen dørdata akkurat nå.</p></section>'
     cards = []
@@ -2323,12 +2441,15 @@ def render_other_door_overview(statuses: list[dict[str, Any]]) -> str:
         state_label = str(item.get("state_label") or "Ukjent")
         last_changed = str(item.get("last_changed") or "-")
         age_label = str(item.get("age_label") or "-")
-        href = f"/dorer/{escape(str(item.get('device_key') or ''))}"
+        section = str(item.get("section_title") or "").strip()
+        section_html = f" · {escape(section)}" if section else ""
+        group_class = f" is-{escape(str(item.get('group_key') or 'door'))}"
+        href = f"{base_path.rstrip('/')}/{escape(str(item.get('device_key') or ''))}"
         cards.append(
             f"""
-            <a class="other-door-card is-{escape(state)}" href="{href}">
+            <a class="other-door-card is-{escape(state)}{group_class}" href="{href}">
                 <div>
-                    <span>Status</span>
+                    <span>Status{section_html}</span>
                     <strong>{escape(title)}</strong>
                 </div>
                 <em>{escape(state_label)}</em>
@@ -2669,7 +2790,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-other-doors">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-solroom-doors">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -2702,7 +2823,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-other-doors">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-solroom-doors">
 </head>
 <body>
   <header class="topbar">
@@ -2801,6 +2922,14 @@ DASHBOARD_HTML = """<!doctype html>
       <small class="card-time">Oppdatert {{ temp_time }}</small>
     </a>
 
+    <a class="section-block card-link solroom-doors-block" href="/solrom">
+      <div class="section-title-row">
+        <h2>SOLROM</h2>
+        <span class="door-summary-pill">{{ solroom_door_summary }}</span>
+      </div>
+      {{ solroom_door_cards }}
+    </a>
+
     <a class="section-block card-link other-doors-block" href="/dorer">
       <div class="section-title-row">
         <h2>ANDRE DØRER</h2>
@@ -2820,7 +2949,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-other-doors">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-solroom-doors">
 </head>
 <body>
   <header class="topbar">
