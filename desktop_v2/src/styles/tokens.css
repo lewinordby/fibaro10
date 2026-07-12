@@ -242,7 +242,8 @@
   --active-module-color: var(--domain-light);
 }
 
-.domain-dorer {
+.domain-dorer,
+.domain-dorer2 {
   --active-module-color: var(--domain-building);
 }
 

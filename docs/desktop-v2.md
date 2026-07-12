@@ -108,6 +108,9 @@ Koble bruker sideappen `parking_sun_linker`, men all styring, status og manuell 
 - `/solrom/oversikt`
 - `/solrom/dagskontroll`
 - `/solrom/rom` finnes som skjult detaljrute fra solromkort.
+- `/dorer2/oversikt`
+- `/dorer2/rom` finnes som skjult detaljrute fra Dører2-romkort.
+- `/dorer2/bygg`
 - `/dorer/oversikt`
 - `/dorer/andre`
 - `/dorer/radata`

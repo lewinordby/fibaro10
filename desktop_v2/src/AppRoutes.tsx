@@ -9,6 +9,7 @@ const RevenueMonthPage = lazy(() => import("./pages/RevenueMonthPage"));
 const RevenueYearComparisonPage = lazy(() => import("./pages/RevenueYearComparisonPage"));
 const OperationsPage = lazy(() => import("./pages/OperationsPage"));
 const DataSourceDetailPage = lazy(() => import("./pages/DataSourceDetailPage"));
+const Doors2Page = lazy(() => import("./pages/Doors2Page"));
 const DoorsPage = lazy(() => import("./pages/DoorsPage"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
@@ -83,6 +84,8 @@ export function AppRoutes() {
         <Route path="/lys/:view" element={<ModulePage module="lys" />} />
         <Route path="/solrom" element={<Navigate to={modulePath("solrom")} replace />} />
         <Route path="/solrom/:view" element={<DoorsPage scope="solrom" />} />
+        <Route path="/dorer2" element={<Navigate to={modulePath("dorer2")} replace />} />
+        <Route path="/dorer2/:view" element={<Doors2Page />} />
         <Route path="/dorer" element={<Navigate to={modulePath("dorer")} replace />} />
         <Route path="/dorer/:view" element={<DoorsPage />} />
         <Route path="/vedlikehold" element={<Navigate to={modulePath("vedlikehold")} replace />} />

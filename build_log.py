@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1543")
+APP_BUILD = os.getenv("APP_BUILD", "1544")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1544",
+        "date": "12.07.2026",
+        "headline": "Dører2 situasjonsflate",
+        "title": "Legger til ny Dører2-meny med operativ rom- og dørkontroll",
+        "description": (
+            "Build 1544 legger inn Dører2 som en ny hovedmeny ved siden av eksisterende Dører og Solrom. "
+            "Den nye flaten bruker dørstatus, Sun2-kobling, valgt dato, effektmarkører og hendelser i en "
+            "mer operativ informasjonsmodell: avvik først, romkart, og detaljvisning for ett rom."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/Doors2Page.tsx: ny Dører2-side med Situasjon, Romdetalj og Byggdører.",
+            "desktop_v2/src/styles/doors2.css: isolert styling for situasjonsflate, romkort, tidslinjer og byggdører.",
+            "desktop_v2/src/moduleViews.ts, appNavigation.tsx og AppRoutes.tsx: legger Dører2 inn i hovedmeny og ruting.",
+            "main.py: legger /dorer2 og /dorer2/{path} inn i SPA-ruting og oppdaterer levende manualdata.",
+            "desktop_v2/scripts/smoke-routes.mjs og docs/*.md: legger til Dører2 i rute-smoke og dokumentasjon.",
+            "desktop_v2/scripts/audit-bundle.mjs: øker total gzip-grense fra 785 kB til 795 kB fordi Dører2 er en ny lazy-loadet funksjonsflate.",
+            "build_log.py: dokumenterer build 1544 og setter APP_BUILD til 1544.",
+        ],
+        "request": (
+            "jeg er ikke fornøyd, kan du lage en Dører2 i hovedmenyen og prøve på nytt, tenk ut av boksen "
+            "vær kreativ og få til en god oversikt med gode detaljvisninger slik at man kan få noe ut av dette"
+        ),
+        "work_duration": "ca. 1 t 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny Dører2/Situasjon viser oppmerksomhetsliste, romkart, dagsfilter, statuskort og tidslinje per rom.",
+            "Ny skjult Dører2/Romdetalj åpnes fra romkort og viser ett rom med dagslinje, hendelser og perioder.",
+            "Ny Dører2/Byggdører viser byggdører sortert med avvik først.",
+            "Eksisterende Dører og Solrom er beholdt uendret som sammenligning og daglig fallback.",
+        ],
+    },
     {
         "version": "1",
         "build": "1543",
