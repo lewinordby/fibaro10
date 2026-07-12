@@ -24,7 +24,7 @@ Hvis en side får flere roller samtidig, skal den enten deles eller flyttes inn 
 | --- | --- | --- |
 | Dashboard | Status | Operativt overblikk. |
 | Økonomi | Omsetning, Parkering, Soling, Koble | Tall, aktivitet, oppgjør og kobling mellom betaling/bruk. |
-| Bygg og drift | Energi, Ventilasjon, Lys, Dører, Renhold, Vedlikehold | Teknisk drift og fysisk anlegg. |
+| Bygg og drift | Energi, Ventilasjon, Lys, Solrom, Dører, Renhold, Vedlikehold | Teknisk drift og fysisk anlegg. |
 | System | Ideer, Mobil, Admin | Systemoversikt, utvikling, manualer og kontrollflater. |
 
 ## Modulstruktur
@@ -104,19 +104,21 @@ Koble skal ikke skrive endelig sannhet uten manuell bekreftelse.
 
 Regel: Dagslogg er visuell tidsserie. Innstillinger er styringsregler. Hendelser er rå/operativ logg.
 
+### Solrom
+
+- `Nå`: operativ status for rom 1-12 med ledig/i bruk, dørstatus, koblet Sun2-time, forventet ut og varselnivå.
+- `Dagskontroll`: valgt dato med høyere romkort, åpningstidslinje og hendelsesliste per rom for dør, soltime, inngang og effektmarkører.
+- `Romdetalj`: skjult/klikkbar rute fra romkort for historikk på ett rom.
+
+Solrom bruker motsatt semantikk av byggdører: åpen dør betyr normalt ledig, lukket dør betyr normalt i bruk.
+
 ### Dører
 
 - `Oversikt`: kompakt status for solrom og andre dører.
-- `Oversikt - ny`: alternativ kompakt statusmatrise for rask visuell kontroll.
-- `Romkontroll`: operativ kontrollflate for solrom med dør, Sun2-time, forventet ut og energi.
-- `Romkontroll - ny`: grafisk alternativ med tidslinje per rom for dør, soltid og forventet ut.
-- `Romkontroll - ny2`: dagskontroll med tydelig datovelger, felles dagsinfo, romfaner, åpningstidslinje og hendelsestabell for valgt solrom.
-- `Dør og soltime`: detaljert kobling mellom dørperioder og soltimer.
-- `Solrom`: dørstatus og bruk/ledig-logikk for solrom.
 - `Andre dører`: byggdører som normalt skal vurderes annerledes enn solrom.
 - `Rådata`: alle dørhendelser fra HC3.
 
-Solrom bruker motsatt semantikk av byggdører: åpen dør betyr normalt ledig, lukket dør betyr normalt i bruk.
+Eldre romkontroll-varianter ligger fortsatt som skjulte ruter for sammenligning, men daglig solromdrift skal bruke hovedmenyen `Solrom`.
 
 ### Vedlikehold og renhold
 

@@ -20,7 +20,7 @@ Venstremenyen er delt i fire grupper:
 | --- | --- | --- |
 | Dashboard | Dashboard | Fire operative dashboard: omsetning, parkering, soling og drift. |
 | Økonomi | Omsetning, Parkering, Soling, Koble | Omsetning, parkering, soling og kobling mellom parkering/SUN2. |
-| Bygg og drift | Energi, Ventilasjon, Lys, Dører, Renhold, Vedlikehold | Teknisk drift, byggstatus, miljø, renhold og oppgaver/besøk. |
+| Bygg og drift | Energi, Ventilasjon, Lys, Solrom, Dører, Renhold, Vedlikehold | Teknisk drift, byggstatus, miljø, renhold og oppgaver/besøk. |
 | System | Ideer, Mobil, Admin | Forslag, mobilskjermspeiling og administrasjon. |
 
 ## Gjeldende ruter
@@ -103,17 +103,15 @@ Koble bruker sideappen `parking_sun_linker`, men all styring, status og manuell 
 - `/lys/hendelser`
 - `/lys/innstillinger`
 
-### Dører, renhold og vedlikehold
+### Solrom, dører, renhold og vedlikehold
 
+- `/solrom/oversikt`
+- `/solrom/dagskontroll`
+- `/solrom/rom` finnes som skjult detaljrute fra solromkort.
 - `/dorer/oversikt`
-- `/dorer/oversikt-ny`
-- `/dorer/romkontroll`
-- `/dorer/romkontroll-ny`
-- `/dorer/romkontroll-ny2` - dagsvisning med datovelger, felles dagsinfo, romfaner og hendelser for valgt rom.
-- `/dorer/soltimer`
-- `/dorer/solrom`
 - `/dorer/andre`
 - `/dorer/radata`
+- Eldre solrom-/romkontrollruter under `/dorer` finnes som skjulte sammenligningsruter, men daglig romdrift skal bruke `/solrom`.
 - `/renhold/oversikt`
 - `/renhold/roboter`
 - `/vedlikehold/oversikt`

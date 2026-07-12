@@ -5,8 +5,42 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1541")
+APP_BUILD = os.getenv("APP_BUILD", "1542")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1542",
+        "date": "12.07.2026",
+        "headline": "Egen Solrom-meny",
+        "title": "Flytter operativ solromkontroll til egen hovedmeny",
+        "description": (
+            "Build 1542 legger Solrom som eget hovedområde under Bygg og drift. Menyen begrenses til Nå og "
+            "Dagskontroll, med skjult romdetalj fra kortene. De tidligere romkontrollvariantene under Dører "
+            "beholdes som skjulte ruter, mens Dører-menyen ryddes ned til vanlig dørstatus, andre dører og rådata."
+        ),
+        "applications": [
+            "desktop_v2/src/moduleViews.ts: legger inn Solrom som egen modul og skjuler gamle solromvarianter i Dører-menyen.",
+            "desktop_v2/src/appNavigation.tsx: legger Solrom inn under Bygg og drift.",
+            "desktop_v2/src/AppRoutes.tsx: legger /solrom-ruter til samme romkontrollkomponent med eget scope.",
+            "desktop_v2/src/pages/DoorsPage.tsx: støtter Solrom-modus med Nå, Dagskontroll og skjult romdetalj.",
+            "desktop_v2/src/styles/doors.css: gir Solrom-flaten lett egen fargetone uten nytt designsystem.",
+            "desktop_v2/scripts/smoke-routes.mjs: tester /solrom/oversikt og /solrom/dagskontroll.",
+            "main.py og docs/*.md: oppdaterer levende manual, admin/manual og strukturmanualer.",
+            "build_log.py: dokumenterer build 1542 og setter APP_BUILD til 1542.",
+        ],
+        "request": (
+            "Nå vet du omtrent hva jeg tenker på, lag en ny meny Solrom som har noen undersider som er perfekte "
+            "for dette behovet. Prøv å begrense og gjør det oversiktlig og fint men med nødvendige data"
+        ),
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny hovedmeny Solrom med Nå og Dagskontroll.",
+            "Romdetalj åpnes fra solromkort uten å vises som fast menyvalg.",
+            "Dører-menyen er ryddet for gamle romkontroll-eksperimenter, men rutene finnes fortsatt skjult.",
+            "Manual, strukturdocs og smoke-ruter er oppdatert.",
+        ],
+    },
     {
         "version": "1",
         "build": "1541",

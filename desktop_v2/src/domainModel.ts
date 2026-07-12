@@ -10,6 +10,7 @@ const titleMatchers: Record<string, Array<{ words: string[]; href: string }>> = 
     { words: ["år", "akkumulert"], href: modulePath("omsetning", "akkumulert") },
     { words: ["sammenligning", "uke", "i dag"], href: "/omsetning/sammenligning" },
     { words: ["sol"], href: modulePath("soling", "oversikt") },
+    { words: ["solrom", "romkontroll", "dør", "dører"], href: modulePath("solrom", "oversikt") },
     { words: ["park"], href: modulePath("parkering", "oversikt") },
   ],
   parkering: [
@@ -65,6 +66,7 @@ const defaultModuleHref: Record<string, string> = {
   omsetning: modulePath("omsetning", "oversikt"),
   parkering: modulePath("parkering", "oversikt"),
   soling: modulePath("soling", "oversikt"),
+  solrom: modulePath("solrom", "oversikt"),
   energi: modulePath("energi", "status"),
   ventilasjon: modulePath("ventilasjon", "dagslogg"),
   lys: modulePath("lys", "dagslogg"),

@@ -66,6 +66,9 @@ type DoorView =
   | "andre"
   | "radata";
 
+type DoorsPageScope = "doors" | "solrom";
+type SolromView = "oversikt" | "dagskontroll" | "rom";
+
 const DOOR_VIEWS: DoorView[] = [
   "oversikt",
   "oversikt-ny",
@@ -78,6 +81,7 @@ const DOOR_VIEWS: DoorView[] = [
   "andre",
   "radata",
 ];
+const SOLROM_VIEWS: SolromView[] = ["oversikt", "dagskontroll", "rom"];
 const SECTION_ORDER = ["1etg", "2etg", "vip", "bygg"];
 
 function stateTag(row: DoorStateRow) {
@@ -753,8 +757,8 @@ function SunroomSessionFacts({ item }: { item: DoorSunroomSessionItem }) {
   );
 }
 
-function SunroomCard({ item }: { item: DoorSunroomSessionItem }) {
-  const detailHref = `/dorer/soltimer?room=${encodeURIComponent(item.roomId || item.deviceKey)}`;
+function SunroomCard({ item, detailBasePath = "/dorer/soltimer" }: { item: DoorSunroomSessionItem; detailBasePath?: string }) {
+  const detailHref = `${detailBasePath}?room=${encodeURIComponent(item.roomId || item.deviceKey)}`;
   return (
     <Link className={`door-sunroom-card severity-${item.severity}`} to={detailHref} aria-label={`Åpne detaljer for ${item.title}`}>
       <div className="door-sunroom-card-head">
@@ -1985,7 +1989,7 @@ function DoorSolroomNewBoard({
   );
 }
 
-function SunroomSection({ title, rooms }: { title: string; rooms: DoorSunroomSessionItem[] }) {
+function SunroomSection({ title, rooms, detailBasePath }: { title: string; rooms: DoorSunroomSessionItem[]; detailBasePath?: string }) {
   return (
     <section className="door-sunroom-section">
       <div className="door-sunroom-section-head">
@@ -1996,7 +2000,7 @@ function SunroomSection({ title, rooms }: { title: string; rooms: DoorSunroomSes
       </div>
       <div className="door-sunroom-grid">
         {rooms.map((room) => (
-          <SunroomCard item={room} key={room.deviceKey} />
+          <SunroomCard item={room} detailBasePath={detailBasePath} key={room.deviceKey} />
         ))}
       </div>
     </section>
@@ -2009,12 +2013,18 @@ function DoorSunroomSessionsBoard({
   error,
   fetching,
   refetch,
+  detailBasePath = "/dorer/soltimer",
+  heading = "Dør og soltime",
+  description,
 }: {
   data?: DoorSunroomSessionsResponse | null;
   loading: boolean;
   error: unknown;
   fetching: boolean;
   refetch: () => void;
+  detailBasePath?: string;
+  heading?: string;
+  description?: ReactNode;
 }) {
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
@@ -2036,11 +2046,15 @@ function DoorSunroomSessionsBoard({
     <div className="door-sunroom-board">
       <section className="door-sunroom-command">
         <div>
-          <Typography.Title level={3}>Dør og soltime</Typography.Title>
+          <Typography.Title level={3}>{heading}</Typography.Title>
           <span>
-            Lukket solrom kobles mot siste Sun2-time i samme rom. Forventet ut er betaling + oppstart + soltid
-            + normal utgangstid. Oransje etter {data.rules.warnAfterEndMinutes} min, rødt etter{" "}
-            {data.rules.alertAfterEndMinutes} min fra solslutt.
+            {description ?? (
+              <>
+                Lukket solrom kobles mot siste Sun2-time i samme rom. Forventet ut er betaling + oppstart + soltid
+                + normal utgangstid. Oransje etter {data.rules.warnAfterEndMinutes} min, rødt etter{" "}
+                {data.rules.alertAfterEndMinutes} min fra solslutt.
+              </>
+            )}
           </span>
         </div>
         <div className="door-sunroom-actions">
@@ -2087,7 +2101,7 @@ function DoorSunroomSessionsBoard({
 
       <div className="door-sunroom-sections">
         {orderedSections.map(([key, rooms]) => (
-          <SunroomSection title={rooms[0]?.sectionTitle || key} rooms={rooms} key={key} />
+          <SunroomSection title={rooms[0]?.sectionTitle || key} rooms={rooms} detailBasePath={detailBasePath} key={key} />
         ))}
       </div>
 
@@ -2172,27 +2186,34 @@ function DoorGroupSection({
   );
 }
 
-export default function DoorsPage() {
+export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope }) {
   const { view = "oversikt" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const isSolromScope = scope === "solrom";
   const { data, loading, error, fetching, refetch } = useApiQuery(queryKeys.doorStatus(), fetchDoorStatus, {
     refetchInterval: 30_000,
   });
-  const selectedSunroomRoomId = view === "soltimer" ? searchParams.get("room") || "" : "";
+  const selectedSunroomRoomId =
+    (!isSolromScope && view === "soltimer") || (isSolromScope && view === "rom") ? searchParams.get("room") || "" : "";
   const sunroomQuery = useApiQuery(queryKeys.doorSunroomSessions(), fetchDoorSunroomSessions, {
-    enabled: view === "soltimer" && !selectedSunroomRoomId,
+    enabled: (!isSolromScope && view === "soltimer" && !selectedSunroomRoomId) || (isSolromScope && view === "oversikt"),
     refetchInterval: 30_000,
   });
   const requestedControlDays = Number(searchParams.get("days") || "2");
   const controlDays = [1, 2, 7, 14].includes(requestedControlDays) ? requestedControlDays : 2;
   const selectedControlDay = normalizedDayParam(searchParams.get("day"));
-  const selectedControlRoomId = view === "romkontroll-ny2" ? searchParams.get("room") || "" : "";
-  const overviewDay = view === "romkontroll-ny2" || view === "solrom-ny" ? selectedControlDay : "";
+  const selectedControlRoomId = !isSolromScope && view === "romkontroll-ny2" ? searchParams.get("room") || "" : "";
+  const overviewDay =
+    (!isSolromScope && (view === "romkontroll-ny2" || view === "solrom-ny")) || (isSolromScope && view === "dagskontroll")
+      ? selectedControlDay
+      : "";
   const sunroomOverviewQuery = useApiQuery(
     queryKeys.doorSunroomOverview(controlDays, overviewDay),
     () => fetchDoorSunroomOverview(controlDays, overviewDay || undefined),
     {
-      enabled: view === "romkontroll" || view === "romkontroll-ny" || view === "romkontroll-ny2" || view === "solrom-ny",
+      enabled:
+        (!isSolromScope && (view === "romkontroll" || view === "romkontroll-ny" || view === "romkontroll-ny2" || view === "solrom-ny")) ||
+        (isSolromScope && view === "dagskontroll"),
       refetchInterval: 30_000,
     },
   );
@@ -2200,19 +2221,113 @@ export default function DoorsPage() {
     queryKeys.doorSunroomRoom(selectedSunroomRoomId),
     () => fetchDoorSunroomRoomDetail(selectedSunroomRoomId),
     {
-      enabled: view === "soltimer" && Boolean(selectedSunroomRoomId),
+      enabled: ((!isSolromScope && view === "soltimer") || (isSolromScope && view === "rom")) && Boolean(selectedSunroomRoomId),
       refetchInterval: 30_000,
     },
   );
 
-  if (!DOOR_VIEWS.includes(view as DoorView)) return <Navigate to="/dorer/oversikt" replace />;
+  if (isSolromScope && !SOLROM_VIEWS.includes(view as SolromView)) return <Navigate to="/solrom/oversikt" replace />;
+  if (!isSolromScope && !DOOR_VIEWS.includes(view as DoorView)) return <Navigate to="/dorer/oversikt" replace />;
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
   const activeView = view as DoorView;
+  const activeSolromView = view as SolromView;
   const isRawView = activeView === "radata";
   const solromDoors = data.doors.filter((door) => door.groupKey === "solrom");
   const otherDoors = data.doors.filter((door) => door.groupKey !== "solrom");
+
+  if (isSolromScope) {
+    if (activeSolromView === "rom" && !selectedSunroomRoomId) return <Navigate to="/solrom/oversikt" replace />;
+    const solromTitle =
+      activeSolromView === "dagskontroll"
+        ? "Solrom · dagskontroll"
+        : activeSolromView === "rom"
+          ? "Solrom · romdetalj"
+          : "Solrom";
+    const solromDescription =
+      activeSolromView === "dagskontroll"
+        ? "Valgt dato med romkort, dørperioder, Sun2-kobling, tidslinje og hendelser per solrom."
+        : activeSolromView === "rom"
+          ? "Detaljer for ett solrom med pågående status og historiske dørperioder koblet mot Sun2."
+          : "Operativ nåvisning for alle solrom med dørstatus, koblet soltime, forventet ut og varselnivå.";
+
+    return (
+      <Space direction="vertical" size={14} className="page-stack doors-page solroom-page">
+        <PageHeader
+          eyebrow="Bygg og drift"
+          title={solromTitle}
+          description={solromDescription}
+          meta={
+            <Space size={8}>
+              <Typography.Text type="secondary">
+                Sist endret {data.summary.latestAgeLabel} · {data.summary.latestChangeText}
+              </Typography.Text>
+              <Button
+                size="small"
+                icon={<ReloadOutlined spin={fetching || sunroomQuery.fetching || sunroomOverviewQuery.fetching || sunroomDetailQuery.fetching} />}
+                onClick={() => {
+                  refetch();
+                  if (activeSolromView === "oversikt") sunroomQuery.refetch();
+                  if (activeSolromView === "dagskontroll") sunroomOverviewQuery.refetch();
+                  if (activeSolromView === "rom") sunroomDetailQuery.refetch();
+                }}
+              >
+                Oppdater
+              </Button>
+            </Space>
+          }
+        />
+
+        {activeSolromView === "oversikt" ? (
+          <DoorSunroomSessionsBoard
+            data={sunroomQuery.data}
+            loading={sunroomQuery.loading}
+            error={sunroomQuery.error}
+            fetching={sunroomQuery.fetching}
+            refetch={sunroomQuery.refetch}
+            detailBasePath="/solrom/rom"
+            heading="Solrom nå"
+            description={
+              <>
+                Lukket rom betyr normalt i bruk. Kortene viser koblet Sun2-time, forventet ut og om rommet bør følges opp.
+              </>
+            }
+          />
+        ) : null}
+
+        {activeSolromView === "dagskontroll" ? (
+          <DoorSolroomNewBoard
+            data={sunroomOverviewQuery.data}
+            loading={sunroomOverviewQuery.loading}
+            error={sunroomOverviewQuery.error}
+            selectedDay={selectedControlDay}
+            onDayChange={(nextDay: string) => {
+              const next = new URLSearchParams(searchParams);
+              next.set("day", nextDay);
+              setSearchParams(next, { replace: true });
+            }}
+          />
+        ) : null}
+
+        {activeSolromView === "rom" ? (
+          <DoorSunroomRoomDetail
+            data={sunroomDetailQuery.data}
+            loading={sunroomDetailQuery.loading}
+            error={sunroomDetailQuery.error}
+            fetching={sunroomDetailQuery.fetching}
+            refetch={sunroomDetailQuery.refetch}
+            onBack={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("room");
+              setSearchParams(next, { replace: true });
+            }}
+          />
+        ) : null}
+      </Space>
+    );
+  }
+
   const visibleDoors =
     activeView === "solrom" || activeView === "solrom-ny" ? solromDoors : activeView === "andre" ? otherDoors : data.doors;
   const visibleDeviceIds = new Set(visibleDoors.map((door) => door.deviceId).filter((id): id is number => id !== null));

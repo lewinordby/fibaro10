@@ -28,6 +28,7 @@ const mainModuleIcons: Array<Pick<MainNavigationModule, "module" | "icon">> = [
   { module: "omsetning", icon: <BarChartOutlined /> },
   { module: "parkering", icon: <CarOutlined /> },
   { module: "soling", icon: <CalendarOutlined /> },
+  { module: "solrom", icon: <HomeOutlined /> },
   { module: "koble", icon: <ToolOutlined /> },
   { module: "energi", icon: <ThunderboltOutlined /> },
   { module: "ventilasjon", icon: <ExperimentOutlined /> },
@@ -54,7 +55,7 @@ const modulesForGroup = (modules: string[]) =>
 export const mainModuleGroups = [
   { label: "", modules: modulesForGroup(["status"]) },
   { label: "Økonomi", modules: modulesForGroup(["omsetning", "parkering", "soling", "koble"]) },
-  { label: "Bygg og drift", modules: modulesForGroup(["energi", "ventilasjon", "lys", "dorer", "renhold", "vedlikehold"]) },
+  { label: "Bygg og drift", modules: modulesForGroup(["energi", "ventilasjon", "lys", "solrom", "dorer", "renhold", "vedlikehold"]) },
   { label: "System", modules: modulesForGroup(["ideer", "mobil", "manual", "admin"]) },
 ];
 
