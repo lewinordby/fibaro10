@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1549")
+APP_BUILD = os.getenv("APP_BUILD", "1550")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1550",
+        "date": "12.07.2026",
+        "headline": "Kvalitetssjekk og mobil dørhardening",
+        "title": "Full kontrollrunde med robustere solromkort i mobilappen",
+        "description": (
+            "Build 1550 er en kontrollrunde etter gjennomgang av tester, live health, produksjonslogger og "
+            "datakildestatus. Den konkrete kodeendringen gjør sorteringen av mobilens dørkort robust når noen "
+            "solrom er klargjort uten HC3-id og derfor mangler timestamp. Dette hindrer at ukjente rom kan gi "
+            "sorteringsfeil når de blandes med rom som har reelle hendelser."
+        ),
+        "applications": [
+            "online_dashboard/app/main.py: legger inn trygg tidsstempel-sortering for dørkort i mobilappen.",
+            "tests/test_online_dashboard_doors.py: legger til regresjonstester for solromstatus, ukjente rom og detaljlenker.",
+            "build_log.py: dokumenterer build 1550 og setter APP_BUILD til 1550.",
+        ],
+        "request": "Gjør en grundig gjennomgang av hele fibaro10 fiks det du kan",
+        "work_duration": "ca. 50 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Full lokal kvalitetssjekk og live-smoke ble kjørt uten feil.",
+            "Mobilens solromkort tåler nå ukjente rom uten timestamp i samme sortering som oppdaterte rom.",
+            "Ny testdekning låser semantikken Ledig/I bruk for solrom og sikrer at /solrom-lenkene rendres riktig.",
+            "Produksjonens 23 datakilder ble kontrollert og rapporterer OK.",
+        ],
+    },
     {
         "version": "1",
         "build": "1549",

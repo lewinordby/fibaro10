@@ -783,6 +783,14 @@ def relative_time_label(value: Any, now: Optional[datetime] = None) -> str:
     return "1 dag siden" if days == 1 else f"{days} dager siden"
 
 
+def datetime_sort_value(value: Any) -> float:
+    if not isinstance(value, datetime):
+        return -1.0
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=LOCAL_TZ)
+    return value.timestamp()
+
+
 def door_status_payload(config: dict[str, Any], row: Optional[dict[str, Any]], now: datetime) -> dict[str, Any]:
     state = door_state_info(row)
     timestamp = row.get("timestamp") if row else None
@@ -2413,7 +2421,7 @@ def render_door_dashboard_cards(statuses: list[dict[str, Any]]) -> str:
         return '<p class="empty-list">Ingen dørdata akkurat nå.</p>'
     newest = sorted(
         statuses,
-        key=lambda item: item.get("timestamp") if isinstance(item.get("timestamp"), datetime) else datetime.min,
+        key=lambda item: datetime_sort_value(item.get("timestamp")),
         reverse=True,
     )[:4]
     cards = []
