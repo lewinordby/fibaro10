@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1542")
+APP_BUILD = os.getenv("APP_BUILD", "1543")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1543",
+        "date": "12.07.2026",
+        "headline": "Solrom-rute i backend",
+        "title": "Legger /solrom inn i FastAPI sin SPA-ruting",
+        "description": (
+            "Build 1543 retter server-rutingen for den nye Solrom-menyen. Frontend-rutene var på plass i build 1542, "
+            "men FastAPI serverte ikke SPA-fallback for /solrom/oversikt og /solrom/dagskontroll. Det ga 404 i live smoke."
+        ),
+        "applications": [
+            "main.py: legger /solrom og /solrom/{path} inn i desktop_app-rutene.",
+            "build_log.py: dokumenterer build 1543 og setter APP_BUILD til 1543.",
+            "docs/kort-brukermanual.md: oppdaterer buildnummer.",
+        ],
+        "request": "Oppfølging etter live smoke for ny Solrom-meny.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Live URL-er under /solrom returnerer nå hovedappen i stedet for 404.",
+            "Eksisterende /dorer-ruter er uendret.",
+        ],
+    },
     {
         "version": "1",
         "build": "1542",
@@ -25,7 +48,7 @@ BUILD_LOG = [
             "desktop_v2/src/pages/DoorsPage.tsx: støtter Solrom-modus med Nå, Dagskontroll og skjult romdetalj.",
             "desktop_v2/src/styles/doors.css: gir Solrom-flaten lett egen fargetone uten nytt designsystem.",
             "desktop_v2/scripts/smoke-routes.mjs: tester /solrom/oversikt og /solrom/dagskontroll.",
-            "main.py og docs/*.md: oppdaterer levende manual, admin/manual og strukturmanualer.",
+            "main.py og docs/*.md: legger til SPA-ruter for /solrom og oppdaterer levende manual, admin/manual og strukturmanualer.",
             "build_log.py: dokumenterer build 1542 og setter APP_BUILD til 1542.",
         ],
         "request": (
