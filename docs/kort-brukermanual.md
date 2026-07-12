@@ -1,6 +1,6 @@
 # Kort brukermanual for Lilletorget drift
 
-Oppdatert 12.07.2026, build 1533.
+Oppdatert 12.07.2026, build 1535.
 
 Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen ligger nå som eget hovedmenyvalg `Manual`, med egne undersider for oversikt, daglig bruk, menyvalg, datagrunnlag, rutiner og feilsøking.
 
@@ -25,7 +25,7 @@ Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen lig
 | Energi | `/energi/status` | Realtime HC3-forbruk, kurser, laster, Elvia-kontroll og forbruk per seng. |
 | Ventilasjon | `/ventilasjon/dagslogg` | Temperatur, fuktighet, Yr, viftehendelser og ventilasjonsinnstillinger. |
 | Lys | `/lys/dagslogg` | Lux, skydekke, solhøyde, lysstatus, hendelser og styringsregler. |
-| Dører | `/dorer/romkontroll` | Solrom, andre dører, åpne/lukke-historikk, romstatus, tidslinjevarianter og soltimekobling. |
+| Dører | `/dorer/romkontroll` | Solrom, andre dører, åpne/lukke-historikk, romstatus, dagskontroll, tidslinjevarianter og soltimekobling. |
 | Vedlikehold | `/vedlikehold/besok` | Besøk på Lilletorget og oppgaver utført under hvert besøk. |
 | Renhold | `/renhold/oversikt` | Roborock-status, siste jobber, robotdetaljer og loggerstatus. |
 | Mobil og iPad | `/mobil/oversikt` | Kontroll av hva de lette mobil- og iPad-flatene viser. |

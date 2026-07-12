@@ -5,8 +5,48 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1534")
+APP_BUILD = os.getenv("APP_BUILD", "1535")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1535",
+        "date": "12.07.2026",
+        "headline": "Romkontroll med dagstabell",
+        "title": "Bygger om Dører / Romkontroll - ny2 til dagsvisning",
+        "description": (
+            "Build 1535 gjør Romkontroll-ny2 mer operativ ved å kombinere siste romstatus i kompakte bokser "
+            "med en hendelsestabell for hele dagen. Kortene viser siste dør lukket, pågående tid og forventet "
+            "ut, mens tabellen viser dørhendelser, soltime start/slutt, inngangsdørmarkører og effektendringer."
+        ),
+        "applications": [
+            "main.py: utvider sunroom-overview med dayDate, dayStart, dayEnd og dayEvents per solrom.",
+            "desktop_v2/src/api.ts: legger typedeklarasjon for dagshendelser og nye dagsfelter.",
+            "desktop_v2/src/pages/DoorsPage.tsx: bygger om Romkontroll - ny2 til kort med statusbokser, tidslinje og hendelsestabell.",
+            "desktop_v2/src/styles/doors.css: legger styling for dagstabell, kort, markører og responsiv to-kolonnestruktur.",
+            "desktop_v2/src/styles/dark-theme.css: legger mørkt-tema-støtte for dagstabellen.",
+            "desktop_v2/scripts/smoke-ui.mjs og smoke-routes.mjs: oppdaterer testdata og rutesjekk for den nye visningen.",
+            "desktop_v2/scripts/audit-bundle.mjs: justerer total gzip-grense fra 782 kB til 783 kB etter at ubrukt CSS er fjernet.",
+            "docs/*.md: oppdaterer beskrivelsen av Romkontroll - ny2.",
+            "build_log.py: dokumenterer build 1535 og setter APP_BUILD til 1535.",
+        ],
+        "request": (
+            "hva om vi tar utgangspunkt i Dører/romkontroll men lager mer en tabell under et bokser hvor den ene viser "
+            "Dør Lukket kl 11.11, samt pågår viser antall minutter og forventet ut viser klokkeslett. dato synes jeg ikke "
+            "behøver å repeteres men kan stå for seg selv. Under disse boksene skal det være en tabell med hendelser. "
+            "hvor effektøknting skal også stå der. alle hendelser skal ha et tydelig tidspunkt men ikke dato da de skal "
+            "relateres til datoen som står over. på kortene skal det alltid være den siste soltimen osv. men hendelser skal "
+            "være for hele dagen"
+        ),
+        "work_duration": "ca. 55 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Romkontroll - ny2 viser dato én gang øverst.",
+            "Hvert romkort viser Dør lukket, Pågår og Forventet ut som faste statusbokser.",
+            "Tidslinjen viser siste soltime/periode, utvidet fem minutter før og etter soltid.",
+            "Hendelsestabellen viser hele dagen med klokkeslett uten repetert dato.",
+            "Effektøkning og effektfall fra HC3 vises i samme hendelsestabell når endringen er minst 5 kW.",
+        ],
+    },
     {
         "version": "1",
         "build": "1534",

@@ -634,6 +634,17 @@ export type DoorSunroomTimelineMarker = {
   detail?: string | null;
 };
 
+export type DoorSunroomDayEvent = {
+  id: string;
+  kind: string;
+  label: string;
+  time: string | null;
+  timeLabel: string;
+  detail?: string | null;
+  source?: string | null;
+  tone?: string | null;
+};
+
 export type DoorSunroomOverviewPeriod = DoorSunroomRoomPeriod & {
   energy?: DoorSunroomEnergyEvidence | null;
   entranceMarkers?: DoorSunroomTimelineMarker[];
@@ -661,6 +672,7 @@ export type DoorSunroomOverviewRoom = {
   periods: DoorSunroomOverviewPeriod[];
   recentSessions: DoorSunroomOverviewSession[];
   sessionsWithoutDoor: DoorSunroomOverviewSession[];
+  dayEvents?: DoorSunroomDayEvent[];
   summary: {
     periods: number;
     sessions: number;
@@ -675,6 +687,9 @@ export type DoorSunroomOverviewRoom = {
 
 export type DoorSunroomOverviewResponse = {
   generatedAt: string;
+  dayDate?: string | null;
+  dayStart?: string | null;
+  dayEnd?: string | null;
   days: number;
   rules: {
     paymentDelayMinutes: number;

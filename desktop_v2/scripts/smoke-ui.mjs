@@ -714,6 +714,9 @@ function sunroomOverviewPayload() {
   const activeSession = activePeriod.session;
   return {
     generatedAt: "2026-06-10T12:00:00",
+    dayDate: "2026-06-10",
+    dayStart: "2026-06-10T00:00:00",
+    dayEnd: "2026-06-11T00:00:00",
     days: 2,
     rules: {
       paymentDelayMinutes: 3,
@@ -748,6 +751,11 @@ function sunroomOverviewPayload() {
         periods: [activePeriod, historyPeriod],
         recentSessions: [{ ...activeSession, energy: sunroomEnergyEvidence(), hasDoorMatch: true }],
         sessionsWithoutDoor: [],
+        dayEvents: [
+          { id: "door-closed-1", kind: "door_closed", label: "Dør lukket", time: "2026-06-10T10:30:00", timeLabel: "10:30:00", detail: "22 min", source: "HC3 dør", tone: "door" },
+          { id: "sun-start-1", kind: "sun_start", label: "Soltime start", time: "2026-06-10T10:34:00", timeLabel: "10:34:00", detail: "12 min · 210 kr", source: "Sun2", tone: "sun" },
+          { id: "power-start-1", kind: "power_start", label: "Effektøkning", time: "2026-06-10T10:39:00", timeLabel: "10:39:00", detail: "6 200 W", source: "HC3 effekt", tone: "power" },
+        ],
         summary: {
           periods: 2,
           sessions: 2,
@@ -773,6 +781,7 @@ function sunroomOverviewPayload() {
         periods: [],
         recentSessions: [],
         sessionsWithoutDoor: [],
+        dayEvents: [],
         summary: {
           periods: 0,
           sessions: 0,

@@ -10753,6 +10753,114 @@ def sunroom_power_markers(row: Sun2TanningSession, samples: list[Dict[str, Any]]
     return [marker for marker in markers if marker]
 
 
+def sunroom_day_event(
+    kind: str,
+    label: str,
+    event_at: Optional[datetime],
+    detail: Optional[str] = None,
+    source: Optional[str] = None,
+    tone: str = "neutral",
+    event_id: Optional[Any] = None,
+) -> Optional[Dict[str, Any]]:
+    event_at = sunroom_parse_time_value(event_at)
+    if not event_at:
+        return None
+    return {
+        "id": f"{kind}-{event_id or event_at.isoformat()}",
+        "kind": kind,
+        "label": label,
+        "time": event_at.isoformat(),
+        "timeLabel": format_source_datetime(event_at),
+        "detail": detail,
+        "source": source,
+        "tone": tone,
+    }
+
+
+def sunroom_parse_time_value(value: Any) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        return normalize_local_naive(value)
+    if isinstance(value, str):
+        return normalize_local_naive(parse_datetime(value))
+    return None
+
+
+def sunroom_marker_day_event(marker: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    event_at = sunroom_parse_time_value(marker.get("time"))
+    kind = str(marker.get("kind") or "marker")
+    label = str(marker.get("label") or "Markør")
+    tone = "neutral"
+    if kind.startswith("entrance_"):
+        tone = "entrance"
+    elif kind.startswith("power_"):
+        tone = "power"
+        if kind == "power_start":
+            label = "Effektøkning"
+        elif kind == "power_stop":
+            label = "Effektfall"
+    detail = marker.get("detail") or marker.get("deltaLabel") or marker.get("valueLabel")
+    return sunroom_day_event(
+        kind=kind,
+        label=label,
+        event_at=event_at,
+        detail=detail,
+        source="Inngang" if kind.startswith("entrance_") else "HC3 effekt",
+        tone=tone,
+        event_id=marker.get("eventId") or marker.get("time"),
+    )
+
+
+def sunroom_session_day_events(
+    row: Sun2TanningSession,
+    entrance_change_rows: list[DoorEvent],
+    energy_samples: list[Dict[str, Any]],
+    day_start: datetime,
+    day_end: datetime,
+) -> list[Dict[str, Any]]:
+    payload = sunroom_session_payload(row)
+    events: list[Dict[str, Any]] = []
+    sun_start_at = sunroom_parse_time_value(payload.get("sunStartAt"))
+    ended_at = sunroom_parse_time_value(payload.get("endedAt"))
+    room_detail = f"{payload.get('durationMinutes') or '-'} min · {sunroom_money_label(payload.get('paidAmountKr'))}"
+    for event in [
+        sunroom_day_event("sun_start", "Soltime start", sun_start_at, room_detail, "Sun2", "sun", row.id),
+        sunroom_day_event("sun_end", "Soltime slutt", ended_at, payload.get("roomLabel"), "Sun2", "sun", f"{row.id}-end"),
+    ]:
+        if event:
+            events.append(event)
+    for marker in sunroom_entrance_markers(row, entrance_change_rows) + sunroom_power_markers(row, energy_samples):
+        event = sunroom_marker_day_event(marker)
+        if event:
+            events.append(event)
+    return [
+        event
+        for event in events
+        if (event_at := sunroom_parse_time_value(event.get("time"))) and day_start <= event_at < day_end
+    ]
+
+
+def sunroom_period_day_events(period: Dict[str, Any], day_start: datetime, day_end: datetime) -> list[Dict[str, Any]]:
+    events: list[Dict[str, Any]] = []
+    closed_at = sunroom_parse_time_value(period.get("closedAt"))
+    opened_at = sunroom_parse_time_value(period.get("openedAt"))
+    duration_label = door_duration_label(period.get("durationSeconds")) if period.get("durationSeconds") is not None else None
+    for event in [
+        sunroom_day_event("door_closed", "Dør lukket", closed_at, duration_label, "HC3 dør", "door", period.get("closedEventId")),
+        sunroom_day_event("door_open", "Dør åpnet", opened_at, duration_label, "HC3 dør", "door", period.get("openedEventId")),
+    ]:
+        if event and (event_at := sunroom_parse_time_value(event.get("time"))) and day_start <= event_at < day_end:
+            events.append(event)
+    return events
+
+
+def sunroom_money_label(value: Any) -> str:
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return "-"
+    return f"{amount:,.0f} kr".replace(",", " ")
+
+
 def sunroom_entrance_config() -> Optional[Dict[str, Any]]:
     return next((config for config in DOOR_SENSOR_CONFIG if config.get("device_key") == "door_inngang"), None)
 
@@ -11288,7 +11396,10 @@ async def sunroom_room_detail_payload(session, room_id: str, days: int = 14, lim
 async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any]:
     now = local_now_naive()
     days = max(1, min(days, 30))
+    day_start = datetime.combine(now.date(), time.min)
+    day_end = day_start + timedelta(days=1)
     start_cutoff = now - timedelta(days=days)
+    raw_start_cutoff = min(start_cutoff, day_start - timedelta(hours=12))
     configs = [config for config in DOOR_SENSOR_CONFIG if config.get("group_key") == "solrom"]
     configs.sort(key=lambda config: int(config.get("sort_order") or 0))
     device_ids = [int(config["device_id"]) for config in configs if config.get("device_id") is not None]
@@ -11302,7 +11413,7 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
             await session.execute(
                 select(DoorEvent)
                 .where(DoorEvent.device_id.in_(device_ids))
-                .where(DoorEvent.timestamp >= start_cutoff - timedelta(hours=12))
+                .where(DoorEvent.timestamp >= raw_start_cutoff)
                 .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
                 .limit(max(len(device_ids) * 500, 4000))
             )
@@ -11313,7 +11424,7 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
             await session.execute(
                 select(DoorEvent)
                 .where(DoorEvent.device_id == entrance_device_id)
-                .where(DoorEvent.timestamp >= start_cutoff - timedelta(hours=12))
+                .where(DoorEvent.timestamp >= raw_start_cutoff)
                 .order_by(DoorEvent.timestamp.asc(), DoorEvent.id.asc())
                 .limit(2000)
             )
@@ -11399,6 +11510,20 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
                 payload["powerMarkers"] = []
             periods.append(payload)
 
+        day_events: list[Dict[str, Any]] = []
+        for period in device_periods:
+            day_events.extend(sunroom_period_day_events(period, day_start, day_end))
+
+        for row in room_sessions:
+            start_at = normalize_local_naive(row.started_at)
+            if start_at and day_start - timedelta(hours=2) <= start_at < day_end:
+                day_events.extend(sunroom_session_day_events(row, entrance_change_rows, energy_samples, day_start, day_end))
+
+        day_events = sorted(
+            day_events,
+            key=lambda item: (sunroom_parse_time_value(item.get("time")) or datetime.min, str(item.get("kind") or ""), str(item.get("id") or "")),
+        )
+
         recent_sessions = [
             {
                 **sunroom_session_payload(row),
@@ -11440,6 +11565,7 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
                 "periods": periods,
                 "recentSessions": recent_sessions,
                 "sessionsWithoutDoor": sessions_without_door,
+                "dayEvents": day_events,
                 "summary": {
                     "periods": len(periods),
                     "sessions": len(recent_sessions),
@@ -11460,6 +11586,9 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
     energy_confirmed_count = sum(int((room.get("summary") or {}).get("energyConfirmed") or 0) for room in rooms)
     return {
         "generatedAt": now.isoformat(),
+        "dayDate": day_start.date().isoformat(),
+        "dayStart": day_start.isoformat(),
+        "dayEnd": day_end.isoformat(),
         "days": days,
         "rules": {
             "paymentDelayMinutes": SUNROOM_DOOR_PAYMENT_DELAY_MINUTES,

@@ -109,7 +109,7 @@ Koble bruker sideappen `parking_sun_linker`, men all styring, status og manuell 
 - `/dorer/oversikt-ny`
 - `/dorer/romkontroll`
 - `/dorer/romkontroll-ny`
-- `/dorer/romkontroll-ny2`
+- `/dorer/romkontroll-ny2` - dagsvisning med statusbokser, siste tidslinje og hendelser for hele dagen.
 - `/dorer/soltimer`
 - `/dorer/solrom`
 - `/dorer/andre`

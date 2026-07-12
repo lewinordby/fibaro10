@@ -620,7 +620,8 @@
 .app-shell.theme-dark .door-room-control-attention,
 .app-shell.theme-dark .door-room-control-card,
 .app-shell.theme-dark .door-room-visual-card,
-.app-shell.theme-dark .door-room-precision-card,
+.app-shell.theme-dark .door-room-daily-card,
+.app-shell.theme-dark .door-room-daily-date,
 .app-shell.theme-dark .door-room-hero,
 .app-shell.theme-dark .doors-compact-panel,
 .app-shell.theme-dark .doors-panel-card,
@@ -662,11 +663,11 @@
 .app-shell.theme-dark .door-room-control-attention-item,
 .app-shell.theme-dark .door-room-visual-number,
 .app-shell.theme-dark .door-room-visual-timeline,
-.app-shell.theme-dark .door-room-precision-head > div,
-.app-shell.theme-dark .door-room-precision-timeline,
-.app-shell.theme-dark .door-room-precision-empty,
-.app-shell.theme-dark .door-room-precision-axis,
-.app-shell.theme-dark .door-room-precision-markers span,
+.app-shell.theme-dark .door-room-daily-fact,
+.app-shell.theme-dark .door-room-daily-timeline,
+.app-shell.theme-dark .door-room-daily-empty-line,
+.app-shell.theme-dark .door-room-daily-track,
+.app-shell.theme-dark .door-room-daily-events,
 .app-shell.theme-dark .door-room-empty-current,
 .app-shell.theme-dark .door-room-unmatched-list a,
 .app-shell.theme-dark .door-board-cell-head span,
@@ -691,6 +692,15 @@
 .app-shell.theme-dark .doors-table-card .ant-table-thead > tr > th,
 .app-shell.theme-dark .doors-table-card .ant-table-tbody > tr > td {
   border-color: var(--line-soft);
+}
+
+.app-shell.theme-dark .door-room-daily-events th,
+.app-shell.theme-dark .door-room-daily-events td {
+  border-color: var(--line-soft);
+}
+
+.app-shell.theme-dark .door-room-daily-events th {
+  background: color-mix(in srgb, var(--daily-tone, var(--domain-building)) 7%, var(--surface-raised));
 }
 
 .app-shell.theme-dark .doors-table-card .ant-table-tbody > tr:hover > td {
