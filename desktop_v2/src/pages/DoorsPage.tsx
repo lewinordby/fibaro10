@@ -54,9 +54,30 @@ type SummaryCard = {
   tone: "ok" | "warn" | "unknown" | "status";
 };
 
-type DoorView = "oversikt" | "oversikt-ny" | "romkontroll" | "romkontroll-ny" | "romkontroll-ny2" | "soltimer" | "solrom" | "andre" | "radata";
+type DoorView =
+  | "oversikt"
+  | "oversikt-ny"
+  | "romkontroll"
+  | "romkontroll-ny"
+  | "romkontroll-ny2"
+  | "soltimer"
+  | "solrom"
+  | "solrom-ny"
+  | "andre"
+  | "radata";
 
-const DOOR_VIEWS: DoorView[] = ["oversikt", "oversikt-ny", "romkontroll", "romkontroll-ny", "romkontroll-ny2", "soltimer", "solrom", "andre", "radata"];
+const DOOR_VIEWS: DoorView[] = [
+  "oversikt",
+  "oversikt-ny",
+  "romkontroll",
+  "romkontroll-ny",
+  "romkontroll-ny2",
+  "soltimer",
+  "solrom",
+  "solrom-ny",
+  "andre",
+  "radata",
+];
 const SECTION_ORDER = ["1etg", "2etg", "vip", "bygg"];
 
 function stateTag(row: DoorStateRow) {
@@ -1432,7 +1453,7 @@ function DoorSunroomVisualControlBoard({
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
-  const rooms = [...data.rooms].sort((a, b) => a.displayRoomNumber - b.displayRoomNumber);
+  const rooms = data.rooms;
 
   return (
     <div className="door-room-visual-grid">
@@ -1890,6 +1911,80 @@ function DoorSunroomPrecisionControlBoard({
   );
 }
 
+function DoorSolroomNewBoard({
+  data,
+  loading,
+  error,
+  selectedDay,
+  onDayChange,
+}: {
+  data?: DoorSunroomOverviewResponse | null;
+  loading: boolean;
+  error: unknown;
+  selectedDay: string;
+  onDayChange: (day: string) => void;
+}) {
+  if (loading) return <LoadingBlock />;
+  if (error || !data) return <ErrorBlock error={error} />;
+
+  const selectedDayValue = dayjs(selectedDay);
+  const rooms = data.rooms;
+  const sections = new Map<string, DoorSunroomOverviewRoom[]>();
+  rooms.forEach((room) => {
+    const key = room.sectionKey || "solrom";
+    sections.set(key, [...(sections.get(key) ?? []), room]);
+  });
+  const orderedSections = [...sections.entries()];
+
+  return (
+    <div className="door-room-daily-board">
+      <section className="door-room-daily-date">
+        <div>
+          <span>Dato</span>
+          <strong>{roomControlDateLabel(data.dayDate || selectedDay)}</strong>
+        </div>
+        <PeriodNavigator
+          canNext={selectedDayValue.isBefore(dayjs(), "day")}
+          onPrevious={() => onDayChange(selectedDayValue.subtract(1, "day").format("YYYY-MM-DD"))}
+          onNext={() => onDayChange(selectedDayValue.add(1, "day").format("YYYY-MM-DD"))}
+          middle={
+            <DatePicker
+              allowClear={false}
+              format="DD.MM.YYYY"
+              size="small"
+              value={selectedDayValue}
+              onChange={(value) => {
+                if (value) onDayChange(value.format("YYYY-MM-DD"));
+              }}
+            />
+          }
+          extra={
+            <Button size="small" onClick={() => onDayChange(dayjs().format("YYYY-MM-DD"))}>
+              I dag
+            </Button>
+          }
+        />
+      </section>
+
+      <div className="door-board-main">
+        {orderedSections.map(([key, sectionRooms]) => (
+          <section className="door-board-section is-solrom" key={key}>
+            <div className="door-board-section-head">
+              <strong>{sectionRooms[0]?.sectionTitle || key}</strong>
+              <span>{sectionRooms.length} rom</span>
+            </div>
+            <div className="doors-compact-grid">
+              {sectionRooms.map((room) => (
+                <DoorRoomDailyCard room={room} generatedAt={data.generatedAt} dayStart={data.dayStart || data.dayDate || selectedDay} key={room.deviceKey} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SunroomSection({ title, rooms }: { title: string; rooms: DoorSunroomSessionItem[] }) {
   return (
     <section className="door-sunroom-section">
@@ -2092,12 +2187,12 @@ export default function DoorsPage() {
   const controlDays = [1, 2, 7, 14].includes(requestedControlDays) ? requestedControlDays : 2;
   const selectedControlDay = normalizedDayParam(searchParams.get("day"));
   const selectedControlRoomId = view === "romkontroll-ny2" ? searchParams.get("room") || "" : "";
-  const overviewDay = view === "romkontroll-ny2" ? selectedControlDay : "";
+  const overviewDay = view === "romkontroll-ny2" || view === "solrom-ny" ? selectedControlDay : "";
   const sunroomOverviewQuery = useApiQuery(
     queryKeys.doorSunroomOverview(controlDays, overviewDay),
     () => fetchDoorSunroomOverview(controlDays, overviewDay || undefined),
     {
-      enabled: view === "romkontroll" || view === "romkontroll-ny" || view === "romkontroll-ny2",
+      enabled: view === "romkontroll" || view === "romkontroll-ny" || view === "romkontroll-ny2" || view === "solrom-ny",
       refetchInterval: 30_000,
     },
   );
@@ -2119,7 +2214,7 @@ export default function DoorsPage() {
   const solromDoors = data.doors.filter((door) => door.groupKey === "solrom");
   const otherDoors = data.doors.filter((door) => door.groupKey !== "solrom");
   const visibleDoors =
-    activeView === "solrom" ? solromDoors : activeView === "andre" ? otherDoors : data.doors;
+    activeView === "solrom" || activeView === "solrom-ny" ? solromDoors : activeView === "andre" ? otherDoors : data.doors;
   const visibleDeviceIds = new Set(visibleDoors.map((door) => door.deviceId).filter((id): id is number => id !== null));
   const visiblePeriods =
     activeView === "oversikt" || activeView === "oversikt-ny" || isRawView
@@ -2179,7 +2274,8 @@ export default function DoorsPage() {
       activeView === "soltimer" ||
       activeView === "romkontroll" ||
       activeView === "romkontroll-ny" ||
-      activeView === "romkontroll-ny2" ? null : (
+      activeView === "romkontroll-ny2" ||
+      activeView === "solrom-ny" ? null : (
         <div className="doors-summary-grid">{buildSummaryCards(data.summary).map(statusSummary)}</div>
       )}
 
@@ -2230,6 +2326,20 @@ export default function DoorsPage() {
           onRoomChange={(roomId: string) => {
             const next = new URLSearchParams(searchParams);
             next.set("room", roomId);
+            setSearchParams(next, { replace: true });
+          }}
+        />
+      ) : null}
+
+      {!isRawView && activeView === "solrom-ny" ? (
+        <DoorSolroomNewBoard
+          data={sunroomOverviewQuery.data}
+          loading={sunroomOverviewQuery.loading}
+          error={sunroomOverviewQuery.error}
+          selectedDay={selectedControlDay}
+          onDayChange={(nextDay: string) => {
+            const next = new URLSearchParams(searchParams);
+            next.set("day", nextDay);
             setSearchParams(next, { replace: true });
           }}
         />
@@ -2292,7 +2402,8 @@ export default function DoorsPage() {
         activeView !== "soltimer" &&
         activeView !== "romkontroll" &&
         activeView !== "romkontroll-ny" &&
-        activeView !== "romkontroll-ny2" ? (
+        activeView !== "romkontroll-ny2" &&
+        activeView !== "solrom-ny" ? (
         <>
           <Card
             className="work-card doors-table-card doors-panel-card"

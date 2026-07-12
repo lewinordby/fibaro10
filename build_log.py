@@ -5,8 +5,43 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1540")
+APP_BUILD = os.getenv("APP_BUILD", "1541")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1541",
+        "date": "12.07.2026",
+        "headline": "Ny solromoversikt med dagsfilter",
+        "title": "Legger til Dører / Solrom - ny med dato og hendelser per rom",
+        "description": (
+            "Build 1541 legger inn en ny solromside som tar utgangspunkt i den ryddige dørstatusoversikten, "
+            "men bruker valgt dato fra romkontroll-dataene. Hvert solrom får høyere kort med nåstatus, "
+            "Sun2-kobling og en kompakt hendelsesliste for valgt dag."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: ny Solrom - ny-side med datovelger, romkort og kompakt hendelsesliste.",
+            "desktop_v2/src/styles/doors.css: styling for høyere solromkort, dagsoppsummering og responsiv layout.",
+            "desktop_v2/src/moduleViews.ts: legger Solrom - ny inn i Dører-menyen.",
+            "desktop_v2/scripts/smoke-routes.mjs: tar ny Dører-side med i rute-smoke.",
+            "desktop_v2/scripts/audit-bundle.mjs: løfter total gzip-budsjett fra 784 kB til 785 kB etter ny Dører-side.",
+            "build_log.py: dokumenterer build 1541 og setter APP_BUILD til 1541.",
+            "docs/kort-brukermanual.md: oppdaterer buildnummer og Dører-lenke.",
+        ],
+        "request": (
+            "ta utgangspunkt i Dører/oversikt, lag en ny side Solrom-ny, denne skal være på samme oppsett som "
+            "solrom på oversikt. men boksene kan gjøres høyere og vi legger inn datovelger slik som på "
+            "romkontroll ny2 og samtidig også hendelsesliste under boksen, da kanskje uten detalj."
+        ),
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny Dører-undermeny: Solrom - ny.",
+            "Siden bruker samme dagsparameter og datovelger som Romkontroll - ny2.",
+            "Solrommene grupperes per avdeling og bruker eksisterende romkontrollkort med tidslinje og dagsliste.",
+            "Ny side gjenbruker eksisterende styling for å holde bundleveksten lav.",
+            "Eksisterende Dører-sider er beholdt uendret for sammenligning.",
+        ],
+    },
     {
         "version": "1",
         "build": "1540",
