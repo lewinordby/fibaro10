@@ -242,7 +242,14 @@ function groupedRooms(rooms: DoorSunroomOverviewRoom[]) {
 function RoomTile({ data, room, selectedDay }: { data: DoorSunroomOverviewResponse; room: DoorSunroomOverviewRoom; selectedDay: string }) {
   const tone = roomTone(room);
   const period = room.latestPeriod;
-  const session = period?.session || room.status.session;
+  const active = Boolean(room.status.isOccupied || period?.isActive);
+  const activeSession = active ? period?.session || room.status.session || null : null;
+  const lastSession = room.recentSessions?.[0] || period?.session || null;
+  const session = activeSession || lastSession;
+  const sessionHeading = active ? "Soltime" : lastSession ? "Siste soltime" : "Soltime";
+  const exitHeading = active ? "Forventet ut" : "Sist åpnet";
+  const exitValue = active ? period?.expectedExitLabel || room.status.expectedExitLabel || "-" : period?.openedLabel || "-";
+  const exitDetail = active ? period?.overstayLabel || period?.remainingLabel || room.status.remainingLabel : period?.durationLabel || room.status.doorAgeLabel;
   return (
     <Link className={`solroom2-room-tile tone-${tone}`} to={`/solrom-2/rom?room=${encodeURIComponent(roomKey(room))}&day=${encodeURIComponent(selectedDay)}`}>
       <div className="solroom2-room-top">
@@ -259,14 +266,14 @@ function RoomTile({ data, room, selectedDay }: { data: DoorSunroomOverviewRespon
           <small>{room.status.doorAgeLabel || room.status.doorChangedLabel}</small>
         </div>
         <div>
-          <span>Soltime</span>
-          <strong>{session?.sun2UserId || (room.status.isOccupied ? "Venter" : "-")}</strong>
+          <span>{sessionHeading}</span>
+          <strong>{active ? session?.sun2UserId || "Venter" : session?.sun2UserId || "-"}</strong>
           <small>{session ? `${session.startedLabel} · ${session.durationMinutes || 0} min` : room.status.detail}</small>
         </div>
         <div>
-          <span>Forventet ut</span>
-          <strong>{period?.expectedExitLabel || room.status.expectedExitLabel || "-"}</strong>
-          <small>{period?.overstayLabel || period?.remainingLabel || room.status.remainingLabel}</small>
+          <span>{exitHeading}</span>
+          <strong>{exitValue}</strong>
+          <small>{exitDetail}</small>
         </div>
       </div>
       <Timeline data={data} room={room} compact />

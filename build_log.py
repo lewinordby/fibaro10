@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1546")
+APP_BUILD = os.getenv("APP_BUILD", "1547")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1547",
+        "date": "12.07.2026",
+        "headline": "Solrom-2 presisering",
+        "title": "Retter aktiv meny og skiller nåstatus fra historikk i Solrom-2",
+        "description": (
+            "Build 1547 retter to feil i Solrom-2 etter første live-test. Venstremenyen markerte Solrom i stedet "
+            "for Solrom-2 fordi aktiv meny ble matchet med tekst-prefix. Romkortene viste også siste soltime på "
+            "ledige rom som om den var aktiv. Nå brukes eksakt URL-segment for menyvalg, og kortene skiller mellom "
+            "pågående soltime og siste registrerte soltime."
+        ),
+        "applications": [
+            "desktop_v2/src/appNavigation.tsx: matcher aktiv hovedmeny på eksakt første URL-segment.",
+            "desktop_v2/src/pages/Solroom2Page.tsx: viser aktiv soltime bare når rommet faktisk er i bruk, ellers 'Siste soltime' og 'Sist åpnet'.",
+            "build_log.py: dokumenterer build 1547 og setter APP_BUILD til 1547.",
+        ],
+        "request": "solrom-2 virker ikke helt?",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Solrom-2 blir nå markert riktig i venstremenyen.",
+            "Solrom markeres ikke lenger feilaktig når URL-en er /solrom-2.",
+            "Ledige rom viser ikke lenger forventet ut som aktiv hendelse.",
+            "Aktive rom beholder forventet ut, overtid og pågående Sun2-informasjon.",
+        ],
+    },
     {
         "version": "1",
         "build": "1546",

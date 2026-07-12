@@ -62,6 +62,7 @@ export const mainModuleGroups = [
 ];
 
 export function selectedMainModuleKey(pathname: string): string {
-  const menuModule = mainModules.find((item) => pathname.startsWith(`/${item.module}`));
+  const moduleKey = pathname.split(/[/?#]/).filter(Boolean)[0] || "";
+  const menuModule = mainModules.find((item) => item.module === moduleKey);
   return menuModule ? modulePath(menuModule.module) : "";
 }
