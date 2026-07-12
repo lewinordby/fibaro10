@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1530")
+APP_BUILD = os.getenv("APP_BUILD", "1531")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1531",
+        "date": "12.07.2026",
+        "headline": "Manualruter i drift",
+        "title": "Retter serverruting for Manual som eget hovedvalg",
+        "description": (
+            "Build 1531 fullfører flyttingen av Manual ved å legge de nye /manual-rutene inn i serverens "
+            "SPA-fallback. Direkte åpning og refresh av /manual/oversikt og de andre manualundersidene fungerer "
+            "dermed likt som øvrige hovedmenyvalg."
+        ),
+        "applications": [
+            "main.py: legger /manual og /manual/{path} inn i desktop-appens HTML-fallback.",
+            "build_log.py: dokumenterer build 1531 og setter APP_BUILD til 1531.",
+        ],
+        "request": "Flytt manual ut i eget hovedmeny valg med egne undersider",
+        "work_duration": "ca. 5 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Direkte åpning av /manual/oversikt serverer nå hovedappen i stedet for 404.",
+            "Alle manualundersider kan refreshes direkte uten å gå via en annen side først.",
+            "Buildnummeret er løftet til 1531 slik at deployrettingen vises i Build-loggen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1530",

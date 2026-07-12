@@ -13860,6 +13860,8 @@ async def api_sun2_session_set_primary_image(
 @app.get("/ideer/{path:path}", response_class=HTMLResponse)
 @app.get("/mobil", response_class=HTMLResponse)
 @app.get("/mobil/{path:path}", response_class=HTMLResponse)
+@app.get("/manual", response_class=HTMLResponse)
+@app.get("/manual/{path:path}", response_class=HTMLResponse)
 @app.get("/renhold", response_class=HTMLResponse)
 @app.get("/renhold/{path:path}", response_class=HTMLResponse)
 @app.get("/admin", response_class=HTMLResponse)
