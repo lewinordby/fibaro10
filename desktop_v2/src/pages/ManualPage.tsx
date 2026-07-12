@@ -1,13 +1,38 @@
 import { Card, Space, Tag } from "antd";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PageHeader } from "../components/PageHeader";
-import { fetchAdminManual, type AdminManualArea, type AdminManualChapter, type AdminManualTextItem } from "../api";
+import { fetchManual, type ManualArea, type ManualChapter, type ManualTextItem } from "../api";
 import { useApiQuery } from "../hooks";
+import { modulePath, MODULE_VIEWS } from "../moduleViews";
 import "../styles/manual.css";
 
-function ManualAreaCard({ area }: { area: AdminManualArea }) {
+const MANUAL_CHAPTER_BY_VIEW: Record<string, string> = {
+  oversikt: "hva-losningen-er",
+  "daglig-bruk": "daglig-bruk",
+  menyvalg: "menyvalg",
+  okonomi: "okonomi",
+  "bygg-drift": "bygg-drift",
+  system: "system-underapper",
+  datagrunnlag: "datagrunnlag",
+  rutiner: "rutiner",
+  feilsoking: "feilsoking",
+};
+
+const MANUAL_VIEW_SUMMARIES: Record<string, string> = {
+  oversikt: "Hva Fibaro10 er, hvilke prinsipper løsningen bygger på, og hvor resten av manualen ligger.",
+  "daglig-bruk": "Daglig arbeidsflyt når tall, drift eller datakilder skal kontrolleres.",
+  menyvalg: "Forklaring av hovedmenyer og hva de viktigste undersidene brukes til.",
+  okonomi: "Omsetning, parkering, soling og kobling mellom bil og SUN2-ID.",
+  "bygg-drift": "Energi, ventilasjon, lys, dører, renhold og vedlikehold.",
+  system: "Underapper, systemflater og hvordan de henger sammen med hovedappen.",
+  datagrunnlag: "Hvilke datakilder løsningen er avhengig av og hva de leverer.",
+  rutiner: "Daglige, ukentlige og månedlige kontrollrutiner.",
+  feilsoking: "Praktisk feilsøking når tall, import, grafer eller underapper ikke stemmer.",
+};
+
+function ManualAreaCard({ area }: { area: ManualArea }) {
   return (
     <article className={`manual-area-card tone-${area.tone}`}>
       <div className="manual-area-title">
@@ -41,13 +66,23 @@ function ManualAreaCard({ area }: { area: AdminManualArea }) {
   );
 }
 
-function ChapterFrame({ chapter, children }: { chapter: AdminManualChapter; children: ReactNode }) {
+function ChapterFrame({
+  chapter,
+  children,
+  showHeading = true,
+}: {
+  chapter: ManualChapter;
+  children: ReactNode;
+  showHeading?: boolean;
+}) {
   return (
     <section className="manual-chapter" id={chapter.id}>
-      <div className="manual-chapter-heading">
-        <span>{chapter.number}</span>
-        <h2>{chapter.title}</h2>
-      </div>
+      {showHeading ? (
+        <div className="manual-chapter-heading">
+          <span>{chapter.number}</span>
+          <h2>{chapter.title}</h2>
+        </div>
+      ) : null}
       {children}
     </section>
   );
@@ -59,7 +94,7 @@ function TextGrid({
   linkable = false,
 }: {
   className: string;
-  items: AdminManualTextItem[];
+  items: ManualTextItem[];
   linkable?: boolean;
 }) {
   return (
@@ -83,10 +118,11 @@ function TextGrid({
   );
 }
 
-function renderChapter(chapter: AdminManualChapter) {
+function renderChapter(chapter: ManualChapter, options: { showHeading?: boolean } = {}) {
+  const showHeading = options.showHeading ?? true;
   if (chapter.paragraphs?.length) {
     return (
-      <ChapterFrame chapter={chapter}>
+      <ChapterFrame chapter={chapter} showHeading={showHeading}>
         <Card className="manual-intro-card">
           {chapter.paragraphs.map((paragraph) => (
             <p key={paragraph}>{paragraph}</p>
@@ -109,7 +145,7 @@ function renderChapter(chapter: AdminManualChapter) {
 
   if (chapter.startLinks?.length || chapter.flow?.length) {
     return (
-      <ChapterFrame chapter={chapter}>
+      <ChapterFrame chapter={chapter} showHeading={showHeading}>
         {chapter.startLinks?.length ? (
           <div className="manual-start-grid">
             {chapter.startLinks.map((item) => (
@@ -137,7 +173,7 @@ function renderChapter(chapter: AdminManualChapter) {
 
   if (chapter.areas?.length) {
     return (
-      <ChapterFrame chapter={chapter}>
+      <ChapterFrame chapter={chapter} showHeading={showHeading}>
         <div className="manual-area-list">
           {chapter.areas.map((area) => (
             <ManualAreaCard area={area} key={area.title} />
@@ -150,7 +186,7 @@ function renderChapter(chapter: AdminManualChapter) {
 
   if (chapter.menuGroups?.length) {
     return (
-      <ChapterFrame chapter={chapter}>
+      <ChapterFrame chapter={chapter} showHeading={showHeading}>
         <TextGrid className="manual-menu-grid" items={chapter.menuGroups} linkable />
         {chapter.note ? <p className="manual-note">{chapter.note}</p> : null}
       </ChapterFrame>
@@ -159,7 +195,7 @@ function renderChapter(chapter: AdminManualChapter) {
 
   if (chapter.dataSources?.length) {
     return (
-      <ChapterFrame chapter={chapter}>
+      <ChapterFrame chapter={chapter} showHeading={showHeading}>
         <TextGrid className="manual-data-grid" items={chapter.dataSources} />
         {chapter.note ? <p className="manual-note">{chapter.note}</p> : null}
       </ChapterFrame>
@@ -168,7 +204,7 @@ function renderChapter(chapter: AdminManualChapter) {
 
   if (chapter.checklists?.length) {
     return (
-      <ChapterFrame chapter={chapter}>
+      <ChapterFrame chapter={chapter} showHeading={showHeading}>
         <TextGrid className="manual-checklist-grid" items={chapter.checklists} linkable />
         {chapter.note ? <p className="manual-note">{chapter.note}</p> : null}
       </ChapterFrame>
@@ -177,7 +213,7 @@ function renderChapter(chapter: AdminManualChapter) {
 
   if (chapter.troubleshooting?.length) {
     return (
-      <ChapterFrame chapter={chapter}>
+      <ChapterFrame chapter={chapter} showHeading={showHeading}>
         <TextGrid className="manual-troubleshooting" items={chapter.troubleshooting} linkable />
         {chapter.note ? <p className="manual-note">{chapter.note}</p> : null}
       </ChapterFrame>
@@ -187,36 +223,54 @@ function renderChapter(chapter: AdminManualChapter) {
   return null;
 }
 
-export default function AdminManualPage() {
-  const { data, error, loading } = useApiQuery(["admin-manual"], fetchAdminManual, { staleTime: 10 * 60 * 1000 });
+function ManualSectionIndex({ activeView }: { activeView: string }) {
+  return (
+    <section className="manual-chapter manual-section-index">
+      <div className="manual-chapter-heading">
+        <span>→</span>
+        <h2>Undersider</h2>
+      </div>
+      <div className="manual-section-grid">
+        {(MODULE_VIEWS.manual ?? []).map((item) => (
+          <Link className="manual-section-link" to={modulePath("manual", item.key)} key={item.key}>
+            <strong>{item.label}</strong>
+            <span>{MANUAL_VIEW_SUMMARIES[item.key] || (item.key === activeView ? "Valgt underside." : "Manualside.")}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export default function ManualPage() {
+  const { view = "oversikt" } = useParams();
+  const chapterId = MANUAL_CHAPTER_BY_VIEW[view];
+  const { data, error, loading } = useApiQuery(["manual"], fetchManual, { staleTime: 10 * 60 * 1000 });
+
+  if (!chapterId) return <Navigate to={modulePath("manual")} replace />;
 
   if (loading) return <LoadingBlock />;
   if (error) return <ErrorBlock error={error} />;
   if (!data) return null;
 
+  const chapter = data.chapters.find((item) => item.id === chapterId);
+  if (!chapter) return <ErrorBlock error={new Error(`Manualkapittel mangler: ${chapterId}`)} />;
+  const isOverview = view === "oversikt";
+
   return (
     <Space direction="vertical" size={14} className="page-stack manual-page">
       <PageHeader
         eyebrow="Manual"
-        title={data.title}
-        description={data.description}
+        title={isOverview ? data.title : chapter.title}
+        description={MANUAL_VIEW_SUMMARIES[view] || data.description}
         meta={<Tag color="blue">Build {data.build}</Tag>}
       />
 
-      <div className="manual-layout">
-        <aside className="manual-toc">
-          <strong>Kapitler</strong>
-          <nav>
-            {data.chapters.map((chapter) => (
-              <a href={`#${chapter.id}`} key={chapter.id}>
-                <span>{chapter.number}</span>
-                {chapter.title}
-              </a>
-            ))}
-          </nav>
-        </aside>
-
-        <main className="manual-document">{data.chapters.map((chapter) => renderChapter(chapter))}</main>
+      <div className="manual-layout manual-layout-focused">
+        <main className="manual-document">
+          {renderChapter(chapter, { showHeading: isOverview })}
+          {isOverview ? <ManualSectionIndex activeView={view} /> : null}
+        </main>
       </div>
     </Space>
   );

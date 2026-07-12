@@ -5,8 +5,42 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1529")
+APP_BUILD = os.getenv("APP_BUILD", "1530")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1530",
+        "date": "12.07.2026",
+        "headline": "Manual som eget hovedområde",
+        "title": "Flytter manualen ut av Admin og gir den egne undersider",
+        "description": (
+            "Build 1530 gjør Manual til et eget hovedmenyvalg under System. Manualen er delt opp i egne "
+            "undersider for oversikt, daglig bruk, menyvalg, økonomi, bygg og drift, system, datagrunnlag, "
+            "rutiner og feilsøking. Gammel /admin/manual videresender til ny manualoversikt."
+        ),
+        "applications": [
+            "desktop_v2/src/moduleViews.ts og appNavigation.tsx: legger Manual som egen hovedmodul med undersider.",
+            "desktop_v2/src/pages/ManualPage.tsx: flytter manualsiden ut av Admin og renderer én underside per kapittel.",
+            "desktop_v2/src/AppRoutes.tsx: legger /manual og /manual/:view, og redirecter /admin/manual til /manual/oversikt.",
+            "desktop_v2/src/api.ts: flytter frontend til /api/manual.",
+            "desktop_v2/src/styles/*.css og designTokens.ts: legger egen Manual-farge og domain-manual.",
+            "main.py: legger /api/manual og oppdaterer interne manual-lenker.",
+            "desktop_v2/scripts/smoke-routes.mjs og smoke-ui.mjs: tester alle nye manualundersider.",
+            "docs/*.md: oppdaterer dokumentasjon fra Admin -> Manual til eget Manual-hovedvalg.",
+            "build_log.py: dokumenterer build 1530 og setter APP_BUILD til 1530.",
+        ],
+        "request": "Flytt manual ut i eget hovedmeny valg med egne undersider",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Manual ligger nå som eget hovedvalg i venstremenyen under System.",
+            "Manual har egne undersider: Oversikt, Daglig bruk, Menyvalg, Økonomi, Bygg og drift, System, Datagrunnlag, Rutiner og Feilsøking.",
+            "Admin-menyen har ikke lenger Manual som underspunkt.",
+            "Gammel /admin/manual redirecter til ny /manual/oversikt.",
+            "Manual har egen indigo fargetone i lyst og mørkt tema.",
+            "Route-audit og smoke-testene dekker de nye manualrutene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1529",

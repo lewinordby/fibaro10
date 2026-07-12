@@ -19,7 +19,7 @@ Appen er nå et samlet driftspanel for Lilletorget:
 
 ## Viktigste endringer siden første gjennomgang
 
-- PDF-manualen er erstattet av levende dokumentasjon under `Admin -> Manual`.
+- PDF-manualen er erstattet av levende dokumentasjon under hovedmenyvalget `Manual`.
 - Teknisk dokumentasjon og systemkart ligger under `Admin -> Teknisk` og `Admin -> Systemkart`.
 - Menyen er redesignet som V2 React/Ant Design-flate med hovedgruppene Dashboard, Økonomi, Bygg og drift og System.
 - Navigasjons- og designsystemet ligger i `desktop_v2/src/styles/`.

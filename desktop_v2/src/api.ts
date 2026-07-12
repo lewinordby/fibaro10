@@ -705,13 +705,13 @@ export type BuildLogResponse = {
   rows: BuildLogListEntry[];
 };
 
-export type AdminManualLink = {
+export type ManualLink = {
   label: string;
   path: string;
   note: string;
 };
 
-export type AdminManualArea = {
+export type ManualArea = {
   title: string;
   marker: string;
   tone: string;
@@ -721,35 +721,35 @@ export type AdminManualArea = {
   canDo: string[];
 };
 
-export type AdminManualTextItem = {
+export type ManualTextItem = {
   marker?: string;
   title: string;
   text: string;
   path?: string;
 };
 
-export type AdminManualChapter = {
+export type ManualChapter = {
   id: string;
   number: string;
   title: string;
   paragraphs?: string[];
-  principles?: AdminManualTextItem[];
-  startLinks?: AdminManualLink[];
-  flow?: AdminManualTextItem[];
-  menuGroups?: AdminManualTextItem[];
-  areas?: AdminManualArea[];
-  subapps?: AdminManualTextItem[];
-  dataSources?: AdminManualTextItem[];
-  checklists?: AdminManualTextItem[];
-  troubleshooting?: AdminManualTextItem[];
+  principles?: ManualTextItem[];
+  startLinks?: ManualLink[];
+  flow?: ManualTextItem[];
+  menuGroups?: ManualTextItem[];
+  areas?: ManualArea[];
+  subapps?: ManualTextItem[];
+  dataSources?: ManualTextItem[];
+  checklists?: ManualTextItem[];
+  troubleshooting?: ManualTextItem[];
   note?: string;
 };
 
-export type AdminManualResponse = {
+export type ManualResponse = {
   build: string;
   title: string;
   description: string;
-  chapters: AdminManualChapter[];
+  chapters: ManualChapter[];
 };
 
 export type HealthStatus = "ok" | "warn" | "bad";
@@ -1702,8 +1702,8 @@ export function fetchBuildLogEntry(build: string): Promise<BuildLogEntry> {
   return apiGet<BuildLogEntry>(`/api/admin/builds/${encodeURIComponent(build)}`);
 }
 
-export function fetchAdminManual(): Promise<AdminManualResponse> {
-  return apiGet<AdminManualResponse>("/api/admin/manual");
+export function fetchManual(): Promise<ManualResponse> {
+  return apiGet<ManualResponse>("/api/manual");
 }
 
 export function fetchHealth(details = false): Promise<HealthResponse> {

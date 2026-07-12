@@ -125,6 +125,15 @@ Vedlikehold/Besøk henter Lilletorget-opphold fra OwnTracks via Fibaro10 og kobl
 - `/ideer/automatisering`
 - `/ideer/arbeidsflyt`
 - `/mobil/oversikt`
+- `/manual/oversikt`
+- `/manual/daglig-bruk`
+- `/manual/menyvalg`
+- `/manual/okonomi`
+- `/manual/bygg-drift`
+- `/manual/system`
+- `/manual/datagrunnlag`
+- `/manual/rutiner`
+- `/manual/feilsoking`
 - `/admin/oppgaver`
 - `/admin/kontroll`
 - `/admin/datakvalitet`
@@ -138,7 +147,6 @@ Vedlikehold/Besøk henter Lilletorget-opphold fra OwnTracks via Fibaro10 og kobl
 - `/admin/ai`
 - `/admin/teknisk`
 - `/admin/brukere`
-- `/admin/manual`
 - `/admin/verktoy`
 
 ## Frontend

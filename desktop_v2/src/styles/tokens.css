@@ -97,6 +97,7 @@
   --domain-maintenance: #0f766e;
   --domain-ideas: #db2777;
   --domain-mobile: #7c3aed;
+  --domain-manual: #4f46e5;
   --domain-status: #475569;
   --tone-color: var(--domain-status);
   --active-module-color: var(--domain-status);
@@ -161,6 +162,7 @@
   --dark-maintenance: #76bfb3;
   --dark-ideas: #c98fb0;
   --dark-mobile: #aa9bd8;
+  --dark-manual: #a5b4fc;
   --dark-status: #e2e8f0;
   --dark-blue-bg: #1d2938;
   --dark-green-bg: #1d2b24;
@@ -255,6 +257,10 @@
 
 .domain-mobil {
   --active-module-color: var(--domain-mobile);
+}
+
+.domain-manual {
+  --active-module-color: var(--domain-manual);
 }
 
 .domain-admin,

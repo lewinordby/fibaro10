@@ -1,8 +1,8 @@
 # Kort brukermanual for Lilletorget drift
 
-Oppdatert 12.07.2026, build 1528.
+Oppdatert 12.07.2026, build 1530.
 
-Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen er nå en kapitteldelt webside i appen under `Admin -> Manual`, med innholdsmeny, menykart, kontrollrutiner, forklaringer og lenker til relevante sider.
+Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen ligger nå som eget hovedmenyvalg `Manual`, med egne undersider for oversikt, daglig bruk, menyvalg, datagrunnlag, rutiner og feilsøking.
 
 ## Start her
 

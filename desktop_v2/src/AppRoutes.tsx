@@ -13,7 +13,7 @@ const DoorsPage = lazy(() => import("./pages/DoorsPage"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
 const MaintenanceVisitDetailPage = lazy(() => import("./pages/MaintenanceVisitDetailPage"));
-const AdminManualPage = lazy(() => import("./pages/AdminManualPage"));
+const ManualPage = lazy(() => import("./pages/ManualPage"));
 const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
 const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
@@ -94,12 +94,14 @@ export function AppRoutes() {
         <Route path="/renhold" element={<Navigate to={modulePath("renhold")} replace />} />
         <Route path="/renhold/robot/:duid" element={<LegacyRedirect to={modulePath("renhold", "roboter")} />} />
         <Route path="/renhold/:view" element={<ModulePage module="renhold" />} />
+        <Route path="/manual" element={<Navigate to={modulePath("manual")} replace />} />
+        <Route path="/manual/:view" element={<ManualPage />} />
         <Route path="/admin" element={<Navigate to={modulePath("admin")} replace />} />
         <Route path="/admin/drift" element={<OperationsPage />} />
         <Route path="/admin/datakilder/:jobName" element={<DataSourceDetailPage />} />
         <Route path="/admin/build" element={<BuildLogPage />} />
         <Route path="/admin/build/:build" element={<BuildDetailPage />} />
-        <Route path="/admin/manual" element={<AdminManualPage />} />
+        <Route path="/admin/manual" element={<LegacyRedirect to={modulePath("manual")} />} />
         <Route path="/admin/:view" element={<ModulePage module="admin" />} />
         <Route
           path="*"

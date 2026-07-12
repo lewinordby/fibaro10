@@ -18,6 +18,7 @@ export const MODULE_LABELS: Record<string, string> = {
   ideer: "Ideer",
   mobil: "Mobil",
   renhold: "Renhold",
+  manual: "Manual",
   admin: "Admin",
 };
 
@@ -38,6 +39,7 @@ export const MODULE_COLORS: Record<string, string> = {
   ideer: "var(--domain-ideas)",
   mobil: "var(--domain-mobile)",
   renhold: "var(--domain-maintenance)",
+  manual: "var(--domain-manual)",
   admin: "#64748b",
 };
 
@@ -135,6 +137,17 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "oversikt", label: "Oversikt" },
     { key: "roboter", label: "Roboter" },
   ],
+  manual: [
+    { key: "oversikt", label: "Oversikt" },
+    { key: "daglig-bruk", label: "Daglig bruk" },
+    { key: "menyvalg", label: "Menyvalg" },
+    { key: "okonomi", label: "Økonomi" },
+    { key: "bygg-drift", label: "Bygg og drift" },
+    { key: "system", label: "System" },
+    { key: "datagrunnlag", label: "Datagrunnlag" },
+    { key: "rutiner", label: "Rutiner" },
+    { key: "feilsoking", label: "Feilsøking" },
+  ],
   admin: [
     { key: "oppgaver", label: "Oppgaver" },
     { key: "kontroll", label: "Kontroll" },
@@ -147,7 +160,6 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "ai", label: "AI" },
     { key: "teknisk", label: "Teknisk" },
     { key: "brukere", label: "Brukere" },
-    { key: "manual", label: "Manual" },
     { key: "verktoy", label: "Verktøy" },
   ],
 };

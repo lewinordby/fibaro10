@@ -12904,6 +12904,15 @@ def admin_manual_payload() -> Dict[str, Any]:
             "canDo": ["vurdere nye funksjoner", "bruke ideer som utviklingsbacklog"],
         },
         {
+            "title": "Manual",
+            "marker": "M",
+            "tone": "manual",
+            "path": "/manual/oversikt",
+            "purpose": "Egen dokumentasjonsdel med forklaring av hovedområder, datakilder, rutiner og feilsøking.",
+            "canSee": ["kapitteldelt manual", "menyforklaringer", "daglige rutiner", "datagrunnlag og feilsøking"],
+            "canDo": ["slå opp hvordan en side brukes", "finne riktig startpunkt", "følge kontrollrutiner"],
+        },
+        {
             "title": "Admin",
             "marker": "A",
             "tone": "admin",
@@ -12967,7 +12976,8 @@ def admin_manual_payload() -> Dict[str, Any]:
                     {"title": "Dører", "path": "/dorer/oversikt", "text": "Oversikt, romkontroll, dør og soltime, solrom, andre dører og rådata fra HC3."},
                     {"title": "Vedlikehold", "path": "/vedlikehold/besok", "text": "Besøk og oppgaver på Lilletorget. Brukes for å koble faktisk tilstedeværelse og utført arbeid."},
                     {"title": "Renhold", "path": "/renhold/oversikt", "text": "Roborock-status, vaskelogger og robotdetaljer."},
-                    {"title": "Admin", "path": "/admin/datakilder", "text": "Datakilder, systemkart, buildlogg, brukere, teknisk status, AI, kontroll og denne manualen."},
+                    {"title": "Manual", "path": "/manual/oversikt", "text": "Kapitteldelt dokumentasjon med egne undersider for daglig bruk, menyvalg, datagrunnlag, rutiner og feilsøking."},
+                    {"title": "Admin", "path": "/admin/datakilder", "text": "Datakilder, systemkart, buildlogg, brukere, teknisk status, AI, kontroll og verktøy."},
                 ],
                 "note": "Menyvalgene er organisert etter fagområde. Dashboard er status først, fagmenyene forklarer tallene, og Admin brukes til drift, kontroll og systemforståelse.",
             },
@@ -13042,6 +13052,11 @@ def admin_manual_payload() -> Dict[str, Any]:
 @app.get("/api/admin/builds")
 async def api_admin_builds():
     return admin_builds_payload()
+
+
+@app.get("/api/manual")
+async def api_manual():
+    return admin_manual_payload()
 
 
 @app.get("/api/admin/manual")
@@ -13216,7 +13231,7 @@ async def account_technical_view(request: Request):
 
 @app.get("/konto/manual", response_class=HTMLResponse)
 async def account_manual_view(request: Request):
-    return redirect_keep_query(request, "/admin/manual", status_code=303)
+    return redirect_keep_query(request, "/manual/oversikt", status_code=303)
 
 
 @app.get("/energi/testside", response_class=HTMLResponse)
@@ -17449,7 +17464,7 @@ def api_tool_row(tool: str, path: str, description: str, count: Optional[int] = 
 def api_admin_manual_payload(import_rows: list[Dict[str, Any]], access_keys: list[Any]) -> tuple[list[ModuleCardPayload], list[ModuleTablePayload]]:
     inventory = system_component_summary()
     cards = [
-        api_card("Manual", "Kort", "", "Overblikk over hva du kan se og gjøre", "status", href="/admin/manual"),
+        api_card("Manual", "Kort", "", "Overblikk over hva du kan se og gjøre", "status", href="/manual/oversikt"),
         api_card("Systemkart", inventory["components"], "stk", "Apper, tjenester og webflater", "status", href="/admin/systemkart"),
         api_card("Datakilder", len(import_rows), "stk", "Ferskhet og feilsøking", "status", href="/admin/datakilder"),
         api_card("Build", APP_BUILD, "", "Siste endringspakke", "status", href="/admin/build"),
@@ -26398,7 +26413,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             admin_tools = [
                 api_tool_row("Buildlogg", "/admin/build", "Klikkbar leveransehistorikk med detaljvisning per build.", len(BUILD_LOG)),
                 api_tool_row("Teknisk", "/admin/teknisk", "Teknisk driftsside.", None),
-                api_tool_row("Manual", "/admin/manual", "Intern manual og driftsnotater.", None),
+                api_tool_row("Manual", "/manual/oversikt", "Intern manual og driftsnotater.", None),
                 api_tool_row("Brukere og tilgang", "/admin/brukere", "Administrer brukere, roller og tilgang.", len(access_keys)),
                 api_tool_row("AI-innstillinger", "/admin/ai", "Sett modell og API-nøkkel for analyseassistent.", len(ai_logs)),
                 api_tool_row("Health", "/health", "Rask serverhelse og lagringsliste.", None),
@@ -26760,7 +26775,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             elif view == "manual":
                 inventory = system_component_summary()
                 admin_cards = [
-                    api_card("Manual", "V2", "", "Lenker og driftsinnganger samlet", "status", href="/admin/manual"),
+                    api_card("Manual", "V2", "", "Lenker og driftsinnganger samlet", "status", href="/manual/oversikt"),
                     api_card("Systemkart", inventory["components"], "stk", "Komponenter og underapper", "status", href="/admin/systemkart"),
                     api_card("Datakilder", len(import_rows), "stk", "Status og forklaring per kilde", "status", href="/admin/datakilder"),
                     api_card("Build", APP_BUILD, "", BUILD_LOG[0]["title"], "status", href="/admin/build"),
@@ -26770,7 +26785,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         "Manual og drift",
                         ["tool", "path", "description", "count"],
                         [
-                            api_tool_row("Manual", "/admin/manual", "Intern manual med driftsrutiner og lenker til dagens flater.", None),
+                            api_tool_row("Manual", "/manual/oversikt", "Intern manual med driftsrutiner og lenker til dagens flater.", None),
                             api_tool_row("Systemkart", "/admin/systemkart", "Oversikt over komponenter, underapper, webflater og health-lenker.", len(system_component_rows())),
                             api_tool_row("Datakilder", "/admin/datakilder", "Status for importjobber og eksterne datakilder.", len(import_rows)),
                             api_tool_row("Buildlogg", "/admin/build", "Endringshistorikk for løsningen.", len(BUILD_LOG)),

@@ -101,6 +101,7 @@
   --domain-maintenance: var(--dark-maintenance);
   --domain-ideas: var(--dark-ideas);
   --domain-mobile: var(--dark-mobile);
+  --domain-manual: var(--dark-manual);
   --domain-status: var(--dark-status);
   --status-ok-bg: var(--dark-green-bg);
   --status-ok-border: color-mix(in srgb, var(--dark-ok) 32%, var(--border-control));

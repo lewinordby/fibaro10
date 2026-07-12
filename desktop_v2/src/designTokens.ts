@@ -26,6 +26,7 @@ const lightDomainColors = {
   vent: semanticColors.cyan,
   weather: "#64748b",
   light: "#ca8a04",
+  manual: "#4f46e5",
   status: "#475569",
   comparison: "#64748b",
   ink: semanticColors.ink,
@@ -41,6 +42,7 @@ const darkDomainColors = {
   vent: "#22d3ee",
   weather: "#cbd5e1",
   light: "#fde047",
+  manual: "#a5b4fc",
   status: "#e2e8f0",
   comparison: "#94a3b8",
   ink: "#f8fafc",
@@ -60,6 +62,7 @@ export const domainColors = {
   get vent() { return activeDomainColors().vent; },
   get weather() { return activeDomainColors().weather; },
   get light() { return activeDomainColors().light; },
+  get manual() { return activeDomainColors().manual; },
   get status() { return activeDomainColors().status; },
   get comparison() { return activeDomainColors().comparison; },
   get ink() { return activeDomainColors().ink; },
@@ -75,6 +78,7 @@ export const domainLabels = {
   vent: "Ventilasjon",
   weather: "Vær",
   light: "Lys",
+  manual: "Manual",
   status: "Status",
 } as const;
 

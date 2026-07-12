@@ -55,6 +55,23 @@ const buildEntry = {
   isCurrent: true,
 };
 
+const manualPayload = {
+  build: "smoke",
+  title: "Lilletorget drift",
+  description: "Smoke-manual for rutesjekk.",
+  chapters: [
+    { id: "hva-losningen-er", number: "01", title: "Hva løsningen er", paragraphs: ["Smoke-oversikt over løsningen."] },
+    { id: "daglig-bruk", number: "02", title: "Daglig bruk", paragraphs: ["Smoke for daglig bruk."] },
+    { id: "menyvalg", number: "03", title: "Menyvalg", paragraphs: ["Smoke for menyvalg."] },
+    { id: "okonomi", number: "04", title: "Økonomi", paragraphs: ["Smoke for økonomi."] },
+    { id: "bygg-drift", number: "05", title: "Bygg og drift", paragraphs: ["Smoke for bygg og drift."] },
+    { id: "system-underapper", number: "06", title: "System og underapper", paragraphs: ["Smoke for system."] },
+    { id: "datagrunnlag", number: "07", title: "Datagrunnlag", paragraphs: ["Smoke for datagrunnlag."] },
+    { id: "rutiner", number: "08", title: "Rutiner og kontroll", paragraphs: ["Smoke for rutiner."] },
+    { id: "feilsoking", number: "09", title: "Feilsøking", paragraphs: ["Smoke for feilsøking."] },
+  ],
+};
+
 const moduleResponse = {
   title: "Soling",
   subtitle: "Smoke",
@@ -812,6 +829,7 @@ const server = http.createServer((request, response) => {
   }
   if (url.pathname === "/api/admin/builds") return sendJson(response, { currentBuild: "smoke", rows: [buildEntry] });
   if (url.pathname === "/api/admin/builds/smoke") return sendJson(response, buildEntry);
+  if (url.pathname === "/api/manual" || url.pathname === "/api/admin/manual") return sendJson(response, manualPayload);
   if (url.pathname === "/api/revenue/month") return sendJson(response, revenueMonthPayload());
   if (url.pathname === "/api/status/comparison") return sendJson(response, statusComparisonPayload());
   if (url.pathname === "/api/soling/year-comparison") return sendJson(response, yearComparisonPayload("Soling arssammenligning"));

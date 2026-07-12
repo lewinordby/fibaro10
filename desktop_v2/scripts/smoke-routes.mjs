@@ -68,6 +68,15 @@ export const smokeRoutes = [
   { path: "/renhold/oversikt", name: "Renhold oversikt" },
   { path: "/renhold/roboter", name: "Renhold roboter" },
   { path: "/mobil/oversikt", name: "Mobil oversikt" },
+  { path: "/manual/oversikt", name: "Manual oversikt", expectedTexts: ["Lilletorget drift", "Undersider"] },
+  { path: "/manual/daglig-bruk", name: "Manual daglig bruk", expectedTexts: ["Daglig bruk"] },
+  { path: "/manual/menyvalg", name: "Manual menyvalg", expectedTexts: ["Menyvalg"] },
+  { path: "/manual/okonomi", name: "Manual okonomi", expectedTexts: ["Økonomi"] },
+  { path: "/manual/bygg-drift", name: "Manual bygg og drift", expectedTexts: ["Bygg og drift"] },
+  { path: "/manual/system", name: "Manual system", expectedTexts: ["System"] },
+  { path: "/manual/datagrunnlag", name: "Manual datagrunnlag", expectedTexts: ["Datagrunnlag"] },
+  { path: "/manual/rutiner", name: "Manual rutiner", expectedTexts: ["Rutiner"] },
+  { path: "/manual/feilsoking", name: "Manual feilsoking", expectedTexts: ["Feilsøking"] },
   { path: "/admin/oppgaver", name: "Admin oppgaver" },
   { path: "/admin/kontroll", name: "Admin kontroll" },
   { path: "/admin/datakvalitet", name: "Admin datakvalitet" },
@@ -80,7 +89,6 @@ export const smokeRoutes = [
   { path: "/admin/ai", name: "Admin AI" },
   { path: "/admin/teknisk", name: "Admin teknisk" },
   { path: "/admin/brukere", name: "Admin brukere" },
-  { path: "/admin/manual", name: "Admin manual" },
   { path: "/admin/verktoy", name: "Admin verktoy" },
 ];
 

@@ -8,13 +8,13 @@ Dette repoet dokumenterer hovedappen `Fibaro10 / Lilletorget drift`, underappene
 
 | Side | Bruk |
 | --- | --- |
-| `Admin -> Manual` | Sluttbruker- og driftsinnganger for daglig bruk. |
+| `Manual` | Sluttbruker- og driftsinnganger for daglig bruk, med egne undersider. |
 | `Admin -> Systemkart` | Klikkbar oversikt over apper, underapper, webflater, lokale URL-er og health-lenker. |
 | `Admin -> Datakilder` | Operativ status for alle importjobber og eksterne datakilder. |
 | `Admin -> Buildlogg` | Leveransehistorikk med bestilling, endringer, berørte applikasjoner og måledata per build. |
 | `Admin -> Teknisk` | Teknisk driftsflate og verktøykoblinger. |
 
-`/konto/manual` finnes fortsatt som redirect til `/admin/manual`.
+`/konto/manual` finnes fortsatt som redirect til `/manual/oversikt`.
 
 ## Viktige dokumenter i repoet
 

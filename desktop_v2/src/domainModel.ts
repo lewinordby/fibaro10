@@ -54,6 +54,11 @@ const titleMatchers: Record<string, Array<{ words: string[]; href: string }>> = 
     { words: ["datakilde", "treg", "feil"], href: modulePath("admin", "datakilder") },
     { words: ["bruker"], href: modulePath("admin", "brukere") },
   ],
+  manual: [
+    { words: ["rutine", "kontroll"], href: modulePath("manual", "rutiner") },
+    { words: ["datagrunnlag", "kilde"], href: modulePath("manual", "datagrunnlag") },
+    { words: ["feil", "feilsøking"], href: modulePath("manual", "feilsoking") },
+  ],
 };
 
 const defaultModuleHref: Record<string, string> = {
@@ -64,6 +69,7 @@ const defaultModuleHref: Record<string, string> = {
   ventilasjon: modulePath("ventilasjon", "dagslogg"),
   lys: modulePath("lys", "dagslogg"),
   renhold: modulePath("renhold", "oversikt"),
+  manual: modulePath("manual", "oversikt"),
   admin: modulePath("admin", "drift"),
 };
 

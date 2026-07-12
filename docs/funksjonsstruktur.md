@@ -126,6 +126,7 @@ Mobil vedlikeholdsregistrering ligger i egen app på `vedl.lilletorget.net`, men
 
 - `Ideer`: midlertidig vurderingsområde for nye funksjoner.
 - `Mobil`: speiling av mobilskjermer i rutenett.
+- `Manual/Oversikt`: intern manual og lenker, med egne undersider for daglig bruk, menyvalg, økonomi, bygg/drift, system, datagrunnlag, rutiner og feilsøking.
 - `Admin/Oppgaver`: systemoppgaver og forbedringspunkter.
 - `Admin/Kontroll`: avstemminger og kontrollinnganger.
 - `Admin/Datakvalitet`: dataproblemer på tvers.
@@ -137,7 +138,6 @@ Mobil vedlikeholdsregistrering ligger i egen app på `vedl.lilletorget.net`, men
 - `Admin/AI`: AI-innstillinger.
 - `Admin/Teknisk`: teknisk drift.
 - `Admin/Brukere`: brukeradministrasjon.
-- `Admin/Manual`: intern manual og lenker.
 - `Admin/Verktøy`: tekniske verktøy.
 
 ## Regel for nye sider
