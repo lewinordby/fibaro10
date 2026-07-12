@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1536")
+APP_BUILD = os.getenv("APP_BUILD", "1537")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1537",
+        "date": "12.07.2026",
+        "headline": "Romkontroll med åpningstid",
+        "title": "Viser hele åpningstiden i Dører / Romkontroll - ny2",
+        "description": (
+            "Build 1537 gjør tidslinjen i Romkontroll-ny2 mer konsekvent ved å vise hele valgt dags åpningstid "
+            "fra 07:00 til 23:00. Hendelsestabellen for valgt rom sorteres samtidig med nyeste hendelse øverst."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: endrer romtidslinjen til fast åpningstidsakse og bruker alle dagshendelser som markører.",
+            "desktop_v2/src/pages/DoorsPage.tsx: tegner dørperioder og soltimer for hele valgt dag i samme tidslinje.",
+            "desktop_v2/src/pages/DoorsPage.tsx: sorterer hendelsestabellen med nyeste hendelse øverst.",
+            "desktop_v2/src/styles/doors.css: legger tydelig åpningstidstekst over tidslinjen.",
+            "docs/kort-brukermanual.md: oppdaterer buildnummer.",
+            "build_log.py: dokumenterer build 1537 og setter APP_BUILD til 1537.",
+        ],
+        "request": "jeg synes tidslinja skal vise hele åpningstiden og at tabellen over hendelser skal være sortert med nyest øverst.",
+        "work_duration": "ca. 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Tidslinjen i Romkontroll-ny2 viser nå fast åpningstid 07:00-23:00 for valgt dato.",
+            "Dørperioder og soltimer for hele valgt rom/dag tegnes inn i samme skalerte tidslinje.",
+            "Dør-, sol-, inngangs- og effektmarkører bruker samme dagshendelser som tabellen.",
+            "Hendelsestabellen sorteres med nyeste hendelse først.",
+        ],
+    },
     {
         "version": "1",
         "build": "1536",

@@ -2685,6 +2685,26 @@
   font-weight: 700;
 }
 
+.door-room-daily-timeline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: var(--text-subtle);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: .018em;
+  text-transform: uppercase;
+}
+
+.door-room-daily-timeline-head strong {
+  color: var(--ink);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
 .door-room-daily-track {
   position: relative;
   height: 42px;
@@ -2738,13 +2758,11 @@
   content: "";
 }
 
-.daily-marker.kind-sun-start,
-.daily-marker.kind-sun-end {
+.daily-marker[class*="kind-sun"] {
   color: var(--sun);
 }
 
-.daily-marker.kind-door-closed,
-.daily-marker.kind-door-open {
+.daily-marker[class*="kind-door"] {
   color: var(--domain-building);
 }
 

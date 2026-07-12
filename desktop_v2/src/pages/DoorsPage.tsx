@@ -1443,7 +1443,8 @@ function DoorSunroomVisualControlBoard({
   );
 }
 
-const PRECISION_TIMELINE_PADDING_MS = 5 * 60 * 1000;
+const SUNROOM_OPEN_HOUR = 7;
+const SUNROOM_CLOSE_HOUR = 23;
 
 type PrecisionMarker = {
   key: string;
@@ -1475,6 +1476,19 @@ function timelineClockLabel(value?: string | null) {
 function percentBetween(value: number, start: number, end: number) {
   if (end <= start) return 0;
   return Math.max(0, Math.min(100, ((value - start) / (end - start)) * 100));
+}
+
+function openingTimelineWindow(dayValue?: string | null) {
+  const parsed = dayValue ? dayjs(dayValue) : dayjs();
+  const day = parsed.isValid() ? parsed : dayjs();
+  const start = day.hour(SUNROOM_OPEN_HOUR).minute(0).second(0).millisecond(0);
+  const end = day.hour(SUNROOM_CLOSE_HOUR).minute(0).second(0).millisecond(0);
+  return {
+    startMs: start.valueOf(),
+    endMs: end.valueOf(),
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+  };
 }
 
 function precisionMarkersForPeriod(period?: DoorSunroomOverviewPeriod | null, session?: DoorSunroomOverviewSession | null) {
@@ -1535,9 +1549,12 @@ function roomDailyEventsFallback(room: DoorSunroomOverviewRoom) {
   }));
 }
 
-function roomDailyEvents(room: DoorSunroomOverviewRoom) {
+function roomDailyEvents(room: DoorSunroomOverviewRoom, order: "asc" | "desc" = "asc") {
   const events = room.dayEvents?.length ? room.dayEvents : roomDailyEventsFallback(room);
-  return [...events].sort((a, b) => (parseTimelineMs(a.time) || 0) - (parseTimelineMs(b.time) || 0));
+  return [...events].sort((a, b) => {
+    const diff = (parseTimelineMs(a.time) || 0) - (parseTimelineMs(b.time) || 0);
+    return order === "asc" ? diff : -diff;
+  });
 }
 
 function DoorRoomDailyFact({
@@ -1563,41 +1580,52 @@ function DoorRoomDailyFact({
 function DoorRoomDailyTimeline({
   room,
   generatedAt,
+  dayStart,
 }: {
   room: DoorSunroomOverviewRoom;
   generatedAt?: string | null;
+  dayStart?: string | null;
 }) {
   const latest = room.latestPeriod;
   const session = latest?.session || room.recentSessions[0] || null;
-  const sunStartMs = parseTimelineMs(session?.sunStartAt);
-  const sunEndMs = parseTimelineMs(session?.endedAt);
+  const timelineDay = dayStart || session?.sunStartAt || latest?.closedAt || generatedAt;
+  const { startMs: axisStart, endMs: axisEnd, startIso, endIso } = openingTimelineWindow(timelineDay);
   const generatedMs = parseTimelineMs(generatedAt) || Date.now();
-  const closedMs = parseTimelineMs(latest?.closedAt);
-  const openedMs = parseTimelineMs(latest?.openedAt);
-  const axisStart = sunStartMs !== null ? sunStartMs - PRECISION_TIMELINE_PADDING_MS : closedMs !== null ? closedMs - PRECISION_TIMELINE_PADDING_MS : null;
-  const axisEnd =
-    sunEndMs !== null
-      ? sunEndMs + PRECISION_TIMELINE_PADDING_MS
-      : openedMs !== null
-        ? openedMs + PRECISION_TIMELINE_PADDING_MS
-        : closedMs !== null
-          ? generatedMs + PRECISION_TIMELINE_PADDING_MS
-          : null;
-
-  if (axisStart === null || axisEnd === null || axisEnd <= axisStart) {
-    return <div className="door-room-daily-empty-line">Mangler nok tidspunkter til tidslinje.</div>;
-  }
-
-  const markers = precisionMarkersForPeriod(latest, session as DoorSunroomOverviewSession | null).filter((marker) => {
-    const ms = parseTimelineMs(marker.time);
+  const markers = roomDailyEvents(room, "asc").filter((event) => {
+    const ms = parseTimelineMs(event.time);
     return ms !== null && ms >= axisStart && ms <= axisEnd;
   });
   const segments: PrecisionSegment[] = [];
-  if (latest?.closedAt) segments.push({ key: "door", kind: "door", start: latest.closedAt, end: latest.openedAt || generatedAt || null });
-  if (session?.sunStartAt && session.endedAt) segments.push({ key: "sun", kind: "sun", start: session.sunStartAt, end: session.endedAt });
+  for (const period of room.periods || []) {
+    if (!period.closedAt) continue;
+    const activeEnd = generatedMs >= axisStart && generatedMs <= axisEnd ? generatedAt || null : endIso;
+    segments.push({
+      key: `door-${period.id}`,
+      kind: "door",
+      start: period.closedAt,
+      end: period.openedAt || activeEnd,
+    });
+  }
+  const sessions = new Map<string, DoorSunroomOverviewSession>();
+  if (session?.id) sessions.set(String(session.id), session as DoorSunroomOverviewSession);
+  for (const period of room.periods || []) {
+    if (period.session?.id) sessions.set(String(period.session.id), period.session);
+  }
+  for (const row of room.recentSessions || []) {
+    if (row.id) sessions.set(String(row.id), row);
+  }
+  for (const row of sessions.values()) {
+    if (row.sunStartAt && row.endedAt) {
+      segments.push({ key: `sun-${row.id}`, kind: "sun", start: row.sunStartAt, end: row.endedAt });
+    }
+  }
 
   return (
     <div className="door-room-daily-timeline">
+      <div className="door-room-daily-timeline-head">
+        <span>Åpningstid</span>
+        <strong>{SUNROOM_OPEN_HOUR.toString().padStart(2, "0")}:00-{SUNROOM_CLOSE_HOUR}:00</strong>
+      </div>
       <div className="door-room-daily-track">
         {segments.map((segment) => {
           const start = parseTimelineMs(segment.start);
@@ -1613,8 +1641,8 @@ function DoorRoomDailyTimeline({
           if (ms === null) return null;
           return (
             <span
-              className={`daily-marker kind-${marker.kind}`}
-              key={`${marker.key}-${index}`}
+              className={`daily-marker kind-${marker.kind || "neutral"}`}
+              key={`${marker.id || marker.kind || "marker"}-${marker.time || index}`}
               style={{ left: `${percentBetween(ms, axisStart, axisEnd)}%` }}
               title={`${marker.label} ${timelineClockLabel(marker.time)}${marker.detail ? ` - ${marker.detail}` : ""}`}
             />
@@ -1622,15 +1650,15 @@ function DoorRoomDailyTimeline({
         })}
       </div>
       <div className="door-room-daily-scale">
-        <span>{timelineClockLabel(new Date(axisStart).toISOString())}</span>
-        <span>{timelineClockLabel(new Date(axisEnd).toISOString())}</span>
+        <span>{timelineClockLabel(startIso)}</span>
+        <span>{timelineClockLabel(endIso)}</span>
       </div>
     </div>
   );
 }
 
 function DoorRoomDailyEventsTable({ room }: { room: DoorSunroomOverviewRoom }) {
-  const events = roomDailyEvents(room);
+  const events = roomDailyEvents(room, "desc");
   if (!events.length) {
     return <div className="door-room-daily-empty-line">Ingen hendelser registrert for denne datoen.</div>;
   }
@@ -1665,7 +1693,15 @@ function DoorRoomDailyEventsTable({ room }: { room: DoorSunroomOverviewRoom }) {
   );
 }
 
-function DoorRoomDailyCard({ room, generatedAt }: { room: DoorSunroomOverviewRoom; generatedAt?: string | null }) {
+function DoorRoomDailyCard({
+  room,
+  generatedAt,
+  dayStart,
+}: {
+  room: DoorSunroomOverviewRoom;
+  generatedAt?: string | null;
+  dayStart?: string | null;
+}) {
   const latest = room.latestPeriod;
   const session = latest?.session || room.recentSessions[0] || null;
   const tone = roomControlTone(room);
@@ -1702,7 +1738,7 @@ function DoorRoomDailyCard({ room, generatedAt }: { room: DoorSunroomOverviewRoo
         />
       </div>
 
-      <DoorRoomDailyTimeline room={room} generatedAt={generatedAt} />
+      <DoorRoomDailyTimeline room={room} generatedAt={generatedAt} dayStart={dayStart} />
       <DoorRoomDailyEventsTable room={room} />
     </article>
   );
@@ -1755,7 +1791,7 @@ function DoorSunroomDailyControlBoard({
           {activityCount ? <small>{activityCount}</small> : null}
         </span>
       ),
-      children: <DoorRoomDailyCard room={room} generatedAt={data.generatedAt} />,
+      children: <DoorRoomDailyCard room={room} generatedAt={data.generatedAt} dayStart={data.dayStart || data.dayDate || selectedDay} />,
     };
   });
 
