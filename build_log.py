@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1547")
+APP_BUILD = os.getenv("APP_BUILD", "1548")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1548",
+        "date": "12.07.2026",
+        "headline": "Andre dører i mobilappen",
+        "title": "Legger andre dører inn i mobilappen med status og hendelser",
+        "description": (
+            "Build 1548 utvider mobilappen med egen oversikt for andre dører. Forsiden viser en kompakt statusblokk, "
+            "mens /dorer viser alle andre dører med status og sist endret. Hver dør kan åpnes for siste statusendringer "
+            "sortert med nyeste øverst."
+        ),
+        "applications": [
+            "online_dashboard/app/main.py: legger inn dørkonfig, statuslesing, /dorer og /dorer/{door} for mobilappen.",
+            "static/online-dashboard.css: legger til kompakt styling for dørstatus, dørkort og hendelsesliste på mobil.",
+            "build_log.py: dokumenterer build 1548 og setter APP_BUILD til 1548.",
+        ],
+        "request": (
+            "jeg ønsker å ha oversikt over \"andre dører\" på mobil appen og hvert rom skal være klikkbart slik at "
+            "jeg kan se siste hendelser med nyeste øverst. sist endret og status på første siden"
+        ),
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Mobilforsiden får en klikkbar blokk for Andre dører.",
+            "Ny /dorer-side viser status og sist endret for Bod/kjøkken, Kjeller luke, Arbeidsrom, Inngang, Massasjestudio, Vaskerom, Papirlager, Vaktmesterlager og Toalett.",
+            "Hver dør har detaljside med siste reelle statusendringer, kollapset slik at gjentatte like statuser ikke dominerer listen.",
+            "Dørstatus bruker samme innlogging og samme Fibaro10-database som resten av mobilappen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1547",

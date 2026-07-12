@@ -13,7 +13,7 @@ import urllib.request
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -53,6 +53,20 @@ PUBLIC_DASHBOARD_SYNC_TOKEN = os.getenv("PUBLIC_DASHBOARD_SYNC_TOKEN", "")
 PUBLIC_DASHBOARD_SYNC_INTERVAL_SECONDS = max(5, int(os.getenv("PUBLIC_DASHBOARD_SYNC_INTERVAL_SECONDS", "15")))
 PUBLIC_DASHBOARD_SYNC_TIMEOUT_SECONDS = max(3, int(os.getenv("PUBLIC_DASHBOARD_SYNC_TIMEOUT_SECONDS", "12")))
 PUBLIC_DASHBOARD_SNAPSHOT_NAME = os.getenv("PUBLIC_DASHBOARD_SNAPSHOT_NAME", "current").strip() or "current"
+OTHER_DOOR_CONFIG = [
+    {"device_id": 453, "device_key": "door_453", "title": "Bod/kjøkken", "sort_order": 101},
+    {"device_id": 447, "device_key": "door_447", "title": "Kjeller luke", "sort_order": 102},
+    {"device_id": 413, "device_key": "door_413", "title": "Arbeidsrom", "sort_order": 103},
+    {"device_id": 499, "device_key": "door_inngang", "title": "Inngang", "sort_order": 104},
+    {"device_id": 483, "device_key": "door_massasjestudio", "title": "Massasjestudio", "sort_order": 105},
+    {"device_id": 489, "device_key": "door_vaskerom", "title": "Vaskerom", "sort_order": 106},
+    {"device_id": 487, "device_key": "door_papirlager", "title": "Papirlager", "sort_order": 107},
+    {"device_id": 493, "device_key": "door_vaktmesterlager", "title": "Vaktmesterlager", "sort_order": 108},
+    {"device_id": 495, "device_key": "door_toalett", "title": "Toalett", "sort_order": 109},
+]
+OTHER_DOOR_DEVICE_IDS = [int(item["device_id"]) for item in OTHER_DOOR_CONFIG if item.get("device_id") is not None]
+OTHER_DOOR_KEYS = [str(item["device_key"]) for item in OTHER_DOOR_CONFIG if item.get("device_key")]
+OTHER_DOOR_BY_KEY = {str(item["device_key"]): item for item in OTHER_DOOR_CONFIG}
 
 app = FastAPI(title="Lilletorget online", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -700,6 +714,132 @@ def parking_vehicle_summary(row: dict[str, Any]) -> str:
     return f"{summary} - {color}" if color else summary
 
 
+def door_config_match(row: dict[str, Any], config: dict[str, Any]) -> bool:
+    device_id = row.get("device_id")
+    if device_id is not None and config.get("device_id") is not None:
+        try:
+            if int(device_id) == int(config["device_id"]):
+                return True
+        except (TypeError, ValueError):
+            pass
+    return str(row.get("device_key") or "") == str(config.get("device_key") or "")
+
+
+def door_state_info(row: Optional[dict[str, Any]]) -> dict[str, str]:
+    if not row:
+        return {"state": "unknown", "label": "Ukjent", "tone": "unknown"}
+    action = str(row.get("action") or "").strip().upper()
+    raw_value = str(row.get("raw_value") or "").strip().lower()
+    state = row.get("state")
+    if state is True or action in {"OPEN", "OPENED", "ÅPEN", "APEN"} or raw_value in {"true", "1", "open", "opened"}:
+        return {"state": "open", "label": "Åpen", "tone": "warn"}
+    if state is False or action in {"CLOSED", "CLOSE", "LUKKET"} or raw_value in {"false", "0", "closed", "close"}:
+        return {"state": "closed", "label": "Lukket", "tone": "ok"}
+    return {"state": "unknown", "label": "Ukjent", "tone": "unknown"}
+
+
+def door_state_bool(row: Optional[dict[str, Any]]) -> Optional[bool]:
+    state = door_state_info(row).get("state")
+    if state == "open":
+        return True
+    if state == "closed":
+        return False
+    return None
+
+
+def relative_time_label(value: Any, now: Optional[datetime] = None) -> str:
+    if not isinstance(value, datetime):
+        return "-"
+    now = now or local_now()
+    seconds = max(0, int((now - value).total_seconds()))
+    if seconds < 60:
+        return "nå nettopp"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} min siden"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours} t siden"
+    days = hours // 24
+    return "1 dag siden" if days == 1 else f"{days} dager siden"
+
+
+def door_status_payload(config: dict[str, Any], row: Optional[dict[str, Any]], now: datetime) -> dict[str, Any]:
+    state = door_state_info(row)
+    timestamp = row.get("timestamp") if row else None
+    return {
+        "device_id": config.get("device_id"),
+        "device_key": config["device_key"],
+        "title": config["title"],
+        "state": state["state"],
+        "state_label": state["label"],
+        "tone": state["tone"],
+        "timestamp": timestamp,
+        "last_changed": display_stamp(timestamp),
+        "age_label": relative_time_label(timestamp, now),
+        "event_id": row.get("id") if row else None,
+        "battery_level": row.get("battery_level") if row else None,
+        "device_name": row.get("device_name") if row else "",
+    }
+
+
+def door_change_rows(rows_desc: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    changes: list[dict[str, Any]] = []
+    last_state: Optional[bool] = None
+    for row in reversed(rows_desc):
+        state = door_state_bool(row)
+        if state is None:
+            continue
+        if state != last_state:
+            changes.append(row)
+            last_state = state
+    return list(reversed(changes))
+
+
+async def other_door_statuses() -> list[dict[str, Any]]:
+    now = local_now()
+    if not SOURCE_MODE:
+        return []
+    rows = await many_mappings(
+        """
+        select id, timestamp, event_type, action, device_key, device_id, device_name,
+               source, raw_value, state, previous_state, battery_level, extra
+        from door_events
+        where device_id = any(:device_ids) or device_key = any(:device_keys)
+        order by timestamp desc, id desc
+        limit 600
+        """,
+        {"device_ids": OTHER_DOOR_DEVICE_IDS, "device_keys": OTHER_DOOR_KEYS},
+    )
+    statuses = []
+    for config in sorted(OTHER_DOOR_CONFIG, key=lambda item: int(item.get("sort_order") or 0)):
+        latest_row = next((row for row in rows if door_config_match(row, config)), None)
+        statuses.append(door_status_payload(config, latest_row, now))
+    return statuses
+
+
+async def other_door_events(device_key: str, limit: int = 80) -> list[dict[str, Any]]:
+    config = OTHER_DOOR_BY_KEY.get(device_key)
+    if not config or not SOURCE_MODE:
+        return []
+    rows = await many_mappings(
+        """
+        select id, timestamp, event_type, action, device_key, device_id, device_name,
+               source, raw_value, state, previous_state, battery_level, extra
+        from door_events
+        where device_id = :device_id or device_key = :device_key
+        order by timestamp desc, id desc
+        limit :limit
+        """,
+        {
+            "device_id": config.get("device_id"),
+            "device_key": config.get("device_key"),
+            "limit": max(limit * 4, limit),
+        },
+    )
+    return door_change_rows(rows)[:limit]
+
+
 def amount_sum(*values: Any) -> float:
     total = 0.0
     for value in values:
@@ -1116,6 +1256,7 @@ async def source_dashboard_data() -> dict[str, Any]:
         """,
         {"start": start, "end": end},
     )
+    other_doors = await other_door_statuses()
 
     inside_values = [vent.get("temp_1etg"), vent.get("temp_2etg"), vent.get("temp_vip")]
     inside_values = [float(value) for value in inside_values if value is not None]
@@ -1173,6 +1314,7 @@ async def source_dashboard_data() -> dict[str, Any]:
             ("Tak/loft", vent.get("fan_tak")),
             ("Avfukter", vent.get("fan_avfukter")),
         ],
+        "other_doors": other_doors,
     }
     data["revenue"] = {
         "today": amount_sum(data["soling"].get("amount"), data["parking"].get("amount")),
@@ -1253,6 +1395,7 @@ async def latest_snapshot_payload() -> dict[str, Any]:
             "innluft": None,
             "light_items": [],
             "fan_items": [],
+            "other_doors": [],
             "revenue": {},
             "revenue_updated_at": None,
             "_snapshot": {"missing": True},
@@ -1601,6 +1744,8 @@ async def dashboard(request: Request):
         html = html.replace(key, value)
     html = html.replace("{{ light_cards }}", render_state_cards(data["light_items"], "light"))
     html = html.replace("{{ fan_cards }}", render_state_cards(data["fan_items"], "fan"))
+    html = html.replace("{{ other_door_summary }}", render_other_door_summary(data.get("other_doors") or []))
+    html = html.replace("{{ other_door_cards }}", render_other_door_dashboard(data.get("other_doors") or []))
     return HTMLResponse(html)
 
 
@@ -2005,6 +2150,59 @@ async def ventilation_detail(request: Request):
     return render_detail_page("Ventilasjon", "Status og siste hendelser.", body)
 
 
+@app.get("/dorer", response_class=HTMLResponse)
+async def other_doors_detail(request: Request):
+    data = await dashboard_data()
+    statuses = list(data.get("other_doors") or [])
+    latest = max(
+        (
+            item.get("timestamp")
+            for item in statuses
+            if isinstance(item.get("timestamp"), datetime)
+        ),
+        default=None,
+    )
+    body = detail_stats(
+        [
+            ("Åpne", fmt_int(sum(1 for item in statuses if item.get("state") == "open")), "andre dører"),
+            ("Lukket", fmt_int(sum(1 for item in statuses if item.get("state") == "closed")), "andre dører"),
+            ("Ukjent", fmt_int(sum(1 for item in statuses if item.get("state") == "unknown")), "mangler siste status"),
+            ("Sist endret", fmt_clock(latest), fmt_date(latest)),
+        ]
+    )
+    body += render_other_door_overview(statuses)
+    return render_detail_page("Andre dører", "Status og siste endring per dør.", body, icon="door")
+
+
+@app.get("/dorer/{device_key}", response_class=HTMLResponse)
+async def other_door_detail(device_key: str, request: Request):
+    config = OTHER_DOOR_BY_KEY.get(device_key)
+    if not config:
+        raise HTTPException(status_code=404, detail="Ukjent dør")
+    data = await dashboard_data()
+    statuses = list(data.get("other_doors") or [])
+    status = next((item for item in statuses if item.get("device_key") == device_key), None)
+    if not status:
+        status = door_status_payload(config, None, local_now())
+    events = await other_door_events(device_key, 80) if SOURCE_MODE else []
+    body = detail_stats(
+        [
+            ("Status", str(status.get("state_label") or "Ukjent"), str(status.get("age_label") or "-")),
+            ("Sist endret", str(status.get("last_changed") or "-"), str(status.get("device_name") or "")),
+            (
+                "Batteri",
+                f"{float(status['battery_level']):.0f}%" if status.get("battery_level") is not None else "-",
+                "sensor",
+            ),
+            ("Hendelser", fmt_int(len(events)), "nyeste øverst"),
+        ]
+    )
+    if SNAPSHOT_MODE:
+        body += '<p class="notice">Detaljert hendelseshistorikk er bare tilgjengelig når mobilappen leser direkte fra Fibaro10-databasen.</p>'
+    body += render_door_event_list(events)
+    return render_detail_page(str(config.get("title") or "Dør"), "Siste statusendringer for valgt dør.", body, icon="door")
+
+
 def render_state_cards(items: list[tuple[str, Any]], icon_class: str) -> str:
     cards = []
     for label, value in items:
@@ -2079,6 +2277,95 @@ def render_parking_vehicle_list(rows: list[dict[str, Any]], can_view_money: bool
             )
         content = "".join(items)
     return f'<section class="section-block detail-list parking-vehicle-list"><h2>Dagens parkeringer</h2><ul>{content}</ul></section>'
+
+
+def render_other_door_summary(statuses: list[dict[str, Any]]) -> str:
+    if not statuses:
+        return "Ingen dørdata"
+    open_count = sum(1 for item in statuses if item.get("state") == "open")
+    closed_count = sum(1 for item in statuses if item.get("state") == "closed")
+    unknown_count = sum(1 for item in statuses if item.get("state") == "unknown")
+    parts = [f"{open_count} åpne", f"{closed_count} lukket"]
+    if unknown_count:
+        parts.append(f"{unknown_count} ukjent")
+    return " · ".join(parts)
+
+
+def render_other_door_dashboard(statuses: list[dict[str, Any]]) -> str:
+    if not statuses:
+        return '<p class="empty-list">Ingen dørdata akkurat nå.</p>'
+    newest = sorted(
+        statuses,
+        key=lambda item: item.get("timestamp") if isinstance(item.get("timestamp"), datetime) else datetime.min,
+        reverse=True,
+    )[:4]
+    cards = []
+    for item in newest:
+        cards.append(
+            f"""
+            <article class="door-mini-card is-{escape(str(item.get("state") or "unknown"))}">
+                <strong>{escape(str(item.get("title") or ""))}</strong>
+                <span>{escape(str(item.get("state_label") or "Ukjent"))}</span>
+                <small>{escape(str(item.get("age_label") or "-"))}</small>
+            </article>
+            """
+        )
+    return f'<div class="door-mini-grid">{"".join(cards)}</div>'
+
+
+def render_other_door_overview(statuses: list[dict[str, Any]]) -> str:
+    if not statuses:
+        return '<section class="section-block"><p class="empty-list">Ingen dørdata akkurat nå.</p></section>'
+    cards = []
+    for item in statuses:
+        state = str(item.get("state") or "unknown")
+        title = str(item.get("title") or item.get("device_key") or "Dør")
+        state_label = str(item.get("state_label") or "Ukjent")
+        last_changed = str(item.get("last_changed") or "-")
+        age_label = str(item.get("age_label") or "-")
+        href = f"/dorer/{escape(str(item.get('device_key') or ''))}"
+        cards.append(
+            f"""
+            <a class="other-door-card is-{escape(state)}" href="{href}">
+                <div>
+                    <span>Status</span>
+                    <strong>{escape(title)}</strong>
+                </div>
+                <em>{escape(state_label)}</em>
+                <small>Sist endret {escape(last_changed)} · {escape(age_label)}</small>
+            </a>
+            """
+        )
+    return f'<section class="other-door-grid">{"".join(cards)}</section>'
+
+
+def render_door_event_list(rows: list[dict[str, Any]], title: str = "Siste hendelser") -> str:
+    if not rows:
+        content = '<p class="empty-list">Ingen statusendringer registrert.</p>'
+    else:
+        items = []
+        now = local_now()
+        for row in rows:
+            state = door_state_info(row)
+            timestamp = row.get("timestamp")
+            battery = row.get("battery_level")
+            detail_parts = [relative_time_label(timestamp, now)]
+            if battery is not None:
+                detail_parts.append(f"batteri {float(battery):.0f}%")
+            source = str(row.get("source") or "").strip()
+            if source:
+                detail_parts.append(source)
+            items.append(
+                f"""
+                <li class="door-event-row is-{escape(state['state'])}">
+                    <time>{escape(display_stamp(timestamp))}</time>
+                    <strong>{escape(state["label"])}</strong>
+                    <small>{escape(" · ".join(detail_parts))}</small>
+                </li>
+                """
+            )
+        content = "".join(items)
+    return f'<section class="section-block detail-list door-event-list"><h2>{escape(title)}</h2><ul>{content}</ul></section>'
 
 
 def render_revenue_week_chart(week_start: date, rows: list[dict[str, Any]]) -> str:
@@ -2345,6 +2632,13 @@ METRIC_ICONS = {
   <path d="M13 18.8h.01"></path>
 </svg>
 """,
+    "door": """
+<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M7 21V4.5a1.7 1.7 0 0 1 1.7-1.7h7.6A1.7 1.7 0 0 1 18 4.5V21"></path>
+  <path d="M5 21h15"></path>
+  <path d="M14.3 12h.01"></path>
+</svg>
+""",
 }
 
 
@@ -2375,7 +2669,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260628-mobile-parking-vehicles">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-other-doors">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -2408,7 +2702,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260628-mobile-parking-vehicles">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-other-doors">
 </head>
 <body>
   <header class="topbar">
@@ -2506,6 +2800,14 @@ DASHBOARD_HTML = """<!doctype html>
       <div class="state-grid">{{ fan_cards }}</div>
       <small class="card-time">Oppdatert {{ temp_time }}</small>
     </a>
+
+    <a class="section-block card-link other-doors-block" href="/dorer">
+      <div class="section-title-row">
+        <h2>ANDRE DØRER</h2>
+        <span class="door-summary-pill">{{ other_door_summary }}</span>
+      </div>
+      {{ other_door_cards }}
+    </a>
   </main>
 </body>
 </html>"""
@@ -2518,7 +2820,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260628-mobile-parking-vehicles">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-other-doors">
 </head>
 <body>
   <header class="topbar">
