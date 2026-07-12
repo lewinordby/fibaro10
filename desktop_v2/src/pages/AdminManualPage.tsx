@@ -148,10 +148,28 @@ function renderChapter(chapter: AdminManualChapter) {
     );
   }
 
+  if (chapter.menuGroups?.length) {
+    return (
+      <ChapterFrame chapter={chapter}>
+        <TextGrid className="manual-menu-grid" items={chapter.menuGroups} linkable />
+        {chapter.note ? <p className="manual-note">{chapter.note}</p> : null}
+      </ChapterFrame>
+    );
+  }
+
   if (chapter.dataSources?.length) {
     return (
       <ChapterFrame chapter={chapter}>
         <TextGrid className="manual-data-grid" items={chapter.dataSources} />
+        {chapter.note ? <p className="manual-note">{chapter.note}</p> : null}
+      </ChapterFrame>
+    );
+  }
+
+  if (chapter.checklists?.length) {
+    return (
+      <ChapterFrame chapter={chapter}>
+        <TextGrid className="manual-checklist-grid" items={chapter.checklists} linkable />
         {chapter.note ? <p className="manual-note">{chapter.note}</p> : null}
       </ChapterFrame>
     );

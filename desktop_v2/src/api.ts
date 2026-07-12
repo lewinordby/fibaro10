@@ -736,9 +736,11 @@ export type AdminManualChapter = {
   principles?: AdminManualTextItem[];
   startLinks?: AdminManualLink[];
   flow?: AdminManualTextItem[];
+  menuGroups?: AdminManualTextItem[];
   areas?: AdminManualArea[];
   subapps?: AdminManualTextItem[];
   dataSources?: AdminManualTextItem[];
+  checklists?: AdminManualTextItem[];
   troubleshooting?: AdminManualTextItem[];
   note?: string;
 };

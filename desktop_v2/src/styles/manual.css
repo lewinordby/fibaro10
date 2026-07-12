@@ -379,6 +379,8 @@
 
 .manual-subapps,
 .manual-data-grid,
+.manual-menu-grid,
+.manual-checklist-grid,
 .manual-troubleshooting {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -387,6 +389,8 @@
 
 .manual-subapps div,
 .manual-data-grid div,
+.manual-menu-grid a,
+.manual-checklist-grid a,
 .manual-troubleshooting a {
   min-width: 0;
   padding: 11px 12px;
@@ -398,6 +402,8 @@
   box-shadow: var(--shadow-xs), inset 0 1px 0 var(--panel-inset-highlight);
 }
 
+.manual-menu-grid a:hover,
+.manual-checklist-grid a:hover,
 .manual-troubleshooting a:hover {
   border-color: var(--panel-border-strong);
 }
@@ -406,6 +412,10 @@
 .manual-subapps span,
 .manual-data-grid strong,
 .manual-data-grid span,
+.manual-menu-grid strong,
+.manual-menu-grid span,
+.manual-checklist-grid strong,
+.manual-checklist-grid span,
 .manual-troubleshooting strong,
 .manual-troubleshooting span {
   display: block;
@@ -413,6 +423,8 @@
 
 .manual-subapps strong,
 .manual-data-grid strong,
+.manual-menu-grid strong,
+.manual-checklist-grid strong,
 .manual-troubleshooting strong {
   color: var(--ink);
   font-size: 13px;
@@ -421,11 +433,27 @@
 
 .manual-subapps span,
 .manual-data-grid span,
+.manual-menu-grid span,
+.manual-checklist-grid span,
 .manual-troubleshooting span {
   margin-top: 5px;
   color: var(--text-label);
   font-size: 12px;
   line-height: 1.42;
+}
+
+.manual-menu-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.manual-menu-grid a {
+  border-left: 3px solid color-mix(in srgb, var(--active-module-color) 34%, var(--border-panel));
+}
+
+.manual-checklist-grid a {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--active-module-color) 4%, transparent), transparent),
+    var(--panel-surface);
 }
 
 .manual-note {
@@ -465,6 +493,10 @@
   }
 
   .manual-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manual-menu-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

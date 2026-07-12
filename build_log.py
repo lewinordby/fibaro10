@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1527")
+APP_BUILD = os.getenv("APP_BUILD", "1528")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1528",
+        "date": "12.07.2026",
+        "headline": "Finjustert webmanual",
+        "title": "Utvider manualen med menykart, rutiner og strammere leseflyt",
+        "description": (
+            "Build 1528 finjusterer Admin -> Manual. Manualen får et eget menykart som forklarer alle hovedmenyer "
+            "og viktige undersider, et eget kapittel for daglige, ukentlige og månedlige kontrollrutiner, og CSS "
+            "som gjør de nye delene mer lesbare som oppslagsverk."
+        ),
+        "applications": [
+            "main.py: utvider /api/admin/manual med kapitlene Menyvalg og Rutiner og kontroll.",
+            "desktop_v2/src/api.ts: legger typer for menuGroups og checklists i manualresponsen.",
+            "desktop_v2/src/pages/AdminManualPage.tsx: renderer menykart og sjekklister som klikkbare manualseksjoner.",
+            "desktop_v2/src/styles/manual.css: legger egne grid-regler for menykart og rutiner.",
+            "docs/kort-brukermanual.md: oppdaterer tekstversjonen med henvisning til nytt menykart og rutiner.",
+            "build_log.py: dokumenterer build 1528 og setter APP_BUILD til 1528.",
+        ],
+        "request": "finjuster alt",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Manualen forklarer nå alle hovedmenyene, inkludert hvilke undersider som ligger under hvert fagområde.",
+            "Rutiner og kontroll er lagt inn som egen del for daglig økonomi, parkering, soling, datakilder, uke, måned, vedlikehold og buildlogg.",
+            "Innholdslisten og kapittelnummereringen er oppdatert til ni kapitler.",
+            "Frontend-rendereren støtter nå egne manualfelter for menykart og sjekklister.",
+            "CSS er finjustert slik at menykartet kan leses raskt i tre kolonner på brede skjermer.",
+        ],
+    },
     {
         "version": "1",
         "build": "1527",
