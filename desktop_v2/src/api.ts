@@ -704,6 +704,10 @@ export type DoorSunroomOverviewResponse = {
     warnings: number;
     alerts: number;
     sessions: number;
+    dayActivityRooms?: number;
+    dayEvents?: number;
+    daySessions?: number;
+    dayPowerEvents?: number;
     doorMatches: number;
     sessionsWithoutDoor: number;
     energyConfirmed: number;
@@ -1726,8 +1730,10 @@ export function fetchDoorSunroomRoomDetail(roomId: string): Promise<DoorSunroomR
   return apiGet<DoorSunroomRoomDetailResponse>(`/api/hc3/doors/sunroom-sessions/${encodeURIComponent(roomId)}`);
 }
 
-export function fetchDoorSunroomOverview(days = 2): Promise<DoorSunroomOverviewResponse> {
-  return apiGet<DoorSunroomOverviewResponse>(`/api/hc3/doors/sunroom-overview?days=${encodeURIComponent(String(days))}`);
+export function fetchDoorSunroomOverview(days = 2, day?: string): Promise<DoorSunroomOverviewResponse> {
+  const params = new URLSearchParams({ days: String(days) });
+  if (day) params.set("day", day);
+  return apiGet<DoorSunroomOverviewResponse>(`/api/hc3/doors/sunroom-overview?${params.toString()}`);
 }
 
 export function fetchBuildLog(): Promise<BuildLogResponse> {

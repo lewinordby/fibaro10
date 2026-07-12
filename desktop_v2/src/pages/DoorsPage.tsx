@@ -9,10 +9,12 @@ import {
   ReloadOutlined,
   UnlockOutlined,
 } from "@ant-design/icons";
-import { Button, Card, Space, Table, Tag, Typography } from "antd";
+import { Button, Card, DatePicker, Space, Table, Tabs, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { ReactNode } from "react";
 import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
+import dayjs from "dayjs";
+import "dayjs/locale/nb";
 
 import {
   fetchDoorSunroomOverview,
@@ -36,9 +38,12 @@ import {
 } from "../api";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PageHeader } from "../components/PageHeader";
+import { PeriodNavigator } from "../components/PeriodNavigator";
 import { useApiQuery } from "../hooks";
 import { queryKeys } from "../queryKeys";
 import "../styles/doors.css";
+
+dayjs.locale("nb");
 
 type DoorStateRow = Pick<DoorStatusItem | DoorEventItem | DoorPeriodItem, "state" | "stateLabel">;
 
@@ -1499,6 +1504,11 @@ function roomControlDateLabel(value?: string | null) {
   return date.toLocaleDateString("nb-NO", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+function normalizedDayParam(value?: string | null) {
+  const parsed = value ? dayjs(value) : dayjs();
+  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD");
+}
+
 function roomControlEventTone(kind?: string | null, fallback?: string | null) {
   if (fallback) return fallback;
   if (!kind) return "neutral";
@@ -1702,28 +1712,114 @@ function DoorSunroomDailyControlBoard({
   data,
   loading,
   error,
+  selectedDay,
+  selectedRoomId,
+  onDayChange,
+  onRoomChange,
 }: {
   data?: DoorSunroomOverviewResponse | null;
   loading: boolean;
   error: unknown;
+  selectedDay: string;
+  selectedRoomId: string;
+  onDayChange: (day: string) => void;
+  onRoomChange: (roomId: string) => void;
 }) {
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
   const rooms = [...data.rooms].sort((a, b) => a.displayRoomNumber - b.displayRoomNumber);
+  const selectedDayValue = dayjs(selectedDay);
+  const today = dayjs().startOf("day");
+  const activeRoom =
+    rooms.find((room) => (room.roomId || room.deviceKey) === selectedRoomId) ||
+    rooms.find((room) => (room.dayEvents || []).length > 0) ||
+    rooms[0];
+  const activeKey = activeRoom?.roomId || activeRoom?.deviceKey || "";
+  const dayStats = {
+    roomsWithActivity: data.summary.dayActivityRooms ?? rooms.filter((room) => (room.dayEvents || []).length > 0).length,
+    events: data.summary.dayEvents ?? rooms.reduce((sum, room) => sum + (room.dayEvents || []).length, 0),
+    sessions: data.summary.daySessions ?? rooms.reduce((sum, room) => sum + (room.dayEvents || []).filter((event) => event.kind === "sun_start").length, 0),
+    powerEvents:
+      data.summary.dayPowerEvents ??
+      rooms.reduce((sum, room) => sum + (room.dayEvents || []).filter((event) => event.kind.startsWith("power_")).length, 0),
+  };
+
+  const tabItems = rooms.map((room) => {
+    const roomKey = room.roomId || room.deviceKey;
+    const activityCount = room.dayEvents?.length || 0;
+    return {
+      key: roomKey,
+      label: (
+        <span className={`door-room-day-tab-label ${activityCount ? "has-activity" : ""}`}>
+          Rom {room.displayRoomNumber}
+          {activityCount ? <small>{activityCount}</small> : null}
+        </span>
+      ),
+      children: <DoorRoomDailyCard room={room} generatedAt={data.generatedAt} />,
+    };
+  });
+
+  const changeDay = (nextDay: dayjs.Dayjs) => {
+    onDayChange(nextDay.format("YYYY-MM-DD"));
+  };
+
   return (
     <div className="door-room-daily-board">
       <section className="door-room-daily-date">
         <div>
           <span>Dato</span>
-          <strong>{roomControlDateLabel(data.dayDate || data.dayStart || data.generatedAt)}</strong>
+          <strong>{roomControlDateLabel(data.dayDate || selectedDay)}</strong>
         </div>
-        <small>Kortene viser siste soltime/periode. Hendelsestabellen viser hele dagen.</small>
+        <PeriodNavigator
+          previousLabel="Forrige dag"
+          nextLabel="Neste dag"
+          canNext={selectedDayValue.startOf("day").isBefore(today)}
+          onPrevious={() => changeDay(selectedDayValue.subtract(1, "day"))}
+          onNext={() => changeDay(selectedDayValue.add(1, "day"))}
+          middle={
+            <DatePicker
+              allowClear={false}
+              format="DD.MM.YYYY"
+              size="small"
+              value={selectedDayValue}
+              onChange={(value) => {
+                if (value) changeDay(value);
+              }}
+            />
+          }
+          extra={
+            <Button size="small" onClick={() => changeDay(dayjs())}>
+              I dag
+            </Button>
+          }
+        />
       </section>
-      <div className="door-room-daily-grid">
-        {rooms.map((room) => (
-          <DoorRoomDailyCard room={room} generatedAt={data.generatedAt} key={room.deviceKey} />
-        ))}
+
+      <div className="door-room-daily-summary">
+        <div>
+          <span>Rom med aktivitet</span>
+          <strong>{dayStats.roomsWithActivity}/{rooms.length}</strong>
+        </div>
+        <div>
+          <span>Soltimer</span>
+          <strong>{dayStats.sessions}</strong>
+        </div>
+        <div>
+          <span>Hendelser</span>
+          <strong>{dayStats.events}</strong>
+        </div>
+        <div>
+          <span>Effektmarkører</span>
+          <strong>{dayStats.powerEvents}</strong>
+        </div>
       </div>
+
+      <Tabs
+        className="door-room-day-tabs"
+        activeKey={activeKey}
+        items={tabItems}
+        onChange={onRoomChange}
+      />
     </div>
   );
 }
@@ -1732,12 +1828,30 @@ function DoorSunroomPrecisionControlBoard({
   data,
   loading,
   error,
+  selectedDay,
+  selectedRoomId,
+  onDayChange,
+  onRoomChange,
 }: {
   data?: DoorSunroomOverviewResponse | null;
   loading: boolean;
   error: unknown;
+  selectedDay: string;
+  selectedRoomId: string;
+  onDayChange: (day: string) => void;
+  onRoomChange: (roomId: string) => void;
 }) {
-  return <DoorSunroomDailyControlBoard data={data} loading={loading} error={error} />;
+  return (
+    <DoorSunroomDailyControlBoard
+      data={data}
+      loading={loading}
+      error={error}
+      selectedDay={selectedDay}
+      selectedRoomId={selectedRoomId}
+      onDayChange={onDayChange}
+      onRoomChange={onRoomChange}
+    />
+  );
 }
 
 function SunroomSection({ title, rooms }: { title: string; rooms: DoorSunroomSessionItem[] }) {
@@ -1940,9 +2054,12 @@ export default function DoorsPage() {
   });
   const requestedControlDays = Number(searchParams.get("days") || "2");
   const controlDays = [1, 2, 7, 14].includes(requestedControlDays) ? requestedControlDays : 2;
+  const selectedControlDay = normalizedDayParam(searchParams.get("day"));
+  const selectedControlRoomId = view === "romkontroll-ny2" ? searchParams.get("room") || "" : "";
+  const overviewDay = view === "romkontroll-ny2" ? selectedControlDay : "";
   const sunroomOverviewQuery = useApiQuery(
-    queryKeys.doorSunroomOverview(controlDays),
-    () => fetchDoorSunroomOverview(controlDays),
+    queryKeys.doorSunroomOverview(controlDays, overviewDay),
+    () => fetchDoorSunroomOverview(controlDays, overviewDay || undefined),
     {
       enabled: view === "romkontroll" || view === "romkontroll-ny" || view === "romkontroll-ny2",
       refetchInterval: 30_000,
@@ -2067,6 +2184,18 @@ export default function DoorsPage() {
           data={sunroomOverviewQuery.data}
           loading={sunroomOverviewQuery.loading}
           error={sunroomOverviewQuery.error}
+          selectedDay={selectedControlDay}
+          selectedRoomId={selectedControlRoomId}
+          onDayChange={(nextDay: string) => {
+            const next = new URLSearchParams(searchParams);
+            next.set("day", nextDay);
+            setSearchParams(next, { replace: true });
+          }}
+          onRoomChange={(roomId: string) => {
+            const next = new URLSearchParams(searchParams);
+            next.set("room", roomId);
+            setSearchParams(next, { replace: true });
+          }}
         />
       ) : null}
 

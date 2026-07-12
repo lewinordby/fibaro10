@@ -2407,11 +2407,11 @@
 }
 
 .door-room-daily-date {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--domain-building) 7%, transparent), transparent 42%),
     var(--surface);
@@ -2441,15 +2441,112 @@
 
 .door-room-daily-date strong {
   color: var(--ink);
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 830;
   text-transform: capitalize;
 }
 
-.door-room-daily-grid {
+.door-room-daily-summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(560px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.door-room-daily-summary > div {
+  --daily-summary-tone: var(--domain-building);
+  min-width: 0;
+  padding: 9px 10px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--daily-summary-tone) 6%, var(--surface)), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--daily-summary-tone) 13%, var(--line-soft));
+  border-left: 4px solid var(--daily-summary-tone);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 14px var(--shadow-ink-faint-color);
+}
+
+.door-room-daily-summary > div:nth-child(2) {
+  --daily-summary-tone: var(--sun);
+}
+
+.door-room-daily-summary > div:nth-child(4) {
+  --daily-summary-tone: var(--domain-energy);
+}
+
+.door-room-daily-summary span,
+.door-room-daily-summary strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-room-daily-summary span {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 820;
+  letter-spacing: .018em;
+  text-transform: uppercase;
+}
+
+.door-room-daily-summary strong {
+  margin-top: 2px;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 840;
+  font-variant-numeric: tabular-nums;
+}
+
+.door-room-day-tabs {
+  min-width: 0;
+  padding: 10px 12px 12px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--domain-building) 10%, var(--line-soft));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.door-room-day-tabs .ant-tabs-nav {
+  margin-bottom: 10px;
+}
+
+.door-room-day-tabs .ant-tabs-tab {
+  padding: 7px 10px;
+}
+
+.door-room-day-tab-label {
+  position: relative;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 790;
+}
+
+.door-room-day-tab-label.has-activity {
+  color: var(--ink);
+}
+
+.door-room-day-tab-label.has-activity::before {
+  width: 7px;
+  height: 7px;
+  background: var(--sun);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sun) 18%, transparent);
+  content: "";
+}
+
+.door-room-day-tab-label small {
+  min-width: 18px;
+  padding: 2px 5px;
+  color: color-mix(in srgb, var(--sun) 72%, var(--ink));
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
+  background: color-mix(in srgb, var(--sun) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--sun) 20%, var(--line-soft));
+  border-radius: var(--radius-pill);
 }
 
 .door-room-daily-card {
@@ -2768,8 +2865,7 @@
 
 @media (max-width: 1380px) {
   .door-room-control-grid,
-  .door-room-visual-grid,
-  .door-room-daily-grid {
+  .door-room-visual-grid {
     grid-template-columns: repeat(2, minmax(430px, 1fr));
   }
 
@@ -2784,7 +2880,7 @@
   .door-room-control-command,
   .door-room-control-grid,
   .door-room-visual-grid,
-  .door-room-daily-grid {
+  .door-room-daily-date {
     grid-template-columns: 1fr;
   }
 
@@ -2812,7 +2908,7 @@
 
   .door-room-control-grid,
   .door-room-visual-grid,
-  .door-room-daily-grid,
+  .door-room-daily-summary,
   .door-room-control-summary,
   .door-room-control-now,
   .door-room-control-timeline,
@@ -2832,6 +2928,5 @@
   .door-room-daily-date,
   .door-room-daily-head {
     align-items: flex-start;
-    flex-direction: column;
   }
 }

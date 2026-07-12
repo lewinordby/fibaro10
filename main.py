@@ -11393,13 +11393,20 @@ async def sunroom_room_detail_payload(session, room_id: str, days: int = 14, lim
     }
 
 
-async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any]:
+async def sunroom_room_overview_payload(session, days: int = 2, day: Optional[str] = None) -> Dict[str, Any]:
     now = local_now_naive()
     days = max(1, min(days, 30))
-    day_start = datetime.combine(now.date(), time.min)
+    selected_day = parse_day(day) if day else now.date()
+    has_day_filter = bool(day)
+    day_start = datetime.combine(selected_day, time.min)
     day_end = day_start + timedelta(days=1)
     start_cutoff = now - timedelta(days=days)
-    raw_start_cutoff = min(start_cutoff, day_start - timedelta(hours=12))
+    raw_start_cutoff = day_start - timedelta(hours=12) if has_day_filter else min(start_cutoff, day_start - timedelta(hours=12))
+    raw_end = day_end + timedelta(hours=12) if has_day_filter else now + timedelta(hours=2)
+    session_start = day_start - timedelta(hours=2) if has_day_filter else start_cutoff - timedelta(hours=2)
+    session_end = day_end + timedelta(hours=2) if has_day_filter else now + timedelta(hours=2)
+    energy_start = day_start - timedelta(minutes=30) if has_day_filter else start_cutoff - timedelta(minutes=30)
+    energy_end = day_end + timedelta(hours=2) if has_day_filter else now + timedelta(hours=2)
     configs = [config for config in DOOR_SENSOR_CONFIG if config.get("group_key") == "solrom"]
     configs.sort(key=lambda config: int(config.get("sort_order") or 0))
     device_ids = [int(config["device_id"]) for config in configs if config.get("device_id") is not None]
@@ -11414,6 +11421,7 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
                 select(DoorEvent)
                 .where(DoorEvent.device_id.in_(device_ids))
                 .where(DoorEvent.timestamp >= raw_start_cutoff)
+                .where(DoorEvent.timestamp <= raw_end)
                 .order_by(DoorEvent.timestamp.desc(), DoorEvent.id.desc())
                 .limit(max(len(device_ids) * 500, 4000))
             )
@@ -11425,6 +11433,7 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
                 select(DoorEvent)
                 .where(DoorEvent.device_id == entrance_device_id)
                 .where(DoorEvent.timestamp >= raw_start_cutoff)
+                .where(DoorEvent.timestamp <= raw_end)
                 .order_by(DoorEvent.timestamp.asc(), DoorEvent.id.asc())
                 .limit(2000)
             )
@@ -11435,8 +11444,8 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
         await session.execute(
             select(Sun2TanningSession)
             .where(Sun2TanningSession.room_id.in_(room_ids))
-            .where(Sun2TanningSession.started_at >= start_cutoff - timedelta(hours=2))
-            .where(Sun2TanningSession.started_at <= now + timedelta(hours=2))
+            .where(Sun2TanningSession.started_at >= session_start)
+            .where(Sun2TanningSession.started_at <= session_end)
             .order_by(Sun2TanningSession.started_at.desc(), Sun2TanningSession.id.desc())
         )
     ).scalars().all()
@@ -11447,8 +11456,8 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
                 EnergyFibaroSample.bucket_start.label("bucket_start"),
                 EnergyFibaroSample.differanse_beregnet_w.label("differanse_beregnet_w"),
             )
-            .where(EnergyFibaroSample.bucket_start >= start_cutoff - timedelta(minutes=30))
-            .where(EnergyFibaroSample.bucket_start <= now + timedelta(hours=2))
+            .where(EnergyFibaroSample.bucket_start >= energy_start)
+            .where(EnergyFibaroSample.bucket_start <= energy_end)
             .order_by(EnergyFibaroSample.bucket_start.asc())
         )
     ).mappings().all()
@@ -11471,7 +11480,12 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
     for period in all_closed_periods:
         closed_at = period.get("closedAt")
         opened_at = period.get("openedAt")
-        if opened_at and opened_at < start_cutoff and (not closed_at or closed_at < start_cutoff):
+        if has_day_filter:
+            if closed_at and closed_at >= day_end:
+                continue
+            if opened_at and opened_at < day_start and (not closed_at or closed_at < day_start):
+                continue
+        elif opened_at and opened_at < start_cutoff and (not closed_at or closed_at < start_cutoff):
             continue
         periods_by_device.setdefault(door_period_device_key(period), []).append(period)
 
@@ -11533,7 +11547,8 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
                 "hasDoorMatch": row.id is not None and int(row.id) in matched_ids,
             }
             for row in room_sessions
-            if normalize_local_naive(row.started_at) and normalize_local_naive(row.started_at) >= start_cutoff
+            if (start_at := normalize_local_naive(row.started_at))
+            and ((day_start <= start_at < day_end) if has_day_filter else start_at >= start_cutoff)
         ][:8]
 
         sessions_without_door = [item for item in recent_sessions if not item.get("hasDoorMatch")]
@@ -11603,6 +11618,16 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
             "warnings": len(warning_rooms),
             "alerts": len(alert_rooms),
             "sessions": len([row for row in session_rows if normalize_local_naive(row.started_at) >= start_cutoff]),
+            "dayActivityRooms": len([room for room in rooms if room.get("dayEvents")]),
+            "dayEvents": sum(len(room.get("dayEvents") or []) for room in rooms),
+            "daySessions": sum(
+                len([event for event in room.get("dayEvents") or [] if event.get("kind") == "sun_start"])
+                for room in rooms
+            ),
+            "dayPowerEvents": sum(
+                len([event for event in room.get("dayEvents") or [] if str(event.get("kind") or "").startswith("power_")])
+                for room in rooms
+            ),
             "doorMatches": len(all_matched_ids),
             "sessionsWithoutDoor": sessions_without_door_count,
             "energyConfirmed": energy_confirmed_count,
@@ -32959,9 +32984,9 @@ async def api_hc3_doors_sunroom_sessions():
 
 
 @app.get("/api/hc3/doors/sunroom-overview")
-async def api_hc3_doors_sunroom_overview(days: int = Query(2, ge=1, le=30)):
+async def api_hc3_doors_sunroom_overview(days: int = Query(2, ge=1, le=30), day: Optional[str] = Query(None)):
     async with async_session() as session:
-        return await sunroom_room_overview_payload(session, days=days)
+        return await sunroom_room_overview_payload(session, days=days, day=day)
 
 
 @app.get("/api/hc3/doors/sunroom-sessions/{room_id}")

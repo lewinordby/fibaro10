@@ -5,8 +5,45 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1535")
+APP_BUILD = os.getenv("APP_BUILD", "1536")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1536",
+        "date": "12.07.2026",
+        "headline": "Romkontroll med dato og romfaner",
+        "title": "Gjør Dører / Romkontroll - ny2 til tydelig dagsflate",
+        "description": (
+            "Build 1536 bygger Romkontroll-ny2 om fra romkort-grid til en dagsvisning med tydelig dato øverst, "
+            "felles dagsnøkkeltall, datovelger og faner for alle solrom. Rom som har aktivitet på valgt dato "
+            "markeres direkte i fanelinjen."
+        ),
+        "applications": [
+            "main.py: lar sunroom-overview ta imot day=YYYY-MM-DD og returnerer dagshendelser for valgt dato.",
+            "desktop_v2/src/api.ts og queryKeys.ts: legger valgt dato inn i API-kall og cache-nøkkel.",
+            "desktop_v2/src/pages/DoorsPage.tsx: legger dagvelger, felles dagsinfo og romfaner på Romkontroll - ny2.",
+            "desktop_v2/src/styles/doors.css: styler toppfelt, dagsnøkkeltall, aktivitetsmerker og fanebasert romkontroll.",
+            "desktop_v2/src/styles/dark-theme.css: legger mørkt-tema-støtte for den nye dagsflaten.",
+            "desktop_v2/scripts/audit-bundle.mjs: justerer total gzip-grense fra 783 kB til 784 kB for kalender/fanevisning.",
+            "docs/*.md: oppdaterer kort beskrivelse av Romkontroll - ny2.",
+            "build_log.py: dokumenterer build 1536 og setter APP_BUILD til 1536.",
+        ],
+        "request": (
+            "jeg synes at datoen må komme tydelig frem som oversikt øverst på siden sammen med noe info som skal være felles "
+            "for hele dagen og en datovelger på samme måte som før med forrige dag osv og kalender. så skal alle solrommene "
+            "være faner på siden med ca samme oppsett som du nå har laget i Romkontroll-ny2. De rommene som har noe aktivitet "
+            "den dagen som er valgt skal være merket på fane oversikten"
+        ),
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Dato vises tydelig øverst sammen med Forrige dag, Neste dag, I dag og kalender.",
+            "Felles dagsinfo viser rom med aktivitet, soltimer, hendelser og effektmarkører.",
+            "Alle solrom vises som faner i stedet for som mange kort samtidig.",
+            "Faner med aktivitet på valgt dato markeres med punkt og antall hendelser.",
+            "Valgt dato og valgt rom ligger i URL-parametre, så refresh beholder visningen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1535",
