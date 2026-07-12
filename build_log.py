@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1537")
+APP_BUILD = os.getenv("APP_BUILD", "1538")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1538",
+        "date": "12.07.2026",
+        "headline": "Retry for dørlogger",
+        "title": "Gjør HC3 dørlogging mer robust ved midlertidig Fibaro10-nedetid",
+        "description": (
+            "Build 1538 legger retry inn i HC3 Lua-loggerne for dørhendelser. Hvis Fibaro10 restarter eller "
+            "ikke svarer akkurat når en dør åpnes eller lukkes, prøver loggeren på nytt før hendelsen gis opp."
+        ),
+        "applications": [
+            "scripts/upsert_hc3_single_door_logger_scenes.py: legger fem forsøk med økende ventetid inn i enkeltdør-loggerne.",
+            "scripts/hc3_door_event_logger.lua: legger samme retry-logikk inn i samleloggeren.",
+            "build_log.py: dokumenterer build 1538 og setter APP_BUILD til 1538.",
+            "docs/kort-brukermanual.md: oppdaterer buildnummer.",
+        ],
+        "request": "det er noe rart - det står at inngang er åpen men når jeg går inn på hc3 så står det riktig lukket.. hva skjer?",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Inngang ble kontrollert mot HC3: HC3 viste lukket, mens Fibaro10 hadde siste mottatte hendelse som åpen.",
+            "Fibaro10 ble korrigert med en lukket sync-hendelse basert på direkte HC3-status.",
+            "Lua-loggerne forsøker nå inntil fem ganger ved HTTP-feil eller ikke-2xx-svar fra Fibaro10.",
+            "Dette reduserer risikoen for hengende dørstatus ved deploy eller kortvarig nettverksfeil.",
+        ],
+    },
     {
         "version": "1",
         "build": "1537",

@@ -32,6 +32,8 @@
 local LOG_TAG = "DOOR-LOGGER"
 local API_URL = "http://192.168.20.218:8110/api/hc3/door-events"
 local SOURCE = "HC3 DOOR LOGGER"
+local MAX_POST_ATTEMPTS = 5
+local RETRY_BASE_DELAY_MS = 5000
 
 local DEVICES = {
   [459] = { key = "door_solrom_01", name = "98.0 Rom 1" },
@@ -126,7 +128,24 @@ local function getBatteryLevel(deviceId)
   return nil
 end
 
-local function postPayload(payload, done)
+local postPayload
+
+local function retryPost(payload, done, attempt, reason)
+  if attempt >= MAX_POST_ATTEMPTS then
+    warn("Gir opp sending etter " .. tostring(attempt) .. " forsok: " .. tostring(reason))
+    if done then done() end
+    return
+  end
+  local nextAttempt = attempt + 1
+  local delayMs = RETRY_BASE_DELAY_MS * attempt
+  warn("Sender pa nytt om " .. tostring(delayMs) .. " ms etter feil: " .. tostring(reason))
+  fibaro.setTimeout(delayMs, function()
+    postPayload(payload, done, nextAttempt)
+  end)
+end
+
+postPayload = function(payload, done, attempt)
+  attempt = tonumber(attempt) or 1
   local http = net.HTTPClient()
   http:request(API_URL, {
     options = {
@@ -138,16 +157,16 @@ local function postPayload(payload, done)
       timeout = 8000
     },
     success = function(response)
-      if tonumber(response.status) >= 200 and tonumber(response.status) < 300 then
+      local status = tonumber(response.status) or 0
+      if status >= 200 and status < 300 then
         log("Sent OK " .. tostring(response.status) .. ": " .. tostring(payload.device_id) .. " " .. tostring(payload.action))
+        if done then done() end
       else
-        warn("Fibaro10 svarte " .. tostring(response.status) .. ": " .. tostring(response.data))
+        retryPost(payload, done, attempt, "Fibaro10 svarte " .. tostring(response.status) .. ": " .. tostring(response.data))
       end
-      if done then done() end
     end,
     error = function(err)
-      warn("Feil ved sending: " .. tostring(err))
-      if done then done() end
+      retryPost(payload, done, attempt, "Feil ved sending: " .. tostring(err))
     end
   })
 end
