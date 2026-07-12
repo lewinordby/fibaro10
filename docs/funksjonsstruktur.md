@@ -112,6 +112,15 @@ Regel: Dagslogg er visuell tidsserie. Innstillinger er styringsregler. Hendelser
 
 Solrom bruker motsatt semantikk av byggdører: åpen dør betyr normalt ledig, lukket dør betyr normalt i bruk.
 
+### Solrom-2
+
+- `Nå`: ny operativ solromflate med prioritert oppmerksomhetsliste, avdelingsvis romstatus, forventet ut og kompakt tidslinje.
+- `Dagskontroll`: dagsmatrise for alle rom med dørperioder, soltid, inngang og effektmarkører på samme linje.
+- `Avvik`: samler kritiske rom, varsler, manglende dør/Sun2-match og usikker effekt.
+- `Romdetalj`: skjult/klikkbar rute fra romkort med romliste, situasjon, tidslinje, hendelser og perioder.
+
+Solrom-2 er en ny vurderingsflate for å finne beste endelige solromdesign. Eksisterende `Solrom`, `Dører` og `Dører2` beholdes for sammenligning.
+
 ### Dører2
 
 - `Situasjon`: ny operativ flate som sorterer solrom etter varsel og viser romkart med dør, Sun2-time og effekt i samme tidslinje.

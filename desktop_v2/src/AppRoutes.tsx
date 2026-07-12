@@ -11,6 +11,7 @@ const OperationsPage = lazy(() => import("./pages/OperationsPage"));
 const DataSourceDetailPage = lazy(() => import("./pages/DataSourceDetailPage"));
 const Doors2Page = lazy(() => import("./pages/Doors2Page"));
 const DoorsPage = lazy(() => import("./pages/DoorsPage"));
+const Solroom2Page = lazy(() => import("./pages/Solroom2Page"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
 const MaintenanceVisitDetailPage = lazy(() => import("./pages/MaintenanceVisitDetailPage"));
@@ -84,6 +85,8 @@ export function AppRoutes() {
         <Route path="/lys/:view" element={<ModulePage module="lys" />} />
         <Route path="/solrom" element={<Navigate to={modulePath("solrom")} replace />} />
         <Route path="/solrom/:view" element={<DoorsPage scope="solrom" />} />
+        <Route path="/solrom-2" element={<Navigate to={modulePath("solrom-2")} replace />} />
+        <Route path="/solrom-2/:view" element={<Solroom2Page />} />
         <Route path="/dorer2" element={<Navigate to={modulePath("dorer2")} replace />} />
         <Route path="/dorer2/:view" element={<Doors2Page />} />
         <Route path="/dorer" element={<Navigate to={modulePath("dorer")} replace />} />

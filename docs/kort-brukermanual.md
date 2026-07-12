@@ -1,6 +1,6 @@
 # Kort brukermanual for Lilletorget drift
 
-Oppdatert 12.07.2026, build 1545.
+Oppdatert 12.07.2026, build 1546.
 
 Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen ligger nå som eget hovedmenyvalg `Manual`, med egne undersider for oversikt, daglig bruk, menyvalg, datagrunnlag, rutiner og feilsøking.
 
@@ -26,6 +26,7 @@ Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen lig
 | Ventilasjon | `/ventilasjon/dagslogg` | Temperatur, fuktighet, Yr, viftehendelser og ventilasjonsinnstillinger. |
 | Lys | `/lys/dagslogg` | Lux, skydekke, solhøyde, lysstatus, hendelser og styringsregler. |
 | Solrom | `/solrom/oversikt` | Nåstatus, forventet ut, varsler, romdetaljer og dagskontroll for solrom 1-12. |
+| Solrom-2 | `/solrom-2/oversikt` | Ny arbeidsflate for solrom med nåstatus, dagsmatrise, avvikskontroll og romdetalj. |
 | Dører2 | `/dorer2/oversikt` | Ny operativ situasjonsflate for solrom og byggdører med avvik først, romkart og detaljvisning. |
 | Dører | `/dorer/oversikt` | Byggdører, andre dører, åpne/lukke-historikk, rådata og synlige designvarianter for romkontroll. |
 | Vedlikehold | `/vedlikehold/besok` | Besøk på Lilletorget og oppgaver utført under hvert besøk. |

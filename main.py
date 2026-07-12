@@ -13540,6 +13540,15 @@ def admin_manual_payload() -> Dict[str, Any]:
             "canDo": ["åpne romdetaljer", "sjekke avvik etter avsluttet soltime", "kontrollere dør, soltime, inngang og effektmarkører samme dag"],
         },
         {
+            "title": "Solrom-2",
+            "marker": "S2",
+            "tone": "sun",
+            "path": "/solrom-2/oversikt",
+            "purpose": "Ny vurderingsflate for solrom 1-12 med nåstatus, dagsmatrise, avvikskontroll og romdetalj.",
+            "canSee": ["prioritert oppmerksomhetsliste", "romstatus per avdeling", "dagsmatrise med dør, Sun2-time, inngang og effekt", "avvik og romdetaljer"],
+            "canDo": ["åpne romdetaljer", "kontrollere valgt dato", "sammenligne mot eksisterende Solrom og Dører2"],
+        },
+        {
             "title": "Dører2",
             "marker": "D2",
             "tone": "building",
@@ -13658,6 +13667,7 @@ def admin_manual_payload() -> Dict[str, Any]:
                     {"title": "Ventilasjon", "path": "/ventilasjon/dagslogg", "text": "Dagslogg, temperatur/fukt, Yr-logg, hendelser og innstillinger for ventilasjon og avfukter."},
                     {"title": "Lys", "path": "/lys/dagslogg", "text": "Dagslogg, lux-logg, hendelser og innstillinger for lysregler, skydekke og solhøyde."},
                     {"title": "Solrom", "path": "/solrom/oversikt", "text": "Nåstatus og dagskontroll for solrom 1-12 med dør, Sun2-time, forventet ut, hendelser og effektmarkører."},
+                    {"title": "Solrom-2", "path": "/solrom-2/oversikt", "text": "Ny solromflate med nåstatus, dagsmatrise, avvikskontroll og romdetalj."},
                     {"title": "Dører2", "path": "/dorer2/oversikt", "text": "Ny situasjonsflate for solrom og byggdører med avvik først, romkart og detaljvisning."},
                     {"title": "Dører", "path": "/dorer/oversikt", "text": "Byggdører, andre dører, rådata og synlige romkontrollvarianter for sammenligning."},
                     {"title": "Vedlikehold", "path": "/vedlikehold/besok", "text": "Besøk og oppgaver på Lilletorget. Brukes for å koble faktisk tilstedeværelse og utført arbeid."},
@@ -14534,6 +14544,8 @@ async def api_sun2_session_set_primary_image(
 @app.get("/soling/{path:path}", response_class=HTMLResponse)
 @app.get("/solrom", response_class=HTMLResponse)
 @app.get("/solrom/{path:path}", response_class=HTMLResponse)
+@app.get("/solrom-2", response_class=HTMLResponse)
+@app.get("/solrom-2/{path:path}", response_class=HTMLResponse)
 @app.get("/koble", response_class=HTMLResponse)
 @app.get("/koble/{path:path}", response_class=HTMLResponse)
 @app.get("/energi", response_class=HTMLResponse)
@@ -18249,6 +18261,12 @@ def api_admin_manual_payload(import_rows: list[Dict[str, Any]], access_keys: lis
                     "path": "/solrom/oversikt",
                     "role": "Nåstatus, forventet ut, romdetaljer og dagskontroll for solrom 1-12.",
                     "recommended_action": "Brukes for romkontroll og varsel ved for lenge lukket/opptatt rom.",
+                },
+                {
+                    "area": "Solrom-2",
+                    "path": "/solrom-2/oversikt",
+                    "role": "Ny arbeidsflate for solrom med nåstatus, dagsmatrise, avvikskontroll og romdetalj.",
+                    "recommended_action": "Brukes for å vurdere beste endelige romkontrollflate mot Solrom og Dører2.",
                 },
                 {
                     "area": "Dører2",

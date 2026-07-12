@@ -1,0 +1,607 @@
+.solroom2-page {
+  --solroom2-sun: var(--domain-sun2);
+  --solroom2-free: #16a34a;
+  --solroom2-active: #2563eb;
+  --solroom2-warning: #d97706;
+  --solroom2-alert: #dc2626;
+  --solroom2-energy: #0f766e;
+  width: 100%;
+}
+
+.solroom2-daybar,
+.solroom2-panel-title,
+.solroom2-section-head,
+.solroom2-room-top,
+.solroom2-room-foot,
+.solroom2-day-facts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.solroom2-daybar,
+.solroom2-panel,
+.solroom2-room-hero,
+.solroom2-room-rail {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.solroom2-daybar {
+  padding: 10px 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--solroom2-sun) 5%, var(--surface)), var(--surface));
+}
+
+.solroom2-daybar span,
+.solroom2-panel-title span,
+.solroom2-section-head span,
+.solroom2-room-top span,
+.solroom2-room-foot,
+.solroom2-day-facts,
+.solroom2-room-core span,
+.solroom2-room-core small,
+.solroom2-rule-card span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.solroom2-daybar strong,
+.solroom2-panel-title strong,
+.solroom2-section-head strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.solroom2-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.solroom2-metric {
+  --tone-color: var(--solroom2-sun);
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--tone-color) 15%, var(--panel-border));
+  border-radius: 8px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 5%, var(--surface)), var(--surface));
+}
+
+.solroom2-metric span,
+.solroom2-metric small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.solroom2-metric strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  font-size: 21px;
+  line-height: 1.05;
+}
+
+.solroom2-overview-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.3fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.solroom2-panel {
+  padding: 12px;
+}
+
+.solroom2-attention,
+.solroom2-section-stack,
+.solroom2-attention-list,
+.solroom2-issue-list,
+.solroom2-event-list {
+  display: grid;
+  gap: 8px;
+}
+
+.solroom2-rule-card {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--solroom2-sun) 16%, var(--panel-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--solroom2-sun) 6%, var(--surface-muted));
+}
+
+.solroom2-room-section {
+  display: grid;
+  gap: 8px;
+}
+
+.solroom2-room-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.solroom2-room-tile,
+.solroom2-attention-item,
+.solroom2-issue-row,
+.solroom2-rail-item,
+.solroom2-day-row {
+  --tone-color: var(--solroom2-sun);
+  color: inherit;
+  text-decoration: none;
+}
+
+.solroom2-room-tile {
+  display: grid;
+  gap: 9px;
+  min-height: 196px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--tone-color) 18%, var(--panel-border));
+  border-left: 4px solid var(--tone-color);
+  border-radius: 8px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 6%, var(--surface)), var(--surface) 52%);
+}
+
+.solroom2-room-tile:hover,
+.solroom2-attention-item:hover,
+.solroom2-issue-row:hover,
+.solroom2-rail-item:hover,
+.solroom2-day-row:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--tone-color) 34%, var(--panel-border-strong));
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--tone-color) 13%, transparent);
+}
+
+.solroom2-room-top strong {
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.solroom2-status-tag {
+  margin-inline-end: 0;
+  border-color: color-mix(in srgb, var(--tone-color) 26%, var(--border-control));
+  color: color-mix(in srgb, var(--tone-color) 82%, var(--ink));
+  background: color-mix(in srgb, var(--tone-color) 10%, var(--surface));
+}
+
+.solroom2-room-core {
+  display: grid;
+  grid-template-columns: 0.8fr 1.1fr 0.9fr;
+  gap: 8px;
+}
+
+.solroom2-room-core div {
+  min-width: 0;
+  padding: 8px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--tone-color) 4%, var(--surface-muted));
+}
+
+.solroom2-room-core strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.solroom2-room-foot {
+  padding-top: 3px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.tone-alert {
+  --tone-color: var(--solroom2-alert);
+}
+
+.tone-warning,
+.tone-waiting {
+  --tone-color: var(--solroom2-warning);
+}
+
+.tone-active {
+  --tone-color: var(--solroom2-active);
+}
+
+.tone-free,
+.tone-ok {
+  --tone-color: var(--solroom2-free);
+}
+
+.tone-sun {
+  --tone-color: var(--solroom2-sun);
+}
+
+.tone-energy {
+  --tone-color: var(--solroom2-energy);
+}
+
+.tone-unknown,
+.tone-neutral {
+  --tone-color: var(--text-muted);
+}
+
+.solroom2-timeline {
+  display: grid;
+  gap: 6px;
+}
+
+.solroom2-timeline-rail {
+  position: relative;
+  height: 42px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, transparent 0, transparent calc(25% - 1px), var(--line) calc(25% - 1px), var(--line) 25%, transparent 25%),
+    linear-gradient(90deg, transparent 0, transparent calc(50% - 1px), var(--line) calc(50% - 1px), var(--line) 50%, transparent 50%),
+    linear-gradient(90deg, transparent 0, transparent calc(75% - 1px), var(--line) calc(75% - 1px), var(--line) 75%, transparent 75%),
+    var(--surface-muted);
+}
+
+.solroom2-timeline.is-compact .solroom2-timeline-rail {
+  height: 30px;
+}
+
+.solroom2-door-span,
+.solroom2-sun-span,
+.solroom2-marker {
+  position: absolute;
+  display: block;
+}
+
+.solroom2-door-span {
+  top: 8px;
+  bottom: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone-color, var(--solroom2-active)) 42%, transparent);
+}
+
+.solroom2-timeline.is-compact .solroom2-door-span {
+  top: 7px;
+  bottom: 7px;
+}
+
+.solroom2-sun-span {
+  top: 13px;
+  bottom: 13px;
+  min-width: 4px;
+  border-radius: 999px;
+  background: var(--solroom2-sun);
+}
+
+.solroom2-timeline.is-compact .solroom2-sun-span {
+  top: 11px;
+  bottom: 11px;
+}
+
+.solroom2-marker {
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 3px;
+  background: var(--text-muted);
+}
+
+.solroom2-marker.kind-door {
+  background: var(--solroom2-active);
+}
+
+.solroom2-marker.kind-sun {
+  width: 3px;
+  background: var(--solroom2-sun);
+}
+
+.solroom2-marker.kind-power {
+  width: 3px;
+  background: var(--solroom2-energy);
+}
+
+.solroom2-marker.kind-entrance {
+  background: var(--ink);
+}
+
+.solroom2-timeline-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.solroom2-attention-item,
+.solroom2-issue-row,
+.solroom2-rail-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--tone-color) 18%, var(--panel-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tone-color) 5%, var(--surface));
+}
+
+.solroom2-attention-item strong,
+.solroom2-issue-row strong,
+.solroom2-rail-item strong {
+  color: var(--ink);
+}
+
+.solroom2-attention-item span,
+.solroom2-issue-row span,
+.solroom2-rail-item span {
+  color: color-mix(in srgb, var(--tone-color) 78%, var(--ink));
+  font-weight: 750;
+  text-align: right;
+}
+
+.solroom2-attention-item small,
+.solroom2-issue-row small,
+.solroom2-rail-item small {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.solroom2-day-matrix {
+  display: grid;
+  gap: 8px;
+}
+
+.solroom2-day-row {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr) 210px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--tone-color) 16%, var(--panel-border));
+  border-left: 4px solid var(--tone-color);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.solroom2-day-room strong,
+.solroom2-day-room span,
+.solroom2-day-facts span {
+  display: block;
+}
+
+.solroom2-day-room strong {
+  color: var(--ink);
+}
+
+.solroom2-day-room span {
+  color: color-mix(in srgb, var(--tone-color) 76%, var(--ink));
+  font-weight: 720;
+}
+
+.solroom2-day-facts {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.solroom2-issue-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.solroom2-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.24fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.solroom2-room-rail {
+  position: sticky;
+  top: 82px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+}
+
+.solroom2-rail-item.is-active {
+  box-shadow: inset 3px 0 0 var(--tone-color);
+}
+
+.solroom2-detail-main {
+  display: grid;
+  gap: 12px;
+}
+
+.solroom2-room-hero {
+  --tone-color: var(--solroom2-sun);
+  display: grid;
+  grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 7%, var(--surface)), var(--surface));
+}
+
+.solroom2-room-hero > div:first-child span,
+.solroom2-room-hero > div:first-child small {
+  display: block;
+  color: var(--text-muted);
+}
+
+.solroom2-room-hero > div:first-child strong {
+  display: block;
+  margin: 4px 0;
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.solroom2-hero-grid,
+.solroom2-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.solroom2-detail-grid {
+  grid-template-columns: minmax(280px, 0.36fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.solroom2-event {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.solroom2-event time {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+}
+
+.solroom2-event strong,
+.solroom2-event span {
+  display: block;
+}
+
+.solroom2-event span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.solroom2-event.kind-sun time {
+  color: color-mix(in srgb, var(--solroom2-sun) 84%, var(--ink));
+}
+
+.solroom2-event.kind-power time {
+  color: var(--solroom2-energy);
+}
+
+.solroom2-event.kind-door time {
+  color: var(--solroom2-active);
+}
+
+.solroom2-table-wrap {
+  overflow: auto;
+}
+
+.solroom2-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.solroom2-table th,
+.solroom2-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.solroom2-table th {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.solroom2-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 78px;
+  padding: 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+}
+
+.solroom2-empty.compact {
+  min-height: 0;
+}
+
+.theme-dark .solroom2-page {
+  --solroom2-free: #4ade80;
+  --solroom2-active: #60a5fa;
+  --solroom2-warning: #fbbf24;
+  --solroom2-alert: #fb7185;
+  --solroom2-energy: #2dd4bf;
+}
+
+.theme-dark .solroom2-room-tile,
+.theme-dark .solroom2-metric,
+.theme-dark .solroom2-attention-item,
+.theme-dark .solroom2-issue-row,
+.theme-dark .solroom2-rail-item,
+.theme-dark .solroom2-room-hero {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 12%, var(--surface-raised)), var(--surface));
+}
+
+@media (max-width: 1450px) {
+  .solroom2-room-grid {
+    grid-template-columns: repeat(2, minmax(230px, 1fr));
+  }
+}
+
+@media (max-width: 1150px) {
+  .solroom2-overview-layout,
+  .solroom2-detail-layout,
+  .solroom2-room-hero,
+  .solroom2-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .solroom2-room-rail {
+    position: static;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    max-height: none;
+  }
+
+  .solroom2-metric-grid,
+  .solroom2-hero-grid,
+  .solroom2-issue-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .solroom2-day-row {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+
+  .solroom2-day-facts {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .solroom2-daybar,
+  .solroom2-panel-title,
+  .solroom2-section-head,
+  .solroom2-room-top,
+  .solroom2-room-foot {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .solroom2-room-grid,
+  .solroom2-room-core,
+  .solroom2-metric-grid,
+  .solroom2-hero-grid,
+  .solroom2-issue-grid,
+  .solroom2-day-row {
+    grid-template-columns: 1fr;
+  }
+
+  .solroom2-day-facts {
+    grid-column: auto;
+  }
+}

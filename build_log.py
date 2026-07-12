@@ -5,8 +5,45 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1545")
+APP_BUILD = os.getenv("APP_BUILD", "1546")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1546",
+        "date": "12.07.2026",
+        "headline": "Solrom-2 kontrollflate",
+        "title": "Legger til Solrom-2 med nåstatus, dagskontroll, avvik og romdetalj",
+        "description": (
+            "Build 1546 legger inn Solrom-2 som en ny vurderingsflate for solrom 1-12. Den samler kunnskapen "
+            "fra Dører, Solrom og Dører2 i en mer konsentrert modell: avvik og oppmerksomhet først, romstatus "
+            "per avdeling, dagsmatrise over åpningstid, egen avviksside og romdetalj med hendelser, perioder og "
+            "tidslinje."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/Solroom2Page.tsx: ny Solrom-2-side med Nå, Dagskontroll, Avvik og skjult Romdetalj.",
+            "desktop_v2/src/styles/solroom2.css: isolert styling for romkort, dagsmatrise, avvikslister og detaljvisning.",
+            "desktop_v2/src/moduleViews.ts, appNavigation.tsx, AppRoutes.tsx og domainModel.ts: legger Solrom-2 inn i meny, ruting og søk.",
+            "main.py: legger /solrom-2 inn i SPA-ruting og levende manual.",
+            "desktop_v2/scripts/smoke-routes.mjs og audit-routes.mjs: legger Solrom-2 inn i smoke-test og støtter modulnavn med bindestrek.",
+            "desktop_v2/scripts/audit-bundle.mjs: øker total gzip-grense fra 795 kB til 805 kB fordi Solrom-2 er en ny lazy-loadet funksjonsflate.",
+            "docs/kort-brukermanual.md, docs/funksjonsstruktur.md og docs/desktop-v2.md: dokumenterer Solrom-2.",
+            "build_log.py: dokumenterer build 1546 og setter APP_BUILD til 1546.",
+        ],
+        "request": (
+            "kan du lage en ny solrom-2 hvor du bruker all kunnskap du har om dette så langt "
+            "og lager en perfekt løsning med nødvendige undersider."
+        ),
+        "work_duration": "ca. 1 t 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny hovedmeny Solrom-2 med Nå, Dagskontroll og Avvik.",
+            "Ny skjult romdetalj åpnes fra romkort og viser valgt rom med status, tidslinje, hendelser og perioder.",
+            "Nå-siden viser oppmerksomhetsliste, romstatus per avdeling og kompakt dagstidslinje.",
+            "Dagskontroll viser hele valgt dag for alle rom med dør, Sun2-time, inngang og effekt på samme linje.",
+            "Avvikssiden samler kritiske rom, varsler, manglende Sun2-kobling og effektkontroll.",
+            "Eksisterende Solrom, Dører og Dører2 beholdes uendret for sammenligning.",
+        ],
+    },
     {
         "version": "1",
         "build": "1545",

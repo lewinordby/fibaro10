@@ -10,6 +10,7 @@ export const MODULE_LABELS: Record<string, string> = {
   parkering: "Parkering",
   soling: "Soling",
   solrom: "Solrom",
+  "solrom-2": "Solrom-2",
   dorer2: "Dører2",
   koble: "Koble",
   energi: "Energi",
@@ -34,6 +35,7 @@ export const MODULE_COLORS: Record<string, string> = {
   parkering: "var(--domain-parking)",
   soling: "var(--domain-sun2)",
   solrom: "var(--domain-sun2)",
+  "solrom-2": "var(--domain-sun2)",
   dorer2: "var(--domain-building)",
   energi: "var(--domain-energy)",
   ventilasjon: "var(--domain-vent)",
@@ -89,6 +91,12 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
   solrom: [
     { key: "oversikt", label: "Nå" },
     { key: "dagskontroll", label: "Dagskontroll" },
+    { key: "rom", label: "Romdetalj", hidden: true },
+  ],
+  "solrom-2": [
+    { key: "oversikt", label: "Nå" },
+    { key: "dagskontroll", label: "Dagskontroll" },
+    { key: "avvik", label: "Avvik" },
     { key: "rom", label: "Romdetalj", hidden: true },
   ],
   dorer2: [

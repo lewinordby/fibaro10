@@ -32,13 +32,13 @@ function extractModuleViews(source) {
 
   const [openIndex, closeIndex] = objectLiteralBounds(source, markerIndex);
   const body = source.slice(openIndex + 1, closeIndex);
-  const modulePattern = /^\s*([a-z0-9_-]+):\s*\[/gm;
+  const modulePattern = /^\s*(?:"([a-z0-9_-]+)"|([a-z0-9_-]+)):\s*\[/gm;
   const moduleMatches = [...body.matchAll(modulePattern)];
   const modules = new Map();
 
   for (let index = 0; index < moduleMatches.length; index += 1) {
     const match = moduleMatches[index];
-    const moduleName = match[1];
+    const moduleName = match[1] || match[2];
     const blockStart = match.index + match[0].length;
     const blockEnd = index + 1 < moduleMatches.length ? moduleMatches[index + 1].index : body.length;
     const block = body.slice(blockStart, blockEnd);

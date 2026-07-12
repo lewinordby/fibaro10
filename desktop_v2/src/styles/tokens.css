@@ -226,7 +226,9 @@
   --active-module-color: var(--domain-parking);
 }
 
-.domain-soling {
+.domain-soling,
+.domain-solrom,
+.domain-solrom-2 {
   --active-module-color: var(--domain-sun2);
 }
 
