@@ -110,6 +110,7 @@ Regel: Dagslogg er visuell tidsserie. Innstillinger er styringsregler. Hendelser
 - `Oversikt - ny`: alternativ kompakt statusmatrise for rask visuell kontroll.
 - `Romkontroll`: operativ kontrollflate for solrom med dør, Sun2-time, forventet ut og energi.
 - `Romkontroll - ny`: grafisk alternativ med tidslinje per rom for dør, soltid og forventet ut.
+- `Romkontroll - ny2`: presis tidslinje per rom med dør lukket/åpnet, solstart/slutt, inngangsdørhendelser og effektmarkører.
 - `Dør og soltime`: detaljert kobling mellom dørperioder og soltimer.
 - `Solrom`: dørstatus og bruk/ledig-logikk for solrom.
 - `Andre dører`: byggdører som normalt skal vurderes annerledes enn solrom.

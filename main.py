@@ -10702,6 +10702,112 @@ def sunroom_session_energy_evidence(
     }
 
 
+def sunroom_power_marker(
+    kind: str,
+    label: str,
+    anchor_at: datetime,
+    value_w: Optional[float],
+    reference_w: Optional[float],
+) -> Optional[Dict[str, Any]]:
+    if value_w is None or reference_w is None:
+        return None
+    delta_w = float(value_w) - float(reference_w)
+    if delta_w < 5000:
+        return None
+    return {
+        "kind": kind,
+        "label": label,
+        "time": anchor_at.isoformat(),
+        "timeLabel": format_source_datetime(anchor_at),
+        "valueW": round(float(value_w), 1),
+        "valueLabel": sunroom_watt_label(value_w),
+        "deltaW": round(delta_w, 1),
+        "deltaLabel": sunroom_watt_label(delta_w),
+        "detail": f"Endring minst {sunroom_watt_label(delta_w)} mot referanse.",
+    }
+
+
+def sunroom_power_markers(row: Sun2TanningSession, samples: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    window = sunroom_session_energy_window(row)
+    if not window:
+        return []
+    sun_start_at, end_at = window
+    start_anchor = sun_start_at + timedelta(minutes=5)
+    stop_anchor = end_at - timedelta(minutes=5)
+    baseline_w = sunroom_median_float(
+        [item["diff_w"] for item in samples if sun_start_at - timedelta(minutes=5) <= item["time"] < sun_start_at]
+    )
+    start_w = sunroom_median_float(
+        [item["diff_w"] for item in samples if start_anchor - timedelta(minutes=1) <= item["time"] <= start_anchor + timedelta(minutes=1)]
+    )
+    stop_w = sunroom_median_float(
+        [item["diff_w"] for item in samples if stop_anchor - timedelta(minutes=1) <= item["time"] <= stop_anchor + timedelta(minutes=1)]
+    )
+    after_w = sunroom_median_float(
+        [item["diff_w"] for item in samples if end_at <= item["time"] <= end_at + timedelta(minutes=5)]
+    )
+    markers = [
+        sunroom_power_marker("power_start", "Effekt +5 min", start_anchor, start_w, baseline_w),
+        sunroom_power_marker("power_stop", "Effekt -5 min", stop_anchor, stop_w, after_w),
+    ]
+    return [marker for marker in markers if marker]
+
+
+def sunroom_entrance_config() -> Optional[Dict[str, Any]]:
+    return next((config for config in DOOR_SENSOR_CONFIG if config.get("device_key") == "door_inngang"), None)
+
+
+def sunroom_door_event_marker(row: DoorEvent, kind: str, label: str) -> Optional[Dict[str, Any]]:
+    event_at = normalize_local_naive(row.timestamp)
+    state = door_state_from_event(row)
+    if not event_at:
+        return None
+    return {
+        "kind": kind,
+        "label": label,
+        "time": event_at.isoformat(),
+        "timeLabel": format_source_datetime(event_at),
+        "state": state["state"],
+        "stateLabel": state["label"],
+        "eventId": row.id,
+        "deviceId": row.device_id,
+        "deviceKey": row.device_key,
+    }
+
+
+def sunroom_entrance_markers(row: Sun2TanningSession, entrance_rows: list[DoorEvent]) -> list[Dict[str, Any]]:
+    sun_start_at = sunroom_session_sun_start_at(row) or normalize_local_naive(row.started_at)
+    end_at = sunroom_session_end_at(row)
+    if not sun_start_at or not end_at:
+        return []
+    window_start = sun_start_at - timedelta(minutes=90)
+    window_end = end_at + timedelta(minutes=90)
+    items: list[tuple[datetime, DoorEvent, Optional[bool]]] = []
+    for event in entrance_rows:
+        event_at = normalize_local_naive(event.timestamp)
+        state = door_event_state_bool(event)
+        if event_at and state is not None and window_start <= event_at <= window_end:
+            items.append((event_at, event, state))
+    before_open = next((item for item in reversed(items) if item[0] <= sun_start_at and item[2] is True), None)
+    before_closed = next((item for item in reversed(items) if item[0] <= sun_start_at and item[2] is False), None)
+    after_open = next((item for item in items if item[0] >= end_at and item[2] is True), None)
+    after_closed = next((item for item in items if item[0] >= end_at and item[2] is False), None)
+    marker_specs = [
+        (before_open, "entrance_open_before", "Inngang åpnet før"),
+        (before_closed, "entrance_closed_before", "Inngang lukket før"),
+        (after_open, "entrance_open_after", "Inngang åpnet etter"),
+        (after_closed, "entrance_closed_after", "Inngang lukket etter"),
+    ]
+    markers: list[Dict[str, Any]] = []
+    for item, kind, label in marker_specs:
+        if not item:
+            continue
+        marker = sunroom_door_event_marker(item[1], kind, label)
+        if marker:
+            markers.append(marker)
+    return sorted(markers, key=lambda marker: marker.get("time") or "")
+
+
 def sunroom_session_matches_closed_period(row: Sun2TanningSession, closed_since: Optional[datetime], now: datetime) -> bool:
     start_at = normalize_local_naive(row.started_at)
     expected_exit_at = sunroom_expected_exit_at(row)
@@ -11187,6 +11293,8 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
     configs.sort(key=lambda config: int(config.get("sort_order") or 0))
     device_ids = [int(config["device_id"]) for config in configs if config.get("device_id") is not None]
     room_ids = [room_id for room_id in (sunroom_room_id_for_config(config) for config in configs) if room_id]
+    entrance_config = sunroom_entrance_config()
+    entrance_device_id = int(entrance_config["device_id"]) if entrance_config and entrance_config.get("device_id") is not None else None
 
     raw_rows: list[DoorEvent] = []
     if device_ids:
@@ -11199,6 +11307,18 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
                 .limit(max(len(device_ids) * 500, 4000))
             )
         ).scalars().all()
+    entrance_rows: list[DoorEvent] = []
+    if entrance_device_id is not None:
+        entrance_rows = (
+            await session.execute(
+                select(DoorEvent)
+                .where(DoorEvent.device_id == entrance_device_id)
+                .where(DoorEvent.timestamp >= start_cutoff - timedelta(hours=12))
+                .order_by(DoorEvent.timestamp.asc(), DoorEvent.id.asc())
+                .limit(2000)
+            )
+        ).scalars().all()
+    entrance_change_rows = door_change_rows(entrance_rows)
 
     session_rows = (
         await session.execute(
@@ -11271,14 +11391,20 @@ async def sunroom_room_overview_payload(session, days: int = 2) -> Dict[str, Any
             payload = sunroom_period_payload(period, matched_session, now)
             if matched_session and matched_session.id is not None:
                 payload["energy"] = energy_by_session_id.get(int(matched_session.id))
+                payload["entranceMarkers"] = sunroom_entrance_markers(matched_session, entrance_change_rows)
+                payload["powerMarkers"] = sunroom_power_markers(matched_session, energy_samples)
             else:
                 payload["energy"] = None
+                payload["entranceMarkers"] = []
+                payload["powerMarkers"] = []
             periods.append(payload)
 
         recent_sessions = [
             {
                 **sunroom_session_payload(row),
                 "energy": energy_by_session_id.get(int(row.id)) if row.id is not None else None,
+                "entranceMarkers": sunroom_entrance_markers(row, entrance_change_rows),
+                "powerMarkers": sunroom_power_markers(row, energy_samples),
                 "hasDoorMatch": row.id is not None and int(row.id) in matched_ids,
             }
             for row in room_sessions

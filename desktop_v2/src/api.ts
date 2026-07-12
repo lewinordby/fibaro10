@@ -617,12 +617,33 @@ export type DoorSunroomEnergyEvidence = {
   delayDeviationLabel?: string | null;
 };
 
+export type DoorSunroomTimelineMarker = {
+  kind: string;
+  label: string;
+  time: string | null;
+  timeLabel: string;
+  state?: string | null;
+  stateLabel?: string | null;
+  eventId?: number | null;
+  deviceId?: number | null;
+  deviceKey?: string | null;
+  valueW?: number | null;
+  valueLabel?: string | null;
+  deltaW?: number | null;
+  deltaLabel?: string | null;
+  detail?: string | null;
+};
+
 export type DoorSunroomOverviewPeriod = DoorSunroomRoomPeriod & {
   energy?: DoorSunroomEnergyEvidence | null;
+  entranceMarkers?: DoorSunroomTimelineMarker[];
+  powerMarkers?: DoorSunroomTimelineMarker[];
 };
 
 export type DoorSunroomOverviewSession = DoorSunroomSession & {
   energy?: DoorSunroomEnergyEvidence | null;
+  entranceMarkers?: DoorSunroomTimelineMarker[];
+  powerMarkers?: DoorSunroomTimelineMarker[];
   hasDoorMatch?: boolean;
 };
 

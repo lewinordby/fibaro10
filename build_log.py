@@ -5,8 +5,48 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1533")
+APP_BUILD = os.getenv("APP_BUILD", "1534")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1534",
+        "date": "12.07.2026",
+        "headline": "Presis romtidslinje",
+        "title": "Legger til Dører / Romkontroll - ny2",
+        "description": (
+            "Build 1534 legger inn en ny Romkontroll-ny2 ved siden av de eksisterende romkontrollflatene. "
+            "Den nye visningen prioriterer romnummer, sist lukket, sist åpnet og en skalert tidslinje som "
+            "går fem minutter før solstart til fem minutter etter solslutt."
+        ),
+        "applications": [
+            "main.py: utvider sunroom-overview med inngangsdørmarkører og effektmarkører ved +5/-5 minutter.",
+            "desktop_v2/src/api.ts: legger typedeklarasjoner for tidslinjemarkører på perioder og sesjoner.",
+            "desktop_v2/src/moduleViews.ts: legger Romkontroll - ny2 inn som egen underside under Dører.",
+            "desktop_v2/src/pages/DoorsPage.tsx: legger ny presis romkontroll med romkort, skalert tidslinje og markører.",
+            "desktop_v2/src/styles/doors.css: legger styling for ny2-kort, tidslinjebånd og markørchips.",
+            "desktop_v2/src/styles/dark-theme.css: legger mørkt-tema-støtte for den nye visningen.",
+            "desktop_v2/scripts/smoke-routes.mjs: legger /dorer/romkontroll-ny2 inn i rute-smoke.",
+            "desktop_v2/scripts/audit-bundle.mjs: justerer total gzip-grense moderat for den nye tidslinjevisningen.",
+            "docs/*.md: dokumenterer ny Romkontroll - ny2-side.",
+            "build_log.py: dokumenterer build 1534 og setter APP_BUILD til 1534.",
+        ],
+        "request": (
+            "vi prøver å lage en ny Romkontroll-ny2, her vil jeg har rom nr, sist lukket og sist åpnet i den rekkefølgen. "
+            "så vil jeg ha en tidslinje som viser dette tidsrommet, tidslinjen skal forlenges med 5 min før og 5 min etter soltimen. "
+            "her skal vi også merke av tydelig med klokkeslett følgende, soltime start og slutt, dør stengt og åpen i tillegg til "
+            "siste bevegelse av inngang åpen og stengt før soltimen og tilsvarende etter soltime. i tilelgg så skal vesentlig "
+            "endringer i strømtrekk markeres 5 min etter start og 5 min før stopp min 5kw fordi en seng bruker mellom 6 og 10."
+        ),
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny underside /dorer/romkontroll-ny2 er lagt til.",
+            "Hvert kort viser Rom nr, Sist lukket og Sist åpnet som faste toppfelter.",
+            "Tidslinjen skaleres fra fem minutter før solstart til fem minutter etter solslutt.",
+            "Solstart, solslutt, dør stengt, dør åpen, inngangsdørhendelser og effektmarkører vises med klokkeslett.",
+            "Effektmarkører vises bare når målt forskjell er minst 5 kW.",
+        ],
+    },
     {
         "version": "1",
         "build": "1533",

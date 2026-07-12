@@ -2401,9 +2401,223 @@
   background: var(--red);
 }
 
+.door-room-precision-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(560px, 1fr));
+  gap: 12px;
+}
+
+.door-room-precision-card {
+  --precision-tone: var(--domain-building);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--precision-tone) 16%, var(--line-soft));
+  border-top: 4px solid var(--precision-tone);
+  border-radius: var(--radius-md);
+}
+
+.door-room-precision-card.tone-free {
+  --precision-tone: var(--green);
+}
+
+.door-room-precision-card.tone-active {
+  --precision-tone: var(--amber);
+}
+
+.door-room-precision-card.tone-warning {
+  --precision-tone: var(--door-orange);
+}
+
+.door-room-precision-card.tone-alert {
+  --precision-tone: var(--red);
+}
+
+.door-room-precision-head {
+  display: grid;
+  grid-template-columns: .55fr 1fr 1fr;
+  gap: 8px;
+}
+
+.door-room-precision-head > div {
+  min-width: 0;
+  padding: 7px 9px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.door-room-precision-head span,
+.door-room-precision-context span,
+.door-room-precision-scale,
+.door-room-precision-markers small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.door-room-precision-head strong,
+.door-room-precision-context strong {
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 830;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-room-precision-head > div:first-child strong {
+  color: color-mix(in srgb, var(--precision-tone) 80%, var(--ink));
+  font-size: 18px;
+  font-weight: 880;
+}
+
+.door-room-precision-context {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.door-room-precision-timeline,
+.door-room-precision-empty {
+  padding: 10px;
+  background: var(--surface-muted);
+  border-radius: var(--radius-sm);
+}
+
+.door-room-precision-empty {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.door-room-precision-axis {
+  position: relative;
+  height: 72px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--line-soft) 70%, transparent) 1px, transparent 1px),
+    color-mix(in srgb, var(--precision-tone) 5%, var(--surface));
+  background-size: 20% 100%;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+
+.precision-segment,
+.precision-marker {
+  position: absolute;
+}
+
+.precision-segment {
+  top: 31px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+}
+
+.precision-segment.kind-door {
+  background: color-mix(in srgb, var(--domain-building) 74%, transparent);
+}
+
+.precision-segment.kind-sun {
+  top: 22px;
+  height: 30px;
+  background: color-mix(in srgb, var(--sun) 72%, transparent);
+}
+
+.precision-marker {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  color: var(--ink);
+  background: currentcolor;
+}
+
+.precision-marker i {
+  position: absolute;
+  top: 28px;
+  left: -5px;
+  width: 11px;
+  height: 11px;
+  background: currentcolor;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  content: "";
+}
+
+.precision-marker.kind-sun-start,
+.precision-marker.kind-sun-end {
+  color: var(--sun);
+}
+
+.precision-marker.kind-door-closed,
+.precision-marker.kind-door-open {
+  color: var(--domain-building);
+}
+
+.precision-marker[class*="entrance"] {
+  color: var(--blue);
+}
+
+.precision-marker[class*="power"] {
+  color: var(--domain-energy);
+}
+
+.door-room-precision-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+}
+
+.door-room-precision-markers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.door-room-precision-markers span {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 6px;
+  color: var(--ink);
+  font-size: 10.5px;
+  font-weight: 740;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--precision-tone);
+  border-radius: var(--radius-xs);
+}
+
+.door-room-precision-markers strong {
+  font-weight: 860;
+}
+
+.door-room-precision-markers [class*="sun"] {
+  border-left-color: var(--sun);
+}
+
+.door-room-precision-markers [class*="door"] {
+  border-left-color: var(--domain-building);
+}
+
+.door-room-precision-markers [class*="entrance"] {
+  border-left-color: var(--blue);
+}
+
+.door-room-precision-markers [class*="power"] {
+  border-left-color: var(--domain-energy);
+}
+
 @media (max-width: 1380px) {
   .door-room-control-grid,
-  .door-room-visual-grid {
+  .door-room-visual-grid,
+  .door-room-precision-grid {
     grid-template-columns: repeat(2, minmax(430px, 1fr));
   }
 
@@ -2417,7 +2631,8 @@
   .door-board-layout,
   .door-room-control-command,
   .door-room-control-grid,
-  .door-room-visual-grid {
+  .door-room-visual-grid,
+  .door-room-precision-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2445,10 +2660,12 @@
 
   .door-room-control-grid,
   .door-room-visual-grid,
+  .door-room-precision-grid,
   .door-room-control-summary,
   .door-room-control-now,
   .door-room-control-timeline,
   .door-room-visual-head,
+  .door-room-precision-head,
   .door-room-control-attention-item,
   .door-room-control-history-head,
   .door-room-control-history-row {
