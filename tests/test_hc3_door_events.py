@@ -25,14 +25,28 @@ def test_door_event_api_route_is_registered():
     assert "/api/hc3/door-events" in routes
     assert "/api/hc3/door-events/json" in routes
     assert "/api/hc3/doors/status" in routes
+    assert "/api/hc3/doors/poll-sync" in routes
 
 
 def test_door_event_datakilde_and_storage_are_registered():
     definition = IMPORT_JOB_DEFINITIONS["hc3_door_events"]
+    poll_definition = IMPORT_JOB_DEFINITIONS["hc3_door_poll_sync"]
 
     assert definition["title"] == "Dørhendelser fra HC3"
     assert definition["source"] == "HC3"
+    assert poll_definition["title"] == "HC3 dørstatuskontroll"
+    assert poll_definition["source"] == "HC3 API"
+    assert poll_definition["expected_interval_minutes"] == 1
     assert "door_events" in STORAGE_TABLES
+
+
+def test_hc3_door_poll_worker_is_configured():
+    source = Path("main.py").read_text(encoding="utf-8")
+
+    assert "HC3_DOOR_POLL_INTERVAL_SECONDS" in source
+    assert "hc3_door_poll_worker" in source
+    assert "run_hc3_door_poll_once" in source
+    assert "HC3 POLL SYNC" in source
 
 
 def test_hc3_door_lua_contains_expected_devices_and_endpoint():

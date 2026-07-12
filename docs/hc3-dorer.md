@@ -1,6 +1,6 @@
 # HC3 dorer
 
-Oppdatert 11.07.2026.
+Oppdatert 12.07.2026.
 
 Fibaro10 logger magnetfolere fra HC3 i tabellen `door_events`.
 
@@ -14,6 +14,23 @@ For mange dorer skal ikke en endring lese alle dorer. Modellen er:
 4. Lua-scenen leser `value` for sin egen `DEVICE_ID` og poster en konkret hendelse til Fibaro10.
 
 Dette gir riktig oppforsel hvis to dorer endrer status samtidig. Da starter to ulike logger-scener og Fibaro10 mottar to separate hendelser.
+
+## Statuskontroll fra Fibaro10
+
+HC3-triggerne er fortsatt primaerkilden, men Fibaro10 har ogsa en sikkerhetsjobb som jevnlig spor HC3 API direkte om faktisk status for alle konfigurerte dorer.
+
+- Jobb: `hc3_door_poll_sync`
+- Standard intervall: 30 sekunder
+- Datakilde: `Admin -> Datakilder -> HC3 dorstatuskontroll`
+- HC3-konfig: `.env.hc3-watchdog` pa QNAP, lastet inn i `fibaro10`-containeren
+
+Jobben skriver ikke nye rader nar Fibaro10 og HC3 allerede er enige. Den skriver bare en `door_sync`-hendelse med kilde `HC3 POLL SYNC` hvis siste Fibaro10-status ikke stemmer med HC3 sin faktiske `value`.
+
+Manuell tvangssync kan kjoeres mot:
+
+```text
+POST /api/hc3/doors/poll-sync
+```
 
 ## Eksisterende tre dorer
 

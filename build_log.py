@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1538")
+APP_BUILD = os.getenv("APP_BUILD", "1539")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1539",
+        "date": "12.07.2026",
+        "headline": "HC3 dørstatuskontroll",
+        "title": "Lar Fibaro10 kontrollere faktisk dørstatus direkte mot HC3",
+        "description": (
+            "Build 1539 legger en sikkerhetsjobb i Fibaro10 som jevnlig spør HC3 API for alle konfigurerte "
+            "dørsensorer. HC3-triggerne er fortsatt primærkilden, men Fibaro10 korrigerer status automatisk "
+            "hvis en triggerhendelse mangler eller har feilet."
+        ),
+        "applications": [
+            "main.py: legger inn HC3 API-polling for dører, korrigerende door_sync-hendelser og manuelt poll-sync-endepunkt.",
+            "import_jobs.py: registrerer HC3 dørstatuskontroll som egen datakilde med forklaring og avhengigheter.",
+            "docker-compose.qnap.yml og .env.qnap.example: kobler Fibaro10-containeren til HC3-konfigurasjonen.",
+            "tests/test_hc3_door_events.py: tester at poll-sync-ruten, worker og datakilden er registrert.",
+            "build_log.py: dokumenterer build 1539 og setter APP_BUILD til 1539.",
+            "docs/hc3-dorer.md: beskriver ny statuskontroll og manuell poll-sync.",
+            "docs/kort-brukermanual.md: oppdaterer buildnummer.",
+        ],
+        "request": "er det mulig at fibaro10 kan spørre Api til hc3 i stedet for å vente på at hc3 skal skrive til fibaro10 sitt api? / gjør dette",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fibaro10 spør nå HC3 /api/devices for alle konfigurerte dørsensorer med kort intervall.",
+            "Det skrives bare ny dørhendelse når HC3-status og siste Fibaro10-status ikke stemmer.",
+            "Korrigerte hendelser merkes med event_type door_sync og kilde HC3 POLL SYNC.",
+            "Datakilden viser når kontrolljobben sist kjørte, hvor mange dører som ble sjekket og om noen avvik ble korrigert.",
+        ],
+    },
     {
         "version": "1",
         "build": "1538",

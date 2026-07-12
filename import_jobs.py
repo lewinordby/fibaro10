@@ -177,6 +177,14 @@ IMPORT_JOB_DEFINITIONS = {
         "warning_after_minutes": None,
         "description": "Hendelsesstyrt logging av magnetfølere når dører åpnes og lukkes.",
     },
+    "hc3_door_poll_sync": {
+        "title": "HC3 dørstatuskontroll",
+        "category": "Bygg og drift",
+        "source": "HC3 API",
+        "expected_interval_minutes": 1,
+        "warning_after_minutes": 3,
+        "description": "Fibaro10 kontrollerer faktisk dørstatus mot HC3 og korrigerer bare ved avvik.",
+    },
 }
 
 IMPORT_JOB_NUMBER_BY_NAME = {
@@ -204,6 +212,10 @@ IMPORT_JOB_DETAILS = {
     "hc3_door_events": {
         "data_flow": "HC3 Lua-scene trigges av magnetfølerens verdiendring og poster åpne/lukke-hendelsen til Fibaro10. Fibaro10 lagrer hendelsen i egen door_events-tabell og oppdaterer datakildestatus.",
         "dependencies": ["HC3", "HC3 Lua-scene", "Fibaro10 API", "PostgreSQL"],
+    },
+    "hc3_door_poll_sync": {
+        "data_flow": "Fibaro10 spør HC3 sitt /api/devices-endepunkt jevnlig for alle konfigurerte dørsensorer. Hvis siste Fibaro10-status ikke stemmer med faktisk HC3-verdi, skriver Fibaro10 en door_sync-hendelse slik at statusbildet rettes uten å vente på ny HC3-trigger.",
+        "dependencies": ["Fibaro10 bakgrunnsjobb", "HC3 API", "HC3 bruker/passord", "PostgreSQL"],
     },
     "roborock_sync": {
         "data_flow": "Roborock-loggeren på QNAP henter robotstatus, jobber, kart og vedlikeholdsdata og poster resultatet til Fibaro10. Fibaro10 lagrer status og viser renholdsdata i drift/admin.",
