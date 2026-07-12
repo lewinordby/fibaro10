@@ -106,6 +106,10 @@ Koble bruker sideappen `parking_sun_linker`, men all styring, status og manuell 
 ### Dører, renhold og vedlikehold
 
 - `/dorer/oversikt`
+- `/dorer/oversikt-ny`
+- `/dorer/romkontroll`
+- `/dorer/romkontroll-ny`
+- `/dorer/soltimer`
 - `/dorer/solrom`
 - `/dorer/andre`
 - `/dorer/radata`

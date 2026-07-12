@@ -2278,8 +2278,132 @@
   border-top: 1px solid var(--border-panel-soft);
 }
 
+.door-room-visual-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(500px, 1fr));
+  gap: 12px;
+}
+
+.door-room-visual-card {
+  --visual-tone: var(--domain-building);
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--visual-tone) 14%, var(--line-soft));
+  border-top: 4px solid var(--visual-tone);
+  border-radius: var(--radius-md);
+}
+
+.door-room-visual-card.tone-free {
+  --visual-tone: var(--green);
+}
+
+.door-room-visual-card.tone-active {
+  --visual-tone: var(--amber);
+}
+
+.door-room-visual-card.tone-warning {
+  --visual-tone: var(--door-orange);
+}
+
+.door-room-visual-card.tone-alert {
+  --visual-tone: var(--red);
+}
+
+.door-room-visual-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.door-room-visual-number {
+  color: color-mix(in srgb, var(--visual-tone) 76%, var(--ink));
+  font-size: 18px;
+  font-weight: 860;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.door-room-visual-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.door-room-visual-title strong,
+.door-room-visual-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-room-visual-title strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 830;
+}
+
+.door-room-visual-title span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 690;
+}
+
+.door-room-visual-status {
+  min-width: 78px;
+  padding: 6px 9px;
+  color: color-mix(in srgb, var(--visual-tone) 84%, var(--ink));
+  font-size: 11px;
+  font-weight: 860;
+  text-align: center;
+  background: color-mix(in srgb, var(--visual-tone) 10%, transparent);
+  border-radius: var(--radius-pill);
+}
+
+.door-room-visual-timeline {
+  display: grid;
+  padding: 11px 10px 9px;
+  background: var(--surface-muted);
+  border-radius: var(--radius-sm);
+}
+
+.door-room-visual-track {
+  position: relative;
+  height: 26px;
+  background: color-mix(in srgb, var(--visual-tone) 8%, var(--line-soft));
+  border-radius: var(--radius-pill);
+}
+
+.door-room-visual-segment {
+  position: absolute;
+  top: 7px;
+  height: 12px;
+  min-width: 12px;
+  border-radius: var(--radius-pill);
+}
+
+.door-room-visual-segment.kind-door {
+  background: var(--domain-building);
+}
+
+.door-room-visual-segment.kind-sun {
+  background: var(--sun);
+}
+
+.door-room-visual-segment.kind-exit {
+  background: var(--blue);
+}
+
+.door-room-visual-segment.kind-overdue {
+  background: var(--red);
+}
+
 @media (max-width: 1380px) {
-  .door-room-control-grid {
+  .door-room-control-grid,
+  .door-room-visual-grid {
     grid-template-columns: repeat(2, minmax(430px, 1fr));
   }
 
@@ -2292,7 +2416,8 @@
   .door-board-command,
   .door-board-layout,
   .door-room-control-command,
-  .door-room-control-grid {
+  .door-room-control-grid,
+  .door-room-visual-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2319,13 +2444,19 @@
   }
 
   .door-room-control-grid,
+  .door-room-visual-grid,
   .door-room-control-summary,
   .door-room-control-now,
   .door-room-control-timeline,
-  .door-room-control-facts,
+  .door-room-visual-head,
   .door-room-control-attention-item,
   .door-room-control-history-head,
   .door-room-control-history-row {
     grid-template-columns: 1fr;
+  }
+
+  .door-room-visual-status,
+  .door-room-visual-number {
+    justify-self: flex-start;
   }
 }

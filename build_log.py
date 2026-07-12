@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1532")
+APP_BUILD = os.getenv("APP_BUILD", "1533")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1533",
+        "date": "12.07.2026",
+        "headline": "Grafisk romkontroll",
+        "title": "Legger til Dører / Romkontroll - ny med tidslinjer",
+        "description": (
+            "Build 1533 legger en alternativ Romkontroll-visning ved siden av dagens løsning. Den nye flaten viser "
+            "rommene som grafiske kort med tidslinje for dør lukket, betaling, solstart, solslutt, forventet ut, "
+            "dør opp og eventuell overtid."
+        ),
+        "applications": [
+            "desktop_v2/src/moduleViews.ts: legger Romkontroll - ny inn som egen underside under Dører.",
+            "desktop_v2/src/pages/DoorsPage.tsx: legger ny grafisk romkontroll med tidslinje, markører og statuskort.",
+            "desktop_v2/src/styles/doors.css: legger styling for grafisk tidslinje, legend, romkort og responsive regler.",
+            "desktop_v2/src/styles/dark-theme.css: legger mørkt-tema-støtte for den nye grafiske romkontrollen.",
+            "desktop_v2/scripts/smoke-routes.mjs: legger /dorer/romkontroll-ny inn i rute-smoke.",
+            "docs/*.md: dokumenterer ny Romkontroll - ny-side.",
+            "build_log.py: dokumenterer build 1533 og setter APP_BUILD til 1533.",
+        ],
+        "request": "hva om du lager et annet forslag til Romkontroll, kall det Romkontroll-ny og lag det med noe grafikk, tidslinje osv",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny underside /dorer/romkontroll-ny er lagt til i Dører-menyen.",
+            "Hvert rom viser grafisk tidslinje med segmenter for dør lukket, soltid, utgangstid og overtid.",
+            "Tidslinjen markerer dør igjen, betaling, solstart, solslutt, forventet ut, dør opp og nå-punkt.",
+            "Kortene viser samtidig dørstatus, forventet ut og energivurdering.",
+            "Siden bruker samme datagrunnlag som dagens Romkontroll, slik at de to flatene kan sammenlignes direkte.",
+        ],
+    },
     {
         "version": "1",
         "build": "1532",

@@ -48,9 +48,9 @@ type SummaryCard = {
   tone: "ok" | "warn" | "unknown" | "status";
 };
 
-type DoorView = "oversikt" | "oversikt-ny" | "romkontroll" | "soltimer" | "solrom" | "andre" | "radata";
+type DoorView = "oversikt" | "oversikt-ny" | "romkontroll" | "romkontroll-ny" | "soltimer" | "solrom" | "andre" | "radata";
 
-const DOOR_VIEWS: DoorView[] = ["oversikt", "oversikt-ny", "romkontroll", "soltimer", "solrom", "andre", "radata"];
+const DOOR_VIEWS: DoorView[] = ["oversikt", "oversikt-ny", "romkontroll", "romkontroll-ny", "soltimer", "solrom", "andre", "radata"];
 const SECTION_ORDER = ["1etg", "2etg", "vip", "bygg"];
 
 function stateTag(row: DoorStateRow) {
@@ -1362,6 +1362,81 @@ function DoorSunroomRoomControlBoard({
   );
 }
 
+function RoomVisualTimeline({ room }: { room: DoorSunroomOverviewRoom }) {
+  const latest = room.latestPeriod;
+  const session = latest?.session || room.recentSessions[0] || null;
+  const expected = latest?.expectedExitAt || session?.expectedExitAt || room.status.expectedExitAt;
+  const segments: Array<[string, number, number]> = [];
+  if (latest?.closedAt) segments.push(["door", 0, 100]);
+  if (session?.sunStartAt && session.endedAt) segments.push(["sun", 32, 42]);
+  if (session?.endedAt && expected) segments.push(["exit", 74, 14]);
+  if (expected && room.status.isOccupied && (latest?.overstaySeconds || room.status.overstaySeconds || 0) > 0) {
+    segments.push(["overdue", 88, 12]);
+  }
+  if (!segments.length) {
+    return <div className="door-room-visual-timeline" />;
+  }
+
+  return (
+    <div className="door-room-visual-timeline">
+      <div className="door-room-visual-track">
+        {segments.map(([kind, left, width]) => (
+          <div className={`door-room-visual-segment kind-${kind}`} key={kind} style={{ left: `${left}%`, width: `${width}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RoomVisualCard({ room }: { room: DoorSunroomOverviewRoom }) {
+  const status = room.status;
+  const latest = room.latestPeriod;
+  const session = latest?.session || room.recentSessions[0] || null;
+  const tone = roomControlTone(room);
+
+  return (
+    <article className={`door-room-visual-card tone-${tone}`}>
+      <div className="door-room-visual-head">
+        <div className="door-room-visual-number">
+          Rom {room.displayRoomNumber}
+        </div>
+        <div className="door-room-visual-title">
+          <strong>{room.sectionTitle}</strong>
+          <span>{session ? `${session.durationMinutes || "-"} min · ${sunroomMoney(session.paidAmountKr)}` : status.detail || room.roomLabel}</span>
+        </div>
+        <span className={`door-room-visual-status tone-${tone}`}>
+          {roomControlStatusText(room)}
+        </span>
+      </div>
+
+      <RoomVisualTimeline room={room} />
+    </article>
+  );
+}
+
+function DoorSunroomVisualControlBoard({
+  data,
+  loading,
+  error,
+}: {
+  data?: DoorSunroomOverviewResponse | null;
+  loading: boolean;
+  error: unknown;
+}) {
+  if (loading) return <LoadingBlock />;
+  if (error || !data) return <ErrorBlock error={error} />;
+
+  const rooms = [...data.rooms].sort((a, b) => a.displayRoomNumber - b.displayRoomNumber);
+
+  return (
+    <div className="door-room-visual-grid">
+      {rooms.map((room) => (
+        <RoomVisualCard room={room} key={room.deviceKey} />
+      ))}
+    </div>
+  );
+}
+
 function SunroomSection({ title, rooms }: { title: string; rooms: DoorSunroomSessionItem[] }) {
   return (
     <section className="door-sunroom-section">
@@ -1566,7 +1641,7 @@ export default function DoorsPage() {
     queryKeys.doorSunroomOverview(controlDays),
     () => fetchDoorSunroomOverview(controlDays),
     {
-      enabled: view === "romkontroll",
+      enabled: view === "romkontroll" || view === "romkontroll-ny",
       refetchInterval: 30_000,
     },
   );
@@ -1599,6 +1674,8 @@ export default function DoorsPage() {
       ? "Dører · solrom"
       : activeView === "romkontroll"
         ? "Dører · romkontroll"
+      : activeView === "romkontroll-ny"
+        ? "Dører · romkontroll - ny"
       : activeView === "soltimer"
         ? "Dører · dør og soltime"
       : activeView === "andre"
@@ -1619,6 +1696,8 @@ export default function DoorsPage() {
             ? "Alle mottatte HC3-rader for feilsøking og kontroll av dørscenene."
             : activeView === "romkontroll"
               ? "Samlet kontrollflate for rom 1-12 med dør, Sun2-time, forventet ut-tid og strømindikasjon."
+            : activeView === "romkontroll-ny"
+              ? "Alternativ grafisk kontrollflate med tidslinje per rom og tydelige markører for dør, soltid og forventet ut."
             : activeView === "soltimer"
               ? "Kobler solromdør mot Sun2-enkelttime og varsler når kunden er vesentlig over forventet ut-tid."
             : "Åpne- og lukkeperioder fra magnetfølerne, med klargjorte plasser for de nye sensorene."
@@ -1635,7 +1714,11 @@ export default function DoorsPage() {
         }
       />
 
-      {activeView === "oversikt" || activeView === "oversikt-ny" || activeView === "soltimer" || activeView === "romkontroll" ? null : (
+      {activeView === "oversikt" ||
+      activeView === "oversikt-ny" ||
+      activeView === "soltimer" ||
+      activeView === "romkontroll" ||
+      activeView === "romkontroll-ny" ? null : (
         <div className="doors-summary-grid">{buildSummaryCards(data.summary).map(statusSummary)}</div>
       )}
 
@@ -1660,6 +1743,14 @@ export default function DoorsPage() {
             next.set("days", String(nextDays));
             setSearchParams(next, { replace: true });
           }}
+        />
+      ) : null}
+
+      {!isRawView && activeView === "romkontroll-ny" ? (
+        <DoorSunroomVisualControlBoard
+          data={sunroomOverviewQuery.data}
+          loading={sunroomOverviewQuery.loading}
+          error={sunroomOverviewQuery.error}
         />
       ) : null}
 
