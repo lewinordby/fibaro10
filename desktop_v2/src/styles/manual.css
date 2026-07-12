@@ -261,16 +261,36 @@
   --tone-color: var(--domain-status);
   padding: 12px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 10%, transparent), transparent 42%),
-    var(--panel-surface);
-  border: 1px solid color-mix(in srgb, var(--tone-color) 12%, var(--panel-border));
-  border-left: 3px solid var(--tone-color);
+    linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 17%, transparent), transparent 48%),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 4%, var(--panel-surface)), var(--panel-surface));
+  border: 1px solid color-mix(in srgb, var(--tone-color) 24%, var(--panel-border));
+  border-left: 4px solid var(--tone-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs), inset 0 1px 0 var(--panel-inset-highlight);
 }
 
+.manual-area-card.tone-revenue {
+  --tone-color: var(--domain-revenue);
+}
+
+.manual-area-card.tone-parking {
+  --tone-color: var(--domain-parking);
+}
+
 .manual-area-card.tone-sun {
   --tone-color: var(--domain-sun2);
+}
+
+.manual-area-card.tone-energy {
+  --tone-color: var(--domain-energy);
+}
+
+.manual-area-card.tone-vent {
+  --tone-color: var(--domain-vent);
+}
+
+.manual-area-card.tone-light {
+  --tone-color: var(--domain-light);
 }
 
 .manual-area-card.tone-link {
@@ -310,12 +330,14 @@
   justify-content: center;
   width: 34px;
   height: 34px;
-  color: color-mix(in srgb, var(--tone-color) 84%, var(--ink));
+  color: color-mix(in srgb, var(--tone-color) 88%, var(--ink));
   font-size: 11px;
   font-weight: 880;
-  background: color-mix(in srgb, var(--tone-color) 10%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--tone-color) 20%, var(--border-panel));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 18%, var(--surface)), color-mix(in srgb, var(--tone-color) 10%, var(--surface)));
+  border: 1px solid color-mix(in srgb, var(--tone-color) 38%, var(--border-panel));
   border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 0 var(--panel-inset-highlight);
 }
 
 .manual-area-title h3 {
@@ -353,8 +375,8 @@
 .manual-area-grid div {
   min-width: 0;
   padding: 10px;
-  background: color-mix(in srgb, var(--surface-muted) 80%, var(--surface));
-  border: 1px solid var(--border-panel-soft);
+  background: color-mix(in srgb, var(--tone-color) 4%, color-mix(in srgb, var(--surface-muted) 80%, var(--surface)));
+  border: 1px solid color-mix(in srgb, var(--tone-color) 10%, var(--border-panel-soft));
   border-radius: var(--radius-sm);
 }
 
@@ -471,9 +493,9 @@
 
 .app-shell.theme-dark .manual-area-card {
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 12%, transparent), transparent 46%),
-    var(--panel-surface);
-  border-color: color-mix(in srgb, var(--tone-color) 16%, var(--panel-border));
+    linear-gradient(90deg, color-mix(in srgb, var(--tone-color) 17%, transparent), transparent 50%),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 5%, var(--surface-raised)), var(--panel-surface));
+  border-color: color-mix(in srgb, var(--tone-color) 30%, var(--panel-border));
 }
 
 .app-shell.theme-dark .manual-flow span {
@@ -482,9 +504,15 @@
 }
 
 .app-shell.theme-dark .manual-area-icon {
-  color: color-mix(in srgb, var(--tone-color) 78%, var(--dark-white));
-  background: color-mix(in srgb, var(--tone-color) 14%, var(--surface-raised));
-  border-color: color-mix(in srgb, var(--tone-color) 28%, var(--border-panel));
+  color: color-mix(in srgb, var(--tone-color) 72%, var(--dark-white));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone-color) 24%, var(--surface-raised)), color-mix(in srgb, var(--tone-color) 14%, var(--surface)));
+  border-color: color-mix(in srgb, var(--tone-color) 42%, var(--border-panel));
+}
+
+.app-shell.theme-dark .manual-area-grid div {
+  background: color-mix(in srgb, var(--tone-color) 6%, var(--surface-muted));
+  border-color: color-mix(in srgb, var(--tone-color) 16%, var(--border-panel-soft));
 }
 
 @media (max-width: 1320px) {

@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1528")
+APP_BUILD = os.getenv("APP_BUILD", "1529")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1529",
+        "date": "12.07.2026",
+        "headline": "Tydeligere manualfarger",
+        "title": "Gjør fargekodingen i manualen mer synlig per fagområde",
+        "description": (
+            "Build 1529 gjør fargene tydeligere på områdene i webmanualen. Alle manuelle områdekort får nå "
+            "eksplisitt egen domenefarge, sterkere kantmarkering, tydeligere ikonfelt og bedre kontrast i mørkt tema."
+        ),
+        "applications": [
+            "desktop_v2/src/styles/manual.css: gir alle manualområder eksplisitt tonefarge og tydeligere kort, ikon og mørkt tema.",
+            "build_log.py: dokumenterer build 1529 og setter APP_BUILD til 1529.",
+        ],
+        "request": "gjør fargene litt tydligre for de forskjellige områdene",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Omsetning, parkering, soling, energi, ventilasjon, lys, kobling, bygg/drift, vedlikehold, mobil, ideer og admin har nå egne eksplisitte manualfarger.",
+            "Manualkortene har sterkere venstrekant, mer synlig farget bakgrunn og tydeligere ramme.",
+            "Ikonfeltene bruker sterkere områdefarge og bedre kontrast.",
+            "Mørkt tema er justert slik at fargene fortsatt er tydelige uten å bli for harde.",
+        ],
+    },
     {
         "version": "1",
         "build": "1528",
