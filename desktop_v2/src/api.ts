@@ -705,6 +705,51 @@ export type BuildLogResponse = {
   rows: BuildLogListEntry[];
 };
 
+export type AdminManualLink = {
+  label: string;
+  path: string;
+  note: string;
+};
+
+export type AdminManualArea = {
+  title: string;
+  marker: string;
+  tone: string;
+  path: string;
+  purpose: string;
+  canSee: string[];
+  canDo: string[];
+};
+
+export type AdminManualTextItem = {
+  marker?: string;
+  title: string;
+  text: string;
+  path?: string;
+};
+
+export type AdminManualChapter = {
+  id: string;
+  number: string;
+  title: string;
+  paragraphs?: string[];
+  principles?: AdminManualTextItem[];
+  startLinks?: AdminManualLink[];
+  flow?: AdminManualTextItem[];
+  areas?: AdminManualArea[];
+  subapps?: AdminManualTextItem[];
+  dataSources?: AdminManualTextItem[];
+  troubleshooting?: AdminManualTextItem[];
+  note?: string;
+};
+
+export type AdminManualResponse = {
+  build: string;
+  title: string;
+  description: string;
+  chapters: AdminManualChapter[];
+};
+
 export type HealthStatus = "ok" | "warn" | "bad";
 
 export type HealthCheck = {
@@ -1653,6 +1698,10 @@ export function fetchBuildLog(): Promise<BuildLogResponse> {
 
 export function fetchBuildLogEntry(build: string): Promise<BuildLogEntry> {
   return apiGet<BuildLogEntry>(`/api/admin/builds/${encodeURIComponent(build)}`);
+}
+
+export function fetchAdminManual(): Promise<AdminManualResponse> {
+  return apiGet<AdminManualResponse>("/api/admin/manual");
 }
 
 export function fetchHealth(details = false): Promise<HealthResponse> {

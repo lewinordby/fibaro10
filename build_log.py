@@ -5,8 +5,39 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1526")
+APP_BUILD = os.getenv("APP_BUILD", "1527")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1527",
+        "date": "12.07.2026",
+        "headline": "Kapitteldelt webmanual",
+        "title": "Gjør Admin -> Manual til en lesbar webside med kapitler",
+        "description": (
+            "Build 1527 erstatter den tabellpregede manualflaten med en egen webmanual. Manualen har "
+            "innholdsmeny, kapitler, forklaring av daglig bruk, hovedområder, underapper, datagrunnlag "
+            "og feilsøking, med lenker direkte til relevante sider i Fibaro10."
+        ),
+        "applications": [
+            "main.py: legger /api/admin/manual som leverer kapitteldelt manualinnhold fra backend.",
+            "desktop_v2/src/api.ts: legger typekontrakt og fetcher for webmanualen.",
+            "desktop_v2/src/pages/AdminManualPage.tsx: ny kapitteldelt manualsider med innholdsmeny og forklaringer fra API.",
+            "desktop_v2/src/styles/manual.css: ny dokument-CSS for manualen, inkludert mørkt tema.",
+            "desktop_v2/src/AppRoutes.tsx: ruter /admin/manual til den nye manualsiden før generisk admin-view.",
+            "docs/kort-brukermanual.md: oppdatert tekstversjon som peker på webmanualen.",
+            "build_log.py: dokumenterer build 1527 og setter APP_BUILD til 1527.",
+        ],
+        "request": "jeg vil ha en manual som du kan lese som en web side med flere kapitler og forklaring av alt",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Admin -> Manual åpner nå en egen lesbar dokumentflate i stedet for en kompakt tabell.",
+            "Manualen har kapitlene Hva løsningen er, Slik bruker du den daglig, Økonomi, Bygg og drift, System og underapper, Datagrunnlag og Feilsøking.",
+            "Hvert hovedområde forklares med formål, hva du kan se og hva du kan gjøre.",
+            "Underapper og datakilder er forklart samlet med tydelige driftslenker videre.",
+            "Manualen har egen CSS som følger eksisterende Fibaro10-design og fungerer i mørkt tema.",
+        ],
+    },
     {
         "version": "1",
         "build": "1526",

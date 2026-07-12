@@ -13,6 +13,7 @@ const DoorsPage = lazy(() => import("./pages/DoorsPage"));
 const ModulePage = lazy(() => import("./pages/ModulePage"));
 const MobileOverviewPage = lazy(() => import("./pages/MobileOverviewPage"));
 const MaintenanceVisitDetailPage = lazy(() => import("./pages/MaintenanceVisitDetailPage"));
+const AdminManualPage = lazy(() => import("./pages/AdminManualPage"));
 const BuildDetailPage = lazy(() => import("./pages/BuildDetailPage"));
 const BuildLogPage = lazy(() => import("./pages/BuildLogPage"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
@@ -98,6 +99,7 @@ export function AppRoutes() {
         <Route path="/admin/datakilder/:jobName" element={<DataSourceDetailPage />} />
         <Route path="/admin/build" element={<BuildLogPage />} />
         <Route path="/admin/build/:build" element={<BuildDetailPage />} />
+        <Route path="/admin/manual" element={<AdminManualPage />} />
         <Route path="/admin/:view" element={<ModulePage module="admin" />} />
         <Route
           path="*"

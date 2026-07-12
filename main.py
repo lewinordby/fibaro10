@@ -12766,9 +12766,251 @@ async def api_auth_me(request: Request):
     }
 
 
+def admin_manual_payload() -> Dict[str, Any]:
+    economy_areas = [
+        {
+            "title": "Omsetning",
+            "marker": "OM",
+            "tone": "revenue",
+            "path": "/omsetning/oversikt",
+            "purpose": "Samler økonomien på tvers av parkering og soling, med sammenligning mot tidligere perioder.",
+            "canSee": [
+                "omsetning hittil i dag, uke, måned og år",
+                "topplister for beste dager og måneder",
+                "månedsoversikt og årssammenligning",
+                "kontroll mot oppgjør for parkering og soling",
+            ],
+            "canDo": ["følge utvikling gjennom dagen", "sammenligne referanseperioder", "finne avvik mellom system og oppgjør"],
+        },
+        {
+            "title": "Parkering",
+            "marker": "P",
+            "tone": "parking",
+            "path": "/parkering/parkeringer",
+            "purpose": "Viser EasyPark/Flowbird-grunnlaget, kjøretøy, betaling, områder og historikk per bil.",
+            "canSee": [
+                "dagens parkeringer, pågående og avsluttede",
+                "kjøretøyinfo, eier, område, bilmerke, type og farge",
+                "UniFi Protect-lenker for start og slutt",
+                "oppgjør, prognose, årsutvikling og tidspunktfordeling",
+            ],
+            "canDo": ["oppdatere EasyPark", "søke etter bil/eier", "kontrollere område og biloppslag", "åpne bilhistorikk"],
+        },
+        {
+            "title": "Soling",
+            "marker": "S",
+            "tone": "sun",
+            "path": "/soling/dagslinje",
+            "purpose": "Viser SUN2-data, enkelttimer, produkter, senger, medlemmer, bilder og oppgjør.",
+            "canSee": [
+                "dagslinje per rom og seng",
+                "enkeltimer med SUN2-ID, rom, bilde og betaling",
+                "produktsalg og oppgjørskontroll",
+                "årssammenligning, prognoser og statistikk",
+                "bildearkiv fra Axis knyttet til soltimer",
+            ],
+            "canDo": ["bla i bilder", "sette hovedbilde", "kontrollere romkobling", "sjekke produkter og medlemmer"],
+        },
+        {
+            "title": "Koble",
+            "marker": "K",
+            "tone": "link",
+            "path": "/koble/oversikt",
+            "purpose": "Finner sannsynlige koblinger mellom bilnummer og SUN2-ID når samme mønster skjer flere ganger.",
+            "canSee": [
+                "kandidater der samme bil og SUN2-ID matcher minst to parkeringer",
+                "hvor mange parkeringer som har soltreff",
+                "hvilke biler som peker mot samme SUN2-ID",
+                "jobbstatus og parametere for koblingsmotoren",
+            ],
+            "canDo": ["bekrefte eller avvise koblinger", "justere parametere", "starte jobben på nytt fra nyeste parkering"],
+        },
+    ]
+
+    operations_areas = [
+        {
+            "title": "Energi",
+            "marker": "EL",
+            "tone": "energy",
+            "path": "/energi/status",
+            "purpose": "Samler realtime effekt fra HC3, kurser, laster, Elvia-kontroll og solsengforbruk.",
+            "canSee": ["inntak, varmepumper, belysning, massasje, annet og diff", "kurser og målere", "Elvia mot HC3", "forbruk per seng"],
+            "canDo": ["kontrollere strømavvik", "importere Elvia", "beregne forbruk per seng", "vedlikeholde laster og kursinfo"],
+        },
+        {
+            "title": "Ventilasjon",
+            "marker": "V",
+            "tone": "vent",
+            "path": "/ventilasjon/dagslogg",
+            "purpose": "Forklarer inneklima, fukt, Yr-data, viftestatus og ventilasjonsstyring gjennom dagen.",
+            "canSee": ["temperatur og fukt i soner", "Yr-vær, vind, skydekke og nedbør", "når vifter og avfukter går", "hendelser og innstillinger"],
+            "canDo": ["vurdere om vifter starter riktig", "se effekt av vær og temperatur", "endre terskler og styringsverdier"],
+        },
+        {
+            "title": "Lys",
+            "marker": "LYS",
+            "tone": "light",
+            "path": "/lys/dagslogg",
+            "purpose": "Viser lux, skydekke, solhøyde, lysstatus og regler for ute-/fasadelys.",
+            "canSee": ["lux gjennom dagen", "skydekke og solhøyde", "lysgrupper av/på", "hendelser og innstillinger"],
+            "canDo": ["forstå hvorfor lys gikk på/av", "justere terskler og tidsvinduer", "kontrollere lyslogikk mot faktisk dagslys"],
+        },
+        {
+            "title": "Dører",
+            "marker": "D",
+            "tone": "building",
+            "path": "/dorer/romkontroll",
+            "purpose": "Gir oversikt over solrom og byggdører med åpne/lukke-historikk og kobling mot soltimer.",
+            "canSee": ["solrom som er ledige/opptatt", "siste åpning/lukking med sekunder", "forventet ut-tid", "romkontroll mot soltime og strøm"],
+            "canDo": ["åpne romdetaljer", "sjekke avvik etter avsluttet soltime", "kontrollere rådata fra HC3-sensorer"],
+        },
+        {
+            "title": "Vedlikehold",
+            "marker": "VD",
+            "tone": "maintenance",
+            "path": "/vedlikehold/besok",
+            "purpose": "Logger besøk på Lilletorget og oppgavene som blir gjort under hvert besøk.",
+            "canSee": ["besøk fra OwnTracks/Lilletorget", "oppgaver per besøk", "notater, tagger, oppfølging og status"],
+            "canDo": ["redigere besøk", "skrive notat", "legge til eller endre oppgaver", "følge opp åpne punkter"],
+        },
+        {
+            "title": "Renhold",
+            "marker": "R",
+            "tone": "maintenance",
+            "path": "/renhold/oversikt",
+            "purpose": "Viser Roborock-status, siste jobber, robotdetaljer og loggerstatus.",
+            "canSee": ["robotstatus", "batteri, skytilkobling og feil", "siste vaskejobber", "detaljer per robot"],
+            "canDo": ["kontrollere at robotloggeren virker", "se hva som ble vasket", "bruke data ved vedlikehold og feilsøking"],
+        },
+    ]
+
+    system_areas = [
+        {
+            "title": "Mobil",
+            "marker": "M",
+            "tone": "mobile",
+            "path": "/mobil/oversikt",
+            "purpose": "Viser mobilkortene samlet i hovedappen og gjør det enklere å kontrollere hva lette flater viser.",
+            "canSee": ["kort fra mobilvisningen", "parkering, soling og driftstall i kompakt form"],
+            "canDo": ["sammenligne mobilvisning mot hovedappen", "oppdage om nøkkeltall mangler i mobilflaten"],
+        },
+        {
+            "title": "Ideer",
+            "marker": "ID",
+            "tone": "ideas",
+            "path": "/ideer/oversikt",
+            "purpose": "Samler forslag og analyser før de eventuelt flyttes inn i ordinære fagområder.",
+            "canSee": ["kontrollideer", "innsikter", "automatiseringsforslag", "arbeidsflyt-forslag"],
+            "canDo": ["vurdere nye funksjoner", "bruke ideer som utviklingsbacklog"],
+        },
+        {
+            "title": "Admin",
+            "marker": "A",
+            "tone": "admin",
+            "path": "/admin/datakilder",
+            "purpose": "Drifts- og systemområde for datakilder, buildlogg, brukere, teknisk status og systemkart.",
+            "canSee": ["datakilder", "buildlogg", "systemkart", "brukere", "teknisk drift", "AI og verktøy"],
+            "canDo": ["feilsøke tjenester", "kontrollere tilgang", "finne URL-er og health", "lese hva som er endret"],
+        },
+    ]
+
+    return {
+        "build": APP_BUILD,
+        "title": "Lilletorget drift",
+        "description": "Lesbar oversikt over hva løsningen viser, hva du kan gjøre, og hvor du starter når noe skal kontrolleres.",
+        "chapters": [
+            {
+                "id": "hva-losningen-er",
+                "number": "01",
+                "title": "Hva løsningen er",
+                "paragraphs": [
+                    "Fibaro10 er drifts- og analyseflaten for Lilletorget/Sun2. Den samler data fra HC3, EasyPark, SUN2, Axis, Yr, Elvia, Roborock, OwnTracks og egne sideapper i én database.",
+                    "Hovedpoenget er å se status, forklare avvik og følge utviklingen uten å hoppe mellom mange systemer. Hovedappen er laget for PC og større skjermer, mens mobil, vedlikehold og iPad har egne lette flater.",
+                ],
+                "principles": [
+                    {"marker": "DB", "title": "Database først", "text": "Appen viser normalt data fra egen database, ikke direkte fra tredjepart i øyeblikket."},
+                    {"marker": "OK", "title": "Datakilder er fasit", "text": "Når tall virker feil, kontroller først om kilden faktisk har levert ferske data."},
+                    {"marker": "SPOR", "title": "Alt skal kunne spores", "text": "Systemkart, buildlogg og oppgjør gjør det mulig å finne kilde, endring og kontrollgrunnlag."},
+                ],
+            },
+            {
+                "id": "daglig-bruk",
+                "number": "02",
+                "title": "Slik bruker du den daglig",
+                "startLinks": [
+                    {"label": "Dashboard", "path": "/status/omsetning", "note": "Dagens økonomi, parkering, soling og drift."},
+                    {"label": "Datakilder", "path": "/admin/datakilder", "note": "Første stopp når tall mangler eller virker gamle."},
+                    {"label": "Systemkart", "path": "/admin/systemkart", "note": "Apper, porter, URL-er og health-lenker."},
+                    {"label": "Buildlogg", "path": "/admin/build", "note": "Hva som er endret, hvorfor og hvordan det ble testet."},
+                    {"label": "Brukere", "path": "/admin/brukere", "note": "Tilgang, roller, master og innloggingslogg."},
+                ],
+                "flow": [
+                    {"title": "Start med Dashboard", "text": "Se om omsetning, parkering og soling ligger normalt an."},
+                    {"title": "Gå til fagområdet", "text": "Åpne parkering, soling, energi, lys, ventilasjon eller dører for forklaringen."},
+                    {"title": "Sjekk datakilden", "text": "Hvis noe ikke stemmer, kontroller alder og melding før du tolker tallene."},
+                    {"title": "Bruk buildlogg", "text": "Hvis noe oppfører seg annerledes enn før, se hvilken build som endret det."},
+                ],
+            },
+            {"id": "okonomi", "number": "03", "title": "Økonomi", "areas": economy_areas},
+            {"id": "bygg-drift", "number": "04", "title": "Bygg og drift", "areas": operations_areas},
+            {
+                "id": "system-underapper",
+                "number": "05",
+                "title": "System og underapper",
+                "areas": system_areas,
+                "subapps": [
+                    {"title": "online_dashboard", "text": "Ekstern mobilvisning på online.lilletorget.net."},
+                    {"title": "maintenance_mobile", "text": "Mobil vedlikeholdsapp på vedl.lilletorget.net."},
+                    {"title": "fibaro10ipad", "text": "Egen iPad-flate på ipad.lilletorget.net."},
+                    {"title": "owntracks_service", "text": "Lokasjon, waypoints og sonebesøk på owntracks.lilletorget.net."},
+                    {"title": "axis_camera_snapshots", "text": "Henter og rydder Axis-bilder til soltimer."},
+                    {"title": "sun2_session_scraper", "text": "Henter SUN2 enkelttimer, produkter, senger og medlemmer."},
+                    {"title": "easypark_downloader", "text": "Henter EasyPark-data og holder parkeringsgrunnlaget oppdatert."},
+                    {"title": "parking_sun_linker", "text": "Bakgrunnsmotor for kobling mellom parkering og SUN2-ID."},
+                ],
+            },
+            {
+                "id": "datagrunnlag",
+                "number": "06",
+                "title": "Datagrunnlag",
+                "dataSources": [
+                    {"title": "HC3", "text": "Poster energi, lys, ventilasjon og dørhendelser inn i Fibaro10."},
+                    {"title": "EasyPark/Flowbird", "text": "Gir parkeringsgrunnlag, kilder, betalinger, tidspunkt og oppgjørskontroll."},
+                    {"title": "SUN2", "text": "Gir soltimer, produkter, medlemmer, senger, rom og økonomigrunnlag."},
+                    {"title": "Axis", "text": "Leverer snapshots som kobles til soltimer og bildearkiv."},
+                    {"title": "Yr", "text": "Gir vær, temperatur, fukt, vind, skydekke og nedbør til analyse og styring."},
+                    {"title": "Elvia", "text": "Manuell import som brukes som kontroll mot HC3-forbruk."},
+                    {"title": "Roborock", "text": "Logger robotvaskere, status og vaskehistorikk."},
+                    {"title": "OwnTracks", "text": "Egen tjeneste for lokasjon, waypoints og besøk på kjente steder."},
+                ],
+                "note": "Bruk Admin -> Datakilder for operativ status. Bruk Admin -> Systemkart når du trenger URL, port, health-lenke eller compose-service.",
+            },
+            {
+                "id": "feilsoking",
+                "number": "07",
+                "title": "Feilsøking",
+                "troubleshooting": [
+                    {"title": "Tall mangler eller virker gamle", "path": "/admin/datakilder", "text": "Sjekk sist OK, alder, melding og neste planlagte jobb før du vurderer grafen."},
+                    {"title": "Parkering stemmer ikke", "path": "/parkering/parkeringer", "text": "Sjekk EasyPark-import, dagens liste, kilde og oppgjør."},
+                    {"title": "Soling stemmer ikke", "path": "/soling/enkeltimer", "text": "Sjekk enkelttimer, dagslinje, produkter, bildearkiv og SUN2-scraper."},
+                    {"title": "Strøm avviker", "path": "/energi/elvia-kontroll", "text": "Sammenlign HC3 og Elvia, og se etter hull eller nullstilling på målere."},
+                    {"title": "Lys/ventilasjon virker feil", "path": "/lys/dagslogg", "text": "Sjekk lux, skydekke, solhøyde, temperatur, fukt og hendelser samme dag."},
+                    {"title": "Underapp svarer ikke", "path": "/admin/systemkart", "text": "Åpne health-lenke, lokal URL og sjekk compose-service."},
+                ],
+                "note": "Praktisk regel: feilsøk først om datagrunnlaget er ferskt, deretter om faglogikken er riktig, og til slutt om visningen/grafen presenterer tallene feil.",
+            },
+        ],
+    }
+
+
 @app.get("/api/admin/builds")
 async def api_admin_builds():
     return admin_builds_payload()
+
+
+@app.get("/api/admin/manual")
+async def api_admin_manual():
+    return admin_manual_payload()
 
 
 @app.get("/api/admin/builds/{build}")
