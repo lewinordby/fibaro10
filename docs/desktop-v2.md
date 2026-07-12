@@ -114,7 +114,7 @@ Koble bruker sideappen `parking_sun_linker`, men all styring, status og manuell 
 - `/dorer/oversikt`
 - `/dorer/andre`
 - `/dorer/radata`
-- Eldre solrom-/romkontrollruter under `/dorer` finnes som skjulte sammenligningsruter, men daglig romdrift skal bruke `/solrom`.
+- Eldre solrom-/romkontrollruter under `/dorer` er synlige igjen for sammenligning mens designet vurderes.
 - `/renhold/oversikt`
 - `/renhold/roboter`
 - `/vedlikehold/oversikt`

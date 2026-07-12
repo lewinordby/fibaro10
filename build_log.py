@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1544")
+APP_BUILD = os.getenv("APP_BUILD", "1545")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1545",
+        "date": "12.07.2026",
+        "headline": "Synlige Dører-varianter",
+        "title": "Gjør alle tidligere Dører-designvarianter synlige igjen",
+        "description": (
+            "Build 1545 reverserer meny-skjulingen fra build 1542 for Dører. De eldre romkontroll- og "
+            "solromvariantene vises igjen i Dører-undermenyen slik at de kan vurderes funksjonelt mot Solrom og Dører2."
+        ),
+        "applications": [
+            "desktop_v2/src/moduleViews.ts: fjerner hidden fra eldre Dører-undersider.",
+            "main.py: oppdaterer levende manualtekst for Dører.",
+            "docs/kort-brukermanual.md, docs/funksjonsstruktur.md og docs/desktop-v2.md: dokumenterer at variantene er synlige igjen.",
+            "build_log.py: dokumenterer build 1545 og setter APP_BUILD til 1545.",
+        ],
+        "request": (
+            "1542 så skjulte du en del sider under dør menyen, disse vil jeg ikke at skal være skjult "
+            "da jeg fortsatt vurderer forskjellige funksjonelle design"
+        ),
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Dører/Oversikt - ny er synlig igjen.",
+            "Dører/Romkontroll, Romkontroll - ny og Romkontroll - ny2 er synlige igjen.",
+            "Dører/Dør og soltime, Solrom og Solrom - ny er synlige igjen.",
+            "Ingen ruter eller backendlogikk er fjernet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1544",

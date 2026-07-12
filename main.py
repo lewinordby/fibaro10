@@ -13526,9 +13526,9 @@ def admin_manual_payload() -> Dict[str, Any]:
             "marker": "D",
             "tone": "building",
             "path": "/dorer/oversikt",
-            "purpose": "Gir samlet dørstatus for byggdører og tilgang til åpne/lukke-historikk og rådata fra HC3.",
-            "canSee": ["siste åpning/lukking med sekunder", "andre dører", "råhendelser fra HC3", "om status er normal eller avvik"],
-            "canDo": ["kontrollere byggdører", "sjekke rådata fra HC3-sensorer", "feilsøke manglende dørhendelser"],
+            "purpose": "Gir samlet dørstatus for byggdører og tilgang til åpne/lukke-historikk, rådata og synlige romkontrollvarianter.",
+            "canSee": ["siste åpning/lukking med sekunder", "andre dører", "råhendelser fra HC3", "flere designforslag for romkontroll"],
+            "canDo": ["kontrollere byggdører", "sammenligne romkontrollflater", "sjekke rådata fra HC3-sensorer", "feilsøke manglende dørhendelser"],
         },
         {
             "title": "Solrom",
@@ -13659,7 +13659,7 @@ def admin_manual_payload() -> Dict[str, Any]:
                     {"title": "Lys", "path": "/lys/dagslogg", "text": "Dagslogg, lux-logg, hendelser og innstillinger for lysregler, skydekke og solhøyde."},
                     {"title": "Solrom", "path": "/solrom/oversikt", "text": "Nåstatus og dagskontroll for solrom 1-12 med dør, Sun2-time, forventet ut, hendelser og effektmarkører."},
                     {"title": "Dører2", "path": "/dorer2/oversikt", "text": "Ny situasjonsflate for solrom og byggdører med avvik først, romkart og detaljvisning."},
-                    {"title": "Dører", "path": "/dorer/oversikt", "text": "Byggdører, andre dører og rådata fra HC3. Solromdriften ligger i egen Solrom-meny."},
+                    {"title": "Dører", "path": "/dorer/oversikt", "text": "Byggdører, andre dører, rådata og synlige romkontrollvarianter for sammenligning."},
                     {"title": "Vedlikehold", "path": "/vedlikehold/besok", "text": "Besøk og oppgaver på Lilletorget. Brukes for å koble faktisk tilstedeværelse og utført arbeid."},
                     {"title": "Renhold", "path": "/renhold/oversikt", "text": "Roborock-status, vaskelogger og robotdetaljer."},
                     {"title": "Manual", "path": "/manual/oversikt", "text": "Kapitteldelt dokumentasjon med egne undersider for daglig bruk, menyvalg, datagrunnlag, rutiner og feilsøking."},
@@ -18259,8 +18259,8 @@ def api_admin_manual_payload(import_rows: list[Dict[str, Any]], access_keys: lis
                 {
                     "area": "Dører",
                     "path": "/dorer/oversikt",
-                    "role": "Byggdører, andre dører, åpne/lukke-historikk og rådata fra HC3.",
-                    "recommended_action": "Brukes for statuskontroll og feilsøking av dørhendelser.",
+                    "role": "Byggdører, andre dører, åpne/lukke-historikk, rådata og synlige romkontrollvarianter.",
+                    "recommended_action": "Brukes for statuskontroll, feilsøking og sammenligning av ulike romkontrollflater.",
                 },
                 {
                     "area": "Vedlikehold",

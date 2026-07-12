@@ -126,7 +126,7 @@ Dører2 er en ny arbeidsflate ved siden av eksisterende Dører/Solrom. Den skal 
 - `Andre dører`: byggdører som normalt skal vurderes annerledes enn solrom.
 - `Rådata`: alle dørhendelser fra HC3.
 
-Eldre romkontroll-varianter ligger fortsatt som skjulte ruter for sammenligning, men daglig solromdrift skal bruke hovedmenyen `Solrom`.
+Eldre romkontroll-varianter er synlige i Dører-menyen igjen mens design og funksjon vurderes mot `Solrom` og `Dører2`.
 
 ### Vedlikehold og renhold
 

@@ -1,6 +1,6 @@
 # Kort brukermanual for Lilletorget drift
 
-Oppdatert 12.07.2026, build 1544.
+Oppdatert 12.07.2026, build 1545.
 
 Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen ligger nå som eget hovedmenyvalg `Manual`, med egne undersider for oversikt, daglig bruk, menyvalg, datagrunnlag, rutiner og feilsøking.
 
@@ -27,7 +27,7 @@ Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen lig
 | Lys | `/lys/dagslogg` | Lux, skydekke, solhøyde, lysstatus, hendelser og styringsregler. |
 | Solrom | `/solrom/oversikt` | Nåstatus, forventet ut, varsler, romdetaljer og dagskontroll for solrom 1-12. |
 | Dører2 | `/dorer2/oversikt` | Ny operativ situasjonsflate for solrom og byggdører med avvik først, romkart og detaljvisning. |
-| Dører | `/dorer/oversikt` | Byggdører, andre dører, åpne/lukke-historikk og rådata fra HC3. |
+| Dører | `/dorer/oversikt` | Byggdører, andre dører, åpne/lukke-historikk, rådata og synlige designvarianter for romkontroll. |
 | Vedlikehold | `/vedlikehold/besok` | Besøk på Lilletorget og oppgaver utført under hvert besøk. |
 | Renhold | `/renhold/oversikt` | Roborock-status, siste jobber, robotdetaljer og loggerstatus. |
 | Mobil og iPad | `/mobil/oversikt` | Kontroll av hva de lette mobil- og iPad-flatene viser. |
