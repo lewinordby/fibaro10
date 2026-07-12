@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1531")
+APP_BUILD = os.getenv("APP_BUILD", "1532")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1532",
+        "date": "12.07.2026",
+        "headline": "Ryddigere romkontroll",
+        "title": "Gjør Dører / Romkontroll raskere å lese",
+        "description": (
+            "Build 1532 strammer opp Dører / Romkontroll med tydeligere toppstatus, egen liste for rom som "
+            "krever oppfølging, og mer kompakte romkort. Kortene prioriterer nå dørstatus, hvor lenge rommet "
+            "har stått slik, forventet ut-tid, Sun2-kobling og strømstatus."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/DoorsPage.tsx: bygger om Romkontroll til mer operativ oversikt med prioriteringsliste og ryddigere romkort.",
+            "desktop_v2/src/styles/doors.css: strammer opp layout, spacing, fargebruk og responsive regler for Romkontroll.",
+            "desktop_v2/src/styles/dark-theme.css: legger mørkt-tema-støtte for nye Romkontroll-elementer.",
+            "build_log.py: dokumenterer build 1532 og setter APP_BUILD til 1532.",
+        ],
+        "request": "jeg synes fortsatt at Dører/Romkontroll er lite oversiktelig. vanskelig å få rask og god oversikt",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Romkontroll har nå kompakt toppfelt med oppdatert-tid og periodevalg.",
+            "Nøkkeltallene viser ledige rom, rom i bruk, varsler, dørmatch, strøm OK og soltimer uten dørmatch.",
+            "Ny oppfølgingsliste løfter frem rom med varsel, manglende Sun2-match eller soltimer uten dørmatch.",
+            "Romkortene er lavere og viser først dørstatus, varighet, forventet ut og aktuell soltime.",
+            "Mørkt tema er justert for de nye romkontroll-elementene.",
+        ],
+    },
     {
         "version": "1",
         "build": "1531",

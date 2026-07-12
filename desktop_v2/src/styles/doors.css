@@ -1787,32 +1787,32 @@
 
 .door-room-control-board {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .door-room-control-command {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
-  padding: 14px 16px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--domain-building) 8%, var(--surface)), var(--surface));
-  border: 1px solid color-mix(in srgb, var(--domain-building) 12%, var(--line-soft));
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  padding: 9px 12px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--domain-building) 10%, var(--line-soft));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
 }
 
 .door-room-control-command h3.ant-typography {
-  margin: 0 0 3px;
+  margin: 0;
   color: var(--ink);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 820;
 }
 
 .door-room-control-command span {
   color: var(--muted);
-  font-size: 12.5px;
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 690;
 }
 
 .door-room-control-actions {
@@ -1825,16 +1825,33 @@
 .door-room-control-summary {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
+  gap: 7px;
 }
 
 .door-room-control-summary > div {
-  min-height: 58px;
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
+  --summary-tone: var(--domain-building);
+  min-height: 48px;
+  padding: 8px 10px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--summary-tone) 6%, var(--surface)), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--summary-tone) 13%, var(--line-soft));
+  border-left: 4px solid var(--summary-tone);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 14px var(--shadow-ink-faint-color);
+}
+
+.door-room-control-summary > div.tone-free,
+.door-room-control-summary > div.tone-ok {
+  --summary-tone: var(--green);
+}
+
+.door-room-control-summary > div.tone-active,
+.door-room-control-summary > div.tone-warn {
+  --summary-tone: var(--amber);
+}
+
+.door-room-control-summary > div.tone-alert {
+  --summary-tone: var(--red);
 }
 
 .door-room-control-summary span,
@@ -1844,35 +1861,128 @@
 
 .door-room-control-summary span {
   color: var(--muted);
-  font-size: 10.5px;
-  font-weight: 760;
+  font-size: 9.5px;
+  font-weight: 820;
+  letter-spacing: .018em;
+  line-height: 1.1;
   text-transform: uppercase;
 }
 
 .door-room-control-summary strong {
-  margin-top: 3px;
+  margin-top: 2px;
   color: var(--ink);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 840;
   font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+
+.door-room-control-attention {
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--domain-building) 3%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--domain-building) 9%, var(--line-soft));
+  border-radius: var(--radius-md);
+}
+
+.door-room-control-attention-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.door-room-control-attention-head strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.door-room-control-attention-head span,
+.door-room-control-attention-ok {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.door-room-control-attention-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 7px;
+}
+
+.door-room-control-attention-item {
+  --attention-tone: var(--domain-building);
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 7px 9px;
+  color: inherit;
+  background: color-mix(in srgb, var(--attention-tone) 6%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--attention-tone) 18%, var(--line-soft));
+  border-left: 4px solid var(--attention-tone);
+  border-radius: var(--radius-sm);
+}
+
+.door-room-control-attention-item.tone-warning,
+.door-room-control-attention-item.tone-active {
+  --attention-tone: var(--amber);
+}
+
+.door-room-control-attention-item.tone-alert {
+  --attention-tone: var(--red);
+}
+
+.door-room-control-attention-item.tone-free {
+  --attention-tone: var(--green);
+}
+
+.door-room-control-attention-item strong,
+.door-room-control-attention-item span,
+.door-room-control-attention-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-room-control-attention-item strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 830;
+}
+
+.door-room-control-attention-item span {
+  color: color-mix(in srgb, var(--attention-tone) 78%, var(--ink));
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.door-room-control-attention-item small {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 690;
 }
 
 .door-room-control-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(520px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(500px, 1fr));
+  gap: 10px;
 }
 
 .door-room-control-card {
   --room-tone: var(--domain-building);
   display: grid;
-  gap: 12px;
+  gap: 9px;
   min-width: 0;
-  padding: 14px 16px;
-  background: var(--surface);
+  padding: 11px 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--room-tone) 4%, var(--surface)), var(--surface) 48%);
   border: 1px solid color-mix(in srgb, var(--room-tone) 13%, var(--line-soft));
   border-left: 5px solid var(--room-tone);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1908,14 +2018,17 @@
 
 .door-room-control-head strong {
   color: var(--ink);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 830;
+  line-height: 1.05;
 }
 
 .door-room-control-head span {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 680;
+  font-size: 10.5px;
+  font-weight: 780;
+  letter-spacing: .018em;
+  text-transform: uppercase;
 }
 
 .door-room-control-head-status {
@@ -1931,86 +2044,119 @@
   font-weight: 800;
 }
 
+.door-room-control-state-pill {
+  --state-pill-tone: var(--room-tone);
+  min-width: 70px;
+  padding: 5px 8px;
+  color: color-mix(in srgb, var(--state-pill-tone) 82%, var(--ink));
+  font-size: 10.5px;
+  font-weight: 860;
+  line-height: 1;
+  text-align: center;
+  background: color-mix(in srgb, var(--state-pill-tone) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--state-pill-tone) 24%, var(--line-soft));
+  border-radius: var(--radius-pill);
+}
+
 .door-room-control-now,
 .door-room-control-timeline {
   display: grid;
-  gap: 7px;
+  gap: 6px;
 }
 
 .door-room-control-now {
-  grid-template-columns: 1.05fr 1.25fr 1fr;
+  grid-template-columns: 1fr 1.05fr 1fr;
 }
 
 .door-room-control-timeline {
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  padding: 9px;
+  padding: 7px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--room-tone) 12%, transparent), transparent 22%),
+    linear-gradient(90deg, color-mix(in srgb, var(--room-tone) 9%, transparent), transparent 24%),
     var(--surface-muted);
   border: 1px solid color-mix(in srgb, var(--room-tone) 10%, var(--border-panel-soft));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
-.door-room-control-metric {
+.door-room-control-metric,
+.door-room-control-keyline {
   min-width: 0;
-  padding: 8px 9px;
+  padding: 7px 8px;
   background: color-mix(in srgb, var(--room-tone) 3%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--room-tone) 8%, var(--border-panel-soft));
   border-radius: var(--radius-sm);
 }
 
-.door-room-control-metric.tone-ok {
+.door-room-control-keyline {
+  border-left: 3px solid color-mix(in srgb, var(--room-tone) 36%, var(--line-soft));
+}
+
+.door-room-control-metric.tone-ok,
+.door-room-control-keyline.tone-ok {
   background: color-mix(in srgb, var(--green) 8%, var(--surface));
   border-color: color-mix(in srgb, var(--green) 20%, var(--border-panel-soft));
 }
 
-.door-room-control-metric.tone-warn {
+.door-room-control-metric.tone-warn,
+.door-room-control-keyline.tone-warn {
   background: color-mix(in srgb, var(--amber) 9%, var(--surface));
   border-color: color-mix(in srgb, var(--amber) 28%, var(--border-panel-soft));
 }
 
-.door-room-control-metric.tone-alert {
+.door-room-control-metric.tone-alert,
+.door-room-control-keyline.tone-alert {
   background: color-mix(in srgb, var(--red) 8%, var(--surface));
   border-color: color-mix(in srgb, var(--red) 28%, var(--border-panel-soft));
 }
 
-.door-room-control-metric.tone-muted {
+.door-room-control-metric.tone-muted,
+.door-room-control-keyline.tone-muted {
   background: var(--surface-muted);
 }
 
 .door-room-control-metric span,
 .door-room-control-metric strong,
-.door-room-control-metric small {
+.door-room-control-metric small,
+.door-room-control-keyline span,
+.door-room-control-keyline strong,
+.door-room-control-keyline small {
   display: block;
   min-width: 0;
 }
 
 .door-room-control-metric span,
+.door-room-control-keyline span,
 .door-room-control-energy span,
 .door-room-control-empty span,
 .door-room-control-session small {
   color: var(--muted);
-  font-size: 10.5px;
-  font-weight: 680;
+  font-size: 10px;
+  font-weight: 720;
 }
 
 .door-room-control-metric strong,
+.door-room-control-keyline strong,
 .door-room-control-empty strong {
   display: block;
   overflow: hidden;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.door-room-control-metric small {
+.door-room-control-keyline strong {
+  font-size: 14px;
+}
+
+.door-room-control-metric small,
+.door-room-control-keyline small {
   display: block;
   overflow: hidden;
   margin-top: 2px;
   color: var(--text-label);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 680;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2018,11 +2164,11 @@
 
 .door-room-control-session {
   display: grid;
-  gap: 8px;
-  padding: 10px;
+  gap: 7px;
+  padding: 8px;
   background: color-mix(in srgb, var(--room-tone) 4%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--room-tone) 10%, var(--line-soft));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
 .door-room-control-session-head > div {
@@ -2033,25 +2179,25 @@
 
 .door-room-control-session-head span {
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 760;
   text-transform: uppercase;
 }
 
 .door-room-control-session-head a {
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 820;
 }
 
 .door-room-control-facts {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
 .door-room-control-facts .door-room-control-metric {
-  padding: 7px 8px;
+  padding: 6px 7px;
   background: var(--surface);
 }
 
@@ -2071,7 +2217,7 @@
 .door-room-control-energy strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2080,25 +2226,25 @@
 .door-room-control-empty {
   display: grid;
   gap: 2px;
-  padding: 10px;
+  padding: 8px;
   background: var(--surface-muted);
   border: 1px dashed var(--line-soft);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
 .door-room-control-history {
   display: grid;
-  gap: 7px;
-  padding: 9px 10px;
+  gap: 5px;
+  padding: 7px 8px;
   background: var(--surface-muted);
   border: 1px solid var(--border-panel-soft);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
 .door-room-control-history-head,
 .door-room-control-history-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.7fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .7fr) minmax(0, .8fr);
   gap: 8px;
   align-items: center;
 }
@@ -2111,7 +2257,7 @@
 .door-room-control-history-empty {
   overflow: hidden;
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2177,6 +2323,7 @@
   .door-room-control-now,
   .door-room-control-timeline,
   .door-room-control-facts,
+  .door-room-control-attention-item,
   .door-room-control-history-head,
   .door-room-control-history-row {
     grid-template-columns: 1fr;

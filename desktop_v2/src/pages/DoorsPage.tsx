@@ -993,6 +993,48 @@ function energyEvidenceTag(energy?: DoorSunroomEnergyEvidence | null) {
   return <Tag>{energy.statusLabel || energy.qualityLabel || "Ikke vurdert"}</Tag>;
 }
 
+function roomControlTone(room: DoorSunroomOverviewRoom) {
+  const status = room.status;
+  if (status.severity === "alert") return "alert";
+  if (status.severity === "warning") return "warning";
+  if (status.isOccupied) return "active";
+  if (status.doorState === "open") return "free";
+  return "unknown";
+}
+
+function roomControlStatusText(room: DoorSunroomOverviewRoom) {
+  const status = room.status;
+  if (status.severity === "alert") return "Kritisk";
+  if (status.severity === "warning") return "Varsel";
+  if (status.isOccupied) return "I bruk";
+  if (status.doorState === "open") return "Ledig";
+  return "Ukjent";
+}
+
+function roomControlPriority(room: DoorSunroomOverviewRoom) {
+  const status = room.status;
+  if (status.severity === "alert") return 0;
+  if (status.severity === "warning") return 1;
+  if (status.isOccupied && !room.latestPeriod?.session) return 2;
+  if (room.sessionsWithoutDoor.length) return 3;
+  if (status.isOccupied) return 4;
+  return 5;
+}
+
+function roomControlGeneratedLabel(value?: string | null) {
+  if (!value) return "ukjent tidspunkt";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("nb-NO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 function SunroomControlMetric({
   label,
   value,
@@ -1006,6 +1048,26 @@ function SunroomControlMetric({
 }) {
   return (
     <div className={`door-room-control-metric ${tone ? `tone-${tone}` : ""}`}>
+      <span>{label}</span>
+      <strong>{value || "-"}</strong>
+      {detail ? <small>{detail}</small> : null}
+    </div>
+  );
+}
+
+function SunroomControlKeyLine({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string;
+  value?: ReactNode;
+  detail?: ReactNode;
+  tone?: "ok" | "warn" | "alert" | "muted";
+}) {
+  return (
+    <div className={`door-room-control-keyline ${tone ? `tone-${tone}` : ""}`}>
       <span>{label}</span>
       <strong>{value || "-"}</strong>
       {detail ? <small>{detail}</small> : null}
@@ -1043,22 +1105,23 @@ function SunroomControlTimeline({
   );
 }
 
-function SunroomControlSession({ session }: { session: DoorSunroomOverviewSession }) {
+function SunroomControlSession({ session, expectedExitLabel }: { session: DoorSunroomOverviewSession; expectedExitLabel?: string | null }) {
   const energy = session.energy;
   return (
     <div className={`door-room-control-session energy-${energy?.status || energy?.quality || "missing"}`}>
       <div className="door-room-control-session-head">
         <div>
-          <span>Sun2-time</span>
-          <Link to={session.href}>Betalt {session.startedLabel}</Link>
+          <span>Sun2</span>
+          <Link to={session.href}>
+            {session.startedLabel} · {session.durationMinutes ? `${session.durationMinutes} min` : "-"} · {sunroomMoney(session.paidAmountKr)}
+          </Link>
         </div>
         {session.hasDoorMatch ? <Tag color="green">Dørmatch</Tag> : <Tag color="orange">Uten dørmatch</Tag>}
       </div>
       <div className="door-room-control-facts">
         <SunroomControlMetric label="Solstart" value={session.sunStartLabel} />
-        <SunroomControlMetric label="Slutt" value={session.endedLabel} />
-        <SunroomControlMetric label="Tid" value={session.durationMinutes ? `${session.durationMinutes} min` : "-"} />
-        <SunroomControlMetric label="Beløp" value={sunroomMoney(session.paidAmountKr)} />
+        <SunroomControlMetric label="Sol slutt" value={session.endedLabel} />
+        <SunroomControlMetric label="Forventet ut" value={expectedExitLabel || session.expectedExitLabel || "-"} />
       </div>
       <div className="door-room-control-energy">
         {energyEvidenceTag(energy)}
@@ -1084,52 +1147,101 @@ function SunroomControlSession({ session }: { session: DoorSunroomOverviewSessio
   );
 }
 
+function RoomControlAttention({ rooms }: { rooms: DoorSunroomOverviewRoom[] }) {
+  const items = [...rooms]
+    .filter((room) => roomControlPriority(room) < 4)
+    .sort((a, b) => roomControlPriority(a) - roomControlPriority(b) || a.displayRoomNumber - b.displayRoomNumber)
+    .slice(0, 6);
+
+  return (
+    <section className="door-room-control-attention">
+      <div className="door-room-control-attention-head">
+        <strong>Trenger oppfølging</strong>
+        <span>{items.length ? `${items.length} rom` : "Ingen aktive avvik"}</span>
+      </div>
+      {items.length ? (
+        <div className="door-room-control-attention-list">
+          {items.map((room) => {
+            const status = room.status;
+            const latest = room.latestPeriod;
+            const detailHref = room.roomId ? `/dorer/soltimer?room=${encodeURIComponent(room.roomId)}` : "/dorer/soltimer";
+            const detail =
+              status.severity === "alert" || status.severity === "warning"
+                ? status.detail || latest?.detail || status.remainingLabel
+                : !latest?.session && status.isOccupied
+                  ? "Dør lukket, men ingen Sun2-time er koblet ennå"
+                  : room.sessionsWithoutDoor.length
+                    ? `${room.sessionsWithoutDoor.length} soltime(r) uten dørmatch`
+                    : status.detail;
+            return (
+              <Link className={`door-room-control-attention-item tone-${roomControlTone(room)}`} to={detailHref} key={room.deviceKey}>
+                <strong>Rom {room.displayRoomNumber}</strong>
+                <span>{roomControlStatusText(room)}</span>
+                <small>{detail || status.doorAgeLabel || "-"}</small>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="door-room-control-attention-ok">Ingen rom er over forventet tid, og ingen nye soltimer mangler dørmatch.</div>
+      )}
+    </section>
+  );
+}
+
 function SunroomControlRoomCard({ room }: { room: DoorSunroomOverviewRoom }) {
   const status = room.status;
   const latest = room.latestPeriod;
   const session = latest?.session as DoorSunroomOverviewSession | null | undefined;
   const energy = latest?.energy;
   const detailHref = room.roomId ? `/dorer/soltimer?room=${encodeURIComponent(room.roomId)}` : "/dorer/soltimer";
-  const recentHistory = room.periods.filter((period) => period.id !== latest?.id).slice(0, 2);
-  const tone =
-    status.severity === "alert"
+  const recentHistory = room.periods.filter((period) => period.id !== latest?.id).slice(0, 1);
+  const tone = roomControlTone(room);
+  const exitTone =
+    latest?.severity === "alert" || status.severity === "alert"
       ? "alert"
-      : status.severity === "warning"
-        ? "warning"
-        : status.isOccupied
-          ? "active"
-          : status.doorState === "open"
-            ? "free"
-            : "unknown";
+      : latest?.severity === "warning" || status.severity === "warning"
+        ? "warn"
+        : undefined;
 
   return (
     <article className={`door-room-control-card tone-${tone}`}>
       <div className="door-room-control-head">
         <div>
+          <span>{room.sectionTitle}</span>
           <strong>Rom {room.displayRoomNumber}</strong>
-          <span>{room.sectionTitle} · {room.roomLabel}</span>
         </div>
         <div className="door-room-control-head-status">
-          {sunroomSeverityTag(status)}
+          <span className={`door-room-control-state-pill tone-${tone}`}>{roomControlStatusText(room)}</span>
           <Link to={detailHref}>Detaljer</Link>
         </div>
       </div>
 
       <div className="door-room-control-now">
-        <SunroomControlMetric label="Dør nå" value={status.doorStateLabel} detail={status.doorAgeLabel} tone={status.doorState === "closed" ? "warn" : "ok"} />
-        <SunroomControlMetric
-          label="Romstatus"
-          value={status.status}
-          detail={status.isOccupied ? status.occupiedDurationLabel : "Ledig"}
+        <SunroomControlKeyLine
+          label="Dør"
+          value={status.doorStateLabel}
+          detail={status.doorAgeLabel}
+          tone={status.doorState === "closed" ? "warn" : "ok"}
+        />
+        <SunroomControlKeyLine
+          label={status.isOccupied ? "Pågår" : "Status"}
+          value={status.isOccupied ? status.occupiedDurationLabel || status.status : status.status}
+          detail={status.detail || (status.isOccupied ? "Rommet er i bruk" : "Ledig")}
           tone={status.severity === "alert" ? "alert" : status.severity === "warning" ? "warn" : status.isOccupied ? "warn" : "ok"}
         />
-        <SunroomControlMetric label="Valgt periode" value={`${room.summary.sessions} soltimer`} detail={`${room.summary.matched} med dør · ${room.summary.withoutDoor} uten`} />
+        <SunroomControlKeyLine
+          label="Forventet ut"
+          value={latest?.expectedExitLabel || status.expectedExitLabel || "-"}
+          detail={latest?.overstayLabel ? `Overtid ${latest.overstayLabel}` : latest?.remainingLabel || status.remainingLabel || "-"}
+          tone={exitTone}
+        />
       </div>
 
       <SunroomControlTimeline latest={latest} status={status} />
 
       {session ? (
-        <SunroomControlSession session={{ ...session, energy: energy || undefined, hasDoorMatch: true }} />
+        <SunroomControlSession session={{ ...session, energy: energy || undefined, hasDoorMatch: true }} expectedExitLabel={latest?.expectedExitLabel} />
       ) : latest ? (
         <div className="door-room-control-empty">
           <strong>{latest.status}</strong>
@@ -1146,8 +1258,9 @@ function SunroomControlRoomCard({ room }: { room: DoorSunroomOverviewRoom }) {
 
       <div className="door-room-control-history">
         <div className="door-room-control-history-head">
-          <span>Siste historikk</span>
-          <strong>{room.summary.energyConfirmed} strøm OK</strong>
+          <span>{room.summary.sessions} soltimer i perioden</span>
+          <strong>{room.summary.matched} dørmatch</strong>
+          <small>{room.summary.energyConfirmed} strøm OK</small>
         </div>
         {recentHistory.length ? (
           recentHistory.map((period) => (
@@ -1187,15 +1300,15 @@ function DoorSunroomRoomControlBoard({
   if (loading) return <LoadingBlock />;
   if (error || !data) return <ErrorBlock error={error} />;
 
+  const freeRooms = data.rooms.filter((room) => room.status.doorState === "open").length;
+  const warningRooms = data.summary.warnings + data.summary.alerts;
+
   return (
     <div className="door-room-control-board">
       <section className="door-room-control-command">
         <div>
           <Typography.Title level={3}>Romkontroll</Typography.Title>
-          <span>
-            Rom 1-12 samlet med dør igjen/opp, Sun2-time, forventet ut og energikontroll. Strømstatus er sterkest når
-            bare én seng er aktiv eller når start/slutt ikke kolliderer med andre senger.
-          </span>
+          <span>Oppdatert {roomControlGeneratedLabel(data.generatedAt)}</span>
         </div>
         <div className="door-room-control-actions">
           <Space.Compact>
@@ -1212,34 +1325,36 @@ function DoorSunroomRoomControlBoard({
       </section>
 
       <div className="door-room-control-summary">
-        <div>
+        <div className="tone-free">
+          <span>Ledige</span>
+          <strong>{freeRooms}</strong>
+        </div>
+        <div className="tone-active">
           <span>I bruk</span>
           <strong>{data.summary.active}</strong>
         </div>
-        <div>
-          <span>Soltimer</span>
-          <strong>{data.summary.sessions}</strong>
+        <div className={warningRooms ? "tone-alert" : "tone-ok"}>
+          <span>Varsler</span>
+          <strong>{warningRooms}</strong>
         </div>
-        <div>
+        <div className="tone-ok">
           <span>Dørmatch</span>
-          <strong>{data.summary.doorMatches}</strong>
+          <strong>{data.summary.doorMatches}/{data.summary.sessions}</strong>
         </div>
-        <div>
+        <div className="tone-ok">
           <span>Strøm OK</span>
           <strong>{data.summary.energyConfirmed}</strong>
         </div>
-        <div>
+        <div className={data.summary.sessionsWithoutDoor ? "tone-warn" : "tone-ok"}>
           <span>Uten dør</span>
           <strong>{data.summary.sessionsWithoutDoor}</strong>
         </div>
-        <div>
-          <span>Energisamples</span>
-          <strong>{data.summary.energySamples}</strong>
-        </div>
       </div>
 
+      <RoomControlAttention rooms={data.rooms} />
+
       <div className="door-room-control-grid">
-        {data.rooms.map((room) => (
+        {[...data.rooms].sort((a, b) => a.displayRoomNumber - b.displayRoomNumber).map((room) => (
           <SunroomControlRoomCard room={room} key={room.deviceKey} />
         ))}
       </div>
