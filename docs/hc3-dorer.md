@@ -15,16 +15,22 @@ For mange dorer skal ikke en endring lese alle dorer. Modellen er:
 
 Dette gir riktig oppforsel hvis to dorer endrer status samtidig. Da starter to ulike logger-scener og Fibaro10 mottar to separate hendelser.
 
-## Statuskontroll fra Fibaro10
+## Statuskontroll fra Fibaro10 ved avvik
 
-HC3-triggerne er fortsatt primaerkilden, men Fibaro10 har ogsa en sikkerhetsjobb som jevnlig spor HC3 API direkte om faktisk status for alle konfigurerte dorer.
+HC3-triggerne er fortsatt primaerkilden. Fibaro10 gjor en lett lokal kontroll jevnlig, men spor ikke HC3 API for alle dorer fast. HC3 API brukes bare nar lokal status ser uventet ut.
 
 - Jobb: `hc3_door_poll_sync`
-- Standard intervall: 30 sekunder
-- Datakilde: `Admin -> Datakilder -> HC3 dorstatuskontroll`
+- Standard lokal sjekk: 60 sekunder
+- Datakilde: `Admin -> Datakilder -> HC3 dorstatus ved avvik`
 - HC3-konfig: `.env.hc3-watchdog` pa QNAP, lastet inn i `fibaro10`-containeren
 
-Jobben skriver ikke nye rader nar Fibaro10 og HC3 allerede er enige. Den skriver bare en `door_sync`-hendelse med kilde `HC3 POLL SYNC` hvis siste Fibaro10-status ikke stemmer med HC3 sin faktiske `value`.
+Uventet status betyr som standard:
+
+- byggdor/annen dor avviker fra normaltilstand i mer enn 10 minutter
+- solrom har vaert lukket i mer enn 90 minutter
+- dor mangler kjent status eller har ukjent status
+
+Hvis samme uventede status nylig er kontrollert, ventes det som standard 10 minutter for ny HC3-sjekk av samme dor. Jobben skriver ikke nye rader nar Fibaro10 og HC3 allerede er enige. Den skriver bare en `door_sync`-hendelse med kilde `HC3 POLL SYNC` hvis siste Fibaro10-status ikke stemmer med HC3 sin faktiske `value`.
 
 Manuell tvangssync kan kjoeres mot:
 

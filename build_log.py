@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1539")
+APP_BUILD = os.getenv("APP_BUILD", "1540")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1540",
+        "date": "12.07.2026",
+        "headline": "Dørpoll kun ved avvik",
+        "title": "Endrer HC3 dørstatuskontroll fra fast polling til behovsstyrt kontroll",
+        "description": (
+            "Build 1540 lar Fibaro10 gjøre en lett lokal vurdering av dørstatus jevnlig, men HC3 API spørres "
+            "bare når statusen ser uventet ut. Dette bevarer sikkerhetsnettet mot hengende dørstatus uten å "
+            "poll-e alle HC3-dører kontinuerlig."
+        ),
+        "applications": [
+            "main.py: endrer bakgrunnsjobben til å velge mistenkelige dører lokalt før HC3 API spørres.",
+            "import_jobs.py: oppdaterer datakildetekst til HC3 dørstatus ved avvik.",
+            ".env.qnap.example: dokumenterer terskler for uventet status og re-sjekk.",
+            "tests/test_hc3_door_events.py: tester at behovsstyrt worker er registrert.",
+            "docs/hc3-dorer.md: forklarer når HC3 API faktisk spørres.",
+            "build_log.py: dokumenterer build 1540 og setter APP_BUILD til 1540.",
+            "docs/kort-brukermanual.md: oppdaterer buildnummer.",
+        ],
+        "request": "jeg synes at pollen bare skal kjøres om det er noe uforventet",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fast fullpoll av alle dører er erstattet av lokal avviksvurdering.",
+            "HC3 API kalles bare ved ukjent status, byggdør i avvik lenge nok eller solrom lukket urimelig lenge.",
+            "Samme uventede status får cooldown før ny HC3-verifisering for å unngå støy.",
+            "Manuell full sync via /api/hc3/doors/poll-sync er beholdt for feilsøking.",
+        ],
+    },
     {
         "version": "1",
         "build": "1539",

@@ -1,6 +1,6 @@
 # Kort brukermanual for Lilletorget drift
 
-Oppdatert 12.07.2026, build 1539.
+Oppdatert 12.07.2026, build 1540.
 
 Dette er tekstversjonen av den korte oversiktsmanualen. Den levende manualen ligger nå som eget hovedmenyvalg `Manual`, med egne undersider for oversikt, daglig bruk, menyvalg, datagrunnlag, rutiner og feilsøking.
 

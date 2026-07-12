@@ -222,6 +222,7 @@ SVV_PERMANENT_NO_DATA_STATUSES = {204, 400, 404}
 SVV_TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
 svv_sync_task: Optional[asyncio.Task] = None
 hc3_door_poll_task: Optional[asyncio.Task] = None
+hc3_door_unexpected_verified_until: Dict[int, datetime] = {}
 CAR_INFO_LOOKUP_URL = os.getenv("CAR_INFO_LOOKUP_URL", "http://127.0.0.1:8126").rstrip("/")
 CAR_INFO_APP_TOKEN = os.getenv("CAR_INFO_APP_TOKEN", "").strip()
 KOBLE_WORKER_TOKEN = (os.getenv("KOBLE_WORKER_TOKEN") or CAR_INFO_APP_TOKEN).strip()
@@ -247,9 +248,12 @@ SUNROOM_DOOR_NTFY_COOLDOWN_MINUTES = env_float("SUNROOM_DOOR_NTFY_COOLDOWN_MINUT
 HC3_BASE_URL = os.getenv("HC3_BASE_URL", "").strip().rstrip("/")
 HC3_USER = os.getenv("HC3_USER", "").strip()
 HC3_PASS = os.getenv("HC3_PASS", "")
-HC3_DOOR_POLL_ENABLED = os.getenv("HC3_DOOR_POLL_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
-HC3_DOOR_POLL_INTERVAL_SECONDS = max(15, int(os.getenv("HC3_DOOR_POLL_INTERVAL_SECONDS", "30")))
-HC3_DOOR_POLL_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("HC3_DOOR_POLL_INITIAL_DELAY_SECONDS", "15")))
+HC3_DOOR_UNEXPECTED_CHECK_ENABLED = os.getenv("HC3_DOOR_UNEXPECTED_CHECK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "ja"}
+HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS = max(30, int(os.getenv("HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS", "60")))
+HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS", "20")))
+HC3_DOOR_UNEXPECTED_RECHECK_MINUTES = env_float("HC3_DOOR_UNEXPECTED_RECHECK_MINUTES", "10")
+HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES = env_float("HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES", "10")
+HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES = env_float("HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES", "90")
 HC3_DOOR_POLL_TIMEOUT_SECONDS = max(3, int(os.getenv("HC3_DOOR_POLL_TIMEOUT_SECONDS", "8")))
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 SUN2_AXIS_SNAPSHOT_ROOT = Path(
@@ -10382,9 +10386,8 @@ async def hc3_fetch_door_status(config: Dict[str, Any]) -> Dict[str, Any]:
     return hc3_door_status_from_device(config, device)
 
 
-async def hc3_fetch_all_door_statuses() -> list[Dict[str, Any]]:
+async def hc3_fetch_door_statuses(configs: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
     semaphore = asyncio.Semaphore(4)
-    configured = [config for config in DOOR_SENSOR_CONFIG if config.get("device_id") is not None]
 
     async def fetch_one(config: Dict[str, Any]) -> Dict[str, Any]:
         async with semaphore:
@@ -10398,7 +10401,12 @@ async def hc3_fetch_all_door_statuses() -> list[Dict[str, Any]]:
                     "error": str(exc),
                 }
 
-    return await asyncio.gather(*(fetch_one(config) for config in configured))
+    return await asyncio.gather(*(fetch_one(config) for config in configs))
+
+
+async def hc3_fetch_all_door_statuses() -> list[Dict[str, Any]]:
+    configured = [config for config in DOOR_SENSOR_CONFIG if config.get("device_id") is not None]
+    return await hc3_fetch_door_statuses(configured)
 
 
 async def latest_door_changes_by_device(session) -> Dict[int, DoorEvent]:
@@ -10417,6 +10425,77 @@ async def latest_door_changes_by_device(session) -> Dict[int, DoorEvent]:
         if row.device_id is not None:
             latest.setdefault(int(row.device_id), row)
     return latest
+
+
+def door_state_age_minutes(row: Optional[DoorEvent], now: datetime) -> Optional[float]:
+    if not row or not row.timestamp:
+        return None
+    timestamp = normalize_local_naive(row.timestamp)
+    if not timestamp:
+        return None
+    return max(0.0, (now - timestamp).total_seconds() / 60)
+
+
+def door_unexpected_reason(config: Dict[str, Any], latest_row: Optional[DoorEvent], now: datetime) -> Optional[str]:
+    device_id = config.get("device_id")
+    if device_id is None:
+        return None
+    if latest_row is None:
+        return "mangler kjent dørstatus"
+    state = door_event_state_bool(latest_row)
+    if state is None:
+        return "ukjent dørstatus"
+    age_minutes = door_state_age_minutes(latest_row, now)
+    if age_minutes is None:
+        return "mangler gyldig tidspunkt for siste dørstatus"
+    title = str(config.get("title") or config.get("device_key") or device_id)
+    if config.get("group_key") == "solrom":
+        if state is False and age_minutes >= HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES:
+            return f"{title} har vært lukket i {door_duration_label(int(age_minutes * 60))}"
+        return None
+    normal_state = str(config.get("normal_state") or "closed").lower()
+    expected_state = True if normal_state == "open" else False
+    if state != expected_state and age_minutes >= HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES:
+        status_text = "åpen" if state else "lukket"
+        return f"{title} er {status_text} i {door_duration_label(int(age_minutes * 60))}"
+    return None
+
+
+def hc3_unexpected_poll_cooldown_active(device_id: int, now: datetime) -> bool:
+    until = hc3_door_unexpected_verified_until.get(int(device_id))
+    return bool(until and until > now)
+
+
+def mark_hc3_unexpected_poll_verified(device_ids: Iterable[int], now: datetime) -> None:
+    until = now + timedelta(minutes=HC3_DOOR_UNEXPECTED_RECHECK_MINUTES)
+    for device_id in device_ids:
+        hc3_door_unexpected_verified_until[int(device_id)] = until
+
+
+def hc3_door_unexpected_targets(
+    latest_by_device: Dict[int, DoorEvent],
+    now: datetime,
+) -> tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
+    targets: list[Dict[str, Any]] = []
+    cooldown: list[Dict[str, Any]] = []
+    for config in DOOR_SENSOR_CONFIG:
+        device_id = config.get("device_id")
+        if device_id is None:
+            continue
+        device_id_int = int(device_id)
+        reason = door_unexpected_reason(config, latest_by_device.get(device_id_int), now)
+        if not reason:
+            continue
+        item = {
+            "device_id": device_id_int,
+            "title": config.get("title"),
+            "reason": reason,
+        }
+        if hc3_unexpected_poll_cooldown_active(device_id_int, now):
+            cooldown.append(item)
+            continue
+        targets.append({"config": config, **item})
+    return targets, cooldown
 
 
 def door_poll_sync_payload(config: Dict[str, Any], status: Dict[str, Any], latest_row: Optional[DoorEvent]) -> DoorEventIn:
@@ -10444,8 +10523,13 @@ def door_poll_sync_payload(config: Dict[str, Any], status: Dict[str, Any], lates
     )
 
 
-async def run_hc3_door_poll_once(reason: str = "manual") -> Dict[str, Any]:
+async def run_hc3_door_poll_once(
+    reason: str = "manual",
+    configs: Optional[list[Dict[str, Any]]] = None,
+    target_reasons: Optional[Dict[int, str]] = None,
+) -> Dict[str, Any]:
     started_at = local_now_naive()
+    target_configs = configs if configs is not None else [config for config in DOOR_SENSOR_CONFIG if config.get("device_id") is not None]
     if not hc3_door_poll_is_configured():
         async with async_session() as session:
             row = await record_import_job(
@@ -10456,14 +10540,14 @@ async def run_hc3_door_poll_once(reason: str = "manual") -> Dict[str, Any]:
                 started_at=started_at,
                 finished_at=local_now_naive(),
                 records_imported=0,
-                records_total=len(DOOR_SENSOR_IDS),
+                records_total=len(target_configs),
                 message="HC3 API-konfigurasjon mangler i Fibaro10-containeren.",
                 raw={"reason": reason, "configured": False},
             )
             await session.commit()
         return {"ok": False, "message": row.message, "checked": 0, "changed": 0, "errors": 1}
 
-    fetch_results = await hc3_fetch_all_door_statuses()
+    fetch_results = await hc3_fetch_door_statuses(target_configs)
     checked = 0
     changes: list[Dict[str, Any]] = []
     errors: list[Dict[str, Any]] = []
@@ -10498,6 +10582,7 @@ async def run_hc3_door_poll_once(reason: str = "manual") -> Dict[str, Any]:
                     "previous_state": latest_state,
                     "state": current_state,
                     "action": row.action,
+                    "reason": (target_reasons or {}).get(device_id),
                 }
             )
 
@@ -10518,12 +10603,15 @@ async def run_hc3_door_poll_once(reason: str = "manual") -> Dict[str, Any]:
             started_at=started_at,
             finished_at=local_now_naive(),
             records_imported=len(changes),
-            records_total=len(DOOR_SENSOR_IDS),
+            records_total=len(target_configs),
             duration_seconds=(local_now_naive() - started_at).total_seconds(),
             message=message,
             raw={
                 "reason": reason,
                 "checked": checked,
+                "polled": len(target_configs),
+                "configured_total": len(DOOR_SENSOR_IDS),
+                "target_reasons": target_reasons or {},
                 "changed": len(changes),
                 "errors": errors[:20],
                 "changes": changes[:20],
@@ -10535,17 +10623,61 @@ async def run_hc3_door_poll_once(reason: str = "manual") -> Dict[str, Any]:
         "ok": ok,
         "message": message,
         "checked": checked,
+        "polled": len(target_configs),
         "changed": len(changes),
         "errors": len(errors),
         "changes": changes,
     }
 
 
+async def run_hc3_door_unexpected_check_once(reason: str = "interval") -> Dict[str, Any]:
+    started_at = local_now_naive()
+    now = local_now_naive()
+    async with async_session() as session:
+        latest_by_device = await latest_door_changes_by_device(session)
+        targets, cooldown = hc3_door_unexpected_targets(latest_by_device, now)
+        if not targets:
+            message = (
+                "Uventet dørstatus er nylig kontrollert - HC3 ble ikke spurt igjen."
+                if cooldown
+                else "Ingen uventede dørstatuser - HC3 ble ikke spurt."
+            )
+            await record_import_job(
+                session,
+                "hc3_door_poll_sync",
+                ok=True,
+                source="Fibaro10 lokal kontroll",
+                started_at=started_at,
+                finished_at=local_now_naive(),
+                records_imported=0,
+                records_total=len(DOOR_SENSOR_IDS),
+                duration_seconds=(local_now_naive() - started_at).total_seconds(),
+                message=message,
+                raw={
+                    "reason": reason,
+                    "unexpected": len(cooldown),
+                    "polled": 0,
+                    "configured_total": len(DOOR_SENSOR_IDS),
+                    "cooldown": cooldown[:20],
+                },
+            )
+            await session.commit()
+            return {"ok": True, "message": message, "unexpected": len(cooldown), "polled": 0, "changed": 0, "errors": 0}
+
+    target_configs = [item["config"] for item in targets]
+    target_reasons = {int(item["device_id"]): str(item["reason"]) for item in targets}
+    result = await run_hc3_door_poll_once(reason, target_configs, target_reasons)
+    mark_hc3_unexpected_poll_verified((int(item["device_id"]) for item in targets), local_now_naive())
+    result["unexpected"] = len(targets)
+    result["cooldownSkipped"] = len(cooldown)
+    return result
+
+
 async def hc3_door_poll_worker():
-    await asyncio.sleep(HC3_DOOR_POLL_INITIAL_DELAY_SECONDS)
+    await asyncio.sleep(HC3_DOOR_UNEXPECTED_CHECK_INITIAL_DELAY_SECONDS)
     while True:
         try:
-            await run_hc3_door_poll_once("interval")
+            await run_hc3_door_unexpected_check_once("unexpected_interval")
         except Exception as exc:
             logger.warning("HC3 dørstatuskontroll feilet: %s", exc, exc_info=True)
             try:
@@ -10565,7 +10697,7 @@ async def hc3_door_poll_worker():
                     await session.commit()
             except Exception:
                 logger.warning("Kunne ikke logge feil fra HC3 dørstatuskontroll.", exc_info=True)
-        await asyncio.sleep(HC3_DOOR_POLL_INTERVAL_SECONDS)
+        await asyncio.sleep(HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS)
 
 
 def door_period_device_key(period: Dict[str, Any]) -> str:
@@ -13149,7 +13281,7 @@ async def startup():
         sun2_axis_snapshot_link_task = asyncio.create_task(sun2_axis_snapshot_link_worker())
     if SUNROOM_DOOR_MONITOR_ENABLED and sunroom_door_monitor_task is None:
         sunroom_door_monitor_task = asyncio.create_task(sunroom_door_monitor_worker())
-    if HC3_DOOR_POLL_ENABLED and hc3_door_poll_task is None:
+    if HC3_DOOR_UNEXPECTED_CHECK_ENABLED and hc3_door_poll_task is None:
         hc3_door_poll_task = asyncio.create_task(hc3_door_poll_worker())
     if OWNTRACKS_VISIT_SYNC_ENABLED and owntracks_visit_sync_task is None:
         owntracks_visit_sync_task = asyncio.create_task(owntracks_site_visit_sync_worker())

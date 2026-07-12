@@ -178,12 +178,12 @@ IMPORT_JOB_DEFINITIONS = {
         "description": "Hendelsesstyrt logging av magnetfølere når dører åpnes og lukkes.",
     },
     "hc3_door_poll_sync": {
-        "title": "HC3 dørstatuskontroll",
+        "title": "HC3 dørstatus ved avvik",
         "category": "Bygg og drift",
-        "source": "HC3 API",
-        "expected_interval_minutes": 1,
-        "warning_after_minutes": 3,
-        "description": "Fibaro10 kontrollerer faktisk dørstatus mot HC3 og korrigerer bare ved avvik.",
+        "source": "Fibaro10 / HC3 API",
+        "expected_interval_minutes": 2,
+        "warning_after_minutes": 6,
+        "description": "Fibaro10 overvåker lokal dørstatus og spør HC3 bare når statusen ser uventet ut.",
     },
 }
 
@@ -214,7 +214,7 @@ IMPORT_JOB_DETAILS = {
         "dependencies": ["HC3", "HC3 Lua-scene", "Fibaro10 API", "PostgreSQL"],
     },
     "hc3_door_poll_sync": {
-        "data_flow": "Fibaro10 spør HC3 sitt /api/devices-endepunkt jevnlig for alle konfigurerte dørsensorer. Hvis siste Fibaro10-status ikke stemmer med faktisk HC3-verdi, skriver Fibaro10 en door_sync-hendelse slik at statusbildet rettes uten å vente på ny HC3-trigger.",
+        "data_flow": "Fibaro10 vurderer lokal dørstatus jevnlig uten å kontakte HC3. HC3 sitt /api/devices-endepunkt spørres bare for dører med uventet status, for eksempel byggdør som står åpen lenge, solrom som har vært lukket urimelig lenge eller ukjent status. Hvis siste Fibaro10-status ikke stemmer med faktisk HC3-verdi, skrives en door_sync-hendelse.",
         "dependencies": ["Fibaro10 bakgrunnsjobb", "HC3 API", "HC3 bruker/passord", "PostgreSQL"],
     },
     "roborock_sync": {

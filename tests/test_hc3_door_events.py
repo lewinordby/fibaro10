@@ -34,17 +34,18 @@ def test_door_event_datakilde_and_storage_are_registered():
 
     assert definition["title"] == "Dørhendelser fra HC3"
     assert definition["source"] == "HC3"
-    assert poll_definition["title"] == "HC3 dørstatuskontroll"
-    assert poll_definition["source"] == "HC3 API"
-    assert poll_definition["expected_interval_minutes"] == 1
+    assert poll_definition["title"] == "HC3 dørstatus ved avvik"
+    assert poll_definition["source"] == "Fibaro10 / HC3 API"
+    assert poll_definition["expected_interval_minutes"] == 2
     assert "door_events" in STORAGE_TABLES
 
 
 def test_hc3_door_poll_worker_is_configured():
     source = Path("main.py").read_text(encoding="utf-8")
 
-    assert "HC3_DOOR_POLL_INTERVAL_SECONDS" in source
+    assert "HC3_DOOR_UNEXPECTED_CHECK_INTERVAL_SECONDS" in source
     assert "hc3_door_poll_worker" in source
+    assert "run_hc3_door_unexpected_check_once" in source
     assert "run_hc3_door_poll_once" in source
     assert "HC3 POLL SYNC" in source
 
