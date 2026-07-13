@@ -2215,6 +2215,18 @@ DOOR_SENSOR_CONFIG = [
         "normal_state": "closed",
     },
     {
+        "device_id": 535,
+        "device_key": "door_loftluke_massasje",
+        "title": "Loftluke massasje",
+        "hc3_name": "128.0 Loftluke massasje",
+        "group_key": "andre",
+        "group_title": "Andre dører",
+        "section_key": "bygg",
+        "section_title": "Bygg",
+        "sort_order": 106,
+        "normal_state": "closed",
+    },
+    {
         "device_id": 489,
         "device_key": "door_vaskerom",
         "title": "Vaskerom",
@@ -2223,7 +2235,7 @@ DOOR_SENSOR_CONFIG = [
         "group_title": "Andre dører",
         "section_key": "bygg",
         "section_title": "Bygg",
-        "sort_order": 106,
+        "sort_order": 107,
         "normal_state": "closed",
     },
     {
@@ -2235,7 +2247,7 @@ DOOR_SENSOR_CONFIG = [
         "group_title": "Andre dører",
         "section_key": "bygg",
         "section_title": "Bygg",
-        "sort_order": 107,
+        "sort_order": 108,
         "normal_state": "closed",
     },
     {
@@ -2247,7 +2259,7 @@ DOOR_SENSOR_CONFIG = [
         "group_title": "Andre dører",
         "section_key": "bygg",
         "section_title": "Bygg",
-        "sort_order": 108,
+        "sort_order": 109,
         "normal_state": "closed",
     },
     {
@@ -2259,7 +2271,7 @@ DOOR_SENSOR_CONFIG = [
         "group_title": "Andre dører",
         "section_key": "bygg",
         "section_title": "Bygg",
-        "sort_order": 109,
+        "sort_order": 110,
         "normal_state": "closed",
     },
 ]

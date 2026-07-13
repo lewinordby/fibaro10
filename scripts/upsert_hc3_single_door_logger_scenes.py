@@ -37,6 +37,7 @@ DOORS = [
     {"device_id": 413, "device_key": "door_413", "name": "86.0 Arbeidsrom", "title": "Arbeidsrom"},
     {"device_id": 499, "device_key": "door_inngang", "name": "120.0 Inngang", "title": "Inngang"},
     {"device_id": 483, "device_key": "door_massasjestudio", "name": "112.0 Massasje", "title": "Massasjestudio"},
+    {"device_id": 535, "device_key": "door_loftluke_massasje", "name": "128.0 Loftluke massasje", "title": "Loftluke massasje"},
     {"device_id": 489, "device_key": "door_vaskerom", "name": "115.0 Vaskerom", "title": "Vaskerom"},
     {"device_id": 487, "device_key": "door_papirlager", "name": "114.0 Papirlager", "title": "Papirlager"},
     {"device_id": 493, "device_key": "door_vaktmesterlager", "name": "117.0 Vaktmesterlager", "title": "Vaktmesterlager"},

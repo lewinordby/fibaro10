@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1551")
+APP_BUILD = os.getenv("APP_BUILD", "1552")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1552",
+        "date": "13.07.2026",
+        "headline": "Loftluke massasje som dør",
+        "title": "Ny magnetføler lagt inn under andre dører",
+        "description": (
+            "Build 1552 legger HC3-sensor 535 inn i dørgrunnlaget som Loftluke massasje. Sensoren vises sammen med "
+            "andre dører i hovedappen og mobilgrensesnittet, og HC3-sceneoppsettet er utvidet slik at åpne/lukke "
+            "logges på samme måte som øvrige magnetfølere."
+        ),
+        "applications": [
+            "main.py: legger sensor 535 inn i DOOR_SENSOR_CONFIG som door_loftluke_massasje med normaltilstand lukket.",
+            "online_dashboard/app/main.py: legger samme dør inn i mobilens Andre dører-oversikt.",
+            "scripts/hc3_door_event_logger.lua og scripts/upsert_hc3_single_door_logger_scenes.py: legger sensoren inn i HC3-loggingen.",
+            "tests/test_hc3_door_events.py: oppdaterer forventet HC3-dørliste med sensor 535.",
+        ],
+        "request": "vi har fått på plass en magnetføler til den er montert på loftluke massasje. kan du gi den et fornuftig navn og få den inn i oversikten over andre dører",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Nytt visningsnavn: Loftluke massasje.",
+            "Ny device_key: door_loftluke_massasje.",
+            "Sensoren er sortert etter Massasjestudio i Andre dører.",
+            "Normaltilstand er satt til lukket.",
+        ],
+    },
     {
         "version": "1",
         "build": "1551",

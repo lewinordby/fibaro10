@@ -86,10 +86,11 @@ OTHER_DOOR_CONFIG = [
     {"device_id": 413, "device_key": "door_413", "title": "Arbeidsrom", "sort_order": 103},
     {"device_id": 499, "device_key": "door_inngang", "title": "Inngang", "sort_order": 104},
     {"device_id": 483, "device_key": "door_massasjestudio", "title": "Massasjestudio", "sort_order": 105},
-    {"device_id": 489, "device_key": "door_vaskerom", "title": "Vaskerom", "sort_order": 106},
-    {"device_id": 487, "device_key": "door_papirlager", "title": "Papirlager", "sort_order": 107},
-    {"device_id": 493, "device_key": "door_vaktmesterlager", "title": "Vaktmesterlager", "sort_order": 108},
-    {"device_id": 495, "device_key": "door_toalett", "title": "Toalett", "sort_order": 109},
+    {"device_id": 535, "device_key": "door_loftluke_massasje", "title": "Loftluke massasje", "sort_order": 106},
+    {"device_id": 489, "device_key": "door_vaskerom", "title": "Vaskerom", "sort_order": 107},
+    {"device_id": 487, "device_key": "door_papirlager", "title": "Papirlager", "sort_order": 108},
+    {"device_id": 493, "device_key": "door_vaktmesterlager", "title": "Vaktmesterlager", "sort_order": 109},
+    {"device_id": 495, "device_key": "door_toalett", "title": "Toalett", "sort_order": 110},
 ]
 OTHER_DOOR_DEVICE_IDS = [int(item["device_id"]) for item in OTHER_DOOR_CONFIG if item.get("device_id") is not None]
 OTHER_DOOR_KEYS = [str(item["device_key"]) for item in OTHER_DOOR_CONFIG if item.get("device_key")]
