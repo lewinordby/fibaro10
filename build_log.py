@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1552")
+APP_BUILD = os.getenv("APP_BUILD", "1553")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1553",
+        "date": "13.07.2026",
+        "headline": "Ekstra lyslist på fasade",
+        "title": "Ny fasade-lyslist følger eksisterende lysliststyring",
+        "description": (
+            "Build 1553 legger HC3-bryter 298 inn som del av lysgruppen Lyslist fasade. HC3-scene 362 er versjonert "
+            "i Git og utvidet med støtte for flere brytere per lysgruppe, slik at eksisterende lyslist 425 og ny "
+            "lyslist 298 slås på og av av samme lux- og tidslogikk."
+        ),
+        "applications": [
+            "main.py: legger 298 inn i lyslistens device-/legacy-id-grunnlag.",
+            "scripts/hc3_light_runner_scene_362.lua: versjonerer lysrunneren og legger flerbryterstøtte for lysgruppen.",
+            "scripts/upsert_hc3_light_runner_scene.py: legger script for trygg oppdatering av HC3-scene 362 med backup.",
+            "tests/test_hc3_light_runner.py: låser at lyslist styrer både 425 og 298.",
+        ],
+        "request": "vi har også fått en lyslist til på fasaden med egen bryter den bør styres likt med den vi allerede har. den nye har id 298",
+        "work_duration": "ca. 40 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "HC3-enhet 298 heter 70.1 Lyslist VIP og legges i samme gruppe som 425.",
+            "Lysrunneren slår nå på alle brytere i gruppen hvis én mangler, og slår av alle som står på.",
+            "Lysloggen beholder én samlet gruppeverdi for lyslist, men hendelser inkluderer begge device-id-er i extra.",
+            "Scene 362 kan nå oppdateres fra Git via scripts/upsert_hc3_light_runner_scene.py.",
+        ],
+    },
     {
         "version": "1",
         "build": "1552",

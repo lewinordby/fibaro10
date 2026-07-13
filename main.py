@@ -3381,7 +3381,7 @@ def clear_summary_cache(*keys: str) -> None:
 
 
 LIGHT_TIMELINE_DEVICES = [
-    {"key": "lyslist", "name": "Lyslist dekor", "sample_attr": "light_lyslist", "legacy_ids": [425]},
+    {"key": "lyslist", "name": "Lyslist dekor", "sample_attr": "light_lyslist", "legacy_ids": [425, 298]},
     {"key": "reklame", "name": "Reklameplakater", "sample_attr": "light_reklame", "legacy_ids": [427]},
     {"key": "spot_glass_275", "name": "Spot foran glassvegg", "sample_attr": "light_spot_glass_275", "legacy_ids": [275]},
     {"key": "spot_glass_299", "name": "Spot foran massasje", "sample_attr": "light_spot_glass_299", "legacy_ids": [299]},
@@ -4046,6 +4046,7 @@ CONTROL_DEVICES = {
             {
                 "key": "lyslist",
                 "name": "Lyslist fasade",
+                "device_ids": [425, 298],
                 "on_lux_key": "lyslist_on_lux",
                 "off_lux_key": "lyslist_off_lux",
                 "time_from_key": "open_from",
