@@ -64,6 +64,7 @@ export const smokeRoutes = [
   { path: "/dorer/oversikt", name: "Dorer oversikt" },
   { path: "/dorer/oversikt-ny", name: "Dorer oversikt ny" },
   { path: "/dorer/soltimer", name: "Dorer dor og soltime" },
+  { path: "/dorer/alarm", name: "Dorer alarm", expectedTexts: ["Abonner"] },
   { path: "/dorer/romkontroll", name: "Dorer romkontroll", expectedTexts: ["Romkontroll", "Rom 1", "Forventet ut", "Strøm OK"] },
   { path: "/dorer/romkontroll-ny", name: "Dorer romkontroll ny", expectedTexts: ["Romkontroll - ny", "Rom 1"] },
   { path: "/dorer/romkontroll-ny2", name: "Dorer romkontroll ny2", expectedTexts: ["Romkontroll - ny2", "Dato", "Dør lukket", "Hendelse"] },

@@ -8,7 +8,7 @@ import os
 import re
 import time
 from typing import Any, Optional
-from urllib.parse import urlencode
+from urllib.parse import quote, quote_plus, urlencode, urlparse
 import urllib.request
 from zoneinfo import ZoneInfo
 
@@ -53,6 +53,14 @@ PUBLIC_DASHBOARD_SYNC_TOKEN = os.getenv("PUBLIC_DASHBOARD_SYNC_TOKEN", "")
 PUBLIC_DASHBOARD_SYNC_INTERVAL_SECONDS = max(5, int(os.getenv("PUBLIC_DASHBOARD_SYNC_INTERVAL_SECONDS", "15")))
 PUBLIC_DASHBOARD_SYNC_TIMEOUT_SECONDS = max(3, int(os.getenv("PUBLIC_DASHBOARD_SYNC_TIMEOUT_SECONDS", "12")))
 PUBLIC_DASHBOARD_SNAPSHOT_NAME = os.getenv("PUBLIC_DASHBOARD_SNAPSHOT_NAME", "current").strip() or "current"
+MASTER_ACCESS_KEY_HASH = os.getenv("MASTER_ACCESS_KEY_HASH", "").strip()
+NTFY_BASE_URL = os.getenv("NTFY_BASE_URL", "https://ntfy.sh").rstrip("/")
+DEFAULT_NTFY_DOORS_TOPIC = f"sun2-dorer-{MASTER_ACCESS_KEY_HASH[:12]}" if MASTER_ACCESS_KEY_HASH else "sun2-dorer"
+NTFY_DOORS_TOPIC = os.getenv("NTFY_DOORS_TOPIC", DEFAULT_NTFY_DOORS_TOPIC).strip() or DEFAULT_NTFY_DOORS_TOPIC
+SUNROOM_DOOR_SESSION_GRACE_MINUTES = float(os.getenv("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "5"))
+SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = float(os.getenv("SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES", "8"))
+SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = float(os.getenv("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3"))
+SUNROOM_DOOR_EXIT_GRACE_MINUTES = float(os.getenv("SUNROOM_DOOR_EXIT_GRACE_MINUTES", "3"))
 
 SOLROOM_DOOR_CONFIG = [
     {"device_id": 459, "device_key": "door_solrom_01", "title": "Solrom 1", "section_title": "1.etg", "group_key": "solrom", "sort_order": 1},
@@ -264,6 +272,19 @@ def display_stamp(value: Any) -> str:
     if not isinstance(value, datetime):
         return "-"
     return value.strftime("%d.%m kl. %H:%M")
+
+
+def ntfy_host() -> str:
+    parsed = urlparse(NTFY_BASE_URL)
+    return parsed.netloc or parsed.path.strip("/")
+
+
+def ntfy_topic_url(topic: str) -> str:
+    return f"{NTFY_BASE_URL}/{quote(topic, safe='')}"
+
+
+def ntfy_subscribe_url(topic: str, display_name: str) -> str:
+    return f"ntfy://{ntfy_host()}/{quote(topic, safe='')}?display={quote_plus(display_name)}"
 
 
 def easypark_next_run_at(status: dict[str, Any]) -> Optional[datetime]:
@@ -883,6 +904,129 @@ async def solroom_door_statuses() -> list[dict[str, Any]]:
     return await door_statuses_for(SOLROOM_DOOR_CONFIG, SOLROOM_DOOR_DEVICE_IDS, SOLROOM_DOOR_KEYS)
 
 
+def solroom_room_id_from_config(config: dict[str, Any]) -> str:
+    match = re.search(r"(\d+)$", str(config.get("device_key") or config.get("title") or ""))
+    if not match:
+        return ""
+    return f"rom-{int(match.group(1)):02d}"
+
+
+def normalize_solroom_room_id(value: Any) -> str:
+    text_value = str(value or "").strip().lower()
+    match = re.search(r"(\d+)", text_value)
+    if not match:
+        return ""
+    return f"rom-{int(match.group(1)):02d}"
+
+
+def sun_session_end_at(row: dict[str, Any]) -> Optional[datetime]:
+    started_at = row.get("started_at")
+    if not isinstance(started_at, datetime):
+        return row.get("ended_at") if isinstance(row.get("ended_at"), datetime) else None
+    try:
+        duration = float(row.get("duration_minutes"))
+    except (TypeError, ValueError):
+        ended_at = row.get("ended_at")
+        return ended_at if isinstance(ended_at, datetime) else None
+    return started_at + timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + duration)
+
+
+def sun_session_expected_exit_at(row: dict[str, Any]) -> Optional[datetime]:
+    end_at = sun_session_end_at(row)
+    if not end_at:
+        return None
+    return end_at + timedelta(minutes=SUNROOM_DOOR_EXIT_GRACE_MINUTES)
+
+
+def solroom_session_matches_closed_status(row: dict[str, Any], closed_since: Optional[datetime], now: datetime) -> bool:
+    started_at = row.get("started_at")
+    expected_exit = sun_session_expected_exit_at(row)
+    if not isinstance(started_at, datetime) or not isinstance(closed_since, datetime):
+        return False
+    if started_at > now + timedelta(minutes=SUNROOM_DOOR_SESSION_GRACE_MINUTES):
+        return False
+    if expected_exit and expected_exit >= closed_since - timedelta(minutes=SUNROOM_DOOR_PAYMENT_DELAY_MINUTES + 2):
+        return True
+    return closed_since - timedelta(minutes=30) <= started_at <= closed_since + timedelta(hours=2)
+
+
+async def solroom_door_alarm_statuses(statuses: list[dict[str, Any]]) -> dict[str, Any]:
+    now = local_now()
+    room_by_key = {str(config.get("device_key")): solroom_room_id_from_config(config) for config in SOLROOM_DOOR_CONFIG}
+    room_ids = sorted({room_id for room_id in room_by_key.values() if room_id})
+    sessions_by_room = {room_id: [] for room_id in room_ids}
+    if SOURCE_MODE and room_ids:
+        rows = await many_mappings(
+            """
+            select id, room_id, room, source_room_name, started_at, ended_at, duration_minutes
+            from sun2_tanning_sessions
+            where started_at >= :cutoff
+            order by started_at desc, id desc
+            """,
+            {"cutoff": now - timedelta(hours=12)},
+        )
+        for row in rows:
+            room_id = normalize_solroom_room_id(row.get("room_id") or row.get("room") or row.get("source_room_name"))
+            if room_id in sessions_by_room:
+                sessions_by_room[room_id].append(row)
+
+    items: list[dict[str, Any]] = []
+    for status in statuses:
+        room_id = room_by_key.get(str(status.get("device_key") or ""), "")
+        closed_since = status.get("timestamp") if status.get("state") == "closed" else None
+        duration_seconds = int((now - closed_since).total_seconds()) if isinstance(closed_since, datetime) else None
+        session = None
+        if status.get("state") == "closed":
+            session = next(
+                (
+                    row
+                    for row in sessions_by_room.get(room_id, [])
+                    if solroom_session_matches_closed_status(row, closed_since, now)
+                ),
+                None,
+            )
+        missing_session = bool(
+            status.get("state") == "closed"
+            and session is None
+            and duration_seconds is not None
+            and duration_seconds >= int(SUNROOM_DOOR_SESSION_GRACE_MINUTES * 60)
+        )
+        alarm_active = bool(
+            missing_session
+            and duration_seconds is not None
+            and duration_seconds >= int(SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES * 60)
+        )
+        items.append(
+            {
+                **status,
+                "room_id": room_id,
+                "session": session,
+                "missing_session": missing_session,
+                "alarm_active": alarm_active,
+                "duration_seconds": duration_seconds,
+                "duration_label": relative_time_label(closed_since, now) if isinstance(closed_since, datetime) else "-",
+                "expected_exit_at": sun_session_expected_exit_at(session) if session else None,
+            }
+        )
+    alarms = [item for item in items if item.get("alarm_active")]
+    watch = [item for item in items if item.get("missing_session") and not item.get("alarm_active")]
+    return {
+        "generated_at": now,
+        "items": items,
+        "alarms": alarms,
+        "watch": watch,
+        "summary": {
+            "alarms": len(alarms),
+            "watch": len(watch),
+            "busy": sum(1 for item in items if item.get("state") == "closed"),
+            "rooms": len(items),
+        },
+        "subscribe_url": ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"),
+        "topic_url": ntfy_topic_url(NTFY_DOORS_TOPIC),
+        "threshold_minutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
+    }
+
+
 async def solroom_door_events(device_key: str, limit: int = 80) -> list[dict[str, Any]]:
     return await door_events_for(device_key, SOLROOM_DOOR_BY_KEY, limit)
 
@@ -1313,6 +1457,7 @@ async def source_dashboard_data() -> dict[str, Any]:
     )
     solroom_doors = await solroom_door_statuses()
     other_doors = await other_door_statuses()
+    door_alarm = await solroom_door_alarm_statuses(solroom_doors)
 
     inside_values = [vent.get("temp_1etg"), vent.get("temp_2etg"), vent.get("temp_vip")]
     inside_values = [float(value) for value in inside_values if value is not None]
@@ -1372,6 +1517,7 @@ async def source_dashboard_data() -> dict[str, Any]:
         ],
         "solroom_doors": solroom_doors,
         "other_doors": other_doors,
+        "door_alarm": door_alarm,
     }
     data["revenue"] = {
         "today": amount_sum(data["soling"].get("amount"), data["parking"].get("amount")),
@@ -1454,6 +1600,16 @@ async def latest_snapshot_payload() -> dict[str, Any]:
             "fan_items": [],
             "solroom_doors": [],
             "other_doors": [],
+            "door_alarm": {
+                "generated_at": now,
+                "items": [],
+                "alarms": [],
+                "watch": [],
+                "summary": {"alarms": 0, "watch": 0, "busy": 0, "rooms": 0},
+                "subscribe_url": ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"),
+                "topic_url": ntfy_topic_url(NTFY_DOORS_TOPIC),
+                "threshold_minutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
+            },
             "revenue": {},
             "revenue_updated_at": None,
             "_snapshot": {"missing": True},
@@ -1804,6 +1960,8 @@ async def dashboard(request: Request):
     html = html.replace("{{ fan_cards }}", render_state_cards(data["fan_items"], "fan"))
     html = html.replace("{{ solroom_door_summary }}", render_solroom_door_summary(data.get("solroom_doors") or []))
     html = html.replace("{{ solroom_door_cards }}", render_door_dashboard_cards(data.get("solroom_doors") or []))
+    html = html.replace("{{ door_alarm_summary }}", render_door_alarm_summary(data.get("door_alarm") or {}))
+    html = html.replace("{{ door_alarm_cards }}", render_door_alarm_dashboard_cards(data.get("door_alarm") or {}))
     html = html.replace("{{ other_door_summary }}", render_other_door_summary(data.get("other_doors") or []))
     html = html.replace("{{ other_door_cards }}", render_door_dashboard_cards(data.get("other_doors") or []))
     return HTMLResponse(html)
@@ -2287,6 +2445,32 @@ async def other_doors_detail(request: Request):
     return render_detail_page("Andre dører", "Status og siste endring per dør.", body, icon="door")
 
 
+@app.get("/dorer/alarm", response_class=HTMLResponse)
+async def door_alarm_detail(request: Request):
+    data = await dashboard_data()
+    alarm_data = dict(data.get("door_alarm") or {})
+    summary = dict(alarm_data.get("summary") or {})
+    threshold = alarm_data.get("threshold_minutes") or SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES
+    threshold_text = f"{float(threshold):g}"
+    body = detail_stats(
+        [
+            ("Alarm", fmt_int(summary.get("alarms")), f"lukket > {threshold_text} min uten soltime"),
+            ("Følger", fmt_int(summary.get("watch")), "mangler soltime, under alarmgrense"),
+            ("I bruk", fmt_int(summary.get("busy")), "lukket nå"),
+            ("Sist sjekket", fmt_clock(alarm_data.get("generated_at")), fmt_date(alarm_data.get("generated_at"))),
+        ]
+    )
+    subscribe_url = str(alarm_data.get("subscribe_url") or ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"))
+    body += f"""
+    <section class="section-block door-alarm-subscribe">
+      <a class="primary-action" href="{escape(subscribe_url)}">Abonner på dørvarsler</a>
+      <small>Varsel sendes når et solrom har vært lukket mer enn {escape(threshold_text)} min uten koblet Sun2-time.</small>
+    </section>
+    """
+    body += render_door_alarm_list(alarm_data)
+    return render_detail_page("Døralarm", "Solrom som er lukket uten koblet Sun2-time.", body, icon="door")
+
+
 @app.get("/dorer/{device_key}", response_class=HTMLResponse)
 async def other_door_detail(device_key: str, request: Request):
     config = OTHER_DOOR_BY_KEY.get(device_key)
@@ -2437,6 +2621,79 @@ def render_door_dashboard_cards(statuses: list[dict[str, Any]]) -> str:
             """
         )
     return f'<div class="door-mini-grid">{"".join(cards)}</div>'
+
+
+def render_door_alarm_summary(alarm_data: dict[str, Any]) -> str:
+    summary = dict(alarm_data.get("summary") or {})
+    alarms = int(summary.get("alarms") or 0)
+    watch = int(summary.get("watch") or 0)
+    if alarms:
+        return f"{alarms} alarm"
+    if watch:
+        return f"{watch} følger"
+    return "Ingen alarm"
+
+
+def render_door_alarm_dashboard_cards(alarm_data: dict[str, Any]) -> str:
+    items = list(alarm_data.get("alarms") or alarm_data.get("watch") or [])[:4]
+    if not items:
+        return '<p class="empty-list">Ingen solrom er lukket over alarmgrensen uten soltime.</p>'
+    cards = []
+    for item in items:
+        state_class = "alarm" if item.get("alarm_active") else "watch"
+        state_text = "Alarm" if item.get("alarm_active") else "Følger opp"
+        cards.append(
+            f"""
+            <article class="door-mini-card is-closed is-solrom is-{state_class}">
+                <strong>{escape(str(item.get("title") or ""))}</strong>
+                <span>{state_text}</span>
+                <small>Lukket {escape(str(item.get("duration_label") or "-"))}</small>
+            </article>
+            """
+        )
+    return f'<div class="door-mini-grid">{"".join(cards)}</div>'
+
+
+def render_door_alarm_list(alarm_data: dict[str, Any]) -> str:
+    items = list(alarm_data.get("items") or [])
+    if not items:
+        content = '<p class="empty-list">Ingen solromdata akkurat nå.</p>'
+    else:
+        rows = []
+        for item in items:
+            if item.get("alarm_active"):
+                tone = "alarm"
+                label = "Alarm"
+                detail = f"Lukket {item.get('duration_label') or '-'} uten Sun2-time"
+            elif item.get("missing_session"):
+                tone = "watch"
+                label = "Følger"
+                detail = f"Lukket {item.get('duration_label') or '-'} uten Sun2-time"
+            elif item.get("session"):
+                tone = "ok"
+                label = "Soltime"
+                detail = f"Forventet ut {display_stamp(item.get('expected_exit_at'))}"
+            elif item.get("state") == "closed":
+                tone = "waiting"
+                label = "Venter"
+                detail = f"Lukket {item.get('duration_label') or '-'}"
+            else:
+                tone = "ok"
+                label = str(item.get("state_label") or "Ledig")
+                detail = str(item.get("age_label") or "-")
+            rows.append(
+                f"""
+                <li class="door-alarm-row is-{tone}">
+                    <div>
+                        <strong>{escape(str(item.get("title") or ""))}</strong>
+                        <small>{escape(detail)}</small>
+                    </div>
+                    <em>{escape(label)}</em>
+                </li>
+                """
+            )
+        content = "".join(rows)
+    return f'<section class="section-block detail-list door-alarm-list"><h2>Solromalarm</h2><ul>{content}</ul></section>'
 
 
 def render_door_overview(statuses: list[dict[str, Any]], base_path: str) -> str:
@@ -2798,7 +3055,7 @@ LOGIN_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lilletorget online</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-solroom-doors">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260713-door-alarm">
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -2831,7 +3088,7 @@ DASHBOARD_HTML = """<!doctype html>
   <meta http-equiv="refresh" content="60">
   <title>Lilletorget nøkkeltall</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-solroom-doors">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260713-door-alarm">
 </head>
 <body>
   <header class="topbar">
@@ -2938,6 +3195,14 @@ DASHBOARD_HTML = """<!doctype html>
       {{ solroom_door_cards }}
     </a>
 
+    <a class="section-block card-link door-alarm-block" href="/dorer/alarm">
+      <div class="section-title-row">
+        <h2>DØRALARM</h2>
+        <span class="door-summary-pill">{{ door_alarm_summary }}</span>
+      </div>
+      {{ door_alarm_cards }}
+    </a>
+
     <a class="section-block card-link other-doors-block" href="/dorer">
       <div class="section-title-row">
         <h2>ANDRE DØRER</h2>
@@ -2957,7 +3222,7 @@ DETAIL_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }} · Lilletorget</title>
   <link rel="icon" type="image/png" href="/static/lilletorget-favicon.png">
-  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260712-mobile-solroom-doors">
+  <link rel="stylesheet" href="/static/online-dashboard.css?v=20260713-door-alarm">
 </head>
 <body>
   <header class="topbar">

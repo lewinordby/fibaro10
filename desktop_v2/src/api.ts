@@ -517,6 +517,10 @@ export type DoorSunroomSessionItem = {
   remainingLabel: string;
   overstaySeconds?: number | null;
   overstayLabel: string;
+  noSessionAlarmActive?: boolean;
+  noSessionAlarmMinutes?: number;
+  alarmReason?: string | null;
+  alarmTitle?: string;
 };
 
 export type DoorSunroomSessionsResponse = {
@@ -528,6 +532,7 @@ export type DoorSunroomSessionsResponse = {
     fanAfterRunMinutes: number;
     exitGraceMinutes: number;
     sessionGraceMinutes: number;
+    noSessionAlarmMinutes?: number;
     warnAfterEndMinutes: number;
     alertAfterEndMinutes: number;
     monitorIntervalSeconds: number;
@@ -539,9 +544,21 @@ export type DoorSunroomSessionsResponse = {
     warning: number;
     alert: number;
     missingSession: number;
+    noSessionAlarm?: number;
     ok: number;
   };
   rooms: DoorSunroomSessionItem[];
+};
+
+export type DoorSunroomAlarmResponse = DoorSunroomSessionsResponse & {
+  alarms: DoorSunroomSessionItem[];
+  watch: DoorSunroomSessionItem[];
+  occupiedWithoutSession: DoorSunroomSessionItem[];
+  summary: DoorSunroomSessionsResponse["summary"] & {
+    alarm: number;
+    watch: number;
+    occupiedWithoutSession: number;
+  };
 };
 
 export type DoorSunroomRoomPeriod = {
@@ -1724,6 +1741,10 @@ export function fetchDoorStatus(): Promise<DoorStatusResponse> {
 
 export function fetchDoorSunroomSessions(): Promise<DoorSunroomSessionsResponse> {
   return apiGet<DoorSunroomSessionsResponse>("/api/hc3/doors/sunroom-sessions");
+}
+
+export function fetchDoorSunroomAlarm(): Promise<DoorSunroomAlarmResponse> {
+  return apiGet<DoorSunroomAlarmResponse>("/api/hc3/doors/alarm");
 }
 
 export function fetchDoorSunroomRoomDetail(roomId: string): Promise<DoorSunroomRoomDetailResponse> {

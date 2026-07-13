@@ -90,6 +90,7 @@ V2_VIEW_LABELS: Dict[str, Dict[str, str]] = {
     },
     "dorer": {
         "oversikt": "Oversikt",
+        "alarm": "Alarm",
         "solrom": "Solrom",
         "andre": "Andre dører",
         "radata": "Rådata",

@@ -1,7 +1,7 @@
 import ast
 import os
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from import_jobs import IMPORT_JOB_DEFINITIONS
@@ -26,6 +26,7 @@ def test_door_event_api_route_is_registered():
     assert "/api/hc3/door-events/json" in routes
     assert "/api/hc3/doors/status" in routes
     assert "/api/hc3/doors/poll-sync" in routes
+    assert "/api/hc3/doors/alarm" in routes
 
 
 def test_door_event_datakilde_and_storage_are_registered():
@@ -151,3 +152,38 @@ class SunroomDoorTimingTests(unittest.TestCase):
         self.assertEqual(evidence["quality"], "clean")
         self.assertEqual(evidence["status"], "confirmed")
         self.assertEqual(evidence["startDelaySeconds"], 180)
+
+    def test_closed_solroom_without_session_warns_before_alarm_threshold(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_04")
+        now = datetime(2026, 7, 13, 12, 0)
+        row = self.main.DoorEvent(
+            device_id=config["device_id"],
+            device_key=config["device_key"],
+            timestamp=now - timedelta(minutes=6),
+            action="CLOSED",
+            state=False,
+        )
+
+        item = self.main.sunroom_status_item(config, row, {self.main.sunroom_room_id_for_config(config): []}, now)
+
+        self.assertTrue(item["missingSession"])
+        self.assertFalse(item["noSessionAlarmActive"])
+        self.assertEqual(item["severity"], "warning")
+
+    def test_closed_solroom_without_session_triggers_alarm_after_threshold(self):
+        config = next(item for item in self.main.DOOR_SENSOR_CONFIG if item.get("device_key") == "door_solrom_04")
+        now = datetime(2026, 7, 13, 12, 0)
+        row = self.main.DoorEvent(
+            device_id=config["device_id"],
+            device_key=config["device_key"],
+            timestamp=now - timedelta(minutes=9),
+            action="CLOSED",
+            state=False,
+        )
+
+        item = self.main.sunroom_status_item(config, row, {self.main.sunroom_room_id_for_config(config): []}, now)
+
+        self.assertTrue(item["missingSession"])
+        self.assertTrue(item["noSessionAlarmActive"])
+        self.assertEqual(item["severity"], "alert")
+        self.assertEqual(item["status"], "Alarm")

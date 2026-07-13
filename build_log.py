@@ -5,8 +5,41 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1550")
+APP_BUILD = os.getenv("APP_BUILD", "1551")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1551",
+        "date": "13.07.2026",
+        "headline": "Døralarm for solrom",
+        "title": "Varsler når solrom står lukket uten koblet Sun2-time",
+        "description": (
+            "Build 1551 legger inn en egen alarmfunksjon for solromdører. Alarmen utløses når et rom har vært lukket "
+            "lenger enn åtte minutter uten at systemet finner en tilhørende Sun2-time. Terskelen tar høyde for at "
+            "Sun2-data normalt kontrolleres hvert femte minutt. Alarmene vises på ny Dører/Alarm-side, og samme "
+            "alarmstatus vises i mobilgrensesnittet med abonnementslenke til dørvarsler."
+        ),
+        "applications": [
+            "main.py: legger alarmterskel, alarmfelt på solromstatus, API for /api/hc3/doors/alarm og ntfy-varsel for lukket rom uten Sun2-time.",
+            "desktop_v2: legger Dører/Alarm inn i menyen med egen alarmvisning, refresh og smoke-mock.",
+            "online_dashboard/app/main.py: legger alarmdata, /dorer/alarm og mobilforsideblokk for dørvarsler.",
+            "static/online-dashboard.css og desktop_v2/src/styles/doors.css: legger visuell markering for alarm og oppfølging.",
+            "tests: legger regresjonstester for alarmterskel og mobilrendering.",
+        ],
+        "request": (
+            "jeg trenger en alarmfunksjon på dører, denne skal fungere slik at hvis rommet har vært lukket i mer enn 8 min "
+            "og det ikke er innenfor en soltime så skal det trigges. ... det skal sendes et varsel ... mulig å abonnere på "
+            "den fra mobil grensesnittet. alarm siden skal også være vist der."
+        ),
+        "work_duration": "ca. 1 t 20 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny konfigurasjon SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES med default 8 minutter.",
+            "Solrom uten Sun2-match går fra venting til oppfølging og videre til alarm når terskelen passeres.",
+            "Eksisterende dørmonitor sender ntfy-varsel for alarm uten at sidevisning publiserer varsler på nytt.",
+            "Desktop og mobil har egne alarmflater og mobil kan abonnere på samme dørvarslingstema.",
+        ],
+    },
     {
         "version": "1",
         "build": "1550",

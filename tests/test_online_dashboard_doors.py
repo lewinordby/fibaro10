@@ -72,6 +72,30 @@ class OnlineDashboardDoorTests(unittest.TestCase):
         self.assertIn("Solrom 1", html)
         self.assertIn("Ledig", html)
 
+    def test_door_alarm_rendering_prioritizes_active_alarm(self) -> None:
+        alarm_item = {
+            "title": "Solrom 4",
+            "state": "closed",
+            "state_label": "I bruk",
+            "alarm_active": True,
+            "missing_session": True,
+            "duration_label": "9 min siden",
+        }
+        alarm_data = {
+            "summary": {"alarms": 1, "watch": 0, "busy": 1, "rooms": 12},
+            "alarms": [alarm_item],
+            "watch": [],
+            "items": [alarm_item],
+        }
+
+        self.assertEqual(online_main.render_door_alarm_summary(alarm_data), "1 alarm")
+        cards = online_main.render_door_alarm_dashboard_cards(alarm_data)
+        alarm_list = online_main.render_door_alarm_list(alarm_data)
+
+        self.assertIn("Solrom 4", cards)
+        self.assertIn("Alarm", cards)
+        self.assertIn("uten Sun2-time", alarm_list)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -536,6 +536,37 @@
   color: var(--red);
 }
 
+.door-alarm-board {
+  display: grid;
+  gap: 14px;
+}
+
+.door-alarm-command {
+  border-color: color-mix(in srgb, var(--red) 22%, var(--door-panel-border));
+}
+
+.door-alarm-summary .tone-alert {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--red) 78%, var(--surface)) 0 4px, transparent 4px),
+    color-mix(in srgb, var(--red) 4%, var(--panel-surface));
+}
+
+.door-alarm-section {
+  display: grid;
+  gap: 10px;
+}
+
+.door-alarm-ok {
+  border-color: color-mix(in srgb, var(--green) 24%, var(--border-control));
+  background: color-mix(in srgb, var(--green) 5%, var(--surface));
+}
+
+.door-table-muted {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .door-room-detail {
   display: grid;
   gap: 14px;

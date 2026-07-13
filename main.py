@@ -238,6 +238,7 @@ SUNROOM_DOOR_MONITOR_ENABLED = os.getenv("SUNROOM_DOOR_MONITOR_ENABLED", "true")
 SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS = max(30, int(os.getenv("SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS", "60")))
 SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS = max(0, int(os.getenv("SUNROOM_DOOR_MONITOR_INITIAL_DELAY_SECONDS", "20")))
 SUNROOM_DOOR_SESSION_GRACE_MINUTES = env_float("SUNROOM_DOOR_SESSION_GRACE_MINUTES", "5")
+SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES = env_float("SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES", "8")
 SUNROOM_DOOR_PAYMENT_DELAY_MINUTES = env_float("SUNROOM_DOOR_PAYMENT_DELAY_MINUTES", "3")
 SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES = env_float("SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES", "3")
 SUNROOM_DOOR_EXIT_GRACE_MINUTES = env_float("SUNROOM_DOOR_EXIT_GRACE_MINUTES", "3")
@@ -11499,6 +11500,8 @@ def sunroom_status_item(
     overstay_seconds: Optional[int] = None
     remaining_seconds: Optional[int] = None
     missing_session = False
+    no_session_alarm_active = False
+    no_session_alarm_threshold_seconds = int(SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES * 60)
 
     if not door.get("isConfigured"):
         severity = "unknown"
@@ -11511,10 +11514,16 @@ def sunroom_status_item(
     elif is_occupied:
         if not matched_session:
             missing_session = bool(occupied_seconds is not None and occupied_seconds >= int(SUNROOM_DOOR_SESSION_GRACE_MINUTES * 60))
+            no_session_alarm_active = bool(
+                missing_session and occupied_seconds is not None and occupied_seconds >= no_session_alarm_threshold_seconds
+            )
             if missing_session:
-                severity = "warning"
-                status = "Mangler soltime"
-                detail = f"Dør lukket i mer enn {SUNROOM_DOOR_SESSION_GRACE_MINUTES:g} min uten funnet Sun2-time."
+                severity = "alert" if no_session_alarm_active else "warning"
+                status = "Alarm" if no_session_alarm_active else "Mangler soltime"
+                if no_session_alarm_active:
+                    detail = f"Dør lukket i mer enn {SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES:g} min uten funnet Sun2-time."
+                else:
+                    detail = f"Dør lukket i mer enn {SUNROOM_DOOR_SESSION_GRACE_MINUTES:g} min uten funnet Sun2-time."
             else:
                 severity = "waiting"
                 status = "Venter på soltime"
@@ -11564,6 +11573,10 @@ def sunroom_status_item(
         "status": status,
         "detail": detail,
         "missingSession": missing_session,
+        "noSessionAlarmActive": no_session_alarm_active,
+        "noSessionAlarmMinutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
+        "alarmReason": "closed_without_session" if no_session_alarm_active else None,
+        "alarmTitle": "Lukket uten soltime" if no_session_alarm_active else "",
         "session": sunroom_session_payload(matched_session) if matched_session else None,
         "expectedExitAt": expected_exit_at.isoformat() if expected_exit_at else None,
         "expectedExitLabel": format_source_datetime(expected_exit_at) if expected_exit_at else "-",
@@ -11579,6 +11592,7 @@ def sunroom_alert_key(item: Dict[str, Any]) -> str:
     return "|".join(
         [
             str(item.get("deviceKey") or item.get("roomId") or "unknown"),
+            str(item.get("alarmReason") or "overstay"),
             str(session.get("id") or "missing"),
             str(item.get("expectedExitAt") or item.get("doorChangedAt") or ""),
             str(item.get("severity") or ""),
@@ -11600,12 +11614,23 @@ async def publish_sunroom_door_alerts(items: list[Dict[str, Any]], now: datetime
         last_sent_at = sunroom_door_alert_last_sent.get(key)
         if last_sent_at and last_sent_at >= cutoff:
             continue
-        message = (
-            f"{item.get('title') or item.get('roomLabel')}: dør fortsatt lukket. "
-            f"Forventet ut {item.get('expectedExitLabel') or '-'}. "
-            f"Overtid {item.get('overstayLabel') or '-'}."
-        )
-        if await publish_door_ntfy("SUN2 dørvarsel", message, priority="4", tags="door,rotating_light"):
+        if item.get("noSessionAlarmActive"):
+            message = (
+                f"{item.get('title') or item.get('roomLabel')}: dør lukket i "
+                f"{item.get('occupiedDurationLabel') or '-'} uten funnet Sun2-time. "
+                f"Lukket siden {item.get('occupiedSinceLabel') or '-'}."
+            )
+            title = "SUN2 alarm: lukket uten soltime"
+            tags = "door,warning"
+        else:
+            message = (
+                f"{item.get('title') or item.get('roomLabel')}: dør fortsatt lukket. "
+                f"Forventet ut {item.get('expectedExitLabel') or '-'}. "
+                f"Overtid {item.get('overstayLabel') or '-'}."
+            )
+            title = "SUN2 dørvarsel"
+            tags = "door,rotating_light"
+        if await publish_door_ntfy(title, message, priority="4", tags=tags):
             sunroom_door_alert_last_sent[key] = now
             sent_count += 1
     return sent_count
@@ -11661,6 +11686,7 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
     warning_rooms = [item for item in rooms if item.get("severity") == "warning"]
     alert_rooms = [item for item in rooms if item.get("severity") == "alert"]
     missing_session_rooms = [item for item in rooms if item.get("missingSession")]
+    no_session_alarm_rooms = [item for item in rooms if item.get("noSessionAlarmActive")]
     return {
         "generatedAt": now.isoformat(),
         "ntfyDoorsSubscribeUrl": ntfy_subscribe_url(NTFY_DOORS_TOPIC, "SUN2 dørvarsler"),
@@ -11670,6 +11696,7 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
             "fanAfterRunMinutes": SUNROOM_DOOR_FAN_AFTER_RUN_MINUTES,
             "exitGraceMinutes": SUNROOM_DOOR_EXIT_GRACE_MINUTES,
             "sessionGraceMinutes": SUNROOM_DOOR_SESSION_GRACE_MINUTES,
+            "noSessionAlarmMinutes": SUNROOM_DOOR_NO_SESSION_ALARM_MINUTES,
             "warnAfterEndMinutes": SUNROOM_DOOR_WARN_AFTER_END_MINUTES,
             "alertAfterEndMinutes": SUNROOM_DOOR_ALERT_AFTER_END_MINUTES,
             "monitorIntervalSeconds": SUNROOM_DOOR_MONITOR_INTERVAL_SECONDS,
@@ -11681,10 +11708,29 @@ async def sunroom_door_session_payload(session, notify: bool = False) -> Dict[st
             "warning": len(warning_rooms),
             "alert": len(alert_rooms),
             "missingSession": len(missing_session_rooms),
+            "noSessionAlarm": len(no_session_alarm_rooms),
             "ok": len([item for item in rooms if item.get("severity") in {"free", "active"}]),
         },
         "rooms": rooms,
     }
+
+
+async def sunroom_door_alarm_payload(session) -> Dict[str, Any]:
+    payload = await sunroom_door_session_payload(session, notify=False)
+    rooms = list(payload.get("rooms") or [])
+    alarms = [item for item in rooms if item.get("noSessionAlarmActive")]
+    watch = [item for item in rooms if item.get("missingSession") and not item.get("noSessionAlarmActive")]
+    occupied_without_session = [item for item in rooms if item.get("isOccupied") and not item.get("session")]
+    payload["alarms"] = alarms
+    payload["watch"] = watch
+    payload["occupiedWithoutSession"] = occupied_without_session
+    payload["summary"] = {
+        **dict(payload.get("summary") or {}),
+        "alarm": len(alarms),
+        "watch": len(watch),
+        "occupiedWithoutSession": len(occupied_without_session),
+    }
+    return payload
 
 
 async def sunroom_room_detail_payload(session, room_id: str, days: int = 14, limit: int = 120) -> Dict[str, Any]:
@@ -33427,6 +33473,12 @@ async def api_hc3_doors_status(
 async def api_hc3_doors_sunroom_sessions():
     async with async_session() as session:
         return await sunroom_door_session_payload(session, notify=True)
+
+
+@app.get("/api/hc3/doors/alarm")
+async def api_hc3_doors_alarm():
+    async with async_session() as session:
+        return await sunroom_door_alarm_payload(session)
 
 
 @app.get("/api/hc3/doors/sunroom-overview")

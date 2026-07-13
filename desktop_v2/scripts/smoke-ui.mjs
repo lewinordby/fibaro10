@@ -807,6 +807,7 @@ function sunroomSessionsPayload() {
       fanAfterRunMinutes: 3,
       exitGraceMinutes: 3,
       sessionGraceMinutes: 5,
+      noSessionAlarmMinutes: 8,
       warnAfterEndMinutes: 5,
       alertAfterEndMinutes: 10,
       monitorIntervalSeconds: 30,
@@ -818,9 +819,26 @@ function sunroomSessionsPayload() {
       warning: 0,
       alert: 0,
       missingSession: 0,
+      noSessionAlarm: 0,
       ok: 1,
     },
     rooms: [sunroomStatus("1", 1, true), sunroomStatus("2", 2, false)],
+  };
+}
+
+function doorAlarmPayload() {
+  const payload = sunroomSessionsPayload();
+  return {
+    ...payload,
+    alarms: [],
+    watch: [],
+    occupiedWithoutSession: [],
+    summary: {
+      ...payload.summary,
+      alarm: 0,
+      watch: 0,
+      occupiedWithoutSession: 0,
+    },
   };
 }
 
@@ -848,6 +866,7 @@ const server = http.createServer((request, response) => {
   if (url.pathname === "/api/mobile-preview/screens") return sendJson(response, mobileScreensPayload());
   if (url.pathname === "/api/hc3/doors/status") return sendJson(response, doorStatusPayload());
   if (url.pathname === "/api/hc3/doors/sunroom-overview") return sendJson(response, sunroomOverviewPayload());
+  if (url.pathname === "/api/hc3/doors/alarm") return sendJson(response, doorAlarmPayload());
   if (url.pathname === "/api/hc3/doors/sunroom-sessions") return sendJson(response, sunroomSessionsPayload());
   if (url.pathname.startsWith("/api/hc3/doors/sunroom-sessions/")) {
     return sendJson(response, {

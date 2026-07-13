@@ -17,6 +17,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/nb";
 
 import {
+  fetchDoorSunroomAlarm,
   fetchDoorSunroomOverview,
   fetchDoorSunroomRoomDetail,
   fetchDoorSunroomSessions,
@@ -25,6 +26,7 @@ import {
   type DoorPeriodItem,
   type DoorSunroomEnergyEvidence,
   type DoorSunroomDayEvent,
+  type DoorSunroomAlarmResponse,
   type DoorSunroomOverviewPeriod,
   type DoorSunroomOverviewResponse,
   type DoorSunroomOverviewRoom,
@@ -61,6 +63,7 @@ type DoorView =
   | "romkontroll-ny"
   | "romkontroll-ny2"
   | "soltimer"
+  | "alarm"
   | "solrom"
   | "solrom-ny"
   | "andre"
@@ -76,6 +79,7 @@ const DOOR_VIEWS: DoorView[] = [
   "romkontroll-ny",
   "romkontroll-ny2",
   "soltimer",
+  "alarm",
   "solrom",
   "solrom-ny",
   "andre",
@@ -2119,6 +2123,143 @@ function DoorSunroomSessionsBoard({
   );
 }
 
+function DoorAlarmBoard({
+  data,
+  loading,
+  error,
+  fetching,
+  refetch,
+}: {
+  data?: DoorSunroomAlarmResponse | null;
+  loading: boolean;
+  error: unknown;
+  fetching: boolean;
+  refetch: () => void;
+}) {
+  if (loading) return <LoadingBlock />;
+  if (error || !data) return <ErrorBlock error={error} />;
+
+  const alarms = data.alarms ?? data.rooms.filter((room) => room.noSessionAlarmActive);
+  const watch = data.watch ?? data.rooms.filter((room) => room.missingSession && !room.noSessionAlarmActive);
+  const columns: ColumnsType<DoorSunroomSessionItem> = [
+    {
+      title: "Rom",
+      dataIndex: "title",
+      key: "title",
+      render: (_value, row) => (
+        <Link to={row.roomId ? `/dorer/soltimer?room=${encodeURIComponent(row.roomId)}` : "/dorer/soltimer"}>
+          <strong>{row.title || row.roomLabel}</strong>
+        </Link>
+      ),
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (_value, row) => <Tag color={row.noSessionAlarmActive ? "red" : row.missingSession ? "orange" : "green"}>{row.status}</Tag>,
+    },
+    {
+      title: "Lukket siden",
+      dataIndex: "occupiedSinceLabel",
+      key: "occupiedSinceLabel",
+      render: (_value, row) => (
+        <span>
+          {row.occupiedSinceLabel}
+          <small className="door-table-muted"> {row.occupiedDurationLabel}</small>
+        </span>
+      ),
+    },
+    {
+      title: "Sun2",
+      key: "session",
+      render: (_value, row) => (row.session ? row.session.startedLabel : "Ingen funnet"),
+    },
+    {
+      title: "Vurdering",
+      dataIndex: "detail",
+      key: "detail",
+    },
+  ];
+
+  return (
+    <div className="door-alarm-board">
+      <section className="door-sunroom-command door-alarm-command">
+        <div>
+          <Typography.Title level={3}>Døralarm</Typography.Title>
+          <span>
+            Alarm trigges når et solrom har vært lukket mer enn {data.rules.noSessionAlarmMinutes ?? 8} min uten
+            koblet Sun2-time. Monitoren kjører hvert {data.rules.monitorIntervalSeconds} sekund.
+          </span>
+        </div>
+        <div className="door-sunroom-actions">
+          <a className="door-sunroom-ntfy-link" href={data.ntfyDoorsSubscribeUrl}>
+            <BellOutlined />
+            Abonner på dørvarsler
+          </a>
+          <Button size="small" icon={<ReloadOutlined spin={fetching} />} onClick={() => refetch()}>
+            Oppdater
+          </Button>
+        </div>
+      </section>
+
+      <div className="door-sunroom-summary door-alarm-summary">
+        <div className="tone-alert">
+          <span>Alarm</span>
+          <strong>{data.summary.alarm ?? alarms.length}</strong>
+        </div>
+        <div className="tone-warning">
+          <span>Følges opp</span>
+          <strong>{data.summary.watch ?? watch.length}</strong>
+        </div>
+        <div className="tone-active">
+          <span>I bruk</span>
+          <strong>{data.summary.active}</strong>
+        </div>
+        <div className="tone-waiting">
+          <span>Venter</span>
+          <strong>{data.summary.waiting}</strong>
+        </div>
+        <div className="tone-missing">
+          <span>Uten soltime</span>
+          <strong>{data.summary.occupiedWithoutSession ?? data.summary.missingSession}</strong>
+        </div>
+      </div>
+
+      {alarms.length ? (
+        <section className="door-alarm-section">
+          <div className="door-sunroom-section-head">
+            <strong>Aktive alarmer</strong>
+            <span>{alarms.length} rom</span>
+          </div>
+          <div className="door-sunroom-grid">
+            {alarms.map((room) => (
+              <SunroomCard item={room} key={room.deviceKey} />
+            ))}
+          </div>
+        </section>
+      ) : (
+        <Card className="doors-note-card door-alarm-ok">
+          <Space>
+            <CheckCircleOutlined className="status-ok" />
+            <Typography.Text>Ingen solrom er lukket over alarmgrensen uten koblet Sun2-time.</Typography.Text>
+          </Space>
+        </Card>
+      )}
+
+      <Card className="work-card doors-table-card doors-panel-card" title="Alle solrom">
+        <Table<DoorSunroomSessionItem>
+          rowKey="deviceKey"
+          size="small"
+          columns={columns}
+          dataSource={data.rooms}
+          pagination={false}
+          scroll={{ x: "max-content" }}
+        />
+      </Card>
+    </div>
+  );
+}
+
 function sortDoors(doors: DoorStatusItem[]) {
   return [...doors].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title, "nb"));
 }
@@ -2197,6 +2338,10 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
     (!isSolromScope && view === "soltimer") || (isSolromScope && view === "rom") ? searchParams.get("room") || "" : "";
   const sunroomQuery = useApiQuery(queryKeys.doorSunroomSessions(), fetchDoorSunroomSessions, {
     enabled: (!isSolromScope && view === "soltimer" && !selectedSunroomRoomId) || (isSolromScope && view === "oversikt"),
+    refetchInterval: 30_000,
+  });
+  const alarmQuery = useApiQuery(queryKeys.doorSunroomAlarm(), fetchDoorSunroomAlarm, {
+    enabled: !isSolromScope && view === "alarm",
     refetchInterval: 30_000,
   });
   const requestedControlDays = Number(searchParams.get("days") || "2");
@@ -2346,6 +2491,8 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
         ? "Dører · romkontroll - ny2"
       : activeView === "soltimer"
         ? "Dører · dør og soltime"
+      : activeView === "alarm"
+        ? "Dører · alarm"
       : activeView === "andre"
         ? "Dører · andre dører"
         : isRawView
@@ -2370,6 +2517,8 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
               ? "Daglig romkontroll med siste status øverst og hendelsestabell for dør, soltime, inngang og effekt gjennom dagen."
             : activeView === "soltimer"
               ? "Kobler solromdør mot Sun2-enkelttime og varsler når kunden er vesentlig over forventet ut-tid."
+            : activeView === "alarm"
+              ? "Varsler når et solrom står lukket lenge nok uten at det finnes en koblet Sun2-time."
             : "Åpne- og lukkeperioder fra magnetfølerne, med klargjorte plasser for de nye sensorene."
         }
         meta={
@@ -2377,7 +2526,14 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
             <Typography.Text type="secondary">
               Sist endret {data.summary.latestAgeLabel} · {data.summary.latestChangeText}
             </Typography.Text>
-            <Button size="small" icon={<ReloadOutlined spin={fetching} />} onClick={() => refetch()}>
+            <Button
+              size="small"
+              icon={<ReloadOutlined spin={fetching || alarmQuery.fetching} />}
+              onClick={() => {
+                refetch();
+                if (activeView === "alarm") alarmQuery.refetch();
+              }}
+            >
               Oppdater
             </Button>
           </Space>
@@ -2390,7 +2546,8 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
       activeView === "romkontroll" ||
       activeView === "romkontroll-ny" ||
       activeView === "romkontroll-ny2" ||
-      activeView === "solrom-ny" ? null : (
+      activeView === "solrom-ny" ||
+      activeView === "alarm" ? null : (
         <div className="doors-summary-grid">{buildSummaryCards(data.summary).map(statusSummary)}</div>
       )}
 
@@ -2485,6 +2642,16 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
         )
       ) : null}
 
+      {!isRawView && activeView === "alarm" ? (
+        <DoorAlarmBoard
+          data={alarmQuery.data}
+          loading={alarmQuery.loading}
+          error={alarmQuery.error}
+          fetching={alarmQuery.fetching}
+          refetch={alarmQuery.refetch}
+        />
+      ) : null}
+
       {!isRawView && activeView === "solrom" ? <DoorGroupSection title="Solrom" doors={solromDoors} splitBySection /> : null}
 
       {!isRawView && activeView === "andre" ? <DoorGroupSection title="Andre dører" doors={otherDoors} /> : null}
@@ -2515,6 +2682,7 @@ export default function DoorsPage({ scope = "doors" }: { scope?: DoorsPageScope 
       ) : activeView !== "oversikt" &&
         activeView !== "oversikt-ny" &&
         activeView !== "soltimer" &&
+        activeView !== "alarm" &&
         activeView !== "romkontroll" &&
         activeView !== "romkontroll-ny" &&
         activeView !== "romkontroll-ny2" &&
