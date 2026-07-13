@@ -89,6 +89,7 @@ export const smokeRoutes = [
   { path: "/manual/bygg-drift", name: "Manual bygg og drift", expectedTexts: ["Bygg og drift"] },
   { path: "/manual/system", name: "Manual system", expectedTexts: ["System"] },
   { path: "/manual/datagrunnlag", name: "Manual datagrunnlag", expectedTexts: ["Datagrunnlag"] },
+  { path: "/manual/hc3-energi", name: "Manual HC3 energi", expectedTexts: ["HC3 energi"] },
   { path: "/manual/rutiner", name: "Manual rutiner", expectedTexts: ["Rutiner"] },
   { path: "/manual/feilsoking", name: "Manual feilsoking", expectedTexts: ["Feilsøking"] },
   { path: "/admin/oppgaver", name: "Admin oppgaver" },

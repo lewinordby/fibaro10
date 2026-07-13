@@ -785,6 +785,62 @@ export type ManualTextItem = {
   path?: string;
 };
 
+export type ManualEnergyQuickappMember = {
+  id?: number | null;
+  name: string;
+  type?: string;
+  room?: string;
+  parentId?: number | null;
+  value?: string;
+  dead?: boolean;
+  visible?: boolean | null;
+  note?: string;
+};
+
+export type ManualEnergyQuickappGroup = {
+  id: number;
+  name: string;
+  category: string;
+  kind: string;
+  role: string;
+  memberCount: number;
+  ids: number[];
+  members: ManualEnergyQuickappMember[];
+};
+
+export type ManualEnergyUncoveredMeter = {
+  id?: number | null;
+  name: string;
+  type?: string;
+  parentId?: number | null;
+  parentName?: string;
+  value?: string;
+  status: string;
+  severity: "ok" | "warn" | "bad" | "muted" | "info" | string;
+  coveredBy?: string;
+  note?: string;
+  dead?: boolean;
+  visible?: boolean | null;
+};
+
+export type ManualEnergyQuickappReport = {
+  createdAt?: string;
+  inventoryFile?: string;
+  summary: {
+    quickApps: number;
+    diffQuickApps: number;
+    directMembers: number;
+    notDirectlyIncluded: number;
+    gaps: number;
+    realGaps: number;
+    energyDevices?: number | null;
+  };
+  findings: ManualTextItem[];
+  groups: ManualEnergyQuickappGroup[];
+  gaps: ManualEnergyUncoveredMeter[];
+  notDirectlyIncluded: ManualEnergyUncoveredMeter[];
+};
+
 export type ManualChapter = {
   id: string;
   number: string;
@@ -799,6 +855,7 @@ export type ManualChapter = {
   dataSources?: ManualTextItem[];
   checklists?: ManualTextItem[];
   troubleshooting?: ManualTextItem[];
+  energyQuickappReport?: ManualEnergyQuickappReport;
   note?: string;
 };
 

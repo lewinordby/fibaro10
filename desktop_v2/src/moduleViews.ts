@@ -171,6 +171,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
     { key: "bygg-drift", label: "Bygg og drift" },
     { key: "system", label: "System" },
     { key: "datagrunnlag", label: "Datagrunnlag" },
+    { key: "hc3-energi", label: "HC3 energi" },
     { key: "rutiner", label: "Rutiner" },
     { key: "feilsoking", label: "Feilsøking" },
   ],

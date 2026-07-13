@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1553")
+APP_BUILD = os.getenv("APP_BUILD", "1554")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1554",
+        "date": "13.07.2026",
+        "headline": "HC3 energirapport i manual",
+        "title": "Manualen får detaljert rapport for energioppsamlingene i HC3",
+        "description": (
+            "Build 1554 legger inn en egen Manual-side for HC3 energioppsamlinger. Rapporten viser realtime- og "
+            "akkumulerte QuickApps, alle medlemmer som summeres, alle HC3-målere som ikke er direkte med, og "
+            "skiller reelle hull fra underenheter som normalt ikke skal summeres."
+        ),
+        "applications": [
+            "main.py: bygger manualrapport fra siste HC3-inventar i outputs/hc3_inventory.",
+            "desktop_v2/src/pages/ManualPage.tsx: renderer energirapporten med nøkkeltall og tabeller.",
+            "desktop_v2/src/moduleViews.ts: legger Manual -> HC3 energi inn som egen underside.",
+            "desktop_v2/src/styles/manual.css: legger kompakt rapportdesign og statuser for mangler/dekning.",
+            "desktop_v2/scripts/smoke-routes.mjs og smoke-ui.mjs: legger ny manualrute inn i route- og UI-smoke.",
+            "docs/hc3-energi-oppsamlinger.md: oppdaterer faktisk status for Kurs 6 og peker til webrapporten.",
+        ],
+        "request": "kan du lage rapporten i web format og putte den på fibaro10 under manual. jeg vil ha nøye oversikt over alt som er med og alt som ikke er med",
+        "work_duration": "ca. 45 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny underside /manual/hc3-energi viser QuickApps, medlemmer og alle ikke-direkte målerrader.",
+            "Rapporten markerer 529 Kurs 6 som manglende i akkumulert Annet A.",
+            "530 Kurs 6 vises som med i realtime Annet R.",
+            "Skjulte masterkanaler og elektriske underverdier forklares slik at de ikke forveksles med reelle hull.",
+        ],
+    },
     {
         "version": "1",
         "build": "1553",

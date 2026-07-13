@@ -13491,6 +13491,211 @@ async def api_auth_me(request: Request):
     }
 
 
+def manual_energy_quickapp_report() -> Dict[str, Any]:
+    inventory_dir = Path("outputs/hc3_inventory")
+    inventory_files = sorted(
+        inventory_dir.glob("energy_quickapps_current_*.json"),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+    data: Dict[str, Any] = {}
+    inventory_path = ""
+    if inventory_files:
+        inventory_path = inventory_files[0].as_posix()
+        try:
+            with inventory_files[0].open("r", encoding="utf-8") as handle:
+                loaded = json.load(handle)
+                if isinstance(loaded, dict):
+                    data = loaded
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Kunne ikke lese HC3 energiinventar %s: %s", inventory_path, exc)
+
+    group_meta = {
+        "237": {"category": "Varmepumper", "kind": "Realtime W", "role": "Summerer faktisk effekt fra varmepumper."},
+        "335": {"category": "Varmepumper", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra varmepumper."},
+        "305": {"category": "Belysning", "kind": "Realtime W", "role": "Summerer faktisk effekt fra lys og fasadebelysning."},
+        "336": {"category": "Belysning", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra lys."},
+        "333": {"category": "Massasje", "kind": "Realtime W", "role": "Summerer effekt fra massasje, bad og varmtvann."},
+        "337": {"category": "Massasje", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra massasjegruppen."},
+        "332": {"category": "Annet", "kind": "Realtime W", "role": "Summerer øvrige målte laster som TV, dataskap, ventilasjon, avfukter og Kurs 6."},
+        "328": {"category": "Annet", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra øvrige målte laster."},
+        "331": {"category": "Differanse", "kind": "Realtime W", "role": "HC3-kontroll. Fibaro10 beregner differanse selv og logger ikke denne som grunnlag."},
+        "334": {"category": "Differanse", "kind": "Akkumulert kWh", "role": "HC3-kontroll. Brukes ikke som grunnlag for Fibaro10-forbruk."},
+    }
+    ordered_group_ids = ["237", "335", "305", "336", "333", "337", "332", "328", "331", "334"]
+    groups_raw = data.get("groups") if isinstance(data.get("groups"), dict) else {}
+
+    included_parents: Dict[int, list[Dict[str, Any]]] = defaultdict(list)
+    accumulated_group_ids = {"335", "336", "337", "328"}
+    realtime_group_ids = {"237", "305", "333", "332"}
+    for group_id in ordered_group_ids:
+        group = groups_raw.get(group_id) if isinstance(groups_raw.get(group_id), dict) else {}
+        for member in group.get("members") or []:
+            if not isinstance(member, dict):
+                continue
+            parent_id = member.get("parentId")
+            if isinstance(parent_id, int):
+                included_parents[parent_id].append(
+                    {
+                        "groupId": group_id,
+                        "groupName": group.get("name") or group_meta.get(group_id, {}).get("category") or group_id,
+                        "kind": group_meta.get(group_id, {}).get("kind", ""),
+                        "memberId": member.get("id"),
+                        "memberName": member.get("name"),
+                    }
+                )
+
+    def meter_value_label(row: Dict[str, Any]) -> str:
+        for key in ("value", "power", "energy"):
+            value = row.get(key)
+            if isinstance(value, (int, float)):
+                return f"{value:g}"
+        return ""
+
+    groups: list[Dict[str, Any]] = []
+    for group_id in ordered_group_ids:
+        raw_group = groups_raw.get(group_id) if isinstance(groups_raw.get(group_id), dict) else {}
+        meta = group_meta[group_id]
+        members = []
+        for member in raw_group.get("members") or []:
+            if not isinstance(member, dict):
+                continue
+            members.append(
+                {
+                    "id": member.get("id"),
+                    "name": member.get("name") or "",
+                    "type": member.get("type") or "",
+                    "room": member.get("room") or "",
+                    "parentId": member.get("parentId"),
+                    "value": meter_value_label(member),
+                    "dead": bool(member.get("dead")),
+                    "visible": member.get("visible"),
+                    "note": "Direkte med i QuickApp-koden.",
+                }
+            )
+        groups.append(
+            {
+                "id": int(group_id),
+                "name": raw_group.get("name") or meta["category"],
+                "category": meta["category"],
+                "kind": meta["kind"],
+                "role": meta["role"],
+                "memberCount": len(members),
+                "ids": raw_group.get("ids") or [member.get("id") for member in members],
+                "members": members,
+            }
+        )
+
+    uncovered: list[Dict[str, Any]] = []
+    for row in data.get("not_in_groups") or []:
+        if not isinstance(row, dict):
+            continue
+        parent_id = row.get("parentId")
+        parent_matches = included_parents.get(parent_id, []) if isinstance(parent_id, int) else []
+        parent_group_ids = {str(item.get("groupId") or "") for item in parent_matches}
+        row_type = str(row.get("type") or "")
+        dead = bool(row.get("dead"))
+        status = "Ikke vurdert"
+        severity = "info"
+        note = ""
+        if dead:
+            status = "Død/utkoblet"
+            severity = "muted"
+            note = "HC3 markerer enheten som død. Den skal ikke legges til uten ny fysisk kontroll."
+        elif row_type.endswith("energyMeter") and parent_group_ids & realtime_group_ids and not (parent_group_ids & accumulated_group_ids):
+            status = "Mangler i akkumulert"
+            severity = "bad"
+            note = "Samme node har realtime-måler i oppsamling, men denne kWh-måleren ligger ikke i akkumulert gruppe."
+        elif "electricMeter" in row_type:
+            status = "Underverdi"
+            severity = "muted"
+            note = "Elektrisk underverdi, typisk spenning/strøm. Skal normalt ikke summeres i forbruk."
+        elif parent_matches:
+            status = "Dekket via node"
+            severity = "ok"
+            note = "Samme Z-Wave-node har en synlig kanal i oppsamling. Denne raden er normalt skjult/master/søskenkanal."
+        else:
+            status = "Ikke med"
+            severity = "warn"
+            note = "Ingen direkte oppsamling funnet. Bør vurderes hvis dette er en aktiv last."
+
+        uncovered.append(
+            {
+                "id": row.get("id"),
+                "name": row.get("name") or "",
+                "type": row_type,
+                "parentId": parent_id,
+                "parentName": row.get("parentName") or "",
+                "value": meter_value_label(row),
+                "status": status,
+                "severity": severity,
+                "coveredBy": ", ".join(
+                    f"{item.get('groupName')} ({item.get('kind')})" for item in parent_matches[:4]
+                ),
+                "note": note,
+                "dead": dead,
+                "visible": row.get("visible"),
+            }
+        )
+
+    gaps = [row for row in uncovered if row.get("severity") in {"bad", "warn"}]
+    direct_member_count = sum(group["memberCount"] for group in groups if group["id"] not in {331, 334})
+    quickapp_count = len([group for group in groups if group["id"] not in {331, 334}])
+    diff_count = len([group for group in groups if group["id"] in {331, 334}])
+    bad_gap_count = len([row for row in gaps if row.get("severity") == "bad"])
+
+    findings = [
+        {
+            "title": "Hovedstatus",
+            "text": (
+                f"{quickapp_count} summerende QuickApps er kontrollert: realtime og akkumulert for varmepumper, "
+                "belysning, massasje og annet."
+            ),
+        },
+        {
+            "title": "Reell mangel",
+            "text": (
+                f"{bad_gap_count} måler peker seg ut som reell mangel: 529 Kurs 6 mangler i akkumulert Annet A, "
+                "mens 530 Kurs 6 allerede ligger i realtime Annet R."
+                if bad_gap_count
+                else "Ingen reelle hull ble funnet i siste inventar."
+            ),
+        },
+        {
+            "title": "Ikke direkte med",
+            "text": (
+                "Listen over ikke direkte med inneholder også skjulte masterkanaler, spenning/strøm-underenheter "
+                "og døde noder. De skal normalt ikke legges inn i summeringen fordi det kan gi dobbeltelling."
+            ),
+        },
+        {
+            "title": "Differanse",
+            "text": (
+                f"{diff_count} differanse-QuickApps finnes i HC3 som kontroll, men Fibaro10 bruker egne beregninger "
+                "fra 30-sekunders realtime samples som forbruksgrunnlag."
+            ),
+        },
+    ]
+
+    return {
+        "createdAt": data.get("created_at") or "",
+        "inventoryFile": inventory_path,
+        "summary": {
+            "quickApps": quickapp_count,
+            "diffQuickApps": diff_count,
+            "directMembers": direct_member_count,
+            "notDirectlyIncluded": len(uncovered),
+            "gaps": len(gaps),
+            "realGaps": bad_gap_count,
+            "energyDevices": data.get("energy_device_count"),
+        },
+        "findings": findings,
+        "groups": groups,
+        "gaps": gaps,
+        "notDirectlyIncluded": uncovered,
+    }
+
+
 def admin_manual_payload() -> Dict[str, Any]:
     economy_areas = [
         {
@@ -13767,12 +13972,20 @@ def admin_manual_payload() -> Dict[str, Any]:
                     {"title": "Elvia", "text": "Manuell import som brukes som kontroll mot HC3-forbruk."},
                     {"title": "Roborock", "text": "Logger robotvaskere, status og vaskehistorikk."},
                     {"title": "OwnTracks", "text": "Egen tjeneste for lokasjon, waypoints og besøk på kjente steder."},
+                    {"title": "HC3 energioppsamlinger", "text": "Detaljert rapport over QuickApps, målte medlemmer og målere som ikke er direkte med.", "path": "/manual/hc3-energi"},
                 ],
                 "note": "Bruk Admin -> Datakilder for operativ status. Bruk Admin -> Systemkart når du trenger URL, port, health-lenke eller compose-service.",
             },
             {
-                "id": "rutiner",
+                "id": "hc3-energi",
                 "number": "08",
+                "title": "HC3 energioppsamlinger",
+                "energyQuickappReport": manual_energy_quickapp_report(),
+                "note": "Rapporten bygger på siste avleste HC3-inventar i outputs/hc3_inventory. Den skiller mellom reelle hull og underenheter som ikke skal summeres direkte.",
+            },
+            {
+                "id": "rutiner",
+                "number": "09",
                 "title": "Rutiner og kontroll",
                 "checklists": [
                     {"title": "Daglig økonomi", "path": "/status/omsetning", "text": "Start på Dashboard. Sjekk omsetning hittil i dag, sammenligning mot i går og samme ukedag forrige uke, og tidspunkt for siste parkeringsimport."},
@@ -13788,7 +14001,7 @@ def admin_manual_payload() -> Dict[str, Any]:
             },
             {
                 "id": "feilsoking",
-                "number": "09",
+                "number": "10",
                 "title": "Feilsøking",
                 "troubleshooting": [
                     {"title": "Tall mangler eller virker gamle", "path": "/admin/datakilder", "text": "Sjekk sist OK, alder, melding og neste planlagte jobb før du vurderer grafen."},

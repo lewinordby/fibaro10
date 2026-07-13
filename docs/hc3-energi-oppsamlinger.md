@@ -2,7 +2,7 @@
 
 Dokumentasjonsstruktur gjennomgått 10.07.2026.
 
-Sist kontrollert og oppdatert: 11.07.2026.
+Sist kontrollert og oppdatert mot HC3-inventar: 13.07.2026.
 
 Denne oversikten dokumenterer hvilke HC3 QuickApps som summerer realtime effekt og akkumulert energi for Fibaro10.
 
@@ -13,7 +13,7 @@ Denne oversikten dokumenterer hvilke HC3 QuickApps som summerer realtime effekt 
 | 237 | Varmepumper R | 226, 230, 234 |
 | 305 | Belysning R | 201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440 |
 | 333 | Massasje R | 309, 314, 319, 324, 399 |
-| 332 | Annet R | 269, 247, 368, 373, 378, 405, 406, 160, 130, 449 |
+| 332 | Annet R | 269, 247, 368, 373, 378, 405, 406, 160, 130, 449, 530 |
 
 ## Akkumulert kWh
 
@@ -23,6 +23,22 @@ Denne oversikten dokumenterer hvilke HC3 QuickApps som summerer realtime effekt 
 | 336 | Lys A | 201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440 |
 | 337 | Massasje A | 398, 308, 313, 318, 323 |
 | 328 | Annet A | 269, 247, 367, 372, 377, 405, 406, 160, 130, 449 |
+
+## Siste kontroll 13.07.2026
+
+Webrapporten ligger i hovedappen under:
+
+```text
+/manual/hc3-energi
+```
+
+Faktisk HC3-inventar viser at `530 126.0 Kurs 6` er med i `332 Annet R`, men tilsvarende akkumulerte måler `529 126.0 Kurs 6` er ikke med i `328 Annet A`.
+
+Vurdering:
+
+- Realtime oppsamling for Kurs 6 er på plass.
+- Akkumulert kontrollverdi for Kurs 6 mangler i `Annet A`.
+- De fleste andre målere som ikke er direkte med er skjulte masterkanaler, spenning-/strøm-underenheter eller søskenkanaler på samme Z-Wave-node. De skal normalt ikke legges til direkte fordi det kan gi dobbeltelling.
 
 ## Endring 08.06.2026
 

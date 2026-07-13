@@ -3,7 +3,15 @@ import type { ReactNode } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { ErrorBlock, LoadingBlock } from "../components/AsyncState";
 import { PageHeader } from "../components/PageHeader";
-import { fetchManual, type ManualArea, type ManualChapter, type ManualTextItem } from "../api";
+import {
+  fetchManual,
+  type ManualArea,
+  type ManualChapter,
+  type ManualEnergyQuickappGroup,
+  type ManualEnergyQuickappReport,
+  type ManualEnergyUncoveredMeter,
+  type ManualTextItem,
+} from "../api";
 import { useApiQuery } from "../hooks";
 import { modulePath, MODULE_VIEWS } from "../moduleViews";
 import "../styles/manual.css";
@@ -16,6 +24,7 @@ const MANUAL_CHAPTER_BY_VIEW: Record<string, string> = {
   "bygg-drift": "bygg-drift",
   system: "system-underapper",
   datagrunnlag: "datagrunnlag",
+  "hc3-energi": "hc3-energi",
   rutiner: "rutiner",
   feilsoking: "feilsoking",
 };
@@ -28,6 +37,7 @@ const MANUAL_VIEW_SUMMARIES: Record<string, string> = {
   "bygg-drift": "Energi, ventilasjon, lys, dører, renhold og vedlikehold.",
   system: "Underapper, systemflater og hvordan de henger sammen med hovedappen.",
   datagrunnlag: "Hvilke datakilder løsningen er avhengig av og hva de leverer.",
+  "hc3-energi": "Nøyaktig oversikt over HC3 QuickApps for energi, medlemmer og målere som ikke er direkte med.",
   rutiner: "Daglige, ukentlige og månedlige kontrollrutiner.",
   feilsoking: "Praktisk feilsøking når tall, import, grafer eller underapper ikke stemmer.",
 };
@@ -118,8 +128,171 @@ function TextGrid({
   );
 }
 
+function ManualReportStat({ label, value }: { label: string; value: string | number | null | undefined }) {
+  return (
+    <div className="manual-report-stat">
+      <span>{label}</span>
+      <strong>{value ?? "-"}</strong>
+    </div>
+  );
+}
+
+function ManualReportStatus({ row }: { row: ManualEnergyUncoveredMeter }) {
+  return <span className={`manual-meter-status status-${row.severity || "info"}`}>{row.status}</span>;
+}
+
+function ManualGroupTable({ group }: { group: ManualEnergyQuickappGroup }) {
+  return (
+    <article className="manual-report-group">
+      <div className="manual-report-group-head">
+        <div>
+          <strong>
+            {group.id} {group.name}
+          </strong>
+          <span>
+            {group.category} · {group.kind} · {group.memberCount} medlemmer
+          </span>
+        </div>
+        <p>{group.role}</p>
+      </div>
+      <div className="manual-report-table-wrap">
+        <table className="manual-report-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Føler / kanal</th>
+              <th>Rom</th>
+              <th>Type</th>
+              <th>Verdi</th>
+              <th>Merknad</th>
+            </tr>
+          </thead>
+          <tbody>
+            {group.members.map((member) => (
+              <tr key={`${group.id}-${member.id}`}>
+                <td>{member.id}</td>
+                <td>{member.name}</td>
+                <td>{member.room || "-"}</td>
+                <td>{member.type || "-"}</td>
+                <td>{member.value || "-"}</td>
+                <td>{member.dead ? "Død i HC3" : member.note || "Med"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
+
+function ManualUncoveredTable({
+  rows,
+  compact = false,
+}: {
+  rows: ManualEnergyUncoveredMeter[];
+  compact?: boolean;
+}) {
+  if (!rows.length) return <p className="manual-note">Ingen rader i denne listen.</p>;
+  return (
+    <div className="manual-report-table-wrap">
+      <table className={`manual-report-table ${compact ? "compact" : ""}`}>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Føler / kanal</th>
+            <th>Parent</th>
+            <th>Status</th>
+            <th>Dekket av</th>
+            <th>Verdi</th>
+            <th>Merknad</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={`${row.id}-${row.status}`}>
+              <td>{row.id}</td>
+              <td>
+                <strong className="manual-report-cell-title">{row.name}</strong>
+                <span className="manual-report-cell-subtitle">{row.type}</span>
+              </td>
+              <td>
+                {row.parentId ? (
+                  <>
+                    {row.parentId}
+                    {row.parentName ? <span className="manual-report-cell-subtitle">{row.parentName}</span> : null}
+                  </>
+                ) : (
+                  "-"
+                )}
+              </td>
+              <td>
+                <ManualReportStatus row={row} />
+              </td>
+              <td>{row.coveredBy || "-"}</td>
+              <td>{row.value || "-"}</td>
+              <td>{row.note || "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ManualEnergyQuickappReportView({ report }: { report: ManualEnergyQuickappReport }) {
+  return (
+    <div className="manual-report">
+      <div className="manual-report-stats">
+        <ManualReportStat label="QuickApps" value={report.summary.quickApps} />
+        <ManualReportStat label="Diff-kontroller" value={report.summary.diffQuickApps} />
+        <ManualReportStat label="Direkte medlemmer" value={report.summary.directMembers} />
+        <ManualReportStat label="Ikke direkte med" value={report.summary.notDirectlyIncluded} />
+        <ManualReportStat label="Reelle hull" value={report.summary.realGaps} />
+      </div>
+
+      <TextGrid className="manual-data-grid" items={report.findings} />
+
+      <section className="manual-report-section">
+        <h3>Reelle hull og vurderingspunkter</h3>
+        <ManualUncoveredTable rows={report.gaps} compact />
+      </section>
+
+      <section className="manual-report-section">
+        <h3>QuickApps og medlemmer</h3>
+        <div className="manual-report-groups">
+          {report.groups.map((group) => (
+            <ManualGroupTable group={group} key={group.id} />
+          ))}
+        </div>
+      </section>
+
+      <section className="manual-report-section">
+        <h3>Alle følere som ikke er direkte med i oppsamling</h3>
+        <p className="manual-note">
+          Denne listen viser alt HC3 rapporterer som energi-/effektenhet, men som ikke ligger direkte i de åtte
+          summerende QuickAppene. Mange av radene er likevel normale underenheter eller skjulte masterkanaler.
+        </p>
+        <ManualUncoveredTable rows={report.notDirectlyIncluded} />
+      </section>
+
+      <p className="manual-note">
+        Sist avlest: {report.createdAt || "ukjent"}. Inventarfil: {report.inventoryFile || "mangler"}.
+      </p>
+    </div>
+  );
+}
+
 function renderChapter(chapter: ManualChapter, options: { showHeading?: boolean } = {}) {
   const showHeading = options.showHeading ?? true;
+  if (chapter.energyQuickappReport) {
+    return (
+      <ChapterFrame chapter={chapter} showHeading={showHeading}>
+        <ManualEnergyQuickappReportView report={chapter.energyQuickappReport} />
+        {chapter.note ? <p className="manual-note">{chapter.note}</p> : null}
+      </ChapterFrame>
+    );
+  }
+
   if (chapter.paragraphs?.length) {
     return (
       <ChapterFrame chapter={chapter} showHeading={showHeading}>

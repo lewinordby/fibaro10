@@ -67,7 +67,8 @@ const manualPayload = {
     { id: "bygg-drift", number: "05", title: "Bygg og drift", paragraphs: ["Smoke for bygg og drift."] },
     { id: "system-underapper", number: "06", title: "System og underapper", paragraphs: ["Smoke for system."] },
     { id: "datagrunnlag", number: "07", title: "Datagrunnlag", paragraphs: ["Smoke for datagrunnlag."] },
-    { id: "rutiner", number: "08", title: "Rutiner og kontroll", paragraphs: ["Smoke for rutiner."] },
+    { id: "hc3-energi", number: "08", title: "HC3 energioppsamlinger", paragraphs: ["Smoke for HC3 energi."] },
+    { id: "rutiner", number: "09", title: "Rutiner og kontroll", paragraphs: ["Smoke for rutiner."] },
     { id: "feilsoking", number: "09", title: "Feilsøking", paragraphs: ["Smoke for feilsøking."] },
   ],
 };
