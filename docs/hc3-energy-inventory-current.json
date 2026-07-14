@@ -506,7 +506,6 @@
         405,
         406,
         160,
-        130,
         449,
         530
       ],
@@ -643,23 +642,6 @@
           "power": 139.426,
           "energy": 223.675,
           "dead": false,
-          "enabled": true,
-          "visible": true,
-          "valueLabel": "1"
-        },
-        {
-          "id": 130,
-          "name": "35.0 Vifte VIP - NY",
-          "type": "com.fibaro.binarySwitch",
-          "baseType": "com.fibaro.actor",
-          "roomID": 232,
-          "room": "Ikke i bruk",
-          "parentId": 129,
-          "parentName": "Z-Wave Node 35",
-          "value": true,
-          "power": 0.0,
-          "energy": 122.9,
-          "dead": true,
           "enabled": true,
           "visible": true,
           "valueLabel": "1"
@@ -1204,7 +1186,6 @@
         405,
         406,
         160,
-        130,
         449
       ],
       "members": [
@@ -1340,23 +1321,6 @@
           "power": 139.426,
           "energy": 223.675,
           "dead": false,
-          "enabled": true,
-          "visible": true,
-          "valueLabel": "1"
-        },
-        {
-          "id": 130,
-          "name": "35.0 Vifte VIP - NY",
-          "type": "com.fibaro.binarySwitch",
-          "baseType": "com.fibaro.actor",
-          "roomID": 232,
-          "room": "Ikke i bruk",
-          "parentId": 129,
-          "parentName": "Z-Wave Node 35",
-          "value": true,
-          "power": 0.0,
-          "energy": 122.9,
-          "dead": true,
           "enabled": true,
           "visible": true,
           "valueLabel": "1"
@@ -6699,7 +6663,6 @@
   "all_device_count": 301,
   "energy_device_count": 101,
   "included_meter_ids": [
-    130,
     143,
     160,
     186,
@@ -6758,6 +6721,23 @@
     337
   ],
   "not_in_groups": [
+    {
+      "id": 130,
+      "name": "35.0 Vifte VIP - NY",
+      "type": "com.fibaro.binarySwitch",
+      "baseType": "com.fibaro.actor",
+      "roomID": 232,
+      "room": "Ikke i bruk",
+      "parentId": 129,
+      "parentName": "Z-Wave Node 35",
+      "value": true,
+      "power": 0.0,
+      "energy": 122.9,
+      "dead": true,
+      "enabled": true,
+      "visible": true,
+      "valueLabel": "1"
+    },
     {
       "id": 131,
       "name": "35.0 Electric Meter",

@@ -3390,7 +3390,7 @@ LIGHT_TIMELINE_DEVICES = [
 ]
 
 VENT_TIMELINE_DEVICES = [
-    {"key": "vip_intake", "name": "Innluft VIP", "sample_attr": "fan_vip", "legacy_ids": [130]},
+    {"key": "vip_intake", "name": "Innluft VIP", "sample_attr": "fan_vip", "legacy_ids": [511]},
     {"key": "floor_intake", "name": "Innluft 2.etg", "sample_attr": "fan_2etg", "legacy_ids": [160]},
     {"key": "roof_exhaust", "name": "Avtrekk tak/loft", "sample_attr": "fan_tak", "legacy_ids": [134]},
     {"key": "dehumidifier_basement", "name": "Avfukter kjeller", "sample_attr": "fan_avfukter", "legacy_ids": [449]},

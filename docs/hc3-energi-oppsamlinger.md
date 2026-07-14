@@ -34,7 +34,7 @@ python scripts/export_hc3_energy_inventory.py
 | 237 | Varmepumper R | 226, 230, 234 |
 | 305 | Belysning R | 201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440 |
 | 333 | Massasje R | 309, 314, 319, 324, 399 |
-| 332 | Annet R | 269, 247, 368, 373, 378, 405, 406, 160, 130, 449, 530 |
+| 332 | Annet R | 269, 247, 368, 373, 378, 405, 406, 160, 449, 530 |
 
 ## Akkumulert kWh
 
@@ -43,7 +43,7 @@ python scripts/export_hc3_energy_inventory.py
 | 335 | Varmepumper A | 226, 230, 234 |
 | 336 | Lys A | 201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440 |
 | 337 | Massasje A | 398, 308, 313, 318, 323 |
-| 328 | Annet A | 269, 247, 367, 372, 377, 405, 406, 160, 130, 449 |
+| 328 | Annet A | 269, 247, 367, 372, 377, 405, 406, 160, 449 |
 
 ## Siste kontroll 14.07.2026
 
@@ -55,6 +55,8 @@ Webrapporten ligger i hovedappen under:
 
 Faktisk HC3-inventar viser 301 enheter totalt og 101 energi-/effektrelaterte enheter. `530 126.0 Kurs 6` er med i `332 Annet R`, men tilsvarende akkumulerte måler `529 126.0 Kurs 6` er ikke med i `328 Annet A`.
 
+VIP-vifte er byttet fra gammel dod bryter `130` til ny styringsbryter `511 123.1 Vifte VIP`. `511` brukes til styring/status i ventilasjonen, men er ikke lagt inn i energioppsamling fordi enheten ikke rapporterer `power`/`energy`.
+
 Vurdering:
 
 - Realtime oppsamling for Kurs 6 er på plass.
@@ -65,8 +67,9 @@ Vurdering:
 
 Lagt inn i Annet:
 
-- 130: 35.0 Vifte VIP - NY
 - 449: 95.0 Avfukter kjeller
+
+Merk: `130 35.0 Vifte VIP - NY` ble fjernet fra Annet 14.07.2026 etter bytte til `511 123.1 Vifte VIP`. Den nye bryteren brukes til styring/status, ikke energioppsamling.
 
 Lagt inn i Lys/Belysning:
 

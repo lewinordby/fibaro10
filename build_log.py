@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1555")
+APP_BUILD = os.getenv("APP_BUILD", "1556")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1556",
+        "date": "14.07.2026",
+        "headline": "VIP-vifte flyttet til ny HC3-bryter",
+        "title": "Ventilasjonen bruker ny Vifte VIP-bryter 511",
+        "description": (
+            "Build 1556 bytter VIP-viften fra gammel dod HC3-bryter 130 til ny bryter 511 i Fibaro10 og "
+            "ventilasjonsscenen. Gammel bryter 130 fjernes samtidig fra HC3 QuickApp-ene for Annet energi, "
+            "fordi den nye bryteren ikke rapporterer power/energy og derfor ikke skal summeres som maler."
+        ),
+        "applications": [
+            "main.py: oppdaterer ventilasjon/status til aa lese Vifte VIP fra HC3-enhet 511.",
+            "scripts/hc3_ventilation_runner_scene_363.lua: styrer Innluft VIP via ny HC3-bryter 511.",
+            "scripts/upsert_hc3_ventilation_runner_scene.py: nytt script for trygg oppdatering av HC3-scene 363.",
+            "HC3 QuickApp 332 Annet R og 328 Annet A: fjerner gammel dod enhet 130 fra energisummering.",
+            "docs/hc3-energi-oppsamlinger.md og docs/hc3-energy-inventory-current.json: oppdaterer energirapporten.",
+        ],
+        "request": "vifte vip har fatt en ny bryter, tror ikke dette er endret, det er na 123.1 id 511 som er vifte vip.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Ny styrings-ID for Innluft VIP er 511.",
+            "Gammel styrings-ID var 130, med parent/node 129 og gamle meterkanaler 131/132.",
+            "511 brukes ikke i energioppsamling fordi HC3-enheten ikke rapporterer effekt eller akkumulert energi.",
+            "HC3-scene 363 kan oppdateres direkte fra Git med backup for hver endring.",
+        ],
+    },
     {
         "version": "1",
         "build": "1555",
