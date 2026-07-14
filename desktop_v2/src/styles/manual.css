@@ -523,7 +523,7 @@
 
 .manual-report-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -635,6 +635,10 @@
 
 .manual-report-table.compact {
   min-width: 780px;
+}
+
+.manual-report-table.all-devices {
+  min-width: 1080px;
 }
 
 .manual-report-table th,

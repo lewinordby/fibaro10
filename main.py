@@ -13498,17 +13498,36 @@ def manual_energy_quickapp_report() -> Dict[str, Any]:
         key=lambda item: item.stat().st_mtime,
         reverse=True,
     )
+    snapshot_path = Path("docs/hc3-energy-inventory-current.json")
     data: Dict[str, Any] = {}
     inventory_path = ""
-    if inventory_files:
-        inventory_path = inventory_files[0].as_posix()
+
+    def load_inventory_file(path: Path) -> Dict[str, Any] | None:
         try:
-            with inventory_files[0].open("r", encoding="utf-8") as handle:
+            with path.open("r", encoding="utf-8") as handle:
                 loaded = json.load(handle)
                 if isinstance(loaded, dict):
-                    data = loaded
+                    return loaded
         except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Kunne ikke lese HC3 energiinventar %s: %s", inventory_path, exc)
+            logger.warning("Kunne ikke lese HC3 energiinventar %s: %s", path.as_posix(), exc)
+        return None
+
+    inventory_candidates = [*inventory_files]
+    if snapshot_path.exists():
+        inventory_candidates.append(snapshot_path)
+    for candidate in inventory_candidates:
+        loaded = load_inventory_file(candidate)
+        if loaded and isinstance(loaded.get("all_devices"), list):
+            data = loaded
+            inventory_path = candidate.as_posix()
+            break
+    if not data:
+        for candidate in inventory_candidates:
+            loaded = load_inventory_file(candidate)
+            if loaded:
+                data = loaded
+                inventory_path = candidate.as_posix()
+                break
 
     group_meta = {
         "237": {"category": "Varmepumper", "kind": "Realtime W", "role": "Summerer faktisk effekt fra varmepumper."},
@@ -13534,7 +13553,7 @@ def manual_energy_quickapp_report() -> Dict[str, Any]:
             if not isinstance(member, dict):
                 continue
             parent_id = member.get("parentId")
-            if isinstance(parent_id, int):
+            if isinstance(parent_id, int) and parent_id > 0:
                 included_parents[parent_id].append(
                     {
                         "groupId": group_id,
@@ -13591,7 +13610,7 @@ def manual_energy_quickapp_report() -> Dict[str, Any]:
         if not isinstance(row, dict):
             continue
         parent_id = row.get("parentId")
-        parent_matches = included_parents.get(parent_id, []) if isinstance(parent_id, int) else []
+        parent_matches = included_parents.get(parent_id, []) if isinstance(parent_id, int) and parent_id > 0 else []
         parent_group_ids = {str(item.get("groupId") or "") for item in parent_matches}
         row_type = str(row.get("type") or "")
         dead = bool(row.get("dead"))
@@ -13639,6 +13658,98 @@ def manual_energy_quickapp_report() -> Dict[str, Any]:
         )
 
     gaps = [row for row in uncovered if row.get("severity") in {"bad", "warn"}]
+    uncovered_by_id = {
+        int(row["id"]): row
+        for row in uncovered
+        if isinstance(row.get("id"), int)
+    }
+    direct_by_id: Dict[int, list[Dict[str, Any]]] = defaultdict(list)
+    for group in groups:
+        for member in group.get("members") or []:
+            member_id = member.get("id")
+            if not isinstance(member_id, int):
+                continue
+            direct_by_id[member_id].append(
+                {
+                    "groupId": group.get("id"),
+                    "groupName": group.get("name"),
+                    "kind": group.get("kind"),
+                    "category": group.get("category"),
+                }
+            )
+    quickapp_ids = {int(group_id) for group_id in ordered_group_ids}
+
+    def row_is_energy_like(row: Dict[str, Any]) -> bool:
+        row_type = f"{row.get('type') or ''} {row.get('baseType') or ''}"
+        if any(marker in row_type for marker in ("powerMeter", "energyMeter", "electricMeter")):
+            return True
+        return any(isinstance(row.get(key), (int, float)) for key in ("power", "energy"))
+
+    all_devices: list[Dict[str, Any]] = []
+    for row in data.get("all_devices") or []:
+        if not isinstance(row, dict):
+            continue
+        row_id = row.get("id")
+        parent_id = row.get("parentId")
+        direct_matches = direct_by_id.get(row_id, []) if isinstance(row_id, int) else []
+        parent_matches = included_parents.get(parent_id, []) if isinstance(parent_id, int) and parent_id > 0 else []
+        uncovered_row = uncovered_by_id.get(row_id) if isinstance(row_id, int) else None
+        status = "Ikke energi"
+        severity = "muted"
+        note = "Ikke relevant for energisummering."
+        covered_by = ""
+        group_label = ""
+
+        if isinstance(row_id, int) and row_id in quickapp_ids:
+            status = "QuickApp"
+            severity = "info"
+            note = "Summerende HC3 QuickApp."
+        elif direct_matches:
+            status = "Med i oppsamling"
+            severity = "ok"
+            note = "Direkte medlem i QuickApp-kode."
+            group_label = ", ".join(
+                f"{item.get('groupName')} ({item.get('kind')})" for item in direct_matches[:4]
+            )
+            covered_by = group_label
+        elif uncovered_row:
+            status = str(uncovered_row.get("status") or "Ikke med")
+            severity = str(uncovered_row.get("severity") or "info")
+            note = str(uncovered_row.get("note") or "")
+            covered_by = str(uncovered_row.get("coveredBy") or "")
+        elif parent_matches:
+            status = "Samme node"
+            severity = "muted"
+            note = "Samme Z-Wave-node har kanal i oppsamling."
+            covered_by = ", ".join(
+                f"{item.get('groupName')} ({item.get('kind')})" for item in parent_matches[:4]
+            )
+        elif row_is_energy_like(row):
+            status = "Ikke med"
+            severity = "warn"
+            note = "Energi-/effektenhet uten oppsamlingstreff."
+
+        all_devices.append(
+            {
+                "id": row_id,
+                "name": row.get("name") or "",
+                "type": row.get("type") or "",
+                "baseType": row.get("baseType") or "",
+                "room": row.get("room") or "",
+                "parentId": parent_id,
+                "parentName": row.get("parentName") or "",
+                "value": meter_value_label(row),
+                "status": status,
+                "severity": severity,
+                "groups": group_label,
+                "coveredBy": covered_by,
+                "note": note,
+                "dead": bool(row.get("dead")),
+                "visible": row.get("visible"),
+                "enabled": row.get("enabled"),
+            }
+        )
+
     direct_member_count = sum(group["memberCount"] for group in groups if group["id"] not in {331, 334})
     quickapp_count = len([group for group in groups if group["id"] not in {331, 334}])
     diff_count = len([group for group in groups if group["id"] in {331, 334}])
@@ -13649,7 +13760,7 @@ def manual_energy_quickapp_report() -> Dict[str, Any]:
             "title": "Hovedstatus",
             "text": (
                 f"{quickapp_count} summerende QuickApps er kontrollert: realtime og akkumulert for varmepumper, "
-                "belysning, massasje og annet."
+                "belysning, massasje og annet. Rapporten viser også komplett HC3-enhetsliste fra /api/devices."
             ),
         },
         {
@@ -13688,11 +13799,13 @@ def manual_energy_quickapp_report() -> Dict[str, Any]:
             "gaps": len(gaps),
             "realGaps": bad_gap_count,
             "energyDevices": data.get("energy_device_count"),
+            "allDevices": len(all_devices) or data.get("all_device_count"),
         },
         "findings": findings,
         "groups": groups,
         "gaps": gaps,
         "notDirectlyIncluded": uncovered,
+        "allDevices": all_devices,
     }
 
 

@@ -2,9 +2,30 @@
 
 Dokumentasjonsstruktur gjennomgått 10.07.2026.
 
-Sist kontrollert og oppdatert mot HC3-inventar: 13.07.2026.
+Sist kontrollert og oppdatert mot HC3-inventar: 14.07.2026.
 
 Denne oversikten dokumenterer hvilke HC3 QuickApps som summerer realtime effekt og akkumulert energi for Fibaro10.
+
+Webrapporten i Fibaro10 viser nå både:
+
+- QuickApps og alle medlemmer som faktisk summeres.
+- Alle energi-/effektfølere som ikke er direkte med.
+- Komplett HC3-enhetsliste fra `/api/devices`, med status per enhet.
+
+Snapshot av siste HC3-inventar ligger versjonert i:
+
+```text
+docs/hc3-energy-inventory-current.json
+```
+
+Nytt snapshot kan hentes med HC3-tilgang i miljøvariabler:
+
+```text
+$env:HC3_BASE_URL='http://192.168.1.10'
+$env:HC3_USER='admin'
+$env:HC3_PASS='<passord>'
+python scripts/export_hc3_energy_inventory.py
+```
 
 ## Realtime W
 
@@ -24,7 +45,7 @@ Denne oversikten dokumenterer hvilke HC3 QuickApps som summerer realtime effekt 
 | 337 | Massasje A | 398, 308, 313, 318, 323 |
 | 328 | Annet A | 269, 247, 367, 372, 377, 405, 406, 160, 130, 449 |
 
-## Siste kontroll 13.07.2026
+## Siste kontroll 14.07.2026
 
 Webrapporten ligger i hovedappen under:
 
@@ -32,7 +53,7 @@ Webrapporten ligger i hovedappen under:
 /manual/hc3-energi
 ```
 
-Faktisk HC3-inventar viser at `530 126.0 Kurs 6` er med i `332 Annet R`, men tilsvarende akkumulerte måler `529 126.0 Kurs 6` er ikke med i `328 Annet A`.
+Faktisk HC3-inventar viser 301 enheter totalt og 101 energi-/effektrelaterte enheter. `530 126.0 Kurs 6` er med i `332 Annet R`, men tilsvarende akkumulerte måler `529 126.0 Kurs 6` er ikke med i `328 Annet A`.
 
 Vurdering:
 

@@ -7,6 +7,7 @@ import {
   fetchManual,
   type ManualArea,
   type ManualChapter,
+  type ManualEnergyDeviceRow,
   type ManualEnergyQuickappGroup,
   type ManualEnergyQuickappReport,
   type ManualEnergyUncoveredMeter,
@@ -239,6 +240,57 @@ function ManualUncoveredTable({
   );
 }
 
+function ManualAllDevicesTable({ rows }: { rows: ManualEnergyDeviceRow[] }) {
+  if (!rows.length) return <p className="manual-note">Ingen komplett enhetsliste er tilgjengelig i inventaret.</p>;
+  return (
+    <div className="manual-report-table-wrap">
+      <table className="manual-report-table all-devices">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Enhet</th>
+            <th>Parent</th>
+            <th>Rom</th>
+            <th>Status</th>
+            <th>Oppsamling/dekning</th>
+            <th>Verdi</th>
+            <th>Merknad</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={`${row.id ?? "row"}-${index}`}>
+              <td>{row.id}</td>
+              <td>
+                <strong className="manual-report-cell-title">{row.name}</strong>
+                <span className="manual-report-cell-subtitle">{row.type || "-"}</span>
+                {row.baseType ? <span className="manual-report-cell-subtitle">{row.baseType}</span> : null}
+              </td>
+              <td>
+                {row.parentId ? (
+                  <>
+                    {row.parentId}
+                    {row.parentName ? <span className="manual-report-cell-subtitle">{row.parentName}</span> : null}
+                  </>
+                ) : (
+                  "-"
+                )}
+              </td>
+              <td>{row.room || "-"}</td>
+              <td>
+                <ManualReportStatus row={row} />
+              </td>
+              <td>{row.groups || row.coveredBy || "-"}</td>
+              <td>{row.value || "-"}</td>
+              <td>{row.note || "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ManualEnergyQuickappReportView({ report }: { report: ManualEnergyQuickappReport }) {
   return (
     <div className="manual-report">
@@ -248,6 +300,7 @@ function ManualEnergyQuickappReportView({ report }: { report: ManualEnergyQuicka
         <ManualReportStat label="Direkte medlemmer" value={report.summary.directMembers} />
         <ManualReportStat label="Ikke direkte med" value={report.summary.notDirectlyIncluded} />
         <ManualReportStat label="Reelle hull" value={report.summary.realGaps} />
+        <ManualReportStat label="Alle HC3-enheter" value={report.summary.allDevices} />
       </div>
 
       <TextGrid className="manual-data-grid" items={report.findings} />
@@ -264,6 +317,15 @@ function ManualEnergyQuickappReportView({ report }: { report: ManualEnergyQuicka
             <ManualGroupTable group={group} key={group.id} />
           ))}
         </div>
+      </section>
+
+      <section className="manual-report-section">
+        <h3>Alle HC3-enheter i inventaret</h3>
+        <p className="manual-note">
+          Komplett liste fra HC3 /api/devices. Statusfeltet viser om enheten er direkte med i en oppsamling, dekket
+          via samme Z-Wave-node, relevant men ikke med, eller ikke relevant for energisummering.
+        </p>
+        <ManualAllDevicesTable rows={report.allDevices ?? []} />
       </section>
 
       <section className="manual-report-section">

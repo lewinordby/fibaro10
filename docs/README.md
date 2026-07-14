@@ -30,7 +30,8 @@ Dette repoet dokumenterer hovedappen `Fibaro10 / Lilletorget drift`, underappene
 | `docs/axis-camera-snapshots.md` | Axis snapshot-arkiv, åpningstidsvindu og kobling av bilder til soltimer. |
 | `docs/car-info-oppslag.md` | Svenske og danske kjøretøyoppslag etter SVV. |
 | `docs/hc3-dorer.md` | HC3 magnetfølere, dørlogger-scener og klargjorte solrom/byggdører. |
-| `docs/hc3-energi-oppsamlinger.md` | HC3 energigrupper og undermålere. |
+| `docs/hc3-energi-oppsamlinger.md` | HC3 energigrupper, komplett enhetsinventar og undermålere. |
+| `docs/hc3-energy-inventory-current.json` | Siste versjonerte snapshot fra HC3 `/api/devices` og energi-QuickApps. |
 | `docs/sun2-enkeltimer.md` | SUN2 enkelttimer, romidentitet og kobling mot energi/bilder. |
 | `docs/roborock-logger.md` | Drift av lokal Roborock-logger på QNAP/Docker. |
 | `docs/roborock-datakilder.md` | Hvilke Roborock-data som kan hentes fra cloud og lokal LAN. |

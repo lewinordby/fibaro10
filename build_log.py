@@ -5,8 +5,38 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1554")
+APP_BUILD = os.getenv("APP_BUILD", "1555")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1555",
+        "date": "14.07.2026",
+        "headline": "Komplett HC3 enhetsinventar",
+        "title": "Manualrapporten for HC3 energi viser nå alle HC3-enheter",
+        "description": (
+            "Build 1555 utvider Manual -> HC3 energi fra en ren energi-/QuickApp-kontroll til et komplett "
+            "HC3-inventar. Rapporten viser alle enheter fra /api/devices og markerer per enhet om den er direkte "
+            "med i oppsamling, dekket via samme node, relevant men ikke med, eller ikke relevant for energisummering."
+        ),
+        "applications": [
+            "scripts/export_hc3_energy_inventory.py: henter komplett HC3-inventar og skriver versjonert snapshot.",
+            "docs/hc3-energy-inventory-current.json: siste snapshot med alle HC3-enheter og QuickApp-medlemmer.",
+            "main.py: bygger allDevices-rapport med status per enhet og fallback til versjonert snapshot.",
+            "desktop_v2/src/api.ts: utvider manualtypene med komplett enhetsliste.",
+            "desktop_v2/src/pages/ManualPage.tsx: viser egen tabell for alle HC3-enheter i manualrapporten.",
+            "desktop_v2/src/styles/manual.css: tilpasser rapportstatistikk og bred tabell for komplett inventar.",
+            "docs/hc3-energi-oppsamlinger.md og docs/README.md: dokumenterer komplett inventar og snapshot.",
+        ],
+        "request": "det er jo ikke overiskt over alle enheter i den oversikten?",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny rapporttabell viser alle 301 HC3-enheter fra siste inventar.",
+            "101 energi-/effektrelaterte enheter er identifisert i snapshotet.",
+            "Enheter merkes som med i oppsamling, QuickApp, dekket via samme node, ikke med eller ikke energi.",
+            "Kurs 6-statusen beholdes: 530 er med i realtime Annet R, 529 mangler fortsatt i akkumulert Annet A.",
+        ],
+    },
     {
         "version": "1",
         "build": "1554",

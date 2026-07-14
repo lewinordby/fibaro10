@@ -812,16 +812,22 @@ export type ManualEnergyUncoveredMeter = {
   id?: number | null;
   name: string;
   type?: string;
+  baseType?: string;
+  room?: string;
   parentId?: number | null;
   parentName?: string;
   value?: string;
   status: string;
   severity: "ok" | "warn" | "bad" | "muted" | "info" | string;
   coveredBy?: string;
+  groups?: string;
   note?: string;
   dead?: boolean;
   visible?: boolean | null;
+  enabled?: boolean | null;
 };
+
+export type ManualEnergyDeviceRow = ManualEnergyUncoveredMeter;
 
 export type ManualEnergyQuickappReport = {
   createdAt?: string;
@@ -834,11 +840,13 @@ export type ManualEnergyQuickappReport = {
     gaps: number;
     realGaps: number;
     energyDevices?: number | null;
+    allDevices?: number | null;
   };
   findings: ManualTextItem[];
   groups: ManualEnergyQuickappGroup[];
   gaps: ManualEnergyUncoveredMeter[];
   notDirectlyIncluded: ManualEnergyUncoveredMeter[];
+  allDevices?: ManualEnergyDeviceRow[];
 };
 
 export type ManualChapter = {
