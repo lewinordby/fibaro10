@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1556")
+APP_BUILD = os.getenv("APP_BUILD", "1557")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1557",
+        "date": "14.07.2026",
+        "headline": "Kurs 6 dekker VIP-vifte og loft",
+        "title": "Kurs 6 er komplett i Annet realtime og akkumulert",
+        "description": (
+            "Build 1557 legger akkumulert Kurs 6-maler 529 inn i Annet A. Realtime Kurs 6 530 var allerede med "
+            "i Annet R. Manualrapporten viser na at Vifte VIP 511 og Lys loft massasje 512 ikke har egne "
+            "strommalinger, men at forbruket deres dekkes av Kurs 6 sammen med bredbandsruter."
+        ),
+        "applications": [
+            "HC3 QuickApp 328 Annet A: legger til 529 Kurs 6 som akkumulert kontrollverdi.",
+            "main.py: markerer 511 Vifte VIP og 512 Lys loft massasje som dekket av Kurs 6 i HC3 energirapporten.",
+            "docs/hc3-energi-oppsamlinger.md: dokumenterer at Kurs 6 dekker Vifte VIP, Lys loft massasje og bredbandsruter.",
+            "docs/hc3-energy-inventory-current.json: oppdaterer snapshot slik at 529 er medlem av Annet A.",
+        ],
+        "request": "det er den nye sensoren pa kurs 6 som viser stromforbruket pa denne sammen med lys loft massasje og bredbandsrouter",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Annet R inneholder 530 Kurs 6 for realtime W.",
+            "Annet A inneholder na 529 Kurs 6 for akkumulert kWh.",
+            "511 og 512 vises som dekket av Kurs 6 i manualens komplette HC3-enhetsliste.",
+            "Kurs 6 vises ikke lenger som reell mangel i energirapporten.",
+        ],
+    },
     {
         "version": "1",
         "build": "1556",

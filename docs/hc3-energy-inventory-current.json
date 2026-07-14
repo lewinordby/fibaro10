@@ -1186,6 +1186,7 @@
         405,
         406,
         160,
+        529,
         449
       ],
       "members": [
@@ -1324,6 +1325,23 @@
           "enabled": true,
           "visible": true,
           "valueLabel": "1"
+        },
+        {
+          "id": 529,
+          "name": "126.0 Kurs 6",
+          "type": "com.fibaro.energyMeter",
+          "baseType": "com.fibaro.electricMeter",
+          "roomID": 219,
+          "room": "Default",
+          "parentId": 527,
+          "parentName": "Z-Wave Node 126",
+          "value": 0.9,
+          "power": null,
+          "energy": null,
+          "dead": false,
+          "enabled": true,
+          "visible": true,
+          "valueLabel": "0.9"
         },
         {
           "id": 449,
@@ -6706,6 +6724,7 @@
     425,
     440,
     449,
+    529,
     530
   ],
   "diff_meter_ids": [
@@ -7468,23 +7487,6 @@
       "enabled": true,
       "visible": true,
       "valueLabel": "0"
-    },
-    {
-      "id": 529,
-      "name": "126.0 Kurs 6",
-      "type": "com.fibaro.energyMeter",
-      "baseType": "com.fibaro.electricMeter",
-      "roomID": 219,
-      "room": "Default",
-      "parentId": 527,
-      "parentName": "Z-Wave Node 126",
-      "value": 0.9,
-      "power": null,
-      "energy": null,
-      "dead": false,
-      "enabled": true,
-      "visible": true,
-      "valueLabel": "0.9"
     }
   ],
   "not_in_groups_visible_alive": [
@@ -8184,23 +8186,6 @@
       "enabled": true,
       "visible": true,
       "valueLabel": "0"
-    },
-    {
-      "id": 529,
-      "name": "126.0 Kurs 6",
-      "type": "com.fibaro.energyMeter",
-      "baseType": "com.fibaro.electricMeter",
-      "roomID": 219,
-      "room": "Default",
-      "parentId": 527,
-      "parentName": "Z-Wave Node 126",
-      "value": 0.9,
-      "power": null,
-      "energy": null,
-      "dead": false,
-      "enabled": true,
-      "visible": true,
-      "valueLabel": "0.9"
     }
   ]
 }

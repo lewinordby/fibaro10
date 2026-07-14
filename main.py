@@ -13537,12 +13537,16 @@ def manual_energy_quickapp_report() -> Dict[str, Any]:
         "333": {"category": "Massasje", "kind": "Realtime W", "role": "Summerer effekt fra massasje, bad og varmtvann."},
         "337": {"category": "Massasje", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra massasjegruppen."},
         "332": {"category": "Annet", "kind": "Realtime W", "role": "Summerer øvrige målte laster som TV, dataskap, ventilasjon, avfukter og Kurs 6."},
-        "328": {"category": "Annet", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra øvrige målte laster."},
+        "328": {"category": "Annet", "kind": "Akkumulert kWh", "role": "Kontrollverdi for akkumulert energi fra øvrige målte laster, inkludert Kurs 6."},
         "331": {"category": "Differanse", "kind": "Realtime W", "role": "HC3-kontroll. Fibaro10 beregner differanse selv og logger ikke denne som grunnlag."},
         "334": {"category": "Differanse", "kind": "Akkumulert kWh", "role": "HC3-kontroll. Brukes ikke som grunnlag for Fibaro10-forbruk."},
     }
     ordered_group_ids = ["237", "335", "305", "336", "333", "337", "332", "328", "331", "334"]
     groups_raw = data.get("groups") if isinstance(data.get("groups"), dict) else {}
+    course6_covered_devices = {
+        511: "Vifte VIP ligger bak Kurs 6 og forbruket inngår i 530 realtime / 529 akkumulert sammen med Lys loft massasje og bredbandsruter.",
+        512: "Lys loft massasje ligger bak Kurs 6 og forbruket inngår i 530 realtime / 529 akkumulert sammen med Vifte VIP og bredbandsruter.",
+    }
 
     included_parents: Dict[int, list[Dict[str, Any]]] = defaultdict(list)
     accumulated_group_ids = {"335", "336", "337", "328"}
@@ -13712,6 +13716,11 @@ def manual_energy_quickapp_report() -> Dict[str, Any]:
                 f"{item.get('groupName')} ({item.get('kind')})" for item in direct_matches[:4]
             )
             covered_by = group_label
+        elif isinstance(row_id, int) and row_id in course6_covered_devices:
+            status = "Dekket av Kurs 6"
+            severity = "ok"
+            note = course6_covered_devices[row_id]
+            covered_by = "Annet R (530 Kurs 6), Annet A (529 Kurs 6)"
         elif uncovered_row:
             status = str(uncovered_row.get("status") or "Ikke med")
             severity = str(uncovered_row.get("severity") or "info")
@@ -13766,8 +13775,7 @@ def manual_energy_quickapp_report() -> Dict[str, Any]:
         {
             "title": "Reell mangel",
             "text": (
-                f"{bad_gap_count} måler peker seg ut som reell mangel: 529 Kurs 6 mangler i akkumulert Annet A, "
-                "mens 530 Kurs 6 allerede ligger i realtime Annet R."
+                f"{bad_gap_count} måler peker seg ut som reell mangel. Se listen under for hvilke målere som bør vurderes."
                 if bad_gap_count
                 else "Ingen reelle hull ble funnet i siste inventar."
             ),

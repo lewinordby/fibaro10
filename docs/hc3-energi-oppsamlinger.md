@@ -43,7 +43,7 @@ python scripts/export_hc3_energy_inventory.py
 | 335 | Varmepumper A | 226, 230, 234 |
 | 336 | Lys A | 201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440 |
 | 337 | Massasje A | 398, 308, 313, 318, 323 |
-| 328 | Annet A | 269, 247, 367, 372, 377, 405, 406, 160, 449 |
+| 328 | Annet A | 269, 247, 367, 372, 377, 405, 406, 160, 529, 449 |
 
 ## Siste kontroll 14.07.2026
 
@@ -53,14 +53,14 @@ Webrapporten ligger i hovedappen under:
 /manual/hc3-energi
 ```
 
-Faktisk HC3-inventar viser 301 enheter totalt og 101 energi-/effektrelaterte enheter. `530 126.0 Kurs 6` er med i `332 Annet R`, men tilsvarende akkumulerte måler `529 126.0 Kurs 6` er ikke med i `328 Annet A`.
+Faktisk HC3-inventar viser 301 enheter totalt og 101 energi-/effektrelaterte enheter. `530 126.0 Kurs 6` er med i `332 Annet R`, og tilsvarende akkumulerte måler `529 126.0 Kurs 6` er med i `328 Annet A`.
 
-VIP-vifte er byttet fra gammel dod bryter `130` til ny styringsbryter `511 123.1 Vifte VIP`. `511` brukes til styring/status i ventilasjonen, men er ikke lagt inn i energioppsamling fordi enheten ikke rapporterer `power`/`energy`.
+VIP-vifte er byttet fra gammel dod bryter `130` til ny styringsbryter `511 123.1 Vifte VIP`. `511` brukes til styring/status i ventilasjonen, men er ikke lagt inn direkte i energioppsamling fordi enheten ikke rapporterer `power`/`energy`. Forbruket dekkes i stedet av Kurs 6-måleren sammen med `512 123.2 Lys loft massasje` og bredbandsruter.
 
 Vurdering:
 
 - Realtime oppsamling for Kurs 6 er på plass.
-- Akkumulert kontrollverdi for Kurs 6 mangler i `Annet A`.
+- Akkumulert kontrollverdi for Kurs 6 er på plass.
 - De fleste andre målere som ikke er direkte med er skjulte masterkanaler, spenning-/strøm-underenheter eller søskenkanaler på samme Z-Wave-node. De skal normalt ikke legges til direkte fordi det kan gi dobbeltelling.
 
 ## Endring 08.06.2026
@@ -69,7 +69,7 @@ Lagt inn i Annet:
 
 - 449: 95.0 Avfukter kjeller
 
-Merk: `130 35.0 Vifte VIP - NY` ble fjernet fra Annet 14.07.2026 etter bytte til `511 123.1 Vifte VIP`. Den nye bryteren brukes til styring/status, ikke energioppsamling.
+Merk: `130 35.0 Vifte VIP - NY` ble fjernet fra Annet 14.07.2026 etter bytte til `511 123.1 Vifte VIP`. Den nye bryteren brukes til styring/status, mens energien dekkes av Kurs 6.
 
 Lagt inn i Lys/Belysning:
 
