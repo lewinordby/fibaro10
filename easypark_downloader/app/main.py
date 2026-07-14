@@ -47,6 +47,11 @@ JOB_TIMEOUT_SECONDS = max(60, int(os.getenv("EASYPARK_JOB_TIMEOUT_SECONDS", "300
 WATCHDOG_INTERVAL_SECONDS = max(10, int(os.getenv("EASYPARK_WATCHDOG_INTERVAL_SECONDS", "30")))
 STALE_JOB_SECONDS = max(JOB_TIMEOUT_SECONDS + 30, int(os.getenv("EASYPARK_STALE_JOB_SECONDS", "600")))
 AUTO_RESTART_ON_BROWSER_FAILURE = os.getenv("EASYPARK_AUTO_RESTART_ON_BROWSER_FAILURE", "true").strip().lower() in {"1", "true", "yes", "ja"}
+EDGE_USER_AGENT = os.getenv(
+    "EASYPARK_USER_AGENT",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0",
+)
 LOCAL_TZ = ZoneInfo("Europe/Oslo")
 
 FIBARO10_BASE_URL = os.getenv("FIBARO10_BASE_URL", "http://192.168.20.218:8110").rstrip("/")
@@ -73,6 +78,13 @@ state: dict[str, Any] = {
     "last_period": None,
     "last_action": "init",
 }
+
+STEALTH_INIT_SCRIPT = """
+Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+window.chrome = window.chrome || { runtime: {} };
+"""
 
 
 def env_required(name: str) -> str:
@@ -252,6 +264,28 @@ def restore_browser_profile_snapshot(reason: str) -> bool:
 
 def mark_login_completed() -> None:
     write_auth_state(last_login_at=utcnow_iso())
+
+
+def edge_launch_options() -> dict[str, Any]:
+    options: dict[str, Any] = {
+        "args": [
+            "--disable-blink-features=AutomationControlled",
+            "--disable-infobars",
+            "--disable-dev-shm-usage",
+            "--no-default-browser-check",
+            "--no-first-run",
+            "--password-store=basic",
+            "--use-mock-keychain",
+        ],
+        "ignore_default_args": ["--enable-automation"],
+    }
+    if EDGE_EXECUTABLE_PATH and Path(EDGE_EXECUTABLE_PATH).exists():
+        options["executable_path"] = EDGE_EXECUTABLE_PATH
+    return options
+
+
+async def prepare_browser_context(context) -> None:
+    await context.add_init_script(STEALTH_INIT_SCRIPT)
 
 
 def parse_run_times(value: str) -> list[tuple[int, int]]:
@@ -535,9 +569,6 @@ async def logout_easypark(page) -> bool:
 async def try_logout_existing_session(playwright) -> bool:
     if not PROFILE_DIR.exists():
         return False
-    launch_options: dict[str, Any] = {}
-    if EDGE_EXECUTABLE_PATH and Path(EDGE_EXECUTABLE_PATH).exists():
-        launch_options["executable_path"] = EDGE_EXECUTABLE_PATH
     clear_stale_browser_locks()
     context = await playwright.chromium.launch_persistent_context(
         str(PROFILE_DIR),
@@ -546,8 +577,10 @@ async def try_logout_existing_session(playwright) -> bool:
         viewport={"width": 1365, "height": 900},
         locale="en-US",
         timezone_id="Europe/Oslo",
-        **launch_options,
+        user_agent=EDGE_USER_AGENT,
+        **edge_launch_options(),
     )
+    await prepare_browser_context(context)
     page = context.pages[0] if context.pages else await context.new_page()
     try:
         return await logout_easypark(page)
@@ -751,10 +784,6 @@ async def _run_download_import(
                     last_login_at=None,
                 )
 
-            launch_options: dict[str, Any] = {}
-            if EDGE_EXECUTABLE_PATH and Path(EDGE_EXECUTABLE_PATH).exists():
-                launch_options["executable_path"] = EDGE_EXECUTABLE_PATH
-
             clear_stale_browser_locks()
             context = await playwright.chromium.launch_persistent_context(
                 str(PROFILE_DIR),
@@ -764,8 +793,10 @@ async def _run_download_import(
                 viewport={"width": 1365, "height": 900},
                 locale="en-US",
                 timezone_id="Europe/Oslo",
-                **launch_options,
+                user_agent=EDGE_USER_AGENT,
+                **edge_launch_options(),
             )
+            await prepare_browser_context(context)
             page = context.pages[0] if context.pages else await context.new_page()
             try:
                 set_state(last_action="login")
