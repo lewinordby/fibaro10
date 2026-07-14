@@ -256,6 +256,10 @@ function lightStripItems(items: Array<{ label: string; state: boolean | null }>)
   return stripItems;
 }
 
+function fanStripItems(items: Array<{ label: string; state: boolean | null; tooltip?: string | null }>): StripItem[] {
+  return items.map((item) => ({ ...item, tooltip: item.tooltip || item.label }));
+}
+
 function StatusStrip({ title, items }: { title: string; items: StripItem[] }) {
   return (
     <div className="status-strip">
@@ -1137,7 +1141,7 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
           />
           <div className="status-strip-stack">
             <StatusStrip title="Lys" items={lightStripItems(overview.lightItems)} />
-            <StatusStrip title="Ventilasjon" items={overview.fanItems} />
+            <StatusStrip title="Ventilasjon" items={fanStripItems(overview.fanItems)} />
           </div>
         </Card>
         <StatusSection title="Nøkkeltall" detail="Energi, temperatur og vær akkurat nå">

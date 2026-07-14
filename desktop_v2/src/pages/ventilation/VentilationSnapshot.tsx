@@ -37,10 +37,12 @@ export function Snapshot({ ventilation }: { ventilation: VentilationData }) {
         </div>
         <div className="vent-fan-strip">
           {ventilation.latest.fans.map((fan) => (
-            <span className="vent-fan-pill" key={fan.key}>
-              {fan.label}
-              {stateTag(fan.state)}
-            </span>
+            <Tooltip title={fan.tooltip || fan.statusSource || fan.label} key={fan.key}>
+              <span className="vent-fan-pill">
+                {fan.label}
+                {stateTag(fan.state)}
+              </span>
+            </Tooltip>
           ))}
         </div>
       </Card>
@@ -80,10 +82,12 @@ export function CompactSnapshot({ ventilation }: { ventilation: VentilationData 
       </div>
       <div className="vent-compact-fans">
         {ventilation.latest.fans.map((fan) => (
-          <span className="vent-fan-pill" key={fan.key}>
-            {fan.label}
-            {stateTag(fan.state)}
-          </span>
+          <Tooltip title={fan.tooltip || fan.statusSource || fan.label} key={fan.key}>
+            <span className="vent-fan-pill">
+              {fan.label}
+              {stateTag(fan.state)}
+            </span>
+          </Tooltip>
         ))}
       </div>
     </Card>

@@ -256,6 +256,8 @@ HC3_DOOR_UNEXPECTED_RECHECK_MINUTES = env_float("HC3_DOOR_UNEXPECTED_RECHECK_MIN
 HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES = env_float("HC3_DOOR_OTHER_OPEN_VERIFY_MINUTES", "10")
 HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES = env_float("HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES", "90")
 HC3_DOOR_POLL_TIMEOUT_SECONDS = max(3, int(os.getenv("HC3_DOOR_POLL_TIMEOUT_SECONDS", "8")))
+HC3_SWITCH_POLL_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_SWITCH_POLL_TIMEOUT_SECONDS", "3")))
+HC3_SWITCH_STATUS_CACHE_SECONDS = max(0.0, env_float("HC3_SWITCH_STATUS_CACHE_SECONDS", "5"))
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 SUN2_AXIS_SNAPSHOT_ROOT = Path(
     os.getenv("SUN2_AXIS_SNAPSHOT_ROOT", os.getenv("AXIS_SNAPSHOT_DIR", "/axis_snapshots"))
@@ -3395,6 +3397,7 @@ VENT_TIMELINE_DEVICES = [
     {"key": "roof_exhaust", "name": "Avtrekk tak/loft", "sample_attr": "fan_tak", "legacy_ids": [134]},
     {"key": "dehumidifier_basement", "name": "Avfukter kjeller", "sample_attr": "fan_avfukter", "legacy_ids": [449]},
 ]
+hc3_switch_status_cache: Dict[int, tuple[float, Dict[str, Any]]] = {}
 
 DAY_ZOOM_OPTIONS = [
     {"key": "all", "label": "Hele døgnet", "start_hour": 0, "end_hour": 24, "ticks": [0, 6, 12, 18, 24]},
@@ -8575,6 +8578,75 @@ def sample_state(row, device) -> Optional[bool]:
     return bool(value)
 
 
+def hc3_control_device_id(device: Dict[str, Any]) -> Optional[int]:
+    ids = device.get("legacy_ids") or []
+    if not ids:
+        return None
+    try:
+        return int(ids[0])
+    except (TypeError, ValueError):
+        return None
+
+
+def hc3_switch_config_for_timeline_device(device: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    device_id = hc3_control_device_id(device)
+    if device_id is None:
+        return None
+    return {
+        "key": device.get("key"),
+        "name": device.get("name"),
+        "device_id": device_id,
+    }
+
+
+def ventilation_status_payload(
+    device: Dict[str, Any],
+    latest_sample: Optional[VentilationSample],
+    hc3_status: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    sample_value = sample_state(latest_sample, device) if latest_sample else None
+    sample_at = latest_sample.bucket_start or latest_sample.timestamp if latest_sample else None
+    hc3_value = hc3_status.get("state") if hc3_status else None
+    has_hc3_value = hc3_value is not None
+    state = hc3_value if has_hc3_value else sample_value
+    device_id = (hc3_status or {}).get("deviceId") or hc3_control_device_id(device)
+    checked_at = (hc3_status or {}).get("checkedAt")
+    error = (hc3_status or {}).get("error")
+    if has_hc3_value:
+        source = "HC3 nå"
+    elif error:
+        source = "Siste sample (HC3 feilet)"
+    elif hc3_status:
+        source = "Siste sample (HC3 ukjent)"
+    else:
+        source = "Siste sample"
+    tooltip_parts = [
+        f"{device.get('name') or device.get('key')}",
+        f"Statuskilde: {source}",
+    ]
+    if device_id:
+        tooltip_parts.append(f"HC3-id: {device_id}")
+    if checked_at:
+        tooltip_parts.append(f"Sjekket: {checked_at}")
+    if sample_at:
+        tooltip_parts.append(f"Siste sample: {format_source_datetime_short(sample_at)}")
+    if error:
+        tooltip_parts.append(f"Feil: {error}")
+    return {
+        "key": device.get("key"),
+        "label": device.get("name"),
+        "state": api_bool_state(state),
+        "sampleState": api_bool_state(sample_value),
+        "sampleAt": api_local_iso(sample_at),
+        "deviceId": device_id,
+        "deviceName": (hc3_status or {}).get("deviceName") or device.get("name"),
+        "statusSource": source,
+        "checkedAt": checked_at,
+        "error": error,
+        "tooltip": " | ".join(part for part in tooltip_parts if part),
+    }
+
+
 def event_extra_key(row) -> Optional[str]:
     extra = getattr(row, "extra", None) or {}
     if isinstance(extra, dict):
@@ -10349,8 +10421,12 @@ def hc3_first_present(*values: Any) -> Any:
     return None
 
 
-def hc3_door_poll_is_configured() -> bool:
+def hc3_api_is_configured() -> bool:
     return bool(HC3_BASE_URL and HC3_USER and HC3_PASS)
+
+
+def hc3_door_poll_is_configured() -> bool:
+    return hc3_api_is_configured()
 
 
 def hc3_basic_auth_header() -> str:
@@ -10358,14 +10434,14 @@ def hc3_basic_auth_header() -> str:
     return f"Basic {token}"
 
 
-def hc3_device_request(device_id: int) -> Dict[str, Any]:
-    if not hc3_door_poll_is_configured():
+def hc3_device_request(device_id: int, timeout_seconds: Optional[int] = None) -> Dict[str, Any]:
+    if not hc3_api_is_configured():
         raise RuntimeError("HC3_BASE_URL/HC3_USER/HC3_PASS er ikke konfigurert for Fibaro10.")
     request = urllib.request.Request(f"{HC3_BASE_URL}/api/devices/{int(device_id)}")
     request.add_header("Accept", "application/json")
     request.add_header("Authorization", hc3_basic_auth_header())
     try:
-        with urllib.request.urlopen(request, timeout=HC3_DOOR_POLL_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(request, timeout=timeout_seconds or HC3_DOOR_POLL_TIMEOUT_SECONDS) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f"HC3 svarte {exc.code}") from exc
@@ -10373,6 +10449,17 @@ def hc3_device_request(device_id: int) -> Dict[str, Any]:
         raise RuntimeError(f"HC3 kunne ikke nås: {exc.reason}") from exc
     if not isinstance(payload, dict):
         raise RuntimeError("HC3 svarte ikke med et JSON-objekt.")
+    return payload
+
+
+def hc3_cached_device_request(device_id: int, timeout_seconds: Optional[int] = None) -> Dict[str, Any]:
+    device_id_int = int(device_id)
+    now_monotonic = monotonic()
+    cached = hc3_switch_status_cache.get(device_id_int)
+    if cached and HC3_SWITCH_STATUS_CACHE_SECONDS > 0 and now_monotonic - cached[0] <= HC3_SWITCH_STATUS_CACHE_SECONDS:
+        return dict(cached[1])
+    payload = hc3_device_request(device_id_int, timeout_seconds=timeout_seconds)
+    hc3_switch_status_cache[device_id_int] = (now_monotonic, dict(payload))
     return payload
 
 
@@ -10416,6 +10503,67 @@ async def hc3_fetch_door_statuses(configs: list[Dict[str, Any]]) -> list[Dict[st
                 }
 
     return await asyncio.gather(*(fetch_one(config) for config in configs))
+
+
+def hc3_switch_status_from_device(config: Dict[str, Any], device: Dict[str, Any]) -> Dict[str, Any]:
+    properties = device.get("properties") if isinstance(device.get("properties"), dict) else {}
+    raw_value = hc3_first_present(properties.get("value"), device.get("value"))
+    dead = parse_boolish(hc3_first_present(properties.get("dead"), device.get("dead")))
+    enabled = parse_boolish(hc3_first_present(properties.get("enabled"), device.get("enabled")))
+    return {
+        "key": config.get("key"),
+        "label": config.get("name"),
+        "deviceId": int(config.get("device_id") or device.get("id") or 0) or None,
+        "deviceName": hc3_first_present(device.get("name"), properties.get("name"), config.get("name")),
+        "state": parse_boolish(raw_value),
+        "rawValue": str(raw_value).lower() if isinstance(raw_value, bool) else str(raw_value) if raw_value is not None else None,
+        "dead": dead,
+        "enabled": enabled,
+        "statusSource": "HC3 nå",
+        "checkedAt": api_local_iso(local_now_naive()),
+        "error": None,
+    }
+
+
+async def hc3_fetch_switch_status(config: Dict[str, Any]) -> Dict[str, Any]:
+    device_id = config.get("device_id")
+    if device_id is None:
+        raise RuntimeError("Mangler HC3 device-id.")
+    device = await asyncio.to_thread(
+        hc3_cached_device_request,
+        int(device_id),
+        HC3_SWITCH_POLL_TIMEOUT_SECONDS,
+    )
+    return hc3_switch_status_from_device(config, device)
+
+
+async def hc3_fetch_switch_statuses(configs: list[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    if not configs or not hc3_api_is_configured():
+        return {}
+    semaphore = asyncio.Semaphore(4)
+
+    async def fetch_one(config: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
+        key = str(config.get("key") or config.get("device_id") or "unknown")
+        async with semaphore:
+            try:
+                return key, await hc3_fetch_switch_status(config)
+            except Exception as exc:
+                return key, {
+                    "key": key,
+                    "label": config.get("name"),
+                    "deviceId": config.get("device_id"),
+                    "deviceName": config.get("name"),
+                    "state": None,
+                    "rawValue": None,
+                    "dead": None,
+                    "enabled": None,
+                    "statusSource": "HC3 feilet",
+                    "checkedAt": api_local_iso(local_now_naive()),
+                    "error": str(exc),
+                }
+
+    rows = await asyncio.gather(*(fetch_one(config) for config in configs))
+    return {key: payload for key, payload in rows}
 
 
 async def hc3_fetch_all_door_statuses() -> list[Dict[str, Any]]:
@@ -15278,15 +15426,25 @@ async def index(request: Request):
                 ),
             }
         )
-    vent_status = [
-        {
-            "id": device["key"],
-            "name": device["name"],
-            "row": latest_vent_by_key.get(device["key"]),
-            "state": sample_state(latest_sample, device),
-        }
-        for device in VENT_TIMELINE_DEVICES
+    vent_switch_configs = [
+        config for device in VENT_TIMELINE_DEVICES
+        if (config := hc3_switch_config_for_timeline_device(device)) is not None
     ]
+    vent_hc3_statuses = await hc3_fetch_switch_statuses(vent_switch_configs)
+    vent_status = []
+    for device in VENT_TIMELINE_DEVICES:
+        status_payload = ventilation_status_payload(device, latest_sample, vent_hc3_statuses.get(str(device.get("key"))))
+        vent_status.append(
+            {
+                "id": device["key"],
+                "name": device["name"],
+                "row": latest_vent_by_key.get(device["key"]),
+                "state": status_payload.get("state"),
+                "status_source": status_payload.get("statusSource"),
+                "checked_at": status_payload.get("checkedAt"),
+                "tooltip": status_payload.get("tooltip"),
+            }
+        )
     vent_status.append(
         {
             "id": "loft_recovery",
@@ -15718,8 +15876,13 @@ async def status_key_metrics_view(request: Request):
         {"label": device["name"], "state": light_sample_state(latest_light_sample, device) if latest_light_sample else None}
         for device in LIGHT_TIMELINE_DEVICES
     ]
+    vent_switch_configs = [
+        config for device in VENT_TIMELINE_DEVICES
+        if (config := hc3_switch_config_for_timeline_device(device)) is not None
+    ]
+    vent_hc3_statuses = await hc3_fetch_switch_statuses(vent_switch_configs)
     fan_items = [
-        {"label": device["name"], "state": sample_state(latest_sample, device)}
+        ventilation_status_payload(device, latest_sample, vent_hc3_statuses.get(str(device.get("key"))))
         for device in VENT_TIMELINE_DEVICES
     ]
     revenue_today = float_or_zero(today_sun.paid) + float_or_zero(today_parking.paid)
@@ -17257,8 +17420,13 @@ async def api_v2_overview():
         {"label": device["name"], "state": api_bool_state(light_sample_state(latest_light_sample, device) if latest_light_sample else None)}
         for device in LIGHT_TIMELINE_DEVICES
     ]
+    vent_switch_configs = [
+        config for device in VENT_TIMELINE_DEVICES
+        if (config := hc3_switch_config_for_timeline_device(device)) is not None
+    ]
+    vent_hc3_statuses = await hc3_fetch_switch_statuses(vent_switch_configs)
     fan_items = [
-        {"label": device["name"], "state": api_bool_state(sample_state(latest_sample, device) if latest_sample else None)}
+        ventilation_status_payload(device, latest_sample, vent_hc3_statuses.get(str(device.get("key"))))
         for device in VENT_TIMELINE_DEVICES
     ]
     cards = [
@@ -18197,7 +18365,11 @@ async def update_parking_sun_link_import_status(session: Any, state: ParkingSunL
     row.raw = api_parking_sun_link_state_row(state)
 
 
-def ventilation_latest_payload(latest: Optional[VentilationSample], latest_yr: Optional[YrForecastSample]) -> Dict[str, Any]:
+def ventilation_latest_payload(
+    latest: Optional[VentilationSample],
+    latest_yr: Optional[YrForecastSample],
+    fan_statuses: Optional[list[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     def measurement(key: str, label: str, temp_key: Optional[str] = None, humidity_key: Optional[str] = None, detail: str = "") -> Dict[str, Any]:
         return {
             "key": key,
@@ -18207,12 +18379,10 @@ def ventilation_latest_payload(latest: Optional[VentilationSample], latest_yr: O
             "detail": detail,
         }
 
-    fans = [
+    fans = fan_statuses if fan_statuses is not None else [
         {
-            "key": device["key"],
-            "label": device["name"],
-            "state": sample_state(latest, device),
-            "detail": "PÅ" if sample_state(latest, device) is True else "AV" if sample_state(latest, device) is False else "-",
+            **ventilation_status_payload(device, latest, None),
+            "detail": "Paa" if sample_state(latest, device) is True else "AV" if sample_state(latest, device) is False else "-",
         }
         for device in VENT_TIMELINE_DEVICES
     ]
@@ -27071,6 +27241,15 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
             latest_yr = (
                 await session.execute(select(YrForecastSample).order_by(YrForecastSample.bucket_start.desc()).limit(1))
             ).scalars().first()
+            vent_switch_configs = [
+                config for device in VENT_TIMELINE_DEVICES
+                if (config := hc3_switch_config_for_timeline_device(device)) is not None
+            ]
+            vent_hc3_statuses = await hc3_fetch_switch_statuses(vent_switch_configs)
+            fan_status_items = [
+                ventilation_status_payload(device, latest, vent_hc3_statuses.get(str(device.get("key"))))
+                for device in VENT_TIMELINE_DEVICES
+            ]
             samples = []
             yr_rows = []
             events = []
@@ -27080,11 +27259,11 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                 yr_rows, _ = await fetch_rows(YrForecastSample, None, None, None, None, None, None, log_from_value, log_to_value, log_limit_value, time_basis="utc")
             if active_view in {"dagslogg", "hendelser"}:
                 events, _ = await fetch_rows(VentilationEvent, "fan_change", None, None, None, log_mode_value or None, None, log_from_value, log_to_value, log_limit_value)
-            fan_on = sum(1 for device in VENT_TIMELINE_DEVICES if latest and sample_state(latest, device) is True)
+            fan_on = sum(1 for item in fan_status_items if item.get("state") is True)
             temp_day = await build_temp_day(day_start, day_end, timeline_end) if active_view in {"dagslogg", "hendelser"} else None
             ventilation_data: Dict[str, Any] = {
                 "view": active_view,
-                "latest": ventilation_latest_payload(latest, latest_yr),
+                "latest": ventilation_latest_payload(latest, latest_yr, fan_status_items),
                 "day": ventilation_day_payload(temp_day, selected_day, is_today, now_marker) if temp_day else empty_ventilation_day_payload(selected_day, is_today, now_marker),
             }
             charts: list[Dict[str, Any]] = []

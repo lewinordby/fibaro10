@@ -5,8 +5,35 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1557")
+APP_BUILD = os.getenv("APP_BUILD", "1558")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1558",
+        "date": "14.07.2026",
+        "headline": "Ventilasjonsstatus direkte fra HC3",
+        "title": "Fibaro10 sjekker faktisk bryterstatus for ventilasjon",
+        "description": (
+            "Build 1558 lar Fibaro10 lese faktisk HC3-status for ventilasjonsbryterne, inkludert ny Vifte VIP "
+            "511. Dashboard og Ventilasjon-siden bruker HC3-status som primær kilde og faller tilbake til siste "
+            "5-minutters sample hvis HC3 ikke svarer."
+        ),
+        "applications": [
+            "main.py: legger generisk HC3-bryterstatus med kort cache og fallback til siste sample.",
+            "main.py: bruker direkte HC3-status i dashboard, klassisk status og Ventilasjon-modulen.",
+            "desktop_v2/src/api.ts: utvider typene med statuskilde, sjekktidspunkt og tooltip.",
+            "desktop_v2/src/pages/OverviewPage.tsx og ventilation/VentilationSnapshot.tsx: viser statuskilde i tooltip.",
+        ],
+        "request": "jeg ønsker også at Fibaro10 oppdateres slik at den faktisk sjekker hvilken status",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Vifte VIP 511 leses direkte fra HC3 når dashboard og ventilasjon åpnes.",
+            "Innluft 2.etg, avtrekk tak/loft og avfukter leses på samme måte.",
+            "Siste sample brukes bare som fallback hvis HC3-status ikke kan hentes.",
+            "Tooltip viser statuskilde, HC3-id, sjekktidspunkt og siste sampletid.",
+        ],
+    },
     {
         "version": "1",
         "build": "1557",

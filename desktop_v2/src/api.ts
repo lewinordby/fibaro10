@@ -90,8 +90,16 @@ export type OverviewResponse = {
   statusPeriods: StatusPeriod[];
   latestItems: LatestItem[];
   services: ServiceStatus[];
-  lightItems: { label: string; state: boolean | null }[];
-  fanItems: { label: string; state: boolean | null }[];
+  lightItems: { label: string; state: boolean | null; tooltip?: string | null }[];
+  fanItems: {
+    label: string;
+    state: boolean | null;
+    tooltip?: string | null;
+    statusSource?: string | null;
+    checkedAt?: string | null;
+    deviceId?: number | null;
+    error?: string | null;
+  }[];
 };
 
 export type RevenueDay = {
@@ -1400,6 +1408,11 @@ export type VentilationFan = {
   label: string;
   state: boolean | null;
   detail?: string;
+  tooltip?: string | null;
+  statusSource?: string | null;
+  checkedAt?: string | null;
+  deviceId?: number | null;
+  error?: string | null;
 };
 
 export type VentilationWeather = {
