@@ -8613,16 +8613,17 @@ def ventilation_status_payload(
     checked_at = (hc3_status or {}).get("checkedAt")
     error = (hc3_status or {}).get("error")
     if has_hc3_value:
-        source = "HC3 nå"
+        source = "HC3 styring"
     elif error:
-        source = "Siste sample (HC3 feilet)"
+        source = "Siste sample (HC3 styring feilet)"
     elif hc3_status:
-        source = "Siste sample (HC3 ukjent)"
+        source = "Siste sample (styring ukjent)"
     else:
         source = "Siste sample"
     tooltip_parts = [
         f"{device.get('name') or device.get('key')}",
-        f"Statuskilde: {source}",
+        f"Styringsgrunnlag: {source}",
+        "Merk: dette er antatt drift fra HC3-bryter/rele, ikke separat fysisk viftesensor.",
     ]
     if device_id:
         tooltip_parts.append(f"HC3-id: {device_id}")
@@ -10519,7 +10520,7 @@ def hc3_switch_status_from_device(config: Dict[str, Any], device: Dict[str, Any]
         "rawValue": str(raw_value).lower() if isinstance(raw_value, bool) else str(raw_value) if raw_value is not None else None,
         "dead": dead,
         "enabled": enabled,
-        "statusSource": "HC3 nå",
+        "statusSource": "HC3 styring",
         "checkedAt": api_local_iso(local_now_naive()),
         "error": None,
     }
@@ -10557,7 +10558,7 @@ async def hc3_fetch_switch_statuses(configs: list[Dict[str, Any]]) -> Dict[str, 
                     "rawValue": None,
                     "dead": None,
                     "enabled": None,
-                    "statusSource": "HC3 feilet",
+                    "statusSource": "HC3 styring feilet",
                     "checkedAt": api_local_iso(local_now_naive()),
                     "error": str(exc),
                 }

@@ -5,22 +5,48 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1558")
+APP_BUILD = os.getenv("APP_BUILD", "1559")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1559",
+        "date": "14.07.2026",
+        "headline": "Ventilasjon vises som styring",
+        "title": "Viftestatus omtales som antatt styringsstatus",
+        "description": (
+            "Build 1559 presiserer at ventilasjonsvisningen ikke er en separat fysisk bekreftelse av at viftene "
+            "faktisk gaar. Fibaro10 viser HC3-bryterverdi/styring og bruker siste sample som fallback."
+        ),
+        "applications": [
+            "main.py: endrer statuskilden fra 'HC3 naa' til 'HC3 styring'.",
+            "main.py: tooltip forklarer at dette er antatt drift fra HC3-bryter/rele.",
+            "desktop_v2/src/pages/OverviewPage.tsx og VentilationSnapshot.tsx: viser dette som Viftestyring.",
+            "desktop_v2/src/styles/ventilation.css: legger kompakt visuell merking av viftestyring.",
+            "build_log.py: rydder ordbruken i build 1558 slik at historikken ikke lover fysisk viftebekreftelse.",
+        ],
+        "request": "viftene har ikke bare antar at de staar paa naar de skal",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Dashboard og Ventilasjon viser fortsatt av/paa, men grunnlaget omtales som styring.",
+            "Tooltip sier tydelig at dette ikke er en separat fysisk viftesensor.",
+            "Fallback til siste sample beholdes hvis HC3-bryterverdi ikke kan hentes.",
+        ],
+    },
     {
         "version": "1",
         "build": "1558",
         "date": "14.07.2026",
-        "headline": "Ventilasjonsstatus direkte fra HC3",
-        "title": "Fibaro10 sjekker faktisk bryterstatus for ventilasjon",
+        "headline": "Ventilasjonsstyring direkte fra HC3",
+        "title": "Fibaro10 sjekker HC3-bryterverdi for ventilasjon",
         "description": (
-            "Build 1558 lar Fibaro10 lese faktisk HC3-status for ventilasjonsbryterne, inkludert ny Vifte VIP "
-            "511. Dashboard og Ventilasjon-siden bruker HC3-status som primær kilde og faller tilbake til siste "
+            "Build 1558 lar Fibaro10 lese HC3-bryterverdi for ventilasjonsbryterne, inkludert ny Vifte VIP "
+            "511. Dashboard og Ventilasjon-siden bruker HC3-styring som primaer kilde og faller tilbake til siste "
             "5-minutters sample hvis HC3 ikke svarer."
         ),
         "applications": [
-            "main.py: legger generisk HC3-bryterstatus med kort cache og fallback til siste sample.",
-            "main.py: bruker direkte HC3-status i dashboard, klassisk status og Ventilasjon-modulen.",
+            "main.py: legger generisk HC3-bryterverdi med kort cache og fallback til siste sample.",
+            "main.py: bruker direkte HC3-styring i dashboard, klassisk status og Ventilasjon-modulen.",
             "desktop_v2/src/api.ts: utvider typene med statuskilde, sjekktidspunkt og tooltip.",
             "desktop_v2/src/pages/OverviewPage.tsx og ventilation/VentilationSnapshot.tsx: viser statuskilde i tooltip.",
         ],
@@ -28,9 +54,9 @@ BUILD_LOG = [
         "work_duration": "ca. 35 min",
         "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
         "changes": [
-            "Vifte VIP 511 leses direkte fra HC3 når dashboard og ventilasjon åpnes.",
-            "Innluft 2.etg, avtrekk tak/loft og avfukter leses på samme måte.",
-            "Siste sample brukes bare som fallback hvis HC3-status ikke kan hentes.",
+            "Vifte VIP 511 sin styringsverdi leses direkte fra HC3 naar dashboard og ventilasjon aapnes.",
+            "Innluft 2.etg, avtrekk tak/loft og avfukter leses paa samme maate.",
+            "Siste sample brukes bare som fallback hvis HC3-styring ikke kan hentes.",
             "Tooltip viser statuskilde, HC3-id, sjekktidspunkt og siste sampletid.",
         ],
     },

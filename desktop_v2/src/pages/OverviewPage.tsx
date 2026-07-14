@@ -1141,7 +1141,7 @@ export default function OverviewPage({ dashboard = "omsetning" }: { dashboard?: 
           />
           <div className="status-strip-stack">
             <StatusStrip title="Lys" items={lightStripItems(overview.lightItems)} />
-            <StatusStrip title="Ventilasjon" items={fanStripItems(overview.fanItems)} />
+            <StatusStrip title="Viftestyring" items={fanStripItems(overview.fanItems)} />
           </div>
         </Card>
         <StatusSection title="Nøkkeltall" detail="Energi, temperatur og vær akkurat nå">
