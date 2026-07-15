@@ -5,8 +5,34 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1559")
+APP_BUILD = os.getenv("APP_BUILD", "1560")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1560",
+        "date": "15.07.2026",
+        "headline": "Varm innluft sperres",
+        "title": "Ventilasjon stopper innluft når ute er varmere enn inne",
+        "description": (
+            "Build 1560 retter ventilasjonsstyringen slik at innluft ikke holdes i gang av hysterese når "
+            "uteluften er varmere enn sonen. Avtrekk får heller ikke tvinge varm innluft med mindre loftet "
+            "er sikkerhetsvarmt."
+        ),
+        "applications": [
+            "scripts/hc3_ventilation_runner_scene_363.lua: stopper VIP/2.etg innluft når ute er varmere enn sonen.",
+            "scripts/hc3_ventilation_runner_scene_363.lua: stopper normalt avtrekk hvis eneste alternativ er varm tvungen innluft.",
+            "main.py: oppdaterer regeltekst i Ventilasjon > Innstillinger.",
+            "scripts/build_user_manual.py: presiserer at avtrekk normalt ikke skal tvinge inn varmere uteluft.",
+        ],
+        "request": "men akkurat naa saa staar innluft viftene paa mens det er varmere ute enn inne?",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Innluft-hysterese krever naa at ute ikke er varmere enn sonen.",
+            "Tvungen innluft ved avtrekk krever at erstatningsluften ikke er varmere enn inne.",
+            "Ved varm uteluft stoppes ikke-sikkerhetskritisk avtrekk i stedet for aa tvinge varm luft inn.",
+        ],
+    },
     {
         "version": "1",
         "build": "1559",

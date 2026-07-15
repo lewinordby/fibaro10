@@ -4006,7 +4006,7 @@ CONFIG_DEFINITIONS = {
             },
             {
                 "title": "Innluft",
-                "description": "Innluft skal bare gå når ute faktisk hjelper, og alltid gi luft inn dersom avtrekk er aktivt.",
+                "description": "Innluft skal bare gå når ute faktisk hjelper. Avtrekk får ikke tvinge varm uteluft inn, bortsett fra ved sikkerhetsvarmt loft.",
                 "fields": [
                     {"key": "vip_start_temp", "label": "VIP innluft start", "type": "float", "default": 23.8, "unit": "°C", "help": "VIP-viften vurderer primært VIP-temperatur."},
                     {"key": "vip_stop_temp", "label": "VIP innluft stopp", "type": "float", "default": 23.2, "unit": "°C", "help": "Lavere enn start for hysterese."},
@@ -5158,7 +5158,7 @@ def ventilation_rules(values: Dict[str, Any]) -> list[str]:
         f"2.etg innluft vurderer 1.etg og 2.etg, starter over {values['floor_start_temp']}°C og stopper under {values['floor_stop_temp']}°C.",
         f"Takvifte starter når loftet er over {values['loft_exhaust_start_temp']}°C og stopper under {values['loft_exhaust_stop_temp']}°C, men ikke hvis inne er under {values['indoor_allow_exhaust_temp']}°C.",
         f"Avtrekk stoppes {values['exhaust_stop_before_close_minutes']} minutter før stenging for å spare varme mot natten.",
-        "Hvis avtrekk er aktivt skal minst én innluftsvifte være tilgjengelig, så vi unngår unødvendig undertrykk.",
+        "Hvis avtrekk er aktivt kan innluft tvinges for å unngå undertrykk, men ikke når ute er varmere enn inne med mindre loftet er sikkerhetsvarmt.",
     ]
 
 

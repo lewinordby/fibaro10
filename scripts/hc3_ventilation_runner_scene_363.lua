@@ -711,9 +711,12 @@ local function main()
   local floorsCoolNeed = floorsMax > FLOOR_INNLUFT_ON_OVER or floorsAvg > INNLUFT_ZONE_AVG_ON_OVER
   local vipOutdoorHelpful = tempUte < (tempVip - INNLUFT_COOL_DELTA) and tempUte > INNLUFT_UTE_MIN_ON
   local floorsOutdoorHelpful = tempUte < (floorsMax - INNLUFT_COOL_DELTA) and tempUte > INNLUFT_UTE_MIN_ON
+  local vipOutdoorWarmer = tempUte >= tempVip
+  local floorsOutdoorWarmer = tempUte >= floorsMax
+  local replacementAirAcceptable = tempUte < maxInne
   local loftHotAllowed = tempLoft > AVTREKK_LOFT_ON and tempUte > INNLUFT_UTE_HARD_MIN_ON and not heatNeed
-  local vipInletStop = tempVip < VIP_INNLUFT_OFF_UNDER or (tempUte < INNLUFT_UTE_OFF_UNDER and tempVip < KJOLEBEHOV_MAX_OVER) or (heatNeed and tempUte < INNLUFT_KALD_SPERRE_UNDER)
-  local floorsInletStop = floorsMax < FLOOR_INNLUFT_OFF_UNDER or (tempUte < INNLUFT_UTE_OFF_UNDER and floorsMax < KJOLEBEHOV_MAX_OVER) or (heatNeed and tempUte < INNLUFT_KALD_SPERRE_UNDER)
+  local vipInletStop = vipOutdoorWarmer or tempVip < VIP_INNLUFT_OFF_UNDER or (tempUte < INNLUFT_UTE_OFF_UNDER and tempVip < KJOLEBEHOV_MAX_OVER) or (heatNeed and tempUte < INNLUFT_KALD_SPERRE_UNDER)
+  local floorsInletStop = floorsOutdoorWarmer or floorsMax < FLOOR_INNLUFT_OFF_UNDER or (tempUte < INNLUFT_UTE_OFF_UNDER and floorsMax < KJOLEBEHOV_MAX_OVER) or (heatNeed and tempUte < INNLUFT_KALD_SPERRE_UNDER)
 
   if preCoolingAllowed then
     vipInletOn = true
@@ -744,11 +747,14 @@ local function main()
     end
   end
 
-  if exhaustOn and not vipInletOn and not floorsInletOn then
+  if exhaustOn and not vipInletOn and not floorsInletOn and (replacementAirAcceptable or tempLoft > AVTREKK_LOFT_SAFETY_ON) then
     vipInletOn = true
     floorsInletOn = true
     vipInletReason = "innblasing tvunget fordi avtrekk gar"
     floorsInletReason = "innblasing tvunget fordi avtrekk gar"
+  elseif exhaustOn and not vipInletOn and not floorsInletOn then
+    exhaustOn = false
+    exhaustReason = "avtrekk stoppet fordi ute er varmere enn inne og innblasing ikke hjelper"
   end
 
   log(string.format(

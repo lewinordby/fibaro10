@@ -366,7 +366,7 @@ def build_manual():
     story += [
         section("5. Ventilasjon", "Ventilasjonssiden forklarer hvorfor viftene starter og stopper."),
         p(
-            "Ventilasjon bygger på temperatur inne, ute, loft, passiv innluft, effektforskjell og åpningstid. Tanken er å kjøle når det er nyttig, unngå unødig varmetap og samtidig unngå undertrykk når avtrekk går.",
+            "Ventilasjon bygger på temperatur inne, ute, loft, passiv innluft, effektforskjell og åpningstid. Tanken er å kjøle når uteluft faktisk hjelper, unngå unødig varmetap og samtidig unngå undertrykk når avtrekk går. Avtrekk skal normalt ikke tvinge inn varmere uteluft.",
             styles["Body"],
         ),
         table(
