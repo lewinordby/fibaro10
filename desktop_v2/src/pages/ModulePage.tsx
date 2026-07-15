@@ -234,7 +234,7 @@ export default function ModulePage({ module }: { module: string }) {
   if (module === "energi" && safeView === "kurs-last" && data.energyCircuitLoads) {
     return (
       <Suspense fallback={<LoadingBlock />}>
-        <EnergyCircuitLoadsPage data={data} />
+        <EnergyCircuitLoadsPage data={data} onReload={reloadModule} />
       </Suspense>
     );
   }

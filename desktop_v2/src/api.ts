@@ -1710,6 +1710,22 @@ export type EnergyCircuitLoadsData = {
   circuits: EnergyCircuitLoadCircuit[];
 };
 
+export type EnergyLoadCreateInput = {
+  name: string;
+  load_type?: string | null;
+  area?: string | null;
+  circuit_no?: number | null;
+  expected_power_w?: number | null;
+  measured_direct?: boolean | null;
+  fibaro_device_id?: number | null;
+  fibaro_meter_id?: number | null;
+  zwave_switch_id?: number | null;
+  controllable?: boolean | null;
+  critical?: boolean | null;
+  active?: boolean | null;
+  note?: string | null;
+};
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;
@@ -2021,6 +2037,20 @@ export async function submitModuleEdit(
   const method = create && edit.createEndpoint ? "POST" : edit.method ?? "PATCH";
   const response = await fetch(endpoint, {
     method,
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
+}
+
+export async function createEnergyLoad(values: EnergyLoadCreateInput): Promise<JsonRecord> {
+  const response = await fetch("/api/energy/loads", {
+    method: "POST",
     credentials: "same-origin",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(values),

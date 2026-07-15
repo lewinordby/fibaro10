@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1564")
+APP_BUILD = os.getenv("APP_BUILD", "1565")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1565",
+        "date": "15.07.2026",
+        "headline": "Registrering av måler og last",
+        "title": "Energi kurs/last får egen flyt for å legge inn målepunkt og last",
+        "description": (
+            "Build 1565 legger en kontekstnær registreringsflyt på Energi > Kurs/last. Fra kurslisten kan man "
+            "opprette ny last på valgt kurs, knytte den til eksisterende HC3-måler, registrere nytt målepunkt "
+            "eller legge lasten direkte på kurs uten måler."
+        ),
+        "applications": [
+            "desktop_v2/src/api.ts: legger til frontend-kall for opprettelse av energilast.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: legger inn modal for målepunkt og last, med handlinger på kurs og målergruppe.",
+            "desktop_v2/src/pages/ModulePage.tsx: lar kurs/last-siden laste data på nytt etter registrering.",
+            "desktop_v2/src/styles/energy.css: styler registreringsflyten og handlingsknappene i hierarkiet.",
+            "desktop_v2/scripts/audit-bundle.mjs: øker total gzip-grense marginalt til 810 kB etter ny registreringsflyt.",
+        ],
+        "request": "lag en elegant løsning for å legge inn både måler og last",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny knapp Ny måler/last øverst på Energi > Kurs/last.",
+            "Hver kursrad har Legg til, og hver målergruppe har Ny last med riktig kontekst forhåndsvalgt.",
+            "Registreringsskjemaet skiller tydelig mellom målepunkt og last.",
+            "Laster kan opprettes mot eksisterende måler, ny HC3-måler, direktemålt uten ID eller uten måler foreløpig.",
+        ],
+    },
     {
         "version": "1",
         "build": "1564",

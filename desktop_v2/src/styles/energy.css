@@ -463,6 +463,14 @@
   border-bottom: 1px solid var(--border-panel-soft);
 }
 
+.energy-circuit-board-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
 .energy-circuit-filter {
   display: inline-flex;
   gap: 3px;
@@ -598,6 +606,26 @@
   min-width: 0;
 }
 
+.energy-row-action {
+  min-height: 20px;
+  padding: 2px 8px;
+  color: var(--domain-energy);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--domain-energy) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--domain-energy) 24%, var(--border-panel));
+  border-radius: var(--radius-pill);
+}
+
+.energy-row-action:hover {
+  color: var(--surface);
+  background: var(--domain-energy);
+  border-color: var(--domain-energy);
+}
+
 .energy-circuit-row-count {
   display: grid;
   gap: 1px;
@@ -703,11 +731,39 @@
   white-space: nowrap;
 }
 
-.energy-meter-line-head em {
+.energy-meter-line-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.energy-meter-line-actions em {
   color: var(--ink);
   font-size: 12px;
   font-style: normal;
   font-weight: 760;
+}
+
+.energy-meter-line-actions button {
+  min-height: 22px;
+  padding: 3px 8px;
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--blue) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--blue) 22%, var(--border-panel));
+  border-radius: var(--radius-pill);
+}
+
+.energy-meter-line-actions button:hover {
+  color: var(--surface);
+  background: var(--blue);
+  border-color: var(--blue);
 }
 
 .energy-meter-line-loads {
@@ -829,6 +885,115 @@
   border-color: color-mix(in srgb, var(--orange) 25%, var(--border-panel));
 }
 
+.energy-add-load-modal .ant-modal-content {
+  background: var(--panel-surface);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+}
+
+.energy-add-load-form {
+  display: grid;
+  gap: 12px;
+}
+
+.energy-add-load-context {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--domain-energy) 10%, var(--surface)), var(--panel-muted-bg));
+  border: 1px solid color-mix(in srgb, var(--domain-energy) 20%, var(--border-panel));
+  border-radius: var(--radius-md);
+}
+
+.energy-add-load-context span {
+  color: var(--domain-energy);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.energy-add-load-context strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 780;
+  line-height: 1.2;
+}
+
+.energy-add-load-context small,
+.energy-add-load-help span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.energy-add-load-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.energy-add-load-grid section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  background: var(--panel-muted-bg);
+  border: 1px solid var(--border-panel-soft);
+  border-radius: var(--radius-md);
+}
+
+.energy-add-load-grid h4 {
+  margin: 0 0 2px;
+  color: var(--text-panel-strong);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.energy-add-load-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+.energy-add-load-help {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-panel-soft);
+  border-radius: var(--radius-md);
+}
+
+.energy-add-load-help strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.energy-add-load-two,
+.energy-add-load-three {
+  display: grid;
+  gap: 8px;
+}
+
+.energy-add-load-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.energy-add-load-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.energy-add-load-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 3px 0;
+}
+
 @media (max-width: 1280px) {
   .energy-sunbeds-method .ant-card-body {
     grid-template-columns: 1fr;
@@ -841,6 +1006,10 @@
 
   .energy-circuit-board-title {
     display: grid;
+  }
+
+  .energy-circuit-board-actions {
+    justify-content: flex-start;
   }
 
   .energy-circuit-filter {
@@ -871,11 +1040,21 @@
     grid-template-columns: 1fr;
   }
 
+  .energy-meter-line-actions {
+    justify-content: flex-start;
+  }
+
   .energy-load-line > span {
     text-align: left;
   }
 
   .energy-load-line .energy-load-measure {
     justify-self: start;
+  }
+
+  .energy-add-load-grid,
+  .energy-add-load-two,
+  .energy-add-load-three {
+    grid-template-columns: 1fr;
   }
 }
