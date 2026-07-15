@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1565")
+APP_BUILD = os.getenv("APP_BUILD", "1566")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1566",
+        "date": "15.07.2026",
+        "headline": "Kurs/last mer effektiv",
+        "title": "Energi kurs/last får redigering, kopi og målerkontroll direkte i hierarkiet",
+        "description": (
+            "Build 1566 forbedrer registreringsflyten på Energi > Kurs/last. Eksisterende laster kan nå "
+            "redigeres direkte fra hierarkiet, nye like laster kan opprettes fra en eksisterende rad, og "
+            "skjemaet varsler dersom en ny HC3-måler-ID allerede finnes på en kurs."
+        ),
+        "applications": [
+            "desktop_v2/src/api.ts: legger til frontend-kall for oppdatering av energilast.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: utvider måler/last-modalen til felles create/update-flyt.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: legger Endre og Ny lik direkte på lastelinjene.",
+            "desktop_v2/src/styles/energy.css: styler last-handlinger og varsel om eksisterende måler-ID.",
+            "desktop_v2/scripts/audit-bundle.mjs: øker total gzip-grense marginalt til 812 kB etter redigering/kopi-flyt.",
+        ],
+        "request": "forbedre løsningen så mye du kan",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Eksisterende laster kan redigeres direkte fra Energi > Kurs/last.",
+            "Ny lik kopierer målepunkt, type, område og teoretisk effekt som utgangspunkt for rask registrering.",
+            "Opprett og ny gjør det raskere å legge flere laster på samme kurs/måler.",
+            "Ny HC3-måler-ID varsler hvis ID-en allerede finnes i kurs/last-hierarkiet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1565",

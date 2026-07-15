@@ -2,9 +2,12 @@ import { App as AntApp, Button, Checkbox, Form, Input, InputNumber, Modal, Selec
 import { useMemo, useState, type ReactNode } from "react";
 import {
   createEnergyLoad,
+  updateEnergyLoad,
   type EnergyCircuitLoadCircuit,
+  type EnergyCircuitLoadItem,
   type EnergyCircuitMeterGroup,
   type EnergyLoadCreateInput,
+  type EnergyLoadUpdateInput,
   type ModuleResponse,
 } from "../api";
 import { decimal } from "../format";
@@ -31,8 +34,10 @@ type AddLoadFormValues = {
 };
 
 type AddLoadState = {
+  mode: "create" | "edit";
   circuit?: EnergyCircuitLoadCircuit | null;
   group?: EnergyCircuitMeterGroup | null;
+  load?: EnergyCircuitLoadItem | null;
 };
 
 const circuitFilters: Array<{ key: CircuitFilter; label: string }> = [
@@ -82,11 +87,30 @@ function meterOptionsForCircuit(circuit?: EnergyCircuitLoadCircuit | null) {
   return Array.from(options.values()).sort((left, right) => left.value - right.value);
 }
 
+function meterUsage(circuits: EnergyCircuitLoadCircuit[]) {
+  const usage = new Map<number, Array<{ circuit: EnergyCircuitLoadCircuit; group: EnergyCircuitMeterGroup }>>();
+  for (const circuit of circuits) {
+    for (const group of circuit.measurementGroups) {
+      if (group.meterId == null) continue;
+      const meterId = Number(group.meterId);
+      usage.set(meterId, [...(usage.get(meterId) ?? []), { circuit, group }]);
+    }
+  }
+  return usage;
+}
+
 function defaultMeterMode(circuit?: EnergyCircuitLoadCircuit | null, group?: EnergyCircuitMeterGroup | null): MeterMode {
   if (group?.meterId != null) return "existing";
   if (group?.type === "direct_meter") return "direct";
   if (group?.type === "unmetered") return "unmetered";
   return meterOptionsForCircuit(circuit).length ? "existing" : "new";
+}
+
+function meterModeForLoad(circuit: EnergyCircuitLoadCircuit | null | undefined, load: EnergyCircuitLoadItem): MeterMode {
+  if (load.fibaroMeterId != null) {
+    return meterOptionsForCircuit(circuit).some((option) => option.value === Number(load.fibaroMeterId)) ? "existing" : "new";
+  }
+  return load.measuredDirect ? "direct" : "unmetered";
 }
 
 function circuitSelectLabel(circuit: EnergyCircuitLoadCircuit): string {
@@ -157,7 +181,19 @@ function deviceMeta(load: EnergyCircuitMeterGroup["loads"][number]): string {
   return parts.join(" · ");
 }
 
-function LoadLine({ load }: { load: EnergyCircuitMeterGroup["loads"][number] }) {
+function LoadLine({
+  circuit,
+  group,
+  load,
+  onEditLoad,
+  onAddSimilar,
+}: {
+  circuit: EnergyCircuitLoadCircuit;
+  group: EnergyCircuitMeterGroup;
+  load: EnergyCircuitMeterGroup["loads"][number];
+  onEditLoad: (circuit: EnergyCircuitLoadCircuit, group: EnergyCircuitMeterGroup, load: EnergyCircuitLoadItem) => void;
+  onAddSimilar: (circuit: EnergyCircuitLoadCircuit, group: EnergyCircuitMeterGroup, load: EnergyCircuitLoadItem) => void;
+}) {
   return (
     <div className={load.active === false ? "energy-load-line inactive" : "energy-load-line"}>
       <div className="energy-load-line-name">
@@ -168,7 +204,17 @@ function LoadLine({ load }: { load: EnergyCircuitMeterGroup["loads"][number] }) 
         {load.fibaroMeterId ? `Måler ${load.fibaroMeterId}` : load.measuredDirect ? "Direkte" : "Ikke målt"}
       </span>
       <span>{wattText(load.expectedPowerW)}</span>
-      <small>{deviceMeta(load) || "-"}</small>
+      <div className="energy-load-line-meta">
+        <small>{deviceMeta(load) || "-"}</small>
+        <div className="energy-load-actions">
+          <button type="button" onClick={() => onEditLoad(circuit, group, load)}>
+            Endre
+          </button>
+          <button type="button" onClick={() => onAddSimilar(circuit, group, load)}>
+            Ny lik
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -177,10 +223,14 @@ function MeterGroupLine({
   circuit,
   group,
   onAddLoad,
+  onEditLoad,
+  onAddSimilar,
 }: {
   circuit: EnergyCircuitLoadCircuit;
   group: EnergyCircuitMeterGroup;
   onAddLoad: (circuit: EnergyCircuitLoadCircuit, group?: EnergyCircuitMeterGroup | null) => void;
+  onEditLoad: (circuit: EnergyCircuitLoadCircuit, group: EnergyCircuitMeterGroup, load: EnergyCircuitLoadItem) => void;
+  onAddSimilar: (circuit: EnergyCircuitLoadCircuit, group: EnergyCircuitMeterGroup, load: EnergyCircuitLoadItem) => void;
 }) {
   return (
     <div className={`energy-meter-line ${group.type}`}>
@@ -199,7 +249,14 @@ function MeterGroupLine({
       </div>
       <div className="energy-meter-line-loads">
         {group.loads.map((load) => (
-          <LoadLine load={load} key={load.id} />
+          <LoadLine
+            circuit={circuit}
+            group={group}
+            load={load}
+            key={load.id}
+            onEditLoad={onEditLoad}
+            onAddSimilar={onAddSimilar}
+          />
         ))}
       </div>
     </div>
@@ -209,9 +266,13 @@ function MeterGroupLine({
 function CircuitRow({
   circuit,
   onAddLoad,
+  onEditLoad,
+  onAddSimilar,
 }: {
   circuit: EnergyCircuitLoadCircuit;
   onAddLoad: (circuit: EnergyCircuitLoadCircuit, group?: EnergyCircuitMeterGroup | null) => void;
+  onEditLoad: (circuit: EnergyCircuitLoadCircuit, group: EnergyCircuitMeterGroup, load: EnergyCircuitLoadItem) => void;
+  onAddSimilar: (circuit: EnergyCircuitLoadCircuit, group: EnergyCircuitMeterGroup, load: EnergyCircuitLoadItem) => void;
 }) {
   const tone = circuitTone(circuit);
   const coverage = coveragePercent(circuit);
@@ -255,7 +316,14 @@ function CircuitRow({
           <p>{circuit.measurementDetail}</p>
           <div className="energy-meter-line-list">
             {circuit.measurementGroups.map((group) => (
-              <MeterGroupLine circuit={circuit} group={group} key={group.key} onAddLoad={onAddLoad} />
+              <MeterGroupLine
+                circuit={circuit}
+                group={group}
+                key={group.key}
+                onAddLoad={onAddLoad}
+                onEditLoad={onEditLoad}
+                onAddSimilar={onAddSimilar}
+              />
             ))}
           </div>
         </div>
@@ -277,11 +345,14 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   const hiddenCircuitCount = circuits.length - visibleCircuits.length;
   const selectedCircuitNo = Form.useWatch("circuitNo", form);
   const selectedMeterMode = Form.useWatch("meterMode", form);
+  const selectedExistingMeterId = Form.useWatch("existingMeterId", form);
+  const selectedNewMeterId = Form.useWatch("newMeterId", form);
   const selectedCircuit = useMemo(
     () => circuits.find((circuit) => circuit.circuitNo === selectedCircuitNo) ?? addState?.circuit ?? circuits[0] ?? null,
     [addState?.circuit, circuits, selectedCircuitNo],
   );
   const selectedMeterOptions = useMemo(() => meterOptionsForCircuit(selectedCircuit), [selectedCircuit]);
+  const meterUsageById = useMemo(() => meterUsage(circuits), [circuits]);
   const circuitOptions = useMemo(
     () =>
       circuits.map((circuit) => ({
@@ -292,21 +363,76 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   );
   if (!circuitLoads) return null;
 
+  function meterConflictText(meterId?: number | null) {
+    if (meterId == null) return "";
+    const usage = meterUsageById.get(Number(meterId)) ?? [];
+    if (!usage.length) return "";
+    const sameCircuit = usage.some((item) => item.circuit.circuitNo === selectedCircuit?.circuitNo);
+    const labels = usage.slice(0, 3).map((item) => `K${circuitNoText(item.circuit.circuitNo)}`).join(", ");
+    if (sameCircuit) return `Måler ${meterId} finnes allerede på valgt kurs. Bruk eksisterende måler hvis dette er samme målepunkt.`;
+    return `Måler ${meterId} finnes allerede på ${labels}. Kontroller at HC3-ID ikke brukes på feil kurs.`;
+  }
+
   function openAddLoad(circuit?: EnergyCircuitLoadCircuit | null, group?: EnergyCircuitMeterGroup | null) {
     const targetCircuit = circuit ?? visibleCircuits[0] ?? circuits[0] ?? null;
     const meterOptions = meterOptionsForCircuit(targetCircuit);
     const mode = defaultMeterMode(targetCircuit, group);
+    const template = group?.loads?.[0] ?? null;
     form.resetFields();
     form.setFieldsValue({
       circuitNo: targetCircuit?.circuitNo ?? null,
       meterMode: mode,
       existingMeterId: group?.meterId ?? meterOptions[0]?.value ?? null,
       newMeterId: null,
+      loadType: template?.loadType ?? undefined,
+      area: template?.area ?? undefined,
       active: true,
       controllable: false,
       critical: false,
     });
-    setAddState({ circuit: targetCircuit, group });
+    setAddState({ mode: "create", circuit: targetCircuit, group });
+  }
+
+  function openAddSimilar(circuit: EnergyCircuitLoadCircuit, group: EnergyCircuitMeterGroup, load: EnergyCircuitLoadItem) {
+    const meterOptions = meterOptionsForCircuit(circuit);
+    const mode = defaultMeterMode(circuit, group);
+    form.resetFields();
+    form.setFieldsValue({
+      circuitNo: circuit.circuitNo ?? null,
+      meterMode: mode,
+      existingMeterId: load.fibaroMeterId ?? group.meterId ?? meterOptions[0]?.value ?? null,
+      newMeterId: mode === "new" ? load.fibaroMeterId ?? null : null,
+      name: "",
+      loadType: load.loadType ?? undefined,
+      area: load.area ?? undefined,
+      expectedPowerW: load.expectedPowerW ?? undefined,
+      controllable: Boolean(load.controllable),
+      critical: Boolean(load.critical),
+      active: true,
+    });
+    setAddState({ mode: "create", circuit, group });
+  }
+
+  function openEditLoad(circuit: EnergyCircuitLoadCircuit, group: EnergyCircuitMeterGroup, load: EnergyCircuitLoadItem) {
+    const mode = meterModeForLoad(circuit, load);
+    form.resetFields();
+    form.setFieldsValue({
+      circuitNo: circuit.circuitNo ?? null,
+      meterMode: mode,
+      existingMeterId: load.fibaroMeterId ?? null,
+      newMeterId: mode === "new" ? load.fibaroMeterId ?? null : null,
+      name: load.name,
+      loadType: load.loadType ?? undefined,
+      area: load.area ?? undefined,
+      expectedPowerW: load.expectedPowerW ?? undefined,
+      fibaroDeviceId: load.fibaroDeviceId ?? undefined,
+      zwaveSwitchId: load.zwaveSwitchId ?? undefined,
+      controllable: Boolean(load.controllable),
+      critical: Boolean(load.critical),
+      active: load.active !== false,
+      note: load.note ?? undefined,
+    });
+    setAddState({ mode: "edit", circuit, group, load });
   }
 
   function handleCircuitSelect(circuitNo: number) {
@@ -317,15 +443,13 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       existingMeterId: meterOptions[0]?.value ?? null,
       newMeterId: null,
     });
-    setAddState((current) => ({ ...current, circuit, group: null }));
+    setAddState((current) => (current ? { ...current, circuit, group: null } : { mode: "create", circuit, group: null }));
   }
 
-  async function saveAddedLoad() {
-    if (savingAdd) return;
-    const values = await form.validateFields();
+  function payloadFromValues(values: AddLoadFormValues): EnergyLoadCreateInput {
     const mode = values.meterMode ?? "unmetered";
     const meterId = mode === "existing" ? values.existingMeterId : mode === "new" ? values.newMeterId : null;
-    const payload: EnergyLoadCreateInput = {
+    return {
       name: cleanText(values.name) ?? "",
       load_type: cleanText(values.loadType),
       area: cleanText(values.area),
@@ -340,15 +464,35 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       active: values.active !== false,
       note: cleanText(values.note),
     };
+  }
+
+  async function saveEnergyLoad(keepOpen = false) {
+    if (savingAdd) return;
+    const values = await form.validateFields();
+    const payload = payloadFromValues(values);
     setSavingAdd(true);
     try {
-      const result = await createEnergyLoad(payload);
-      message.success(String(result.message || "Last er opprettet"));
+      const result =
+        addState?.mode === "edit" && addState.load
+          ? await updateEnergyLoad(addState.load.id, payload as EnergyLoadUpdateInput)
+          : await createEnergyLoad(payload);
+      message.success(String(result.message || (addState?.mode === "edit" ? "Last er lagret" : "Last er opprettet")));
+      await onReload();
+      if (keepOpen && addState?.mode === "create") {
+        form.setFieldsValue({
+          name: "",
+          expectedPowerW: undefined,
+          fibaroDeviceId: undefined,
+          zwaveSwitchId: undefined,
+          note: undefined,
+          active: true,
+        });
+        return;
+      }
       setAddState(null);
       form.resetFields();
-      await onReload();
     } catch (err) {
-      message.error(err instanceof Error ? err.message : "Kunne ikke opprette last");
+      message.error(err instanceof Error ? err.message : "Kunne ikke lagre last");
     } finally {
       setSavingAdd(false);
     }
@@ -360,6 +504,8 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
     { value: "direct", label: "Direktemålt uten måler-ID" },
     { value: "unmetered", label: "Last uten måler foreløpig" },
   ];
+  const activeMeterId = selectedMeterMode === "existing" ? selectedExistingMeterId : selectedMeterMode === "new" ? selectedNewMeterId : null;
+  const meterWarningText = selectedMeterMode === "new" ? meterConflictText(activeMeterId) : "";
 
   return (
     <div className="page-stack energy-circuit-loads-page">
@@ -438,7 +584,13 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
         {visibleCircuits.length ? (
           <div className="energy-circuit-row-list">
             {visibleCircuits.map((circuit) => (
-              <CircuitRow circuit={circuit} key={circuit.key} onAddLoad={openAddLoad} />
+              <CircuitRow
+                circuit={circuit}
+                key={circuit.key}
+                onAddLoad={openAddLoad}
+                onEditLoad={openEditLoad}
+                onAddSimilar={openAddSimilar}
+              />
             ))}
           </div>
         ) : (
@@ -447,23 +599,40 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       </section>
 
       <Modal
-        title="Ny måler og last"
+        title={addState?.mode === "edit" ? "Rediger last" : "Ny måler og last"}
         open={Boolean(addState)}
-        okText="Opprett"
-        cancelText="Avbryt"
         confirmLoading={savingAdd}
         width={900}
         className="energy-add-load-modal"
-        onOk={saveAddedLoad}
+        onOk={() => saveEnergyLoad(false)}
         onCancel={() => setAddState(null)}
+        footer={
+          addState
+            ? [
+                <Button key="cancel" onClick={() => setAddState(null)}>
+                  Avbryt
+                </Button>,
+                addState.mode === "create" ? (
+                  <Button key="save-more" loading={savingAdd} onClick={() => saveEnergyLoad(true)}>
+                    Opprett og ny
+                  </Button>
+                ) : null,
+                <Button key="save" type="primary" loading={savingAdd} onClick={() => saveEnergyLoad(false)}>
+                  {addState.mode === "edit" ? "Lagre" : "Opprett"}
+                </Button>,
+              ]
+            : undefined
+        }
         destroyOnHidden
       >
         <Form form={form} layout="vertical" className="energy-add-load-form">
           <div className="energy-add-load-context">
-            <span>Registreres på</span>
+            <span>{addState?.mode === "edit" ? "Redigerer" : "Registreres på"}</span>
             <strong>{selectedCircuit ? circuitSelectLabel(selectedCircuit) : "Velg kurs"}</strong>
             <small>
-              {addState?.group?.label
+              {addState?.mode === "edit" && addState.load
+                ? `${addState.load.name} kan flyttes mellom kurs, måler og direkte last her.`
+                : addState?.group?.label
                 ? `Foreslått målepunkt: ${addState.group.label}`
                 : "Velg om lasten skal knyttes til eksisterende måler, ny måler eller direkte på kurs."}
             </small>
@@ -503,6 +672,7 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
                       : "Laster med samme HC3 måler-ID samles automatisk under samme målepunkt."}
                 </span>
               </div>
+              {meterWarningText ? <div className="energy-add-load-warning">{meterWarningText}</div> : null}
             </section>
 
             <section>

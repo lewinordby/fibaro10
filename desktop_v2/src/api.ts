@@ -1726,6 +1726,8 @@ export type EnergyLoadCreateInput = {
   note?: string | null;
 };
 
+export type EnergyLoadUpdateInput = EnergyLoadCreateInput;
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;
@@ -2051,6 +2053,20 @@ export async function submitModuleEdit(
 export async function createEnergyLoad(values: EnergyLoadCreateInput): Promise<JsonRecord> {
   const response = await fetch("/api/energy/loads", {
     method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
+}
+
+export async function updateEnergyLoad(loadId: number, values: EnergyLoadUpdateInput): Promise<JsonRecord> {
+  const response = await fetch(`/api/energy/loads/${encodeURIComponent(loadId)}`, {
+    method: "PATCH",
     credentials: "same-origin",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(values),
