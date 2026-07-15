@@ -463,6 +463,31 @@
   border-bottom: 1px solid var(--border-panel-soft);
 }
 
+.energy-circuit-filter {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--panel-muted-bg);
+  border: 1px solid var(--border-panel-soft);
+  border-radius: var(--radius-pill);
+}
+
+.energy-circuit-filter button {
+  padding: 5px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+}
+
+.energy-circuit-filter button.active {
+  color: var(--domain-energy);
+  background: var(--surface);
+}
+
 .energy-circuit-legend {
   display: flex;
   flex-wrap: wrap;
@@ -792,6 +817,14 @@
   .energy-circuit-dashboard-main,
   .energy-circuit-summary-strip {
     grid-template-columns: 1fr;
+  }
+
+  .energy-circuit-board-title {
+    display: grid;
+  }
+
+  .energy-circuit-filter {
+    flex-wrap: wrap;
   }
 
   .energy-circuit-board-header {

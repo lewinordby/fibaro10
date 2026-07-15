@@ -1,7 +1,15 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { EnergyCircuitLoadCircuit, EnergyCircuitMeterGroup, ModuleResponse } from "../api";
 import { decimal } from "../format";
 import "../styles/energy.css";
+
+type CircuitFilter = "without-sunbeds" | "all" | "sunbeds";
+
+const circuitFilters: Array<{ key: CircuitFilter; label: string }> = [
+  { key: "without-sunbeds", label: "Uten solsenger" },
+  { key: "all", label: "Alle kurser" },
+  { key: "sunbeds", label: "Kun solsenger" },
+];
 
 function wattText(value?: number | null): string {
   if (value == null || Number.isNaN(Number(value))) return "-";
@@ -38,6 +46,30 @@ function coveragePercent(circuit: EnergyCircuitLoadCircuit): number {
 function circuitNoText(circuitNo?: number | null): string {
   if (circuitNo == null) return "?";
   return String(circuitNo).padStart(2, "0");
+}
+
+function circuitStats(circuits: EnergyCircuitLoadCircuit[]) {
+  const loadCount = circuits.reduce((sum, circuit) => sum + circuit.loadCount, 0);
+  const activeLoads = circuits.reduce((sum, circuit) => sum + circuit.activeLoadCount, 0);
+  const expectedPowerW = circuits.reduce((sum, circuit) => sum + circuit.expectedPowerW, 0);
+  const measuredLoadCount = circuits.reduce((sum, circuit) => sum + circuit.measuredLoadCount, 0);
+  const unmeteredLoadCount = circuits.reduce((sum, circuit) => sum + circuit.unmeasuredLoadCount, 0);
+  const circuitsWithLoads = circuits.filter((circuit) => circuit.loadCount > 0).length;
+  const issueCircuitCount = circuits.filter((circuit) => circuit.unmeasuredLoadCount > 0).length;
+  const circuitMeterCount = circuits.filter((circuit) =>
+    circuit.measurementGroups.some((group) => group.type === "circuit_meter"),
+  ).length;
+  return {
+    loadCount,
+    activeLoads,
+    expectedPowerW,
+    measuredLoadCount,
+    unmeteredLoadCount,
+    circuitsWithLoads,
+    issueCircuitCount,
+    circuitMeterCount,
+    measuredPercent: activeLoads ? Math.round((measuredLoadCount / activeLoads) * 100) : 0,
+  };
 }
 
 function Label({ tone = "default", children }: { tone?: string; children: ReactNode }) {
@@ -143,15 +175,13 @@ function CircuitRow({ circuit }: { circuit: EnergyCircuitLoadCircuit }) {
 }
 
 export default function EnergyCircuitLoadsPage({ data }: { data: ModuleResponse }) {
+  const [filter, setFilter] = useState<CircuitFilter>("without-sunbeds");
   const circuitLoads = data.energyCircuitLoads;
+  const circuits = circuitLoads?.circuits ?? [];
+  const visibleCircuits = circuits.filter((circuit) => filter === "all" || circuit.isSunbed === (filter === "sunbeds"));
+  const stats = circuitStats(visibleCircuits);
+  const hiddenCircuitCount = circuits.length - visibleCircuits.length;
   if (!circuitLoads) return null;
-  const circuits = circuitLoads.circuits;
-  const summary = circuitLoads.summary;
-  const measuredLoads = Math.max(0, summary.activeLoads - summary.unmeteredLoadCount);
-  const measuredPercent = summary.activeLoads ? Math.round((measuredLoads / summary.activeLoads) * 100) : 0;
-  const circuitsWithLoads = circuits.filter((circuit) => circuit.loadCount > 0).length;
-  const emptyCircuits = circuits.length - circuitsWithLoads;
-  const issueCircuits = circuits.filter((circuit) => circuit.unmeasuredLoadCount > 0);
 
   return (
     <div className="page-stack energy-circuit-loads-page">
@@ -164,31 +194,49 @@ export default function EnergyCircuitLoadsPage({ data }: { data: ModuleResponse 
           </div>
           <div className="energy-circuit-measurement-total">
             <span>Målerdekning</span>
-            <strong>{measuredPercent}%</strong>
-            <div className="energy-circuit-total-bar" aria-label={`${measuredPercent}% av aktive laster er målt`}>
-              <span style={{ width: `${measuredPercent}%` }} />
+            <strong>{stats.measuredPercent}%</strong>
+            <div className="energy-circuit-total-bar" aria-label={`${stats.measuredPercent}% av aktive laster er målt`}>
+              <span style={{ width: `${stats.measuredPercent}%` }} />
             </div>
             <small>
-              {measuredLoads} av {summary.activeLoads} aktive laster har måler
+              {stats.measuredLoadCount} av {stats.activeLoads} aktive laster har måler
             </small>
           </div>
         </div>
 
         <div className="energy-circuit-summary-strip">
-          <SummaryMetric label="Kurser" value={String(summary.circuits)} detail={`${circuitsWithLoads} med last · ${emptyCircuits} uten`} />
-          <SummaryMetric label="Aktive laster" value={String(summary.activeLoads)} detail={`${summary.loads} registrert totalt`} />
-          <SummaryMetric label="Kursmålt" value={String(summary.circuitMeterCount)} detail="samme måler dekker kursen" tone="ok" />
-          <SummaryMetric label="Uten måler" value={String(summary.unmeteredLoadCount)} detail={`${issueCircuits.length} kurser bør sjekkes`} tone="warn" />
-          <SummaryMetric label="Forventet effekt" value={wattText(summary.expectedPowerW)} detail="registrert for aktive laster" />
+          <SummaryMetric
+            label="Kurser"
+            value={String(visibleCircuits.length)}
+            detail={`${stats.circuitsWithLoads} med last · ${hiddenCircuitCount} skjult`}
+          />
+          <SummaryMetric label="Aktive laster" value={String(stats.activeLoads)} detail={`${stats.loadCount} registrert`} />
+          <SummaryMetric label="Kursmålt" value={String(stats.circuitMeterCount)} detail="på kursnivå" tone="ok" />
+          <SummaryMetric label="Uten måler" value={String(stats.unmeteredLoadCount)} detail={`${stats.issueCircuitCount} kurser bør sjekkes`} tone="warn" />
+          <SummaryMetric label="Forventet effekt" value={wattText(stats.expectedPowerW)} detail="registrert for aktive laster" />
         </div>
       </section>
 
-      {circuits.length ? (
-        <section className="work-card energy-circuit-board">
-          <div className="energy-circuit-board-title">
-            <div>
-              <h3>Kursliste</h3>
-              <p>Alle kurser vises i nummerrekkefølge. Laster vises direkte under kursen de tilhører.</p>
+      <section className="work-card energy-circuit-board">
+        <div className="energy-circuit-board-title">
+          <div>
+            <h3>Kursliste</h3>
+            <p>
+              {visibleCircuits.length} av {circuits.length} kurser vises.
+            </p>
+          </div>
+          <div className="energy-circuit-board-actions">
+            <div className="energy-circuit-filter" role="group" aria-label="Filtrer kursliste">
+              {circuitFilters.map((item) => (
+                <button
+                  className={filter === item.key ? "active" : ""}
+                  key={item.key}
+                  onClick={() => setFilter(item.key)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
             <div className="energy-circuit-legend">
               <Label tone="ok">målt</Label>
@@ -197,23 +245,25 @@ export default function EnergyCircuitLoadsPage({ data }: { data: ModuleResponse 
               <Label>ingen last</Label>
             </div>
           </div>
-          <div className="energy-circuit-board-header" aria-hidden="true">
-            <span>Kurs</span>
-            <span>Beskrivelse</span>
-            <span>Måling</span>
-            <span>Laster</span>
-            <span>Effekt</span>
-            <span>Dekning</span>
-          </div>
+        </div>
+        <div className="energy-circuit-board-header" aria-hidden="true">
+          <span>Kurs</span>
+          <span>Beskrivelse</span>
+          <span>Måling</span>
+          <span>Laster</span>
+          <span>Effekt</span>
+          <span>Dekning</span>
+        </div>
+        {visibleCircuits.length ? (
           <div className="energy-circuit-row-list">
-            {circuits.map((circuit) => (
+            {visibleCircuits.map((circuit) => (
               <CircuitRow circuit={circuit} key={circuit.key} />
             ))}
           </div>
-        </section>
-      ) : (
-        <div className="work-card energy-circuit-empty">Ingen kurser eller laster er registrert.</div>
-      )}
+        ) : (
+          <div className="energy-circuit-empty">Ingen kurser i valgt filter.</div>
+        )}
+      </section>
     </div>
   );
 }

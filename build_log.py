@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1562")
+APP_BUILD = os.getenv("APP_BUILD", "1563")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1563",
+        "date": "15.07.2026",
+        "headline": "Solsengfilter på kurs/last",
+        "title": "Energi kurs/last skjuler solsengkurser som standard",
+        "description": (
+            "Build 1563 legger filter på Energi > Kurs/last. Standardvisningen viser kurser uten solsenger, "
+            "men man kan bytte til alle kurser eller bare solsengkurser."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: legger filterstate, filtrert statistikk og filterknapper.",
+            "desktop_v2/src/styles/energy.css: styler filterknapper og responsiv plassering i kurslisten.",
+        ],
+        "request": "kurs/last har blitt bedre men savner filter for solsenger. default kan den være uten solsenger",
+        "work_duration": "ca. 15 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Standardfilteret er nå Uten solsenger.",
+            "Valgene Alle kurser og Kun solsenger er lagt inn.",
+            "Nøkkeltallene øverst følger valgt filter og viser hvor mange kurser som er skjult.",
+        ],
+    },
     {
         "version": "1",
         "build": "1562",
