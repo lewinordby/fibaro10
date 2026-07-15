@@ -5,8 +5,37 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1560")
+APP_BUILD = os.getenv("APP_BUILD", "1561")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1561",
+        "date": "15.07.2026",
+        "headline": "Energi kurs/last",
+        "title": "Ny samlet oversikt for kurser, laster og energimålere",
+        "description": (
+            "Build 1561 legger en ny side under Energi som viser hver elektriske kurs med laster under, "
+            "og forklarer om målingen skjer på kursnivå, via felles måler, egen lastmåler eller uten "
+            "registrert energimåler."
+        ),
+        "applications": [
+            "main.py: bygger energyCircuitLoads-payload med målergrupper per kurs.",
+            "desktop_v2/src/moduleViews.ts: legger inn Energi > Kurs/last.",
+            "desktop_v2/src/api.ts: legger typer for kurs/last-hierarkiet.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: ny dedikert visning for kurs, laster og måledekning.",
+            "desktop_v2/src/styles/energy.css: styling for den nye energihierarki-siden.",
+            "desktop_v2/scripts/audit-bundle.mjs: justerer total gzip-grense minimalt etter lazy-loadet energiside.",
+        ],
+        "request": "under menyen energi lag en ny side med kurs/last. hver kurs med sine laster under på en ryddig måte.",
+        "work_duration": "ca. 35 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny side /energi/kurs-last viser alle kurser med underliggende laster.",
+            "Laster grupperes etter målerdekning: kursmåler, felles måler, egen måler eller direkte på kurs.",
+            "Kort øverst viser antall kurser, aktive laster, kursmålte kurser, laster uten måler og forventet effekt.",
+            "Den nye siden ble optimalisert uten ekstra Ant Design-komponenter i lazy-chunken.",
+        ],
+    },
     {
         "version": "1",
         "build": "1560",

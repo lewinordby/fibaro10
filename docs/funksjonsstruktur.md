@@ -91,6 +91,7 @@ Koble skal ikke skrive endelig sannhet uten manuell bekreftelse.
 
 - `Status`: overblikk over forbruk og differanse.
 - `Elvia-kontroll`: kontroll mellom Elvia-import og HC3-målinger.
+- `Kurs/last`: samlet hierarki over kurser, laster og målerdekning.
 - `Kurser`: kursoversikt.
 - `Laster`: definerte laster.
 - `Forbruk per seng`: beregnet forbruk per solseng.

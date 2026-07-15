@@ -22050,6 +22050,182 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
     }
 
 
+def energy_load_hierarchy_item(row: EnergyLoad) -> Dict[str, Any]:
+    return {
+        "id": row.id,
+        "name": row.name,
+        "loadType": row.load_type,
+        "area": row.area,
+        "expectedPowerW": row.expected_power_w,
+        "measuredDirect": row.measured_direct,
+        "fibaroDeviceId": row.fibaro_device_id,
+        "fibaroMeterId": row.fibaro_meter_id,
+        "zwaveSwitchId": row.zwave_switch_id,
+        "controllable": row.controllable,
+        "critical": row.critical,
+        "active": row.active,
+        "note": row.note,
+    }
+
+
+def build_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: list[EnergyLoad]) -> Dict[str, Any]:
+    loads_by_circuit: Dict[Optional[int], list[EnergyLoad]] = defaultdict(list)
+    for load in loads:
+        loads_by_circuit[load.circuit_no].append(load)
+
+    known_circuit_numbers = {row.circuit_no for row in circuits if row.circuit_no is not None}
+    circuit_rows: list[Dict[str, Any]] = []
+    summary = {
+        "circuits": len(circuits),
+        "loads": len(loads),
+        "activeLoads": sum(1 for row in loads if row.active is not False),
+        "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in loads if row.active is not False),
+        "circuitMeterCount": 0,
+        "sharedMeterCount": 0,
+        "directMeterLoadCount": 0,
+        "unmeteredLoadCount": 0,
+    }
+
+    def make_groups(circuit_loads: list[EnergyLoad]) -> tuple[list[Dict[str, Any]], str, str, int, int, float]:
+        active_loads = [row for row in circuit_loads if row.active is not False]
+        expected_power = sum(float_or_zero(row.expected_power_w) for row in active_loads)
+        measured_load_count = sum(1 for row in active_loads if row.fibaro_meter_id is not None or row.measured_direct)
+        unmeasured_loads = [row for row in active_loads if row.fibaro_meter_id is None and not row.measured_direct]
+        unmeasured_load_count = len(unmeasured_loads)
+
+        meter_groups: Dict[int, list[EnergyLoad]] = defaultdict(list)
+        for load in active_loads:
+            if load.fibaro_meter_id is not None:
+                meter_groups[int(load.fibaro_meter_id)].append(load)
+
+        groups: list[Dict[str, Any]] = []
+        if active_loads and len(meter_groups) == 1 and len(next(iter(meter_groups.values()))) == len(active_loads):
+            meter_id, group_loads = next(iter(meter_groups.items()))
+            summary["circuitMeterCount"] += 1
+            groups.append(
+                {
+                    "key": f"meter-{meter_id}",
+                    "label": "Måleren dekker alle aktive laster på kursen",
+                    "type": "circuit_meter",
+                    "meterId": meter_id,
+                    "loadCount": len(group_loads),
+                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in group_loads),
+                    "loads": [energy_load_hierarchy_item(row) for row in sorted(group_loads, key=lambda item: item.name or "")],
+                }
+            )
+            return groups, "Kursmålt", "Alle aktive laster på kursen ligger på samme energimåler.", measured_load_count, unmeasured_load_count, expected_power
+
+        for meter_id, group_loads in sorted(meter_groups.items(), key=lambda item: (len(item[1]) == 1, item[0])):
+            is_shared = len(group_loads) > 1
+            if is_shared:
+                summary["sharedMeterCount"] += 1
+            else:
+                summary["directMeterLoadCount"] += 1
+            groups.append(
+                {
+                    "key": f"meter-{meter_id}",
+                    "label": "Flere laster deler samme måler" if is_shared else "Lasten har egen energimåler",
+                    "type": "shared_meter" if is_shared else "direct_meter",
+                    "meterId": meter_id,
+                    "loadCount": len(group_loads),
+                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in group_loads),
+                    "loads": [energy_load_hierarchy_item(row) for row in sorted(group_loads, key=lambda item: item.name or "")],
+                }
+            )
+
+        direct_without_meter = [row for row in active_loads if row.fibaro_meter_id is None and row.measured_direct]
+        if direct_without_meter:
+            summary["directMeterLoadCount"] += len(direct_without_meter)
+            groups.append(
+                {
+                    "key": "direct-without-meter-id",
+                    "label": "Merket direktemålt uten måler-ID",
+                    "type": "direct_meter",
+                    "meterId": None,
+                    "loadCount": len(direct_without_meter),
+                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in direct_without_meter),
+                    "loads": [energy_load_hierarchy_item(row) for row in sorted(direct_without_meter, key=lambda item: item.name or "")],
+                }
+            )
+
+        if unmeasured_loads:
+            summary["unmeteredLoadCount"] += len(unmeasured_loads)
+            groups.append(
+                {
+                    "key": "unmetered",
+                    "label": "Laster uten egen registrert energimåler",
+                    "type": "unmetered",
+                    "meterId": None,
+                    "loadCount": len(unmeasured_loads),
+                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in unmeasured_loads),
+                    "loads": [energy_load_hierarchy_item(row) for row in sorted(unmeasured_loads, key=lambda item: item.name or "")],
+                }
+            )
+
+        if not active_loads:
+            return groups, "Ingen aktive laster", "Kurset har ingen aktive laster registrert.", measured_load_count, unmeasured_load_count, expected_power
+        if unmeasured_load_count and measured_load_count:
+            return groups, "Delvis målt", "Noen laster er knyttet til måler, mens andre foreløpig bare ligger direkte på kursen.", measured_load_count, unmeasured_load_count, expected_power
+        if measured_load_count:
+            return groups, "Lastmålt", "Aktive laster er målt med egne eller delte lastmålere.", measured_load_count, unmeasured_load_count, expected_power
+        return groups, "Ikke målt", "Aktive laster er registrert på kursen uten egen energimåler.", measured_load_count, unmeasured_load_count, expected_power
+
+    for circuit in circuits:
+        circuit_loads = loads_by_circuit.get(circuit.circuit_no, [])
+        groups, mode, detail, measured_count, unmeasured_count, expected_power = make_groups(circuit_loads)
+        circuit_rows.append(
+            {
+                "key": f"circuit-{circuit.circuit_no}",
+                "circuitNo": circuit.circuit_no,
+                "description": circuit.description,
+                "breaker": f"{circuit.breaker_rating_a:g} A" if circuit.breaker_rating_a is not None else None,
+                "breakerType": circuit.breaker_type,
+                "status": circuit.status,
+                "isSunbed": bool(circuit.is_sunbed),
+                "note": circuit.note,
+                "loadCount": len(circuit_loads),
+                "activeLoadCount": sum(1 for row in circuit_loads if row.active is not False),
+                "expectedPowerW": expected_power,
+                "measuredLoadCount": measured_count,
+                "unmeasuredLoadCount": unmeasured_count,
+                "measurementMode": mode,
+                "measurementDetail": detail,
+                "measurementGroups": groups,
+            }
+        )
+
+    unassigned_loads = [
+        row for circuit_no, grouped_loads in loads_by_circuit.items()
+        if circuit_no is None or circuit_no not in known_circuit_numbers
+        for row in grouped_loads
+    ]
+    if unassigned_loads:
+        groups, mode, detail, measured_count, unmeasured_count, expected_power = make_groups(unassigned_loads)
+        circuit_rows.append(
+            {
+                "key": "unassigned",
+                "circuitNo": None,
+                "description": "Uten gyldig kurs",
+                "breaker": None,
+                "breakerType": None,
+                "status": "Mangler kurskobling",
+                "isSunbed": False,
+                "note": "Laster som mangler kursnummer eller peker på en kurs som ikke finnes.",
+                "loadCount": len(unassigned_loads),
+                "activeLoadCount": sum(1 for row in unassigned_loads if row.active is not False),
+                "expectedPowerW": expected_power,
+                "measuredLoadCount": measured_count,
+                "unmeasuredLoadCount": unmeasured_count,
+                "measurementMode": mode,
+                "measurementDetail": detail,
+                "measurementGroups": groups,
+            }
+        )
+
+    circuit_rows.sort(key=lambda row: (row["circuitNo"] is None, row["circuitNo"] or 9999))
+    return {"summary": summary, "circuits": circuit_rows}
+
+
 ADMIN_TASK_SEVERITY_SORT = {
     "Kritisk": 0,
     "Høy": 1,
@@ -26775,7 +26951,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     "energyElvia": None,
                     "energySunbeds": energy_sunbeds_data,
                 }
-            if view in {"kurser", "laster", "verktoy"}:
+            if view in {"kurs-last", "kurser", "laster", "verktoy"}:
                 all_circuits = (
                     await session.execute(select(EnergyCircuit).order_by(EnergyCircuit.circuit_no.asc()))
                 ).scalars().all()
@@ -26831,6 +27007,32 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                     load_count_stmt = load_count_stmt.where(*load_conditions)
                 loads = (await session.execute(load_stmt)).scalars().all()
                 filtered_load_count = (await session.execute(load_count_stmt)).scalar_one()
+
+                if view == "kurs-last":
+                    hierarchy_loads = (
+                        await session.execute(
+                            select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
+                        )
+                    ).scalars().all()
+                    circuit_loads = build_energy_circuit_loads_payload(all_circuits, hierarchy_loads)
+                    circuit_summary = circuit_loads["summary"]
+                    return {
+                        "title": "Energi · kurs/last",
+                        "subtitle": "Hierarki over elektriske kurser, laster og hvordan energimålere dekker dem.",
+                        "cards": [
+                            api_card("Kurser", circuit_summary.get("circuits"), "stk", "Registrert i kursregisteret", "energy", href="/energi/kurs-last"),
+                            api_card("Laster", circuit_summary.get("activeLoads"), "aktive", f"{circuit_summary.get('loads')} totalt", "status", href="/energi/laster"),
+                            api_card("Kursmålt", circuit_summary.get("circuitMeterCount"), "kurs", "Alle aktive laster på samme måler", "energy", href="/energi/kurs-last"),
+                            api_card("Uten måler", circuit_summary.get("unmeteredLoadCount"), "laster", "Mangler egen energimåler", "status", href="/energi/kurs-last"),
+                            api_card("Forventet effekt", format_short_number(circuit_summary.get("expectedPowerW")), "W", "Aktive registrerte laster", "energy", href="/energi/kurs-last"),
+                        ],
+                        "charts": [],
+                        "tables": [],
+                        "filters": [],
+                        "energyElvia": None,
+                        "energySunbeds": None,
+                        "energyCircuitLoads": circuit_loads,
+                    }
 
                 if view == "kurser":
                     return {

@@ -31,6 +31,7 @@ import "../styles/records.css";
 
 const EnergyElviaPage = lazy(() => import("./EnergyElviaPage"));
 const EnergySunbedsPage = lazy(() => import("./EnergySunbedsPage"));
+const EnergyCircuitLoadsPage = lazy(() => import("./EnergyCircuitLoadsPage"));
 const ModuleChartPanel = lazy(() => import("./module/ModuleChartPanel"));
 const VentilationPage = lazy(() => import("./VentilationPage"));
 
@@ -41,6 +42,7 @@ const MODULE_STALE_TIME: Record<string, number> = {
   "admin:system": 5 * MINUTE,
   "energi:elvia": 5 * MINUTE,
   "energi:forbruk-per-seng": 5 * MINUTE,
+  "energi:kurs-last": 5 * MINUTE,
   "energi:kurser": 5 * MINUTE,
   "energi:laster": 5 * MINUTE,
   "energi:status": 20_000,
@@ -226,6 +228,13 @@ export default function ModulePage({ module }: { module: string }) {
           ) : null}
           <EnergySunbedsPage data={data} />
         </Space>
+      </Suspense>
+    );
+  }
+  if (module === "energi" && safeView === "kurs-last" && data.energyCircuitLoads) {
+    return (
+      <Suspense fallback={<LoadingBlock />}>
+        <EnergyCircuitLoadsPage data={data} />
       </Suspense>
     );
   }

@@ -38,6 +38,7 @@ export const smokeRoutes = [
   { path: "/energi/status", name: "Energi status" },
   { path: "/energi/kurser", name: "Energi kurser" },
   { path: "/energi/laster", name: "Energi laster" },
+  { path: "/energi/kurs-last", name: "Energi kurs og last" },
   { path: "/energi/forbruk-per-seng", name: "Energi forbruk per seng" },
   { path: "/energi/elvia", name: "Energi Elvia" },
   { path: "/energi/elvia-kontroll", name: "Energi Elvia-kontroll" },

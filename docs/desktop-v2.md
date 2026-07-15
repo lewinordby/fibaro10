@@ -85,6 +85,7 @@ Koble bruker sideappen `parking_sun_linker`, men all styring, status og manuell 
 
 - `/energi/status`
 - `/energi/elvia-kontroll`
+- `/energi/kurs-last`
 - `/energi/kurser`
 - `/energi/laster`
 - `/energi/forbruk-per-seng`

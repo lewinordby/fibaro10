@@ -115,6 +115,7 @@ export const MODULE_VIEWS: Record<string, ModuleView[]> = {
   energi: [
     { key: "status", label: "Status" },
     { key: "elvia-kontroll", label: "Elvia-kontroll" },
+    { key: "kurs-last", label: "Kurs/last" },
     { key: "kurser", label: "Kurser" },
     { key: "laster", label: "Laster" },
     { key: "forbruk-per-seng", label: "Forbruk per seng" },

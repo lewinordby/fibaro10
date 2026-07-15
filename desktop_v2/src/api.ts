@@ -1651,6 +1651,65 @@ export type EnergySunbedsData = {
   summary: EnergySunbedSummary;
 };
 
+export type EnergyCircuitLoadItem = {
+  id: number;
+  name: string;
+  loadType?: string | null;
+  area?: string | null;
+  expectedPowerW?: number | null;
+  measuredDirect?: boolean | null;
+  fibaroDeviceId?: number | null;
+  fibaroMeterId?: number | null;
+  zwaveSwitchId?: number | null;
+  controllable?: boolean | null;
+  critical?: boolean | null;
+  active?: boolean | null;
+  note?: string | null;
+};
+
+export type EnergyCircuitMeterGroup = {
+  key: string;
+  label: string;
+  type: "circuit_meter" | "shared_meter" | "direct_meter" | "unmetered";
+  meterId?: number | null;
+  loadCount: number;
+  expectedPowerW: number;
+  loads: EnergyCircuitLoadItem[];
+};
+
+export type EnergyCircuitLoadCircuit = {
+  key: string;
+  circuitNo?: number | null;
+  description?: string | null;
+  breaker?: string | null;
+  breakerType?: string | null;
+  status?: string | null;
+  isSunbed: boolean;
+  note?: string | null;
+  loadCount: number;
+  activeLoadCount: number;
+  expectedPowerW: number;
+  measuredLoadCount: number;
+  unmeasuredLoadCount: number;
+  measurementMode: string;
+  measurementDetail: string;
+  measurementGroups: EnergyCircuitMeterGroup[];
+};
+
+export type EnergyCircuitLoadsData = {
+  summary: {
+    circuits: number;
+    loads: number;
+    activeLoads: number;
+    expectedPowerW: number;
+    circuitMeterCount: number;
+    sharedMeterCount: number;
+    directMeterLoadCount: number;
+    unmeteredLoadCount: number;
+  };
+  circuits: EnergyCircuitLoadCircuit[];
+};
+
 export type ModuleResponse = {
   title: string;
   subtitle: string;
@@ -1667,6 +1726,7 @@ export type ModuleResponse = {
   controlSettings?: ControlSettings | null;
   energyElvia?: EnergyElviaData | null;
   energySunbeds?: EnergySunbedsData | null;
+  energyCircuitLoads?: EnergyCircuitLoadsData | null;
   uploadEndpoint?: string;
 };
 
