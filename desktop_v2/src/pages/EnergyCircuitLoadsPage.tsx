@@ -12,113 +12,132 @@ function meterLabel(group: EnergyCircuitMeterGroup): string {
   if (group.type === "circuit_meter") return "Kursmåler";
   if (group.type === "shared_meter") return "Felles måler";
   if (group.type === "direct_meter") return "Egen måler";
-  return "Direkte på kurs";
+  return "Uten måler";
 }
 
 function meterTone(group: EnergyCircuitMeterGroup): string {
   if (group.type === "circuit_meter") return "ok";
   if (group.type === "shared_meter") return "info";
   if (group.type === "direct_meter") return "energy";
-  return "default";
+  return "warn";
 }
 
-function circuitStatusColor(circuit: EnergyCircuitLoadCircuit): string {
+function circuitTone(circuit: EnergyCircuitLoadCircuit): string {
+  if (circuit.activeLoadCount <= 0) return "empty";
+  if (circuit.unmeasuredLoadCount > 0 && circuit.measuredLoadCount > 0) return "partial";
   if (circuit.unmeasuredLoadCount > 0) return "warn";
   if (circuit.measuredLoadCount > 0) return "ok";
-  return "default";
+  return "empty";
+}
+
+function coveragePercent(circuit: EnergyCircuitLoadCircuit): number {
+  if (!circuit.activeLoadCount) return 0;
+  return Math.round((circuit.measuredLoadCount / circuit.activeLoadCount) * 100);
+}
+
+function circuitNoText(circuitNo?: number | null): string {
+  if (circuitNo == null) return "?";
+  return String(circuitNo).padStart(2, "0");
 }
 
 function Label({ tone = "default", children }: { tone?: string; children: ReactNode }) {
   return <span className={`energy-tag ${tone}`}>{children}</span>;
 }
 
-function LoadPill({ load }: { load: EnergyCircuitMeterGroup["loads"][number] }) {
+function SummaryMetric({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: string }) {
   return (
-    <div className={load.active === false ? "energy-load-pill inactive" : "energy-load-pill"}>
-      <div>
+    <div className={`energy-circuit-summary-metric ${tone || ""}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
+function deviceMeta(load: EnergyCircuitMeterGroup["loads"][number]): string {
+  const parts = [];
+  if (load.fibaroDeviceId) parts.push(`dev ${load.fibaroDeviceId}`);
+  if (load.fibaroMeterId) parts.push(`måler ${load.fibaroMeterId}`);
+  if (load.zwaveSwitchId) parts.push(`sw ${load.zwaveSwitchId}`);
+  return parts.join(" · ");
+}
+
+function LoadLine({ load }: { load: EnergyCircuitMeterGroup["loads"][number] }) {
+  return (
+    <div className={load.active === false ? "energy-load-line inactive" : "energy-load-line"}>
+      <div className="energy-load-line-name">
         <strong>{load.name}</strong>
         <span>{[load.loadType, load.area].filter(Boolean).join(" · ") || "Uten type/område"}</span>
       </div>
-      <div className="energy-load-pill-meta">
-        <span>{wattText(load.expectedPowerW)}</span>
-        {load.fibaroDeviceId ? <Label>dev {load.fibaroDeviceId}</Label> : null}
-        {load.zwaveSwitchId ? <Label>sw {load.zwaveSwitchId}</Label> : null}
+      <span>{wattText(load.expectedPowerW)}</span>
+      <small>{deviceMeta(load) || "Ingen enhetskobling"}</small>
+    </div>
+  );
+}
+
+function MeterGroupLine({ group }: { group: EnergyCircuitMeterGroup }) {
+  return (
+    <div className={`energy-meter-line ${group.type}`}>
+      <div className="energy-meter-line-head">
+        <Label tone={meterTone(group)}>{meterLabel(group)}</Label>
+        {group.meterId ? <span>Måler {group.meterId}</span> : null}
+        <strong>{group.label}</strong>
+        <em>{wattText(group.expectedPowerW)}</em>
+      </div>
+      <div className="energy-meter-line-loads">
+        {group.loads.map((load) => (
+          <LoadLine load={load} key={load.id} />
+        ))}
       </div>
     </div>
   );
 }
 
-function MeterGroup({ group, circuitExpectedPower }: { group: EnergyCircuitMeterGroup; circuitExpectedPower: number }) {
-  const percent = circuitExpectedPower > 0 ? Math.min(100, Math.round((group.expectedPowerW / circuitExpectedPower) * 100)) : 0;
+function CircuitRow({ circuit }: { circuit: EnergyCircuitLoadCircuit }) {
+  const tone = circuitTone(circuit);
+  const coverage = coveragePercent(circuit);
+  const hasLoads = circuit.loadCount > 0;
   return (
-    <section className={`energy-meter-group ${group.type}`}>
-      <div className="energy-meter-group-head">
-        <div>
-          <Label tone={meterTone(group)}>{meterLabel(group)}</Label>
-          {group.meterId ? <Label tone="info">måler {group.meterId}</Label> : null}
-          <strong>{group.label}</strong>
+    <article className={`energy-circuit-row tone-${tone} ${hasLoads ? "has-loads" : "is-empty"}`}>
+      <div className="energy-circuit-row-main">
+        <div className="energy-circuit-row-no">K{circuitNoText(circuit.circuitNo)}</div>
+        <div className="energy-circuit-row-name">
+          <strong>{circuit.description || "Uten kursnavn"}</strong>
+          <span>
+            {circuit.breaker || "Ukjent vern"}
+            {circuit.breakerType ? ` · ${circuit.breakerType}` : ""}
+            {circuit.status ? ` · ${circuit.status}` : ""}
+          </span>
         </div>
-        <span>{wattText(group.expectedPowerW)}</span>
+        <div className="energy-circuit-row-status">
+          {circuit.isSunbed ? <Label tone="sun">Solseng</Label> : null}
+          <Label tone={tone === "empty" ? "default" : tone}>{circuit.measurementMode}</Label>
+        </div>
+        <div className="energy-circuit-row-count">
+          <strong>{circuit.activeLoadCount}</strong>
+          <span>av {circuit.loadCount} laster</span>
+        </div>
+        <div className="energy-circuit-row-watts">{wattText(circuit.expectedPowerW)}</div>
+        <div className="energy-circuit-row-coverage">
+          <div className="energy-circuit-coverage-bar" aria-label={`${coverage}% målt`}>
+            <span style={{ width: `${coverage}%` }} />
+          </div>
+          <small>
+            {circuit.activeLoadCount ? `${coverage}% målt` : "ingen last"}
+            {circuit.unmeasuredLoadCount ? ` · ${circuit.unmeasuredLoadCount} mangler` : ""}
+          </small>
+        </div>
       </div>
-      <div className="energy-meter-progress" aria-hidden="true">
-        <span style={{ width: `${percent}%` }} />
-      </div>
-      <div className="energy-load-list">
-        {group.loads.map((load) => (
-          <LoadPill load={load} key={load.id} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function CircuitCard({ circuit }: { circuit: EnergyCircuitLoadCircuit }) {
-  return (
-    <article className="work-card energy-circuit-card">
-      <div className="energy-circuit-head">
-        <div className="energy-circuit-title">
-          <span className="energy-circuit-no">{circuit.circuitNo ?? "-"}</span>
-          <div>
-            <h3>{circuit.description || "Uten kursnavn"}</h3>
-            <p>
-              {circuit.breaker || "Ukjent vern"}
-              {circuit.breakerType ? ` · ${circuit.breakerType}` : ""}
-              {circuit.status ? ` · ${circuit.status}` : ""}
-            </p>
+      {hasLoads ? (
+        <div className="energy-circuit-row-detail">
+          <p>{circuit.measurementDetail}</p>
+          <div className="energy-meter-line-list">
+            {circuit.measurementGroups.map((group) => (
+              <MeterGroupLine group={group} key={group.key} />
+            ))}
           </div>
         </div>
-        <div className="energy-circuit-badges">
-          {circuit.isSunbed ? <Label tone="sun">Solsengkurs</Label> : null}
-          <Label tone={circuitStatusColor(circuit)}>{circuit.measurementMode}</Label>
-        </div>
-      </div>
-
-      <div className="energy-circuit-facts">
-        <span>
-          <small>Laster</small>
-          <strong>{circuit.activeLoadCount}/{circuit.loadCount}</strong>
-        </span>
-        <span>
-          <small>Forventet</small>
-          <strong>{wattText(circuit.expectedPowerW)}</strong>
-        </span>
-        <span>
-          <small>Målt</small>
-          <strong>{circuit.measuredLoadCount}</strong>
-        </span>
-        <span>
-          <small>Uten måler</small>
-          <strong>{circuit.unmeasuredLoadCount}</strong>
-        </span>
-      </div>
-
-      <p className="energy-circuit-detail">{circuit.measurementDetail}</p>
-
-      <div className="energy-meter-groups">
-        {circuit.measurementGroups.map((group) => (
-          <MeterGroup group={group} circuitExpectedPower={circuit.expectedPowerW} key={group.key} />
-        ))}
-      </div>
+      ) : null}
     </article>
   );
 }
@@ -128,38 +147,70 @@ export default function EnergyCircuitLoadsPage({ data }: { data: ModuleResponse 
   if (!circuitLoads) return null;
   const circuits = circuitLoads.circuits;
   const summary = circuitLoads.summary;
+  const measuredLoads = Math.max(0, summary.activeLoads - summary.unmeteredLoadCount);
+  const measuredPercent = summary.activeLoads ? Math.round((measuredLoads / summary.activeLoads) * 100) : 0;
+  const circuitsWithLoads = circuits.filter((circuit) => circuit.loadCount > 0).length;
+  const emptyCircuits = circuits.length - circuitsWithLoads;
+  const issueCircuits = circuits.filter((circuit) => circuit.unmeasuredLoadCount > 0);
 
   return (
     <div className="page-stack energy-circuit-loads-page">
-      <section className="work-card energy-circuit-loads-intro">
-        <div>
-          <span className="energy-circuit-loads-icon">K</span>
+      <section className="work-card energy-circuit-dashboard">
+        <div className="energy-circuit-dashboard-main">
           <div>
-            <strong>Kurs/last viser praktisk måledekning.</strong>
-            <span>
-              En kurs kan ha én måler som dekker alt, flere laster på samme måler, egne målere per last,
-              eller laster som foreløpig bare ligger direkte på kursen.
-            </span>
+            <span className="energy-circuit-eyebrow">Energi</span>
+            <h2>Kurs/last</h2>
+            <p>Ryddig oversikt over hvilke laster som ligger på hver kurs og hvordan de er dekket av energimålere.</p>
+          </div>
+          <div className="energy-circuit-measurement-total">
+            <span>Målerdekning</span>
+            <strong>{measuredPercent}%</strong>
+            <div className="energy-circuit-total-bar" aria-label={`${measuredPercent}% av aktive laster er målt`}>
+              <span style={{ width: `${measuredPercent}%` }} />
+            </div>
+            <small>
+              {measuredLoads} av {summary.activeLoads} aktive laster har måler
+            </small>
           </div>
         </div>
-        <div>
-          <span className="energy-circuit-loads-icon">W</span>
-          <span>{wattText(circuitLoads.summary.expectedPowerW)} registrert forventet effekt</span>
-        </div>
-        <div className="energy-circuit-loads-summary">
-          <span>{summary.circuits} kurser</span>
-          <span>{summary.activeLoads} aktive laster</span>
-          <span>{summary.circuitMeterCount} kursmålt</span>
-          <span>{summary.unmeteredLoadCount} uten måler</span>
+
+        <div className="energy-circuit-summary-strip">
+          <SummaryMetric label="Kurser" value={String(summary.circuits)} detail={`${circuitsWithLoads} med last · ${emptyCircuits} uten`} />
+          <SummaryMetric label="Aktive laster" value={String(summary.activeLoads)} detail={`${summary.loads} registrert totalt`} />
+          <SummaryMetric label="Kursmålt" value={String(summary.circuitMeterCount)} detail="samme måler dekker kursen" tone="ok" />
+          <SummaryMetric label="Uten måler" value={String(summary.unmeteredLoadCount)} detail={`${issueCircuits.length} kurser bør sjekkes`} tone="warn" />
+          <SummaryMetric label="Forventet effekt" value={wattText(summary.expectedPowerW)} detail="registrert for aktive laster" />
         </div>
       </section>
 
       {circuits.length ? (
-        <div className="energy-circuit-grid">
-          {circuits.map((circuit) => (
-            <CircuitCard circuit={circuit} key={circuit.key} />
-          ))}
-        </div>
+        <section className="work-card energy-circuit-board">
+          <div className="energy-circuit-board-title">
+            <div>
+              <h3>Kursliste</h3>
+              <p>Alle kurser vises i nummerrekkefølge. Laster vises direkte under kursen de tilhører.</p>
+            </div>
+            <div className="energy-circuit-legend">
+              <Label tone="ok">målt</Label>
+              <Label tone="partial">delvis</Label>
+              <Label tone="warn">mangler måler</Label>
+              <Label>ingen last</Label>
+            </div>
+          </div>
+          <div className="energy-circuit-board-header" aria-hidden="true">
+            <span>Kurs</span>
+            <span>Beskrivelse</span>
+            <span>Måling</span>
+            <span>Laster</span>
+            <span>Effekt</span>
+            <span>Dekning</span>
+          </div>
+          <div className="energy-circuit-row-list">
+            {circuits.map((circuit) => (
+              <CircuitRow circuit={circuit} key={circuit.key} />
+            ))}
+          </div>
+        </section>
       ) : (
         <div className="work-card energy-circuit-empty">Ingen kurser eller laster er registrert.</div>
       )}

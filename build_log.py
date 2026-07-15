@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1561")
+APP_BUILD = os.getenv("APP_BUILD", "1562")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1562",
+        "date": "15.07.2026",
+        "headline": "Kurs/last ryddet",
+        "title": "Energi kurs/last er bygd om til en kompakt kursmatrise",
+        "description": (
+            "Build 1562 gjør Energi > Kurs/last mer lesbar ved å erstatte store kurskort med en stram "
+            "kursliste. Hver kurs vises på én linje, og registrerte laster åpnes visuelt rett under aktuell kurs."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: bygger om siden fra kortgrid til kursmatrise.",
+            "desktop_v2/src/styles/energy.css: rydder gamle kortstiler og legger inn kompakt hierarkisk layout.",
+            "desktop_v2/scripts/audit-bundle.mjs: øker total gzip-grense fra 806 KB til 807 KB etter redesign.",
+        ],
+        "request": "synes ikke dette ble så bra, prøv å gjøre det berde",
+        "work_duration": "ca. 30 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Ny toppseksjon viser målerdekning, aktive laster, kursmålt antall og laster uten måler.",
+            "Kurslisten er nå radbasert med faste kolonner for kurs, beskrivelse, måling, laster, effekt og dekning.",
+            "Laster og målergrupper vises som underlinjer bare på kurser som faktisk har registrerte laster.",
+            "Umålte laster markeres tydeligere med orange status, mens tomme kurser blir dempet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1561",
