@@ -22105,7 +22105,7 @@ def build_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: lis
             groups.append(
                 {
                     "key": f"meter-{meter_id}",
-                    "label": "Måleren dekker alle aktive laster på kursen",
+                    "label": "Kursmåler - dekker hele kursen",
                     "type": "circuit_meter",
                     "meterId": meter_id,
                     "loadCount": len(group_loads),
@@ -22113,7 +22113,7 @@ def build_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: lis
                     "loads": [energy_load_hierarchy_item(row) for row in sorted(group_loads, key=lambda item: item.name or "")],
                 }
             )
-            return groups, "Kursmålt", "Alle aktive laster på kursen ligger på samme energimåler.", measured_load_count, unmeasured_load_count, expected_power
+            return groups, "Kursmålt", "Kurs -> måler -> alle aktive laster.", measured_load_count, unmeasured_load_count, expected_power
 
         for meter_id, group_loads in sorted(meter_groups.items(), key=lambda item: (len(item[1]) == 1, item[0])):
             is_shared = len(group_loads) > 1
@@ -22124,7 +22124,7 @@ def build_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: lis
             groups.append(
                 {
                     "key": f"meter-{meter_id}",
-                    "label": "Flere laster deler samme måler" if is_shared else "Lasten har egen energimåler",
+                    "label": "Undermåler - flere laster" if is_shared else "Egen lastmåler",
                     "type": "shared_meter" if is_shared else "direct_meter",
                     "meterId": meter_id,
                     "loadCount": len(group_loads),
@@ -22139,7 +22139,7 @@ def build_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: lis
             groups.append(
                 {
                     "key": "direct-without-meter-id",
-                    "label": "Merket direktemålt uten måler-ID",
+                    "label": "Direktemålt last uten måler-ID",
                     "type": "direct_meter",
                     "meterId": None,
                     "loadCount": len(direct_without_meter),
@@ -22153,7 +22153,7 @@ def build_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: lis
             groups.append(
                 {
                     "key": "unmetered",
-                    "label": "Laster uten egen registrert energimåler",
+                    "label": "Direkte på kurs uten måler",
                     "type": "unmetered",
                     "meterId": None,
                     "loadCount": len(unmeasured_loads),
@@ -22165,10 +22165,10 @@ def build_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: lis
         if not active_loads:
             return groups, "Ingen aktive laster", "Kurset har ingen aktive laster registrert.", measured_load_count, unmeasured_load_count, expected_power
         if unmeasured_load_count and measured_load_count:
-            return groups, "Delvis målt", "Noen laster er knyttet til måler, mens andre foreløpig bare ligger direkte på kursen.", measured_load_count, unmeasured_load_count, expected_power
+            return groups, "Delvis målt", "Kurs -> en eller flere målere -> laster, pluss laster direkte på kurs.", measured_load_count, unmeasured_load_count, expected_power
         if measured_load_count:
-            return groups, "Lastmålt", "Aktive laster er målt med egne eller delte lastmålere.", measured_load_count, unmeasured_load_count, expected_power
-        return groups, "Ikke målt", "Aktive laster er registrert på kursen uten egen energimåler.", measured_load_count, unmeasured_load_count, expected_power
+            return groups, "Lastmålt", "Kurs -> målere/undermålere -> laster.", measured_load_count, unmeasured_load_count, expected_power
+        return groups, "Ikke målt", "Kurs -> laster direkte på kurs uten registrert energimåler.", measured_load_count, unmeasured_load_count, expected_power
 
     for circuit in circuits:
         circuit_loads = loads_by_circuit.get(circuit.circuit_no, [])

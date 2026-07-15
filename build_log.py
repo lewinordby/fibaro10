@@ -5,8 +5,33 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1563")
+APP_BUILD = os.getenv("APP_BUILD", "1564")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1564",
+        "date": "15.07.2026",
+        "headline": "Kurs/last som målehierarki",
+        "title": "Energi kurs/last viser kurs, målepunkt og laster tydeligere",
+        "description": (
+            "Build 1564 presiserer modellen på Energi > Kurs/last slik at hver kurs leses som kurs, "
+            "måler eller undermåler, og lastene som ligger under hvert målepunkt."
+        ),
+        "applications": [
+            "main.py: gir målegruppene tydeligere faglige tekster for kursmåler, undermåler og direkte last.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: viser lastens målepunkt og teoretiske effekt på egne felt.",
+            "desktop_v2/src/styles/energy.css: strammer hierarkiet for målepunkt og laster.",
+            "desktop_v2/scripts/audit-bundle.mjs: øker total gzip-grense marginalt til 808 kB etter ny kurs/last-funksjon.",
+        ],
+        "request": "kurs - måler (en eller flere) - laster en eller flere på hver måler eller direkte. hver last kan ha egen effektmåling og egen teoretiske forbruk fast eller variabelt",
+        "work_duration": "ca. 25 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Kurs/last bruker nå tydeligere begreper: Kursmåler, Undermåler, Egen lastmåler og Direkte på kurs.",
+            "Hver last viser nå om den er målt via HC3-måler, direktemålt eller ikke målt.",
+            "Teoretisk effekt vises som eget felt per last, adskilt fra målepunktet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1563",

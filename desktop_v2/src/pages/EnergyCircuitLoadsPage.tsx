@@ -18,9 +18,9 @@ function wattText(value?: number | null): string {
 
 function meterLabel(group: EnergyCircuitMeterGroup): string {
   if (group.type === "circuit_meter") return "Kursmåler";
-  if (group.type === "shared_meter") return "Felles måler";
-  if (group.type === "direct_meter") return "Egen måler";
-  return "Uten måler";
+  if (group.type === "shared_meter") return "Undermåler";
+  if (group.type === "direct_meter") return group.meterId ? "Lastmåler" : "Direkte";
+  return "På kurs";
 }
 
 function meterTone(group: EnergyCircuitMeterGroup): string {
@@ -101,8 +101,11 @@ function LoadLine({ load }: { load: EnergyCircuitMeterGroup["loads"][number] }) 
         <strong>{load.name}</strong>
         <span>{[load.loadType, load.area].filter(Boolean).join(" · ") || "Uten type/område"}</span>
       </div>
+      <span className={load.fibaroMeterId || load.measuredDirect ? "energy-load-measure ok" : "energy-load-measure warn"}>
+        {load.fibaroMeterId ? `Måler ${load.fibaroMeterId}` : load.measuredDirect ? "Direkte" : "Ikke målt"}
+      </span>
       <span>{wattText(load.expectedPowerW)}</span>
-      <small>{deviceMeta(load) || "Ingen enhetskobling"}</small>
+      <small>{deviceMeta(load) || "-"}</small>
     </div>
   );
 }
@@ -112,8 +115,10 @@ function MeterGroupLine({ group }: { group: EnergyCircuitMeterGroup }) {
     <div className={`energy-meter-line ${group.type}`}>
       <div className="energy-meter-line-head">
         <Label tone={meterTone(group)}>{meterLabel(group)}</Label>
-        {group.meterId ? <span>Måler {group.meterId}</span> : null}
-        <strong>{group.label}</strong>
+        <div className="energy-meter-line-title">
+          <strong>{group.label}</strong>
+          <span>{group.meterId ? `HC3 ${group.meterId}` : "Uten ID"} · {group.loadCount} laster</span>
+        </div>
         <em>{wattText(group.expectedPowerW)}</em>
       </div>
       <div className="energy-meter-line-loads">
@@ -190,10 +195,10 @@ export default function EnergyCircuitLoadsPage({ data }: { data: ModuleResponse 
           <div>
             <span className="energy-circuit-eyebrow">Energi</span>
             <h2>Kurs/last</h2>
-            <p>Ryddig oversikt over hvilke laster som ligger på hver kurs og hvordan de er dekket av energimålere.</p>
+            <p>Kurs med målere, undermålere og laster.</p>
           </div>
           <div className="energy-circuit-measurement-total">
-            <span>Målerdekning</span>
+            <span>Dekning</span>
             <strong>{stats.measuredPercent}%</strong>
             <div className="energy-circuit-total-bar" aria-label={`${stats.measuredPercent}% av aktive laster er målt`}>
               <span style={{ width: `${stats.measuredPercent}%` }} />
@@ -249,9 +254,9 @@ export default function EnergyCircuitLoadsPage({ data }: { data: ModuleResponse 
         <div className="energy-circuit-board-header" aria-hidden="true">
           <span>Kurs</span>
           <span>Beskrivelse</span>
-          <span>Måling</span>
+          <span>Modell</span>
           <span>Laster</span>
-          <span>Effekt</span>
+          <span>Teori</span>
           <span>Dekning</span>
         </div>
         {visibleCircuits.length ? (

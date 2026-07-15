@@ -672,21 +672,29 @@
 
 .energy-meter-line-head {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  gap: 7px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
   align-items: center;
   padding: 6px 8px;
   background: var(--panel-muted-bg);
   border-bottom: 1px solid var(--border-panel-soft);
 }
 
-.energy-meter-line-head span {
+.energy-meter-line-title {
+  display: grid;
+  min-width: 0;
+}
+
+.energy-meter-line-title span {
+  overflow: hidden;
   color: var(--muted);
   font-size: 11px;
   font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.energy-meter-line-head strong {
+.energy-meter-line-title strong {
   overflow: hidden;
   color: var(--ink);
   font-size: 11px;
@@ -708,7 +716,7 @@
 
 .energy-load-line {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 86px 170px;
+  grid-template-columns: minmax(0, 1fr) 108px 96px 150px;
   gap: 8px;
   align-items: center;
   min-height: 35px;
@@ -754,6 +762,18 @@
   font-size: 12px;
   font-weight: 760;
   text-align: right;
+}
+
+.energy-load-line .energy-load-measure {
+  justify-self: end;
+}
+
+.energy-load-line .energy-load-measure.ok {
+  color: var(--green);
+}
+
+.energy-load-line .energy-load-measure.warn {
+  color: var(--orange);
 }
 
 .energy-circuit-empty {
@@ -853,5 +873,9 @@
 
   .energy-load-line > span {
     text-align: left;
+  }
+
+  .energy-load-line .energy-load-measure {
+    justify-self: start;
   }
 }
