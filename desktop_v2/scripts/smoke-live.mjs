@@ -170,6 +170,31 @@ async function smokeShellControls(page) {
   console.log("Live shell controls OK");
 }
 
+async function smokeEnergyTopologyControls(page) {
+  await page.goto(`${baseUrl}/energi/kurs-last`, { waitUntil: "load" });
+  await expectVisible(page, "Kurs, enheter og laster");
+  await page.locator(".energy-course-card").first().waitFor({ timeout: 10000 });
+
+  await page.getByRole("button", { name: "Lukk alle", exact: true }).click();
+  await page.waitForTimeout(150);
+  if (await page.getByRole("button", { name: "Skjul kursdetaljer", exact: true }).count()) {
+    throw new Error("Energi/Kurs-last åpnet kursene igjen etter Lukk alle");
+  }
+
+  await page.getByRole("button", { name: "Åpne alle", exact: true }).click();
+  await page.getByRole("button", { name: "Skjul kursdetaljer", exact: true }).first().waitFor({ timeout: 5000 });
+  const allCount = await page.locator(".energy-course-card").count();
+  const search = page.getByRole("textbox", { name: "Søk etter kurs, enhet eller last", exact: true });
+  await search.fill("Varmepumpe");
+  await page.waitForTimeout(150);
+  const searchCount = await page.locator(".energy-course-card").count();
+  if (searchCount < 1 || searchCount >= allCount) {
+    throw new Error(`Energi/Kurs-last søk filtrerte uventet (${searchCount} av ${allCount})`);
+  }
+  await search.fill("");
+  console.log("Live energy topology controls OK");
+}
+
 async function runAuthenticatedSmoke() {
   const browser = await chromium.launch({ headless: true });
   const errors = [];
@@ -185,6 +210,7 @@ async function runAuthenticatedSmoke() {
 
     await login(page);
     await smokeShellControls(page);
+    await smokeEnergyTopologyControls(page);
     for (const route of routeList) {
       await smokeRoute(page, route.path, route.expectedTexts);
     }

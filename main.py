@@ -10690,8 +10690,21 @@ async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
         switch = devices.get(int(switch_id)) if switch_id is not None else None
         configured_ids = [value for value in (node.hc3_device_id, power_id, switch_id) if value is not None]
         node_errors = [errors[int(value)] for value in configured_ids if int(value) in errors]
+        configuration_errors: list[str] = []
+        if power_id is not None and power is not None and not power.get("hasPower"):
+            configuration_errors.append(f"HC3-enhet {power_id} rapporterer ikke watt.")
+        if switch_id is not None and switch is not None and not switch.get("hasSwitch"):
+            configuration_errors.append(f"HC3-enhet {switch_id} rapporterer ikke av/på-status.")
+        unavailable = [item for item in (identity, power, switch) if item and item.get("dead") is True]
+        disabled = [item for item in (identity, power, switch) if item and item.get("enabled") is False]
+        if unavailable:
+            configuration_errors.append("En eller flere HC3-enheter er utilgjengelige.")
+        if disabled:
+            configuration_errors.append("En eller flere HC3-enheter er deaktivert.")
         if not configured_ids:
             status = "unconfigured"
+        elif configuration_errors:
+            status = "error"
         elif node_errors and not any((identity, power, switch)):
             status = "error"
         elif node_errors:
@@ -10710,7 +10723,7 @@ async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
             "switchDeviceName": switch.get("name") if switch else None,
             "dead": any(item.get("dead") is True for item in (identity, power, switch) if item),
             "enabled": all(item.get("enabled") is not False for item in (identity, power, switch) if item),
-            "error": " · ".join(dict.fromkeys(node_errors)) if node_errors else None,
+            "error": " · ".join(dict.fromkeys([*configuration_errors, *node_errors])) if configuration_errors or node_errors else None,
         }
     return {"checkedAt": checked_at, "configured": True, "nodes": live_nodes}
 
@@ -27770,6 +27783,7 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                         )
                     ).scalars().all()
                     circuit_loads = build_energy_circuit_loads_payload(all_circuits, hierarchy_loads, hierarchy_nodes)
+                    circuit_loads["canManage"] = bool(getattr(request.state, "auth_can_settings", False))
                     circuit_summary = circuit_loads["summary"]
                     return {
                         "title": "Energi · kurs/last",
@@ -29804,6 +29818,12 @@ def clean_energy_node_values(values: Dict[str, Any]) -> Dict[str, Any]:
     for key in number_fields:
         if cleaned.get(key) is not None:
             cleaned[key] = int(cleaned[key])
+    if "node_type" in cleaned and cleaned.get("node_type") is not None:
+        node_type = str(cleaned["node_type"]).strip().lower()
+        node_type = {"zwave_point": "zwave_device"}.get(node_type, node_type)
+        if node_type not in ENERGY_NODE_TYPES:
+            raise HTTPException(status_code=400, detail="Ugyldig type tilkoblingspunkt.")
+        cleaned["node_type"] = node_type
     if cleaned.get("hc3_power_device_id") is not None and "has_meter" not in cleaned:
         cleaned["has_meter"] = True
     if cleaned.get("hc3_switch_device_id") is not None and "has_switch" not in cleaned:
@@ -29811,6 +29831,7 @@ def clean_energy_node_values(values: Dict[str, Any]) -> Dict[str, Any]:
     return cleaned
 
 
+ENERGY_NODE_TYPES = {"zwave_device", "output", "child_device", "meter", "logical"}
 ENERGY_LOAD_POWER_PROFILES = {"unknown", "fixed", "variable"}
 
 
@@ -29835,13 +29856,27 @@ def clean_energy_load_values(values: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def validate_energy_load_power_values(values: Dict[str, Any], existing: Optional[EnergyLoad] = None) -> Dict[str, Any]:
+    profile_was_provided = "power_profile" in values
     profile = values.get("power_profile", existing.power_profile if existing else None)
     expected = values.get("expected_power_w", existing.expected_power_w if existing else None)
     minimum = values.get("min_power_w", existing.min_power_w if existing else None)
     maximum = values.get("max_power_w", existing.max_power_w if existing else None)
-    if not profile:
+    if not profile or (
+        not profile_was_provided
+        and profile == "unknown"
+        and "expected_power_w" in values
+        and expected is not None
+        and minimum is None
+        and maximum is None
+    ):
         profile = "fixed" if expected is not None else "unknown"
         values["power_profile"] = profile
+    if profile == "unknown" and profile_was_provided:
+        expected = minimum = maximum = None
+        values.update(expected_power_w=None, min_power_w=None, max_power_w=None)
+    elif profile == "fixed" and profile_was_provided:
+        minimum = maximum = None
+        values.update(min_power_w=None, max_power_w=None)
     if minimum is not None and maximum is not None and minimum > maximum:
         raise HTTPException(status_code=400, detail="Minimum effekt kan ikke være høyere enn maksimum effekt.")
     if profile == "fixed" and expected is None:
@@ -29853,6 +29888,74 @@ def validate_energy_load_power_values(values: Dict[str, Any], existing: Optional
     if expected is not None and maximum is not None and expected > maximum:
         raise HTTPException(status_code=400, detail="Normal effekt kan ikke være høyere enn maksimum effekt.")
     return values
+
+
+def energy_node_branch_ids(nodes: Iterable[EnergyNode], root_id: int) -> set[int]:
+    children_by_parent: Dict[int, list[int]] = defaultdict(list)
+    for candidate in nodes:
+        if candidate.id is None or candidate.parent_node_id is None:
+            continue
+        children_by_parent[int(candidate.parent_node_id)].append(int(candidate.id))
+    branch_ids = {int(root_id)}
+    pending = [int(root_id)]
+    while pending:
+        current_id = pending.pop()
+        for child_id in children_by_parent.get(current_id, []):
+            if child_id in branch_ids:
+                continue
+            branch_ids.add(child_id)
+            pending.append(child_id)
+    return branch_ids
+
+
+def energy_node_from_values(values: Dict[str, Any], name: str, now_value: datetime) -> EnergyNode:
+    power_id = values.get("hc3_power_device_id")
+    switch_id = values.get("hc3_switch_device_id")
+    return EnergyNode(
+        name=name,
+        circuit_no=values.get("circuit_no"),
+        parent_node_id=values.get("parent_node_id"),
+        node_type=str(values.get("node_type") or "zwave_device").strip() or "zwave_device",
+        manufacturer=values.get("manufacturer"),
+        model=values.get("model"),
+        device_type=values.get("device_type"),
+        hc3_device_id=values.get("hc3_device_id"),
+        hc3_power_device_id=power_id,
+        hc3_switch_device_id=switch_id,
+        endpoint_key=values.get("endpoint_key"),
+        has_meter=values.get("has_meter") if values.get("has_meter") is not None else power_id is not None,
+        has_switch=values.get("has_switch") if values.get("has_switch") is not None else switch_id is not None,
+        area=values.get("area"),
+        active=values.get("active") is not False,
+        note=values.get("note"),
+        source="manual",
+        created_at=now_value,
+        updated_at=now_value,
+    )
+
+
+async def validate_energy_node_link_uniqueness(
+    session,
+    power_id: Optional[int],
+    switch_id: Optional[int],
+    node_id: Optional[int] = None,
+) -> None:
+    checks = (
+        (EnergyNode.hc3_power_device_id, power_id, "effekt-ID-en"),
+        (EnergyNode.hc3_switch_device_id, switch_id, "bryter-ID-en"),
+    )
+    for column, device_id, label in checks:
+        if device_id is None:
+            continue
+        query = select(EnergyNode).where(column == int(device_id))
+        if node_id is not None:
+            query = query.where(EnergyNode.id != int(node_id))
+        duplicate = (await session.execute(query.limit(1))).scalars().first()
+        if duplicate:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Tilkoblingspunktet {duplicate.name} bruker allerede denne HC3-{label}.",
+            )
 
 
 async def validate_energy_node_hc3_values(values: Dict[str, Any]) -> None:
@@ -29959,37 +30062,12 @@ async def api_v2_energy_node_create(request: Request, data: V2EnergyNodeIn):
     async with async_session() as session:
         await validate_energy_node_parent(session, circuit_no, values.get("parent_node_id"))
         power_id = values.get("hc3_power_device_id")
-        if power_id is not None:
-            duplicate = (
-                await session.execute(
-                    select(EnergyNode)
-                    .where(EnergyNode.hc3_power_device_id == int(power_id))
-                    .limit(1)
-                )
-            ).scalars().first()
-            if duplicate:
-                raise HTTPException(status_code=409, detail=f"Tilkoblingspunktet {duplicate.name} bruker allerede denne HC3-effekt-ID-en.")
-        node = EnergyNode(
-            name=name,
-            circuit_no=circuit_no,
-            parent_node_id=values.get("parent_node_id"),
-            node_type=str(values.get("node_type") or "zwave_point").strip() or "zwave_point",
-            manufacturer=values.get("manufacturer"),
-            model=values.get("model"),
-            device_type=values.get("device_type"),
-            hc3_device_id=values.get("hc3_device_id"),
-            hc3_power_device_id=power_id,
-            hc3_switch_device_id=values.get("hc3_switch_device_id"),
-            endpoint_key=endpoint_key,
-            has_meter=values.get("has_meter") if values.get("has_meter") is not None else power_id is not None,
-            has_switch=values.get("has_switch") if values.get("has_switch") is not None else values.get("hc3_switch_device_id") is not None,
-            area=values.get("area"),
-            active=values.get("active") is not False,
-            note=values.get("note"),
-            source="manual",
-            created_at=now_value,
-            updated_at=now_value,
+        await validate_energy_node_link_uniqueness(
+            session,
+            power_id,
+            values.get("hc3_switch_device_id"),
         )
+        node = energy_node_from_values(values, name, now_value)
         session.add(node)
         await session.commit()
         await session.refresh(node)
@@ -30006,12 +30084,9 @@ async def api_v2_energy_node_update(request: Request, node_id: int, data: V2Ener
         node = await session.get(EnergyNode, node_id)
         if not node:
             raise HTTPException(status_code=404, detail="Tilkoblingspunkt ikke funnet.")
-        if "circuit_no" in values and values.get("circuit_no") != node.circuit_no:
-            raise HTTPException(
-                status_code=400,
-                detail="En registrert enhet kan ikke flyttes mellom kurser. Opprett den på nytt på riktig kurs.",
-            )
         circuit_no = values.get("circuit_no", node.circuit_no)
+        if circuit_no is None:
+            raise HTTPException(status_code=400, detail="Kurs må fylles ut.")
         parent_node_id = values.get("parent_node_id", node.parent_node_id)
         await validate_energy_node_parent(session, circuit_no, parent_node_id, node_id=node_id)
         if "name" in values and not values.get("name"):
@@ -30025,23 +30100,28 @@ async def api_v2_energy_node_update(request: Request, node_id: int, data: V2Ener
             "has_switch": values.get("has_switch", node.has_switch),
         }
         await validate_energy_node_hc3_values(effective_hc3_values)
-        if power_id is not None:
-            duplicate = (
-                await session.execute(
-                    select(EnergyNode)
-                    .where(EnergyNode.id != node_id)
-                    .where(EnergyNode.hc3_power_device_id == int(power_id))
-                    .limit(1)
-                )
-            ).scalars().first()
-            if duplicate:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Tilkoblingspunktet {duplicate.name} bruker allerede denne HC3-effekt-ID-en.",
-                )
+        await validate_energy_node_link_uniqueness(
+            session,
+            power_id,
+            effective_hc3_values.get("hc3_switch_device_id"),
+            node_id=node_id,
+        )
+        now_value = datetime.utcnow()
+        if circuit_no != node.circuit_no:
+            all_nodes = (await session.execute(select(EnergyNode))).scalars().all()
+            branch_ids = energy_node_branch_ids(all_nodes, node_id)
+            for branch_node in all_nodes:
+                if branch_node.id is not None and int(branch_node.id) in branch_ids:
+                    branch_node.circuit_no = circuit_no
+                    branch_node.updated_at = now_value
+            await session.execute(
+                update(EnergyLoad)
+                .where(EnergyLoad.energy_node_id.in_(branch_ids))
+                .values(circuit_no=circuit_no, updated_at=now_value)
+            )
         for key, value in values.items():
             setattr(node, key, value)
-        node.updated_at = datetime.utcnow()
+        node.updated_at = now_value
         await session.commit()
     return {"status": "ok", "message": f"{node.name} er lagret.", "id": node.id}
 
@@ -30107,6 +30187,8 @@ async def api_v2_energy_load_create(request: Request, data: V2EnergyLoadIn):
     name = str(values.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="Navn må fylles ut.")
+    if values.get("circuit_no") is None and values.get("energy_node_id") is None:
+        raise HTTPException(status_code=400, detail="Lasten må knyttes til en kurs eller en registrert enhet.")
     now_value = datetime.utcnow()
     async with async_session() as session:
         await find_or_create_energy_node_for_load(session, values)

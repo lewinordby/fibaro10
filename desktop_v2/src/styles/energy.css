@@ -1531,7 +1531,7 @@
 
 .energy-topology-load {
   display: grid;
-  grid-template-columns: 14px minmax(220px, 1fr) 120px 84px 34px;
+  grid-template-columns: 14px minmax(220px, 1fr) 120px 150px 34px;
   gap: 8px;
   align-items: center;
   min-height: 39px;
@@ -1575,6 +1575,15 @@
   font-weight: 760;
   text-align: right;
   white-space: nowrap;
+}
+
+.energy-topology-load-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .energy-topology-children {

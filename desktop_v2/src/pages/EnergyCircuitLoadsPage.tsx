@@ -14,12 +14,10 @@ import {
   ThunderboltOutlined,
 } from "@ant-design/icons";
 import { App as AntApp, Button, Checkbox, Empty, Form, Input, InputNumber, Modal, Segmented, Select, Switch, Tooltip } from "antd";
-import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   createEnergyLoad,
   createEnergyNode,
-  fetchCurrentUser,
   fetchEnergyNodesLive,
   fetchHc3EnergyDevices,
   updateEnergyLoad,
@@ -34,7 +32,6 @@ import {
   type ModuleResponse,
 } from "../api";
 import { decimal } from "../format";
-import { queryKeys } from "../queryKeys";
 import "../styles/energy.css";
 
 type CircuitFilter = "without-sunbeds" | "all" | "sunbeds";
@@ -135,9 +132,13 @@ function wattText(value?: number | null): string {
 
 function loadPowerText(load: EnergyCircuitLoadItem): string {
   if (load.powerProfile === "variable") {
-    const minimum = load.minPowerW != null ? decimal(Number(load.minPowerW), 0) : "–";
-    const maximum = load.maxPowerW != null ? decimal(Number(load.maxPowerW), 0) : "–";
-    return `${minimum}–${maximum} W`;
+    if (load.minPowerW != null && load.maxPowerW != null) {
+      return `${decimal(Number(load.minPowerW), 0)}–${decimal(Number(load.maxPowerW), 0)} W`;
+    }
+    if (load.minPowerW != null) return `Fra ${decimal(Number(load.minPowerW), 0)} W`;
+    if (load.maxPowerW != null) return `Inntil ${decimal(Number(load.maxPowerW), 0)} W`;
+    if (load.expectedPowerW != null) return wattText(load.expectedPowerW);
+    return "–";
   }
   return wattText(load.expectedPowerW);
 }
@@ -165,10 +166,14 @@ function flattenNodes(nodes: EnergyConnectionNode[]): EnergyConnectionNode[] {
   return nodes.flatMap((node) => [node, ...flattenNodes(node.children ?? [])]);
 }
 
-function nodePlacementOptions(nodes: EnergyConnectionNode[], depth = 0): Array<{ value: number; label: string }> {
-  return nodes.flatMap((node) => [
+function nodePlacementOptions(
+  nodes: EnergyConnectionNode[],
+  depth = 0,
+  excludedIds: ReadonlySet<number> = new Set(),
+): Array<{ value: number; label: string }> {
+  return nodes.flatMap((node) => excludedIds.has(node.id) ? [] : [
     { value: node.id, label: `${"— ".repeat(depth)}${node.name} · ${nodeTypeLabel(node.nodeType)}` },
-    ...nodePlacementOptions(node.children ?? [], depth + 1),
+    ...nodePlacementOptions(node.children ?? [], depth + 1, excludedIds),
   ]);
 }
 
@@ -191,7 +196,7 @@ function coveragePercent(circuit: EnergyCircuitLoadCircuit): number {
 function circuitMatchesMapping(circuit: EnergyCircuitLoadCircuit, filter: CircuitMappingFilter): boolean {
   if (filter === "mapped") return circuit.activeLoadCount > 0 && circuit.unmeasuredLoadCount === 0;
   if (filter === "needs-work") return circuit.activeLoadCount > 0 && circuit.unmeasuredLoadCount > 0;
-  if (filter === "empty") return circuit.activeLoadCount === 0 && circuit.nodeCount === 0;
+  if (filter === "empty") return circuit.loadCount === 0 && circuit.nodeCount === 0;
   return true;
 }
 
@@ -213,10 +218,12 @@ function StatusTag({ tone = "default", children }: { tone?: string; children: Re
 
 function hc3Option(device: Hc3EnergyDevice) {
   const capabilities = [device.hasPower ? "effekt" : null, device.hasSwitch ? "bryter" : null].filter(Boolean).join(" + ");
-  const label = `${device.id} · ${device.name || "Uten navn"}${capabilities ? ` · ${capabilities}` : ""}`;
+  const unavailable = device.dead === true || device.enabled === false;
+  const label = `${device.id} · ${device.name || "Uten navn"}${capabilities ? ` · ${capabilities}` : ""}${unavailable ? " · utilgjengelig" : ""}`;
   return {
     value: device.id,
     label,
+    disabled: unavailable,
     search: `${device.id} ${device.name || ""} ${device.type || ""} ${device.manufacturer || ""} ${device.model || ""}`.toLowerCase(),
   };
 }
@@ -258,7 +265,11 @@ function LoadLine({
         <small>{[load.loadType, load.area, loadPowerDetail(load)].filter(Boolean).join(" · ") || "Last"}</small>
       </div>
       <span>{loadPowerText(load)}</span>
-      {load.controllable ? <StatusTag tone="info">Styrbar</StatusTag> : <span />}
+      <span className="energy-topology-load-tags">
+        {load.active === false ? <StatusTag>Inaktiv</StatusTag> : null}
+        {load.critical ? <StatusTag tone="warn">Kritisk</StatusTag> : null}
+        {load.controllable ? <StatusTag tone="info">Styrbar</StatusTag> : null}
+      </span>
       {canManage ? (
         <Tooltip title="Rediger last">
           <button type="button" className="energy-icon-action" aria-label={`Rediger ${load.name}`} onClick={() => onEdit(load)}>
@@ -464,12 +475,6 @@ function CourseCard({
 
 export default function EnergyCircuitLoadsPage({ data, onReload }: { data: ModuleResponse; onReload: () => Promise<unknown> | unknown }) {
   const { message } = AntApp.useApp();
-  const { data: currentUser = null } = useQuery({
-    queryKey: queryKeys.auth.currentUser(),
-    queryFn: fetchCurrentUser,
-    retry: false,
-    staleTime: 60_000,
-  });
   const [nodeForm] = Form.useForm<NodeFormValues>();
   const [loadForm] = Form.useForm<LoadFormValues>();
   const [filter, setFilter] = useState<CircuitFilter>("without-sunbeds");
@@ -479,6 +484,7 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   const [nodeEditor, setNodeEditor] = useState<NodeEditorState | null>(null);
   const [loadEditor, setLoadEditor] = useState<LoadEditorState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [liveRefreshing, setLiveRefreshing] = useState(false);
   const [live, setLive] = useState<Record<string, EnergyNodeLive>>({});
   const [liveCheckedAt, setLiveCheckedAt] = useState<string | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
@@ -486,11 +492,12 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   const [devicesSource, setDevicesSource] = useState<string | null>(null);
   const [devicesError, setDevicesError] = useState<string | null>(null);
   const [loadingDevices, setLoadingDevices] = useState(false);
+  const initializedExpansion = useRef(false);
   const circuitLoads = data.energyCircuitLoads;
   const circuits = circuitLoads?.circuits ?? [];
-  const canManage = Boolean(currentUser?.canSettings);
+  const canManage = Boolean(circuitLoads?.canManage);
   const normalizedSearch = searchQuery.trim().toLowerCase();
-  const visibleCircuits = circuits.filter((circuit) => {
+  const visibleCircuits = useMemo(() => circuits.filter((circuit) => {
     if (filter !== "all" && circuit.isSunbed !== (filter === "sunbeds")) return false;
     if (!circuitMatchesMapping(circuit, mappingFilter)) return false;
     if (!normalizedSearch) return true;
@@ -499,7 +506,15 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       .map((load) => `${load.name} ${load.loadType || ""} ${load.area || ""}`)
       .join(" ");
     return `${circuit.circuitNo ?? ""} ${circuit.description || ""} ${nodeText} ${loadText}`.toLowerCase().includes(normalizedSearch);
-  });
+  }), [circuits, filter, mappingFilter, normalizedSearch]);
+  const visibleSummary = useMemo(() => visibleCircuits.reduce((summary, circuit) => ({
+    nodes: summary.nodes + circuit.nodeCount,
+    loads: summary.loads + circuit.loadCount,
+    activeLoads: summary.activeLoads + circuit.activeLoadCount,
+    measuredLoads: summary.measuredLoads + circuit.measuredLoadCount,
+    unmeasuredLoads: summary.unmeasuredLoads + circuit.unmeasuredLoadCount,
+    expectedPowerW: summary.expectedPowerW + Number(circuit.expectedPowerW || 0),
+  }), { nodes: 0, loads: 0, activeLoads: 0, measuredLoads: 0, unmeasuredLoads: 0, expectedPowerW: 0 }), [visibleCircuits]);
   const selectedNodeCircuitNo = Form.useWatch("circuitNo", nodeForm);
   const selectedLoadCircuitNo = Form.useWatch("circuitNo", loadForm);
   const selectedMainDeviceId = Form.useWatch("hc3DeviceId", nodeForm);
@@ -536,12 +551,9 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   const selectedNodeOptions = useMemo(
     () => {
       const excludedIds = new Set(nodeEditor?.node ? flattenNodes([nodeEditor.node]).map((node) => node.id) : []);
-      return flattenNodes(selectedNodeCircuit?.nodes ?? []).filter((node) => !excludedIds.has(node.id)).map((node) => ({
-        value: node.id,
-        label: `${node.name}${node.endpointKey ? ` · ${node.endpointKey}` : ""}`,
-      }));
+      return nodePlacementOptions(selectedNodeCircuit?.nodes ?? [], 0, excludedIds);
     },
-    [nodeEditor?.node?.id, selectedNodeCircuit],
+    [nodeEditor?.node, selectedNodeCircuit],
   );
   const selectedLoadNodeOptions = useMemo(
     () => [
@@ -552,6 +564,7 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
   );
 
   const refreshLive = useCallback(async () => {
+    setLiveRefreshing(true);
     try {
       const result = await fetchEnergyNodesLive();
       setLive(result.nodes ?? {});
@@ -559,19 +572,29 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       setLiveError(result.configured ? null : "HC3-tilgang er ikke konfigurert");
     } catch (error) {
       setLiveError(error instanceof Error ? error.message : "Kunne ikke lese HC3 akkurat nå");
+    } finally {
+      setLiveRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     void refreshLive();
-    const timer = window.setInterval(() => void refreshLive(), 10_000);
-    return () => window.clearInterval(timer);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refreshLive();
+    };
+    const timer = window.setInterval(refreshWhenVisible, 15_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [refreshLive]);
 
   useEffect(() => {
-    if (expanded.size || !circuits.length) return;
+    if (initializedExpansion.current || !circuits.length) return;
+    initializedExpansion.current = true;
     setExpanded(new Set(circuits.filter((circuit) => circuit.loadCount > 0 || circuit.nodeCount > 0).map((circuit) => circuit.key)));
-  }, [circuits, expanded.size]);
+  }, [circuits]);
 
   if (!circuitLoads) return null;
 
@@ -735,6 +758,9 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
       max_power_w: powerProfile === "variable" ? cleanNumber(values.maxPowerW) : null,
       energy_node_id: nodeId,
       measured_direct: false,
+      fibaro_device_id: null,
+      fibaro_meter_id: null,
+      zwave_switch_id: null,
       controllable: Boolean(values.controllable),
       critical: Boolean(values.critical),
       active: values.active !== false,
@@ -755,9 +781,8 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
     }
   }
 
-  const activeNodes = circuitLoads.summary.nodes ?? allNodes.length;
-  const measuredPercent = circuitLoads.summary.activeLoads
-    ? Math.round((circuitLoads.summary.measuredLoadCount / circuitLoads.summary.activeLoads) * 100)
+  const measuredPercent = visibleSummary.activeLoads
+    ? Math.round((visibleSummary.measuredLoads / visibleSummary.activeLoads) * 100)
     : 0;
 
   return (
@@ -784,16 +809,16 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
           <span className={liveError ? "energy-live-state warn" : "energy-live-state ok"}>
             {liveError ? liveError : `HC3 lest ${checkedTime(liveCheckedAt)}`}
           </span>
-          <Button size="small" icon={<ReloadOutlined />} onClick={() => void refreshLive()}>Oppdater nå</Button>
+          <Button size="small" icon={<ReloadOutlined />} loading={liveRefreshing} onClick={() => void refreshLive()}>Oppdater nå</Button>
         </div>
       </section>
 
       <section className="energy-topology-summary" aria-label="Oppsummering">
         <div><span>Kurser</span><strong>{visibleCircuits.length}</strong><small>{circuits.length} totalt</small></div>
-        <div><span>Enheter/utganger</span><strong>{activeNodes}</strong><small>registrerte punkter</small></div>
-        <div><span>Aktive laster</span><strong>{circuitLoads.summary.activeLoads}</strong><small>{circuitLoads.summary.loads} totalt</small></div>
-        <div><span>Måledekning</span><strong>{measuredPercent}%</strong><small>{circuitLoads.summary.unmeteredLoadCount} uten dekning</small></div>
-        <div><span>Teoretisk effekt</span><strong>{wattText(circuitLoads.summary.expectedPowerW)}</strong><small>aktive laster</small></div>
+        <div><span>Enheter/utganger</span><strong>{visibleSummary.nodes}</strong><small>i viste kurser</small></div>
+        <div><span>Aktive laster</span><strong>{visibleSummary.activeLoads}</strong><small>{visibleSummary.loads} registrert</small></div>
+        <div><span>Måledekning</span><strong>{measuredPercent}%</strong><small>{visibleSummary.unmeasuredLoads} uten dekning</small></div>
+        <div><span>Teoretisk effekt</span><strong>{wattText(visibleSummary.expectedPowerW)}</strong><small>i viste kurser</small></div>
       </section>
 
       <section className="work-card energy-topology-board">
@@ -871,12 +896,16 @@ export default function EnergyCircuitLoadsPage({ data, onReload }: { data: Modul
             <section>
               <h4>Plassering og identitet</h4>
               <div className="energy-form-two">
-                <Form.Item name="circuitNo" label="Kurs" rules={[{ required: true, message: "Velg kurs" }]}>
+                <Form.Item
+                  name="circuitNo"
+                  label="Kurs"
+                  extra={nodeEditor?.mode === "edit" ? "Ved flytting følger underenheter og tilknyttede laster med." : undefined}
+                  rules={[{ required: true, message: "Velg kurs" }]}
+                >
                   <Select
                     options={circuitOptions}
                     showSearch
                     optionFilterProp="label"
-                    disabled={nodeEditor?.mode === "edit"}
                     onChange={() => nodeForm.setFieldValue("parentNodeId", null)}
                   />
                 </Form.Item>

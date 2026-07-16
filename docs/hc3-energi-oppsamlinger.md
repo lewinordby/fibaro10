@@ -12,7 +12,9 @@ Webrapporten i Fibaro10 viser nå både:
 - Alle energi-/effektfølere som ikke er direkte med.
 - Komplett HC3-enhetsliste fra `/api/devices`, med status per enhet.
 
-Energi -> Kurs/last har i tillegg en redigerbar topologi per kurs. Hver fysisk enhet eller utgang kan lagre merke, modell, enhetstype, hoved-ID i HC3, effektmåler-ID, bryter-ID og kanal. Livevisningen leser disse ID-ene direkte fra HC3 hvert tiende sekund. Effektvelgeren viser bare HC3-enheter som rapporterer watt, og brytervelgeren viser bare enheter som rapporterer av/på-status. Serveren kontrollerer ID, egenskap og tilgjengelighet før lagring. Dersom en overordnet måler dekker en gren, summeres ikke underordnede målere en gang til i kurstotalen.
+Energi -> Kurs/last har i tillegg en redigerbar topologi per kurs. Hver fysisk enhet eller utgang kan lagre merke, modell, enhetstype, hoved-ID i HC3, effektmåler-ID, bryter-ID og kanal. Livevisningen leser disse ID-ene direkte fra HC3 hvert 15. sekund mens siden er synlig. Effektvelgeren viser bare HC3-enheter som rapporterer watt, og brytervelgeren viser bare enheter som rapporterer av/på-status. Deaktiverte eller døde HC3-enheter kan ikke velges. Serveren kontrollerer ID, egenskap, tilgjengelighet og at samme effekt- eller bryter-ID ikke brukes på flere punkter før lagring. Dersom en overordnet måler dekker en gren, summeres ikke underordnede målere en gang til i kurstotalen.
+
+En registrert enhet kan flyttes til en annen kurs. Hele grenen følger da med, inkludert underenheter, utganger og laster, slik at kursnummeret ikke blir inkonsistent. Effektprofiler normaliseres ved lagring: ukjent effekt fjerner gamle wattverdier, fast effekt fjerner gammelt minimum/maksimum, og variabel effekt validerer intervallet.
 
 En last registreres direkte på kurs eller under en enhet/utgang. Effektprofilen settes til `unknown`, `fixed` eller `variable`. Fast effekt krever én wattverdi. Variabel effekt kan ha minimum, normalverdi og maksimum; intervallet valideres både i grensesnittet og API-et.
 

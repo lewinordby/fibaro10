@@ -1739,6 +1739,7 @@ export type EnergyCircuitLoadCircuit = {
 };
 
 export type EnergyCircuitLoadsData = {
+  canManage?: boolean;
   summary: {
     circuits: number;
     loads: number;

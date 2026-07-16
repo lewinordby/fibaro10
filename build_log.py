@@ -5,8 +5,44 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1570")
+APP_BUILD = os.getenv("APP_BUILD", "1571")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1571",
+        "date": "16.07.2026",
+        "headline": "Kvalitetssikret kurs- og lastregister",
+        "title": "Registrering, filtrering og HC3-koblinger er gjennomgått fra ende til ende",
+        "description": (
+            "Build 1571 retter feil som ble funnet i en ny kritisk gjennomgang av Energi > Kurs/last. "
+            "Oppretting av enheter med kanal fungerer nå, Lukk alle forblir lukket, og alle nøkkeltall følger "
+            "søk og filtre. Serveren normaliserer effektprofiler, oppdager feil HC3-egenskaper også i livevisningen "
+            "og kan flytte en hel enhetsgren mellom kurser uten å splitte strukturen."
+        ),
+        "applications": [
+            "main.py: retter enhetsoppretting og styrker type-, HC3-, effekt- og flyttevalidering.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: retter ekspandering, filtertall, HC3-valg og lastvisning.",
+            "desktop_v2/src/styles/energy.css: forbedrer statuser og handlinger i last- og enhetshierarkiet.",
+            "desktop_v2/scripts/smoke-live.mjs: tester søk, åpne alle og lukk alle i produksjon.",
+            "tests/test_energy_topology.py: utvider regresjonstestene for oppretting, effektprofiler, grenflytting og livefeil.",
+            "docs: oppdaterer funksjonsstruktur, API-kontrakter og HC3-energidokumentasjon.",
+        ],
+        "request": "Kjør en gjennomgang og forbedre alt slik at det blir perfekt.",
+        "work_duration": "ca. 1 time",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Retter serverfeilen som hindret oppretting av nye enheter og utganger med kanal.",
+            "Lukk alle og Åpne alle har nå stabil og produksjonstestet oppførsel.",
+            "Oppsummeringstall viser bare kurser, enheter og laster i gjeldende utvalg.",
+            "Variable laster vises riktig også når bare minimum, maksimum eller normalverdi er kjent.",
+            "Inaktive, kritiske og styrbare laster merkes tydelig og konsekvent.",
+            "Døde og deaktiverte HC3-enheter kan ikke velges i registreringsskjemaet.",
+            "Samme effekt- eller bryter-ID kan ikke kobles til flere tilkoblingspunkter.",
+            "Ved kursflytting følger hele enhetsgrenen og alle tilknyttede laster med.",
+            "Livevisningen varsler dersom en valgt HC3-ID ikke faktisk leverer watt eller bryterstatus.",
+            "Automatisk HC3-oppdatering stopper når nettleserfanen ikke er synlig.",
+        ],
+    },
     {
         "version": "1",
         "build": "1570",
