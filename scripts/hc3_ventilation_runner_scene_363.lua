@@ -677,6 +677,7 @@ local function main()
   end
 
   local exhaustCurrentlyOn = isOn(FAN_AVTREKK_TAK_ID)
+  local replacementAirAcceptable = tempUte < maxInne
   local exhaustOn = false
   local exhaustReason = "passivt avtrekk er nok"
   if not exhaustTimeAllowed then
@@ -688,6 +689,9 @@ local function main()
   elseif heatNeed then
     exhaustOn = false
     exhaustReason = "varmebehov inne"
+  elseif not replacementAirAcceptable then
+    exhaustOn = false
+    exhaustReason = "avtrekk stoppet fordi ute er varmere enn inne"
   elseif maxInne > AVTREKK_MAX_INNE_ON and tempLoft > AVTREKK_LOFT_HOT_INSIDE_ON then
     exhaustOn = true
     exhaustReason = "inne varmt og loft varmt"
@@ -713,8 +717,8 @@ local function main()
   local floorsOutdoorHelpful = tempUte < (floorsMax - INNLUFT_COOL_DELTA) and tempUte > INNLUFT_UTE_MIN_ON
   local vipOutdoorWarmer = tempUte >= tempVip
   local floorsOutdoorWarmer = tempUte >= floorsMax
-  local replacementAirAcceptable = tempUte < maxInne
-  local loftHotAllowed = tempLoft > AVTREKK_LOFT_ON and tempUte > INNLUFT_UTE_HARD_MIN_ON and not heatNeed
+  local vipLoftHotAllowed = tempLoft > AVTREKK_LOFT_ON and tempUte > INNLUFT_UTE_HARD_MIN_ON and not heatNeed and not vipOutdoorWarmer
+  local floorsLoftHotAllowed = tempLoft > AVTREKK_LOFT_ON and tempUte > INNLUFT_UTE_HARD_MIN_ON and not heatNeed and not floorsOutdoorWarmer
   local vipInletStop = vipOutdoorWarmer or tempVip < VIP_INNLUFT_OFF_UNDER or (tempUte < INNLUFT_UTE_OFF_UNDER and tempVip < KJOLEBEHOV_MAX_OVER) or (heatNeed and tempUte < INNLUFT_KALD_SPERRE_UNDER)
   local floorsInletStop = floorsOutdoorWarmer or floorsMax < FLOOR_INNLUFT_OFF_UNDER or (tempUte < INNLUFT_UTE_OFF_UNDER and floorsMax < KJOLEBEHOV_MAX_OVER) or (heatNeed and tempUte < INNLUFT_KALD_SPERRE_UNDER)
 
@@ -727,7 +731,7 @@ local function main()
     if openTime and vipCoolNeed and vipOutdoorHelpful then
       vipInletOn = true
       vipInletReason = "VIP trenger kjoling og ute luft hjelper"
-    elseif openTime and loftHotAllowed and tempVip > VIP_INNLUFT_OFF_UNDER then
+    elseif openTime and vipLoftHotAllowed and tempVip > VIP_INNLUFT_OFF_UNDER then
       vipInletOn = true
       vipInletReason = "loft varmt og VIP aksepterer innblasing"
     elseif openTime and vipInletCurrentlyOn and not vipInletStop then
@@ -738,7 +742,7 @@ local function main()
     if openTime and floorsCoolNeed and floorsOutdoorHelpful then
       floorsInletOn = true
       floorsInletReason = "1.etg/2.etg trenger kjoling og ute luft hjelper"
-    elseif openTime and loftHotAllowed and floorsMax > FLOOR_INNLUFT_OFF_UNDER then
+    elseif openTime and floorsLoftHotAllowed and floorsMax > FLOOR_INNLUFT_OFF_UNDER then
       floorsInletOn = true
       floorsInletReason = "loft varmt og 1.etg/2.etg aksepterer innblasing"
     elseif openTime and floorsInletCurrentlyOn and not floorsInletStop then

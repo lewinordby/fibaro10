@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1574")
+APP_BUILD = os.getenv("APP_BUILD", "1575")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1575",
+        "date": "16.07.2026",
+        "headline": "Varm uteluft sperrer innluft",
+        "title": "Loftvarme kan ikke lenger trekke varmere uteluft inn i lokalene",
+        "description": (
+            "Ventilasjonsstyringen lot tidligere et varmt loft starte avtrekk og begge innluftsvifter selv om "
+            "uteluften var varmere enn alle innesonene. Normal avtrekksdrift krever na kaldere erstatningsluft, "
+            "og loftgrenen kontrollerer VIP og 1./2.etg hver for seg. Bare sikkerhetsgrensen for ekstrem loftvarme "
+            "kan overstyre temperatursperren."
+        ),
+        "applications": [
+            "scripts/hc3_ventilation_runner_scene_363.lua: sperrer ordinart avtrekk og innluft ved varmere uteluft.",
+            "tests/test_hc3_ventilation_scene.py: regresjonstester rekkefolgen pa sikkerhets- og temperatursperrene.",
+            "HC3 scene 363: oppdateres og tvangskjores etter deploy for a korrigere viftestatus umiddelbart.",
+        ],
+        "request": "Hvorfor gar innluftviftene na? Det er da for varmt ute.",
+        "work_duration": "ca. 25 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjoring",
+        "changes": [
+            "Fant at 32,2 grader ute ble sluppet inn fordi 30,5 grader pa loftet aktiverte en overstyrende gren.",
+            "Ordinaert takavtrekk krever na at uteluften er kaldere enn hoyeste innetemperatur.",
+            "VIP-innluft ved varmt loft krever at ute er kaldere enn VIP.",
+            "Innluft til 1./2.etg ved varmt loft krever at ute er kaldere enn varmeste etasje.",
+            "Ekstrem loftvarme over sikkerhetsgrensen beholder nodvendig overstyring.",
+        ],
+    },
     {
         "version": "1",
         "build": "1574",
