@@ -5,8 +5,32 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1576")
+APP_BUILD = os.getenv("APP_BUILD", "1577")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1577",
+        "date": "16.07.2026",
+        "headline": "Kurs 29 livekobling rettet",
+        "title": "Ugyldig Z-Wave-nodeadresse er fjernet som HC3-bryter-ID",
+        "description": (
+            "Produksjonskontrollen av Kurs/last avdekket at kurs 29 hadde legacy-nodeadressen 84 lagret som om den "
+            "var en HC3 API-enhet. Enhetsfamilien har ingen bryter, bare forelder 396, måler 397, akkumulert 398 "
+            "og realtime 399. Den ugyldige bryterkoblingen fjernes nå automatisk, mens lastens legacy-ID beholdes."
+        ),
+        "applications": [
+            "main.py: rydder kurs 29 idempotent ved oppstart.",
+            "migrations/versions/20260716_1730_add_energy_node_aggregation.sql: samme datakorreksjon i migreringen.",
+        ],
+        "request": "Produksjonsverifisering etter innføring av samlemålere i Kurs/last.",
+        "work_duration": "ca. 10 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Fjerner HC3-bryter-ID 84 fra kurs 29 fordi ID-en ikke finnes i HC3 API-et.",
+            "Beholder 399 som realtime watt og 398 som akkumulert kWh.",
+            "Oppdaterer det automatisk opprettede målepunktnavnet fra 398 til 399.",
+        ],
+    },
     {
         "version": "1",
         "build": "1576",

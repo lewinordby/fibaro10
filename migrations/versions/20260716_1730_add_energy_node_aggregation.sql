@@ -19,6 +19,15 @@ WHERE circuit_no = 29
   AND hc3_power_device_id = 398;
 
 UPDATE energy_nodes
+SET hc3_switch_device_id = NULL,
+    has_switch = FALSE,
+    name = REPLACE(name, 'HC3 398', 'HC3 399'),
+    updated_at = CURRENT_TIMESTAMP
+WHERE circuit_no = 29
+  AND hc3_power_device_id = 399
+  AND hc3_switch_device_id = 84;
+
+UPDATE energy_nodes
 SET aggregate_group_key = COALESCE(aggregate_group_key, CASE
         WHEN hc3_power_device_id IN (226, 230, 234) THEN 'heat_pumps'
         WHEN hc3_power_device_id IN (201, 208, 213, 275, 280, 286, 287, 292, 293, 299, 303, 207, 298, 143, 186, 424, 425, 440) THEN 'lighting'

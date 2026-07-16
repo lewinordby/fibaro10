@@ -22864,6 +22864,14 @@ async def ensure_energy_node_backfill(session) -> Dict[str, int]:
         if node.circuit_no == 29 and node.hc3_power_device_id == 398:
             node.hc3_power_device_id = 399
             changed = True
+        if node.circuit_no == 29 and node.hc3_power_device_id == 399:
+            if node.hc3_switch_device_id == 84:
+                node.hc3_switch_device_id = None
+                node.has_switch = False
+                changed = True
+            if node.source == "backfill" and node.name and "HC3 398" in node.name:
+                node.name = node.name.replace("HC3 398", "HC3 399")
+                changed = True
         power_id = int(node.hc3_power_device_id) if node.hc3_power_device_id is not None else None
         if power_id is not None:
             expected_energy_id = ENERGY_ACCUMULATED_ID_BY_POWER_ID.get(power_id)
