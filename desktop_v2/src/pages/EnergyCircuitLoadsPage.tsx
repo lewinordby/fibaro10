@@ -130,7 +130,7 @@ function wattText(value?: number | null): string {
   return `${decimal(Number(value), 0)} W`;
 }
 
-function loadPowerText(load: EnergyCircuitLoadItem): string {
+function loadPowerText(load: EnergyCircuitLoadItem, coveredByMeter = false): string {
   if (load.powerProfile === "variable") {
     if (load.minPowerW != null && load.maxPowerW != null) {
       return `${decimal(Number(load.minPowerW), 0)}–${decimal(Number(load.maxPowerW), 0)} W`;
@@ -138,9 +138,10 @@ function loadPowerText(load: EnergyCircuitLoadItem): string {
     if (load.minPowerW != null) return `Fra ${decimal(Number(load.minPowerW), 0)} W`;
     if (load.maxPowerW != null) return `Inntil ${decimal(Number(load.maxPowerW), 0)} W`;
     if (load.expectedPowerW != null) return wattText(load.expectedPowerW);
-    return "–";
+    return coveredByMeter ? "Målt samlet" : "–";
   }
-  return wattText(load.expectedPowerW);
+  if (load.expectedPowerW != null) return wattText(load.expectedPowerW);
+  return coveredByMeter ? "Målt samlet" : "–";
 }
 
 function loadPowerDetail(load: EnergyCircuitLoadItem): string {
@@ -250,10 +251,12 @@ function Hc3DeviceFact({ label, device }: { label: string; device?: Hc3EnergyDev
 
 function LoadLine({
   load,
+  coveredByMeter,
   onEdit,
   canManage,
 }: {
   load: EnergyCircuitLoadItem;
+  coveredByMeter?: boolean;
   onEdit: (load: EnergyCircuitLoadItem) => void;
   canManage: boolean;
 }) {
@@ -264,7 +267,7 @@ function LoadLine({
         <strong>{load.name}</strong>
         <small>{[load.loadType, load.area, loadPowerDetail(load)].filter(Boolean).join(" · ") || "Last"}</small>
       </div>
-      <span>{loadPowerText(load)}</span>
+      <span className={coveredByMeter && load.expectedPowerW == null ? "covered" : ""}>{loadPowerText(load, coveredByMeter)}</span>
       <span className="energy-topology-load-tags">
         {load.active === false ? <StatusTag>Inaktiv</StatusTag> : null}
         {load.critical ? <StatusTag tone="warn">Kritisk</StatusTag> : null}
@@ -290,6 +293,7 @@ function NodeTree({
   onAddLoad,
   onEditLoad,
   canManage,
+  inheritedMeter = false,
 }: {
   node: EnergyConnectionNode;
   live: Record<string, EnergyNodeLive>;
@@ -299,44 +303,51 @@ function NodeTree({
   onAddLoad: (node: EnergyConnectionNode) => void;
   onEditLoad: (node: EnergyConnectionNode, load: EnergyCircuitLoadItem) => void;
   canManage: boolean;
+  inheritedMeter?: boolean;
 }) {
   const current = live[String(node.id)];
   const power = current?.currentPowerW;
   const switchState = current?.switchState;
   const status = current?.status ?? node.liveStatus ?? "pending";
-  const meta = [node.manufacturer, node.model, node.endpointKey ? `kanal ${node.endpointKey}` : null].filter(Boolean).join(" · ");
+  const coveredByMeter = inheritedMeter || node.hasMeter;
+  const parallelOutputs = node.children.length > 1 && node.children.every((child) => child.nodeType === "output");
+  const identity = [node.manufacturer, node.model].filter(Boolean).join(" ");
   const ids = [
-    node.hc3DeviceId ? `enhet ${node.hc3DeviceId}` : null,
+    node.hc3DeviceId ? `HC3 ${node.hc3DeviceId}` : null,
     node.hc3PowerDeviceId ? `effekt ${node.hc3PowerDeviceId}` : null,
     node.hc3SwitchDeviceId ? `bryter ${node.hc3SwitchDeviceId}` : null,
   ].filter(Boolean).join(" · ");
+  const meta = [node.deviceType, identity, node.endpointKey ? `kanal ${node.endpointKey}` : null, ids].filter(Boolean).join(" · ");
+  const roleLabel = node.hasMeter ? "Måler" : node.nodeType === "child_device" ? "Enhet" : nodeTypeLabel(node.nodeType);
+  const statusLabel = status === "ok" ? "Live" : status === "unconfigured" ? "Ikke koblet" : status === "pending" ? "Venter" : "Sjekk";
   return (
-    <div className={`energy-topology-node depth-${Math.min(depth, 3)} ${node.active ? "" : "inactive"}`}>
+    <div className={`energy-topology-node depth-${Math.min(depth, 3)} ${parallelOutputs ? "parallel-outputs" : ""} ${node.active ? "" : "inactive"}`}>
       <div className="energy-topology-node-head">
         <span className="energy-topology-node-icon">{nodeIcon(node)}</span>
         <div className="energy-topology-node-title">
           <div>
             <strong>{node.name}</strong>
-            <StatusTag tone={node.hasMeter ? "ok" : "default"}>{nodeTypeLabel(node.nodeType)}</StatusTag>
-            {node.hasMeter ? <StatusTag tone="energy">Måler</StatusTag> : null}
-            {node.hasSwitch ? <StatusTag tone="info">Bryter</StatusTag> : null}
+            <StatusTag tone={node.hasMeter ? "energy" : node.hasSwitch ? "info" : "default"}>{roleLabel}</StatusTag>
           </div>
-          <small>{meta || node.area || "Ingen merke- eller modelldata"}</small>
-          <small>{ids || "HC3-ID er ikke koblet"}</small>
+          <small>{meta || node.area || "HC3-ID er ikke koblet"}</small>
         </div>
-        <div className="energy-topology-node-live">
-          <strong>{wattText(power)}</strong>
+        <div className={`energy-topology-node-live ${node.hasMeter ? "meter" : node.hasSwitch ? "switch" : "identity"}`}>
+          {node.hasMeter ? <strong>{wattText(power)}</strong> : null}
           <span>
             {node.hasSwitch ? (
               <StatusTag tone={switchState === true ? "ok" : switchState === false ? "default" : "warn"}>
                 <PoweroffOutlined /> {switchState === true ? "På" : switchState === false ? "Av" : "Ukjent"}
               </StatusTag>
             ) : null}
-            <StatusTag tone={status === "ok" ? "ok" : status === "unconfigured" ? "default" : "warn"}>
-              {status === "ok" ? "Live" : status === "unconfigured" ? "Ikke koblet" : status === "pending" ? "Venter" : "Sjekk"}
-            </StatusTag>
+            {!node.hasSwitch || status !== "ok" ? (
+              <StatusTag tone={status === "ok" ? "ok" : status === "unconfigured" ? "default" : "warn"}>
+                {status === "ok" && !node.hasMeter ? "Tilkoblet" : statusLabel}
+              </StatusTag>
+            ) : null}
           </span>
-          <small>{current?.checkedAt ? `lest ${checkedTime(current.checkedAt)}` : wattText(node.expectedPowerW) + " teori"}</small>
+          {node.hasMeter || node.hasSwitch ? (
+            <small>{current?.checkedAt ? `${status === "ok" ? "lest" : "sjekket"} ${checkedTime(current.checkedAt)}` : wattText(node.expectedPowerW) + " teori"}</small>
+          ) : null}
         </div>
         {canManage ? (
           <div className="energy-topology-node-actions">
@@ -356,7 +367,7 @@ function NodeTree({
       {node.topologyWarning ? <div className="energy-topology-live-error">{node.topologyWarning}</div> : null}
       {node.loads.length ? (
         <div className="energy-topology-load-list">
-          {node.loads.map((load) => <LoadLine key={load.id} load={load} canManage={canManage} onEdit={(item) => onEditLoad(node, item)} />)}
+          {node.loads.map((load) => <LoadLine key={load.id} load={load} coveredByMeter={coveredByMeter} canManage={canManage} onEdit={(item) => onEditLoad(node, item)} />)}
         </div>
       ) : null}
       {node.children.length ? (
@@ -372,6 +383,7 @@ function NodeTree({
               onAddLoad={onAddLoad}
               onEditLoad={onEditLoad}
               canManage={canManage}
+              inheritedMeter={coveredByMeter}
             />
           ))}
         </div>
@@ -438,14 +450,16 @@ function CourseCard({
       </header>
       {expanded ? (
         <div className="energy-course-card-body">
-          <div className="energy-course-coverage">
-            <span style={{ width: `${coverage}%` }} />
-            <small>{circuit.measurementDetail}</small>
-          </div>
+          {coverage < 100 ? (
+            <div className="energy-course-coverage">
+              <span style={{ width: `${coverage}%` }} />
+              <small>{circuit.measurementDetail}</small>
+            </div>
+          ) : null}
           {circuit.directLoads.length ? (
             <section className="energy-direct-loads">
               <div className="energy-topology-section-label"><ApiOutlined /> Direkte på kurs</div>
-              {circuit.directLoads.map((load) => <LoadLine key={load.id} load={load} canManage={canManage} onEdit={(item) => onEditLoad(null, item)} />)}
+              {circuit.directLoads.map((load) => <LoadLine key={load.id} load={load} coveredByMeter={Boolean(load.measuredDirect || load.fibaroMeterId)} canManage={canManage} onEdit={(item) => onEditLoad(null, item)} />)}
             </section>
           ) : null}
           {circuit.nodes.length ? (

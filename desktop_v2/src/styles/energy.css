@@ -319,25 +319,6 @@
   background: linear-gradient(90deg, var(--domain-sun2), color-mix(in srgb, var(--domain-sun2) 72%, var(--ink)));
 }
 
-/* Energy circuit/load hierarchy. */
-.energy-circuit-loads-page {
-  max-width: 1760px;
-}
-
-.energy-circuit-dashboard {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border-top: 3px solid var(--domain-energy);
-}
-
-.energy-circuit-dashboard-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 18px;
-  align-items: end;
-}
-
 .energy-circuit-eyebrow {
   display: block;
   margin-bottom: 3px;
@@ -345,130 +326,6 @@
   font-size: 11px;
   font-weight: 850;
   text-transform: uppercase;
-}
-
-.energy-circuit-dashboard h2,
-.energy-circuit-board-title h3 {
-  margin: 0;
-  color: var(--ink);
-  font-size: 18px;
-  font-weight: 780;
-  letter-spacing: 0;
-  line-height: 1.1;
-}
-
-.energy-circuit-dashboard p,
-.energy-circuit-board-title p {
-  max-width: 780px;
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.energy-circuit-measurement-total {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-  padding: 10px 12px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--domain-energy) 12%, var(--surface)), var(--panel-surface));
-  border: 1px solid color-mix(in srgb, var(--domain-energy) 22%, var(--border-panel));
-  border-radius: var(--radius-md);
-}
-
-.energy-circuit-measurement-total span,
-.energy-circuit-summary-metric span {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 850;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.energy-circuit-measurement-total strong {
-  color: var(--ink);
-  font-size: 25px;
-  font-weight: 780;
-  line-height: 1;
-}
-
-.energy-circuit-measurement-total small,
-.energy-circuit-summary-metric small {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 620;
-  line-height: 1.25;
-}
-
-.energy-circuit-total-bar,
-.energy-circuit-coverage-bar {
-  height: 6px;
-  overflow: hidden;
-  background: var(--surface-muted);
-  border-radius: var(--radius-pill);
-}
-
-.energy-circuit-total-bar span,
-.energy-circuit-coverage-bar span {
-  display: block;
-  height: 100%;
-  background: var(--domain-energy);
-  border-radius: inherit;
-}
-
-.energy-circuit-summary-strip {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.energy-circuit-summary-metric {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  padding: 9px 10px;
-  background: var(--panel-muted-bg);
-  border: 1px solid var(--border-panel-soft);
-  border-radius: var(--radius-md);
-}
-
-.energy-circuit-summary-metric strong {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 17px;
-  font-weight: 780;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-}
-
-.energy-circuit-summary-metric.ok {
-  border-color: color-mix(in srgb, var(--green) 28%, var(--border-panel));
-}
-
-.energy-circuit-summary-metric.warn {
-  border-color: color-mix(in srgb, var(--amber) 34%, var(--border-panel));
-}
-
-.energy-circuit-board {
-  overflow: hidden;
-  padding: 0;
-}
-
-.energy-circuit-board-title {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 13px 14px 11px;
-  border-bottom: 1px solid var(--border-panel-soft);
-}
-
-.energy-circuit-board-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-  align-items: center;
 }
 
 .energy-circuit-filter {
@@ -494,44 +351,6 @@
 .energy-circuit-filter button.active {
   color: var(--domain-energy);
   background: var(--surface);
-}
-
-.energy-circuit-legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 5px;
-}
-
-.energy-circuit-board-header,
-.energy-circuit-row-main {
-  display: grid;
-  grid-template-columns: 64px minmax(260px, 1fr) minmax(190px, 0.58fr) 88px 92px 148px;
-  gap: 10px;
-  align-items: center;
-}
-
-.energy-circuit-board-header {
-  padding: 8px 14px;
-  color: var(--text-label);
-  font-size: 10px;
-  font-weight: 850;
-  text-transform: uppercase;
-  background: var(--table-header-bg);
-  border-bottom: 1px solid var(--border-panel-soft);
-}
-
-.energy-circuit-row-list {
-  display: grid;
-}
-
-.energy-circuit-row {
-  border-left: 3px solid transparent;
-  border-bottom: 1px solid var(--border-panel-soft);
-}
-
-.energy-circuit-row:last-child {
-  border-bottom: 0;
 }
 
 .energy-circuit-row.tone-ok {
@@ -1381,7 +1200,7 @@
 
 .energy-course-card-body {
   display: grid;
-  gap: 10px;
+  gap: 7px;
   padding: 0 12px 12px 82px;
   background: color-mix(in srgb, var(--panel-surface) 82%, var(--surface-muted));
   border-top: 1px solid var(--border-panel-soft);
@@ -1446,18 +1265,18 @@
 
 .energy-topology-node-head {
   display: grid;
-  grid-template-columns: 34px minmax(220px, 1fr) 150px auto;
-  gap: 9px;
+  grid-template-columns: 30px minmax(220px, 1fr) 126px auto;
+  gap: 8px;
   align-items: center;
-  min-height: 58px;
-  padding: 7px 9px;
+  min-height: 50px;
+  padding: 6px 8px;
   background: color-mix(in srgb, var(--panel-muted-bg) 88%, var(--panel-surface));
 }
 
 .energy-topology-node-icon {
   display: grid;
-  width: 31px;
-  height: 31px;
+  width: 27px;
+  height: 27px;
   place-items: center;
   color: var(--domain-energy);
   background: color-mix(in srgb, var(--domain-energy) 11%, var(--surface));
@@ -1505,6 +1324,10 @@
   font-weight: 790;
 }
 
+.energy-topology-node-live.identity {
+  align-content: center;
+}
+
 .energy-topology-node-live > span {
   display: flex;
   justify-content: flex-end;
@@ -1531,11 +1354,11 @@
 
 .energy-topology-load {
   display: grid;
-  grid-template-columns: 14px minmax(220px, 1fr) 120px 150px 34px;
+  grid-template-columns: 12px minmax(180px, 1fr) 104px 132px 30px;
   gap: 8px;
   align-items: center;
-  min-height: 39px;
-  padding: 5px 8px;
+  min-height: 36px;
+  padding: 4px 7px;
   border-top: 1px solid var(--border-panel-soft);
 }
 
@@ -1577,6 +1400,12 @@
   white-space: nowrap;
 }
 
+.energy-topology-load > span:nth-child(3).covered {
+  color: var(--domain-energy);
+  font-size: 10px;
+  font-weight: 720;
+}
+
 .energy-topology-load-tags {
   display: flex;
   flex-wrap: wrap;
@@ -1589,9 +1418,44 @@
 .energy-topology-children {
   display: grid;
   gap: 5px;
-  padding: 6px 6px 6px 25px;
+  padding: 6px 6px 6px 15px;
   background: color-mix(in srgb, var(--panel-surface) 72%, var(--surface-muted));
   border-top: 1px solid var(--border-panel-soft);
+}
+
+.energy-topology-node.parallel-outputs > .energy-topology-children {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 7px;
+}
+
+.energy-topology-node.parallel-outputs > .energy-topology-children > .energy-topology-node::before {
+  display: none;
+}
+
+.energy-topology-node.parallel-outputs > .energy-topology-children .energy-topology-node-head {
+  grid-template-columns: 27px minmax(0, 1fr) 80px auto;
+}
+
+.energy-topology-node.parallel-outputs > .energy-topology-children .energy-topology-load {
+  grid-template-columns: 10px minmax(120px, 1fr) auto 28px;
+}
+
+.energy-topology-node.parallel-outputs > .energy-topology-children .energy-topology-load-tags {
+  grid-column: 2;
+  grid-row: 2;
+  justify-content: flex-start;
+}
+
+.energy-topology-node.parallel-outputs > .energy-topology-children .energy-topology-load > span:nth-child(3) {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+.energy-topology-node.parallel-outputs > .energy-topology-children .energy-topology-load > .energy-icon-action,
+.energy-topology-node.parallel-outputs > .energy-topology-children .energy-topology-load > span[aria-hidden="true"] {
+  grid-column: 4;
+  grid-row: 1 / span 2;
 }
 
 .energy-topology-children > .energy-topology-node::before {
@@ -1931,6 +1795,10 @@
   .energy-topology-node-actions {
     grid-column: 3;
     grid-row: 1 / span 2;
+  }
+
+  .energy-topology-node.parallel-outputs > .energy-topology-children {
+    grid-template-columns: 1fr;
   }
 
   .energy-node-form-grid,

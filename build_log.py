@@ -5,8 +5,36 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1572")
+APP_BUILD = os.getenv("APP_BUILD", "1573")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1573",
+        "date": "16.07.2026",
+        "headline": "Ryddigere energihierarki",
+        "title": "Måler, enhet, parallelle utganger og laster kan leses som en fysisk kobling",
+        "description": (
+            "Kurs/last er komprimert og forenklet etter visuell kontroll av kurs 6. Overflødige etiketter og "
+            "tomme liveverdier er fjernet, metadata er samlet på én linje, og parallelle reléutganger vises "
+            "ved siden av hverandre. Laster uten egen wattverdi viser nå at de måles samlet av overordnet måler."
+        ),
+        "applications": [
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: forenkler roller, livefelt og arvet måledekning.",
+            "desktop_v2/src/styles/energy.css: komprimerer treet og viser parallelle utganger i to kolonner.",
+        ],
+        "request": "Jeg synes ikke det er helt ryddig enda.",
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Målepunkt og Måler er slått sammen til én tydelig rolle.",
+            "Identitetsnoder viser Tilkoblet i stedet for tom wattverdi og redundant Live-status.",
+            "Bryterutganger viser av/på som primær liveinformasjon.",
+            "Enhetsdata og HC3-ID-er er samlet på én kompakt linje.",
+            "Parallelle utganger vises side om side på desktop og stablet på smal skjerm.",
+            "Full måledekning gjentas ikke i et ekstra grønt informasjonsfelt.",
+            "Laster under overordnet måler merkes Målt samlet.",
+        ],
+    },
     {
         "version": "1",
         "build": "1572",
