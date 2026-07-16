@@ -5,8 +5,31 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1568")
+APP_BUILD = os.getenv("APP_BUILD", "1569")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1569",
+        "date": "16.07.2026",
+        "headline": "HC3-liveverdier for alle innloggede",
+        "title": "Kurs/last skiller lesetilgang fra administrasjonstilgang",
+        "description": (
+            "Build 1569 lar alle innloggede brukere lese levende effekt og bryterstatus på energisiden. "
+            "Oppretting, redigering og søk i hele HC3-enhetslisten krever fortsatt innstillingstilgang. "
+            "Dermed vises akkurat-nå-verdiene uten gjentatte tilgangsfeil i driftsloggen."
+        ),
+        "applications": [
+            "main.py: flytter /api/energy/nodes/live fra innstillingstilgang til ordinær innlogget lesetilgang.",
+        ],
+        "request": "Vis akkurat-nå-verdier fra riktig HC3-enhet når energistrukturen er registrert.",
+        "work_duration": "ca. 10 min",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "Levende W og av/på-status er tilgjengelig for alle innloggede brukere.",
+            "Skriveoperasjoner og HC3-inventar er fortsatt beskyttet av innstillingstilgang.",
+            "Ti-sekunders oppdateringen lager ikke lenger 403-feil for vanlige lesere.",
+        ],
+    },
     {
         "version": "1",
         "build": "1568",

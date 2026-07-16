@@ -29973,9 +29973,6 @@ async def api_v2_energy_hc3_devices(
 
 @app.get("/api/energy/nodes/live")
 async def api_v2_energy_nodes_live(request: Request):
-    forbidden = require_settings_access(request)
-    if forbidden:
-        return forbidden
     async with async_session() as session:
         nodes = (
             await session.execute(
