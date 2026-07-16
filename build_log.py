@@ -5,8 +5,40 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1571")
+APP_BUILD = os.getenv("APP_BUILD", "1572")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1572",
+        "date": "16.07.2026",
+        "headline": "Kurs 6 modellert fra måler til last",
+        "title": "Strømmåler, tokomponents Nexa-relé, utganger og laster vises som ett fysisk hierarki",
+        "description": (
+            "Kurs 6 er satt opp med HC3-måler 527/530 øverst, Nexa / Everspring AN196-0 under måleren, "
+            "og separate utganger for Innluft VIP 511 og Lys loft massasje 512. Bredbåndsruteren er lagt "
+            "direkte under måleren. Alle tre laster arver måledekning fra kursmåleren uten dobbelttelling."
+        ),
+        "applications": [
+            "scripts/configure_energy_course_6.py: idempotent og validert oppsett av komplett kursstruktur.",
+            "Fibaro10-databasen: fire energipunkter og tre laster registreres på kurs 6.",
+            "docs/hc3-energi-oppsamlinger.md: dokumenterer fysisk kobling, HC3-ID-er og gjenoppretting.",
+        ],
+        "request": (
+            "Kurs nr 6 har en Z-Wave-enhet som er en strømmåler. Etter denne er det koblet en tokomponents "
+            "Nexa-bryter uten strømmåler som styrer lys på VIP-loft og innluftsvifte VIP. Sett dette opp som eksempel."
+        ),
+        "work_duration": "ca. 30 minutter",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "HC3 527 er hovedenhet og HC3 530 er eneste realtime-effektkilde for kursen.",
+            "HC3 529 dokumenteres som akkumulert kontrollmåler, men brukes ikke som liveeffekt.",
+            "Nexa / Everspring AN196-0 er lagt under kursmåleren som fysisk underenhet.",
+            "HC3 511 og 512 er modellert som separate, styrbare utganger uten egne effektmålere.",
+            "Innluftsvifte VIP og Lys loft massasje er plassert på riktig utgang.",
+            "Bredbåndsruter er plassert direkte under kursmåleren og merket som kritisk last.",
+            "Effektprofilene står som ukjent til separate, dokumenterte wattverdier foreligger.",
+        ],
+    },
     {
         "version": "1",
         "build": "1571",

@@ -63,6 +63,8 @@ Faktisk HC3-inventar viser 301 enheter totalt og 101 energi-/effektrelaterte enh
 
 VIP-vifte er byttet fra gammel dod bryter `130` til ny styringsbryter `511 123.1 Vifte VIP`. `511` brukes til styring/status i ventilasjonen, men er ikke lagt inn direkte i energioppsamling fordi enheten ikke rapporterer `power`/`energy`. Forbruket dekkes i stedet av Kurs 6-måleren sammen med `512 123.2 Lys loft massasje` og bredbandsruter.
 
+Kurs 6 er modellert som et fysisk hierarki i Kurs/last: `527/530 Kurs 6 strømmåler` dekker en direkte tilkoblet bredbåndsruter og `509 Nexa / Everspring AN196-0`. Nexa-enheten har to separate utganger uten egne målere: `511 / 123.1 Innluft VIP` og `512 / 123.2 Lys loft massasje`. Realtime-effekten leses bare fra `530`, slik at lasten ikke dobbelttelles. Oppsettet kan gjenopprettes idempotent med `python scripts/configure_energy_course_6.py --apply`.
+
 Vurdering:
 
 - Realtime oppsamling for Kurs 6 er på plass.
