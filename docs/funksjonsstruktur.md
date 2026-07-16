@@ -91,7 +91,7 @@ Koble skal ikke skrive endelig sannhet uten manuell bekreftelse.
 
 - `Status`: overblikk over forbruk og differanse.
 - `Elvia-kontroll`: kontroll mellom Elvia-import og HC3-målinger.
-- `Kurs/last`: samlet hierarki over kurser, laster og målerdekning.
+- `Kurs/last`: operativ topologi for kurs, direkte laster, Z-Wave-enheter, utganger, underenheter og laster. Merke, modell og HC3-koblinger registreres på enheten eller utgangen, og live effekt/bryterstatus leses fra HC3.
 - `Kurser`: kursoversikt.
 - `Laster`: definerte laster.
 - `Forbruk per seng`: beregnet forbruk per solseng.

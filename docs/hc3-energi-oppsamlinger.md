@@ -12,6 +12,8 @@ Webrapporten i Fibaro10 viser nå både:
 - Alle energi-/effektfølere som ikke er direkte med.
 - Komplett HC3-enhetsliste fra `/api/devices`, med status per enhet.
 
+Energi -> Kurs/last har i tillegg en redigerbar topologi per kurs. Hver fysisk enhet eller utgang kan lagre merke, modell, enhetstype, hoved-ID i HC3, effektmåler-ID, bryter-ID og kanal. Livevisningen leser disse ID-ene direkte fra HC3 hvert tiende sekund. Dersom en overordnet måler dekker en gren, summeres ikke underordnede målere en gang til i kurstotalen.
+
 Snapshot av siste HC3-inventar ligger versjonert i:
 
 ```text

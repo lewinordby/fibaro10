@@ -258,6 +258,8 @@ HC3_DOOR_SOLROOM_CLOSED_VERIFY_MINUTES = env_float("HC3_DOOR_SOLROOM_CLOSED_VERI
 HC3_DOOR_POLL_TIMEOUT_SECONDS = max(3, int(os.getenv("HC3_DOOR_POLL_TIMEOUT_SECONDS", "8")))
 HC3_SWITCH_POLL_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_SWITCH_POLL_TIMEOUT_SECONDS", "3")))
 HC3_SWITCH_STATUS_CACHE_SECONDS = max(0.0, env_float("HC3_SWITCH_STATUS_CACHE_SECONDS", "5"))
+HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS = max(5.0, env_float("HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS", "60"))
+HC3_ENERGY_LIVE_TIMEOUT_SECONDS = max(2, int(os.getenv("HC3_ENERGY_LIVE_TIMEOUT_SECONDS", "4")))
 EASYPARK_DOWNLOADER_URL = os.getenv("EASYPARK_DOWNLOADER_URL", "http://127.0.0.1:8109").rstrip("/")
 SUN2_AXIS_SNAPSHOT_ROOT = Path(
     os.getenv("SUN2_AXIS_SNAPSHOT_ROOT", os.getenv("AXIS_SNAPSHOT_DIR", "/axis_snapshots"))
@@ -1185,6 +1187,39 @@ class EnergyCircuit(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class EnergyNode(Base):
+    __tablename__ = "energy_nodes"
+    __table_args__ = (
+        UniqueConstraint(
+            "circuit_no",
+            "hc3_power_device_id",
+            "endpoint_key",
+            name="uq_energy_node_circuit_power_endpoint",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    circuit_no = Column(Integer, index=True, nullable=True)
+    parent_node_id = Column(Integer, ForeignKey("energy_nodes.id", ondelete="SET NULL"), index=True, nullable=True)
+    node_type = Column(String, index=True, nullable=True)
+    manufacturer = Column(String, index=True, nullable=True)
+    model = Column(String, index=True, nullable=True)
+    device_type = Column(String, index=True, nullable=True)
+    hc3_device_id = Column(Integer, index=True, nullable=True)
+    hc3_power_device_id = Column(Integer, index=True, nullable=True)
+    hc3_switch_device_id = Column(Integer, index=True, nullable=True)
+    endpoint_key = Column(String, index=True, nullable=True)
+    has_meter = Column(Boolean, nullable=True)
+    has_switch = Column(Boolean, nullable=True)
+    area = Column(String, index=True, nullable=True)
+    active = Column(Boolean, index=True, default=True)
+    note = Column(Text, nullable=True)
+    source = Column(String, index=True, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 class EnergyLoad(Base):
     __tablename__ = "energy_loads"
 
@@ -1195,6 +1230,7 @@ class EnergyLoad(Base):
     circuit_no = Column(Integer, index=True, nullable=True)
     expected_power_w = Column(Float, nullable=True)
     measured_direct = Column(Boolean, nullable=True)
+    energy_node_id = Column(Integer, ForeignKey("energy_nodes.id", ondelete="SET NULL"), index=True, nullable=True)
     fibaro_device_id = Column(Integer, index=True, nullable=True)
     fibaro_meter_id = Column(Integer, index=True, nullable=True)
     zwave_switch_id = Column(Integer, index=True, nullable=True)
@@ -2045,6 +2081,25 @@ class V2EnergyCircuitUpdate(BaseModel):
     note: Optional[str] = None
 
 
+class V2EnergyNodeIn(BaseModel):
+    name: Optional[str] = None
+    circuit_no: Optional[int] = None
+    parent_node_id: Optional[int] = None
+    node_type: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+    device_type: Optional[str] = None
+    hc3_device_id: Optional[int] = None
+    hc3_power_device_id: Optional[int] = None
+    hc3_switch_device_id: Optional[int] = None
+    endpoint_key: Optional[str] = None
+    has_meter: Optional[bool] = None
+    has_switch: Optional[bool] = None
+    area: Optional[str] = None
+    active: Optional[bool] = None
+    note: Optional[str] = None
+
+
 class V2EnergyLoadIn(BaseModel):
     name: Optional[str] = None
     load_type: Optional[str] = None
@@ -2052,6 +2107,7 @@ class V2EnergyLoadIn(BaseModel):
     circuit_no: Optional[int] = None
     expected_power_w: Optional[float] = None
     measured_direct: Optional[bool] = None
+    energy_node_id: Optional[int] = None
     fibaro_device_id: Optional[int] = None
     fibaro_meter_id: Optional[int] = None
     zwave_switch_id: Optional[int] = None
@@ -3398,6 +3454,7 @@ VENT_TIMELINE_DEVICES = [
     {"key": "dehumidifier_basement", "name": "Avfukter kjeller", "sample_attr": "fan_avfukter", "legacy_ids": [449]},
 ]
 hc3_switch_status_cache: Dict[int, tuple[float, Dict[str, Any]]] = {}
+hc3_energy_device_list_cache: Dict[str, Any] = {}
 
 DAY_ZOOM_OPTIONS = [
     {"key": "all", "label": "Hele døgnet", "start_hour": 0, "end_hour": 24, "ticks": [0, 6, 12, 18, 24]},
@@ -3722,9 +3779,45 @@ STARTUP_COLUMNS = {
     "energy_circuits": [
         ("is_sunbed", "BOOLEAN"),
     ],
+    "energy_loads": [
+        ("energy_node_id", "INTEGER"),
+    ],
+    "energy_nodes": [
+        ("parent_node_id", "INTEGER"),
+        ("node_type", "VARCHAR"),
+        ("manufacturer", "VARCHAR"),
+        ("model", "VARCHAR"),
+        ("device_type", "VARCHAR"),
+        ("hc3_device_id", "INTEGER"),
+        ("hc3_power_device_id", "INTEGER"),
+        ("hc3_switch_device_id", "INTEGER"),
+        ("endpoint_key", "VARCHAR"),
+        ("has_meter", "BOOLEAN"),
+        ("has_switch", "BOOLEAN"),
+    ],
 }
 
 PERFORMANCE_INDEXES = [
+    (
+        "ix_energy_loads_energy_node_id",
+        "CREATE INDEX IF NOT EXISTS ix_energy_loads_energy_node_id "
+        "ON energy_loads (energy_node_id)",
+    ),
+    (
+        "ix_energy_nodes_circuit_power",
+        "CREATE INDEX IF NOT EXISTS ix_energy_nodes_circuit_power "
+        "ON energy_nodes (circuit_no, hc3_power_device_id)",
+    ),
+    (
+        "ix_energy_nodes_parent",
+        "CREATE INDEX IF NOT EXISTS ix_energy_nodes_parent "
+        "ON energy_nodes (parent_node_id)",
+    ),
+    (
+        "ix_energy_nodes_hc3",
+        "CREATE INDEX IF NOT EXISTS ix_energy_nodes_hc3 "
+        "ON energy_nodes (hc3_device_id, hc3_power_device_id, hc3_switch_device_id)",
+    ),
     (
         "ix_sun2_sessions_stat_started",
         "CREATE INDEX IF NOT EXISTS ix_sun2_sessions_stat_started "
@@ -10464,6 +10557,150 @@ def hc3_cached_device_request(device_id: int, timeout_seconds: Optional[int] = N
     return payload
 
 
+def hc3_devices_request(timeout_seconds: Optional[int] = None) -> list[Dict[str, Any]]:
+    if not hc3_api_is_configured():
+        raise RuntimeError("HC3_BASE_URL/HC3_USER/HC3_PASS er ikke konfigurert for Fibaro10.")
+    now_monotonic = monotonic()
+    cached_at = float(hc3_energy_device_list_cache.get("cached_at") or 0)
+    cached_rows = hc3_energy_device_list_cache.get("rows")
+    if isinstance(cached_rows, list) and now_monotonic - cached_at <= HC3_ENERGY_DEVICE_LIST_CACHE_SECONDS:
+        return [dict(row) for row in cached_rows]
+    request = urllib.request.Request(f"{HC3_BASE_URL}/api/devices")
+    request.add_header("Accept", "application/json")
+    request.add_header("Authorization", hc3_basic_auth_header())
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_seconds or HC3_ENERGY_LIVE_TIMEOUT_SECONDS) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"HC3 svarte {exc.code}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"HC3 kunne ikke nås: {exc.reason}") from exc
+    if not isinstance(payload, list):
+        raise RuntimeError("HC3 svarte ikke med en enhetsliste.")
+    rows = [dict(row) for row in payload if isinstance(row, dict)]
+    hc3_energy_device_list_cache["cached_at"] = now_monotonic
+    hc3_energy_device_list_cache["rows"] = rows
+    return [dict(row) for row in rows]
+
+
+def hc3_energy_device_summary(device: Dict[str, Any]) -> Dict[str, Any]:
+    properties = device.get("properties") if isinstance(device.get("properties"), dict) else {}
+    device_type = str(device.get("type") or "")
+    base_type = str(device.get("baseType") or "")
+    raw_value = hc3_first_present(properties.get("value"), device.get("value"))
+    power_raw = hc3_first_present(properties.get("power"), device.get("power"))
+    if power_raw is None and "powermeter" in device_type.lower():
+        power_raw = raw_value
+    energy_raw = hc3_first_present(properties.get("energy"), device.get("energy"))
+    if energy_raw is None and "energymeter" in device_type.lower():
+        energy_raw = raw_value
+    current_power = float_value(power_raw) if power_raw is not None and not isinstance(power_raw, bool) else None
+    current_energy = float_value(energy_raw) if energy_raw is not None and not isinstance(energy_raw, bool) else None
+    switch_capable = "binaryswitch" in device_type.lower() or isinstance(raw_value, bool)
+    return {
+        "id": int(device.get("id")) if device.get("id") is not None else None,
+        "name": hc3_first_present(device.get("name"), properties.get("name")),
+        "type": device_type or None,
+        "baseType": base_type or None,
+        "parentId": int(device.get("parentId")) if device.get("parentId") is not None else None,
+        "roomId": int(device.get("roomID")) if device.get("roomID") is not None else None,
+        "manufacturer": hc3_first_present(
+            properties.get("manufacturer"),
+            properties.get("manufacturerName"),
+            device.get("manufacturer"),
+        ),
+        "model": hc3_first_present(
+            properties.get("model"),
+            properties.get("modelIdentifier"),
+            properties.get("productLabel"),
+            device.get("model"),
+        ),
+        "value": raw_value,
+        "powerW": current_power,
+        "energyKwh": current_energy,
+        "switchState": parse_boolish(raw_value) if switch_capable else None,
+        "hasPower": current_power is not None or "powermeter" in device_type.lower() or "power" in properties,
+        "hasEnergy": current_energy is not None or "energymeter" in device_type.lower() or "energy" in properties,
+        "hasSwitch": switch_capable,
+        "dead": parse_boolish(hc3_first_present(properties.get("dead"), device.get("dead"))),
+        "enabled": parse_boolish(hc3_first_present(properties.get("enabled"), device.get("enabled"))),
+        "visible": parse_boolish(hc3_first_present(device.get("visible"), properties.get("visible"))),
+    }
+
+
+async def hc3_energy_nodes_live(nodes: list[EnergyNode]) -> Dict[str, Any]:
+    checked_at = api_local_iso(local_now_naive())
+    if not hc3_api_is_configured():
+        return {
+            "checkedAt": checked_at,
+            "configured": False,
+            "nodes": {
+                str(node.id): {
+                    "nodeId": node.id,
+                    "status": "unavailable",
+                    "checkedAt": checked_at,
+                    "error": "HC3-tilgang er ikke konfigurert.",
+                }
+                for node in nodes
+                if node.id is not None
+            },
+        }
+
+    device_ids = {
+        int(device_id)
+        for node in nodes
+        for device_id in (node.hc3_device_id, node.hc3_power_device_id, node.hc3_switch_device_id)
+        if device_id is not None
+    }
+    semaphore = asyncio.Semaphore(8)
+
+    async def fetch_one(device_id: int) -> tuple[int, Optional[Dict[str, Any]], Optional[str]]:
+        async with semaphore:
+            try:
+                device = await asyncio.to_thread(hc3_cached_device_request, device_id, HC3_ENERGY_LIVE_TIMEOUT_SECONDS)
+                return device_id, hc3_energy_device_summary(device), None
+            except Exception as exc:
+                return device_id, None, str(exc)
+
+    fetched = await asyncio.gather(*(fetch_one(device_id) for device_id in sorted(device_ids)))
+    devices = {device_id: payload for device_id, payload, error in fetched if payload is not None and error is None}
+    errors = {device_id: error for device_id, payload, error in fetched if error}
+    live_nodes: Dict[str, Dict[str, Any]] = {}
+    for node in nodes:
+        if node.id is None:
+            continue
+        power_id = node.hc3_power_device_id or (node.hc3_device_id if node.has_meter else None)
+        switch_id = node.hc3_switch_device_id or (node.hc3_device_id if node.has_switch else None)
+        identity = devices.get(int(node.hc3_device_id)) if node.hc3_device_id is not None else None
+        power = devices.get(int(power_id)) if power_id is not None else None
+        switch = devices.get(int(switch_id)) if switch_id is not None else None
+        configured_ids = [value for value in (node.hc3_device_id, power_id, switch_id) if value is not None]
+        node_errors = [errors[int(value)] for value in configured_ids if int(value) in errors]
+        if not configured_ids:
+            status = "unconfigured"
+        elif node_errors and not any((identity, power, switch)):
+            status = "error"
+        elif node_errors:
+            status = "partial"
+        else:
+            status = "ok"
+        live_nodes[str(node.id)] = {
+            "nodeId": node.id,
+            "status": status,
+            "checkedAt": checked_at,
+            "currentPowerW": power.get("powerW") if power else None,
+            "currentEnergyKwh": power.get("energyKwh") if power else None,
+            "switchState": switch.get("switchState") if switch else None,
+            "deviceName": identity.get("name") if identity else None,
+            "powerDeviceName": power.get("name") if power else None,
+            "switchDeviceName": switch.get("name") if switch else None,
+            "dead": any(item.get("dead") is True for item in (identity, power, switch) if item),
+            "enabled": all(item.get("enabled") is not False for item in (identity, power, switch) if item),
+            "error": " · ".join(dict.fromkeys(node_errors)) if node_errors else None,
+        }
+    return {"checkedAt": checked_at, "configured": True, "nodes": live_nodes}
+
+
 def hc3_door_status_from_device(config: Dict[str, Any], device: Dict[str, Any]) -> Dict[str, Any]:
     properties = device.get("properties") if isinstance(device.get("properties"), dict) else {}
     raw_value = hc3_first_present(properties.get("value"), device.get("value"))
@@ -13418,6 +13655,9 @@ async def startup():
         await conn.execute(delete(OutdoorLightEvent).where(OutdoorLightEvent.source == "CODEX TEST"))
         await conn.execute(delete(VentilationEvent).where(VentilationEvent.source == "CODEX TEST"))
     async with async_session() as session:
+        node_backfill = await ensure_energy_node_backfill(session)
+        if node_backfill.get("created") or node_backfill.get("linked"):
+            logger.info("Energy node backfill: %s", node_backfill)
         master_rows = (
             await session.execute(
                 select(AccessKey).where(
@@ -22040,6 +22280,7 @@ def load_row_api(row: EnergyLoad) -> Dict[str, Any]:
         "circuit_no": row.circuit_no,
         "expected_power_w": row.expected_power_w,
         "measured_direct": row.measured_direct,
+        "energy_node_id": row.energy_node_id,
         "fibaro_device_id": row.fibaro_device_id,
         "fibaro_meter_id": row.fibaro_meter_id,
         "zwave_switch_id": row.zwave_switch_id,
@@ -22058,6 +22299,7 @@ def energy_load_hierarchy_item(row: EnergyLoad) -> Dict[str, Any]:
         "area": row.area,
         "expectedPowerW": row.expected_power_w,
         "measuredDirect": row.measured_direct,
+        "energyNodeId": row.energy_node_id,
         "fibaroDeviceId": row.fibaro_device_id,
         "fibaroMeterId": row.fibaro_meter_id,
         "zwaveSwitchId": row.zwave_switch_id,
@@ -22068,7 +22310,7 @@ def energy_load_hierarchy_item(row: EnergyLoad) -> Dict[str, Any]:
     }
 
 
-def build_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: list[EnergyLoad]) -> Dict[str, Any]:
+def _legacy_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: list[EnergyLoad]) -> Dict[str, Any]:
     loads_by_circuit: Dict[Optional[int], list[EnergyLoad]] = defaultdict(list)
     for load in loads:
         loads_by_circuit[load.circuit_no].append(load)
@@ -22224,6 +22466,482 @@ def build_energy_circuit_loads_payload(circuits: list[EnergyCircuit], loads: lis
 
     circuit_rows.sort(key=lambda row: (row["circuitNo"] is None, row["circuitNo"] or 9999))
     return {"summary": summary, "circuits": circuit_rows}
+
+
+def _meter_based_energy_circuit_loads_payload(
+    circuits: list[EnergyCircuit],
+    loads: list[EnergyLoad],
+    meters: Optional[list[Any]] = None,
+) -> Dict[str, Any]:
+    meters = meters or []
+    loads_by_circuit: Dict[Optional[int], list[EnergyLoad]] = defaultdict(list)
+    for load in loads:
+        loads_by_circuit[load.circuit_no].append(load)
+
+    meters_by_circuit: Dict[Optional[int], list[Any]] = defaultdict(list)
+    for meter in meters:
+        meters_by_circuit[meter.circuit_no].append(meter)
+
+    known_circuit_numbers = {row.circuit_no for row in circuits if row.circuit_no is not None}
+    circuit_rows: list[Dict[str, Any]] = []
+    summary = {
+        "circuits": len(circuits),
+        "loads": len(loads),
+        "activeLoads": sum(1 for row in loads if row.active is not False),
+        "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in loads if row.active is not False),
+        "meterCount": sum(1 for row in meters if row.active is not False),
+        "circuitMeterCount": 0,
+        "sharedMeterCount": 0,
+        "directMeterLoadCount": 0,
+        "unmeteredLoadCount": 0,
+    }
+
+    def meter_display_name(meter: Any) -> str:
+        if meter.name:
+            return meter.name
+        if meter.fibaro_meter_id is not None:
+            return f"Måler HC3 {meter.fibaro_meter_id}"
+        return "Måler uten HC3-ID"
+
+    def meter_group_type(meter: Any, group_loads: list[EnergyLoad], active_loads: list[EnergyLoad]) -> str:
+        explicit = (meter.meter_type or "").strip().lower()
+        if explicit in {"circuit", "kurs", "kursmåler", "kursmaler"}:
+            return "circuit_meter"
+        if active_loads and group_loads and len(group_loads) == len(active_loads):
+            return "circuit_meter"
+        return "meter"
+
+    def meter_group_label(group_type: str, group_loads: list[EnergyLoad]) -> str:
+        if group_type == "circuit_meter":
+            return "Kursmåler"
+        if len(group_loads) > 1:
+            return "Undermåler"
+        return "Måler"
+
+    def make_groups(
+        circuit_no: Optional[int],
+        circuit_loads: list[EnergyLoad],
+        circuit_meters: list[Any],
+    ) -> tuple[list[Dict[str, Any]], str, str, int, int, float]:
+        active_loads = [row for row in circuit_loads if row.active is not False]
+        active_meters = [row for row in circuit_meters if row.active is not False]
+        expected_power = sum(float_or_zero(row.expected_power_w) for row in active_loads)
+        loads_by_meter_id: Dict[int, list[EnergyLoad]] = defaultdict(list)
+        legacy_meter_groups: Dict[int, list[EnergyLoad]] = defaultdict(list)
+        direct_without_meter: list[EnergyLoad] = []
+        unmeasured_loads: list[EnergyLoad] = []
+        for load in active_loads:
+            if load.energy_meter_id is not None:
+                loads_by_meter_id[int(load.energy_meter_id)].append(load)
+            elif load.fibaro_meter_id is not None:
+                legacy_meter_groups[int(load.fibaro_meter_id)].append(load)
+            elif load.measured_direct:
+                direct_without_meter.append(load)
+            else:
+                unmeasured_loads.append(load)
+
+        groups: list[Dict[str, Any]] = []
+        used_legacy_meter_ids: set[int] = set()
+        for meter in sorted(active_meters, key=lambda item: (item.fibaro_meter_id is None, item.fibaro_meter_id or 0, item.name or "")):
+            group_loads = list(loads_by_meter_id.get(int(meter.id or 0), []))
+            if meter.fibaro_meter_id is not None and int(meter.fibaro_meter_id) in legacy_meter_groups:
+                group_loads.extend(legacy_meter_groups[int(meter.fibaro_meter_id)])
+                used_legacy_meter_ids.add(int(meter.fibaro_meter_id))
+            group_type = meter_group_type(meter, group_loads, active_loads)
+            if group_type == "circuit_meter":
+                summary["circuitMeterCount"] += 1
+            elif len(group_loads) > 1:
+                summary["sharedMeterCount"] += 1
+            else:
+                summary["directMeterLoadCount"] += len(group_loads)
+            groups.append(
+                {
+                    "key": f"meter-db-{meter.id}",
+                    "label": meter_display_name(meter),
+                    "type": group_type,
+                    "meterLabel": meter_group_label(group_type, group_loads),
+                    "meterDbId": meter.id,
+                    "meterId": meter.id,
+                    "fibaroMeterId": meter.fibaro_meter_id,
+                    "meterType": meter.meter_type,
+                    "area": meter.area,
+                    "active": meter.active,
+                    "note": meter.note,
+                    "loadCount": len(group_loads),
+                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in group_loads),
+                    "loads": [energy_load_hierarchy_item(row) for row in sorted(group_loads, key=lambda item: item.name or "")],
+                }
+            )
+
+        for meter_id, group_loads in sorted(legacy_meter_groups.items(), key=lambda item: (len(item[1]) == 1, item[0])):
+            if meter_id in used_legacy_meter_ids:
+                continue
+            group_type = "circuit_meter" if active_loads and len(group_loads) == len(active_loads) else "meter"
+            if group_type == "circuit_meter":
+                summary["circuitMeterCount"] += 1
+            elif len(group_loads) > 1:
+                summary["sharedMeterCount"] += 1
+            else:
+                summary["directMeterLoadCount"] += len(group_loads)
+            groups.append(
+                {
+                    "key": f"legacy-meter-{circuit_no}-{meter_id}",
+                    "label": f"Måler HC3 {meter_id}",
+                    "type": group_type,
+                    "meterLabel": "Måler fra eldre lastdata",
+                    "meterDbId": None,
+                    "meterId": None,
+                    "fibaroMeterId": meter_id,
+                    "meterType": None,
+                    "area": None,
+                    "active": True,
+                    "note": "Automatisk gruppert fra fibaro_meter_id på last.",
+                    "loadCount": len(group_loads),
+                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in group_loads),
+                    "loads": [energy_load_hierarchy_item(row) for row in sorted(group_loads, key=lambda item: item.name or "")],
+                }
+            )
+
+        if direct_without_meter:
+            summary["directMeterLoadCount"] += len(direct_without_meter)
+            groups.append(
+                {
+                    "key": "direct-without-meter-id",
+                    "label": "Målt uten registrert målepunkt",
+                    "type": "direct_meter",
+                    "meterLabel": "Direktemålt",
+                    "meterId": None,
+                    "meterDbId": None,
+                    "fibaroMeterId": None,
+                    "loadCount": len(direct_without_meter),
+                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in direct_without_meter),
+                    "loads": [energy_load_hierarchy_item(row) for row in sorted(direct_without_meter, key=lambda item: item.name or "")],
+                }
+            )
+
+        if unmeasured_loads:
+            summary["unmeteredLoadCount"] += len(unmeasured_loads)
+            groups.append(
+                {
+                    "key": "unmetered",
+                    "label": "Direkte på kurs",
+                    "type": "unmetered",
+                    "meterLabel": "Ingen måler",
+                    "meterId": None,
+                    "meterDbId": None,
+                    "fibaroMeterId": None,
+                    "loadCount": len(unmeasured_loads),
+                    "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in unmeasured_loads),
+                    "loads": [energy_load_hierarchy_item(row) for row in sorted(unmeasured_loads, key=lambda item: item.name or "")],
+                }
+            )
+
+        measured_load_count = sum(len(group["loads"]) for group in groups if group["type"] != "unmetered")
+        unmeasured_load_count = len(unmeasured_loads)
+        if not active_loads:
+            if active_meters:
+                return groups, "Måler klar", "Kurs -> måler. Legg laster under måleren når de er kartlagt.", measured_load_count, unmeasured_load_count, expected_power
+            return groups, "Ingen aktive laster", "Kurset har ingen aktive laster registrert.", measured_load_count, unmeasured_load_count, expected_power
+        if unmeasured_load_count and measured_load_count:
+            return groups, "Delvis målt", "Kurs -> målere -> laster, pluss laster direkte på kurs uten måler.", measured_load_count, unmeasured_load_count, expected_power
+        if measured_load_count:
+            return groups, "Målt", "Kurs -> måler(e) -> laster.", measured_load_count, unmeasured_load_count, expected_power
+        return groups, "Ikke målt", "Kurs -> laster direkte på kurs uten registrert energimåler.", measured_load_count, unmeasured_load_count, expected_power
+
+    for circuit in circuits:
+        circuit_loads = loads_by_circuit.get(circuit.circuit_no, [])
+        circuit_meters = meters_by_circuit.get(circuit.circuit_no, [])
+        groups, mode, detail, measured_count, unmeasured_count, expected_power = make_groups(circuit.circuit_no, circuit_loads, circuit_meters)
+        circuit_rows.append(
+            {
+                "key": f"circuit-{circuit.circuit_no}",
+                "circuitNo": circuit.circuit_no,
+                "description": circuit.description,
+                "breaker": f"{circuit.breaker_rating_a:g} A" if circuit.breaker_rating_a is not None else None,
+                "breakerType": circuit.breaker_type,
+                "status": circuit.status,
+                "isSunbed": bool(circuit.is_sunbed),
+                "note": circuit.note,
+                "loadCount": len(circuit_loads),
+                "activeLoadCount": sum(1 for row in circuit_loads if row.active is not False),
+                "expectedPowerW": expected_power,
+                "measuredLoadCount": measured_count,
+                "unmeasuredLoadCount": unmeasured_count,
+                "measurementMode": mode,
+                "measurementDetail": detail,
+                "measurementGroups": groups,
+            }
+        )
+
+    unassigned_loads = [
+        row for circuit_no, grouped_loads in loads_by_circuit.items()
+        if circuit_no is None or circuit_no not in known_circuit_numbers
+        for row in grouped_loads
+    ]
+    unassigned_meters = [
+        row for circuit_no, grouped_meters in meters_by_circuit.items()
+        if circuit_no is None or circuit_no not in known_circuit_numbers
+        for row in grouped_meters
+    ]
+    if unassigned_loads or unassigned_meters:
+        groups, mode, detail, measured_count, unmeasured_count, expected_power = make_groups(None, unassigned_loads, unassigned_meters)
+        circuit_rows.append(
+            {
+                "key": "unassigned",
+                "circuitNo": None,
+                "description": "Uten gyldig kurs",
+                "breaker": None,
+                "breakerType": None,
+                "status": "Mangler kurskobling",
+                "isSunbed": False,
+                "note": "Laster og målere som mangler kursnummer eller peker på en kurs som ikke finnes.",
+                "loadCount": len(unassigned_loads),
+                "activeLoadCount": sum(1 for row in unassigned_loads if row.active is not False),
+                "expectedPowerW": expected_power,
+                "measuredLoadCount": measured_count,
+                "unmeasuredLoadCount": unmeasured_count,
+                "measurementMode": mode,
+                "measurementDetail": detail,
+                "measurementGroups": groups,
+            }
+        )
+
+    circuit_rows.sort(key=lambda row: (row["circuitNo"] is None, row["circuitNo"] or 9999))
+    return {"summary": summary, "circuits": circuit_rows}
+
+
+def default_energy_node_name(circuit_no: Optional[int], hc3_power_device_id: Optional[int], loads: list[EnergyLoad]) -> str:
+    prefix = f"K{circuit_no} " if circuit_no is not None else ""
+    if hc3_power_device_id is not None:
+        if len(loads) == 1 and loads[0].name:
+            return f"{prefix}HC3 {hc3_power_device_id} - {loads[0].name}"
+        return f"{prefix}HC3 {hc3_power_device_id}"
+    return f"{prefix}Tilkoblingspunkt".strip()
+
+
+async def ensure_energy_node_backfill(session) -> Dict[str, int]:
+    nodes = (await session.execute(select(EnergyNode))).scalars().all()
+    node_by_id = {row.id: row for row in nodes if row.id is not None}
+    node_by_key = {
+        (row.circuit_no, int(row.hc3_power_device_id)): row
+        for row in nodes
+        if row.hc3_power_device_id is not None
+    }
+    loads = (
+        await session.execute(
+            select(EnergyLoad)
+            .where(or_(EnergyLoad.fibaro_meter_id.isnot(None), EnergyLoad.energy_node_id.isnot(None)))
+            .order_by(EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
+        )
+    ).scalars().all()
+    created = 0
+    linked = 0
+    grouped: Dict[tuple[Optional[int], int], list[EnergyLoad]] = defaultdict(list)
+    for load in loads:
+        if load.energy_node_id is not None and load.energy_node_id in node_by_id:
+            node = node_by_id[load.energy_node_id]
+            if load.fibaro_meter_id is None and node.hc3_power_device_id is not None:
+                load.fibaro_meter_id = node.hc3_power_device_id
+            continue
+        if load.fibaro_meter_id is not None:
+            grouped[(load.circuit_no, int(load.fibaro_meter_id))].append(load)
+
+    now_value = datetime.utcnow()
+    for key, group_loads in grouped.items():
+        circuit_no, hc3_power_device_id = key
+        node = node_by_key.get(key)
+        if node is None:
+            device_ids = {row.fibaro_device_id for row in group_loads if row.fibaro_device_id is not None}
+            switch_ids = {row.zwave_switch_id for row in group_loads if row.zwave_switch_id is not None}
+            node = EnergyNode(
+                name=default_energy_node_name(circuit_no, hc3_power_device_id, group_loads),
+                circuit_no=circuit_no,
+                node_type="zwave_device",
+                hc3_device_id=next(iter(device_ids)) if len(device_ids) == 1 else None,
+                hc3_power_device_id=hc3_power_device_id,
+                hc3_switch_device_id=next(iter(switch_ids)) if len(switch_ids) == 1 else None,
+                has_meter=True,
+                has_switch=bool(switch_ids),
+                active=True,
+                source="backfill",
+                created_at=now_value,
+                updated_at=now_value,
+            )
+            session.add(node)
+            await session.flush()
+            node_by_key[key] = node
+            node_by_id[node.id] = node
+            created += 1
+        for load in group_loads:
+            if load.energy_node_id != node.id:
+                load.energy_node_id = node.id
+                linked += 1
+    return {"created": created, "linked": linked}
+
+
+def build_energy_circuit_loads_payload(
+    circuits: list[EnergyCircuit],
+    loads: list[EnergyLoad],
+    nodes: Optional[list[EnergyNode]] = None,
+) -> Dict[str, Any]:
+    nodes = nodes or []
+    loads_by_circuit: Dict[Optional[int], list[EnergyLoad]] = defaultdict(list)
+    nodes_by_circuit: Dict[Optional[int], list[EnergyNode]] = defaultdict(list)
+    for load in loads:
+        loads_by_circuit[load.circuit_no].append(load)
+    for node in nodes:
+        nodes_by_circuit[node.circuit_no].append(node)
+
+    known_circuit_numbers = {row.circuit_no for row in circuits if row.circuit_no is not None}
+
+    def circuit_payload(circuit: Optional[EnergyCircuit], circuit_no: Optional[int]) -> Dict[str, Any]:
+        circuit_loads = loads_by_circuit.get(circuit_no, [])
+        circuit_nodes = nodes_by_circuit.get(circuit_no, [])
+        node_by_id = {row.id: row for row in circuit_nodes if row.id is not None}
+        loads_by_node: Dict[int, list[EnergyLoad]] = defaultdict(list)
+        direct_loads: list[EnergyLoad] = []
+        for load in circuit_loads:
+            if load.energy_node_id is not None and load.energy_node_id in node_by_id:
+                loads_by_node[int(load.energy_node_id)].append(load)
+            else:
+                direct_loads.append(load)
+
+        children_by_parent: Dict[int, list[EnergyNode]] = defaultdict(list)
+        roots: list[EnergyNode] = []
+        for node in circuit_nodes:
+            if node.parent_node_id is not None and node.parent_node_id in node_by_id and node.parent_node_id != node.id:
+                children_by_parent[int(node.parent_node_id)].append(node)
+            else:
+                roots.append(node)
+
+        def node_has_measurement(node_id: Optional[int]) -> bool:
+            seen: set[int] = set()
+            current_id = node_id
+            while current_id is not None and current_id in node_by_id and current_id not in seen:
+                seen.add(current_id)
+                current = node_by_id[current_id]
+                if current.active is not False and (current.has_meter or current.hc3_power_device_id is not None):
+                    return True
+                current_id = current.parent_node_id
+            return False
+
+        def serialize_node(node: EnergyNode, ancestors: Optional[set[int]] = None) -> Dict[str, Any]:
+            ancestors = set(ancestors or set())
+            node_id = int(node.id or 0)
+            cycle = node_id in ancestors
+            ancestors.add(node_id)
+            own_loads = sorted(loads_by_node.get(node_id, []), key=lambda item: (item.active is False, item.name or ""))
+            child_rows = [] if cycle else [
+                serialize_node(child, ancestors)
+                for child in sorted(children_by_parent.get(node_id, []), key=lambda item: (item.name or "", item.id or 0))
+            ]
+            own_expected = sum(float_or_zero(row.expected_power_w) for row in own_loads if row.active is not False)
+            total_expected = own_expected + sum(float_or_zero(row.get("expectedPowerW")) for row in child_rows)
+            active_own_loads = sum(1 for row in own_loads if row.active is not False)
+            total_active_loads = active_own_loads + sum(int(row.get("activeLoadCount") or 0) for row in child_rows)
+            return {
+                "id": node.id,
+                "name": node.name,
+                "circuitNo": node.circuit_no,
+                "parentNodeId": node.parent_node_id,
+                "nodeType": node.node_type or "zwave_device",
+                "manufacturer": node.manufacturer,
+                "model": node.model,
+                "deviceType": node.device_type,
+                "hc3DeviceId": node.hc3_device_id,
+                "hc3PowerDeviceId": node.hc3_power_device_id,
+                "hc3SwitchDeviceId": node.hc3_switch_device_id,
+                "endpointKey": node.endpoint_key,
+                "hasMeter": bool(node.has_meter or node.hc3_power_device_id is not None),
+                "hasSwitch": bool(node.has_switch or node.hc3_switch_device_id is not None),
+                "area": node.area,
+                "active": node.active is not False,
+                "note": node.note,
+                "loadCount": len(own_loads),
+                "activeLoadCount": total_active_loads,
+                "expectedPowerW": total_expected,
+                "currentPowerW": None,
+                "switchState": None,
+                "liveStatus": "pending" if node.active is not False else "inactive",
+                "liveCheckedAt": None,
+                "topologyWarning": "Syklus i tilkoblingsstrukturen" if cycle else None,
+                "loads": [energy_load_hierarchy_item(row) for row in own_loads],
+                "children": child_rows,
+            }
+
+        active_loads = [row for row in circuit_loads if row.active is not False]
+        measured_load_count = sum(
+            1
+            for row in active_loads
+            if node_has_measurement(row.energy_node_id) or row.fibaro_meter_id is not None or bool(row.measured_direct)
+        )
+        unmeasured_load_count = max(0, len(active_loads) - measured_load_count)
+        expected_power = sum(float_or_zero(row.expected_power_w) for row in active_loads)
+        node_rows = [serialize_node(row) for row in sorted(roots, key=lambda item: (item.name or "", item.id or 0))]
+        if not active_loads and circuit_nodes:
+            measurement_mode = "Enheter klare"
+            measurement_detail = "Kurset har registrerte enheter, men ingen aktive laster."
+        elif not active_loads:
+            measurement_mode = "Ikke kartlagt"
+            measurement_detail = "Kurset har ingen registrerte enheter eller aktive laster."
+        elif measured_load_count == len(active_loads):
+            measurement_mode = "Målt"
+            measurement_detail = "Alle aktive laster ligger på eller under et målepunkt."
+        elif measured_load_count:
+            measurement_mode = "Delvis målt"
+            measurement_detail = f"{measured_load_count} av {len(active_loads)} aktive laster har måledekning."
+        else:
+            measurement_mode = "Ikke målt"
+            measurement_detail = "Aktive laster mangler målepunkt i strukturen."
+        return {
+            "key": f"circuit-{circuit_no}" if circuit_no is not None else "unassigned",
+            "circuitNo": circuit_no,
+            "description": circuit.description if circuit else "Uten gyldig kurs",
+            "breaker": f"{circuit.breaker_rating_a:g} A" if circuit and circuit.breaker_rating_a is not None else None,
+            "breakerType": circuit.breaker_type if circuit else None,
+            "status": circuit.status if circuit else "Mangler kurskobling",
+            "isSunbed": bool(circuit.is_sunbed) if circuit else False,
+            "note": circuit.note if circuit else "Laster eller enheter mangler gyldig kurskobling.",
+            "loadCount": len(circuit_loads),
+            "activeLoadCount": len(active_loads),
+            "nodeCount": len(circuit_nodes),
+            "expectedPowerW": expected_power,
+            "currentPowerW": None,
+            "measuredLoadCount": measured_load_count,
+            "unmeasuredLoadCount": unmeasured_load_count,
+            "measurementMode": measurement_mode,
+            "measurementDetail": measurement_detail,
+            "directLoads": [energy_load_hierarchy_item(row) for row in sorted(direct_loads, key=lambda item: (item.active is False, item.name or ""))],
+            "nodes": node_rows,
+        }
+
+    circuit_rows = [circuit_payload(row, row.circuit_no) for row in circuits]
+    has_unassigned = any(key is None or key not in known_circuit_numbers for key in set(loads_by_circuit) | set(nodes_by_circuit))
+    if has_unassigned:
+        orphan_loads = [row for key, values in loads_by_circuit.items() if key is None or key not in known_circuit_numbers for row in values]
+        orphan_nodes = [row for key, values in nodes_by_circuit.items() if key is None or key not in known_circuit_numbers for row in values]
+        loads_by_circuit[None] = orphan_loads
+        nodes_by_circuit[None] = orphan_nodes
+        circuit_rows.append(circuit_payload(None, None))
+
+    circuit_rows.sort(key=lambda row: (row["circuitNo"] is None, row["circuitNo"] or 9999))
+    active_load_count = sum(1 for row in loads if row.active is not False)
+    measured_load_count = sum(int(row["measuredLoadCount"]) for row in circuit_rows)
+    return {
+        "summary": {
+            "circuits": len(circuits),
+            "loads": len(loads),
+            "activeLoads": active_load_count,
+            "nodes": len(nodes),
+            "expectedPowerW": sum(float_or_zero(row.expected_power_w) for row in loads if row.active is not False),
+            "measuredLoadCount": measured_load_count,
+            "unmeteredLoadCount": max(0, active_load_count - measured_load_count),
+            "circuitMeterCount": sum(1 for row in circuit_rows if row["activeLoadCount"] and row["unmeasuredLoadCount"] == 0),
+            "sharedMeterCount": sum(1 for row in nodes if row.active is not False and row.has_meter),
+            "directMeterLoadCount": sum(1 for row in loads if row.active is not False and row.measured_direct),
+        },
+        "circuits": circuit_rows,
+    }
 
 
 ADMIN_TASK_SEVERITY_SORT = {
@@ -27014,7 +27732,12 @@ async def api_v2_module(request: Request, module: str, view: Optional[str] = Non
                             select(EnergyLoad).order_by(EnergyLoad.active.desc(), EnergyLoad.circuit_no.asc(), EnergyLoad.name.asc())
                         )
                     ).scalars().all()
-                    circuit_loads = build_energy_circuit_loads_payload(all_circuits, hierarchy_loads)
+                    hierarchy_nodes = (
+                        await session.execute(
+                            select(EnergyNode).order_by(EnergyNode.active.desc(), EnergyNode.circuit_no.asc(), EnergyNode.parent_node_id.asc(), EnergyNode.name.asc())
+                        )
+                    ).scalars().all()
+                    circuit_loads = build_energy_circuit_loads_payload(all_circuits, hierarchy_loads, hierarchy_nodes)
                     circuit_summary = circuit_loads["summary"]
                     return {
                         "title": "Energi · kurs/last",
@@ -29016,6 +29739,254 @@ async def api_v2_energy_circuit_update(request: Request, circuit_no: int, data: 
     return {"status": "ok", "message": f"Kurs {circuit_no} er lagret."}
 
 
+async def validate_energy_node_parent(
+    session,
+    circuit_no: Optional[int],
+    parent_node_id: Optional[int],
+    node_id: Optional[int] = None,
+) -> Optional[EnergyNode]:
+    if parent_node_id is None:
+        return None
+    parent = await session.get(EnergyNode, int(parent_node_id))
+    if not parent:
+        raise HTTPException(status_code=404, detail="Overordnet enhet finnes ikke.")
+    if parent.circuit_no != circuit_no:
+        raise HTTPException(status_code=400, detail="Overordnet enhet må ligge på samme kurs.")
+    seen: set[int] = set()
+    current = parent
+    while current is not None and current.id is not None and current.id not in seen:
+        if node_id is not None and int(current.id) == int(node_id):
+            raise HTTPException(status_code=400, detail="En enhet kan ikke ligge under seg selv eller en av sine underenheter.")
+        seen.add(int(current.id))
+        current = await session.get(EnergyNode, int(current.parent_node_id)) if current.parent_node_id is not None else None
+    return parent
+
+
+def clean_energy_node_values(values: Dict[str, Any]) -> Dict[str, Any]:
+    cleaned = dict(values)
+    text_fields = {"name", "node_type", "manufacturer", "model", "device_type", "endpoint_key", "area", "note"}
+    number_fields = {"circuit_no", "parent_node_id", "hc3_device_id", "hc3_power_device_id", "hc3_switch_device_id"}
+    for key in text_fields:
+        if key in cleaned:
+            cleaned[key] = str(cleaned.get(key) or "").strip() or None
+    for key in number_fields:
+        if cleaned.get(key) is not None:
+            cleaned[key] = int(cleaned[key])
+    if cleaned.get("hc3_power_device_id") is not None and "has_meter" not in cleaned:
+        cleaned["has_meter"] = True
+    if cleaned.get("hc3_switch_device_id") is not None and "has_switch" not in cleaned:
+        cleaned["has_switch"] = True
+    return cleaned
+
+
+async def find_or_create_energy_node_for_load(session, values: Dict[str, Any]) -> Optional[EnergyNode]:
+    if "energy_node_id" in values:
+        energy_node_id = values.get("energy_node_id")
+        if energy_node_id is None:
+            return None
+        node = await session.get(EnergyNode, int(energy_node_id))
+        if not node:
+            raise HTTPException(status_code=404, detail="Tilkoblingspunkt ikke funnet.")
+        if values.get("circuit_no") is not None and node.circuit_no is not None and int(values["circuit_no"]) != int(node.circuit_no):
+            raise HTTPException(status_code=400, detail="Last og tilkoblingspunkt må ligge på samme kurs.")
+        values["circuit_no"] = node.circuit_no
+        values["measured_direct"] = False
+        return node
+
+    legacy_power_id = values.get("fibaro_meter_id")
+    if legacy_power_id is None:
+        return None
+    circuit_no = values.get("circuit_no")
+    existing = (
+        await session.execute(
+            select(EnergyNode)
+            .where(EnergyNode.circuit_no == circuit_no)
+            .where(EnergyNode.hc3_power_device_id == int(legacy_power_id))
+            .limit(1)
+        )
+    ).scalars().first()
+    if existing:
+        values["energy_node_id"] = existing.id
+        values["measured_direct"] = False
+        return existing
+    now_value = datetime.utcnow()
+    node = EnergyNode(
+        name=default_energy_node_name(circuit_no, int(legacy_power_id), []),
+        circuit_no=circuit_no,
+        node_type="zwave_device",
+        hc3_device_id=values.get("fibaro_device_id"),
+        hc3_power_device_id=int(legacy_power_id),
+        hc3_switch_device_id=values.get("zwave_switch_id"),
+        has_meter=True,
+        has_switch=values.get("zwave_switch_id") is not None,
+        active=True,
+        source="load-api-backfill",
+        created_at=now_value,
+        updated_at=now_value,
+    )
+    session.add(node)
+    await session.flush()
+    values["energy_node_id"] = node.id
+    values["measured_direct"] = False
+    return node
+
+
+@app.post("/api/energy/nodes")
+async def api_v2_energy_node_create(request: Request, data: V2EnergyNodeIn):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    values = clean_energy_node_values(data.dict(exclude_unset=True))
+    circuit_no = values.get("circuit_no")
+    if circuit_no is None:
+        raise HTTPException(status_code=400, detail="Kurs må fylles ut.")
+    name = str(values.get("name") or "").strip()
+    if not name:
+        name = default_energy_node_name(circuit_no, values.get("hc3_power_device_id") or values.get("hc3_device_id"), [])
+    now_value = datetime.utcnow()
+    async with async_session() as session:
+        await validate_energy_node_parent(session, circuit_no, values.get("parent_node_id"))
+        power_id = values.get("hc3_power_device_id")
+        endpoint_key = values.get("endpoint_key")
+        if power_id is not None:
+            duplicate = (
+                await session.execute(
+                    select(EnergyNode)
+                    .where(EnergyNode.circuit_no == circuit_no)
+                    .where(EnergyNode.hc3_power_device_id == int(power_id))
+                    .where(EnergyNode.endpoint_key == endpoint_key)
+                    .limit(1)
+                )
+            ).scalars().first()
+            if duplicate:
+                raise HTTPException(status_code=409, detail=f"Tilkoblingspunktet {duplicate.name} bruker allerede denne HC3-effekt-ID-en.")
+        node = EnergyNode(
+            name=name,
+            circuit_no=circuit_no,
+            parent_node_id=values.get("parent_node_id"),
+            node_type=str(values.get("node_type") or "zwave_point").strip() or "zwave_point",
+            manufacturer=values.get("manufacturer"),
+            model=values.get("model"),
+            device_type=values.get("device_type"),
+            hc3_device_id=values.get("hc3_device_id"),
+            hc3_power_device_id=power_id,
+            hc3_switch_device_id=values.get("hc3_switch_device_id"),
+            endpoint_key=endpoint_key,
+            has_meter=values.get("has_meter") if values.get("has_meter") is not None else power_id is not None,
+            has_switch=values.get("has_switch") if values.get("has_switch") is not None else values.get("hc3_switch_device_id") is not None,
+            area=values.get("area"),
+            active=values.get("active") is not False,
+            note=values.get("note"),
+            source="manual",
+            created_at=now_value,
+            updated_at=now_value,
+        )
+        session.add(node)
+        await session.commit()
+        await session.refresh(node)
+    return {"status": "ok", "message": f"{node.name} er opprettet.", "id": node.id}
+
+
+@app.patch("/api/energy/nodes/{node_id}")
+async def api_v2_energy_node_update(request: Request, node_id: int, data: V2EnergyNodeIn):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    values = clean_energy_node_values(data.dict(exclude_unset=True))
+    async with async_session() as session:
+        node = await session.get(EnergyNode, node_id)
+        if not node:
+            raise HTTPException(status_code=404, detail="Tilkoblingspunkt ikke funnet.")
+        if "circuit_no" in values and values.get("circuit_no") != node.circuit_no:
+            raise HTTPException(
+                status_code=400,
+                detail="En registrert enhet kan ikke flyttes mellom kurser. Opprett den på nytt på riktig kurs.",
+            )
+        circuit_no = values.get("circuit_no", node.circuit_no)
+        parent_node_id = values.get("parent_node_id", node.parent_node_id)
+        await validate_energy_node_parent(session, circuit_no, parent_node_id, node_id=node_id)
+        if "name" in values and not values.get("name"):
+            raise HTTPException(status_code=400, detail="Navn må fylles ut.")
+        power_id = values.get("hc3_power_device_id", node.hc3_power_device_id)
+        endpoint_key = values.get("endpoint_key", node.endpoint_key)
+        if power_id is not None:
+            duplicate = (
+                await session.execute(
+                    select(EnergyNode)
+                    .where(EnergyNode.id != node_id)
+                    .where(EnergyNode.circuit_no == circuit_no)
+                    .where(EnergyNode.hc3_power_device_id == int(power_id))
+                    .where(EnergyNode.endpoint_key == endpoint_key)
+                    .limit(1)
+                )
+            ).scalars().first()
+            if duplicate:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Tilkoblingspunktet {duplicate.name} bruker allerede denne HC3-effekt-ID-en.",
+                )
+        for key, value in values.items():
+            setattr(node, key, value)
+        node.updated_at = datetime.utcnow()
+        await session.commit()
+    return {"status": "ok", "message": f"{node.name} er lagret.", "id": node.id}
+
+
+@app.get("/api/energy/hc3-devices")
+async def api_v2_energy_hc3_devices(
+    request: Request,
+    q: Optional[str] = Query(None),
+    limit: int = Query(500, ge=1, le=1000),
+):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    source = "HC3 live"
+    error = None
+    try:
+        devices = await asyncio.to_thread(hc3_devices_request, HC3_ENERGY_LIVE_TIMEOUT_SECONDS)
+        rows = [hc3_energy_device_summary(device) for device in devices]
+    except Exception as exc:
+        source = "Lagret HC3-inventar"
+        error = str(exc)
+        snapshot_path = Path(__file__).resolve().parent / "docs" / "hc3-energy-inventory-current.json"
+        rows = []
+        if snapshot_path.exists():
+            try:
+                snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+                rows = [hc3_energy_device_summary(device) for device in snapshot.get("all_devices") or [] if isinstance(device, dict)]
+            except Exception as snapshot_exc:
+                error = f"{error} · inventar kunne ikke leses: {snapshot_exc}"
+    query = str(q or "").strip().lower()
+    if query:
+        rows = [
+            row
+            for row in rows
+            if query in " ".join(
+                str(row.get(key) or "").lower()
+                for key in ("id", "name", "type", "baseType", "manufacturer", "model", "parentId")
+            )
+        ]
+    rows.sort(key=lambda row: (row.get("dead") is True, row.get("enabled") is False, str(row.get("name") or ""), row.get("id") or 0))
+    return {"source": source, "error": error, "count": len(rows), "devices": rows[:limit]}
+
+
+@app.get("/api/energy/nodes/live")
+async def api_v2_energy_nodes_live(request: Request):
+    forbidden = require_settings_access(request)
+    if forbidden:
+        return forbidden
+    async with async_session() as session:
+        nodes = (
+            await session.execute(
+                select(EnergyNode)
+                .where(EnergyNode.active.isnot(False))
+                .order_by(EnergyNode.circuit_no.asc(), EnergyNode.parent_node_id.asc(), EnergyNode.name.asc())
+            )
+        ).scalars().all()
+    return await hc3_energy_nodes_live(nodes)
+
+
 @app.post("/api/energy/loads")
 async def api_v2_energy_load_create(request: Request, data: V2EnergyLoadIn):
     forbidden = require_settings_access(request)
@@ -29026,16 +29997,17 @@ async def api_v2_energy_load_create(request: Request, data: V2EnergyLoadIn):
     if not name:
         raise HTTPException(status_code=400, detail="Navn må fylles ut.")
     now_value = datetime.utcnow()
-    load = EnergyLoad(name=name, created_at=now_value, updated_at=now_value, source="manual")
-    for key, value in values.items():
-        if key == "name":
-            continue
-        if isinstance(value, str):
-            value = value.strip() or None
-        setattr(load, key, value)
-    if load.active is None:
-        load.active = True
     async with async_session() as session:
+        await find_or_create_energy_node_for_load(session, values)
+        load = EnergyLoad(name=name, created_at=now_value, updated_at=now_value, source="manual")
+        for key, value in values.items():
+            if key == "name":
+                continue
+            if isinstance(value, str):
+                value = value.strip() or None
+            setattr(load, key, value)
+        if load.active is None:
+            load.active = True
         session.add(load)
         await session.commit()
         await session.refresh(load)
@@ -29054,6 +30026,7 @@ async def api_v2_energy_load_update(request: Request, load_id: int, data: V2Ener
             raise HTTPException(status_code=404, detail="Last ikke funnet")
         if "name" in values and not str(values.get("name") or "").strip():
             raise HTTPException(status_code=400, detail="Navn må fylles ut.")
+        await find_or_create_energy_node_for_load(session, values)
         for key, value in values.items():
             if isinstance(value, str):
                 value = value.strip() or None

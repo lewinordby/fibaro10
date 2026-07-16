@@ -1658,6 +1658,7 @@ export type EnergyCircuitLoadItem = {
   area?: string | null;
   expectedPowerW?: number | null;
   measuredDirect?: boolean | null;
+  energyNodeId?: number | null;
   fibaroDeviceId?: number | null;
   fibaroMeterId?: number | null;
   zwaveSwitchId?: number | null;
@@ -1667,14 +1668,49 @@ export type EnergyCircuitLoadItem = {
   note?: string | null;
 };
 
-export type EnergyCircuitMeterGroup = {
-  key: string;
-  label: string;
-  type: "circuit_meter" | "shared_meter" | "direct_meter" | "unmetered";
-  meterId?: number | null;
+export type EnergyNodeLive = {
+  nodeId: number;
+  status: "ok" | "partial" | "error" | "unconfigured" | "unavailable" | string;
+  checkedAt?: string | null;
+  currentPowerW?: number | null;
+  currentEnergyKwh?: number | null;
+  switchState?: boolean | null;
+  deviceName?: string | null;
+  powerDeviceName?: string | null;
+  switchDeviceName?: string | null;
+  dead?: boolean | null;
+  enabled?: boolean | null;
+  error?: string | null;
+};
+
+export type EnergyConnectionNode = {
+  id: number;
+  name: string;
+  circuitNo?: number | null;
+  parentNodeId?: number | null;
+  nodeType: string;
+  manufacturer?: string | null;
+  model?: string | null;
+  deviceType?: string | null;
+  hc3DeviceId?: number | null;
+  hc3PowerDeviceId?: number | null;
+  hc3SwitchDeviceId?: number | null;
+  endpointKey?: string | null;
+  hasMeter: boolean;
+  hasSwitch: boolean;
+  area?: string | null;
+  active: boolean;
+  note?: string | null;
   loadCount: number;
+  activeLoadCount: number;
   expectedPowerW: number;
+  currentPowerW?: number | null;
+  switchState?: boolean | null;
+  liveStatus?: string | null;
+  liveCheckedAt?: string | null;
+  topologyWarning?: string | null;
   loads: EnergyCircuitLoadItem[];
+  children: EnergyConnectionNode[];
 };
 
 export type EnergyCircuitLoadCircuit = {
@@ -1688,12 +1724,15 @@ export type EnergyCircuitLoadCircuit = {
   note?: string | null;
   loadCount: number;
   activeLoadCount: number;
+  nodeCount: number;
   expectedPowerW: number;
+  currentPowerW?: number | null;
   measuredLoadCount: number;
   unmeasuredLoadCount: number;
   measurementMode: string;
   measurementDetail: string;
-  measurementGroups: EnergyCircuitMeterGroup[];
+  directLoads: EnergyCircuitLoadItem[];
+  nodes: EnergyConnectionNode[];
 };
 
 export type EnergyCircuitLoadsData = {
@@ -1701,7 +1740,9 @@ export type EnergyCircuitLoadsData = {
     circuits: number;
     loads: number;
     activeLoads: number;
+    nodes: number;
     expectedPowerW: number;
+    measuredLoadCount: number;
     circuitMeterCount: number;
     sharedMeterCount: number;
     directMeterLoadCount: number;
@@ -1717,6 +1758,7 @@ export type EnergyLoadCreateInput = {
   circuit_no?: number | null;
   expected_power_w?: number | null;
   measured_direct?: boolean | null;
+  energy_node_id?: number | null;
   fibaro_device_id?: number | null;
   fibaro_meter_id?: number | null;
   zwave_switch_id?: number | null;
@@ -1727,6 +1769,59 @@ export type EnergyLoadCreateInput = {
 };
 
 export type EnergyLoadUpdateInput = EnergyLoadCreateInput;
+
+export type EnergyNodeInput = {
+  name: string;
+  circuit_no: number;
+  parent_node_id?: number | null;
+  node_type?: string | null;
+  manufacturer?: string | null;
+  model?: string | null;
+  device_type?: string | null;
+  hc3_device_id?: number | null;
+  hc3_power_device_id?: number | null;
+  hc3_switch_device_id?: number | null;
+  endpoint_key?: string | null;
+  has_meter?: boolean | null;
+  has_switch?: boolean | null;
+  area?: string | null;
+  active?: boolean | null;
+  note?: string | null;
+};
+
+export type Hc3EnergyDevice = {
+  id: number;
+  name?: string | null;
+  type?: string | null;
+  baseType?: string | null;
+  parentId?: number | null;
+  roomId?: number | null;
+  manufacturer?: string | null;
+  model?: string | null;
+  value?: unknown;
+  powerW?: number | null;
+  energyKwh?: number | null;
+  switchState?: boolean | null;
+  hasPower?: boolean;
+  hasEnergy?: boolean;
+  hasSwitch?: boolean;
+  dead?: boolean | null;
+  enabled?: boolean | null;
+  visible?: boolean | null;
+};
+
+export type Hc3EnergyDevicesResponse = {
+  source: string;
+  error?: string | null;
+  count: number;
+  devices: Hc3EnergyDevice[];
+};
+
+export type EnergyNodesLiveResponse = {
+  checkedAt: string;
+  configured: boolean;
+  nodes: Record<string, EnergyNodeLive>;
+};
 
 export type ModuleResponse = {
   title: string;
@@ -2076,6 +2171,60 @@ export async function updateEnergyLoad(loadId: number, values: EnergyLoadUpdateI
     throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
   }
   return payload ?? {};
+}
+
+export async function createEnergyNode(values: EnergyNodeInput): Promise<JsonRecord> {
+  const response = await fetch("/api/energy/nodes", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
+}
+
+export async function updateEnergyNode(nodeId: number, values: EnergyNodeInput): Promise<JsonRecord> {
+  const response = await fetch(`/api/energy/nodes/${encodeURIComponent(nodeId)}`, {
+    method: "PATCH",
+    credentials: "same-origin",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(values),
+  });
+  const payload = (await response.json().catch(() => null)) as JsonRecord | null;
+  if (!response.ok) {
+    throw new Error(String(payload?.message || payload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? {};
+}
+
+export async function fetchHc3EnergyDevices(): Promise<Hc3EnergyDevicesResponse> {
+  const response = await fetch("/api/energy/hc3-devices", {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  const payload = (await response.json().catch(() => null)) as Hc3EnergyDevicesResponse | null;
+  if (!response.ok) {
+    const errorPayload = payload as unknown as JsonRecord | null;
+    throw new Error(String(errorPayload?.message || errorPayload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? { source: "HC3", count: 0, devices: [] };
+}
+
+export async function fetchEnergyNodesLive(): Promise<EnergyNodesLiveResponse> {
+  const response = await fetch("/api/energy/nodes/live", {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  const payload = (await response.json().catch(() => null)) as EnergyNodesLiveResponse | null;
+  if (!response.ok) {
+    const errorPayload = payload as unknown as JsonRecord | null;
+    throw new Error(String(errorPayload?.message || errorPayload?.detail || `${response.status} ${response.statusText}`));
+  }
+  return payload ?? { checkedAt: "", configured: false, nodes: {} };
 }
 
 export async function updateKobleCandidate(candidateId: number, values: JsonRecord): Promise<JsonRecord> {

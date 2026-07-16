@@ -5,8 +5,44 @@ from api_types import BuildLogEntryPayload, BuildLogListRowPayload, BuildLogTabl
 
 
 APP_VERSION = os.getenv("APP_VERSION", "1")
-APP_BUILD = os.getenv("APP_BUILD", "1566")
+APP_BUILD = os.getenv("APP_BUILD", "1567")
 BUILD_LOG = [
+    {
+        "version": "1",
+        "build": "1567",
+        "date": "16.07.2026",
+        "headline": "Komplett energi-topologi",
+        "title": "Kurs/last modellerer Z-Wave-enheter, utganger og laster med levende HC3-verdier",
+        "description": (
+            "Build 1567 bygger Energi > Kurs/last om til en komplett elektrisk struktur. En kurs kan ha "
+            "direkte laster og fysiske Z-Wave-enheter med flere utganger eller underenheter. Merke, modell, "
+            "enhetstype og separate HC3-ID-er for hovedenhet, effekt og bryter lagres på riktig nivå. "
+            "Fibaro10 leser valgt HC3-enhet hvert tiende sekund og viser effekt og av/på-status direkte i kurskortet."
+        ),
+        "applications": [
+            "main.py: ny energy_nodes-modell, automatisk migrering av eksisterende målerkoblinger og validering av hierarkiet.",
+            "main.py: nye API-er for enheter, utganger, HC3-enhetsliste og levende effekt-/bryterstatus.",
+            "desktop_v2/src/api.ts: komplette typer og klientkall for energitopologi og HC3-liveverdier.",
+            "desktop_v2/src/pages/EnergyCircuitLoadsPage.tsx: nye kurskort og separate arbeidsflyter for enhet, utgang og last.",
+            "desktop_v2/src/styles/energy.css: responsiv og tematilpasset visning av strømstruktur og registreringsskjema.",
+            "tests/test_energy_topology.py: tester målearv, HC3-effektmåler og kombinert bryter/måler.",
+            "migrations/versions/20260716_0830_add_energy_nodes.sql: produksjonsmigrering for ny struktur.",
+        ],
+        "request": (
+            "Lag komplette grensesnitt for den godkjente kursvisningen. Det skal være mulig å registrere merke, "
+            "type, HC3-ID og enhet, og løsningen skal hente akkurat-nå-verdier fra riktig HC3-enhet."
+        ),
+        "work_duration": "ca. 2 timer",
+        "credits_used": "Ikke tilgjengelig fra lokal Codex-kjøring",
+        "changes": [
+            "En kurs støtter direkte laster, Z-Wave-enheter, flere utganger og vilkårlig nøstede underenheter.",
+            "Enhetsskjemaet har merke, modell, type, område, kanal og separate HC3-koblinger.",
+            "HC3-velgeren bruker levende enhetsliste og faller tilbake til siste lagrede inventar ved driftsfeil.",
+            "Effekt og bryterstatus oppdateres hvert tiende sekund uten å laste hele modulsiden på nytt.",
+            "Kurseffekt summeres uten dobbeltelling når både overordnet måler og underordnede målere finnes.",
+            "Eksisterende lastdata med gamle HC3-måler-ID-er backfylles automatisk til den nye modellen.",
+        ],
+    },
     {
         "version": "1",
         "build": "1566",

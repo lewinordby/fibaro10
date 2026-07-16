@@ -1,6 +1,6 @@
 # API-kontrakter
 
-Oppdatert 10.07.2026.
+Oppdatert 16.07.2026.
 
 Dette prosjektet har to tydelige kontraktflater mellom backend og desktop-frontend:
 
@@ -21,6 +21,10 @@ Når et API-endepunkt endrer struktur, skal begge filene oppdateres i samme buil
 | `GET /api/import-status/{jobName}` | importstatuspayload | `ImportStatusDetail` | Detaljside for datakilde. |
 | `GET /api/status/comparison` | sammenligningspayload | `StatusComparisonResponse` | Akkumulert dag/uke/måned-sammenligning. |
 | `GET /api/*/year-comparison` | årssammenligning | egne year comparison-typer | Omsetning, parkering og soling. |
+| `GET /api/energy/hc3-devices` | HC3-enhetsliste | `Hc3EnergyDevicesResponse` | Live HC3-inventar med fallback til siste snapshot. |
+| `GET /api/energy/nodes/live` | liveverdier per energipunkt | `EnergyNodesLiveResponse` | Effekt og bryterstatus for registrerte HC3-ID-er. |
+| `POST/PATCH /api/energy/nodes` | `V2EnergyNodeIn` | `EnergyNodeInput` | Oppretter og redigerer enhet, utgang eller underenhet. |
+| `POST/PATCH /api/energy/loads` | `V2EnergyLoadIn` | `EnergyLoadCreateInput` | Oppretter og redigerer last direkte på kurs eller under energipunkt. |
 
 ## Buildlogg
 
